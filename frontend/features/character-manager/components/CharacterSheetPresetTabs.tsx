@@ -1,6 +1,6 @@
 /**
- * Character Sheet preset tabs component.
- * Renders an accessible preset-tab strip with roving focus and keyboard navigation.
+ * Character Sheet look tabs component.
+ * Renders an accessible look-tab strip with roving focus and keyboard navigation.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, X } from "phosphor-react";
@@ -23,7 +23,7 @@ type CharacterSheetPresetTabsProps = {
 };
 
 /**
- * Builds a stable tab id for a preset tab button.
+ * Builds a stable tab id for a look tab button.
  */
 export const getCharacterSheetPresetTabId = (
   idBase: string,
@@ -31,7 +31,7 @@ export const getCharacterSheetPresetTabId = (
 ): string => `${idBase}-tab-${presetId}`;
 
 /**
- * Renders the Character Sheet preset tabs with ARIA-compliant keyboard behavior.
+ * Renders the Character Sheet look tabs with ARIA-compliant keyboard behavior.
  */
 export function CharacterSheetPresetTabs({
   presetIds,

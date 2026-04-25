@@ -1,6 +1,6 @@
 /**
  * Character Manager asset controller.
- * Owns profile image, preset image, slot persistence, and assignment save flows.
+ * Owns profile image, look image, slot persistence, and assignment save flows.
  */
 import React from "react";
 import {

@@ -1,6 +1,6 @@
 /**
  * Character description editor card.
- * Renders the preset-scoped description input, helper tip, and character counter.
+ * Renders the look-scoped description input, helper tip, and character counter.
  */
 import React from "react";
 

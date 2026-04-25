@@ -240,7 +240,7 @@ export const normalizeCharacterSheetAssignments = (
 };
 
 /**
- * Normalize persisted character-sheet preset assignments for a single preset tab.
+ * Normalize persisted character-sheet look assignments for a single visible tab.
  */
 export const normalizeCharacterSheetPresetAssignments = (
   assignments: Partial<Record<CharacterSheetDropZoneKey, CharacterSheetPresetMediaReference | null>>
@@ -255,7 +255,7 @@ export const normalizeCharacterSheetPresetAssignments = (
 };
 
 /**
- * Normalize persisted character-sheet preset state to a shape-stable record.
+ * Normalize persisted character-sheet look state to a shape-stable record.
  */
 export const normalizeCharacterSheetPresetState = (
   state: Partial<{
@@ -428,7 +428,7 @@ export const getCharacterSheetAssignments = (metadata: unknown): CharacterSheetA
 };
 
 /**
- * Parse persisted character-sheet preset state from character metadata.
+ * Parse persisted character-sheet look state from character metadata.
  */
 export const getCharacterSheetPresetState = (
   metadata: unknown,
@@ -504,7 +504,7 @@ export const getCharacterSheetPresetState = (
 };
 
 /**
- * Convert preset state to the persisted metadata shape.
+ * Convert look state to the persisted metadata shape.
  */
 export const serializeCharacterSheetPresetState = (
   state: CharacterSheetPresetState
@@ -547,7 +547,7 @@ export const serializeCharacterSheetPresetState = (
 });
 
 /**
- * Collect all character-sheet preset media references from metadata.
+ * Collect all character-sheet look media references from metadata.
  */
 export const listCharacterSheetPresetMediaReferences = (
   metadata: unknown
@@ -623,7 +623,7 @@ export const createCharacterProfileStoragePath = ({
 };
 
 /**
- * Build a user-scoped storage path for a persisted character-sheet preset asset.
+ * Build a user-scoped storage path for a persisted character-sheet look asset.
  */
 export const createCharacterSheetPresetStoragePath = ({
   userId,
@@ -641,7 +641,7 @@ export const createCharacterSheetPresetStoragePath = ({
   return assertUserScopedMediaStoragePath({
     path: `${userId}/characters/${characterId}/presets/${Date.now()}-${crypto.randomUUID()}-${stem}.${extension}`,
     userId,
-    label: "Character preset storage path",
+    label: "Character look storage path",
   });
 };
 

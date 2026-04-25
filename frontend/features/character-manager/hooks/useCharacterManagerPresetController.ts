@@ -1,6 +1,6 @@
 /**
- * Character Manager preset orchestration controller.
- * Owns active preset switching, tab mutations, assignment persistence, and description sync/rollback.
+ * Character Manager look orchestration controller.
+ * Owns active look switching, tab mutations, assignment persistence, and description sync/rollback.
  */
 import React from "react";
 import {

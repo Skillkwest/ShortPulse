@@ -1,5 +1,5 @@
 /**
- * Character-sheet preset tab helper functions.
+ * Character-sheet look tab helper functions.
  * Centralizes tab-capacity, label normalization, and legacy tab-order fallback behavior.
  */
 import { CHARACTER_SHEET_PRESET_IDS, getDefaultCharacterSheetPresetTabLabel } from "../constants";
@@ -120,7 +120,7 @@ export const createNormalizedCharacterSheetPresetTabDescriptions = ({
   }, {} as CharacterSheetPresetDescriptionMap);
 
 /**
- * Merge persisted preset descriptions with local in-memory edits.
+ * Merge persisted look descriptions with local in-memory edits.
  * Local values are preserved when they differ from the last persisted baseline or have queued persists.
  */
 export const mergeCharacterSheetPresetTabDescriptions = ({

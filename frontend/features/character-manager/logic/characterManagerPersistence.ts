@@ -905,7 +905,7 @@ export const saveCharacterManagerCharacterSheetAssignments = async ({
 };
 
 /**
- * Persist active character-sheet preset tab selection.
+ * Persist active character-sheet look tab selection.
  */
 export const saveCharacterManagerActiveCharacterSheetPreset = async ({
   characterId,
@@ -938,7 +938,7 @@ export const saveCharacterManagerActiveCharacterSheetPreset = async ({
 };
 
 /**
- * Persist a single preset tab's character-sheet assignments.
+ * Persist a single look tab's character-sheet assignments.
  */
 export const saveCharacterManagerCharacterSheetPresetAssignments = async ({
   characterId,
@@ -996,7 +996,7 @@ export const saveCharacterManagerCharacterSheetPresetAssignments = async ({
 };
 
 /**
- * Persist visible character-sheet preset tab order and active tab selection.
+ * Persist visible character-sheet look tab order and active tab selection.
  */
 export const saveCharacterManagerCharacterSheetPresetTabOrder = async ({
   characterId,
@@ -1038,7 +1038,7 @@ export const saveCharacterManagerCharacterSheetPresetTabOrder = async ({
 };
 
 /**
- * Persist a display label for a single visible character-sheet preset tab.
+ * Persist a display label for a single visible character-sheet look tab.
  */
 export const saveCharacterManagerCharacterSheetPresetTabLabel = async ({
   characterId,
@@ -1086,7 +1086,7 @@ export const saveCharacterManagerCharacterSheetPresetTabLabel = async ({
 };
 
 /**
- * Persist a description for a single preset tab.
+ * Persist a description for a single look tab.
  */
 export const saveCharacterManagerCharacterSheetPresetTabDescription = async ({
   characterId,
@@ -1163,7 +1163,7 @@ const resolveActivePresetAfterDelete = ({
 };
 
 /**
- * Permanently delete a visible preset tab and clear its assignments.
+ * Permanently delete a visible look tab and clear its assignments.
  */
 export const deleteCharacterManagerCharacterSheetPreset = async ({
   characterId,
@@ -1242,7 +1242,7 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
 };
 
 /**
- * Upload and persist a character-sheet preset image asset.
+ * Upload and persist a character-sheet look image asset.
  */
 export const saveCharacterManagerCharacterSheetPresetAsset = async (
   input: SaveCharacterSheetPresetAssetInput
@@ -1305,9 +1305,7 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
       .single();
     if (mediaInsertError || !mediaRow?.id) {
       await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
-      throw new Error(
-        asErrorMessage(mediaInsertError, "Failed to save character look metadata.")
-      );
+      throw new Error(asErrorMessage(mediaInsertError, "Failed to save character look metadata."));
     }
     mediaReferenceId = mediaRow.id;
   }

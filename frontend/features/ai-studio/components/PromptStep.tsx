@@ -205,6 +205,8 @@ export function PromptStep({
     const droppedImageUrl = payload?.imageUrl?.trim() ?? null;
     if (droppedPromptText && !droppedImageUrl) {
       event.preventDefault();
+      // Text-only drops bypass the generic attachment handler, so clear any drag-active affordance.
+      onAgentAttachmentDragLeave?.(event);
       onAgentInputChange?.(droppedPromptText);
       requestAnimationFrame(() => agentInputRef.current?.focus());
       return;

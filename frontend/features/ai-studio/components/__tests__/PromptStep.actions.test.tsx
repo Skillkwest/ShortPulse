@@ -212,6 +212,7 @@ describe("PromptStep agent actions", () => {
 
   it("focuses the composer after a prompt-text drop into the input shell", () => {
     const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
     const onAgentInputChange = vi.fn();
     const requestAnimationFrameSpy = vi
       .spyOn(window, "requestAnimationFrame")
@@ -226,6 +227,7 @@ describe("PromptStep agent actions", () => {
           {...baseProps}
           agentAttachmentDropTarget="input"
           onAgentAttachmentDrop={onAgentAttachmentDrop}
+          onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
           onAgentInputChange={onAgentInputChange}
         />
       );
@@ -242,6 +244,7 @@ describe("PromptStep agent actions", () => {
       });
 
       expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+      expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
       expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
       expect(composerInput).toHaveFocus();
     } finally {

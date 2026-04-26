@@ -20,9 +20,30 @@ type CreditPackageCard = {
   unitUsdPerThousand: number;
 };
 
+const formatCompactDate = (value: string | null): string => {
+  if (!value) return "Not scheduled";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+};
+
+const formatCompactTime = (value: string | null): string => {
+  if (!value) return "Unavailable";
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+};
+
 type ProfileCreditsSectionProps = {
+  activePlanClassName: string;
   balanceCents: number | null;
+  balanceError: string | null;
   balanceLoading: boolean;
+  nextCreditRenewalAmount: number;
+  nextCreditRenewalAt: string | null;
   balanceUpdatedAt: string | null;
   billingActivity: BillingLedgerEvent[];
   billingActivityLoading: boolean;
@@ -34,7 +55,6 @@ type ProfileCreditsSectionProps = {
   portalLoading: boolean;
   portalManagementAvailable: boolean;
   refreshingCredits: boolean;
-  userEmail: string | null | undefined;
   onCheckout: (packageId: string) => void;
   onOpenBillingPortal: () => void;
   onRefreshCredits: () => void;
@@ -44,8 +64,12 @@ type ProfileCreditsSectionProps = {
  * Renders the credits and billing panel stack.
  */
 export function ProfileCreditsSection({
+  activePlanClassName,
   balanceCents,
+  balanceError,
   balanceLoading,
+  nextCreditRenewalAmount,
+  nextCreditRenewalAt,
   balanceUpdatedAt,
   billingActivity,
   billingActivityLoading,
@@ -57,11 +81,21 @@ export function ProfileCreditsSection({
   portalLoading,
   portalManagementAvailable,
   refreshingCredits,
-  userEmail,
   onCheckout,
   onOpenBillingPortal,
   onRefreshCredits,
 }: ProfileCreditsSectionProps) {
+  const balanceDisplayValue = balanceLoading
+    ? "…"
+    : balanceCents == null
+      ? "Unavailable"
+      : balanceCents.toLocaleString();
+  const balanceHelperText = balanceLoading
+    ? "Syncing spendable credits from your account snapshot."
+    : balanceCents == null
+      ? balanceError || "Unable to load spendable credits right now."
+      : "Spendable credits ready for AI generations right now.";
+
   return (
     <>
       <details className="panel profile-detail-panel profile-billing-how">
@@ -72,88 +106,47 @@ export function ProfileCreditsSection({
         </p>
       </details>
 
-      <div className="profile-summary-grid">
-        <article className="panel profile-summary-card">
-          <p className="tiny subdued">Credits</p>
-          <p className="summary-value">
-            {balanceLoading ? "…" : (balanceCents ?? 0).toLocaleString()}
-          </p>
-          <p className="tiny subdued">Last synced: {formatDateTimeLabel(balanceUpdatedAt)}</p>
-        </article>
+      <article className={`panel profile-credit-hero-card ${activePlanClassName}`}>
+        <div className="profile-credit-hero-copy">
+          <p className="eyebrow">Available balance</p>
+          <h2 className="profile-credit-hero-title">Your credits</h2>
+          <p className="profile-credit-hero-value">{balanceDisplayValue}</p>
+          <p className="tiny subdued">{balanceHelperText}</p>
+        </div>
 
-        <article className="panel profile-summary-card">
-          <p className="tiny subdued">Billing identity</p>
-          <p className="summary-value small">{userEmail ?? "No billing email"}</p>
-          <p className="tiny subdued">{billingIdentityDescription}</p>
-        </article>
-      </div>
+        <div className="profile-credit-hero-meta">
+          <div className="profile-credit-hero-stat-card">
+            <p className="profile-credit-hero-stat-label">Next renewal</p>
+            <p className="profile-credit-hero-stat-value">
+              {formatCompactDate(nextCreditRenewalAt)}
+            </p>
+            <p className="profile-credit-hero-stat-helper">
+              {nextCreditRenewalAt ? "Plan credits refresh automatically" : "No renewal scheduled"}
+            </p>
+          </div>
+          <div className="profile-credit-hero-stat-card">
+            <p className="profile-credit-hero-stat-label">Incoming credits</p>
+            <p className="profile-credit-hero-stat-value">
+              +{nextCreditRenewalAmount.toLocaleString()}
+            </p>
+            <p className="profile-credit-hero-stat-helper">Credits added on renewal</p>
+          </div>
+          <div className="profile-credit-hero-stat-card">
+            <p className="profile-credit-hero-stat-label">Last synced</p>
+            <p className="profile-credit-hero-stat-value">{formatCompactTime(balanceUpdatedAt)}</p>
+            <p className="profile-credit-hero-stat-helper">{formatCompactDate(balanceUpdatedAt)}</p>
+          </div>
+        </div>
+      </article>
+
+      {!portalManagementAvailable ? (
+        <aside className="profile-callout">
+          <CreditCard size={18} />
+          <p className="tiny">{billingIdentityDescription}</p>
+        </aside>
+      ) : null}
 
       <div className="profile-section-stack">
-        <section className="panel profile-panel profile-panel-stack">
-          <div className="panel-header profile-panel-header">
-            <div>
-              <p className="eyebrow">Payment details</p>
-              <h2 className="profile-panel-title">Invoices and payment method</h2>
-              <p className="subdued tiny">
-                Open the billing portal for invoices, receipts, card updates, and subscription
-                charges.
-              </p>
-            </div>
-            <span className="profile-panel-icon-chip" aria-hidden="true">
-              <CreditCard size={18} weight="bold" />
-            </span>
-          </div>
-
-          <div className="profile-actions">
-            <button
-              type="button"
-              className="profile-button primary-btn"
-              onClick={onOpenBillingPortal}
-              disabled={portalLoading || !portalManagementAvailable}
-            >
-              {portalLoading ? "Opening secure portal…" : portalActionLabel}
-            </button>
-          </div>
-          {!portalManagementAvailable ? (
-            <p className="tiny subdued">
-              This entitlement is managed internally, so Stripe billing controls are unavailable on
-              this account.
-            </p>
-          ) : null}
-
-          <div className="profile-receipts">
-            <div className="profile-receipts-header">
-              <h3 className="profile-subsection-title">Recent credit activity</h3>
-              <Receipt size={16} />
-            </div>
-
-            {billingActivityLoading ? <p className="tiny subdued">Loading activity…</p> : null}
-            {!billingActivityLoading && billingActivity.length === 0 ? (
-              <p className="tiny subdued">No recent billing events yet.</p>
-            ) : null}
-            {!billingActivityLoading && billingActivity.length > 0 ? (
-              <ul className="profile-receipt-list">
-                {billingActivity.map((event) => {
-                  const reference = resolveLedgerReference(event);
-                  const amountLabel = `${event.change_cents > 0 ? "+" : ""}${event.change_cents.toLocaleString()} credits`;
-                  return (
-                    <li key={event.id} className="profile-receipt-item">
-                      <div>
-                        <p className="label">{resolveLedgerLabel(event)}</p>
-                        <p className="tiny subdued">
-                          {formatDateTimeLabel(event.created_at)}
-                          {reference ? ` · Ref ${reference}` : ""}
-                        </p>
-                      </div>
-                      <p className="tiny">{amountLabel}</p>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
-          </div>
-        </section>
-
         <section className="panel profile-panel profile-panel-stack">
           <div className="panel-header profile-panel-header">
             <div>
@@ -221,6 +214,63 @@ export function ProfileCreditsSection({
                 </div>
               ))
             )}
+          </div>
+        </section>
+
+        <section className="panel profile-panel profile-panel-stack">
+          <div className="panel-header profile-panel-header">
+            <div>
+              <p className="eyebrow">Payment details</p>
+              <h2 className="profile-panel-title">Invoices and payment method</h2>
+            </div>
+            <span className="profile-panel-icon-chip" aria-hidden="true">
+              <CreditCard size={18} weight="bold" />
+            </span>
+          </div>
+
+          {portalManagementAvailable ? (
+            <div className="profile-actions">
+              <button
+                type="button"
+                className="profile-button primary-btn"
+                onClick={onOpenBillingPortal}
+                disabled={portalLoading}
+              >
+                {portalLoading ? "Opening secure portal…" : portalActionLabel}
+              </button>
+            </div>
+          ) : null}
+
+          <div className="profile-receipts">
+            <div className="profile-receipts-header">
+              <h3 className="profile-subsection-title">Recent credit activity</h3>
+              <Receipt size={16} />
+            </div>
+
+            {billingActivityLoading ? <p className="tiny subdued">Loading activity…</p> : null}
+            {!billingActivityLoading && billingActivity.length === 0 ? (
+              <p className="tiny subdued">No recent billing events yet.</p>
+            ) : null}
+            {!billingActivityLoading && billingActivity.length > 0 ? (
+              <ul className="profile-receipt-list">
+                {billingActivity.map((event) => {
+                  const reference = resolveLedgerReference(event);
+                  const amountLabel = `${event.change_cents > 0 ? "+" : ""}${event.change_cents.toLocaleString()} credits`;
+                  return (
+                    <li key={event.id} className="profile-receipt-item">
+                      <div>
+                        <p className="label">{resolveLedgerLabel(event)}</p>
+                        <p className="tiny subdued">
+                          {formatDateTimeLabel(event.created_at)}
+                          {reference ? ` · Ref ${reference}` : ""}
+                        </p>
+                      </div>
+                      <p className="tiny">{amountLabel}</p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
           </div>
         </section>
       </div>

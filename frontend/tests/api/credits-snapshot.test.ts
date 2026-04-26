@@ -281,4 +281,63 @@ describe("GET /api/credits/snapshot", () => {
       source: "balance_table",
     });
   });
+
+  it("scopes both balance and reservation reads to the authenticated user id", async () => {
+    const userFilters: Array<{ table: string; column: string; value: string }> = [];
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        if (table === "ai_credit_balance") {
+          return {
+            select: () => ({
+              eq: (column: string, value: string) => {
+                userFilters.push({ table, column, value });
+                return {
+                  maybeSingle: async () => ({
+                    data: { balance_cents: 1200, updated_at: "2026-02-15T20:00:00.000Z" },
+                    error: null,
+                  }),
+                };
+              },
+            }),
+          };
+        }
+
+        if (table === "ai_credit_reservations") {
+          const chain = {
+            eq: vi.fn((column: string, value: string) => {
+              userFilters.push({ table, column, value });
+              return chain;
+            }),
+            order: vi.fn(
+              async () =>
+                ({
+                  data: [{ amount_cents: 25, updated_at: "2026-02-15T20:00:10.000Z" }],
+                  error: null,
+                }) as SelectResult
+            ),
+          };
+          return { select: () => chain };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    });
+
+    const req = { method: "GET" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(userFilters).toContainEqual({
+      table: "ai_credit_balance",
+      column: "user_id",
+      value: "user-1",
+    });
+    expect(userFilters).toContainEqual({
+      table: "ai_credit_reservations",
+      column: "user_id",
+      value: "user-1",
+    });
+  });
 });

@@ -27,9 +27,8 @@ import { ProfileTransactionsSection } from "../features/profile/components/Profi
 import { ProfileWorkspaceShell } from "../features/profile/components/ProfileWorkspaceShell";
 import {
   formatDateLabel,
-  formatStatusLabel,
+  formatLongDateLabel,
   getProfileSectionContent,
-  resolveContractDescriptor,
   resolveProfileActivePlanId,
   type BillingCatalogResponse,
   type BillingLedgerEvent,
@@ -54,10 +53,54 @@ const sections: readonly ProfileSectionItem[] = [
   { key: "transactions", label: "Transactions", icon: Receipt },
 ];
 
+function resolveFallbackMonthlyRenewalDate(startedAt: string | null): string | null {
+  if (!startedAt) return null;
+
+  const startedDate = new Date(startedAt);
+  if (Number.isNaN(startedDate.getTime())) return null;
+
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const anchorDay = startedDate.getUTCDate();
+  const daysInCurrentMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const currentMonthDay = Math.min(anchorDay, daysInCurrentMonth);
+
+  let renewalDate = new Date(
+    Date.UTC(
+      year,
+      month,
+      currentMonthDay,
+      startedDate.getUTCHours(),
+      startedDate.getUTCMinutes(),
+      startedDate.getUTCSeconds(),
+      startedDate.getUTCMilliseconds()
+    )
+  );
+
+  if (renewalDate.getTime() <= now.getTime()) {
+    const nextMonthDays = new Date(Date.UTC(year, month + 2, 0)).getUTCDate();
+    renewalDate = new Date(
+      Date.UTC(
+        year,
+        month + 1,
+        Math.min(anchorDay, nextMonthDays),
+        startedDate.getUTCHours(),
+        startedDate.getUTCMinutes(),
+        startedDate.getUTCSeconds(),
+        startedDate.getUTCMilliseconds()
+      )
+    );
+  }
+
+  return renewalDate.toISOString();
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const { loading, user } = useProtectedRoute(true);
-  const { balanceCents, balanceUpdatedAt, balanceLoading, refreshBalance } = useCredits();
+  const { balanceCents, balanceError, balanceUpdatedAt, balanceLoading, refreshBalance } =
+    useCredits();
   const {
     mediaAutosaveEnabled,
     loading: mediaAutosaveLoading,
@@ -470,10 +513,6 @@ export default function ProfilePage() {
     fallbackPlanId: activePlan.id,
   });
 
-  const planLabel = activePlan.displayName;
-  const subscriptionStatus =
-    billingContract?.status ?? billingProfile?.subscription_status ?? "inactive";
-  const subscriptionStatusLabel = formatStatusLabel(subscriptionStatus);
   const currentSubscriptionPriceCents =
     billingContract?.recurring_price_cents ?? activePlan.monthlyPriceCents;
   const currentSubscriptionCreditsCents =
@@ -482,26 +521,17 @@ export default function ProfilePage() {
     billingContract?.storage_limit_bytes ?? activePlan.storageLimitBytes;
   const nextCreditRenewalAt =
     billingContract?.current_period_end ?? billingProfile?.current_period_end ?? null;
-  const currentSubscriptionOfferId = billingContract?.offer_id ?? null;
-  const isLegacyContract =
-    billingContract !== null &&
-    (currentSubscriptionPriceCents !== activePlan.monthlyPriceCents ||
-      currentSubscriptionCreditsCents !== activePlan.monthlyCreditsCents);
   const activePlanRank = getPlanTierRank(activePlan.id, billingPlans);
-  const contractDescriptor = resolveContractDescriptor({
-    billingContract,
-    billingProfile,
-    isLegacyContract,
-    hasOfferId: Boolean(currentSubscriptionOfferId),
-  });
   const isInternalCompContract = billingContract?.contract_source === "internal_comp";
-  const subscriptionRenewalText = isInternalCompContract
-    ? "Managed internally"
-    : billingContract?.current_period_end
-      ? `Renews ${formatDateLabel(billingContract.current_period_end)}`
-      : billingProfile?.current_period_end
-        ? `Renews ${formatDateLabel(billingProfile.current_period_end)}`
-        : "Not scheduled";
+  const resolvedSubscriptionRenewalAt =
+    billingContract?.current_period_end ??
+    billingProfile?.current_period_end ??
+    (isInternalCompContract
+      ? resolveFallbackMonthlyRenewalDate(billingContract?.started_at ?? null)
+      : null);
+  const subscriptionRenewalText = resolvedSubscriptionRenewalAt
+    ? formatLongDateLabel(resolvedSubscriptionRenewalAt)
+    : "Not scheduled";
 
   const packageCards = useMemo(() => annotateCreditPackages(creditPackages), [creditPackages]);
   const activeAddonStorageBytes = quotaSummary?.addonLimitBytes ?? 0;
@@ -723,7 +753,7 @@ export default function ProfilePage() {
 
   const handleRefreshCredits = async () => {
     setRefreshingCredits(true);
-    const previous = balanceCents ?? 0;
+    const previous = balanceCents;
     const next = await refreshBalance();
     setRefreshingCredits(false);
 
@@ -731,10 +761,17 @@ export default function ProfilePage() {
       setNotice({ tone: "error", message: "Unable to sync credits right now. Please try again." });
       return;
     }
-    if (next === previous) {
+    if (previous != null && next === previous) {
       setNotice({
         tone: "info",
         message: `Credits synced. Balance is still ${next.toLocaleString()}.`,
+      });
+      return;
+    }
+    if (previous == null) {
+      setNotice({
+        tone: "success",
+        message: `Credits synced. Balance is ${next.toLocaleString()}.`,
       });
       return;
     }
@@ -843,9 +880,7 @@ export default function ProfilePage() {
               currentSubscriptionCreditsCents={currentSubscriptionCreditsCents}
               currentSubscriptionPriceCents={currentSubscriptionPriceCents}
               currentSubscriptionStorageLimitBytes={currentSubscriptionStorageLimitBytes}
-              subscriptionStatusLabel={subscriptionStatusLabel}
               subscriptionRenewalText={subscriptionRenewalText}
-              contractDescriptor={contractDescriptor}
               billingPlans={billingPlans}
               billingPlansLoading={billingPlansLoading}
               isInternalCompContract={isInternalCompContract}
@@ -862,6 +897,7 @@ export default function ProfilePage() {
             <ProfileCreditsSection
               activePlanClassName={activePlan.className}
               balanceCents={balanceCents}
+              balanceError={balanceError}
               balanceLoading={balanceLoading}
               balanceUpdatedAt={balanceUpdatedAt}
               nextCreditRenewalAmount={currentSubscriptionCreditsCents}
@@ -890,7 +926,6 @@ export default function ProfilePage() {
               billingContractLoading={billingContractLoading}
               billingPlansLoading={billingPlansLoading}
               currentSubscriptionStorageLimitBytes={currentSubscriptionStorageLimitBytes}
-              planLabel={planLabel}
               storageAddonChangeLoadingId={storageAddonChangeLoadingId}
               storageAddonManagementState={storageAddonManagementState}
               storageAddons={storageAddons}

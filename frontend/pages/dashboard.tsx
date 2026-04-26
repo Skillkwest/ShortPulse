@@ -342,7 +342,9 @@ export default function DashboardPage() {
   const aiCreditsValue =
     balanceLoading && balanceCents == null
       ? "…"
-      : `${(balanceCents ?? 0).toLocaleString()} credits`;
+      : balanceCents == null
+        ? "Credits unavailable"
+        : `${balanceCents.toLocaleString()} credits`;
 
   type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
   type ToolCard = {

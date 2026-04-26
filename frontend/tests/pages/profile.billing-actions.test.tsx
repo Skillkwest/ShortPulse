@@ -27,6 +27,13 @@ const routerState = vi.hoisted(() => ({
   pathname: "/profile",
 }));
 
+const formatCompactDateForTest = (value: string): string =>
+  new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -124,6 +131,20 @@ vi.mock("../../lib/supabaseClient", () => ({
           }),
         };
       }
+      if (table === "billing_subscription_storage_addons") {
+        return {
+          select: () => ({
+            eq: () => ({
+              is: () => ({
+                eq: async () => ({
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
       throw new Error(`Unexpected table mock: ${table}`);
     },
   }),
@@ -142,6 +163,7 @@ describe("Profile credits actions", () => {
     useProtectedRouteMock.mockReturnValue({ loading: false, user: null });
     useCreditsMock.mockReturnValue({
       balanceCents: 1000,
+      balanceError: null,
       balanceUpdatedAt: null,
       balanceLoading: false,
       refreshBalance: vi.fn(async () => 1000),
@@ -164,10 +186,69 @@ describe("Profile credits actions", () => {
     render(<ProfilePage />);
 
     expect(screen.getByRole("heading", { name: "Credits & billing" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your credits" })).toBeInTheDocument();
+    expect(screen.getByText("1,000")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh credits" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Manage card, invoices, and subscription" })
     ).toBeInTheDocument();
+    expect(screen.queryByText("Billing identity")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Payment method and subscription billing are managed outside Stripe/)
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Billing email:/)).not.toBeInTheDocument();
+  });
+
+  it("does not render an unavailable balance as zero", () => {
+    useCreditsMock.mockReturnValue({
+      balanceCents: null,
+      balanceError: "Unable to load spendable credit snapshot.",
+      balanceUpdatedAt: null,
+      balanceLoading: false,
+      refreshBalance: vi.fn(async () => null),
+    });
+
+    render(<ProfilePage />);
+
+    expect(screen.getAllByText("Unavailable")).not.toHaveLength(0);
+    expect(screen.queryByText(/^0$/)).not.toBeInTheDocument();
+    expect(screen.getByText("Unable to load spendable credit snapshot.")).toBeInTheDocument();
+  });
+
+  it("shows the next credit renewal date and incoming credits in the hero card", async () => {
+    useProtectedRouteMock.mockReturnValue({
+      loading: false,
+      user: {
+        id: "user-1",
+        email: "creator@example.com",
+        user_metadata: { plan: "studio" },
+      },
+    });
+    billingContractState.value = {
+      id: "contract_studio",
+      plan_id: "studio",
+      offer_id: "studio__monthly",
+      stripe_price_id: "price_studio",
+      contract_source: "stripe",
+      recurring_price_cents: 3900,
+      monthly_credits_cents: 3000,
+      storage_limit_bytes: 107374182400,
+      status: "active",
+      current_period_start: "2026-04-15T00:00:00.000Z",
+      current_period_end: "2026-05-15T00:00:00.000Z",
+      cancel_at_period_end: false,
+      started_at: "2026-04-15T00:00:00.000Z",
+      ended_at: null,
+    } as Record<string, unknown>;
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByText("Next renewal")).toBeInTheDocument();
+    expect(
+      await screen.findByText(formatCompactDateForTest("2026-05-15T00:00:00.000Z"))
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Incoming credits")).toBeInTheDocument();
+    expect(await screen.findByText("+3,000")).toBeInTheDocument();
   });
 
   it("maps the legacy billing section alias to credits", () => {
@@ -182,6 +263,7 @@ describe("Profile credits actions", () => {
     const refreshBalance = vi.fn(async () => 1000);
     useCreditsMock.mockReturnValue({
       balanceCents: 1000,
+      balanceError: null,
       balanceUpdatedAt: null,
       balanceLoading: false,
       refreshBalance,
@@ -200,6 +282,7 @@ describe("Profile credits actions", () => {
     const refreshBalance = vi.fn(async () => 2500);
     useCreditsMock.mockReturnValue({
       balanceCents: 1000,
+      balanceError: null,
       balanceUpdatedAt: null,
       balanceLoading: false,
       refreshBalance,
@@ -217,6 +300,7 @@ describe("Profile credits actions", () => {
     const refreshBalance = vi.fn(async () => null);
     useCreditsMock.mockReturnValue({
       balanceCents: 1000,
+      balanceError: null,
       balanceUpdatedAt: null,
       balanceLoading: false,
       refreshBalance,
@@ -281,8 +365,8 @@ describe("Profile credits actions", () => {
 
     render(<ProfilePage />);
 
-    const button = await screen.findByRole("button", { name: "Managed internally" });
-    expect(button).toBeDisabled();
+    expect(await screen.findByRole("heading", { name: "Credits & billing" })).toBeInTheDocument();
     expect(screen.getByText("Subscription managed internally outside Stripe")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Managed internally" })).not.toBeInTheDocument();
   });
 });

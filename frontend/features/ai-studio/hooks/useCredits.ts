@@ -1,9 +1,13 @@
 /**
- * Client-side credit tracking backed by Supabase.
- * Reads from `/api/credits/snapshot` when available, then falls back to direct table/ledger reads.
+ * Client-side credit tracking backed by the authenticated credit snapshot API.
+ * Uses direct ledger reads only when callers explicitly opt into the legacy fallback path.
  */
 import { useCallback, useEffect, useState } from "react";
-import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
+import {
+  ensureSupabaseQueryClient,
+  readSupabaseUserId,
+  useSupabaseSessionState,
+} from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
   incrementFreezeInvestigationCounter,
@@ -11,6 +15,7 @@ import {
 } from "../logic/freezeInvestigationTelemetry";
 
 type BalanceState = {
+  ownerUserId: string | null;
   cents: number | null;
   reservedCents: number | null;
   updatedAt: string | null;
@@ -51,6 +56,24 @@ let skipBalanceTableProbe = false;
 let preferLegacyLedgerQuery = false;
 let creditSnapshotRetryAfterMs = 0;
 const CREDIT_SNAPSHOT_RETRY_BACKOFF_MS = 30_000;
+
+const createBalanceState = (
+  ownerUserId: string | null,
+  options?: {
+    cents?: number | null;
+    reservedCents?: number | null;
+    updatedAt?: string | null;
+    loading?: boolean;
+    error?: string | null;
+  }
+): BalanceState => ({
+  ownerUserId,
+  cents: options?.cents ?? null,
+  reservedCents: options?.reservedCents ?? null,
+  updatedAt: options?.updatedAt ?? null,
+  loading: options?.loading ?? false,
+  error: options?.error ?? null,
+});
 
 export const resetUseCreditsTestState = () => {
   preferredBalanceQueryAttempt = null;
@@ -255,14 +278,11 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
 
 export const useCredits = () => {
   incrementFreezeInvestigationCounter("credits.render");
-  const [balance, setBalance] = useState<BalanceState>({
-    cents: null,
-    reservedCents: null,
-    updatedAt: null,
-    loading: true,
-    error: null,
-  });
-  const [userId, setUserId] = useState<string | null>(null);
+  const { initialized, user } = useSupabaseSessionState();
+  const currentUserId = user?.id ?? null;
+  const [balance, setBalance] = useState<BalanceState>(() =>
+    createBalanceState(currentUserId, { loading: true })
+  );
 
   const refresh = useCallback(
     async (options?: RefreshBalanceOptions): Promise<number | null> => {
@@ -273,8 +293,10 @@ export const useCredits = () => {
         if (!silent) {
           setBalance((prev) => ({ ...prev, loading: true, error: null }));
         }
-        const id = userId ?? (await fetchUserId());
-        if (!userId) setUserId(id);
+        const id = currentUserId ?? (initialized ? await fetchUserId() : null);
+        if (!id) {
+          return null;
+        }
 
         const preferLedger = options?.preferLedger ?? false;
         const snapshot = preferLedger ? null : await fetchCreditSnapshot();
@@ -282,6 +304,19 @@ export const useCredits = () => {
           incrementFreezeInvestigationCounter("credits.refresh.snapshotSuccess");
         } else if (!preferLedger) {
           incrementFreezeInvestigationCounter("credits.refresh.snapshotMiss");
+        }
+        if (!snapshot && !preferLedger) {
+          setBalance((prev) => {
+            const preserveCurrentUserBalance = prev.ownerUserId === id;
+            return createBalanceState(id, {
+              cents: preserveCurrentUserBalance ? prev.cents : null,
+              reservedCents: preserveCurrentUserBalance ? prev.reservedCents : null,
+              updatedAt: preserveCurrentUserBalance ? prev.updatedAt : null,
+              loading: false,
+              error: "Unable to load spendable credit snapshot.",
+            });
+          });
+          return null;
         }
         const next: BalanceCommitSnapshot = snapshot
           ? {
@@ -291,22 +326,22 @@ export const useCredits = () => {
               source: "snapshot",
             }
           : {
-              ...(await fetchBalanceCents(id, {
-                preferLedger,
-              })),
+              ...(await fetchBalanceCents(id, { preferLedger: true })),
               reservedCents: null,
               source: "fallback",
             };
         if (typeof options?.beforeCommit === "function") {
           options.beforeCommit(next);
         }
-        setBalance({
-          cents: next.cents,
-          reservedCents: next.reservedCents,
-          updatedAt: next.updatedAt,
-          loading: false,
-          error: null,
-        });
+        setBalance(
+          createBalanceState(id, {
+            cents: next.cents,
+            reservedCents: next.reservedCents,
+            updatedAt: next.updatedAt,
+            loading: false,
+            error: null,
+          })
+        );
         return next.cents;
       } catch (error) {
         incrementFreezeInvestigationCounter("credits.refresh.error");
@@ -318,7 +353,7 @@ export const useCredits = () => {
         return null;
       }
     },
-    [userId]
+    [currentUserId, initialized]
   );
 
   useEffect(() => {
@@ -326,6 +361,15 @@ export const useCredits = () => {
     setFreezeInvestigationGauge("credits.error", balance.error ?? null);
     setFreezeInvestigationGauge("credits.cents", balance.cents);
   }, [balance.cents, balance.error, balance.loading]);
+
+  useEffect(() => {
+    if (balance.ownerUserId === currentUserId) return;
+    setBalance(
+      createBalanceState(currentUserId, {
+        loading: Boolean(currentUserId) || !initialized,
+      })
+    );
+  }, [balance.ownerUserId, currentUserId, initialized]);
 
   useEffect(() => {
     refresh();
@@ -356,12 +400,16 @@ export const useCredits = () => {
     return () => window.clearInterval(intervalId);
   }, [refresh]);
 
+  const exposingCurrentUserBalance = balance.ownerUserId === currentUserId;
+
   return {
-    balanceCents: balance.cents,
-    balanceReservedCents: balance.reservedCents,
-    balanceUpdatedAt: balance.updatedAt,
-    balanceLoading: balance.loading,
-    balanceError: balance.error,
+    balanceCents: exposingCurrentUserBalance ? balance.cents : null,
+    balanceReservedCents: exposingCurrentUserBalance ? balance.reservedCents : null,
+    balanceUpdatedAt: exposingCurrentUserBalance ? balance.updatedAt : null,
+    balanceLoading: exposingCurrentUserBalance
+      ? balance.loading
+      : Boolean(currentUserId) || !initialized,
+    balanceError: exposingCurrentUserBalance ? balance.error : null,
     refreshBalance: refresh,
   };
 };

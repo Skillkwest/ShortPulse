@@ -18,6 +18,7 @@ export function PromptStep({
   prompt,
   onPromptChange,
   agentEnabled = false,
+  agentBootstrapPending = false,
   agentMessages = [],
   agentActions,
   agentInput = "",
@@ -159,6 +160,8 @@ export function PromptStep({
   const canExpandInlineChat = agentMessages.length > 0;
   const canUsePromptSurface = agentEnabled || enhanceOnly;
   const isChatMode = !promptOnly && !enhanceOnly && (chatOnly || promptMode === "chat");
+  const effectiveComposerInput = chatModeEnabled ? agentInput : prompt;
+  const effectiveAgentInputChange = chatModeEnabled ? onAgentInputChange : onPromptChange;
   // Chat-only mode should not depend on "expanded chat" state now that the expand control is removed.
   const showInlineChat = isChatMode && (!agentChatOpen || chatOnly);
   const promptThinking = Boolean(agentIsSending || isGenerating);
@@ -166,7 +169,7 @@ export function PromptStep({
     agentIsSending || (showGenerationThinkingInChat ? isGenerating : false)
   );
   const visibleSubtitle = beginnerMode ? beginnerSubtitle : subtitle;
-  const canPinAgentInput = agentInput.trim().length > 0;
+  const canPinAgentInput = effectiveComposerInput.trim().length > 0;
   const shouldDisableChatPin = chatPromptSaveButtonUnstyled
     ? false
     : shouldDisableSave || !canPinAgentInput;
@@ -207,7 +210,7 @@ export function PromptStep({
       event.preventDefault();
       // Text-only drops bypass the generic attachment handler, so clear any drag-active affordance.
       onAgentAttachmentDragLeave?.(event);
-      onAgentInputChange?.(droppedPromptText);
+      effectiveAgentInputChange?.(droppedPromptText);
       requestAnimationFrame(() => agentInputRef.current?.focus());
       return;
     }
@@ -309,11 +312,12 @@ export function PromptStep({
                 inputDropHandlers={inputDropHandlers}
                 onRemoveAgentAttachment={onRemoveAgentAttachment}
                 onClearAgentAttachments={onClearAgentAttachments}
-                onAgentInputChange={onAgentInputChange}
+                onAgentInputChange={effectiveAgentInputChange}
                 chatModeEnabled={chatModeEnabled}
                 onChatModeEnabledChange={onChatModeEnabledChange}
                 hideChatModeToggle={hideChatModeToggle}
                 directOpenAiBypassEnabled={directOpenAiBypassEnabled}
+                agentBootstrapPending={agentBootstrapPending}
                 onAgentSend={onAgentSend}
                 onGenerateOutputPrompt={onGenerateOutputPrompt}
                 chatModeInlineGenerate={chatModeInlineGenerate}
@@ -331,7 +335,7 @@ export function PromptStep({
                 stackTrailingComposerControls={stackTrailingComposerControls}
                 showComposerAttachments={showComposerAttachments}
                 agentInputRef={agentInputRef}
-                agentInput={agentInput}
+                agentInput={effectiveComposerInput}
                 handleAgentInputKeyDown={handleAgentInputKeyDown}
                 agentInputMaxHeightPx={agentInputMaxHeightPx}
                 agentInputCollapseOnBlur={agentInputCollapseOnBlur}
@@ -367,6 +371,7 @@ export function PromptStep({
                 onAgentEnhanceSend={onAgentEnhanceSend}
                 onAgentSend={onAgentSend}
                 agentIsSending={agentIsSending}
+                agentBootstrapPending={agentBootstrapPending}
                 onSavePrompt={onSavePrompt}
                 shouldDisableSave={shouldDisableSave}
                 promptSaveButtonClassName={promptSaveButtonClassName}

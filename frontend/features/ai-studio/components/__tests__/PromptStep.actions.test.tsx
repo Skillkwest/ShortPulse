@@ -37,6 +37,33 @@ describe("PromptStep agent actions", () => {
     expect(onSavePrompt).toHaveBeenCalledWith("a dog in a park");
   });
 
+  it("routes chat-off composer edits and pin actions through the authored prompt lane", () => {
+    const onPromptChange = vi.fn();
+    const onAgentInputChange = vi.fn();
+    const onSavePrompt = vi.fn();
+
+    render(
+      <PromptStep
+        {...baseProps}
+        prompt="persisted standard prompt"
+        agentInput="transient chat input"
+        chatModeEnabled={false}
+        onPromptChange={onPromptChange}
+        onAgentInputChange={onAgentInputChange}
+        onSavePrompt={onSavePrompt}
+      />
+    );
+
+    const composer = screen.getByPlaceholderText("Write your prompt...");
+    fireEvent.change(composer, { target: { value: "Updated authored prompt" } });
+
+    expect(onPromptChange).toHaveBeenCalledWith("Updated authored prompt");
+    expect(onAgentInputChange).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pin prompt" }));
+    expect(onSavePrompt).toHaveBeenCalledWith("persisted standard prompt");
+  });
+
   it("renders chat mode toggle as enabled by default and forwards toggle intent", () => {
     const onChatModeEnabledChange = vi.fn();
 
@@ -76,6 +103,12 @@ describe("PromptStep agent actions", () => {
     expect(
       screen.queryByText("Chat Mode is off. Generate uses your text exactly; agent rewrite is off.")
     ).toBeNull();
+  });
+
+  it("disables send affordances while agent bootstrap is pending", () => {
+    render(<PromptStep {...baseProps} agentBootstrapPending />);
+
+    expect(screen.getByRole("button", { name: "Send to agent" })).toBeDisabled();
   });
 
   it("shows inline generate in chat-off mode and routes clicks", () => {
@@ -351,5 +384,23 @@ describe("PromptStep agent actions", () => {
     fireEvent.keyDown(composer, { key: "Enter", metaKey: true });
 
     expect(onAgentEnhanceSend).not.toHaveBeenCalled();
+  });
+
+  it("disables enhance affordances while agent bootstrap is pending", () => {
+    render(
+      <PromptStep
+        stepNumber={1}
+        prompt="video prompt"
+        onPromptChange={vi.fn()}
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        promptOnly
+        enhanceOnly
+        agentBootstrapPending
+        onAgentEnhanceSend={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Enhance prompt" })).toBeDisabled();
   });
 });

@@ -39,6 +39,7 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
 }: UseAiStudioProjectWorkspaceRestoreHydrationParams) => {
   const candidateLogKeyRef = useRef<string | null>(null);
   const hydrationAppliedProjectIdRef = useRef<string | null>(null);
+  const bootstrapSettleTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
 
   useEffect(() => {
     if (
@@ -87,6 +88,10 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
   useEffect(() => {
     if (!projectId || projectWorkspaceRestoreCandidate.status !== "ready") return;
     if (hydrationAppliedProjectIdRef.current === projectId) return;
+    if (bootstrapSettleTimerRef.current) {
+      globalThis.clearTimeout(bootstrapSettleTimerRef.current);
+      bootstrapSettleTimerRef.current = null;
+    }
     const snapshot = projectWorkspaceRestoreCandidate.snapshot;
     if (snapshot) {
       resetProjectAgentConversation?.();
@@ -97,7 +102,11 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
       applyEmptyProjectState?.();
     }
     hydrationAppliedProjectIdRef.current = projectId;
-    onProjectBootstrapSettled?.(projectId);
+    bootstrapSettleTimerRef.current = globalThis.setTimeout(() => {
+      if (hydrationAppliedProjectIdRef.current !== projectId) return;
+      onProjectBootstrapSettled?.(projectId);
+      bootstrapSettleTimerRef.current = null;
+    }, 0);
 
     addBreadcrumb({
       type: "ui",
@@ -127,4 +136,13 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
     projectWorkspaceRestoreCandidate.status,
     resetProjectAgentConversation,
   ]);
+
+  useEffect(
+    () => () => {
+      if (bootstrapSettleTimerRef.current) {
+        globalThis.clearTimeout(bootstrapSettleTimerRef.current);
+      }
+    },
+    []
+  );
 };

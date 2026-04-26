@@ -632,7 +632,7 @@ describe("CreatePropertiesPanel", () => {
           chatModeEnabled={false}
           agentMessages={[]}
           stagedPrompt={null}
-          agentInput="Eight visual rows"
+          prompt="Eight visual rows"
           onAgentInputChange={vi.fn()}
           onAgentSend={vi.fn()}
         />
@@ -652,7 +652,7 @@ describe("CreatePropertiesPanel", () => {
           chatModeEnabled={false}
           agentMessages={[]}
           stagedPrompt={null}
-          agentInput="Back below threshold"
+          prompt="Back below threshold"
           onAgentInputChange={vi.fn()}
           onAgentSend={vi.fn()}
         />

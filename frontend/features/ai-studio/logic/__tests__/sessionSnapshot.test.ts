@@ -435,9 +435,11 @@ describe("sessionSnapshot", () => {
 
     const patched = patchAiStudioSessionSnapshotWorkspace(snapshot, {
       selectedCharacterId: "char-1",
+      selectedCharacterLookId: "2",
     });
 
     expect(patched.workspace.selectedCharacterId).toBe("char-1");
+    expect(patched.workspace.selectedCharacterLookId).toBe("2");
     expect(patched.meta.checksum).not.toBe(snapshot.meta.checksum);
   });
 

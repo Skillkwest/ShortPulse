@@ -95,7 +95,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
       - `tab_order`: visible preset-tab id list (`1..10` ids, default `["1"]` for new users)
       - `tab_labels`: display label map keyed by preset id (`1..10`)
       - `tab_descriptions`: per-preset character-description map keyed by preset id (`1..10`, max 150 chars each)
-      - Each preset stores `portrait | close_up | front_shot | back_shot`
+      - Each preset stores `portrait | close_up | front_shot`
       - Each zone is `null` or `{ media_file_id, storage_path }`
       - Preset references are user-scoped and used by AI Studio Character Mode injection.
       - Character Mode description injection uses active preset `tab_descriptions[active_preset_id]`; falls back to legacy `characters.description` when active preset description is empty.
@@ -622,6 +622,17 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now, maintained by trigger)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### user_media_compliance_acceptances
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `user_id` (uuid, fk -> `auth.users.id`): Owner for RLS scoping.
+- `agreement_key` (text): Stable agreement identifier. Current protected-route gate uses `media_usage_compliance`.
+- `agreement_version` (text): Accepted version string for the agreement copy shown in the app shell.
+- `accepted_at` (timestamptz, default `timezone('utc', now())`): When the user accepted that exact agreement version.
+- `ip_address` (text, nullable): First forwarded client IP captured by the server when acceptance is recorded.
+- `user_agent` (text, nullable): Browser user-agent captured by the server when acceptance is recorded.
+- Uniqueness: one row per `user_id + agreement_key + agreement_version`, preserving acceptance history across future version bumps.
+- RLS: select/insert allowed only when `user_id = auth.uid()`. Protected-route reads/writes currently flow through authenticated server routes.
 
 ### billing_plans
 - `id` (text, pk): Stable plan identifier used across billing profiles, subscriber contracts, and the public catalog. Historically seeded with `free | media | studio | business`, but admin-created plans may add more ids.

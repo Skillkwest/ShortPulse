@@ -267,6 +267,78 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
   });
 
+  it("loads the selected create look into the lifecycle bundle when a look override is present", async () => {
+    const setCharacterModeInjectionBundle = vi.fn();
+    const defaultPresetState = createDefaultCharacterSheetPresetState();
+    listCharacterManagerCharactersMock.mockResolvedValue([createCharacterListItem()] as Awaited<
+      ReturnType<typeof listCharacterManagerCharacters>
+    >);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
+      ...createSnapshotWithLookReferences(),
+      visibleCharacterSheetPresetIds: ["1", "2"],
+      characterSheetPresetLabels: {
+        ...defaultPresetState.tabLabels,
+        "1": "Look 1",
+        "2": "Hero Close-Up",
+      },
+      characterSheetPresetDescriptions: {
+        ...defaultPresetState.tabDescriptions,
+        "1": "Look 1 description",
+        "2": "Look 2 description",
+      },
+      characterSheetPresets: {
+        ...defaultPresetState.presets,
+        "1": {
+          portrait: {
+            mediaFileId: "media-look-1",
+            storagePath: "user/chars/look-1.png",
+            previewUrl: "https://example.com/look-1.png",
+          },
+          close_up: null,
+          front_shot: null,
+        },
+        "2": {
+          portrait: {
+            mediaFileId: "media-look-2",
+            storagePath: "user/chars/look-2.png",
+            previewUrl: "https://example.com/look-2.png",
+          },
+          close_up: null,
+          front_shot: null,
+        },
+      },
+    } as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>);
+
+    const { result } = renderHook(() =>
+      useAiStudioCharacterModeLifecycle(
+        createParams({
+          selectedCharacterLookId: "2",
+          setCharacterModeInjectionBundle: asDispatch(setCharacterModeInjectionBundle),
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
+
+    act(() => {
+      result.current.setSelectedCharacterId("char-1");
+    });
+
+    await waitFor(() => {
+      expect(setCharacterModeInjectionBundle).toHaveBeenCalledWith(
+        expect.objectContaining({
+          characterId: "char-1",
+          characterDescription: "Look 2 description",
+          characterLookId: "2",
+          characterLookName: "Hero Close-Up",
+          sheetReferenceUrls: ["https://example.com/look-2.png"],
+        })
+      );
+    });
+  });
+
   it("surfaces non-session list errors to UI state", async () => {
     const setUiError = vi.fn();
     listCharacterManagerCharactersMock.mockRejectedValue(new Error("Failed to load list."));

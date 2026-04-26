@@ -8,11 +8,18 @@ export type CreateCharacterOption = {
   profileImageUrl?: string | null;
 };
 
+export type CreateCharacterLookOption = {
+  id: string;
+  label: string;
+  isDefault: boolean;
+};
+
 type UseCreateCharacterModeControllerArgs = {
   beginnerMode: boolean;
   characterModeEnabled: boolean;
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
+  selectedCharacterLookLabel?: string | null;
   isCharacterOptionsLoading: boolean;
   onCharacterPickerOpen?: () => void;
   onCharacterModeEnabledChange?: (value: boolean) => void;
@@ -28,6 +35,7 @@ type UseCreateCharacterModeControllerResult = {
   characterSelectDisabled: boolean;
   isCharacterSelectionEmpty: boolean;
   selectedCharacterName: string;
+  selectedCharacterDisplayName: string;
   selectedCharacterProfileImageUrl: string | null;
   selectedCharacterInitials: string | null;
 };
@@ -47,6 +55,7 @@ export const useCreateCharacterModeController = ({
   characterModeEnabled,
   characterOptions,
   selectedCharacterId,
+  selectedCharacterLookLabel = null,
   isCharacterOptionsLoading,
   onCharacterPickerOpen,
   onCharacterModeEnabledChange,
@@ -104,6 +113,10 @@ export const useCreateCharacterModeController = ({
     [characterOptions, selectedCharacterId]
   );
   const selectedCharacterName = selectedCharacterOption?.name ?? characterSelectPlaceholder;
+  const selectedCharacterDisplayName =
+    selectedCharacterOption && selectedCharacterLookLabel?.trim()
+      ? `${selectedCharacterOption.name} · ${selectedCharacterLookLabel.trim()}`
+      : selectedCharacterName;
   const selectedCharacterProfileImageUrl = selectedCharacterOption?.profileImageUrl ?? null;
   const selectedCharacterInitials = selectedCharacterOption
     ? getCreateCharacterInitials(selectedCharacterOption.name)
@@ -122,6 +135,7 @@ export const useCreateCharacterModeController = ({
     characterSelectDisabled,
     isCharacterSelectionEmpty,
     selectedCharacterName,
+    selectedCharacterDisplayName,
     selectedCharacterProfileImageUrl,
     selectedCharacterInitials,
   };

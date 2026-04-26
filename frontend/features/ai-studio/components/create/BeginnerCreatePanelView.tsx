@@ -15,6 +15,7 @@ type BeginnerCreatePanelViewProps = {
   characterSelectDisabled: boolean;
   isCharacterSelectionEmpty: boolean;
   selectedCharacterName: string;
+  selectedCharacterDisplayName?: string;
   selectedCharacterProfileImageUrl: string | null;
   selectedCharacterInitials: string | null;
   onSelectedCharacterAvatarError?: () => void;
@@ -71,6 +72,7 @@ export function BeginnerCreatePanelView({
   characterSelectDisabled,
   isCharacterSelectionEmpty,
   selectedCharacterName,
+  selectedCharacterDisplayName,
   selectedCharacterProfileImageUrl,
   selectedCharacterInitials,
   onSelectedCharacterAvatarError,
@@ -93,6 +95,8 @@ export function BeginnerCreatePanelView({
   imageResolutionOptions,
   onImageResolutionChange,
 }: BeginnerCreatePanelViewProps) {
+  const resolvedSelectedCharacterDisplayName =
+    selectedCharacterDisplayName ?? selectedCharacterName;
   return (
     <div className="tool-properties text-properties-panel beginner-create-panel">
       <div className="tool-header">
@@ -167,7 +171,9 @@ export function BeginnerCreatePanelView({
                         {selectedCharacterInitials}
                       </span>
                     ) : null}
-                    <span className="model-picker-name">{selectedCharacterName}</span>
+                    <span className="model-picker-name">
+                      {resolvedSelectedCharacterDisplayName}
+                    </span>
                   </span>
                 </div>
               </button>

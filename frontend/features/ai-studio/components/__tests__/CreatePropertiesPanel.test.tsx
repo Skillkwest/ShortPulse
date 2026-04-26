@@ -258,6 +258,37 @@ describe("CreatePropertiesPanel", () => {
     });
   });
 
+  it("shows look choices in the picker and applies the selected look with the character", async () => {
+    const onSelectedCharacterIdChange = vi.fn();
+    const loadCharacterLookOptions = vi
+      .fn<
+        (characterId: string) => Promise<Array<{ id: string; label: string; isDefault: boolean }>>
+      >()
+      .mockResolvedValue([
+        { id: "1", label: "Look 1", isDefault: true },
+        { id: "2", label: "Hero Close-Up", isDefault: false },
+      ]);
+    renderPanel({
+      beginnerMode: true,
+      characterModeEnabled: true,
+      characterOptions: [{ id: "char-1", name: "Avery Pulse" }],
+      selectedCharacterId: "char-1",
+      selectedCharacterLookId: "1",
+      onSelectedCharacterIdChange,
+      loadCharacterLookOptions,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+
+    const lookSelect = await screen.findByRole("combobox", {
+      name: "Choose look for Avery Pulse",
+    });
+    fireEvent.change(lookSelect, { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: /Avery Pulse/i }));
+
+    expect(onSelectedCharacterIdChange).toHaveBeenCalledWith("char-1", "2");
+  });
+
   it("keeps the picker openable when character mode is on and options are empty", () => {
     renderPanel({
       beginnerMode: true,
@@ -1609,7 +1640,23 @@ describe("CreatePropertiesPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
     fireEvent.click(screen.getByRole("button", { name: /Riley Vector/i }));
-    expect(onSelectedCharacterIdChange).toHaveBeenCalledWith("char-2");
+    expect(onSelectedCharacterIdChange).toHaveBeenCalledWith("char-2", "");
+  });
+
+  it("shows the selected look label in the expert character chip", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      characterModeEnabled: true,
+      characterOptions: [{ id: "char-1", name: "Avery Pulse" }],
+      selectedCharacterId: "char-1",
+      selectedCharacterLookLabel: "Hero Close-Up",
+    });
+
+    expect(screen.getByText("Avery Pulse · Hero Close-Up")).toBeInTheDocument();
   });
 
   it("keeps the expert model selector visible in character mode and preserves selected model when toggled off", () => {

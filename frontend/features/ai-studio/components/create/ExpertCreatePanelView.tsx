@@ -14,6 +14,7 @@ import type {
   CreatePulseResolvedPreset,
   CreatePulseSavedPreset,
 } from "./createPulsePresets";
+import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 
 type ExpertCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PromptStep>;
@@ -28,6 +29,7 @@ type ExpertCreatePanelViewProps = {
   characterSelectDisabled: boolean;
   isCharacterSelectionEmpty: boolean;
   selectedCharacterName: string;
+  selectedCharacterDisplayName?: string;
   selectedCharacterProfileImageUrl: string | null;
   selectedCharacterInitials: string | null;
   onSelectedCharacterAvatarError?: () => void;
@@ -49,6 +51,7 @@ type ExpertCreatePanelViewProps = {
   expertCreateMode?: ExpertCreateMode;
   onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
   activePulsePresetId?: CreatePulsePresetId | null;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
   onPulsePresetStart?: (
     preset: CreatePulseResolvedPreset
@@ -74,6 +77,7 @@ export function ExpertCreatePanelView({
   characterSelectDisabled,
   isCharacterSelectionEmpty,
   selectedCharacterName,
+  selectedCharacterDisplayName,
   selectedCharacterProfileImageUrl,
   selectedCharacterInitials,
   onSelectedCharacterAvatarError,
@@ -95,6 +99,7 @@ export function ExpertCreatePanelView({
   expertCreateMode,
   onExpertCreateModeChange,
   activePulsePresetId,
+  pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
   isPulseActivationBusy = false,
@@ -105,6 +110,8 @@ export function ExpertCreatePanelView({
   onOpenPresetsLibrary,
 }: ExpertCreatePanelViewProps) {
   const PULSE_RAIL_TRANSITION_MS = 220;
+  const resolvedSelectedCharacterDisplayName =
+    selectedCharacterDisplayName ?? selectedCharacterName;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const [uncontrolledCreateMode, setUncontrolledCreateMode] =
     React.useState<ExpertCreateMode>("standard");
@@ -112,11 +119,16 @@ export function ExpertCreatePanelView({
   const [isPulseRailActive, setIsPulseRailActive] = React.useState(false);
   const createMode = expertCreateMode ?? uncontrolledCreateMode;
   const isActivePulseSession = createMode === "pulse" && Boolean(activePulsePresetId);
+  const hasPulseWorkflowSession = pulseWorkflowSession !== null;
+  const hasAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
+  const hasPulseConversationState =
+    hasPulseWorkflowSession ||
+    (createMode === "pulse" && (Boolean(activePulsePresetId) || isPulseActivationBusy));
+  const hasConversationStarted = hasAgentMessages || hasPulseConversationState;
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
   const inlineGuardrailReason = guardrailReason;
-  const hasChatHistory = (promptStepProps.agentMessages?.length ?? 0) > 0;
   const createModeTabsStyle = React.useMemo(
     () =>
       ({
@@ -189,7 +201,7 @@ export function ExpertCreatePanelView({
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
-    emptyAgentChatSpacerClassName: hasChatHistory ? "" : "create-expert-chat-spacer",
+    emptyAgentChatSpacerClassName: hasConversationStarted ? "" : "create-expert-chat-spacer",
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
     onClearAgentChat: undefined,
     composerLeadingContent: promptStepProps.composerLeadingContent,
@@ -197,14 +209,16 @@ export function ExpertCreatePanelView({
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
   const promptAndControls = (
     <>
-      {!hasChatHistory ? (
+      {!hasConversationStarted ? (
         <>
           <div className="create-expert-empty-preview-frame" aria-hidden="true" />
-          <p
-            className={`create-expert-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
-          >
-            What do you want to make?
-          </p>
+          <div className="create-expert-ready-row" aria-hidden={shouldHideReadyTitle}>
+            <p
+              className={`create-expert-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
+            >
+              What do you want to make?
+            </p>
+          </div>
           <div className="create-expert-lower-preview-frame" aria-hidden="true" />
         </>
       ) : null}
@@ -265,7 +279,7 @@ export function ExpertCreatePanelView({
                       {selectedCharacterInitials}
                     </span>
                   ) : null}
-                  <span className="model-picker-name">{selectedCharacterName}</span>
+                  <span className="model-picker-name">{resolvedSelectedCharacterDisplayName}</span>
                 </button>
               </div>
             ) : null}
@@ -333,7 +347,7 @@ export function ExpertCreatePanelView({
 
   return (
     <div
-      className={`tool-properties text-properties-panel create-expert-panel ${!hasChatHistory ? "create-expert-panel--no-history" : ""}`.trim()}
+      className={`tool-properties text-properties-panel create-expert-panel ${!hasConversationStarted ? "create-expert-panel--no-history" : ""}`.trim()}
       role="group"
       aria-label="Expert create composer"
     >
@@ -387,7 +401,7 @@ export function ExpertCreatePanelView({
                 </button>
               ) : null}
             </div>
-            {!hasChatHistory ? (
+            {!hasConversationStarted ? (
               <div className="create-expert-empty-state-shell">{promptAndControls}</div>
             ) : (
               <div className="create-expert-flow-shell">{promptAndControls}</div>

@@ -90,6 +90,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.mode).toBe("image");
     expect(payload.workspace.selectedTool).toBe("create");
     expect(payload.workspace.selectedCharacterId).toBeNull();
+    expect(payload.workspace.selectedCharacterLookId).toBeNull();
     expect(payload.outputs.activeOutputId).toBe("out-1");
     expect(payload.outputs.curatedReferenceIds).toEqual(["out-1"]);
     expect(payload.outputs.removedFromAllRefsIds).toEqual(["out-2"]);
@@ -124,6 +125,21 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.prompt).toBe("prompt");
   });
 
+  it("hydrates selected character look id when present", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          selectedCharacterId: "char-1",
+          selectedCharacterLookId: "2",
+        },
+      })
+    );
+
+    expect(payload.workspace.selectedCharacterId).toBe("char-1");
+    expect(payload.workspace.selectedCharacterLookId).toBe("2");
+  });
+
   it("hydrates separate Standard and Pulse prompt ownership when both are persisted", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
@@ -147,6 +163,10 @@ describe("sessionSnapshotHydrator", () => {
     const payload = buildAiStudioSessionHydrationPayload({
       ...createSnapshot(),
       schemaVersion: 2,
+      meta: {
+        generatedAt: createSnapshot().updatedAt,
+        checksum: "test-checksum",
+      },
       workspace: {
         ...createSnapshot().workspace,
         expertCreateMode: "pulse",

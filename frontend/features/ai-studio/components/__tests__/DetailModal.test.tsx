@@ -43,6 +43,8 @@ describe("DetailModal", () => {
             applied: true,
             characterId: "char-1",
             characterName: "Taylor",
+            lookId: "2",
+            lookName: "Hero Close-Up",
             characterProfileImageUrl: "https://cdn.test/char.png",
           },
           styleContext: {
@@ -62,6 +64,7 @@ describe("DetailModal", () => {
     expect(screen.getByText("Seedream 4.5")).toBeInTheDocument();
     expect(screen.queryByText("Pulse Character")).not.toBeInTheDocument();
     const characterName = screen.getByText("Taylor");
+    expect(screen.getByText("Character · Hero Close-Up")).toBeInTheDocument();
     const promptLabel = screen.getByText("PROMPT");
     expect(characterName).toBeInTheDocument();
     expect(screen.getByAltText("Taylor profile")).toBeInTheDocument();

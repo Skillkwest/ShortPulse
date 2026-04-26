@@ -21,6 +21,8 @@ describe("generationReplay", () => {
         applied: true,
         characterId: "char-1",
         characterName: "Nova",
+        lookId: "2",
+        lookName: "Hero Close-Up",
       },
       styleContext: {
         applied: true,
@@ -45,6 +47,8 @@ describe("generationReplay", () => {
         applied: true,
         characterId: "char-1",
         characterName: "Nova",
+        lookId: "2",
+        lookName: "Hero Close-Up",
       },
       styleContext: {
         applied: true,

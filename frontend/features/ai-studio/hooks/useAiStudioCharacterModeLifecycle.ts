@@ -23,12 +23,7 @@ import {
   readPersistedSelectedCharacterId,
   subscribeToSelectedCharacterId,
 } from "../../character-manager/logic/selectedCharacterPersistence";
-import {
-  resolveCharacterSheetLookReferenceStoragePaths,
-  resolveCharacterSheetLookReferenceUrls,
-  resolveCharacterSheetReferenceStoragePaths,
-  resolveCharacterSheetReferenceUrls,
-} from "../logic/characterModePayload";
+import { buildCharacterModeInjectionBundleFromSnapshot } from "../logic/characterModeLookSelection";
 import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
 
 export type CharacterSelectOption = {
@@ -49,6 +44,7 @@ type UseAiStudioCharacterModeLifecycleParams = {
   projectId?: string | null;
   projectRouteRequested?: boolean;
   selectedTool: ToolId | null;
+  selectedCharacterLookId?: string | null;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setCharacterModeInjectionBundle: Dispatch<SetStateAction<CharacterModeInjectionBundle | null>>;
   setIsCharacterBundleLoading: Dispatch<SetStateAction<boolean>>;
@@ -61,6 +57,7 @@ export const useAiStudioCharacterModeLifecycle = ({
   projectId = null,
   projectRouteRequested = false,
   selectedTool,
+  selectedCharacterLookId = null,
   setUiError,
   setCharacterModeInjectionBundle,
   setIsCharacterBundleLoading,
@@ -290,32 +287,9 @@ export const useAiStudioCharacterModeLifecycle = ({
     void loadCharacterManagerDraftByCharacterId(selectedCharacterId)
       .then((snapshot) => {
         if (!active) return;
-        const lookReferenceStoragePaths = resolveCharacterSheetLookReferenceStoragePaths(
-          snapshot.characterSheetPresetAssignments
+        setCharacterModeInjectionBundle(
+          buildCharacterModeInjectionBundleFromSnapshot(snapshot, selectedCharacterLookId)
         );
-        const lookReferenceUrls = resolveCharacterSheetLookReferenceUrls(
-          snapshot.characterSheetPresetAssignments
-        );
-        const fallbackStoragePaths = resolveCharacterSheetReferenceStoragePaths(
-          snapshot.characterSheetAssignments,
-          snapshot.slots
-        );
-        const fallbackUrls = resolveCharacterSheetReferenceUrls(
-          snapshot.characterSheetAssignments,
-          snapshot.slots
-        );
-        const effectiveCharacterDescription =
-          snapshot.characterDescription.trim().length > 0
-            ? snapshot.characterDescription
-            : snapshot.legacyCharacterDescription;
-        setCharacterModeInjectionBundle({
-          characterId: snapshot.characterId,
-          characterDescription: effectiveCharacterDescription,
-          sheetReferenceStoragePaths:
-            lookReferenceStoragePaths.length > 0 ? lookReferenceStoragePaths : fallbackStoragePaths,
-          sheetReferenceUrls: lookReferenceUrls.length > 0 ? lookReferenceUrls : fallbackUrls,
-          loadedAtMs: Date.now(),
-        });
       })
       .catch(() => {
         if (!active) return;
@@ -329,7 +303,12 @@ export const useAiStudioCharacterModeLifecycle = ({
     return () => {
       active = false;
     };
-  }, [selectedCharacterId, setCharacterModeInjectionBundle, setIsCharacterBundleLoading]);
+  }, [
+    selectedCharacterId,
+    selectedCharacterLookId,
+    setCharacterModeInjectionBundle,
+    setIsCharacterBundleLoading,
+  ]);
 
   return {
     characterOptions,

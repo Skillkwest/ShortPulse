@@ -33,6 +33,7 @@ import type {
 import {
   getCreateCharacterInitials,
   type CreateCharacterOption,
+  type CreateCharacterLookOption,
   useCreateCharacterModeController,
 } from "./create/useCreateCharacterModeController";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
@@ -49,6 +50,7 @@ export type CreatePropertiesPanelProps = {
   prompt: string;
   promptRef: React.RefObject<HTMLTextAreaElement>;
   agentEnabled?: boolean;
+  agentBootstrapPending?: boolean;
   agentMessages?: AgentMessage[];
   agentActions?: AgentActions;
   agentInput?: string;
@@ -109,13 +111,16 @@ export type CreatePropertiesPanelProps = {
   onImageResolutionChange?: (value: string) => void;
   characterOptions?: CreateCharacterOption[];
   selectedCharacterId?: string;
-  onSelectedCharacterIdChange?: (value: string) => void;
+  selectedCharacterLookId?: string;
+  selectedCharacterLookLabel?: string | null;
+  onSelectedCharacterIdChange?: (characterId: string, lookId: string) => void;
   isCharacterOptionsLoading?: boolean;
   characterModeEnabled?: boolean;
   onCharacterModeEnabledChange?: (value: boolean) => void;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
+  loadCharacterLookOptions?: (characterId: string) => Promise<CreateCharacterLookOption[]>;
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
   isStylesPanelOpen?: boolean;
   onStylesPanelToggle?: () => void;
@@ -160,10 +165,12 @@ type CharacterPickerModalProps = {
   onClose: () => void;
   characterOptions: CreateCharacterOption[];
   selectedCharacterId: string;
-  onSelectedCharacterIdChange?: (value: string) => void;
+  selectedCharacterLookId: string;
+  onSelectedCharacterIdChange?: (characterId: string, lookId: string) => void;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
+  loadCharacterLookOptions?: (characterId: string) => Promise<CreateCharacterLookOption[]>;
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
 };
 
@@ -176,8 +183,10 @@ const CharacterPickerModal = ({
   onClose,
   characterOptions,
   selectedCharacterId,
+  selectedCharacterLookId,
   onSelectedCharacterIdChange,
   refreshCharacterOptions,
+  loadCharacterLookOptions,
   resolveCharacterAvatarUrlById,
 }: CharacterPickerModalProps) => {
   const { resolveAvatarUrl, clearAvatarFailure, handleAvatarError } = useAvatarResilience({
@@ -185,6 +194,18 @@ const CharacterPickerModal = ({
   });
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [refreshError, setRefreshError] = React.useState<string | null>(null);
+  const [lookOptionsByCharacterId, setLookOptionsByCharacterId] = React.useState<
+    Record<string, CreateCharacterLookOption[]>
+  >({});
+  const [lookLoadingByCharacterId, setLookLoadingByCharacterId] = React.useState<
+    Record<string, boolean>
+  >({});
+  const [lookErrorByCharacterId, setLookErrorByCharacterId] = React.useState<
+    Record<string, string | null>
+  >({});
+  const [pendingLookIdByCharacterId, setPendingLookIdByCharacterId] = React.useState<
+    Record<string, string>
+  >({});
   const refreshNow = React.useCallback(async () => {
     if (!refreshCharacterOptions) return;
     setRefreshError(null);
@@ -197,11 +218,78 @@ const CharacterPickerModal = ({
       setIsRefreshing(false);
     }
   }, [refreshCharacterOptions]);
+  const loadLooksForCharacter = React.useCallback(
+    async (characterId: string) => {
+      const normalizedCharacterId = characterId.trim();
+      if (!loadCharacterLookOptions || !normalizedCharacterId) return [];
+      setLookLoadingByCharacterId((current) => ({
+        ...current,
+        [normalizedCharacterId]: true,
+      }));
+      setLookErrorByCharacterId((current) => ({
+        ...current,
+        [normalizedCharacterId]: null,
+      }));
+      try {
+        const nextOptions = await loadCharacterLookOptions(normalizedCharacterId);
+        setLookOptionsByCharacterId((current) => ({
+          ...current,
+          [normalizedCharacterId]: nextOptions,
+        }));
+        setPendingLookIdByCharacterId((current) => {
+          const currentPendingLookId = current[normalizedCharacterId]?.trim() ?? "";
+          const selectedLookId =
+            normalizedCharacterId === selectedCharacterId ? selectedCharacterLookId.trim() : "";
+          const resolvedLookId = [currentPendingLookId, selectedLookId]
+            .find((lookId) => nextOptions.some((option) => option.id === lookId))
+            ?.trim();
+          const fallbackLookId =
+            nextOptions.find((option) => option.isDefault)?.id ?? nextOptions[0]?.id ?? "";
+          const nextLookId = resolvedLookId || fallbackLookId;
+          if (!nextLookId || current[normalizedCharacterId] === nextLookId) {
+            return current;
+          }
+          return {
+            ...current,
+            [normalizedCharacterId]: nextLookId,
+          };
+        });
+        return nextOptions;
+      } catch {
+        setLookErrorByCharacterId((current) => ({
+          ...current,
+          [normalizedCharacterId]: "Unable to load looks.",
+        }));
+        return [];
+      } finally {
+        setLookLoadingByCharacterId((current) => ({
+          ...current,
+          [normalizedCharacterId]: false,
+        }));
+      }
+    },
+    [loadCharacterLookOptions, selectedCharacterId, selectedCharacterLookId]
+  );
 
   React.useEffect(() => {
     if (!isOpen || !characterModeEnabled) return;
     void refreshNow();
   }, [characterModeEnabled, isOpen, refreshNow]);
+  React.useEffect(() => {
+    if (!isOpen || !characterModeEnabled || !loadCharacterLookOptions) return;
+    characterOptions.forEach((option) => {
+      if (lookOptionsByCharacterId[option.id] || lookLoadingByCharacterId[option.id]) return;
+      void loadLooksForCharacter(option.id);
+    });
+  }, [
+    characterModeEnabled,
+    characterOptions,
+    isOpen,
+    loadCharacterLookOptions,
+    loadLooksForCharacter,
+    lookLoadingByCharacterId,
+    lookOptionsByCharacterId,
+  ]);
   useAiStudioModalActivity("create-character-picker-modal", isOpen && characterModeEnabled);
 
   if (!isOpen || !characterModeEnabled) {
@@ -222,7 +310,7 @@ const CharacterPickerModal = ({
             <div className="model-modal-title-group">
               <h3 className="model-modal-title">Character Picker</h3>
               <p className="model-modal-subtitle">
-                Select a character profile from Character Manager.
+                Choose a character and the look to use for this generation.
               </p>
             </div>
             <button
@@ -239,6 +327,14 @@ const CharacterPickerModal = ({
               <div className="ai-character-picker-grid" role="list" aria-label="Character options">
                 {characterOptions.map((option) => {
                   const isActive = option.id === selectedCharacterId;
+                  const lookOptions = lookOptionsByCharacterId[option.id] ?? [];
+                  const isLookLoading = Boolean(lookLoadingByCharacterId[option.id]);
+                  const lookError = lookErrorByCharacterId[option.id] ?? null;
+                  const showLookSelect = lookOptions.length > 1;
+                  const selectedLookIdForCard =
+                    pendingLookIdByCharacterId[option.id] ??
+                    (isActive ? selectedCharacterLookId.trim() : "") ??
+                    "";
                   const resolvedAvatarUrl = resolveAvatarUrl(
                     option.id,
                     resolveCharacterAvatarUrlById?.(option.id) ?? option.profileImageUrl ?? null
@@ -247,7 +343,7 @@ const CharacterPickerModal = ({
                     <article
                       key={option.id}
                       role="listitem"
-                      className={`ai-character-list-card ai-character-picker-card ${
+                      className={`ai-character-list-card ai-character-picker-card ai-character-picker-card--with-looks ${
                         isActive ? "is-active" : ""
                       }`}
                     >
@@ -256,7 +352,14 @@ const CharacterPickerModal = ({
                         className="ai-character-list-select-btn"
                         aria-pressed={isActive}
                         onClick={() => {
-                          onSelectedCharacterIdChange?.(option.id);
+                          const fallbackLookId =
+                            lookOptions.find((item) => item.isDefault)?.id ??
+                            lookOptions[0]?.id ??
+                            "";
+                          onSelectedCharacterIdChange?.(
+                            option.id,
+                            selectedLookIdForCard || fallbackLookId || ""
+                          );
                           onClose();
                         }}
                       >
@@ -304,6 +407,37 @@ const CharacterPickerModal = ({
                           </div>
                         </div>
                       </button>
+                      {isLookLoading ? (
+                        <p className="ai-character-look-meta tiny subdued">Loading looks...</p>
+                      ) : lookError ? (
+                        <p className="ai-character-look-meta tiny">{lookError}</p>
+                      ) : showLookSelect ? (
+                        <label className="ai-character-look-field">
+                          <span className="ai-character-look-label">Look</span>
+                          <select
+                            className="ai-character-look-select"
+                            aria-label={`Choose look for ${option.name}`}
+                            value={selectedLookIdForCard}
+                            onChange={(event) => {
+                              const nextLookId = event.target.value;
+                              setPendingLookIdByCharacterId((current) => ({
+                                ...current,
+                                [option.id]: nextLookId,
+                              }));
+                            }}
+                          >
+                            {lookOptions.map((lookOption) => (
+                              <option key={lookOption.id} value={lookOption.id}>
+                                {lookOption.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : lookOptions.length === 1 ? (
+                        <p className="ai-character-look-meta tiny subdued">
+                          Look: {lookOptions[0]?.label}
+                        </p>
+                      ) : null}
                     </article>
                   );
                 })}
@@ -347,6 +481,7 @@ export function CreatePropertiesPanel({
   onPromptChange,
   costCredits = null,
   agentEnabled = false,
+  agentBootstrapPending = false,
   agentMessages = [],
   agentActions,
   agentInput = "",
@@ -388,11 +523,14 @@ export function CreatePropertiesPanel({
   onImageResolutionChange,
   characterOptions = [],
   selectedCharacterId = "",
+  selectedCharacterLookId = "",
+  selectedCharacterLookLabel = null,
   onSelectedCharacterIdChange,
   isCharacterOptionsLoading = false,
   characterModeEnabled = true,
   onCharacterModeEnabledChange,
   refreshCharacterOptions,
+  loadCharacterLookOptions,
   resolveCharacterAvatarUrlById,
   isStylesPanelOpen = false,
   onStylesPanelToggle,
@@ -401,6 +539,7 @@ export function CreatePropertiesPanel({
   expertCreateMode,
   onExpertCreateModeChange,
   activePulsePresetId,
+  pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
   selectedPulsePresetIds,
@@ -448,6 +587,7 @@ export function CreatePropertiesPanel({
     handleCharacterModeEnabledToggle,
     characterSelectDisabled,
     selectedCharacterName,
+    selectedCharacterDisplayName,
     selectedCharacterProfileImageUrl,
     selectedCharacterInitials,
   } = useCreateCharacterModeController({
@@ -455,6 +595,7 @@ export function CreatePropertiesPanel({
     characterModeEnabled,
     characterOptions,
     selectedCharacterId,
+    selectedCharacterLookLabel,
     isCharacterOptionsLoading,
     onCharacterPickerOpen: handleCharacterPickerOpenRefresh,
     onCharacterModeEnabledChange,
@@ -555,6 +696,7 @@ export function CreatePropertiesPanel({
     prompt,
     onPromptChange,
     agentEnabled,
+    agentBootstrapPending,
     agentMessages,
     agentActions,
     agentInput,
@@ -669,6 +811,7 @@ export function CreatePropertiesPanel({
           characterSelectDisabled={characterSelectDisabled}
           isCharacterSelectionEmpty={isCharacterSelectionEmpty}
           selectedCharacterName={selectedCharacterName}
+          selectedCharacterDisplayName={selectedCharacterDisplayName}
           selectedCharacterProfileImageUrl={selectedCharacterAvatarUrl}
           selectedCharacterInitials={selectedCharacterInitials}
           onSelectedCharacterAvatarError={handleSelectedCharacterAvatarError}
@@ -693,6 +836,7 @@ export function CreatePropertiesPanel({
           expertCreateMode={expertCreateMode}
           onExpertCreateModeChange={onExpertCreateModeChange}
           activePulsePresetId={activePulsePresetId}
+          pulseWorkflowSession={pulseWorkflowSession}
           onActivePulsePresetIdChange={onActivePulsePresetIdChange}
           onPulsePresetStart={onPulsePresetStart}
           isPulseActivationBusy={agentIsSending}
@@ -713,6 +857,7 @@ export function CreatePropertiesPanel({
           characterSelectDisabled={characterSelectDisabled}
           isCharacterSelectionEmpty={isCharacterSelectionEmpty}
           selectedCharacterName={selectedCharacterName}
+          selectedCharacterDisplayName={selectedCharacterDisplayName}
           selectedCharacterProfileImageUrl={selectedCharacterAvatarUrl}
           selectedCharacterInitials={selectedCharacterInitials}
           onSelectedCharacterAvatarError={handleSelectedCharacterAvatarError}
@@ -746,8 +891,10 @@ export function CreatePropertiesPanel({
         onClose={closeCharacterPicker}
         characterOptions={characterOptions}
         selectedCharacterId={selectedCharacterId}
+        selectedCharacterLookId={selectedCharacterLookId}
         onSelectedCharacterIdChange={onSelectedCharacterIdChange}
         refreshCharacterOptions={refreshCharacterOptions}
+        loadCharacterLookOptions={loadCharacterLookOptions}
         resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
       />
     </>

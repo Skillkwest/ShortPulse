@@ -9,11 +9,8 @@ import { reportAppError } from "../../../lib/appErrorReporter";
 import {
   composeCharacterModePrompt,
   mergeCharacterAndUserReferences,
-  resolveCharacterSheetLookReferenceStoragePaths,
-  resolveCharacterSheetLookReferenceUrls,
-  resolveCharacterSheetReferenceStoragePaths,
-  resolveCharacterSheetReferenceUrls,
 } from "../logic/characterModePayload";
+import { buildCharacterModeInjectionBundleFromSnapshot } from "../logic/characterModeLookSelection";
 import type { StudioOutput, ToolId } from "../types";
 
 const MEDIA_BUCKET = "media_library";
@@ -64,6 +61,8 @@ const isCharacterUnavailableError = (error: unknown): boolean => {
 export type CharacterModeInjectionBundle = {
   characterId: string;
   characterDescription: string;
+  characterLookId?: string | null;
+  characterLookName?: string | null;
   sheetReferenceStoragePaths: string[];
   sheetReferenceUrls: string[];
   loadedAtMs: number;
@@ -97,6 +96,7 @@ type CharacterModeSubmissionOverrides = {
 type UseAiStudioCharacterModeControllerParams = {
   isCharacterModeEnabled: boolean;
   selectedCharacterId: string;
+  selectedCharacterLookId?: string | null;
   characterModeInjectionBundle: CharacterModeInjectionBundle | null;
   isCharacterBundleLoading: boolean;
   editCharacterModeEnabled?: boolean;
@@ -120,6 +120,7 @@ type UseAiStudioCharacterModeControllerParams = {
 export const useAiStudioCharacterModeController = ({
   isCharacterModeEnabled,
   selectedCharacterId,
+  selectedCharacterLookId = null,
   characterModeInjectionBundle,
   isCharacterBundleLoading,
   editCharacterModeEnabled,
@@ -149,6 +150,7 @@ export const useAiStudioCharacterModeController = ({
           scope,
           isEnabled: editCharacterModeEnabled ?? isCharacterModeEnabled,
           selectedId: editSelectedCharacterId ?? selectedCharacterId,
+          selectedLookId: null as string | null,
           bundle: editCharacterModeInjectionBundle ?? characterModeInjectionBundle,
           isBundleLoading: isEditCharacterBundleLoading ?? isCharacterBundleLoading,
           setBundle: setEditCharacterModeInjectionBundle ?? noopSetBundle,
@@ -160,6 +162,7 @@ export const useAiStudioCharacterModeController = ({
           scope,
           isEnabled: isCharacterModeEnabled,
           selectedId: selectedCharacterId,
+          selectedLookId: selectedCharacterLookId?.trim() || null,
           bundle: characterModeInjectionBundle,
           isBundleLoading: isCharacterBundleLoading,
           setBundle: setCharacterModeInjectionBundle,
@@ -170,6 +173,7 @@ export const useAiStudioCharacterModeController = ({
         scope,
         isEnabled: false,
         selectedId: "",
+        selectedLookId: null as string | null,
         bundle: null as CharacterModeInjectionBundle | null,
         isBundleLoading: false,
         setBundle: noopSetBundle,
@@ -185,6 +189,7 @@ export const useAiStudioCharacterModeController = ({
       isCharacterModeEnabled,
       isEditCharacterBundleLoading,
       selectedCharacterId,
+      selectedCharacterLookId,
       setCharacterModeInjectionBundle,
       setEditCharacterModeInjectionBundle,
       setIsCharacterBundleLoading,
@@ -210,34 +215,10 @@ export const useAiStudioCharacterModeController = ({
 
   const toCharacterModeInjectionBundle = useCallback(
     (
-      snapshot: Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>
+      snapshot: Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>,
+      lookId?: string | null
     ): CharacterModeInjectionBundle => {
-      const lookReferenceStoragePaths = resolveCharacterSheetLookReferenceStoragePaths(
-        snapshot.characterSheetPresetAssignments
-      );
-      const lookReferenceUrls = resolveCharacterSheetLookReferenceUrls(
-        snapshot.characterSheetPresetAssignments
-      );
-      const fallbackStoragePaths = resolveCharacterSheetReferenceStoragePaths(
-        snapshot.characterSheetAssignments,
-        snapshot.slots
-      );
-      const fallbackUrls = resolveCharacterSheetReferenceUrls(
-        snapshot.characterSheetAssignments,
-        snapshot.slots
-      );
-      const effectiveCharacterDescription =
-        snapshot.characterDescription.trim().length > 0
-          ? snapshot.characterDescription
-          : snapshot.legacyCharacterDescription;
-      return {
-        characterId: snapshot.characterId,
-        characterDescription: effectiveCharacterDescription,
-        sheetReferenceStoragePaths:
-          lookReferenceStoragePaths.length > 0 ? lookReferenceStoragePaths : fallbackStoragePaths,
-        sheetReferenceUrls: lookReferenceUrls.length > 0 ? lookReferenceUrls : fallbackUrls,
-        loadedAtMs: Date.now(),
-      };
+      return buildCharacterModeInjectionBundleFromSnapshot(snapshot, lookId);
     },
     []
   );
@@ -293,6 +274,7 @@ export const useAiStudioCharacterModeController = ({
         scope,
         isEnabled,
         selectedId,
+        selectedLookId,
         bundle: currentBundle,
         setBundle,
         setBundleLoading,
@@ -332,7 +314,8 @@ export const useAiStudioCharacterModeController = ({
       });
       try {
         const baseBundle = toCharacterModeInjectionBundle(
-          await loadCharacterManagerDraftByCharacterId(selectedId)
+          await loadCharacterManagerDraftByCharacterId(selectedId),
+          scope === "create" ? selectedLookId : null
         );
         if (!baseBundle || baseBundle.characterId !== selectedId) {
           setBundle(null);
@@ -404,6 +387,8 @@ export const useAiStudioCharacterModeController = ({
             applied: true,
             characterId: effectiveBundle?.characterId ?? selectedId,
             characterName: selectedCharacterOption?.name ?? null,
+            lookId: effectiveBundle?.characterLookId ?? null,
+            lookName: effectiveBundle?.characterLookName ?? null,
             characterProfileImageUrl: selectedCharacterOption?.profileImageUrl ?? null,
           }
         : undefined;

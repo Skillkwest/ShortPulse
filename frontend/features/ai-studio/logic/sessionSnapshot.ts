@@ -99,6 +99,7 @@ export type AiStudioSessionWorkspaceV1 = {
   model: string | null;
   aspect: string;
   selectedCharacterId?: string | null;
+  selectedCharacterLookId?: string | null;
   expertCreateMode?: AiStudioSessionExpertCreateMode;
   activePulsePresetId?: string | null;
   referenceImageUrl: string | null;
@@ -192,6 +193,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   model: string | null;
   aspect: string;
   selectedCharacterId?: string | null;
+  selectedCharacterLookId?: string | null;
   expertCreateMode?: AiStudioSessionExpertCreateMode;
   activePulsePresetId?: string | null;
   referenceImageUrl: string | null;
@@ -536,6 +538,7 @@ export const buildAiStudioSessionSnapshot = (
       model: input.model,
       aspect: input.aspect,
       selectedCharacterId: sanitizeSelectedCharacterId(input.selectedCharacterId),
+      selectedCharacterLookId: sanitizeSelectedCharacterId(input.selectedCharacterLookId),
       expertCreateMode: input.expertCreateMode ?? "standard",
       activePulsePresetId: input.activePulsePresetId?.trim() || null,
       referenceImageUrl: sanitizeWorkspaceMediaUrl(input.referenceImageUrl),
@@ -609,6 +612,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
     model: null,
     aspect: "9:16",
     selectedCharacterId: null,
+    selectedCharacterLookId: null,
     expertCreateMode: "standard",
     activePulsePresetId: null,
     referenceImageUrl: null,

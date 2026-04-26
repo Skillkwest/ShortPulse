@@ -58,6 +58,7 @@ import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/us
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
+import { loadCharacterManagerDraftByCharacterId } from "../features/character-manager/logic/characterManagerPersistence";
 import type {
   CanvasDropResolution,
   PrepareCanvasMediaLibraryDrop,
@@ -72,6 +73,10 @@ import {
   patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotWorkspace,
 } from "../features/ai-studio/logic/sessionSnapshot";
+import {
+  buildCharacterModeLookOptions,
+  type CharacterModeLookOption,
+} from "../features/ai-studio/logic/characterModeLookSelection";
 import {
   arePulseWorkflowSessionsEqual,
   derivePulseWorkflowSession,
@@ -309,6 +314,9 @@ export default function AiStudioPage() {
   const [characterCreateRequestKey, setCharacterCreateRequestKey] = useState(0);
   const [elementCreateRequestKey, setElementCreateRequestKey] = useState(0);
   const [editSelectedCharacterId, setEditSelectedCharacterId] = useState("");
+  const [createSelectedCharacterLookId, setCreateSelectedCharacterLookId] = useState("");
+  const [createCharacterLookOptionsByCharacterId, setCreateCharacterLookOptionsByCharacterId] =
+    useState<Record<string, CharacterModeLookOption[]>>({});
   const [selectedStylePrompt, setSelectedStylePrompt] = useState<string | null>(null);
   const [selectedStyleContext, setSelectedStyleContext] = useState<
     StudioOutput["styleContext"] | null
@@ -821,10 +829,101 @@ export default function AiStudioPage() {
     projectId,
     projectRouteRequested,
     selectedTool,
+    selectedCharacterLookId: createSelectedCharacterLookId,
     setUiError,
     setCharacterModeInjectionBundle: setCreateCharacterModeInjectionBundle,
     setIsCharacterBundleLoading: setIsCreateCharacterBundleLoading,
   });
+  const loadCreateCharacterLookOptions = useCallback(async (characterId: string) => {
+    const normalizedCharacterId = characterId.trim();
+    if (!normalizedCharacterId) return [];
+    const snapshot = await loadCharacterManagerDraftByCharacterId(normalizedCharacterId);
+    const nextOptions = buildCharacterModeLookOptions(snapshot);
+    setCreateCharacterLookOptionsByCharacterId((current) => {
+      const existingOptions = current[normalizedCharacterId] ?? null;
+      const isUnchanged =
+        existingOptions != null &&
+        existingOptions.length === nextOptions.length &&
+        existingOptions.every(
+          (option, index) =>
+            option.id === nextOptions[index]?.id &&
+            option.label === nextOptions[index]?.label &&
+            option.isDefault === nextOptions[index]?.isDefault
+        );
+      if (isUnchanged) return current;
+      return {
+        ...current,
+        [normalizedCharacterId]: nextOptions,
+      };
+    });
+    return nextOptions;
+  }, []);
+  const resolveCreateCharacterLookLabelById = useCallback(
+    (characterId: string | null | undefined, lookId: string | null | undefined): string | null => {
+      const normalizedCharacterId = characterId?.trim() ?? "";
+      const normalizedLookId = lookId?.trim() ?? "";
+      if (!normalizedCharacterId || !normalizedLookId) return null;
+      const lookOptions = createCharacterLookOptionsByCharacterId[normalizedCharacterId] ?? [];
+      return lookOptions.find((option) => option.id === normalizedLookId)?.label ?? null;
+    },
+    [createCharacterLookOptionsByCharacterId]
+  );
+  const handleCreateCharacterSelection = useCallback(
+    (characterId: string, lookId: string) => {
+      setCreateSelectedCharacterId(characterId);
+      setCreateSelectedCharacterLookId(lookId);
+    },
+    [setCreateSelectedCharacterId]
+  );
+  useEffect(() => {
+    const normalizedCharacterId = createSelectedCharacterId.trim();
+    if (!normalizedCharacterId) {
+      setCreateSelectedCharacterLookId("");
+      return;
+    }
+    if (createCharacterLookOptionsByCharacterId[normalizedCharacterId]) return;
+    void loadCreateCharacterLookOptions(normalizedCharacterId).catch(() => {
+      // Best-effort cache warm-up so selected look labels survive reload/restore.
+    });
+  }, [
+    createCharacterLookOptionsByCharacterId,
+    createSelectedCharacterId,
+    loadCreateCharacterLookOptions,
+  ]);
+  useEffect(() => {
+    const normalizedCharacterId = createSelectedCharacterId.trim();
+    const normalizedLookId = createSelectedCharacterLookId.trim();
+    if (!normalizedCharacterId || !normalizedLookId) return;
+    const lookOptions = createCharacterLookOptionsByCharacterId[normalizedCharacterId] ?? [];
+    if (lookOptions.length === 0) return;
+    if (lookOptions.some((option) => option.id === normalizedLookId)) return;
+    const fallbackLookId =
+      lookOptions.find((option) => option.isDefault)?.id ?? lookOptions[0]?.id ?? "";
+    if (!fallbackLookId) return;
+    setCreateSelectedCharacterLookId(fallbackLookId);
+  }, [
+    createCharacterLookOptionsByCharacterId,
+    createSelectedCharacterId,
+    createSelectedCharacterLookId,
+  ]);
+  const selectedCreateCharacterLookLabel = useMemo(() => {
+    if (createCharacterModeInjectionBundle?.characterId === createSelectedCharacterId) {
+      const bundleLookName = createCharacterModeInjectionBundle.characterLookName?.trim() ?? "";
+      if (bundleLookName) return bundleLookName;
+    }
+    return (
+      resolveCreateCharacterLookLabelById(
+        createSelectedCharacterId,
+        createSelectedCharacterLookId
+      ) ?? null
+    );
+  }, [
+    createCharacterModeInjectionBundle?.characterId,
+    createCharacterModeInjectionBundle?.characterLookName,
+    createSelectedCharacterId,
+    createSelectedCharacterLookId,
+    resolveCreateCharacterLookLabelById,
+  ]);
   const resolveIsCharacterModeEnabledForTool = useCallback(
     (tool: ToolId | null): boolean => {
       if (tool === "create" || tool === "text") return isCreateCharacterModeEnabled;
@@ -858,6 +957,7 @@ export default function AiStudioPage() {
   } = useAiStudioCharacterModeController({
     isCharacterModeEnabled: isCreateCharacterModeEnabled,
     selectedCharacterId: createSelectedCharacterId,
+    selectedCharacterLookId: createSelectedCharacterLookId,
     characterModeInjectionBundle: createCharacterModeInjectionBundle,
     isCharacterBundleLoading: isCreateCharacterBundleLoading,
     editCharacterModeEnabled: isEditCharacterModeEnabled,
@@ -996,19 +1096,26 @@ export default function AiStudioPage() {
       patchAiStudioSessionSnapshotCanvas(
         patchAiStudioSessionSnapshotWorkspace(buildSessionSnapshot(args), {
           selectedCharacterId: createSelectedCharacterId || null,
+          selectedCharacterLookId: createSelectedCharacterLookId || null,
         }),
         canvasSessionState
       ),
-    [buildSessionSnapshot, canvasSessionState, createSelectedCharacterId]
+    [
+      buildSessionSnapshot,
+      canvasSessionState,
+      createSelectedCharacterId,
+      createSelectedCharacterLookId,
+    ]
   );
 
   const hydrateProjectAwareSessionSnapshot = useCallback(
     (snapshot: Parameters<typeof hydrateFromSessionSnapshot>[0]) => {
       const payload = hydrateFromSessionSnapshot(snapshot);
       setCreateSelectedCharacterId(payload.workspace.selectedCharacterId ?? "");
+      setCreateSelectedCharacterLookId(payload.workspace.selectedCharacterLookId ?? "");
       return payload;
     },
-    [hydrateFromSessionSnapshot, setCreateSelectedCharacterId]
+    [hydrateFromSessionSnapshot, setCreateSelectedCharacterId, setCreateSelectedCharacterLookId]
   );
 
   const applyEmptyProjectState = useCallback(() => {
@@ -1384,7 +1491,10 @@ export default function AiStudioPage() {
     savePromptReference,
     characterOptions,
     selectedCharacterId: createSelectedCharacterId,
-    setSelectedCharacterId: setCreateSelectedCharacterId,
+    setSelectedCharacterId: handleCreateCharacterSelection,
+    selectedCharacterLookId: createSelectedCharacterLookId,
+    selectedCharacterLookLabel: selectedCreateCharacterLookLabel,
+    loadCharacterLookOptions: loadCreateCharacterLookOptions,
     isCharacterOptionsLoading,
     isCharacterModeEnabled: isCreateCharacterModeEnabled,
     setIsCharacterModeEnabled: setIsCreateCharacterModeEnabled,

@@ -26,7 +26,7 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Tab deletion is preset-local only: remove that tab's assignments/metadata, but do not auto-delete shared media artifacts.
    - If the active tab is deleted, active selection falls back to nearest left tab; if no left tab exists, nearest right is selected.
    - Active tab id persists to character metadata (`character_sheet_presets_v1.active_preset_id`).
-   - Each tab stores independent zone media references for `portrait`, `close_up`, `front_shot`, and `back_shot`.
+   - Each tab stores independent zone media references for `portrait`, `close_up`, and `front_shot`.
    - Visible tab ids persist to `character_sheet_presets_v1.tab_order`.
    - Tab display names persist to `character_sheet_presets_v1.tab_labels`.
    - Character description is preset-scoped and persists to `character_sheet_presets_v1.tab_descriptions`.
@@ -55,10 +55,11 @@ Define the operational contract for the `/character` Character Manager surface, 
    - The persisted selection is used as the preferred default on reload for both `/character` and the AI Studio embedded Character panel.
    - If the persisted character no longer exists, Character Manager falls back to the latest available draft.
 7. AI Studio Create Character Mode consumes Character Manager data at generation time:
-   - Selected character description is injected from active preset `tab_descriptions[active_preset_id]`.
+   - Selected character description is injected from the chosen Create look when AI Studio supplies a local look override; otherwise it uses active preset `tab_descriptions[active_preset_id]`.
    - If active preset description is empty, injection falls back to legacy `characters.description`.
-   - Character Mode resolves ordered references from the active preset first (`portrait`, `close_up`, `front_shot`, `back_shot`), then falls back to legacy slot-based assignments when preset zones are empty.
+   - Character Mode resolves ordered references from the chosen Create look first (`portrait`, `close_up`, `front_shot`), then falls back to legacy slot-based assignments when preset zones are empty.
    - Character draft is reloaded before each Create/Text generation submit so newest preset changes are used.
+   - AI Studio Create look selection is local to that generation workflow and does not mutate `character_sheet_presets_v1.active_preset_id`.
    - Missing description/references are non-blocking; AI Studio falls back to best-effort injection.
 8. Character Library responsiveness contract:
    - `0-50` characters: full-list smooth rendering target.

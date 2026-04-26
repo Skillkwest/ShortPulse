@@ -230,6 +230,8 @@ function DetailModalContent({
     characterContext?.characterName?.trim() ||
     characterContext?.characterId?.trim() ||
     "Selected Character";
+  const characterLookName =
+    characterContext?.lookName?.trim() || characterContext?.lookId?.trim() || "";
   const styleContext = output?.styleContext;
   const hasStyleContext = Boolean(styleContext?.applied);
   const styleName =
@@ -1141,7 +1143,9 @@ function DetailModalContent({
                           </span>
                         )}
                         <div className="art-character-chip-copy">
-                          <span className="art-character-chip-label">Character</span>
+                          <span className="art-character-chip-label">
+                            {characterLookName ? `Character · ${characterLookName}` : "Character"}
+                          </span>
                           <span className="art-character-chip-name">{characterName}</span>
                         </div>
                       </div>

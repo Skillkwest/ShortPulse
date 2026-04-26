@@ -47,6 +47,7 @@ export type UseAiStudioPanelPropsParams = {
   prompt: string;
   promptRef: RefObject<HTMLTextAreaElement>;
   agentEnabled: boolean;
+  agentBootstrapReady: boolean;
   agentMessages: AgentMessage[];
   agentActions?: AgentActions;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
@@ -113,7 +114,9 @@ export type UseAiStudioPanelPropsParams = {
   savePromptReference: (customPrompt?: string) => void;
   characterOptions: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
   selectedCharacterId: string;
-  setSelectedCharacterId: Dispatch<SetStateAction<string>>;
+  setSelectedCharacterId: (characterId: string, lookId: string) => void;
+  selectedCharacterLookId?: string;
+  selectedCharacterLookLabel?: string | null;
   isCharacterOptionsLoading: boolean;
   isCharacterModeEnabled: boolean;
   setIsCharacterModeEnabled: Dispatch<SetStateAction<boolean>>;
@@ -124,6 +127,9 @@ export type UseAiStudioPanelPropsParams = {
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
+  loadCharacterLookOptions?: (
+    characterId: string
+  ) => Promise<Array<{ id: string; label: string; isDefault: boolean }>>;
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
   selectedExpertEditPresetIds?: readonly ExpertEditPresetId[];
   onSelectedExpertEditPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
@@ -238,6 +244,7 @@ export const useAiStudioPanelProps = ({
   prompt,
   promptRef,
   agentEnabled,
+  agentBootstrapReady,
   agentMessages,
   agentActions,
   pulseWorkflowSession = null,
@@ -295,14 +302,17 @@ export const useAiStudioPanelProps = ({
   characterOptions,
   selectedCharacterId,
   setSelectedCharacterId,
+  selectedCharacterLookId = "",
+  selectedCharacterLookLabel = null,
   isCharacterOptionsLoading,
   isCharacterModeEnabled,
   setIsCharacterModeEnabled,
   editSelectedCharacterId = selectedCharacterId,
-  setEditSelectedCharacterId = setSelectedCharacterId,
+  setEditSelectedCharacterId = (() => {}) as Dispatch<SetStateAction<string>>,
   isEditCharacterModeEnabled = isCharacterModeEnabled,
   setIsEditCharacterModeEnabled = setIsCharacterModeEnabled,
   refreshCharacterOptions = async () => [],
+  loadCharacterLookOptions,
   resolveCharacterAvatarUrlById = () => null,
   selectedExpertEditPresetIds,
   onSelectedExpertEditPresetIdsChange,
@@ -430,6 +440,7 @@ export const useAiStudioPanelProps = ({
       prompt,
       promptRef,
       agentEnabled,
+      agentBootstrapPending: !agentBootstrapReady,
       agentMessages,
       agentActions,
       pulseWorkflowSession,
@@ -481,11 +492,14 @@ export const useAiStudioPanelProps = ({
       agentChatOpen: isAgentChatOpen,
       characterOptions,
       selectedCharacterId,
+      selectedCharacterLookId,
+      selectedCharacterLookLabel,
       onSelectedCharacterIdChange: setSelectedCharacterId,
       isCharacterOptionsLoading,
       characterModeEnabled: isCharacterModeEnabled,
       onCharacterModeEnabledChange: setIsCharacterModeEnabled,
       refreshCharacterOptions,
+      loadCharacterLookOptions,
       resolveCharacterAvatarUrlById,
       imageResolution,
       onImageResolutionChange: setImageResolution,
@@ -511,6 +525,7 @@ export const useAiStudioPanelProps = ({
       chatModeEnabled,
       directOpenAiBypassEnabled,
       agentEnabled,
+      agentBootstrapReady,
       agentError,
       agentInput,
       agentMessages,
@@ -563,6 +578,8 @@ export const useAiStudioPanelProps = ({
       savePromptReference,
       selectedCreatePulsePresetIds,
       selectedCharacterId,
+      selectedCharacterLookId,
+      selectedCharacterLookLabel,
       setAspect,
       setChatModeEnabled,
       onSelectedCreatePulsePresetIdsChange,
@@ -576,6 +593,7 @@ export const useAiStudioPanelProps = ({
       setIsCharacterModeEnabled,
       setSelectedCharacterId,
       refreshCharacterOptions,
+      loadCharacterLookOptions,
       resolveCharacterAvatarUrlById,
       stagedAgentPrompt,
       toggleReferenceIndicator,

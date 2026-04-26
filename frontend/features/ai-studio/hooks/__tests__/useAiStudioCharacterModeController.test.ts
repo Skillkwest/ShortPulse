@@ -202,6 +202,85 @@ describe("useAiStudioCharacterModeController", () => {
     expect(refreshed?.characterDescription).toBe("Legacy fallback description");
   });
 
+  it("uses the selected create look override instead of the character's active look", async () => {
+    const defaultPresetState = createDefaultCharacterSheetPresetState();
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
+      ...createSnapshotWithLookReference({
+        description: "Look 1 description",
+        storagePath: "user/chars/look-1.png",
+        previewUrl: "https://example.com/look-1.png",
+      }),
+      activeCharacterSheetPresetId: "1",
+      visibleCharacterSheetPresetIds: ["1", "2"],
+      characterSheetPresetLabels: {
+        ...defaultPresetState.tabLabels,
+        "1": "Look 1",
+        "2": "Hero Close-Up",
+      },
+      characterSheetPresetDescriptions: {
+        ...defaultPresetState.tabDescriptions,
+        "1": "Look 1 description",
+        "2": "Look 2 description",
+      },
+      characterSheetPresets: {
+        ...defaultPresetState.presets,
+        "1": {
+          portrait: {
+            mediaFileId: "media-look-1",
+            storagePath: "user/chars/look-1.png",
+            previewUrl: "https://example.com/look-1.png",
+          },
+          close_up: null,
+          front_shot: null,
+        },
+        "2": {
+          portrait: {
+            mediaFileId: "media-look-2",
+            storagePath: "user/chars/look-2.png",
+            previewUrl: "https://example.com/look-2.png",
+          },
+          close_up: null,
+          front_shot: null,
+        },
+      },
+    } as Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>);
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/chars/look-2.png", "https://example.com/look-2-fresh.png"]])
+    );
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      selectedCharacterLookId: "2",
+      characterOptions: [{ id: "char-1", name: "Hero", profileImageUrl: null }],
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const refreshed =
+      await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
+    const overrides = result.current.resolveCharacterModeSubmissionOverrides(
+      "Draw a portrait",
+      "create",
+      refreshed
+    );
+
+    expect(refreshed).toEqual(
+      expect.objectContaining({
+        characterDescription: "Look 2 description",
+        characterLookId: "2",
+        characterLookName: "Hero Close-Up",
+        sheetReferenceUrls: ["https://example.com/look-2-fresh.png"],
+      })
+    );
+    expect(overrides?.characterContextOverride).toEqual(
+      expect.objectContaining({
+        characterId: "char-1",
+        characterName: "Hero",
+        lookId: "2",
+        lookName: "Hero Close-Up",
+      })
+    );
+    expect(overrides?.submissionPromptOverride).toContain("Look 2 description");
+  });
+
   it("refreshes a stale bundle and updates injection state", async () => {
     const setCharacterModeInjectionBundle = vi.fn();
     const setIsCharacterBundleLoading = vi.fn();

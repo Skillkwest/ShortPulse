@@ -90,9 +90,10 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - Provider-facing prompt prepends character description (when present), then appends user prompt.
   - UI-visible prompt (output cards, modals, saved prompt text) remains the user prompt only.
 - Character Sheet references:
-  - References are resolved from Character Manager active preset metadata (`character_sheet_presets_v1`) in canonical zone order (`portrait`, `close_up`, `front_shot`, `back_shot`).
+  - References are resolved from the Create picker's selected look when present, otherwise from Character Manager active preset metadata (`character_sheet_presets_v1`), in canonical zone order (`portrait`, `close_up`, `front_shot`).
   - If active preset zones are empty, the client falls back to legacy `character_sheet_assignments` slot mapping.
   - Character draft is refreshed before each Create/Text submit so preset switches and zone updates are applied immediately.
+  - The Create picker look override is AI Studio-local and does not write back to Character Manager active-look metadata.
   - Resolved URLs are deduped and capped by provider limits.
   - Selected character id is persisted in browser local storage and restored on reload so Character Mode defaults to the user's latest explicit selection when available.
 - Submission invariants:

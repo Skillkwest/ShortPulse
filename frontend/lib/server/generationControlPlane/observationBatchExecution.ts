@@ -31,11 +31,28 @@ const resolveRecoveryObservationState = (
   }
 };
 
-const resolveObservationProcessingState = (resultState: string): "processed" | "ignored" => {
-  if (resultState === "missing_generation" || resultState === "skipped") {
-    return "ignored";
+const resolveObservationOutcome = (
+  resultState: string
+):
+  | { processingState: "processed"; metric: "processed" }
+  | { processingState: "ignored"; metric: "ignored" }
+  | { processingState: "pending"; metric: "failed" } => {
+  if (resultState === "missing_generation") {
+    return {
+      processingState: "pending",
+      metric: "failed",
+    };
   }
-  return "processed";
+  if (resultState === "skipped") {
+    return {
+      processingState: "ignored",
+      metric: "ignored",
+    };
+  }
+  return {
+    processingState: "processed",
+    metric: "processed",
+  };
 };
 
 const buildObservation = (row: ClaimedGenerationObservation): RecoveryObservation | null => {
@@ -89,16 +106,18 @@ export const processPendingGenerationObservations = async ({
         routeLabel,
       });
 
-      const processingState = resolveObservationProcessingState(result.state);
-      if (processingState === "ignored") {
+      const outcome = resolveObservationOutcome(result.state);
+      if (outcome.metric === "ignored") {
         ignored += 1;
+      } else if (outcome.metric === "failed") {
+        failed += 1;
       } else {
         processed += 1;
       }
 
       await markGenerationObservationProcessingState({
         idempotencyKey: row.idempotencyKey,
-        processingState,
+        processingState: outcome.processingState,
         processingError: result.note ?? null,
       });
     } catch (error) {

@@ -1,7 +1,7 @@
 # Generation Pipeline Fundamental Hardening Phase 2 Core Server Correctness Plan (2026-04-26)
 
 Last updated: 2026-04-26  
-Status: Not started  
+Status: Completed  
 Master plan: `docs/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
 
 ## Goal
@@ -52,6 +52,17 @@ Until those are fixed, the pipeline can still accept work that it cannot reliabl
 3. recoverable `missing_generation` observations are not silently dropped
 4. intended external behavior remains unchanged
 5. no new competing lifecycle authority was introduced while fixing the gaps
+
+## Execution Notes
+Completed correctness work:
+1. direct-submit acceptance now attempts synchronous local tracking repair before returning from the two post-accept degraded branches in `frontend/lib/server/api/falSubmitProxy.ts`
+2. terminal success without media now routes through recovery execution in `frontend/lib/server/api/falStatusProxy.ts` instead of being failed inline on the polling path
+3. `missing_generation` observation results now requeue to `pending` in `frontend/lib/server/generationControlPlane/observationBatchExecution.ts` instead of being silently downgraded to ignored
+
+Updated direct proof:
+1. `frontend/tests/api/fal-submit-proxy.test.ts`
+2. `frontend/tests/api/fal-status-proxy.test.ts`
+3. `frontend/lib/server/generationControlPlane/__tests__/observationBatchExecution.test.ts`
 
 ## Validation
 1. direct tests for the changed correctness branches pass

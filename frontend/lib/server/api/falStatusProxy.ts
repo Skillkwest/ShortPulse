@@ -27,6 +27,7 @@ import {
   type JsonObject,
   type JsonReadResult,
 } from "../falIntegration/statusProxyRuntime";
+import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
 import {
   dispatchProviderResultRequest,
   dispatchProviderStatusRequest,
@@ -508,6 +509,32 @@ export const createFalStatusHandler = ({
         })
       );
     };
+    const respondRecoveryPendingPayload = ({
+      providerState,
+      detail,
+    }: {
+      providerState: string | null;
+      detail?: unknown;
+    }) =>
+      res.status(200).json(
+        buildFalStatusTransientPayload({
+          requestId,
+          detail,
+          generationId,
+          lifecycle: buildShortPulseLifecycleHint({
+            taskState: "running",
+            isTerminal: false,
+            providerState: providerState ?? "completed",
+            recoveryPending: true,
+            completionState: "completed_awaiting_media",
+            queueState: ACTIVE_POLLING_QUEUE_STATE,
+            statusLabel: resolveLifecycleStatusLabel({
+              taskState: "running",
+              recoveryPending: true,
+            }),
+          }),
+        })
+      );
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -1160,12 +1187,89 @@ export const createFalStatusHandler = ({
       }
 
       if (!resultHasMedia) {
-        return await settleCanonicalFailedPayload({
-          providerState: resultStatus ?? normalizedStatus ?? "completed",
-          fallbackMessage: "Generation failed to produce media output",
-          fallbackDetail: resultData.json,
-          failureReasonCode: "terminal_success_no_media",
-        });
+        try {
+          const recoveryResult = await executeGenerationRecovery({
+            actor: "poll",
+            generationId,
+            requestId,
+            userId: user.id,
+            observation: {
+              state: "completed",
+              payload: resultData.json,
+              mediaUrls: [],
+            },
+            routeLabel,
+          });
+          if (
+            recoveryResult.state === "recovered" ||
+            recoveryResult.state === "already_persisted"
+          ) {
+            const canonicalPayload = await respondWithCanonicalCompletedPayload({
+              providerState: resultStatus ?? normalizedStatus ?? "completed",
+            });
+            if (canonicalPayload) return canonicalPayload;
+            return respondError({
+              res,
+              requestId,
+              error: "Generation completed but canonical media was unavailable.",
+              detail: {
+                provider_state: resultStatus ?? normalizedStatus ?? "completed",
+                provider_request_id: requestId,
+              },
+              alwaysHttp200,
+              statusCode: 500,
+              generationId: recoveryResult.generationId ?? generationId,
+            });
+          }
+          if (recoveryResult.state === "provider_failed" || recoveryResult.state === "exhausted") {
+            const failedPayload = await respondWithCanonicalFailedPayload({
+              providerState: resultStatus ?? normalizedStatus ?? "completed",
+              fallbackMessage: "Generation failed to produce media output",
+              fallbackDetail: resultData.json,
+            });
+            if (failedPayload) return failedPayload;
+            return respondError({
+              res,
+              requestId,
+              error: "Generation failed to produce media output",
+              detail: resultData.json,
+              alwaysHttp200,
+              statusCode: 500,
+              generationId: recoveryResult.generationId ?? generationId,
+            });
+          }
+          return respondRecoveryPendingPayload({
+            providerState: resultStatus ?? normalizedStatus ?? "completed",
+            detail: {
+              stage: "result",
+              recovery_state: recoveryResult.state,
+            },
+          });
+        } catch (error) {
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "telemetry.api.fal_status.no_media_recovery_failed",
+            message: "Failed to reconcile terminal no-media provider result.",
+            statusCode: 500,
+            userId: user.id,
+            userEmail: user.email ?? null,
+            metadata: {
+              provider_request_id: requestId,
+              provider_state: resultStatus ?? normalizedStatus ?? "completed",
+              detail: error instanceof Error ? error.message : String(error),
+            },
+          });
+          return respondError({
+            res,
+            requestId,
+            error: "Failed to finalize generation result. Please retry.",
+            detail: error instanceof Error ? error.message : String(error),
+            alwaysHttp200,
+            statusCode: 500,
+            generationId,
+          });
+        }
       }
 
       return captureAndRespondSuccess({

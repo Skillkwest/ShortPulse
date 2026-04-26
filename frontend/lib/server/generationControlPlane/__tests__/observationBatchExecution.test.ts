@@ -160,7 +160,7 @@ describe("processPendingGenerationObservations", () => {
     });
   });
 
-  it("marks missing_generation recovery results as ignored", async () => {
+  it("requeues missing_generation recovery results back to pending", async () => {
     readPendingGenerationObservationsMock.mockResolvedValue([
       {
         id: "obs-4",
@@ -194,13 +194,13 @@ describe("processPendingGenerationObservations", () => {
     ).resolves.toEqual({
       claimed: 1,
       processed: 0,
-      ignored: 1,
-      failed: 0,
+      ignored: 0,
+      failed: 1,
       errors: 0,
     });
     expect(markGenerationObservationProcessingStateMock).toHaveBeenCalledWith({
       idempotencyKey: "fal:webhook:event-4",
-      processingState: "ignored",
+      processingState: "pending",
       processingError: "missing_generation",
     });
   });

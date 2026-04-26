@@ -362,11 +362,15 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("still returns the provider request id when direct submit transition recording fails after acceptance", async () => {
-    applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({
-      ok: false,
-      stage: "running",
-      error: "transition_failed",
-    });
+    applyAcceptedRunningGenerationTransitionMock
+      .mockResolvedValueOnce({
+        ok: false,
+        stage: "running",
+        error: "transition_failed",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+      });
 
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
@@ -385,6 +389,7 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalledTimes(2);
     expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -436,7 +441,7 @@ describe("createFalSubmitHandler", () => {
         provider_request_id: "req-direct-1",
       })
     );
-    expect(applyAcceptedRunningGenerationTransitionMock).not.toHaveBeenCalled();
+    expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalledTimes(1);
     expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({

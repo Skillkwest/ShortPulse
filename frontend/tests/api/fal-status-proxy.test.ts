@@ -8,6 +8,7 @@ const resolveProviderRequestOwnershipMock = vi.fn();
 const settleDirectGenerationSuccessMock = vi.fn();
 const settleDirectGenerationFailureMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+const executeGenerationRecoveryMock = vi.fn();
 let persistedProjectionRows: Array<Record<string, unknown>> = [];
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
 let persistedOutputRows: Array<Record<string, unknown>> = [];
@@ -35,6 +36,10 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: () => getSupabaseAdminMock(),
 }));
 
+vi.mock("../../lib/server/falIntegration/recoveryExecution", () => ({
+  executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
@@ -59,6 +64,7 @@ describe("createFalStatusHandler", () => {
     persistedProjectionRows = [];
     persistedGenerationRows = [];
     persistedOutputRows = [];
+    executeGenerationRecoveryMock.mockReset();
     settleDirectGenerationSuccessMock.mockReset();
     settleDirectGenerationFailureMock.mockReset();
     settleDirectGenerationSuccessMock.mockImplementation(
@@ -2055,7 +2061,7 @@ describe("createFalStatusHandler", () => {
     );
   });
 
-  it("treats completed-without-media as a terminal canonical failure", async () => {
+  it("keeps polling when completed-without-media is requeued for recovery", async () => {
     process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
     const fetchMock = vi
       .fn()
@@ -2077,6 +2083,15 @@ describe("createFalStatusHandler", () => {
         )
       );
     vi.stubGlobal("fetch", fetchMock);
+    executeGenerationRecoveryMock.mockResolvedValue({
+      ok: true,
+      state: "no_media",
+      generationId: "gen-transient-no-media",
+      requestId: "req-transient-no-media",
+      mediaFileIds: [],
+      mediaUrls: [],
+      processed: true,
+    });
 
     const handler = createFalStatusHandler({
       queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
@@ -2096,28 +2111,29 @@ describe("createFalStatusHandler", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "error",
-        state: "error",
+        status: "IN_PROGRESS",
+        state: "running",
         request_id: "req-transient-no-media",
-        error: "Generation failed to produce media output",
         shortpulseLifecycle: expect.objectContaining({
-          taskState: "fail",
-          isTerminal: true,
-          errorMessage: "Generation failed to produce media output",
+          taskState: "running",
+          isTerminal: false,
           providerState: "completed",
-          queueState: "failed",
+          recoveryPending: true,
+          completionState: "completed_awaiting_media",
+          queueState: "dispatched",
         }),
       })
     );
-    expect(settleDirectGenerationFailureMock).toHaveBeenCalledWith(
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        actor: "poll",
         requestId: "req-transient-no-media",
-        failureReasonCode: "terminal_success_no_media",
       })
     );
+    expect(settleDirectGenerationFailureMock).not.toHaveBeenCalled();
   });
 
-  it("treats missing-media as a terminal canonical failure when transient failures are disabled", async () => {
+  it("treats missing-media as a terminal canonical failure when recovery exhausts", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -2138,6 +2154,40 @@ describe("createFalStatusHandler", () => {
         )
       );
     vi.stubGlobal("fetch", fetchMock);
+    executeGenerationRecoveryMock.mockImplementation(async () => {
+      persistedProjectionRows = [
+        {
+          generation_id: "gen-terminal-no-media",
+          request_id: "req-terminal-no-media",
+          result_urls: [],
+          publication_state: "suppressed",
+          status: "ready",
+          task_state: "fail",
+          queue_state: "failed",
+          error_message_short: "No media returned.",
+          error_detail: "Provider terminal success without media payload.",
+        },
+      ];
+      persistedGenerationRows = [
+        {
+          id: "gen-terminal-no-media",
+          request_id: "req-terminal-no-media",
+          status: "fail",
+          error_message: "Generation failed.",
+          created_at: "2026-04-18T00:00:00.000Z",
+        },
+      ];
+      persistedOutputRows = [];
+      return {
+        ok: true,
+        state: "exhausted",
+        generationId: "gen-terminal-no-media",
+        requestId: "req-terminal-no-media",
+        mediaFileIds: [],
+        mediaUrls: [],
+        processed: true,
+      };
+    });
 
     const handler = createFalStatusHandler({
       queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
@@ -2160,21 +2210,21 @@ describe("createFalStatusHandler", () => {
         status: "error",
         state: "error",
         request_id: "req-terminal-no-media",
-        error: "Generation failed to produce media output",
+        error: "No media returned.",
         shortpulseLifecycle: expect.objectContaining({
           taskState: "fail",
           isTerminal: true,
-          errorMessage: "Generation failed to produce media output",
+          errorMessage: "No media returned.",
           providerState: "completed",
           queueState: "failed",
         }),
       })
     );
-    expect(settleDirectGenerationFailureMock).toHaveBeenCalledWith(
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
       expect.objectContaining({
         requestId: "req-terminal-no-media",
-        failureReasonCode: "terminal_success_no_media",
       })
     );
+    expect(settleDirectGenerationFailureMock).not.toHaveBeenCalled();
   });
 });

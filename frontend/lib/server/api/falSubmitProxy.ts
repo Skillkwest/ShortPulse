@@ -632,6 +632,91 @@ export const createFalSubmitHandler = ({
           }
 
           const providerRequestId = submitResult.providerRequestId;
+          const generationId = randomUUID();
+          const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+          const displayPrompt = resolveGenerationPromptFromPayload(routeLabel, payload);
+          const generationMode = resolveGenerationModeFromPayload(modelId, payload);
+          const generationAspect = resolveGenerationAspectFromPayload(payload);
+          const generationDurationSeconds = readGenerationDurationSeconds(payload);
+          const generationResolution = resolveGenerationResolutionFromPayload(payload);
+          const generationMetadata = {
+            source_ref: charge.sourceRef,
+            generation_submit_authority: "direct",
+            route: req.url ?? null,
+            route_label: routeLabel,
+            upstream_target_url: submitResult.targetUrl,
+            upstream_target_index: submitResult.targetIndex,
+            provider_diagnostics: submitResult.providerDiagnostics ?? null,
+            ...(Object.keys(generationReplayContext).length > 0
+              ? { generation_replay: generationReplayContext }
+              : {}),
+            ...(Object.keys(characterContext).length > 0
+              ? { character_context: characterContext }
+              : {}),
+            ...(Object.keys(styleContext).length > 0 ? { style_context: styleContext } : {}),
+            ...(Object.keys(shortpulseContext).length > 0
+              ? { shortpulse_context: shortpulseContext }
+              : {}),
+          };
+          const attemptInput = {
+            generationId,
+            userId: charge.userId,
+            provider: providerKey,
+            modelId,
+            providerRequestId,
+            dispatchSource: "direct_submit" as const,
+            submitRoute: req.url ?? routeLabel,
+            metadata: {
+              source_ref: charge.sourceRef,
+              generation_submit_authority: "direct",
+              submit_target_url: submitResult.targetUrl,
+              submit_target_index: submitResult.targetIndex,
+              provider_diagnostics: submitResult.providerDiagnostics ?? null,
+              ...(Object.keys(shortpulseContext).length > 0
+                ? { shortpulse_context: shortpulseContext }
+                : {}),
+            },
+            observedAt: dispatchAtIso,
+          };
+          const buildGenerationMutation = (mode: "insert" | "upsert") => {
+            const generationRow = {
+              id: generationId,
+              user_id: charge.userId,
+              mode: generationMode,
+              provider: providerKey,
+              model_id: modelId,
+              prompt_text: displayPrompt,
+              aspect: generationAspect,
+              duration_seconds: generationDurationSeconds,
+              resolution: generationResolution,
+              ...buildAcceptedRunningGenerationUpdate({
+                provider: providerKey,
+                modelId,
+                providerRequestId,
+                nextRecoveryAtIso,
+                metadata: generationMetadata,
+              }),
+            };
+            return async () => {
+              const query = getSupabaseAdmin().from("ai_generations");
+              const response =
+                mode === "insert"
+                  ? await query.insert(generationRow).select("id").single()
+                  : await query.upsert(generationRow, { onConflict: "id" }).select("id").single();
+              if (response.error) {
+                return {
+                  ok: false as const,
+                  error: response.error.message ?? "generation_insert_failed",
+                };
+              }
+              return { ok: true as const };
+            };
+          };
+          const repairAcceptedTracking = () =>
+            applyAcceptedRunningGenerationTransition({
+              applyGenerationMutation: buildGenerationMutation("upsert"),
+              attemptInput,
+            });
           const markSubmittedResult = await charge.markSubmitted(providerRequestId, {
             generation_submit_authority: "direct",
             submit_route: req.url ?? routeLabel,
@@ -643,6 +728,7 @@ export const createFalSubmitHandler = ({
           });
 
           if (!markSubmittedResult.ok) {
+            const trackingRepairResult = await repairAcceptedTracking();
             await charge.refund(
               "Auto-release: failed to bind provider request id after direct submit.",
               {
@@ -669,89 +755,21 @@ export const createFalSubmitHandler = ({
                 provider_request_id: providerRequestId,
                 submit_link_status: markSubmittedResult.status,
                 submit_link_code: markSubmittedResult.code ?? null,
+                tracking_repair_stage: trackingRepairResult.ok ? null : trackingRepairResult.stage,
+                tracking_repair_error: trackingRepairResult.ok ? null : trackingRepairResult.error,
               },
             });
             return res.status(500).json({
               error: "Failed to start generation tracking. Please retry.",
             });
           }
-
-          const generationId = randomUUID();
-          const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-          const generationMetadata = {
-            source_ref: charge.sourceRef,
-            generation_submit_authority: "direct",
-            route: req.url ?? null,
-            route_label: routeLabel,
-            upstream_target_url: submitResult.targetUrl,
-            upstream_target_index: submitResult.targetIndex,
-            provider_diagnostics: submitResult.providerDiagnostics ?? null,
-            ...(Object.keys(generationReplayContext).length > 0
-              ? { generation_replay: generationReplayContext }
-              : {}),
-            ...(Object.keys(characterContext).length > 0
-              ? { character_context: characterContext }
-              : {}),
-            ...(Object.keys(styleContext).length > 0 ? { style_context: styleContext } : {}),
-            ...(Object.keys(shortpulseContext).length > 0
-              ? { shortpulse_context: shortpulseContext }
-              : {}),
-          };
           const transitionResult = await applyAcceptedRunningGenerationTransition({
-            applyGenerationMutation: async () => {
-              const response = await getSupabaseAdmin()
-                .from("ai_generations")
-                .insert({
-                  id: generationId,
-                  user_id: charge.userId,
-                  mode: resolveGenerationModeFromPayload(modelId, payload),
-                  provider: providerKey,
-                  model_id: modelId,
-                  prompt_text: resolveGenerationPromptFromPayload(routeLabel, payload),
-                  aspect: resolveGenerationAspectFromPayload(payload),
-                  duration_seconds: readGenerationDurationSeconds(payload),
-                  resolution: resolveGenerationResolutionFromPayload(payload),
-                  ...buildAcceptedRunningGenerationUpdate({
-                    provider: providerKey,
-                    modelId,
-                    providerRequestId,
-                    nextRecoveryAtIso,
-                    metadata: generationMetadata,
-                  }),
-                })
-                .select("id")
-                .single();
-              if (response.error) {
-                return {
-                  ok: false,
-                  error: response.error.message ?? "generation_insert_failed",
-                };
-              }
-              return { ok: true };
-            },
-            attemptInput: {
-              generationId,
-              userId: charge.userId,
-              provider: providerKey,
-              modelId,
-              providerRequestId,
-              dispatchSource: "direct_submit",
-              submitRoute: req.url ?? routeLabel,
-              metadata: {
-                source_ref: charge.sourceRef,
-                generation_submit_authority: "direct",
-                submit_target_url: submitResult.targetUrl,
-                submit_target_index: submitResult.targetIndex,
-                provider_diagnostics: submitResult.providerDiagnostics ?? null,
-                ...(Object.keys(shortpulseContext).length > 0
-                  ? { shortpulse_context: shortpulseContext }
-                  : {}),
-              },
-              observedAt: dispatchAtIso,
-            },
+            applyGenerationMutation: buildGenerationMutation("insert"),
+            attemptInput,
           });
 
           if (!transitionResult.ok) {
+            const trackingRepairResult = await repairAcceptedTracking();
             await logGenerationFailure({
               req,
               routeLabel,
@@ -766,6 +784,8 @@ export const createFalSubmitHandler = ({
                 provider_request_id: providerRequestId,
                 stage: transitionResult.stage,
                 error: transitionResult.error,
+                tracking_repair_stage: trackingRepairResult.ok ? null : trackingRepairResult.stage,
+                tracking_repair_error: trackingRepairResult.ok ? null : trackingRepairResult.error,
               },
             });
             return res.status(200).json({ request_id: providerRequestId });
@@ -782,7 +802,7 @@ export const createFalSubmitHandler = ({
               status: "ready",
               taskState: "running",
               queueState: "dispatched",
-              displayPrompt: resolveGenerationPromptFromPayload(routeLabel, payload),
+              displayPrompt,
               modelId,
               saveState: "idle",
               publicationState: "pending",

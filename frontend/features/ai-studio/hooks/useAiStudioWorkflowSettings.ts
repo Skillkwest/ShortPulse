@@ -219,6 +219,65 @@ const cloneWorkflowSettingsSnapshot = (
   klingElements: [],
 });
 
+const areStringArraysEqual = (left: readonly string[], right: readonly string[]): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
+const areKlingVoiceIdsEqual = (
+  left: readonly [string, string],
+  right: readonly [string, string]
+): boolean => left[0] === right[0] && left[1] === right[1];
+
+const areKlingPromptShotsEqual = (
+  left: readonly KlingPromptShot[],
+  right: readonly KlingPromptShot[]
+): boolean =>
+  left.length === right.length &&
+  left.every(
+    (shot, index) =>
+      shot.id === right[index]?.id &&
+      shot.prompt === right[index]?.prompt &&
+      shot.duration === right[index]?.duration
+  );
+
+const areKlingProfileImageTransformsEqual = (
+  left: AiStudioKlingElement["profileImageTransform"] | null | undefined,
+  right: AiStudioKlingElement["profileImageTransform"] | null | undefined
+): boolean => {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+  return (
+    left.zoom === right.zoom && left.offsetX === right.offsetX && left.offsetY === right.offsetY
+  );
+};
+
+const areKlingElementsEqual = (
+  left: readonly KlingElement[],
+  right: readonly KlingElement[]
+): boolean =>
+  left.length === right.length &&
+  left.every((element, index) => {
+    const other = right[index];
+    if (!other) return false;
+    return (
+      element.id === other.id &&
+      element.slotIndex === other.slotIndex &&
+      (element.sourceKind ?? null) === (other.sourceKind ?? null) &&
+      (element.sourceElementId ?? null) === (other.sourceElementId ?? null) &&
+      (element.sourceCharacterId ?? null) === (other.sourceCharacterId ?? null) &&
+      (element.name ?? "") === (other.name ?? "") &&
+      (element.alias ?? "") === (other.alias ?? "") &&
+      (element.description ?? "") === (other.description ?? "") &&
+      (element.profileImageUrl ?? null) === (other.profileImageUrl ?? null) &&
+      areKlingProfileImageTransformsEqual(
+        element.profileImageTransform ?? null,
+        other.profileImageTransform ?? null
+      ) &&
+      element.frontalImageUrl === other.frontalImageUrl &&
+      element.referenceImageUrls === other.referenceImageUrls &&
+      element.videoUrl === other.videoUrl
+    );
+  });
+
 type UseAiStudioWorkflowSettingsParams = {
   projectId?: string | null;
   projectRouteRequested?: boolean;
@@ -512,7 +571,7 @@ export const useAiStudioWorkflowSettings = ({
         };
         workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
       }
-      setMode(snapshot.mode);
+      setMode((current) => (current === snapshot.mode ? current : snapshot.mode));
     }
     if (activeWorkflowSettingsKey === "edit") {
       const resolvedEditModel = resolveEditWorkflowStartupModel({
@@ -530,32 +589,81 @@ export const useAiStudioWorkflowSettings = ({
     const sharedAspectToApply =
       previous == null ? sharedAspectRef.current : currentWorkflowSnapshot.aspect;
     sharedAspectRef.current = sharedAspectToApply;
-    setModelState(snapshot.model);
-    setAspect(sharedAspectToApply);
-    setImageResolution(snapshot.imageResolution);
-    setVideoReferenceMode(snapshot.videoReferenceMode);
-    setVideoDurationSeconds(snapshot.videoDurationSeconds);
-    setVideoResolution(snapshot.videoResolution);
-    setVideoGenerateAudio(snapshot.videoGenerateAudio);
-    setVideoCameraFixed(snapshot.videoCameraFixed);
-    setVideoAutoFix(snapshot.videoAutoFix);
-    setKlingNegativePrompt(snapshot.klingNegativePrompt);
-    setKlingCfgScale(snapshot.klingCfgScale);
-    setKlingWorkflowMode(snapshot.klingWorkflowMode);
-    setSeedance2InputMode(snapshot.seedance2InputMode);
-    setSeedance2ReferenceImageUrls([...snapshot.seedance2ReferenceImageUrls]);
-    setSeedance2ReferenceVideoUrls([...snapshot.seedance2ReferenceVideoUrls]);
-    setSeedance2ReferenceAudioUrls([...snapshot.seedance2ReferenceAudioUrls]);
-    setSeedance2ReturnLastFrame(snapshot.seedance2ReturnLastFrame);
-    setSeedance2WebSearch(snapshot.seedance2WebSearch);
-    setKlingShotType(snapshot.klingShotType);
-    setKlingVoiceIds([...snapshot.klingVoiceIds] as [string, string]);
-    setKlingMultiPrompts(snapshot.klingMultiPrompts.map((shot) => ({ ...shot })));
-    setKlingElements(
-      (snapshot.klingElements.length ? snapshot.klingElements : inMemoryKlingElements).map(
-        (element) => ({ ...element })
-      )
+    setModelState((current) => (current === snapshot.model ? current : snapshot.model));
+    setAspect((current) => (current === sharedAspectToApply ? current : sharedAspectToApply));
+    setImageResolution((current) =>
+      current === snapshot.imageResolution ? current : snapshot.imageResolution
     );
+    setVideoReferenceMode((current) =>
+      current === snapshot.videoReferenceMode ? current : snapshot.videoReferenceMode
+    );
+    setVideoDurationSeconds((current) =>
+      current === snapshot.videoDurationSeconds ? current : snapshot.videoDurationSeconds
+    );
+    setVideoResolution((current) =>
+      current === snapshot.videoResolution ? current : snapshot.videoResolution
+    );
+    setVideoGenerateAudio((current) =>
+      current === snapshot.videoGenerateAudio ? current : snapshot.videoGenerateAudio
+    );
+    setVideoCameraFixed((current) =>
+      current === snapshot.videoCameraFixed ? current : snapshot.videoCameraFixed
+    );
+    setVideoAutoFix((current) =>
+      current === snapshot.videoAutoFix ? current : snapshot.videoAutoFix
+    );
+    setKlingNegativePrompt((current) =>
+      current === snapshot.klingNegativePrompt ? current : snapshot.klingNegativePrompt
+    );
+    setKlingCfgScale((current) =>
+      current === snapshot.klingCfgScale ? current : snapshot.klingCfgScale
+    );
+    setKlingWorkflowMode((current) =>
+      current === snapshot.klingWorkflowMode ? current : snapshot.klingWorkflowMode
+    );
+    setSeedance2InputMode((current) =>
+      current === snapshot.seedance2InputMode ? current : snapshot.seedance2InputMode
+    );
+    setSeedance2ReferenceImageUrls((current) =>
+      areStringArraysEqual(current, snapshot.seedance2ReferenceImageUrls)
+        ? current
+        : [...snapshot.seedance2ReferenceImageUrls]
+    );
+    setSeedance2ReferenceVideoUrls((current) =>
+      areStringArraysEqual(current, snapshot.seedance2ReferenceVideoUrls)
+        ? current
+        : [...snapshot.seedance2ReferenceVideoUrls]
+    );
+    setSeedance2ReferenceAudioUrls((current) =>
+      areStringArraysEqual(current, snapshot.seedance2ReferenceAudioUrls)
+        ? current
+        : [...snapshot.seedance2ReferenceAudioUrls]
+    );
+    setSeedance2ReturnLastFrame((current) =>
+      current === snapshot.seedance2ReturnLastFrame ? current : snapshot.seedance2ReturnLastFrame
+    );
+    setSeedance2WebSearch((current) =>
+      current === snapshot.seedance2WebSearch ? current : snapshot.seedance2WebSearch
+    );
+    setKlingShotType((current) =>
+      current === snapshot.klingShotType ? current : snapshot.klingShotType
+    );
+    setKlingVoiceIds((current) =>
+      areKlingVoiceIdsEqual(current, snapshot.klingVoiceIds)
+        ? current
+        : ([...snapshot.klingVoiceIds] as [string, string])
+    );
+    setKlingMultiPrompts((current) =>
+      areKlingPromptShotsEqual(current, snapshot.klingMultiPrompts)
+        ? current
+        : snapshot.klingMultiPrompts.map((shot) => ({ ...shot }))
+    );
+    setKlingElements((current) => {
+      const nextElements = (
+        snapshot.klingElements.length ? snapshot.klingElements : inMemoryKlingElements
+      ).map((element) => ({ ...element }));
+      return areKlingElementsEqual(current, nextElements) ? current : nextElements;
+    });
   }, [
     activeWorkflowSettingsKey,
     currentWorkflowSnapshot,

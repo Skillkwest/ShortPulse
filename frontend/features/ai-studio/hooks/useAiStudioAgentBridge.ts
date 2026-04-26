@@ -48,6 +48,7 @@ type UseAiStudioAgentBridgeParams = {
   selectedTool: ToolId | null;
   expertCreateMode?: "standard" | "pulse";
   activePulsePresetId?: string | null;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   prompt: string;
   setSharedPrompt: (value: string) => void;
   getAgentContext: (params: {
@@ -146,6 +147,64 @@ const createPersistedAgentRuntimeSnapshot = (
 const resolveStateActionValue = <T>(value: SetStateAction<T>, current: T): T =>
   typeof value === "function" ? (value as (previousValue: T) => T)(current) : value;
 
+const areAgentAttachmentsEqual = (
+  left: AgentAttachment[] | undefined,
+  right: AgentAttachment[] | undefined
+): boolean => {
+  if (left === right) return true;
+  const leftList = left ?? [];
+  const rightList = right ?? [];
+  if (leftList.length !== rightList.length) return false;
+  return leftList.every((attachment, index) => {
+    const other = rightList[index];
+    return (
+      attachment.id === other?.id &&
+      attachment.kind === other?.kind &&
+      (attachment.referenceId ?? null) === (other?.referenceId ?? null) &&
+      (attachment.text ?? null) === (other?.text ?? null) &&
+      (attachment.imageUrl ?? null) === (other?.imageUrl ?? null) &&
+      (attachment.aspect ?? null) === (other?.aspect ?? null) &&
+      (attachment.deliveryStatus ?? null) === (other?.deliveryStatus ?? null) &&
+      (attachment.deliveryError ?? null) === (other?.deliveryError ?? null)
+    );
+  });
+};
+
+const areAgentMessagesEqual = (left: AgentMessage[], right: AgentMessage[]): boolean => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  return left.every((message, index) => {
+    const other = right[index];
+    return (
+      message.id === other?.id &&
+      message.role === other?.role &&
+      message.content === other?.content &&
+      areAgentAttachmentsEqual(message.attachments, other?.attachments)
+    );
+  });
+};
+
+const areAgentActionsEqual = (
+  left: AgentActions | undefined,
+  right: AgentActions | undefined
+): boolean => {
+  if (left === right) return true;
+  return (left?.applyPrompt ?? null) === (right?.applyPrompt ?? null);
+};
+
+const isAgentBridgeRuntimeStateEqual = (
+  left: AgentBridgeRuntimeState,
+  right: AgentBridgeRuntimeState
+): boolean =>
+  areAgentMessagesEqual(left.messages, right.messages) &&
+  left.input === right.input &&
+  areAgentAttachmentsEqual(left.attachments, right.attachments) &&
+  left.latestAgentPrompt === right.latestAgentPrompt &&
+  left.promptOrigin === right.promptOrigin &&
+  left.chatModeEnabled === right.chatModeEnabled &&
+  areAgentActionsEqual(left.agentActions, right.agentActions) &&
+  left.isAgentChatOpen === right.isAgentChatOpen;
+
 /**
  * Returns agent state and handlers used by the AI Studio page.
  */
@@ -157,6 +216,7 @@ export const useAiStudioAgentBridge = ({
   selectedTool,
   expertCreateMode = "standard",
   activePulsePresetId = null,
+  pulseWorkflowSession = null,
   prompt,
   setSharedPrompt,
   getAgentContext,
@@ -388,18 +448,37 @@ export const useAiStudioAgentBridge = ({
     setPromptOrigin,
   ]);
 
+  const latestAssistantMessage = useMemo(
+    () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
+    [agentMessages]
+  );
+  const pulseArtifactPrompt =
+    expertCreateMode === "pulse" &&
+    typeof pulseWorkflowSession?.lastArtifact === "string" &&
+    pulseWorkflowSession.lastArtifact.trim().length > 0
+      ? pulseWorkflowSession.lastArtifact.trim()
+      : null;
+  const effectiveLatestAgentPrompt = pulseArtifactPrompt ?? latestAgentPrompt;
+  const effectivePromptOrigin =
+    pulseArtifactPrompt && expertCreateMode === "pulse" ? "agent" : promptOrigin;
+
   useEffect(() => {
     const pendingHydration = pendingRuntimeHydrationRef.current;
+    const liveRuntimeState: AgentBridgeRuntimeState = {
+      messages: agentMessages,
+      input: agentInput,
+      attachments: agentAttachments,
+      latestAgentPrompt: effectiveLatestAgentPrompt,
+      promptOrigin: effectivePromptOrigin,
+      chatModeEnabled,
+      agentActions,
+      isAgentChatOpen,
+    };
     if (pendingHydration?.key === agentBridgeSessionKey) {
-      const isHydratedEcho =
-        pendingHydration.state.messages === agentMessages &&
-        pendingHydration.state.input === agentInput &&
-        pendingHydration.state.attachments === agentAttachments &&
-        pendingHydration.state.latestAgentPrompt === latestAgentPrompt &&
-        pendingHydration.state.promptOrigin === promptOrigin &&
-        pendingHydration.state.chatModeEnabled === chatModeEnabled &&
-        pendingHydration.state.agentActions === agentActions &&
-        pendingHydration.state.isAgentChatOpen === isAgentChatOpen;
+      const isHydratedEcho = isAgentBridgeRuntimeStateEqual(
+        pendingHydration.state,
+        liveRuntimeState
+      );
       pendingRuntimeHydrationRef.current = null;
       if (isHydratedEcho) {
         return;
@@ -407,28 +486,11 @@ export const useAiStudioAgentBridge = ({
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- The active runtime snapshot must track live bridge state as the user edits within the current scope.
     updateAgentBridgeSessionUiState((current) => {
-      if (
-        current.messages === agentMessages &&
-        current.input === agentInput &&
-        current.attachments === agentAttachments &&
-        current.latestAgentPrompt === latestAgentPrompt &&
-        current.promptOrigin === promptOrigin &&
-        current.chatModeEnabled === chatModeEnabled &&
-        current.agentActions === agentActions &&
-        current.isAgentChatOpen === isAgentChatOpen
-      ) {
+      const equal = isAgentBridgeRuntimeStateEqual(current, liveRuntimeState);
+      if (equal) {
         return current;
       }
-      return {
-        messages: agentMessages,
-        input: agentInput,
-        attachments: agentAttachments,
-        latestAgentPrompt,
-        promptOrigin,
-        chatModeEnabled,
-        agentActions,
-        isAgentChatOpen,
-      };
+      return liveRuntimeState;
     });
   }, [
     agentActions,
@@ -437,18 +499,13 @@ export const useAiStudioAgentBridge = ({
     agentInput,
     agentMessages,
     chatModeEnabled,
+    effectivePromptOrigin,
     isAgentChatOpen,
-    latestAgentPrompt,
-    promptOrigin,
+    effectiveLatestAgentPrompt,
     updateAgentBridgeSessionUiState,
   ]);
-
-  const latestAssistantMessage = useMemo(
-    () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
-    [agentMessages]
-  );
-  const agentPrimarySource = resolvePromptSourceBadge(promptOrigin);
-  const stagedAgentPrompt = getStagedAgentPrompt(promptOrigin, latestAgentPrompt);
+  const agentPrimarySource = resolvePromptSourceBadge(effectivePromptOrigin);
+  const stagedAgentPrompt = getStagedAgentPrompt(effectivePromptOrigin, effectiveLatestAgentPrompt);
   const editPromptToolSelected = isEditPromptTool(selectedTool);
 
   const {
@@ -515,7 +572,7 @@ export const useAiStudioAgentBridge = ({
     setIsAgentChatOpen,
     agentSessionEnabled,
     setAgentSessionEnabled,
-    latestAgentPrompt,
+    latestAgentPrompt: effectiveLatestAgentPrompt,
     resetAgentChat,
     resetAgentComposer,
     clearPulseRuntime,
@@ -662,8 +719,8 @@ export const useAiStudioAgentBridge = ({
     isAgentDropActive,
     agentActions,
     isAgentChatOpen,
-    latestAgentPrompt,
-    promptOrigin,
+    latestAgentPrompt: effectiveLatestAgentPrompt,
+    promptOrigin: effectivePromptOrigin,
     persistedAgentRuntimes,
     chatModeEnabled,
     setChatModeEnabled,

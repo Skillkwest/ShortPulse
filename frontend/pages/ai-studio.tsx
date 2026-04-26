@@ -923,6 +923,7 @@ export default function AiStudioPage() {
     selectedTool,
     expertCreateMode,
     activePulsePresetId: activeCreatePulsePresetId,
+    pulseWorkflowSession,
     prompt,
     setSharedPrompt,
     getAgentContext: getPulseAwareAgentContext,

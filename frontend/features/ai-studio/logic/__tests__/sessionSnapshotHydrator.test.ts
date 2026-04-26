@@ -349,6 +349,80 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agentRuntimes.standard.messages).toEqual([]);
   });
 
+  it("keeps a restored Pulse draft separate from the completed workflow artifact", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "story-builder-session",
+      updatedAt: "2026-04-23T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Pulse draft prompt",
+      standardCreatePrompt: "Standard draft prompt",
+      pulseCreatePrompt: "Pulse draft prompt",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Completed artifact prompt",
+        },
+      ],
+      agentInput: "",
+      latestAgentPrompt: "Completed artifact prompt",
+      promptOrigin: "agent",
+      chatModeEnabled: true,
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "completed",
+        currentStepIndex: 6,
+        currentStepLabel: "Image Prompts",
+        currentStepPrompt: null,
+        collectedInputs: ["grimdark tone", "A knight enters a cursed forest", "10 min"],
+        lastArtifact: "Completed artifact prompt",
+        finalArtifactSource: "chat_reply",
+      },
+    });
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshot);
+
+    expect(payload.workspace.prompt).toBe("Pulse draft prompt");
+    expect(payload.workspace.standardPrompt).toBe("Standard draft prompt");
+    expect(payload.workspace.pulsePrompt).toBe("Pulse draft prompt");
+    expect(payload.agent.latestAgentPrompt).toBe("Completed artifact prompt");
+    expect(payload.agent.pulseWorkflowSession?.lastArtifact).toBe("Completed artifact prompt");
+    expect(payload.agent.pulseWorkflowSession?.finalArtifactSource).toBe("chat_reply");
+    expect(payload.agentRuntimes.pulse.latestAgentPrompt).toBe("Completed artifact prompt");
+    expect(payload.agentRuntimes.pulse.pulseWorkflowSession?.lastArtifact).toBe(
+      "Completed artifact prompt"
+    );
+  });
+
   it("preserves persisted custom Kling prompt workspace during hydration", () => {
     const snapshot = createSnapshot({
       workspace: {

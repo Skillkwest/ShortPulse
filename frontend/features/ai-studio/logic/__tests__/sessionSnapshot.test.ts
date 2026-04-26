@@ -252,6 +252,76 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.pulsePrompt).toBe("Pulse artifact prompt");
   });
 
+  it("preserves a Pulse draft separately from the completed workflow artifact", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Pulse draft prompt",
+      standardCreatePrompt: "Standard draft prompt",
+      pulseCreatePrompt: "Pulse draft prompt",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Completed artifact prompt",
+        },
+      ],
+      agentInput: "",
+      latestAgentPrompt: "Completed artifact prompt",
+      promptOrigin: "agent",
+      chatModeEnabled: true,
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "completed",
+        currentStepIndex: 6,
+        currentStepLabel: "Final Prompt",
+        currentStepPrompt: null,
+        collectedInputs: ["grimdark tone", "10 minute runtime"],
+        lastArtifact: "Completed artifact prompt",
+        finalArtifactSource: "chat_reply",
+      },
+    });
+
+    expect(snapshot.workspace.prompt).toBe("Pulse draft prompt");
+    expect(snapshot.workspace.standardPrompt).toBe("Standard draft prompt");
+    expect(snapshot.workspace.pulsePrompt).toBe("Pulse draft prompt");
+    expect(snapshot.agent.latestAgentPrompt).toBe("Completed artifact prompt");
+    expect(snapshot.agent.pulseWorkflowSession?.lastArtifact).toBe("Completed artifact prompt");
+    expect(snapshot.agentRuntimes?.pulse.latestAgentPrompt).toBe("Completed artifact prompt");
+    expect(snapshot.agentRuntimes?.pulse.pulseWorkflowSession?.lastArtifact).toBe(
+      "Completed artifact prompt"
+    );
+  });
+
   it("strips conversational runtime state from project workspace snapshots while keeping Pulse selection", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

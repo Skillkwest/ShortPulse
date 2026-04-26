@@ -201,6 +201,7 @@ export function ExpertCreatePanelView({
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
+    forceRenderAgentChatPanel: hasPulseConversationState,
     emptyAgentChatSpacerClassName: hasConversationStarted ? "" : "create-expert-chat-spacer",
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
     onClearAgentChat: undefined,

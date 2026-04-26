@@ -104,23 +104,26 @@ export const useCreatePulsePresetRuntime = ({
     async (presetId: CreatePulsePresetId) => {
       const resolvedPreset = resolveCreatePulsePresetById(presetId, savedPresets);
       const presetLabel = resolveCreatePulsePresetLabelById(presetId, savedPresets);
+      const previousActivePresetId = activePresetId;
       if (isActivationBusy) {
         showStatusToast("Wait for the current Pulse step to finish before switching.", "warning");
         return;
       }
+      setActivePresetId(presetId);
       let startResult: CreatePulsePresetStartResult = "started";
       if (resolvedPreset) {
         startResult = (await onPresetStart?.(resolvedPreset)) ?? "started";
       }
       if (startResult === "blocked_busy") {
+        setActivePresetId(previousActivePresetId ?? null);
         showStatusToast("Wait for the current Pulse step to finish before switching.", "warning");
         return;
       }
       if (startResult === "failed") {
+        setActivePresetId(previousActivePresetId ?? null);
         showStatusToast(`Unable to start ${presetLabel}. Please try again.`, "warning");
         return;
       }
-      setActivePresetId(presetId);
       showStatusToast(
         activePresetId && activePresetId !== presetId
           ? `Switched to ${presetLabel}. Previous Pulse session cleared.`

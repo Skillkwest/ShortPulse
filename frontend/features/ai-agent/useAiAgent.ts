@@ -105,11 +105,13 @@ export const useAiAgent = ({
       payloadText,
       previousPrompt,
       context,
+      sessionNamespaceOverride,
       isolateHistory = false,
       skipUserEcho = false,
       optimisticUserMessageId = null,
     }: SendParams): Promise<SendResult> => {
-      const requestSessionIdentity = `${sessionNamespace}::${conversationId?.trim() ?? ""}`;
+      const requestSessionNamespace = sessionNamespaceOverride ?? sessionNamespace;
+      const requestSessionIdentity = `${requestSessionNamespace}::${conversationId?.trim() ?? ""}`;
       if (!sessionIdentityRef.current) {
         sessionIdentityRef.current = requestSessionIdentity;
       }
@@ -161,8 +163,7 @@ export const useAiAgent = ({
           skipUserEcho,
           optimisticUserMessageId,
         });
-        const clientSessionKey =
-          clientSessionKeyRef.current ?? ensureSessionKey(sessionNamespace, conversationId);
+        const clientSessionKey = ensureSessionKey(requestSessionNamespace, conversationId);
         clientSessionKeyRef.current = clientSessionKey;
         const safeContext = context ? buildAgentContext(context) : undefined;
         const precheckContext: AgentApiContext = safeContext ?? {};

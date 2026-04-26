@@ -427,6 +427,11 @@ export const useAiStudioAgentBridge = ({
     resolveOutputPreviewUrlById: resolvePanelOutputPreviewUrl,
   });
 
+  const resolvePulseSessionNamespace = useCallback(
+    (presetId: string) => `ai-studio:${sessionId ?? "none"}::pulse:${presetId}`,
+    [sessionId]
+  );
+
   useEffect(() => {
     const pulseSessionKeyPrefix = `${sessionId ?? "none"}::pulse:`;
 
@@ -644,6 +649,7 @@ export const useAiStudioAgentBridge = ({
     setActiveOutputId,
     lastAssistantMessage: latestAssistantMessage,
     setUiNotice,
+    resolvePulseSessionNamespace,
   });
 
   const {

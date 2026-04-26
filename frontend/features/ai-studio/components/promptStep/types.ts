@@ -86,6 +86,7 @@ export type PromptStepProps = {
   chatPromptSaveButtonClassName?: string;
   chatPromptSaveButtonUnstyled?: boolean;
   embedSendButtonInInput?: boolean;
+  forceRenderAgentChatPanel?: boolean;
   hideAgentIntroMessage?: boolean;
   agentAttachmentDropTarget?: "history" | "input";
   hideInputDropHint?: boolean;

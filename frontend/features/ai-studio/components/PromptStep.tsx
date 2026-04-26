@@ -80,6 +80,7 @@ export function PromptStep({
   agentAttachmentDropTarget = "history",
   hideInputDropHint = false,
   hideEmptyAgentChatState = false,
+  forceRenderAgentChatPanel = false,
   emptyAgentChatSpacerClassName = "",
   highlightLatestAssistantOnly = false,
   assistantMessagePresentation = "default",
@@ -307,6 +308,7 @@ export function PromptStep({
                 stagedAttachments={stagedAttachments}
                 dropToInputComposer={dropToInputComposer}
                 hideInputDropHint={hideInputDropHint}
+                forceRenderAgentChatPanel={forceRenderAgentChatPanel}
                 agentDropActive={agentDropActive}
                 historyDropHandlers={historyDropHandlers}
                 inputDropHandlers={inputDropHandlers}

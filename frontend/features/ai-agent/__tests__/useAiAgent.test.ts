@@ -106,6 +106,70 @@ describe("useAiAgent", () => {
     expect(result.current.messages.some((message) => message.role === "user")).toBe(false);
   });
 
+  it("keeps a pulse activation reply when the hook namespace switches to the override before the response resolves", async () => {
+    let resolveFetch: ((value: Response | PromiseLike<Response>) => void) | null = null;
+    fetchWithAuthMock.mockReturnValue(
+      new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+      })
+    );
+
+    const { result, rerender } = renderHook(
+      ({ sessionNamespace }: { sessionNamespace: string }) =>
+        useAiAgent({ enabled: true, sessionNamespace }),
+      {
+        initialProps: {
+          sessionNamespace: "ai-studio:seed:none::pulse:none",
+        },
+      }
+    );
+
+    let sendResultPromise: Promise<Awaited<ReturnType<typeof result.current.send>>> | null = null;
+    await act(async () => {
+      sendResultPromise = result.current.send({
+        text: "",
+        payloadText: "pulse_activation_seed:story_builder",
+        sessionNamespaceOverride: "ai-studio:seed:none::pulse:story_builder",
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "story_builder",
+            label: "Story Builder",
+            instructions: "Guide the user through story setup.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your characters first.",
+            workflowStageHints: ["Upload Characters"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    await act(async () => {
+      rerender({ sessionNamespace: "ai-studio:seed:none::pulse:story_builder" });
+    });
+
+    await act(async () => {
+      resolveFetch?.({
+        ok: true,
+        json: async () => ({ message: "Pulse activated." }),
+      } as Response);
+      await sendResultPromise;
+    });
+
+    const sendResult = await sendResultPromise;
+    expect(sendResult?.discarded).not.toBe(true);
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Pulse activated.",
+      })
+    );
+  });
+
   it("refuses explicit input in client precheck without transport call", async () => {
     const { result } = renderHook(() => useAiAgent({ enabled: true }));
 

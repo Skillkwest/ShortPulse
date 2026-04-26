@@ -22,6 +22,7 @@ export type SendParams = {
   payloadText?: string;
   previousPrompt?: string | null;
   context?: AgentContext;
+  sessionNamespaceOverride?: string;
   isolateHistory?: boolean;
   skipUserEcho?: boolean;
   optimisticUserMessageId?: string | null;

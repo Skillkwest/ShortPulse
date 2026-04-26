@@ -534,6 +534,31 @@ describe("CreatePropertiesPanel", () => {
     expect(container.querySelector(".create-expert-lower-preview-frame")).toBeFalsy();
   });
 
+  it("keeps the pulse chat surface mounted when a workflow session exists before transcript rows render", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "running",
+        currentStepIndex: 1,
+        currentStepLabel: "Story Setup",
+        currentStepPrompt: "Tell me the story genre and tone.",
+        collectedInputs: [],
+        lastArtifact: null,
+      },
+      agentMessages: [],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(container.querySelector(".agent-chat-wrapper")).toBeTruthy();
+    expect(container.querySelector(".create-expert-chat-spacer")).toBeFalsy();
+  });
+
   it("keeps the expert empty-state shell hidden while a pulse activation is in progress", () => {
     const { container } = renderPanel({
       beginnerMode: false,

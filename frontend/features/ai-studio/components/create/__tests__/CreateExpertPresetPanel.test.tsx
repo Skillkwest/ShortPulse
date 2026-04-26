@@ -157,6 +157,40 @@ describe("CreateExpertPresetPanel", () => {
     });
   });
 
+  it("claims pulse ownership before starting an activate-and-start preset", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const observedActivePresetIds: Array<string | null | undefined> = [];
+    const onPresetStart = vi.fn().mockImplementation(async () => {
+      observedActivePresetIds.push(onActivePresetIdChange.mock.calls.at(-1)?.[0]);
+      return undefined;
+    });
+
+    render(
+      <CreateExpertPresetPanel
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+
+    await waitFor(() => {
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder");
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presetId: "story_builder",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+        })
+      );
+    });
+
+    expect(observedActivePresetIds).toEqual(["story_builder"]);
+    expect(onActivePresetIdChange.mock.invocationCallOrder[0]).toBeLessThan(
+      onPresetStart.mock.invocationCallOrder[0]
+    );
+  });
+
   it("does not switch active ownership while pulse activation is busy", async () => {
     const onActivePresetIdChange = vi.fn();
     const onPresetStart = vi.fn();

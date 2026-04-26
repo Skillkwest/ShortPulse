@@ -545,6 +545,45 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(setPulseWorkflowSession).not.toHaveBeenCalled();
   });
 
+  it("routes pulse activation turns through the target preset session namespace", async () => {
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "Step 1 - Upload your characters." },
+      actions: undefined,
+      workflowSession: null,
+    }));
+    const params = createParams({
+      sendToAgent,
+      getAgentContext: vi.fn(() => ({})),
+      resolvePulseSessionNamespace: (presetId) => `ai-studio:session-1::pulse:${presetId}`,
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handlePulsePresetStart({
+        presetId: "story_builder",
+        label: "Story Builder",
+        description: "Story workflow",
+        systemInstructions: "workflow instructions",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        starterAssistantMessage: "Step 1 - Upload your characters.",
+        workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
+        outputMode: "chat_reply",
+        memoryPolicy: "session",
+        isCustom: false,
+        isBuiltIn: true,
+        isEditable: true,
+        hasUserOverride: false,
+      });
+    });
+
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionNamespaceOverride: "ai-studio:session-1::pulse:story_builder",
+      })
+    );
+  });
+
   it("primes workflow session state on user reply before the next workflow response returns", async () => {
     const setPulseWorkflowSession = vi.fn();
     const sendToAgent = vi.fn(async () => ({

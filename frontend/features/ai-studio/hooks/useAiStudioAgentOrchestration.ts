@@ -64,6 +64,7 @@ export const useAiStudioAgentOrchestration = ({
   aspect,
   model,
   setOutputs,
+  resolvePulseSessionNamespace,
   setActiveOutputId,
   lastAssistantMessage,
 }: UseAiStudioAgentOrchestrationParams) => {
@@ -419,6 +420,7 @@ export const useAiStudioAgentOrchestration = ({
         const { response, actions, workflowSession, discarded } = await sendToAgent({
           text: "",
           payloadText: activationSeed,
+          sessionNamespaceOverride: resolvePulseSessionNamespace?.(preset.presetId),
           previousPrompt: latestAgentPrompt ?? null,
           context: pulseContext,
           skipUserEcho: true,
@@ -454,6 +456,7 @@ export const useAiStudioAgentOrchestration = ({
       agentUiBusyRef,
       getAgentContext,
       lastAssistantMessage,
+      resolvePulseSessionNamespace,
       latestAgentPrompt,
       selectedTool,
       sendToAgent,

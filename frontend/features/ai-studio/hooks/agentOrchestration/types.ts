@@ -43,6 +43,7 @@ export type UseAiStudioAgentOrchestrationParams = {
   sendToAgent: (params: {
     text: string;
     payloadText?: string;
+    sessionNamespaceOverride?: string;
     previousPrompt?: string | null;
     context?: AgentContext;
     isolateHistory?: boolean;
@@ -74,6 +75,7 @@ export type UseAiStudioAgentOrchestrationParams = {
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
+  resolvePulseSessionNamespace?: (presetId: string) => string;
   lastAssistantMessage: string | null;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
 };

@@ -37,6 +37,7 @@ type PromptStepChatSurfaceProps = {
   promptThinking: boolean;
   hideAgentIntroMessage: boolean;
   hideEmptyAgentChatState: boolean;
+  forceRenderAgentChatPanel: boolean;
   emptyAgentChatSpacerClassName: string;
   agentMessages: AgentMessage[];
   introMessage: AgentMessage;
@@ -124,6 +125,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   promptThinking,
   hideAgentIntroMessage,
   hideEmptyAgentChatState,
+  forceRenderAgentChatPanel,
   emptyAgentChatSpacerClassName,
   agentMessages,
   introMessage,
@@ -208,7 +210,8 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     !hideAgentIntroMessage ||
     agentMessages.length > 0 ||
     hasHistoryAttachments ||
-    Boolean(stagedPrompt?.trim());
+    Boolean(stagedPrompt?.trim()) ||
+    forceRenderAgentChatPanel;
   const shouldRenderAgentChatPanel = hasAgentChatContent || !hideEmptyAgentChatState;
   const shouldRenderAgentChatSpacer = !shouldRenderAgentChatPanel;
   const shouldUseComposerOverlay =

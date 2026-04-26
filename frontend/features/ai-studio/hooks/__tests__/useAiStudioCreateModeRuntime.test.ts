@@ -30,7 +30,7 @@ const buildWorkflowSession = (presetId: string): AgentPulseWorkflowSession => ({
 });
 
 describe("useAiStudioCreateModeRuntime", () => {
-  it("clears Pulse runtime when switching back to standard mode through the UI handler", () => {
+  it("preserves Pulse runtime when switching back to standard mode through the UI handler", () => {
     const { result } = renderHook(() =>
       useAiStudioCreateModeRuntime({
         selectedCreatePulsePresetIds: ["pulse-a"],
@@ -46,8 +46,30 @@ describe("useAiStudioCreateModeRuntime", () => {
     });
 
     expect(result.current.expertCreateMode).toBe("standard");
-    expect(result.current.activeCreatePulsePresetId).toBeNull();
-    expect(result.current.pulseWorkflowSession).toBeNull();
+    expect(result.current.activeCreatePulsePresetId).toBe("pulse-a");
+    expect(result.current.pulseWorkflowSession).toEqual(buildWorkflowSession("pulse-a"));
+  });
+
+  it("restores the same Pulse runtime when toggling back from standard mode", () => {
+    const workflowSession = buildWorkflowSession("pulse-a");
+    const { result } = renderHook(() =>
+      useAiStudioCreateModeRuntime({
+        selectedCreatePulsePresetIds: ["pulse-a"],
+        savedCreatePulsePresets: [buildSavedPreset("pulse-a")],
+        initialExpertCreateMode: "pulse",
+        initialActiveCreatePulsePresetId: "pulse-a",
+        initialPulseWorkflowSession: workflowSession,
+      })
+    );
+
+    act(() => {
+      result.current.handleExpertCreateModeChange("standard");
+      result.current.handleExpertCreateModeChange("pulse");
+    });
+
+    expect(result.current.expertCreateMode).toBe("pulse");
+    expect(result.current.activeCreatePulsePresetId).toBe("pulse-a");
+    expect(result.current.pulseWorkflowSession).toEqual(workflowSession);
   });
 
   it("clears stale workflow state when the active Pulse changes through the UI handler", () => {

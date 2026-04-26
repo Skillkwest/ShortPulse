@@ -1,7 +1,7 @@
 /**
  * Owns Create-mode runtime authority for Standard versus Pulse behavior.
  * Keeps mode, active Pulse selection, and Pulse workflow state together so
- * page-level callers do not hand-roll transition cleanup.
+ * page-level callers do not hand-roll transition cleanup or cross-mode restore.
  */
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
@@ -67,15 +67,9 @@ export const useAiStudioCreateModeRuntime = ({
     setPulseWorkflowSessionState(null);
   }, []);
 
-  const handleExpertCreateModeChange = useCallback(
-    (nextMode: AiStudioExpertCreateMode) => {
-      setExpertCreateModeState(nextMode);
-      if (nextMode === "standard") {
-        clearPulseRuntime();
-      }
-    },
-    [clearPulseRuntime]
-  );
+  const handleExpertCreateModeChange = useCallback((nextMode: AiStudioExpertCreateMode) => {
+    setExpertCreateModeState(nextMode);
+  }, []);
 
   const handleActiveCreatePulsePresetIdChange = useCallback(
     (nextPresetId: CreatePulsePresetId | null) => {

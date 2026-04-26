@@ -5,6 +5,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -87,6 +88,7 @@ type AgentBridgeRuntimeState = {
 type PendingRuntimeHydration = {
   key: string;
   state: AgentBridgeRuntimeState;
+  previousKey: string | null;
 };
 
 type AgentBridgeHydrationRuntime = AiStudioSessionHydrationPayload["agent"];
@@ -270,6 +272,10 @@ export const useAiStudioAgentBridge = ({
     key: string;
     state: AgentBridgeRuntimeState;
   } | null>(null);
+  const committedLiveRuntimeStateRef = useRef<{
+    key: string;
+    state: AgentBridgeRuntimeState;
+  } | null>(null);
 
   const {
     messages: agentMessages,
@@ -450,6 +456,7 @@ export const useAiStudioAgentBridge = ({
     pendingRuntimeHydrationRef.current = {
       key: agentBridgeSessionKey,
       state: activeRuntimeState,
+      previousKey: committedLiveRuntimeStateRef.current?.key ?? null,
     };
     replaceMessages(activeRuntimeState.messages);
     setAgentInput(activeRuntimeState.input);
@@ -489,6 +496,16 @@ export const useAiStudioAgentBridge = ({
   const effectiveLatestAgentPrompt = pulseArtifactPrompt ?? latestAgentPrompt;
   const effectivePromptOrigin =
     pulseArtifactPrompt && expertCreateMode === "pulse" ? "agent" : promptOrigin;
+  const liveRuntimeState: AgentBridgeRuntimeState = {
+    messages: agentMessages,
+    input: agentInput,
+    attachments: agentAttachments,
+    latestAgentPrompt: effectiveLatestAgentPrompt,
+    promptOrigin: effectivePromptOrigin,
+    chatModeEnabled,
+    agentActions,
+    isAgentChatOpen,
+  };
   activeLiveRuntimeStateRef.current = {
     key: agentBridgeSessionKey,
     state: {
@@ -503,28 +520,59 @@ export const useAiStudioAgentBridge = ({
     },
   };
 
+  useLayoutEffect(() => {
+    const committedLiveRuntimeState = committedLiveRuntimeStateRef.current;
+    if (
+      committedLiveRuntimeState &&
+      committedLiveRuntimeState.key !== agentBridgeSessionKey &&
+      !isAgentBridgeRuntimeStateEqual(
+        agentBridgeRuntimeStateBySessionKey[committedLiveRuntimeState.key] ??
+          createDefaultRuntimeState(),
+        committedLiveRuntimeState.state
+      )
+    ) {
+      setAgentBridgeRuntimeStateBySessionKey((current) => {
+        const existingState = current[committedLiveRuntimeState.key] ?? createDefaultRuntimeState();
+        if (isAgentBridgeRuntimeStateEqual(existingState, committedLiveRuntimeState.state)) {
+          return current;
+        }
+        return {
+          ...current,
+          [committedLiveRuntimeState.key]: committedLiveRuntimeState.state,
+        };
+      });
+    }
+  }, [
+    agentBridgeRuntimeStateBySessionKey,
+    agentBridgeSessionKey,
+    createDefaultRuntimeState,
+    setAgentBridgeRuntimeStateBySessionKey,
+  ]);
+
+  useLayoutEffect(() => {
+    committedLiveRuntimeStateRef.current = {
+      key: agentBridgeSessionKey,
+      state: liveRuntimeState,
+    };
+  }, [agentBridgeSessionKey, liveRuntimeState]);
+
   useEffect(() => {
     const pendingHydration = pendingRuntimeHydrationRef.current;
-    const liveRuntimeState: AgentBridgeRuntimeState = {
-      messages: agentMessages,
-      input: agentInput,
-      attachments: agentAttachments,
-      latestAgentPrompt: effectiveLatestAgentPrompt,
-      promptOrigin: effectivePromptOrigin,
-      chatModeEnabled,
-      agentActions,
-      isAgentChatOpen,
-    };
     if (pendingHydration?.key === agentBridgeSessionKey) {
       const isHydratedEcho = isAgentBridgeRuntimeStateEqual(
         pendingHydration.state,
         liveRuntimeState
       );
-      // eslint-disable-next-line react-hooks/immutability -- Clearing the hydration echo sentinel is ref-only bookkeeping and intentionally does not participate in render state.
-      pendingRuntimeHydrationRef.current = null;
       if (isHydratedEcho) {
+        // eslint-disable-next-line react-hooks/immutability -- Clearing the hydration echo sentinel is ref-only bookkeeping and intentionally does not participate in render state.
+        pendingRuntimeHydrationRef.current = null;
         return;
       }
+      if (pendingHydration.previousKey && pendingHydration.previousKey !== agentBridgeSessionKey) {
+        return;
+      }
+
+      pendingRuntimeHydrationRef.current = null;
     }
 
     updateAgentBridgeSessionUiState((current) => {
@@ -541,6 +589,7 @@ export const useAiStudioAgentBridge = ({
     agentInput,
     agentMessages,
     chatModeEnabled,
+    liveRuntimeState,
     effectivePromptOrigin,
     isAgentChatOpen,
     effectiveLatestAgentPrompt,

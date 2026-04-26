@@ -907,6 +907,131 @@ describe("useAiStudioAgentBridge", () => {
     });
   });
 
+  it("preserves the visible Standard runtime when toggling into Pulse before sync catches up", async () => {
+    let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
+    let setPromptOriginFromInteractions:
+      | Dispatch<SetStateAction<"manual" | "agent" | "reference">>
+      | undefined;
+    let standardMessages: Array<{ id: string; role: "user" | "assistant"; content: string }> = [
+      { id: "user-1", role: "user", content: "Make it cinematic." },
+    ];
+    const pulseMessages: Array<{ id: string; role: "user" | "assistant"; content: string }> = [];
+
+    useAiAgentMock.mockImplementation((params?: { sessionNamespace?: string }) => ({
+      messages: params?.sessionNamespace?.endsWith("::standard") ? standardMessages : pulseMessages,
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    }));
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockImplementation((params) => {
+      setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
+      setPromptOriginFromInteractions = params.setPromptOrigin;
+      return {
+        handleAgentApplyPrompt: vi.fn(),
+        handleExpandChat: vi.fn(),
+        handleAgentAddToGrid: vi.fn(),
+        handleClearAgentChat: vi.fn(),
+        handleCloseAgentChat: vi.fn(),
+      };
+    });
+
+    const { result, rerender } = renderHook(
+      ({
+        expertCreateMode,
+        activePulsePresetId,
+      }: {
+        expertCreateMode: "standard" | "pulse";
+        activePulsePresetId: string | null;
+      }) =>
+        useAiStudioAgentBridge(
+          createBridgeParams({
+            expertCreateMode,
+            activePulsePresetId,
+          })
+        ),
+      {
+        initialProps: {
+          expertCreateMode: "standard" as const,
+          activePulsePresetId: null,
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(setLatestAgentPromptFromInteractions).toBeDefined();
+      expect(setPromptOriginFromInteractions).toBeDefined();
+    });
+
+    act(() => {
+      setLatestAgentPromptFromInteractions?.("Cinematic golden-hour portrait.");
+      setPromptOriginFromInteractions?.("agent");
+      standardMessages = [
+        { id: "user-1", role: "user", content: "Make it cinematic." },
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Cinematic golden-hour portrait.",
+        },
+      ];
+      rerender({ expertCreateMode: "standard", activePulsePresetId: null });
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentMessages).toEqual(standardMessages);
+      expect(result.current.stagedAgentPrompt).toBe("Cinematic golden-hour portrait.");
+    });
+
+    rerender({
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+    });
+
+    await waitFor(() => {
+      expect(result.current.persistedAgentRuntimes.standard.messages).toEqual(standardMessages);
+      expect(result.current.agentMessages).toEqual(pulseMessages);
+      expect(result.current.stagedAgentPrompt).toBeNull();
+    });
+
+    rerender({ expertCreateMode: "standard", activePulsePresetId: null });
+
+    await waitFor(() => {
+      expect(result.current.agentMessages).toEqual(standardMessages);
+      expect(result.current.stagedAgentPrompt).toBe("Cinematic golden-hour portrait.");
+    });
+  });
+
   it("restarts an active Pulse without clearing Pulse ownership", async () => {
     const resetAgentChat = vi.fn();
     const resetAgentComposer = vi.fn();

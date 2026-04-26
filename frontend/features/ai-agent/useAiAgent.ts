@@ -2,7 +2,7 @@
  * Hook for interacting with the AI Studio Agent API.
  * Manages chat state locally and exposes a send helper with structured responses.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   AgentApiContext,
   AgentApiRequest,
@@ -63,7 +63,7 @@ export const useAiAgent = ({
   }
   const canonicalPromptRef = useRef<string | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const identity = `${sessionNamespace}::${conversationId?.trim() ?? ""}`;
     const previousIdentity = sessionIdentityRef.current;
     clientSessionKeyRef.current = ensureSessionKey(sessionNamespace, conversationId);

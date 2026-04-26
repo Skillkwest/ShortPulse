@@ -266,6 +266,10 @@ export const useAiStudioAgentBridge = ({
   const agentRuntimeScopeKey =
     expertCreateMode === "pulse" ? `pulse:${activePulsePresetId ?? "none"}` : "standard";
   const agentBridgeSessionKey = `${sessionId ?? "none"}::${agentRuntimeScopeKey}`;
+  const activeLiveRuntimeStateRef = useRef<{
+    key: string;
+    state: AgentBridgeRuntimeState;
+  } | null>(null);
 
   const {
     messages: agentMessages,
@@ -318,16 +322,39 @@ export const useAiStudioAgentBridge = ({
       field: Key,
       value: SetStateAction<AgentBridgeRuntimeState[Key]>
     ) => {
-      updateAgentBridgeSessionUiState((current) => {
-        const nextValue = resolveStateActionValue(value, current[field]);
-        if (current[field] === nextValue) return current;
+      setAgentBridgeRuntimeStateBySessionKey((current) => {
+        const pendingHydration = pendingRuntimeHydrationRef.current;
+        const liveRuntimeState =
+          pendingHydration?.key === agentBridgeSessionKey
+            ? null
+            : activeLiveRuntimeStateRef.current?.key === agentBridgeSessionKey
+              ? activeLiveRuntimeStateRef.current.state
+              : null;
+        const activeState =
+          liveRuntimeState ?? current[agentBridgeSessionKey] ?? createDefaultRuntimeState();
+        const nextValue = resolveStateActionValue(value, activeState[field]);
+        if (activeState[field] === nextValue) return current;
+        const nextState = {
+          ...activeState,
+          [field]: nextValue,
+        };
+        activeLiveRuntimeStateRef.current = {
+          key: agentBridgeSessionKey,
+          state: nextState,
+        };
+        if (
+          current[agentBridgeSessionKey] &&
+          isAgentBridgeRuntimeStateEqual(current[agentBridgeSessionKey], nextState)
+        ) {
+          return current;
+        }
         return {
           ...current,
-          [field]: nextValue,
+          [agentBridgeSessionKey]: nextState,
         };
       });
     },
-    [updateAgentBridgeSessionUiState]
+    [agentBridgeSessionKey, createDefaultRuntimeState]
   );
   const setLatestAgentPrompt: Dispatch<SetStateAction<string | null>> = useCallback(
     (value) => updateAgentBridgeSessionUiStateField("latestAgentPrompt", value),
@@ -396,7 +423,7 @@ export const useAiStudioAgentBridge = ({
 
   useEffect(() => {
     const pulseSessionKeyPrefix = `${sessionId ?? "none"}::pulse:`;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Active Pulse changes must drop stale Pulse-only runtime snapshots immediately.
+
     setAgentBridgeRuntimeStateBySessionKey((current) => {
       let changed = false;
       const nextEntries = Object.entries(current).filter(([key]) => {
@@ -419,6 +446,7 @@ export const useAiStudioAgentBridge = ({
   useEffect(() => {
     const activeRuntimeState =
       agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ?? createDefaultRuntimeState();
+    // eslint-disable-next-line react-hooks/immutability -- The hydration echo sentinel lives in a ref specifically so scope rehydration metadata does not trigger extra renders.
     pendingRuntimeHydrationRef.current = {
       key: agentBridgeSessionKey,
       state: activeRuntimeState,
@@ -427,7 +455,7 @@ export const useAiStudioAgentBridge = ({
     setAgentInput(activeRuntimeState.input);
     setAgentAttachmentError(null);
     setAgentAttachments(activeRuntimeState.attachments);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Runtime scope changes intentionally hydrate bridge-owned UI state into the active hook instances.
+
     setLatestAgentPrompt(activeRuntimeState.latestAgentPrompt);
     setPromptOrigin(activeRuntimeState.promptOrigin);
     setChatModeEnabled(activeRuntimeState.chatModeEnabled);
@@ -461,6 +489,19 @@ export const useAiStudioAgentBridge = ({
   const effectiveLatestAgentPrompt = pulseArtifactPrompt ?? latestAgentPrompt;
   const effectivePromptOrigin =
     pulseArtifactPrompt && expertCreateMode === "pulse" ? "agent" : promptOrigin;
+  activeLiveRuntimeStateRef.current = {
+    key: agentBridgeSessionKey,
+    state: {
+      messages: agentMessages,
+      input: agentInput,
+      attachments: agentAttachments,
+      latestAgentPrompt,
+      promptOrigin,
+      chatModeEnabled,
+      agentActions,
+      isAgentChatOpen,
+    },
+  };
 
   useEffect(() => {
     const pendingHydration = pendingRuntimeHydrationRef.current;
@@ -479,12 +520,13 @@ export const useAiStudioAgentBridge = ({
         pendingHydration.state,
         liveRuntimeState
       );
+      // eslint-disable-next-line react-hooks/immutability -- Clearing the hydration echo sentinel is ref-only bookkeeping and intentionally does not participate in render state.
       pendingRuntimeHydrationRef.current = null;
       if (isHydratedEcho) {
         return;
       }
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- The active runtime snapshot must track live bridge state as the user edits within the current scope.
+
     updateAgentBridgeSessionUiState((current) => {
       const equal = isAgentBridgeRuntimeStateEqual(current, liveRuntimeState);
       if (equal) {

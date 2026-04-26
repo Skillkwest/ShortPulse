@@ -23,6 +23,7 @@ const billingProfileState = vi.hoisted(() => ({
   subscription_status: "active",
   current_period_end: "2026-04-01T00:00:00.000Z",
   stripe_customer_id: "cus_123" as string | null,
+  stripe_subscription_id: "sub_123" as string | null,
 }));
 
 const billingContractState = vi.hoisted(() => ({
@@ -31,6 +32,7 @@ const billingContractState = vi.hoisted(() => ({
     plan_id: "media",
     offer_id: "media__legacy_10",
     stripe_price_id: "price_media_legacy",
+    stripe_subscription_id: "sub_123",
     contract_source: "stripe",
     recurring_price_cents: 1000,
     monthly_credits_cents: 20000,
@@ -176,6 +178,20 @@ vi.mock("../../lib/supabaseClient", () => ({
           }),
         };
       }
+      if (table === "billing_subscription_storage_addons") {
+        return {
+          select: () => ({
+            eq: () => ({
+              is: () => ({
+                eq: async () => ({
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
       throw new Error(`Unexpected table mock: ${table}`);
     },
   }),
@@ -188,11 +204,13 @@ describe("Profile subscription actions", () => {
     billingProfileState.subscription_status = "active";
     billingProfileState.current_period_end = "2026-04-01T00:00:00.000Z";
     billingProfileState.stripe_customer_id = "cus_123";
+    billingProfileState.stripe_subscription_id = "sub_123";
     billingContractState.value = {
       id: "contract_1",
       plan_id: "media",
       offer_id: "media__legacy_10",
       stripe_price_id: "price_media_legacy",
+      stripe_subscription_id: "sub_123",
       contract_source: "stripe",
       recurring_price_cents: 1000,
       monthly_credits_cents: 20000,
@@ -210,6 +228,29 @@ describe("Profile subscription actions", () => {
         return {
           ok: true,
           json: async () => ({ plans: billingPlansFixture, packages: [], storageAddons: [] }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions") {
+        return {
+          ok: true,
+          json: async () => ({
+            transactions: [
+              {
+                id: "in_123",
+                invoiceNumber: "9A12E1",
+                amountPaidCents: 1900,
+                currency: "usd",
+                status: "paid",
+                title: "Monthly subscription renewal",
+                createdAt: "2026-03-01T00:00:00.000Z",
+                paidAt: "2026-03-01T00:00:00.000Z",
+                receiptUrl: "https://stripe.test/invoices/in_123",
+                kind: "subscription",
+                kindLabel: "Subscription",
+                reference: "9A12E1",
+              },
+            ],
+          }),
         };
       }
       return {
@@ -254,16 +295,30 @@ describe("Profile subscription actions", () => {
   });
 
   it("renders current, upgrade, and cancel plan actions", async () => {
-    render(<ProfilePage />);
+    const { container } = render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your subscription" })).toBeInTheDocument();
+    expect(container.querySelector(".profile-subscription-hero-card.plan-media")).not.toBeNull();
+    expect(container.querySelector(".profile-plan-card.current.plan-media")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Downgrade to Free" })).toBeInTheDocument();
-    expect(screen.getByText("$10.00 / month")).toBeInTheDocument();
+    expect(
+      screen.getByText("$10.00 / month · Ideal for creators testing cadence.")
+    ).toBeInTheDocument();
     expect(
       screen.getByText("Legacy contract locked for your active subscription")
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Recent subscription payments" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Monthly subscription renewal")).toBeInTheDocument();
+    expect(screen.getAllByText("$19.00").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "View invoice" })).toHaveAttribute(
+      "href",
+      "https://stripe.test/invoices/in_123"
+    );
   });
 
   it("falls back to the billing profile plan when the contract row is missing", async () => {
@@ -276,7 +331,9 @@ describe("Profile subscription actions", () => {
     expect(
       screen.getByText("Using billing profile while subscription contract sync completes")
     ).toBeInTheDocument();
-    expect(screen.getByText("$19.00 / month")).toBeInTheDocument();
+    expect(
+      screen.getByText("$19.00 / month · Ideal for creators testing cadence.")
+    ).toBeInTheDocument();
   });
 
   it("opens and closes the cancel subscription modal", async () => {
@@ -330,11 +387,13 @@ describe("Profile subscription actions", () => {
     billingProfileState.subscription_status = "active";
     billingProfileState.current_period_end = "2026-05-01T00:00:00.000Z";
     billingProfileState.stripe_customer_id = null;
+    billingProfileState.stripe_subscription_id = null;
     billingContractState.value = {
       id: "contract_internal",
       plan_id: "business",
       offer_id: "business__internal_comp",
       stripe_price_id: null,
+      stripe_subscription_id: null,
       contract_source: "internal_comp",
       recurring_price_cents: 0,
       monthly_credits_cents: 12000,
@@ -346,10 +405,30 @@ describe("Profile subscription actions", () => {
       started_at: "2026-04-01T00:00:00.000Z",
       ended_at: null,
     } as Record<string, unknown>;
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({ plans: billingPlansFixture, packages: [], storageAddons: [] }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions") {
+        return {
+          ok: true,
+          json: async () => ({ transactions: [] }),
+        };
+      }
+      return {
+        ok: false,
+        json: async () => ({ error: "Portal unavailable" }),
+      };
+    });
 
-    render(<ProfilePage />);
+    const { container } = render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
+    expect(container.querySelector(".profile-subscription-hero-card.plan-business")).not.toBeNull();
+    expect(container.querySelector(".profile-plan-card.current.plan-business")).not.toBeNull();
     expect(screen.getByText("Internal comp contract managed outside Stripe")).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -360,5 +439,10 @@ describe("Profile subscription actions", () => {
     expect(screen.getByRole("button", { name: "Choose Media" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose Studio" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Switch to Business billing" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "No Stripe subscription payments are available for this internally managed account."
+      )
+    ).toBeInTheDocument();
   });
 });

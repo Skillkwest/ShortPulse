@@ -1,10 +1,32 @@
 @media (max-width: 900px) {
   .create-expert-panel .create-expert-panel-shell {
-    gap: 0;
+    gap: var(--create-expert-panel-gap);
+    flex-direction: column;
   }
 
   .create-expert-panel .create-expert-left-panel {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .create-expert-panel .create-expert-left-panel.is-pulse-inactive {
     display: none;
+  }
+
+  .create-expert-panel .create-expert-left-panel-inner {
+    padding: 0 0 12px;
+  }
+
+  .create-expert-panel .create-expert-right-panel {
+    width: 100%;
+  }
+
+  .create-expert-presets-surface {
+    top: calc(100% + 10px);
+    left: 0;
+    width: min(100%, 540px);
+    max-width: min(540px, calc(100vw - 44px));
   }
 
   .create-expert-panel--no-history .create-expert-empty-state-shell {

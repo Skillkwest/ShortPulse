@@ -114,10 +114,12 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - activation reaches a Pulse-aware runtime,
   - direct-bypass and orchestrated paths are both Pulse-aware,
   - `workflow_gpt` turns can succeed as `success_message`,
-  - completed workflow sessions persist and hydrate with `lastArtifact` and `finalArtifactSource`,
+  - completed workflow sessions persist and hydrate with `lastArtifact` and `finalArtifactSource`
+    in the session/runtime lanes that still carry conversational state,
   - Create surfaces render authoritative workflow session state rather than local transcript heuristics.
 - Manual closeout expectation:
-  - verify that a built-in `workflow_gpt` Pulse can activate, step forward, persist, restore, complete, and reuse its final artifact without falling back to prompt-append semantics.
+  - verify that a built-in `workflow_gpt` Pulse can activate, step forward, complete, and reuse its final artifact without falling back to prompt-append semantics.
+  - on project routes, verify only workspace-owned Pulse context persists across reload (`expertCreateMode` and the active preset selection). Do not expect project workspace restore to hydrate `pulseWorkflowSession`, chat history, draft chat input, or `chatModeEnabled`; ADR 0070 explicitly excludes conversational runtime from project restore.
 
 ## Severity model
 - `low`: recoverable UI issues with clear user fallback.

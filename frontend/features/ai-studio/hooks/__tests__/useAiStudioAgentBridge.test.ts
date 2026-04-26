@@ -1020,6 +1020,126 @@ describe("useAiStudioAgentBridge", () => {
     });
   });
 
+  it("preserves a stored Pulse workflow session when restore re-enters in Standard mode", async () => {
+    const setPulseWorkflowSession = vi.fn();
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(
+        createBridgeParams({
+          setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+        })
+      )
+    );
+
+    act(() => {
+      result.current.hydrateFromSessionAgentSnapshot({
+        workspace: {
+          expertCreateMode: "standard",
+          activePulsePresetId: "story_builder",
+        } as AiStudioSessionHydrationPayload["workspace"],
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: "Standard draft prompt",
+          promptOrigin: "agent",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: "Standard draft prompt",
+            promptOrigin: "agent",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: "story_builder",
+          pulse: {
+            messages: [
+              {
+                id: "agent-assistant-restored-0",
+                role: "assistant",
+                content: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+              },
+            ],
+            input: "",
+            latestAgentPrompt:
+              "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+            promptOrigin: "agent",
+            chatModeEnabled: true,
+            pulseWorkflowSession: {
+              presetId: "story_builder",
+              status: "completed",
+              currentStepIndex: 6,
+              currentStepLabel: "Image Prompts",
+              currentStepPrompt: null,
+              collectedInputs: ["grimdark tone", "10 min runtime"],
+              lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+              finalArtifactSource: "chat_reply",
+            },
+          },
+        },
+      });
+    });
+
+    expect(setPulseWorkflowSession).toHaveBeenCalledWith({
+      presetId: "story_builder",
+      status: "completed",
+      currentStepIndex: 6,
+      currentStepLabel: "Image Prompts",
+      currentStepPrompt: null,
+      collectedInputs: ["grimdark tone", "10 min runtime"],
+      lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+      finalArtifactSource: "chat_reply",
+    });
+  });
+
   it("skips local chat-mode preference hydration while a project route is pending", async () => {
     readChatModeFromStorageMock.mockReturnValue(false);
 

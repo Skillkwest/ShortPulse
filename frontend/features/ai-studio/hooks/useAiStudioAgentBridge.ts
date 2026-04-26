@@ -632,7 +632,9 @@ export const useAiStudioAgentBridge = ({
           ...nextStateBySessionKey,
         };
       });
-      setPulseWorkflowSession(agent.pulseWorkflowSession);
+      setPulseWorkflowSession(
+        agentRuntimes.pulse.pulseWorkflowSession ?? agent.pulseWorkflowSession ?? null
+      );
       setAgentActions(undefined);
       setAgentAttachmentError(null);
       setAgentAttachments([]);

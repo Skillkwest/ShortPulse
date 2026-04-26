@@ -266,6 +266,98 @@ describe("useAiStudioState output store bridge", () => {
     expect(result.current.pulsePrompt).toBe("Pulse final artifact");
   });
 
+  it("restores separate Standard and Pulse prompts across snapshot hydration and mode toggles", async () => {
+    const source = renderHook(
+      () => {
+        const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">(
+          "standard"
+        );
+        const [activePulsePresetId, setActivePulsePresetId] = React.useState<string | null>(null);
+        const studio = useAiStudioState({
+          expertCreateMode,
+          activePulsePresetId,
+          setExpertCreateMode,
+          setActivePulsePresetId,
+        });
+
+        return {
+          ...studio,
+          setExpertCreateMode,
+          setActivePulsePresetId,
+        };
+      },
+      { wrapper: strictWrapper }
+    );
+
+    act(() => {
+      source.result.current.setPrompt("Standard restore draft");
+      source.result.current.setExpertCreateMode("pulse");
+      source.result.current.setActivePulsePresetId("pulse-restore");
+    });
+
+    act(() => {
+      source.result.current.setPrompt("Pulse restored artifact");
+    });
+
+    const snapshot = source.result.current.buildSessionSnapshot({
+      sessionId: "session-restore-1",
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+    });
+
+    const restored = renderHook(
+      () => {
+        const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">(
+          "standard"
+        );
+        const [activePulsePresetId, setActivePulsePresetId] = React.useState<string | null>(null);
+        const studio = useAiStudioState({
+          expertCreateMode,
+          activePulsePresetId,
+          setExpertCreateMode,
+          setActivePulsePresetId,
+        });
+
+        return {
+          ...studio,
+          setExpertCreateMode,
+          setActivePulsePresetId,
+        };
+      },
+      { wrapper: strictWrapper }
+    );
+
+    act(() => {
+      restored.result.current.hydrateFromSessionSnapshot(snapshot);
+    });
+
+    await waitFor(() => {
+      expect(restored.result.current.prompt).toBe("Pulse restored artifact");
+      expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
+      expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
+    });
+
+    act(() => {
+      restored.result.current.setExpertCreateMode("standard");
+    });
+
+    expect(restored.result.current.prompt).toBe("Standard restore draft");
+    expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
+    expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
+
+    act(() => {
+      restored.result.current.setExpertCreateMode("pulse");
+    });
+
+    expect(restored.result.current.prompt).toBe("Pulse restored artifact");
+    expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
+    expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
+  });
+
   it("clears outputs, active selection, and quick slots when runtime authority changes to a pending project route", async () => {
     const { result, rerender } = renderHook(
       ({ projectRouteRequested, sessionId }) =>

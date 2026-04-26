@@ -9,6 +9,9 @@ export const PROTECTED_API_EXACT_PATHS = new Set([
   "/api/billing/catalog",
   "/api/billing/credit-packages",
   "/api/billing/subscription/change",
+  "/api/billing/storage-addon/change",
+  "/api/billing/stripe/subscription-transactions",
+  "/api/billing/stripe/transactions",
   "/api/billing/stripe/checkout",
   "/api/billing/stripe/portal",
 ]);

@@ -40,6 +40,8 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
 - Admin billing diagnostics API: `frontend/pages/api/admin/billing-diagnostics.ts`.
 - Customer subscription change API: `frontend/pages/api/billing/subscription/change.ts`.
+- Customer subscription payment-history API: `frontend/pages/api/billing/stripe/subscription-transactions.ts`.
+- Customer unified billing-history API: `frontend/pages/api/billing/stripe/transactions.ts`.
 - Admin pricing state API: `frontend/pages/api/admin/pricing/state.ts`.
 - Admin pricing catalog APIs: `frontend/pages/api/admin/pricing/credit-packages/update.ts`, `frontend/pages/api/admin/pricing/plan-offers/create.ts`, `frontend/pages/api/admin/pricing/storage-offers/create.ts`.
 - Model-pricing control plane: `frontend/lib/server/api/modelPricingControlPlane.ts`.
@@ -250,6 +252,10 @@ Recommended operator sequence:
   - current public plan storage lives in `billing_plan_offers` with `billing_plans` supplying shared metadata
   - current public recurring storage add-ons live in `billing_storage_addon_offers` with `billing_storage_addons` supplying shared metadata
   - active subscriber storage comes from `billing_subscription_contracts.storage_limit_bytes` plus active `billing_subscription_storage_addons`
+- Customer self-serve recurring storage changes now start from `/api/billing/storage-addon/change`:
+  - the route accepts explicit `storageAddonId` + `action`
+  - Stripe subscription items are the write path
+  - `billing_subscription_storage_addons` remains a webhook-driven projection, not a direct UI write target
 - Runtime AI model debit policy is separate from the billing catalog:
   - granted credits from plans/top-ups are stored as nominal credit quantities in billing tables
   - the active model-pricing policy controls how generation USD cost is converted into billed credits at runtime
@@ -265,6 +271,8 @@ Recommended operator sequence:
 - Effective storage entitlement is:
   - base contract storage
   - plus active recurring storage add-ons
+- Free or internally managed accounts must not silently self-grant recurring storage add-ons. They should be blocked with explicit product messaging until a paid Stripe-managed subscription exists.
+- Self-serve recurring storage removal is immediate on the Stripe subscription item. If current media usage remains above the new remaining limit after removal, new uploads/autosaves may be blocked until usage drops under entitlement again.
 - Quota enforcement is database-authoritative on `media_files` inserts/updates through `enforce_media_storage_quota()`.
 - App/server persistence lanes must still best-effort remove uploaded storage objects if the `media_files` insert fails because the DB quota guard rejects the write.
 

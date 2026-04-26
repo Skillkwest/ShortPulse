@@ -6,7 +6,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { CreditCard, HardDrives, Stack, UserCircle } from "phosphor-react";
+import { CreditCard, HardDrives, Receipt, Stack, UserCircle } from "phosphor-react";
 import {
   annotateCreditPackages,
   buildPlanView,
@@ -23,6 +23,7 @@ import { ProfileConfirmModal } from "../features/profile/components/ProfileConfi
 import { ProfileCreditsSection } from "../features/profile/components/ProfileCreditsSection";
 import { ProfileStorageSection } from "../features/profile/components/ProfileStorageSection";
 import { ProfileSubscriptionSection } from "../features/profile/components/ProfileSubscriptionSection";
+import { ProfileTransactionsSection } from "../features/profile/components/ProfileTransactionsSection";
 import { ProfileWorkspaceShell } from "../features/profile/components/ProfileWorkspaceShell";
 import {
   formatDateLabel,
@@ -34,9 +35,11 @@ import {
   type BillingLedgerEvent,
   type BillingProfile,
   type BillingSubscriptionContract,
+  type BillingSubscriptionStorageAddon,
   type NoticeState,
   type ProfileSection,
   type ProfileSectionItem,
+  type SubscriptionTransaction,
 } from "../features/profile/profilePageModel";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { useProtectedRoute } from "../lib/authGuard";
@@ -48,6 +51,7 @@ const sections: readonly ProfileSectionItem[] = [
   { key: "subscription", label: "Subscription", icon: Stack },
   { key: "credits", label: "Credits", icon: CreditCard },
   { key: "storage", label: "Media storage", icon: HardDrives },
+  { key: "transactions", label: "Transactions", icon: Receipt },
 ];
 
 export default function ProfilePage() {
@@ -75,6 +79,9 @@ export default function ProfilePage() {
   const [billingPlans, setBillingPlans] = useState<BillingPlanRecord[]>([]);
   const [billingPlansLoading, setBillingPlansLoading] = useState(false);
   const [storageAddons, setStorageAddons] = useState<BillingStorageAddonRecord[]>([]);
+  const [activeStorageAddons, setActiveStorageAddons] = useState<BillingSubscriptionStorageAddon[]>(
+    []
+  );
 
   const [creditPackages, setCreditPackages] = useState<CreditPackageRecord[]>([]);
   const [packagesLoading, setPackagesLoading] = useState(false);
@@ -82,9 +89,25 @@ export default function ProfilePage() {
 
   const [billingActivity, setBillingActivity] = useState<BillingLedgerEvent[]>([]);
   const [billingActivityLoading, setBillingActivityLoading] = useState(false);
+  const [subscriptionTransactions, setSubscriptionTransactions] = useState<
+    SubscriptionTransaction[]
+  >([]);
+  const [subscriptionTransactionsLoading, setSubscriptionTransactionsLoading] = useState(false);
+  const [subscriptionTransactionsError, setSubscriptionTransactionsError] = useState<string | null>(
+    null
+  );
+  const [storageTransactions, setStorageTransactions] = useState<SubscriptionTransaction[]>([]);
+  const [storageTransactionsLoading, setStorageTransactionsLoading] = useState(false);
+  const [storageTransactionsError, setStorageTransactionsError] = useState<string | null>(null);
+  const [allTransactions, setAllTransactions] = useState<SubscriptionTransaction[]>([]);
+  const [allTransactionsLoading, setAllTransactionsLoading] = useState(false);
+  const [allTransactionsError, setAllTransactionsError] = useState<string | null>(null);
 
   const [portalLoading, setPortalLoading] = useState(false);
   const [planChangeLoadingPlanId, setPlanChangeLoadingPlanId] = useState<string | null>(null);
+  const [storageAddonChangeLoadingId, setStorageAddonChangeLoadingId] = useState<string | null>(
+    null
+  );
   const [refreshingCredits, setRefreshingCredits] = useState(false);
 
   const section = useMemo<ProfileSection>(() => {
@@ -95,7 +118,8 @@ export default function ProfilePage() {
       query === "account" ||
       query === "subscription" ||
       query === "credits" ||
-      query === "storage"
+      query === "storage" ||
+      query === "transactions"
     ) {
       return query;
     }
@@ -124,7 +148,9 @@ export default function ProfilePage() {
       const supabase = ensureSupabaseClient();
       const { data } = await supabase
         .from("billing_profiles")
-        .select("plan_id, subscription_status, current_period_end, stripe_customer_id")
+        .select(
+          "plan_id, subscription_status, current_period_end, stripe_customer_id, stripe_subscription_id"
+        )
         .eq("user_id", currentUser.id)
         .maybeSingle();
       setBillingProfile((data as BillingProfile | null) ?? null);
@@ -142,7 +168,7 @@ export default function ProfilePage() {
       const { data, error } = await supabase
         .from("billing_subscription_contracts")
         .select(
-          "id, plan_id, offer_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
+          "id, plan_id, offer_id, stripe_subscription_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
         )
         .eq("user_id", currentUser.id)
         .is("ended_at", null)
@@ -208,13 +234,162 @@ export default function ProfilePage() {
     }
   };
 
+  const loadSubscriptionTransactions = async () => {
+    setSubscriptionTransactionsLoading(true);
+    setSubscriptionTransactionsError(null);
+    try {
+      const response = await fetchWithAuth("/api/billing/stripe/subscription-transactions", {
+        method: "GET",
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        transactions?: unknown[];
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to load recent subscription payments.");
+      }
+      setSubscriptionTransactions(
+        Array.isArray(payload.transactions)
+          ? (payload.transactions as SubscriptionTransaction[])
+          : []
+      );
+    } catch (error) {
+      setSubscriptionTransactions([]);
+      setSubscriptionTransactionsError(
+        error instanceof Error ? error.message : "Unable to load recent subscription payments."
+      );
+    } finally {
+      setSubscriptionTransactionsLoading(false);
+    }
+  };
+
+  const loadStorageTransactions = async () => {
+    setStorageTransactionsLoading(true);
+    setStorageTransactionsError(null);
+    try {
+      const response = await fetchWithAuth(
+        "/api/billing/stripe/subscription-transactions?kind=storage",
+        {
+          method: "GET",
+        }
+      );
+      const payload = (await response.json().catch(() => ({}))) as {
+        transactions?: unknown[];
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to load recent storage payments.");
+      }
+      setStorageTransactions(
+        Array.isArray(payload.transactions)
+          ? (payload.transactions as SubscriptionTransaction[])
+          : []
+      );
+    } catch (error) {
+      setStorageTransactions([]);
+      setStorageTransactionsError(
+        error instanceof Error ? error.message : "Unable to load recent storage payments."
+      );
+    } finally {
+      setStorageTransactionsLoading(false);
+    }
+  };
+
+  const loadAllTransactions = async () => {
+    setAllTransactionsLoading(true);
+    setAllTransactionsError(null);
+    try {
+      const response = await fetchWithAuth("/api/billing/stripe/transactions", {
+        method: "GET",
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        transactions?: unknown[];
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(payload?.error || "Unable to load recent transactions.");
+      }
+      setAllTransactions(
+        Array.isArray(payload.transactions)
+          ? (payload.transactions as SubscriptionTransaction[])
+          : []
+      );
+    } catch (error) {
+      setAllTransactions([]);
+      setAllTransactionsError(
+        error instanceof Error ? error.message : "Unable to load recent transactions."
+      );
+    } finally {
+      setAllTransactionsLoading(false);
+    }
+  };
+
+  const loadActiveStorageAddons = async (currentUser: User) => {
+    try {
+      const supabase = ensureSupabaseClient();
+      const { data, error } = await supabase
+        .from("billing_subscription_storage_addons")
+        .select(
+          "id, storage_addon_id, offer_id, stripe_subscription_item_id, storage_limit_bytes, quantity, recurring_price_cents, status"
+        )
+        .eq("user_id", currentUser.id)
+        .is("ended_at", null)
+        .eq("status", "active");
+      if (error) throw error;
+      const nextAddons = Array.isArray(data)
+        ? data
+            .map((row) => {
+              if (!row || typeof row !== "object") return null;
+              const typedRow = row as Record<string, unknown>;
+              const id = typeof typedRow.id === "string" ? typedRow.id : "";
+              const storageAddonId =
+                typeof typedRow.storage_addon_id === "string" ? typedRow.storage_addon_id : "";
+              if (!id || !storageAddonId) return null;
+              return {
+                id,
+                storageAddonId,
+                offerId: typeof typedRow.offer_id === "string" ? typedRow.offer_id : null,
+                stripeSubscriptionItemId:
+                  typeof typedRow.stripe_subscription_item_id === "string"
+                    ? typedRow.stripe_subscription_item_id
+                    : null,
+                storageLimitBytes: Number(typedRow.storage_limit_bytes ?? 0) || 0,
+                quantity: Math.max(1, Number(typedRow.quantity ?? 1) || 1),
+                recurringPriceCents: Number(typedRow.recurring_price_cents ?? 0) || 0,
+                status: typeof typedRow.status === "string" ? typedRow.status : null,
+              } satisfies BillingSubscriptionStorageAddon;
+            })
+            .filter((row): row is BillingSubscriptionStorageAddon => Boolean(row))
+        : [];
+      setActiveStorageAddons(nextAddons);
+    } catch {
+      setActiveStorageAddons([]);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
     void loadBillingProfile(user);
     void loadBillingContract(user);
     void loadBillingCatalog();
     void loadBillingActivity(user);
+    void loadActiveStorageAddons(user);
   }, [user]);
+
+  useEffect(() => {
+    if (!user || section !== "subscription") return;
+    void loadSubscriptionTransactions();
+  }, [section, user]);
+
+  useEffect(() => {
+    if (!user || section !== "storage") return;
+    void loadStorageTransactions();
+  }, [section, user]);
+
+  useEffect(() => {
+    if (!user || section !== "transactions") return;
+    void loadAllTransactions();
+  }, [section, user]);
 
   useEffect(() => {
     if (!router.isReady || !checkoutStatus) return;
@@ -291,7 +466,7 @@ export default function ProfilePage() {
     planId: resolveProfileActivePlanId({ billingContract, billingProfile }),
     plans: billingPlans,
   });
-  const { quotaSummary } = useMediaStorageQuotaSummary({
+  const { quotaSummary, refreshQuotaSummary } = useMediaStorageQuotaSummary({
     fallbackPlanId: activePlan.id,
   });
 
@@ -305,6 +480,8 @@ export default function ProfilePage() {
     billingContract?.monthly_credits_cents ?? activePlan.monthlyCreditsCents;
   const currentSubscriptionStorageLimitBytes =
     billingContract?.storage_limit_bytes ?? activePlan.storageLimitBytes;
+  const nextCreditRenewalAt =
+    billingContract?.current_period_end ?? billingProfile?.current_period_end ?? null;
   const currentSubscriptionOfferId = billingContract?.offer_id ?? null;
   const isLegacyContract =
     billingContract !== null &&
@@ -335,6 +512,19 @@ export default function ProfilePage() {
   const mediaAutosaveDisabled = mediaAutosaveLoading || mediaAutosaveSaving;
   const content = getProfileSectionContent(section);
   const portalManagementAvailable = !isInternalCompContract;
+  const stripeManagedSubscriptionId =
+    billingContract?.stripe_subscription_id ?? billingProfile?.stripe_subscription_id ?? null;
+  const storageAddonManagementState:
+    | "eligible"
+    | "requires_paid_plan"
+    | "syncing"
+    | "managed_internally" = isInternalCompContract
+    ? "managed_internally"
+    : stripeManagedSubscriptionId
+      ? "eligible"
+      : activePlan.id === "free"
+        ? "requires_paid_plan"
+        : "syncing";
   const billingIdentityDescription = portalManagementAvailable
     ? billingProfile?.stripe_customer_id
       ? "Payment method managed in Stripe billing portal"
@@ -554,6 +744,52 @@ export default function ProfilePage() {
     });
   };
 
+  const handleStorageAddonChange = async ({
+    storageAddonId,
+    action,
+  }: {
+    storageAddonId: string;
+    action: "add" | "remove";
+  }) => {
+    if (!user) return;
+
+    setStorageAddonChangeLoadingId(storageAddonId);
+    try {
+      const response = await fetchWithAuth("/api/billing/storage-addon/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storageAddonId, action }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to update recurring storage.");
+      }
+
+      setNotice({
+        tone: "success",
+        message:
+          typeof data?.message === "string" && data.message.trim()
+            ? data.message
+            : "Storage add-on update submitted. Stripe is syncing your workspace now.",
+      });
+
+      await Promise.allSettled([
+        loadBillingProfile(user),
+        loadBillingContract(user),
+        loadActiveStorageAddons(user),
+        loadStorageTransactions(),
+      ]);
+      void refreshQuotaSummary();
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Unable to update recurring storage.",
+      });
+    } finally {
+      setStorageAddonChangeLoadingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <main className="page page-wide dashboard-refresh profile-page profile-page-shell">
@@ -574,12 +810,7 @@ export default function ProfilePage() {
 
       <main className="page page-wide dashboard-refresh profile-page profile-page-shell">
         <ProfileWorkspaceShell
-          displayName={displayName}
           displayInitials={displayInitials}
-          planLabel={planLabel}
-          planClass={activePlan.className}
-          subscriptionStatusLabel={subscriptionStatusLabel}
-          workspaceEmail={workspaceEmail}
           section={section}
           sections={sections}
           title={content.title}
@@ -619,6 +850,9 @@ export default function ProfilePage() {
               billingPlansLoading={billingPlansLoading}
               isInternalCompContract={isInternalCompContract}
               planChangeLoadingPlanId={planChangeLoadingPlanId}
+              subscriptionTransactions={subscriptionTransactions}
+              subscriptionTransactionsLoading={subscriptionTransactionsLoading}
+              subscriptionTransactionsError={subscriptionTransactionsError}
               onRequestPlanChange={handleSubscriptionPlanChange}
               onRequestCancel={setPendingCancelPlanId}
             />
@@ -626,9 +860,12 @@ export default function ProfilePage() {
 
           {section === "credits" ? (
             <ProfileCreditsSection
+              activePlanClassName={activePlan.className}
               balanceCents={balanceCents}
               balanceLoading={balanceLoading}
               balanceUpdatedAt={balanceUpdatedAt}
+              nextCreditRenewalAmount={currentSubscriptionCreditsCents}
+              nextCreditRenewalAt={nextCreditRenewalAt}
               billingActivity={billingActivity}
               billingActivityLoading={billingActivityLoading}
               billingIdentityDescription={billingIdentityDescription}
@@ -639,7 +876,6 @@ export default function ProfilePage() {
               portalLoading={portalLoading}
               portalManagementAvailable={portalManagementAvailable}
               refreshingCredits={refreshingCredits}
-              userEmail={user?.email}
               onCheckout={handleCheckout}
               onOpenBillingPortal={handleOpenBillingPortal}
               onRefreshCredits={handleRefreshCredits}
@@ -649,16 +885,33 @@ export default function ProfilePage() {
           {section === "storage" ? (
             <ProfileStorageSection
               activeAddonStorageBytes={activeAddonStorageBytes}
+              activePlanClassName={activePlan.className}
+              activeStorageAddons={activeStorageAddons}
               billingContractLoading={billingContractLoading}
               billingPlansLoading={billingPlansLoading}
               currentSubscriptionStorageLimitBytes={currentSubscriptionStorageLimitBytes}
               planLabel={planLabel}
+              storageAddonChangeLoadingId={storageAddonChangeLoadingId}
+              storageAddonManagementState={storageAddonManagementState}
+              storageAddons={storageAddons}
+              storageTransactions={storageTransactions}
+              storageTransactionsError={storageTransactionsError}
+              storageTransactionsLoading={storageTransactionsLoading}
+              totalStorageLimitBytes={totalStorageLimitBytes}
+              usedStorageBytes={usedStorageBytes}
+              onStorageAddonChange={handleStorageAddonChange}
+            />
+          ) : null}
+
+          {section === "transactions" ? (
+            <ProfileTransactionsSection
               portalActionLabel={portalActionLabel}
               portalLoading={portalLoading}
               portalManagementAvailable={portalManagementAvailable}
-              storageAddons={storageAddons}
-              totalStorageLimitBytes={totalStorageLimitBytes}
-              usedStorageBytes={usedStorageBytes}
+              transactions={allTransactions}
+              transactionsError={allTransactionsError}
+              transactionsLoading={allTransactionsLoading}
+              userEmail={user?.email}
               onOpenBillingPortal={handleOpenBillingPortal}
             />
           ) : null}

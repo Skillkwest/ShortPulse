@@ -23,6 +23,7 @@ const billingProfileState = vi.hoisted(() => ({
   subscription_status: "active",
   current_period_end: "2026-05-01T00:00:00.000Z",
   stripe_customer_id: "cus_123",
+  stripe_subscription_id: "sub_123",
 }));
 
 const billingContractState = vi.hoisted(() => ({
@@ -31,6 +32,7 @@ const billingContractState = vi.hoisted(() => ({
     plan_id: "business",
     offer_id: "business__public",
     stripe_price_id: "price_business",
+    stripe_subscription_id: "sub_123",
     contract_source: "stripe",
     recurring_price_cents: 4900,
     monthly_credits_cents: 60000,
@@ -141,6 +143,31 @@ vi.mock("../../lib/supabaseClient", () => ({
           }),
         };
       }
+      if (table === "billing_subscription_storage_addons") {
+        return {
+          select: () => ({
+            eq: () => ({
+              is: () => ({
+                eq: async () => ({
+                  data: [
+                    {
+                      id: "storage_row_1",
+                      storage_addon_id: "addon_100gb",
+                      offer_id: "addon_100gb__current",
+                      stripe_subscription_item_id: "si_storage_100",
+                      storage_limit_bytes: 107374182400,
+                      quantity: 1,
+                      recurring_price_cents: 1500,
+                      status: "active",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
       throw new Error(`Unexpected table mock: ${table}`);
     },
   }),
@@ -164,6 +191,29 @@ describe("Profile storage actions", () => {
                 storage_limit_bytes: 107374182400,
                 monthly_price_cents: 1500,
                 sort_order: 1,
+              },
+            ],
+          }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions?kind=storage") {
+        return {
+          ok: true,
+          json: async () => ({
+            transactions: [
+              {
+                id: "in_storage_1",
+                invoiceNumber: "S100GB1",
+                amountPaidCents: 1500,
+                currency: "usd",
+                status: "paid",
+                title: "Extra 100 GB",
+                createdAt: "2026-03-01T00:00:00.000Z",
+                paidAt: "2026-03-01T00:00:00.000Z",
+                receiptUrl: "https://stripe.test/invoices/in_storage_1",
+                kind: "storage",
+                kindLabel: "Storage",
+                reference: "S100GB1",
               },
             ],
           }),
@@ -211,7 +261,82 @@ describe("Profile storage actions", () => {
     render(<ProfilePage />);
 
     expect(await screen.findByRole("heading", { name: "Media storage" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Your media storage" })).toBeInTheDocument();
     expect(screen.getByText("Expand media capacity")).toBeInTheDocument();
-    expect(screen.getByText("50.0 GB / 600.0 GB")).toBeInTheDocument();
+    expect(screen.getByText("600.0 GB")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Using 50.0 GB / 600.0 GB across uploads, references, and saved AI Studio media."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("+100.0 GB · 1 selected")).toBeInTheDocument();
+    expect(screen.getByText("Active add-on")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
+    expect(screen.getByRole("heading", { name: "Recent storage payments" })).toBeInTheDocument();
+    expect(screen.getByText("Extra 100 GB")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View invoice" })).toHaveAttribute(
+      "href",
+      "https://stripe.test/invoices/in_storage_1"
+    );
+    expect(screen.queryByText("Storage")).not.toBeInTheDocument();
+  });
+
+  it("shows the internal-comp empty state for Stripe storage payments", async () => {
+    billingProfileState.stripe_customer_id = null;
+    billingProfileState.stripe_subscription_id = null;
+    billingContractState.value = {
+      id: "contract_internal",
+      plan_id: "business",
+      offer_id: "business__internal_comp",
+      stripe_subscription_id: null,
+      stripe_price_id: null,
+      contract_source: "internal_comp",
+      recurring_price_cents: 0,
+      monthly_credits_cents: 12000,
+      storage_limit_bytes: 536870912000,
+      status: "active",
+      current_period_start: "2026-04-01T00:00:00.000Z",
+      current_period_end: "2026-05-01T00:00:00.000Z",
+      cancel_at_period_end: false,
+      started_at: "2026-04-01T00:00:00.000Z",
+      ended_at: null,
+    } as Record<string, unknown>;
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({
+            plans: [],
+            packages: [],
+            storageAddons: [
+              {
+                id: "addon_100gb",
+                display_name: "100 GB add-on",
+                storage_limit_bytes: 107374182400,
+                monthly_price_cents: 1500,
+                sort_order: 1,
+              },
+            ],
+          }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions?kind=storage") {
+        return {
+          ok: true,
+          json: async () => ({ transactions: [] }),
+        };
+      }
+      throw new Error(`Unexpected fetch ${String(url)}`);
+    });
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByRole("heading", { name: "Media storage" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "No Stripe storage payments are available for this internally managed account."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Managed internally" })).toBeDisabled();
   });
 });

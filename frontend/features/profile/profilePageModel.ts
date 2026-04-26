@@ -5,19 +5,21 @@
 import type React from "react";
 import type { IconProps } from "phosphor-react";
 
-export type ProfileSection = "account" | "subscription" | "credits" | "storage";
+export type ProfileSection = "account" | "subscription" | "credits" | "storage" | "transactions";
 
 export type BillingProfile = {
   plan_id: string | null;
   subscription_status: string | null;
   current_period_end: string | null;
   stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
 };
 
 export type BillingSubscriptionContract = {
   id: string;
   plan_id: string | null;
   offer_id: string | null;
+  stripe_subscription_id: string | null;
   stripe_price_id: string | null;
   contract_source: "stripe" | "internal_comp" | null;
   recurring_price_cents: number;
@@ -38,6 +40,17 @@ export type BillingCatalogResponse = {
   error?: string;
 };
 
+export type BillingSubscriptionStorageAddon = {
+  id: string;
+  storageAddonId: string;
+  offerId: string | null;
+  stripeSubscriptionItemId: string | null;
+  storageLimitBytes: number;
+  quantity: number;
+  recurringPriceCents: number;
+  status: string | null;
+};
+
 export type BillingLedgerEvent = {
   id: string;
   change_cents: number;
@@ -46,6 +59,21 @@ export type BillingLedgerEvent = {
   source_ref: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
+};
+
+export type SubscriptionTransaction = {
+  id: string;
+  invoiceNumber: string | null;
+  amountPaidCents: number;
+  currency: string | null;
+  status: string | null;
+  title: string;
+  createdAt: string | null;
+  paidAt: string | null;
+  receiptUrl: string | null;
+  kind: "subscription" | "storage" | "credit_purchase" | "mixed";
+  kindLabel: string;
+  reference: string | null;
 };
 
 export type NoticeTone = "info" | "success" | "error";
@@ -65,6 +93,21 @@ export type ProfileSectionItem = {
  * Formats integer cent amounts as USD strings for profile billing surfaces.
  */
 export const formatCurrencyFromCents = (value: number): string => `$${(value / 100).toFixed(2)}`;
+
+/**
+ * Formats Stripe minor-unit amounts using the reported invoice currency.
+ */
+export const formatCurrencyAmount = (value: number, currency: string | null): string => {
+  const normalizedCurrency = currency?.trim().toUpperCase() || "USD";
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: normalizedCurrency,
+    }).format(value / 100);
+  } catch {
+    return formatCurrencyFromCents(value);
+  }
+};
 
 /**
  * Formats a stored ISO date as a short local date label.
@@ -177,6 +220,12 @@ export const getProfileSectionContent = (
     return {
       title: "Media storage",
       body: "Track media capacity and manage recurring storage add-ons for your workspace.",
+    };
+  }
+  if (section === "transactions") {
+    return {
+      title: "Transaction history",
+      body: "Review recent billing payments across subscriptions, storage, and credit top-ups.",
     };
   }
   return {

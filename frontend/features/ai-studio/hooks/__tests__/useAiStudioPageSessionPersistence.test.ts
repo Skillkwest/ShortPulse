@@ -122,6 +122,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       })
     );
     const hydrateFromSessionAgentSnapshot = vi.fn();
+    const hydrateFromSessionCanvasSnapshot = vi.fn();
     const hydrateFromSessionExpertEditSnapshot = vi.fn();
     const setUiNotice = vi.fn();
 
@@ -157,6 +158,7 @@ describe("useAiStudioPageSessionPersistence", () => {
         expertEditSessionState,
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
+        hydrateFromSessionCanvasSnapshot,
         hydrateFromSessionExpertEditSnapshot,
         setUiNotice,
       })
@@ -201,7 +203,161 @@ describe("useAiStudioPageSessionPersistence", () => {
     expect(setUiNotice).toHaveBeenCalledWith("autosave warning");
     expect(params?.hydrateFromSessionSnapshot).toBe(hydrateFromSessionSnapshot);
     expect(params?.hydrateFromSessionAgentSnapshot).toBe(hydrateFromSessionAgentSnapshot);
+    expect(params?.hydrateFromSessionCanvasSnapshot).toBe(hydrateFromSessionCanvasSnapshot);
     expect(params?.hydrateFromSessionExpertEditSnapshot).toBe(hydrateFromSessionExpertEditSnapshot);
+  });
+
+  it("preserves completed Pulse artifact state when the page builds persistence snapshots", () => {
+    const buildSessionSnapshot = vi.fn(
+      (args): AiStudioSessionSnapshot =>
+        ({
+          schemaVersion: 2,
+          sessionId: args.sessionId,
+          updatedAt: "2026-03-23T00:00:00.000Z",
+          workspace: {} as AiStudioSessionSnapshot["workspace"],
+          outputs: {} as AiStudioSessionSnapshot["outputs"],
+          agent: {} as AiStudioSessionSnapshot["agent"],
+        }) as AiStudioSessionSnapshot
+    );
+    const hydrateFromSessionSnapshot = vi.fn(
+      (): AiStudioSessionHydrationPayload => ({
+        workspace: {} as never,
+        outputs: {} as never,
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: null,
+          pulse: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+        },
+        canvas: null,
+        expertEdit: null,
+      })
+    );
+    const completedPulseWorkflowSession = {
+      presetId: "story_builder",
+      status: "completed",
+      currentStepIndex: 4,
+      currentStepLabel: "Final Prompt",
+      currentStepPrompt: null,
+      collectedInputs: ["grimdark tone", "10 minute runtime"],
+      lastArtifact:
+        "A lone medieval knight in weathered steel plate armor steps through the shattered entrance of a ruined Gothic cathedral at dawn.",
+      finalArtifactSource: "chat_reply" as const,
+    };
+    const setUiNotice = vi.fn();
+
+    renderHook(() =>
+      useAiStudioPageSessionPersistence({
+        sessionId: "session-1",
+        buildSessionSnapshot,
+        agentMessages: [
+          {
+            id: "assistant-1",
+            role: "assistant",
+            content: completedPulseWorkflowSession.lastArtifact,
+          },
+        ],
+        agentInput: "",
+        latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
+        promptOrigin: "agent",
+        chatModeEnabled: true,
+        pulseWorkflowSession: completedPulseWorkflowSession,
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: "story_builder",
+          pulse: {
+            messages: [
+              {
+                id: "assistant-1",
+                role: "assistant",
+                content: completedPulseWorkflowSession.lastArtifact,
+              },
+            ],
+            input: "",
+            latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
+            promptOrigin: "agent",
+            chatModeEnabled: true,
+            pulseWorkflowSession: completedPulseWorkflowSession,
+          },
+        },
+        hydrateFromSessionSnapshot,
+        hydrateFromSessionAgentSnapshot: vi.fn(),
+        setUiNotice,
+      })
+    );
+
+    const params = mockedUseAiStudioSessionPersistenceController.mock.calls.at(-1)?.[0];
+    params?.buildSessionSnapshot("session-2");
+
+    expect(buildSessionSnapshot).toHaveBeenCalledWith({
+      sessionId: "session-2",
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: completedPulseWorkflowSession.lastArtifact,
+        },
+      ],
+      agentInput: "",
+      latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
+      promptOrigin: "agent",
+      chatModeEnabled: true,
+      pulseWorkflowSession: completedPulseWorkflowSession,
+      agentRuntimes: {
+        standard: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: "story_builder",
+        pulse: {
+          messages: [
+            {
+              id: "assistant-1",
+              role: "assistant",
+              content: completedPulseWorkflowSession.lastArtifact,
+            },
+          ],
+          input: "",
+          latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
+          promptOrigin: "agent",
+          chatModeEnabled: true,
+          pulseWorkflowSession: completedPulseWorkflowSession,
+        },
+      },
+      expertEditSessionState: undefined,
+    });
   });
 
   it("routes project-backed sessions through the project workspace controller", () => {
@@ -252,6 +408,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       })
     );
     const hydrateFromSessionAgentSnapshot = vi.fn();
+    const resetProjectAgentConversation = vi.fn();
     const setUiNotice = vi.fn();
 
     renderHook(() =>
@@ -267,6 +424,7 @@ describe("useAiStudioPageSessionPersistence", () => {
         pulseWorkflowSession: null,
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
+        resetProjectAgentConversation,
         setUiNotice,
       })
     );
@@ -276,6 +434,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       expect.objectContaining({
         projectId: "project-1",
         sessionId: "session-1",
+        resetProjectAgentConversation,
       })
     );
     expect(mockedUseAiStudioSessionPersistenceController.mock.calls[0]?.[0]).toEqual(
@@ -333,6 +492,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       })
     );
     const hydrateFromSessionAgentSnapshot = vi.fn();
+    const resetProjectAgentConversation = vi.fn();
     const setUiNotice = vi.fn();
 
     renderHook(() =>
@@ -348,6 +508,7 @@ describe("useAiStudioPageSessionPersistence", () => {
         pulseWorkflowSession: null,
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
+        resetProjectAgentConversation,
         setUiNotice,
       })
     );
@@ -357,6 +518,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       expect.objectContaining({
         projectId: null,
         sessionId: "session-1",
+        resetProjectAgentConversation,
       })
     );
     expect(mockedUseAiStudioSessionPersistenceController.mock.calls[0]?.[0]).toEqual(

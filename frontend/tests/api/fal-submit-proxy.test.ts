@@ -361,6 +361,95 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
+  it("still returns the provider request id when direct submit transition recording fails after acceptance", async () => {
+    applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({
+      ok: false,
+      stage: "running",
+      error: "transition_failed",
+    });
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.api.fal_submit.direct_transition_failed",
+        statusCode: 200,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ request_id: "req-direct-1" });
+  });
+
+  it("refunds and returns 500 when provider acceptance cannot be linked to local tracking", async () => {
+    const charge = {
+      userId: "user-1",
+      sourceRef: "source-ref-1",
+      billingMode: "reservation",
+      markSubmitted: vi.fn().mockResolvedValue({
+        ok: false,
+        status: "error",
+        sourceRef: "source-ref-1",
+        message: "link failed",
+        code: "link_failed",
+      }),
+      refund: vi.fn().mockResolvedValue(undefined),
+    };
+    chargeGenerationRequestMock.mockResolvedValue(charge);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: failed to bind provider request id after direct submit.",
+      expect.objectContaining({
+        reason: "direct_submit_mark_submitted_failed",
+        provider_request_id: "req-direct-1",
+      })
+    );
+    expect(applyAcceptedRunningGenerationTransitionMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.direct_submit_mark_submitted_failed",
+        statusCode: 500,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Failed to start generation tracking. Please retry.",
+    });
+  });
+
   it("returns 429 for inline Fal image submits when admission is saturated", async () => {
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {

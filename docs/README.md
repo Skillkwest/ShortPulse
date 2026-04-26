@@ -38,6 +38,8 @@ Start here for all repository documentation.
 - `docs/adr/0066-project-media-library-folder-authority.md`
 - `docs/adr/0067-project-media-library-folder-canvas-authority.md`
 - `docs/adr/0068-model-pricing-control-plane.md`
+- `docs/adr/0069-admin-created-billing-plans.md`
+- `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
@@ -168,6 +170,14 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-continuation-client-demotion-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`
+- `docs/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
+- `docs/planning/generation-pipeline-fundamental-hardening-tracker-2026-04-26.md`
+- `docs/planning/generation-pipeline-fundamental-hardening-done-state-and-stop-rules-2026-04-26.md`
+- `docs/planning/generation-pipeline-fundamental-hardening-authority-and-proof-inventory-2026-04-26.md`
+- `docs/planning/generation-pipeline-fundamental-hardening-phase-1-proof-and-characterization-plan-2026-04-26.md`
+- `docs/planning/generation-pipeline-fundamental-hardening-phase-2-core-server-correctness-plan-2026-04-26.md`
+- `docs/planning/generation-pipeline-fundamental-hardening-phase-3-durable-media-authority-plan-2026-04-26.md`
+- `docs/planning/generation-pipeline-fundamental-hardening-phase-4-canonical-output-slot-convergence-plan-2026-04-26.md`
 - `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
 - `docs/planning/ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`
 - `docs/planning/ai-studio-inpaint-reference-contract-master-plan-2026-04-14.md`

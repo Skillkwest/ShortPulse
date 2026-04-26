@@ -159,4 +159,49 @@ describe("processPendingGenerationObservations", () => {
       processingError: "boom",
     });
   });
+
+  it("marks missing_generation recovery results as ignored", async () => {
+    readPendingGenerationObservationsMock.mockResolvedValue([
+      {
+        id: "obs-4",
+        generationId: "gen-4",
+        generationAttemptId: null,
+        userId: "user-4",
+        provider: "fal",
+        providerRequestId: "req-4",
+        observationSource: "webhook",
+        observationType: "completed",
+        idempotencyKey: "fal:webhook:event-4",
+        payload: { status: "completed" },
+        observedAt: new Date().toISOString(),
+      },
+    ]);
+    executeGenerationRecoveryMock.mockResolvedValue({
+      ok: true,
+      state: "missing_generation",
+      note: "missing_generation",
+      generationId: null,
+      requestId: "req-4",
+      processed: false,
+    });
+
+    await expect(
+      processPendingGenerationObservations({
+        limit: 10,
+        leaseSeconds: 120,
+        routeLabel: "worker/generation-control-plane",
+      })
+    ).resolves.toEqual({
+      claimed: 1,
+      processed: 0,
+      ignored: 1,
+      failed: 0,
+      errors: 0,
+    });
+    expect(markGenerationObservationProcessingStateMock).toHaveBeenCalledWith({
+      idempotencyKey: "fal:webhook:event-4",
+      processingState: "ignored",
+      processingError: "missing_generation",
+    });
+  });
 });

@@ -1,4 +1,5 @@
 import { readRecoveryGenerationRow } from "../falIntegration/recoveryGenerationLookup";
+import { persistRecoveryMediaFilesForGeneration } from "../falIntegration/recoveryMediaPersistence";
 import { settleGenerationOutcome } from "./generationBilling";
 import { lookupGenerationAttemptByProviderRequest } from "./generationAttempts";
 import { persistGenerationOutputRecords } from "./generationOutputs";
@@ -6,6 +7,7 @@ import { applyGenerationLifecycleTransition } from "./generationLifecycleTransit
 import { upsertGenerationProjection } from "./generationProjection";
 import { upsertGenerationPublication } from "./generationPublications";
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 
 type JsonObject = Record<string, unknown>;
 
@@ -119,6 +121,53 @@ const updateGenerationRow = async ({
   if (error) throw error;
 };
 
+const readMediaAutosaveEnabledForUser = async (userId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from("user_preferences")
+      .select("media_autosave_enabled")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) return true;
+    const value = (data as { media_autosave_enabled?: unknown } | null)?.media_autosave_enabled;
+    return typeof value === "boolean" ? value : true;
+  } catch {
+    return true;
+  }
+};
+
+const readMediaStoragePathsById = async ({
+  mediaFileIds,
+  userId,
+}: {
+  mediaFileIds: string[];
+  userId: string;
+}): Promise<Map<string, string>> => {
+  const ids = mediaFileIds
+    .map((value) => asString(value))
+    .filter((value): value is string => Boolean(value));
+  if (!ids.length) return new Map();
+
+  const { data, error } = await getSupabaseAdmin()
+    .from("media_files")
+    .select("id, preview_storage_path, storage_path")
+    .in("id", ids)
+    .eq("user_id", userId)
+    .limit(ids.length);
+  if (error || !Array.isArray(data)) return new Map();
+
+  const map = new Map<string, string>();
+  for (const rawRow of data) {
+    const row = asObject(rawRow);
+    const mediaFileId = asString(row.id);
+    const storagePath = asString(row.preview_storage_path) ?? asString(row.storage_path);
+    if (mediaFileId && storagePath) {
+      map.set(mediaFileId, storagePath);
+    }
+  }
+  return map;
+};
+
 const readGenerationContext = async ({
   generationId,
   requestId,
@@ -177,6 +226,11 @@ export const settleDirectGenerationSuccess = async ({
     providerState,
     outcome: "success",
   });
+  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser(generation.user_id);
+  const autosavePolicyDecision = canAutoPersistRecoveryMedia({
+    intent: "auto",
+    mediaAutosaveEnabled,
+  });
 
   const transition = await applyGenerationLifecycleTransition({
     intent: "provider_completed_observed",
@@ -226,19 +280,49 @@ export const settleDirectGenerationSuccess = async ({
     return { ok: false, error: transition.error };
   }
 
+  const mediaFileIds = autosavePolicyDecision.allowed
+    ? await persistRecoveryMediaFilesForGeneration({
+        generation: {
+          id: generation.id,
+          user_id: generation.user_id,
+          request_id: generation.request_id,
+          model_id: generation.model_id,
+          provider: generation.provider,
+          prompt_text: generation.prompt_text,
+          metadata: generationMetadata,
+        },
+        mediaUrls: normalizedResultUrls,
+      })
+    : [];
+
   const persistedOutputRows = await persistGenerationOutputRecords({
     generationId: generation.id,
     userId: generation.user_id,
     generationAttemptId: attempt?.id,
     providerRequestId: generation.request_id,
     resultUrls: normalizedResultUrls,
-    mediaFileIds: [],
+    mediaFileIds,
     metadata: {
       direct_terminal_settlement: true,
       direct_terminal_settlement_outcome: "success",
       direct_terminal_provider_state: providerState,
+      autosave_enabled: mediaAutosaveEnabled,
+      autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
+      autosave_decision_reason: autosavePolicyDecision.reason,
     },
   });
+  const storagePathByMediaId = await readMediaStoragePathsById({
+    mediaFileIds: persistedOutputRows
+      .map((row) => row.mediaFileId)
+      .filter((value): value is string => Boolean(value)),
+    userId: generation.user_id,
+  });
+  const hasCanonicalStorageAuthority =
+    persistedOutputRows.length > 0 &&
+    persistedOutputRows.every((row) => {
+      if (!row.mediaFileId) return false;
+      return storagePathByMediaId.has(row.mediaFileId);
+    });
 
   const hiddenInReferenceGrid =
     readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
@@ -247,26 +331,39 @@ export const settleDirectGenerationSuccess = async ({
   await Promise.all(
     persistedOutputRows.map((row) => {
       if (!row.id) return Promise.resolve();
+      const storagePath = row.mediaFileId
+        ? (storagePathByMediaId.get(row.mediaFileId) ?? null)
+        : null;
       return upsertGenerationPublication({
         generationId: generation.id,
         generationOutputId: row.id,
         userId: generation.user_id,
         generationAttemptId: attempt?.id ?? null,
-        publicationState: "published",
+        publicationState: hasCanonicalStorageAuthority ? "published" : "suppressed",
         reusable: true,
         visibleInAiStudio: true,
         visibleInReferenceGrid: !hiddenInReferenceGrid,
+        ownedMediaFileId: row.mediaFileId,
         previewUrl: row.resultUrl,
         fullUrl: row.resultUrl,
+        previewStoragePath: storagePath,
+        fullStoragePath: storagePath,
         publishedAt: nowIso,
         metadata: {
           direct_terminal_settlement: true,
           direct_terminal_settlement_outcome: "success",
           direct_terminal_provider_state: providerState,
+          autosave_enabled: mediaAutosaveEnabled,
+          autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
+          autosave_decision_reason: autosavePolicyDecision.reason,
         },
       });
     })
   );
+  const firstOwnedStoragePath =
+    persistedOutputRows.length > 0 && persistedOutputRows[0]?.mediaFileId
+      ? (storagePathByMediaId.get(persistedOutputRows[0].mediaFileId) ?? null)
+      : null;
 
   await upsertGenerationProjection({
     generationId: generation.id,
@@ -282,15 +379,17 @@ export const settleDirectGenerationSuccess = async ({
     displayPrompt: generation.prompt_text,
     modelId: generation.model_id,
     previewUrl: normalizedResultUrls[0] ?? null,
+    previewStoragePath: firstOwnedStoragePath,
+    fullStoragePath: firstOwnedStoragePath,
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,
     saveState: "idle",
     hiddenInReferenceGrid,
     referenceGridVisible: !hiddenInReferenceGrid,
-    publicationState: "published",
+    publicationState: hasCanonicalStorageAuthority ? "published" : "suppressed",
     resultUrls: normalizedResultUrls,
-    savedMediaIds: [],
+    savedMediaIds: hasCanonicalStorageAuthority ? mediaFileIds : [],
     generationReplay: readMetadataObject(
       generationMetadata,
       "generation_replay",

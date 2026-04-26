@@ -4,14 +4,24 @@ const readRecoveryGenerationRowMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
 const lookupGenerationAttemptByProviderRequestMock = vi.fn();
 const persistGenerationOutputRecordsMock = vi.fn();
+const persistRecoveryMediaFilesForGenerationMock = vi.fn();
 const applyGenerationLifecycleTransitionMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
 const updateGenerationEqMock = vi.fn();
 const updateGenerationUpdateMock = vi.fn();
+const mediaFilesInMock = vi.fn();
+const mediaFilesEqMock = vi.fn();
+const mediaFilesLimitMock = vi.fn();
+const userPreferencesMaybeSingleMock = vi.fn();
 
 vi.mock("../../falIntegration/recoveryGenerationLookup", () => ({
   readRecoveryGenerationRow: (...args: unknown[]) => readRecoveryGenerationRowMock(...args),
+}));
+
+vi.mock("../../falIntegration/recoveryMediaPersistence", () => ({
+  persistRecoveryMediaFilesForGeneration: (...args: unknown[]) =>
+    persistRecoveryMediaFilesForGenerationMock(...args),
 }));
 
 vi.mock("../generationBilling", () => ({
@@ -43,9 +53,30 @@ vi.mock("../generationPublications", () => ({
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: () => ({
-    from: vi.fn(() => ({
-      update: updateGenerationUpdateMock,
-    })),
+    from: vi.fn((table: string) => {
+      if (table === "ai_generations") {
+        return {
+          update: updateGenerationUpdateMock,
+        };
+      }
+      if (table === "user_preferences") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: userPreferencesMaybeSingleMock,
+            })),
+          })),
+        };
+      }
+      if (table === "media_files") {
+        return {
+          select: vi.fn(() => ({
+            in: mediaFilesInMock,
+          })),
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    }),
   }),
 }));
 
@@ -63,6 +94,31 @@ describe("directGenerationSettlement", () => {
       eq: updateGenerationEqMock,
     });
     updateGenerationEqMock.mockResolvedValue({ error: null });
+    mediaFilesLimitMock.mockResolvedValue({
+      data: [
+        {
+          id: "media-1",
+          preview_storage_path: "user-1/generations/images/media-1.png",
+          storage_path: "user-1/generations/images/media-1.png",
+        },
+        {
+          id: "media-2",
+          preview_storage_path: "user-1/generations/images/media-2.png",
+          storage_path: "user-1/generations/images/media-2.png",
+        },
+      ],
+      error: null,
+    });
+    mediaFilesEqMock.mockReturnValue({
+      limit: mediaFilesLimitMock,
+    });
+    mediaFilesInMock.mockReturnValue({
+      eq: mediaFilesEqMock,
+    });
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
 
     readRecoveryGenerationRowMock.mockResolvedValue({
       id: "gen-1",
@@ -87,14 +143,17 @@ describe("directGenerationSettlement", () => {
       error: null,
     });
     applyGenerationLifecycleTransitionMock.mockResolvedValue({ ok: true });
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1", "media-2"]);
     persistGenerationOutputRecordsMock.mockResolvedValue([
       {
         id: "output-1",
         resultUrl: "https://provider.example/out-1.png",
+        mediaFileId: "media-1",
       },
       {
         id: "output-2",
         resultUrl: "https://provider.example/out-2.png",
+        mediaFileId: "media-2",
       },
     ]);
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
@@ -102,7 +161,7 @@ describe("directGenerationSettlement", () => {
     settleGenerationOutcomeMock.mockResolvedValue(undefined);
   });
 
-  it("persists direct terminal success using provider result URLs and published projection state", async () => {
+  it("persists direct terminal success with storage-backed media authority when autosave allows it", async () => {
     const result = await settleDirectGenerationSuccess({
       generationId: "gen-1",
       requestId: "req-1",
@@ -121,6 +180,14 @@ describe("directGenerationSettlement", () => {
       generationId: "gen-1",
       requestId: "req-1",
     });
+    expect(persistRecoveryMediaFilesForGenerationMock).toHaveBeenCalledWith({
+      generation: expect.objectContaining({
+        id: "gen-1",
+        user_id: "user-1",
+        request_id: "req-1",
+      }),
+      mediaUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
+    });
     expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-1",
@@ -128,7 +195,7 @@ describe("directGenerationSettlement", () => {
         generationAttemptId: "attempt-1",
         providerRequestId: "req-1",
         resultUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
-        mediaFileIds: [],
+        mediaFileIds: ["media-1", "media-2"],
       })
     );
     expect(upsertGenerationPublicationMock).toHaveBeenNthCalledWith(
@@ -139,8 +206,11 @@ describe("directGenerationSettlement", () => {
         userId: "user-1",
         generationAttemptId: "attempt-1",
         publicationState: "published",
+        ownedMediaFileId: "media-1",
         previewUrl: "https://provider.example/out-1.png",
         fullUrl: "https://provider.example/out-1.png",
+        previewStoragePath: "user-1/generations/images/media-1.png",
+        fullStoragePath: "user-1/generations/images/media-1.png",
         visibleInReferenceGrid: false,
       })
     );
@@ -153,8 +223,10 @@ describe("directGenerationSettlement", () => {
         queueState: "dispatched",
         publicationState: "published",
         previewUrl: "https://provider.example/out-1.png",
+        previewStoragePath: "user-1/generations/images/media-1.png",
+        fullStoragePath: "user-1/generations/images/media-1.png",
         resultUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
-        savedMediaIds: [],
+        savedMediaIds: ["media-1", "media-2"],
         hiddenInReferenceGrid: true,
         referenceGridVisible: false,
       })
@@ -164,6 +236,56 @@ describe("directGenerationSettlement", () => {
         userId: "user-1",
         providerRequestId: "req-1",
         outcome: "success",
+      })
+    );
+  });
+
+  it("keeps direct terminal success transient when autosave is disabled", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: false },
+      error: null,
+    });
+    persistRecoveryMediaFilesForGenerationMock.mockReset();
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        resultUrl: "https://provider.example/out-1.png",
+        mediaFileId: null,
+      },
+    ]);
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-no-autosave",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/out-1.png"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+    });
+    expect(persistRecoveryMediaFilesForGenerationMock).not.toHaveBeenCalled();
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileIds: [],
+      })
+    );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicationState: "suppressed",
+        ownedMediaFileId: null,
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicationState: "suppressed",
+        savedMediaIds: [],
+        previewStoragePath: null,
+        fullStoragePath: null,
       })
     );
   });

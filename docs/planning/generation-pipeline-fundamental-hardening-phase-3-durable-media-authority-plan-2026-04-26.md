@@ -1,7 +1,7 @@
 # Generation Pipeline Fundamental Hardening Phase 3 Durable Media Authority Plan (2026-04-26)
 
 Last updated: 2026-04-26  
-Status: Not started  
+Status: Completed  
 Master plan: `docs/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
 
 ## Goal
@@ -54,6 +54,20 @@ For current writes in scope:
 2. owned-media reads prefer storage-backed authority for current writes
 3. intended route behavior and UI-visible behavior stay unchanged
 4. no historical cleanup or compatibility-retirement work was pulled in unless it was strictly required to keep current writes correct
+
+## Execution Notes
+Completed authority work:
+1. direct Fal terminal settlement now respects autosave policy and persists storage-backed media authority before publishing current-write success when autosave allows it in `frontend/lib/server/api/directGenerationSettlement.ts`
+2. direct Fal autosave-disabled terminal success no longer claims published canonical-owned state when only transient provider URLs exist
+3. existing AI Studio read/download helpers were re-audited and did not require code changes for this phase because they already prefer storage-backed authority when current writes expose it
+
+Validation anchors:
+1. `frontend/lib/server/api/__tests__/directGenerationSettlement.test.ts`
+2. `frontend/tests/api/fal-status-proxy.test.ts`
+3. `frontend/tests/api/fal-status-persisted-results.test.ts`
+4. `frontend/lib/server/falIntegration/__tests__/recoveryExecution.test.ts`
+5. `frontend/tests/lib/elevenlabs.persistGeneratedAudioAsset.test.ts`
+6. `frontend/tests/lib/elevenlabs.persistGeneratedVideoAsset.test.ts`
 
 ## Validation
 1. direct tests for the changed Fal and ElevenLabs authority paths pass

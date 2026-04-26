@@ -1,7 +1,7 @@
 # Generation Pipeline Fundamental Hardening Tracker (2026-04-26)
 
 Last updated: 2026-04-26  
-Status: Phase 2 complete  
+Status: Phase 3 complete  
 Master plan: `docs/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
 
 ## Purpose
@@ -12,15 +12,16 @@ This is the compact execution tracker for the fundamental hardening program.
 | --- | --- | --- | --- | --- |
 | Phase 1 | Completed | Add direct proof for the weak high-risk branches. | Master plan accepted. | Mandatory weak branches are directly characterized and any conditional proof target is explicitly resolved. |
 | Phase 2 | Completed | Fix post-accept recoverability, `terminal_success_no_media` consistency, and `missing_generation` observation loss. | Phase 1 complete. | All three core server correctness gaps are closed with no intended external behavior change. |
-| Phase 3 | Not started | Normalize durable owned/generated media authority across Fal and ElevenLabs current writes. | Phase 2 complete. | Current-write owned/generated media authority is internally storage-backed and no longer depends on transient URL authority. |
+| Phase 3 | Completed | Normalize durable owned/generated media authority across Fal and ElevenLabs current writes. | Phase 2 complete. | Current-write owned/generated media authority is internally storage-backed and no longer depends on transient URL authority. |
 | Phase 4 | Not started | Introduce one canonical internal output-slot convergence path. | Phase 3 complete. | One canonical internal output-slot convergence path exists and the repeated convergence seam is materially reduced. |
 | Stop gate | Pending | End the program when the done state is satisfied. | Phase 4 complete. | Done state achieved; no more work under this plan. |
 
 ## Current State
 1. Phase 1 is complete.
 2. Phase 2 is complete.
-3. The conditional reroll stale/expired URL proof target is intentionally deferred unless Phase 3 touches read-side authority helpers materially.
-4. Phase 3 is the next execution lane.
+3. Phase 3 is complete.
+4. The conditional reroll stale/expired URL proof target remains deferred because Phase 3 did not need to change read-side authority helpers materially.
+5. Phase 4 is the next execution lane.
 
 ## Watchouts
 Do not add tracker work for:

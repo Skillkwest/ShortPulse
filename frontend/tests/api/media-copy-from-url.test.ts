@@ -100,6 +100,13 @@ const createSupabaseAdmin = (options?: {
     data: options?.existingRow ?? null,
     error: null,
   }));
+  const mediaRows: Array<Record<string, unknown>> = [];
+  if (options?.existingRow) {
+    mediaRows.push({
+      id: options.existingRow.id,
+      storage_path: options.existingRow.storage_path,
+    });
+  }
 
   const singleMock = vi.fn(async () => ({
     data:
@@ -130,12 +137,34 @@ const createSupabaseAdmin = (options?: {
         : { media_file_id: options.canonicalOutputMediaFileId },
     error: options?.canonicalOutputMaybeSingleError ?? null,
   }));
-  const generationOutputUpdateMock = vi.fn(() => ({
-    eq: vi.fn(() => ({
-      eq: vi.fn(async () => ({ error: null })),
+  const generationOutputUpdateMock = vi.fn((payload: Record<string, unknown>) => ({
+    eq: vi.fn((column: string, rowId: string) => ({
+      eq: vi.fn(async () => {
+        if (column === "id") {
+          const targetRow = generationOutputRows.find(
+            (row) =>
+              row &&
+              typeof row === "object" &&
+              !Array.isArray(row) &&
+              String((row as Record<string, unknown>).id ?? "") === rowId
+          );
+          if (targetRow && typeof targetRow === "object" && !Array.isArray(targetRow)) {
+            (targetRow as Record<string, unknown>).media_file_id = payload.media_file_id ?? null;
+          }
+        }
+        return { error: null };
+      }),
     })),
   }));
-  const generationOutputInsertMock = vi.fn(async () => ({ error: null }));
+  const generationOutputInsertMock = vi.fn(async (payload: Record<string, unknown>) => {
+    generationOutputRows.push({
+      id: `gen-output-${generationOutputRows.length + 1}`,
+      output_index: payload.output_index,
+      result_url: payload.result_url,
+      media_file_id: payload.media_file_id ?? null,
+    });
+    return { error: null };
+  });
   const mediaUpdateEqUserMock = vi.fn(async () => ({ error: null }));
   const mediaUpdateEqIdMock = vi.fn(() => ({
     eq: mediaUpdateEqUserMock,
@@ -144,9 +173,21 @@ const createSupabaseAdmin = (options?: {
     eq: mediaUpdateEqIdMock,
   }));
   const mediaAssetVariantUpsertMock = vi.fn(async () => ({ error: null }));
+  const generationPublicationUpsertMock = vi.fn(async () => ({ error: null }));
+  const generationProjectionUpsertMock = vi.fn(async () => ({ error: null }));
 
   const fromMock = vi.fn((table: string) => {
     if (table === "media_files") {
+      const storageLookupBuilder = {
+        eq: vi.fn(),
+        in: vi.fn(),
+        limit: vi.fn(async () => ({
+          data: [...mediaRows],
+          error: null,
+        })),
+      };
+      storageLookupBuilder.eq.mockReturnValue(storageLookupBuilder);
+      storageLookupBuilder.in.mockReturnValue(storageLookupBuilder);
       const mediaSelectBuilder = {
         eq: vi.fn(),
         contains: vi.fn(),
@@ -157,10 +198,30 @@ const createSupabaseAdmin = (options?: {
       mediaSelectBuilder.contains.mockReturnValue(mediaSelectBuilder);
       mediaSelectBuilder.limit.mockReturnValue(mediaSelectBuilder);
       return {
-        select: vi.fn(() => mediaSelectBuilder),
+        select: vi.fn((fields: string) => {
+          if (fields === "id, storage_path") {
+            return storageLookupBuilder;
+          }
+          return mediaSelectBuilder;
+        }),
         update: mediaUpdateMock,
         insert: vi.fn(() => ({
-          select: vi.fn(() => ({ single: singleMock })),
+          select: vi.fn(() => ({
+            single: vi.fn(async () => {
+              const response = await singleMock();
+              const insertedRow =
+                response.data && typeof response.data === "object" && !Array.isArray(response.data)
+                  ? (response.data as Record<string, unknown>)
+                  : null;
+              if (insertedRow?.id && insertedRow?.storage_path) {
+                mediaRows.push({
+                  id: insertedRow.id,
+                  storage_path: insertedRow.storage_path,
+                });
+              }
+              return response;
+            }),
+          })),
         })),
       };
     }
@@ -195,6 +256,16 @@ const createSupabaseAdmin = (options?: {
         insert: generationOutputInsertMock,
       };
     }
+    if (table === "generation_publications") {
+      return {
+        upsert: generationPublicationUpsertMock,
+      };
+    }
+    if (table === "generation_projection") {
+      return {
+        upsert: generationProjectionUpsertMock,
+      };
+    }
     throw new Error(`Unexpected table: ${table}`);
   });
 
@@ -209,6 +280,8 @@ const createSupabaseAdmin = (options?: {
     mediaUpdateEqIdMock,
     mediaUpdateEqUserMock,
     mediaAssetVariantUpsertMock,
+    generationPublicationUpsertMock,
+    generationProjectionUpsertMock,
     admin: {
       from: fromMock,
       storage: {
@@ -488,6 +561,26 @@ describe("POST /api/media/copy-from-url", () => {
         media_file_id: "media-existing-1",
       })
     );
+    expect(supabase.generationPublicationUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-1",
+        owned_media_file_id: "media-existing-1",
+        preview_storage_path: "user-1/generations/images/existing.png",
+      }),
+      expect.objectContaining({
+        onConflict: "generation_output_id",
+      })
+    );
+    expect(supabase.generationProjectionUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-1",
+        user_id: "user-1",
+        saved_media_ids: ["media-existing-1"],
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
   });
 
   it("falls back to legacy metadata-index lookup when canonical output media linkage is absent", async () => {
@@ -591,6 +684,25 @@ describe("POST /api/media/copy-from-url", () => {
         generation_id: "gen-22",
         output_index: 2,
         media_file_id: "media-generated-1",
+      })
+    );
+    expect(supabase.generationPublicationUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-22",
+        owned_media_file_id: "media-generated-1",
+      }),
+      expect.objectContaining({
+        onConflict: "generation_output_id",
+      })
+    );
+    expect(supabase.generationProjectionUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-22",
+        user_id: "user-1",
+        saved_media_ids: ["media-generated-1"],
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
       })
     );
   });

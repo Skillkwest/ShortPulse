@@ -10,10 +10,8 @@ import { isTrustedMediaDirectPreviewUrl } from "../../mediaPreviewTrustPolicy";
 import { withCanonicalImageDimensions } from "../../mediaDimensionMetadata";
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
-import {
-  attachMediaFileToGenerationOutput,
-  readPersistedGenerationOutputs,
-} from "../api/generationOutputs";
+import { readPersistedGenerationOutputs } from "../api/generationOutputs";
+import { reconcileOwnedGenerationOutputSlot } from "../api/generationOutputConvergence";
 import { asString } from "./falAdapter";
 import { extractImageDimensionsFromBuffer } from "../imageDimensions";
 import {
@@ -206,15 +204,34 @@ export const persistRecoveryMediaFilesForGeneration = async ({
 }): Promise<string[]> => {
   const supabaseAdmin = getSupabaseAdmin();
   const existingRows = await readExistingRecoveryMediaRows(generation.id, generation.user_id);
-  if (existingRows.length && existingRows.length >= mediaUrls.length) {
-    return existingRows.map((row) => row.id);
-  }
-
   const existingByIndex = new Map<number, string>();
   for (const row of existingRows) {
     if (row.index !== null) {
       existingByIndex.set(row.index, row.id);
     }
+  }
+  const hasFullIndexedCoverage =
+    mediaUrls.length > 0 && mediaUrls.every((_, index) => existingByIndex.has(index));
+  if (existingRows.length && existingRows.length >= mediaUrls.length) {
+    if (hasFullIndexedCoverage) {
+      for (const [index, mediaUrl] of mediaUrls.entries()) {
+        const existingMediaFileId = existingByIndex.get(index);
+        if (!existingMediaFileId) continue;
+        await reconcileOwnedGenerationOutputSlot({
+          generationId: generation.id,
+          userId: generation.user_id,
+          outputIndex: index,
+          mediaFileId: existingMediaFileId,
+          resultUrl: mediaUrl,
+          providerRequestId: generation.request_id,
+          metadata: {
+            recovery_execution: true,
+          },
+          supabaseAdmin,
+        });
+      }
+    }
+    return existingRows.map((row) => row.id);
   }
 
   const mediaFileIdsByIndex = new Array<string | null>(mediaUrls.length).fill(null);
@@ -311,21 +328,18 @@ export const persistRecoveryMediaFilesForGeneration = async ({
           } catch {
             // best-effort cleanup only
           }
-          try {
-            await attachMediaFileToGenerationOutput({
-              generationId: generation.id,
-              userId: generation.user_id,
-              outputIndex: index,
-              mediaFileId: existingRowId,
-              resultUrl: mediaUrl,
-              providerRequestId: generation.request_id,
-              metadata: {
-                recovery_execution: true,
-              },
-            });
-          } catch {
-            // best-effort canonical output linkage only
-          }
+          await reconcileOwnedGenerationOutputSlot({
+            generationId: generation.id,
+            userId: generation.user_id,
+            outputIndex: index,
+            mediaFileId: existingRowId,
+            resultUrl: mediaUrl,
+            providerRequestId: generation.request_id,
+            metadata: {
+              recovery_execution: true,
+            },
+            supabaseAdmin,
+          });
           mediaFileIdsByIndex[index] = existingRowId;
           return;
         }
@@ -334,21 +348,18 @@ export const persistRecoveryMediaFilesForGeneration = async ({
     }
     const mediaFileId = asString(asObject(data).id);
     if (mediaFileId) {
-      try {
-        await attachMediaFileToGenerationOutput({
-          generationId: generation.id,
-          userId: generation.user_id,
-          outputIndex: index,
-          mediaFileId,
-          resultUrl: mediaUrl,
-          providerRequestId: generation.request_id,
-          metadata: {
-            recovery_execution: true,
-          },
-        });
-      } catch {
-        // best-effort canonical output linkage only
-      }
+      await reconcileOwnedGenerationOutputSlot({
+        generationId: generation.id,
+        userId: generation.user_id,
+        outputIndex: index,
+        mediaFileId,
+        resultUrl: mediaUrl,
+        providerRequestId: generation.request_id,
+        metadata: {
+          recovery_execution: true,
+        },
+        supabaseAdmin,
+      });
       mediaFileIdsByIndex[index] = mediaFileId;
     }
   };

@@ -17,7 +17,7 @@ import {
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import { attachMediaFileToGenerationOutput } from "../../../lib/server/api/generationOutputs";
+import { reconcileOwnedGenerationOutputSlot } from "../../../lib/server/api/generationOutputConvergence";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import { extractImageDimensionsFromBuffer } from "../../../lib/server/imageDimensions";
 import {
@@ -826,7 +826,7 @@ export default async function handler(
           }
         }
         try {
-          await attachMediaFileToGenerationOutput({
+          await reconcileOwnedGenerationOutputSlot({
             generationId,
             userId: user.id,
             outputIndex: index,
@@ -838,7 +838,7 @@ export default async function handler(
             },
           });
         } catch {
-          // best-effort canonical output linkage only
+          // best-effort canonical output-slot convergence only
         }
         const delivery = await resolveDelivery({
           row: {
@@ -969,7 +969,7 @@ export default async function handler(
             // best-effort cleanup
           }
           try {
-            await attachMediaFileToGenerationOutput({
+            await reconcileOwnedGenerationOutputSlot({
               generationId,
               userId: user.id,
               outputIndex: index,
@@ -981,7 +981,7 @@ export default async function handler(
               },
             });
           } catch {
-            // best-effort canonical output linkage only
+            // best-effort canonical output-slot convergence only
           }
           const delivery = await resolveDelivery({
             row: {
@@ -1044,7 +1044,7 @@ export default async function handler(
     }
     if (source === "ai_studio" && generationId && insertedMediaFileId) {
       try {
-        await attachMediaFileToGenerationOutput({
+        await reconcileOwnedGenerationOutputSlot({
           generationId,
           userId: user.id,
           outputIndex: index,
@@ -1056,7 +1056,7 @@ export default async function handler(
           },
         });
       } catch {
-        // best-effort canonical output linkage only
+        // best-effort canonical output-slot convergence only
       }
     }
 

@@ -1,7 +1,7 @@
 # Generation Pipeline Fundamental Hardening Phase 4 Canonical Output-Slot Convergence Plan (2026-04-26)
 
 Last updated: 2026-04-26  
-Status: Not started  
+Status: Completed  
 Master plan: `docs/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
 
 ## Goal
@@ -68,3 +68,9 @@ Do not close this phase if:
 
 ## Stop Rule
 At the end of this phase, evaluate the master done state. If the done state is satisfied, stop the program instead of opening additional cleanup work.
+
+## Completion Notes
+1. Added one canonical internal output-slot convergence path in `frontend/lib/server/api/generationOutputConvergence.ts`.
+2. Adopted the path in `frontend/lib/server/falIntegration/recoveryMediaPersistence.ts` and `frontend/pages/api/media/copy-from-url.ts`.
+3. Added direct convergence proof in `frontend/lib/server/api/__tests__/generationOutputConvergence.test.ts`.
+4. Kept intended external behavior unchanged while reducing scattered output/media/publication/projection repair logic.

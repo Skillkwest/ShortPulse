@@ -457,6 +457,8 @@ export const useAiStudioAgentBridge = ({
   useEffect(() => {
     const activeRuntimeState =
       agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ?? createDefaultRuntimeState();
+    agentUiBusyRef.current = false;
+    setAgentUiBusy(false);
     // eslint-disable-next-line react-hooks/immutability -- The hydration echo sentinel lives in a ref specifically so scope rehydration metadata does not trigger extra renders.
     pendingRuntimeHydrationRef.current = {
       key: agentBridgeSessionKey,
@@ -482,6 +484,7 @@ export const useAiStudioAgentBridge = ({
     setAgentAttachmentError,
     setAgentAttachments,
     setAgentInput,
+    setAgentUiBusy,
     setChatModeEnabled,
     setIsAgentChatOpen,
     setLatestAgentPrompt,

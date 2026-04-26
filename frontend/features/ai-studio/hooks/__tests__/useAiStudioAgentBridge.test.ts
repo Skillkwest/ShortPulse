@@ -1233,6 +1233,102 @@ describe("useAiStudioAgentBridge", () => {
     expect(result.current.latestAgentPrompt).toBeNull();
   });
 
+  it("clears bridge ui busy state when switching away from an active pulse scope", async () => {
+    let setAgentUiBusyFromOrchestration: Dispatch<SetStateAction<boolean>> | undefined;
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockImplementation((params) => {
+      setAgentUiBusyFromOrchestration = params.setAgentUiBusy;
+      return {
+        isPromptRefining: false,
+        isReferencePromptEnhancing: false,
+        describeInFlightCount: 0,
+        handleAgentSend: vi.fn(),
+        handlePulsePresetStart: vi.fn(),
+        handleAgentEnhanceSend: vi.fn(),
+        handleReferencePromptEnhance: vi.fn(),
+      };
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const base = createBridgeParams({
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+    });
+    const { result, rerender } = renderHook(
+      ({
+        expertCreateMode,
+        activePulsePresetId,
+      }: {
+        expertCreateMode: "standard" | "pulse";
+        activePulsePresetId: string | null;
+      }) =>
+        useAiStudioAgentBridge({
+          ...base,
+          expertCreateMode,
+          activePulsePresetId,
+        }),
+      {
+        initialProps: {
+          expertCreateMode: "pulse" as const,
+          activePulsePresetId: "story_builder",
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(setAgentUiBusyFromOrchestration).toBeDefined();
+    });
+
+    act(() => {
+      setAgentUiBusyFromOrchestration?.(true);
+    });
+    expect(result.current.agentBusy).toBe(true);
+
+    rerender({
+      expertCreateMode: "standard" as const,
+      activePulsePresetId: null,
+    });
+
+    await waitFor(() => {
+      expect(result.current.agentBusy).toBe(false);
+    });
+  });
+
   it("rehydrates a completed pulse workflow session from persisted agent snapshot state", async () => {
     const setPulseWorkflowSession = vi.fn();
 

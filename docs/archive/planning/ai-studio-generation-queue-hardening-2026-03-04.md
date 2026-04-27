@@ -1,5 +1,7 @@
 # AI Studio Generation Queue Hardening Plan (2026-03-04)
 
+> Archived on 2026-04-27 because this hardening plan is implementation-complete and retained as historical execution context. The queue/runtime truth now lives in the active runtime docs, SOPs, and code.
+
 ## Purpose
 Stabilize AI Studio generation start and queued dispatch reliability without architecture churn.
 

@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the completed AI Studio generation-queue hardening plan/tracker packet and the completed Expert Edit properties-panel rollout plan/tracker packet under `docs/archive/planning/`,
+  - removed those completed execution-history docs from the active planning indexes,
+  - and retargeted the surviving fresh-start properties-panel plan to the archive paths.
+- Documentation cleanup:
   - archived six checkpoint-complete `generation-pipeline-rebuild` execution plans under `docs/archive/planning/`,
   - removed those execution-history docs from the active planning indexes while keeping the surviving contract docs active in `docs/planning/`,
   - and retargeted the surviving ADR and archive-internal references to the archive paths.

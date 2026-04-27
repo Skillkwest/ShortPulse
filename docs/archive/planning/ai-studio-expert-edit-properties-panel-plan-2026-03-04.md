@@ -1,5 +1,7 @@
 # AI Studio Expert Edit Properties Panel Plan (2026-03-04)
 
+> Archived on 2026-04-27 because this rollout plan is implementation-complete and later cleanup work now references it as historical context. The active follow-on planning surface is the fresh-start lean-up plan in `docs/planning/`.
+
 ## Purpose
 Define a regression-safe, minimal-diff implementation plan for the new Expert Edit properties panel while preserving legacy Edit behavior for beginner mode fallback.
 

@@ -1,5 +1,7 @@
 # AI Studio Generation Queue Hardening Tracker (2026-03-04)
 
+> Archived on 2026-04-27 because the tracked queue-hardening workstreams are complete and this tracker is now historical execution evidence.
+
 ## Objective
 Track implementation status for generation recovery + queue hardening with minimal drift.
 

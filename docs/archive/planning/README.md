@@ -68,6 +68,10 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`
 - `docs/archive/planning/ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`
 - `docs/archive/planning/ai-studio-pulse-runtime-tracker-2026-04-20.md`
+- `docs/archive/planning/ai-studio-generation-queue-hardening-2026-03-04.md`
+- `docs/archive/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
+- `docs/archive/planning/ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`
+- `docs/archive/planning/ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`

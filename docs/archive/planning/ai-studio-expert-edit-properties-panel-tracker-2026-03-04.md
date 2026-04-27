@@ -1,5 +1,7 @@
 # AI Studio Expert Edit Properties Panel Tracker (2026-03-04)
 
+> Archived on 2026-04-27 because the rollout packet is implementation-complete and retained as historical execution context. The later fresh-start cleanup plan remains the active planning surface.
+
 ## Objective
 Track execution status, validations, and rollback posture for the Expert Edit properties panel rollout.
 

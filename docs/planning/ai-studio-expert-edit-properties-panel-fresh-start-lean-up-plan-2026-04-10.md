@@ -120,8 +120,8 @@ Reason:
 
 ## Historical References Posture
 The following files remain historical references only for this plan unless re-audited during implementation:
-1. `docs/planning/ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`
-2. `docs/planning/ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`
+1. `docs/archive/planning/ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`
+2. `docs/archive/planning/ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`
 3. `docs/planning/lane-b-master-plan-2026-03-16.md`
 4. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
 5. `docs/planning/lane-b-execution-plan-2026-03-16.md`

@@ -62,6 +62,7 @@ TOTAL_READY=0
 TOTAL_FAILED=0
 TOTAL_RETRY_SCHEDULED=0
 TOTAL_EXHAUSTED=0
+TOTAL_VARIANT_ROWS_UPSERTED=0
 TOTAL_ERRORS=0
 COMPLETED_CYCLES=0
 DRAINED=0
@@ -166,6 +167,7 @@ invoke_worker() {
     const failed = Number(payload.failed ?? 0);
     const retryScheduled = Number(payload.retryScheduled ?? 0);
     const exhausted = Number(payload.exhausted ?? 0);
+    const variantRowsUpserted = Number(payload.variantRowsUpserted ?? 0);
     const errors = Number(payload.errors ?? 0);
     const summary = [
       `claimed=${claimed}`,
@@ -174,6 +176,7 @@ invoke_worker() {
       `failed=${failed}`,
       `retryScheduled=${retryScheduled}`,
       `exhausted=${exhausted}`,
+      `variantRowsUpserted=${variantRowsUpserted}`,
       `errors=${errors}`,
     ];
     if (typeof payload.triggerSource === "string" && payload.triggerSource.trim().length > 0) {
@@ -201,6 +204,7 @@ invoke_worker() {
         failed,
         retryScheduled,
         exhausted,
+        variantRowsUpserted,
         errors,
       })
     );
@@ -225,6 +229,8 @@ invoke_worker() {
   retry_scheduled="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.retryScheduled));' "$control_json")"
   local exhausted
   exhausted="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.exhausted));' "$control_json")"
+  local variant_rows_upserted
+  variant_rows_upserted="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.variantRowsUpserted));' "$control_json")"
   local errors
   errors="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.errors));' "$control_json")"
 
@@ -234,6 +240,7 @@ invoke_worker() {
   TOTAL_FAILED=$((TOTAL_FAILED + failed))
   TOTAL_RETRY_SCHEDULED=$((TOTAL_RETRY_SCHEDULED + retry_scheduled))
   TOTAL_EXHAUSTED=$((TOTAL_EXHAUSTED + exhausted))
+  TOTAL_VARIANT_ROWS_UPSERTED=$((TOTAL_VARIANT_ROWS_UPSERTED + variant_rows_upserted))
   TOTAL_ERRORS=$((TOTAL_ERRORS + errors))
   COMPLETED_CYCLES=$cycle
 
@@ -266,7 +273,7 @@ done
 
 run_diagnostics "after"
 
-FINAL_SUMMARY="[media-derivative-replay] Final summary: stopReason=${STOP_REASON} cycles=${COMPLETED_CYCLES} totalClaimed=${TOTAL_CLAIMED} totalProcessed=${TOTAL_PROCESSED} totalReady=${TOTAL_READY} totalFailed=${TOTAL_FAILED} totalRetryScheduled=${TOTAL_RETRY_SCHEDULED} totalExhausted=${TOTAL_EXHAUSTED} totalErrors=${TOTAL_ERRORS}"
+FINAL_SUMMARY="[media-derivative-replay] Final summary: stopReason=${STOP_REASON} cycles=${COMPLETED_CYCLES} totalClaimed=${TOTAL_CLAIMED} totalProcessed=${TOTAL_PROCESSED} totalReady=${TOTAL_READY} totalFailed=${TOTAL_FAILED} totalRetryScheduled=${TOTAL_RETRY_SCHEDULED} totalExhausted=${TOTAL_EXHAUSTED} totalVariantRowsUpserted=${TOTAL_VARIANT_ROWS_UPSERTED} totalErrors=${TOTAL_ERRORS}"
 echo "$FINAL_SUMMARY" | tee -a "$COMBINED_LOG"
 
 node -e '
@@ -288,7 +295,8 @@ node -e '
       failed: Number(process.argv[13]),
       retryScheduled: Number(process.argv[14]),
       exhausted: Number(process.argv[15]),
-      errors: Number(process.argv[16]),
+      variantRowsUpserted: Number(process.argv[16]),
+      errors: Number(process.argv[17]),
     },
   };
   process.stdout.write(JSON.stringify(summary, null, 2));
@@ -308,6 +316,7 @@ node -e '
   "$TOTAL_FAILED" \
   "$TOTAL_RETRY_SCHEDULED" \
   "$TOTAL_EXHAUSTED" \
+  "$TOTAL_VARIANT_ROWS_UPSERTED" \
   "$TOTAL_ERRORS" > "$FINAL_SUMMARY_JSON"
 echo "[media-derivative-replay] Final summary JSON: $FINAL_SUMMARY_JSON" | tee -a "$COMBINED_LOG"
 echo "[media-derivative-replay] Cycle summaries JSONL: $CYCLE_SUMMARIES_JSONL" | tee -a "$COMBINED_LOG"

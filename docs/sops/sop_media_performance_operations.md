@@ -317,6 +317,9 @@ Monitor these events during rollout:
     - backlog diagnostics: `sql/check_media_derivative_processing_backlog.sql`
     - terminal diagnostics: `sql/check_media_derivative_terminal_failures.sql`
   - Validate worker metrics (`triggerSource`, `durationMs`, `claimed`, `ready`, `failed`, `retryScheduled`, `exhausted`, `variantRowsUpserted`) and check `media_files.processing_last_error` for exhausted rows.
+  - Use replay artifacts to verify throughput, not just queue drain:
+    - `/tmp/media_derivative_backlog_replay/cycle_summaries.jsonl` for per-cycle `variantRowsUpserted`
+    - `/tmp/media_derivative_backlog_replay/final_summary.json` for total `variantRowsUpserted`
   - Treat replay exit code `2` as “bounded run stopped at safety cap before claims drained”; inspect the final summary in `/tmp/media_derivative_backlog_replay/combined.log`, `/tmp/media_derivative_backlog_replay/final_summary.json`, and `/tmp/media_derivative_backlog_replay/cycle_summaries.jsonl` before increasing the cycle cap.
   - Terminal handling contract for local derivative errors (`unsupported_input`, `decode_failed`, `upload_failed`, `variant_upsert_failed`):
     - Keep exhausted deterministic failures terminal (`processing_attempts >= 5`, `processing_next_retry_at is null`) to avoid retry churn.

@@ -135,7 +135,7 @@ Mitigation:
   - `SHORTPULSE_MEDIA_DERIVATIVES_RUN_URL=<full-run-url> SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET=<secret> SUPABASE_DB_URL=<db-url> ./scripts/media_derivative_backlog_replay.sh`
   - Optional protected-deployment auth:
     - `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN=<bypass-token>`
-  - The replay helper captures before/after backlog + terminal diagnostics when `SUPABASE_DB_URL` is set, logs per-cycle worker summaries (`triggerSource`, `durationMs`, `claimed`, `ready`, `failed`, `retryScheduled`, `exhausted`, `errors`), writes machine-readable artifacts at `/tmp/media_derivative_backlog_replay/final_summary.json` and `/tmp/media_derivative_backlog_replay/cycle_summaries.jsonl` by default, and exits non-zero if the bounded cycle cap is reached before claims drain.
+  - The replay helper captures before/after backlog + terminal diagnostics when `SUPABASE_DB_URL` is set, logs per-cycle worker summaries (`triggerSource`, `durationMs`, `claimed`, `ready`, `failed`, `retryScheduled`, `exhausted`, `variantRowsUpserted`, `errors`), writes machine-readable artifacts at `/tmp/media_derivative_backlog_replay/final_summary.json` and `/tmp/media_derivative_backlog_replay/cycle_summaries.jsonl` by default, and exits non-zero if the bounded cycle cap is reached before claims drain.
 - Trigger a guarded manual run:
   - `curl -X POST -H \"x-shortpulse-cron-secret: <secret>\" http://localhost:3000/api/internal/media-derivatives/run`
 - Inspect response metrics (`triggerSource`, `durationMs`, `claimed`, `ready`, `failed`, `retryScheduled`, `exhausted`, `variantRowsUpserted`, `errors`).

@@ -1,7 +1,3 @@
-/**
- * Preview signing/hydration controller for Media Library media rows.
- * Encapsulates sign-batch prioritization, fallback resolution, and perf telemetry.
- */
 import {
   useCallback,
   useEffect,
@@ -10,11 +6,10 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { createMediaPerfTimer } from "../../../lib/mediaPerfTelemetry";
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { canAttemptMediaPreviewSignBatch } from "../../../lib/mediaPreviewRuntimePolicy";
 import {
-  classifyMediaPreviewPath,
   resolveMediaDirectPreviewUrls,
   resolveMediaSigningStoragePaths,
 } from "../../../lib/mediaPreviewPath";
@@ -25,6 +20,13 @@ import {
   type MediaSignBudget,
   type MediaTabBooleanState,
 } from "../logic/mediaLibraryPageHelpers";
+import {
+  buildMediaSignCandidateEntries,
+  collectMediaSignPaths,
+  finalizeMediaSignCompletion,
+  mapMediaSignResults,
+  resolveMediaSignSourceClass,
+} from "../logic/mediaPreviewSigningBatch";
 
 type PreviewSigningRowBase = {
   id: string;
@@ -68,12 +70,6 @@ type UseMediaPreviewSigningControllerArgs<
   backgroundHydrateFallbackEnabled?: boolean;
 };
 
-/**
- * Runs tab-scoped preview signing passes for visible media rows and applies fallback hydration.
- * Inputs: active tab/cache state, filtered rows, and row-signing resolvers.
- * Output: none (effect-only hook).
- * Side effects: signs preview URLs, updates failure telemetry, and bumps sign pass nonce.
- */
 export const useMediaPreviewSigningController = <
   TRow extends PreviewSigningRowBase,
   TTab extends string,
@@ -112,13 +108,11 @@ export const useMediaPreviewSigningController = <
   const deferredDrainTimeoutRef = useRef<number | null>(null);
   const deferredDrainArmedRef = useRef(false);
   const queueScopeKeyRef = useRef<string>("");
-
   const clearDeferredDrainTimeout = useCallback(() => {
     if (deferredDrainTimeoutRef.current == null || typeof window === "undefined") return;
     window.clearTimeout(deferredDrainTimeoutRef.current);
     deferredDrainTimeoutRef.current = null;
   }, []);
-
   const scheduleDeferredDrain = useCallback(() => {
     if (deferredDrainTimeoutRef.current != null || typeof window === "undefined") return;
     deferredDrainTimeoutRef.current = window.setTimeout(() => {
@@ -128,7 +122,6 @@ export const useMediaPreviewSigningController = <
       setSignPassNonce((prev) => prev + 1);
     }, 180);
   }, [isMountedRef, setSignPassNonce]);
-
   useEffect(() => {
     return () => {
       if (deferredDrainTimeoutRef.current == null || typeof window === "undefined") return;
@@ -137,7 +130,6 @@ export const useMediaPreviewSigningController = <
       deferredDrainArmedRef.current = false;
     };
   }, []);
-
   useEffect(() => {
     const nextScopeKey = `${activeMediaTab ?? "none"}|${activeMediaQuery}`;
     if (queueScopeKeyRef.current === nextScopeKey) return;
@@ -148,24 +140,21 @@ export const useMediaPreviewSigningController = <
     deferredDrainArmedRef.current = false;
     clearDeferredDrainTimeout();
   }, [activeMediaQuery, activeMediaTab, clearDeferredDrainTimeout]);
-
   useEffect(() => {
     if (!isSigningPassEnabled) return;
     if (!activeMediaTab) return;
     if (activeMediaCacheLoading) return;
     if (mediaSignInFlightRef.current[activeMediaTab]) return;
-
     const readyRows = filteredMedia.filter((row) => row.status !== "uploading");
     if (!readyRows.length) return;
+    const hasPreviewCandidate = (row: TRow) =>
+      resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length > 0 ||
+      resolveMediaDirectPreviewUrls(row, currentUserIdRef.current).length > 0;
     const rowById = new Map(readyRows.map((row) => [row.id, row]));
     const readyIds = new Set(rowById.keys());
     for (const queuedId of Object.keys(queueStateByIdRef.current)) {
       const queuedRow = rowById.get(queuedId);
-      if (
-        !queuedRow ||
-        queuedRow.signedUrl ||
-        !resolveMediaSigningStoragePaths(queuedRow, currentUserIdRef.current).length
-      ) {
+      if (!queuedRow || queuedRow.signedUrl || !hasPreviewCandidate(queuedRow)) {
         delete queueStateByIdRef.current[queuedId];
       }
     }
@@ -177,7 +166,6 @@ export const useMediaPreviewSigningController = <
       if (!readyIds.has(id)) return false;
       return queueStateByIdRef.current[id] === "deferred";
     });
-
     const removeQueuedId = (id: string) => {
       urgentQueueRef.current = urgentQueueRef.current.filter((queuedId) => queuedId !== id);
       deferredQueueRef.current = deferredQueueRef.current.filter((queuedId) => queuedId !== id);
@@ -185,7 +173,6 @@ export const useMediaPreviewSigningController = <
         delete queueStateByIdRef.current[id];
       }
     };
-
     const enqueue = (row: TRow | undefined, priority: "urgent" | "deferred") => {
       if (!row) return;
       if (
@@ -198,7 +185,7 @@ export const useMediaPreviewSigningController = <
       ) {
         return;
       }
-      if (!resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length || row.signedUrl) {
+      if (!hasPreviewCandidate(row) || row.signedUrl) {
         removeQueuedId(row.id);
         return;
       }
@@ -215,11 +202,9 @@ export const useMediaPreviewSigningController = <
       deferredQueueRef.current.push(row.id);
       queueStateByIdRef.current[row.id] = "deferred";
     };
-
     for (const row of readyRows.slice(0, signBudget.initialSignLimit)) {
       enqueue(row, "urgent");
     }
-
     if (isSignPrefetchEnabled) {
       const visibleIndexes: number[] = [];
       for (let idx = 0; idx < readyRows.length; idx += 1) {
@@ -247,13 +232,11 @@ export const useMediaPreviewSigningController = <
         }
       }
     }
-
     const selectQueuedRows = (queuedIds: string[]): TRow[] =>
       queuedIds
         .map((id) => rowById.get(id) ?? null)
         .filter((row): row is TRow => Boolean(row))
         .slice(0, signBudget.signBatchSize);
-
     const urgentBatch = selectQueuedRows(urgentQueueRef.current);
     const deferredBatch =
       urgentBatch.length || !deferredDrainArmedRef.current
@@ -277,7 +260,6 @@ export const useMediaPreviewSigningController = <
       queueStateByIdRef.current[rowId] = "in_flight";
     }
     clearDeferredDrainTimeout();
-
     const tabForBatch = activeMediaTab;
     const queryForBatch = activeMediaQuery;
     mediaSignInFlightRef.current[tabForBatch] = true;
@@ -289,83 +271,47 @@ export const useMediaPreviewSigningController = <
       query_mode: queryForBatch ? "search" : "default",
       sign_prefetch_enabled: isSignPrefetchEnabled,
     });
-
     const signCandidateCap = Number.isFinite(maxSignCandidatesPerRow)
       ? Math.max(1, Math.trunc(maxSignCandidatesPerRow))
       : 4;
-    const signCandidatesByRow = signBatch.map((row) => {
-      const candidates = resolveMediaSigningStoragePaths(row, currentUserIdRef.current).slice(
-        0,
-        signCandidateCap
-      );
-      return {
-        id: row.id,
-        primaryPath: candidates[0] ?? null,
-        primaryPathKind: classifyMediaPreviewPath(
-          row,
-          candidates[0] ?? null,
-          currentUserIdRef.current
-        ),
-        candidates,
-        directUrls: resolveMediaDirectPreviewUrls(row, currentUserIdRef.current),
-      };
-    });
-    const signPaths = Array.from(new Set(signCandidatesByRow.flatMap((entry) => entry.candidates)));
-    if (!signPaths.length) {
-      for (const rowId of scheduledIds) {
-        delete queueStateByIdRef.current[rowId];
-      }
-      mediaSignInFlightRef.current[tabForBatch] = false;
-      return;
-    }
+    const signCandidatesByRow = buildMediaSignCandidateEntries(
+      signBatch,
+      currentUserIdRef.current,
+      signCandidateCap
+    );
+    const signPaths = collectMediaSignPaths(signCandidatesByRow);
     const previewProfile = resolvePreviewProfileForSurface(surface);
     const previewDeliveryMode =
       previewProfile === "none" ? "signed-original" : "signed-transform-profile";
-    const sourceClasses = Array.from(
-      new Set(
-        signBatch.map((row) =>
-          typeof row.source === "string" && row.source.trim()
-            ? row.source.trim().toLowerCase()
-            : "unknown"
-        )
-      )
-    );
-    const sourceClass = sourceClasses.length === 1 ? sourceClasses[0] : "mixed";
+    const sourceClass = resolveMediaSignSourceClass(signBatch);
     const optimizerBypassed = true;
-
-    void getSignedMediaUrlsBatch({
-      bucket: BUCKET,
-      storagePaths: signPaths,
-      expiresInSeconds: 3600,
-      surface,
-      queryMode: queryForBatch ? "search" : "default",
-      tab: tabForBatch,
-      previewProfile,
-    })
-      .then((signedByPath) =>
-        signCandidatesByRow.map((entry) => {
-          const matchedPath =
-            entry.candidates.find((path) => Boolean(signedByPath.get(path))) ?? null;
-          const signedFromPath = matchedPath ? (signedByPath.get(matchedPath) ?? null) : null;
-          const directUrl = signedFromPath ? null : (entry.directUrls[0] ?? null);
-          const signedUrl = signedFromPath ?? directUrl;
-          const usedFallback = Boolean(
-            matchedPath && entry.primaryPath && matchedPath !== entry.primaryPath
-          );
-          return {
-            id: entry.id,
-            signedUrl,
-            usedFallback,
-            attemptedPaths: entry.candidates,
-            primaryPathKind: entry.primaryPathKind,
-            resolvedPathKind: classifyMediaPreviewPath(
-              signBatch.find((row) => row.id === entry.id) ?? {},
-              matchedPath,
-              currentUserIdRef.current
-            ),
-          };
-        })
-      )
+    const signBatchById = new Map(signBatch.map((row) => [row.id, row] as const));
+    const resultsPromise = signPaths.length
+      ? getSignedMediaUrlsBatch({
+          bucket: BUCKET,
+          storagePaths: signPaths,
+          expiresInSeconds: 3600,
+          surface,
+          queryMode: queryForBatch ? "search" : "default",
+          tab: tabForBatch,
+          previewProfile,
+        }).then((signedByPath) =>
+          mapMediaSignResults({
+            currentUserId: currentUserIdRef.current,
+            entries: signCandidatesByRow,
+            rowsById: signBatchById,
+            signedByPath,
+          })
+        )
+      : Promise.resolve(
+          mapMediaSignResults({
+            currentUserId: currentUserIdRef.current,
+            entries: signCandidatesByRow,
+            rowsById: signBatchById,
+            signedByPath: new Map(),
+          })
+        );
+    void resultsPromise
       .then(async (results) => {
         if (
           isResultStillRelevant
@@ -397,84 +343,21 @@ export const useMediaPreviewSigningController = <
             void hydrateViaStorageDownload(unresolvedRow);
           }
         }
-        const failedCount = results.length - signedById.size;
-        const fallbackCount = results.reduce(
-          (count, result) => (result.usedFallback ? count + 1 : count),
-          0
-        );
-        const transformedCount = results.reduce(
-          (count, result) =>
-            typeof result.signedUrl === "string" &&
-            result.signedUrl.includes("/storage/v1/render/image/")
-              ? count + 1
-              : count,
-          0
-        );
-        const primaryDurableCount = results.reduce(
-          (count, result) => (result.primaryPathKind === "durable" ? count + 1 : count),
-          0
-        );
-        const primaryOriginalCount = results.reduce(
-          (count, result) => (result.primaryPathKind === "original" ? count + 1 : count),
-          0
-        );
-        const resolvedDurableCount = results.reduce(
-          (count, result) => (result.resolvedPathKind === "durable" ? count + 1 : count),
-          0
-        );
-        const resolvedOriginalCount = results.reduce(
-          (count, result) => (result.resolvedPathKind === "original" ? count + 1 : count),
-          0
-        );
-        finishSignBatch("media.sign.batch.completed", {
-          signed_count: signedById.size,
-          failed_count: failedCount,
-          fallback_count: fallbackCount,
-          transformed_count: transformedCount,
-          primary_durable_count: primaryDurableCount,
-          primary_original_count: primaryOriginalCount,
-          resolved_durable_count: resolvedDurableCount,
-          resolved_original_count: resolvedOriginalCount,
-          preview_delivery_mode: previewDeliveryMode,
-          optimizer_bypassed: optimizerBypassed,
-          source_class: sourceClass,
-          error_kind: failedCount > 0 ? "unresolved_after_signing" : "none",
-          unresolved_after_resolver_count: unresolvedAfterResolverCount,
+        finalizeMediaSignCompletion({
+          results,
+          signedById,
+          finishSignBatch,
+          surface,
+          tab: tabForBatch,
+          pageIndex: activeMediaCachePagesLoaded,
+          queryMode: queryForBatch ? "search" : "default",
+          signPrefetchEnabled: isSignPrefetchEnabled,
+          sourceClass,
+          previewDeliveryMode,
+          optimizerBypassed,
+          unresolvedAfterResolverCount,
+          unresolvedWarningPrefix,
         });
-        if (failedCount > 0) {
-          if (process.env.NODE_ENV !== "production") {
-            const unresolved = results
-              .filter((result) => !result.signedUrl)
-              .map((result) => ({
-                id: result.id,
-                paths: result.attemptedPaths,
-              }))
-              .slice(0, 8);
-            if (unresolved.length) {
-              console.warn(`${unresolvedWarningPrefix} unresolved preview rows`, unresolved);
-            }
-          }
-          logMediaPerf("media.sign.batch.failed", {
-            surface,
-            tab: tabForBatch,
-            batch_size: results.length,
-            failed_count: failedCount,
-            fallback_count: fallbackCount,
-            transformed_count: transformedCount,
-            primary_durable_count: primaryDurableCount,
-            primary_original_count: primaryOriginalCount,
-            resolved_durable_count: resolvedDurableCount,
-            resolved_original_count: resolvedOriginalCount,
-            preview_delivery_mode: previewDeliveryMode,
-            optimizer_bypassed: optimizerBypassed,
-            source_class: sourceClass,
-            error_kind: "unresolved_after_signing",
-            unresolved_after_resolver_count: unresolvedAfterResolverCount,
-            page_index: activeMediaCachePagesLoaded,
-            query_mode: queryForBatch ? "search" : "default",
-            sign_prefetch_enabled: isSignPrefetchEnabled,
-          });
-        }
       })
       .finally(() => {
         for (const rowId of scheduledIds) {

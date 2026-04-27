@@ -4,7 +4,10 @@
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
+import {
+  resolveMediaDirectPreviewUrls,
+  resolveMediaSigningStoragePaths,
+} from "../../../lib/mediaPreviewPath";
 
 type ResolvePreviewUrlsByMediaIdsArgs = {
   ids: string[];
@@ -102,5 +105,7 @@ export const resolveSignedSelectionUrl = async <TRow extends { storage_path?: st
     const signedUrl = await signStoragePath(storagePath, { forceRefresh: true });
     if (signedUrl) return signedUrl;
   }
+  const directUrl = resolveMediaDirectPreviewUrls(row, currentUserId)[0] ?? null;
+  if (directUrl) return directUrl;
   return null;
 };

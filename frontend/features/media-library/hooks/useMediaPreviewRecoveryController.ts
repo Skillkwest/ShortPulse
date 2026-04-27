@@ -5,11 +5,8 @@
 import { useCallback, type MutableRefObject } from "react";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { canRetryMediaPreviewSignedUrl } from "../../../lib/mediaPreviewRuntimePolicy";
-import {
-  resolveMediaDirectPreviewUrls,
-  resolveMediaSigningStoragePaths,
-} from "../../../lib/mediaPreviewPath";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
+import { resolveSignedSelectionUrl } from "../logic/mediaPreviewResolver";
 
 type PreviewRecoveryRowBase = {
   id: string;
@@ -61,35 +58,25 @@ export const useMediaPreviewRecoveryController = <TRow extends PreviewRecoveryRo
 }: UseMediaPreviewRecoveryControllerArgs<TRow>): UseMediaPreviewRecoveryControllerResult<TRow> => {
   const refreshSignedUrl = useCallback(
     async (row: TRow): Promise<string | null> => {
-      const signingCandidates = resolveMediaSigningStoragePaths(row, currentUserIdRef.current);
-      if (!signingCandidates.length) return null;
       const tab = resolveTabForRow(row);
       try {
-        for (const storagePath of signingCandidates) {
-          const nextSignedUrl = await signStoragePath(storagePath, {
-            forceRefresh: true,
-            previewProfile,
-          });
-          if (!nextSignedUrl) continue;
-          const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
-          if (previousObjectUrl) {
-            URL.revokeObjectURL(previousObjectUrl);
-            delete objectUrlByMediaIdRef.current[row.id];
-          }
-          applySignedUrlsToTab(tab, new Map([[row.id, nextSignedUrl]]));
-          return nextSignedUrl;
+        const nextSignedUrl = await resolveSignedSelectionUrl({
+          row,
+          currentUserId: currentUserIdRef.current,
+          signStoragePath: (storagePath, options) =>
+            signStoragePath(storagePath, {
+              ...options,
+              previewProfile,
+            }),
+        });
+        if (!nextSignedUrl) return null;
+        const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
+        if (previousObjectUrl) {
+          URL.revokeObjectURL(previousObjectUrl);
+          delete objectUrlByMediaIdRef.current[row.id];
         }
-        const directUrl = resolveMediaDirectPreviewUrls(row, currentUserIdRef.current)[0] ?? null;
-        if (directUrl) {
-          const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
-          if (previousObjectUrl) {
-            URL.revokeObjectURL(previousObjectUrl);
-            delete objectUrlByMediaIdRef.current[row.id];
-          }
-          applySignedUrlsToTab(tab, new Map([[row.id, directUrl]]));
-          return directUrl;
-        }
-        return null;
+        applySignedUrlsToTab(tab, new Map([[row.id, nextSignedUrl]]));
+        return nextSignedUrl;
       } catch {
         return null;
       }

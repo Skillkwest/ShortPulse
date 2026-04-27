@@ -98,4 +98,25 @@ describe("mediaPreviewResolver", () => {
     expect(signStoragePath).toHaveBeenCalledTimes(1);
     expect(signStoragePath).toHaveBeenCalledWith("user-1/media/full.jpg", { forceRefresh: true });
   });
+
+  it("falls back to trusted direct preview urls when signing fails", async () => {
+    const signStoragePath = vi.fn(async () => null);
+
+    const resolved = await resolveSignedSelectionUrl({
+      row: {
+        storage_path:
+          "http://localhost/storage/v1/object/public/media_library/user-1/media/full.jpg",
+        thumb_variant_path:
+          "http://localhost/storage/v1/object/public/media_library/user-1/media/thumb.jpg",
+        file_type: "image/jpeg",
+      },
+      currentUserId: "user-1",
+      signStoragePath,
+    });
+
+    expect(resolved).toBe(
+      "http://localhost/storage/v1/object/public/media_library/user-1/media/thumb.jpg"
+    );
+    expect(signStoragePath).toHaveBeenCalledTimes(3);
+  });
 });

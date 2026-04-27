@@ -64,10 +64,8 @@ const buildPromptModal = () => ({
 });
 
 const buildProps = () => ({
-  bulkDeleting: false,
   confirmDeleteIds: null as string[] | null,
   deleteTarget: null as { filename: string } | null,
-  deletingSingle: false,
   fileModal: buildFileModal(),
   onCancelDeleteFile: vi.fn(),
   onCancelDeleteSelected: vi.fn(),

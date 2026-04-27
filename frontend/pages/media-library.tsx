@@ -479,7 +479,6 @@ export default function MediaLibrary() {
     closeModal: closeFileModal,
     confirmDeleteFile,
     deleteTarget,
-    deletingSingle,
     handleRenameInputChange,
     modalError,
     openModal: openFileModal,
@@ -769,10 +768,8 @@ export default function MediaLibrary() {
       </main>
 
       <MediaLibraryModalStack
-        bulkDeleting={bulkDeleting}
         confirmDeleteIds={confirmDeleteIds}
         deleteTarget={deleteTarget}
-        deletingSingle={deletingSingle}
         fileModal={{
           canMoveToAnotherTab,
           cacheModalImageNaturalSize,

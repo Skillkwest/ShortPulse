@@ -517,21 +517,21 @@ export const useMediaLibraryPanelMutationController = ({
   }, []);
 
   const closeDeleteConfirm = React.useCallback(() => {
-    if (deleteConfirmSubmitting) return;
     setPendingLibraryDelete(null);
-  }, [deleteConfirmSubmitting]);
+  }, []);
 
   const confirmDeleteFromLibrary = React.useCallback(async () => {
-    if (!pendingLibraryDelete) return;
+    const nextPendingLibraryDelete = pendingLibraryDelete;
+    if (!nextPendingLibraryDelete) return;
     if (deleteConfirmSubmitting) return;
+    setPendingLibraryDelete(null);
     setDeleteConfirmSubmitting(true);
     try {
-      if (pendingLibraryDelete.kind === "media") {
-        await handleDeleteMediaFromLibrary(pendingLibraryDelete.file);
+      if (nextPendingLibraryDelete.kind === "media") {
+        await handleDeleteMediaFromLibrary(nextPendingLibraryDelete.file);
       } else {
-        await handleDeletePromptFromLibrary(pendingLibraryDelete.prompt);
+        await handleDeletePromptFromLibrary(nextPendingLibraryDelete.prompt);
       }
-      setPendingLibraryDelete(null);
     } finally {
       setDeleteConfirmSubmitting(false);
     }

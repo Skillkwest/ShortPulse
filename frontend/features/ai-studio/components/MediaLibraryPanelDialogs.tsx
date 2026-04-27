@@ -18,7 +18,6 @@ type DeleteTarget =
 
 type MediaLibraryPanelDialogsProps = {
   pendingBulkDeleteIds: string[] | null;
-  deleteConfirmSubmitting: boolean;
   onCloseBulkDeleteConfirm: () => void;
   onConfirmBulkDelete: () => void;
   bulkMoveDialogOpen: boolean;
@@ -41,7 +40,6 @@ type MediaLibraryPanelDialogsProps = {
  */
 export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDialogs({
   pendingBulkDeleteIds,
-  deleteConfirmSubmitting,
   onCloseBulkDeleteConfirm,
   onConfirmBulkDelete,
   bulkMoveDialogOpen,
@@ -72,9 +70,6 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
               </p>
             }
             confirmLabel="Delete"
-            confirmBusyLabel={deleteConfirmSubmitting ? "Deleting..." : undefined}
-            confirmDisabled={deleteConfirmSubmitting}
-            cancelDisabled={deleteConfirmSubmitting}
             onCancel={onCloseBulkDeleteConfirm}
             onConfirm={onConfirmBulkDelete}
           />
@@ -133,9 +128,6 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
               </p>
             }
             confirmLabel="Delete"
-            confirmBusyLabel={deleteConfirmSubmitting ? "Deleting..." : undefined}
-            confirmDisabled={deleteConfirmSubmitting}
-            cancelDisabled={deleteConfirmSubmitting}
             onCancel={onCloseDeleteConfirm}
             onConfirm={onConfirmDeleteFromLibrary}
           />

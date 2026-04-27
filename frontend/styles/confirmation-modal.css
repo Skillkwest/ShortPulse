@@ -4,6 +4,7 @@
  */
 :root {
   --confirm-modal-backdrop: rgba(4, 7, 12, 0.58);
+  --confirm-modal-z-index: 1300;
   --confirm-modal-width: min(360px, calc(100vw - 24px));
   --confirm-modal-height: 188px;
   --confirm-modal-radius: 10px;
@@ -53,7 +54,7 @@
 .confirm-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 400;
+  z-index: var(--confirm-modal-z-index);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -63,7 +64,8 @@
 
 .confirm-modal {
   width: var(--confirm-modal-width);
-  height: var(--confirm-modal-height);
+  min-height: var(--confirm-modal-height);
+  max-height: calc(100vh - 24px);
   border-radius: var(--confirm-modal-radius);
   border: 1px solid var(--confirm-modal-border-danger);
   background: var(--confirm-modal-bg);
@@ -73,6 +75,7 @@
   flex-direction: column;
   justify-content: space-between;
   gap: var(--confirm-modal-gap);
+  overflow: hidden;
   font-family: var(
     --font-primary,
     "Inter",
@@ -95,6 +98,8 @@
 .confirm-modal__copy {
   display: grid;
   gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .confirm-modal__title {
@@ -115,6 +120,11 @@
 .confirm-modal__body p,
 .confirm-modal__body ul {
   margin: 0;
+}
+
+.confirm-modal__body > div {
+  display: grid;
+  gap: 6px;
 }
 
 .confirm-modal__actions {

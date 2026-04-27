@@ -18,10 +18,8 @@ type MediaLibraryModalStackProps<
   TFileRow extends MediaFileModalRow,
   TPromptRow extends MediaPromptModalRow,
 > = {
-  bulkDeleting: boolean;
   confirmDeleteIds: string[] | null;
   deleteTarget: MediaDeleteTarget | null;
-  deletingSingle: boolean;
   fileModal: Omit<MediaFileModalProps<TFileRow>, "focusedFile"> & { focusedFile: TFileRow | null };
   onCancelDeleteFile: () => void;
   onCancelDeleteSelected: () => void;
@@ -42,10 +40,8 @@ export function MediaLibraryModalStack<
   TFileRow extends MediaFileModalRow,
   TPromptRow extends MediaPromptModalRow,
 >({
-  bulkDeleting,
   confirmDeleteIds,
   deleteTarget,
-  deletingSingle,
   fileModal,
   onCancelDeleteFile,
   onCancelDeleteSelected,
@@ -66,9 +62,6 @@ export function MediaLibraryModalStack<
               Library and private storage.
             </>
           }
-          cancelDisabled={deletingSingle}
-          confirmDisabled={deletingSingle}
-          confirmBusyLabel={deletingSingle ? "Deleting..." : undefined}
           confirmTitleId="delete-file-title"
           onCancel={onCancelDeleteFile}
           onConfirm={() => {
@@ -86,9 +79,6 @@ export function MediaLibraryModalStack<
               permanently from your Media Library and private storage.
             </>
           }
-          cancelDisabled={bulkDeleting}
-          confirmDisabled={bulkDeleting}
-          confirmBusyLabel={bulkDeleting ? "Deleting..." : undefined}
           confirmTitleId="delete-selected-title"
           onCancel={onCancelDeleteSelected}
           onConfirm={() => {

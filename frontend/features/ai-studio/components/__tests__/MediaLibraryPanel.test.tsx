@@ -824,6 +824,37 @@ describe("MediaLibraryPanel", () => {
     expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
   });
 
+  it("closes the root media delete confirm immediately after confirmation", async () => {
+    const deferredDelete = createDeferred<void>();
+    deleteMediaFileWithStorageMock.mockImplementationOnce(async () => {
+      await deferredDelete.promise;
+      return true;
+    });
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete media ref-1.png" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete media ref-1.png" }));
+    expect(screen.getByRole("dialog", { name: "Delete this media?" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Delete this media?" })).toBeNull();
+    });
+
+    deferredDelete.resolve();
+
+    await waitFor(() => {
+      expect(deleteMediaFileWithStorageMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "media-1" })
+      );
+    });
+  });
+
   it("cancels root prompt delete when confirmation is dismissed", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 

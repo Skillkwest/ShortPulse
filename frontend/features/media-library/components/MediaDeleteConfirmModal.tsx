@@ -7,8 +7,8 @@ import { ConfirmationModal } from "../../../components/ConfirmationModal";
 
 type MediaDeleteConfirmModalProps = {
   body: ReactNode;
-  cancelDisabled: boolean;
-  confirmDisabled: boolean;
+  cancelDisabled?: boolean;
+  confirmDisabled?: boolean;
   confirmBusyLabel?: string;
   confirmTitleId: string;
   onCancel: () => void;
@@ -24,8 +24,8 @@ type MediaDeleteConfirmModalProps = {
  */
 export function MediaDeleteConfirmModal({
   body,
-  cancelDisabled,
-  confirmDisabled,
+  cancelDisabled = false,
+  confirmDisabled = false,
   confirmBusyLabel,
   confirmTitleId,
   onCancel,

@@ -92,39 +92,39 @@ export const useMediaFileModalCrud = <TRow extends MediaFileModalRow>({
 
   const requestDeleteFile = useCallback(
     (file: TRow) => {
-      if (file.status === "uploading") return;
+      if (file.status === "uploading" || deletingSingle) return;
       setDeleteTarget(file);
       setPageError(null);
     },
-    [setPageError]
+    [deletingSingle, setPageError]
   );
 
   const cancelDeleteFile = useCallback(() => {
-    if (deletingSingle) return;
     setDeleteTarget(null);
-  }, [deletingSingle]);
+  }, []);
 
   const confirmDeleteFile = useCallback(async () => {
-    if (!deleteTarget) return;
+    const nextDeleteTarget = deleteTarget;
+    if (!nextDeleteTarget) return;
+    setDeleteTarget(null);
     setDeletingSingle(true);
     setPageError(null);
     try {
       const supabase = ensureSupabaseQueryClient();
-      const deletePaths = await collectMediaStoragePathsForDelete([deleteTarget]);
+      const deletePaths = await collectMediaStoragePathsForDelete([nextDeleteTarget]);
       await removeStoragePaths(deletePaths);
       const { error: deleteError } = await supabase
         .from("media_files")
         .delete()
-        .eq("id", deleteTarget.id);
+        .eq("id", nextDeleteTarget.id);
       if (deleteError) throw deleteError;
-      updateVisibleRows((prev) => prev.filter((file) => file.id !== deleteTarget.id));
-      setSelectedIds((prev) => prev.filter((id) => id !== deleteTarget.id));
-      setFocusedFile((prev) => (prev && prev.id === deleteTarget.id ? null : prev));
-      setDeleteTarget(null);
+      updateVisibleRows((prev) => prev.filter((file) => file.id !== nextDeleteTarget.id));
+      setSelectedIds((prev) => prev.filter((id) => id !== nextDeleteTarget.id));
+      setFocusedFile((prev) => (prev && prev.id === nextDeleteTarget.id ? null : prev));
       markInactiveMediaCachesStale(activeMediaTab);
       void refreshStorageUsageBytes();
-      void logMediaEvent("delete", "media_file", deleteTarget.id, {
-        storage_path: deleteTarget.storage_path,
+      void logMediaEvent("delete", "media_file", nextDeleteTarget.id, {
+        storage_path: nextDeleteTarget.storage_path,
       });
     } catch (err: unknown) {
       setPageError(getErrorMessage(err, "Unable to delete file"));

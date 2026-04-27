@@ -33,6 +33,14 @@ const makeMediaRow = (id: string): MediaRow => ({
   preview_storage_path: `user-1/images/${id}.png`,
 });
 
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
+
 const createSupabaseClient = () => ({
   from: vi.fn((table: string) => {
     if (table === "media_prompts") {
@@ -77,7 +85,7 @@ describe("useMediaBulkDeleteController", () => {
         { id: "prompt-2", prompt_text: "two" },
       ]);
       const [selectedIds, setSelectedIds] = useState<string[]>(["prompt-1", "prompt-2"]);
-      const [pageError, setPageError] = useState<string | null>(null);
+      const [, setPageError] = useState<string | null>(null);
       const currentUserIdRef = useRef<string | null>("user-1");
       const controller = useMediaBulkDeleteController<MediaRow, PromptRow>({
         activeTabKey: "saved_prompts",
@@ -97,7 +105,7 @@ describe("useMediaBulkDeleteController", () => {
         setSelectedIds,
         updateVisibleRows: setFiles,
       });
-      return { controller, pageError, prompts, selectedIds };
+      return { controller, prompts, selectedIds };
     });
 
     await act(async () => {
@@ -127,7 +135,7 @@ describe("useMediaBulkDeleteController", () => {
       ]);
       const [, setPrompts] = useState<PromptRow[]>([]);
       const [selectedIds, setSelectedIds] = useState<string[]>(["file-1", "file-2"]);
-      const [pageError, setPageError] = useState<string | null>(null);
+      const [, setPageError] = useState<string | null>(null);
       const currentUserIdRef = useRef<string | null>("user-1");
       const controller = useMediaBulkDeleteController<MediaRow, PromptRow>({
         activeTabKey: "uploaded_images",
@@ -147,7 +155,7 @@ describe("useMediaBulkDeleteController", () => {
         setSelectedIds,
         updateVisibleRows: setFiles,
       });
-      return { controller, pageError };
+      return { controller };
     });
 
     act(() => {
@@ -178,7 +186,7 @@ describe("useMediaBulkDeleteController", () => {
       ]);
       const [, setPrompts] = useState<PromptRow[]>([]);
       const [selectedIds, setSelectedIds] = useState<string[]>(["file-1", "file-2"]);
-      const [pageError, setPageError] = useState<string | null>(null);
+      const [, setPageError] = useState<string | null>(null);
       const currentUserIdRef = useRef<string | null>("user-1");
       const controller = useMediaBulkDeleteController<MediaRow, PromptRow>({
         activeTabKey: "uploaded_images",
@@ -198,7 +206,7 @@ describe("useMediaBulkDeleteController", () => {
         setSelectedIds,
         updateVisibleRows: setFiles,
       });
-      return { controller, files, pageError, selectedIds };
+      return { controller, files, selectedIds };
     });
 
     act(() => {
@@ -223,6 +231,69 @@ describe("useMediaBulkDeleteController", () => {
     });
     expect(logMediaEvent).toHaveBeenCalledWith("delete", "media_file", "file-2", {
       storage_path: "user-1/images/file-2.png",
+    });
+  });
+
+  it("closes the bulk delete confirm immediately while deletion is in flight", async () => {
+    const deferredDelete = createDeferred<void>();
+    const collectMediaStoragePathsForDelete = vi.fn(async (targets: { storage_path: string }[]) =>
+      targets.map((target) => target.storage_path)
+    );
+    const markInactiveMediaCachesStale = vi.fn();
+    const refreshStorageUsageBytes = vi.fn(async () => {});
+    const removeStoragePaths = vi.fn(async () => {
+      await deferredDelete.promise;
+    });
+    const logMediaEvent = vi.fn(async () => {});
+    const getErrorMessage = vi.fn((_: unknown, fallback: string) => fallback);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<MediaRow[]>([
+        makeMediaRow("file-1"),
+        makeMediaRow("file-2"),
+      ]);
+      const [, setPrompts] = useState<PromptRow[]>([]);
+      const [selectedIds, setSelectedIds] = useState<string[]>(["file-1", "file-2"]);
+      const [, setPageError] = useState<string | null>(null);
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const controller = useMediaBulkDeleteController<MediaRow, PromptRow>({
+        activeTabKey: "uploaded_images",
+        activeMediaTab: "uploaded_images",
+        collectMediaStoragePathsForDelete,
+        currentUserIdRef,
+        files,
+        getErrorMessage,
+        isPromptTab: false,
+        logMediaEvent,
+        markInactiveMediaCachesStale,
+        refreshStorageUsageBytes,
+        removeStoragePaths,
+        selectedIds,
+        setPageError,
+        setPrompts,
+        setSelectedIds,
+        updateVisibleRows: setFiles,
+      });
+      return { controller };
+    });
+
+    act(() => {
+      result.current.controller.requestDeleteSelected();
+    });
+
+    let deletePromise: Promise<void> | undefined;
+    await act(async () => {
+      deletePromise = result.current.controller.confirmDeleteSelected();
+      await Promise.resolve();
+    });
+
+    expect(result.current.controller.confirmDeleteIds).toBeNull();
+    expect(result.current.controller.bulkDeleting).toBe(true);
+
+    deferredDelete.resolve();
+
+    await act(async () => {
+      await deletePromise;
     });
   });
 });

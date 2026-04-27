@@ -233,26 +233,24 @@ export const useMediaBulkDeleteController = <
   );
 
   const requestDeleteSelected = useCallback(() => {
-    if (!selectedIds.length) return;
+    if (!selectedIds.length || bulkDeleting) return;
     if (isPromptTab) {
       void deleteSelected();
       return;
     }
     setConfirmDeleteIds([...selectedIds]);
     setPageError(null);
-  }, [deleteSelected, isPromptTab, selectedIds, setPageError]);
+  }, [bulkDeleting, deleteSelected, isPromptTab, selectedIds, setPageError]);
 
   const cancelDeleteSelected = useCallback(() => {
-    if (bulkDeleting) return;
     setConfirmDeleteIds(null);
-  }, [bulkDeleting]);
+  }, []);
 
   const confirmDeleteSelected = useCallback(async () => {
-    if (!confirmDeleteIds?.length) return;
-    const deleted = await deleteSelected(confirmDeleteIds);
-    if (deleted) {
-      setConfirmDeleteIds(null);
-    }
+    const nextConfirmDeleteIds = confirmDeleteIds ? [...confirmDeleteIds] : null;
+    if (!nextConfirmDeleteIds?.length) return;
+    setConfirmDeleteIds(null);
+    await deleteSelected(nextConfirmDeleteIds);
   }, [confirmDeleteIds, deleteSelected]);
 
   return {

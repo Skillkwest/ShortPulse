@@ -766,30 +766,29 @@ export function ElementsEmbeddedMediaLibraryPanel({
   }, [selectedVisibleMediaRows]);
 
   const handleCloseBulkDeleteConfirm = React.useCallback(() => {
-    if (deleteConfirmSubmitting) return;
     setPendingBulkDeleteIds(null);
-  }, [deleteConfirmSubmitting]);
+  }, []);
 
   const handleConfirmBulkDelete = React.useCallback(async () => {
-    if (!pendingBulkDeleteIds?.length) return;
-    const selectedIdSet = new Set(pendingBulkDeleteIds);
+    const nextPendingBulkDeleteIds = pendingBulkDeleteIds ? [...pendingBulkDeleteIds] : null;
+    if (!nextPendingBulkDeleteIds?.length) return;
+    setPendingBulkDeleteIds(null);
+    const selectedIdSet = new Set(nextPendingBulkDeleteIds);
     const selectedRows = mediaRows.filter((row) => selectedIdSet.has(row.id));
     const deleted = await deleteMediaRowsFromLibrary(selectedRows);
     if (deleted) {
-      setPendingBulkDeleteIds(null);
       setSelectedIds(new Set());
       return;
     }
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      for (const id of pendingBulkDeleteIds) {
+      for (const id of nextPendingBulkDeleteIds) {
         if (!mediaRows.some((row) => row.id === id)) {
           next.delete(id);
         }
       }
       return next;
     });
-    setPendingBulkDeleteIds(null);
   }, [deleteMediaRowsFromLibrary, mediaRows, pendingBulkDeleteIds]);
 
   const bulkActions = (
@@ -912,7 +911,6 @@ export function ElementsEmbeddedMediaLibraryPanel({
       />
       <MediaLibraryPanelDialogs
         pendingBulkDeleteIds={pendingBulkDeleteIds}
-        deleteConfirmSubmitting={deleteConfirmSubmitting}
         onCloseBulkDeleteConfirm={handleCloseBulkDeleteConfirm}
         onConfirmBulkDelete={() => {
           void handleConfirmBulkDelete();

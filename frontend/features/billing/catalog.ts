@@ -29,6 +29,12 @@ export type BillingStorageAddonRecord = {
   sort_order: number;
 };
 
+export type BillingCatalogSnapshot = {
+  plans: BillingPlanRecord[];
+  packages: CreditPackageRecord[];
+  storageAddons: BillingStorageAddonRecord[];
+};
+
 const PLAN_TIER_ORDER = ["free", "media", "studio", "business"] as const;
 const GIB = 1024 * 1024 * 1024;
 

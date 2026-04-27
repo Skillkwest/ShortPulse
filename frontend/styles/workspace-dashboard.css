@@ -500,6 +500,39 @@ body.dashboard-body {
   line-height: 1.5;
 }
 
+.dashboard-guest-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 560px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(37, 169, 191, 0.18);
+  background: rgba(18, 21, 29, 0.82);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.dashboard-guest-strip-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.dashboard-guest-strip-title {
+  margin: 0;
+  color: #f8fbff;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.dashboard-guest-plans {
+  margin-top: 28px;
+}
+
+.dashboard-plan-highlight {
+  text-decoration: none;
+}
+
 .hero-onboarding {
   border-radius: var(--radius-3xl);
   border: 1px solid var(--color-teal-soft);
@@ -1264,5 +1297,10 @@ button.hero-onboarding {
   .hero-new-project-content {
     width: min(100%, 230px);
     column-gap: 12px;
+  }
+
+  .dashboard-guest-strip {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

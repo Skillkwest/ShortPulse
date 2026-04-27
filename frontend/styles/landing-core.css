@@ -80,7 +80,9 @@
   text-decoration: none;
   padding: 6px 10px;
   border-radius: 10px;
-  transition: background 0.14s ease, color 0.14s ease;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease;
 }
 
 .lp-nav-links a:hover {
@@ -203,10 +205,23 @@
   gap: 52px;
 }
 
+.pricing-route-shell {
+  padding-bottom: 80px;
+}
+
+.pricing-route-hero {
+  padding-bottom: 28px;
+}
+
+.pricing-route-hero-grid {
+  grid-template-columns: 1fr;
+}
+
 .lp-hero {
   border-radius: var(--radius-xl);
   border: 1px solid rgba(201, 205, 214, 0.12);
-  background: radial-gradient(120% 120% at 15% 20%, rgba(37, 169, 191, 0.08), transparent),
+  background:
+    radial-gradient(120% 120% at 15% 20%, rgba(37, 169, 191, 0.08), transparent),
     radial-gradient(120% 120% at 90% 0%, rgba(28, 31, 32, 0.16), transparent),
     linear-gradient(135deg, #0f1115, #0d1016);
   padding: 34px;

@@ -3,7 +3,7 @@
 Date: 2026-02-21
 Authority: Working
 Owner: AI Platform + Frontend
-Status: Active
+Status: active
 
 ## Summary
 This program hardens and modularizes the AI Studio agent into a robust, semi-independent subsystem with strict contracts, staged rollout controls, and regression-prevention guardrails.

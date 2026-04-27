@@ -4,6 +4,7 @@ Date: 2026-02-21
 Authority: Working
 Owner: Engineering
 Program Doc: `docs/planning/ai-studio-agent-modularization-program.md`
+Status: active
 
 ## Status Overview
 Execution note:

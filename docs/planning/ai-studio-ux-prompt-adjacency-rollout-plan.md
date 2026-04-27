@@ -3,7 +3,7 @@
 Date: 2026-03-02  
 Authority: Working  
 Owner: Frontend + AI Platform  
-Status: Active (G0 governance lock complete; G1 implementation pending)
+Status: active
 
 ## Summary
 This plan defines Wave G execution for consolidated AI Studio UX and prompt-adjacency behavior under Phase 13. The scope is intentionally narrow: preserve existing generation/runtime contracts while making prompt-adjacent actions more deterministic and consistent across Create/Text/Agent surfaces.
@@ -62,4 +62,3 @@ This plan defines Wave G execution for consolidated AI Studio UX and prompt-adja
 1. Wave G phases G0-G2 evidenced in `phase-13` packet.
 2. No regressions in existing AI Studio generation/agent contracts.
 3. Canonical trackers and decision log updated at each gate.
-

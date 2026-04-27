@@ -17,7 +17,10 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - `billing_credit_packages`
   - `billing_storage_addon_offers` for current recurring storage add-on prices and capacity
   - `billing_storage_addons` for shared storage add-on metadata
-- The primary billing UI reads those values through the authenticated catalog route:
+- Public acquisition surfaces now load those values server-side through the shared loader:
+  - `frontend/lib/server/api/billingCatalog.ts`
+  - Used by `/`, `/dashboard`, `/landing`, and `/pricing`
+- Authenticated account-management surfaces still read those values through the authenticated catalog route:
   - `frontend/pages/api/billing/catalog.ts`
 - Operators can now inspect and update public catalog pricing from:
   - `/admin/pricing`
@@ -96,10 +99,12 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
    - Do not mutate historical offers already tied to active subscriber contracts.
    - Do not attach Stripe price ids to hidden internal comp offers.
 8. Verify in app:
+   - `/pricing` reflects updated public plans, credit packages, and recurring storage add-ons from the shared billing catalog loader.
+   - Guest `/dashboard` chips reflect the current public acquisition catalog where applicable.
    - `/profile?section=credits` reflects updated plan and package prices from `/api/billing/catalog`.
    - New plans render correctly even when the plan id is not one of the legacy fixed tiers.
    - `/profile?section=storage` reflects recurring storage add-on catalog entries from `/api/billing/catalog`.
-   - `/dashboard` and `/media-library` reflect the correct storage entitlement from the active contract plus add-ons.
+   - Authenticated `/dashboard` and `/media-library` reflect the correct storage entitlement from the active contract plus add-ons.
    - Checkout opens with the intended package amount.
    - Webhook grants expected credits after successful payment.
    - Webhook sync captures recurring storage add-on subscription items into `billing_subscription_storage_addons`.

@@ -4,7 +4,6 @@ import type { Session, User } from "@supabase/supabase-js";
 import { useSupabaseSessionState } from "./supabaseClient";
 
 export const PROTECTED_ROUTES = [
-  "/dashboard",
   "/performance",
   "/saved-creators",
   "/media-library",

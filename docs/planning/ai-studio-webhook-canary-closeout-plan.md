@@ -3,7 +3,7 @@
 Date: 2026-03-02  
 Authority: Working  
 Owner: Platform + Ops  
-Status: Deferred (temporary operational hold as of 2026-03-02; resume target 2026-03-06 UTC)
+Status: draft
 
 ## Summary
 This plan defines Wave H execution for controlled webhook canary decisioning and Phase 13 closeout. The scope is operational and evidence-first: run deterministic UTC windows, evaluate hard thresholds, and make explicit promote/hold/rollback decisions with rollback-first posture.

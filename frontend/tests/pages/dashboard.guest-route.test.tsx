@@ -1,10 +1,10 @@
 /**
- * Root route tests for the new public dashboard/home surface.
+ * Dashboard route tests for the new guest/public mode.
  */
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import IndexPage from "../../pages/index";
+import DashboardPage from "../../pages/dashboard";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useCreditsMock = vi.hoisted(() => vi.fn());
@@ -63,7 +63,7 @@ vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
-describe("Index route behavior", () => {
+describe("Dashboard guest route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useRouterMock.mockReturnValue({ push: vi.fn(), replace: vi.fn(), query: {} });
@@ -83,9 +83,9 @@ describe("Index route behavior", () => {
     });
   });
 
-  it("shows the public dashboard entry surface at the root route", () => {
+  it("renders a public dashboard with login and pricing-funnel guest CTAs", () => {
     render(
-      <IndexPage
+      <DashboardPage
         billingCatalog={{
           plans: [
             {
@@ -95,6 +95,24 @@ describe("Index route behavior", () => {
               monthly_price_cents: 0,
               monthly_credits_cents: 100,
               storage_limit_bytes: 1073741824,
+              is_active: true,
+            },
+            {
+              id: "studio",
+              display_name: "Studio",
+              sort_order: 20,
+              monthly_price_cents: 3900,
+              monthly_credits_cents: 3000,
+              storage_limit_bytes: 107374182400,
+              is_active: true,
+            },
+            {
+              id: "business",
+              display_name: "Business",
+              sort_order: 30,
+              monthly_price_cents: 12900,
+              monthly_credits_cents: 12000,
+              storage_limit_bytes: 536870912000,
               is_active: true,
             },
           ],
@@ -111,5 +129,17 @@ describe("Index route behavior", () => {
       "href",
       "/auth?next=%2Fdashboard"
     );
+    expect(
+      screen.getByRole("link", {
+        name: "Create New Project: Choose a plan to start building in AI Studio",
+      })
+    ).toHaveAttribute("href", "/pricing?intent=create-project");
+    expect(
+      screen.getByRole("link", {
+        name: "Open Projects: Sign in or choose a plan to continue",
+      })
+    ).toHaveAttribute("href", "/pricing?intent=open-projects");
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
   });
 });

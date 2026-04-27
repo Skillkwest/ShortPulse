@@ -1,13 +1,19 @@
 /**
- * Landing route tests for redirect and FAQ state behavior.
+ * Landing route tests for the dashboard/home alias behavior.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LandingPage from "../../pages/landing";
 
-const replaceMock = vi.hoisted(() => vi.fn());
-const readSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const useRouterMock = vi.hoisted(() => vi.fn());
+const useCreditsMock = vi.hoisted(() => vi.fn());
+const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
+const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
+const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
+const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -35,87 +41,75 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("next/router", () => ({
-  useRouter: () => ({
-    replace: replaceMock,
-  }),
+  useRouter: (...args: unknown[]) => useRouterMock(...args),
+}));
+
+vi.mock("../../features/ai-studio/hooks/useCredits", () => ({
+  useCredits: (...args: unknown[]) => useCreditsMock(...args),
+}));
+
+vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
+  useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
 }));
 
 vi.mock("../../lib/supabaseClient", () => ({
-  readSupabaseSession: (...args: unknown[]) => readSupabaseSessionMock(...args),
-  isSupabaseAbortError: (error: unknown) =>
-    error instanceof Error && error.message.toLowerCase().includes("signal is aborted"),
+  ensureSupabaseClient: (...args: unknown[]) => ensureSupabaseClientMock(...args),
+  ensureSupabaseQueryClient: (...args: unknown[]) => ensureSupabaseQueryClientMock(...args),
+  useSupabaseSessionState: (...args: unknown[]) => useSupabaseSessionStateMock(...args),
+  primeSupabaseSession: (...args: unknown[]) => primeSupabaseSessionMock(...args),
 }));
 
-describe("Landing route behavior", () => {
+vi.mock("../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+
+describe("Landing route alias behavior", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    readSupabaseSessionMock.mockResolvedValue(null);
-  });
-
-  it("redirects signed-in visitors to the dashboard", async () => {
-    readSupabaseSessionMock.mockResolvedValue({ user: { id: "user-1" } });
-
-    render(<LandingPage />);
-
-    await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/dashboard");
+    useRouterMock.mockReturnValue({ push: vi.fn(), replace: vi.fn(), query: {} });
+    useCreditsMock.mockReturnValue({
+      balanceCents: null,
+      balanceLoading: false,
+    });
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: null,
+      loading: false,
+      refreshQuotaSummary: vi.fn(),
+    });
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
     });
   });
 
-  it("stays accessible when the Supabase client is unavailable", () => {
-    readSupabaseSessionMock.mockRejectedValue(new Error("Supabase env vars missing"));
+  it("serves the same public dashboard surface as the home route", () => {
+    render(
+      <LandingPage
+        billingCatalog={{
+          plans: [
+            {
+              id: "free",
+              display_name: "Free",
+              sort_order: 0,
+              monthly_price_cents: 0,
+              monthly_credits_cents: 100,
+              storage_limit_bytes: 1073741824,
+              is_active: true,
+            },
+          ],
+          packages: [],
+          storageAddons: [],
+        }}
+      />
+    );
 
-    render(<LandingPage />);
-
-    expect(screen.getByRole("heading", { name: /see what’s winning\./i })).toBeInTheDocument();
-    expect(replaceMock).not.toHaveBeenCalled();
-  });
-
-  it("ignores aborted session reads during landing bootstrap", async () => {
-    readSupabaseSessionMock.mockRejectedValue(new Error("signal is aborted without reason"));
-
-    render(<LandingPage />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /see what’s winning\./i })).toBeInTheDocument();
-    });
-    expect(replaceMock).not.toHaveBeenCalled();
-  });
-
-  it("opens one FAQ item at a time and lets the same item collapse", () => {
-    render(<LandingPage />);
-
-    const connectAccounts = screen.getByRole("button", {
-      name: /do i need to connect my accounts\?/i,
-    });
-    const cancelAnytime = screen.getByRole("button", {
-      name: /can i cancel anytime\?/i,
-    });
-
-    fireEvent.click(connectAccounts);
     expect(
-      screen.getByText(
-        "No. We surface public performance data; you can start without linking social accounts."
-      )
+      screen.getByRole("heading", { name: /build faster with shortpulse/i })
     ).toBeInTheDocument();
-    expect(connectAccounts).toHaveAttribute("aria-expanded", "true");
-
-    fireEvent.click(cancelAnytime);
-    expect(
-      screen.getByText("Yes. Change plans or cancel whenever you want—no contracts.")
-    ).toBeInTheDocument();
-    expect(cancelAnytime).toHaveAttribute("aria-expanded", "true");
-    expect(connectAccounts).toHaveAttribute("aria-expanded", "false");
-    expect(
-      screen.queryByText(
-        "No. We surface public performance data; you can start without linking social accounts."
-      )
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(cancelAnytime);
-    expect(cancelAnytime).toHaveAttribute("aria-expanded", "false");
-    expect(
-      screen.queryByText("Yes. Change plans or cancel whenever you want—no contracts.")
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Log in" })).toHaveAttribute(
+      "href",
+      "/auth?next=%2Fdashboard"
+    );
   });
 });

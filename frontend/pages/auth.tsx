@@ -166,11 +166,7 @@ export default function AuthPage() {
         <div className="auth-layout">
           <form className="auth-card" onSubmit={onSubmit}>
             <div className="auth-card-header">
-              <Link
-                href="/landing"
-                className="auth-brand"
-                aria-label="Go to ShortPulse landing page"
-              >
+              <Link href="/" className="auth-brand" aria-label="Go to ShortPulse dashboard home">
                 <Image
                   src="/small good d.png"
                   alt="ShortPulse logo"

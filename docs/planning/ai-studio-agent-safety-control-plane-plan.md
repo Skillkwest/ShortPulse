@@ -3,7 +3,7 @@
 Date: 2026-03-02  
 Authority: Working  
 Owner: AI Platform + Frontend  
-Status: Active (F0/F1/F2/F3 complete; F4 implementation complete; F5 validation in progress)
+Status: active
 
 ## Summary
 This plan defines the Wave F implementation path for AI Studio safety tuning knobs across text, image, and video. It follows Phase 13 constraints: no broad rewrites, no duplicated governance systems, and rollback-first operations.

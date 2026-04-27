@@ -3214,3 +3214,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - `active` for the live roadmap, tracker, Phase 1 route outcome contract, Phase 4 plan, and supporting governance contracts
   - `draft` for the still-pending `Phase 1` execution plan
   - `complete` for the archived `Phase 2` and `Phase 3` closeout plans
+
+## 2026-04-27 (Agent rollout tracker status normalization)
+- Normalized the `ai-studio-agent-modularization`, `ai-studio-agent-safety-control-plane`, and `ai-studio-ux-prompt-adjacency` plan/tracker pairs onto canonical `active` status values so those still-live execution packets stop contributing status drift in the active planning index.
+- Normalized the deferred `ai-studio-webhook-canary-closeout` plan/tracker pair to canonical `draft` status values so the packet remains discoverable without pretending it is currently active execution work.

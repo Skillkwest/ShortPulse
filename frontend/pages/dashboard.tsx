@@ -1,28 +1,42 @@
 /**
- * Dashboard shell for logged-in users.
- * Provides entry points to performance analytics, saved creators, and other workspace modules.
+ * Session-aware dashboard route.
+ * Serves as the public home/landing/dashboard shell while preserving authenticated workspace actions.
  */
 import Head from "next/head";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import {
   ChartBar,
   CloudArrowUp,
   FolderSimple,
   Person,
-  Plus,
   ShieldCheck,
   Sparkle,
   type IconProps,
 } from "phosphor-react";
 import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
-import { buildPlanView, type BillingPlanRecord } from "../features/billing/catalog";
+import {
+  buildPlanView,
+  type BillingCatalogSnapshot,
+  type BillingPlanRecord,
+} from "../features/billing/catalog";
 import { formatStorageUsageValue } from "../features/billing/storage";
 import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
+import {
+  AuthenticatedDashboardView,
+  type DashboardAnnouncement,
+  type DashboardToolCard,
+} from "../features/dashboard/components/AuthenticatedDashboardView";
+import { DashboardAppBar } from "../features/dashboard/components/DashboardAppBar";
+import { GuestDashboardView } from "../features/dashboard/components/GuestDashboardView";
+import { buildPricingPath } from "../features/pricing/paths";
+import { formatCurrencyFromCents } from "../features/profile/profilePageModel";
+import { trackMarketingPageView } from "../lib/growthTelemetry";
+import { loadBillingCatalogSnapshot } from "../lib/server/api/billingCatalog";
 import {
   ensureSupabaseClient,
   ensureSupabaseQueryClient,
@@ -37,20 +51,26 @@ const DASHBOARD_HIDE_LEGACY_SECTIONS =
 const DASHBOARD_FALLBACK_HELPER_COPY =
   "Your dashboard is the launch surface for analytics, creator ops, and storage - built for fast decisions and secure tooling.";
 
-type DashboardAnnouncement = {
-  id: string;
-  title: string;
-  message: string;
-  publishedAt: string | null;
-  updatedAt: string | null;
-};
-
 type CurrentSubscriptionContractRow = {
   plan_id: string | null;
 };
 
 type BillingProfilePlanRow = {
   plan_id: string | null;
+};
+
+type DashboardPageStaticProps = InferGetStaticPropsType<typeof getStaticProps>;
+type DashboardPageProps = {
+  billingCatalog?: DashboardPageStaticProps["billingCatalog"];
+};
+
+type DashboardHeaderCard = {
+  key: string;
+  label: string;
+  value: string;
+  icon: ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
+  className?: string;
+  href?: string;
 };
 
 const isSchemaCompatibilityError = (message: string) => {
@@ -80,13 +100,127 @@ const asDashboardAnnouncement = (value: unknown): DashboardAnnouncement | null =
   };
 };
 
+const emptyBillingCatalogSnapshot = (): BillingCatalogSnapshot => ({
+  plans: [],
+  packages: [],
+  storageAddons: [],
+});
+
+const sortBillingPlans = (plans: readonly BillingPlanRecord[]) =>
+  [...plans].sort((left, right) => {
+    if ((left.sort_order ?? 0) === (right.sort_order ?? 0)) {
+      return left.monthly_price_cents - right.monthly_price_cents;
+    }
+    return (left.sort_order ?? 0) - (right.sort_order ?? 0);
+  });
+
+const buildGuestHeaderCards = (billingCatalog: BillingCatalogSnapshot): DashboardHeaderCard[] => {
+  const sortedPlans = sortBillingPlans(billingCatalog.plans);
+  const preferredPlanIds = ["free", "studio", "business"];
+  const selectedPlanIds = preferredPlanIds.filter((planId) =>
+    sortedPlans.some((plan) => plan.id === planId)
+  );
+  const selectedPlans =
+    selectedPlanIds.length >= 2
+      ? selectedPlanIds
+          .map((planId) => sortedPlans.find((plan) => plan.id === planId) ?? null)
+          .filter((plan): plan is BillingPlanRecord => plan !== null)
+      : sortedPlans.slice(0, 3);
+
+  return selectedPlans.map((plan) => {
+    const planView = buildPlanView({ planId: plan.id, plans: billingCatalog.plans });
+    const label = plan.id === "free" ? "Start free" : planView.displayName;
+    const value =
+      plan.monthly_price_cents === 0
+        ? `${plan.monthly_credits_cents.toLocaleString()} credits / month`
+        : `${formatCurrencyFromCents(plan.monthly_price_cents)} / month`;
+
+    return {
+      key: `guest-${plan.id}`,
+      label,
+      value,
+      icon: plan.id === "free" ? Sparkle : plan.id === "business" ? ShieldCheck : CloudArrowUp,
+      href: buildPricingPath({ planId: plan.id }),
+      className: planView.className,
+    };
+  });
+};
+
+const dashboardToolCards: DashboardToolCard[] = [
+  {
+    title: "Media Library",
+    eyebrow: "Storage",
+    description: "Upload and organize private assets with secure, per-user storage.",
+    href: "/media-library",
+    cta: "Open library →",
+    variant: "tool-media",
+    image: "/dashboard/media-library-purple.png",
+    icon: FolderSimple,
+  },
+  {
+    title: "Character",
+    eyebrow: "Identity",
+    description: "Open Character Manager to upload references and manage each character profile.",
+    href: "/character",
+    cta: "Open manager →",
+    variant: "tool-character",
+    image: "/dashboard/character.png",
+    icon: Person,
+  },
+  {
+    title: "AI Studio",
+    eyebrow: "Generation",
+    description:
+      "Generate and iterate images/videos with prompt systems, models, and aspect control.",
+    href: "/ai-studio",
+    cta: "Open studio →",
+    variant: "tool-creator",
+    image: "/dashboard/creator-studio.png",
+    icon: Sparkle,
+  },
+  {
+    title: "Performance Analytics",
+    eyebrow: "Analytics",
+    description:
+      "Compare high-performing Reels, TikToks, and Shorts across niches (Analytics coming soon).",
+    href: "/performance-soon",
+    cta: "Open analytics →",
+    variant: "tool-performance",
+    image: "/dashboard/performance-analytics.png",
+    icon: ChartBar,
+  },
+];
+
 /**
- * Render the dashboard tiles and workspace chrome for the current user.
+ * Loads the public billing catalog snapshot used by dashboard guest mode and the pricing route.
  */
-export default function DashboardPage() {
+export const getStaticProps: GetStaticProps<{
+  billingCatalog: BillingCatalogSnapshot;
+}> = async () => {
+  try {
+    const billingCatalog = await loadBillingCatalogSnapshot();
+    return {
+      props: { billingCatalog },
+      revalidate: 60,
+    };
+  } catch {
+    return {
+      props: { billingCatalog: emptyBillingCatalogSnapshot() },
+      revalidate: 60,
+    };
+  }
+};
+
+/**
+ * Renders the public/authenticated dashboard route.
+ */
+export default function DashboardPage({
+  billingCatalog = emptyBillingCatalogSnapshot(),
+}: DashboardPageProps) {
   const router = useRouter();
-  const { balanceCents, balanceLoading } = useCredits();
-  const { user } = useSupabaseSessionState();
+  const { initialized, user } = useSupabaseSessionState();
+  const isAuthenticated = Boolean(user);
+  const { balanceCents, balanceLoading } = useCredits({ enabled: isAuthenticated });
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [resolvedPlan, setResolvedPlan] = useState<{
@@ -102,6 +236,7 @@ export default function DashboardPage() {
     null
   );
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const guestPageViewTrackedRef = useRef(false);
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -113,24 +248,31 @@ export default function DashboardPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  useEffect(() => {
+    if (!initialized || user || guestPageViewTrackedRef.current) return;
+    guestPageViewTrackedRef.current = true;
+    trackMarketingPageView("dashboard", {
+      page_surface: "dashboard",
+    });
+  }, [initialized, user]);
+
   const displayName =
     (user?.user_metadata?.display_name as string | undefined) ??
     (user?.user_metadata?.full_name as string | undefined) ??
     user?.email ??
     "Guest";
   const firstName = (displayName || "creator").split(" ")[0];
-  const fallbackPlanTier = DEFAULT_PLAN_TIER;
   const fallbackPlanView = buildPlanView({
-    planId: fallbackPlanTier,
-    plans: [],
+    planId: DEFAULT_PLAN_TIER,
+    plans: billingCatalog.plans,
   });
-  const fallbackPlanMeta = {
+  const planMeta = resolvedPlan ?? {
     id: fallbackPlanView.id,
     label: fallbackPlanView.displayName,
     className: fallbackPlanView.className,
   };
-  const planMeta = resolvedPlan ?? fallbackPlanMeta;
   const { quotaSummary, loading: quotaLoading } = useMediaStorageQuotaSummary({
+    enabled: isAuthenticated,
     fallbackPlanId: planMeta.id,
   });
   const initials =
@@ -150,8 +292,6 @@ export default function DashboardPage() {
       },
     });
   };
-  const openProjectsModal = () => setIsProjectsModalOpen(true);
-  const closeProjectsModal = () => setIsProjectsModalOpen(false);
 
   useEffect(() => {
     let active = true;
@@ -285,66 +425,9 @@ export default function DashboardPage() {
         ? "Credits unavailable"
         : `${balanceCents.toLocaleString()} credits`;
 
-  type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
-  type ToolCard = {
-    title: string;
-    eyebrow?: string;
-    description: string;
-    href: string;
-    cta: string;
-    variant: string;
-    image?: string;
-    icon?: IconComponent;
-    disabled?: boolean;
-  };
-
-  const toolCards: ToolCard[] = [
+  const authHeaderCards: DashboardHeaderCard[] = [
     {
-      title: "Media Library",
-      eyebrow: "Storage",
-      description: "Upload and organize private assets with secure, per-user storage.",
-      href: "/media-library",
-      cta: "Open library →",
-      variant: "tool-media",
-      image: "/dashboard/media-library-purple.png",
-      icon: FolderSimple,
-    },
-    {
-      title: "Character",
-      eyebrow: "Identity",
-      description: "Open Character Manager to upload references and manage each character profile.",
-      href: "/character",
-      cta: "Open manager →",
-      variant: "tool-character",
-      image: "/dashboard/character.png",
-      icon: Person,
-    },
-    {
-      title: "AI Studio",
-      eyebrow: "Generation",
-      description:
-        "Generate and iterate images/videos with prompt systems, models, and aspect control.",
-      href: "/ai-studio",
-      cta: "Open studio →",
-      variant: "tool-creator",
-      image: "/dashboard/creator-studio.png",
-      icon: Sparkle,
-    },
-    {
-      title: "Performance Analytics",
-      eyebrow: "Analytics",
-      description:
-        "Compare high-performing Reels, TikToks, and Shorts across niches (Analytics coming soon).",
-      href: "/performance-soon",
-      cta: "Open analytics →",
-      variant: "tool-performance",
-      image: "/dashboard/performance-analytics.png",
-      icon: ChartBar,
-    },
-  ];
-
-  const heroCards = [
-    {
+      key: "auth-storage",
       label: "Media Storage",
       value: storageUsageValue,
       icon: CloudArrowUp,
@@ -353,17 +436,20 @@ export default function DashboardPage() {
       ? []
       : [
           {
+            key: "auth-searches",
             label: "Searches",
             value: "0 / 100",
             icon: ChartBar,
           },
         ]),
     {
+      key: "auth-credits",
       label: "AI credits",
       value: aiCreditsValue,
       icon: Sparkle,
     },
     {
+      key: "auth-plan",
       label: "Plan",
       value: planMeta.label,
       className: planMeta.className,
@@ -380,7 +466,7 @@ export default function DashboardPage() {
       setProfileMenuOpen(false);
       router.replace("/");
     } catch {
-      // no-op for now
+      // Best-effort sign-out only.
     }
   };
 
@@ -423,238 +509,91 @@ export default function DashboardPage() {
     }
   };
 
+  const loginHref = `/auth?next=${encodeURIComponent("/dashboard")}`;
+  const guestCreateProjectHref = buildPricingPath({ intent: "create-project" });
+  const guestOpenProjectsHref = buildPricingPath({ intent: "open-projects" });
+
   return (
     <>
       <Head>
         <title>ShortPulse · Dashboard</title>
         <meta
           name="description"
-          content="ShortPulse dashboard with performance analytics, creator studio, and media library."
+          content="ShortPulse public dashboard and workspace entry for pricing, account access, and AI Studio project flow."
         />
       </Head>
+
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
-      <main id="main-content" className="page page-wide dashboard-refresh">
-        <header className="app-bar">
-          <Link href="/" className="brand-mark brand-mark-logo" aria-label="ShortPulse home">
-            <Image
-              src="/small good d.png"
-              alt="ShortPulse logo"
-              className="brand-logo"
-              width={203}
-              height={64}
-              style={{ height: "auto" }}
-            />
-          </Link>
-          <div className="app-bar-right">
-            <div className="header-cards">
-              {heroCards.map((item) => (
-                <div key={item.label} className="header-stat-card">
-                  <div className="status-icon compact">
-                    <item.icon size={16} weight="bold" />
-                  </div>
-                  <div className="header-card-body">
-                    <p className="metric-label tiny">{item.label}</p>
-                    <p className={`status-value small ${item.className ?? ""}`}>{item.value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="user-cluster profile-menu" ref={profileMenuRef}>
-              <button
-                className="avatar-card"
-                onClick={() => setProfileMenuOpen((v) => !v)}
-                aria-label="Profile menu"
-              >
-                <div className="avatar">{initials}</div>
-              </button>
-              {profileMenuOpen && (
-                <div className="profile-dropdown">
-                  <Link href="/profile?section=account" onClick={() => setProfileMenuOpen(false)}>
-                    Account & profile settings
-                  </Link>
-                  <Link href="/profile?section=credits" onClick={() => setProfileMenuOpen(false)}>
-                    Billing & subscription
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProfileMenuOpen(false);
-                      setShowLogoutConfirm(true);
-                    }}
-                  >
-                    Log out
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
 
-        <section className="dashboard-hero minimal-hero">
-          <div className="hero-primary">
-            <div className="hero-copy">
-              <h1>
-                Welcome back, <span>{firstName}</span>
-              </h1>
-              {dashboardAnnouncement ? (
-                <div className="hero-announcement" role="status" aria-live="polite">
-                  <p className="hero-announcement-title">{dashboardAnnouncement.title}</p>
-                  <p className="hero-announcement-message">{dashboardAnnouncement.message}</p>
-                </div>
-              ) : (
-                <p className="hero-subtext">{DASHBOARD_FALLBACK_HELPER_COPY}</p>
-              )}
-            </div>
-            <div className="hero-visual">
-              <Image
-                src="/dashboard/welcome-art.png"
-                alt="Dashboard visual"
-                className="hero-graphic"
-                width={960}
-                height={540}
-              />
-            </div>
-            <div className="hero-quick-row">
-              {DASHBOARD_HIDE_LEGACY_SECTIONS ? (
-                <>
-                  <button
-                    type="button"
-                    className="hero-onboarding hero-new-project-card"
-                    aria-label="New Project: Start a new project in AI Studio"
-                    onClick={() => {
-                      void handleCreateProject();
-                    }}
-                    disabled={isCreatingProject}
-                    aria-busy={isCreatingProject}
-                  >
-                    <span className="hero-new-project-content">
-                      <span className="hero-new-project-icon-column" aria-hidden="true">
-                        <Plus size={30} weight="bold" className="hero-new-project-icon" />
-                      </span>
-                      <span className="hero-new-project-text-column">
-                        <span className="hero-new-project-label">New Project</span>
-                        <p className="hero-new-project-helper">
-                          {isCreatingProject
-                            ? "Creating your project..."
-                            : projectCreateError
-                              ? projectCreateError
-                              : "Open the AI Studio"}
-                        </p>
-                      </span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="hero-sessions-group hero-sessions-group-button hero-open-projects-card"
-                    aria-label="Open Projects: Open saved projects"
-                    onClick={openProjectsModal}
-                  >
-                    <span className="hero-new-project-content">
-                      <span className="hero-new-project-icon-column" aria-hidden="true">
-                        <FolderSimple
-                          size={30}
-                          weight="duotone"
-                          className="hero-open-projects-icon"
-                        />
-                      </span>
-                      <span className="hero-new-project-text-column">
-                        <span className="hero-new-project-label">Open Projects</span>
-                        <p className="hero-new-project-helper">Open the project library</p>
-                      </span>
-                    </span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    href="/onboarding"
-                    className="hero-onboarding"
-                    aria-label="Onboarding Courses: Guided walkthroughs for Creator Studio workflows"
-                  >
-                    <div>
-                      <p className="eyebrow tiny">Quick start</p>
-                      <h3>Onboarding Courses</h3>
-                      <p className="subdued tiny">
-                        Guided walkthroughs for Creator Studio workflows.
-                      </p>
-                    </div>
-                    <span>Enter →</span>
-                  </Link>
-                  <Link
-                    href="/onboarding?section=workflows"
-                    className="hero-onboarding hero-workflow-card"
-                    aria-label="AI Workflow Lessons: Deep dives on creation playbooks and applied prompts"
-                  >
-                    <div>
-                      <p className="eyebrow tiny">Workflows</p>
-                      <h3>AI Workflow Lessons</h3>
-                      <p className="subdued tiny">
-                        Deep dives on creation playbooks and applied prompts.
-                      </p>
-                    </div>
-                    <span>Explore →</span>
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        </section>
-        {!DASHBOARD_HIDE_LEGACY_SECTIONS ? (
-          <section className="tools-section" aria-labelledby="tools-heading">
-            <h2 id="tools-heading" className="eyebrow">
-              Tools
-            </h2>
-            <div className="tool-card-grid">
-              {toolCards.map((tool) => {
-                return (
-                  <Link
-                    href={tool.href}
-                    key={tool.title}
-                    className={`tool-card ${tool.variant ?? ""} ${tool.disabled ? "is-disabled" : ""}`}
-                    aria-disabled={tool.disabled}
-                    tabIndex={tool.disabled ? -1 : undefined}
-                    role="article"
-                    aria-label={`${tool.title}: ${tool.description}`}
-                  >
-                    {tool.image ? (
-                      <div className="tool-card-hero">
-                        <Image
-                          src={tool.image}
-                          alt={`${tool.title} visual`}
-                          width={1200}
-                          height={300}
-                          unoptimized
-                        />
-                      </div>
-                    ) : null}
-                    <div className="tool-card-body">
-                      {tool.eyebrow ? <p className="tool-card-eyebrow">{tool.eyebrow}</p> : null}
-                      <div className="tool-card-title-row">
-                        <h3>{tool.title}</h3>
-                        {tool.icon ? (
-                          <span className="tool-card-title-icon" aria-hidden="true">
-                            <tool.icon size={19} weight="duotone" />
-                          </span>
-                        ) : null}
-                      </div>
-                      <p>{tool.description}</p>
-                    </div>
-                    <div className="tool-card-footer">{tool.cta}</div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-        {!DASHBOARD_HIDE_LEGACY_SECTIONS ? (
-          <div className="footer">
-            ShortPulse keeps your performance data and media private to your account.
-          </div>
-        ) : null}
+      <main id="main-content" className="page page-wide dashboard-refresh">
+        <DashboardAppBar
+          cards={isAuthenticated ? authHeaderCards : buildGuestHeaderCards(billingCatalog)}
+          actionSlot={
+            isAuthenticated ? (
+              <div className="user-cluster profile-menu" ref={profileMenuRef}>
+                <button
+                  className="avatar-card"
+                  onClick={() => setProfileMenuOpen((open) => !open)}
+                  aria-label="Profile menu"
+                >
+                  <div className="avatar">{initials}</div>
+                </button>
+                {profileMenuOpen ? (
+                  <div className="profile-dropdown">
+                    <Link href="/profile?section=account" onClick={() => setProfileMenuOpen(false)}>
+                      Account & profile settings
+                    </Link>
+                    <Link href="/profile?section=credits" onClick={() => setProfileMenuOpen(false)}>
+                      Billing & subscription
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        setShowLogoutConfirm(true);
+                      }}
+                    >
+                      Log out
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="user-cluster">
+                <Link href={loginHref} className="avatar-card app-bar-login-button">
+                  Log in
+                </Link>
+              </div>
+            )
+          }
+        />
+
+        {isAuthenticated ? (
+          <AuthenticatedDashboardView
+            dashboardAnnouncement={dashboardAnnouncement}
+            dashboardFallbackHelperCopy={DASHBOARD_FALLBACK_HELPER_COPY}
+            firstName={firstName}
+            hideLegacySections={DASHBOARD_HIDE_LEGACY_SECTIONS}
+            isCreatingProject={isCreatingProject}
+            projectCreateError={projectCreateError}
+            toolCards={dashboardToolCards}
+            onCreateProject={() => {
+              void handleCreateProject();
+            }}
+            onOpenProjects={() => setIsProjectsModalOpen(true)}
+          />
+        ) : (
+          <GuestDashboardView
+            billingCatalog={billingCatalog}
+            createProjectHref={guestCreateProjectHref}
+            openProjectsHref={guestOpenProjectsHref}
+          />
+        )}
       </main>
-      {showLogoutConfirm && (
+
+      {showLogoutConfirm ? (
         <div
           className="modal-overlay"
           role="dialog"
@@ -678,12 +617,15 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      )}
-      <ProjectsModal
-        isOpen={isProjectsModalOpen}
-        onClose={closeProjectsModal}
-        onSelectProject={openProject}
-      />
+      ) : null}
+
+      {isAuthenticated ? (
+        <ProjectsModal
+          isOpen={isProjectsModalOpen}
+          onClose={() => setIsProjectsModalOpen(false)}
+          onSelectProject={openProject}
+        />
+      ) : null}
     </>
   );
 }

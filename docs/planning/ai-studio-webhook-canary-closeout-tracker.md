@@ -4,6 +4,7 @@ Date: 2026-03-02
 Authority: Working  
 Owner: Engineering + Ops  
 Program Doc: `docs/planning/ai-studio-webhook-canary-closeout-plan.md`
+Status: draft
 
 ## Status Overview
 | Phase | Status | Owner | Entry Gate | Exit Gate | Evidence |

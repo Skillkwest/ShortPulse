@@ -4,6 +4,7 @@ Date: 2026-03-02
 Authority: Working  
 Owner: Engineering  
 Program Doc: `docs/planning/ai-studio-ux-prompt-adjacency-rollout-plan.md`
+Status: active
 
 ## Status Overview
 | Phase | Status | Owner | Entry Gate | Exit Gate | Evidence |

@@ -276,10 +276,10 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
   }
 };
 
-export const useCredits = () => {
+export const useCredits = ({ enabled = true }: { enabled?: boolean } = {}) => {
   incrementFreezeInvestigationCounter("credits.render");
   const { initialized, user } = useSupabaseSessionState();
-  const currentUserId = user?.id ?? null;
+  const currentUserId = enabled ? (user?.id ?? null) : null;
   const [balance, setBalance] = useState<BalanceState>(() =>
     createBalanceState(currentUserId, { loading: true })
   );
@@ -290,6 +290,10 @@ export const useCredits = () => {
       setFreezeInvestigationGauge("credits.refresh.silent", options?.silent ?? false);
       const silent = options?.silent ?? false;
       try {
+        if (!enabled) {
+          setBalance(createBalanceState(null, { loading: false, error: null }));
+          return null;
+        }
         if (!silent) {
           setBalance((prev) => ({ ...prev, loading: true, error: null }));
         }
@@ -353,7 +357,7 @@ export const useCredits = () => {
         return null;
       }
     },
-    [currentUserId, initialized]
+    [currentUserId, enabled, initialized]
   );
 
   useEffect(() => {
@@ -363,19 +367,25 @@ export const useCredits = () => {
   }, [balance.cents, balance.error, balance.loading]);
 
   useEffect(() => {
+    if (!enabled) {
+      setBalance(createBalanceState(null, { loading: false, error: null }));
+      return;
+    }
     if (balance.ownerUserId === currentUserId) return;
     setBalance(
       createBalanceState(currentUserId, {
         loading: Boolean(currentUserId) || !initialized,
       })
     );
-  }, [balance.ownerUserId, currentUserId, initialized]);
+  }, [balance.ownerUserId, currentUserId, enabled, initialized]);
 
   useEffect(() => {
+    if (!enabled) return;
     refresh();
-  }, [refresh]);
+  }, [enabled, refresh]);
 
   useEffect(() => {
+    if (!enabled) return;
     const onFocus = () => {
       void refresh({ silent: true });
     };
@@ -391,16 +401,28 @@ export const useCredits = () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [refresh]);
+  }, [enabled, refresh]);
 
   useEffect(() => {
+    if (!enabled) return;
     const intervalId = window.setInterval(() => {
       void refresh({ silent: true });
     }, 30000);
     return () => window.clearInterval(intervalId);
-  }, [refresh]);
+  }, [enabled, refresh]);
 
   const exposingCurrentUserBalance = balance.ownerUserId === currentUserId;
+
+  if (!enabled) {
+    return {
+      balanceCents: null,
+      balanceReservedCents: null,
+      balanceUpdatedAt: null,
+      balanceLoading: false,
+      balanceError: null,
+      refreshBalance: refresh,
+    };
+  }
 
   return {
     balanceCents: exposingCurrentUserBalance ? balance.cents : null,

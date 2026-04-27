@@ -8,7 +8,6 @@ import {
 } from "react";
 import { createMediaPerfTimer } from "../../../lib/mediaPerfTelemetry";
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
-import { canAttemptMediaPreviewSignBatch } from "../../../lib/mediaPreviewRuntimePolicy";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import {
   BUCKET,
@@ -17,7 +16,11 @@ import {
   type MediaTabBooleanState,
 } from "../logic/mediaLibraryPageHelpers";
 import {
-  buildMediaSignCandidateEntries,
+  prepareMediaSigningState,
+  type PreparedSignState,
+  resolveMediaSignQueuePass,
+} from "../logic/mediaPreviewSigningPass";
+import {
   collectMediaSignPaths,
   finalizeMediaSignCompletion,
   type MediaSignCandidateEntry,
@@ -65,16 +68,6 @@ type UseMediaPreviewSigningControllerArgs<
   maxSignAttemptsPerItem?: number;
   maxSignCandidatesPerRow?: number;
   backgroundHydrateFallbackEnabled?: boolean;
-};
-
-type PreparedSignState<TRow extends PreviewSigningRowBase> = {
-  sourceRows: TRow[];
-  currentUserId: string | null;
-  signCandidateCap: number;
-  readyRows: TRow[];
-  signCandidateEntryById: Map<string, MediaSignCandidateEntry>;
-  rowById: Map<string, TRow>;
-  readyIds: Set<string>;
 };
 
 export const useMediaPreviewSigningController = <
@@ -165,139 +158,43 @@ export const useMediaPreviewSigningController = <
       cachedPreparedSignState.signCandidateCap === signCandidateCap
         ? cachedPreparedSignState
         : (() => {
-            const readyRows = filteredMedia.filter((row) => row.status !== "uploading");
-            const signCandidateEntries = buildMediaSignCandidateEntries(
-              readyRows,
-              currentUserId,
-              signCandidateCap
-            );
-            const nextState: PreparedSignState<TRow> = {
+            const nextState = prepareMediaSigningState({
               sourceRows: filteredMedia,
               currentUserId,
               signCandidateCap,
-              readyRows,
-              signCandidateEntryById: new Map(
-                signCandidateEntries.map((entry) => [entry.id, entry] as const)
-              ),
-              rowById: new Map(readyRows.map((row) => [row.id, row] as const)),
-              readyIds: new Set(readyRows.map((row) => row.id)),
-            };
+            });
             preparedSignStateRef.current = nextState;
             return nextState;
           })();
-    const { readyRows, signCandidateEntryById, rowById, readyIds } = preparedSignState;
+    const { readyRows, signCandidateEntryById } = preparedSignState;
     if (!readyRows.length) return;
-    const hasPreviewCandidate = (row: TRow) => {
-      const entry = signCandidateEntryById.get(row.id);
-      if (!entry) return false;
-      return entry.candidates.length > 0 || Boolean(entry.directUrl);
-    };
-    for (const queuedId of Object.keys(queueStateByIdRef.current)) {
-      const queuedRow = rowById.get(queuedId);
-      if (!queuedRow || queuedRow.signedUrl || !hasPreviewCandidate(queuedRow)) {
-        delete queueStateByIdRef.current[queuedId];
-      }
-    }
-    urgentQueueRef.current = urgentQueueRef.current.filter((id) => {
-      if (!readyIds.has(id)) return false;
-      return queueStateByIdRef.current[id] === "urgent";
+    const queuePass = resolveMediaSignQueuePass({
+      preparedState: preparedSignState,
+      existingState: {
+        urgentQueue: urgentQueueRef.current,
+        deferredQueue: deferredQueueRef.current,
+        queueStateById: queueStateByIdRef.current,
+      },
+      signBudget,
+      visibleMediaIds: visibleMediaIdsRef.current,
+      isSignPrefetchEnabled,
+      isDeferredDrainArmed: deferredDrainArmedRef.current,
+      signAttemptCounts: signAttemptRef.current,
+      maxSignAttemptsPerItem,
     });
-    deferredQueueRef.current = deferredQueueRef.current.filter((id) => {
-      if (!readyIds.has(id)) return false;
-      return queueStateByIdRef.current[id] === "deferred";
-    });
-    const removeQueuedId = (id: string) => {
-      urgentQueueRef.current = urgentQueueRef.current.filter((queuedId) => queuedId !== id);
-      deferredQueueRef.current = deferredQueueRef.current.filter((queuedId) => queuedId !== id);
-      if (queueStateByIdRef.current[id] !== "in_flight") {
-        delete queueStateByIdRef.current[id];
-      }
-    };
-    const enqueue = (row: TRow | undefined, priority: "urgent" | "deferred") => {
-      if (!row) return;
-      if (
-        typeof maxSignAttemptsPerItem === "number" &&
-        Number.isFinite(maxSignAttemptsPerItem) &&
-        !canAttemptMediaPreviewSignBatch(
-          signAttemptRef.current[row.id] ?? 0,
-          maxSignAttemptsPerItem
-        )
-      ) {
-        return;
-      }
-      if (!hasPreviewCandidate(row) || row.signedUrl) {
-        removeQueuedId(row.id);
-        return;
-      }
-      const currentState = queueStateByIdRef.current[row.id];
-      if (currentState === "in_flight") return;
-      if (priority === "urgent") {
-        if (currentState === "urgent") return;
-        removeQueuedId(row.id);
-        urgentQueueRef.current.push(row.id);
-        queueStateByIdRef.current[row.id] = "urgent";
-        return;
-      }
-      if (currentState === "urgent" || currentState === "deferred") return;
-      deferredQueueRef.current.push(row.id);
-      queueStateByIdRef.current[row.id] = "deferred";
-    };
-    for (const row of readyRows.slice(0, signBudget.initialSignLimit)) {
-      enqueue(row, "urgent");
-    }
-    if (isSignPrefetchEnabled) {
-      const visibleIndexes: number[] = [];
-      for (let idx = 0; idx < readyRows.length; idx += 1) {
-        if (visibleMediaIdsRef.current.has(readyRows[idx].id)) {
-          visibleIndexes.push(idx);
-        }
-      }
-
-      if (visibleIndexes.length) {
-        const firstVisible = Math.min(...visibleIndexes);
-        const lastVisible = Math.max(...visibleIndexes);
-        const before = Math.floor(signBudget.prefetchWindow / 3);
-        const start = Math.max(0, firstVisible - before);
-        const immediateVisibleWindow = Math.max(
-          signBudget.initialSignLimit,
-          signBudget.signBatchSize * 2
-        );
-        const urgentEnd = Math.min(readyRows.length, firstVisible + immediateVisibleWindow);
-        const prefetchEnd = Math.min(readyRows.length, lastVisible + 1 + signBudget.prefetchWindow);
-        for (let idx = start; idx < urgentEnd; idx += 1) {
-          enqueue(readyRows[idx], "urgent");
-        }
-        for (let idx = urgentEnd; idx < prefetchEnd; idx += 1) {
-          enqueue(readyRows[idx], "deferred");
-        }
-      }
-    }
-    const selectQueuedRows = (queuedIds: string[]): TRow[] =>
-      queuedIds
-        .map((id) => rowById.get(id) ?? null)
-        .filter((row): row is TRow => Boolean(row))
-        .slice(0, signBudget.signBatchSize);
-    const urgentBatch = selectQueuedRows(urgentQueueRef.current);
-    const deferredBatch =
-      urgentBatch.length || !deferredDrainArmedRef.current
-        ? []
-        : selectQueuedRows(deferredQueueRef.current);
-    const signBatch = urgentBatch.length ? urgentBatch : deferredBatch;
+    urgentQueueRef.current = queuePass.queueState.urgentQueue;
+    deferredQueueRef.current = queuePass.queueState.deferredQueue;
+    queueStateByIdRef.current = queuePass.queueState.queueStateById;
+    const signBatch = queuePass.signBatch;
     if (!signBatch.length) {
       if (deferredQueueRef.current.length > 0) {
         scheduleDeferredDrain();
       }
       return;
     }
-    const drainPriority = urgentBatch.length ? "urgent" : "deferred";
+    const drainPriority = queuePass.drainPriority === "deferred" ? "deferred" : "urgent";
     if (drainPriority === "deferred") {
       deferredDrainArmedRef.current = false;
-    }
-    const scheduledIds = new Set(signBatch.map((row) => row.id));
-    urgentQueueRef.current = urgentQueueRef.current.filter((id) => !scheduledIds.has(id));
-    deferredQueueRef.current = deferredQueueRef.current.filter((id) => !scheduledIds.has(id));
-    for (const rowId of scheduledIds) {
-      queueStateByIdRef.current[rowId] = "in_flight";
     }
     clearDeferredDrainTimeout();
     const tabForBatch = activeMediaTab;
@@ -314,6 +211,7 @@ export const useMediaPreviewSigningController = <
     const signCandidatesByRow = signBatch
       .map((row) => signCandidateEntryById.get(row.id) ?? null)
       .filter((entry): entry is MediaSignCandidateEntry => Boolean(entry));
+    const scheduledIds = new Set(signBatch.map((row) => row.id));
     const signPaths = collectMediaSignPaths(signCandidatesByRow);
     const previewProfile = resolvePreviewProfileForSurface(surface);
     const previewDeliveryMode =

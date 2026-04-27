@@ -4,7 +4,7 @@
 import { useEffect } from "react";
 
 type ModelConstraintConfig = {
-  mediaType?: "image" | "video" | "image-to-video" | "multi" | "text";
+  mediaType?: "image" | "video" | "image-to-video" | "multi" | "text" | "audio";
   allowedDurations?: number[];
   allowedResolutions?: string[];
   defaultResolution?: string;

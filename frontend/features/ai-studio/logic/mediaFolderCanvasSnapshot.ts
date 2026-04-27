@@ -1,7 +1,10 @@
 /**
  * Media Library custom-folder canvas snapshot contracts and adapters.
  */
-import { CANVAS_DEFAULT_CAMERA } from "../components/canvas/canvasGeometry";
+import {
+  CANVAS_DEFAULT_CAMERA,
+  CANVAS_TEXT_ITEM_MIN_HEIGHT,
+} from "../components/canvas/canvasGeometry";
 import type {
   CanvasCamera,
   CanvasImageItem,
@@ -42,6 +45,7 @@ type FolderCanvasSnapshotItem =
       y: number;
       z: number;
       width: number;
+      height?: number;
       selected?: boolean;
     };
 
@@ -162,6 +166,7 @@ const toCanvasSceneItem = (item: FolderCanvasSnapshotItem): CanvasSceneItem | nu
     sourceSurface: null,
     text,
     width: Math.max(140, asFinite(item.width, DEFAULT_TEXT_WIDTH)),
+    height: Math.max(40, asFinite(item.height, CANVAS_TEXT_ITEM_MIN_HEIGHT)),
   };
 };
 
@@ -193,6 +198,7 @@ const toSnapshotItem = (item: FolderCanvasSceneItem): FolderCanvasSnapshotItem =
     y: item.y,
     z: item.z,
     width: item.width,
+    height: item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT,
     selected: item.selected,
   };
 };
@@ -232,6 +238,7 @@ const normalizeSnapshotItems = (value: unknown): CanvasSceneItem[] => {
       y: asFinite(row.y),
       z: Math.trunc(asFinite(row.z)),
       width: asFinite(row.width, DEFAULT_TEXT_WIDTH),
+      height: asFinite(row.height, CANVAS_TEXT_ITEM_MIN_HEIGHT),
       selected: row.selected === true,
     });
     if (item) items.push(item);
@@ -329,6 +336,7 @@ export const buildSeedItemsForFolderCanvas = ({
       sourceSurface: null,
       text,
       width: DEFAULT_TEXT_WIDTH,
+      height: CANVAS_TEXT_ITEM_MIN_HEIGHT,
     });
     z += 1;
   });
@@ -445,6 +453,7 @@ export const reconcileFolderMembershipCanvasItems = ({
       sourceSurface: null,
       text,
       width: DEFAULT_TEXT_WIDTH,
+      height: CANVAS_TEXT_ITEM_MIN_HEIGHT,
     });
     nextZ += 1;
   });

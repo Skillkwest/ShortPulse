@@ -21,7 +21,11 @@ import {
 } from "./sessionSnapshotCanvas";
 import { parseAiStudioSessionExpertEditState } from "./sessionSnapshotExpertEdit";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
-import { buildRestoredPulseSessionInstanceId } from "./pulseSessionIdentity";
+import {
+  normalizePulsePresetId,
+  resolveHydratedPulseRuntimeState,
+  resolvePulseRuntimeState,
+} from "./pulseSessionState";
 
 const FALLBACK_MODE: StudioMode = "text";
 const FALLBACK_ASPECT = "9:16";
@@ -642,14 +646,14 @@ export const buildAiStudioSessionHydrationPayload = (
     (workspace as { pulsePrompt?: unknown }).pulsePrompt,
     workspaceExpertCreateMode === "pulse" ? legacyWorkspacePrompt : ""
   );
-  const workspaceActivePulsePresetId =
-    asNullableString(
-      (workspace as { activePulsePresetId?: unknown }).activePulsePresetId
-    )?.trim() || null;
-  const workspacePulseSessionInstanceId =
-    asNullableString(
-      (workspace as { pulseSessionInstanceId?: unknown }).pulseSessionInstanceId
-    )?.trim() || null;
+  const normalizedWorkspacePulseState = resolvePulseRuntimeState({
+    expertCreateMode: workspaceExpertCreateMode,
+    activePulsePresetId: (workspace as { activePulsePresetId?: unknown }).activePulsePresetId,
+    pulseSessionInstanceId: (workspace as { pulseSessionInstanceId?: unknown })
+      .pulseSessionInstanceId,
+  });
+  const workspaceActivePulsePresetId = normalizedWorkspacePulseState.activePulsePresetId;
+  const workspacePulseSessionInstanceId = normalizedWorkspacePulseState.pulseSessionInstanceId;
   const defaultAgentRuntime = buildHydratedAgentRuntime(null);
   const legacyAgentRuntime = buildHydratedAgentRuntime(agent);
   const legacyPulseRuntime = coerceHydratedRuntimeChatMode(legacyAgentRuntime, {
@@ -663,7 +667,7 @@ export const buildAiStudioSessionHydrationPayload = (
         : legacyAgentRuntime,
     pulsePresetId:
       workspaceExpertCreateMode === "pulse"
-        ? asNullableString(agentRuntimes?.pulsePresetId)?.trim() ||
+        ? normalizePulsePresetId(agentRuntimes?.pulsePresetId) ||
           workspaceActivePulsePresetId ||
           legacyAgentRuntime.pulseWorkflowSession?.presetId ||
           null
@@ -676,19 +680,18 @@ export const buildAiStudioSessionHydrationPayload = (
         ? legacyPulseRuntime
         : defaultAgentRuntime,
   };
-  const resolvedWorkspaceActivePulsePresetId =
-    workspaceExpertCreateMode === "pulse"
-      ? workspaceActivePulsePresetId || hydratedAgentRuntimes.pulsePresetId
-      : null;
+  const resolvedWorkspacePulseState = resolveHydratedPulseRuntimeState({
+    expertCreateMode: workspaceExpertCreateMode,
+    workspaceActivePulsePresetId:
+      workspaceActivePulsePresetId || hydratedAgentRuntimes.pulsePresetId,
+    workspacePulseSessionInstanceId: workspacePulseSessionInstanceId,
+    hydratedPulsePresetId: hydratedAgentRuntimes.pulsePresetId,
+    sessionId: snapshot.sessionId,
+    updatedAt: snapshot.updatedAt,
+  });
+  const resolvedWorkspaceActivePulsePresetId = resolvedWorkspacePulseState.activePulsePresetId;
   const resolvedWorkspacePulseSessionInstanceId =
-    workspaceExpertCreateMode !== "pulse" || !resolvedWorkspaceActivePulsePresetId
-      ? null
-      : workspacePulseSessionInstanceId ||
-        buildRestoredPulseSessionInstanceId({
-          sessionId: snapshot.sessionId,
-          updatedAt: snapshot.updatedAt,
-          presetId: resolvedWorkspaceActivePulsePresetId,
-        });
+    resolvedWorkspacePulseState.pulseSessionInstanceId;
   const activeAgentRuntime =
     workspaceExpertCreateMode === "pulse"
       ? hydratedAgentRuntimes.pulse

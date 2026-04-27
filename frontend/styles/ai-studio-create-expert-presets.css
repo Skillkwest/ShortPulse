@@ -605,6 +605,59 @@
   color: rgba(255, 228, 189, 0.98);
 }
 
+.create-expert-presets-status-banner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: rgba(15, 21, 32, 0.76);
+}
+
+.create-expert-presets-status-banner.is-warning {
+  background: rgba(68, 38, 21, 0.94);
+  border-color: rgba(255, 177, 132, 0.3);
+  color: rgba(255, 219, 189, 0.96);
+}
+
+.create-expert-presets-status-banner.is-info {
+  background: rgba(27, 40, 54, 0.94);
+  border-color: rgba(100, 209, 230, 0.24);
+  color: rgba(224, 245, 250, 0.96);
+}
+
+.create-expert-presets-status-banner-copy {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+
+.create-expert-presets-status-banner-dismiss {
+  flex: 0 0 auto;
+  min-height: 28px;
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.create-expert-presets-status-banner-dismiss:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.create-expert-presets-status-banner-dismiss:focus-visible {
+  outline: 1px solid rgba(201, 205, 214, 0.48);
+  outline-offset: 1px;
+}
+
 .create-expert-presets-status-toast {
   position: absolute;
   left: 10px;

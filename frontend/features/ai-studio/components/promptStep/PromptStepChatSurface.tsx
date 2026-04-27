@@ -19,7 +19,7 @@ import type {
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
-import type { PromptStepInlineGenerateConfig } from "./types";
+import type { PromptStepInlineGenerateConfig, PromptStepPulseLoadingState } from "./types";
 
 type PromptStepChatSurfaceProps = {
   beginnerMode: boolean;
@@ -75,7 +75,6 @@ type PromptStepChatSurfaceProps = {
   outputGenerateCostCredits: number | null;
   outputGenerateGuardrailReason?: string | null;
   hideOutputGenerateControls?: boolean;
-  chatSessionBanner?: React.ReactNode;
   composerMiddleContent: React.ReactNode;
   composerLeadingContent: React.ReactNode;
   chatComposerOverlayEnabled: boolean;
@@ -87,6 +86,7 @@ type PromptStepChatSurfaceProps = {
   agentInputMaxHeightPx?: number;
   agentInputCollapseOnBlur: boolean;
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
+  pulseLoadingState?: PromptStepPulseLoadingState | null;
   embedSendButtonInInput: boolean;
   handleAgentSendClick: () => void;
   agentIsSending: boolean;
@@ -150,7 +150,6 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   outputGenerateCostCredits,
   outputGenerateGuardrailReason,
   hideOutputGenerateControls = false,
-  chatSessionBanner,
   composerMiddleContent,
   composerLeadingContent,
   chatComposerOverlayEnabled,
@@ -162,6 +161,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur,
   onAgentInputVisualRowCountChange,
+  pulseLoadingState = null,
   embedSendButtonInInput,
   handleAgentSendClick,
   agentIsSending,
@@ -177,6 +177,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
 }) => {
   const [isAgentInputExpanded, setIsAgentInputExpanded] = React.useState(false);
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
+  const isPulseLoading = pulseLoadingState != null;
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
   const inlineGenerateCostLabel =
     outputGenerateCostCredits != null ? outputGenerateCostCredits.toLocaleString() : "—";
@@ -207,8 +208,12 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     forceRenderAgentChatPanel;
   const shouldRenderAgentChatPanel = hasAgentChatContent || !hideEmptyAgentChatState;
   const shouldRenderAgentChatSpacer = !shouldRenderAgentChatPanel;
+  const shouldUsePulseFlowComposer = assistantMessagePresentation === "pulse_guided";
   const shouldUseComposerOverlay =
-    chatComposerOverlayEnabled && shouldRenderAgentChatPanel && !shouldRenderAgentChatSpacer;
+    chatComposerOverlayEnabled &&
+    shouldRenderAgentChatPanel &&
+    !shouldRenderAgentChatSpacer &&
+    !shouldUsePulseFlowComposer;
   const shouldBlurComposerUnderlay = isAgentInputExpanded && agentInputVisualRowCount >= 8;
   const handleAgentInputVisualRowCountChange = React.useCallback(
     (rowCount: number) => {
@@ -218,17 +223,32 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     [onAgentInputVisualRowCountChange]
   );
 
+  const pulseLoadingContent = pulseLoadingState ? (
+    <div
+      className={`create-expert-pulse-loading-card is-${pulseLoadingState.phase.replace("_", "-")}`}
+      role="status"
+      aria-live="polite"
+      aria-label={pulseLoadingState.title}
+    >
+      <span className="create-expert-pulse-loading-spinner" aria-hidden="true" />
+      <p className="create-expert-pulse-loading-card-title">{pulseLoadingState.title}</p>
+    </div>
+  ) : null;
+
   const chatHistoryContent = shouldRenderAgentChatPanel ? (
-    <div className="agent-chat-wrapper agent-chat-wrapper--inline">
-      {chatSessionBanner}
+    <div
+      className="agent-chat-wrapper agent-chat-wrapper--inline"
+      aria-busy={isPulseLoading ? true : undefined}
+    >
       <AgentChatPanel
         messages={agentMessages}
         introMessage={hideAgentIntroMessage ? null : introMessage}
         input=""
         sendLabel="Send"
         isSending={promptThinking}
-        showThinkingIndicator
+        showThinkingIndicator={!isPulseLoading}
         thinkingIndicatorPlacement="history"
+        historyFooterContent={pulseLoadingContent}
         stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
         assistantBubbleMedia={assistantBubbleMedia}
         stagedAttachments={dropToInputComposer ? [] : stagedAttachments}
@@ -261,7 +281,6 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
 
   const chatSpacerContent = shouldRenderAgentChatSpacer ? (
     <>
-      {chatSessionBanner}
       <div
         className={`agent-chat-inline-spacer ${emptyAgentChatSpacerClassName}`.trim()}
         aria-hidden="true"
@@ -326,16 +345,21 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
         onFocusChange={setIsAgentInputExpanded}
         onVisualRowCountChange={handleAgentInputVisualRowCountChange}
         placeholder={
-          chatModeEnabled
-            ? directOpenAiBypassEnabled
-              ? "Ask ShortPulse or write your prompt"
-              : "Message the agent..."
-            : "Write your prompt..."
+          isPulseLoading
+            ? pulseLoadingState.phase === "starting_pulse"
+              ? "Pulse is starting..."
+              : "Pulse is generating the next step..."
+            : chatModeEnabled
+              ? directOpenAiBypassEnabled
+                ? "Ask ShortPulse or write your prompt"
+                : "Message the agent..."
+              : "Write your prompt..."
         }
         onKeyDown={handleAgentInputKeyDown}
         className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
         maxHeightPx={agentInputMaxHeightPx}
         collapseToMinHeightWhenBlurred={agentInputCollapseOnBlur}
+        disabled={agentBootstrapPending || agentIsSending || isPulseLoading}
       />
       {hasInsideInputSendButton ? (
         <AgentSendButton

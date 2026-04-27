@@ -1,0 +1,177 @@
+import { render, screen } from "@testing-library/react";
+import type { AppProps } from "next/app";
+import type { ReactNode } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import App from "../../pages/_app";
+
+const routerState = vi.hoisted(() => ({
+  pathname: "/ai-studio",
+}));
+
+const useProtectedRouteMock = vi.hoisted(() => vi.fn());
+const useMediaComplianceGateMock = vi.hoisted(() => vi.fn());
+const mediaComplianceGatePropsSpy = vi.hoisted(() => vi.fn());
+
+vi.mock("next/router", () => ({
+  useRouter: () => ({
+    pathname: routerState.pathname,
+    events: {
+      on: vi.fn(),
+      off: vi.fn(),
+    },
+  }),
+}));
+
+vi.mock("../../components/AppErrorBoundary", () => ({
+  AppErrorBoundary: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("../../features/compliance/components/MediaComplianceGate", () => ({
+  MediaComplianceGate: (props: Record<string, unknown>) => {
+    mediaComplianceGatePropsSpy(props);
+    return <div data-testid="media-compliance-gate">Media compliance gate</div>;
+  },
+}));
+
+vi.mock("../../features/compliance/hooks/useMediaComplianceGate", () => ({
+  useMediaComplianceGate: (...args: unknown[]) => useMediaComplianceGateMock(...args),
+}));
+
+vi.mock("../../lib/authGuard", () => ({
+  PROTECTED_ROUTES: [
+    "/performance",
+    "/saved-creators",
+    "/media-library",
+    "/profile",
+    "/ai-studio",
+    "/creator-studio",
+    "/character",
+    "/admin",
+  ],
+  useProtectedRoute: (...args: unknown[]) => useProtectedRouteMock(...args),
+}));
+
+vi.mock("../../lib/appErrorReporter", () => ({
+  installGlobalAppErrorHandlers: () => () => undefined,
+  reportAppError: vi.fn(),
+}));
+
+vi.mock("../../lib/clientBreadcrumbs", () => ({
+  addBreadcrumb: vi.fn(),
+  redactUrlForTelemetry: (value: string) => value,
+}));
+
+vi.mock("../../lib/mediaPerfTelemetry", () => ({
+  installMediaPerfDebugHandle: vi.fn(),
+}));
+
+const baseComplianceState = {
+  accepted: true,
+  acceptedAt: "2026-04-25T18:00:00.000Z",
+  acceptAgreement: vi.fn(),
+  agreement: {
+    version: "2026-04-25",
+    title: "Media agreement",
+    summary: "Please accept.",
+    bullets: [],
+    acknowledgmentLabel: "I agree",
+    continueLabel: "Continue",
+  },
+  error: null,
+  initialized: true,
+  loading: false,
+  refreshStatus: vi.fn(),
+};
+
+const renderApp = () => {
+  const TestComponent = () => <div data-testid="page-content">Page content</div>;
+
+  return render(
+    <App
+      Component={TestComponent}
+      pageProps={{}}
+      router={undefined as unknown as AppProps["router"]}
+    />
+  );
+};
+
+describe("App AI Studio entry behavior", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    routerState.pathname = "/ai-studio";
+
+    useProtectedRouteMock.mockReturnValue({
+      loading: false,
+      session: { access_token: "token", user: { id: "user-1" } },
+      user: { id: "user-1" },
+    });
+
+    useMediaComplianceGateMock.mockReturnValue({
+      ...baseComplianceState,
+    });
+  });
+
+  it("uses the AI Studio entry shell while checking the protected session", () => {
+    useProtectedRouteMock.mockReturnValue({
+      loading: true,
+      session: null,
+      user: null,
+    });
+
+    renderApp();
+
+    expect(screen.getByRole("status")).toHaveTextContent("Opening AI Studio");
+    expect(screen.getByText("Checking your session before AI Studio opens.")).toBeInTheDocument();
+    expect(screen.getByText("AI Studio Access Check")).toBeInTheDocument();
+    expect(screen.getByLabelText("AI Studio access progress")).toBeInTheDocument();
+    expect(screen.queryByTestId("page-content")).not.toBeInTheDocument();
+  });
+
+  it("uses the AI Studio entry shell while checking media compliance on creator studio", () => {
+    routerState.pathname = "/creator-studio";
+    useMediaComplianceGateMock.mockReturnValue({
+      ...baseComplianceState,
+      initialized: false,
+      loading: true,
+    });
+
+    renderApp();
+
+    expect(screen.getByRole("status")).toHaveTextContent("Opening AI Studio");
+    expect(
+      screen.getByText("Checking your media agreement before the project workspace opens.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Checking your media agreement…")).toBeInTheDocument();
+  });
+
+  it("keeps the explicit compliance form when acceptance is still required", () => {
+    useMediaComplianceGateMock.mockReturnValue({
+      ...baseComplianceState,
+      accepted: false,
+    });
+
+    renderApp();
+
+    expect(screen.getByTestId("media-compliance-gate")).toBeInTheDocument();
+    expect(mediaComplianceGatePropsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        loading: false,
+        error: null,
+      })
+    );
+  });
+
+  it("leaves non-AI-Studio protected routes on the generic protected loader", () => {
+    routerState.pathname = "/profile";
+    useProtectedRouteMock.mockReturnValue({
+      loading: true,
+      session: null,
+      user: null,
+    });
+
+    renderApp();
+
+    expect(screen.getByText("Checking your session…")).toBeInTheDocument();
+    expect(screen.queryByText("AI Studio Access Check")).not.toBeInTheDocument();
+  });
+});

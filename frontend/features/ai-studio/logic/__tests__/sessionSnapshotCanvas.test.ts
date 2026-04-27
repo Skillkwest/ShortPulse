@@ -19,6 +19,7 @@ const createCanvasState = (itemCount: number): AiStudioSessionCanvasState => ({
     sourceSurface: null,
     text: `Item ${index + 1}`,
     width: 260,
+    height: 120,
   })),
   draftTextEntry: { x: 10, y: 20, value: "draft" },
   textEditSession: { itemId: "text-1", value: "editing" },
@@ -41,6 +42,7 @@ describe("sessionSnapshotCanvas", () => {
       sourceSurface: null,
       text: `Text ${index + 1}`,
       width: 260,
+      height: 120,
     }));
 
     const capped = clampCanvasSceneItemsToHardCap(items);
@@ -91,6 +93,7 @@ describe("sessionSnapshotCanvas", () => {
             sourceSurface: "all-refs",
             text: "hello",
             width: 260,
+            height: 180,
           },
           {
             id: "image-1",
@@ -127,6 +130,39 @@ describe("sessionSnapshotCanvas", () => {
     expect(parsed?.railCamera.zoom).toBe(0.2);
     expect(parsed?.draftOwnerInstanceId).toBe("rail");
     expect(parsed?.textEditSession?.itemId).toBe("text-1");
+  });
+
+  it("round-trips resized text widths through session serialization", () => {
+    const state = createCanvasState(1);
+    state.items = [
+      {
+        id: "text-resized",
+        kind: "text",
+        x: 42,
+        y: 84,
+        z: 1,
+        selected: true,
+        outputId: null,
+        sourceSurface: null,
+        text: "Wide note",
+        width: 412,
+        height: 236,
+      },
+    ];
+
+    const snapshot = serializeAiStudioSessionCanvasState(state);
+    expect(snapshot.scene.items[0]).toMatchObject({
+      id: "text-resized",
+      width: 412,
+      height: 236,
+    });
+
+    const parsed = parseAiStudioSessionCanvasState(snapshot);
+    expect(parsed?.items[0]).toMatchObject({
+      id: "text-resized",
+      width: 412,
+      height: 236,
+    });
   });
 
   it("round-trips durable audio canvas items without coercing optional metadata", () => {

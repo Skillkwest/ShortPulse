@@ -3,7 +3,7 @@
  * Lists saved projects and routes selection back through the page-level project identity boundary.
  */
 import React from "react";
-import { ClockCounterClockwise, Folders, Sparkle, Trash } from "phosphor-react";
+import { Folders, Sparkle, Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -254,9 +254,16 @@ export function ProjectsModal({
             </div>
           ) : null}
           {loadState.status !== "error" && loadState.projects.length === 0 ? (
-            <div className="ai-projects-modal-empty-state">
+            <div
+              className={`ai-projects-modal-empty-state${
+                loadState.status === "loading" ? " is-loading" : ""
+              }`}
+              role={loadState.status === "loading" ? "status" : undefined}
+              aria-busy={loadState.status === "loading" ? "true" : undefined}
+              aria-live={loadState.status === "loading" ? "polite" : undefined}
+            >
               {loadState.status === "loading" ? (
-                <ClockCounterClockwise size={30} weight="duotone" />
+                <span className="ai-projects-modal-loading-spinner" aria-hidden="true" />
               ) : (
                 <Sparkle size={30} weight="duotone" />
               )}

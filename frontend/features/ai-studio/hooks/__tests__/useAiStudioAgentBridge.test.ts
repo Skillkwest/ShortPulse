@@ -1738,11 +1738,18 @@ describe("useAiStudioAgentBridge", () => {
     expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
   });
 
-  it("clears Pulse runtime state across Standard mode switches", async () => {
+  it("preserves hidden Pulse runtime state across temporary Standard mode switches", async () => {
     let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
+    const pulseMessages: Array<{ id: string; role: "user" | "assistant"; content: string }> = [
+      {
+        id: "pulse-assistant-1",
+        role: "assistant",
+        content: "Step 1 - Upload your characters. Please upload 1-3+ character images.",
+      },
+    ];
 
-    useAiAgentMock.mockReturnValue({
-      messages: [],
+    useAiAgentMock.mockImplementation((params?: { sessionNamespace?: string }) => ({
+      messages: params?.sessionNamespace?.endsWith("::standard") ? [] : pulseMessages,
       isSending: false,
       error: null,
       send: vi.fn(),
@@ -1750,7 +1757,7 @@ describe("useAiStudioAgentBridge", () => {
       updateMessageById: vi.fn(() => false),
       replaceMessages: vi.fn(),
       reset: vi.fn(),
-    });
+    }));
     useAiStudioAgentComposerMock.mockReturnValue({
       agentInput: "",
       setAgentInput: vi.fn(),
@@ -1830,6 +1837,7 @@ describe("useAiStudioAgentBridge", () => {
     });
 
     expect(result.current.latestAgentPrompt).toBe("Pulse prompt");
+    expect(result.current.agentMessages).toEqual(pulseMessages);
 
     rerender({
       expertCreateMode: "standard",
@@ -1838,6 +1846,7 @@ describe("useAiStudioAgentBridge", () => {
     });
     await waitFor(() => {
       expect(result.current.latestAgentPrompt).toBeNull();
+      expect(result.current.agentMessages).toEqual([]);
     });
 
     rerender({
@@ -1846,7 +1855,8 @@ describe("useAiStudioAgentBridge", () => {
       pulseSessionInstanceId: "pulse-session-1",
     });
     await waitFor(() => {
-      expect(result.current.latestAgentPrompt).toBeNull();
+      expect(result.current.latestAgentPrompt).toBe("Pulse prompt");
+      expect(result.current.agentMessages).toEqual(pulseMessages);
     });
   });
 

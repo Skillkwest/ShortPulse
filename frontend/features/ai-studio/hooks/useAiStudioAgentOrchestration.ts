@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from "react";
-import { prepareImageUrl } from "../logic/imageDescription";
 import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../logic/promptTargeting";
 import { randomId } from "../logic/ids";
@@ -9,15 +8,14 @@ import type {
 } from "../components/create/createPulsePresets";
 import { mergeAttachmentContext } from "./agentOrchestration/attachmentContext";
 import { prepareAgentImageAttachments } from "./agentOrchestration/attachmentPreparation";
+import { describeReferenceOutput } from "./agentOrchestration/describeReference";
+import { startPulsePreset } from "./agentOrchestration/pulsePresetStart";
 import type {
   AgentSendOptions,
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
-import { buildStudioAgentPulseActivationSeed } from "../../agent-runtime/studioAgentPulseRuntime";
-import {
-  buildPendingPulseWorkflowSessionForStart,
-  buildPendingPulseWorkflowSessionForUserInput,
-} from "../logic/pulseWorkflowSession";
+import { resolvePulseRuntimeState } from "../logic/pulseSessionState";
+import { buildPendingPulseWorkflowSessionForUserInput } from "../logic/pulseWorkflowSession";
 
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
@@ -86,12 +84,11 @@ export const useAiStudioAgentOrchestration = ({
     setUiNotice("Select a Pulse to start.");
     trackAgentUiEvent("studio_agent_send_blocked_no_active_pulse_session");
   }, [setUiNotice, trackAgentUiEvent]);
-  const hasActivePulseSession =
-    expertCreateMode === "pulse" &&
-    typeof activePulsePresetId === "string" &&
-    activePulsePresetId.trim().length > 0 &&
-    typeof pulseSessionInstanceId === "string" &&
-    pulseSessionInstanceId.trim().length > 0;
+  const { hasActivePulseSession } = resolvePulseRuntimeState({
+    expertCreateMode,
+    activePulsePresetId,
+    pulseSessionInstanceId,
+  });
   const ensurePulseSessionReady = useCallback(() => {
     if (expertCreateMode !== "pulse") return true;
     if (hasActivePulseSession) return true;
@@ -422,94 +419,31 @@ export const useAiStudioAgentOrchestration = ({
       options?: {
         pulseSessionInstanceId?: string | null;
       }
-    ): Promise<CreatePulsePresetStartResult> => {
-      if (!agentBootstrapReady) {
-        notifyBootstrapPending();
-        return "failed";
-      }
-      if (agentIsSending || agentUiBusyRef.current) return "blocked_busy";
-      const targetPulseSessionInstanceId =
-        options?.pulseSessionInstanceId?.trim() || pulseSessionInstanceId?.trim() || randomId();
-      const pulseContext = {
-        ...getAgentContext({
-          lastAssistantMessage,
-          modeHint: "chat",
-        }),
-        pulse: {
-          presetId: preset.presetId,
-          label: preset.label,
-          description: preset.description,
-          instructions: preset.systemInstructions,
-          runtimeMode: preset.runtimeMode,
-          activationMode: preset.activationMode,
-          starterAssistantMessage: preset.starterAssistantMessage,
-          workflowStageHints: preset.workflowStageHints,
-          outputMode: preset.outputMode,
-          memoryPolicy: preset.memoryPolicy,
-          source: preset.isBuiltIn ? ("builtin" as const) : ("custom" as const),
-        },
-      };
-      const activationSeed = buildStudioAgentPulseActivationSeed(pulseContext.pulse);
-      if (!activationSeed) return "failed";
-
-      trackAgentUiEvent("studio_agent_pulse_start_requested", {
-        preset_id: preset.presetId,
-        runtime_mode: preset.runtimeMode,
-        activation_mode: preset.activationMode,
-      });
-
-      if (!agentSessionEnabled) setAgentSessionEnabled(true);
-      setAgentAttachmentError(null);
-      agentUiBusyRef.current = true;
-      setAgentUiBusy(true);
-      const pendingWorkflowSession = buildPendingPulseWorkflowSessionForStart({
-        preset: pulseContext.pulse,
-      });
-      if (pendingWorkflowSession) {
-        setPulseWorkflowSession(pendingWorkflowSession);
-      }
-
-      try {
-        const { response, actions, workflowSession, discarded } = await sendToAgent({
-          text: "",
-          payloadText: activationSeed,
-          previousPrompt: latestAgentPrompt ?? null,
-          context: pulseContext,
-          sessionNamespaceOverride: resolvePulseSessionNamespace?.(
-            preset.presetId,
-            targetPulseSessionInstanceId
-          ),
-          isolateHistory: true,
-          skipUserEcho: true,
-        });
-        if (discarded) {
-          setPulseWorkflowSession(null);
-          return "failed";
-        }
-
-        if (!response) {
-          setPulseWorkflowSession(null);
-          return "failed";
-        }
-
-        const appliedPrompt = normalizePromptText(actions?.applyPrompt);
-        if (appliedPrompt) {
-          setLatestAgentPrompt(appliedPrompt);
-          if (shouldApplyAgentPromptToSharedPrompt(selectedTool, { hasActivePulse: true })) {
-            setSharedPrompt(appliedPrompt);
-            setPromptOrigin("agent");
-          }
-        }
-
-        if (workflowSession) {
-          setPulseWorkflowSession(workflowSession);
-        }
-        return "started";
-      } finally {
-        agentUiBusyRef.current = false;
-        setAgentUiBusy(false);
-      }
-    },
+    ): Promise<CreatePulsePresetStartResult> =>
+      startPulsePreset({
+        preset,
+        options,
+        agentBootstrapReady,
+        agentIsSending,
+        agentSessionEnabled,
+        agentUiBusyRef,
+        latestAgentPrompt,
+        lastAssistantMessage,
+        selectedTool,
+        pulseSessionInstanceId,
+        resolvePulseSessionNamespace,
+        getAgentContext,
+        notifyBootstrapPending,
+        sendToAgent,
+        trackAgentUiEvent,
+        setAgentSessionEnabled,
+        setAgentAttachmentError,
+        setAgentUiBusy,
+        setPulseWorkflowSession,
+        setLatestAgentPrompt,
+        setSharedPrompt,
+        setPromptOrigin,
+      }),
     [
       agentBootstrapReady,
       agentIsSending,
@@ -599,133 +533,26 @@ export const useAiStudioAgentOrchestration = ({
   ]);
 
   const handleDescribeReference = useCallback(
-    async (outputId: string) => {
-      if (!agentBootstrapReady) {
-        notifyBootstrapPending();
-        return;
-      }
-      if (!ensurePulseSessionReady()) {
-        return;
-      }
-      if (!outputId) return;
-      const target = getOutputById(outputId);
-      if (!target?.previewUrl) return;
-
-      const placeholderId = `describe-${randomId()}`;
-      const placeholderModelLabel = "OpenAI vision describe";
-      setOutputs((prev) => [
-        {
-          id: placeholderId,
-          prompt: "Describing image…",
-          mode: "text",
-          aspect,
-          model: placeholderModelLabel,
-          modelId: model ?? undefined,
-          status: "ready",
-          timestamp: "Describing…",
-          taskState: "running",
-          saveState: "idle",
-          saveError: null,
-        },
-        ...prev,
-      ]);
-      setActiveOutputId(placeholderId);
-      setDescribeInFlightCount((count) => count + 1);
-
-      const resolvePlaceholder = (text: string, title?: string) => {
-        const cleaned = text.trim();
-        if (!cleaned) return;
-        setOutputs((prev) =>
-          prev.map((item) =>
-            item.id === placeholderId
-              ? {
-                  ...item,
-                  prompt: cleaned,
-                  previewText: cleaned,
-                  status: "ready",
-                  timestamp: title ?? "Image describe",
-                  taskState: "success",
-                  saveState: "idle",
-                  saveError: null,
-                  errorMessage: null,
-                }
-              : item
-          )
-        );
-        setSharedPrompt(cleaned);
-        setLatestAgentPrompt(cleaned);
-        setPromptOrigin("agent");
-      };
-
-      const failPlaceholder = (message: string) => {
-        setOutputs((prev) =>
-          prev.map((item) =>
-            item.id === placeholderId
-              ? {
-                  ...item,
-                  taskState: "fail",
-                  timestamp: "Failed",
-                  errorMessage: message,
-                }
-              : item
-          )
-        );
-      };
-
-      try {
-        const safeUrl = await prepareImageUrl(target.previewUrl);
-        if (!safeUrl) {
-          failPlaceholder(
-            "Unable to prepare this image for OpenAI vision. Please remove and re-add the reference."
-          );
-          return;
-        }
-        const imageAttachment = {
-          id: `describe-reference-${outputId}`,
-          kind: "image" as const,
-          referenceId: target.id,
-          imageUrl: safeUrl,
-          text: target.prompt?.trim() || target.previewText?.trim() || null,
-          aspect: target.aspect ?? null,
-        };
-        const context = mergeAttachmentContext({
-          baseContext: getAgentContext({
-            lastAssistantMessage,
-            selectedOverride: target,
-            modeHint: "describe",
-          }),
-          attachments: [imageAttachment],
-          preparedImageUrls: new Map([[imageAttachment.id, safeUrl]]),
-        });
-        const { response, actions, discarded } = await sendToAgent({
-          text: "",
-          payloadText: "",
-          previousPrompt: latestAgentPrompt ?? null,
-          context,
-          isolateHistory: true,
-          skipUserEcho: true,
-        });
-        if (discarded) {
-          return;
-        }
-        const describedPrompt = normalizePromptText(
-          actions?.applyPrompt ?? extractAgentResponseMessage(response)
-        );
-        if (!describedPrompt) {
-          failPlaceholder("Describe response did not include a usable prompt.");
-          return;
-        }
-        resolvePlaceholder(describedPrompt, "Image describe");
-      } catch (error: unknown) {
-        failPlaceholder(
-          error instanceof Error
-            ? error.message
-            : "Unable to describe this image with OpenAI vision."
-        );
-      } finally {
-        setDescribeInFlightCount((count) => Math.max(0, count - 1));
-      }
-    },
+    async (outputId: string) =>
+      describeReferenceOutput({
+        outputId,
+        agentBootstrapReady,
+        aspect,
+        model,
+        latestAgentPrompt,
+        lastAssistantMessage,
+        notifyBootstrapPending,
+        ensurePulseSessionReady,
+        getOutputById,
+        getAgentContext,
+        sendToAgent,
+        setOutputs,
+        setActiveOutputId,
+        setLatestAgentPrompt,
+        setSharedPrompt,
+        setPromptOrigin,
+        setDescribeInFlightCount,
+      }),
     [
       agentBootstrapReady,
       aspect,

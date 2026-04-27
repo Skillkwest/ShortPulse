@@ -278,24 +278,34 @@ vi.mock("../../../../prefabs/agent", () => ({
   AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
 }));
 
-const collapseToMinMock = vi.fn();
-const expandToMaxMock = vi.fn();
-const resetToDefaultWidthMock = vi.fn();
-vi.mock("../hooks/useAiStudioShellResize", () => ({
-  useAiStudioShellResize: () => ({
-    shellRef: { current: null },
-    leftColumnRef: { current: null },
-    leftWidthPx: 420,
-    showDivider: false,
-    isResizing: false,
-    shellStyle: {},
-    collapseToMin: collapseToMinMock,
-    resetToDefaultWidth: resetToDefaultWidthMock,
-    restoreWidth: vi.fn(),
-    expandToMax: expandToMaxMock,
-    dividerProps: {},
-    rightColumnHidden: false,
-  }),
+const { collapseToMinMock, expandToMaxMock, resetToDefaultWidthMock, useAiStudioShellResizeMock } =
+  vi.hoisted(() => {
+    const collapseToMinMock = vi.fn();
+    const expandToMaxMock = vi.fn();
+    const resetToDefaultWidthMock = vi.fn();
+    const useAiStudioShellResizeMock = vi.fn(() => ({
+      shellRef: { current: null },
+      leftColumnRef: { current: null },
+      leftWidthPx: 420,
+      showDivider: false,
+      isResizing: false,
+      shellStyle: {},
+      collapseToMin: collapseToMinMock,
+      resetToDefaultWidth: resetToDefaultWidthMock,
+      restoreWidth: vi.fn(),
+      expandToMax: expandToMaxMock,
+      dividerProps: {},
+      rightColumnHidden: false,
+    }));
+    return {
+      collapseToMinMock,
+      expandToMaxMock,
+      resetToDefaultWidthMock,
+      useAiStudioShellResizeMock,
+    };
+  });
+vi.mock("../../hooks/useAiStudioShellResize", () => ({
+  useAiStudioShellResize: useAiStudioShellResizeMock,
 }));
 
 const makeEmptyFileList = (): FileList =>
@@ -463,6 +473,25 @@ describe("AiStudioPageContent right column drop router", () => {
     render(<AiStudioPageContent {...createProps({ selectedTool: "create" })} />);
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
     expect(shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" })).toBeDisabled();
+  });
+
+  it("passes the project create-panel reset key into shell resize on project open", () => {
+    useAiStudioShellResizeMock.mockClear();
+
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "create",
+          projectId: "project-1",
+        })}
+      />
+    );
+
+    expect(useAiStudioShellResizeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        minWidthResetKey: "project-1",
+      })
+    );
   });
 
   it("toggles right-rail panel visibility from header shortcuts", () => {

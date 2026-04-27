@@ -25,7 +25,7 @@ type CreateExpertPresetPanelProps = {
   onActivePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
   onPresetStart?: (
     preset: CreatePulseResolvedPreset
-  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
+  ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   selectedPresetIds?: readonly CreatePulsePresetId[];
   onSelectedPresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedPresets?: readonly CreatePulseSavedPreset[];
@@ -54,6 +54,10 @@ export function CreateExpertPresetPanel({
   const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
   const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
+  const [persistentStatusMessage, setPersistentStatusMessage] = React.useState<string | null>(null);
+  const [persistentStatusTone, setPersistentStatusTone] = React.useState<"info" | "warning">(
+    "warning"
+  );
   const [isPulseLibraryOpen, setIsPulseLibraryOpen] = React.useState(false);
   const {
     availablePresets,
@@ -105,6 +109,10 @@ export function CreateExpertPresetPanel({
 
   useAiStudioModalActivity("create-pulse-library-modal", isPulseLibraryOpen);
 
+  const clearStatusMessage = React.useCallback(() => {
+    setPersistentStatusMessage(null);
+  }, []);
+
   const showStatusToast = React.useCallback(
     (message: string, tone: "info" | "warning" = "info") => {
       if (toastVisibleTimerRef.current != null) {
@@ -125,6 +133,14 @@ export function CreateExpertPresetPanel({
         }, STATUS_TOAST_FADE_MS);
         toastVisibleTimerRef.current = null;
       }, STATUS_TOAST_VISIBLE_MS);
+    },
+    []
+  );
+
+  const showPersistentStatus = React.useCallback(
+    (message: string, tone: "info" | "warning" = "warning") => {
+      setPersistentStatusMessage(message);
+      setPersistentStatusTone(tone);
     },
     []
   );
@@ -152,6 +168,8 @@ export function CreateExpertPresetPanel({
     setActivePresetId: onActivePresetIdChange ?? (() => {}),
     onPresetStart,
     showStatusToast,
+    showPersistentStatus,
+    clearStatusMessage,
     isActivationBusy,
   });
 
@@ -161,8 +179,10 @@ export function CreateExpertPresetPanel({
 
   const handleSurfacePresetSelectAndClose = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
-      await handleSurfacePresetSelect(presetId);
-      closeMorePresetsSurface();
+      const startResult = await handleSurfacePresetSelect(presetId);
+      if (!startResult || startResult.status === "started") {
+        closeMorePresetsSurface();
+      }
     },
     [closeMorePresetsSurface, handleSurfacePresetSelect]
   );
@@ -291,6 +311,25 @@ export function CreateExpertPresetPanel({
               </div>
             </div>
           </AiStudioModalLayer>
+        ) : null}
+        {persistentStatusMessage ? (
+          <div
+            className={`create-expert-presets-status-banner is-${persistentStatusTone}`.trim()}
+            role={persistentStatusTone === "warning" ? "alert" : "status"}
+            aria-live="polite"
+          >
+            <span className="create-expert-presets-status-banner-copy">
+              {persistentStatusMessage}
+            </span>
+            <button
+              type="button"
+              className="create-expert-presets-status-banner-dismiss"
+              aria-label="Dismiss pulse status"
+              onClick={clearStatusMessage}
+            >
+              Dismiss
+            </button>
+          </div>
         ) : null}
         {statusToastMessage ? (
           <div

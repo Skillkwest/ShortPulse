@@ -27,7 +27,9 @@ import type {
   CreatePulseResolvedPreset,
   CreatePulseSavedPreset,
 } from "../components/create/createPulsePresets";
+import { resolveCreatePulsePresetLabelById } from "../components/create/createPulsePresets";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import type { PromptStepPulseLoadingState } from "../components/promptStep/types";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
 
@@ -46,6 +48,8 @@ export type UseAiStudioPanelPropsParams = {
   chatModeEnabled: boolean;
   directOpenAiBypassEnabled: boolean;
   agentBusy: boolean;
+  agentIsSending?: boolean;
+  agentUiBusy?: boolean;
   agentAttachmentError: string | null;
   agentError?: string | null;
   stagedAgentPrompt?: string | null;
@@ -241,6 +245,8 @@ export const useAiStudioPanelProps = ({
   chatModeEnabled,
   directOpenAiBypassEnabled,
   agentBusy,
+  agentIsSending = false,
+  agentUiBusy = false,
   agentAttachmentError,
   agentError,
   stagedAgentPrompt,
@@ -414,6 +420,52 @@ export const useAiStudioPanelProps = ({
       ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
       : currentCostCredits;
 
+  const pulseLoadingState = useMemo<PromptStepPulseLoadingState | null>(() => {
+    if (expertCreateMode !== "pulse" || !activeCreatePulsePresetId) {
+      return null;
+    }
+    const presetLabel = resolveCreatePulsePresetLabelById(
+      activeCreatePulsePresetId,
+      savedCreatePulsePresets
+    );
+    const assistantMessageCount = agentMessages.filter(
+      (message) => message.role === "assistant" && message.content.trim().length > 0
+    ).length;
+    const stepLabel = pulseWorkflowSession?.currentStepLabel?.trim() || null;
+    const hasPendingStartupStep =
+      pulseWorkflowSession?.status === "running" && assistantMessageCount === 0;
+    if (agentUiBusy || hasPendingStartupStep) {
+      return {
+        phase: "starting_pulse",
+        title: `Starting ${presetLabel}`,
+        message: "Preparing your guided workflow...",
+        presetLabel,
+        stepLabel,
+      };
+    }
+    if (agentIsSending && assistantMessageCount > 0) {
+      return {
+        phase: "generating_step",
+        title: "Generating next step...",
+        message: stepLabel
+          ? `Building the next instruction for ${stepLabel}.`
+          : "Building the next instruction for your workflow.",
+        presetLabel,
+        stepLabel,
+      };
+    }
+    return null;
+  }, [
+    activeCreatePulsePresetId,
+    agentMessages,
+    agentIsSending,
+    agentUiBusy,
+    expertCreateMode,
+    pulseWorkflowSession?.currentStepLabel,
+    pulseWorkflowSession?.status,
+    savedCreatePulsePresets,
+  ]);
+
   const propertiesCreate = useMemo(
     () => ({
       mode,
@@ -429,6 +481,7 @@ export const useAiStudioPanelProps = ({
       chatModeEnabled,
       directOpenAiBypassEnabled,
       agentIsSending: agentBusy,
+      pulseLoadingState,
       agentError: agentAttachmentError ?? agentError ?? undefined,
       stagedPrompt: stagedAgentPrompt,
       assistantBubbleMedia,
@@ -504,6 +557,7 @@ export const useAiStudioPanelProps = ({
       agentError,
       agentInput,
       agentMessages,
+      pulseLoadingState,
       pulseWorkflowSession,
       assistantBubbleMedia,
       aspect,

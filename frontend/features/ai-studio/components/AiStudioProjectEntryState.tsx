@@ -57,6 +57,11 @@ export const AI_STUDIO_PROJECT_OPEN_STEPS: AiStudioProjectEntryStep[] = [
     label: "Load workspace",
     hint: "Fetch the latest project-backed workspace snapshot.",
   },
+  {
+    id: "prepare",
+    label: "Prepare studio",
+    hint: "Apply the workspace and open AI Studio.",
+  },
 ];
 
 const getCurrentStepIndex = (phase: AiStudioProjectEntryPhase): number => {
@@ -67,7 +72,7 @@ const getCurrentStepIndex = (phase: AiStudioProjectEntryPhase): number => {
       return 3;
     case "restoring-workspace":
     case "preparing-empty-workspace":
-      return 3;
+      return 4;
     default:
       return 2;
   }

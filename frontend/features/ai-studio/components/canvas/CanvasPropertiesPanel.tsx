@@ -4,8 +4,10 @@
  */
 import React from "react";
 import { PushPinSimple } from "phosphor-react";
+import type { CanvasResizeHandle } from "./canvasTypes";
 import type { CanvasPropertiesPanelProps } from "./useAiStudioCanvasWorkspaceState";
 import { CanvasAudioCard } from "./CanvasAudioCard";
+import { CANVAS_TEXT_ITEM_MIN_HEIGHT } from "./canvasGeometry";
 
 /**
  * Renders the Canvas workspace UI and delegates all state changes to the page-owned controller.
@@ -39,6 +41,8 @@ export function CanvasPropertiesPanel({
   onItemPointerMove,
   onItemPointerUp,
   onItemPointerCancel,
+  isTextResizeEnabled = false,
+  onTextResizeHandlePointerDown,
   isItemDraggable = false,
   onItemDragStart,
   onItemDragEnd,
@@ -52,6 +56,7 @@ export function CanvasPropertiesPanel({
   onTextItemEditKeyDown,
   onTextItemEditBlur,
 }: CanvasPropertiesPanelProps) {
+  const textResizeHandles = React.useMemo<CanvasResizeHandle[]>(() => ["nw", "ne", "se", "sw"], []);
   React.useEffect(() => {
     if (instanceId !== "rail") return;
     const viewportNode = viewportRef.current;
@@ -137,7 +142,8 @@ export function CanvasPropertiesPanel({
           ))}
           {items.map((item) => {
             const isEditingTextItem = item.kind === "text" && editingTextItemId === item.id;
-            const hasFixedHeight = item.kind !== "text";
+            const showTextResizeHandles =
+              isTextResizeEnabled && item.kind === "text" && item.selected && !isEditingTextItem;
             return (
               <article
                 key={item.id}
@@ -148,13 +154,19 @@ export function CanvasPropertiesPanel({
                 data-x={item.x}
                 data-y={item.y}
                 data-width={item.width}
-                data-height={hasFixedHeight ? item.height : undefined}
+                data-height={
+                  item.kind === "text" ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT) : item.height
+                }
                 style={{
                   left: `${item.x}px`,
                   top: `${item.y}px`,
                   zIndex: item.z,
                   width: `${item.width}px`,
-                  ...(hasFixedHeight ? { height: `${item.height}px` } : {}),
+                  height: `${
+                    item.kind === "text"
+                      ? (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT)
+                      : item.height
+                  }px`,
                 }}
                 draggable={isItemDraggable}
                 onPointerDown={
@@ -242,6 +254,18 @@ export function CanvasPropertiesPanel({
                     >
                       <PushPinSimple aria-hidden="true" size={12} weight="fill" />
                     </button>
+                    {showTextResizeHandles
+                      ? textResizeHandles.map((handle) => (
+                          <span
+                            key={`${item.id}-resize-${handle}`}
+                            className={`canvas-scene-item__resize-handle is-${handle}`}
+                            data-testid={`canvas-text-resize-handle-${handle}`}
+                            onPointerDown={(event) =>
+                              onTextResizeHandlePointerDown?.(item.id, handle, event)
+                            }
+                          />
+                        ))
+                      : null}
                   </>
                 )}
               </article>
@@ -256,6 +280,7 @@ export function CanvasPropertiesPanel({
                 top: `${draftTextEntry.y}px`,
                 zIndex: items.length + 1,
                 width: "260px",
+                height: `${CANVAS_TEXT_ITEM_MIN_HEIGHT}px`,
               }}
             >
               {isDraftTextEditable ? (

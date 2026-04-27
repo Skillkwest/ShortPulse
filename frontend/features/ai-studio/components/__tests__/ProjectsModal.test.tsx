@@ -24,6 +24,18 @@ describe("ProjectsModal", () => {
     expect(screen.queryByRole("dialog", { name: "Projects" })).not.toBeInTheDocument();
   });
 
+  it("renders an animated loading spinner while projects load", () => {
+    mockedFetchWithAuth.mockReturnValueOnce(new Promise(() => {}) as Promise<Response>);
+
+    render(<ProjectsModal isOpen onClose={vi.fn()} onSelectProject={vi.fn()} />);
+
+    const loadingState = screen.getByRole("status");
+    expect(loadingState).toHaveAttribute("aria-busy", "true");
+    expect(loadingState.querySelector(".ai-projects-modal-loading-spinner")).toBeInTheDocument();
+    expect(screen.getByText("Loading projects")).toBeInTheDocument();
+    expect(screen.getByText("Fetching your latest AI Studio projects.")).toBeInTheDocument();
+  });
+
   it("loads saved projects and routes selection through the page callback", async () => {
     const onClose = vi.fn();
     const onSelectProject = vi.fn().mockResolvedValue(undefined);

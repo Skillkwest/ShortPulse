@@ -1,34 +1,16 @@
-/**
- * Shared state + actions for AI Studio.
- * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
- */
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import { StudioOutput } from "../types";
 import { listVisibleGeneratedOutputs } from "../logic/generatedMediaAuthority";
 import { mergeCanonicalGeneratedOutputs } from "../logic/generatedOutputHydration";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
 import { useAiStudioCreationState } from "./useAiStudioCreationState";
-import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
-import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
-import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
 import { useAiStudioOutputDerivations } from "./useAiStudioOutputDerivations";
-import { useAiStudioReferenceIngestionActions } from "./useAiStudioReferenceIngestionActions";
 import { useAiStudioReferenceGridStateActions } from "./useAiStudioReferenceGridStateActions";
 import { useAiStudioReferenceSelectionState } from "./useAiStudioReferenceSelectionState";
-import { useAiStudioTaskOrchestration } from "./useAiStudioTaskOrchestration";
 import { useAiStudioWorkflowSettings } from "./useAiStudioWorkflowSettings";
 import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
 import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionState";
-import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
-import { useAiStudioOutputStoreSelectors } from "./useAiStudioOutputStoreSelectors";
 import { useAiStudioOutputPersistenceEffects } from "./useAiStudioOutputPersistenceEffects";
 import { useAiStudioReferenceGridPreviewState } from "./useAiStudioReferenceGridPreviewState";
 import {
@@ -41,12 +23,10 @@ import {
   VIDEO_DURATION_STORAGE_KEY,
   VIDEO_RESOLUTION_STORAGE_KEY,
 } from "./aiStudioStateConfig";
-import { useAiStudioDeleteOutputController } from "./useAiStudioDeleteOutputController";
-import { useAiStudioFastOutputAccess } from "./useAiStudioFastOutputAccess";
-import { useAiStudioRerollController } from "./useAiStudioRerollController";
-import { useAiStudioSessionSnapshotController } from "./useAiStudioSessionSnapshotController";
 import { useAiStudioStableTextSetters } from "./useAiStudioStableTextSetters";
-import { useAiStudioSubmissionReferenceResolver } from "./useAiStudioSubmissionReferenceResolver";
+import { useAiStudioStateOutputControllers } from "./useAiStudioStateOutputControllers";
+import { useAiStudioStateRuntimeControllers } from "./useAiStudioStateRuntimeControllers";
+import { useAiStudioStateSupportControllers } from "./useAiStudioStateSupportControllers";
 import {
   createEmptyReferenceProjectionState,
   type ReferenceProjectionState,
@@ -54,10 +34,6 @@ import {
 
 const isPlainSessionGeneratedOutputHydrationEnabled = (): boolean =>
   process.env.NEXT_PUBLIC_AI_STUDIO_PLAIN_SESSION_GENERATED_OUTPUT_HYDRATION_ENABLED === "true";
-
-/**
- * Provides AI Studio state and handlers for create/regenerate flows.
- */
 export const useAiStudioState = ({
   projectId = null,
   projectRouteRequested = false,
@@ -332,9 +308,6 @@ export const useAiStudioState = ({
     restoreArchivedOutput,
     restoreAllArchivedOutputs,
     setOutputs,
-    prependOutput,
-    reconcileOutput,
-    removeOutput,
     addCuratedReference,
     removeCuratedReference,
     reorderCuratedReference,
@@ -344,7 +317,6 @@ export const useAiStudioState = ({
     activeOutputId,
     outputsLength: outputs.length,
     setActiveOutputId,
-    setActiveOutputState,
     setOutputsState,
     setArchivedOutputs,
     setReferenceProjectionState,
@@ -356,11 +328,6 @@ export const useAiStudioState = ({
       defaultActiveLimit: DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT,
     },
   });
-  const { findActiveOutputById, updateActiveOutputById } = useAiStudioFastOutputAccess({
-    activeOutputByIdRef,
-    setActiveOutputState,
-  });
-
   useAiStudioStateEffects({
     promptRef,
     aspect,
@@ -442,223 +409,147 @@ export const useAiStudioState = ({
   }, [projectId, projectRouteRequested, setOutputsState]);
 
   const {
-    updateOutputById,
+    deleteOutput,
+    ensureGenerationRecord,
+    ensureOutputPersisted,
     findOutputById,
-    deleteOutput: deleteOutputFromLifecycle,
     notifyGenerationFailure,
+    saveActiveOutput,
+    savePromptReference,
+    savePromptToLibrary,
+    saveReferenceToLibrary,
+    updateOutputById,
     updateOutputPrompt,
-  } = useAiStudioOutputLifecycle({
-    outputs,
-    setOutputs,
-    updateOutputByIdFast: updateActiveOutputById,
-    findOutputByIdFast: findActiveOutputById,
+  } = useAiStudioStateOutputControllers({
+    activeOutputByIdRef,
     activeOutputId,
-    setActiveOutputId,
+    aspect,
+    model,
     pendingAutoSavesRef,
-  });
-  const { deleteOutput } = useAiStudioDeleteOutputController({
-    quickSlotIds: referenceProjectionState.quickSlotIds,
-    setReferenceProjectionState,
-    setActiveOutputId,
-    deleteOutputFromLifecycle,
     pendingFinalizeRemovalIdsRef,
+    projectId,
+    prompt,
+    quickSlotIds: referenceProjectionState.quickSlotIds,
+    setActiveOutputId,
+    setActiveOutputState,
+    setOutputs,
+    setReferenceProjectionState,
+    setSaved,
+    setUiError,
+    outputs,
   });
 
   const {
-    ensureGenerationRecord,
-    ensureOutputPersisted,
-    saveActiveOutput,
-    saveReferenceToLibrary,
-    savePromptReference,
-    savePromptToLibrary,
-  } = useAiStudioPersistenceActions({
-    projectId,
-    findOutputById,
-    updateOutputById,
-    setUiError,
-    setOutputs,
-    setSaved,
+    buildSessionSnapshot,
+    generateOutput,
+    handleReferenceOutputMediaLoaded,
+    hydrateFromSessionSnapshot,
+    insertOptimisticGenerationPlaceholder,
+    pulseWorkspaceState,
+    regenerateOutput,
+    removeOptimisticGenerationPlaceholder,
+    rerollOutputFromReplay,
+    retryOutputStatus,
+  } = useAiStudioStateRuntimeControllers({
     activeOutputId,
-    model,
-    aspect,
-    prompt,
-  });
-
-  const { submitTask, onReferenceOutputMediaLoaded, retryOutputStatus } =
-    useAiStudioTaskOrchestration({
-      taskSubmissionConfig: {
-        aspect,
-        mode,
-        projectId,
-        model,
-        prompt,
-        selectedTool,
-        imageResolution,
-        videoDurationSeconds,
-        videoResolution,
-        videoGenerateAudio,
-        videoReferenceMode,
-        videoReferenceImageUrl,
-        motionReferenceVideoUrl,
-        videoCameraFixed,
-        videoAutoFix,
-        seedance2InputMode,
-        seedance2ReferenceImageUrls,
-        seedance2ReferenceVideoUrls,
-        seedance2ReferenceAudioUrls,
-        seedance2ReturnLastFrame,
-        seedance2WebSearch,
-        klingNegativePrompt,
-        klingCfgScale,
-        klingWorkflowMode,
-        klingShotType,
-        klingVoiceIds,
-        klingMultiPrompts,
-        klingElements,
-        setPanelGenerating,
-        setUiError,
-        setUiNotice,
-        setOutputs,
-        reconcileOutput,
-        removeOutputById: removeOutput,
-        setSaved,
-        getDefaultDurationSeconds: getDefaultDurationSecondsForModel,
-        notifyGenerationFailure,
-        updateOutputById,
-        ensureGenerationRecord,
-      },
-      outputs,
-      findOutputById,
-      setPrimaryEditReferenceImageUrl: setImageReferenceImageUrl,
-      projectId,
-    });
-
-  const handleReferenceOutputMediaLoaded = useCallback(
-    (outputId: string) => {
-      onReferenceOutputMediaLoaded(outputId);
-      markReferenceGridReady(outputId);
-    },
-    [markReferenceGridReady, onReferenceOutputMediaLoaded]
-  );
-  const { resolveSubmissionReferenceInputsForTool } = useAiStudioSubmissionReferenceResolver({
-    resolveReferenceInputsForTool,
-  });
-  const { generateOutput, regenerateOutput } = useAiStudioGenerationPromptComposer({
-    model,
-    prompt,
-    editReferenceText,
-    videoReferenceText,
-    selectedStylePrompt,
-    selectedStyleContext,
-    selectedTool,
-    videoReferenceMode,
-    useReferenceImageIndicator,
     activeOutputPreviewUrl,
-    resolveReferenceInputsForTool: resolveSubmissionReferenceInputsForTool,
-    submitTask,
-  });
-  const { rerollOutputFromReplay } = useAiStudioRerollController({
+    activePulsePresetId,
+    archivedOutputs,
+    aspect,
+    curatedReferenceIds,
+    editReferenceText,
+    expertCreateMode,
+    extraImageUrls,
     findOutputById,
+    imageResolution,
+    klingCfgScale,
+    klingElements,
+    klingMultiPrompts,
+    klingNegativePrompt,
+    klingShotType,
+    klingVoiceIds,
+    klingWorkflowMode,
+    markReferenceGridReady,
+    mode,
+    model,
+    motionReferenceVideoUrl,
+    notifyGenerationFailure,
+    outputs,
+    projectId,
+    pulsePrompt,
+    pulseSessionInstanceId,
+    pulseWorkflowSession,
+    prompt,
+    referenceImageUrl,
+    removedFromAllRefsIds,
+    resolveReferenceInputsForTool,
+    seedance2InputMode,
+    seedance2ReferenceAudioUrls,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
+    selectedStyleContext,
+    selectedStylePrompt,
+    selectedTool,
+    sessionHydrationSigningRevisionRef,
+    setActiveOutputId,
+    setActivePulsePresetId: setActivePulsePresetId ?? (() => undefined),
+    setArchivedOutputs,
+    setAspect,
+    setEditReferenceText,
+    setExpertCreateMode: setExpertCreateMode ?? (() => undefined),
+    setExtraImageUrl,
+    setImageReferenceImageUrl,
+    setImageResolution,
+    setKlingCfgScale,
+    setKlingElements,
+    setKlingMultiPrompts,
+    setKlingNegativePrompt,
+    setKlingShotType,
+    setKlingVoiceIds,
+    setKlingWorkflowMode,
+    setMode,
+    setModel: setModelState,
+    setMotionReferenceVideoUrl,
+    setOutputs,
+    setOutputsState,
+    setPanelGenerating,
+    setPulseCreatePrompt,
+    setPulseSessionInstanceId: setPulseSessionInstanceId ?? (() => undefined),
+    setReferenceImageUrl,
+    setReferenceProjectionState,
+    setSaved,
+    setSeedance2InputMode,
+    setSeedance2ReferenceAudioUrls,
+    setSeedance2ReferenceImageUrls,
+    setSeedance2ReferenceVideoUrls,
+    setSeedance2ReturnLastFrame,
+    setSeedance2WebSearch,
+    setSelectedTool,
+    setStandardCreatePrompt,
+    setUiError,
     setUiNotice,
-    submitTask,
+    setVideoAutoFix,
+    setVideoCameraFixed,
+    setVideoDurationSeconds,
+    setVideoGenerateAudio,
+    setVideoReferenceMode,
+    setVideoReferenceText,
+    setVideoResolution,
+    standardPrompt,
+    updateOutputById,
+    useReferenceImageIndicator,
+    videoAutoFix,
+    videoCameraFixed,
+    videoDurationSeconds,
+    videoGenerateAudio,
+    videoReferenceImageUrl,
+    videoReferenceMode,
+    videoReferenceText,
+    videoResolution,
+    ensureGenerationRecord,
   });
-  const { insertOptimisticGenerationPlaceholder, removeOptimisticGenerationPlaceholder } =
-    useAiStudioOptimisticPlaceholderActions({
-      mode,
-      selectedTool,
-      aspect,
-      model,
-      setOutputs,
-      prependOutput,
-      removeOutputById: removeOutput,
-      setSaved,
-    });
-
-  const { hydrateFromSessionSnapshot, buildSessionSnapshot } = useAiStudioSessionSnapshotController(
-    {
-      mode,
-      selectedTool,
-      prompt,
-      standardCreatePrompt: standardPrompt,
-      pulseCreatePrompt: pulsePrompt,
-      model,
-      aspect,
-      expertCreateMode,
-      activePulsePresetId,
-      pulseSessionInstanceId,
-      pulseWorkflowSession,
-      referenceImageUrl,
-      extraImageUrls,
-      editReferenceText,
-      videoReferenceText,
-      videoReferenceMode,
-      videoDurationSeconds,
-      videoResolution,
-      imageResolution,
-      videoGenerateAudio,
-      videoCameraFixed,
-      videoAutoFix,
-      klingNegativePrompt,
-      klingCfgScale,
-      klingWorkflowMode,
-      seedance2InputMode,
-      seedance2ReferenceImageUrls,
-      seedance2ReferenceVideoUrls,
-      seedance2ReferenceAudioUrls,
-      seedance2ReturnLastFrame,
-      seedance2WebSearch,
-      klingShotType,
-      klingVoiceIds,
-      klingMultiPrompts,
-      klingElements,
-      motionReferenceVideoUrl,
-      outputs,
-      archivedOutputs,
-      activeOutputId,
-      curatedReferenceIds,
-      removedFromAllRefsIds,
-      sessionHydrationSigningRevisionRef,
-      setMode,
-      setSelectedTool,
-      setStandardCreatePrompt,
-      setPulseCreatePrompt,
-      setModel: setModelState,
-      setAspect,
-      setExpertCreateMode: setExpertCreateMode ?? (() => undefined),
-      setActivePulsePresetId: setActivePulsePresetId ?? (() => undefined),
-      setPulseSessionInstanceId: setPulseSessionInstanceId ?? (() => undefined),
-      setReferenceImageUrl,
-      setExtraImageUrl,
-      setEditReferenceText,
-      setVideoReferenceText,
-      setVideoReferenceMode,
-      setVideoDurationSeconds,
-      setVideoResolution,
-      setImageResolution,
-      setVideoGenerateAudio,
-      setVideoCameraFixed,
-      setVideoAutoFix,
-      setKlingNegativePrompt,
-      setKlingCfgScale,
-      setKlingWorkflowMode,
-      setSeedance2InputMode,
-      setSeedance2ReferenceImageUrls,
-      setSeedance2ReferenceVideoUrls,
-      setSeedance2ReferenceAudioUrls,
-      setSeedance2ReturnLastFrame,
-      setSeedance2WebSearch,
-      setKlingShotType,
-      setKlingVoiceIds,
-      setKlingMultiPrompts,
-      setKlingElements,
-      setMotionReferenceVideoUrl,
-      setOutputsState,
-      setArchivedOutputs,
-      setReferenceProjectionState,
-      setActiveOutputId,
-      setSaved,
-    }
-  );
 
   const {
     addAgentPromptReference,
@@ -670,26 +561,22 @@ export const useAiStudioState = ({
     addLibraryPromptReferenceToQuickSlot,
     addOutputsFromFiles,
     getAgentContext,
-  } = useAiStudioReferenceIngestionActions({
-    mode,
-    aspect,
-    model,
-    setOutputs,
-    updateOutputById,
-    setSharedPrompt,
-    setUiError,
-  });
-
-  const {
+    getOutputById,
+    getOutputSnapshot,
     selectActiveOutputs,
     selectArchivedOutputs,
-    getOutputById,
-    subscribeOutputs,
-    getOutputSnapshot,
     selectOutputById,
-  } = useAiStudioOutputStoreSelectors({
-    outputs,
+    subscribeOutputs,
+  } = useAiStudioStateSupportControllers({
     archivedOutputs,
+    aspect,
+    mode,
+    model,
+    outputs,
+    setOutputs,
+    setSharedPrompt,
+    setUiError,
+    updateOutputById,
   });
 
   return {

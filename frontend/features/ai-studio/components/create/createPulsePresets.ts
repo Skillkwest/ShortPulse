@@ -11,7 +11,25 @@ export type CreatePulseRuntimeMode = "prompt_editor" | "workflow_gpt";
 export type CreatePulseActivationMode = "activate_only" | "activate_and_start";
 export type CreatePulseOutputMode = "apply_prompt" | "chat_reply";
 export type CreatePulseMemoryPolicy = "session";
-export type CreatePulsePresetStartResult = "started" | "blocked_busy" | "failed";
+export type CreatePulsePresetStartFailureReason =
+  | "bootstrap_pending"
+  | "activation_seed_missing"
+  | "scope_discarded"
+  | "empty_response"
+  | "transport_error";
+export type CreatePulsePresetStartResult =
+  | {
+      status: "started";
+    }
+  | {
+      status: "blocked_busy";
+      message: string;
+    }
+  | {
+      status: "failed";
+      reason: CreatePulsePresetStartFailureReason;
+      message: string;
+    };
 export type CreatePulseAuthoringTemplateId =
   | "blank_workflow_gpt"
   | "single_shot_video_workflow"
@@ -108,10 +126,7 @@ Step 2 - Camera Motion Selection
 After the image is uploaded, ask:
 "Which camera motion should I use? Pick one from the list below OR type any camera motion you want."
 Provide the following options exactly (no extra items). If the user types a custom motion, accept it and use it.
-Format the reply exactly like this:
-CURRENT STEP
-Camera Motion
-
+Format the reply as plain guidance without a CURRENT STEP label or step title:
 Which camera motion should I use? Pick one from the list below OR type any camera motion you want.
 
 1) ...
@@ -135,10 +150,7 @@ Step 3 - Action Selection
 Then ask:
 "What should the subject do in the clip?"
 Give 5-7 examples tailored to the image (infer plausible actions from the subject and setting). The user can pick one or type their own.
-Format the reply exactly like this:
-CURRENT STEP
-Action Selection
-
+Format the reply as plain guidance without a CURRENT STEP label or step title:
 What should the subject do in the clip?
 
 1) ...

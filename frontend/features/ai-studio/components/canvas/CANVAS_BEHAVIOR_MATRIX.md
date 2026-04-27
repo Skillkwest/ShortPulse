@@ -10,6 +10,10 @@ Baseline matrix for canvas interaction hardening. This document is the contract 
 | Draft dedupe                       | Mixed event paths from one gesture                          | Never creates duplicate drafts from one user gesture                     |
 | Text edit                          | Double-click text item                                      | Opens text editor for that item, does not create new draft               |
 | Text pin                           | Click pin button on text item                               | Calls `onPinTextReference(text)` and keeps item unchanged                |
+| Text resize southeast handle       | Drag `se` handle on selected text item                      | Increases/decreases width and height from the bottom-right corner        |
+| Text resize northwest handle       | Drag `nw` handle on selected text item                      | Increases/decreases width and height from the top-left corner            |
+| Text resize isolation              | Start resizing one selected text item near other media      | Does not rewrite other items' selection, position, or z-order            |
+| Text resize edit suppression       | Double-click selected text item into edit mode              | Hides resize handles while the inline editor is active                   |
 | Item drag                          | Left drag selected item                                     | Moves item in canvas world space (camera zoom aware)                     |
 | Multi-item drag                    | Left drag when multiple selected                            | Moves the full selected set together                                     |
 | Item drag override                 | Space-pan or middle mouse drag on item                      | Pans camera instead of moving item                                       |

@@ -1,4 +1,4 @@
-/* global require, process, console, __dirname, document, HTMLElement, setTimeout, window */
+/* global require, process, console, __dirname, document, HTMLElement, setTimeout, window, URL */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Media Library runtime heavy browser audit.

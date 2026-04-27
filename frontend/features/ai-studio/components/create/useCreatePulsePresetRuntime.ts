@@ -41,8 +41,10 @@ type UseCreatePulsePresetRuntimeParams = {
     options?: {
       pulseSessionInstanceId?: string | null;
     }
-  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
+  ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
+  showPersistentStatus: (message: string, tone?: "info" | "warning") => void;
+  clearStatusMessage: () => void;
   isActivationBusy?: boolean;
 };
 
@@ -57,6 +59,8 @@ export const useCreatePulsePresetRuntime = ({
   setActivePresetId,
   onPresetStart,
   showStatusToast,
+  showPersistentStatus,
+  clearStatusMessage,
   isActivationBusy = false,
 }: UseCreatePulsePresetRuntimeParams) => {
   const activePresetDragPayloadRef = React.useRef<CreatePulsePresetDragPayload | null>(null);
@@ -109,42 +113,50 @@ export const useCreatePulsePresetRuntime = ({
       const presetLabel = resolveCreatePulsePresetLabelById(presetId, savedPresets);
       const previousActivePresetId = activePresetId;
       if (isActivationBusy) {
-        showStatusToast("Wait for the current Pulse step to finish before switching.", "warning");
-        return;
+        const blockedMessage = "Wait for the current Pulse step to finish before switching.";
+        showPersistentStatus(blockedMessage, "warning");
+        return {
+          status: "blocked_busy",
+          message: blockedMessage,
+        } satisfies CreatePulsePresetStartResult;
       }
+      clearStatusMessage();
       const pulseSessionInstanceId = setActivePresetId(presetId) ?? null;
       if (previousActivePresetId === presetId && !pulseSessionInstanceId) {
-        return;
+        return { status: "started" } satisfies CreatePulsePresetStartResult;
       }
-      let startResult: CreatePulsePresetStartResult = "started";
+      let startResult: CreatePulsePresetStartResult = { status: "started" };
       if (resolvedPreset) {
-        startResult =
-          (await onPresetStart?.(resolvedPreset, {
-            pulseSessionInstanceId,
-          })) ?? "started";
+        startResult = (await onPresetStart?.(resolvedPreset, {
+          pulseSessionInstanceId,
+        })) ?? { status: "started" };
       }
-      if (startResult === "blocked_busy") {
+      if (startResult.status === "blocked_busy") {
         setActivePresetId(previousActivePresetId ?? null);
-        showStatusToast("Wait for the current Pulse step to finish before switching.", "warning");
-        return;
+        showPersistentStatus(startResult.message, "warning");
+        return startResult;
       }
-      if (startResult === "failed") {
+      if (startResult.status === "failed") {
         setActivePresetId(previousActivePresetId ?? null);
-        showStatusToast(`Unable to start ${presetLabel}. Please try again.`, "warning");
-        return;
+        showPersistentStatus(startResult.message, "warning");
+        return startResult;
       }
+      clearStatusMessage();
       showStatusToast(
         activePresetId && activePresetId !== presetId
           ? `Switched to ${presetLabel}. Previous Pulse session cleared.`
           : `Started ${presetLabel}.`
       );
+      return startResult;
     },
     [
       activePresetId,
+      clearStatusMessage,
       isActivationBusy,
       onPresetStart,
       savedPresets,
       setActivePresetId,
+      showPersistentStatus,
       showStatusToast,
     ]
   );
@@ -152,7 +164,7 @@ export const useCreatePulsePresetRuntime = ({
   const handleSurfacePresetSelect = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
       addPresetToPanel(presetId);
-      await handlePanelPresetApply(presetId);
+      return handlePanelPresetApply(presetId);
     },
     [addPresetToPanel, handlePanelPresetApply]
   );

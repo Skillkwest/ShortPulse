@@ -17,6 +17,14 @@ export type PromptStepInlineGenerateConfig = {
   ariaLabel?: string;
 };
 
+export type PromptStepPulseLoadingState = {
+  phase: "starting_pulse" | "generating_step";
+  title: string;
+  message: string;
+  presetLabel?: string | null;
+  stepLabel?: string | null;
+};
+
 export type PromptStepProps = {
   stepNumber: string | number;
   title?: string;
@@ -97,11 +105,11 @@ export type PromptStepProps = {
   agentInputMaxHeightPx?: number;
   agentInputCollapseOnBlur?: boolean;
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
+  pulseLoadingState?: PromptStepPulseLoadingState | null;
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
   outputGenerateGuardrailReason?: string | null;
   hideOutputGenerateControls?: boolean;
-  chatSessionBanner?: React.ReactNode;
   chatHeaderExtraContent?: React.ReactNode;
   hideHeader?: boolean;
   autoResize?: boolean;

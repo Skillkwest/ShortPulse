@@ -59,9 +59,7 @@ const toRectBounds = (rect: CanvasNormalizedRect): CanvasRectBounds => ({
  */
 export const getCanvasSceneItemBounds = (
   item: CanvasSceneItem,
-  options?: {
-    textItemHeight?: number;
-  }
+  options?: { textItemHeight?: number }
 ): CanvasRectBounds => {
   if (item.kind === "image" || item.kind === "audio") {
     return {
@@ -71,7 +69,10 @@ export const getCanvasSceneItemBounds = (
       bottom: item.y + item.height,
     };
   }
-  const textItemHeight = Math.max(1, options?.textItemHeight ?? CANVAS_TEXT_ITEM_MIN_HEIGHT);
+  const textItemHeight = Math.max(
+    1,
+    item.height ?? options?.textItemHeight ?? CANVAS_TEXT_ITEM_MIN_HEIGHT
+  );
   return {
     left: item.x,
     top: item.y,

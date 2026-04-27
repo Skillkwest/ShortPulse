@@ -17,7 +17,10 @@ export const CANVAS_IMAGE_ITEM_HEIGHT = 275;
 export const CANVAS_AUDIO_ITEM_WIDTH = 160;
 export const CANVAS_AUDIO_ITEM_HEIGHT = 200;
 export const CANVAS_TEXT_ITEM_WIDTH = 260;
+export const CANVAS_TEXT_ITEM_MIN_WIDTH = 180;
+export const CANVAS_TEXT_ITEM_MAX_WIDTH = 720;
 export const CANVAS_TEXT_ITEM_MIN_HEIGHT = 120;
+export const CANVAS_TEXT_ITEM_MAX_HEIGHT = 720;
 const CANVAS_IMAGE_PROXY_LONG_EDGE = Math.max(CANVAS_IMAGE_ITEM_WIDTH, CANVAS_IMAGE_ITEM_HEIGHT);
 
 const roundCanvasCoordinate = (value: number): number => Math.round(value * 100) / 100;
@@ -27,6 +30,24 @@ const roundCanvasCoordinate = (value: number): number => Math.round(value * 100)
  */
 export const clampCanvasZoom = (zoom: number): number =>
   Math.min(CANVAS_MAX_ZOOM, Math.max(CANVAS_MIN_ZOOM, zoom));
+
+/**
+ * Constrains text-card widths to the supported V1 range.
+ */
+export const clampCanvasTextItemWidth = (width: number): number =>
+  Math.min(
+    CANVAS_TEXT_ITEM_MAX_WIDTH,
+    Math.max(CANVAS_TEXT_ITEM_MIN_WIDTH, roundCanvasCoordinate(width))
+  );
+
+/**
+ * Constrains text-card heights to the supported V1 range.
+ */
+export const clampCanvasTextItemHeight = (height: number): number =>
+  Math.min(
+    CANVAS_TEXT_ITEM_MAX_HEIGHT,
+    Math.max(CANVAS_TEXT_ITEM_MIN_HEIGHT, roundCanvasCoordinate(height))
+  );
 
 /**
  * Fits an image into the Canvas proxy-size envelope while preserving its true aspect ratio.

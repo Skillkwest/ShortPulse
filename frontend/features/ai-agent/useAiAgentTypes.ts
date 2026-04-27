@@ -33,6 +33,8 @@ export type SendResult = {
   actions: AgentActions | undefined;
   workflowSession?: AgentPulseWorkflowSession | null;
   discarded?: boolean;
+  errorText?: string | null;
+  failureKind?: "transport_error";
 };
 
 // Stable default to prevent Fast Refresh issues.

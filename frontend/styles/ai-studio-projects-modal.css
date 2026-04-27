@@ -74,6 +74,19 @@
   color: rgba(124, 213, 228, 0.88);
 }
 
+.ai-projects-modal-loading-spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 3px solid rgba(124, 213, 228, 0.22);
+  border-top-color: rgba(124, 213, 228, 0.95);
+  border-right-color: rgba(124, 213, 228, 0.58);
+  box-shadow:
+    0 0 0 1px rgba(124, 213, 228, 0.08),
+    0 0 22px rgba(37, 169, 191, 0.26);
+  animation: ai-projects-modal-spinner-rotate 0.82s linear infinite;
+}
+
 .ai-projects-modal-empty-state h3 {
   margin: 0;
   font-size: 22px;
@@ -281,6 +294,18 @@
   font-size: 11px;
   line-height: 1.35;
   color: rgba(201, 214, 227, 0.72);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-projects-modal-loading-spinner {
+    animation: none;
+  }
+}
+
+@keyframes ai-projects-modal-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 900px) {

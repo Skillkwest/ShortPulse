@@ -136,7 +136,7 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.queryByText("Assistant output one.")).toBeInTheDocument();
   });
 
-  it("renders pulse-guided assistant replies as labeled sections and list items", () => {
+  it("renders pulse-guided assistant replies without redundant step labels", () => {
     render(
       <AgentChatPanel
         messages={[
@@ -155,7 +155,7 @@ describe("AgentChatPanel prompt actions", () => {
       />
     );
 
-    expect(screen.getByText("CURRENT STEP")).toBeInTheDocument();
+    expect(screen.queryByText("CURRENT STEP")).not.toBeInTheDocument();
     expect(
       screen.getByText("Which camera motion should I use? Pick one from the list below.")
     ).toBeInTheDocument();
@@ -167,6 +167,66 @@ describe("AgentChatPanel prompt actions", () => {
       "Pan - Rotates horizontally",
       "Dolly In - Moves camera closer",
     ]);
+  });
+
+  it("removes title-case step headings from pulse-guided assistant replies", () => {
+    render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content:
+              "CURRENT STEP\nCamera Motion\nWhich camera motion should I use? Pick one from the list below or type your own.",
+          },
+        ]}
+        input=""
+        showInput={false}
+        assistantMessagePresentation="pulse_guided"
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText("CURRENT STEP")).not.toBeInTheDocument();
+    expect(screen.queryByText("Camera Motion")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Which camera motion should I use? Pick one from the list below or type your own."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("removes fused current-step labels from pulse-guided assistant replies", () => {
+    render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content:
+              "CURRENT STEP\nConcept What is the single-shot concept you want to illustrate? Provide a topic or theme.",
+          },
+        ]}
+        input=""
+        showInput={false}
+        assistantMessagePresentation="pulse_guided"
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText("CURRENT STEP")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Concept What is the single-shot concept you want to illustrate? Provide a topic or theme."
+      )
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "What is the single-shot concept you want to illustrate? Provide a topic or theme."
+      )
+    ).toBeInTheDocument();
   });
 
   it("keeps assistant bubble media visible when inline history generate controls are suppressed", () => {
@@ -189,6 +249,38 @@ describe("AgentChatPanel prompt actions", () => {
 
     expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
     expect(screen.getByAltText("Generated output preview")).toBeInTheDocument();
+  });
+
+  it("does not force-scroll chat history when only footer node identity changes", () => {
+    const sharedProps = {
+      messages: [{ id: "a-1", role: "assistant" as const, content: "Assistant output one." }],
+      input: "",
+      showInput: false,
+      onInputChange: vi.fn(),
+      onSend: vi.fn(),
+    };
+    const { container, rerender } = render(
+      <AgentChatPanel
+        {...sharedProps}
+        historyFooterContent={<div data-testid="footer-one">Loading</div>}
+      />
+    );
+    const messagesEl = container.querySelector(".agent-messages") as HTMLDivElement;
+    Object.defineProperty(messagesEl, "scrollHeight", {
+      configurable: true,
+      value: 1000,
+    });
+    messagesEl.scrollTop = 120;
+
+    rerender(
+      <AgentChatPanel
+        {...sharedProps}
+        historyFooterContent={<div data-testid="footer-two">Loading</div>}
+      />
+    );
+
+    expect(messagesEl.scrollTop).toBe(120);
+    expect(screen.getByTestId("footer-two")).toBeInTheDocument();
   });
 
   it("renders linked bubble thumbnails and status states without breaking generate controls", () => {

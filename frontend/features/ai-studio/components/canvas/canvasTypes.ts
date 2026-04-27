@@ -40,6 +40,7 @@ export type CanvasTextItem = CanvasSceneItemBase & {
   kind: "text";
   text: string;
   width: number;
+  height?: number;
 };
 
 export type CanvasAudioItem = CanvasSceneItemBase & {

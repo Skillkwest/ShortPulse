@@ -295,6 +295,7 @@ export function MediaLibraryFolderCanvas({
 
   const items = workspace.sessionState.items;
   const mainCanvasProps = workspace.mainCanvasProps;
+  const isTextResizeActive = Boolean(mainCanvasProps.isTextResizeActive);
   const hydrateSessionState = workspace.hydrateSessionState;
   const previousItemsRef = useRef(workspace.sessionState.items);
 
@@ -463,6 +464,7 @@ export function MediaLibraryFolderCanvas({
   }, [mediaRows, promptRows]);
 
   useEffect(() => {
+    if (isTextResizeActive) return;
     if (loadingState) return;
     if (loadedFolderIdRef.current !== folderId) return;
     const previousItems = previousItemsRef.current;
@@ -511,6 +513,7 @@ export function MediaLibraryFolderCanvas({
   }, [
     folderId,
     hydrateFolderCanvasState,
+    isTextResizeActive,
     items,
     loadingState,
     reconciledMediaRows,
@@ -557,6 +560,7 @@ export function MediaLibraryFolderCanvas({
   ]);
 
   useEffect(() => {
+    if (isTextResizeActive) return;
     if (loadingState) return;
     if (loadedFolderIdRef.current !== folderId) return;
     const payload = JSON.stringify({
@@ -593,6 +597,7 @@ export function MediaLibraryFolderCanvas({
     };
   }, [
     folderId,
+    isTextResizeActive,
     loadingState,
     projectId,
     workspace.sessionState.items,

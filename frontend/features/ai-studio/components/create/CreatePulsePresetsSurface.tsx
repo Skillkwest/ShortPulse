@@ -27,7 +27,7 @@ export type CreatePulsePresetsSurfaceProps = {
   selectedPresetIds?: readonly CreatePulsePresetId[];
   onClose: () => void;
   onOpenPresetsLibrary?: () => void;
-  onPresetSelect?: (presetId: CreatePulsePresetId) => void;
+  onPresetSelect?: (presetId: CreatePulsePresetId) => Promise<void> | void;
   onPresetDragStart?: (
     event: React.DragEvent<HTMLButtonElement>,
     presetId: CreatePulsePresetId

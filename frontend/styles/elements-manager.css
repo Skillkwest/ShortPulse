@@ -165,7 +165,7 @@
 
 .elements-manager-shell--panel .elements-library-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.64fr) minmax(340px, 1.16fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(340px, 1.1fr);
   align-items: stretch;
   gap: 8px;
   flex: 1 1 auto;

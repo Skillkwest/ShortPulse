@@ -49,6 +49,7 @@ export type ModelCatalogEntry = {
   mediaType?: ModelCatalogMediaType;
   pricingStrategy?: PricingStrategyId;
   pricingAuthority?: "shared_policy" | ElevenLabsModelPricingAuthority;
+  sizeMapId?: "fal-image";
   submitAspectField: ModelAspectSubmitField;
   defaultAspect: string;
   allowedAspects: string[];
@@ -61,6 +62,10 @@ export type ModelCatalogEntry = {
   allowedDurations?: number[];
   minDurationSeconds?: number;
   maxDurationSeconds?: number;
+  defaultAudio?: boolean;
+  supportsTextToImage?: boolean;
+  supportsImageToImage?: boolean;
+  supportsImageToVideo?: boolean;
   falSubmitUrl?: string;
   falStatusBaseUrls?: string[];
   falTimeoutMs?: number;
@@ -77,8 +82,25 @@ const VERIFIED_AT = "2026-03-14";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 const GPT_IMAGE_2_VERIFIED_AT = "2026-04-27";
 const ELEVENLABS_VERIFIED_AT = "2026-04-27";
+type ModelCatalogRuntimeMetadata = Pick<
+  ModelCatalogEntry,
+  | "label"
+  | "mediaType"
+  | "pricingStrategy"
+  | "pricingAuthority"
+  | "sizeMapId"
+  | "defaultAudio"
+  | "supportsTextToImage"
+  | "supportsImageToImage"
+  | "supportsImageToVideo"
+  | "defaultGenerationCount"
+  | "defaultSourceDurationSeconds"
+  | "defaultTextCharacters"
+  | "minDurationSeconds"
+  | "maxDurationSeconds"
+>;
 
-const catalog: Record<string, ModelCatalogEntry> = {
+const catalogBase: Record<string, ModelCatalogEntry> = {
   "fal-ai/flux-2/klein/9b": {
     modelId: "fal-ai/flux-2/klein/9b",
     provider: "fal",
@@ -1167,13 +1189,215 @@ const catalog: Record<string, ModelCatalogEntry> = {
     allowedAspects: [],
   },
 };
+const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
+  "fal-ai/flux-2/klein/9b": {
+    label: "FLUX.2 Lite",
+    mediaType: "image",
+    pricingStrategy: "fal-economy-image-per-mp",
+    sizeMapId: "fal-image",
+    supportsTextToImage: true,
+  },
+  "fal-ai/flux-pro/v1/fill": {
+    label: "FLUX Pro Fill",
+    mediaType: "image",
+    pricingStrategy: "fal-fill-per-mp",
+    sizeMapId: "fal-image",
+    supportsImageToImage: true,
+  },
+  "fal-ai/flux-kontext-lora/inpaint": {
+    label: "FLUX Kontext Inpaint",
+    mediaType: "image",
+    pricingStrategy: "fal-flux-kontext-inpaint-per-mp",
+    sizeMapId: "fal-image",
+    supportsImageToImage: true,
+  },
+  "fal-ai/bria/background/remove": {
+    label: "Bria Background Remove",
+    mediaType: "image",
+    pricingStrategy: "fal-economy-image-per-mp",
+    sizeMapId: "fal-image",
+    supportsImageToImage: true,
+  },
+  "gpt-image-2": {
+    label: "ChatGPT Image 2",
+    mediaType: "image",
+    pricingStrategy: "gpt-image-2-per-image",
+    supportsTextToImage: true,
+    supportsImageToImage: true,
+  },
+  "fal-ai/nano-banana": {
+    label: "Nano Banana",
+    mediaType: "image",
+    pricingStrategy: "google-nano-banana-per-image",
+    supportsTextToImage: true,
+  },
+  "fal-ai/nano-banana/edit": {
+    label: "Nano Banana Edit",
+    mediaType: "image",
+    pricingStrategy: "google-nano-banana-per-image",
+    supportsImageToImage: true,
+  },
+  "fal-ai/nano-banana-2": {
+    label: "Nano Banana 2",
+    mediaType: "image",
+    pricingStrategy: "nano-banana-2-per-image",
+    supportsTextToImage: true,
+  },
+  "fal-ai/nano-banana-2/edit": {
+    label: "Nano Banana 2 Edit",
+    mediaType: "image",
+    pricingStrategy: "nano-banana-2-per-image",
+    supportsImageToImage: true,
+  },
+  "fal-ai/nano-banana-pro": {
+    label: "Nano Banana Pro",
+    mediaType: "image",
+    pricingStrategy: "nano-banana-per-image",
+    supportsTextToImage: true,
+  },
+  "fal-ai/nano-banana-pro/edit": {
+    label: "Nano Banana Pro Edit",
+    mediaType: "image",
+    pricingStrategy: "nano-banana-per-image",
+    supportsImageToImage: true,
+  },
+  "fal-ai/bytedance/seedream/v4.5/text-to-image": {
+    label: "Seedream 4.5",
+    mediaType: "image",
+    pricingStrategy: "seedream-per-image",
+    supportsTextToImage: true,
+  },
+  "fal-ai/bytedance/seedream/v4.5/edit": {
+    label: "Seedream 4.5 Edit",
+    mediaType: "image",
+    pricingStrategy: "seedream-per-image",
+    supportsImageToImage: true,
+  },
+  "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
+    label: "Seedream 5 Lite",
+    mediaType: "image",
+    pricingStrategy: "seedream-5-lite-per-image",
+    supportsTextToImage: true,
+  },
+  "fal-ai/bytedance/seedream/v5/lite/edit": {
+    label: "Seedream 5 Lite Edit",
+    mediaType: "image",
+    pricingStrategy: "seedream-5-lite-per-image",
+    supportsImageToImage: true,
+  },
+  "fal-ai/kling-video/v3/pro/text-to-video": {
+    label: "Kling 3.0",
+    mediaType: "video",
+    pricingStrategy: "kling-3-per-second",
+    defaultAudio: true,
+  },
+  "fal-ai/kling-video/v3/pro/image-to-video": {
+    label: "Kling 3.0",
+    mediaType: "image-to-video",
+    pricingStrategy: "kling-3-per-second",
+    defaultAudio: true,
+    supportsImageToVideo: true,
+  },
+  "fal-ai/veo3.1": {
+    label: "Google Veo 3.1",
+    mediaType: "video",
+    pricingStrategy: "veo-3-per-second",
+    defaultAudio: true,
+  },
+  "fal-ai/veo3.1/first-last-frame-to-video": {
+    label: "Google Veo 3.1 (First/Last Frame)",
+    mediaType: "image-to-video",
+    pricingStrategy: "veo-3-per-second",
+    defaultAudio: true,
+  },
+  "fal-ai/veo3.1/image-to-video": {
+    label: "Google Veo 3.1 (Image to Video)",
+    mediaType: "image-to-video",
+    pricingStrategy: "veo-3-per-second",
+    defaultAudio: true,
+    supportsImageToVideo: true,
+  },
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
+    label: "Seedance 1.5 Pro",
+    mediaType: "video",
+    pricingStrategy: "seedance-1.5-per-second",
+    defaultAudio: true,
+  },
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": {
+    label: "Seedance 1.5 Pro",
+    mediaType: "image-to-video",
+    pricingStrategy: "seedance-1.5-per-second",
+    minDurationSeconds: 4,
+    maxDurationSeconds: 12,
+    defaultAudio: true,
+    supportsImageToVideo: true,
+  },
+  [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
+    label: "Veo 3.1 Fast I2V (Kie)",
+    mediaType: "image-to-video",
+    pricingStrategy: "veo-3-per-second",
+    minDurationSeconds: 5,
+    maxDurationSeconds: 8,
+    defaultAudio: true,
+    supportsImageToVideo: true,
+  },
+  [KIE_KLING_30_MODEL_ID]: {
+    label: "Kling 3.0 (Kie)",
+    mediaType: "image-to-video",
+    pricingStrategy: "kling-3-per-second",
+    minDurationSeconds: 5,
+    maxDurationSeconds: 15,
+    defaultAudio: true,
+    supportsImageToVideo: true,
+  },
+  [KIE_SEEDANCE_15_PRO_MODEL_ID]: {
+    label: "Seedance 1.5 Pro (Kie)",
+    mediaType: "image-to-video",
+    pricingStrategy: "seedance-1.5-per-second",
+    minDurationSeconds: 4,
+    maxDurationSeconds: 12,
+    defaultAudio: true,
+    supportsImageToVideo: true,
+  },
+  [KIE_SEEDANCE_2_MODEL_ID]: {
+    label: "Seedance 2.0 (Kie)",
+    mediaType: "image-to-video",
+    pricingStrategy: "seedance-2-per-second",
+    minDurationSeconds: 5,
+    maxDurationSeconds: 10,
+    defaultAudio: true,
+    supportsImageToVideo: true,
+  },
+  [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
+    label: "Seedance 2.0 Fast (Kie)",
+    mediaType: "image-to-video",
+    pricingStrategy: "seedance-2-fast-per-second",
+    minDurationSeconds: 5,
+    maxDurationSeconds: 15,
+    defaultAudio: true,
+    supportsImageToVideo: true,
+  },
+  "gpt-5-nano": {
+    label: "GPT-5 Nano",
+    mediaType: "text",
+    pricingStrategy: "gpt41nano-per-token",
+  },
+};
 
-export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = catalog;
+export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = Object.fromEntries(
+  Object.entries(catalogBase).map(([modelId, entry]) => [
+    modelId,
+    {
+      ...entry,
+      ...(runtimeMetadataByModelId[modelId] ?? {}),
+    },
+  ])
+);
 
-export const listModelCatalogEntries = (): ModelCatalogEntry[] => Object.values(catalog);
+export const listModelCatalogEntries = (): ModelCatalogEntry[] => Object.values(MODEL_CATALOG);
 
 export const getModelCatalogEntry = (modelId: string): ModelCatalogEntry | null =>
-  catalog[modelId] ?? null;
+  MODEL_CATALOG[modelId] ?? null;
 
 export const getFalSubmitUrlByModelId = (modelId: string): string | null =>
   getModelCatalogEntry(modelId)?.falSubmitUrl ?? null;

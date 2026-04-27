@@ -93,6 +93,64 @@ describe("CreatePropertiesPanel", () => {
     }
   });
 
+  it("uses a smaller max height for the pulse composer", () => {
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    const minHeightDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "minHeight"
+    );
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => 900,
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", {
+      configurable: true,
+      get() {
+        return "36px";
+      },
+    });
+
+    try {
+      renderPanel({
+        beginnerMode: false,
+        expertCreateUiEligible: true,
+        agentEnabled: true,
+        expertCreateMode: "pulse",
+        activePulsePresetId: "image",
+        chatModeEnabled: true,
+        agentInput: "Long pulse reply",
+        onAgentInputChange: vi.fn(),
+        onAgentSend: vi.fn(),
+      });
+
+      const composerInput = screen.getByRole("textbox");
+      fireEvent.focus(composerInput);
+
+      expect(composerInput).toHaveStyle({ height: "280px", overflowY: "auto" });
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        Reflect.deleteProperty(
+          HTMLTextAreaElement.prototype as HTMLTextAreaElement & {
+            scrollHeight?: number;
+          },
+          "scrollHeight"
+        );
+      }
+      if (minHeightDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
+      }
+    }
+  });
+
   it("renders the expert create prompt and selector controls inside one offset bottom block", () => {
     const { container } = renderPanel({
       beginnerMode: false,
@@ -574,7 +632,7 @@ describe("CreatePropertiesPanel", () => {
     expect(container.querySelector(".create-expert-chat-spacer")).toBeTruthy();
   });
 
-  it("keeps the expert empty-state shell visible while a pulse activation is in progress", () => {
+  it("replaces the expert empty-state shell with a startup loading card while a pulse activation is in progress", () => {
     const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -582,16 +640,66 @@ describe("CreatePropertiesPanel", () => {
       expertCreateMode: "pulse",
       activePulsePresetId: "story_builder",
       agentIsSending: true,
+      pulseLoadingState: {
+        phase: "starting_pulse",
+        title: "Starting Story Builder",
+        message: "Preparing your guided workflow...",
+        presetLabel: "Story Builder",
+        stepLabel: "Upload Characters",
+      },
       agentMessages: [],
       onAgentInputChange: vi.fn(),
       onAgentSend: vi.fn(),
     });
 
-    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
-    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
-    expect(container.querySelector(".create-expert-empty-state-shell")).toBeTruthy();
-    expect(container.querySelector(".create-expert-empty-preview-frame")).toBeTruthy();
-    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeTruthy();
+    expect(screen.getByText("Starting Story Builder")).toBeInTheDocument();
+    expect(screen.queryByText("Preparing your guided workflow...")).not.toBeInTheDocument();
+    expect(screen.queryByText("Upload Characters")).not.toBeInTheDocument();
+    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+    expect(container.querySelector(".create-expert-empty-state-shell")).toBeNull();
+    expect(container.querySelector(".create-expert-pulse-loading-card")).toBeTruthy();
+    expect(container.querySelector(".create-expert-pulse-loading-spinner")).toBeTruthy();
+  });
+
+  it("renders a generation loading card inside an active pulse thread while the next step is responding", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseLoadingState: {
+        phase: "generating_step",
+        title: "Generating next step...",
+        message: "Building the next instruction for Camera Motion.",
+        presetLabel: "Video Prompt Magic",
+        stepLabel: "Camera Motion",
+      },
+      agentIsSending: true,
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Upload your image to get the process started :)",
+        },
+        {
+          id: "user-1",
+          role: "user",
+          content: "Uploaded.",
+        },
+      ],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.getByText("Generating next step...")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Building the next instruction for Camera Motion.")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Camera Motion")).not.toBeInTheDocument();
+    expect(screen.queryByText("Thinking…")).not.toBeInTheDocument();
+    expect(container.querySelector(".create-expert-pulse-loading-card")).toBeTruthy();
+    expect(container.querySelector(".create-expert-pulse-loading-spinner")).toBeTruthy();
   });
 
   it("fades the expert title out at eight visual rows and fades it back in below that threshold", async () => {
@@ -755,6 +863,53 @@ describe("CreatePropertiesPanel", () => {
     expect(container.querySelector(".create-expert-chat-composer-overlay-zone")).toBeTruthy();
     expect(container.querySelector(".create-expert-chat-composer-base-layer")).toBeTruthy();
     expect(container.querySelector(".create-expert-chat-composer-overlay")).toBeTruthy();
+  });
+
+  it("keeps the pulse composer in normal flow so it only moves down as chat content grows", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseLoadingState: {
+        phase: "starting_pulse",
+        title: "Starting Video Prompt Magic",
+        message: "Preparing your guided workflow...",
+        presetLabel: "Video Prompt Magic",
+        stepLabel: "Image Gate",
+      },
+      agentMessages: [],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(container.querySelector(".create-expert-chat-composer-overlay-zone")).toBeNull();
+    expect(container.querySelector(".create-expert-chat-composer-overlay")).toBeNull();
+    expect(container.querySelector(".create-expert-pulse-loading-card")).toBeTruthy();
+  });
+
+  it("gives pulse chat history a taller scroll threshold before it starts scrolling", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(container.querySelector(".agent-messages")).toHaveStyle({
+      maxHeight: "min(58vh, 620px)",
+    });
   });
 
   it("keeps the chat-history underlay unblurred until the composer reaches eight visual rows", async () => {
@@ -989,6 +1144,125 @@ describe("CreatePropertiesPanel", () => {
     });
   });
 
+  it("starts a clicked pulse chip and renders the guided session state", async () => {
+    const onPulsePresetStart = vi.fn(async (_preset?: unknown, _options?: unknown) => {
+      void _preset;
+      void _options;
+      return { status: "started" as const };
+    });
+
+    function PulseHarness() {
+      const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">(
+        "standard"
+      );
+      const [activePulsePresetId, setActivePulsePresetId] = React.useState<string | null>(null);
+      const [pulseWorkflowSession, setPulseWorkflowSession] =
+        React.useState<React.ComponentProps<typeof CreatePropertiesPanel>["pulseWorkflowSession"]>(
+          null
+        );
+      const [agentMessages, setAgentMessages] = React.useState<
+        NonNullable<React.ComponentProps<typeof CreatePropertiesPanel>["agentMessages"]>
+      >([]);
+
+      return (
+        <CreatePropertiesPanel
+          {...baseProps}
+          beginnerMode={false}
+          expertCreateUiEligible
+          agentEnabled
+          agentMessages={agentMessages}
+          expertCreateMode={expertCreateMode}
+          onExpertCreateModeChange={setExpertCreateMode}
+          activePulsePresetId={activePulsePresetId}
+          hasActivePulseSession={Boolean(activePulsePresetId)}
+          pulseWorkflowSession={pulseWorkflowSession}
+          onAgentInputChange={vi.fn()}
+          onAgentSend={vi.fn()}
+          onActivePulsePresetIdChange={(presetId) => {
+            setActivePulsePresetId(presetId);
+            if (!presetId) {
+              setPulseWorkflowSession(null);
+              setAgentMessages([]);
+              return null;
+            }
+            return "pulse-session-harness";
+          }}
+          onPulsePresetStart={async (preset, options) => {
+            const result = await onPulsePresetStart(preset, options);
+            if (result?.status === "started") {
+              setPulseWorkflowSession({
+                presetId: preset.presetId,
+                status: "awaiting_input",
+                currentStepIndex: 1,
+                currentStepLabel: "Upload Characters",
+                currentStepPrompt:
+                  "Step 1 - Upload your characters. Please upload 1-3+ character images.",
+                collectedInputs: [],
+                lastArtifact: null,
+                finalArtifactSource: null,
+              });
+              setAgentMessages([
+                {
+                  id: "pulse-assistant-1",
+                  role: "assistant",
+                  content: "Step 1 - Upload your characters. Please upload 1-3+ character images.",
+                },
+              ]);
+            }
+            return result;
+          }}
+        />
+      );
+    }
+
+    render(<PulseHarness />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
+    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+
+    await waitFor(() => {
+      expect(onPulsePresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presetId: "story_builder",
+          label: "Story Builder",
+        }),
+        { pulseSessionInstanceId: "pulse-session-harness" }
+      );
+      expect(screen.getByRole("button", { name: "Story Builder preset" })).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+      expect(
+        screen.getByText("Step 1 - Upload your characters. Please upload 1-3+ character images.")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("keeps a durable pulse activation error visible in the rail when kickoff fails", async () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      onActivePulsePresetIdChange: () => "pulse-session-failed",
+      onPulsePresetStart: async () => ({
+        status: "failed",
+        reason: "transport_error",
+        message: "Agent request failed (500)",
+      }),
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toHaveTextContent("Agent request failed (500)");
+    });
+
+    expect(screen.getByRole("button", { name: "Dismiss pulse status" })).toBeInTheDocument();
+  });
+
   it("notifies page-level expert create mode changes when the toggle is used", () => {
     const onExpertCreateModeChange = vi.fn();
 
@@ -1190,7 +1464,7 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    expect(screen.getByText("CURRENT STEP")).toBeInTheDocument();
+    expect(screen.queryByText("CURRENT STEP")).not.toBeInTheDocument();
     expect(screen.getByText("Reply with one option or type your own.")).toBeInTheDocument();
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(3);
@@ -1226,7 +1500,7 @@ describe("CreatePropertiesPanel", () => {
     expect(container.querySelectorAll(".create-expert-empty-preview-frame")).toHaveLength(1);
   });
 
-  it("renders an active pulse session banner alongside workflow guidance", () => {
+  it("renders workflow guidance without extra pulse session chrome", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -1275,12 +1549,82 @@ describe("CreatePropertiesPanel", () => {
         "Which camera motion should I use? Pick one from the list below or type your own."
       )
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Active pulse session")).toBeInTheDocument();
-    expect(screen.getByText("Pulse active")).toBeInTheDocument();
-    expect(screen.getByText("Current step: Camera Motion.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Active pulse session")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pulse active")).not.toBeInTheDocument();
   });
 
-  it("renders a completed pulse session banner for finished workflow pulses", () => {
+  it("removes title-case current-step headings from rendered pulse outputs", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseWorkflowSession: {
+        presetId: "image",
+        status: "awaiting_input",
+        currentStepIndex: 2,
+        currentStepLabel: "Camera Motion",
+        currentStepPrompt:
+          "Which camera motion should I use? Pick one from the list below or type your own.",
+        collectedInputs: ["uploaded image"],
+        lastArtifact: null,
+      },
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content:
+            "CURRENT STEP\nCamera Motion\nWhich camera motion should I use? Pick one from the list below or type your own.",
+        },
+      ],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.queryByText("CURRENT STEP")).not.toBeInTheDocument();
+    expect(screen.queryByText("Camera Motion")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Which camera motion should I use? Pick one from the list below or type your own."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("removes fused current-step labels from rendered pulse outputs", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "single_shot",
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content:
+            "CURRENT STEP\nConcept What is the single-shot concept you want to illustrate? Provide a topic or theme.\n\n1. Emotion moment\n2. Action reveal",
+        },
+      ],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.queryByText("CURRENT STEP")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Concept What is the single-shot concept you want to illustrate? Provide a topic or theme."
+      )
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "What is the single-shot concept you want to illustrate? Provide a topic or theme."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("renders completed pulse output without the retired pulse session banner", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -1309,9 +1653,11 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    expect(screen.getByLabelText("Completed pulse session")).toBeInTheDocument();
-    expect(screen.getByText("Pulse complete")).toBeInTheDocument();
-    expect(screen.getByText("Generate will use the completed Pulse output.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Completed pulse session")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pulse complete")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Generate will use the completed Pulse output.")
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText(
         "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight."

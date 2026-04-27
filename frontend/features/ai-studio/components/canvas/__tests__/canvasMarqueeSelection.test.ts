@@ -34,6 +34,7 @@ const TEXT_ITEM: CanvasSceneItem = {
   sourceSurface: null,
   text: "Text",
   width: 260,
+  height: 180,
 };
 
 describe("canvasMarqueeSelection", () => {
@@ -75,26 +76,49 @@ describe("canvasMarqueeSelection", () => {
     expect(Array.from(selectedIds)).toEqual(["image-1"]);
   });
 
-  it("uses explicit text item hit bounds with default text height", () => {
+  it("uses stored text item height for hit bounds", () => {
     const bounds = getCanvasSceneItemBounds(TEXT_ITEM);
     expect(bounds).toEqual({
       left: 420,
       top: 180,
       right: 680,
-      bottom: 300,
+      bottom: 360,
     });
   });
 
-  it("supports custom text height for hit-testing", () => {
+  it("supports fallback text height for hit-testing when a stored height is absent", () => {
     const selectedIds = resolveCanvasMarqueeSelectionIds({
-      items: [TEXT_ITEM],
+      items: [
+        {
+          ...TEXT_ITEM,
+          height: undefined,
+        },
+      ],
+      marqueeRect: normalizeCanvasRectFromPoints({
+        startX: 660,
+        startY: 440,
+        endX: 700,
+        endY: 470,
+      }),
+      textItemHeight: 280,
+    });
+    expect(Array.from(selectedIds)).toEqual(["text-1"]);
+  });
+
+  it("prefers stored text item heights over the fallback height", () => {
+    const selectedIds = resolveCanvasMarqueeSelectionIds({
+      items: [
+        {
+          ...TEXT_ITEM,
+          height: 280,
+        },
+      ],
       marqueeRect: normalizeCanvasRectFromPoints({
         startX: 660,
         startY: 420,
         endX: 700,
         endY: 460,
       }),
-      textItemHeight: 280,
     });
     expect(Array.from(selectedIds)).toEqual(["text-1"]);
   });

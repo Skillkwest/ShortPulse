@@ -35,6 +35,8 @@ const createParams = (
     chatModeEnabled: true,
     directOpenAiBypassEnabled: true,
     agentBusy: false,
+    agentIsSending: false,
+    agentUiBusy: false,
     agentAttachmentError: null,
     agentError: null,
     stagedAgentPrompt: null,
@@ -283,6 +285,7 @@ describe("useAiStudioPanelProps", () => {
       useAiStudioPanelProps(
         createParams({
           agentBusy: true,
+          agentIsSending: true,
           isGenerateDisabled: false,
           isCreateGenerateClickLocked: false,
           isEditGenerateClickLocked: false,
@@ -298,6 +301,85 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesCreate.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesEditExpert.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
+  });
+
+  it("derives a startup pulse loading surface during pulse kickoff", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          expertCreateMode: "pulse",
+          hasActivePulseSession: true,
+          activeCreatePulsePresetId: "story_builder",
+          agentMessages: [],
+          pulseWorkflowSession: {
+            presetId: "story_builder",
+            status: "running",
+            currentStepIndex: 1,
+            currentStepLabel: "Upload Characters",
+            currentStepPrompt: "Upload your characters.",
+            collectedInputs: [],
+            lastArtifact: null,
+            finalArtifactSource: null,
+          },
+          agentBusy: true,
+          agentUiBusy: false,
+          savedCreatePulsePresets: [],
+        })
+      )
+    );
+
+    expect(result.current.propertiesCreate.pulseLoadingState).toEqual({
+      phase: "starting_pulse",
+      title: "Starting Story Builder",
+      message: "Preparing your guided workflow...",
+      presetLabel: "Story Builder",
+      stepLabel: "Upload Characters",
+    });
+  });
+
+  it("derives a step-generation loading surface for active pulse replies", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          expertCreateMode: "pulse",
+          hasActivePulseSession: true,
+          activeCreatePulsePresetId: "image",
+          agentMessages: [
+            {
+              id: "assistant-1",
+              role: "assistant",
+              content: "Upload your image to get the process started :)",
+            },
+            {
+              id: "user-1",
+              role: "user",
+              content: "Uploaded image.",
+            },
+          ],
+          pulseWorkflowSession: {
+            presetId: "image",
+            status: "running",
+            currentStepIndex: 2,
+            currentStepLabel: "Camera Motion",
+            currentStepPrompt: "Pick a camera move.",
+            collectedInputs: ["uploaded image"],
+            lastArtifact: null,
+            finalArtifactSource: null,
+          },
+          agentBusy: true,
+          agentIsSending: true,
+          savedCreatePulsePresets: [],
+        })
+      )
+    );
+
+    expect(result.current.propertiesCreate.pulseLoadingState).toEqual({
+      phase: "generating_step",
+      title: "Generating next step...",
+      message: "Building the next instruction for Camera Motion.",
+      presetLabel: "Video Prompt Magic",
+      stepLabel: "Camera Motion",
+    });
   });
 
   it("keeps edit generate available while edit submits are in flight but still locks video", () => {

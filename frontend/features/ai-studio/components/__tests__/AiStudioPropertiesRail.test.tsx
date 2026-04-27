@@ -60,6 +60,7 @@ describe("AiStudioPropertiesRail", () => {
 
     expect(screen.queryByText("create panel")).not.toBeInTheDocument();
     expect(screen.getByText("edit panel")).toBeInTheDocument();
+    expect(container.querySelector(".ai-properties--panel-enter")).not.toBeNull();
     expect(container.querySelector(".ai-properties-panel-transition-exit")).toBeNull();
   });
 });

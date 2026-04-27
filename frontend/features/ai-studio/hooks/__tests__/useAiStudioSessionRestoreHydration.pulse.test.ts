@@ -4,6 +4,7 @@ import { useAiStudioSessionRestoreHydration } from "../useAiStudioSessionRestore
 import type { AiStudioSessionRestoreCandidateState } from "../useAiStudioSessionRestoreCandidate";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import type { AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
+import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 
 const addBreadcrumbMock = vi.fn();
 
@@ -11,7 +12,7 @@ vi.mock("../../../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: (...args: unknown[]) => addBreadcrumbMock(...args),
 }));
 
-const completedPulseWorkflowSession = {
+const completedPulseWorkflowSession: AgentPulseWorkflowSession = {
   presetId: "story_builder",
   status: "completed" as const,
   currentStepIndex: 4,
@@ -51,8 +52,10 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload => ({
     model: null,
     aspect: "9:16",
     selectedCharacterId: null,
+    selectedCharacterLookId: null,
     expertCreateMode: "pulse",
     activePulsePresetId: "story_builder",
+    pulseSessionInstanceId: "pulse-session-1",
     referenceImageUrl: null,
     extraImageUrls: [null, null, null],
     editReferenceText: "",
@@ -95,7 +98,7 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload => ({
       },
     ],
     input: "",
-    latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
+    latestAgentPrompt: completedPulseWorkflowSession.lastArtifact ?? null,
     promptOrigin: "agent",
     chatModeEnabled: true,
     pulseWorkflowSession: completedPulseWorkflowSession,
@@ -119,7 +122,7 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload => ({
         },
       ],
       input: "",
-      latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
+      latestAgentPrompt: completedPulseWorkflowSession.lastArtifact ?? null,
       promptOrigin: "agent",
       chatModeEnabled: true,
       pulseWorkflowSession: completedPulseWorkflowSession,

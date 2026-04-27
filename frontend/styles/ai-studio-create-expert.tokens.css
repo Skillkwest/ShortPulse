@@ -79,6 +79,7 @@
 
 .create-expert-panel .create-expert-panel-shell.is-pulse-rail-active {
   gap: var(--create-expert-panel-gap);
+  --create-expert-chat-composer-overlay-bottom-offset: 28px;
 }
 
 .create-expert-panel .create-expert-left-panel {
@@ -215,6 +216,12 @@
 .create-expert-panel .create-expert-flow-shell {
   width: 100%;
   min-height: 0;
+}
+
+.create-expert-panel .create-expert-panel-shell.is-pulse-rail-active .create-expert-flow-shell {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
 }
 
 .create-expert-panel .create-expert-active-pulse-card {

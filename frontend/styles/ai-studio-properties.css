@@ -187,9 +187,19 @@
 .ai-properties.ai-properties--motion-flat *,
 .ai-properties.ai-properties--motion-flat *::before,
 .ai-properties.ai-properties--motion-flat *::after {
-  animation: none !important;
   transition: none !important;
   scroll-behavior: auto !important;
+}
+
+.ai-properties.ai-properties--motion-flat,
+.ai-properties.ai-properties--motion-flat::before,
+.ai-properties.ai-properties--motion-flat::after,
+.ai-properties.ai-properties--motion-flat *:not([class*="spinner"]):not([class*="loading-spinner"]),
+.ai-properties.ai-properties--motion-flat
+  *:not([class*="spinner"]):not([class*="loading-spinner"])::before,
+.ai-properties.ai-properties--motion-flat
+  *:not([class*="spinner"]):not([class*="loading-spinner"])::after {
+  animation: none !important;
 }
 
 .ai-properties.ai-properties--motion-flat
@@ -212,6 +222,26 @@
 .ai-properties.ai-properties--motion-flat .model-picker-btn:hover,
 .ai-properties.ai-properties--motion-flat .create-chat-pin-btn:hover {
   transform: none !important;
+}
+
+.ai-properties.ai-properties--motion-flat.ai-properties--panel-enter {
+  animation: ai-properties-panel-fade-in 160ms ease-out both !important;
+}
+
+@keyframes ai-properties-panel-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-properties.ai-properties--motion-flat.ai-properties--panel-enter {
+    animation: none !important;
+  }
 }
 
 .ai-properties::-webkit-scrollbar {

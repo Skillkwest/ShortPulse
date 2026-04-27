@@ -322,6 +322,7 @@ const buildCanvasSceneItem = ({
           sourceSurface: resolved.sourceSurface ?? null,
           text: resolved.text,
           width: CANVAS_TEXT_ITEM_WIDTH,
+          height: height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT,
         };
 
 /**

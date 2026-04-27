@@ -23,6 +23,7 @@ const createExpertTokensCssPath = path.resolve(
   process.cwd(),
   "styles/ai-studio-create-expert.tokens.css"
 );
+const aiStudioPropertiesCssPath = path.resolve(process.cwd(), "styles/ai-studio-properties.css");
 
 const extractRuleBlock = (css: string, selector: string) => {
   const escapedSelector = selector
@@ -135,6 +136,35 @@ describe("create expert composer layout contract", () => {
     expect(overlay).toContain("z-index: 9;");
     expect(chatSpacer).toContain("min-height: 18px;");
     expect(expandedOverlayZone).toContain("filter: blur(6px);");
+  });
+
+  it("keeps functional spinners animated inside the motion-flat properties rail", () => {
+    const css = fs.readFileSync(aiStudioPropertiesCssPath, "utf8");
+
+    expect(css).toContain('*:not([class*="spinner"]):not([class*="loading-spinner"])');
+    expect(css).toContain("animation: none !important;");
+  });
+
+  it("renders pulse guided assistant responses as transparent instructional text", () => {
+    const css = fs.readFileSync(createExpertChatCssPath, "utf8");
+    const pulseBubble = extractRuleBlock(
+      css,
+      ".create-expert-panel .create-expert-prompt-step .agent-message.agent-assistant.agent-message--pulse-guided"
+    );
+    const pulseLead = extractRuleBlock(
+      css,
+      ".create-expert-panel .create-expert-prompt-step .agent-message.agent-assistant.agent-message--pulse-guided .agent-message-rich-lead"
+    );
+    const pulseParagraph = extractRuleBlock(
+      css,
+      ".create-expert-panel .create-expert-prompt-step .agent-message.agent-assistant.agent-message--pulse-guided .agent-message-rich-paragraph"
+    );
+
+    expect(pulseBubble).toContain("border-color: transparent;");
+    expect(pulseBubble).toContain("background: transparent;");
+    expect(pulseBubble).toContain("box-shadow: none;");
+    expect(pulseLead).toContain("font-weight: 750;");
+    expect(pulseParagraph).toContain("font-weight: 700;");
   });
 
   it("matches the collapsed empty prompt height to the adjacent create control columns", () => {

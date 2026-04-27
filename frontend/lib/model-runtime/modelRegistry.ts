@@ -1,33 +1,24 @@
 /**
- * Registry of supported AI Studio models with metadata for UI and pricing.
+ * Registry compatibility layer derived from the canonical model catalog.
  */
-import { type ElevenLabsModelPricingAuthority } from "./elevenLabsModels";
-import { getModelCatalogEntry, listModelCatalogEntries } from "./modelCatalog";
-import { PricingStrategyId } from "./pricingTypes";
-import { AspectSize, falImageSizeMap } from "./modelSizes";
+import type { ElevenLabsModelPricingAuthority } from "./elevenLabsModels";
 import {
-  KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
-  KIE_SEEDANCE_2_FAST_MODEL_ID,
-  KIE_SEEDANCE_2_MODEL_ID,
-  KIE_VEO_31_FAST_I2V_MODEL_ID,
-} from "./providerModelIds";
-import {
-  getModelAllowedAspects,
-  getModelAllowedDurations,
-  getModelAllowedResolutions,
-  getModelDefaultAspect,
-  getModelDefaultDurationSeconds,
-  getModelDefaultResolution,
-} from "./modelApiContracts";
+  getModelCatalogEntry,
+  listModelCatalogEntries,
+  type ModelCatalogEntry,
+  type ModelCatalogMediaType,
+  type ModelProvider,
+} from "./modelCatalog";
+import { type AspectSize, falImageSizeMap } from "./modelSizes";
+import type { PricingStrategyId } from "./pricingTypes";
 
 export type ModelPricingAuthority = "shared_policy" | ElevenLabsModelPricingAuthority;
 
 export type ModelConfig = {
   id: string;
   label: string;
-  provider: "fal" | "kie" | "openai" | "elevenlabs" | "other";
-  mediaType: "image" | "video" | "image-to-video" | "multi" | "text" | "audio";
+  provider: ModelProvider | "other";
+  mediaType: ModelCatalogMediaType;
   defaultAspect: string;
   allowedAspects: string[];
   pricingStrategy?: PricingStrategyId;
@@ -41,741 +32,65 @@ export type ModelConfig = {
   maxDurationSeconds?: number;
   defaultResolution?: string;
   defaultAudio?: boolean;
-  allowedResolutions?: string[]; // Model-specific resolution options (video + image)
-  allowedDurations?: number[]; // Model-specific duration options (e.g., [4, 6, 8])
+  allowedResolutions?: string[];
+  allowedDurations?: number[];
   supportsTextToImage?: boolean;
   supportsImageToImage?: boolean;
   supportsImageToVideo?: boolean;
 };
 
-type ElevenLabsCatalogEntry = NonNullable<ReturnType<typeof getModelCatalogEntry>> & {
-  provider: "elevenlabs";
+type RegistryReadyCatalogEntry = ModelCatalogEntry & {
   label: string;
-  mediaType: "audio";
+  mediaType: ModelCatalogMediaType;
 };
 
-const contractDefaultAspect = (modelId: string, fallback: string): string =>
-  getModelDefaultAspect(modelId, fallback);
-
-const contractAllowedAspects = (modelId: string, fallback: string[]): string[] =>
-  getModelAllowedAspects(modelId, fallback);
-
-const contractDefaultResolution = (
-  modelId: string,
-  fallback: string | undefined
-): string | undefined => getModelDefaultResolution(modelId, fallback);
-
-const contractAllowedResolutions = (
-  modelId: string,
-  fallback: string[] | undefined
-): string[] | undefined => getModelAllowedResolutions(modelId, fallback);
-
-const contractDefaultDuration = (
-  modelId: string,
-  fallback: number | undefined
-): number | undefined => getModelDefaultDurationSeconds(modelId, fallback);
-
-const contractAllowedDurations = (
-  modelId: string,
-  fallback: number[] | undefined
-): number[] | undefined => getModelAllowedDurations(modelId, fallback);
-
-const isElevenLabsCatalogEntry = (
+const isRegistryReadyCatalogEntry = (
   entry: ReturnType<typeof getModelCatalogEntry>
-): entry is ElevenLabsCatalogEntry =>
-  entry?.provider === "elevenlabs" &&
+): entry is RegistryReadyCatalogEntry =>
+  entry !== null &&
   typeof entry.label === "string" &&
-  entry.mediaType === "audio";
+  entry.label.length > 0 &&
+  Boolean(entry.mediaType);
 
-const buildElevenLabsModelConfig = (entry: ElevenLabsCatalogEntry): ModelConfig => ({
+const resolveCatalogSizeMap = (
+  entry: RegistryReadyCatalogEntry
+): Record<string, AspectSize> | undefined => {
+  if (entry.sizeMapId === "fal-image") return falImageSizeMap;
+  return undefined;
+};
+
+const buildModelConfig = (entry: RegistryReadyCatalogEntry): ModelConfig => ({
   id: entry.modelId,
   label: entry.label,
-  provider: "elevenlabs",
-  mediaType: "audio",
+  provider: entry.provider,
+  mediaType: entry.mediaType,
   defaultAspect: entry.defaultAspect,
   allowedAspects: entry.allowedAspects,
-  pricingAuthority: entry.pricingAuthority,
   pricingStrategy: entry.pricingStrategy,
+  pricingAuthority: entry.pricingAuthority,
+  sizeMap: resolveCatalogSizeMap(entry),
   defaultDurationSeconds: entry.defaultDurationSeconds,
   defaultGenerationCount: entry.defaultGenerationCount,
   defaultSourceDurationSeconds: entry.defaultSourceDurationSeconds,
   defaultTextCharacters: entry.defaultTextCharacters,
   minDurationSeconds: entry.minDurationSeconds,
   maxDurationSeconds: entry.maxDurationSeconds,
+  defaultResolution: entry.defaultResolution,
+  defaultAudio: entry.defaultAudio,
+  allowedResolutions: entry.allowedResolutions,
+  allowedDurations: entry.allowedDurations,
+  supportsTextToImage: entry.supportsTextToImage,
+  supportsImageToImage: entry.supportsImageToImage,
+  supportsImageToVideo: entry.supportsImageToVideo,
 });
 
-const registry: Record<string, ModelConfig> = {
-  "fal-ai/flux-2/klein/9b": {
-    id: "fal-ai/flux-2/klein/9b",
-    label: "FLUX.2 Lite",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/flux-2/klein/9b", "4:3"),
-    allowedAspects: contractAllowedAspects("fal-ai/flux-2/klein/9b", [
-      "1:1",
-      "4:3",
-      "3:4",
-      "16:9",
-      "9:16",
-    ]),
-    pricingStrategy: "fal-economy-image-per-mp",
-    sizeMap: falImageSizeMap,
-    defaultResolution: contractDefaultResolution("fal-ai/flux-2/klein/9b", "model_default"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/flux-2/klein/9b", ["model_default"]),
-    supportsTextToImage: true,
-  },
-  "fal-ai/flux-pro/v1/fill": {
-    id: "fal-ai/flux-pro/v1/fill",
-    label: "FLUX Pro Fill",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/flux-pro/v1/fill", "1:1"),
-    allowedAspects: contractAllowedAspects("fal-ai/flux-pro/v1/fill", [
-      "1:1",
-      "4:3",
-      "3:4",
-      "16:9",
-      "9:16",
-    ]),
-    pricingStrategy: "fal-fill-per-mp",
-    sizeMap: falImageSizeMap,
-    defaultResolution: contractDefaultResolution("fal-ai/flux-pro/v1/fill", "model_default"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/flux-pro/v1/fill", ["model_default"]),
-    supportsImageToImage: true,
-  },
-  "fal-ai/flux-kontext-lora/inpaint": {
-    id: "fal-ai/flux-kontext-lora/inpaint",
-    label: "FLUX Kontext Inpaint",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/flux-kontext-lora/inpaint", "1:1"),
-    allowedAspects: contractAllowedAspects("fal-ai/flux-kontext-lora/inpaint", [
-      "1:1",
-      "4:3",
-      "3:4",
-      "16:9",
-      "9:16",
-    ]),
-    pricingStrategy: "fal-flux-kontext-inpaint-per-mp",
-    sizeMap: falImageSizeMap,
-    defaultResolution: contractDefaultResolution(
-      "fal-ai/flux-kontext-lora/inpaint",
-      "model_default"
-    ),
-    allowedResolutions: contractAllowedResolutions("fal-ai/flux-kontext-lora/inpaint", [
-      "model_default",
-    ]),
-    supportsImageToImage: true,
-  },
-  "fal-ai/bria/background/remove": {
-    id: "fal-ai/bria/background/remove",
-    label: "Bria Background Remove",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/bria/background/remove", "1:1"),
-    allowedAspects: contractAllowedAspects("fal-ai/bria/background/remove", [
-      "1:1",
-      "4:3",
-      "3:4",
-      "16:9",
-      "9:16",
-    ]),
-    pricingStrategy: "fal-economy-image-per-mp",
-    sizeMap: falImageSizeMap,
-    defaultResolution: contractDefaultResolution("fal-ai/bria/background/remove", "model_default"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/bria/background/remove", [
-      "model_default",
-    ]),
-    supportsImageToImage: true,
-  },
-  "gpt-image-2": {
-    id: "gpt-image-2",
-    label: "ChatGPT Image 2",
-    provider: "openai",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("gpt-image-2", "1:1"),
-    allowedAspects: contractAllowedAspects("gpt-image-2", [
-      "auto",
-      "9:16",
-      "4:5",
-      "1:1",
-      "5:4",
-      "16:9",
-    ]),
-    pricingStrategy: "gpt-image-2-per-image",
-    defaultResolution: contractDefaultResolution("gpt-image-2", "medium"),
-    allowedResolutions: contractAllowedResolutions("gpt-image-2", ["low", "medium", "high"]),
-    supportsTextToImage: true,
-    supportsImageToImage: true,
-  },
-  "fal-ai/nano-banana": {
-    id: "fal-ai/nano-banana",
-    label: "Nano Banana",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/nano-banana", "1:1"),
-    allowedAspects: contractAllowedAspects("fal-ai/nano-banana", [
-      "16:9",
-      "3:2",
-      "4:3",
-      "5:4",
-      "1:1",
-      "4:5",
-      "3:4",
-      "2:3",
-      "9:16",
-    ]),
-    pricingStrategy: "google-nano-banana-per-image",
-    defaultResolution: contractDefaultResolution("fal-ai/nano-banana", "model_default"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana", ["model_default"]),
-    supportsTextToImage: true,
-  },
-  "fal-ai/nano-banana/edit": {
-    id: "fal-ai/nano-banana/edit",
-    label: "Nano Banana Edit",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/nano-banana/edit", "auto"),
-    allowedAspects: contractAllowedAspects("fal-ai/nano-banana/edit", [
-      "auto",
-      "16:9",
-      "3:2",
-      "4:3",
-      "5:4",
-      "1:1",
-      "4:5",
-      "3:4",
-      "2:3",
-      "9:16",
-    ]),
-    pricingStrategy: "google-nano-banana-per-image",
-    defaultResolution: contractDefaultResolution("fal-ai/nano-banana/edit", "model_default"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana/edit", ["model_default"]),
-    supportsImageToImage: true,
-  },
-  "fal-ai/nano-banana-2": {
-    id: "fal-ai/nano-banana-2",
-    label: "Nano Banana 2",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/nano-banana-2", "auto"),
-    allowedAspects: contractAllowedAspects("fal-ai/nano-banana-2", [
-      "auto",
-      "16:9",
-      "3:2",
-      "4:3",
-      "5:4",
-      "1:1",
-      "4:5",
-      "3:4",
-      "2:3",
-      "9:16",
-    ]),
-    pricingStrategy: "nano-banana-2-per-image",
-    defaultResolution: contractDefaultResolution("fal-ai/nano-banana-2", "1K"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana-2", [
-      "0.5K",
-      "1K",
-      "2K",
-      "4K",
-    ]),
-    supportsTextToImage: true,
-  },
-  "fal-ai/nano-banana-2/edit": {
-    id: "fal-ai/nano-banana-2/edit",
-    label: "Nano Banana 2 Edit",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/nano-banana-2/edit", "auto"),
-    allowedAspects: contractAllowedAspects("fal-ai/nano-banana-2/edit", [
-      "auto",
-      "16:9",
-      "3:2",
-      "4:3",
-      "5:4",
-      "1:1",
-      "4:5",
-      "3:4",
-      "2:3",
-      "9:16",
-    ]),
-    pricingStrategy: "nano-banana-2-per-image",
-    defaultResolution: contractDefaultResolution("fal-ai/nano-banana-2/edit", "1K"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana-2/edit", [
-      "0.5K",
-      "1K",
-      "2K",
-      "4K",
-    ]),
-    supportsImageToImage: true,
-  },
-  "fal-ai/nano-banana-pro": {
-    id: "fal-ai/nano-banana-pro",
-    label: "Nano Banana Pro",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/nano-banana-pro", "4:5"),
-    allowedAspects: contractAllowedAspects("fal-ai/nano-banana-pro", [
-      "16:9",
-      "3:2",
-      "4:3",
-      "5:4",
-      "4:5",
-      "3:4",
-      "2:3",
-      "9:16",
-      "1:1",
-    ]),
-    pricingStrategy: "nano-banana-per-image",
-    defaultResolution: contractDefaultResolution("fal-ai/nano-banana-pro", "1K"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana-pro", ["1K", "2K", "4K"]),
-    supportsTextToImage: true,
-  },
-  "fal-ai/nano-banana-pro/edit": {
-    id: "fal-ai/nano-banana-pro/edit",
-    label: "Nano Banana Pro Edit",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/nano-banana-pro/edit", "auto"),
-    allowedAspects: contractAllowedAspects("fal-ai/nano-banana-pro/edit", [
-      "auto",
-      "16:9",
-      "3:2",
-      "4:3",
-      "5:4",
-      "1:1",
-      "4:5",
-      "3:4",
-      "2:3",
-      "9:16",
-    ]),
-    pricingStrategy: "nano-banana-per-image",
-    defaultResolution: contractDefaultResolution("fal-ai/nano-banana-pro/edit", "1K"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/nano-banana-pro/edit", [
-      "1K",
-      "2K",
-      "4K",
-    ]),
-    supportsImageToImage: true,
-  },
-  "fal-ai/bytedance/seedream/v4.5/text-to-image": {
-    id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-    label: "Seedream 4.5",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/bytedance/seedream/v4.5/text-to-image", "1:1"),
-    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedream/v4.5/text-to-image", [
-      "1:1",
-      "2:3",
-      "3:2",
-      "3:4",
-      "4:3",
-      "4:5",
-      "5:4",
-      "9:16",
-      "16:9",
-    ]),
-    pricingStrategy: "seedream-per-image",
-    defaultResolution: contractDefaultResolution(
-      "fal-ai/bytedance/seedream/v4.5/text-to-image",
-      "auto_2K"
-    ),
-    allowedResolutions: contractAllowedResolutions("fal-ai/bytedance/seedream/v4.5/text-to-image", [
-      "auto_2K",
-      "auto_4K",
-    ]),
-    supportsTextToImage: true,
-  },
-  "fal-ai/bytedance/seedream/v4.5/edit": {
-    id: "fal-ai/bytedance/seedream/v4.5/edit",
-    label: "Seedream 4.5 Edit",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/bytedance/seedream/v4.5/edit", "1:1"),
-    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedream/v4.5/edit", [
-      "1:1",
-      "2:3",
-      "3:2",
-      "3:4",
-      "4:3",
-      "4:5",
-      "5:4",
-      "9:16",
-      "16:9",
-    ]),
-    pricingStrategy: "seedream-per-image",
-    defaultResolution: contractDefaultResolution("fal-ai/bytedance/seedream/v4.5/edit", "auto_2K"),
-    allowedResolutions: contractAllowedResolutions("fal-ai/bytedance/seedream/v4.5/edit", [
-      "auto_2K",
-      "auto_4K",
-    ]),
-    supportsImageToImage: true,
-  },
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
-    id: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-    label: "Seedream 5 Lite",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/bytedance/seedream/v5/lite/text-to-image", "1:1"),
-    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedream/v5/lite/text-to-image", [
-      "1:1",
-      "2:3",
-      "3:2",
-      "3:4",
-      "4:3",
-      "4:5",
-      "5:4",
-      "9:16",
-      "16:9",
-    ]),
-    pricingStrategy: "seedream-5-lite-per-image",
-    defaultResolution: contractDefaultResolution(
-      "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-      "auto_2K"
-    ),
-    allowedResolutions: contractAllowedResolutions(
-      "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-      ["auto_2K", "auto_3K"]
-    ),
-    supportsTextToImage: true,
-  },
-  "fal-ai/bytedance/seedream/v5/lite/edit": {
-    id: "fal-ai/bytedance/seedream/v5/lite/edit",
-    label: "Seedream 5 Lite Edit",
-    provider: "fal",
-    mediaType: "image",
-    defaultAspect: contractDefaultAspect("fal-ai/bytedance/seedream/v5/lite/edit", "1:1"),
-    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedream/v5/lite/edit", [
-      "1:1",
-      "2:3",
-      "3:2",
-      "3:4",
-      "4:3",
-      "4:5",
-      "5:4",
-      "9:16",
-      "16:9",
-    ]),
-    pricingStrategy: "seedream-5-lite-per-image",
-    defaultResolution: contractDefaultResolution(
-      "fal-ai/bytedance/seedream/v5/lite/edit",
-      "auto_2K"
-    ),
-    allowedResolutions: contractAllowedResolutions("fal-ai/bytedance/seedream/v5/lite/edit", [
-      "auto_2K",
-      "auto_3K",
-    ]),
-    supportsImageToImage: true,
-  },
-  "fal-ai/kling-video/v3/pro/text-to-video": {
-    id: "fal-ai/kling-video/v3/pro/text-to-video",
-    label: "Kling 3.0",
-    provider: "fal",
-    mediaType: "video",
-    defaultAspect: contractDefaultAspect("fal-ai/kling-video/v3/pro/text-to-video", "16:9"),
-    allowedAspects: contractAllowedAspects("fal-ai/kling-video/v3/pro/text-to-video", [
-      "16:9",
-      "9:16",
-      "1:1",
-    ]),
-    pricingStrategy: "kling-3-per-second",
-    defaultDurationSeconds: contractDefaultDuration("fal-ai/kling-video/v3/pro/text-to-video", 10),
-    defaultAudio: true,
-    allowedDurations: contractAllowedDurations(
-      "fal-ai/kling-video/v3/pro/text-to-video",
-      [5, 6, 7, 8, 9, 10]
-    ),
-  },
-  "fal-ai/kling-video/v3/pro/image-to-video": {
-    id: "fal-ai/kling-video/v3/pro/image-to-video",
-    label: "Kling 3.0",
-    provider: "fal",
-    mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect("fal-ai/kling-video/v3/pro/image-to-video", "16:9"),
-    allowedAspects: contractAllowedAspects("fal-ai/kling-video/v3/pro/image-to-video", [
-      "16:9",
-      "9:16",
-      "1:1",
-    ]),
-    pricingStrategy: "kling-3-per-second",
-    defaultDurationSeconds: contractDefaultDuration("fal-ai/kling-video/v3/pro/image-to-video", 10),
-    defaultResolution: contractDefaultResolution(
-      "fal-ai/kling-video/v3/pro/image-to-video",
-      "1080p"
-    ),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions("fal-ai/kling-video/v3/pro/image-to-video", [
-      "720p",
-      "1080p",
-    ]),
-    allowedDurations: contractAllowedDurations(
-      "fal-ai/kling-video/v3/pro/image-to-video",
-      [5, 6, 7, 8, 9, 10]
-    ),
-    supportsImageToVideo: true,
-  },
-  "fal-ai/veo3.1": {
-    id: "fal-ai/veo3.1",
-    label: "Google Veo 3.1",
-    provider: "fal",
-    mediaType: "video",
-    defaultAspect: contractDefaultAspect("fal-ai/veo3.1", "16:9"),
-    allowedAspects: contractAllowedAspects("fal-ai/veo3.1", ["16:9", "9:16"]),
-    pricingStrategy: "veo-3-per-second",
-    defaultDurationSeconds: contractDefaultDuration("fal-ai/veo3.1", 8),
-    defaultResolution: contractDefaultResolution("fal-ai/veo3.1", "1080p"),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions("fal-ai/veo3.1", ["720p", "1080p", "4k"]),
-    allowedDurations: contractAllowedDurations("fal-ai/veo3.1", [4, 6, 8]),
-  },
-  "fal-ai/veo3.1/first-last-frame-to-video": {
-    id: "fal-ai/veo3.1/first-last-frame-to-video",
-    label: "Google Veo 3.1 (First/Last Frame)",
-    provider: "fal",
-    mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect("fal-ai/veo3.1/first-last-frame-to-video", "auto"),
-    allowedAspects: contractAllowedAspects("fal-ai/veo3.1/first-last-frame-to-video", [
-      "auto",
-      "16:9",
-      "9:16",
-    ]),
-    pricingStrategy: "veo-3-per-second",
-    defaultDurationSeconds: contractDefaultDuration("fal-ai/veo3.1/first-last-frame-to-video", 8),
-    defaultResolution: contractDefaultResolution("fal-ai/veo3.1/first-last-frame-to-video", "720p"),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions("fal-ai/veo3.1/first-last-frame-to-video", [
-      "720p",
-      "1080p",
-      "4k",
-    ]),
-    allowedDurations: contractAllowedDurations(
-      "fal-ai/veo3.1/first-last-frame-to-video",
-      [4, 6, 8]
-    ),
-  },
-  "fal-ai/veo3.1/image-to-video": {
-    id: "fal-ai/veo3.1/image-to-video",
-    label: "Google Veo 3.1 (Image to Video)",
-    provider: "fal",
-    mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect("fal-ai/veo3.1/image-to-video", "auto"),
-    allowedAspects: contractAllowedAspects("fal-ai/veo3.1/image-to-video", [
-      "auto",
-      "16:9",
-      "9:16",
-    ]),
-    pricingStrategy: "veo-3-per-second",
-    defaultDurationSeconds: contractDefaultDuration("fal-ai/veo3.1/image-to-video", 8),
-    defaultResolution: contractDefaultResolution("fal-ai/veo3.1/image-to-video", "720p"),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions("fal-ai/veo3.1/image-to-video", [
-      "720p",
-      "1080p",
-      "4k",
-    ]),
-    allowedDurations: contractAllowedDurations("fal-ai/veo3.1/image-to-video", [4, 6, 8]),
-    supportsImageToVideo: true,
-  },
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
-    id: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-    label: "Seedance 1.5 Pro",
-    provider: "fal",
-    mediaType: "video",
-    defaultAspect: contractDefaultAspect(
-      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-      "16:9"
-    ),
-    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedance/v1.5/pro/text-to-video", [
-      "16:9",
-      "4:3",
-      "1:1",
-      "3:4",
-      "9:16",
-      "21:9",
-    ]),
-    pricingStrategy: "seedance-1.5-per-second",
-    defaultDurationSeconds: contractDefaultDuration(
-      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-      10
-    ),
-    defaultResolution: contractDefaultResolution(
-      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-      "1080p"
-    ),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions(
-      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-      ["480p", "720p", "1080p"]
-    ),
-    allowedDurations: contractAllowedDurations(
-      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-      [4, 5, 6, 7, 8, 9, 10, 11, 12]
-    ),
-  },
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": {
-    id: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-    label: "Seedance 1.5 Pro",
-    provider: "fal",
-    mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect(
-      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-      "16:9"
-    ),
-    allowedAspects: contractAllowedAspects("fal-ai/bytedance/seedance/v1.5/pro/image-to-video", [
-      "16:9",
-      "4:3",
-      "1:1",
-      "3:4",
-      "9:16",
-      "21:9",
-    ]),
-    pricingStrategy: "seedance-1.5-per-second",
-    defaultDurationSeconds: contractDefaultDuration(
-      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-      5
-    ),
-    minDurationSeconds: 4,
-    maxDurationSeconds: 12,
-    defaultResolution: contractDefaultResolution(
-      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-      "1080p"
-    ),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions(
-      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-      ["480p", "720p", "1080p"]
-    ),
-    allowedDurations: contractAllowedDurations(
-      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-      [4, 5, 6, 7, 8, 9, 10, 11, 12]
-    ),
-    supportsImageToVideo: true,
-  },
-  [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
-    id: KIE_VEO_31_FAST_I2V_MODEL_ID,
-    label: "Veo 3.1 Fast I2V (Kie)",
-    provider: "kie",
-    mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect(KIE_VEO_31_FAST_I2V_MODEL_ID, "16:9"),
-    allowedAspects: contractAllowedAspects(KIE_VEO_31_FAST_I2V_MODEL_ID, ["16:9", "9:16"]),
-    pricingStrategy: "veo-3-per-second",
-    defaultDurationSeconds: contractDefaultDuration(KIE_VEO_31_FAST_I2V_MODEL_ID, 5),
-    minDurationSeconds: 5,
-    maxDurationSeconds: 8,
-    defaultResolution: contractDefaultResolution(KIE_VEO_31_FAST_I2V_MODEL_ID, "720p"),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions(KIE_VEO_31_FAST_I2V_MODEL_ID, ["720p", "1080p"]),
-    allowedDurations: contractAllowedDurations(KIE_VEO_31_FAST_I2V_MODEL_ID, [5, 8]),
-    supportsImageToVideo: true,
-  },
-  [KIE_KLING_30_MODEL_ID]: {
-    id: KIE_KLING_30_MODEL_ID,
-    label: "Kling 3.0 (Kie)",
-    provider: "kie",
-    mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect(KIE_KLING_30_MODEL_ID, "16:9"),
-    allowedAspects: contractAllowedAspects(KIE_KLING_30_MODEL_ID, ["16:9", "9:16", "1:1"]),
-    pricingStrategy: "kling-3-per-second",
-    defaultDurationSeconds: contractDefaultDuration(KIE_KLING_30_MODEL_ID, 10),
-    minDurationSeconds: 5,
-    maxDurationSeconds: 15,
-    defaultResolution: contractDefaultResolution(KIE_KLING_30_MODEL_ID, "1080p"),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions(KIE_KLING_30_MODEL_ID, ["720p", "1080p"]),
-    allowedDurations: contractAllowedDurations(KIE_KLING_30_MODEL_ID, [5, 10]),
-    supportsImageToVideo: true,
-  },
-  [KIE_SEEDANCE_15_PRO_MODEL_ID]: {
-    id: KIE_SEEDANCE_15_PRO_MODEL_ID,
-    label: "Seedance 1.5 Pro (Kie)",
-    provider: "kie",
-    mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect(KIE_SEEDANCE_15_PRO_MODEL_ID, "1:1"),
-    allowedAspects: contractAllowedAspects(KIE_SEEDANCE_15_PRO_MODEL_ID, [
-      "1:1",
-      "21:9",
-      "4:3",
-      "3:4",
-      "16:9",
-      "9:16",
-    ]),
-    pricingStrategy: "seedance-1.5-per-second",
-    defaultDurationSeconds: contractDefaultDuration(KIE_SEEDANCE_15_PRO_MODEL_ID, 4),
-    minDurationSeconds: 4,
-    maxDurationSeconds: 12,
-    defaultResolution: contractDefaultResolution(KIE_SEEDANCE_15_PRO_MODEL_ID, "720p"),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions(KIE_SEEDANCE_15_PRO_MODEL_ID, [
-      "480p",
-      "720p",
-      "1080p",
-    ]),
-    allowedDurations: contractAllowedDurations(KIE_SEEDANCE_15_PRO_MODEL_ID, [4, 8, 12]),
-    supportsImageToVideo: true,
-  },
-  [KIE_SEEDANCE_2_MODEL_ID]: {
-    id: KIE_SEEDANCE_2_MODEL_ID,
-    label: "Seedance 2.0 (Kie)",
-    provider: "kie",
-    mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect(KIE_SEEDANCE_2_MODEL_ID, "16:9"),
-    allowedAspects: contractAllowedAspects(KIE_SEEDANCE_2_MODEL_ID, [
-      "1:1",
-      "21:9",
-      "4:3",
-      "3:4",
-      "16:9",
-      "9:16",
-    ]),
-    pricingStrategy: "seedance-2-per-second",
-    defaultDurationSeconds: contractDefaultDuration(KIE_SEEDANCE_2_MODEL_ID, 5),
-    minDurationSeconds: 5,
-    maxDurationSeconds: 10,
-    defaultResolution: contractDefaultResolution(KIE_SEEDANCE_2_MODEL_ID, "1080p"),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions(KIE_SEEDANCE_2_MODEL_ID, ["720p", "1080p"]),
-    allowedDurations: contractAllowedDurations(KIE_SEEDANCE_2_MODEL_ID, [5, 10, 15]),
-    supportsImageToVideo: true,
-  },
-  [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
-    id: KIE_SEEDANCE_2_FAST_MODEL_ID,
-    label: "Seedance 2.0 Fast (Kie)",
-    provider: "kie",
-    mediaType: "image-to-video",
-    defaultAspect: contractDefaultAspect(KIE_SEEDANCE_2_FAST_MODEL_ID, "16:9"),
-    allowedAspects: contractAllowedAspects(KIE_SEEDANCE_2_FAST_MODEL_ID, [
-      "1:1",
-      "21:9",
-      "4:3",
-      "3:4",
-      "16:9",
-      "9:16",
-    ]),
-    pricingStrategy: "seedance-2-fast-per-second",
-    defaultDurationSeconds: contractDefaultDuration(KIE_SEEDANCE_2_FAST_MODEL_ID, 5),
-    minDurationSeconds: 5,
-    maxDurationSeconds: 15,
-    defaultResolution: contractDefaultResolution(KIE_SEEDANCE_2_FAST_MODEL_ID, "1080p"),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions(KIE_SEEDANCE_2_FAST_MODEL_ID, ["720p", "1080p"]),
-    allowedDurations: contractAllowedDurations(KIE_SEEDANCE_2_FAST_MODEL_ID, [5, 10, 15]),
-    supportsImageToVideo: true,
-  },
-  "gpt-5-nano": {
-    id: "gpt-5-nano",
-    label: "GPT-5 Nano",
-    provider: "openai",
-    mediaType: "text",
-    defaultAspect: contractDefaultAspect("gpt-5-nano", "text"),
-    allowedAspects: contractAllowedAspects("gpt-5-nano", []),
-    pricingStrategy: "gpt41nano-per-token",
-  },
-  ...Object.fromEntries(
-    listModelCatalogEntries()
-      .filter(isElevenLabsCatalogEntry)
-      .map((entry) => [entry.modelId, buildElevenLabsModelConfig(entry)])
-  ),
-};
+const registryConfigs: ModelConfig[] = listModelCatalogEntries()
+  .filter(isRegistryReadyCatalogEntry)
+  .map(buildModelConfig);
+
+const registry: Record<string, ModelConfig> = Object.fromEntries(
+  registryConfigs.map((config) => [config.id, config])
+);
 
 export const getModelConfig = (id: string): ModelConfig | null => registry[id] ?? null;
 

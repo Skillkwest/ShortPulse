@@ -36,6 +36,7 @@ import {
   type CreateCharacterLookOption,
   useCreateCharacterModeController,
 } from "./create/useCreateCharacterModeController";
+import type { PromptStepPulseLoadingState } from "./promptStep/types";
 import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -123,13 +124,14 @@ export type CreatePropertiesPanelProps = {
   activePulsePresetId?: CreatePulsePresetId | null;
   hasActivePulseSession?: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  pulseLoadingState?: PromptStepPulseLoadingState | null;
   onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => string | null | void;
   onPulsePresetStart?: (
     preset: CreatePulseResolvedPreset,
     options?: {
       pulseSessionInstanceId?: string | null;
     }
-  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
+  ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
   onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedPulsePresets?: readonly CreatePulseSavedPreset[];
@@ -146,33 +148,6 @@ type ComposeSendCardProps = {
   isGenerateDisabled?: boolean;
   guardrailReason?: string | null;
   beginnerMode?: boolean;
-};
-
-const getCreatePulseSessionBannerCopy = (
-  pulseWorkflowSession: AgentPulseWorkflowSession
-): {
-  ariaLabel: string;
-  statusLabel: string;
-  detail: string;
-} => {
-  if (pulseWorkflowSession.status === "completed") {
-    return {
-      ariaLabel: "Completed pulse session",
-      statusLabel: "Pulse complete",
-      detail: pulseWorkflowSession.lastArtifact?.trim().length
-        ? "Generate will use the completed Pulse output."
-        : "Pulse completed. Review the final assistant output before generating.",
-    };
-  }
-
-  const currentStepLabel = pulseWorkflowSession.currentStepLabel?.trim();
-  return {
-    ariaLabel: "Active pulse session",
-    statusLabel: "Pulse active",
-    detail: currentStepLabel
-      ? `Current step: ${currentStepLabel}.`
-      : "Pulse is guiding the next step.",
-  };
 };
 
 type CharacterPickerModalProps = {
@@ -324,6 +299,7 @@ const CharacterLookDropdown = ({
 };
 
 const EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX = 520;
+const EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX = 280;
 
 const CharacterPickerModal = ({
   isOpen,
@@ -697,6 +673,7 @@ export function CreatePropertiesPanel({
   activePulsePresetId,
   hasActivePulseSession = Boolean(activePulsePresetId),
   pulseWorkflowSession = null,
+  pulseLoadingState = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
   selectedPulsePresetIds,
@@ -892,6 +869,7 @@ export function CreatePropertiesPanel({
     outputGenerateCostCredits,
     outputGenerateGuardrailReason: disableOutputGenerate ? guardrailReason : null,
     hideOutputGenerateControls: isPulseCreateMode,
+    pulseLoadingState: isPulseCreateMode ? pulseLoadingState : null,
     chatOnly: true,
     chatPromptSaveButtonClassName: "create-chat-pin-btn",
     chatPromptSaveButtonUnstyled: true,
@@ -912,35 +890,6 @@ export function CreatePropertiesPanel({
     onToggleCollapse: () => toggleStep("prompt"),
     beginnerMode,
   };
-  // Keep Pulse session chrome out of the preserved empty-shell state. The session banner only
-  // appears once the conversation has real transcript history, so it cannot displace the
-  // authored spacer frames or title before the workflow visibly starts.
-  const pulseSessionBanner =
-    isPulseCreateMode && pulseWorkflowSession && agentMessages.length > 0
-      ? (() => {
-          const { ariaLabel, statusLabel, detail } =
-            getCreatePulseSessionBannerCopy(pulseWorkflowSession);
-          return (
-            <div
-              className={`create-expert-pulse-session-banner create-expert-pulse-session-banner--${pulseWorkflowSession.status}`}
-              aria-label={ariaLabel}
-            >
-              <div className="create-expert-pulse-session-banner-head">
-                <div className="create-expert-pulse-session-banner-summary">
-                  <span className="create-expert-pulse-session-banner-status">{statusLabel}</span>
-                  <p className="create-expert-pulse-session-banner-detail">{detail}</p>
-                </div>
-                {pulseWorkflowSession.currentStepLabel?.trim() ? (
-                  <span className="create-expert-pulse-session-banner-step">
-                    {pulseWorkflowSession.currentStepLabel.trim()}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          );
-        })()
-      : null;
-
   const expertPromptStepProps: React.ComponentProps<typeof PromptStep> = {
     ...sharedPromptStepProps,
     stepNumber: "1",
@@ -964,10 +913,11 @@ export function CreatePropertiesPanel({
     assistantMessagePresentation: isPulseCreateMode ? "pulse_guided" : "default",
     chatComposerOverlayEnabled: true,
     stackTrailingComposerControls: true,
-    agentInputMaxHeightPx: EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX,
+    agentInputMaxHeightPx: isPulseCreateMode
+      ? EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX
+      : EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX,
     agentInputCollapseOnBlur: true,
     hideChatModeToggle: isPulseCreateMode,
-    chatSessionBanner: pulseSessionBanner,
     composerLeadingContent: isPulseCreateMode ? null : (
       <StylesControl
         isOpen={isStylesPanelOpen}

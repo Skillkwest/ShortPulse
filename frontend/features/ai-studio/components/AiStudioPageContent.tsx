@@ -932,6 +932,7 @@ export function AiStudioPageContent({
     maxLeftWidthPx,
     minRightWidthPx,
     defaultLeftRatio,
+    minWidthResetKey: projectId,
   });
   const mediaLibraryExpandedWidthRef = React.useRef<number | null>(null);
   const [isMediaLibraryPanelExpanded, setIsMediaLibraryPanelExpanded] = React.useState(false);

@@ -1,3 +1,5 @@
+import type { CanvasResizeHandle } from "./canvasTypes";
+
 /**
  * Shared pointer interaction primitives for Canvas viewport hooks.
  */
@@ -31,6 +33,20 @@ export type CanvasPointerSession =
       startLocalY: number;
       startWorldX: number;
       startWorldY: number;
+    }
+  | {
+      kind: "text-resize";
+      pointerId: number;
+      itemId: string;
+      handle: CanvasResizeHandle;
+      startClientX: number;
+      startClientY: number;
+      startX: number;
+      startY: number;
+      startWidth: number;
+      startHeight: number;
+      startRightX: number;
+      startBottomY: number;
     };
 
 /**

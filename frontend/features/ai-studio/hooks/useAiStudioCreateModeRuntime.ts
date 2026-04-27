@@ -11,6 +11,7 @@ import {
   type CreatePulseSavedPreset,
 } from "../components/create/createPulsePresets";
 import { createPulseSessionInstanceId } from "../logic/pulseSessionIdentity";
+import { normalizePulseSessionInstanceId } from "../logic/pulseSessionState";
 
 export type AiStudioExpertCreateMode = "standard" | "pulse";
 
@@ -128,8 +129,7 @@ export const useAiStudioCreateModeRuntime = ({
       }
       if (
         activeCreatePulsePresetIdState === nextPresetId &&
-        typeof pulseSessionInstanceIdState === "string" &&
-        pulseSessionInstanceIdState.trim().length > 0
+        normalizePulseSessionInstanceId(pulseSessionInstanceIdState)
       ) {
         return null;
       }

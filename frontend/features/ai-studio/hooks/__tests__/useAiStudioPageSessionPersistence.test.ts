@@ -6,6 +6,7 @@ import { useAiStudioPageSessionPersistence } from "../useAiStudioPageSessionPers
 import { useAiStudioProjectWorkspacePersistenceController } from "../useAiStudioProjectWorkspacePersistenceController";
 import { useAiStudioSessionPersistenceController } from "../useAiStudioSessionPersistenceController";
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
+import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 
 vi.mock("../useAiStudioProjectWorkspacePersistenceController", () => ({
   useAiStudioProjectWorkspacePersistenceController: vi.fn(() => ({
@@ -254,7 +255,7 @@ describe("useAiStudioPageSessionPersistence", () => {
         expertEdit: null,
       })
     );
-    const completedPulseWorkflowSession = {
+    const completedPulseWorkflowSession: AgentPulseWorkflowSession = {
       presetId: "story_builder",
       status: "completed",
       currentStepIndex: 4,
@@ -275,11 +276,11 @@ describe("useAiStudioPageSessionPersistence", () => {
           {
             id: "assistant-1",
             role: "assistant",
-            content: completedPulseWorkflowSession.lastArtifact,
+            content: completedPulseWorkflowSession.lastArtifact ?? "",
           },
         ],
         agentInput: "",
-        latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
+        latestAgentPrompt: completedPulseWorkflowSession.lastArtifact ?? null,
         promptOrigin: "agent",
         chatModeEnabled: true,
         pulseWorkflowSession: completedPulseWorkflowSession,
@@ -298,11 +299,11 @@ describe("useAiStudioPageSessionPersistence", () => {
               {
                 id: "assistant-1",
                 role: "assistant",
-                content: completedPulseWorkflowSession.lastArtifact,
+                content: completedPulseWorkflowSession.lastArtifact ?? "",
               },
             ],
             input: "",
-            latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
+            latestAgentPrompt: completedPulseWorkflowSession.lastArtifact ?? null,
             promptOrigin: "agent",
             chatModeEnabled: true,
             pulseWorkflowSession: completedPulseWorkflowSession,

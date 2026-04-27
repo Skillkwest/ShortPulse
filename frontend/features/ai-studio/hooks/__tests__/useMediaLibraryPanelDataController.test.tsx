@@ -329,7 +329,7 @@ describe("useMediaLibraryPanelDataController", () => {
 
   it("uses the minimal media list profile for dedicated image and video tabs", async () => {
     const { rerender } = renderHook(
-      ({ itemType }) =>
+      ({ itemType }: { itemType: "images" | "videos" }) =>
         useMediaLibraryPanelDataController({
           projectId: "project-1",
           activeFolderId: "all_items",
@@ -342,7 +342,7 @@ describe("useMediaLibraryPanelDataController", () => {
         }),
       {
         initialProps: {
-          itemType: "images" as const,
+          itemType: "images" as "images" | "videos",
         },
       }
     );

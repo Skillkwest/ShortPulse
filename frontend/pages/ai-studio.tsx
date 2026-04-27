@@ -6,10 +6,11 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
+import { AiStudioProjectEntryState } from "../features/ai-studio/components/AiStudioProjectEntryState";
 import {
-  AiStudioProjectEntryState,
-  type AiStudioProjectEntryPhase,
-} from "../features/ai-studio/components/AiStudioProjectEntryState";
+  normalizeAiStudioProjectName,
+  resolveProjectEntryPhase,
+} from "../features/ai-studio/logic/aiStudioPageProjectState";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
@@ -102,40 +103,6 @@ const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
-const normalizeAiStudioProjectName = (value: string | null | undefined): string | null => {
-  if (typeof value !== "string") return null;
-  const normalized = value.replace(/\s+/g, " ").trim();
-  return normalized ? normalized.slice(0, 120) : null;
-};
-
-const resolveProjectEntryPhase = ({
-  projectStatus,
-  projectRouteRequested,
-  projectBootstrapApplied,
-  workspaceRestoreCandidate,
-}: {
-  projectStatus: "idle" | "loading" | "ready" | "error";
-  projectRouteRequested: boolean;
-  projectBootstrapApplied: boolean;
-  workspaceRestoreCandidate: {
-    status: "idle" | "loading" | "ready" | "error";
-    result?: "idle" | "loading" | "found_snapshot" | "no_snapshot" | "load_failed";
-  };
-}): AiStudioProjectEntryPhase => {
-  if (projectStatus !== "ready") return "resolving-project";
-  if (projectBootstrapApplied) return "restoring-workspace";
-  if (workspaceRestoreCandidate.status !== "ready") return "loading-workspace";
-  if (workspaceRestoreCandidate.result === "no_snapshot") return "preparing-empty-workspace";
-  if (
-    workspaceRestoreCandidate.result === "found_snapshot" ||
-    workspaceRestoreCandidate.result === "idle" ||
-    workspaceRestoreCandidate.result === "loading"
-  ) {
-    return "restoring-workspace";
-  }
-  if (projectRouteRequested) return "loading-workspace";
-  return "resolving-project";
-};
 export default function AiStudioPage() {
   const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
@@ -768,6 +735,8 @@ export default function AiStudioPage() {
     agentBootstrapReady,
     agentMessages,
     agentError,
+    agentIsSending,
+    agentUiBusy,
     agentBusy,
     agentInput,
     directOpenAiBypassEnabled,
@@ -1251,6 +1220,8 @@ export default function AiStudioPage() {
     chatModeEnabled,
     directOpenAiBypassEnabled,
     agentBusy,
+    agentIsSending,
+    agentUiBusy,
     agentAttachmentError,
     agentError,
     stagedAgentPrompt,

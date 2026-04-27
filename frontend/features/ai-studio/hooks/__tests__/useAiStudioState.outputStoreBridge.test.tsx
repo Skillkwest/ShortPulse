@@ -234,7 +234,7 @@ describe("useAiStudioState output store bridge", () => {
       ({ expertCreateMode }: { expertCreateMode: "standard" | "pulse" }) =>
         useAiStudioState({ expertCreateMode }),
       {
-        initialProps: { expertCreateMode: "standard" as const },
+        initialProps: { expertCreateMode: "standard" as "standard" | "pulse" },
         wrapper: strictWrapper,
       }
     );

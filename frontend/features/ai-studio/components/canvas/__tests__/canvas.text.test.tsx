@@ -1,6 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CanvasHarness, createTransfer, mockViewportRect } from "./canvasTestHarness";
+import {
+  CanvasHarness,
+  createTransfer,
+  mockViewportRect,
+  SeededCanvasHarness,
+} from "./canvasTestHarness";
 
 describe("Canvas text behavior", () => {
   it("pins a text reference to the grid via the pin button", async () => {
@@ -157,6 +162,216 @@ describe("Canvas text behavior", () => {
     expect(screen.getByText("Edited note")).toBeInTheDocument();
     expect(screen.queryByText("Original note")).not.toBeInTheDocument();
     expect(screen.queryByTestId("canvas-text-edit-input")).not.toBeInTheDocument();
+  });
+
+  it("renders resize handles for a selected text item and hides them while editing", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Resizable note",
+      }),
+      clientX: 260,
+      clientY: 170,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    expect(screen.getByTestId("canvas-text-resize-handle-ne")).toBeInTheDocument();
+    expect(screen.getByTestId("canvas-text-resize-handle-sw")).toBeInTheDocument();
+
+    fireEvent.doubleClick(item);
+
+    expect(screen.getByTestId("canvas-text-edit-input")).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-text-resize-handle-ne")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-text-resize-handle-sw")).not.toBeInTheDocument();
+  });
+
+  it("resizes a text reference freeform from the southeast handle without moving its top-left corner", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/plain": "Resize east",
+      }),
+      clientX: 260,
+      clientY: 170,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const startX = Number(item.getAttribute("data-x"));
+    const startY = Number(item.getAttribute("data-y"));
+    const startWidth = Number(item.getAttribute("data-width"));
+    const startHeight = Number(item.getAttribute("data-height"));
+    const handle = screen.getByTestId("canvas-text-resize-handle-se");
+
+    fireEvent.pointerDown(handle, {
+      button: 0,
+      pointerId: 701,
+      clientX: 390,
+      clientY: 230,
+    });
+    fireEvent.pointerMove(viewport, {
+      pointerId: 701,
+      clientX: 470,
+      clientY: 290,
+    });
+    fireEvent.pointerUp(viewport, {
+      button: 0,
+      pointerId: 701,
+      clientX: 470,
+      clientY: 290,
+    });
+
+    expect(Number(item.getAttribute("data-width"))).toBeGreaterThan(startWidth);
+    expect(Number(item.getAttribute("data-height"))).toBeGreaterThan(startHeight);
+    expect(Number(item.getAttribute("data-x"))).toBe(startX);
+    expect(Number(item.getAttribute("data-y"))).toBe(startY);
+  });
+
+  it("resizes a text reference freeform from the northwest handle and shifts its top-left corner", async () => {
+    render(
+      <SeededCanvasHarness
+        initialSessionState={{
+          items: [
+            {
+              id: "text-freeform",
+              kind: "text",
+              x: 130,
+              y: 90,
+              z: 1,
+              selected: true,
+              outputId: null,
+              sourceSurface: null,
+              text: "Resize west",
+              width: 260,
+              height: 180,
+            },
+          ],
+          draftTextEntry: null,
+          textEditSession: null,
+          draftOwnerInstanceId: null,
+          textEditOwnerInstanceId: null,
+          mainCamera: { x: 0, y: 0, zoom: 1 },
+          railCamera: { x: 0, y: 0, zoom: 1 },
+        }}
+      />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const item = await screen.findByTestId("canvas-item-text-freeform");
+    const startX = Number(item.getAttribute("data-x"));
+    const startY = Number(item.getAttribute("data-y"));
+    const startWidth = Number(item.getAttribute("data-width"));
+    const startHeight = Number(item.getAttribute("data-height"));
+    const handle = screen.getByTestId("canvas-text-resize-handle-nw");
+
+    fireEvent.pointerDown(handle, {
+      button: 0,
+      pointerId: 702,
+      clientX: 130,
+      clientY: 110,
+    });
+    fireEvent.pointerMove(viewport, {
+      pointerId: 702,
+      clientX: 180,
+      clientY: 150,
+    });
+    fireEvent.pointerUp(viewport, {
+      button: 0,
+      pointerId: 702,
+      clientX: 180,
+      clientY: 150,
+    });
+
+    expect(Number(item.getAttribute("data-width"))).toBeLessThan(startWidth);
+    expect(Number(item.getAttribute("data-height"))).toBeLessThan(startHeight);
+    expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
+    expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+  });
+
+  it("does not rewrite selection on other canvas items when a text resize starts", async () => {
+    render(
+      <SeededCanvasHarness
+        initialSessionState={{
+          items: [
+            {
+              id: "text-1",
+              kind: "text",
+              x: 120,
+              y: 80,
+              z: 2,
+              selected: true,
+              outputId: null,
+              sourceSurface: null,
+              text: "Resizable note",
+              width: 260,
+              height: 160,
+            },
+            {
+              id: "audio-1",
+              kind: "audio",
+              x: 420,
+              y: 140,
+              z: 3,
+              selected: true,
+              outputId: null,
+              sourceSurface: null,
+              mediaId: "media-audio-1",
+              audioUrl: "https://example.com/reference-audio.mp3",
+              title: "Reference audio",
+              durationMs: 4_500,
+              waveformPeaks: [20, 40, 60, 45, 30],
+              width: 160,
+              height: 200,
+            },
+          ],
+          draftTextEntry: null,
+          textEditSession: null,
+          draftOwnerInstanceId: null,
+          textEditOwnerInstanceId: null,
+          mainCamera: { x: 0, y: 0, zoom: 1 },
+          railCamera: { x: 0, y: 0, zoom: 1 },
+        }}
+      />
+    );
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    const textItem = await screen.findByTestId("canvas-item-text-1");
+    const audioItem = screen.getByTestId("canvas-item-audio-1");
+    const audioStartX = audioItem.getAttribute("data-x");
+    const audioStartY = audioItem.getAttribute("data-y");
+    expect(textItem.getAttribute("data-selected")).toBe("true");
+    expect(audioItem.getAttribute("data-selected")).toBe("true");
+
+    const handle = screen.getByTestId("canvas-text-resize-handle-ne");
+    fireEvent.pointerDown(handle, {
+      button: 0,
+      pointerId: 703,
+      clientX: 380,
+      clientY: 90,
+    });
+    fireEvent.pointerMove(viewport, {
+      pointerId: 703,
+      clientX: 430,
+      clientY: 90,
+    });
+    fireEvent.pointerUp(viewport, {
+      button: 0,
+      pointerId: 703,
+      clientX: 430,
+      clientY: 90,
+    });
+
+    expect(textItem.getAttribute("data-selected")).toBe("true");
+    expect(audioItem.getAttribute("data-selected")).toBe("true");
+    expect(audioItem.getAttribute("data-x")).toBe(audioStartX);
+    expect(audioItem.getAttribute("data-y")).toBe(audioStartY);
   });
 
   it("deletes a reference when right-clicking the canvas item", async () => {

@@ -15,7 +15,6 @@ import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
   runStudioAgentSafetyInputPrecheck,
 } from "../agent-runtime/studioAgentSafetyInputPrecheck";
-import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "../agent-runtime/studioAgentFailurePolicy";
 import { resolveSafetyEnvironment } from "../agent-runtime/safetyPolicy/decisionEngine";
 import { buildAgentContext } from "./logic/contextBuilder";
 import { normalizeErrorText } from "../../lib/errorText";
@@ -25,15 +24,17 @@ import {
   isClientInputPrecheckEnabled,
   resolveClientSafetyModality,
   resolveClientSafetyProfileId,
-  resolveSafetyRefusalText,
 } from "./agentClientSafety";
-import { normalizeActions } from "./client/actionNormalizer";
 import {
   appendAssistantMessage,
   appendUiMessage,
   buildApiMessagesForTurn,
   updateUiMessageById,
 } from "./client/messageStore";
+import {
+  resolveStudioAgentTransportFailure,
+  resolveStudioAgentTransportSuccess,
+} from "./client/transportResultResolution";
 import { ensureSessionKey, persistSessionKey, randomId } from "./client/sessionController";
 import { sendStudioAgentTurn } from "./client/studioAgentTransport";
 import {
@@ -120,6 +121,7 @@ export const useAiAgent = ({
         actions: undefined,
         workflowSession: null,
         discarded: true,
+        errorText: null,
       };
       if (!enabled) {
         setError("Agent is disabled");
@@ -223,156 +225,36 @@ export const useAiAgent = ({
           return discardedResult;
         }
         if (!transportResult.ok) {
-          const machineDecision = transportResult.parsedError?.decision;
-          const machineOutcomeClass = transportResult.parsedError?.outcome_class;
-          if (machineDecision === "refuse") {
-            const refusalText =
-              resolveSafetyRefusalText(
-                transportResult.parsedError?.message ??
-                  transportResult.parsedError?.detail ??
-                  transportResult.parsedError?.error
-              ) ?? SAFETY_REFUSAL_MESSAGE;
+          const failureResolution = resolveStudioAgentTransportFailure(transportResult);
+          if (failureResolution.assistantMessage) {
             const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
               id: createAgentMessageId("assistant"),
-              content: refusalText,
+              content: failureResolution.assistantMessage,
             });
             setMessages(nextAssistantMessages);
             messagesRef.current = nextAssistantMessages;
             return {
-              response: {
-                message: refusalText,
-                actions: undefined,
-                decision: "refuse",
-                outcome_class: machineOutcomeClass ?? "refusal_safety",
-                reason_code: transportResult.parsedError?.reason_code,
-                retryable: transportResult.parsedError?.retryable,
-                fallback_reason: transportResult.parsedError?.fallback_reason,
-              },
+              response: failureResolution.response,
               actions: undefined,
               workflowSession: null,
             };
           }
-          if (machineDecision === "allow" && machineOutcomeClass === "fallback_infra") {
-            const fallbackText = normalizeErrorText(
-              transportResult.parsedError?.message ??
-                transportResult.parsedError?.detail ??
-                transportResult.parsedError?.error,
-              {
-                fallback: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
-                maxLength: 160,
-              }
-            );
-            const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
-              id: createAgentMessageId("assistant"),
-              content: fallbackText,
-            });
-            setMessages(nextAssistantMessages);
-            messagesRef.current = nextAssistantMessages;
-            return {
-              response: {
-                message: fallbackText,
-                actions: undefined,
-                decision: "allow",
-                outcome_class: "fallback_infra",
-                reason_code: transportResult.parsedError?.reason_code,
-                retryable: transportResult.parsedError?.retryable,
-                fallback_reason: transportResult.parsedError?.fallback_reason,
-              },
-              actions: undefined,
-              workflowSession: null,
-            };
-          }
-          const refusalText = resolveSafetyRefusalText(
-            transportResult.parsedError ?? transportResult.detail
-          );
-          if (refusalText) {
-            const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
-              id: createAgentMessageId("assistant"),
-              content: refusalText,
-            });
-            setMessages(nextAssistantMessages);
-            messagesRef.current = nextAssistantMessages;
-            return {
-              response: { message: refusalText, actions: undefined },
-              actions: undefined,
-              workflowSession: null,
-            };
-          }
-
-          const structuredErrorText =
-            transportResult.parsedError?.message ??
-            transportResult.parsedError?.detail ??
-            transportResult.parsedError?.error;
-          setError(
-            normalizeErrorText(structuredErrorText ?? transportResult.detail, {
-              fallback: `Agent request failed (${transportResult.status})`,
-              maxLength: 320,
-            })
-          );
-          return { response: null, actions: undefined };
+          setError(failureResolution.errorText);
+          return {
+            response: null,
+            actions: undefined,
+            workflowSession: null,
+            errorText: failureResolution.errorText,
+            failureKind: "transport_error",
+          };
         }
 
         const data = transportResult.data;
-        const actions = normalizeActions(data?.actions);
-        const workflowSession =
-          data?.workflowSession && typeof data.workflowSession.presetId === "string"
-            ? ({
-                presetId: data.workflowSession.presetId.trim(),
-                status:
-                  data.workflowSession.status === "running" ||
-                  data.workflowSession.status === "awaiting_input" ||
-                  data.workflowSession.status === "completed"
-                    ? data.workflowSession.status
-                    : "idle",
-                currentStepIndex:
-                  typeof data.workflowSession.currentStepIndex === "number" &&
-                  Number.isFinite(data.workflowSession.currentStepIndex)
-                    ? Math.max(1, Math.trunc(data.workflowSession.currentStepIndex))
-                    : null,
-                currentStepLabel:
-                  typeof data.workflowSession.currentStepLabel === "string" &&
-                  data.workflowSession.currentStepLabel.trim().length > 0
-                    ? data.workflowSession.currentStepLabel.trim()
-                    : null,
-                currentStepPrompt:
-                  typeof data.workflowSession.currentStepPrompt === "string" &&
-                  data.workflowSession.currentStepPrompt.trim().length > 0
-                    ? data.workflowSession.currentStepPrompt.trim()
-                    : null,
-                collectedInputs: Array.isArray(data.workflowSession.collectedInputs)
-                  ? data.workflowSession.collectedInputs
-                      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
-                      .filter((entry) => entry.length > 0)
-                  : [],
-                lastArtifact:
-                  typeof data.workflowSession.lastArtifact === "string" &&
-                  data.workflowSession.lastArtifact.trim().length > 0
-                    ? data.workflowSession.lastArtifact.trim()
-                    : null,
-                finalArtifactSource:
-                  data.workflowSession.finalArtifactSource === "apply_prompt" ||
-                  data.workflowSession.finalArtifactSource === "chat_reply"
-                    ? data.workflowSession.finalArtifactSource
-                    : null,
-              } satisfies AgentPulseWorkflowSession)
-            : null;
-
-        if (data?.canonicalPrompt) {
-          canonicalPromptBySessionIdentityRef.current.set(
-            requestSessionIdentity,
-            sanitizeGenerationPromptText(data.canonicalPrompt)
-          );
-        } else if (actions?.applyPrompt) {
-          canonicalPromptBySessionIdentityRef.current.set(
-            requestSessionIdentity,
-            sanitizeGenerationPromptText(actions.applyPrompt ?? null)
-          );
+        const { actions, workflowSession, canonicalPrompt, assistantContent } =
+          resolveStudioAgentTransportSuccess(data);
+        if (canonicalPrompt) {
+          canonicalPromptBySessionIdentityRef.current.set(requestSessionIdentity, canonicalPrompt);
         }
-
-        // The agent’s role here is to refine/iterate prompts. Always surface the refined prompt in the chat thread.
-        const applyPromptText = sanitizeGenerationPromptText(actions?.applyPrompt ?? null) ?? "";
-        const messageText = sanitizeGenerationPromptText(data?.message ?? null) ?? "";
-        const assistantContent = applyPromptText || messageText;
 
         if (assistantContent) {
           const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
@@ -393,7 +275,16 @@ export const useAiAgent = ({
             maxLength: 320,
           })
         );
-        return { response: null, actions: undefined, workflowSession: null };
+        return {
+          response: null,
+          actions: undefined,
+          workflowSession: null,
+          errorText: normalizeErrorText(err instanceof Error ? err.message : err, {
+            fallback: "Agent request failed",
+            maxLength: 320,
+          }),
+          failureKind: "transport_error",
+        };
       } finally {
         setIsSending(false);
       }

@@ -613,9 +613,105 @@ describe("useAiStudioAgentOrchestration", () => {
       });
     });
 
-    expect(startResult).toBe("blocked_busy");
+    expect(startResult).toEqual({
+      status: "blocked_busy",
+      message: "Wait for the current Pulse step to finish before switching.",
+    });
     expect(sendToAgent).not.toHaveBeenCalled();
     expect(setPulseWorkflowSession).not.toHaveBeenCalled();
+  });
+
+  it("returns a scope-discard failure when the kickoff turn is invalidated by a session switch", async () => {
+    const setPulseWorkflowSession = vi.fn();
+    const sendToAgent = vi.fn(async () => ({
+      response: null,
+      actions: undefined,
+      workflowSession: null,
+      discarded: true,
+    }));
+    const params = createParams({
+      sendToAgent,
+      setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+      getAgentContext: vi.fn(() => ({})),
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    let startResult: Awaited<ReturnType<typeof result.current.handlePulsePresetStart>> | undefined;
+    await act(async () => {
+      startResult = await result.current.handlePulsePresetStart({
+        presetId: "story_builder",
+        label: "Story Builder",
+        description: "Story workflow",
+        systemInstructions: "workflow instructions",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        starterAssistantMessage: "Step 1 - Upload your characters.",
+        workflowStageHints: ["Upload Characters"],
+        outputMode: "chat_reply",
+        memoryPolicy: "session",
+        isCustom: false,
+        isBuiltIn: true,
+        isEditable: true,
+        hasUserOverride: false,
+      });
+    });
+
+    expect(startResult).toEqual({
+      status: "failed",
+      reason: "scope_discarded",
+      message: "Pulse session changed before kickoff completed. Try again.",
+    });
+    expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(null);
+  });
+
+  it("returns a transport failure reason when the kickoff turn fails before any response arrives", async () => {
+    const setPulseWorkflowSession = vi.fn();
+    const sendToAgent = vi.fn(async () => ({
+      response: null,
+      actions: undefined,
+      workflowSession: null,
+      errorText: "Agent request failed (502)",
+      failureKind: "transport_error" as const,
+    }));
+    const params = createParams({
+      sendToAgent,
+      setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+      getAgentContext: vi.fn(() => ({})),
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    let startResult: Awaited<ReturnType<typeof result.current.handlePulsePresetStart>> | undefined;
+    await act(async () => {
+      startResult = await result.current.handlePulsePresetStart({
+        presetId: "story_builder",
+        label: "Story Builder",
+        description: "Story workflow",
+        systemInstructions: "workflow instructions",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        starterAssistantMessage: "Step 1 - Upload your characters.",
+        workflowStageHints: ["Upload Characters"],
+        outputMode: "chat_reply",
+        memoryPolicy: "session",
+        isCustom: false,
+        isBuiltIn: true,
+        isEditable: true,
+        hasUserOverride: false,
+      });
+    });
+
+    expect(startResult).toEqual({
+      status: "failed",
+      reason: "transport_error",
+      message: "Agent request failed (502)",
+    });
+    expect(setPulseWorkflowSession).toHaveBeenLastCalledWith(null);
   });
 
   it("routes pulse activation turns through the target preset session namespace", async () => {
@@ -631,7 +727,7 @@ describe("useAiStudioAgentOrchestration", () => {
       activePulsePresetId: "story_builder",
       pulseSessionInstanceId: "pulse-session-1",
       resolvePulseSessionNamespace: (presetId, pulseSessionInstanceId) =>
-        `ai-studio:session-1::pulse-v2:${presetId}:${pulseSessionInstanceId}`,
+        `ai-studio:session-1::pulse:${presetId}:${pulseSessionInstanceId}`,
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -661,7 +757,7 @@ describe("useAiStudioAgentOrchestration", () => {
 
     expect(sendToAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        sessionNamespaceOverride: "ai-studio:session-1::pulse-v2:story_builder:pulse-session-1",
+        sessionNamespaceOverride: "ai-studio:session-1::pulse:story_builder:pulse-session-1",
         isolateHistory: true,
       })
     );

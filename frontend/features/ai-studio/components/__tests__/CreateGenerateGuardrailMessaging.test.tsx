@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { ComposeSendCard } from "../CreatePropertiesPanel";
 import { ExpertCreatePanelView } from "../create/ExpertCreatePanelView";
 import type { PromptStepProps } from "../PromptStep";
-import { ReferenceGenerateStep } from "../ReferenceGenerateStep";
 
 vi.mock("../../../../prefabs/agent", () => ({
   AgentGenerateButton: ({
@@ -119,44 +118,5 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.queryByLabelText("Active Pulse")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Pulse activation hint")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
-  });
-
-  it("shows the guardrail reason in reference-based generate steps", () => {
-    render(
-      <ReferenceGenerateStep
-        beginnerMode={false}
-        collapsed={false}
-        generateOrder={1}
-        generateBadge="4"
-        onExpand={vi.fn()}
-        onRegenerate={vi.fn()}
-        isGenerateDisabled
-        isBusy={false}
-        costCredits={15}
-        guardrailReason={message}
-      />
-    );
-
-    expect(screen.getByText(message)).toBeInTheDocument();
-  });
-
-  it("suppresses the guardrail reason in reference-based generate steps when requested", () => {
-    render(
-      <ReferenceGenerateStep
-        beginnerMode={false}
-        collapsed={false}
-        generateOrder={1}
-        generateBadge="4"
-        onExpand={vi.fn()}
-        onRegenerate={vi.fn()}
-        isGenerateDisabled
-        isBusy={false}
-        costCredits={15}
-        guardrailReason={message}
-        suppressInlineGuardrailReason
-      />
-    );
-
-    expect(screen.queryByText(message)).not.toBeInTheDocument();
   });
 });

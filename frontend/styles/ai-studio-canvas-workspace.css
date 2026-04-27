@@ -65,6 +65,7 @@
   position: absolute;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   overflow: hidden;
   border-radius: 16px;
   border: 1px solid rgba(232, 210, 168, 0.12);
@@ -199,8 +200,9 @@
 
 .canvas-scene-item--text {
   min-height: 120px;
-  padding: 16px 16px 0;
+  padding: 16px 16px 40px;
   position: relative;
+  overflow: visible;
 }
 
 .canvas-scene-item--draft {
@@ -208,12 +210,15 @@
 }
 
 .canvas-scene-item__text {
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 0;
   color: #f3ead8;
   font-size: 14px;
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
+  overflow: auto;
 }
 
 .canvas-scene-item__pin-button {
@@ -246,10 +251,54 @@
   background: rgba(255, 255, 255, 0.18);
 }
 
+.canvas-scene-item__resize-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 2px solid rgba(14, 17, 21, 0.9);
+  background: #f4eee2;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.24);
+  opacity: 0;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.canvas-scene-item--text.is-selected .canvas-scene-item__resize-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.canvas-scene-item__resize-handle.is-nw {
+  top: -7px;
+  left: -7px;
+  cursor: nwse-resize;
+}
+
+.canvas-scene-item__resize-handle.is-ne {
+  top: -7px;
+  right: -7px;
+  cursor: nesw-resize;
+}
+
+.canvas-scene-item__resize-handle.is-se {
+  right: -7px;
+  bottom: -7px;
+  cursor: nwse-resize;
+}
+
+.canvas-scene-item__resize-handle.is-sw {
+  left: -7px;
+  bottom: -7px;
+  cursor: nesw-resize;
+}
+
 .canvas-scene-item__text-editor,
 .canvas-scene-item__draft-input {
+  flex: 1 1 auto;
   width: 100%;
-  min-height: 88px;
+  min-height: 0;
+  height: 100%;
   margin: 0;
   padding: 0;
   border: none;
@@ -259,6 +308,7 @@
   line-height: 1.55;
   resize: none;
   outline: none;
+  overflow: auto;
 }
 
 .canvas-scene-item__text-editor {

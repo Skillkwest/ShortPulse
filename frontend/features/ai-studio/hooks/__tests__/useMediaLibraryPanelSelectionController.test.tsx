@@ -17,7 +17,6 @@ describe("useMediaLibraryPanelSelectionController", () => {
         activeFolderId: "all_items",
         currentUserIdRef: { current: "user-1" },
         onSelectMedia: vi.fn(),
-        onSelectPrompt: vi.fn(),
         refreshSignedUrl: vi.fn(async () => "https://signed.example.com/fallback.png"),
         signStoragePath: vi.fn(async () => null),
       })
@@ -56,7 +55,6 @@ describe("useMediaLibraryPanelSelectionController", () => {
         activeFolderId: "all_items",
         currentUserIdRef: { current: "user-1" },
         onSelectMedia: vi.fn(),
-        onSelectPrompt: vi.fn(),
         refreshSignedUrl: vi.fn(async () => null),
         signStoragePath: vi.fn(async () => null),
       })

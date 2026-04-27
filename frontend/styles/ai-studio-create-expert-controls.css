@@ -10,6 +10,13 @@
   margin-top: var(--create-expert-bottom-block-offset);
 }
 
+.create-expert-panel .create-expert-panel-shell.is-pulse-rail-active .create-expert-bottom-block {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .create-expert-controls-row {
   margin-top: 6px;
   justify-content: center;

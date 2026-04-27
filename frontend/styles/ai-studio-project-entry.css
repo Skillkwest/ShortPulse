@@ -11,29 +11,8 @@
   align-items: center;
   justify-content: center;
   padding: 48px 24px;
+  background: #0f1115;
   overflow: hidden;
-}
-
-.ai-studio-project-entry-page::before,
-.ai-studio-project-entry-page::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-}
-
-.ai-studio-project-entry-page::before {
-  background:
-    radial-gradient(circle at 18% 18%, rgba(37, 169, 191, 0.14), transparent 30%),
-    radial-gradient(circle at 80% 20%, rgba(52, 200, 255, 0.1), transparent 34%),
-    radial-gradient(circle at 50% 82%, rgba(255, 255, 255, 0.04), transparent 28%);
-}
-
-.ai-studio-project-entry-page::after {
-  background-image: radial-gradient(circle, rgba(201, 205, 214, 0.12) 1px, transparent 1.3px);
-  background-size: 26px 26px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.22), transparent 74%);
-  opacity: 0.22;
 }
 
 .ai-studio-project-entry-card {

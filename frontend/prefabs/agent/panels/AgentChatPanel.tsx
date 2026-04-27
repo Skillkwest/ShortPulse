@@ -82,6 +82,7 @@ type AgentChatPanelProps = {
   thinkingIndicatorPlacement?: "panel" | "history";
   dropHintText?: string;
   emptyStateText?: string;
+  historyFooterContent?: React.ReactNode;
   stagedAttachments?: AgentAttachment[];
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   isDropActive?: boolean;
@@ -120,6 +121,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   thinkingIndicatorPlacement = "panel",
   dropHintText = "Drag & drop reference cards here to attach context.",
   emptyStateText = "Drop references and send your next instruction.",
+  historyFooterContent,
   stagedAttachments = [],
   assistantBubbleMedia,
   isDropActive = false,
@@ -170,13 +172,30 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   const inlineOutputGenerateGuardrailReason = hideOutputGenerateControls
     ? null
     : outputGenerateGuardrailReason;
+  const latestMessage = messages[messages.length - 1] ?? null;
+  const latestMessageScrollKey = latestMessage
+    ? [
+        latestMessage.id ?? "",
+        latestMessage.role,
+        latestMessage.content.length,
+        latestMessage.attachments?.length ?? 0,
+      ].join(":")
+    : "";
+  const historyFooterVisible = Boolean(historyFooterContent);
 
   useEffect(() => {
     const messagesEl = messagesRef.current;
     if (messagesEl) {
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
-  }, [messages, stagedPrompt, stagedAttachments.length, shouldRenderThinkingInHistory]);
+  }, [
+    historyFooterVisible,
+    latestMessageScrollKey,
+    messages.length,
+    shouldRenderThinkingInHistory,
+    stagedAttachments.length,
+    stagedPrompt,
+  ]);
 
   useEffect(
     () => () => {
@@ -491,6 +510,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           stagedPrompt ||
           messages.length > 0 ||
           stagedAttachments.length > 0 ||
+          historyFooterContent ||
           shouldRenderThinkingInHistory ? (
             <div className="agent-messages" aria-live="polite" ref={messagesRef}>
               {introMessage ? (
@@ -693,6 +713,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   {renderAttachmentCards(stagedAttachments, { removable: true })}
                 </div>
               ) : null}
+              {historyFooterContent}
               {shouldRenderThinkingInHistory ? (
                 <div className="agent-message agent-assistant agent-thinking-message">
                   <p className="tiny agent-thinking agent-thinking--history" aria-live="polite">

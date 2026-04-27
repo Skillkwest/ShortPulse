@@ -6,6 +6,7 @@ import type { CanvasCamera, CanvasSceneItem } from "../components/canvas/canvasT
 import {
   CANVAS_AUDIO_ITEM_HEIGHT,
   CANVAS_AUDIO_ITEM_WIDTH,
+  CANVAS_TEXT_ITEM_MIN_HEIGHT,
 } from "../components/canvas/canvasGeometry";
 import type {
   CanvasDraftTextEntry,
@@ -67,6 +68,7 @@ type CanvasSceneItemSnapshotV1 =
       sourceSurface: ReferenceDragSourceSurface | null;
       text: string;
       width: number;
+      height: number;
     };
 
 export type AiStudioSessionCanvasSnapshotV1 = {
@@ -275,6 +277,10 @@ const sanitizeCanvasSceneItem = (
       sourceSurface: normalizeSourceSurface(value.sourceSurface),
       text: sanitizeCanvasText(value.text),
       width: Math.max(1, Math.round(asFiniteNumber(value.width, 260) * 100) / 100),
+      height: Math.max(
+        1,
+        Math.round(asFiniteNumber(value.height, CANVAS_TEXT_ITEM_MIN_HEIGHT) * 100) / 100
+      ),
     },
     skippedNonDurableImage: false,
   };
@@ -353,6 +359,7 @@ const toSnapshotSceneItems = (items: CanvasSceneItem[]): CanvasSceneItemSnapshot
             sourceSurface: item.sourceSurface ?? null,
             text: item.text,
             width: item.width,
+            height: item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT,
           }
   );
 
@@ -473,6 +480,10 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         sourceSurface: normalizeSourceSurface(record.sourceSurface),
         text: sanitizeCanvasText(record.text),
         width: Math.max(1, Math.round(asFiniteNumber(record.width, 260) * 100) / 100),
+        height: Math.max(
+          1,
+          Math.round(asFiniteNumber(record.height, CANVAS_TEXT_ITEM_MIN_HEIGHT) * 100) / 100
+        ),
       });
     }
   });

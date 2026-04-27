@@ -14,7 +14,7 @@ import type {
   CanvasPendingSceneItem,
   CanvasTextEditSession,
 } from "./canvasSceneState";
-import type { CanvasCamera, CanvasSceneItem } from "./canvasTypes";
+import type { CanvasCamera, CanvasResizeHandle, CanvasSceneItem } from "./canvasTypes";
 
 export type CanvasWorkspaceInstanceId = "main" | "rail";
 
@@ -64,6 +64,13 @@ export type CanvasPropertiesPanelProps = {
   onItemPointerMove: (id: string, event: PointerEvent<HTMLElement>) => void;
   onItemPointerUp: (id: string, event: PointerEvent<HTMLElement>) => void;
   onItemPointerCancel: (id: string, event: PointerEvent<HTMLElement>) => void;
+  isTextResizeEnabled?: boolean;
+  isTextResizeActive?: boolean;
+  onTextResizeHandlePointerDown?: (
+    id: string,
+    handle: CanvasResizeHandle,
+    event: PointerEvent<HTMLElement>
+  ) => void;
   isItemDraggable?: boolean;
   onItemDragStart?: (id: string, event: DragEvent<HTMLElement>) => void;
   onItemDragEnd?: (id: string, event: DragEvent<HTMLElement>) => void;

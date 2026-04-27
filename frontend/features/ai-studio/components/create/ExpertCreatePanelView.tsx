@@ -59,7 +59,7 @@ type ExpertCreatePanelViewProps = {
     options?: {
       pulseSessionInstanceId?: string | null;
     }
-  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
+  ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   isPulseActivationBusy?: boolean;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
   onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
@@ -122,10 +122,12 @@ export function ExpertCreatePanelView({
   const isActivePulseSession = createMode === "pulse" && hasActivePulseSession;
   const shouldRenderPulseRail = createMode === "pulse";
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
+  const hasPulseLoadingSurface = promptStepProps.pulseLoadingState != null;
   // Preserve the authored empty-shell layout until real transcript history exists.
   // Draft input, dropped references, pending Pulse state, and activation-in-progress must not
-  // collapse the spacer frames or the "What do you want to make?" title.
-  const shouldShowPersistentEmptyShell = !hasVisibleAgentMessages;
+  // collapse the spacer frames or the "What do you want to make?" title, except when Pulse
+  // is actively starting or generating a guided step and the chat lane needs to own the UX.
+  const shouldShowPersistentEmptyShell = !hasVisibleAgentMessages && !hasPulseLoadingSurface;
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;

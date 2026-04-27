@@ -15,6 +15,9 @@ import {
 } from "react";
 import {
   CANVAS_DEFAULT_CAMERA,
+  clampCanvasTextItemHeight,
+  clampCanvasTextItemWidth,
+  CANVAS_TEXT_ITEM_MIN_HEIGHT,
   CANVAS_TEXT_ITEM_WIDTH,
   resolveCanvasWheelZoomDelta,
   viewportPointToCanvasWorld,
@@ -41,6 +44,7 @@ import {
 } from "./canvasSceneState";
 import type {
   CanvasCamera,
+  CanvasResizeHandle,
   PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
   ResolveCanvasDropFiles,
@@ -50,6 +54,7 @@ import {
   shouldStartCanvasPanFromPointerDown,
   type CanvasPointerSession,
 } from "./canvasViewportPointerTypes";
+import { AI_STUDIO_CANVAS_TEXT_RESIZE_ENABLED } from "./canvasFeatureFlags";
 import type {
   CanvasMarqueeSelectionBox,
   CanvasPropertiesPanelProps,
@@ -134,6 +139,7 @@ export const useCanvasViewportInstanceState = ({
   const interactionRef = useRef<CanvasPointerSession>({ kind: "none" });
   const lastViewportTapRef = useRef<CanvasInteractionPoint | null>(null);
   const lastViewportDraftCreationRef = useRef<CanvasInteractionPoint | null>(null);
+  const [isTextResizeActive, setIsTextResizeActive] = useState(false);
   const [internalCamera, setInternalCamera] = useState(CANVAS_DEFAULT_CAMERA);
   const [marqueeSelectionBox, setMarqueeSelectionBox] = useState<CanvasMarqueeSelectionBox | null>(
     null
@@ -493,6 +499,50 @@ export const useCanvasViewportInstanceState = ({
         }));
         return;
       }
+      if (interaction.kind === "text-resize") {
+        event.preventDefault();
+        const deltaWorldX = (event.clientX - interaction.startClientX) / camera.zoom;
+        const deltaWorldY = (event.clientY - interaction.startClientY) / camera.zoom;
+        setItems((currentItems) =>
+          currentItems.map((item) => {
+            if (item.id !== interaction.itemId || item.kind !== "text") return item;
+            const isWestHandle = interaction.handle === "nw" || interaction.handle === "sw";
+            const isNorthHandle = interaction.handle === "nw" || interaction.handle === "ne";
+            const nextWidth = clampCanvasTextItemWidth(
+              isWestHandle
+                ? interaction.startWidth - deltaWorldX
+                : interaction.startWidth + deltaWorldX
+            );
+            const nextHeight = clampCanvasTextItemHeight(
+              isNorthHandle
+                ? interaction.startHeight - deltaWorldY
+                : interaction.startHeight + deltaWorldY
+            );
+            const nextX = isWestHandle
+              ? Math.round((interaction.startRightX - nextWidth) * 100) / 100
+              : interaction.startX;
+            const nextY = isNorthHandle
+              ? Math.round((interaction.startBottomY - nextHeight) * 100) / 100
+              : interaction.startY;
+            if (
+              item.width === nextWidth &&
+              item.height === nextHeight &&
+              item.x === nextX &&
+              item.y === nextY
+            ) {
+              return item;
+            }
+            return {
+              ...item,
+              x: nextX,
+              y: nextY,
+              width: nextWidth,
+              height: nextHeight,
+            };
+          })
+        );
+        return;
+      }
       if (interaction.kind !== "marquee") return;
 
       const travelDistance = Math.hypot(
@@ -660,6 +710,9 @@ export const useCanvasViewportInstanceState = ({
             travelDistance,
           });
         }
+      } else if (interaction.kind === "text-resize") {
+        lastViewportTapRef.current = null;
+        setIsTextResizeActive(false);
       }
 
       interactionRef.current = { kind: "none" };
@@ -682,7 +735,11 @@ export const useCanvasViewportInstanceState = ({
       const interaction = interactionRef.current;
       if (interaction.kind === "none") return;
       if (interaction.pointerId !== event.pointerId) return;
-      if (interaction.kind === "pan" || interaction.kind === "marquee") {
+      if (
+        interaction.kind === "pan" ||
+        interaction.kind === "marquee" ||
+        interaction.kind === "text-resize"
+      ) {
         lastViewportTapRef.current = null;
         setMarqueeSelectionBox(null);
         interactionRef.current = { kind: "none" };
@@ -691,11 +748,54 @@ export const useCanvasViewportInstanceState = ({
           pointerId: event.pointerId,
         });
         logCanvasGesture(
-          interaction.kind === "pan" ? "pointercancel.reset-pan" : "pointercancel.reset-marquee"
+          interaction.kind === "pan"
+            ? "pointercancel.reset-pan"
+            : interaction.kind === "marquee"
+              ? "pointercancel.reset-marquee"
+              : "pointercancel.reset-text-resize"
         );
+        if (interaction.kind === "text-resize") {
+          setIsTextResizeActive(false);
+        }
       }
     },
     [logCanvasGesture, setMarqueeSelectionBox]
+  );
+
+  const handleTextResizeHandlePointerDown = useCallback(
+    (itemId: string, handle: CanvasResizeHandle, event: PointerEvent<HTMLElement>) => {
+      if (!AI_STUDIO_CANVAS_TEXT_RESIZE_ENABLED) return;
+      if (event.button !== 0) return;
+      const item = items.find((candidate) => candidate.id === itemId);
+      if (!item || item.kind !== "text" || !item.selected) return;
+      event.preventDefault();
+      event.stopPropagation();
+      clearDraftTextEntry();
+      clearTextEditSession();
+      setMarqueeSelectionBox(null);
+      viewportRef.current?.focus();
+      const pointerTarget = viewportRef.current ?? event.currentTarget;
+      setPointerCaptureIfAvailable({
+        target: pointerTarget,
+        pointerId: event.pointerId,
+      });
+      setIsTextResizeActive(true);
+      interactionRef.current = {
+        kind: "text-resize",
+        pointerId: event.pointerId,
+        itemId,
+        handle,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startX: item.x,
+        startY: item.y,
+        startWidth: item.width,
+        startHeight: item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT,
+        startRightX: item.x + item.width,
+        startBottomY: item.y + (item.height ?? CANVAS_TEXT_ITEM_MIN_HEIGHT),
+      };
+    },
+    [clearDraftTextEntry, clearTextEditSession, items]
   );
 
   const handleItemPointerDown = useCallback(
@@ -890,6 +990,9 @@ export const useCanvasViewportInstanceState = ({
       onItemPointerMove: handleItemPointerMove,
       onItemPointerUp: handleItemPointerUp,
       onItemPointerCancel: handleItemPointerCancel,
+      isTextResizeEnabled: AI_STUDIO_CANVAS_TEXT_RESIZE_ENABLED,
+      isTextResizeActive,
+      onTextResizeHandlePointerDown: handleTextResizeHandlePointerDown,
       onItemContextMenu,
       onItemDoubleClick,
       onPinTextItem,
@@ -908,6 +1011,7 @@ export const useCanvasViewportInstanceState = ({
       handleItemPointerDown,
       handleItemPointerMove,
       handleItemPointerUp,
+      handleTextResizeHandlePointerDown,
       handleViewportClick,
       handleViewportDoubleClick,
       handleViewportPointerCancel,
@@ -918,6 +1022,7 @@ export const useCanvasViewportInstanceState = ({
       instanceId,
       isDraftTextEditable,
       isDropActive,
+      isTextResizeActive,
       isTextEditEditable,
       items,
       marqueeSelectionBox,

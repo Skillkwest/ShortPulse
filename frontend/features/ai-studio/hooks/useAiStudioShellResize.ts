@@ -30,6 +30,7 @@ type UseAiStudioShellResizeArgs = {
   maxLeftWidthPx?: number;
   minRightWidthPx?: number;
   defaultLeftRatio?: number;
+  minWidthResetKey?: string | null;
 };
 
 type DragSession = {
@@ -56,12 +57,14 @@ export const useAiStudioShellResize = ({
   maxLeftWidthPx,
   minRightWidthPx,
   defaultLeftRatio,
+  minWidthResetKey = null,
 }: UseAiStudioShellResizeArgs) => {
   const shellRef = useRef<HTMLElement | null>(null);
   const leftColumnRef = useRef<HTMLElement | null>(null);
   const dragSessionRef = useRef<DragSession | null>(null);
   const detachPointerListenersRef = useRef<(() => void) | null>(null);
   const storedWidthRef = useRef<number | null>(null);
+  const appliedMinWidthResetKeyRef = useRef<string | null>(null);
 
   const [leftWidthPx, setLeftWidthPx] = useState<number | null>(null);
   const [containerWidthPx, setContainerWidthPx] = useState(0);
@@ -207,6 +210,33 @@ export const useAiStudioShellResize = ({
     if (typeof window === "undefined" || leftWidthPx == null) return;
     window.localStorage.setItem(AI_SHELL_LEFT_WIDTH_STORAGE_KEY, String(leftWidthPx));
   }, [leftWidthPx]);
+
+  useEffect(() => {
+    if (minWidthResetKey == null) {
+      appliedMinWidthResetKeyRef.current = null;
+      return;
+    }
+    if (!enabled || !isResizableViewport) return;
+    if (appliedMinWidthResetKeyRef.current === minWidthResetKey) return;
+    const containerWidth = resolveContainerWidth();
+    if (!containerWidth) return;
+    const bounds = getAiShellLeftWidthBounds(containerWidth, {
+      minLeftWidthPx,
+      maxLeftWidthPx,
+      minRightWidthPx,
+    });
+    setLeftWidthPx((prev) => (prev === bounds.min ? prev : bounds.min));
+    setContainerWidthPx(Math.round(containerWidth));
+    appliedMinWidthResetKeyRef.current = minWidthResetKey;
+  }, [
+    enabled,
+    isResizableViewport,
+    maxLeftWidthPx,
+    minLeftWidthPx,
+    minRightWidthPx,
+    minWidthResetKey,
+    resolveContainerWidth,
+  ]);
 
   const handleWindowPointerMove = useCallback(
     (event: PointerEvent) => {

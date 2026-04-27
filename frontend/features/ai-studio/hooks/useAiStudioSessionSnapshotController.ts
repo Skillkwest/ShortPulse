@@ -20,6 +20,7 @@ import {
   buildSessionOutputSigningFingerprintById,
   resolveSessionRestoreSignedUrls,
 } from "../logic/sessionRestoreMediaSigning";
+import type { PulseWorkspaceState } from "../logic/pulseSessionState";
 import type { ReferenceProjectionState } from "../reference-projections";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
@@ -33,9 +34,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   pulseCreatePrompt: string;
   model: string | null;
   aspect: string;
-  expertCreateMode: "standard" | "pulse";
-  activePulsePresetId: string | null;
-  pulseSessionInstanceId: string | null;
+  pulseWorkspaceState: PulseWorkspaceState;
   pulseWorkflowSession: AgentPulseWorkflowSession | null;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
@@ -126,9 +125,7 @@ export const useAiStudioSessionSnapshotController = ({
   pulseCreatePrompt,
   model,
   aspect,
-  expertCreateMode,
-  activePulsePresetId,
-  pulseSessionInstanceId,
+  pulseWorkspaceState,
   pulseWorkflowSession,
   referenceImageUrl,
   extraImageUrls,
@@ -367,9 +364,7 @@ export const useAiStudioSessionSnapshotController = ({
         pulseCreatePrompt,
         model,
         aspect,
-        expertCreateMode,
-        activePulsePresetId,
-        pulseSessionInstanceId,
+        pulseWorkspaceState,
         referenceImageUrl,
         extraImageUrls,
         editReferenceText,
@@ -413,10 +408,8 @@ export const useAiStudioSessionSnapshotController = ({
       activeOutputId,
       archivedOutputs,
       aspect,
-      activePulsePresetId,
       curatedReferenceIds,
       editReferenceText,
-      expertCreateMode,
       extraImageUrls,
       imageResolution,
       klingCfgScale,
@@ -436,8 +429,8 @@ export const useAiStudioSessionSnapshotController = ({
       model,
       motionReferenceVideoUrl,
       outputs,
-      pulseSessionInstanceId,
       pulseCreatePrompt,
+      pulseWorkspaceState,
       pulseWorkflowSession,
       prompt,
       referenceImageUrl,

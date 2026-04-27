@@ -87,11 +87,11 @@ export function PromptStep({
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur = false,
   onAgentInputVisualRowCountChange,
+  pulseLoadingState = null,
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
   hideOutputGenerateControls = false,
-  chatSessionBanner = null,
   chatHeaderExtraContent = null,
   hideHeader = false,
   autoResize = false,
@@ -326,7 +326,6 @@ export function PromptStep({
                 outputGenerateCostCredits={outputGenerateCostCredits}
                 outputGenerateGuardrailReason={outputGenerateGuardrailReason}
                 hideOutputGenerateControls={hideOutputGenerateControls}
-                chatSessionBanner={chatSessionBanner}
                 composerMiddleContent={composerMiddleContent}
                 composerLeadingContent={composerLeadingContent}
                 chatComposerOverlayEnabled={chatComposerOverlayEnabled}
@@ -338,6 +337,7 @@ export function PromptStep({
                 agentInputMaxHeightPx={agentInputMaxHeightPx}
                 agentInputCollapseOnBlur={agentInputCollapseOnBlur}
                 onAgentInputVisualRowCountChange={onAgentInputVisualRowCountChange}
+                pulseLoadingState={pulseLoadingState}
                 embedSendButtonInInput={embedSendButtonInInput}
                 handleAgentSendClick={handleAgentSendClick}
                 agentIsSending={agentIsSending}

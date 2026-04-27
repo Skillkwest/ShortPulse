@@ -38,6 +38,36 @@ describe("mediaFolderCanvasSnapshot", () => {
     expect(parsed?.camera.zoom).toBe(1);
   });
 
+  it("builds and parses resized text card widths", () => {
+    const sourceItems: CanvasSceneItem[] = [
+      {
+        id: "prompt:prompt-1",
+        kind: "text",
+        x: 12,
+        y: 24,
+        z: 2,
+        selected: true,
+        outputId: "prompt:prompt-1",
+        sourceSurface: null,
+        text: "Wide prompt",
+        width: 436,
+        height: 228,
+      },
+    ];
+
+    const snapshot = buildMediaFolderCanvasSnapshot({
+      camera: { x: 0, y: 0, zoom: 1 },
+      items: sourceItems,
+    });
+    const parsed = parseMediaFolderCanvasSnapshot(snapshot);
+
+    expect(parsed?.items[0]).toMatchObject({
+      id: "prompt:prompt-1",
+      width: 436,
+      height: 228,
+    });
+  });
+
   it("seeds media and prompt membership items", () => {
     const seeded = buildSeedItemsForFolderCanvas({
       mediaRows: [
@@ -204,6 +234,7 @@ describe("mediaFolderCanvasSnapshot", () => {
           sourceSurface: null,
           text: "old prompt text",
           width: 260,
+          height: 180,
         },
         {
           id: "prompt:prompt-1",
@@ -216,6 +247,7 @@ describe("mediaFolderCanvasSnapshot", () => {
           sourceSurface: null,
           text: "older prompt text",
           width: 260,
+          height: 160,
         },
       ],
       mediaRows: [],

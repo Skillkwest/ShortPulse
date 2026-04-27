@@ -597,6 +597,7 @@ describe("sessionSnapshotHydrator", () => {
               sourceSurface: null,
               text: "Draft note",
               width: 260,
+              height: 180,
             },
           ],
         },

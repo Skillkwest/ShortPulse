@@ -29,6 +29,7 @@ import {
   type AiStudioSessionExpertEditSnapshotV1,
 } from "./sessionSnapshotExpertEdit";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessionState";
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
 
@@ -195,6 +196,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   aspect: string;
   selectedCharacterId?: string | null;
   selectedCharacterLookId?: string | null;
+  pulseWorkspaceState?: PulseWorkspaceState;
   expertCreateMode?: AiStudioSessionExpertCreateMode;
   activePulsePresetId?: string | null;
   pulseSessionInstanceId?: string | null;
@@ -495,14 +497,22 @@ export const buildAiStudioSessionSnapshot = (
   input: BuildAiStudioSessionSnapshotInput
 ): AiStudioSessionSnapshotV2 => {
   const updatedAt = input.updatedAt ?? new Date().toISOString();
+  const resolvedPulseWorkspaceState = resolvePulseRuntimeState(
+    input.pulseWorkspaceState ?? {
+      expertCreateMode: input.expertCreateMode ?? "standard",
+      activePulsePresetId: input.activePulsePresetId,
+      pulseSessionInstanceId: input.pulseSessionInstanceId,
+    }
+  );
+  const resolvedExpertCreateMode = resolvedPulseWorkspaceState.expertCreateMode;
   const resolvedStandardCreatePrompt =
-    input.standardCreatePrompt ?? (input.expertCreateMode === "pulse" ? "" : input.prompt);
+    input.standardCreatePrompt ?? (resolvedExpertCreateMode === "pulse" ? "" : input.prompt);
   const resolvedPulseCreatePrompt =
-    input.pulseCreatePrompt ?? (input.expertCreateMode === "pulse" ? input.prompt : "");
-  const resolvedActivePulsePresetId =
-    input.expertCreateMode === "pulse" ? input.activePulsePresetId?.trim() || null : null;
-  const resolvedPulseSessionInstanceId =
-    input.expertCreateMode === "pulse" ? input.pulseSessionInstanceId?.trim() || null : null;
+    input.pulseCreatePrompt ?? (resolvedExpertCreateMode === "pulse" ? input.prompt : "");
+  const {
+    activePulsePresetId: resolvedActivePulsePresetId,
+    pulseSessionInstanceId: resolvedPulseSessionInstanceId,
+  } = resolvedPulseWorkspaceState;
   const canvas = input.canvasState
     ? serializeAiStudioSessionCanvasState(input.canvasState)
     : undefined;
@@ -522,15 +532,15 @@ export const buildAiStudioSessionSnapshot = (
     ? {
         standard: sanitizeAgentRuntime(input.agentRuntimes.standard),
         pulsePresetId:
-          input.expertCreateMode === "pulse"
+          resolvedExpertCreateMode === "pulse"
             ? input.agentRuntimes.pulsePresetId?.trim() || resolvedActivePulsePresetId
             : null,
         pulse: sanitizeAgentRuntime(input.agentRuntimes.pulse),
       }
     : {
-        standard: input.expertCreateMode === "pulse" ? emptyAgentRuntime : activeAgentRuntime,
+        standard: resolvedExpertCreateMode === "pulse" ? emptyAgentRuntime : activeAgentRuntime,
         pulsePresetId: resolvedActivePulsePresetId,
-        pulse: input.expertCreateMode === "pulse" ? activeAgentRuntime : emptyAgentRuntime,
+        pulse: resolvedExpertCreateMode === "pulse" ? activeAgentRuntime : emptyAgentRuntime,
       };
 
   const basePayload = {
@@ -547,7 +557,7 @@ export const buildAiStudioSessionSnapshot = (
       aspect: input.aspect,
       selectedCharacterId: sanitizeSelectedCharacterId(input.selectedCharacterId),
       selectedCharacterLookId: sanitizeSelectedCharacterId(input.selectedCharacterLookId),
-      expertCreateMode: input.expertCreateMode ?? "standard",
+      expertCreateMode: resolvedExpertCreateMode,
       activePulsePresetId: resolvedActivePulsePresetId,
       pulseSessionInstanceId: resolvedPulseSessionInstanceId,
       referenceImageUrl: sanitizeWorkspaceMediaUrl(input.referenceImageUrl),
@@ -704,6 +714,7 @@ export const createAiStudioProjectWorkspaceSnapshot = (
       ...baseSnapshot,
       workspace: {
         ...baseSnapshot.workspace,
+        selectedTool: "create" as ToolId,
         activePulsePresetId: null,
         pulseSessionInstanceId: null,
       },
@@ -720,6 +731,10 @@ export const createAiStudioProjectWorkspaceSnapshot = (
 
   return {
     ...snapshot,
+    workspace: {
+      ...snapshot.workspace,
+      selectedTool: "create" as ToolId,
+    },
     agent: emptyAgentRuntime,
   };
 };

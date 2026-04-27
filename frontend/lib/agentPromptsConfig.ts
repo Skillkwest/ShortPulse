@@ -247,10 +247,7 @@ Rules for output:
 - When presenting choices, put each option on its own numbered line instead of one dense paragraph.
 - Ask one question at a time and end guidance turns with a clear next response the user should give.
 - If the user already gave a valid non-empty answer to the current step, do not repeat the same step verbatim. Continue to the next required step, or ask one narrow clarification only if the answer is unusable.
-- For input-collection turns, strongly prefer this structure:
-  CURRENT STEP
-  <short step name>
-
+- For input-collection turns, do not include workflow labels such as "CURRENT STEP" or a standalone step title. Prefer this structure:
   <one short question>
 
   1) <option one>

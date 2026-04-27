@@ -6,6 +6,10 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
+import {
+  AiStudioProjectEntryState,
+  type AiStudioProjectEntryPhase,
+} from "../features/ai-studio/components/AiStudioProjectEntryState";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
@@ -106,36 +110,34 @@ const normalizeAiStudioProjectName = (value: string | null | undefined): string 
   return normalized ? normalized.slice(0, 120) : null;
 };
 
-const AiStudioProjectEntryState = ({
-  title,
-  message,
-  actionLabel,
-  onAction,
-  secondaryActionLabel,
-  onSecondaryAction,
+const resolveProjectEntryPhase = ({
+  projectStatus,
+  projectRouteRequested,
+  projectBootstrapApplied,
+  workspaceRestoreCandidate,
 }: {
-  title: string;
-  message: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  secondaryActionLabel?: string;
-  onSecondaryAction?: () => void;
-}) => (
-  <main>
-    <h1>{title}</h1>
-    <p>{message}</p>
-    {actionLabel && onAction ? (
-      <button type="button" onClick={onAction}>
-        {actionLabel}
-      </button>
-    ) : null}
-    {secondaryActionLabel && onSecondaryAction ? (
-      <button type="button" onClick={onSecondaryAction}>
-        {secondaryActionLabel}
-      </button>
-    ) : null}
-  </main>
-);
+  projectStatus: "idle" | "loading" | "ready" | "error";
+  projectRouteRequested: boolean;
+  projectBootstrapApplied: boolean;
+  workspaceRestoreCandidate: {
+    status: "idle" | "loading" | "ready" | "error";
+    result?: "idle" | "loading" | "found_snapshot" | "no_snapshot" | "load_failed";
+  };
+}): AiStudioProjectEntryPhase => {
+  if (projectStatus !== "ready") return "resolving-project";
+  if (projectBootstrapApplied) return "restoring-workspace";
+  if (workspaceRestoreCandidate.status !== "ready") return "loading-workspace";
+  if (workspaceRestoreCandidate.result === "no_snapshot") return "preparing-empty-workspace";
+  if (
+    workspaceRestoreCandidate.result === "found_snapshot" ||
+    workspaceRestoreCandidate.result === "idle" ||
+    workspaceRestoreCandidate.result === "loading"
+  ) {
+    return "restoring-workspace";
+  }
+  if (projectRouteRequested) return "loading-workspace";
+  return "resolving-project";
+};
 
 export default function AiStudioPage() {
   const router = useRouter();
@@ -425,12 +427,10 @@ export default function AiStudioPage() {
     },
     [
       activeCreatePulsePresetId,
-      expertCreateMode,
       getAgentContext,
       hasActivePulseSession,
       pulseWorkflowSession,
       savedCreatePulsePresets,
-      selectedTool,
     ]
   );
 
@@ -959,36 +959,40 @@ export default function AiStudioPage() {
     setExpertEditSessionState,
   ]);
 
-  const { projectBootstrapApplied, projectBootstrapError, retryProjectBootstrap } =
-    useAiStudioPageSessionPersistence({
-      projectId,
-      projectRouteRequested,
-      sessionId: activeSessionPersistenceSessionId,
-      sessionTitleOverride: sessionPersistenceTitleOverride,
-      buildSessionSnapshot: buildProjectAwareSessionSnapshot,
-      agentMessages,
-      agentInput,
-      latestAgentPrompt,
-      promptOrigin,
-      chatModeEnabled,
-      pulseWorkflowSession,
-      agentRuntimes: {
-        ...persistedAgentRuntimes,
-        pulsePresetId: hasActivePulseSession ? activeCreatePulsePresetId : null,
-        pulse: {
-          ...persistedAgentRuntimes.pulse,
-          pulseWorkflowSession: hasActivePulseSession ? (pulseWorkflowSession ?? null) : null,
-        },
+  const {
+    sessionRestoreCandidate,
+    projectBootstrapApplied,
+    projectBootstrapError,
+    retryProjectBootstrap,
+  } = useAiStudioPageSessionPersistence({
+    projectId,
+    projectRouteRequested,
+    sessionId: activeSessionPersistenceSessionId,
+    sessionTitleOverride: sessionPersistenceTitleOverride,
+    buildSessionSnapshot: buildProjectAwareSessionSnapshot,
+    agentMessages,
+    agentInput,
+    latestAgentPrompt,
+    promptOrigin,
+    chatModeEnabled,
+    pulseWorkflowSession,
+    agentRuntimes: {
+      ...persistedAgentRuntimes,
+      pulsePresetId: hasActivePulseSession ? activeCreatePulsePresetId : null,
+      pulse: {
+        ...persistedAgentRuntimes.pulse,
+        pulseWorkflowSession: hasActivePulseSession ? (pulseWorkflowSession ?? null) : null,
       },
-      expertEditSessionState,
-      hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
-      hydrateFromSessionAgentSnapshot,
-      hydrateFromSessionCanvasSnapshot: hydrateCanvasSessionState,
-      hydrateFromSessionExpertEditSnapshot: setExpertEditSessionState,
-      applyEmptyProjectState,
-      resetProjectAgentConversation,
-      setUiNotice,
-    });
+    },
+    expertEditSessionState,
+    hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
+    hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionCanvasSnapshot: hydrateCanvasSessionState,
+    hydrateFromSessionExpertEditSnapshot: setExpertEditSessionState,
+    applyEmptyProjectState,
+    resetProjectAgentConversation,
+    setUiNotice,
+  });
 
   const effectiveProjectName = useMemo(
     () => project?.title ?? localSessionTitleOverride ?? null,
@@ -1520,6 +1524,12 @@ export default function AiStudioPage() {
   const shouldGateProjectBootstrap =
     projectRouteRequested &&
     (projectStatus !== "ready" || (Boolean(projectId) && !projectBootstrapApplied));
+  const projectEntryPhase = resolveProjectEntryPhase({
+    projectStatus,
+    projectRouteRequested,
+    projectBootstrapApplied,
+    workspaceRestoreCandidate: sessionRestoreCandidate,
+  });
 
   if (shouldGateProjectBootstrap) {
     return (
@@ -1530,16 +1540,21 @@ export default function AiStudioPage() {
         </Head>
         {projectStatus === "error" || projectBootstrapError ? (
           <AiStudioProjectEntryState
-            title={
+            variant="error"
+            phase={projectEntryPhase}
+            projectTitle={project?.title ?? null}
+            errorTitle={
               projectStatus === "error" ? "Project unavailable" : "Project workspace unavailable"
             }
-            message={
+            errorMessage={
               projectStatus === "error"
                 ? (projectError ?? "Failed to load project.")
                 : (projectBootstrapError ?? "Failed to load project workspace.")
             }
-            actionLabel={projectStatus === "error" ? "Retry project load" : "Retry workspace load"}
-            onAction={projectStatus === "error" ? refreshProject : retryProjectBootstrap}
+            primaryActionLabel={
+              projectStatus === "error" ? "Retry project load" : "Retry workspace load"
+            }
+            onPrimaryAction={projectStatus === "error" ? refreshProject : retryProjectBootstrap}
             secondaryActionLabel="Back to dashboard"
             onSecondaryAction={() => {
               window.location.assign("/dashboard");
@@ -1547,8 +1562,9 @@ export default function AiStudioPage() {
           />
         ) : (
           <AiStudioProjectEntryState
-            title="Loading project..."
-            message="Resolving your saved project before AI Studio restore continues."
+            variant="loading"
+            phase={projectEntryPhase}
+            projectTitle={project?.title ?? null}
           />
         )}
       </AiStudioModalActivityProvider>

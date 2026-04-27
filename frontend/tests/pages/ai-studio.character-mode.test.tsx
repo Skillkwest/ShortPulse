@@ -413,6 +413,14 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioPerfAuditRuntime", () => ({
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioPageSessionPersistence", () => ({
   useAiStudioPageSessionPersistence: () => ({
+    sessionRestoreCandidate: {
+      status: "idle",
+      result: "idle",
+      snapshot: null,
+      source: "none",
+      error: null,
+      retry: vi.fn(),
+    },
     sessionSnapshot: null,
     projectBootstrapApplied: false,
     projectBootstrapError: null,

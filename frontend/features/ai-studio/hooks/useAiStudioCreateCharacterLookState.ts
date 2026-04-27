@@ -1,0 +1,119 @@
+/**
+ * AI Studio create-character look state hook.
+ * Caches look options and keeps create-mode look selection/labels out of the page orchestrator.
+ */
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { loadCharacterManagerDraftByCharacterId } from "../../character-manager/logic/characterManagerPersistence";
+import {
+  buildCharacterModeLookOptions,
+  type CharacterModeLookOption,
+} from "../logic/characterModeLookSelection";
+import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
+
+type UseAiStudioCreateCharacterLookStateParams = {
+  createSelectedCharacterId: string;
+  setCreateSelectedCharacterId: (value: string) => void;
+  createSelectedCharacterLookId: string;
+  setCreateSelectedCharacterLookId: Dispatch<SetStateAction<string>>;
+  createCharacterModeInjectionBundle: CharacterModeInjectionBundle | null;
+};
+
+/**
+ * Returns create-character look selection state, label resolution, and option loading handlers.
+ */
+export const useAiStudioCreateCharacterLookState = ({
+  createSelectedCharacterId,
+  setCreateSelectedCharacterId,
+  createSelectedCharacterLookId,
+  setCreateSelectedCharacterLookId,
+  createCharacterModeInjectionBundle,
+}: UseAiStudioCreateCharacterLookStateParams) => {
+  const [createCharacterLookOptionsByCharacterId, setCreateCharacterLookOptionsByCharacterId] =
+    useState<Record<string, CharacterModeLookOption[]>>({});
+
+  const loadCreateCharacterLookOptions = useCallback(async (characterId: string) => {
+    const normalizedCharacterId = characterId.trim();
+    if (!normalizedCharacterId) return [];
+    const snapshot = await loadCharacterManagerDraftByCharacterId(normalizedCharacterId);
+    const nextOptions = buildCharacterModeLookOptions(snapshot);
+    setCreateCharacterLookOptionsByCharacterId((current) => {
+      const existingOptions = current[normalizedCharacterId] ?? null;
+      const isUnchanged =
+        existingOptions != null &&
+        existingOptions.length === nextOptions.length &&
+        existingOptions.every(
+          (option, index) =>
+            option.id === nextOptions[index]?.id &&
+            option.label === nextOptions[index]?.label &&
+            option.isDefault === nextOptions[index]?.isDefault
+        );
+      if (isUnchanged) return current;
+      return {
+        ...current,
+        [normalizedCharacterId]: nextOptions,
+      };
+    });
+    return nextOptions;
+  }, []);
+
+  const handleCreateCharacterSelection = useCallback(
+    (characterId: string, lookId: string) => {
+      setCreateSelectedCharacterId(characterId);
+      setCreateSelectedCharacterLookId(lookId);
+    },
+    [setCreateSelectedCharacterId, setCreateSelectedCharacterLookId]
+  );
+
+  useEffect(() => {
+    const normalizedCharacterId = createSelectedCharacterId.trim();
+    if (!normalizedCharacterId) {
+      setCreateSelectedCharacterLookId("");
+      return;
+    }
+    if (createCharacterLookOptionsByCharacterId[normalizedCharacterId]) return;
+    void loadCreateCharacterLookOptions(normalizedCharacterId).catch(() => {
+      // Best-effort cache warm-up so selected look labels survive reload/restore.
+    });
+  }, [
+    createCharacterLookOptionsByCharacterId,
+    createSelectedCharacterId,
+    loadCreateCharacterLookOptions,
+    setCreateSelectedCharacterLookId,
+  ]);
+
+  useEffect(() => {
+    const normalizedCharacterId = createSelectedCharacterId.trim();
+    const normalizedLookId = createSelectedCharacterLookId.trim();
+    if (!normalizedCharacterId || !normalizedLookId) return;
+    const lookOptions = createCharacterLookOptionsByCharacterId[normalizedCharacterId] ?? [];
+    if (lookOptions.length === 0) return;
+    if (lookOptions.some((option) => option.id === normalizedLookId)) return;
+    const fallbackLookId =
+      lookOptions.find((option) => option.isDefault)?.id ?? lookOptions[0]?.id ?? "";
+    if (!fallbackLookId) return;
+    setCreateSelectedCharacterLookId(fallbackLookId);
+  }, [
+    createCharacterLookOptionsByCharacterId,
+    createSelectedCharacterId,
+    createSelectedCharacterLookId,
+    setCreateSelectedCharacterLookId,
+  ]);
+
+  const selectedCreateCharacterLookLabel = (() => {
+    if (createCharacterModeInjectionBundle?.characterId === createSelectedCharacterId) {
+      const bundleLookName = createCharacterModeInjectionBundle.characterLookName?.trim() ?? "";
+      if (bundleLookName) return bundleLookName;
+    }
+    const normalizedCharacterId = createSelectedCharacterId.trim();
+    const normalizedLookId = createSelectedCharacterLookId.trim();
+    if (!normalizedCharacterId || !normalizedLookId) return null;
+    const lookOptions = createCharacterLookOptionsByCharacterId[normalizedCharacterId] ?? [];
+    return lookOptions.find((option) => option.id === normalizedLookId)?.label ?? null;
+  })();
+
+  return {
+    handleCreateCharacterSelection,
+    loadCreateCharacterLookOptions,
+    selectedCreateCharacterLookLabel,
+  };
+};

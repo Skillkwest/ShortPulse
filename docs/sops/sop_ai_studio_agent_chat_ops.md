@@ -8,7 +8,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 ## UI entry points
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
-- Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps the chat send/respond path active. OFF disables send affordances and routes Create `mode=text` raw composer/shared text into the normal file-generation path. In Expert Create `Pulse` mode, the toggle is hidden and chat mode is forced ON until the user returns to `Standard`.
+- Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps the chat send/respond path active. OFF disables send affordances and routes Create `mode=text` raw composer/shared text into the normal file-generation path. This toggle is Standard Create only. In Expert Create `Pulse` mode, the toggle is hidden because Pulse always uses the agent/chat lane and does not read or write the Standard toggle state.
 - Direct OpenAI bypass (backend-gated): when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Create chat lane defaults to raw user/assistant turns through `/api/ai/studio-agent` with `directOpenAiBypass=true`. There is no separate inline toggle; the flag itself is the control. The bypass lane can also attach staged image media as multimodal input so users can ask for image descriptions or prompt rewrites directly from dropped images.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
@@ -66,8 +66,10 @@ Prompt ownership rule:
   - Hides the inline chat-mode toggle while Pulse is active, then restores the prior Standard-mode chat preference when the user switches back.
   - Clicking a pinned Pulse activates hidden Pulse runtime metadata on `/api/ai/studio-agent` without mutating the visible Create composer.
   - Active Pulse behavior is normalized to the guided contract: `workflow_gpt`, `activate_and_start`, and `chat_reply`.
+  - Pulse bootstrap sends use isolated history/canonical continuity so Standard transcript or canonical state does not bleed into the first hidden Pulse turn.
   - Legacy `prompt_editor` / `activate_only` / `apply_prompt` metadata may still be accepted from older saved state, but it is compatibility input only and is normalized before runtime execution.
   - Guided Pulses auto-start on click and may ask structured follow-up questions before emitting a final artifact.
+  - Temporarily switching back to `Standard` preserves the hidden Pulse runtime for the current live session; explicit restart/deactivate and switching to a different Pulse clear that runtime and start fresh.
 - **Direct OpenAI chat mode (Chat Mode ON + bypass flag enabled):**
   - Client still posts `/api/ai/studio-agent`, but always sets `directOpenAiBypass=true` for the Create/Text chat lane.
   - When the server gate is enabled, the route skips studio-agent orchestration and sends the raw message list directly to OpenAI with model `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.

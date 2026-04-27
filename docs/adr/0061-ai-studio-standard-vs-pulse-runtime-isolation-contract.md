@@ -32,7 +32,7 @@ Repo-backed inspection confirmed that the main risk is not missing model autonom
    - no visible instruction paste into the composer.
 4. Clicking any Pulse starts that Pulse immediately. User-facing `activate_only` semantics are not part of the target contract.
 5. Switching from one Pulse to another starts a fresh Pulse session by default unless a later, explicitly designed "continue current Pulse session" affordance is added.
-6. Leaving Pulse mode deactivates Pulse runtime completely.
+6. Temporary switching between `Pulse` and `Standard` preserves the full hidden Pulse runtime for the current live session; only explicit deactivate/restart/change-Pulse actions clear or replace that Pulse runtime.
 7. Standard and Pulse do not implicitly share transcript history, attachments, workflow session state, hidden runtime context, or optional memory.
 8. Custom Pulses default to a single lead agent/profile session, not a multi-agent system.
 9. Built-in Pulses may use deterministic workflow wrappers and bounded internal specialist workers when needed, but that remains an implementation detail rather than the primary product mental model.
@@ -49,7 +49,7 @@ Positive:
 
 Tradeoffs:
 1. Some current compatibility behavior will need migration or explicit retirement, especially around activation modes and snapshot/session behavior.
-2. Existing UI flows that currently preserve adjacent state will become stricter.
+2. Existing UI flows that currently preserve adjacent state will need clearer lifecycle boundaries, especially around temporary mode switching versus explicit Pulse deactivation.
 3. Built-in workflow Pulses will need a clearer internal/runtime contract so they remain reliable without relying on shared chat state.
 
 ## Alternatives Considered

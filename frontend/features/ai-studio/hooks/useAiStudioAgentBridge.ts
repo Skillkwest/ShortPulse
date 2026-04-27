@@ -727,7 +727,6 @@ export const useAiStudioAgentBridge = ({
     resetAgentComposer,
     clearPulseRuntime,
     setAgentActions,
-    setPulseWorkflowSession,
   });
 
   const handlePulsePresetRestart = useCallback(

@@ -10,42 +10,50 @@ const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAc
 
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioGenerationController>[0]> = {}
-): Parameters<typeof useAiStudioGenerationController>[0] => ({
-  mode: "image",
-  selectedTool: "create",
-  model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-  setModel: vi.fn(),
-  isCharacterModeEnabled: false,
-  prompt: "",
-  agentInput: "",
-  chatModeEnabled: true,
-  currentCostCredits: 3,
-  resolveCostCreditsForModel: vi.fn(() => null),
-  isGenerateDisabled: false,
-  isCreditGuardrail: false,
-  generationGuardrail: null,
-  effectiveBalanceCredits: 100,
-  balanceCredits: 100,
-  optimisticUncoveredDebitTotal: 0,
-  setUiError: asDispatch<string | null>(vi.fn()),
-  setUiNotice: asDispatch<string | null>(vi.fn()),
-  setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(vi.fn()),
-  setOptimisticDebitEntries: asDispatch<{ credits: number; outputId: string | null }[]>(vi.fn()),
-  refreshBalance: vi.fn(async () => 100),
-  handleAgentSend: vi.fn(async () => ({ prompt: "agent prompt", referenceTitle: "Agent ref" })),
-  addAgentPromptReference: vi.fn(),
-  resolveDefaultPromptForTool: vi.fn(() => "default prompt"),
-  refreshCharacterModeInjectionBundleForSubmission: vi.fn(async () => null),
-  resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
-  resolveReferenceInputsForTool: vi.fn(() => ({
-    referenceImageUrl: "https://example.com/reference.png",
-    extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
-  })),
-  trackCharacterModeFallback: vi.fn(),
-  generateOutput: vi.fn(),
-  regenerateOutput: vi.fn(),
-  ...overrides,
-});
+): Parameters<typeof useAiStudioGenerationController>[0] => {
+  const baseParams: Parameters<typeof useAiStudioGenerationController>[0] = {
+    mode: "image",
+    selectedTool: "create",
+    model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+    setModel: vi.fn(),
+    isCharacterModeEnabled: false,
+    prompt: "",
+    agentInput: "",
+    chatModeEnabled: true,
+    usesAgentLane: true,
+    currentCostCredits: 3,
+    resolveCostCreditsForModel: vi.fn(() => null),
+    isGenerateDisabled: false,
+    isCreditGuardrail: false,
+    generationGuardrail: null,
+    effectiveBalanceCredits: 100,
+    balanceCredits: 100,
+    optimisticUncoveredDebitTotal: 0,
+    setUiError: asDispatch<string | null>(vi.fn()),
+    setUiNotice: asDispatch<string | null>(vi.fn()),
+    setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(vi.fn()),
+    setOptimisticDebitEntries: asDispatch<{ credits: number; outputId: string | null }[]>(vi.fn()),
+    refreshBalance: vi.fn(async () => 100),
+    handleAgentSend: vi.fn(async () => ({ prompt: "agent prompt", referenceTitle: "Agent ref" })),
+    addAgentPromptReference: vi.fn(),
+    resolveDefaultPromptForTool: vi.fn(() => "default prompt"),
+    refreshCharacterModeInjectionBundleForSubmission: vi.fn(async () => null),
+    resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
+    resolveReferenceInputsForTool: vi.fn(() => ({
+      referenceImageUrl: "https://example.com/reference.png",
+      extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
+    })),
+    trackCharacterModeFallback: vi.fn(),
+    generateOutput: vi.fn(),
+    regenerateOutput: vi.fn(),
+  };
+
+  return {
+    ...baseParams,
+    ...overrides,
+    usesAgentLane: overrides.usesAgentLane ?? baseParams.usesAgentLane,
+  };
+};
 
 describe("useAiStudioGenerationController", () => {
   beforeEach(() => {
@@ -97,6 +105,7 @@ describe("useAiStudioGenerationController", () => {
       prompt: "shared fallback",
       agentInput: "raw composer prompt",
       chatModeEnabled: false,
+      usesAgentLane: false,
       handleAgentSend,
       generateOutput,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
@@ -134,6 +143,7 @@ describe("useAiStudioGenerationController", () => {
       prompt: "  shared fallback prompt  ",
       agentInput: "   ",
       chatModeEnabled: false,
+      usesAgentLane: false,
       handleAgentSend,
       generateOutput,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
@@ -171,6 +181,7 @@ describe("useAiStudioGenerationController", () => {
       prompt: "shared fallback prompt",
       agentInput: "  raw inline prompt  ",
       chatModeEnabled: false,
+      usesAgentLane: false,
       handleAgentSend,
       generateOutput,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
@@ -208,6 +219,7 @@ describe("useAiStudioGenerationController", () => {
       prompt: "shared fallback prompt",
       agentInput: "   ",
       chatModeEnabled: false,
+      usesAgentLane: false,
       handleAgentSend,
       generateOutput,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
@@ -240,6 +252,7 @@ describe("useAiStudioGenerationController", () => {
       prompt: "shared fallback",
       agentInput: "raw prompt",
       chatModeEnabled: false,
+      usesAgentLane: false,
       currentCostCredits: 3,
       setOptimisticDebitEntries:
         asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
@@ -264,6 +277,7 @@ describe("useAiStudioGenerationController", () => {
       prompt: "shared fallback",
       agentInput: "raw prompt",
       chatModeEnabled: false,
+      usesAgentLane: false,
       currentCostCredits: 3,
       setOptimisticDebitEntries:
         asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
@@ -289,6 +303,7 @@ describe("useAiStudioGenerationController", () => {
       prompt: "   ",
       agentInput: "   ",
       chatModeEnabled: false,
+      usesAgentLane: false,
       setUiError: asDispatch<string | null>(setUiError),
       generateOutput,
     });
@@ -302,6 +317,40 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(setUiError).toHaveBeenCalledWith("Add a prompt to start a generation.");
+    expect(generateOutput).not.toHaveBeenCalled();
+  });
+
+  it("keeps Pulse create submit on the agent lane even when the Standard toggle is off", async () => {
+    const handleAgentSend = vi.fn(async () => ({
+      prompt: "pulse bootstrap prompt",
+      referenceTitle: "Pulse",
+    }));
+    const addAgentPromptReference = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const generateOutput = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      prompt: "pulse draft",
+      chatModeEnabled: false,
+      usesAgentLane: true,
+      handleAgentSend,
+      addAgentPromptReference,
+      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+      generateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handlePrimarySubmit();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(handleAgentSend).toHaveBeenCalledWith("pulse draft", { captureResult: true });
+    expect(addAgentPromptReference).toHaveBeenCalledWith("pulse bootstrap prompt", "Pulse");
+    expect(setPromptOrigin).toHaveBeenCalledWith("agent");
     expect(generateOutput).not.toHaveBeenCalled();
   });
 

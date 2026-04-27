@@ -3,32 +3,37 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioAgentInteractions } from "../useAiStudioAgentInteractions";
 import type { PromptOrigin } from "../../logic/agentPromptOwnership";
-import type { AgentActions, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
+import type { AgentActions } from "../../../../prefabs/agent";
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
 
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioAgentInteractions>[0]> = {}
-): Parameters<typeof useAiStudioAgentInteractions>[0] => ({
-  expertCreateMode: "standard",
-  editPromptToolSelected: false,
-  setSharedPrompt: vi.fn(),
-  setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
-  setPromptOrigin: asDispatch<PromptOrigin>(vi.fn()),
-  trackAgentUiEvent: vi.fn(),
-  addAgentPromptReference: vi.fn(),
-  setIsAgentChatOpen: asDispatch<boolean>(vi.fn()),
-  agentSessionEnabled: true,
-  setAgentSessionEnabled: asDispatch<boolean>(vi.fn()),
-  latestAgentPrompt: null,
-  resetAgentChat: vi.fn(),
-  resetAgentComposer: vi.fn(),
-  clearPulseRuntime: vi.fn(),
-  setAgentActions: asDispatch<AgentActions | undefined>(vi.fn()),
-  setPulseWorkflowSession: asDispatch<AgentPulseWorkflowSession | null>(vi.fn()),
-  ...overrides,
-});
+): Parameters<typeof useAiStudioAgentInteractions>[0] => {
+  const baseParams: Parameters<typeof useAiStudioAgentInteractions>[0] = {
+    expertCreateMode: "standard",
+    editPromptToolSelected: false,
+    setSharedPrompt: vi.fn(),
+    setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
+    setPromptOrigin: asDispatch<PromptOrigin>(vi.fn()),
+    trackAgentUiEvent: vi.fn(),
+    addAgentPromptReference: vi.fn(),
+    setIsAgentChatOpen: asDispatch<boolean>(vi.fn()),
+    agentSessionEnabled: true,
+    setAgentSessionEnabled: asDispatch<boolean>(vi.fn()),
+    latestAgentPrompt: null,
+    resetAgentChat: vi.fn(),
+    resetAgentComposer: vi.fn(),
+    clearPulseRuntime: vi.fn(),
+    setAgentActions: asDispatch<AgentActions | undefined>(vi.fn()),
+  };
+
+  return {
+    ...baseParams,
+    ...overrides,
+  };
+};
 
 describe("useAiStudioAgentInteractions", () => {
   beforeEach(() => {
@@ -64,7 +69,6 @@ describe("useAiStudioAgentInteractions", () => {
     const setLatestAgentPrompt = vi.fn();
     const setPromptOrigin = vi.fn();
     const setAgentActions = vi.fn();
-    const setPulseWorkflowSession = vi.fn();
     const setIsAgentChatOpen = vi.fn();
     const trackAgentUiEvent = vi.fn();
     const params = createParams({
@@ -73,9 +77,6 @@ describe("useAiStudioAgentInteractions", () => {
       setLatestAgentPrompt: asDispatch<string | null>(setLatestAgentPrompt),
       setPromptOrigin: asDispatch<PromptOrigin>(setPromptOrigin),
       setAgentActions: asDispatch<AgentActions | undefined>(setAgentActions),
-      setPulseWorkflowSession: asDispatch<AgentPulseWorkflowSession | null>(
-        setPulseWorkflowSession
-      ),
       setIsAgentChatOpen: asDispatch<boolean>(setIsAgentChatOpen),
       trackAgentUiEvent,
     });
@@ -93,20 +94,15 @@ describe("useAiStudioAgentInteractions", () => {
     expect(setLatestAgentPrompt).toHaveBeenCalledWith(null);
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
     expect(setAgentActions).toHaveBeenCalledWith(undefined);
-    expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
     expect(setIsAgentChatOpen).toHaveBeenCalledWith(false);
     expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_chat_cleared");
   });
 
   it("deactivates the active pulse when clearing chat in pulse mode", () => {
     const clearPulseRuntime = vi.fn();
-    const setPulseWorkflowSession = vi.fn();
     const params = createParams({
       expertCreateMode: "pulse",
       clearPulseRuntime,
-      setPulseWorkflowSession: asDispatch<AgentPulseWorkflowSession | null>(
-        setPulseWorkflowSession
-      ),
     });
     const { result } = renderHook(() => useAiStudioAgentInteractions(params));
 
@@ -115,7 +111,6 @@ describe("useAiStudioAgentInteractions", () => {
     });
 
     expect(clearPulseRuntime).toHaveBeenCalledTimes(1);
-    expect(setPulseWorkflowSession).not.toHaveBeenCalled();
   });
 
   it("adds latest agent prompt to grid with the default agent title", () => {

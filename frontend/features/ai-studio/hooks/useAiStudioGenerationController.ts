@@ -78,6 +78,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   selectedStyleContext?: StudioOutput["styleContext"] | null;
   agentInput: string;
   chatModeEnabled: boolean;
+  usesAgentLane: boolean;
   currentCostCredits: number | null;
   promptReferenceGenerateCostCredits?: number | null;
   resolveCostCreditsForModel?: (modelId: string) => number | null;
@@ -186,6 +187,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   selectedStyleContext = null,
   agentInput,
   chatModeEnabled,
+  usesAgentLane,
   currentCostCredits,
   promptReferenceGenerateCostCredits = null,
   resolveCostCreditsForModel,
@@ -549,7 +551,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 
   const handlePrimarySubmit = useCallback(() => {
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
-      if (chatModeEnabled) {
+      if (usesAgentLane) {
         handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
           const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
           if (agentRes?.prompt) {
@@ -578,7 +580,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   }, [
     addAgentPromptReference,
     agentInput,
-    chatModeEnabled,
     currentCostCredits,
     handleAgentSend,
     handleGenerate,
@@ -587,6 +588,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     promptReferenceGenerateCostCredits,
     selectedTool,
     setPromptOrigin,
+    usesAgentLane,
   ]);
 
   const handleChatOffInlineGenerate = useCallback(() => {

@@ -5,10 +5,7 @@
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
-import {
-  AiStudioProjectEntryState,
-  type AiStudioProjectEntryStep,
-} from "../features/ai-studio/components/AiStudioProjectEntryState";
+import { AiStudioProjectEntryState } from "../features/ai-studio/components/AiStudioProjectEntryState";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { MediaComplianceGate } from "../features/compliance/components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../features/compliance/hooks/useMediaComplianceGate";
@@ -17,24 +14,6 @@ import { installGlobalAppErrorHandlers, reportAppError } from "../lib/appErrorRe
 import { addBreadcrumb, redactUrlForTelemetry } from "../lib/clientBreadcrumbs";
 import { installMediaPerfDebugHandle } from "../lib/mediaPerfTelemetry";
 import "../styles/globals.css";
-
-const AI_STUDIO_PREFLIGHT_STEPS: AiStudioProjectEntryStep[] = [
-  {
-    id: "session",
-    label: "Verify session",
-    hint: "Confirm your authenticated workspace access.",
-  },
-  {
-    id: "compliance",
-    label: "Check media agreement",
-    hint: "Load your one-time media compliance acceptance.",
-  },
-  {
-    id: "studio",
-    label: "Open studio",
-    hint: "Continue into the AI Studio workspace.",
-  },
-];
 
 const isAiStudioRoutePath = (pathname: string): boolean =>
   pathname.startsWith("/ai-studio") || pathname.startsWith("/creator-studio");
@@ -159,13 +138,10 @@ export default function App({ Component, pageProps }: AppProps) {
         <AiStudioProjectEntryState
           variant="loading"
           phase="resolving-project"
-          pillLabel="AI Studio Access Check"
           metaLabel="Checking your session…"
-          title="Opening AI Studio"
-          message="Checking your session before AI Studio opens."
-          steps={AI_STUDIO_PREFLIGHT_STEPS}
+          message="Checking your session before project restore continues."
           activeStepIndex={0}
-          stepsAriaLabel="AI Studio access progress"
+          stepsAriaLabel="Project loading progress"
         />
       );
     }
@@ -183,14 +159,11 @@ export default function App({ Component, pageProps }: AppProps) {
       return (
         <AiStudioProjectEntryState
           variant="loading"
-          phase="loading-workspace"
-          pillLabel="AI Studio Access Check"
+          phase="resolving-project"
           metaLabel="Checking your media agreement…"
-          title="Opening AI Studio"
-          message="Checking your media agreement before the project workspace opens."
-          steps={AI_STUDIO_PREFLIGHT_STEPS}
+          message="Checking your media agreement before project restore continues."
           activeStepIndex={1}
-          stepsAriaLabel="AI Studio access progress"
+          stepsAriaLabel="Project loading progress"
         />
       );
     }

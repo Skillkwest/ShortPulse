@@ -3,13 +3,13 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../../pages/_app";
 
-const useRouterMock = vi.fn();
+const nextRouterMock = vi.fn();
 const useProtectedRouteMock = vi.fn();
 const useMediaComplianceGateMock = vi.fn();
 const addBreadcrumbMock = vi.fn();
 
 vi.mock("next/router", () => ({
-  useRouter: () => useRouterMock(),
+  useRouter: () => nextRouterMock(),
 }));
 
 vi.mock("../../lib/authGuard", () => ({
@@ -39,10 +39,13 @@ vi.mock("../../lib/mediaPerfTelemetry", () => ({
   installMediaPerfDebugHandle: vi.fn(),
 }));
 
+const renderApp = () =>
+  render(<App Component={() => <div>page</div>} pageProps={{}} router={nextRouterMock()} />);
+
 describe("App AI Studio protected gates", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useRouterMock.mockReturnValue({
+    nextRouterMock.mockReturnValue({
       pathname: "/ai-studio",
       asPath: "/ai-studio?projectId=project-1",
       events: {
@@ -74,12 +77,15 @@ describe("App AI Studio protected gates", () => {
       user: null,
     });
 
-    render(<App Component={() => <div>page</div>} pageProps={{}} />);
+    renderApp();
 
-    expect(screen.getByRole("status")).toHaveTextContent("Opening AI Studio");
+    expect(screen.getByRole("status")).toHaveTextContent("Loading project");
     expect(screen.getByText("Checking your session…")).toBeInTheDocument();
-    expect(screen.getByText("Checking your session before AI Studio opens.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Checking your session before project restore continues.")
+    ).toBeInTheDocument();
     expect(screen.getByText("Verify session")).toBeInTheDocument();
+    expect(screen.getByText("Resolve project")).toBeInTheDocument();
   });
 
   it("uses the polished entry screen while AI Studio media compliance is loading", () => {
@@ -94,18 +100,19 @@ describe("App AI Studio protected gates", () => {
       refreshStatus: vi.fn(),
     });
 
-    render(<App Component={() => <div>page</div>} pageProps={{}} />);
+    renderApp();
 
-    expect(screen.getByRole("status")).toHaveTextContent("Opening AI Studio");
+    expect(screen.getByRole("status")).toHaveTextContent("Loading project");
     expect(screen.getByText("Checking your media agreement…")).toBeInTheDocument();
     expect(
-      screen.getByText("Checking your media agreement before the project workspace opens.")
+      screen.getByText("Checking your media agreement before project restore continues.")
     ).toBeInTheDocument();
     expect(screen.getByText("Check media agreement")).toBeInTheDocument();
+    expect(screen.getByText("Load workspace")).toBeInTheDocument();
   });
 
   it("keeps the legacy compliance loader for non-AI-Studio protected routes", () => {
-    useRouterMock.mockReturnValue({
+    nextRouterMock.mockReturnValue({
       pathname: "/profile",
       asPath: "/profile",
       events: {
@@ -124,9 +131,9 @@ describe("App AI Studio protected gates", () => {
       refreshStatus: vi.fn(),
     });
 
-    render(<App Component={() => <div>page</div>} pageProps={{}} />);
+    renderApp();
 
     expect(screen.getByText("Checking your media agreement…")).toBeInTheDocument();
-    expect(screen.queryByText("Opening AI Studio")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading project")).not.toBeInTheDocument();
   });
 });

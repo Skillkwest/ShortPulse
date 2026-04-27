@@ -38,7 +38,17 @@ type AiStudioProjectEntryStateProps = {
 
 type EntryStepState = "complete" | "active" | "pending";
 
-const ENTRY_STEPS: AiStudioProjectEntryStep[] = [
+export const AI_STUDIO_PROJECT_OPEN_STEPS: AiStudioProjectEntryStep[] = [
+  {
+    id: "session",
+    label: "Verify session",
+    hint: "Confirm your authenticated workspace access.",
+  },
+  {
+    id: "compliance",
+    label: "Check media agreement",
+    hint: "Load your one-time media compliance acceptance.",
+  },
   {
     id: "resolve",
     label: "Resolve project",
@@ -59,14 +69,14 @@ const ENTRY_STEPS: AiStudioProjectEntryStep[] = [
 const getCurrentStepIndex = (phase: AiStudioProjectEntryPhase): number => {
   switch (phase) {
     case "resolving-project":
-      return 0;
+      return 2;
     case "loading-workspace":
-      return 1;
+      return 3;
     case "restoring-workspace":
     case "preparing-empty-workspace":
-      return 2;
+      return 4;
     default:
-      return 0;
+      return 2;
   }
 };
 
@@ -168,7 +178,7 @@ export function AiStudioProjectEntryState({
   const resolvedMessage = message ?? getMessage({ variant, phase, projectTitle, errorMessage });
   const resolvedMetaLabel = metaLabel ?? getMetaLabel(phase);
   const resolvedPillLabel = pillLabel ?? getStatusPillLabel(variant);
-  const resolvedSteps = steps ?? ENTRY_STEPS;
+  const resolvedSteps = steps ?? AI_STUDIO_PROJECT_OPEN_STEPS;
   const currentStepIndex = activeStepIndex ?? getCurrentStepIndex(phase);
   const liveRole = variant === "error" ? "alert" : "status";
   const liveMode = variant === "error" ? "assertive" : "polite";

@@ -17,6 +17,8 @@ describe("AiStudioProjectEntryState", () => {
       screen.getByText("Loading the latest workspace snapshot for Spring Campaign.")
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Project restore progress")).toBeInTheDocument();
+    expect(screen.getByText("Verify session")).toBeInTheDocument();
+    expect(screen.getByText("Check media agreement")).toBeInTheDocument();
     expect(screen.getByText("Resolve project")).toBeInTheDocument();
     expect(screen.getByText("Load workspace")).toBeInTheDocument();
     expect(screen.getByText("Prepare studio")).toBeInTheDocument();

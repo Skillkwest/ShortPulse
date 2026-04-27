@@ -21,7 +21,7 @@ Provide one canonical roadmap for all foundational hardening lanes so execution 
 | Lane | Name | Scope | Primary Output | Plan Artifact |
 | --- | --- | --- | --- | --- |
 | A | Gate Recovery + Governance Hardening | Red gate recovery, docs/governance drift, dead-code pass, policy/script alignment | Green baseline and enforceable governance contracts | `docs/archive/planning/lane-a-master-plan-2026-03-16.md` |
-| B | Modularization | Responsibility-based splits of oversized hotspots with parity behavior | Smaller modules and reduced coupling | `docs/planning/lane-b-master-plan-2026-03-16.md` |
+| B | Modularization | Responsibility-based splits of oversized hotspots with parity behavior | Smaller modules and reduced coupling | `docs/archive/planning/lane-b-master-plan-2026-03-16.md` |
 | C | Regression Armor | Characterization and contract tests for fragile paths | Deterministic regression detection | `docs/planning/lane-c-master-plan-2026-03-16.md` |
 | D | Runtime Safety + Stability | Core flow warning removal, risky effect patterns, hard-disable cleanup | Safer runtime behavior and lower regression risk | `docs/archive/planning/lane-d-master-plan-2026-03-16.md` |
 | E | Docs + ADR Discipline | SOP/API/architecture/ADR synchronization for core changes | Discoverable and current source-of-truth docs | `docs/archive/planning/lane-e-master-plan-2026-03-16.md` |
@@ -36,7 +36,7 @@ Provide one canonical roadmap for all foundational hardening lanes so execution 
 Each lane must maintain one canonical plan artifact linked in the Lane Catalog table. The roadmap and tracker are summary control docs; lane-level execution detail lives in the linked artifact.
 Lane-level companion execution plans are allowed for concrete slice sequencing. Current companion:
 - Lane A: `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`
-- Lane B: `docs/planning/lane-b-execution-plan-2026-03-16.md`
+- Lane B: `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 - Lane C: `docs/planning/lane-c-execution-plan-2026-03-16.md`
 - Lane D: `docs/archive/planning/lane-d-execution-plan-2026-03-16.md`
 - Lane E: `docs/archive/planning/lane-e-execution-plan-2026-03-16.md`

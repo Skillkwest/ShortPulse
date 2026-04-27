@@ -17,7 +17,7 @@ linked_pr: n/a (planning/control artifact)
 2. `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-hotspot-map.md`
 3. `docs/planning/evidence/lane-b/README.md`
 4. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
-5. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+5. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 
 ## Commands Run
 1. `wc -l frontend/features/ai-studio/components/MediaLibraryPanel.tsx frontend/features/character-manager/components/CharacterManagerShell.tsx`
@@ -77,9 +77,9 @@ linked_pr: n/a (planning/control artifact)
 2. No runtime rollback required.
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 4. `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-hotspot-map.md`
 5. `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-loader-controller-split.md`
 6. `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-mutation-controller-split.md`

@@ -16,7 +16,7 @@ Roadmap source: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 | Lane | Status      | Owner       | Current Focus                                                                                                                            | Blockers                                | Next Checkpoint                                                           | Plan Artifact                                                           |
 | ---- | ----------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | A    | Completed   | Engineering | Lane A closeout complete; debt handed off to downstream lanes                                                                            | none                                    | Lane B execution handoff                                                  | `docs/archive/planning/lane-a-master-plan-2026-03-16.md`                        |
-| B    | Completed   | Engineering | Lane B closeout complete; modularization, style authority, and convergence gates are locked with deferred residuals owner/dated | none                                    | Lane C execution handoff                                                  | `docs/planning/lane-b-master-plan-2026-03-16.md`                        |
+| B    | Completed   | Engineering | Lane B closeout complete; modularization, style authority, and convergence gates are locked with deferred residuals owner/dated | none                                    | Lane C execution handoff                                                  | `docs/archive/planning/lane-b-master-plan-2026-03-16.md`                        |
 | C    | Blocked     | Engineering | `C0-01` complete; `C1-01` packet schema, capture procedure, and authenticated audit harness are locked, but real failing/passing style-drop packets are still outstanding | Runtime authenticated pass/fail packet capture for `C1-01` | Run `npm -C frontend run test:e2e:style-drop` with audit creds, attach real pass/fail packets, then open `C1-02` fixture lock | `docs/planning/lane-c-master-plan-2026-03-16.md`                        |
 | D    | Completed   | Engineering | Lane D closeout complete; runtime warning, suppression, hard-disable, logging, and guardrail debt are cleared with full-suite green validation | none                                    | Lane E execution handoff                                                  | `docs/archive/planning/lane-d-master-plan-2026-03-16.md`                        |
 | E    | Completed   | Engineering | Lane E closeout complete; index parity, ADR integrity, policy-surface consistency, changelog governance, and convergence evidence are locked | none                                    | Lane F execution handoff                                                  | `docs/archive/planning/lane-e-master-plan-2026-03-16.md`                        |
@@ -114,9 +114,9 @@ Mandatory for any from-scratch replacement scope:
 
 ## Lane B Artifacts
 
-1. Master plan: `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. Tracker spec: `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. Execution plan: `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. Master plan: `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. Tracker spec: `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. Execution plan: `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 4. Evidence index: `docs/planning/evidence/lane-b/README.md`
 
 ## Lane A Evidence

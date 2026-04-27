@@ -11,7 +11,7 @@
   - `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-convergence-gate-cycle-2.md`
   - `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-closeout-review.md`
   - `docs/planning/evidence/lane-b/README.md`
-  - `docs/planning/lane-b-execution-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
   - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 - `commands_run`:
   - `npm -C frontend run validate:lane-b-convergence`

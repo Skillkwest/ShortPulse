@@ -20,7 +20,7 @@ linked_pr: n/a (local execution slice)
 3. `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-user-health-target-lookup-split.md`
 4. `docs/planning/evidence/lane-b/README.md`
 5. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
-6. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+6. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 
 ## Commands Run
 

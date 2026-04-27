@@ -99,8 +99,8 @@ linked_pr: n/a (local execution slice)
 
 ## Linked Plan Artifacts
 
-1. `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 4. `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-hotspot-map.md`
 5. `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-view-state-split.md`

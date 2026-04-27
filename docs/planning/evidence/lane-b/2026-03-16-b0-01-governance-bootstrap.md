@@ -19,7 +19,7 @@ linked_pr: n/a (local execution slice)
 4. `docs/sops/sop_new_feature_modularization.md`
 5. `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 6. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
-7. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+7. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 
 ## Commands Run
 1. `npm -C frontend run check:architecture-boundary`
@@ -56,6 +56,6 @@ linked_pr: n/a (local execution slice)
 2. No runtime rollback procedure is required.
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`

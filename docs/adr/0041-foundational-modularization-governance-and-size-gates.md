@@ -59,8 +59,8 @@ Adopt a mandatory governance contract for Lane B modularization:
 ## Implementation Notes
 
 - Companion planning artifacts:
-  - `docs/planning/lane-b-master-plan-2026-03-16.md`
-  - `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-  - `docs/planning/lane-b-execution-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+  - `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 - SOP alignment target:
   - `docs/sops/sop_new_feature_modularization.md`

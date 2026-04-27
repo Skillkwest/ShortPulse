@@ -191,9 +191,6 @@ Start here for all repository documentation.
 - `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 - `docs/planning/foundation-rebuild-playbook-2026-03-16.md`
-- `docs/planning/lane-b-master-plan-2026-03-16.md`
-- `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-- `docs/planning/lane-b-execution-plan-2026-03-16.md`
 - `docs/planning/lane-c-master-plan-2026-03-16.md`
 - `docs/planning/lane-c-tracker-spec-2026-03-16.md`
 - `docs/planning/lane-c-execution-plan-2026-03-16.md`

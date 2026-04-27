@@ -18,7 +18,7 @@ linked_pr: n/a (local execution slice)
 1. `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-checkpoint-review.md`
 2. `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-hotspot-map.md`
 3. `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-characterization-lock.md`
-4. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+4. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 5. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 6. `docs/planning/evidence/lane-b/README.md`
 7. `frontend/features/character-manager/hooks/__tests__/useCharacterManagerDraft.test.ts`
@@ -92,8 +92,8 @@ linked_pr: n/a (local execution slice)
 
 ## Linked Plan Artifacts
 
-1. `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 4. `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-checkpoint-review.md`
 5. `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-hotspot-map.md`

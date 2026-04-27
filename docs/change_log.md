@@ -3227,3 +3227,8 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Archived the completed Lane A, D, E, and F planning packets plus the completed separate `P1` generation-pipeline hardening packet into `docs/archive/planning/`.
 - Removed that completed subset from the active planning indexes, added it to the archive indexes, and retargeted the live foundation roadmap/tracker plus the related evidence packets to the archived paths.
 - Left Lane B and Lane C in `docs/planning/`: Lane B still needs its own heavier archive pass because of broader reference sprawl, and Lane C remains the active foundation lane.
+
+## 2026-04-27 (Foundation archive wave B)
+- Archived the completed Lane B modularization packet into `docs/archive/planning/`.
+- Removed Lane B from the active planning indexes, added it to the archive indexes, and retargeted the related ADR, follow-on planning docs, and Lane B evidence packet to the archived paths.
+- The active foundation planning surface is now narrowed to the roadmap/tracker, the rebuild playbook, and the still-open Lane C regression-armor packet.

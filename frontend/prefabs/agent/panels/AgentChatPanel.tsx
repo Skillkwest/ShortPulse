@@ -14,7 +14,6 @@ import {
 } from "./assistantInlineEditPresentation";
 import { PulseGuidedMessageBody } from "./PulseGuidedMessageBody";
 import type {
-  AgentActions,
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
@@ -91,13 +90,11 @@ type AgentChatPanelProps = {
   isDropActive?: boolean;
   showClearAttachmentsButton?: boolean;
   assistantMessagePresentation?: "default" | "pulse_guided";
-  agentActions?: AgentActions;
   primaryPrompt?: string | null;
   primarySource?: "agent" | "manual" | "reference";
   onInputChange: (value: string) => void;
   onSend: () => void;
   onMessageClick?: (message: AgentMessage) => void;
-  onAgentApplyPrompt?: (prompt: string) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -135,7 +132,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   isDropActive = false,
   showClearAttachmentsButton = false,
   assistantMessagePresentation = "default",
-  agentActions,
   primaryPrompt = null,
   primarySource = "manual",
   onInputChange,
@@ -724,7 +720,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           showPrimaryPromptStatus={showPrimaryPromptStatus}
           primaryPrompt={primaryPrompt}
           primarySource={primarySource}
-          actions={agentActions}
         />
       ) : null}
       {shouldShowThinkingIndicator && thinkingIndicatorPlacement !== "history" ? (

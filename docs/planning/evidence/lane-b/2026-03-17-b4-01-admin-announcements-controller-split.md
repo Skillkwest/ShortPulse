@@ -23,7 +23,7 @@ linked_pr: n/a (local execution slice)
 2. `frontend/features/admin/logic/useAdminAnnouncementsController.ts`
 3. `docs/planning/evidence/lane-b/2026-03-17-b4-01-admin-announcements-controller-split.md`
 4. `docs/planning/evidence/lane-b/README.md`
-5. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+5. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 6. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 
 ## Commands Run
@@ -103,7 +103,7 @@ linked_pr: n/a (local execution slice)
 
 ## Linked Plan Artifacts
 
-1. `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 4. `docs/planning/evidence/lane-b/2026-03-17-b4-01-admin-shell-hotspot-map.md`

@@ -13,8 +13,8 @@
   - preserve `frontend/styles/globals.css` import-order invariants
 - `commands_run`:
   - `find . -maxdepth 2 -type d \\( -name .next -o -name dist -o -name build -o -name backup -o -name backups -o -name .tmp \\) | sort`
-  - `sed -n '1,220p' docs/planning/lane-b-execution-plan-2026-03-16.md`
-  - `sed -n '1,220p' docs/planning/lane-b-master-plan-2026-03-16.md`
+  - `sed -n '1,220p' docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
+  - `sed -n '1,220p' docs/archive/planning/lane-b-master-plan-2026-03-16.md`
   - `sed -n '1,220p' docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
   - `sed -n '1,220p' docs/planning/evidence/lane-b/README.md`
   - `sed -n '1,240p' docs/styles-structure.md`

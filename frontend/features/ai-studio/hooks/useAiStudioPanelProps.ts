@@ -11,7 +11,6 @@ import {
   type SetStateAction,
 } from "react";
 import type {
-  AgentActions,
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
@@ -49,7 +48,6 @@ export type UseAiStudioPanelPropsParams = {
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
   agentMessages: AgentMessage[];
-  agentActions?: AgentActions;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   hasActivePulseSession?: boolean;
   agentInput: string;
@@ -73,7 +71,6 @@ export type UseAiStudioPanelPropsParams = {
   handleAgentAttachmentDragLeave: (event: DragEvent<HTMLDivElement>) => void;
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
-  handleAgentApplyPrompt: (promptText: string) => void;
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   handleGenerateFromAgentOutputPrompt: (request: AgentOutputGenerateInput) => void;
   useReferenceImageIndicator: boolean;
@@ -153,7 +150,6 @@ export type UseAiStudioPanelPropsParams = {
       pulseSessionInstanceId?: string | null;
     }
   ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
-  onCreatePulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   expertEditSessionState?: ExpertEditSessionState | null;
   onExpertEditSessionStateChange?: (state: ExpertEditSessionState) => void;
   videoDurationSeconds: number;
@@ -253,7 +249,6 @@ export const useAiStudioPanelProps = ({
   agentEnabled,
   agentBootstrapReady,
   agentMessages,
-  agentActions,
   pulseWorkflowSession = null,
   hasActivePulseSession = false,
   agentInput,
@@ -277,7 +272,6 @@ export const useAiStudioPanelProps = ({
   handleAgentAttachmentDragLeave,
   handleRemoveAgentAttachment,
   handleClearAgentAttachments,
-  handleAgentApplyPrompt,
   handleAssistantMessageEdit,
   handleGenerateFromAgentOutputPrompt,
   useReferenceImageIndicator,
@@ -336,7 +330,6 @@ export const useAiStudioPanelProps = ({
   activeCreatePulsePresetId,
   onActiveCreatePulsePresetIdChange,
   onCreatePulsePresetStart,
-  onCreatePulsePresetRestart,
   expertEditSessionState,
   onExpertEditSessionStateChange,
   videoDurationSeconds,
@@ -451,7 +444,6 @@ export const useAiStudioPanelProps = ({
       agentEnabled,
       agentBootstrapPending: !agentBootstrapReady,
       agentMessages,
-      agentActions,
       pulseWorkflowSession,
       agentInput,
       chatModeEnabled,
@@ -473,7 +465,6 @@ export const useAiStudioPanelProps = ({
       onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
       onRemoveAgentAttachment: handleRemoveAgentAttachment,
       onClearAgentAttachments: handleClearAgentAttachments,
-      onAgentApplyPrompt: handleAgentApplyPrompt,
       onAssistantMessageEdit: handleAssistantMessageEdit,
       onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
       useReferenceImageIndicator,
@@ -523,13 +514,11 @@ export const useAiStudioPanelProps = ({
       activePulsePresetId: activeCreatePulsePresetId,
       onActivePulsePresetIdChange: onActiveCreatePulsePresetIdChange,
       onPulsePresetStart: onCreatePulsePresetStart,
-      onPulsePresetRestart: onCreatePulsePresetRestart,
       beginnerMode: beginnerPolicy.create.beginnerMode,
       expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
     }),
     [
       activeOutput?.previewUrl,
-      agentActions,
       agentAttachmentError,
       agentAttachments,
       agentBusy,
@@ -551,7 +540,6 @@ export const useAiStudioPanelProps = ({
       describeInFlightCount,
       expertCreateMode,
       generationGuardrail,
-      handleAgentApplyPrompt,
       handleAgentAttachmentDragEnter,
       handleAgentAttachmentDragLeave,
       handleAgentAttachmentDragOver,
@@ -598,7 +586,6 @@ export const useAiStudioPanelProps = ({
       onSelectedCreatePulsePresetIdsChange,
       onExpertCreateModeChange,
       onActiveCreatePulsePresetIdChange,
-      onCreatePulsePresetRestart,
       onCreatePulsePresetStart,
       savedCreatePulsePresets,
       onSavedCreatePulsePresetsChange,

@@ -3,7 +3,6 @@
  * Keeps the main component and split subcomponents aligned on one contract.
  */
 import type {
-  AgentActions,
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
@@ -28,7 +27,6 @@ export type PromptStepProps = {
   agentEnabled?: boolean;
   agentBootstrapPending?: boolean;
   agentMessages?: AgentMessage[];
-  agentActions?: AgentActions;
   agentInput?: string;
   chatModeEnabled?: boolean;
   directOpenAiBypassEnabled?: boolean;
@@ -54,7 +52,6 @@ export type PromptStepProps = {
   onClearAgentAttachments?: () => void;
   onExpandChat?: () => void;
   onClearAgentChat?: () => void;
-  onAgentApplyPrompt?: (prompt: string) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;

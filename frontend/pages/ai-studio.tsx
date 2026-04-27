@@ -95,7 +95,6 @@ import {
   PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
   PERF_FLAG_SELECTOR_CALLBACKS,
 } from "../features/ai-studio/logic/perfProfileFlags";
-
 const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
 const FLAG_OUTPUT_SELECTOR_STORE = PERF_FLAG_OUTPUT_SELECTOR_STORE;
 const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
@@ -103,7 +102,6 @@ const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
-
 const normalizeAiStudioProjectName = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.replace(/\s+/g, " ").trim();
@@ -138,7 +136,6 @@ const resolveProjectEntryPhase = ({
   if (projectRouteRequested) return "loading-workspace";
   return "resolving-project";
 };
-
 export default function AiStudioPage() {
   const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
@@ -204,7 +201,6 @@ export default function AiStudioPage() {
   const shouldGateSessionPersistence = Boolean(projectId) && projectStatus !== "ready";
   const activeSessionPersistenceSessionId = shouldGateSessionPersistence ? null : sessionId;
   const sessionPersistenceTitleOverride = project?.title ?? localSessionTitleOverride;
-
   const {
     expertCreateMode,
     activeCreatePulsePresetId,
@@ -215,8 +211,6 @@ export default function AiStudioPage() {
     setPulseSessionInstanceId,
     setPulseWorkflowSession,
     clearPulseRuntime,
-    restartPulse,
-    deactivatePulse,
     handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange,
   } = useAiStudioCreateModeRuntime({
@@ -231,7 +225,6 @@ export default function AiStudioPage() {
     addReferences: addCharacterReferences,
     clearError: clearCharacterError,
   } = useCharacterWorkflow();
-
   const {
     promptRef,
     mode,
@@ -782,7 +775,6 @@ export default function AiStudioPage() {
     agentAttachments,
     linkedPromptReferenceIds,
     isAgentDropActive,
-    agentActions,
     isAgentChatOpen,
     latestAgentPrompt,
     promptOrigin,
@@ -802,7 +794,6 @@ export default function AiStudioPage() {
     handleAgentAttachmentDrop,
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
-    handleAgentApplyPrompt,
     handleAssistantMessageEdit,
     handleExpandChat,
     handleAgentAddToGrid,
@@ -851,22 +842,6 @@ export default function AiStudioPage() {
         pulseSessionInstanceId: options?.pulseSessionInstanceId ?? null,
       }),
     [handlePulsePresetStart]
-  );
-
-  const handleCreatePulsePresetRestart = useCallback(
-    async (preset: CreatePulseResolvedPreset) => {
-      const restartedPulse = restartPulse();
-      if (!restartedPulse || restartedPulse.presetId !== preset.presetId) {
-        return;
-      }
-      const result = await handlePulsePresetStart(preset, {
-        pulseSessionInstanceId: restartedPulse.sessionInstanceId,
-      });
-      if (result !== "started") {
-        deactivatePulse();
-      }
-    },
-    [deactivatePulse, handlePulsePresetStart, restartPulse]
   );
 
   const activeWorkflowPulsePreset = useMemo(() => {
@@ -1268,7 +1243,6 @@ export default function AiStudioPage() {
     agentEnabled,
     agentBootstrapReady,
     agentMessages,
-    agentActions,
     pulseWorkflowSession,
     hasActivePulseSession,
     agentInput,
@@ -1285,7 +1259,6 @@ export default function AiStudioPage() {
     setChatModeEnabled,
     handleAgentSend,
     onCreatePulsePresetStart: handleCreatePulsePresetStart,
-    onCreatePulsePresetRestart: handleCreatePulsePresetRestart,
     handleAgentEnhanceSend,
     handleAgentAttachmentDrop,
     handleAgentAttachmentDragOver,
@@ -1293,7 +1266,6 @@ export default function AiStudioPage() {
     handleAgentAttachmentDragLeave,
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
-    handleAgentApplyPrompt,
     handleAssistantMessageEdit: handleAssistantBubbleMessageEdit,
     handleGenerateFromAgentOutputPrompt,
     assistantBubbleMedia,
@@ -1530,6 +1502,78 @@ export default function AiStudioPage() {
     projectBootstrapApplied,
     workspaceRestoreCandidate: sessionRestoreCandidate,
   });
+  const modelModalState = useMemo(
+    () => ({
+      isOpen: isModelModalOpen,
+      options: filteredModelOptions,
+      resolveCreditsForModel: resolveModelPickerCredits,
+      context: modelModalContext,
+      onClose: closeModelModal,
+      onSelect: handleSelectModelFromModal,
+    }),
+    [
+      closeModelModal,
+      filteredModelOptions,
+      handleSelectModelFromModal,
+      isModelModalOpen,
+      modelModalContext,
+      resolveModelPickerCredits,
+    ]
+  );
+  const agentChat = useMemo(
+    () => ({
+      isOpen: isAgentChatOpen,
+      agentMessages,
+      agentInput,
+      agentIsSending: agentBusy,
+      latestAgentPrompt,
+      agentPrimarySource,
+      stagedAttachments: agentAttachments,
+      agentDropActive: isAgentDropActive,
+      onInputChange: handleAgentInputChange,
+      onSend: handleAgentSend,
+      onAddToGrid: handleAgentAddToGrid,
+      onClose: handleCloseAgentChat,
+      onAttachmentDrop: handleAgentAttachmentDrop,
+      onAttachmentDragOver: handleAgentAttachmentDragOver,
+      onAttachmentDragEnter: handleAgentAttachmentDragEnter,
+      onAttachmentDragLeave: handleAgentAttachmentDragLeave,
+      onRemoveAttachment: handleRemoveAgentAttachment,
+      onClearAttachments: handleClearAgentAttachments,
+      onAssistantMessageEdit: handleAssistantBubbleMessageEdit,
+      onGenerateFromOutputPrompt: handleGenerateFromAgentOutputPrompt,
+      assistantBubbleMedia,
+      outputGenerateCostCredits: promptReferenceGenerateCostCredits,
+      disableOutputGenerate: disableAgentOutputGenerate,
+      outputGenerateGuardrailReason: disableAgentOutputGenerate ? generationGuardrail : null,
+    }),
+    [
+      agentAttachments,
+      agentBusy,
+      agentInput,
+      agentMessages,
+      agentPrimarySource,
+      assistantBubbleMedia,
+      disableAgentOutputGenerate,
+      generationGuardrail,
+      handleAgentAddToGrid,
+      handleAgentAttachmentDragEnter,
+      handleAgentAttachmentDragLeave,
+      handleAgentAttachmentDragOver,
+      handleAgentAttachmentDrop,
+      handleAgentInputChange,
+      handleAgentSend,
+      handleAssistantBubbleMessageEdit,
+      handleClearAgentAttachments,
+      handleCloseAgentChat,
+      handleGenerateFromAgentOutputPrompt,
+      handleRemoveAgentAttachment,
+      isAgentChatOpen,
+      isAgentDropActive,
+      latestAgentPrompt,
+      promptReferenceGenerateCostCredits,
+    ]
+  );
 
   if (shouldGateProjectBootstrap) {
     return (
@@ -1650,42 +1694,8 @@ export default function AiStudioPage() {
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         resolveStyleLibraryInternalDrop={resolveStyleLibraryInternalDrop}
         onOpenMediaLibrary={handleOpenMediaLibraryPanelOnly}
-        modelModalState={{
-          isOpen: isModelModalOpen,
-          options: filteredModelOptions,
-          resolveCreditsForModel: resolveModelPickerCredits,
-          context: modelModalContext,
-          onClose: closeModelModal,
-          onSelect: handleSelectModelFromModal,
-        }}
-        agentChat={{
-          isOpen: isAgentChatOpen,
-          agentMessages,
-          agentActions,
-          agentInput,
-          agentIsSending: agentBusy,
-          latestAgentPrompt,
-          agentPrimarySource,
-          stagedAttachments: agentAttachments,
-          agentDropActive: isAgentDropActive,
-          onInputChange: handleAgentInputChange,
-          onSend: handleAgentSend,
-          onAddToGrid: handleAgentAddToGrid,
-          onClose: handleCloseAgentChat,
-          onAttachmentDrop: handleAgentAttachmentDrop,
-          onAttachmentDragOver: handleAgentAttachmentDragOver,
-          onAttachmentDragEnter: handleAgentAttachmentDragEnter,
-          onAttachmentDragLeave: handleAgentAttachmentDragLeave,
-          onRemoveAttachment: handleRemoveAgentAttachment,
-          onClearAttachments: handleClearAgentAttachments,
-          onAgentApplyPrompt: handleAgentApplyPrompt,
-          onAssistantMessageEdit: handleAssistantBubbleMessageEdit,
-          onGenerateFromOutputPrompt: handleGenerateFromAgentOutputPrompt,
-          assistantBubbleMedia,
-          outputGenerateCostCredits: promptReferenceGenerateCostCredits,
-          disableOutputGenerate: disableAgentOutputGenerate,
-          outputGenerateGuardrailReason: disableAgentOutputGenerate ? generationGuardrail : null,
-        }}
+        modelModalState={modelModalState}
+        agentChat={agentChat}
         handleReferenceGridFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}
         resolveCharacterDropReference={resolveCharacterDropReference}

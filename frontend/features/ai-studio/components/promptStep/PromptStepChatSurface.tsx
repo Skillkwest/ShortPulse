@@ -13,7 +13,6 @@ import {
   AgentSendButton,
 } from "../../../../prefabs/agent";
 import type {
-  AgentActions,
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
@@ -107,8 +106,6 @@ type PromptStepChatSurfaceProps = {
   agentPrimaryPrompt: string | null;
   prompt: string;
   agentPrimarySource: "agent" | "manual" | "reference";
-  agentActions?: AgentActions;
-  onAgentApplyPrompt?: (prompt: string) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
 };
 
@@ -181,7 +178,6 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   agentPrimaryPrompt,
   prompt,
   agentPrimarySource,
-  agentActions,
   onAssistantMessageEdit,
 }) => {
   const [isAgentInputExpanded, setIsAgentInputExpanded] = React.useState(false);
@@ -233,7 +229,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
       <AgentChatPanel
         messages={agentMessages}
         introMessage={hideAgentIntroMessage ? null : introMessage}
-        input={agentInput}
+        input=""
         sendLabel="Send"
         isSending={promptThinking}
         showThinkingIndicator
@@ -624,7 +620,6 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
         showPrimaryPromptStatus={false}
         primaryPrompt={agentPrimaryPrompt ?? prompt}
         primarySource={agentPrimarySource}
-        actions={agentActions}
       />
     </>
   );

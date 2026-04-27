@@ -16,8 +16,8 @@ linked_pr: n/a (local execution slice)
 ## Files Updated
 1. `scripts/check_size_budgets.js`
 2. `scripts/check_architecture_boundaries.js`
-3. `docs/planning/lane-b-master-plan-2026-03-16.md`
-4. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+3. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+4. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 5. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 6. `docs/adr/0041-foundational-modularization-governance-and-size-gates.md`
 7. `docs/planning/evidence/lane-b/README.md`
@@ -60,6 +60,6 @@ linked_pr: n/a (local execution slice)
 2. No data rollback or runtime migration rollback is required.
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`

@@ -12,8 +12,8 @@ linked_pr: n/a (local execution slice)
 3. Simplify `inpaintStageHandlers` to bind existing callbacks directly once the terminal-action sequencing is shared.
 
 ## Files Updated
-1. `docs/planning/lane-b-execution-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
+1. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
 3. `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`
 4. `frontend/features/ai-studio/components/edit/expertEditInteractionUtils.ts`
 5. `docs/planning/evidence/lane-b/README.md`
@@ -73,6 +73,6 @@ linked_pr: n/a (local execution slice)
 2. No data migration or runtime flag rollback required.
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`

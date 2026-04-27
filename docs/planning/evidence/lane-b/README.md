@@ -30,9 +30,9 @@ Examples:
 
 ## Linked docs
 
-- `docs/planning/lane-b-master-plan-2026-03-16.md`
-- `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-- `docs/planning/lane-b-execution-plan-2026-03-16.md`
+- `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+- `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+- `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 
 ## Current packets
 

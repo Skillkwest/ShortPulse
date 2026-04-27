@@ -190,4 +190,4 @@ When changing Create panel behavior or generation wiring, update all relevant la
   7. A pinned `workflow_gpt` Pulse configured with `activate_and_start` begins its first assistant step immediately after click, starts from isolated Pulse history/canonical state, and is allowed to return message-only workflow turns until it intentionally emits a final prompt artifact.
   8. Temporarily switching `Pulse -> Standard -> Pulse` preserves the hidden Pulse transcript/workflow runtime for the live session, while explicit restart/deactivate and Pulse-to-Pulse switching start fresh guided sessions.
   9. Generate submission reaches queued/dispatching/dispatched states and polling converges.
-  10. Agent prompt apply + generate-from-output path works and surfaces failures deterministically.
+  10. Agent generate-from-output controls work and surface failures deterministically.

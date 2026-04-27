@@ -25,7 +25,7 @@ linked_pr: n/a (local execution slice)
 4. `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-bootstrap-controller-split.md`
 5. `docs/planning/evidence/lane-b/README.md`
 6. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
-7. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+7. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 
 ## Commands Run
 
@@ -106,9 +106,9 @@ linked_pr: n/a (local execution slice)
 
 ## Linked Plan Artifacts
 
-1. `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 4. `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-hotspot-map.md`
 5. `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-characterization-lock.md`
 6. `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-preset-controller-split.md`

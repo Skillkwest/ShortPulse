@@ -3,13 +3,11 @@
  * Used by inline prompt cards and the expanded agent chat column.
  */
 import React from "react";
-import type { AgentActions } from "../types";
 
 type AgentPromptActionsProps = {
   primaryPrompt?: string | null;
   primarySource?: "agent" | "manual" | "reference";
   showPrimaryPromptStatus?: boolean;
-  actions?: AgentActions;
 };
 
 /**

@@ -94,6 +94,9 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/generation-pipeline-hardening-tracker-spec-2026-03-16.md`
 - `docs/archive/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
 - `docs/archive/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
+- `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+- `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+- `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`

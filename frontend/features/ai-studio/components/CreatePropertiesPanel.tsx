@@ -11,7 +11,6 @@ import { aspectOptions, modelLogos } from "../constants";
 import type { ModelModalContext } from "./ModelModal";
 import { AgentGenerateButton } from "../../../prefabs/agent";
 import type {
-  AgentActions,
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
@@ -53,7 +52,6 @@ export type CreatePropertiesPanelProps = {
   agentEnabled?: boolean;
   agentBootstrapPending?: boolean;
   agentMessages?: AgentMessage[];
-  agentActions?: AgentActions;
   agentInput?: string;
   chatModeEnabled?: boolean;
   directOpenAiBypassEnabled?: boolean;
@@ -98,7 +96,6 @@ export type CreatePropertiesPanelProps = {
   onAgentAttachmentDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void;
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
-  onAgentApplyPrompt?: (prompt: string) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromAgentOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onGenerate: () => void;
@@ -140,18 +137,12 @@ export type CreatePropertiesPanelProps = {
       pulseSessionInstanceId?: string | null;
     }
   ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
-  onPulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
   onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedPulsePresets?: readonly CreatePulseSavedPreset[];
   onSavedPulsePresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
   onOpenPresetsLibrary?: () => void;
 };
-
-/**
- * @deprecated Use `CreatePropertiesPanelProps`.
- */
-export type TextPropertiesPanelProps = CreatePropertiesPanelProps;
 
 type ComposeSendCardProps = {
   agentEnabled?: boolean;
@@ -656,7 +647,6 @@ export function CreatePropertiesPanel({
   agentEnabled = false,
   agentBootstrapPending = false,
   agentMessages = [],
-  agentActions,
   agentInput = "",
   chatModeEnabled = true,
   directOpenAiBypassEnabled = false,
@@ -873,7 +863,6 @@ export function CreatePropertiesPanel({
     agentEnabled,
     agentBootstrapPending,
     agentMessages,
-    agentActions,
     agentInput,
     agentIsSending,
     agentError,
@@ -1106,11 +1095,6 @@ export function CreatePropertiesPanel({
     </>
   );
 }
-
-/**
- * @deprecated Use `CreatePropertiesPanel`.
- */
-export const TextPropertiesPanel = CreatePropertiesPanel;
 
 export function ComposeSendCard({
   agentEnabled = false,

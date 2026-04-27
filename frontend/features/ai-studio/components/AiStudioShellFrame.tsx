@@ -5,7 +5,6 @@
 import React from "react";
 import { AgentChatPanel } from "../../../prefabs/agent";
 import type {
-  AgentActions,
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
@@ -25,7 +24,6 @@ type RightColumnDropMode = "none" | "text" | "media";
 type AgentChatProps = {
   isOpen: boolean;
   agentMessages: AgentMessage[];
-  agentActions?: AgentActions;
   agentInput: string;
   agentIsSending: boolean;
   latestAgentPrompt: string | null;
@@ -43,7 +41,6 @@ type AgentChatProps = {
   onAttachmentDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
   onRemoveAttachment: (id: string) => void;
   onClearAttachments: () => void;
-  onAgentApplyPrompt?: (prompt: string) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;
@@ -194,7 +191,6 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
               isSending={agentChat.agentIsSending}
               showPromptActions
               showPrimaryPromptStatus={false}
-              agentActions={agentChat.agentActions}
               primaryPrompt={agentChat.latestAgentPrompt}
               primarySource={agentChat.agentPrimarySource}
               assistantBubbleMedia={agentChat.assistantBubbleMedia}
@@ -208,7 +204,6 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
               onClearAttachments={agentChat.onClearAttachments}
               onInputChange={agentChat.onInputChange}
               onSend={agentChat.onSend}
-              onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
               onAssistantMessageEdit={agentChat.onAssistantMessageEdit}
               onGenerateOutputPrompt={agentChat.onGenerateFromOutputPrompt}
               outputGenerateCostCredits={agentChat.outputGenerateCostCredits}

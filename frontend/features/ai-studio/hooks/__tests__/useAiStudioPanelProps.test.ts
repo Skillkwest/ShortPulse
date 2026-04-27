@@ -53,7 +53,6 @@ const createParams = (
     handleAgentAttachmentDragLeave: vi.fn(),
     handleRemoveAgentAttachment: vi.fn(),
     handleClearAgentAttachments: vi.fn(),
-    handleAgentApplyPrompt: vi.fn(),
     handleGenerateFromAgentOutputPrompt: vi.fn(),
     useReferenceImageIndicator: false,
     activeOutput: outputs[0] ?? null,

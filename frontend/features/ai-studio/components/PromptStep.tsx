@@ -20,7 +20,6 @@ export function PromptStep({
   agentEnabled = false,
   agentBootstrapPending = false,
   agentMessages = [],
-  agentActions,
   agentInput = "",
   chatModeEnabled = true,
   directOpenAiBypassEnabled = false,
@@ -46,7 +45,6 @@ export function PromptStep({
   onClearAgentAttachments,
   onExpandChat,
   onClearAgentChat,
-  onAgentApplyPrompt,
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
   chatModeInlineGenerate,
@@ -355,8 +353,6 @@ export function PromptStep({
                 agentPrimaryPrompt={agentPrimaryPrompt}
                 prompt={prompt}
                 agentPrimarySource={agentPrimarySource}
-                agentActions={agentActions}
-                onAgentApplyPrompt={onAgentApplyPrompt}
                 onAssistantMessageEdit={onAssistantMessageEdit}
               />
             ) : (

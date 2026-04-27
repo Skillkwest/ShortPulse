@@ -16,7 +16,7 @@ linked_pr: n/a (local execution slice)
 1. `frontend/features/ai-studio/components/edit/useInpaintMaskController.ts`
 2. `frontend/features/ai-studio/components/edit/inpaintMaskOverlay.ts`
 3. `frontend/features/ai-studio/components/edit/__tests__/useInpaintMaskController.test.ts`
-4. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+4. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 5. `docs/planning/evidence/lane-b/README.md`
 6. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 7. `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-overlay-split.md`
@@ -80,9 +80,9 @@ linked_pr: n/a (local execution slice)
 2. No data migration or runtime rollback required.
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-b-master-plan-2026-03-16.md`
-2. `docs/planning/lane-b-tracker-spec-2026-03-16.md`
-3. `docs/planning/lane-b-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
+3. `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
 4. `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-controller-hotspot-map.md`
 5. `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-characterization-lock.md`
 6. `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-geometry-split.md`

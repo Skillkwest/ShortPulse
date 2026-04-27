@@ -45,7 +45,6 @@ import type { ResolveCharacterDropReference } from "../../character-manager/hook
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 import type {
-  AgentActions,
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
@@ -350,7 +349,6 @@ const FLAG_HIGH_DENSITY_SHELL_MODE = PERF_FLAG_SHELL_HIGH_DENSITY_MODE;
 type AgentChatProps = {
   isOpen: boolean;
   agentMessages: AgentMessage[];
-  agentActions?: AgentActions;
   agentInput: string;
   agentIsSending: boolean;
   latestAgentPrompt: string | null;
@@ -368,7 +366,6 @@ type AgentChatProps = {
   onAttachmentDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
   onRemoveAttachment: (id: string) => void;
   onClearAttachments: () => void;
-  onAgentApplyPrompt?: (prompt: string) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;

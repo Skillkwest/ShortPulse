@@ -55,7 +55,9 @@ describe("useAiStudioPageDerivations", () => {
       useAiStudioPageDerivations(createParams({ aspect: "16:9" }))
     );
 
-    const params = result.current.costParamsForModel({ durationSeconds: 8 });
+    const params = result.current.costParamsForModel("fal-ai/bytedance/seedream/v4.5/edit", {
+      durationSeconds: 8,
+    });
     expect(params.modelId).toBe("fal-ai/bytedance/seedream/v4.5/edit");
     expect(params.aspect).toBe("16:9");
     expect(params.durationSeconds).toBe(8);

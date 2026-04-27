@@ -83,6 +83,7 @@ export const modelOptions: ModelOption[] = [
       ] satisfies ModelOption[])
     : []),
   { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
+  { value: "gpt-image-2", label: "ChatGPT Image 2", mediaType: "image" },
   { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
   { value: "fal-ai/nano-banana/edit", label: "Nano Banana", mediaType: "image" },
   { value: "fal-ai/nano-banana-2", label: "Nano Banana 2", mediaType: "image" },

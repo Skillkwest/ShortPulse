@@ -12,6 +12,18 @@ export type SubmissionModelConfig = ReturnType<typeof getModelConfig>;
 
 export type SubmissionPatch = Partial<StudioOutput>;
 
+export type ImmediateGenerationResult = {
+  provider: Provider;
+  generationId: string;
+  requestId: string;
+  previewUrl: string;
+  resultUrls: string[];
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  mimeType?: string | null;
+  savedMediaIds?: string[];
+};
+
 export type BaseSubmissionArgs = {
   id: string;
   finalModel: string;
@@ -34,6 +46,7 @@ export type BaseSubmissionArgs = {
     patch?: SubmissionPatch,
     submitResponse?: FalSubmitResponse
   ) => void;
+  completeGenerationImmediately?: ((result: ImmediateGenerationResult) => void) | undefined;
 };
 
 export type VideoSubmissionArgs = BaseSubmissionArgs & {

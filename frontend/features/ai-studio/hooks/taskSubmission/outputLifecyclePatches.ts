@@ -89,3 +89,54 @@ export const applyDispatchedSubmissionPatch = ({
   queueState: patch.queueState ?? "dispatched",
   queueEnqueuedAtMs: item.queueEnqueuedAtMs,
 });
+
+type CompletedSubmissionPatchInput = {
+  item: StudioOutput;
+  provider: Provider;
+  generationId: string;
+  requestId: string;
+  previewUrl: string;
+  resultUrls: string[];
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  mimeType?: string | null;
+  savedMediaIds?: string[];
+};
+
+/**
+ * Applies a terminal success patch for direct-response providers that do not poll.
+ */
+export const applyCompletedSubmissionPatch = ({
+  item,
+  provider,
+  generationId,
+  requestId,
+  previewUrl,
+  resultUrls,
+  previewStoragePath,
+  fullStoragePath,
+  mimeType,
+  savedMediaIds = [],
+}: CompletedSubmissionPatchInput): StudioOutput => ({
+  ...item,
+  generationId,
+  taskId: requestId,
+  sourceRef: requestId,
+  generationTraceId: requestId,
+  provider,
+  taskState: "success",
+  queueState: "dispatched",
+  timestamp: "Ready",
+  previewUrl,
+  resultUrls,
+  previewStoragePath: previewStoragePath ?? item.previewStoragePath ?? null,
+  fullStoragePath: fullStoragePath ?? item.fullStoragePath ?? null,
+  mimeType: mimeType ?? item.mimeType ?? null,
+  mediaSource: "generated",
+  saveState: savedMediaIds.length > 0 ? "saved" : "idle",
+  savedMediaIds,
+  status: savedMediaIds.length > 0 ? "saved" : "ready",
+  errorMessage: null,
+  errorMessageShort: null,
+  errorDetail: null,
+});

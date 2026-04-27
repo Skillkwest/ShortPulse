@@ -53,4 +53,25 @@ describe("generationBilling pricing params normalization", () => {
 
     expect(params.resolution).toBe("auto_3K");
   });
+
+  it("normalizes gpt-image-2 size, quality, and count aliases into pricing params", () => {
+    const params = buildPricingParams("gpt-image-2", {
+      size: "1024x1536",
+      quality: "HIGH",
+      n: 2.4,
+    });
+
+    expect(params.size).toBe("1024x1536");
+    expect(params.aspect).toBe("9:16");
+    expect(params.resolution).toBe("high");
+    expect(params.quality).toBe("high");
+    expect(params.generationCount).toBe(2);
+  });
+
+  it("falls back to gpt-image-2 model defaults when size and quality are omitted", () => {
+    const params = buildPricingParams("gpt-image-2", {});
+
+    expect(params.aspect).toBe("1:1");
+    expect(params.resolution).toBe("medium");
+  });
 });

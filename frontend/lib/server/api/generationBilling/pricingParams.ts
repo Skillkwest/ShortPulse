@@ -25,12 +25,27 @@ const resolveImageDimensions = (
   return undefined;
 };
 
+const resolveExplicitImageSize = (payload: JsonObject): string | undefined => {
+  const directSize = asString(payload.size) ?? asString(payload.image_size);
+  if (!directSize) return undefined;
+  const normalized = directSize.trim().toLowerCase();
+  if (normalized === "1024x1024" || normalized === "1024x1536" || normalized === "1536x1024") {
+    return normalized;
+  }
+  return undefined;
+};
+
 const resolveAspectFromImageSize = (
   payload: JsonObject,
   dimensions?: { width: number; height: number }
 ): string | undefined => {
   const directAspect = asString(payload.aspect) ?? asString(payload.aspect_ratio);
   if (directAspect) return directAspect;
+
+  const explicitSize = resolveExplicitImageSize(payload);
+  if (explicitSize === "1024x1024") return "1:1";
+  if (explicitSize === "1024x1536") return "9:16";
+  if (explicitSize === "1536x1024") return "16:9";
 
   const width = dimensions?.width;
   const height = dimensions?.height;
@@ -48,6 +63,9 @@ const resolveAspectFromImageSize = (
 const resolveResolution = (payload: JsonObject): string | undefined => {
   const resolution = asString(payload.resolution);
   if (resolution) return resolution;
+
+  const quality = asString(payload.quality);
+  if (quality) return quality;
 
   const imageSize = asString(payload.image_size);
   if (!imageSize) return undefined;
@@ -163,7 +181,10 @@ export const summarizePayload = (payload: JsonObject): JsonObject => {
     "duration",
     "duration_seconds",
     "generation_count",
+    "n",
     "resolution",
+    "quality",
+    "size",
     "mode",
     "source_duration_ms",
     "source_duration_seconds",
@@ -196,6 +217,11 @@ export const buildPricingParams = (
     params.imageHeight = imageDimensions.height;
   }
 
+  const explicitImageSize = resolveExplicitImageSize(payload);
+  if (explicitImageSize) {
+    params.size = explicitImageSize;
+  }
+
   const aspect = normalizeAspectForModel(
     resolveAspectFromImageSize(payload, imageDimensions),
     modelId
@@ -210,9 +236,16 @@ export const buildPricingParams = (
   if (generationCount && generationCount > 0) {
     params.generationCount = Math.max(1, Math.round(generationCount));
   }
+  const openAiGenerationCount = asNumber(payload.n);
+  if (!params.generationCount && openAiGenerationCount && openAiGenerationCount > 0) {
+    params.generationCount = Math.max(1, Math.round(openAiGenerationCount));
+  }
 
   const resolution = normalizeResolutionForModel(resolveResolution(payload), modelId);
   if (resolution) params.resolution = resolution;
+  if (typeof resolution === "string" && ["low", "medium", "high"].includes(resolution)) {
+    params.quality = resolution;
+  }
 
   const mode = asString(payload.mode);
   if (mode) params.mode = mode;

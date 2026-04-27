@@ -4,6 +4,10 @@
 
 import { computeCostForModel } from "../pricing";
 import { listModelConfigs } from "../modelRegistry";
+import {
+  OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD,
+  OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS,
+} from "../../../../lib/model-runtime/openAiImage2";
 
 const AUDIO_STRATEGIES = new Set([
   "kling-3-per-second",
@@ -12,6 +16,10 @@ const AUDIO_STRATEGIES = new Set([
   "seedance-2-per-second",
   "seedance-2-fast-per-second",
 ]);
+
+const TEXT_CHARACTER_STRATEGIES = new Set(["elevenlabs-text-to-speech-per-kchar"]);
+
+const SOURCE_DURATION_STRATEGIES = new Set(["elevenlabs-voice-changer-per-minute"]);
 
 const WEB_SEARCH_STRATEGIES = new Set(["nano-banana-2-per-image", "nano-banana-per-image"]);
 
@@ -26,7 +34,12 @@ const withUndefinedFallback = <T>(values: T[]): Array<T | undefined> => {
 
 describe("model pricing coverage", () => {
   it("returns non-null policy-compliant costs across supported runtime settings", () => {
-    const configs = listModelConfigs().filter((config) => Boolean(config.pricingStrategy));
+    const configs = listModelConfigs().filter(
+      (
+        config
+      ): config is ReturnType<typeof listModelConfigs>[number] & { pricingStrategy: string } =>
+        Boolean(config.pricingStrategy)
+    );
     const failures: string[] = [];
     const matrixCounts: Record<string, number> = {};
 
@@ -42,6 +55,12 @@ describe("model pricing coverage", () => {
         : [undefined];
       const voiceControlValues = VOICE_CONTROL_STRATEGIES.has(config.pricingStrategy)
         ? [false, true]
+        : [undefined];
+      const textCharacterValues = TEXT_CHARACTER_STRATEGIES.has(config.pricingStrategy)
+        ? [1000]
+        : [undefined];
+      const sourceDurationValues = SOURCE_DURATION_STRATEGIES.has(config.pricingStrategy)
+        ? [60]
         : [undefined];
       const tokenCases =
         config.pricingStrategy === "gpt41nano-per-token"
@@ -59,44 +78,52 @@ describe("model pricing coverage", () => {
             audioValues.forEach((audio) => {
               webSearchValues.forEach((webSearch) => {
                 voiceControlValues.forEach((voiceControl) => {
-                  tokenCases.forEach((tokenCase) => {
-                    caseCount += 1;
-                    const estimate = computeCostForModel(config.id, {
-                      aspect,
-                      resolution,
-                      durationSeconds,
-                      audio,
-                      webSearch,
-                      voiceControl,
-                      ...tokenCase,
+                  textCharacterValues.forEach((textCharacters) => {
+                    sourceDurationValues.forEach((sourceDurationSeconds) => {
+                      tokenCases.forEach((tokenCase) => {
+                        caseCount += 1;
+                        const estimate = computeCostForModel(config.id, {
+                          aspect,
+                          resolution,
+                          durationSeconds,
+                          audio,
+                          webSearch,
+                          voiceControl,
+                          textCharacters,
+                          sourceDurationSeconds,
+                          ...tokenCase,
+                        });
+
+                        if (!estimate) {
+                          failures.push(`${config.id} => null cost`);
+                          return;
+                        }
+
+                        if (estimate.credits <= 0) {
+                          failures.push(
+                            `${config.id} => non-positive credits (${estimate.credits})`
+                          );
+                        }
+
+                        if (estimate.credits % 5 !== 0) {
+                          failures.push(
+                            `${config.id} => expected nearest-5 credits (${estimate.credits})`
+                          );
+                        }
+
+                        if (estimate.rawCredits > estimate.credits) {
+                          failures.push(
+                            `${config.id} => raw credits exceed billed (${estimate.rawCredits} > ${estimate.credits})`
+                          );
+                        }
+
+                        if (Math.abs(estimate.usd - estimate.credits * 0.01) > 1e-9) {
+                          failures.push(
+                            `${config.id} => billed usd mismatch (${estimate.usd} vs ${estimate.credits * 0.01})`
+                          );
+                        }
+                      });
                     });
-
-                    if (!estimate) {
-                      failures.push(`${config.id} => null cost`);
-                      return;
-                    }
-
-                    if (estimate.credits <= 0) {
-                      failures.push(`${config.id} => non-positive credits (${estimate.credits})`);
-                    }
-
-                    if (estimate.credits % 5 !== 0) {
-                      failures.push(
-                        `${config.id} => expected nearest-5 credits (${estimate.credits})`
-                      );
-                    }
-
-                    if (estimate.rawCredits > estimate.credits) {
-                      failures.push(
-                        `${config.id} => raw credits exceed billed (${estimate.rawCredits} > ${estimate.credits})`
-                      );
-                    }
-
-                    if (Math.abs(estimate.usd - estimate.credits * 0.01) > 1e-9) {
-                      failures.push(
-                        `${config.id} => billed usd mismatch (${estimate.usd} vs ${estimate.credits * 0.01})`
-                      );
-                    }
                   });
                 });
               });
@@ -116,11 +143,61 @@ describe("model pricing coverage", () => {
 
   it("uses shared nearest-5 quantization by default for every model", () => {
     listModelConfigs()
-      .filter((config) => Boolean(config.pricingStrategy))
+      .filter(
+        (
+          config
+        ): config is ReturnType<typeof listModelConfigs>[number] & { pricingStrategy: string } =>
+          Boolean(config.pricingStrategy)
+      )
       .forEach((config) => {
-        const estimate = computeCostForModel(config.id, { aspect: "4:3" });
+        const estimate = computeCostForModel(config.id, {
+          aspect: "4:3",
+          ...(config.pricingStrategy === "gpt41nano-per-token"
+            ? { inputTokens: 500, outputTokens: 700 }
+            : {}),
+          ...(TEXT_CHARACTER_STRATEGIES.has(config.pricingStrategy)
+            ? { textCharacters: 1000 }
+            : {}),
+          ...(SOURCE_DURATION_STRATEGIES.has(config.pricingStrategy)
+            ? { sourceDurationSeconds: 60 }
+            : {}),
+        });
         expect(estimate).not.toBeNull();
         expect((estimate?.credits ?? 0) % 5).toBe(0);
       });
+  });
+
+  it("uses the gpt-image-2 size matrix and quality tiers for raw pricing", () => {
+    const squareLow = computeCostForModel("gpt-image-2", {
+      aspect: "1:1",
+      resolution: "low",
+    });
+    const portraitHigh = computeCostForModel("gpt-image-2", {
+      aspect: "9:16",
+      resolution: "high",
+      generationCount: 2,
+    });
+    const landscapeFallback = computeCostForModel("gpt-image-2", {
+      aspect: "16:9",
+      resolution: "not-a-tier",
+    });
+
+    expect(squareLow?.usdRaw).toBeCloseTo(OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD["1024x1024"].low);
+    expect(squareLow?.width).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1024x1024"].width);
+    expect(squareLow?.height).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1024x1024"].height);
+
+    expect(portraitHigh?.usdRaw).toBeCloseTo(
+      OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD["1024x1536"].high * 2
+    );
+    expect(portraitHigh?.width).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1024x1536"].width);
+    expect(portraitHigh?.height).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1024x1536"].height);
+
+    expect(landscapeFallback?.usdRaw).toBeCloseTo(
+      OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD["1536x1024"].medium
+    );
+    expect(landscapeFallback?.width).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1536x1024"].width);
+    expect(landscapeFallback?.height).toBe(
+      OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1536x1024"].height
+    );
   });
 });

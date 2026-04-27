@@ -47,19 +47,14 @@ export const useAiStudioPageDerivations = ({
     selectedTool === "my-generations" ||
     selectedTool === "community";
 
-  const defaultPricingParams = useMemo(
-    () => (model ? buildDefaultPricingParams(model) : {}),
-    [model]
-  );
-
   const costParamsForModel = useCallback(
-    (overrides: Omit<PricingParams, "modelId"> = {}) => ({
-      modelId: model ?? "",
-      ...defaultPricingParams,
+    (targetModelId: string, overrides: Omit<PricingParams, "modelId"> = {}) => ({
+      modelId: targetModelId,
+      ...buildDefaultPricingParams(targetModelId),
       aspect,
       ...overrides,
     }),
-    [aspect, defaultPricingParams, model]
+    [aspect]
   );
 
   const filteredModelOptions = useMemo(() => {

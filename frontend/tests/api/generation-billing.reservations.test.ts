@@ -186,6 +186,64 @@ describe("generationBilling reservation RPC handling", () => {
     });
   });
 
+  it("direct-debits gpt-image-2 requests without using the reservation RPC", async () => {
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-openai-image",
+      },
+      url: "/api/openai/image-generate",
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "gpt-image-2",
+      payload: {
+        prompt: "cinematic portrait",
+        size: "1024x1024",
+        quality: "medium",
+        n: 1,
+      },
+      reason: "OpenAI GPT Image 2 generation",
+    });
+
+    const expectedPricingParams = buildPricingParams("gpt-image-2", {
+      size: "1024x1024",
+      quality: "medium",
+      n: 1,
+    });
+    const expectedEstimate = computeCostForModel("gpt-image-2", expectedPricingParams);
+
+    expect(charge).not.toBeNull();
+    expect(charge?.billingMode).toBe("direct_debit");
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        changeCents: -Math.abs(expectedEstimate?.credits ?? 0),
+        source: "generation_charge",
+        sourceRef: "req-openai-image",
+        metadata: expect.objectContaining({
+          model_id: "gpt-image-2",
+          route: "/api/openai/image-generate",
+          debited_credits: expectedEstimate?.credits,
+          pricing_breakdown: {
+            usd_raw: expectedEstimate?.usdRaw,
+            raw_credits: expectedEstimate?.rawCredits,
+            billed_credits: expectedEstimate?.credits,
+            billed_usd: expectedEstimate?.usd,
+            pricing_policy_version: null,
+            pricing_policy_source: "fallback",
+          },
+        }),
+      })
+    );
+
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it("returns charge helpers when reservation RPC succeeds and calls mark/release RPCs", async () => {
     const rpcMock = vi
       .fn()

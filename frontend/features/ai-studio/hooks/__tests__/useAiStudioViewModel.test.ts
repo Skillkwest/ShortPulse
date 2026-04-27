@@ -18,14 +18,23 @@ import { useAiStudioViewModel } from "../useAiStudioViewModel";
 
 const makeCostParamsForModel =
   (modelId: string) =>
-  (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
-    modelId,
-    aspect: "16:9",
-    durationSeconds: 6,
-    resolution: "1080p",
-    audio: false,
-    ...overrides,
-  });
+  (
+    targetModelIdOrOverrides?: string | Omit<PricingParams, "modelId">,
+    maybeOverrides?: Omit<PricingParams, "modelId">
+  ): PricingParams => {
+    const resolvedModelId =
+      typeof targetModelIdOrOverrides === "string" ? targetModelIdOrOverrides : modelId;
+    const overrides =
+      typeof targetModelIdOrOverrides === "string" ? maybeOverrides : targetModelIdOrOverrides;
+    return {
+      modelId: resolvedModelId,
+      aspect: "16:9",
+      durationSeconds: 6,
+      resolution: "1080p",
+      audio: false,
+      ...overrides,
+    };
+  };
 
 const baseInput = {
   mode: "video" as const,
@@ -63,8 +72,11 @@ afterEach(() => {
 describe("useAiStudioViewModel motion guardrails", () => {
   it("uses active video settings for prompt-reference generate cost", () => {
     const modelId = "fal-ai/kling-video/v3/pro/image-to-video";
-    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
-      modelId,
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
       aspect: "16:9",
       durationSeconds: 10,
       resolution: "1080p",
@@ -75,13 +87,13 @@ describe("useAiStudioViewModel motion guardrails", () => {
     const activeAudio = false;
     const expectedCost = computeCostForModel(
       modelId,
-      costParamsForModel({
+      costParamsForModel(modelId, {
         durationSeconds: activeDurationSeconds,
         resolution: "1080p",
         audio: activeAudio,
       })
     )?.credits;
-    const defaultCost = computeCostForModel(modelId, costParamsForModel())?.credits;
+    const defaultCost = computeCostForModel(modelId, costParamsForModel(modelId))?.credits;
 
     const { result } = renderHook(() =>
       useAiStudioViewModel({
@@ -105,8 +117,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
 
   it("uses image resolution-aware generate cost for create text output generation", () => {
     const modelId = "fal-ai/nano-banana-2";
-    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
-      modelId,
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
       aspect: "1:1",
       durationSeconds: 8,
       resolution: "1K",
@@ -115,7 +130,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     });
     const expectedCost = computeCostForModel(
       modelId,
-      costParamsForModel({ aspect: "1:1", resolution: "4K" })
+      costParamsForModel(modelId, { aspect: "1:1", resolution: "4K" })
     )?.credits;
 
     const { result } = renderHook(() =>
@@ -134,6 +149,117 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
 
     expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedCost);
+  });
+
+  it("disables create text generation when output-generate cost exceeds balance", () => {
+    const modelId = "fal-ai/nano-banana-2";
+    const costParamsForModel = makeCostParamsForModel(modelId);
+    const requiredCredits =
+      computeCostForModel(modelId, costParamsForModel({ aspect: "1:1", resolution: "4K" }))
+        ?.credits ?? 0;
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "text",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "1:1",
+        prompt: "Turn this into a cinematic portrait",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "4K",
+        balanceCredits: Math.max(0, requiredCredits - 1),
+        costParamsForModel,
+      })
+    );
+
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(requiredCredits);
+    expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
+  it("computes model-picker credits from the candidate model defaults instead of the active model", () => {
+    const activeModelId = "fal-ai/nano-banana-pro";
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
+      aspect: "1:1",
+      durationSeconds: 8,
+      resolution: "1K",
+      audio: false,
+      ...overrides,
+    });
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "image",
+        selectedTool: "create",
+        model: activeModelId,
+        aspect: "1:1",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        imageResolution: "4K",
+        costParamsForModel,
+      })
+    );
+
+    const candidateModelId = "gpt-image-2";
+    const expectedCredits = computeCostForModel(
+      candidateModelId,
+      costParamsForModel(candidateModelId, {
+        resolution: "4K",
+      })
+    )?.credits;
+
+    expect(result.current.resolveModelPickerCredits(candidateModelId)).toBe(expectedCredits);
+  });
+
+  it("uses the selected gpt-image-2 quality tier for create image costs", () => {
+    const modelId = "gpt-image-2";
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
+      aspect: "1:1",
+      durationSeconds: 8,
+      resolution: "medium",
+      audio: false,
+      ...overrides,
+    });
+    const expectedCurrentCost = computeCostForModel(
+      modelId,
+      costParamsForModel(modelId, { resolution: "high" })
+    )?.credits;
+    const expectedPromptCost = computeCostForModel(
+      modelId,
+      costParamsForModel(modelId, { aspect: "9:16", resolution: "high" })
+    )?.credits;
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "image",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "9:16",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "high",
+        costParamsForModel,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBe(expectedCurrentCost);
+    expect(result.current.promptReferenceGenerateCostCredits).toBe(expectedPromptCost);
+    expect(result.current.promptReferenceGenerateCostCredits).not.toBe(
+      result.current.currentCostCredits
+    );
   });
 
   it("blocks generation when both motion inputs are missing", () => {
@@ -298,8 +424,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("uses active Seedance 1.5 settings when computing the generate-button estimate", () => {
-    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
-      modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
       aspect: "9:16",
       durationSeconds: 4,
       resolution: "480p",
@@ -308,7 +437,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     });
     const expectedCost = computeCostForModel(
       KIE_SEEDANCE_15_PRO_MODEL_ID,
-      costParamsForModel({
+      costParamsForModel(KIE_SEEDANCE_15_PRO_MODEL_ID, {
         durationSeconds: 4,
         resolution: "480p",
         audio: false,
@@ -333,8 +462,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("uses active Seedance 2 settings when computing the generate-button estimate", () => {
-    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
-      modelId: KIE_SEEDANCE_2_MODEL_ID,
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
       aspect: "16:9",
       durationSeconds: 5,
       resolution: "1080p",
@@ -343,7 +475,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     });
     const expectedCost = computeCostForModel(
       KIE_SEEDANCE_2_MODEL_ID,
-      costParamsForModel({
+      costParamsForModel(KIE_SEEDANCE_2_MODEL_ID, {
         durationSeconds: 5,
         resolution: "1080p",
         audio: true,
@@ -370,8 +502,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("uses active Seedance 2 Fast settings when computing the generate-button estimate", () => {
-    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
-      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+    const costParamsForModel = (
+      targetModelId: string,
+      overrides?: Omit<PricingParams, "modelId">
+    ): PricingParams => ({
+      modelId: targetModelId,
       aspect: "1:1",
       durationSeconds: 10,
       resolution: "720p",
@@ -380,7 +515,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     });
     const expectedCost = computeCostForModel(
       KIE_SEEDANCE_2_FAST_MODEL_ID,
-      costParamsForModel({
+      costParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID, {
         durationSeconds: 10,
         resolution: "720p",
         audio: false,
@@ -582,11 +717,14 @@ describe("useAiStudioViewModel edit guardrails", () => {
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const standardCostCredits = computeCostForModel(
       selectedModelId,
-      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+      editCostParamsForModel(selectedModelId, { aspect: "1:1", resolution: "model_default" })
     )?.credits;
     const inpaintCostCredits = computeCostForModel(
       INPAINT_FLUX_FILL_MODEL_ID,
-      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+      editCostParamsForModel(INPAINT_FLUX_FILL_MODEL_ID, {
+        aspect: "1:1",
+        resolution: "model_default",
+      })
     )?.credits;
     expect(standardCostCredits).not.toBeNull();
     expect(inpaintCostCredits).not.toBeNull();
@@ -632,11 +770,17 @@ describe("useAiStudioViewModel edit guardrails", () => {
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const fillCostCredits = computeCostForModel(
       INPAINT_FLUX_FILL_MODEL_ID,
-      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+      editCostParamsForModel(INPAINT_FLUX_FILL_MODEL_ID, {
+        aspect: "1:1",
+        resolution: "model_default",
+      })
     )?.credits;
     const referenceInpaintCostCredits = computeCostForModel(
       INPAINT_REFERENCE_MODEL_ID,
-      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+      editCostParamsForModel(INPAINT_REFERENCE_MODEL_ID, {
+        aspect: "1:1",
+        resolution: "model_default",
+      })
     )?.credits;
 
     const { result } = renderHook(() =>
@@ -665,11 +809,14 @@ describe("useAiStudioViewModel edit guardrails", () => {
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const standardCostCredits = computeCostForModel(
       selectedModelId,
-      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+      editCostParamsForModel(selectedModelId, { aspect: "1:1", resolution: "model_default" })
     )?.credits;
     const markupCostCredits = computeCostForModel(
       MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
-      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+      editCostParamsForModel(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID, {
+        aspect: "1:1",
+        resolution: "model_default",
+      })
     )?.credits;
     expect(standardCostCredits).not.toBeNull();
     expect(markupCostCredits).not.toBeNull();

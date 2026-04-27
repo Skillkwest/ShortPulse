@@ -39,6 +39,7 @@ import {
   resolveSubmissionHandlerRoute,
 } from "./taskSubmissionHandlers";
 import {
+  applyCompletedSubmissionPatch,
   applyDispatchedSubmissionPatch,
   applySubmissionFailureToOutputs,
 } from "./taskSubmission/outputLifecyclePatches";
@@ -723,6 +724,45 @@ export const useAiStudioTaskSubmission = ({
               },
             });
           };
+          const completeGenerationImmediately = ({
+            provider,
+            generationId,
+            requestId,
+            previewUrl,
+            resultUrls,
+            previewStoragePath,
+            fullStoragePath,
+            mimeType,
+            savedMediaIds = [],
+          }: {
+            provider: Provider;
+            generationId: string;
+            requestId: string;
+            previewUrl: string;
+            resultUrls: string[];
+            previewStoragePath?: string | null;
+            fullStoragePath?: string | null;
+            mimeType?: string | null;
+            savedMediaIds?: string[];
+          }) => {
+            taskStarted = true;
+            startedTaskId = requestId;
+            startedProvider = provider;
+            updateOutputById(id, (item) =>
+              applyCompletedSubmissionPatch({
+                item,
+                provider,
+                generationId,
+                requestId,
+                previewUrl,
+                resultUrls,
+                previewStoragePath,
+                fullStoragePath,
+                mimeType,
+                savedMediaIds,
+              })
+            );
+          };
 
           const route = resolveSubmissionHandlerRoute(finalModel);
           if (route === "video") {
@@ -743,6 +783,7 @@ export const useAiStudioTaskSubmission = ({
               styleContext: options?.styleContextOverride,
               shortpulseContext,
               startPollingWithGeneration,
+              completeGenerationImmediately,
               videoReferenceMode,
               videoReferenceImageUrl,
               motionReferenceVideoUrl,
@@ -779,6 +820,7 @@ export const useAiStudioTaskSubmission = ({
               styleContext: options?.styleContextOverride,
               shortpulseContext,
               startPollingWithGeneration,
+              completeGenerationImmediately,
               falReferencePayload,
               inpaintOverride: preparedInpaintOverride,
             });
@@ -805,6 +847,7 @@ export const useAiStudioTaskSubmission = ({
               styleContext: options?.styleContextOverride,
               shortpulseContext,
               startPollingWithGeneration,
+              completeGenerationImmediately,
               falReferencePayload,
             });
           }

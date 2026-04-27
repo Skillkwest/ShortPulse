@@ -12,7 +12,7 @@ export type PricingStrategyId =
   | "fal-economy-image-per-mp"
   | "fal-fill-per-mp"
   | "fal-flux-kontext-inpaint-per-mp"
-  | "gpt-image-per-image"
+  | "gpt-image-2-per-image"
   | "google-nano-banana-per-image"
   | "nano-banana-2-per-image"
   | "gpt41nano-per-token"
@@ -30,6 +30,8 @@ export type PricingParams = {
   aspect?: string;
   imageWidth?: number;
   imageHeight?: number;
+  size?: string;
+  quality?: string;
   inputTokens?: number;
   outputTokens?: number;
   durationSeconds?: number;

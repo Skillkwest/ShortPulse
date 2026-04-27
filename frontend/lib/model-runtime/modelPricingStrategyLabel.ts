@@ -5,6 +5,13 @@ export const getAdminPricingStrategyLabel = (
   pricingStrategy: PricingStrategyId
 ): string => {
   switch (pricingStrategy) {
+    case "elevenlabs-music-per-minute":
+    case "elevenlabs-voice-changer-per-minute":
+      return "Per minute";
+    case "elevenlabs-sound-effect":
+      return "Per generated sound";
+    case "elevenlabs-text-to-speech-per-kchar":
+      return "Per 1K characters";
     case "fal-per-mp":
       return "Per megapixel";
     case "fal-economy-image-per-mp":
@@ -12,7 +19,7 @@ export const getAdminPricingStrategyLabel = (
     case "fal-fill-per-mp":
     case "fal-flux-kontext-inpaint-per-mp":
       return "Per output megapixel";
-    case "gpt-image-per-image":
+    case "gpt-image-2-per-image":
     case "google-nano-banana-per-image":
     case "nano-banana-per-image":
     case "nano-banana-2-per-image":

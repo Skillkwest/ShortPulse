@@ -2,6 +2,15 @@
  * Canonical model catalog shared by AI Studio client logic and server runtime.
  * Keep model capabilities, provider docs provenance, and Fal routing aliases in one place.
  */
+import type { ElevenLabsModelPricingAuthority } from "./elevenLabsModels";
+import {
+  ELEVENLABS_MUSIC_MODEL_ID,
+  ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+  ELEVENLABS_VOICEOVER_MODEL_ID,
+  ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+  ELEVENLABS_VOICE_DESIGN_MODEL_ID,
+} from "./elevenLabsModels";
+import type { PricingStrategyId } from "./pricingTypes";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
@@ -11,7 +20,14 @@ import {
 } from "./providerModelIds";
 
 export type ModelAspectSubmitField = "aspect_ratio" | "image_size" | "none";
-export type ModelProvider = "fal" | "kie" | "openai";
+export type ModelProvider = "fal" | "kie" | "openai" | "elevenlabs";
+export type ModelCatalogMediaType =
+  | "image"
+  | "video"
+  | "image-to-video"
+  | "multi"
+  | "text"
+  | "audio";
 
 export type ModelPayloadValidationSpec = {
   allowedTopLevelFields?: string[];
@@ -29,13 +45,22 @@ export type ModelCatalogEntry = {
   provider: ModelProvider;
   sourceUrl: string;
   verifiedAt: string;
+  label?: string;
+  mediaType?: ModelCatalogMediaType;
+  pricingStrategy?: PricingStrategyId;
+  pricingAuthority?: "shared_policy" | ElevenLabsModelPricingAuthority;
   submitAspectField: ModelAspectSubmitField;
   defaultAspect: string;
   allowedAspects: string[];
   defaultResolution?: string;
   allowedResolutions?: string[];
   defaultDurationSeconds?: number;
+  defaultGenerationCount?: number;
+  defaultSourceDurationSeconds?: number;
+  defaultTextCharacters?: number;
   allowedDurations?: number[];
+  minDurationSeconds?: number;
+  maxDurationSeconds?: number;
   falSubmitUrl?: string;
   falStatusBaseUrls?: string[];
   falTimeoutMs?: number;
@@ -50,6 +75,8 @@ export type ModelCatalogEntry = {
 
 const VERIFIED_AT = "2026-03-14";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
+const GPT_IMAGE_2_VERIFIED_AT = "2026-04-27";
+const ELEVENLABS_VERIFIED_AT = "2026-04-27";
 
 const catalog: Record<string, ModelCatalogEntry> = {
   "fal-ai/flux-2/klein/9b": {
@@ -144,6 +171,27 @@ const catalog: Record<string, ModelCatalogEntry> = {
     payloadValidation: {
       requiredStringFields: ["image_url"],
       optionalBooleanFields: ["sync_mode"],
+    },
+  },
+  "gpt-image-2": {
+    modelId: "gpt-image-2",
+    provider: "openai",
+    sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
+    verifiedAt: GPT_IMAGE_2_VERIFIED_AT,
+    submitAspectField: "none",
+    defaultAspect: "1:1",
+    allowedAspects: ["auto", "9:16", "4:5", "1:1", "5:4", "16:9"],
+    defaultResolution: "medium",
+    allowedResolutions: ["low", "medium", "high"],
+    payloadValidation: {
+      requiredStringFields: ["prompt"],
+      enumFields: {
+        size: ["1024x1024", "1024x1536", "1536x1024"],
+        quality: ["low", "medium", "high"],
+        output_format: ["png", "jpeg", "webp"],
+        moderation: ["auto", "low"],
+      },
+      optionalNumberFields: ["n", "output_compression"],
     },
   },
   "fal-ai/nano-banana": {
@@ -1044,6 +1092,78 @@ const catalog: Record<string, ModelCatalogEntry> = {
     verifiedAt: VERIFIED_AT,
     submitAspectField: "none",
     defaultAspect: "text",
+    allowedAspects: [],
+  },
+  [ELEVENLABS_MUSIC_MODEL_ID]: {
+    modelId: ELEVENLABS_MUSIC_MODEL_ID,
+    provider: "elevenlabs",
+    sourceUrl: "https://elevenlabs.io/docs",
+    verifiedAt: ELEVENLABS_VERIFIED_AT,
+    label: "ElevenLabs Music",
+    mediaType: "audio",
+    pricingStrategy: "elevenlabs-music-per-minute",
+    pricingAuthority: "shared_policy",
+    submitAspectField: "none",
+    defaultAspect: "audio",
+    allowedAspects: [],
+    defaultDurationSeconds: 30,
+    minDurationSeconds: 8,
+    maxDurationSeconds: 180,
+  },
+  [ELEVENLABS_SOUND_EFFECTS_MODEL_ID]: {
+    modelId: ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+    provider: "elevenlabs",
+    sourceUrl: "https://elevenlabs.io/docs",
+    verifiedAt: ELEVENLABS_VERIFIED_AT,
+    label: "ElevenLabs Sound Effects",
+    mediaType: "audio",
+    pricingStrategy: "elevenlabs-sound-effect",
+    pricingAuthority: "shared_policy",
+    submitAspectField: "none",
+    defaultAspect: "audio",
+    allowedAspects: [],
+    defaultGenerationCount: 1,
+    minDurationSeconds: 0.5,
+    maxDurationSeconds: 30,
+  },
+  [ELEVENLABS_VOICEOVER_MODEL_ID]: {
+    modelId: ELEVENLABS_VOICEOVER_MODEL_ID,
+    provider: "elevenlabs",
+    sourceUrl: "https://elevenlabs.io/docs",
+    verifiedAt: ELEVENLABS_VERIFIED_AT,
+    label: "ElevenLabs Voiceover",
+    mediaType: "audio",
+    pricingStrategy: "elevenlabs-text-to-speech-per-kchar",
+    pricingAuthority: "shared_policy",
+    submitAspectField: "none",
+    defaultAspect: "audio",
+    allowedAspects: [],
+    defaultTextCharacters: 1000,
+  },
+  [ELEVENLABS_VOICE_CHANGER_MODEL_ID]: {
+    modelId: ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+    provider: "elevenlabs",
+    sourceUrl: "https://elevenlabs.io/docs",
+    verifiedAt: ELEVENLABS_VERIFIED_AT,
+    label: "ElevenLabs Voice Changer",
+    mediaType: "audio",
+    pricingStrategy: "elevenlabs-voice-changer-per-minute",
+    pricingAuthority: "shared_policy",
+    submitAspectField: "none",
+    defaultAspect: "audio",
+    allowedAspects: [],
+    defaultSourceDurationSeconds: 60,
+  },
+  [ELEVENLABS_VOICE_DESIGN_MODEL_ID]: {
+    modelId: ELEVENLABS_VOICE_DESIGN_MODEL_ID,
+    provider: "elevenlabs",
+    sourceUrl: "https://elevenlabs.io/docs",
+    verifiedAt: ELEVENLABS_VERIFIED_AT,
+    label: "ElevenLabs Voice Design",
+    mediaType: "audio",
+    pricingAuthority: "metadata_only",
+    submitAspectField: "none",
+    defaultAspect: "audio",
     allowedAspects: [],
   },
 };

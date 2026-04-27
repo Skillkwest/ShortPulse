@@ -1,10 +1,8 @@
 /**
  * Registry of supported AI Studio models with metadata for UI and pricing.
  */
-import {
-  ELEVENLABS_RUNTIME_MODEL_DEFINITIONS,
-  type ElevenLabsModelPricingAuthority,
-} from "./elevenLabsModels";
+import { type ElevenLabsModelPricingAuthority } from "./elevenLabsModels";
+import { getModelCatalogEntry, listModelCatalogEntries } from "./modelCatalog";
 import { PricingStrategyId } from "./pricingTypes";
 import { AspectSize, falImageSizeMap } from "./modelSizes";
 import {
@@ -50,6 +48,12 @@ export type ModelConfig = {
   supportsImageToVideo?: boolean;
 };
 
+type ElevenLabsCatalogEntry = NonNullable<ReturnType<typeof getModelCatalogEntry>> & {
+  provider: "elevenlabs";
+  label: string;
+  mediaType: "audio";
+};
+
 const contractDefaultAspect = (modelId: string, fallback: string): string =>
   getModelDefaultAspect(modelId, fallback);
 
@@ -76,32 +80,28 @@ const contractAllowedDurations = (
   fallback: number[] | undefined
 ): number[] | undefined => getModelAllowedDurations(modelId, fallback);
 
-const buildElevenLabsModelConfig = ({
-  id,
-  label,
-  pricingAuthority,
-  pricingStrategy,
-  defaultDurationSeconds,
-  defaultGenerationCount,
-  defaultSourceDurationSeconds,
-  defaultTextCharacters,
-  minDurationSeconds,
-  maxDurationSeconds,
-}: (typeof ELEVENLABS_RUNTIME_MODEL_DEFINITIONS)[number]): ModelConfig => ({
-  id,
-  label,
+const isElevenLabsCatalogEntry = (
+  entry: ReturnType<typeof getModelCatalogEntry>
+): entry is ElevenLabsCatalogEntry =>
+  entry?.provider === "elevenlabs" &&
+  typeof entry.label === "string" &&
+  entry.mediaType === "audio";
+
+const buildElevenLabsModelConfig = (entry: ElevenLabsCatalogEntry): ModelConfig => ({
+  id: entry.modelId,
+  label: entry.label,
   provider: "elevenlabs",
   mediaType: "audio",
-  defaultAspect: "audio",
-  allowedAspects: [],
-  pricingAuthority,
-  pricingStrategy,
-  defaultDurationSeconds,
-  defaultGenerationCount,
-  defaultSourceDurationSeconds,
-  defaultTextCharacters,
-  minDurationSeconds,
-  maxDurationSeconds,
+  defaultAspect: entry.defaultAspect,
+  allowedAspects: entry.allowedAspects,
+  pricingAuthority: entry.pricingAuthority,
+  pricingStrategy: entry.pricingStrategy,
+  defaultDurationSeconds: entry.defaultDurationSeconds,
+  defaultGenerationCount: entry.defaultGenerationCount,
+  defaultSourceDurationSeconds: entry.defaultSourceDurationSeconds,
+  defaultTextCharacters: entry.defaultTextCharacters,
+  minDurationSeconds: entry.minDurationSeconds,
+  maxDurationSeconds: entry.maxDurationSeconds,
 });
 
 const registry: Record<string, ModelConfig> = {
@@ -187,6 +187,25 @@ const registry: Record<string, ModelConfig> = {
       "model_default",
     ]),
     supportsImageToImage: true,
+  },
+  "gpt-image-2": {
+    id: "gpt-image-2",
+    label: "ChatGPT Image 2",
+    provider: "openai",
+    mediaType: "image",
+    defaultAspect: contractDefaultAspect("gpt-image-2", "1:1"),
+    allowedAspects: contractAllowedAspects("gpt-image-2", [
+      "auto",
+      "9:16",
+      "4:5",
+      "1:1",
+      "5:4",
+      "16:9",
+    ]),
+    pricingStrategy: "gpt-image-2-per-image",
+    defaultResolution: contractDefaultResolution("gpt-image-2", "medium"),
+    allowedResolutions: contractAllowedResolutions("gpt-image-2", ["low", "medium", "high"]),
+    supportsTextToImage: true,
   },
   "fal-ai/nano-banana": {
     id: "fal-ai/nano-banana",
@@ -751,10 +770,9 @@ const registry: Record<string, ModelConfig> = {
     pricingStrategy: "gpt41nano-per-token",
   },
   ...Object.fromEntries(
-    ELEVENLABS_RUNTIME_MODEL_DEFINITIONS.map((definition) => [
-      definition.id,
-      buildElevenLabsModelConfig(definition),
-    ])
+    listModelCatalogEntries()
+      .filter(isElevenLabsCatalogEntry)
+      .map((entry) => [entry.modelId, buildElevenLabsModelConfig(entry)])
   ),
 };
 

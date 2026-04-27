@@ -30,6 +30,7 @@ export type Provider =
   | "fal-seedream-v5-lite-edit"
   | "fal-veo"
   | "fal-veo-i2v"
+  | "openai-image"
   | "kie-veo"
   | "kie-kling"
   | "kie-seedance"
@@ -43,6 +44,7 @@ export const normalizeProviderForPolling = (
   if (!value) return fallback;
   const normalized = value.trim().toLowerCase();
   if (!normalized.length) return fallback;
+  if (normalized.startsWith("openai")) return "openai-image";
   if (normalized.startsWith("fal")) {
     if (
       normalized.includes("kling-3") ||

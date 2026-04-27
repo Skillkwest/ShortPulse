@@ -1,6 +1,12 @@
 /**
- * Default submission handlers (Seedream + Nano Banana) for AI Studio.
+ * Default submission handlers (OpenAI GPT Image 2, Seedream, and Nano Banana) for AI Studio.
  */
+import { submitOpenAiGptImage2 } from "../../../../lib/openAiImageClient";
+import {
+  normalizeOpenAiGptImage2Quality,
+  OPENAI_GPT_IMAGE_2_MODEL_ID,
+  resolveOpenAiGptImage2SizeForAspect,
+} from "../../../../lib/model-runtime/openAiImage2";
 import {
   type FalSubmitResponse,
   submitFalNanoBanana,
@@ -60,6 +66,7 @@ export const handleDefaultModelSubmission = async ({
   characterContext,
   styleContext,
   shortpulseContext,
+  completeGenerationImmediately,
   startPollingWithGeneration,
 }: ImageSubmissionArgs): Promise<void> => {
   let response: FalSubmitResponse;
@@ -76,7 +83,29 @@ export const handleDefaultModelSubmission = async ({
     ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
   };
 
-  if (
+  if (finalModel === OPENAI_GPT_IMAGE_2_MODEL_ID) {
+    const response = await submitOpenAiGptImage2({
+      prompt: cleanedPrompt,
+      size: resolveOpenAiGptImage2SizeForAspect(aspect),
+      quality: normalizeOpenAiGptImage2Quality(requestedResolution),
+      ...shortpulseSubmitPayload,
+    });
+    if (!completeGenerationImmediately) {
+      throw new Error("OpenAI image submission requires an immediate completion callback.");
+    }
+    completeGenerationImmediately({
+      provider: "openai-image",
+      generationId: response.output.generationId,
+      requestId: response.output.requestId,
+      previewUrl: response.output.previewUrl,
+      resultUrls: response.output.resultUrls,
+      previewStoragePath: response.output.previewStoragePath,
+      fullStoragePath: response.output.fullStoragePath,
+      mimeType: response.output.mimeType,
+      savedMediaIds: response.output.savedMediaIds,
+    });
+    return;
+  } else if (
     finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image" ||
     finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
   ) {

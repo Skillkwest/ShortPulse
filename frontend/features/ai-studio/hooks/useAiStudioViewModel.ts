@@ -54,7 +54,10 @@ type ViewModelInput = {
   seedance2ReferenceAudioUrls?: string[];
   balanceCredits: number | null;
   editSubmitIntent?: EditSubmitIntent;
-  costParamsForModel: (overrides?: Omit<PricingParams, "modelId">) => PricingParams;
+  costParamsForModel: (
+    modelId: string,
+    overrides?: Omit<PricingParams, "modelId">
+  ) => PricingParams;
   pricingPolicy?: PricingParams["pricingPolicy"];
 };
 
@@ -148,7 +151,10 @@ export const useAiStudioViewModel = ({
         if (!model) return null;
         return computeCostForModel(
           model,
-          costParamsForModel(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
+          costParamsForModel(
+            model,
+            pricingImageResolution ? { resolution: pricingImageResolution } : {}
+          ),
           pricingPolicy
         );
       }
@@ -156,7 +162,7 @@ export const useAiStudioViewModel = ({
         if (!model) return null;
         return computeCostForModel(
           model,
-          costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }),
+          costParamsForModel(model, { durationSeconds: getDefaultDurationSeconds(model) }),
           pricingPolicy
         );
       }
@@ -173,7 +179,10 @@ export const useAiStudioViewModel = ({
       if (!effectiveEditSubmitModelId) return null;
       return computeCostForModel(
         effectiveEditSubmitModelId,
-        costParamsForModel(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
+        costParamsForModel(
+          effectiveEditSubmitModelId,
+          pricingImageResolution ? { resolution: pricingImageResolution } : {}
+        ),
         pricingPolicy
       );
     }
@@ -183,7 +192,7 @@ export const useAiStudioViewModel = ({
       if (isKlingMotionMode) return null;
       return computeCostForModel(
         model,
-        costParamsForModel({
+        costParamsForModel(model, {
           durationSeconds: videoDurationSeconds,
           resolution: videoResolution,
           audio: videoGenerateAudio,
@@ -221,6 +230,7 @@ export const useAiStudioViewModel = ({
     const breakdown = computeCostForModel(
       effectiveEditSubmitModelId,
       costParamsForModel(
+        effectiveEditSubmitModelId,
         isVideoTool
           ? {
               durationSeconds: videoDurationSeconds,
@@ -253,6 +263,7 @@ export const useAiStudioViewModel = ({
       const breakdown = computeCostForModel(
         modelIdForChip,
         costParamsForModel(
+          modelIdForChip,
           isVideoTool
             ? {
                 durationSeconds: videoDurationSeconds,
@@ -283,7 +294,7 @@ export const useAiStudioViewModel = ({
     if (!effectiveEditSubmitModelId || !isImageTool) return null;
     const breakdown = computeCostForModel(
       effectiveEditSubmitModelId,
-      costParamsForModel({
+      costParamsForModel(effectiveEditSubmitModelId, {
         aspect,
         ...(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
       }),
@@ -302,7 +313,7 @@ export const useAiStudioViewModel = ({
     if (!isCreateWorkflowSelected || mode !== "text" || !effectiveEditSubmitModelId) return null;
     const breakdown = computeCostForModel(
       effectiveEditSubmitModelId,
-      costParamsForModel({
+      costParamsForModel(effectiveEditSubmitModelId, {
         aspect,
         ...(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
       }),
@@ -340,7 +351,6 @@ export const useAiStudioViewModel = ({
   const isCreditGuardrail = costedFlow && !hasSufficientCreditsForCost;
 
   const generationGuardrail = useMemo(() => {
-    if (isCreateWorkflowSelected && mode === "text") return null;
     if (requiresModelSelection && !isModelSelected)
       return "Select a model before running a generation.";
     if (isEditWorkflowSelected) {
@@ -424,10 +434,18 @@ export const useAiStudioViewModel = ({
       }
     }
     if (isCreditGuardrail) return "You do not have enough credits for this run.";
+    if (
+      isCreateWorkflowSelected &&
+      mode === "text" &&
+      !hasSufficientCreditsForPromptReferenceGenerate
+    ) {
+      return "You do not have enough credits for this run.";
+    }
     return null;
   }, [
     extraImageUrls,
     hasDescribeImage,
+    hasSufficientCreditsForPromptReferenceGenerate,
     hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
     isVideoTool,

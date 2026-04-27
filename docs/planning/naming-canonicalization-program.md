@@ -1,6 +1,6 @@
 # Naming Canonicalization Program
 
-Status: Active  
+Status: active  
 Owner: Frontend + Docs Governance  
 Start date: 2026-02-23
 

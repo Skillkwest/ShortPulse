@@ -1,5 +1,7 @@
 # Naming Canonicalization Tracker
 
+Status: active
+
 Status key: `pending` | `in_progress` | `blocked` | `completed`
 
 ## Phase Status

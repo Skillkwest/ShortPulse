@@ -1,6 +1,6 @@
 # Naming Canonical Map
 
-Status: Active  
+Status: active  
 Last updated: 2026-02-23
 
 Purpose: single source of truth for canonical terms, compatibility policy, and sunset targets.

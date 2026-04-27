@@ -1,5 +1,7 @@
 # Naming Decision Log
 
+Status: active
+
 Purpose: immutable log of naming decisions and stop-point approvals.
 
 ## 2026-02-23: Program Initialization

@@ -1,6 +1,6 @@
 # Naming Phase 7 Entry Readiness
 
-Status: Active  
+Status: active  
 Last updated: 2026-02-23
 
 Purpose: define the exact contract-entry checklist for alias sunset (Phase 7), track release-window requirements, and inventory remaining compatibility aliases that are intentionally retained.

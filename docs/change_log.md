@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - normalized the full `generation-pipeline-rebuild-*` planning family onto the canonical status vocabulary,
+  - kept the packet active in place and preserved checkpoint-complete semantics in the body text rather than reclassifying the family mid-slice,
+  - and deferred any archive split for those checkpoint docs to a separate active-vs-historical pass.
+- Documentation cleanup:
   - normalized the full `media-rendering-hardening-v2-*` planning family onto the canonical status vocabulary,
   - mapped the accepted pre-implementation stop/go checklist onto `active` because it still governs the live planning path,
   - and kept the entire packet active without changing scope or rollout intent.

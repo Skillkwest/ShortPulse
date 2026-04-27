@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document completes `GPR-CR-S2` by classifying the remaining compatibility paths named in the inventory.

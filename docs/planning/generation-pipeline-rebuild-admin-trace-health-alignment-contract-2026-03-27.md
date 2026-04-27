@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document locks the current repo-backed authority posture for admin generation trace and health diagnostics before code changes.

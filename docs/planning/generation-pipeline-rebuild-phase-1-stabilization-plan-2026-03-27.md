@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Completed
+Status: active
 
 ## Summary
 Phase 1 was the minimum runtime hardening required before schema-level rebuild work.

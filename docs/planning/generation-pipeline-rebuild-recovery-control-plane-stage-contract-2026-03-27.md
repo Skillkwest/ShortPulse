@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document completes `GPR-CP-S1` by defining the explicit stage map and ownership contract for the background recovery control plane.

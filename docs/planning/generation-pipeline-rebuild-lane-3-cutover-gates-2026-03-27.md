@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document defines the cutover gates for Lane 3 delivery and read-model work.

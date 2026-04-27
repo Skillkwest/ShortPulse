@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document locks the runtime contract for generated reference reuse and drag/drop authority before any new Lane 3 code changes.

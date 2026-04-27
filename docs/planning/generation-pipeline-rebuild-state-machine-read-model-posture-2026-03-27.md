@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document completes `GPR-SM-S4` by classifying the remaining post-submit queue/status readers against the canonical lifecycle transition boundary.

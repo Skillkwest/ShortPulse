@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Completed
+Status: active
 
 ## Summary
 Phase 2 completed the transition from linkage hardening to stricter read authority.

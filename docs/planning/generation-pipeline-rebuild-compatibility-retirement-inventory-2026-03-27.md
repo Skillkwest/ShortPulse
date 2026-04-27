@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document completes `GPR-CR-S1` by inventorying the remaining generation-pipeline compatibility paths that still matter to rebuild closeout.

@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Summary
 This blueprint re-establishes the generation-pipeline rebuild target on `working-development`.

@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document defines the next explicit Lane 4 job after the generated reuse authority cutover checkpoint.

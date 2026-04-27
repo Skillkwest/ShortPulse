@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document defines the historical data quality gates that must be satisfied before Lane 2 backfill and legacy fallback retirement can proceed.

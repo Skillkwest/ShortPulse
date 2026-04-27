@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Checkpoint complete
+Status: active
 
 ## Purpose
 This document defines the next larger Lane 3 job after the bounded generated reuse/drag-drop checkpoint.

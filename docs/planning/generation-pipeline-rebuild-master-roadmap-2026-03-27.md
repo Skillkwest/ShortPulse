@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Done at the current checkpoint
+Status: active
 
 ## Purpose
 This roadmap defines the remaining rebuild lanes after Phase 3 runtime-authority hardening.

@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Strong checkpoint complete
+Status: active
 
 ## Purpose
 Lane 1 defines the future request/attempt state machine for the generation pipeline.

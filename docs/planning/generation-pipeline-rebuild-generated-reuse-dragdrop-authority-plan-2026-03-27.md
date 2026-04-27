@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Done at current checkpoint
+Status: active
 
 ## Purpose
 This document defines the next explicit follow-on job after the current admin trace/health checkpoint.

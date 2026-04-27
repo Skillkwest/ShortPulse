@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Summary
 Phase 3 starts the additive schema transition to canonical server-owned generation output records.

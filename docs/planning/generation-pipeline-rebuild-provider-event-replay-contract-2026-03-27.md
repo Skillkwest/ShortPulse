@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document completes `GPR-PE-S1` by defining the explicit ingress and replay contract for Fal webhook events over the existing `fal_webhook_events` inbox.

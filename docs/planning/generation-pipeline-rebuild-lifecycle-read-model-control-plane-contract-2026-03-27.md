@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document completes `GPR-RM-S1` by defining the explicit lifecycle read-model and control-plane contract for queue status, persisted status, provider status polling, and recovery-entry surfaces.

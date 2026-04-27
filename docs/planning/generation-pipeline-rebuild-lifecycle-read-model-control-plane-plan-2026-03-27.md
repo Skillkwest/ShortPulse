@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Done at the current checkpoint
+Status: active
 
 ## Purpose
 This document defines the next explicitly scoped follow-on job after the post-submit state-machine service checkpoint.

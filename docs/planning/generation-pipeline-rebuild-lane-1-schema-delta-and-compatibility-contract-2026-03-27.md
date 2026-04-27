@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: active
 
 ## Purpose
 This document defines the Lane 1 schema target and the compatibility posture needed to reach it from the current runtime.

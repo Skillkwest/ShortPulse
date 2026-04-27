@@ -34,6 +34,7 @@ const createProps = (): React.ComponentProps<typeof AiStudioShellFrame> => ({
   selectedTool: "create",
   showDivider: false,
   dividerProps: {},
+  propertiesPanelKey: "create",
   propertiesPanelContent: <div data-testid="properties-panel-content" />,
   rightColumnDropMode: "none",
   onRightColumnDropCapture: vi.fn(),

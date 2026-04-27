@@ -60,6 +60,7 @@ type AiStudioShellFrameProps = {
   selectedTool: ToolId | null;
   showDivider: boolean;
   dividerProps: React.ButtonHTMLAttributes<HTMLButtonElement>;
+  propertiesPanelKey: string | null;
   propertiesPanelContent: React.ReactNode;
   rightColumnDropMode: RightColumnDropMode;
   onRightColumnDropCapture: (event: React.DragEvent<HTMLElement>) => void;
@@ -260,6 +261,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   selectedTool,
   showDivider,
   dividerProps,
+  propertiesPanelKey,
   propertiesPanelContent,
   rightColumnDropMode,
   onRightColumnDropCapture,
@@ -292,6 +294,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
       <AiStudioPropertiesRail
         selectedTool={selectedTool}
         leftColumnRef={leftColumnRef}
+        panelKey={propertiesPanelKey}
         panelContent={propertiesPanelContent}
       />
       {showDivider ? <button type="button" className="ai-shell-divider" {...dividerProps} /> : null}

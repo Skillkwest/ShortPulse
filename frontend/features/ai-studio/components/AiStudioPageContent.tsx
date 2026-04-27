@@ -1635,6 +1635,7 @@ export function AiStudioPageContent({
               selectedTool={selectedTool}
               showDivider={showDivider}
               dividerProps={dividerProps}
+              propertiesPanelKey={selectedTool ? propertiesPanelKind : null}
               rightColumnHidden={effectiveRightColumnHidden}
               propertiesPanelContent={propertiesPanelContent}
               rightColumnDropMode={rightColumnDropMode as RightColumnDropMode}

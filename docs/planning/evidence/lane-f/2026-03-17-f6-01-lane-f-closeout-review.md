@@ -8,8 +8,8 @@
 1. `frontend/package.json`
 2. `docs/planning/ci-policy-checks.md`
 3. `docs/release-checklist.md`
-4. `docs/planning/lane-f-execution-plan-2026-03-16.md`
-5. `docs/planning/lane-f-master-plan-2026-03-16.md`
+4. `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`
+5. `docs/archive/planning/lane-f-master-plan-2026-03-16.md`
 6. `docs/planning/evidence/lane-f/README.md`
 7. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 8. `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-convergence-cycle-1.md`

@@ -1,12 +1,14 @@
 # Lane D Master Plan (2026-03-16)
 
+> Archived on 2026-04-27 during docs cleanup because this completed foundation packet is retained as historical execution context while the active foundation planning surface continues from `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`, `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`, and the remaining active Lane C docs.
+
 Last updated: 2026-03-17  
 Status: complete  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
-Tracker spec: `docs/planning/lane-d-tracker-spec-2026-03-16.md`  
-Execution plan: `docs/planning/lane-d-execution-plan-2026-03-16.md`  
+Tracker spec: `docs/archive/planning/lane-d-tracker-spec-2026-03-16.md`  
+Execution plan: `docs/archive/planning/lane-d-execution-plan-2026-03-16.md`  
 Evidence root: `docs/planning/evidence/lane-d/`
 
 ## Summary
@@ -118,7 +120,7 @@ Current status after `D4-01`:
 2. Require lane-specific strict lint checks for touched runtime seams.
 3. Close lane only after warning debt and suppression debt targets are met with evidence packets.
 4. Publish concrete slice sequencing in the companion execution plan:
-   - `docs/planning/lane-d-execution-plan-2026-03-16.md`
+   - `docs/archive/planning/lane-d-execution-plan-2026-03-16.md`
 
 Current status after `D5-01`:
 1. Lane D now has a canonical executable validation command:

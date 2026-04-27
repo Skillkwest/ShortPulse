@@ -24,8 +24,8 @@ linked_pr: n/a (local execution slice)
 8. `frontend/features/ai-studio/logic/__tests__/pricing.test.ts`
 9. `frontend/tests/pages/ai-studio.character-mode.test.tsx`
 10. `frontend/package.json`
-11. `docs/planning/lane-a-master-plan-2026-03-16.md`
-12. `docs/planning/lane-a-execution-plan-2026-03-16.md`
+11. `docs/archive/planning/lane-a-master-plan-2026-03-16.md`
+12. `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`
 13. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 14. `docs/planning/evidence/lane-a/README.md`
 
@@ -83,6 +83,6 @@ linked_pr: n/a (local execution slice)
 2. Re-run `deadcode:check`, `lint`, `type-check`, `build`, and `validate` after rollback.
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-a-master-plan-2026-03-16.md`
-2. `docs/planning/lane-a-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-a-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`
 3. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`

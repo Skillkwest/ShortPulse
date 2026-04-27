@@ -22,7 +22,7 @@ linked_pr: n/a (local execution slice)
 6. `docs/sops/sop_ai_studio_index.md`
 7. `docs/product/billing-pricing-catalog.md`
 8. `skills/skill-pricing-audit/SKILL.md`
-9. `docs/planning/lane-a-execution-plan-2026-03-16.md`
+9. `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`
 10. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 11. `docs/planning/evidence/lane-a/README.md`
 
@@ -75,6 +75,6 @@ linked_pr: n/a (local execution slice)
 2. Re-run `lint`, `type-check`, `build`, and targeted tests after rollback.
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-a-master-plan-2026-03-16.md`
-2. `docs/planning/lane-a-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-a-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`
 3. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`

@@ -11,8 +11,8 @@
 4. `.github/workflows/media-storage-deploy-gate.yml`
 5. `docs/planning/ci-policy-checks.md`
 6. `docs/release-checklist.md`
-7. `docs/planning/lane-f-execution-plan-2026-03-16.md`
-8. `docs/planning/lane-f-master-plan-2026-03-16.md`
+7. `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`
+8. `docs/archive/planning/lane-f-master-plan-2026-03-16.md`
 9. `docs/planning/evidence/lane-f/README.md`
 10. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 

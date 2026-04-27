@@ -1,9 +1,11 @@
 # Lane F Tracker Spec (2026-03-16)
 
+> Archived on 2026-04-27 during docs cleanup because this completed foundation packet is retained as historical execution context while the active foundation planning surface continues from `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`, `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`, and the remaining active Lane C docs.
+
 Last updated: 2026-03-16  
 Status: complete  
-Companion plan: `docs/planning/lane-f-master-plan-2026-03-16.md`  
-Contact map: `docs/planning/lane-f-contact-map-2026-03-16.md`
+Companion plan: `docs/archive/planning/lane-f-master-plan-2026-03-16.md`  
+Contact map: `docs/archive/planning/lane-f-contact-map-2026-03-16.md`
 
 ## Purpose
 Define required tracker schema and evidence contract for Lane F release and CI governance slices.

@@ -3,7 +3,7 @@
 - `slice_id`: `E0-01`
 - `date_utc`: `2026-03-17`
 - `scope`:
-  - `docs/planning/lane-e-execution-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-e-execution-plan-2026-03-16.md`
   - active docs indexes for Lane E artifact wiring
   - Lane E tracker bootstrap state
 - `commands_run`:
@@ -15,7 +15,7 @@
   4. Locked the initial Lane E backlog and baseline non-goals around governance-only scope.
 - `drift_before_after`:
   - before:
-    1. `docs/planning/lane-e-execution-plan-2026-03-16.md` did not exist.
+    1. `docs/archive/planning/lane-e-execution-plan-2026-03-16.md` did not exist.
     2. `docs/planning/README.md` and `docs/README.md` indexed Lane E master + tracker only.
     3. Foundation tracker row still showed Lane E as `Not Started`.
   - after:

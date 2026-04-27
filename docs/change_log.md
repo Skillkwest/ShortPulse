@@ -3156,8 +3156,8 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - repaired active index parity across `docs/README.md`, `docs/planning/README.md`, `docs/planning/evidence/README.md`, `docs/product/README.md`, `docs/design/README.md`, and `docs/adr/README.md`.
 - Added a minimal task-contract governance baseline for agent-driven execution:
   - roadmap-level task contract in `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`,
-  - per-slice task contract + parity closeout checks in `docs/planning/lane-a-execution-plan-2026-03-16.md`,
-  - tracker schema extensions for DoD/audit/parity fields in `docs/planning/lane-a-tracker-spec-2026-03-16.md`,
+  - per-slice task contract + parity closeout checks in `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`,
+  - tracker schema extensions for DoD/audit/parity fields in `docs/archive/planning/lane-a-tracker-spec-2026-03-16.md`,
   - evidence packet contract expansion in `docs/planning/evidence/generation-pipeline-hardening/README.md`,
   - PR template enforcement checkboxes in `.github/pull_request_template.md`.
 - Closed Lane A documentation tracking drift:
@@ -3222,3 +3222,8 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 ## 2026-04-27 (Foundation lanes status normalization)
 - Normalized the `foundation-lanes-*` roadmap/tracker pair and the still-open Lane C packet to canonical `active` status values.
 - Normalized the completed Lane A, B, D, E, F, and separate generation-pipeline hardening (`P1`) docs to canonical `complete` status values, including their tracker-spec and contact-map surfaces, so the remaining archive work is explicit instead of hidden behind mixed legacy status phrases.
+
+## 2026-04-27 (Foundation archive wave A/D/E/F/P1)
+- Archived the completed Lane A, D, E, and F planning packets plus the completed separate `P1` generation-pipeline hardening packet into `docs/archive/planning/`.
+- Removed that completed subset from the active planning indexes, added it to the archive indexes, and retargeted the live foundation roadmap/tracker plus the related evidence packets to the archived paths.
+- Left Lane B and Lane C in `docs/planning/`: Lane B still needs its own heavier archive pass because of broader reference sprawl, and Lane C remains the active foundation lane.

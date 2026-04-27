@@ -1,13 +1,15 @@
 # Lane F Master Plan (2026-03-16)
 
+> Archived on 2026-04-27 during docs cleanup because this completed foundation packet is retained as historical execution context while the active foundation planning surface continues from `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`, `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`, and the remaining active Lane C docs.
+
 Last updated: 2026-03-17  
 Status: complete  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
-Tracker spec: `docs/planning/lane-f-tracker-spec-2026-03-16.md`  
-Contact map: `docs/planning/lane-f-contact-map-2026-03-16.md`  
-Execution plan: `docs/planning/lane-f-execution-plan-2026-03-16.md`  
+Tracker spec: `docs/archive/planning/lane-f-tracker-spec-2026-03-16.md`  
+Contact map: `docs/archive/planning/lane-f-contact-map-2026-03-16.md`  
+Execution plan: `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`  
 Evidence index: `docs/planning/evidence/lane-f/README.md`
 
 ## Summary
@@ -107,7 +109,7 @@ Lane F CI/release governance targets:
 13. `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
 14. `docs/planning/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`
 15. `docs/operator-map.md`
-16. `docs/planning/lane-f-contact-map-2026-03-16.md`
+16. `docs/archive/planning/lane-f-contact-map-2026-03-16.md`
 
 Lane F excluded historical surfaces by default:
 1. `docs/archive/**`
@@ -178,7 +180,7 @@ Lane F excluded historical surfaces by default:
 ### F6: Ownership And Convergence
 1. Normalize owner identity across:
    - `docs/operator-map.md`,
-   - `docs/planning/lane-f-contact-map-2026-03-16.md`,
+   - `docs/archive/planning/lane-f-contact-map-2026-03-16.md`,
    - `.github/CODEOWNERS`,
    - CI policy ownership fields.
 2. Promote Lane F policy checks from advisory drift tracking to enforce posture where repository constraints allow.

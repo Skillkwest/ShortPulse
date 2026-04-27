@@ -3,8 +3,8 @@
 - `slice_id`: `F0-01`
 - `date_utc`: `2026-03-17`
 - `scope`:
-  - `docs/planning/lane-f-execution-plan-2026-03-16.md`
-  - `docs/planning/lane-f-master-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-f-master-plan-2026-03-16.md`
   - `docs/planning/evidence/lane-f/README.md`
   - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
   - `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`

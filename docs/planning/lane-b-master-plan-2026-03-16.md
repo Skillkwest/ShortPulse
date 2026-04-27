@@ -15,7 +15,7 @@ Execution is split into two coordinated tracks:
 2. `B-Style`: AI Studio style/token/class standardization after core seams stabilize.
 
 Generation pipeline contract/queue hardening is intentionally separated from Lane B and tracked in:
-- `docs/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`
+- `docs/archive/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`
 
 The default contract is unchanged user behavior, unchanged API response shapes, and small one-seam PRs.
 

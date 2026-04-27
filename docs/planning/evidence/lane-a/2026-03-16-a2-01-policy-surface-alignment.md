@@ -48,6 +48,6 @@ owner: Engineering
 1. No rollback action required (verification/evidence-only packet).
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-a-master-plan-2026-03-16.md`
-2. `docs/planning/lane-a-execution-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-a-master-plan-2026-03-16.md`
+2. `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`
 3. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`

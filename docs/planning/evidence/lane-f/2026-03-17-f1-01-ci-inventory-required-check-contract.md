@@ -5,8 +5,8 @@
 - `scope`:
   - `docs/planning/ci-policy-checks.md`
   - `docs/release-checklist.md`
-  - `docs/planning/lane-f-execution-plan-2026-03-16.md`
-  - `docs/planning/lane-f-master-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-f-master-plan-2026-03-16.md`
   - `docs/planning/evidence/lane-f/README.md`
   - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 

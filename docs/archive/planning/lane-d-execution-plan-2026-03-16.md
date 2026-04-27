@@ -1,10 +1,12 @@
 # Lane D Execution Plan (2026-03-16)
 
+> Archived on 2026-04-27 during docs cleanup because this completed foundation packet is retained as historical execution context while the active foundation planning surface continues from `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`, `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`, and the remaining active Lane C docs.
+
 Last updated: 2026-03-17  
 Status: complete  
 Owner: Engineering  
-Master plan: `docs/planning/lane-d-master-plan-2026-03-16.md`  
-Tracker spec: `docs/planning/lane-d-tracker-spec-2026-03-16.md`  
+Master plan: `docs/archive/planning/lane-d-master-plan-2026-03-16.md`  
+Tracker spec: `docs/archive/planning/lane-d-tracker-spec-2026-03-16.md`  
 Evidence root: `docs/planning/evidence/lane-d/`
 
 ## Purpose

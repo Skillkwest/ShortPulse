@@ -75,6 +75,6 @@ Out of scope for Lane A:
 5. A5: closeout only after required gates pass; no irreversible action.
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-a-master-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-a-master-plan-2026-03-16.md`
 2. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 3. `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`

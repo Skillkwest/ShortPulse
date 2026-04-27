@@ -1,12 +1,14 @@
 # Generation Pipeline Hardening Master Plan (2026-03-16)
 
+> Archived on 2026-04-27 during docs cleanup because this completed foundation packet is retained as historical execution context while the active foundation planning surface continues from `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`, `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`, and the remaining active Lane C docs.
+
 Last updated: 2026-03-17  
 Status: complete  
 Owner: Engineering  
 Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`  
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
-Tracker spec: `docs/planning/generation-pipeline-hardening-tracker-spec-2026-03-16.md`  
-Contact map: `docs/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
+Tracker spec: `docs/archive/planning/generation-pipeline-hardening-tracker-spec-2026-03-16.md`  
+Contact map: `docs/archive/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
 
 ## Summary
 This is a separate hardening track for generation-pipeline correctness and safety. It is intentionally outside Lane B modularization scope.

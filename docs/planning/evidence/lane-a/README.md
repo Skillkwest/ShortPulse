@@ -28,5 +28,5 @@ Examples:
 - `2026-03-16-a5-01-lane-signoff.md`
 
 ## Linked docs
-- `docs/planning/lane-a-master-plan-2026-03-16.md`
+- `docs/archive/planning/lane-a-master-plan-2026-03-16.md`
 - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`

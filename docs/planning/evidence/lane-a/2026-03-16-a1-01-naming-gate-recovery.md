@@ -35,5 +35,5 @@ owner: Engineering
 2. Keep rollback scoped to gate policy only; do not alter bridge runtime contracts in Lane A.
 
 ## Linked Plan Artifacts
-1. `docs/planning/lane-a-master-plan-2026-03-16.md`
+1. `docs/archive/planning/lane-a-master-plan-2026-03-16.md`
 2. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`

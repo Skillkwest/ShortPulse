@@ -6,8 +6,8 @@
   - `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
   - `docs/planning/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`
   - `docs/planning/ci-policy-checks.md`
-  - `docs/planning/lane-f-execution-plan-2026-03-16.md`
-  - `docs/planning/lane-f-master-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`
+  - `docs/archive/planning/lane-f-master-plan-2026-03-16.md`
   - `docs/planning/evidence/lane-f/README.md`
   - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 

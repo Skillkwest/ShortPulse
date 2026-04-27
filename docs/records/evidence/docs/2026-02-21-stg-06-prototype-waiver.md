@@ -41,5 +41,5 @@ Before production readiness signoff:
 
 ## Evidence links
 
-- `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
-- `docs/planning/evidence/docs/2026-02-21-stg-06-cycle-status.md`
+- `docs/records/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
+- `docs/records/evidence/docs/2026-02-21-stg-06-cycle-status.md`

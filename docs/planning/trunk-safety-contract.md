@@ -35,8 +35,8 @@ This contract governs and must remain synchronized with:
 - `docs/release-checklist.md`
 - `docs/contributor-guide.md`
 - `docs/security-checklist.md`
-- `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
-- `docs/planning/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`
+- `docs/records/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
+- `docs/records/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`
 - `.github/workflows/ci.yml` and any dedicated gate workflow (`ci-gate.yml` when introduced)
 
 If conflicts exist, this contract is authoritative for trunk governance intent; implementation docs must be patched in the same PR.
@@ -64,7 +64,7 @@ Required practice:
 - ruleset/protection endpoint reachability,
 - currently enforceable required checks,
 - merge-queue eligibility state.
-3. Store output under `docs/planning/evidence/docs/` with date-stamped packet naming.
+3. Store output under `docs/records/evidence/docs/` with date-stamped packet naming.
 
 Current posture note:
 - Prototype waiver remains valid until enforceable private-repo protections are confirmed and recorded in evidence.

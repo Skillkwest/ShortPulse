@@ -96,7 +96,7 @@ Exit validation:
 - [x] Add SQL lint CI bootstrap in `.github/workflows/ci.yml` to start local Supabase (postgres-only footprint) before `supabase db lint --local` (`docs/records/evidence/agent/phase-4/2026-02-21-phase-4-sql-lint-bootstrap.md`).
 - [x] Re-promote SQL lint to enforce mode (`SQL_LINT_MODE=enforce`) after bootstrap fix on 2026-02-21; validation cycles completed.
 - [x] Harden CI dependency install path with transient-retry wrapper for `npm ci` across install jobs (`scripts/ci_npm_ci_with_retry.sh`, `docs/records/evidence/agent/phase-4/2026-02-21-phase-4-npm-ci-transient-retry-hardening.md`, validated by runs `22259261557`, `22259338790`, `22259592274`, and `22262296039`).
-- [x] Refresh branch-protection evidence mapping (`docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` refreshed 2026-02-21).
+- [x] Refresh branch-protection evidence mapping (`docs/records/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` refreshed 2026-02-21).
 - [x] Publish governance closeout packet for STG-06 with explicit dependency tracking and compensating controls (`docs/records/evidence/agent/phase-4/2026-02-21-phase-4-governance-closeout.md`).
 
 Exit validation:

@@ -18,7 +18,7 @@ npm -C frontend run docs:check
 ## Results
 1. Branch-protection API remains unavailable in this repository context (`403` plan-tier restriction).
 2. CI run history still does not satisfy the two-consecutive-green-cycle criterion.
-3. Workflow job-name mapping is current and recorded in `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`.
+3. Workflow job-name mapping is current and recorded in `docs/records/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`.
 4. Documentation validation passed after evidence updates.
 
 ## Decision

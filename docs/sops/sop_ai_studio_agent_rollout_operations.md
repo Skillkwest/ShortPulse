@@ -15,7 +15,7 @@ Remediation-scope precedence:
 ## Preconditions (must be true before Phase 5 starts)
 1. Phase 4 governance checks are in `enforce` mode and green.
 2. Required checks remain passing on the rollout commit SHA.
-3. Branch/ruleset evidence is refreshed in `docs/planning/evidence/docs/`.
+3. Branch/ruleset evidence is refreshed in `docs/records/evidence/docs/`.
 4. `DEP-03` dashboard/alert wiring is marked ready in the tracker, or a formal DEP-03 waiver is active with compensating controls.
 5. Incident packet template and rollback drill template are prepared.
 

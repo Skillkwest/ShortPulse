@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - migrated the retained `docs` governance-evidence namespace into `docs/records/evidence/docs/`,
+  - retargeted the surviving planning, SOP, and records references to the records path,
+  - and removed that namespace from the active planning-evidence index.
+- Documentation cleanup:
   - executed the second retained-records split-namespace migration by moving the `agent-pipeline-remediation` evidence family into `docs/records/evidence/agent-pipeline-remediation/`,
   - introduced `docs/records/artifacts/agent-pipeline-remediation/` for the remediation program's retained raw payloads and generated outputs,
   - and retargeted the surviving planning, SOP, evidence, and artifact references to the new records paths.

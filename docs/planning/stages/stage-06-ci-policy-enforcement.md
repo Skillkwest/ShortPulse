@@ -39,7 +39,7 @@ For MVP prototype execution, STG-06 completion is waived as a production-only ga
 
 ## Evidence
 - `docs/planning/ci-policy-checks.md`
-- `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
-- `docs/planning/evidence/docs/2026-02-21-stg-06-cycle-status.md`
-- `docs/planning/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`
+- `docs/records/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
+- `docs/records/evidence/docs/2026-02-21-stg-06-cycle-status.md`
+- `docs/records/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`
 - `.github/workflows/ci.yml`

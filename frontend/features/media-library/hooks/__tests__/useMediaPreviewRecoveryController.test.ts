@@ -1,20 +1,15 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  resolveMediaDirectPreviewUrls,
-  resolveMediaSigningStoragePaths,
-} from "../../../../lib/mediaPreviewPath";
+import { resolveMediaPreviewCandidates } from "../../../../lib/mediaPreviewPath";
 import { useMediaPreviewRecoveryController } from "../useMediaPreviewRecoveryController";
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
   classifyMediaPreviewPath: vi.fn(() => "unknown"),
-  resolveMediaDirectPreviewUrls: vi.fn(),
-  resolveMediaSigningStoragePaths: vi.fn(),
+  resolveMediaPreviewCandidates: vi.fn(),
 }));
 
-const resolveMediaDirectPreviewUrlsMock = vi.mocked(resolveMediaDirectPreviewUrls);
-const resolveMediaSigningStoragePathsMock = vi.mocked(resolveMediaSigningStoragePaths);
+const resolveMediaPreviewCandidatesMock = vi.mocked(resolveMediaPreviewCandidates);
 
 type Row = {
   id: string;
@@ -35,10 +30,12 @@ const makeRow = (overrides: Partial<Row> = {}): Row => ({
 describe("useMediaPreviewRecoveryController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    resolveMediaSigningStoragePathsMock.mockImplementation(
-      (row: { storage_path?: string | null }) => (row.storage_path ? [row.storage_path] : [])
+    resolveMediaPreviewCandidatesMock.mockImplementation(
+      (row: { storage_path?: string | null }) => ({
+        storagePaths: row.storage_path ? [row.storage_path] : [],
+        directUrls: [],
+      })
     );
-    resolveMediaDirectPreviewUrlsMock.mockReturnValue([]);
   });
 
   afterEach(() => {

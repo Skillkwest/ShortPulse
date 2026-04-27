@@ -3,8 +3,8 @@
 - `slice_id`: `F2-01`
 - `date_utc`: `2026-03-17`
 - `scope`:
-  - `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
-  - `docs/planning/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`
+  - `docs/records/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
+  - `docs/records/evidence/docs/2026-02-21-stg-06-prototype-waiver.md`
   - `docs/planning/ci-policy-checks.md`
   - `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`
   - `docs/archive/planning/lane-f-master-plan-2026-03-16.md`

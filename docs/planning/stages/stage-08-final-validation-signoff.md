@@ -24,4 +24,4 @@ Confirm all controls, compatibility windows, and evidence are complete before cl
 
 ## Evidence
 - `docs/planning/final-validation-summary.md`
-- `docs/planning/evidence/docs/2026-02-21-stg-08-precloseout-validation.md`
+- `docs/records/evidence/docs/2026-02-21-stg-08-precloseout-validation.md`

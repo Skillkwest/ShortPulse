@@ -176,7 +176,7 @@ Both emit:
 3. One reviewer must verify docs/runtime parity checklist.
 
 ### Current Ruleset Constraint
-Branch required-check enforcement is currently constrained by repository plan limits. Manual evidence remains mandatory each cycle in `docs/planning/evidence/docs/` until enforceable plan tier controls are available.
+Branch required-check enforcement is currently constrained by repository plan limits. Manual evidence remains mandatory each cycle in `docs/records/evidence/docs/` until enforceable plan tier controls are available.
 
 ## Observability And Operational Defaults
 

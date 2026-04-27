@@ -20,7 +20,7 @@ Resolve `ci.yml` startup failure mode where runs completed with zero jobs due wo
    - Added explicit skip-reason output and in-job summary messages.
 2. Updated docs to reflect single-job perf-gate skip behavior:
    - `docs/planning/ci-policy-checks.md`
-   - `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
+   - `docs/records/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
    - `docs/planning/master-rollout-proposal.md`
    - `docs/sops/sop_media_performance_operations.md`
    - `docs/adr/0016-ai-studio-reference-grid-adaptive-delivery-and-watchdog.md`

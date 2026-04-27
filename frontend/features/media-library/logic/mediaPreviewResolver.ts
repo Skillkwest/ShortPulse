@@ -4,10 +4,7 @@
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import {
-  resolveMediaDirectPreviewUrls,
-  resolveMediaSigningStoragePaths,
-} from "../../../lib/mediaPreviewPath";
+import { resolveMediaPreviewCandidates } from "../../../lib/mediaPreviewPath";
 
 type ResolvePreviewUrlsByMediaIdsArgs = {
   ids: string[];
@@ -97,15 +94,15 @@ export const resolveSignedSelectionUrl = async <TRow extends { storage_path?: st
   signStoragePath,
 }: ResolveSelectionUrlArgs<TRow>): Promise<string | null> => {
   const primaryStoragePath = row.storage_path?.trim() ?? "";
-  const candidates = [
-    primaryStoragePath,
-    ...resolveMediaSigningStoragePaths(row, currentUserId),
-  ].filter((value, index, all) => Boolean(value) && all.indexOf(value) === index);
+  const previewCandidates = resolveMediaPreviewCandidates(row, currentUserId);
+  const candidates = [primaryStoragePath, ...previewCandidates.storagePaths].filter(
+    (value, index, all) => Boolean(value) && all.indexOf(value) === index
+  );
   for (const storagePath of candidates) {
     const signedUrl = await signStoragePath(storagePath, { forceRefresh: true });
     if (signedUrl) return signedUrl;
   }
-  const directUrl = resolveMediaDirectPreviewUrls(row, currentUserId)[0] ?? null;
+  const directUrl = previewCandidates.directUrls[0] ?? null;
   if (directUrl) return directUrl;
   return null;
 };

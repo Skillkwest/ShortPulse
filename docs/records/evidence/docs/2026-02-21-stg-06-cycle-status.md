@@ -61,7 +61,7 @@ Enforce-trial result:
 - Expanded enforce-mode trial surfaced CI bootstrap gap for SQL lint.
 - SQL lint bootstrap gap is resolved and two consecutive post-repromotion green cycles are now recorded.
 - Governance evidence packet is now published (`docs/records/evidence/agent/phase-4/2026-02-21-phase-4-governance-closeout.md`).
-- Branch-protection reviewer/date metadata is now captured in `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`.
+- Branch-protection reviewer/date metadata is now captured in `docs/records/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`.
 - STG-06 remains `In Progress` only for ongoing plan-tier enforcement constraint tracking (`DEP-01`).
 
 ## Next Action Required

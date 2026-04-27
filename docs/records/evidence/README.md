@@ -5,6 +5,7 @@ Purpose: index retained evidence namespaces that have already moved into the rec
 ## Active migrated namespaces
 - `docs/records/evidence/agent/`: retained evidence packet family for the AI Studio Agent hardening/modularization program, with raw payload inputs now split into `docs/records/artifacts/agent/`.
 - `docs/records/evidence/agent-pipeline-remediation/`: retained evidence packet family for the AI Studio agent pipeline regression remediation program, with raw payloads and generated outputs now split into `docs/records/artifacts/agent-pipeline-remediation/`.
+- `docs/records/evidence/docs/`: retained governance evidence packet family for STG validation, branch-protection mapping, and pre-closeout signoff packets.
 - `docs/records/evidence/lane-a/`: retained evidence packet family for the closed Lane A gate recovery and governance hardening lane.
 - `docs/records/evidence/lane-f/`: retained evidence packet family for the closed Lane F release and CI governance lane.
 - `docs/records/evidence/kei/`: retained evidence packet family for the completed STG-04 KEI compatibility decommission lane.

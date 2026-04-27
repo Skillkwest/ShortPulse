@@ -183,7 +183,7 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - STG-06 cannot be marked `Completed` until:
 - STG-04 Phase C is complete
 - warn/evaluate checks are green for two release cycles
-- branch-protection mapping proof with exact required check names is archived at `docs/planning/evidence/docs/<date>-branch-protection-required-check-mapping.md`
+- branch-protection mapping proof with exact required check names is archived at `docs/records/evidence/docs/<date>-branch-protection-required-check-mapping.md`
 - Prototype-mode waiver:
 - MVP feature development may continue while STG-06 stays `In Progress`
 - production readiness still requires full STG-06 completion

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { CaretLeft, CaretRight, FolderSimple, Plus } from "phosphor-react";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 
@@ -88,22 +88,10 @@ export function MediaLibraryPanelFoldersSection({
   onOpenMovePicker,
   onContextDelete,
 }: MediaLibraryPanelFoldersSectionProps) {
-  const folderImageRefs = useRef(new Map<string, HTMLButtonElement>());
-  const navigateTimeoutRef = useRef<number | null>(null);
   const folderNameClickTimeoutRef = useRef<number | null>(null);
-  const [openingFolderId, setOpeningFolderId] = useState<string | null>(null);
-  const [openingFolderGhost, setOpeningFolderGhost] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  } | null>(null);
 
   useEffect(() => {
     return () => {
-      if (navigateTimeoutRef.current !== null) {
-        window.clearTimeout(navigateTimeoutRef.current);
-      }
       if (folderNameClickTimeoutRef.current !== null) {
         window.clearTimeout(folderNameClickTimeoutRef.current);
       }
@@ -115,26 +103,7 @@ export function MediaLibraryPanelFoldersSection({
 
   const handleOpenFolder = (folderId: string) => {
     if (isPendingFolderId(folderId)) return;
-    if (openingFolderId !== null) return;
-    const sourceElement = folderImageRefs.current.get(folderId);
-    if (!sourceElement) {
-      setActiveFolderId(folderId);
-      return;
-    }
-    const rect = sourceElement.getBoundingClientRect();
-    setOpeningFolderId(folderId);
-    setOpeningFolderGhost({
-      top: rect.top,
-      left: rect.left,
-      width: rect.width,
-      height: rect.height,
-    });
-    navigateTimeoutRef.current = window.setTimeout(() => {
-      setActiveFolderId(folderId);
-      setOpeningFolderId(null);
-      setOpeningFolderGhost(null);
-      navigateTimeoutRef.current = null;
-    }, 120);
+    setActiveFolderId(folderId);
   };
 
   const handleFolderNameClick = (folderId: string) => {
@@ -245,13 +214,6 @@ export function MediaLibraryPanelFoldersSection({
                 {isEditing ? (
                   <>
                     <button
-                      ref={(node) => {
-                        if (node) {
-                          folderImageRefs.current.set(folder.id, node);
-                        } else {
-                          folderImageRefs.current.delete(folder.id);
-                        }
-                      }}
                       type="button"
                       className="media-library-panel-folder-chip media-library-panel-folder-chip--image is-active is-editing"
                       onClick={() => handleOpenFolder(folder.id)}
@@ -307,13 +269,6 @@ export function MediaLibraryPanelFoldersSection({
                 ) : (
                   <>
                     <button
-                      ref={(node) => {
-                        if (node) {
-                          folderImageRefs.current.set(folder.id, node);
-                        } else {
-                          folderImageRefs.current.delete(folder.id);
-                        }
-                      }}
                       type="button"
                       className="media-library-panel-folder-chip media-library-panel-folder-chip--image"
                       onDoubleClick={() => handleOpenFolder(folder.id)}
@@ -371,22 +326,6 @@ export function MediaLibraryPanelFoldersSection({
           </div>
         </div>
       </div>
-      {openingFolderGhost ? (
-        <div
-          className="media-library-panel-folder-open-ghost"
-          aria-hidden="true"
-          style={{
-            top: `${openingFolderGhost.top}px`,
-            left: `${openingFolderGhost.left}px`,
-            width: `${openingFolderGhost.width}px`,
-            height: `${openingFolderGhost.height}px`,
-          }}
-        >
-          {/* Ghost overlay mirrors the live folder tile exactly during transition. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={FOLDER_TILE_IMAGE_SRC} alt="" />
-        </div>
-      ) : null}
       {folderError ? <p className="tiny subdued">{folderError}</p> : null}
       {folderContextMenu ? (
         <AiStudioModalLayer>

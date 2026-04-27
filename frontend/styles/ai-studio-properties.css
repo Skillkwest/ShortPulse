@@ -181,6 +181,39 @@
   scrollbar-color: rgba(201, 205, 214, 0.3) transparent;
 }
 
+.ai-properties.ai-properties--motion-flat,
+.ai-properties.ai-properties--motion-flat::before,
+.ai-properties.ai-properties--motion-flat::after,
+.ai-properties.ai-properties--motion-flat *,
+.ai-properties.ai-properties--motion-flat *::before,
+.ai-properties.ai-properties--motion-flat *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
+.ai-properties.ai-properties--motion-flat
+  :is(
+    .primary-btn,
+    .ghost-btn,
+    .model-picker-btn,
+    .aspect-trigger,
+    [class*="chip"],
+    [class*="tile"],
+    [class*="card"],
+    button,
+    [role="button"],
+    a
+  ):is(:hover, :focus-visible, :active) {
+  transform: none !important;
+}
+
+.ai-properties.ai-properties--motion-flat .model-picker-btn.is-empty,
+.ai-properties.ai-properties--motion-flat .model-picker-btn:hover,
+.ai-properties.ai-properties--motion-flat .create-chat-pin-btn:hover {
+  transform: none !important;
+}
+
 .ai-properties::-webkit-scrollbar {
   width: 6px;
   height: 6px;

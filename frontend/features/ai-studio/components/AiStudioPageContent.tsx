@@ -969,6 +969,7 @@ export function AiStudioPageContent({
   const effectiveRightColumnHidden = rightColumnHidden;
   const shellClassName = [
     "ai-shell",
+    "ai-shell-motion-flat",
     selectedTool ? "" : "ai-shell-wide",
     showDivider ? "ai-shell-resizable" : "",
     showExpertCreatePanel ? "ai-shell-expert-create" : "",

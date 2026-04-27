@@ -77,7 +77,6 @@ const maxVoicePromptCharacters = 1000;
 const minVoicePromptCharacters = 20;
 const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
-const splitModeTransitionDurationMs = 240;
 const minTopVoicesPaneHeightPx = 0;
 const minBottomComposePaneHeightPx = 480;
 const maxVoicePromptHeightPx = 264;
@@ -503,7 +502,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [voiceChangerSource, setVoiceChangerSource] = React.useState<VoiceChangerSource | null>(
     null
   );
-  const [isModeSwitchAnimating, setIsModeSwitchAnimating] = React.useState(false);
 
   const voiceoverSplitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const voiceChangerSplitContainerRef = React.useRef<HTMLDivElement | null>(null);
@@ -517,7 +515,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const previousVoiceScriptRef = React.useRef(voiceScript);
   const previousSurfaceModeRef = React.useRef(surfaceMode);
   const previousVoiceChangerSourceRef = React.useRef<VoiceChangerSource | null>(null);
-  const modeSwitchTimeoutRef = React.useRef<number | null>(null);
   const shouldFocusCreateControlsRef = React.useRef(false);
   const voiceChangerSourceRequestIdRef = React.useRef(0);
   const requiresProviderVoice = Boolean(onGenerate);
@@ -944,9 +941,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       designedPreviewAudioRef.current = null;
       designedPreviewAudioIdRef.current = null;
       voiceChangerSourceRequestIdRef.current += 1;
-      if (modeSwitchTimeoutRef.current !== null) {
-        window.clearTimeout(modeSwitchTimeoutRef.current);
-      }
     };
   }, []);
 
@@ -1016,26 +1010,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     };
   }, [onGenerate, replaceVoices]);
 
-  const handleSurfaceModeChange = React.useCallback(
-    (nextMode: VoicesSurfaceMode) => {
-      if (surfaceMode !== nextMode) {
-        if (modeSwitchTimeoutRef.current !== null) {
-          window.clearTimeout(modeSwitchTimeoutRef.current);
-        }
-        setIsModeSwitchAnimating(true);
-        modeSwitchTimeoutRef.current = window.setTimeout(() => {
-          setIsModeSwitchAnimating(false);
-          modeSwitchTimeoutRef.current = null;
-        }, splitModeTransitionDurationMs);
-      }
-
-      setSurfaceMode(nextMode);
-      if (nextMode !== "create") {
-        setIsCreatePanelOpen(false);
-      }
-    },
-    [surfaceMode]
-  );
+  const handleSurfaceModeChange = React.useCallback((nextMode: VoicesSurfaceMode) => {
+    setSurfaceMode(nextMode);
+    if (nextMode !== "create") {
+      setIsCreatePanelOpen(false);
+    }
+  }, []);
 
   const handleShapingSliderChange = React.useCallback(
     (sliderId: string, nextValue: number) => {
@@ -1463,7 +1443,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       <div className="voices-properties-shell">
         <div className="voices-properties-column-shell">
           <div
-            className={`voices-properties-main${isModeSwitchAnimating ? " is-mode-transitioning" : ""}`}
+            className="voices-properties-main"
             ref={
               surfaceMode === "create" ? voiceoverSplitContainerRef : voiceChangerSplitContainerRef
             }
@@ -1722,7 +1702,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                         )}
                         onChange={(nextValue) => handleShapingSliderChange(slider.id, nextValue)}
                         theme={activeSliderTheme}
-                        isModeTransitioning={isModeSwitchAnimating}
+                        isModeTransitioning={false}
                       />
                     ))}
                   </div>

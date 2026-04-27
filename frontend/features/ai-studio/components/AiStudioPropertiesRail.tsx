@@ -24,7 +24,7 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
   recordAiStudioShellSectionRender("properties");
 
   return (
-    <aside ref={leftColumnRef} className="panel ai-panel ai-properties">
+    <aside ref={leftColumnRef} className="panel ai-panel ai-properties ai-properties--motion-flat">
       {panelContent}
     </aside>
   );

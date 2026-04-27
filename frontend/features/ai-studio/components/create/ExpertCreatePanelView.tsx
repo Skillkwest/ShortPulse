@@ -104,7 +104,6 @@ export function ExpertCreatePanelView({
   onExpertCreateModeChange,
   activePulsePresetId,
   hasActivePulseSession = Boolean(activePulsePresetId),
-  pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
   isPulseActivationBusy = false,
@@ -114,16 +113,14 @@ export function ExpertCreatePanelView({
   onSavedPulsePresetsChange,
   onOpenPresetsLibrary,
 }: ExpertCreatePanelViewProps) {
-  const PULSE_RAIL_TRANSITION_MS = 220;
   const resolvedSelectedCharacterDisplayName =
     selectedCharacterDisplayName ?? selectedCharacterName;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const [uncontrolledCreateMode, setUncontrolledCreateMode] =
     React.useState<ExpertCreateMode>("standard");
-  const [isPulseRailMounted, setIsPulseRailMounted] = React.useState(false);
-  const [isPulseRailActive, setIsPulseRailActive] = React.useState(false);
   const createMode = expertCreateMode ?? uncontrolledCreateMode;
   const isActivePulseSession = createMode === "pulse" && hasActivePulseSession;
+  const shouldRenderPulseRail = createMode === "pulse";
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
   // Preserve the authored empty-shell layout until real transcript history exists.
   // Draft input, dropped references, pending Pulse state, and activation-in-progress must not
@@ -177,31 +174,6 @@ export function ExpertCreatePanelView({
     </div>
   );
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
-  React.useEffect(() => {
-    if (createMode === "pulse") {
-      setIsPulseRailMounted(true);
-      let frameTwo: number | null = null;
-      const frameOne = window.requestAnimationFrame(() => {
-        frameTwo = window.requestAnimationFrame(() => {
-          setIsPulseRailActive(true);
-        });
-      });
-      return () => {
-        window.cancelAnimationFrame(frameOne);
-        if (frameTwo != null) {
-          window.cancelAnimationFrame(frameTwo);
-        }
-      };
-    }
-
-    setIsPulseRailActive(false);
-    const exitTimeout = window.setTimeout(() => {
-      setIsPulseRailMounted(false);
-    }, PULSE_RAIL_TRANSITION_MS);
-    return () => {
-      window.clearTimeout(exitTimeout);
-    };
-  }, [createMode]);
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
@@ -367,15 +339,15 @@ export function ExpertCreatePanelView({
       </div>
       <div
         className={`create-expert-panel-shell ${
-          isPulseRailActive ? "is-pulse-rail-active" : "is-pulse-rail-inactive"
+          shouldRenderPulseRail ? "is-pulse-rail-active" : "is-pulse-rail-inactive"
         }`.trim()}
       >
-        {isPulseRailMounted ? (
+        {shouldRenderPulseRail ? (
           <div
             className={`create-expert-left-panel ${
-              isPulseRailActive ? "is-pulse-active" : "is-pulse-inactive"
+              shouldRenderPulseRail ? "is-pulse-active" : "is-pulse-inactive"
             }`.trim()}
-            aria-hidden={!isPulseRailActive}
+            aria-hidden={!shouldRenderPulseRail}
           >
             <div className="create-expert-left-panel-inner">
               <CreateExpertPresetPanel

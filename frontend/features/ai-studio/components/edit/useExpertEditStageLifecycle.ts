@@ -1,7 +1,6 @@
 import React from "react";
 
 import type { TransformHistoryEntry } from "./expertEditLayerTransformUtils";
-import { INPAINT_COLLAPSE_ANIMATION_MS } from "./expertEditPanelViewContract";
 import type { StageViewportSize } from "./expertEditViewportUtils";
 import {
   clearWindowTimeoutRef,
@@ -144,12 +143,9 @@ export function useExpertEditStageLifecycle({
       return;
     }
 
-    setIsInpaintCollapsing(true);
-    inpaintCollapseTimerRef.current = window.setTimeout(() => {
-      setIsInpaintCollapsed(true);
-      setIsInpaintCollapsing(false);
-      inpaintCollapseTimerRef.current = null;
-    }, INPAINT_COLLAPSE_ANIMATION_MS);
+    setIsInpaintCollapsing(false);
+    setIsInpaintCollapsed(true);
+    inpaintCollapseTimerRef.current = null;
   }, [
     inpaintCollapseTimerRef,
     isInpaintCollapsed,

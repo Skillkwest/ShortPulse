@@ -25,6 +25,7 @@ with expected_jobs as (
   from (
     values
       ('shortpulse_generation_recovery_every_minute'::text, '* * * * *'::text, 600::integer),
+      ('shortpulse_media_derivatives_every_minute'::text, '* * * * *'::text, 600::integer),
       ('shortpulse_admin_user_health_fleet_hourly'::text, '0 * * * *'::text, 3600::integer)
   ) as t(jobname, expected_schedule, max_runtime_seconds)
 )
@@ -51,6 +52,7 @@ with expected_jobs as (
   from (
     values
       ('shortpulse_generation_recovery_every_minute'::text, 3::integer),
+      ('shortpulse_media_derivatives_every_minute'::text, 3::integer),
       ('shortpulse_admin_user_health_fleet_hourly'::text, 3::integer)
   ) as t(jobname, minimum_sample_runs)
 ),
@@ -102,6 +104,7 @@ with expected_jobs as (
   from (
     values
       ('shortpulse_generation_recovery_every_minute'::text, 600::integer),
+      ('shortpulse_media_derivatives_every_minute'::text, 600::integer),
       ('shortpulse_admin_user_health_fleet_hourly'::text, 3600::integer)
   ) as t(jobname, max_runtime_seconds)
 )
@@ -125,6 +128,7 @@ with expected_jobs as (
   from (
     values
       ('shortpulse_generation_recovery_every_minute'::text),
+      ('shortpulse_media_derivatives_every_minute'::text),
       ('shortpulse_admin_user_health_fleet_hourly'::text)
   ) as t(jobname)
 ),

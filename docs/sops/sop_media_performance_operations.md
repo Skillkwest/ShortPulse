@@ -320,6 +320,15 @@ Monitor these events during rollout:
   - Use replay artifacts to verify throughput, not just queue drain:
     - `/tmp/media_derivative_backlog_replay/cycle_summaries.jsonl` for per-cycle `variantRowsUpserted`
     - `/tmp/media_derivative_backlog_replay/final_summary.json` for total `variantRowsUpserted`
+  - Treat the derivative lane as healthy only when all of these are true:
+    - `sql/check_control_plane_scheduler_health.sql` reports `shortpulse_media_derivatives_every_minute` as present, active, and schedule-matched.
+    - `sql/check_media_derivative_processing_backlog.sql` does not show a growing `pending` queue after replay/steady-state observation.
+    - Hosted route returns `401` with a dummy secret instead of `404`, which proves the worker is enabled and auth-gated rather than absent/disabled.
+    - Hosted route returns `200` with the real secret and non-error worker metrics.
+  - Interpret failures by class:
+    - `404`: target deployment drift or `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED=false`
+    - `401`: secret mismatch or deployment protection/auth drift
+    - backlog grows with cron green: inspect the hosted route target before changing client/runtime code
   - Treat replay exit code `2` as “bounded run stopped at safety cap before claims drained”; inspect the final summary in `/tmp/media_derivative_backlog_replay/combined.log`, `/tmp/media_derivative_backlog_replay/final_summary.json`, and `/tmp/media_derivative_backlog_replay/cycle_summaries.jsonl` before increasing the cycle cap.
   - Terminal handling contract for local derivative errors (`unsupported_input`, `decode_failed`, `upload_failed`, `variant_upsert_failed`):
     - Keep exhausted deterministic failures terminal (`processing_attempts >= 5`, `processing_next_retry_at is null`) to avoid retry churn.

@@ -402,11 +402,27 @@ Route-parity gate is mandatory before setting or updating `shortpulse_media_deri
    - `sql/check_control_plane_scheduler_health.sql`
    - `sql/check_pg_net_failure_taxonomy.sql`
    - `sql/check_media_derivative_processing_backlog.sql`
+7. Verify route + auth posture against the target deployment before declaring the derivative lane healthy:
+   - Dummy secret returns `401`, not `404`:
+     ```bash
+     curl -i -X POST \
+       -H "x-shortpulse-cron-secret: definitely-wrong" \
+       https://<deployment-domain>/api/internal/media-derivatives/run
+     ```
+   - Real secret returns `200` with worker metrics:
+     ```bash
+     curl -i -X POST \
+       -H "x-shortpulse-cron-secret: <real-secret>" \
+       https://<deployment-domain>/api/internal/media-derivatives/run
+     ```
+   - `sql/check_media_derivative_processing_backlog.sql` shows no growing `pending` queue after scheduler replay/steady-state observation.
 
 Notes:
 - Vercel Cron is not required for this route.
 - Keep scheduler ownership in Supabase (`pg_cron` + Vault secrets) for consistency with the other internal operators.
 - If scheduler target URL is Vercel-protected (`Authentication Required`), set Vault secret `shortpulse_vercel_protection_bypass_token`.
+- Treat `404` from the hosted derivative route as deployment-target drift or `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED=false`, not as “scheduler missing.” The recurring incident pattern was: cron healthy, `pg_net` enqueue healthy, hosted worker disabled, backlog silently accumulated.
+- Keep `shortpulse_media_derivatives_run_url` pointed at a deployment class that is intentionally maintained for derivative operations. Do not rely on a stale preview alias without re-running the route-parity and auth checks above.
 ## Admin fleet scheduler (Supabase Cron)
 
 Use Supabase Cron for the admin fleet-health scan route.

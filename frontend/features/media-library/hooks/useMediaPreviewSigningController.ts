@@ -9,7 +9,6 @@ import {
 import { createMediaPerfTimer } from "../../../lib/mediaPerfTelemetry";
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { canAttemptMediaPreviewSignBatch } from "../../../lib/mediaPreviewRuntimePolicy";
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import {
   BUCKET,
@@ -18,10 +17,10 @@ import {
   type MediaTabBooleanState,
 } from "../logic/mediaLibraryPageHelpers";
 import {
-  buildMediaSignCandidateEntry,
   buildMediaSignCandidateEntries,
   collectMediaSignPaths,
   finalizeMediaSignCompletion,
+  type MediaSignCandidateEntry,
   mapMediaSignResults,
   resolveMediaSignSourceClass,
 } from "../logic/mediaPreviewSigningBatch";
@@ -68,6 +67,16 @@ type UseMediaPreviewSigningControllerArgs<
   backgroundHydrateFallbackEnabled?: boolean;
 };
 
+type PreparedSignState<TRow extends PreviewSigningRowBase> = {
+  sourceRows: TRow[];
+  currentUserId: string | null;
+  signCandidateCap: number;
+  readyRows: TRow[];
+  signCandidateEntryById: Map<string, MediaSignCandidateEntry>;
+  rowById: Map<string, TRow>;
+  readyIds: Set<string>;
+};
+
 export const useMediaPreviewSigningController = <
   TRow extends PreviewSigningRowBase,
   TTab extends string,
@@ -106,6 +115,7 @@ export const useMediaPreviewSigningController = <
   const deferredDrainTimeoutRef = useRef<number | null>(null);
   const deferredDrainArmedRef = useRef(false);
   const queueScopeKeyRef = useRef<string>("");
+  const preparedSignStateRef = useRef<PreparedSignState<TRow> | null>(null);
   const clearDeferredDrainTimeout = useCallback(() => {
     if (deferredDrainTimeoutRef.current == null || typeof window === "undefined") return;
     window.clearTimeout(deferredDrainTimeoutRef.current);
@@ -143,28 +153,45 @@ export const useMediaPreviewSigningController = <
     if (!activeMediaTab) return;
     if (activeMediaCacheLoading) return;
     if (mediaSignInFlightRef.current[activeMediaTab]) return;
-    const readyRows = filteredMedia.filter((row) => row.status !== "uploading");
-    if (!readyRows.length) return;
+    const currentUserId = currentUserIdRef.current;
     const signCandidateCap = Number.isFinite(maxSignCandidatesPerRow)
       ? Math.max(1, Math.trunc(maxSignCandidatesPerRow))
       : 4;
-    const signCandidateEntryById = new Map<
-      string,
-      ReturnType<typeof buildMediaSignCandidateEntry<TRow>>
-    >();
-    const getSignCandidateEntry = (row: TRow) => {
-      const cached = signCandidateEntryById.get(row.id);
-      if (cached) return cached;
-      const next = buildMediaSignCandidateEntry(row, currentUserIdRef.current, signCandidateCap);
-      signCandidateEntryById.set(row.id, next);
-      return next;
-    };
+    const cachedPreparedSignState = preparedSignStateRef.current;
+    const preparedSignState =
+      cachedPreparedSignState &&
+      cachedPreparedSignState.sourceRows === filteredMedia &&
+      cachedPreparedSignState.currentUserId === currentUserId &&
+      cachedPreparedSignState.signCandidateCap === signCandidateCap
+        ? cachedPreparedSignState
+        : (() => {
+            const readyRows = filteredMedia.filter((row) => row.status !== "uploading");
+            const signCandidateEntries = buildMediaSignCandidateEntries(
+              readyRows,
+              currentUserId,
+              signCandidateCap
+            );
+            const nextState: PreparedSignState<TRow> = {
+              sourceRows: filteredMedia,
+              currentUserId,
+              signCandidateCap,
+              readyRows,
+              signCandidateEntryById: new Map(
+                signCandidateEntries.map((entry) => [entry.id, entry] as const)
+              ),
+              rowById: new Map(readyRows.map((row) => [row.id, row] as const)),
+              readyIds: new Set(readyRows.map((row) => row.id)),
+            };
+            preparedSignStateRef.current = nextState;
+            return nextState;
+          })();
+    const { readyRows, signCandidateEntryById, rowById, readyIds } = preparedSignState;
+    if (!readyRows.length) return;
     const hasPreviewCandidate = (row: TRow) => {
-      const entry = getSignCandidateEntry(row);
+      const entry = signCandidateEntryById.get(row.id);
+      if (!entry) return false;
       return entry.candidates.length > 0 || entry.directUrls.length > 0;
     };
-    const rowById = new Map(readyRows.map((row) => [row.id, row]));
-    const readyIds = new Set(rowById.keys());
     for (const queuedId of Object.keys(queueStateByIdRef.current)) {
       const queuedRow = rowById.get(queuedId);
       if (!queuedRow || queuedRow.signedUrl || !hasPreviewCandidate(queuedRow)) {
@@ -284,7 +311,9 @@ export const useMediaPreviewSigningController = <
       query_mode: queryForBatch ? "search" : "default",
       sign_prefetch_enabled: isSignPrefetchEnabled,
     });
-    const signCandidatesByRow = signBatch.map((row) => getSignCandidateEntry(row));
+    const signCandidatesByRow = signBatch
+      .map((row) => signCandidateEntryById.get(row.id) ?? null)
+      .filter((entry): entry is MediaSignCandidateEntry => Boolean(entry));
     const signPaths = collectMediaSignPaths(signCandidatesByRow);
     const previewProfile = resolvePreviewProfileForSurface(surface);
     const previewDeliveryMode =
@@ -303,7 +332,7 @@ export const useMediaPreviewSigningController = <
           previewProfile,
         }).then((signedByPath) =>
           mapMediaSignResults({
-            currentUserId: currentUserIdRef.current,
+            currentUserId,
             entries: signCandidatesByRow,
             rowsById: signBatchById,
             signedByPath,
@@ -311,7 +340,7 @@ export const useMediaPreviewSigningController = <
         )
       : Promise.resolve(
           mapMediaSignResults({
-            currentUserId: currentUserIdRef.current,
+            currentUserId,
             entries: signCandidatesByRow,
             rowsById: signBatchById,
             signedByPath: new Map(),

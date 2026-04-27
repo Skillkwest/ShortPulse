@@ -26,6 +26,13 @@ export type MediaVirtualLayoutResult = {
   visibleItems: MediaVirtualLayoutItem[];
 };
 
+export type MediaVirtualLayoutFrame = {
+  columnCount: number;
+  columnWidth: number;
+  totalHeight: number;
+  items: MediaVirtualLayoutItem[];
+};
+
 export type ComputeMediaVirtualLayoutArgs = {
   items: MediaVirtualItem[];
   containerWidth: number;
@@ -33,6 +40,13 @@ export type ComputeMediaVirtualLayoutArgs = {
   viewportHeight: number;
   targetColumnWidth: number;
   gap: number;
+  overscanPx: number;
+};
+
+export type ResolveMediaVirtualWindowArgs = {
+  layout: MediaVirtualLayoutFrame;
+  viewportTop: number;
+  viewportHeight: number;
   overscanPx: number;
 };
 
@@ -67,17 +81,17 @@ const resolveColumnCount = ({
 };
 
 /**
- * Computes absolute-positioned masonry coordinates and a virtualized visible slice.
+ * Computes absolute-positioned masonry coordinates for the full item set.
  */
-export const computeMediaVirtualLayout = ({
+export const computeMediaVirtualLayoutFrame = ({
   items,
   containerWidth,
-  viewportTop,
-  viewportHeight,
   targetColumnWidth,
   gap,
-  overscanPx,
-}: ComputeMediaVirtualLayoutArgs): MediaVirtualLayoutResult => {
+}: Omit<
+  ComputeMediaVirtualLayoutArgs,
+  "viewportTop" | "viewportHeight" | "overscanPx"
+>): MediaVirtualLayoutFrame => {
   const columnCount = resolveColumnCount({
     containerWidth,
     targetColumnWidth,
@@ -89,12 +103,7 @@ export const computeMediaVirtualLayout = ({
     (toFinitePositive(containerWidth, 1) - safeGap * (columnCount - 1)) / columnCount
   );
   const columnHeights = new Array<number>(columnCount).fill(0);
-  const safeViewportTop = Math.max(0, toFinitePositive(viewportTop, 0));
-  const safeViewportHeight = Math.max(0, toFinitePositive(viewportHeight, 0));
-  const safeOverscan = Math.max(0, toFinitePositive(overscanPx, 0));
-  const visibleStart = Math.max(0, safeViewportTop - safeOverscan);
-  const visibleEnd = safeViewportTop + safeViewportHeight + safeOverscan;
-  const visibleItems: MediaVirtualLayoutItem[] = [];
+  const layoutItems: MediaVirtualLayoutItem[] = [];
 
   for (let index = 0; index < items.length; index += 1) {
     const item = items[index];
@@ -115,18 +124,16 @@ export const computeMediaVirtualLayout = ({
     const bottom = top + itemHeight;
     columnHeights[targetColumn] = bottom + safeGap;
 
-    if (bottom >= visibleStart && top <= visibleEnd) {
-      visibleItems.push({
-        id: item.id,
-        index,
-        column: targetColumn,
-        top,
-        left,
-        width: columnWidth,
-        height: itemHeight,
-        bottom,
-      });
-    }
+    layoutItems.push({
+      id: item.id,
+      index,
+      column: targetColumn,
+      top,
+      left,
+      width: columnWidth,
+      height: itemHeight,
+      bottom,
+    });
   }
 
   const rawTotalHeight = columnHeights.length ? Math.max(...columnHeights) - safeGap : 0;
@@ -136,6 +143,55 @@ export const computeMediaVirtualLayout = ({
     columnCount,
     columnWidth,
     totalHeight,
-    visibleItems,
+    items: layoutItems,
+  };
+};
+
+/**
+ * Resolves the visible masonry slice for the current viewport from a precomputed layout frame.
+ */
+export const resolveVisibleMediaVirtualItems = ({
+  layout,
+  viewportTop,
+  viewportHeight,
+  overscanPx,
+}: ResolveMediaVirtualWindowArgs): MediaVirtualLayoutItem[] => {
+  const safeViewportTop = Math.max(0, toFinitePositive(viewportTop, 0));
+  const safeViewportHeight = Math.max(0, toFinitePositive(viewportHeight, 0));
+  const safeOverscan = Math.max(0, toFinitePositive(overscanPx, 0));
+  const visibleStart = Math.max(0, safeViewportTop - safeOverscan);
+  const visibleEnd = safeViewportTop + safeViewportHeight + safeOverscan;
+  return layout.items.filter((item) => item.bottom >= visibleStart && item.top <= visibleEnd);
+};
+
+/**
+ * Computes absolute-positioned masonry coordinates and a virtualized visible slice.
+ */
+export const computeMediaVirtualLayout = ({
+  items,
+  containerWidth,
+  viewportTop,
+  viewportHeight,
+  targetColumnWidth,
+  gap,
+  overscanPx,
+}: ComputeMediaVirtualLayoutArgs): MediaVirtualLayoutResult => {
+  const layout = computeMediaVirtualLayoutFrame({
+    items,
+    containerWidth,
+    targetColumnWidth,
+    gap,
+  });
+
+  return {
+    columnCount: layout.columnCount,
+    columnWidth: layout.columnWidth,
+    totalHeight: layout.totalHeight,
+    visibleItems: resolveVisibleMediaVirtualItems({
+      layout,
+      viewportTop,
+      viewportHeight,
+      overscanPx,
+    }),
   };
 };

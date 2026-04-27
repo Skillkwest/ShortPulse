@@ -7,7 +7,11 @@ import {
   type CSSProperties,
   type MutableRefObject,
 } from "react";
-import { computeMediaVirtualLayout, type MediaVirtualItem } from "../logic/mediaGridVirtualization";
+import {
+  computeMediaVirtualLayoutFrame,
+  resolveVisibleMediaVirtualItems,
+  type MediaVirtualItem,
+} from "../logic/mediaGridVirtualization";
 
 type UseMediaMasonryVirtualizationArgs<TItem> = {
   items: TItem[];
@@ -141,27 +145,30 @@ export const useMediaMasonryVirtualization = <TItem>({
     []
   );
 
-  const layout = useMemo(() => {
+  const layoutFrame = useMemo(() => {
     if (!shouldVirtualize) return null;
-    return computeMediaVirtualLayout({
+    return computeMediaVirtualLayoutFrame({
       items: sourceItems,
       containerWidth,
-      viewportTop,
-      viewportHeight,
       targetColumnWidth,
       gap,
-      overscanPx,
     });
-  }, [
-    containerWidth,
-    gap,
-    overscanPx,
-    shouldVirtualize,
-    sourceItems,
-    targetColumnWidth,
-    viewportHeight,
-    viewportTop,
-  ]);
+  }, [containerWidth, gap, shouldVirtualize, sourceItems, targetColumnWidth]);
+
+  const layout = useMemo(() => {
+    if (!shouldVirtualize || !layoutFrame) return null;
+    return {
+      columnCount: layoutFrame.columnCount,
+      columnWidth: layoutFrame.columnWidth,
+      totalHeight: layoutFrame.totalHeight,
+      visibleItems: resolveVisibleMediaVirtualItems({
+        layout: layoutFrame,
+        viewportTop,
+        viewportHeight,
+        overscanPx,
+      }),
+    };
+  }, [layoutFrame, overscanPx, shouldVirtualize, viewportHeight, viewportTop]);
 
   const renderItems = useMemo<VirtualizedRenderItem<TItem>[]>(() => {
     if (!shouldVirtualize || !layout) {

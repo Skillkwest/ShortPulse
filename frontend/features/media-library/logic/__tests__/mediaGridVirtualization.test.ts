@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { computeMediaVirtualLayout } from "../mediaGridVirtualization";
+import {
+  computeMediaVirtualLayout,
+  computeMediaVirtualLayoutFrame,
+  resolveVisibleMediaVirtualItems,
+} from "../mediaGridVirtualization";
 
 const makeItems = (aspects: number[]) =>
   aspects.map((aspectRatio, index) => ({
@@ -95,5 +99,31 @@ describe("mediaGridVirtualization", () => {
     const indexes = layout.visibleItems.map((entry) => entry.index);
 
     expect(indexes).toEqual([...indexes].sort((left, right) => left - right));
+  });
+
+  it("reuses full-layout coordinates across different viewport windows", () => {
+    const frame = computeMediaVirtualLayoutFrame({
+      items: makeItems(new Array(24).fill(1)),
+      containerWidth: 900,
+      targetColumnWidth: 220,
+      gap: 8,
+    });
+    const upperWindow = resolveVisibleMediaVirtualItems({
+      layout: frame,
+      viewportTop: 0,
+      viewportHeight: 300,
+      overscanPx: 0,
+    });
+    const lowerWindow = resolveVisibleMediaVirtualItems({
+      layout: frame,
+      viewportTop: 900,
+      viewportHeight: 300,
+      overscanPx: 0,
+    });
+
+    expect(frame.items).toHaveLength(24);
+    expect(upperWindow.length).toBeGreaterThan(0);
+    expect(lowerWindow.length).toBeGreaterThan(0);
+    expect(upperWindow.map((entry) => entry.id)).not.toEqual(lowerWindow.map((entry) => entry.id));
   });
 });

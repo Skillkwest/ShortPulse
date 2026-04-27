@@ -131,6 +131,11 @@ Checklist:
   - `sql/check_runtime_sql_security_audit.sql`
 
 Mitigation:
+- Preferred guarded replay path:
+  - `SHORTPULSE_MEDIA_DERIVATIVES_RUN_URL=<full-run-url> SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET=<secret> SUPABASE_DB_URL=<db-url> ./scripts/media_derivative_backlog_replay.sh`
+  - Optional protected-deployment auth:
+    - `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN=<bypass-token>`
+  - The replay helper captures before/after backlog + terminal diagnostics when `SUPABASE_DB_URL` is set and loops the worker until claims drain or the bounded cycle cap is reached.
 - Trigger a guarded manual run:
   - `curl -X POST -H \"x-shortpulse-cron-secret: <secret>\" http://localhost:3000/api/internal/media-derivatives/run`
 - Inspect response metrics (`claimed`, `ready`, `failed`, `exhausted`, `variantRowsUpserted`, `errors`).

@@ -311,6 +311,9 @@ Monitor these events during rollout:
     - `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED=true`
     - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET=<secret>`
     - scheduler/ops call `POST /api/internal/media-derivatives/run`
+    - preferred guarded replay:
+      - `SHORTPULSE_MEDIA_DERIVATIVES_RUN_URL=<full-run-url> SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET=<secret> SUPABASE_DB_URL=<db-url> ./scripts/media_derivative_backlog_replay.sh`
+      - add `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN=<bypass-token>` when the target deployment is protected
     - backlog diagnostics: `sql/check_media_derivative_processing_backlog.sql`
     - terminal diagnostics: `sql/check_media_derivative_terminal_failures.sql`
   - Validate worker metrics (`claimed`, `ready`, `failed`, `exhausted`, `variantRowsUpserted`) and check `media_files.processing_last_error` for exhausted rows.

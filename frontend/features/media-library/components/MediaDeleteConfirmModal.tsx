@@ -3,12 +3,13 @@
  * Renders destructive confirmation copy and delegates cancel/confirm actions to injected handlers.
  */
 import type { ReactNode } from "react";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 
 type MediaDeleteConfirmModalProps = {
   body: ReactNode;
   cancelDisabled: boolean;
   confirmDisabled: boolean;
-  confirmLabel: string;
+  confirmBusyLabel?: string;
   confirmTitleId: string;
   onCancel: () => void;
   onConfirm: () => void;
@@ -25,36 +26,23 @@ export function MediaDeleteConfirmModal({
   body,
   cancelDisabled,
   confirmDisabled,
-  confirmLabel,
+  confirmBusyLabel,
   confirmTitleId,
   onCancel,
   onConfirm,
   title,
 }: MediaDeleteConfirmModalProps) {
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby={confirmTitleId}>
-      <div className="modal-card media-delete-confirm-card">
-        <h3 id={confirmTitleId}>{title}</h3>
-        <p className="subdued tiny media-delete-confirm-copy">{body}</p>
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={onCancel}
-            disabled={cancelDisabled}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn-danger"
-            onClick={onConfirm}
-            disabled={confirmDisabled}
-          >
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmationModal
+      title={title}
+      titleId={confirmTitleId}
+      body={body}
+      confirmLabel="Delete"
+      confirmBusyLabel={confirmBusyLabel}
+      confirmDisabled={confirmDisabled}
+      cancelDisabled={cancelDisabled}
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   );
 }

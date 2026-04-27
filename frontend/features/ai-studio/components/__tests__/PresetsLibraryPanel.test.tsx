@@ -88,10 +88,10 @@ describe("PresetsLibraryPanel", () => {
     render(<PresetsLibraryPanel presets={PRESETS} selectedPresetId={null} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete preset: Selfie" }));
-    expect(screen.getByRole("dialog", { name: "Delete preset?" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Delete this preset?" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "No" }));
-    expect(screen.queryByRole("dialog", { name: "Delete preset?" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog", { name: "Delete this preset?" })).not.toBeInTheDocument();
   });
 
   it("confirms delete and saves deleted tombstone override", async () => {
@@ -108,7 +108,7 @@ describe("PresetsLibraryPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Delete preset: Selfie" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(onSavePresetOverride).toHaveBeenCalledWith("selfie", createDeletedPresetOverride());

@@ -55,11 +55,12 @@ import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibrar
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import { MediaLibraryPanelFoldersSection } from "./MediaLibraryPanelFoldersSection";
 import { MediaLibraryPanelBulkActions } from "./MediaLibraryPanelBulkActions";
+import { MediaLibraryPanelDialogs } from "./MediaLibraryPanelDialogs";
 import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllItemsGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
-import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
 type RootMediaLibraryTab = "all" | "images" | "videos" | "prompts";
@@ -179,6 +180,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
   const [moveFolderPicker, setMoveFolderPicker] = useState<MoveFolderPickerState | null>(null);
   const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
+  void _onSelectPrompt;
 
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
   const rootUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -1040,7 +1042,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       optimizerFallbackMediaIds,
       panelBodyRef,
       resolvePanelCardPreviewUrl,
-      selectedIds,
       setPendingLibraryDelete,
       signedUrlRetryRef,
       visiblePromptRows,
@@ -1798,172 +1799,33 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         error={previewModalError}
         onClose={closePreviewModal}
       />
-      {pendingBulkDeleteIds ? (
-        <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" onClick={handleCloseBulkDeleteConfirm}>
-            <div
-              className="art-confirm-card"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Confirm bulk delete from All Media"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p className="art-confirm-title">Delete selected media from All Media?</p>
-              <p className="art-confirm-copy">
-                This permanently deletes {pendingBulkDeleteIds.length} selected{" "}
-                {pendingBulkDeleteIds.length === 1 ? "item" : "items"} from your library.
-              </p>
-              <div className="art-confirm-actions">
-                <button
-                  type="button"
-                  className="art-action-btn"
-                  onClick={handleCloseBulkDeleteConfirm}
-                  disabled={deleteConfirmSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="art-action-btn art-action-btn-danger"
-                  onClick={() => {
-                    void handleConfirmBulkDelete();
-                  }}
-                  disabled={deleteConfirmSubmitting}
-                >
-                  {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </AiStudioModalLayer>
-      ) : null}
-      {bulkMoveDialogOpen ? (
-        <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" onClick={handleCloseBulkMoveDialog}>
-            <div
-              className="media-library-panel-move-dialog"
-              role="dialog"
-              aria-modal="true"
-              aria-label={`Move ${selectedVisibleMediaRows.length} selected media items`}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p className="media-library-panel-move-dialog-title">Move Selected Media</p>
-              <p className="media-library-panel-move-dialog-copy">
-                Choose the destination folder for {selectedVisibleMediaRows.length} selected{" "}
-                {selectedVisibleMediaRows.length === 1 ? "item" : "items"}.
-              </p>
-              <p className="media-library-panel-move-dialog-label">Available destinations</p>
-              <div className="media-library-panel-move-dialog-list" role="list">
-                {bulkMoveDestinationOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className="media-library-panel-move-dialog-option"
-                    onClick={() => {
-                      void handleMoveSelectedMediaToFolder(option.id);
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="art-confirm-actions">
-                <button
-                  type="button"
-                  className="art-action-btn"
-                  onClick={handleCloseBulkMoveDialog}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </AiStudioModalLayer>
-      ) : null}
-      {pendingLibraryDelete ? (
-        <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" onClick={closeDeleteConfirm}>
-            <div
-              className="art-confirm-card"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Confirm delete from All Media"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p className="art-confirm-title">Delete from All Media?</p>
-              <p className="art-confirm-copy">
-                {pendingLibraryDelete.kind === "media"
-                  ? "This permanently deletes the selected media from your library."
-                  : "This permanently deletes the selected prompt from your library."}
-              </p>
-              <div className="art-confirm-actions">
-                <button
-                  type="button"
-                  className="art-action-btn"
-                  onClick={closeDeleteConfirm}
-                  disabled={deleteConfirmSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="art-action-btn art-action-btn-danger"
-                  onClick={() => {
-                    void confirmDeleteFromLibrary();
-                  }}
-                  disabled={deleteConfirmSubmitting}
-                >
-                  {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </AiStudioModalLayer>
-      ) : null}
-      {moveFolderPicker ? (
-        <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" onClick={closeMoveFolderPicker}>
-            <div
-              className="media-library-panel-move-dialog"
-              role="dialog"
-              aria-modal="true"
-              aria-label={`Move ${moveFolderPicker.folderName}`}
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p className="media-library-panel-move-dialog-title">Move Folder</p>
-              <p className="media-library-panel-move-dialog-copy">
-                Move &quot;{moveFolderPicker.folderName}&quot; to a new parent folder.
-              </p>
-              <div className="media-library-panel-move-dialog-current-parent">
-                <p className="media-library-panel-move-dialog-label">Current parent</p>
-                <p className="media-library-panel-move-dialog-current-parent-value">
-                  {moveFolderCurrentParentLabel}
-                </p>
-              </div>
-              <p className="media-library-panel-move-dialog-label">Available destinations</p>
-              <div className="media-library-panel-move-dialog-list" role="list">
-                {moveFolderDestinationOptions.map((option) => (
-                  <button
-                    key={option.id ?? MEDIA_LIBRARY_ROOT_FOLDER_ID}
-                    type="button"
-                    className="media-library-panel-move-dialog-option"
-                    onClick={() => {
-                      void handleMoveFolderToDestination(option.id);
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <div className="art-confirm-actions">
-                <button type="button" className="art-action-btn" onClick={closeMoveFolderPicker}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </AiStudioModalLayer>
-      ) : null}
+      <MediaLibraryPanelDialogs
+        pendingBulkDeleteIds={pendingBulkDeleteIds}
+        deleteConfirmSubmitting={deleteConfirmSubmitting}
+        onCloseBulkDeleteConfirm={handleCloseBulkDeleteConfirm}
+        onConfirmBulkDelete={() => {
+          void handleConfirmBulkDelete();
+        }}
+        bulkMoveDialogOpen={bulkMoveDialogOpen}
+        selectedVisibleMediaCount={selectedVisibleMediaRows.length}
+        bulkMoveDestinationOptions={bulkMoveDestinationOptions}
+        onCloseBulkMoveDialog={handleCloseBulkMoveDialog}
+        onMoveSelectedMediaToFolder={(targetFolderId) => {
+          void handleMoveSelectedMediaToFolder(targetFolderId);
+        }}
+        pendingLibraryDelete={pendingLibraryDelete}
+        onCloseDeleteConfirm={closeDeleteConfirm}
+        onConfirmDeleteFromLibrary={() => {
+          void confirmDeleteFromLibrary();
+        }}
+        moveFolderPicker={moveFolderPicker}
+        moveFolderCurrentParentLabel={moveFolderCurrentParentLabel}
+        moveFolderDestinationOptions={moveFolderDestinationOptions}
+        onCloseMoveFolderPicker={closeMoveFolderPicker}
+        onMoveFolderToDestination={(parentFolderId) => {
+          void handleMoveFolderToDestination(parentFolderId);
+        }}
+      />
     </section>
   );
 });

@@ -11,6 +11,7 @@
 @import "./accessibility.css";
 
 @import "./ui-patterns.css";
+@import "./confirmation-modal.css";
 @import "./workspace-shared.css";
 @import "./workspace-chrome.css";
 @import "./workspace-compliance.css";

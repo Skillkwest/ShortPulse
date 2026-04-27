@@ -118,9 +118,9 @@ describe("ProjectsModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete project Campaign Alpha" }));
 
-    expect(screen.getByRole("dialog", { name: "Delete project permanently?" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Delete this project?" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(mockedFetchWithAuth).toHaveBeenCalledWith("/api/projects/project-1", {
@@ -174,7 +174,7 @@ describe("ProjectsModal", () => {
     expect(await screen.findByText("Campaign Alpha")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete project Campaign Alpha" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     expect(await screen.findByText("Session expired. Retry project delete.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Open project Campaign Alpha" })).toBeInTheDocument();

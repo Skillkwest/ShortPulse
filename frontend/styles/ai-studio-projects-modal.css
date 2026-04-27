@@ -283,49 +283,6 @@
   color: rgba(201, 214, 227, 0.72);
 }
 
-.ai-projects-modal-delete-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(4, 7, 12, 0.62);
-  z-index: 1410;
-}
-
-.ai-projects-modal-delete-dialog {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: min(420px, calc(100vw - 32px));
-  padding: 22px 22px 18px;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background:
-    linear-gradient(180deg, rgba(18, 23, 30, 0.98), rgba(10, 14, 19, 0.98)), rgba(12, 16, 23, 0.98);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
-  transform: translate(-50%, -50%);
-  z-index: 1411;
-}
-
-.ai-projects-modal-delete-dialog h3 {
-  margin: 0 0 10px;
-  font-size: 22px;
-  font-weight: 700;
-  color: #f5f9ff;
-}
-
-.ai-projects-modal-delete-dialog p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: rgba(214, 225, 236, 0.8);
-}
-
-.ai-projects-modal-delete-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 18px;
-}
-
 @media (max-width: 900px) {
   .ai-projects-modal {
     width: min(96vw, 760px);

@@ -241,12 +241,12 @@ describe("Dashboard actions", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
     fireEvent.click(screen.getByRole("button", { name: "Log out" }));
 
-    expect(screen.getByRole("dialog", { name: "Are you sure?" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Log out?" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "No" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Are you sure?" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Log out?" })).not.toBeInTheDocument();
     });
   });
 
@@ -255,7 +255,7 @@ describe("Dashboard actions", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Profile menu" }));
     fireEvent.click(screen.getByRole("button", { name: "Log out" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yes, log out" }));
+    fireEvent.click(screen.getByRole("button", { name: "Log out" }));
 
     await waitFor(() => {
       expect(signOutMock).toHaveBeenCalledTimes(1);

@@ -83,9 +83,9 @@ describe("MediaLibraryModalStack", () => {
 
     render(<MediaLibraryModalStack {...props} />);
 
-    expect(screen.getByText("Delete this file from your library?")).toBeInTheDocument();
+    expect(screen.getByText("Delete this file?")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yes, delete file" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(props.onCancelDeleteFile).toHaveBeenCalledTimes(1);
     expect(props.onConfirmDeleteFile).toHaveBeenCalledTimes(1);
   });
@@ -96,9 +96,9 @@ describe("MediaLibraryModalStack", () => {
 
     render(<MediaLibraryModalStack {...props} />);
 
-    expect(screen.getByText("Delete selected file(s) from your library?")).toBeInTheDocument();
+    expect(screen.getByText("Delete selected files?")).toBeInTheDocument();
     expect(screen.getByText(/3 selected file\(s\)/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Yes, delete selected" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     expect(props.onConfirmDeleteSelected).toHaveBeenCalledTimes(1);
   });
 

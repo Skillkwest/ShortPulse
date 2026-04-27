@@ -15,6 +15,7 @@ import {
   type ExpertEditPresetOverride,
   type ExpertEditResolvedPreset,
 } from "./edit/expertEditPresets";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 export type PresetsLibraryPanelProps = {
@@ -364,42 +365,23 @@ export function PresetsLibraryPanel({
       ) : null}
       {pendingPresetDelete ? (
         <AiStudioModalLayer>
-          <div className="presets-library-delete-modal-backdrop" onClick={closeDeleteModal}>
-            <div
-              className="presets-library-delete-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Delete preset?"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p className="presets-library-delete-title">Delete preset?</p>
-              <p className="presets-library-delete-copy tiny subdued">
-                Delete <strong>{pendingPresetDelete.presetLabel}</strong> from your presets library?
-                This action can&apos;t be undone.
+          <ConfirmationModal
+            title="Delete this preset?"
+            body={
+              <p>
+                <strong>{pendingPresetDelete.presetLabel}</strong> will be removed permanently from
+                your presets library.
               </p>
-              {localSaveError ? (
-                <p className="presets-library-delete-error tiny">{localSaveError}</p>
-              ) : null}
-              <div className="presets-library-delete-actions">
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={closeDeleteModal}
-                  disabled={deleteSubmitting}
-                >
-                  No
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn mini presets-library-delete-confirm"
-                  onClick={() => void handleDeletePreset()}
-                  disabled={deleteSubmitting}
-                >
-                  {deleteSubmitting ? "Deleting..." : "Yes, delete"}
-                </button>
-              </div>
-            </div>
-          </div>
+            }
+            confirmLabel="Delete"
+            confirmBusyLabel={deleteSubmitting ? "Deleting..." : undefined}
+            confirmDisabled={deleteSubmitting}
+            cancelDisabled={deleteSubmitting}
+            onCancel={closeDeleteModal}
+            onConfirm={() => {
+              void handleDeletePreset();
+            }}
+          />
         </AiStudioModalLayer>
       ) : null}
     </section>

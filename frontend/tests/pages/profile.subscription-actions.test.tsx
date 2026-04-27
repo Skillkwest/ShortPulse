@@ -21,7 +21,7 @@ const routerState = vi.hoisted(() => ({
 const billingProfileState = vi.hoisted(() => ({
   plan_id: "media",
   subscription_status: "active",
-  current_period_end: "2026-04-01T00:00:00.000Z",
+  current_period_end: "2026-04-01T00:00:00.000Z" as string | null,
   stripe_customer_id: "cus_123" as string | null,
   stripe_subscription_id: "sub_123" as string | null,
 }));
@@ -353,13 +353,13 @@ describe("Profile subscription actions", () => {
     render(<ProfilePage />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Downgrade to Free" }));
-    expect(screen.getByRole("heading", { name: "Cancel subscription?" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Manage your downgrade?" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Keep subscription" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     await waitFor(() => {
       expect(
-        screen.queryByRole("heading", { name: "Cancel subscription?" })
+        screen.queryByRole("heading", { name: "Manage your downgrade?" })
       ).not.toBeInTheDocument();
     });
   });

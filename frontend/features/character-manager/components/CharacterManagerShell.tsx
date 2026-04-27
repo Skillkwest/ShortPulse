@@ -18,6 +18,7 @@ import {
   isAdaptiveSurfaceEnabled,
   logAdaptiveDetailFullQualityUsed,
 } from "../../../lib/adaptive-media";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { normalizePlanId } from "../../billing/catalog";
 import {
   extractInternalReferenceDragPayload,
@@ -1254,79 +1255,44 @@ export function CharacterManagerShell({
         </div>
       ) : null}
       {deleteTargetCharacter ? (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-character-title"
-        >
-          <div className="modal-card character-delete-confirm-card">
-            <h3 id="delete-character-title">Delete this character?</h3>
-            <p className="subdued tiny character-delete-confirm-copy">
-              This will permanently remove <strong>{deleteTargetCharacter.characterName}</strong>{" "}
-              and its reference images from Character Manager. This action cannot be undone.
+        <ConfirmationModal
+          title="Delete this character?"
+          titleId="delete-character-title"
+          body={
+            <p>
+              <strong>{deleteTargetCharacter.characterName}</strong> and its reference images will
+              be removed permanently.
             </p>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={cancelDeleteCharacter}
-                disabled={isDeletingCharacter}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger character-delete-confirm-btn"
-                onClick={() => {
-                  void confirmDeleteCharacter();
-                }}
-                disabled={isDeletingCharacter}
-              >
-                {isDeletingCharacter ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
+          }
+          confirmLabel="Delete"
+          confirmBusyLabel={isDeletingCharacter ? "Deleting..." : undefined}
+          confirmDisabled={isDeletingCharacter}
+          cancelDisabled={isDeletingCharacter}
+          onCancel={cancelDeleteCharacter}
+          onConfirm={() => {
+            void confirmDeleteCharacter();
+          }}
+        />
       ) : null}
       {deleteTargetCharacterSheetPresetId ? (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-character-sheet-preset-title"
-        >
-          <div className="modal-card character-delete-confirm-card">
-            <h3 id="delete-character-sheet-preset-title">
-              Delete look &ldquo;{deleteTargetCharacterSheetPresetLabel}&rdquo;?
-            </h3>
-            <p className="subdued tiny character-delete-confirm-copy">
-              This will permanently remove the saved references from look{" "}
-              <strong>{deleteTargetCharacterSheetPresetLabel}</strong>. This action cannot be
-              undone.
+        <ConfirmationModal
+          title={`Delete look "${deleteTargetCharacterSheetPresetLabel}"?`}
+          titleId="delete-character-sheet-preset-title"
+          body={
+            <p>
+              Saved references for <strong>{deleteTargetCharacterSheetPresetLabel}</strong> will be
+              removed permanently.
             </p>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={cancelDeleteCharacterSheetPreset}
-                disabled={isSavingCharacterSheetPreset}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger character-delete-confirm-btn"
-                onClick={() => {
-                  void confirmDeleteCharacterSheetPreset();
-                }}
-                disabled={isSavingCharacterSheetPreset}
-              >
-                {isSavingCharacterSheetPreset ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
+          }
+          confirmLabel="Delete"
+          confirmBusyLabel={isSavingCharacterSheetPreset ? "Deleting..." : undefined}
+          confirmDisabled={isSavingCharacterSheetPreset}
+          cancelDisabled={isSavingCharacterSheetPreset}
+          onCancel={cancelDeleteCharacterSheetPreset}
+          onConfirm={() => {
+            void confirmDeleteCharacterSheetPreset();
+          }}
+        />
       ) : null}
       <>
         <input

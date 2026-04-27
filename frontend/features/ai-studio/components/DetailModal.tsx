@@ -12,6 +12,7 @@ import {
 } from "../logic/referenceActionAvailability";
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
 import { downloadUrlToFile } from "../logic/referenceDownload";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
 import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
@@ -1193,24 +1194,13 @@ function DetailModalContent({
           </div>
         </div>
         {isDeleteConfirmOpen ? (
-          <div className="art-confirm-backdrop" onClick={handleCancelDelete}>
-            <div className="art-confirm-card" onClick={(event) => event.stopPropagation()}>
-              <p className="art-confirm-title">Delete this reference?</p>
-              <p className="art-confirm-copy">Are you sure you want to delete this? Yes or no?</p>
-              <div className="art-confirm-actions">
-                <button type="button" className="art-action-btn" onClick={handleCancelDelete}>
-                  No
-                </button>
-                <button
-                  type="button"
-                  className="art-action-btn art-action-btn-danger"
-                  onClick={handleConfirmDelete}
-                >
-                  Yes, delete
-                </button>
-              </div>
-            </div>
-          </div>
+          <ConfirmationModal
+            title="Delete this reference?"
+            body={<p>This reference will be removed permanently.</p>}
+            confirmLabel="Delete"
+            onCancel={handleCancelDelete}
+            onConfirm={handleConfirmDelete}
+          />
         ) : null}
       </div>
     </AiStudioModalLayer>

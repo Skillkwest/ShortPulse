@@ -62,19 +62,19 @@ export function MediaLibraryModalStack<
         <MediaDeleteConfirmModal
           body={
             <>
-              This will permanently remove <strong>{deleteTarget.filename}</strong> from your Media
-              Library and private storage. This action cannot be undone.
+              <strong>{deleteTarget.filename}</strong> will be removed permanently from your Media
+              Library and private storage.
             </>
           }
           cancelDisabled={deletingSingle}
           confirmDisabled={deletingSingle}
-          confirmLabel={deletingSingle ? "Deleting..." : "Yes, delete file"}
+          confirmBusyLabel={deletingSingle ? "Deleting..." : undefined}
           confirmTitleId="delete-file-title"
           onCancel={onCancelDeleteFile}
           onConfirm={() => {
             void onConfirmDeleteFile();
           }}
-          title="Delete this file from your library?"
+          title="Delete this file?"
         />
       ) : null}
 
@@ -82,20 +82,19 @@ export function MediaLibraryModalStack<
         <MediaDeleteConfirmModal
           body={
             <>
-              This will permanently remove{" "}
-              <strong>{confirmDeleteIds.length} selected file(s)</strong> from your Media Library
-              and private storage. This action cannot be undone.
+              <strong>{confirmDeleteIds.length} selected file(s)</strong> will be removed
+              permanently from your Media Library and private storage.
             </>
           }
           cancelDisabled={bulkDeleting}
           confirmDisabled={bulkDeleting}
-          confirmLabel={bulkDeleting ? "Deleting..." : "Yes, delete selected"}
+          confirmBusyLabel={bulkDeleting ? "Deleting..." : undefined}
           confirmTitleId="delete-selected-title"
           onCancel={onCancelDeleteSelected}
           onConfirm={() => {
             void onConfirmDeleteSelected();
           }}
-          title="Delete selected file(s) from your library?"
+          title="Delete selected files?"
         />
       ) : null}
 

@@ -639,62 +639,6 @@
   font-family: inherit;
 }
 
-.presets-library-delete-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--ai-studio-z-modal-backdrop);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(4, 7, 12, 0.58);
-}
-
-.presets-library-delete-modal {
-  width: min(360px, calc(100vw - 24px));
-  border-radius: 10px;
-  border: 1px solid rgba(255, 95, 95, 0.45);
-  background: rgba(16, 18, 24, 0.98);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  z-index: var(--ai-studio-z-modal-content);
-  gap: 10px;
-}
-
-.presets-library-delete-title {
-  margin: 0;
-  color: rgba(255, 219, 219, 0.96);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.presets-library-delete-copy {
-  margin: 0;
-}
-
-.presets-library-delete-error {
-  margin: 0;
-  color: rgba(255, 132, 132, 0.95);
-}
-
-.presets-library-delete-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.presets-library-delete-confirm {
-  border-color: rgba(255, 99, 99, 0.62);
-  color: rgba(255, 142, 142, 0.96);
-  background: rgba(42, 16, 18, 0.78);
-}
-
-.presets-library-delete-confirm:hover:not(:disabled) {
-  border-color: rgba(255, 122, 122, 0.86);
-  background: rgba(58, 19, 22, 0.86);
-}
-
 @media (hover: none) {
   .presets-library-tile-delete {
     opacity: 1;

@@ -1494,10 +1494,10 @@ describe("StylesLibraryPanel", () => {
     render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Delete style: Cinematic" }));
-    expect(screen.getByRole("dialog", { name: "Delete style?" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Delete this style?" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "No" }));
-    expect(screen.queryByRole("dialog", { name: "Delete style?" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog", { name: "Delete this style?" })).not.toBeInTheDocument();
   });
 
   it("confirms delete and calls onDeleteStyle with the selected style id", async () => {
@@ -1511,13 +1511,13 @@ describe("StylesLibraryPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Delete style: Cinematic" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(onDeleteStyle).toHaveBeenCalledWith("cinematic");
     });
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Delete style?" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Delete this style?" })).not.toBeInTheDocument();
     });
   });
 

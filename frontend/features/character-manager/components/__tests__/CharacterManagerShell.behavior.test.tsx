@@ -843,7 +843,7 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.getByRole("tab", { name: "Hero Look" })).toBeInTheDocument();
   });
 
-  it("shows delete confirmation with target look label and respects No cancel", async () => {
+  it("shows delete confirmation with target look label and respects cancel", async () => {
     render(<CharacterManagerShell />);
     const addButton = screen.getByRole("button", { name: "Add character look" });
     fireEvent.click(addButton);
@@ -852,22 +852,15 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.queryByRole("button", { name: "Delete look 1" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Delete look 2" }));
 
-    const deleteDialog = screen.getByRole("dialog", { name: "Delete look “2”?" });
-    expect(screen.getByText("Delete look “2”?")).toBeInTheDocument();
+    const deleteDialog = screen.getByRole("dialog", { name: 'Delete look "2"?' });
+    expect(screen.getByText('Delete look "2"?')).toBeInTheDocument();
     expect(
-      within(deleteDialog).getByText((_, element) =>
-        Boolean(
-          element?.classList.contains("character-delete-confirm-copy") &&
-          element.textContent?.includes(
-            "This will permanently remove the saved references from look 2. This action cannot be undone."
-          )
-        )
-      )
+      within(deleteDialog).getByText(/saved references for/i, { selector: "p" })
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => {
-      expect(screen.queryByText("Delete look “2”?")).not.toBeInTheDocument();
+      expect(screen.queryByText('Delete look "2"?')).not.toBeInTheDocument();
     });
     expect(screen.getByRole("tab", { name: "2" })).toBeInTheDocument();
   });
@@ -1912,7 +1905,6 @@ describe("CharacterManagerShell behavior", () => {
 
   it("hides the save control in embedded profile mode when the character is already saved", async () => {
     characterManagerMockState.selectedCharacterId = "character-1";
-    characterManagerMockState.hasUnsavedCharacterDraft = false;
 
     render(<CharacterManagerShell surface="panel" initialWorkflowTab="create" />);
 

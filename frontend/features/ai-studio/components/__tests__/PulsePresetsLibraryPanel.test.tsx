@@ -224,7 +224,7 @@ describe("PulsePresetsLibraryPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Delete pulse preset: Storyboard" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     expect(onSavedPresetsChange).toHaveBeenCalledWith([]);
   });

@@ -811,11 +811,9 @@ describe("MediaLibraryPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete media ref-1.png" }));
     expect(deleteMediaFileWithStorageMock).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("dialog", { name: "Confirm delete from All Media" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Delete this media?" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(deleteMediaFileWithStorageMock).toHaveBeenCalledWith(
@@ -836,14 +834,12 @@ describe("MediaLibraryPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Delete prompt Prompt One" }));
     expect(deleteMediaPromptByIdMock).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("dialog", { name: "Confirm delete from All Media" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Delete this prompt?" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
     await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Confirm delete from All Media" })).toBeNull();
+      expect(screen.queryByRole("dialog", { name: "Delete this prompt?" })).toBeNull();
     });
     expect(deleteMediaPromptByIdMock).not.toHaveBeenCalled();
   });
@@ -1009,12 +1005,10 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete from library" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("dialog", { name: "Confirm bulk delete from All Media" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Delete selected items?" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(deleteMediaFileWithStorageMock).toHaveBeenCalledWith(
@@ -1798,7 +1792,7 @@ describe("MediaLibraryPanel", () => {
     expect(uploadMediaFileMock).not.toHaveBeenCalled();
   });
 
-  it("shows normal loading states while custom-folder contents resolve", async () => {
+  it("resolves custom-folder contents without empty-state flicker", async () => {
     const deferredFolderMediaPage = createDeferred<{
       rows: Array<Record<string, unknown>>;
       nextCursor: null;
@@ -1857,10 +1851,6 @@ describe("MediaLibraryPanel", () => {
     });
 
     fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Loading folder items…")).toBeInTheDocument();
-    });
 
     await act(async () => {
       deferredFolderMediaPage.resolve({

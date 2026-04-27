@@ -5,9 +5,11 @@
 import React from "react";
 import { Microphone, Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import {
   ELEVENLABS_VOICEOVER_MODEL_ID,
   ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+  ELEVENLABS_VOICE_DESIGN_MODEL_ID,
 } from "../../../lib/model-runtime/elevenLabsModels";
 import { computeCostForModel } from "../../../lib/model-runtime/pricing";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
@@ -58,7 +60,7 @@ type VoiceoverSliderValues = {
 };
 
 type ElevenVoiceoverRequestConfig = {
-  model_id: "eleven_multilingual_v2";
+  model_id: typeof ELEVENLABS_VOICEOVER_MODEL_ID;
   language_code: null;
   voice_settings: {
     stability: number;
@@ -87,6 +89,7 @@ const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/
 export const hardcodedVoiceoverModelId = ELEVENLABS_VOICEOVER_MODEL_ID;
 export const hardcodedVoiceoverLanguageCode = null;
 export const hardcodedVoiceoverStyleValue = 0 as const;
+export const hardcodedVoiceDesignModelId = ELEVENLABS_VOICE_DESIGN_MODEL_ID;
 
 const normalizeSliderValue = (value: number | undefined, fallback: number): number =>
   Number(((value ?? fallback) / 100).toFixed(2));
@@ -485,6 +488,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const [isDesigningVoice, setIsDesigningVoice] = React.useState(false);
   const [isSavingDesignedVoice, setIsSavingDesignedVoice] = React.useState(false);
   const [isDeletingSelectedVoice, setIsDeletingSelectedVoice] = React.useState(false);
+  const [pendingDeleteVoice, setPendingDeleteVoice] = React.useState<SharedVoiceOption | null>(
+    null
+  );
   const [activeDesignedPreviewId, setActiveDesignedPreviewId] = React.useState<string | null>(null);
   const [voiceScript, setVoiceScript] = React.useState("");
   const [voiceoverSliderValues, setVoiceoverSliderValues] = React.useState<Record<string, number>>(
@@ -1337,17 +1343,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     voicePrompt,
   ]);
 
-  const handleDeleteSelectedVoice = React.useCallback(async () => {
+  const handleDeleteSelectedVoice = React.useCallback(() => {
     if (!selectedLibraryVoice) {
-      return;
-    }
-
-    const voiceDisplayName =
-      getVoiceChipDisplayName(selectedLibraryVoice.name) || selectedLibraryVoice.name.trim();
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete "${voiceDisplayName}"? This cannot be undone.`)
-    ) {
       return;
     }
 
@@ -1356,12 +1353,27 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       return;
     }
 
+    setPendingDeleteVoice(selectedLibraryVoice);
+  }, [canDeleteSelectedVoice, selectedLibraryVoice]);
+
+  const closeDeleteVoiceConfirm = React.useCallback(() => {
+    if (isDeletingSelectedVoice) {
+      return;
+    }
+    setPendingDeleteVoice(null);
+  }, [isDeletingSelectedVoice]);
+
+  const handleConfirmDeleteSelectedVoice = React.useCallback(async () => {
+    if (!pendingDeleteVoice) {
+      return;
+    }
+
     setVoicesLoadError(null);
     setVoicesLoadNotice(null);
     setIsDeletingSelectedVoice(true);
     try {
       const response = await fetchWithAuth(
-        `/api/elevenlabs/voices/${encodeURIComponent(selectedLibraryVoice.id)}`,
+        `/api/elevenlabs/voices/${encodeURIComponent(pendingDeleteVoice.id)}`,
         {
           method: "DELETE",
           shortpulseLogScope: "generation",
@@ -1372,11 +1384,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         throw new Error(payload?.details || payload?.error || "Unable to delete voice.");
       }
 
-      if (activePreviewVoiceId === selectedLibraryVoice.id) {
+      if (activePreviewVoiceId === pendingDeleteVoice.id) {
         stopActiveVoicePreview();
       }
 
-      replaceVoices(libraryVoices.filter((voice) => voice.id !== selectedLibraryVoice.id));
+      replaceVoices(libraryVoices.filter((voice) => voice.id !== pendingDeleteVoice.id));
+      setPendingDeleteVoice(null);
     } catch (error) {
       setVoicesLoadError(error instanceof Error ? error.message : "Unable to delete voice.");
     } finally {
@@ -1384,10 +1397,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     }
   }, [
     activePreviewVoiceId,
-    canDeleteSelectedVoice,
     libraryVoices,
+    pendingDeleteVoice,
     replaceVoices,
-    selectedLibraryVoice,
     stopActiveVoicePreview,
   ]);
 
@@ -1493,10 +1505,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   </div>
                   {voicesLoadError ? <p className="tiny subdued">{voicesLoadError}</p> : null}
                   {voicesLoadNotice ? <p className="tiny subdued">{voicesLoadNotice}</p> : null}
-                  <ul
-                    className="voices-properties-voice-grid voices-properties-voice-grid--panel-enter"
-                    aria-label="Available voices list"
-                  >
+                  <ul className="voices-properties-voice-grid" aria-label="Available voices list">
                     {isVoicesLoading ? (
                       <>
                         <li className="sr-only" role="status" aria-live="polite">
@@ -1825,6 +1834,29 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           </aside>
         </div>
       </div>
+      {pendingDeleteVoice ? (
+        <AiStudioModalLayer>
+          <ConfirmationModal
+            title="Delete this voice?"
+            body={
+              <p>
+                <strong>
+                  {getVoiceChipDisplayName(pendingDeleteVoice.name) || pendingDeleteVoice.name}
+                </strong>{" "}
+                will be removed permanently.
+              </p>
+            }
+            confirmLabel="Delete"
+            confirmBusyLabel={isDeletingSelectedVoice ? "Deleting..." : undefined}
+            confirmDisabled={isDeletingSelectedVoice}
+            cancelDisabled={isDeletingSelectedVoice}
+            onCancel={closeDeleteVoiceConfirm}
+            onConfirm={() => {
+              void handleConfirmDeleteSelectedVoice();
+            }}
+          />
+        </AiStudioModalLayer>
+      ) : null}
       {isCreateVoiceModalOpen ? (
         <AiStudioModalLayer>
           <CreateVoiceModal

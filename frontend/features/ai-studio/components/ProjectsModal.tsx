@@ -5,6 +5,7 @@
 import React from "react";
 import { ClockCounterClockwise, Folders, Sparkle, Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type ProjectListRecord = {
@@ -353,43 +354,25 @@ export function ProjectsModal({
         </div>
       </div>
       {deleteConfirmProject ? (
-        <>
-          <div className="ai-projects-modal-delete-backdrop" onClick={closeDeleteConfirm} />
-          <div
-            className="ai-projects-modal-delete-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ai-projects-delete-title"
-          >
-            <h3 id="ai-projects-delete-title">Delete project permanently?</h3>
+        <ConfirmationModal
+          title="Delete this project?"
+          body={
             <p>
-              <strong>{deleteConfirmProject.title}</strong> will be removed permanently, including
-              its project-backed workspace and project-only folder organization.
+              <strong>{deleteConfirmProject.title}</strong> and its saved workspace will be removed
+              permanently.
             </p>
-            <div className="ai-projects-modal-delete-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={closeDeleteConfirm}
-                disabled={deletePendingProjectId === deleteConfirmProject.id}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={() => {
-                  void handleDeleteConfirm();
-                }}
-                disabled={deletePendingProjectId === deleteConfirmProject.id}
-              >
-                {deletePendingProjectId === deleteConfirmProject.id
-                  ? "Deleting..."
-                  : "Delete project"}
-              </button>
-            </div>
-          </div>
-        </>
+          }
+          confirmLabel="Delete"
+          confirmBusyLabel={
+            deletePendingProjectId === deleteConfirmProject.id ? "Deleting..." : undefined
+          }
+          confirmDisabled={deletePendingProjectId === deleteConfirmProject.id}
+          cancelDisabled={deletePendingProjectId === deleteConfirmProject.id}
+          onCancel={closeDeleteConfirm}
+          onConfirm={() => {
+            void handleDeleteConfirm();
+          }}
+        />
       ) : null}
     </AiStudioModalLayer>
   );

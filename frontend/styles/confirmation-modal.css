@@ -1,0 +1,184 @@
+/**
+ * Shared confirmation modal tokens and shell.
+ * Defines the canonical confirm surface derived from the Pulse preset delete dialog.
+ */
+:root {
+  --confirm-modal-backdrop: rgba(4, 7, 12, 0.58);
+  --confirm-modal-width: min(360px, calc(100vw - 24px));
+  --confirm-modal-height: 188px;
+  --confirm-modal-radius: 10px;
+  --confirm-modal-padding: 14px;
+  --confirm-modal-gap: 10px;
+  --confirm-modal-bg: rgba(16, 18, 24, 0.98);
+  --confirm-modal-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+
+  --confirm-modal-border-danger: rgba(255, 95, 95, 0.45);
+  --confirm-modal-border-primary: rgba(82, 192, 255, 0.48);
+
+  --confirm-modal-title-size: 21px;
+  --confirm-modal-title-weight: 700;
+  --confirm-modal-title-line-height: 1.2;
+  --confirm-modal-title-color: rgba(235, 241, 248, 0.96);
+
+  --confirm-modal-body-size: 14px;
+  --confirm-modal-body-line-height: 1.45;
+  --confirm-modal-body-color: rgba(201, 205, 214, 0.9);
+
+  --confirm-modal-button-width: 120px;
+  --confirm-modal-button-height: 40px;
+  --confirm-modal-button-radius: 8px;
+  --confirm-modal-button-size: 15px;
+  --confirm-modal-button-weight: 700;
+
+  --confirm-modal-cancel-border: rgba(201, 205, 214, 0.2);
+  --confirm-modal-cancel-border-hover: rgba(201, 205, 214, 0.4);
+  --confirm-modal-cancel-bg: rgba(201, 205, 214, 0.06);
+  --confirm-modal-cancel-text: #c9cdd6;
+
+  --confirm-modal-primary-border: rgba(52, 200, 255, 0.45);
+  --confirm-modal-primary-border-hover: rgba(52, 200, 255, 0.7);
+  --confirm-modal-primary-bg: linear-gradient(
+    135deg,
+    rgba(52, 200, 255, 0.82),
+    rgba(37, 169, 191, 0.9)
+  );
+  --confirm-modal-primary-text: #e8fbff;
+
+  --confirm-modal-danger-border: rgba(255, 110, 110, 0.7);
+  --confirm-modal-danger-border-hover: rgba(255, 132, 132, 0.88);
+  --confirm-modal-danger-bg: rgba(112, 16, 16, 0.35);
+  --confirm-modal-danger-text: #ffcccc;
+}
+
+.confirm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: var(--confirm-modal-backdrop);
+}
+
+.confirm-modal {
+  width: var(--confirm-modal-width);
+  height: var(--confirm-modal-height);
+  border-radius: var(--confirm-modal-radius);
+  border: 1px solid var(--confirm-modal-border-danger);
+  background: var(--confirm-modal-bg);
+  box-shadow: var(--confirm-modal-shadow);
+  padding: var(--confirm-modal-padding);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--confirm-modal-gap);
+  font-family: var(
+    --font-primary,
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    system-ui,
+    sans-serif
+  );
+}
+
+.confirm-modal--primary {
+  border-color: var(--confirm-modal-border-primary);
+}
+
+.confirm-modal--danger {
+  border-color: var(--confirm-modal-border-danger);
+}
+
+.confirm-modal__copy {
+  display: grid;
+  gap: 6px;
+}
+
+.confirm-modal__title {
+  margin: 0;
+  color: var(--confirm-modal-title-color);
+  font-size: var(--confirm-modal-title-size);
+  font-weight: var(--confirm-modal-title-weight);
+  line-height: var(--confirm-modal-title-line-height);
+}
+
+.confirm-modal__body {
+  margin: 0;
+  color: var(--confirm-modal-body-color);
+  font-size: var(--confirm-modal-body-size);
+  line-height: var(--confirm-modal-body-line-height);
+}
+
+.confirm-modal__body p,
+.confirm-modal__body ul {
+  margin: 0;
+}
+
+.confirm-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.confirm-modal__button {
+  min-width: var(--confirm-modal-button-width);
+  height: var(--confirm-modal-button-height);
+  padding: 0 16px;
+  border-radius: var(--confirm-modal-button-radius);
+  font-family: inherit;
+  font-size: var(--confirm-modal-button-size);
+  font-weight: var(--confirm-modal-button-weight);
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.confirm-modal__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+}
+
+.confirm-modal__button--cancel {
+  border: 1px solid var(--confirm-modal-cancel-border);
+  background: var(--confirm-modal-cancel-bg);
+  color: var(--confirm-modal-cancel-text);
+}
+
+.confirm-modal__button--cancel:hover:not(:disabled) {
+  border-color: var(--confirm-modal-cancel-border-hover);
+  transform: translateY(-1px);
+}
+
+.confirm-modal__button--primary {
+  border: 1px solid var(--confirm-modal-primary-border);
+  background: var(--confirm-modal-primary-bg);
+  color: var(--confirm-modal-primary-text);
+}
+
+.confirm-modal__button--primary:hover:not(:disabled) {
+  border-color: var(--confirm-modal-primary-border-hover);
+  transform: translateY(-1px);
+}
+
+.confirm-modal__button--danger {
+  border: 1px solid var(--confirm-modal-danger-border);
+  background: var(--confirm-modal-danger-bg);
+  color: var(--confirm-modal-danger-text);
+}
+
+.confirm-modal__button--danger:hover:not(:disabled) {
+  border-color: var(--confirm-modal-danger-border-hover);
+  transform: translateY(-1px);
+}

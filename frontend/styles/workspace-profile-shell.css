@@ -265,11 +265,3 @@
 .profile-modal-card {
   width: min(460px, calc(100vw - 32px));
 }
-
-.profile-modal-list {
-  margin: 8px 0 0 20px;
-}
-
-.profile-modal-copy {
-  margin-top: 12px;
-}

@@ -3,6 +3,7 @@
  * Renders the panel-specific delete, move, and folder-move dialogs.
  */
 import React from "react";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 
 type DeleteTarget =
@@ -61,39 +62,22 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
     <>
       {pendingBulkDeleteIds ? (
         <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" onClick={onCloseBulkDeleteConfirm}>
-            <div
-              className="art-confirm-card"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Confirm bulk delete from All Media"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p className="art-confirm-title">Delete selected media from All Media?</p>
-              <p className="art-confirm-copy">
-                This permanently deletes {pendingBulkDeleteIds.length} selected{" "}
-                {pendingBulkDeleteIds.length === 1 ? "item" : "items"} from your library.
+          <ConfirmationModal
+            title="Delete selected items?"
+            body={
+              <p>
+                {pendingBulkDeleteIds.length} selected{" "}
+                {pendingBulkDeleteIds.length === 1 ? "item" : "items"} will be removed permanently
+                from your library.
               </p>
-              <div className="art-confirm-actions">
-                <button
-                  type="button"
-                  className="art-action-btn"
-                  onClick={onCloseBulkDeleteConfirm}
-                  disabled={deleteConfirmSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="art-action-btn art-action-btn-danger"
-                  onClick={onConfirmBulkDelete}
-                  disabled={deleteConfirmSubmitting}
-                >
-                  {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
-                </button>
-              </div>
-            </div>
-          </div>
+            }
+            confirmLabel="Delete"
+            confirmBusyLabel={deleteConfirmSubmitting ? "Deleting..." : undefined}
+            confirmDisabled={deleteConfirmSubmitting}
+            cancelDisabled={deleteConfirmSubmitting}
+            onCancel={onCloseBulkDeleteConfirm}
+            onConfirm={onConfirmBulkDelete}
+          />
         </AiStudioModalLayer>
       ) : null}
 
@@ -137,40 +121,24 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
 
       {pendingLibraryDelete ? (
         <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" onClick={onCloseDeleteConfirm}>
-            <div
-              className="art-confirm-card"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Confirm delete from All Media"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p className="art-confirm-title">Delete from All Media?</p>
-              <p className="art-confirm-copy">
+          <ConfirmationModal
+            title={
+              pendingLibraryDelete.kind === "media" ? "Delete this media?" : "Delete this prompt?"
+            }
+            body={
+              <p>
                 {pendingLibraryDelete.kind === "media"
-                  ? "This permanently deletes the selected media from your library."
-                  : "This permanently deletes the selected prompt from your library."}
+                  ? "This item will be removed permanently from your library."
+                  : "This prompt will be removed permanently from your library."}
               </p>
-              <div className="art-confirm-actions">
-                <button
-                  type="button"
-                  className="art-action-btn"
-                  onClick={onCloseDeleteConfirm}
-                  disabled={deleteConfirmSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="art-action-btn art-action-btn-danger"
-                  onClick={onConfirmDeleteFromLibrary}
-                  disabled={deleteConfirmSubmitting}
-                >
-                  {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
-                </button>
-              </div>
-            </div>
-          </div>
+            }
+            confirmLabel="Delete"
+            confirmBusyLabel={deleteConfirmSubmitting ? "Deleting..." : undefined}
+            confirmDisabled={deleteConfirmSubmitting}
+            cancelDisabled={deleteConfirmSubmitting}
+            onCancel={onCloseDeleteConfirm}
+            onConfirm={onConfirmDeleteFromLibrary}
+          />
         </AiStudioModalLayer>
       ) : null}
 

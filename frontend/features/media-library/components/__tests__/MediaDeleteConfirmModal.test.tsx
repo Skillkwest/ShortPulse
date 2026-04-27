@@ -16,20 +16,19 @@ describe("MediaDeleteConfirmModal", () => {
         }
         cancelDisabled={false}
         confirmDisabled={false}
-        confirmLabel="Yes, delete file"
         confirmTitleId="delete-file-title"
         onCancel={onCancel}
         onConfirm={onConfirm}
-        title="Delete this file from your library?"
+        title="Delete this file?"
       />
     );
 
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-labelledby", "delete-file-title");
-    expect(screen.getByText("Delete this file from your library?")).toBeInTheDocument();
+    expect(screen.getByText("Delete this file?")).toBeInTheDocument();
     expect(screen.getByText("file-1.png")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yes, delete file" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onConfirm).toHaveBeenCalledTimes(1);

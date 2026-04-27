@@ -1,7 +1,7 @@
 /**
  * Profile account-action tests for save, email, reset, and logout flows.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../../pages/profile";
@@ -193,9 +193,10 @@ describe("Profile account actions", () => {
     render(<ProfilePage />);
 
     fireEvent.click(screen.getByRole("button", { name: "Log out" }));
-    expect(screen.getByRole("heading", { name: "Are you sure?" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Log out?" });
+    expect(within(dialog).getByRole("heading", { name: "Log out?" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Yes, log out" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Log out" }));
 
     await waitFor(() => {
       expect(signOutMock).toHaveBeenCalledTimes(1);

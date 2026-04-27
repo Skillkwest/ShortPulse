@@ -34,7 +34,7 @@ import {
 import { DashboardAppBar } from "../features/dashboard/components/DashboardAppBar";
 import { GuestDashboardView } from "../features/dashboard/components/GuestDashboardView";
 import { buildPricingPath } from "../features/pricing/paths";
-import { formatCurrencyFromCents } from "../features/profile/profilePageModel";
+import { ConfirmationModal } from "../components/ConfirmationModal";
 import { trackMarketingPageView } from "../lib/growthTelemetry";
 import { loadBillingCatalogSnapshot } from "../lib/server/api/billingCatalog";
 import {
@@ -106,45 +106,32 @@ const emptyBillingCatalogSnapshot = (): BillingCatalogSnapshot => ({
   storageAddons: [],
 });
 
-const sortBillingPlans = (plans: readonly BillingPlanRecord[]) =>
-  [...plans].sort((left, right) => {
-    if ((left.sort_order ?? 0) === (right.sort_order ?? 0)) {
-      return left.monthly_price_cents - right.monthly_price_cents;
-    }
-    return (left.sort_order ?? 0) - (right.sort_order ?? 0);
-  });
-
-const buildGuestHeaderCards = (billingCatalog: BillingCatalogSnapshot): DashboardHeaderCard[] => {
-  const sortedPlans = sortBillingPlans(billingCatalog.plans);
-  const preferredPlanIds = ["free", "studio", "business"];
-  const selectedPlanIds = preferredPlanIds.filter((planId) =>
-    sortedPlans.some((plan) => plan.id === planId)
-  );
-  const selectedPlans =
-    selectedPlanIds.length >= 2
-      ? selectedPlanIds
-          .map((planId) => sortedPlans.find((plan) => plan.id === planId) ?? null)
-          .filter((plan): plan is BillingPlanRecord => plan !== null)
-      : sortedPlans.slice(0, 3);
-
-  return selectedPlans.map((plan) => {
-    const planView = buildPlanView({ planId: plan.id, plans: billingCatalog.plans });
-    const label = plan.id === "free" ? "Start free" : planView.displayName;
-    const value =
-      plan.monthly_price_cents === 0
-        ? `${plan.monthly_credits_cents.toLocaleString()} credits / month`
-        : `${formatCurrencyFromCents(plan.monthly_price_cents)} / month`;
-
-    return {
-      key: `guest-${plan.id}`,
-      label,
-      value,
-      icon: plan.id === "free" ? Sparkle : plan.id === "business" ? ShieldCheck : CloudArrowUp,
-      href: buildPricingPath({ planId: plan.id }),
-      className: planView.className,
-    };
-  });
-};
+const buildGuestHeaderCards = (): DashboardHeaderCard[] => [
+  {
+    key: "guest-offer-1",
+    label: "Offer 1",
+    value: "Offer 1",
+    icon: Sparkle,
+  },
+  {
+    key: "guest-offer-2",
+    label: "Offer 2",
+    value: "Offer 2",
+    icon: CloudArrowUp,
+  },
+  {
+    key: "guest-offer-3",
+    label: "Offer 3",
+    value: "Offer 3",
+    icon: ShieldCheck,
+  },
+  {
+    key: "guest-offer-4",
+    label: "Offer 4",
+    value: "Offer 4",
+    icon: ChartBar,
+  },
+];
 
 const dashboardToolCards: DashboardToolCard[] = [
   {
@@ -511,7 +498,6 @@ export default function DashboardPage({
 
   const loginHref = `/auth?next=${encodeURIComponent("/dashboard")}`;
   const guestCreateProjectHref = buildPricingPath({ intent: "create-project" });
-  const guestOpenProjectsHref = buildPricingPath({ intent: "open-projects" });
 
   return (
     <>
@@ -529,7 +515,7 @@ export default function DashboardPage({
 
       <main id="main-content" className="page page-wide dashboard-refresh">
         <DashboardAppBar
-          cards={isAuthenticated ? authHeaderCards : buildGuestHeaderCards(billingCatalog)}
+          cards={isAuthenticated ? authHeaderCards : buildGuestHeaderCards()}
           actionSlot={
             isAuthenticated ? (
               <div className="user-cluster profile-menu" ref={profileMenuRef}>
@@ -585,38 +571,20 @@ export default function DashboardPage({
             onOpenProjects={() => setIsProjectsModalOpen(true)}
           />
         ) : (
-          <GuestDashboardView
-            billingCatalog={billingCatalog}
-            createProjectHref={guestCreateProjectHref}
-            openProjectsHref={guestOpenProjectsHref}
-          />
+          <GuestDashboardView createProjectHref={guestCreateProjectHref} />
         )}
       </main>
 
       {showLogoutConfirm ? (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-labelledby="logout-title"
-          aria-modal="true"
-        >
-          <div className="modal-card">
-            <h3 id="logout-title">Are you sure?</h3>
-            <p className="subdued tiny">You will be signed out of ShortPulse.</p>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setShowLogoutConfirm(false)}
-              >
-                No
-              </button>
-              <button type="button" className="btn-primary" onClick={handleSignOut}>
-                Yes, log out
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmationModal
+          title="Log out?"
+          titleId="logout-title"
+          body={<p>You will be signed out of ShortPulse.</p>}
+          confirmLabel="Log out"
+          tone="primary"
+          onCancel={() => setShowLogoutConfirm(false)}
+          onConfirm={handleSignOut}
+        />
       ) : null}
 
       {isAuthenticated ? (

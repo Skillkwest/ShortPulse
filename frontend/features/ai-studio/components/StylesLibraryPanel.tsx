@@ -13,6 +13,7 @@ import {
 } from "./style-creator/constants";
 import { captureStyleDropSnapshot, type ResolveInternalStyleDrop } from "./style-creator/intake";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 const NONE_STYLE_ID = "__none_style__";
@@ -468,48 +469,27 @@ export function StylesLibraryPanel({
       ) : null}
       {pendingDeleteStyle ? (
         <AiStudioModalLayer>
-          <div
-            className="styles-library-delete-modal-backdrop"
-            role="presentation"
-            onClick={closeDeleteModal}
-          >
-            <div
-              className="styles-library-delete-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="styles-delete-title"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <p id="styles-delete-title" className="styles-library-delete-title">
-                Delete style?
-              </p>
-              <p className="styles-library-delete-copy tiny subdued">
-                Remove <strong>{pendingDeleteStyle.title}</strong> from your style library
-                permanently?
-              </p>
-              {deleteError ? (
-                <p className="styles-library-delete-error tiny">{deleteError}</p>
-              ) : null}
-              {localDeleteError ? (
-                <p className="styles-library-delete-error tiny">{localDeleteError}</p>
-              ) : null}
-              <div className="styles-library-delete-actions">
-                <button type="button" className="ghost-btn mini" onClick={closeDeleteModal}>
-                  No
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn mini styles-library-delete-confirm"
-                  disabled={deleteSubmitting}
-                  onClick={() => {
-                    void handleDeleteConfirm();
-                  }}
-                >
-                  {deleteSubmitting ? "Deleting..." : "Yes, delete"}
-                </button>
+          <ConfirmationModal
+            title="Delete this style?"
+            body={
+              <div>
+                <p>
+                  <strong>{pendingDeleteStyle.title}</strong> will be removed permanently from your
+                  style library.
+                </p>
+                {deleteError ? <p>{deleteError}</p> : null}
+                {localDeleteError ? <p>{localDeleteError}</p> : null}
               </div>
-            </div>
-          </div>
+            }
+            confirmLabel="Delete"
+            confirmBusyLabel={deleteSubmitting ? "Deleting..." : undefined}
+            confirmDisabled={deleteSubmitting}
+            cancelDisabled={deleteSubmitting}
+            onCancel={closeDeleteModal}
+            onConfirm={() => {
+              void handleDeleteConfirm();
+            }}
+          />
         </AiStudioModalLayer>
       ) : null}
     </section>

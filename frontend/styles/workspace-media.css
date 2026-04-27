@@ -1614,21 +1614,6 @@ body.media-library-body {
   background: linear-gradient(145deg, rgba(255, 31, 135, 0.38), rgba(20, 14, 30, 0.9));
 }
 
-.media-delete-confirm-card {
-  min-width: 320px;
-  max-width: 460px;
-  border-color: rgba(255, 110, 110, 0.32);
-}
-
-.media-delete-confirm-copy {
-  margin-top: 8px;
-  line-height: 1.55;
-}
-
-.media-delete-confirm-copy strong {
-  color: #ffe4ee;
-}
-
 .media-library-body .footer {
   color: #95a1b8;
 }

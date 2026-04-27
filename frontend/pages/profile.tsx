@@ -954,21 +954,19 @@ export default function ProfilePage() {
 
         {showLogoutConfirm ? (
           <ProfileConfirmModal
-            title="Are you sure?"
-            cancelLabel="No"
-            confirmLabel="Yes, log out"
+            title="Log out?"
+            confirmLabel="Log out"
             onCancel={() => setShowLogoutConfirm(false)}
             onConfirm={handleSignOut}
           >
-            <p className="subdued tiny">You will be signed out of ShortPulse.</p>
+            <p>You will be signed out of ShortPulse.</p>
           </ProfileConfirmModal>
         ) : null}
 
         {pendingCancelPlanId ? (
           <ProfileConfirmModal
-            title="Cancel subscription?"
-            cancelLabel="Keep subscription"
-            confirmLabel={isInternalCompContract ? "Switch to Free now" : "Continue to Stripe"}
+            title={isInternalCompContract ? "Switch to Free?" : "Manage your downgrade?"}
+            confirmLabel={isInternalCompContract ? "Switch to Free" : "Continue to Stripe"}
             onCancel={() => setPendingCancelPlanId(null)}
             onConfirm={() => {
               const nextPlanId = pendingCancelPlanId;
@@ -978,21 +976,14 @@ export default function ProfilePage() {
               }
             }}
           >
-            <p className="subdued tiny">
+            <p>
               {isInternalCompContract
-                ? "Switching to Free ends the internally managed plan immediately. You'll lose access to:"
-                : `You'll be downgraded to the Free plan at the end of your current billing period (${formatDateLabel(
+                ? "Switching to Free ends the current plan now. Unused credits stay available."
+                : `Free starts after ${formatDateLabel(
                     billingContract?.current_period_end ??
                       billingProfile?.current_period_end ??
                       null
-                  )}). You'll lose access to:`}
-            </p>
-            <ul className="subdued tiny profile-modal-list">
-              <li>{activePlan.monthlyCreditsCents.toLocaleString()} monthly credits</li>
-              <li>{activePlan.seatsLabel}</li>
-            </ul>
-            <p className="subdued tiny profile-modal-copy">
-              Any unused credits will remain in your account. You can resubscribe anytime.
+                  )}. Unused credits stay available until then.`}
             </p>
           </ProfileConfirmModal>
         ) : null}

@@ -164,8 +164,6 @@ describe("VoicesPropertiesPanel", () => {
   });
 
   it("shows a header delete action for a selected live voice and removes it from the grid", async () => {
-    const confirmMock = vi.fn(() => true);
-    vi.stubGlobal("confirm", confirmMock);
     fetchWithAuthMock
       .mockResolvedValueOnce({
         ok: true,
@@ -207,7 +205,8 @@ describe("VoicesPropertiesPanel", () => {
 
     fireEvent.click(deleteButton);
 
-    expect(confirmMock).toHaveBeenCalledWith('Delete "Adam"? This cannot be undone.');
+    expect(screen.getByRole("dialog", { name: "Delete this voice?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/voices/voice_adam", {

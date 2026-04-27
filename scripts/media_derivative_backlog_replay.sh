@@ -9,6 +9,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="${MEDIA_DERIVATIVE_REPLAY_LOG_DIR:-/tmp/media_derivative_backlog_replay}"
 MAX_CYCLES="${MEDIA_DERIVATIVE_REPLAY_MAX_CYCLES:-12}"
 SLEEP_SECONDS="${MEDIA_DERIVATIVE_REPLAY_SLEEP_SECONDS:-1}"
+RUN_STARTED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 RUN_URL="${SHORTPULSE_MEDIA_DERIVATIVES_RUN_URL:-}"
 BASE_URL="${SHORTPULSE_BASE_URL:-}"
 CRON_SECRET="${SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET:-${CRON_SECRET:-}}"
@@ -51,6 +52,7 @@ fi
 
 mkdir -p "$LOG_DIR"
 COMBINED_LOG="$LOG_DIR/combined.log"
+FINAL_SUMMARY_JSON="$LOG_DIR/final_summary.json"
 : > "$COMBINED_LOG"
 TOTAL_CLAIMED=0
 TOTAL_PROCESSED=0
@@ -243,6 +245,48 @@ run_diagnostics "after"
 
 FINAL_SUMMARY="[media-derivative-replay] Final summary: stopReason=${STOP_REASON} cycles=${COMPLETED_CYCLES} totalClaimed=${TOTAL_CLAIMED} totalProcessed=${TOTAL_PROCESSED} totalReady=${TOTAL_READY} totalFailed=${TOTAL_FAILED} totalRetryScheduled=${TOTAL_RETRY_SCHEDULED} totalExhausted=${TOTAL_EXHAUSTED} totalErrors=${TOTAL_ERRORS}"
 echo "$FINAL_SUMMARY" | tee -a "$COMBINED_LOG"
+
+node -e '
+  const summary = {
+    runStartedAt: process.argv[1],
+    runCompletedAt: new Date().toISOString(),
+    runUrl: process.argv[2],
+    logDir: process.argv[3],
+    combinedLog: process.argv[4],
+    stopReason: process.argv[5],
+    drained: process.argv[6] === "1",
+    maxCycles: Number(process.argv[7]),
+    completedCycles: Number(process.argv[8]),
+    sleepSeconds: Number(process.argv[9]),
+    totals: {
+      claimed: Number(process.argv[10]),
+      processed: Number(process.argv[11]),
+      ready: Number(process.argv[12]),
+      failed: Number(process.argv[13]),
+      retryScheduled: Number(process.argv[14]),
+      exhausted: Number(process.argv[15]),
+      errors: Number(process.argv[16]),
+    },
+  };
+  process.stdout.write(JSON.stringify(summary, null, 2));
+' \
+  "$RUN_STARTED_AT" \
+  "$RUN_URL" \
+  "$LOG_DIR" \
+  "$COMBINED_LOG" \
+  "$STOP_REASON" \
+  "$DRAINED" \
+  "$MAX_CYCLES" \
+  "$COMPLETED_CYCLES" \
+  "$SLEEP_SECONDS" \
+  "$TOTAL_CLAIMED" \
+  "$TOTAL_PROCESSED" \
+  "$TOTAL_READY" \
+  "$TOTAL_FAILED" \
+  "$TOTAL_RETRY_SCHEDULED" \
+  "$TOTAL_EXHAUSTED" \
+  "$TOTAL_ERRORS" > "$FINAL_SUMMARY_JSON"
+echo "[media-derivative-replay] Final summary JSON: $FINAL_SUMMARY_JSON" | tee -a "$COMBINED_LOG"
 
 if (( DRAINED == 0 )); then
   echo "[media-derivative-replay] Max cycle cap reached before claims drained." | tee -a "$COMBINED_LOG"

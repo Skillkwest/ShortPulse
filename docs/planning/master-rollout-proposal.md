@@ -1,5 +1,7 @@
 # ShortPulse Governance Realignment Master Rollout Plan (2026-02-20)
 
+Status: active
+
 ## Summary
 This is the best path: a phased, auditable PR train with hard gates, compatibility windows, and machine-checkable evidence.  
 It avoids big-bang risk by sequencing security/schema hardening first, then parity/governance closure, then decommission and structural cleanup, with clear rollback at every stage.

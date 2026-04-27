@@ -1,6 +1,7 @@
 # ShortPulse Backlog
 
 Last audited: 2026-04-04
+Status: active
 
 How to use:
 - Keep this list execution-focused and current.

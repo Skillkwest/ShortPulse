@@ -1,6 +1,7 @@
 # ShortPulse Unified Build-Out Master Plan
 
 Last updated: 2026-03-02  
+Status: active
 Authority: Working  
 Owner: Engineering
 

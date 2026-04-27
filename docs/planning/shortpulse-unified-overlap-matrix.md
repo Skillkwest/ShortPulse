@@ -1,6 +1,7 @@
 # ShortPulse Unified Overlap Matrix
 
 Last updated: 2026-03-02
+Status: active
 
 ## Purpose
 Map overlapping plan tracks to one execution surface so work is not duplicated.

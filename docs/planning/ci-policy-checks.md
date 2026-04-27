@@ -1,6 +1,7 @@
 # CI And Policy-As-Code Checks
 
 Date: 2026-04-09
+Status: active
 Authority: Working
 Owner: Engineering
 Canonical trunk-governance contract: `docs/planning/trunk-safety-contract.md`

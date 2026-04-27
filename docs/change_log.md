@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - normalized the older planning governance/control entrypoint docs onto the canonical status vocabulary,
+  - marked the completed baseline artifacts explicitly as `complete`,
+  - and marked the still-live governance surfaces as `active` with the unfinished final signoff summary as `draft`.
+- Documentation cleanup:
   - kept the master-stage rebuild spec active in `docs/planning/` as the canonical stage authority,
   - archived the completed master-stage tracker and phase packet under `docs/archive/planning/`,
   - and retargeted ADR/spec/index references so the active-vs-historical split is explicit.

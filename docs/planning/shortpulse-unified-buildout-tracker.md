@@ -1,6 +1,7 @@
 # ShortPulse Unified Build-Out Tracker
 
 Last updated: 2026-03-13
+Status: active
 Branch: `second-foundational-overhaul`
 
 ## Tracking Rules

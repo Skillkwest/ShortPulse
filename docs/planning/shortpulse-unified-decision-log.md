@@ -1,6 +1,7 @@
 # ShortPulse Unified Decision Log
 
 Last updated: 2026-03-13
+Status: active
 
 ## Decision 001
 - Topic: Auth trust boundary.

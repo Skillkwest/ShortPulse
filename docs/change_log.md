@@ -3,6 +3,10 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Documentation cleanup:
+  - moved the `ai-studio-reference-grid-reliability`, `lane-c`, and `media-rendering-hardening-v2` evidence namespaces from `docs/planning/evidence/` into `docs/records/evidence/`,
+  - retargeted the remaining planning references to the records paths,
+  - and narrowed the remaining strict evidence-migration blocker set again while leaving `unified-buildout` as the only intentional active-program exception.
 - Documentation governance:
   - locked `docs/planning/evidence/unified-buildout/` as an explicit active-program exception while the unified build-out tracker still uses phase evidence as live execution gating,
   - updated the records policy, planning-evidence index, migration classification note, and done-state audit so `unified-buildout` is no longer treated as the default next records migration target.
@@ -290,11 +294,11 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Published `P2` execution planning for AI Studio Reference Grid reliability (`docs/planning/ai-studio-reference-grid-reliability-phase-p2-execution-plan-2026-03-21.md`) and linked it across master plan/roadmap/tracker/readiness/full-recovery docs.
 - Published `P1` execution planning for AI Studio Reference Grid reliability (`docs/planning/ai-studio-reference-grid-reliability-phase-p1-execution-plan-2026-03-21.md`) and linked it across master plan/roadmap/tracker/readiness/full-recovery docs.
 - Published `P0` execution planning for AI Studio Reference Grid reliability (`docs/planning/ai-studio-reference-grid-reliability-phase-p0-execution-plan-2026-03-21.md`) and linked it across master plan/roadmap/tracker/readiness/full-recovery docs.
-- Added first reliability evidence packet for tracker row `RGR-M01` (`docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`) and wired tracker/evidence index references.
+- Added first reliability evidence packet for tracker row `RGR-M01` (`docs/records/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`) and wired tracker/evidence index references.
 - Added a new AI Studio Reference Grid reliability planning-governance doc suite:
   - master plan/roadmap/tracker/tracker-spec,
   - decision log, risk register, readiness-state record, implementation-entry checklist, and evidence packet template,
-  - new evidence namespace (`docs/planning/evidence/ai-studio-reference-grid-reliability/`) and two proposed ADRs (`0046`, `0047`) for output-visibility authority and recovery-threshold policy.
+  - new evidence namespace (`docs/records/evidence/ai-studio-reference-grid-reliability/`) and two proposed ADRs (`0046`, `0047`) for output-visibility authority and recovery-threshold policy.
 - Refreshed planning/documentation indexes to include the new reliability governance artifacts and linked them from `docs/planning/ai-studio-full-recovery-program.md`.
 - Normalized changelog governance for Lane E:
   - added an explicit `Unreleased` section as the active entry point,

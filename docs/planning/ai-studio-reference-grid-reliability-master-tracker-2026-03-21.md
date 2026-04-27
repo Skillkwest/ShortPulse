@@ -38,9 +38,9 @@ Supporting docs:
 ## Master Tracker Rows
 | ID | Task | Workstream | Status | Risk | Validation | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| `RGR-M01` | Confirm top-priority defect inventory and source-code references | WG-1 | Completed | High | Audit summary review | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md` |
-| `RGR-M02` | Lock recovery timer scheduling contract (no post-schedule cancel) | WG-1 | In Progress | High | P0 phase gate + targeted tests | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md` |
-| `RGR-M03` | Lock queued `not_found` age/retry policy parity across active and resume paths | WG-1 | Completed | High | P0 phase gate + targeted tests | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-04-03-p0-s2-not-found-policy-parity.md` |
+| `RGR-M01` | Confirm top-priority defect inventory and source-code references | WG-1 | Completed | High | Audit summary review | `docs/records/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md` |
+| `RGR-M02` | Lock recovery timer scheduling contract (no post-schedule cancel) | WG-1 | In Progress | High | P0 phase gate + targeted tests | `docs/records/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md` |
+| `RGR-M03` | Lock queued `not_found` age/retry policy parity across active and resume paths | WG-1 | Completed | High | P0 phase gate + targeted tests | `docs/records/evidence/ai-studio-reference-grid-reliability/2026-04-03-p0-s2-not-found-policy-parity.md` |
 | `RGR-M04` | Lock lifecycle retention window for recoverable no-task/no-preview failures | WG-1 | In Progress | Medium | P0 phase gate + smoke matrix | planned |
 | `RGR-M05` | Define canonical output authority between bubble and grid surfaces | WG-2 | Planned | High | P1 phase gate + integration tests | planned |
 | `RGR-M06` | Define selector-store publish parity and coalescing acceptance criteria | WG-2 | Planned | High | P1 phase gate + race tests | planned |
@@ -65,8 +65,8 @@ Behavior-changing implementation is gated until:
 | Gate ID | Requirement | Status | Owner | Evidence | Notes |
 | --- | --- | --- | --- | --- | --- |
 | `RGR-G01` | P0 plan + governance package authored and indexed | Completed | AI Studio Engineering | `npm -C frontend run docs:check` | Planning package published and linked |
-| `RGR-G02` | `RGR-M01` completed with evidence | Completed | AI Studio Engineering | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md` | Defect inventory lock complete |
-| `RGR-G03` | P0 entry baseline packet committed | Completed | AI Studio Engineering | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md` | Baseline packet committed and linked |
+| `RGR-G02` | `RGR-M01` completed with evidence | Completed | AI Studio Engineering | `docs/records/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md` | Defect inventory lock complete |
+| `RGR-G03` | P0 entry baseline packet committed | Completed | AI Studio Engineering | `docs/records/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md` | Baseline packet committed and linked |
 | `RGR-G04` | High-severity blocker waiver metadata closed | Completed | AI Studio Engineering | `docs/known-issues.md` | `RGR-B02` closed via time-bounded waiver record (expiry 2026-03-28) |
 | `RGR-G05` | Readiness promoted to `implementation_ready` | Completed | AI Studio Engineering | `docs/planning/ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md` | Promotion recorded; kickoff obligations active |
 
@@ -95,5 +95,5 @@ After `implementation_ready` promotion:
 11. Committed P0 entry baseline packet evidence and closed `RGR-G03`; remaining implementation-entry blocker is `RGR-B02`.
 12. Closed `RGR-G04` via `RGR-B02` waiver metadata update in `docs/known-issues.md`.
 13. Promoted readiness to `implementation_ready`, started `P0-S1` kickoff, and moved `RGR-M02`..`RGR-M04` to `In Progress`.
-14. Kickoff evidence link recorded: `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md`.
-15. Closed `RGR-M03` with shared queued `not_found` retry/age parity across active queue polling and resume-watchdog paths; linked `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-04-03-p0-s2-not-found-policy-parity.md`.
+14. Kickoff evidence link recorded: `docs/records/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md`.
+15. Closed `RGR-M03` with shared queued `not_found` retry/age parity across active queue polling and resume-watchdog paths; linked `docs/records/evidence/ai-studio-reference-grid-reliability/2026-04-03-p0-s2-not-found-policy-parity.md`.

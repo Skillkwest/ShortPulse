@@ -83,7 +83,7 @@ Out of scope:
 3. `docs/planning/ai-studio-reference-grid-reliability-implementation-entry-checklist-2026-03-21.md`
 4. `docs/planning/ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md`
 5. `docs/planning/ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`
-6. `docs/planning/evidence/ai-studio-reference-grid-reliability/README.md`
+6. `docs/records/evidence/ai-studio-reference-grid-reliability/README.md`
 
 ## Merge And Validation Discipline
 Per planning slice:

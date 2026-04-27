@@ -20,4 +20,4 @@ Examples:
 7. follow-ups with owner/date.
 
 Use template:
-`docs/planning/evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`
+`docs/records/evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`

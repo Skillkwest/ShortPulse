@@ -9,7 +9,7 @@ Primary control docs:
 - [Surface policy matrix](./media-rendering-hardening-v2-surface-policy-matrix-2026-03-18.md)
 - [Image surface inventory lock](./media-rendering-hardening-v2-image-surface-inventory-lock-2026-03-16.md)
 - [Test realignment matrix](./media-rendering-hardening-v2-test-realignment-matrix-2026-03-18.md)
-- [Evidence root](./evidence/media-rendering-hardening-v2/README.md)
+- [Evidence root](../records/evidence/media-rendering-hardening-v2/README.md)
 
 ## Purpose
 Convert the Surface lane strategy into concrete, no-bloat slices that apply accepted policy and hardened server truth to real renderers without introducing regressions.

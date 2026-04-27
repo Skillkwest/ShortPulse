@@ -5,7 +5,7 @@ Status: active
 Owner: Engineering  
 Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-c-tracker-spec-2026-03-16.md`  
-Evidence root: `docs/planning/evidence/lane-c/`
+Evidence root: `docs/records/evidence/lane-c/`
 
 ## Purpose
 Convert Lane C from strategy into concrete, execution-ready slices with explicit commands, evidence packets, and merge gates.
@@ -25,15 +25,15 @@ Out of scope:
 ## Slice Backlog
 | Slice ID | Phase | Fragile Surface | Primary Goal | Primary Evidence Artifact | Status |
 | --- | --- | --- | --- | --- | --- |
-| `C0-01` | C0 | Baseline lock | Capture baseline command outputs and lock non-goals | `docs/planning/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md` | Completed |
-| `C1-01` | C1 | Reference Grid -> Styles drop | Capture one failing and one passing real payload packet | `docs/planning/evidence/lane-c/2026-03-17-c1-01-style-drop-characterization.md` | Blocked |
-| `C1-02` | C1 | Reference Grid -> Styles drop | Convert captured packets into deterministic fixture tests | `docs/planning/evidence/lane-c/2026-03-16-c1-02-style-drop-fixture-lock.md` | Not Started |
-| `C2-01` | C2 | Generation lifecycle | Consolidate no-regression contract suite for submit/queue/status/recovery | `docs/planning/evidence/lane-c/2026-03-16-c2-01-generation-contract-bundle.md` | Not Started |
-| `C2-02` | C2 | Billing settlement | Assert reserve/attach/capture-release invariants under failure paths | `docs/planning/evidence/lane-c/2026-03-16-c2-02-billing-settlement-assertions.md` | Not Started |
-| `C3-01` | C3 | Shared-browser isolation | Add same-browser account-switch isolation matrix and assertions | `docs/planning/evidence/lane-c/2026-03-16-c3-01-shared-browser-isolation-matrix.md` | Not Started |
-| `C4-01` | C4 | Adaptive cross-surface parity | Re-lock cross-surface parity assertions and gate results | `docs/planning/evidence/lane-c/2026-03-16-c4-01-adaptive-cross-surface-parity.md` | Not Started |
-| `C5-01` | C5 | Internal operational routes | Lock internal route/auth envelope and operator-path assertions | `docs/planning/evidence/lane-c/2026-03-16-c5-01-internal-operational-contracts.md` | Not Started |
-| `C6-01` | C6 | Lane gate convergence | Publish required Lane C command bundle and promotion decision | `docs/planning/evidence/lane-c/2026-03-16-c6-01-lane-gate-convergence.md` | Not Started |
+| `C0-01` | C0 | Baseline lock | Capture baseline command outputs and lock non-goals | `docs/records/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md` | Completed |
+| `C1-01` | C1 | Reference Grid -> Styles drop | Capture one failing and one passing real payload packet | `docs/records/evidence/lane-c/2026-03-17-c1-01-style-drop-characterization.md` | Blocked |
+| `C1-02` | C1 | Reference Grid -> Styles drop | Convert captured packets into deterministic fixture tests | `docs/records/evidence/lane-c/2026-03-16-c1-02-style-drop-fixture-lock.md` | Not Started |
+| `C2-01` | C2 | Generation lifecycle | Consolidate no-regression contract suite for submit/queue/status/recovery | `docs/records/evidence/lane-c/2026-03-16-c2-01-generation-contract-bundle.md` | Not Started |
+| `C2-02` | C2 | Billing settlement | Assert reserve/attach/capture-release invariants under failure paths | `docs/records/evidence/lane-c/2026-03-16-c2-02-billing-settlement-assertions.md` | Not Started |
+| `C3-01` | C3 | Shared-browser isolation | Add same-browser account-switch isolation matrix and assertions | `docs/records/evidence/lane-c/2026-03-16-c3-01-shared-browser-isolation-matrix.md` | Not Started |
+| `C4-01` | C4 | Adaptive cross-surface parity | Re-lock cross-surface parity assertions and gate results | `docs/records/evidence/lane-c/2026-03-16-c4-01-adaptive-cross-surface-parity.md` | Not Started |
+| `C5-01` | C5 | Internal operational routes | Lock internal route/auth envelope and operator-path assertions | `docs/records/evidence/lane-c/2026-03-16-c5-01-internal-operational-contracts.md` | Not Started |
+| `C6-01` | C6 | Lane gate convergence | Publish required Lane C command bundle and promotion decision | `docs/records/evidence/lane-c/2026-03-16-c6-01-lane-gate-convergence.md` | Not Started |
 
 Policy:
 1. Lane C slices remain test/fixture/governance-only unless a slice explicitly declares approved behavior changes.
@@ -139,5 +139,5 @@ Acceptance:
 ## Lane-Level Exit Gates
 1. `npm -C frontend run test`
 2. `npm -C frontend run test:adaptive-v2-gate` (when protected adaptive/reference-grid surfaces are touched)
-3. All slice evidence packets present under `docs/planning/evidence/lane-c/`
+3. All slice evidence packets present under `docs/records/evidence/lane-c/`
 4. Tracker rows complete per `lane-c-tracker-spec-2026-03-16.md`

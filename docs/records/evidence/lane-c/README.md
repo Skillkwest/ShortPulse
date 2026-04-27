@@ -27,6 +27,6 @@ Examples:
 - `docs/planning/lane-c-tracker-spec-2026-03-16.md`
 
 ## Current packets
-- `docs/planning/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md`
-- `docs/planning/evidence/lane-c/2026-03-17-c1-01-style-drop-characterization.md`
-- `docs/planning/evidence/lane-c/2026-03-17-c1-01-style-drop-capture-harness-bootstrap.md`
+- `docs/records/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md`
+- `docs/records/evidence/lane-c/2026-03-17-c1-01-style-drop-characterization.md`
+- `docs/records/evidence/lane-c/2026-03-17-c1-01-style-drop-capture-harness-bootstrap.md`

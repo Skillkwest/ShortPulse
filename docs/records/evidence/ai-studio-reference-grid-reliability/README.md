@@ -28,7 +28,7 @@ Use dated packet names:
 5. `docs/planning/ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`
 
 ## Seed packets
-1. `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`
-2. `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md`
-3. `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md`
-4. `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-04-03-p0-s2-not-found-policy-parity.md`
+1. `docs/records/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`
+2. `docs/records/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md`
+3. `docs/records/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md`
+4. `docs/records/evidence/ai-studio-reference-grid-reliability/2026-04-03-p0-s2-not-found-policy-parity.md`

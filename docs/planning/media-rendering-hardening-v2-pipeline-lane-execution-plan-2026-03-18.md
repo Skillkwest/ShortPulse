@@ -11,7 +11,7 @@ Primary control docs:
 - [API list profile spec](./media-rendering-hardening-v2-api-list-profile-spec-2026-03-16.md)
 - [Folder query scalability spec](./media-rendering-hardening-v2-folder-query-scalability-spec-2026-03-16.md)
 - [Legacy adapter sunset spec](./media-rendering-hardening-v2-legacy-adapter-sunset-spec-2026-03-16.md)
-- [Evidence root](./evidence/media-rendering-hardening-v2/README.md)
+- [Evidence root](../records/evidence/media-rendering-hardening-v2/README.md)
 
 ## Purpose
 Convert the Pipeline lane strategy into concrete, low-bloat slices that harden server truth before Surface lane consumes it. This plan is execution guidance only; status must stay in the master media-rendering tracker.

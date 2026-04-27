@@ -9,7 +9,7 @@ Primary control docs:
 - [Surface policy matrix](./media-rendering-hardening-v2-surface-policy-matrix-2026-03-18.md)
 - [Stop/go checklist](./media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md)
 - [Foundation P0 inventory and telemetry closure plan](./media-rendering-hardening-v2-foundation-p0-inventory-telemetry-closure-plan-2026-03-18.md)
-- [Evidence root](./evidence/media-rendering-hardening-v2/README.md)
+- [Evidence root](../records/evidence/media-rendering-hardening-v2/README.md)
 
 ## Purpose
 Convert the Foundation lane strategy into concrete slices without changing live media-delivery behavior. This plan is execution guidance only; status must be tracked in the master media-rendering tracker.
@@ -50,7 +50,7 @@ Acceptance:
 
 Required docs:
 1. [Telemetry baseline truth spec](./media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md)
-2. [Evidence root](./evidence/media-rendering-hardening-v2/README.md)
+2. [Evidence root](../records/evidence/media-rendering-hardening-v2/README.md)
 3. [Foundation P0 inventory and telemetry closure plan](./media-rendering-hardening-v2-foundation-p0-inventory-telemetry-closure-plan-2026-03-18.md)
 
 ### MRH2-P0-003: Stop/Go Closeout And Evidence Normalization
@@ -62,7 +62,7 @@ Acceptance:
 
 Required docs:
 1. [Pre-implementation stop/go checklist](./media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md)
-2. [Evidence root](./evidence/media-rendering-hardening-v2/README.md)
+2. [Evidence root](../records/evidence/media-rendering-hardening-v2/README.md)
 3. [Foundation P0 inventory and telemetry closure plan](./media-rendering-hardening-v2-foundation-p0-inventory-telemetry-closure-plan-2026-03-18.md)
 
 ### MRH2-P1-001: Final Surface Policy Decision Lock

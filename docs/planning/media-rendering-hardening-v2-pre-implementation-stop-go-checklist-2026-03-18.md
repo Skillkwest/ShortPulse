@@ -14,7 +14,7 @@ Define the minimum planning completeness required before behavior-changing imple
 - [x] Test realignment matrix classifies all policy-sensitive tests.
 - [x] Metadata authority spec is accepted as the planned source of truth for dimensions.
 - [x] Execution tracker is seeded with at least one slice per upcoming phase.
-- [x] Evidence namespace is locked to `docs/planning/evidence/media-rendering-hardening-v2/`.
+- [x] Evidence namespace is locked to `docs/records/evidence/media-rendering-hardening-v2/`.
 - [x] ADR trigger rule is accepted for durable delivery-policy changes.
 - [x] `mini-ecosystem/` remains explicitly out of scope.
 

@@ -184,7 +184,7 @@ Concrete sequencing: `docs/planning/lane-c-execution-plan-2026-03-16.md`
 ### C6: Convergence
 
 - [ ] Publish required Lane C command bundle for fragile-path PRs.
-- [ ] Attach all required evidence packets under `docs/planning/evidence/lane-c/`.
+- [ ] Attach all required evidence packets under `docs/records/evidence/lane-c/`.
 
 ## Lane D Master Checklist
 

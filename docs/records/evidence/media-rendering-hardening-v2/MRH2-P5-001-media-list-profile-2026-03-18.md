@@ -18,7 +18,7 @@
 - [useMediaTabDataController.ts](../../../../frontend/features/media-library/hooks/useMediaTabDataController.ts)
 - [useMediaLibraryPanelDataController.ts](../../../../frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts)
 - [media-list.test.ts](../../../../frontend/tests/api/media-list.test.ts)
-- [api-list-profile-spec](../../media-rendering-hardening-v2-api-list-profile-spec-2026-03-16.md)
+- [api-list-profile-spec](../../../planning/media-rendering-hardening-v2-api-list-profile-spec-2026-03-16.md)
 
 ## Compatibility Decision
 - `media-library-route`: `minimal`

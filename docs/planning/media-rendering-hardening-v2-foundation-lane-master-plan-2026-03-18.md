@@ -10,7 +10,7 @@ Program anchors:
 - [Risk register](./media-rendering-hardening-v2-risk-register-2026-03-16.md)
 - [Decision log](./media-rendering-hardening-v2-decision-log-2026-03-16.md)
 - [QA / release checklist](./media-rendering-hardening-v2-qa-release-checklist-2026-03-16.md)
-- [Evidence root](./evidence/media-rendering-hardening-v2/README.md)
+- [Evidence root](../records/evidence/media-rendering-hardening-v2/README.md)
 
 ## Summary
 Foundation is the first execution lane for Media Rendering Hardening v2. It is a decision-complete, docs-plus-low-risk-infra lane that must finish before behavior-changing media-delivery work starts.
@@ -110,7 +110,7 @@ No surface policy may move to `Accepted` without decision-log alignment. Any pol
 1. One seam per PR.
 2. No product-visible media-delivery changes in this lane.
 3. No lane-local tracker. The [master execution tracker](./media-rendering-hardening-v2-execution-tracker-2026-03-16.md) remains the only operational status source.
-4. Every completed slice must attach evidence under [docs/planning/evidence/media-rendering-hardening-v2/](./evidence/media-rendering-hardening-v2/README.md).
+4. Every completed slice must attach evidence under [docs/records/evidence/media-rendering-hardening-v2/](../records/evidence/media-rendering-hardening-v2/README.md).
 5. Long-tail surfaces must be represented individually, not bucketed, before the lane closes.
 
 ## Exit Criteria

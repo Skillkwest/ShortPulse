@@ -7,7 +7,7 @@ Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-c-tracker-spec-2026-03-16.md`
 Execution plan: `docs/planning/lane-c-execution-plan-2026-03-16.md`
-Evidence index: `docs/planning/evidence/lane-c/README.md`
+Evidence index: `docs/records/evidence/lane-c/README.md`
 
 ## Summary
 Lane C builds regression armor for known fragile paths before behavior-changing work in downstream lanes/tracks.
@@ -32,9 +32,9 @@ As of 2026-03-17:
 6. Multiple high-risk operational systems exist in `docs/operator-map.md` (generation queue/recovery, credits settlement, webhook path, admin user-health fleet) and need a locked no-regression assertion bundle.
 
 ## Current Execution State
-1. `C0-01` baseline evidence is recorded in `docs/planning/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md`.
-2. `C1-01` capture prep and blocker state are recorded in `docs/planning/evidence/lane-c/2026-03-17-c1-01-style-drop-characterization.md`.
-3. `C1-01` capture harness bootstrap is recorded in `docs/planning/evidence/lane-c/2026-03-17-c1-01-style-drop-capture-harness-bootstrap.md`.
+1. `C0-01` baseline evidence is recorded in `docs/records/evidence/lane-c/2026-03-17-c0-01-baseline-lock.md`.
+2. `C1-01` capture prep and blocker state are recorded in `docs/records/evidence/lane-c/2026-03-17-c1-01-style-drop-characterization.md`.
+3. `C1-01` capture harness bootstrap is recorded in `docs/records/evidence/lane-c/2026-03-17-c1-01-style-drop-capture-harness-bootstrap.md`.
 4. `C1-02` remains blocked until the real pass/fail packet captures are attached.
 
 ## Fragile Path Inventory (Lane C Scope)

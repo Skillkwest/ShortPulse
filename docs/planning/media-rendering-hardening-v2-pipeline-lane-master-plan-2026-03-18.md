@@ -10,7 +10,7 @@ Program anchors:
 - [Risk register](./media-rendering-hardening-v2-risk-register-2026-03-16.md)
 - [Decision log](./media-rendering-hardening-v2-decision-log-2026-03-16.md)
 - [QA / release checklist](./media-rendering-hardening-v2-qa-release-checklist-2026-03-16.md)
-- [Evidence root](./evidence/media-rendering-hardening-v2/README.md)
+- [Evidence root](../records/evidence/media-rendering-hardening-v2/README.md)
 
 ## Summary
 Pipeline is the second execution lane for Media Rendering Hardening v2. It owns the server-authoritative media path that must be stable before Surface cutover work broadens across route, modal, panel, reference-grid, character, and detail experiences.
@@ -131,7 +131,7 @@ Outputs:
 1. One seam per PR.
 2. No lane-local tracker. The [master execution tracker](./media-rendering-hardening-v2-execution-tracker-2026-03-16.md) remains the only operational status source.
 3. Keep server changes parity-first; migration work must preserve user-visible behavior unless a later Surface slice owns the cutover.
-4. Every completed slice must attach evidence under [docs/planning/evidence/media-rendering-hardening-v2/](./evidence/media-rendering-hardening-v2/README.md).
+4. Every completed slice must attach evidence under [docs/records/evidence/media-rendering-hardening-v2/](../records/evidence/media-rendering-hardening-v2/README.md).
 5. Any change that materially alters list/upload/sign/resolve contract meaning must update the contract matrix and decision log in the same slice.
 
 ## Exit Criteria

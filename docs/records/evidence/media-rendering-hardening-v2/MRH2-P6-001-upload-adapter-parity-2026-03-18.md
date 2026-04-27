@@ -18,7 +18,7 @@
 - [media-upload.route.test.ts](../../../../frontend/tests/api/media-upload.route.test.ts)
 - [upload-image-route.test.ts](../../../../frontend/tests/api/upload-image-route.test.ts)
 - [upload-video-route.test.ts](../../../../frontend/tests/api/upload-video-route.test.ts)
-- [legacy-adapter-sunset-spec](../../media-rendering-hardening-v2-legacy-adapter-sunset-spec-2026-03-16.md)
+- [legacy-adapter-sunset-spec](../../../planning/media-rendering-hardening-v2-legacy-adapter-sunset-spec-2026-03-16.md)
 
 ## Adapter Decision
 - `/api/media/upload` remains the only path that persists `media_files` rows.

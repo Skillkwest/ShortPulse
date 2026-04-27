@@ -16,7 +16,7 @@
 - [list.ts](../../../../frontend/pages/api/media/prompts/list.ts)
 - [media-list.test.ts](../../../../frontend/tests/api/media-list.test.ts)
 - [media-prompts-list.test.ts](../../../../frontend/tests/api/media-prompts-list.test.ts)
-- [folder-query-scalability-spec](../../media-rendering-hardening-v2-folder-query-scalability-spec-2026-03-16.md)
+- [folder-query-scalability-spec](../../../planning/media-rendering-hardening-v2-folder-query-scalability-spec-2026-03-16.md)
 
 ## Query Decision
 - `media_files` folder filtering now uses `folder_membership:media_folder_media_items!inner()`.

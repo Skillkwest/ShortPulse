@@ -134,7 +134,7 @@ This plan should drive updates to:
 2. [media-rendering-hardening-v2-surface-policy-matrix-2026-03-18.md](./media-rendering-hardening-v2-surface-policy-matrix-2026-03-18.md)
 3. [media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md](./media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md)
 4. [media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md](./media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md)
-5. [evidence/media-rendering-hardening-v2/README.md](./evidence/media-rendering-hardening-v2/README.md)
+5. [evidence/media-rendering-hardening-v2/README.md](../records/evidence/media-rendering-hardening-v2/README.md)
 
 ## Current Closure Assessment
 After the latest repo-audited updates:

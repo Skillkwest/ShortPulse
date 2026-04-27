@@ -24,7 +24,7 @@
 5. `frontend/features/ai-studio/hooks/__tests__/useAiStudioTaskOrchestration.test.ts`
 6. `docs/planning/ai-studio-reference-grid-reliability-master-tracker-2026-03-21.md`
 7. `docs/planning/ai-studio-reference-grid-reliability-phase-p0-execution-plan-2026-03-21.md`
-8. `docs/planning/evidence/ai-studio-reference-grid-reliability/README.md`
+8. `docs/records/evidence/ai-studio-reference-grid-reliability/README.md`
 
 ## Validation Results
 1. Targeted validation:

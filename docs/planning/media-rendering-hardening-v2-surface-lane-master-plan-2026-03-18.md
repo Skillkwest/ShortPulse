@@ -10,7 +10,7 @@ Program anchors:
 - [Risk register](./media-rendering-hardening-v2-risk-register-2026-03-16.md)
 - [Decision log](./media-rendering-hardening-v2-decision-log-2026-03-16.md)
 - [QA / release checklist](./media-rendering-hardening-v2-qa-release-checklist-2026-03-16.md)
-- [Evidence root](./evidence/media-rendering-hardening-v2/README.md)
+- [Evidence root](../records/evidence/media-rendering-hardening-v2/README.md)
 
 ## Summary
 Surface is the third execution lane for Media Rendering Hardening v2. It owns the user-visible render surfaces that consume the contracts locked by Foundation and the server truth hardened by Pipeline.
@@ -119,7 +119,7 @@ Outputs:
 1. One seam per PR.
 2. No lane-local tracker. The [master execution tracker](./media-rendering-hardening-v2-execution-tracker-2026-03-16.md) remains the only operational status source.
 3. Surface slices must not silently invent new delivery policy; they must implement accepted policy or stop and escalate to Foundation/Pipeline docs.
-4. Every completed slice must attach evidence under [docs/planning/evidence/media-rendering-hardening-v2/](./evidence/media-rendering-hardening-v2/README.md).
+4. Every completed slice must attach evidence under [docs/records/evidence/media-rendering-hardening-v2/](../records/evidence/media-rendering-hardening-v2/README.md).
 5. Protected adaptive/reference-grid paths must honor the adaptive change gate before merge.
 6. Surface slices must not assume AVIF-transform parity or post-sign transform rewriting unless that behavior is explicitly documented by the vendor and accepted in the decision log.
 

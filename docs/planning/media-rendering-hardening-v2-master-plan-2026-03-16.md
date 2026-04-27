@@ -93,8 +93,8 @@ Supporting docs:
 15. `docs/planning/media-rendering-hardening-v2-test-realignment-matrix-2026-03-18.md`
 16. `docs/planning/media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md`
 17. `docs/planning/media-rendering-hardening-v2-foundation-p0-inventory-telemetry-closure-plan-2026-03-18.md`
-18. `docs/planning/evidence/media-rendering-hardening-v2/README.md`
-19. `docs/planning/evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`
+18. `docs/records/evidence/media-rendering-hardening-v2/README.md`
+19. `docs/records/evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`
 
 ## Phase Model
 ### P0: Inventory + Telemetry Truth + Baseline Lock (no behavior change)
@@ -158,7 +158,7 @@ Supporting docs:
 5. Surface policy decisions must be reflected in the surface policy matrix, contract matrix, and decision log before implementation slices merge.
 
 ## Evidence Rules
-1. All slice evidence lives under `docs/planning/evidence/media-rendering-hardening-v2/`.
+1. All slice evidence lives under `docs/records/evidence/media-rendering-hardening-v2/`.
 2. Every completed tracker row must link to a concrete evidence packet.
 3. No alternate evidence namespace may be used for this program without same-slice decision-log approval.
 4. Any durable media-delivery policy change must link to both an ADR and an evidence packet.

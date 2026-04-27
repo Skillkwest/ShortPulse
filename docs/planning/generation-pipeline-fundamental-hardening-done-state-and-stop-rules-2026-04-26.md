@@ -1,7 +1,7 @@
 # Generation Pipeline Fundamental Hardening Done State And Stop Rules (2026-04-26)
 
 Last updated: 2026-04-26  
-Status: Active control document  
+Status: complete  
 Master plan: `docs/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
 
 ## Done State

@@ -1,7 +1,7 @@
 # AI Studio Pulse Runtime Tracker (2026-04-20)
 
 Last updated: 2026-04-23
-Status: Complete
+Status: complete
 Owner: Engineering
 
 ## Tracker Rules

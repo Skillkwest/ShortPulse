@@ -1,6 +1,6 @@
 # AI Studio Live Session Check Media Panel Handoff (2026-04-05)
 
-Status: Active handoff  
+Status: active  
 Branch: `codex/live-seesion-check-up`  
 Scope: staging preview AI Studio Media Library panel lag investigation and fix plan  
 Audience: follow-on Codex/engineering agent picking up implementation and validation

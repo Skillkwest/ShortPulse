@@ -1,7 +1,7 @@
 # AI Studio Project Persistence Phase 0 Persistence Inventory (2026-04-23)
 
 Last updated: 2026-04-25  
-Status: Accepted Working Artifact  
+Status: active  
 Owner: Engineering
 
 ## Purpose

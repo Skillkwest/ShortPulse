@@ -1,6 +1,6 @@
 # AI Studio Master Stage Phase 5: Export And Submit Decoupling Plan (2026-04-12)
 
-Status: Completed  
+Status: complete  
 Owner: Engineering
 
 ## Goal

@@ -1,6 +1,6 @@
 # AI Studio Project Persistence Phase 3: Project Workspace Authority Plan (2026-04-23)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

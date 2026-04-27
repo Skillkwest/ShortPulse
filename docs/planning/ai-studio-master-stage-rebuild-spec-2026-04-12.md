@@ -1,7 +1,7 @@
 # AI Studio Master Stage Rebuild Spec (2026-04-12)
 
 Last updated: 2026-04-12  
-Status: Active  
+Status: active  
 Owner: Engineering
 
 ## Summary

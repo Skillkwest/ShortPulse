@@ -1,6 +1,6 @@
 # AI Studio Pulse Runtime Phase 7: Validation, Docs, and Rollout Plan (2026-04-20)
 
-Status: Complete
+Status: complete
 Owner: Engineering
 
 ## Goal

@@ -1,6 +1,6 @@
 # AI Studio Project Persistence Phase 0: Contract And Persistence Inventory Plan (2026-04-23)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

@@ -1,7 +1,7 @@
 # Generation Pipeline Fundamental Hardening Tracker (2026-04-26)
 
 Last updated: 2026-04-26  
-Status: Done state achieved  
+Status: complete  
 Master plan: `docs/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
 
 ## Purpose

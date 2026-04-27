@@ -1,7 +1,7 @@
 # Generation Pipeline Continuation: Server Authority Execution Checklist (2026-04-05)
 
 Last updated: 2026-04-05  
-Status: Active
+Status: active
 Parent subplan: `docs/planning/generation-pipeline-continuation-server-authority-cutover-2026-04-05.md`  
 Master plan: `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
 

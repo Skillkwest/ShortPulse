@@ -1,7 +1,7 @@
 # AI Studio Expert Edit Properties Panel Fresh-Start Lean-Up Plan (2026-04-10)
 
 Last updated: 2026-04-10  
-Status: Proposed  
+Status: draft  
 Owner: Engineering
 
 ## Purpose

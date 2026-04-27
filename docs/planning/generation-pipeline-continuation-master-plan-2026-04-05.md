@@ -1,7 +1,7 @@
 # Generation Pipeline Continuation Master Plan (2026-04-05)
 
 Last updated: 2026-04-05  
-Status: Active (implementation in progress)
+Status: active
 Owner: Engineering  
 Program anchor: `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`  
 Primary architecture contract: `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`

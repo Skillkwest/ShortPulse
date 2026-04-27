@@ -1,6 +1,6 @@
 # Billing Internal Comp Contracts and Admin Exempt Renewals Plan (2026-04-23)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

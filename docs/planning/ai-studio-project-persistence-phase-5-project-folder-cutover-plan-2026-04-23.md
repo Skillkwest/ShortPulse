@@ -1,6 +1,6 @@
 # AI Studio Project Persistence Phase 5: Project Folder Cutover Plan (2026-04-23)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

@@ -1,6 +1,6 @@
 # AI Studio Master Stage Phase 3: Stage Core Extraction Plan (2026-04-12)
 
-Status: Completed  
+Status: complete  
 Owner: Engineering
 
 ## Goal

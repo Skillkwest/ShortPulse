@@ -1,6 +1,7 @@
 # AI Studio Pulse Runtime Decision Log (2026-04-20)
 
 Last updated: 2026-04-20
+Status: complete
 
 ## Decision 001
 - Topic: V1 Pulse product identity.

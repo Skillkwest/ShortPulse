@@ -1,7 +1,7 @@
 # Generation Pipeline Continuation Tracker Index (2026-04-05)
 
 Last updated: 2026-04-09
-Status: Active  
+Status: active  
 Master plan: `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
 
 ## Purpose

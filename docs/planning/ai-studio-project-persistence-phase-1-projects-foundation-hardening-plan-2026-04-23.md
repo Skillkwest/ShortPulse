@@ -1,6 +1,6 @@
 # AI Studio Project Persistence Phase 1: Projects Foundation Hardening Plan (2026-04-23)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

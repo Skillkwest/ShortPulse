@@ -1,6 +1,6 @@
 # AI Studio Project Persistence Phase 2: Project Runtime Entry And Title Authority Plan (2026-04-23)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

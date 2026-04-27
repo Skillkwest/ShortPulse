@@ -1,7 +1,7 @@
 # AI Studio Project Workspace Isolation, Bootstrap, And Restore Plan (2026-04-24)
 
 Last updated: 2026-04-24  
-Status: Active  
+Status: active  
 Owner: Engineering
 
 ## Purpose

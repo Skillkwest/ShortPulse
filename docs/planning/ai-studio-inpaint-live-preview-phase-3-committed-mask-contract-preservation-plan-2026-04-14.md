@@ -1,6 +1,6 @@
 # AI Studio Inpaint Live Preview Phase 3: Committed Mask Contract Preservation Plan (2026-04-14)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

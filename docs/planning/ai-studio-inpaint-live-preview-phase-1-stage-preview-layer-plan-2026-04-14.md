@@ -1,6 +1,6 @@
 # AI Studio Inpaint Live Preview Phase 1: Stage Preview Layer Plan (2026-04-14)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

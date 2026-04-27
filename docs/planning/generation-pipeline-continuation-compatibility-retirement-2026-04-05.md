@@ -1,7 +1,7 @@
 # Generation Pipeline Continuation: Compatibility Retirement (2026-04-05)
 
 Last updated: 2026-04-09
-Status: Active
+Status: active
 Parent plan: `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
 Tracker index: `docs/planning/generation-pipeline-continuation-tracker-2026-04-05.md`
 

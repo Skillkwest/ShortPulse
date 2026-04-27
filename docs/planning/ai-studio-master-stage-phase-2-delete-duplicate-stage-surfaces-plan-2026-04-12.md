@@ -1,6 +1,6 @@
 # AI Studio Master Stage Phase 2: Delete Duplicate Stage Surfaces Plan (2026-04-12)
 
-Status: Completed  
+Status: complete  
 Owner: Engineering
 
 ## Goal

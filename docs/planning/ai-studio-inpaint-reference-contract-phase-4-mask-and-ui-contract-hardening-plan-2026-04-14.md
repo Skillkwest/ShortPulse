@@ -1,6 +1,6 @@
 # AI Studio Inpaint Reference Contract Phase 4: Mask And UI Contract Hardening Plan (2026-04-14)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

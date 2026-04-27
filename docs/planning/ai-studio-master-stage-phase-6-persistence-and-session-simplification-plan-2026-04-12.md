@@ -1,6 +1,6 @@
 # AI Studio Master Stage Phase 6: Persistence And Session Simplification Plan (2026-04-12)
 
-Status: Completed  
+Status: complete  
 Owner: Engineering
 
 ## Goal

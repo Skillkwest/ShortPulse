@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - normalized the April 2026 active-planning families onto the canonical status vocabulary (`draft`, `active`, `complete`),
+  - marked completed April planning families explicitly as `complete` so later archive work is visible in metadata instead of hidden behind custom status phrases,
+  - and filled the missing status headers on the current staging-preview and Pulse decision-log planning docs.
+- Documentation cleanup:
   - archived the completed Elements decoupling packet plus the compact right-rail scope/tracker/readiness packet,
   - moved those closeout docs out of `docs/planning/` into `docs/archive/planning/`,
   - and refreshed archive indexes/descriptions so the archive surface matches the current repo state.

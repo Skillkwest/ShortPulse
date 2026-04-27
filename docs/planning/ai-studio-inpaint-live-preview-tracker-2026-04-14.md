@@ -1,7 +1,7 @@
 # AI Studio Inpaint Live Preview Tracker (2026-04-14)
 
 Last updated: 2026-04-14  
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Tracker Rules

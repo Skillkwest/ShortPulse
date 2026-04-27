@@ -1,6 +1,6 @@
 # AI Studio Inpaint Reference Contract Phase 2: Current-State Audit And Guardrails Plan (2026-04-14)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

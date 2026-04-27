@@ -1,6 +1,6 @@
 # AI Studio Inpaint Live Preview Phase 5: Validation And Stop-Rule Plan (2026-04-14)
 
-Status: Planned  
+Status: draft  
 Owner: Engineering
 
 ## Goal

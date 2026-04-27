@@ -1,4 +1,5 @@
 # Staging Preview UI Properties Extraction Plan (2026-04-04)
+Status: complete
 
 Purpose: define the remaining product-only extraction strategy for the AI Studio UI/properties delta that still exists between current `staging-preview` and `origin/codex/full-unified-layers`.
 

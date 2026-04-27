@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - executed the second markdown-only records migration pilot by moving the closed `lane-a` evidence family into `docs/records/evidence/lane-a/`,
+  - updated the foundation tracker and evidence indexes to point at the retained-records paths,
+  - and marked the migration classification follow-up so the next namespace move can build on the proven markdown-only pattern.
+- Documentation cleanup:
   - executed the first records migration pilot by moving the closed `media-library-runtime-rebuild` evidence family into `docs/records/evidence/media-library-runtime-rebuild/`,
   - updated the planning-evidence index to remove that namespace from the active physical list,
   - and added a records-evidence index so migrated namespaces have a stable retained-records entrypoint.

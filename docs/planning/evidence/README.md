@@ -13,7 +13,6 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/reference-grid-modularization/`
 - `docs/planning/evidence/naming-canonicalization/`
 - `docs/planning/evidence/style-adherence/`
-- `docs/planning/evidence/lane-a/`
 - `docs/planning/evidence/lane-b/`
 - `docs/planning/evidence/lane-c/`
 - `docs/planning/evidence/lane-d/`
@@ -27,6 +26,7 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/unified-buildout/`
 
 ## Migrated namespaces
+- `docs/records/evidence/lane-a/`
 - `docs/records/evidence/media-library-runtime-rebuild/`
 
 ## Notes

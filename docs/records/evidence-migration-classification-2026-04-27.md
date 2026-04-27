@@ -5,6 +5,8 @@ Purpose: classify the current `docs/planning/evidence/` tree into migration buck
 ## Follow-up status
 - First pilot executed after this snapshot:
   - `docs/planning/evidence/media-library-runtime-rebuild/` moved to `docs/records/evidence/media-library-runtime-rebuild/`
+- Second markdown-only pilot executed after this snapshot:
+  - `docs/planning/evidence/lane-a/` moved to `docs/records/evidence/lane-a/`
 - Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.
 
 ## Inventory snapshot

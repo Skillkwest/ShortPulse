@@ -24,7 +24,7 @@ linked_pr: n/a (local execution slice)
 8. `skills/skill-pricing-audit/SKILL.md`
 9. `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`
 10. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
-11. `docs/planning/evidence/lane-a/README.md`
+11. `docs/records/evidence/lane-a/README.md`
 
 ## Commands Run
 1. `npm -C frontend run deadcode:check:full`

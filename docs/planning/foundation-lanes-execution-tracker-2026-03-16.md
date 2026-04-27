@@ -121,16 +121,16 @@ Mandatory for any from-scratch replacement scope:
 
 ## Lane A Evidence
 
-1. Evidence index: `docs/planning/evidence/lane-a/README.md`
-2. Baseline packet: `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
-3. A1 naming gate packet: `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`
-4. A1 size-budget recovery packet: `docs/planning/evidence/lane-a/2026-03-16-a1-02-size-budget-gate-recovery.md`
-5. A1 validate relock packet: `docs/planning/evidence/lane-a/2026-03-16-a1-03-validate-path-relock.md`
-6. A2 policy surface alignment packet: `docs/planning/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
-7. A3 docs governance cleanup packet: `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
-8. A4 conservative dead-code pass packet: `docs/planning/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md`
-9. A4 selective pruning pass packet: `docs/planning/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md`
-10. A5 lane signoff packet: `docs/planning/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md`
+1. Evidence index: `docs/records/evidence/lane-a/README.md`
+2. Baseline packet: `docs/records/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
+3. A1 naming gate packet: `docs/records/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`
+4. A1 size-budget recovery packet: `docs/records/evidence/lane-a/2026-03-16-a1-02-size-budget-gate-recovery.md`
+5. A1 validate relock packet: `docs/records/evidence/lane-a/2026-03-16-a1-03-validate-path-relock.md`
+6. A2 policy surface alignment packet: `docs/records/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
+7. A3 docs governance cleanup packet: `docs/records/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
+8. A4 conservative dead-code pass packet: `docs/records/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md`
+9. A4 selective pruning pass packet: `docs/records/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md`
+10. A5 lane signoff packet: `docs/records/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md`
 
 ## Lane C Artifacts
 
@@ -308,15 +308,15 @@ Tracker contract: `docs/archive/planning/lane-f-tracker-spec-2026-03-16.md`
 - Added Lane F master plan/tracker artifacts and seeded a Lane F evidence namespace for CI/release governance execution.
 - Added foundation rebuild playbook artifact and made it mandatory for from-scratch replacement scopes across lanes/tracks.
 - Started Lane A A0 baseline lock and captured baseline evidence packet:
-  - `docs/planning/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
+  - `docs/records/evidence/lane-a/2026-03-16-a0-01-baseline-lock.md`
 - Completed Lane A A1 naming gate recovery slice and validated green `validate` path:
-  - `docs/planning/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`
+  - `docs/records/evidence/lane-a/2026-03-16-a1-01-naming-gate-recovery.md`
 - Completed Lane A A1 size-budget recovery seam by extracting AI Studio perf runtime registration from page orchestration:
-  - `docs/planning/evidence/lane-a/2026-03-16-a1-02-size-budget-gate-recovery.md`
+  - `docs/records/evidence/lane-a/2026-03-16-a1-02-size-budget-gate-recovery.md`
 - Completed Lane A A1 validate relock packet to capture fresh post-governance gate state:
-  - `docs/planning/evidence/lane-a/2026-03-16-a1-03-validate-path-relock.md`
+  - `docs/records/evidence/lane-a/2026-03-16-a1-03-validate-path-relock.md`
 - Completed Lane A A2 policy-surface alignment packet and confirmed scoped Supabase policy contract parity:
-  - `docs/planning/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
+  - `docs/records/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
 - Continued Lane B B2-01 seam extraction by moving Expert Edit viewport/zoom/pan utilities into a dedicated helper module:
   - `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-2.md`
 - Continued Lane B B2-01 seam extraction by moving Expert Edit layer-transform/history/geometry primitives into a dedicated helper module:
@@ -397,13 +397,13 @@ Tracker contract: `docs/archive/planning/lane-f-tracker-spec-2026-03-16.md`
 - Continued `B3-01` with the second production extraction by moving dropped-reference resolution, ingestion, and pending-drop ownership into a dedicated controller hook and bringing `CharacterManagerShell.tsx` below warn budget:
   - `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-drop-reference-controller-split.md`
 - Completed Lane A A3 docs-governance cleanup packet (API route-table dedupe, index parity repair, migration-reference drift correction):
-  - `docs/planning/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
+  - `docs/records/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 - Completed Lane A A4-01 conservative dead-code pass (safe wrapper/dependency removals + active docs/skill sync):
-  - `docs/planning/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md`
+  - `docs/records/evidence/lane-a/2026-03-16-a4-01-conservative-deadcode-pass.md`
 - Completed Lane A A4-02 selective dead-code pruning (remaining high-confidence dead modules removed; production deadcode gate green):
-  - `docs/planning/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md`
+  - `docs/records/evidence/lane-a/2026-03-16-a4-02-selective-pruning-pass.md`
 - Completed Lane A A5 signoff and handed deferred debt to downstream lanes:
-  - `docs/planning/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md`
+  - `docs/records/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md`
 - Completed Lane B B0-01 governance bootstrap (ADR + SOP extraction checklist + roadmap/tracker/evidence alignment):
   - `docs/planning/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md`
 - Completed Lane B B1-01 guardrail bootstrap (Lane B size-budget modes + boundary/cycle mode wiring in check scripts):

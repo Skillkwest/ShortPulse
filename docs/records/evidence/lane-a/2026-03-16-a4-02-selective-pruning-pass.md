@@ -27,7 +27,7 @@ linked_pr: n/a (local execution slice)
 11. `docs/archive/planning/lane-a-master-plan-2026-03-16.md`
 12. `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`
 13. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
-14. `docs/planning/evidence/lane-a/README.md`
+14. `docs/records/evidence/lane-a/README.md`
 
 ## Commands Run
 1. `npm -C frontend run deadcode:check`

@@ -1,6 +1,8 @@
 # Lane A Evidence
 
-Purpose: store execution evidence packets for Lane A gate recovery and governance hardening slices.
+Purpose: store retained execution evidence packets for the closed Lane A gate recovery and governance hardening slices.
+
+Moved from `docs/planning/evidence/lane-a/` during the retained-records migration on 2026-04-27. This namespace is no longer part of the active planning evidence surface.
 
 ## Required packet fields
 1. `slice_id`

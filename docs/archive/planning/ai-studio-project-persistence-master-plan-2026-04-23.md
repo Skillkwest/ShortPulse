@@ -4,6 +4,8 @@ Last updated: 2026-04-24
 Status: Historical buildout contract; superseded for active execution by `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md`  
 Owner: Engineering
 
+> Archived on 2026-04-26 during the docs-cleanup wave. Superseded for active execution by `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md`.
+
 > Active execution note: use `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md` as the current stabilization contract. This original master plan remains the historical buildout record for the broader Projects program.
 
 ## Summary

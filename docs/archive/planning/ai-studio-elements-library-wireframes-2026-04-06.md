@@ -3,6 +3,8 @@
 Status: Superseded historical reference  
 Owner: Product + Frontend Engineering
 
+> Archived on 2026-04-26 during the docs-cleanup wave. Superseded by the active Elements decoupling packet under `docs/planning/`.
+
 > Historical note: superseded by the Elements decoupling packet dated 2026-04-09. Retain this document only as a first-pass wireframe reference for the original embedded Elements surface shape. Any alias-field copy below is historical; shipped Elements now derive workflow tokens from element name and do not expose alias authoring in the live UI.
 
 ## Purpose

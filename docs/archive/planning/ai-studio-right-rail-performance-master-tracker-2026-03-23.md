@@ -4,9 +4,11 @@ Last updated: 2026-03-24
 Status: Completed (`done_required_scope`)  
 Owner: AI Studio Engineering  
 Canonical closeout docs: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`, `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`  
-Program doc: `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`  
+Program doc: `docs/archive/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`  
 Implementation entry checklist: `docs/archive/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`  
 Readiness state: `docs/planning/ai-studio-right-rail-performance-readiness-state-2026-03-23.md`
+
+> Archived on 2026-04-26 during the docs-cleanup wave. Superseded as the primary status surface by `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`.
 
 ## Status Legend
 - `Planned`

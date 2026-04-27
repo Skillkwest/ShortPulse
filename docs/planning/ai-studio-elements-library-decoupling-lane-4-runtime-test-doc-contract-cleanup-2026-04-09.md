@@ -42,10 +42,10 @@ The prior packet mixed real runtime work into cleanup. The audit corrected that.
 ### Docs
 1. `docs/README.md`
 2. `docs/planning/README.md`
-3. `docs/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
-4. `docs/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
+3. `docs/archive/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
+4. `docs/archive/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
 5. `docs/planning/ai-studio-elements-library-component-state-map-2026-04-06.md`
-6. `docs/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
+6. `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
 7. `docs/planning/ai-studio-elements-library-implementation-checklist-2026-04-06.md`
 8. the decoupling packet itself if status/closeout wording needs updates
 

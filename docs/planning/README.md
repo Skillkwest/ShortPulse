@@ -2,6 +2,11 @@
 
 Purpose: active planning artifacts and current execution backlogs.
 
+## Active-Surface Contract
+- This index is for active planning and current execution backlogs only.
+- Superseded, completed, historical, dormant, or reference-only planning docs belong in `docs/archive/planning/`.
+- `docs/planning/evidence/` remains the retained evidence namespace during the current cleanup transition, but it is not part of the primary reading path through active planning.
+
 ## Contents
 - `_inventory.md`: source inventory, decision locks, and traceability map for the governance realignment program.
 - `overlap-audit.md`: conflict/risk register with severity and resolution mapping across plan sources.
@@ -83,9 +88,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`: Phase 5 plan for separating stage export from provider submission.
 - `ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`: Phase 6 plan for reducing persistence to a document-centered contract.
 - `ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`: Phase 7 plan for final cutover, deletion, validation, and rebuild closeout.
-- `ai-studio-elements-library-ui-build-plan-2026-04-06.md`: implementation-ready UI/UX build contract for the new AI Studio Elements library surface, using Character Library shell patterns and future Kling compatibility constraints.
-- `ai-studio-elements-library-ui-spec-2026-04-06.md`: concrete UI contract for left-rail placement, manage/profile behavior, editor fields, and interaction states for the Elements library.
-- `ai-studio-elements-library-wireframes-2026-04-06.md`: text wireframes for the embedded `Manage Elements` and `Element Profile` surfaces, including narrow-panel adaptation.
 - `ai-studio-elements-library-component-state-map-2026-04-06.md`: proposed feature/file layout, component responsibilities, and state model for implementing the Elements library without reopening the design lane.
 - `ai-studio-elements-library-implementation-checklist-2026-04-06.md`: execution checklist for the first UI-only Elements library build, including host wiring, feature scaffold, validation targets, and out-of-scope guardrails.
 - `ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`: repo-backed strangler roadmap for removing live Elements-to-Character coupling across host, DOM, style, adjacent consumers, and stale model seams.
@@ -232,8 +234,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`: standardized packet template for reliability slice evidence.
 - `ai-studio-right-rail-performance-scope-contract-2026-03-23.md`: canonical right-rail closeout contract and stop-rule document for the bounded scope.
 - `ai-studio-right-rail-performance-tracker-2026-03-23.md`: canonical completion tracker and reopen-criteria record for the shipped right-rail scope.
-- `ai-studio-right-rail-performance-master-plan-2026-03-23.md`: supporting historical execution plan retained for traceability; superseded as the primary planning entry point by the scope contract.
-- `ai-studio-right-rail-performance-master-tracker-2026-03-23.md`: supporting historical tracker retained for traceability; superseded as the primary status surface by the compact tracker.
 - `ai-studio-right-rail-performance-readiness-state-2026-03-23.md`: supporting readiness-state register retained for reopen governance after scope closeout.
 - `ai-architecture-follow-on-revisit-report-2026-03-29.md`: consolidated handoff + defer/revisit report for external design-AI architecture takeaways, with an earliest revisit date of `2026-04-12`.
 - `ai-studio-generation-queue-hardening-2026-03-04.md`: low-drift implementation plan for generation-start recovery and queue hardening.

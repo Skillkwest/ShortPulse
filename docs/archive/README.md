@@ -15,6 +15,9 @@ Purpose: historical documents that are retained for context but are not authorit
 ## Notable archived docs
 - `docs/archive/planning/mvp-pre-tester-anchor-plan.md` (superseded by `docs/planning/mvp-pretester-full-audit-remediation-plan.md`).
 - `docs/archive/planning/ai-studio-character-mode-injection-plan.md` (implementation-complete plan retained for historical context).
+- `docs/archive/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`, `docs/archive/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`, and `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md` (first-pass Elements design/build packet superseded by the live decoupling packet under `docs/planning/`).
+- `docs/archive/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md` and `docs/archive/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md` (supporting historical right-rail execution docs superseded by the compact scope contract + tracker pair).
+- `docs/archive/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`, `docs/archive/planning/ai-studio-project-persistence-stabilization-trim-and-fix-plan-2026-04-24.md`, and `docs/archive/planning/ai-studio-project-folder-stabilization-trim-and-fix-plan-2026-04-24.md` (historical Projects stabilization packet superseded by the active workspace-isolation/bootstrap plan).
 - `docs/archive/planning/media-library-move-tabs-plan.md` (implementation-complete plan retained for historical context).
 - `docs/archive/character-manager-character-sheet-plan.md` (superseded by current Character Manager operations and UI-only sheet behavior).
 - `docs/archive/mvp-stabilization-plan.md` (superseded by `docs/planning/mvp-pretester-full-audit-remediation-plan.md`).

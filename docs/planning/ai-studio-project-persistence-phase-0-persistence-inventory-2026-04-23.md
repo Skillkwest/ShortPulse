@@ -15,7 +15,7 @@ It is the implementation-facing inventory that later phases must follow. It lock
 5. the leak paths that must be closed before Projects are correct.
 
 The master contract remains:
-1. [ai-studio-project-persistence-master-plan-2026-04-23.md](./ai-studio-project-persistence-master-plan-2026-04-23.md)
+1. [ai-studio-project-persistence-master-plan-2026-04-23.md](../archive/planning/ai-studio-project-persistence-master-plan-2026-04-23.md)
 2. [ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md](./ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md)
 
 ## Locked Definitions

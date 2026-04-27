@@ -7,9 +7,9 @@ Purpose: define the documentation information architecture, ownership rules, and
 - `docs/api/`: provider/API integration references.
 - `docs/sops/`: operational runbooks and workflows.
 - `docs/product/`: product/domain source-of-truth documents.
-- `docs/planning/`: active plans, backlogs, and stabilization tracks.
+- `docs/planning/`: active plans, backlogs, and stabilization tracks only.
   - `docs/planning/policies/`: machine-checkable policy artifacts for planning/governance enforcement.
-  - `docs/planning/evidence/`: evidence namespaces and packet records for phase gates, promote/hold/rollback decisions, and closeout signoff.
+  - `docs/planning/evidence/`: retained evidence namespaces and packet records for phase gates, promote/hold/rollback decisions, and closeout signoff. During the current cleanup transition, keep this namespace out of the primary reading path even while the evidence files remain preserved here.
 - `docs/adr/`: durable architecture decisions.
 - `docs/agents/`: agent workflow helpers and execution guard aids.
 - `docs/design/`: design rationale used by implementation.
@@ -34,17 +34,22 @@ Purpose: define the documentation information architecture, ownership rules, and
 - `Working`: in-flight plans and execution artifacts under `docs/planning/`.
 - `Archived`: superseded or historical docs under `docs/archive/` only.
 
+Working-doc metadata:
+- Active planning docs should use the normalized status vocabulary: `draft`, `active`, `complete`, `superseded`, or `archived`.
+- Docs marked `superseded`, `complete`, `historical`, `temporary`, `dormant`, or `reference only` do not belong in active planning indexes.
+
 Archive requirements:
 - Move superseded docs into `docs/archive/` (use subfolders like `docs/archive/planning/`, `docs/archive/sops/`, and `docs/archive/product/` when helpful).
 - Add an explicit archive note at the top of archived docs (for example: moved date + superseded-by path).
 - Keep `Status: Legacy` markers only in files under `docs/archive/`.
-- Update `docs/README.md` and relevant section indexes when docs move.
+- Update `docs/README.md` and all affected section indexes when docs move (for example `docs/planning/README.md`, `docs/archive/README.md`, `docs/product/README.md`, and `docs/design/README.md`).
 - Controlled exception: source-plan evidence for governance synthesis may live under `docs/planning/archive/original-plans/` with manifest + checksum validation.
 
 ## Done state for docs cleanup
 A docs cleanup is complete when all are true:
 - Every doc is in the correct category folder.
 - `docs/README.md` and any section README indexes are updated.
+- `docs/planning/` contains only genuinely active working docs.
 - Cross-doc links point to existing files.
 - Durable decisions are captured in ADRs, not only planning docs.
 - Superseded docs are moved to `docs/archive/` and no longer treated as source of truth.

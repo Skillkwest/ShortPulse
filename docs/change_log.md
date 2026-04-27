@@ -4,6 +4,11 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - locked the docs-governance cleanup contract so `docs/planning/` is treated as active-working space and archived planning docs no longer belong in active indexes,
+  - archived the first wave of self-declared historical planning docs for Elements, Projects, and right-rail execution history,
+  - removed obvious junk artifacts from canonical docs space,
+  - and updated the archive/index surfaces plus active cross-links to match the new locations.
+- Documentation cleanup:
   - removed dead `/api/ai/generate-prompt` and `/api/ai/describe-image` claims from active authority docs,
   - aligned the AI Studio Media Library root-tab contract with the shipped `All Media` / `Images` / `Videos` / `Prompts` surface,
   - archived dormant or temporary planning artifacts that no longer belong in `docs/planning/`,

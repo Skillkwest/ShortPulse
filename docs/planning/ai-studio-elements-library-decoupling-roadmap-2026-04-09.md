@@ -6,10 +6,10 @@ Owner: Engineering
 Tracker anchor: `docs/planning/ai-studio-elements-library-decoupling-tracker-2026-04-09.md`
 
 Historical design anchors:
-1. `docs/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
-2. `docs/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
+1. `docs/archive/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
+2. `docs/archive/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
 3. `docs/planning/ai-studio-elements-library-component-state-map-2026-04-06.md`
-4. `docs/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
+4. `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
 5. `docs/planning/ai-studio-elements-library-implementation-checklist-2026-04-06.md`
 
 ## Purpose

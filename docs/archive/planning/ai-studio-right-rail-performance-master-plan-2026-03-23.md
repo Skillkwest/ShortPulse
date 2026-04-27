@@ -4,10 +4,12 @@ Last updated: 2026-03-24
 Status: Completed (`done_required_scope`)  
 Owner: AI Studio Engineering  
 Canonical closeout docs: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`, `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`  
-Tracker anchor: `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`  
+Tracker anchor: `docs/archive/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`  
 Implementation entry checklist: `docs/archive/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`  
 Readiness state: `docs/planning/ai-studio-right-rail-performance-readiness-state-2026-03-23.md`  
 ADR anchor: `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
+
+> Archived on 2026-04-26 during the docs-cleanup wave. Superseded as the active planning entry point by `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md` and `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`.
 
 ## Summary
 This plan defines the scoped execution contract for AI Studio right-rail performance work so implementation can continue without drifting into broad Reference Grid churn or speculative micro-optimization. The required scope is now complete and closed.

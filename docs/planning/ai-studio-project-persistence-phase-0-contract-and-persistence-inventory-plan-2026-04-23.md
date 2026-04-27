@@ -17,7 +17,7 @@ The repo currently persists AI Studio state through multiple competing authoriti
 Without a full inventory, later phases would migrate only the obvious surfaces and still leak state across projects.
 
 ## Primary Repo Surfaces
-1. `docs/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
+1. `docs/archive/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
 2. `frontend/pages/ai-studio.tsx`
 3. `frontend/features/ai-studio/logic/sessionSnapshot.ts`
 4. `frontend/features/ai-studio/hooks/useAiStudioWorkflowSettings.ts`

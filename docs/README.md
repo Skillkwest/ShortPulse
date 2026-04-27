@@ -8,6 +8,8 @@ Start here for all repository documentation.
 - SOP runbooks live in `docs/sops/`.
 - Product/domain docs live in `docs/product/`.
 - Active planning docs live in `docs/planning/`.
+- Archived planning docs live in `docs/archive/planning/`.
+- Planning evidence remains preserved under `docs/planning/evidence/` during the current cleanup transition, but it is not part of the primary reading path.
 - Standalone operational system docs live in `mini-ecosystem/` at repo root.
 - Durable architecture decisions live in `docs/adr/`.
 - Agent workflow helpers live in `docs/agents/`.
@@ -200,9 +202,6 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`
 - `docs/planning/ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`
 - `docs/planning/ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`
-- `docs/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
-- `docs/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
-- `docs/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
 - `docs/planning/ai-studio-elements-library-component-state-map-2026-04-06.md`
 - `docs/planning/ai-studio-elements-library-implementation-checklist-2026-04-06.md`
 - `docs/planning/ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`
@@ -533,6 +532,14 @@ Start here for all repository documentation.
 - `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
 - `docs/archive/planning/ai-studio-generation-runtime-stabilization.md`
 - `docs/archive/planning/ai-studio-character-mode-injection-plan.md`
+- `docs/archive/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
+- `docs/archive/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
+- `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
+- `docs/archive/planning/ai-studio-project-folder-stabilization-trim-and-fix-plan-2026-04-24.md`
+- `docs/archive/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
+- `docs/archive/planning/ai-studio-project-persistence-stabilization-trim-and-fix-plan-2026-04-24.md`
+- `docs/archive/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`
+- `docs/archive/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
 - `docs/archive/planning/media-library-move-tabs-plan.md`
 - `docs/archive/planning/mvp-pre-tester-anchor-plan.md`
 - `docs/archive/ai-studio-agent-implementation-plan.md`

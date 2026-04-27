@@ -4,6 +4,8 @@ Last updated: 2026-04-24
 Status: Historical / Deferred behind active workspace-isolation lane  
 Owner: Engineering
 
+> Archived on 2026-04-26 during the docs-cleanup wave. Superseded for active execution by `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md`.
+
 > Active execution note: this folder stabilization plan is no longer the primary Projects contract. Use `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md` for the active lane. This document remains the narrower folder-specific subplan and historical record for the folder reliability work already performed.
 
 ## Purpose

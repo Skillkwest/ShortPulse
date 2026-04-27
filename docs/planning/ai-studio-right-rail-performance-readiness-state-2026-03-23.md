@@ -3,7 +3,7 @@
 Last updated: 2026-03-24  
 Canonical program doc: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`  
 Canonical tracker: `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`  
-Supporting history: `docs/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`, `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
+Supporting history: `docs/archive/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`, `docs/archive/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
 
 ## Current State
 `done_required_scope`

@@ -9,9 +9,17 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 
 ## Contents
 - `docs/archive/planning/ai-studio-character-mode-injection-plan.md`
+- `docs/archive/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
+- `docs/archive/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
+- `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
 - `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
 - `docs/archive/planning/ai-studio-generation-runtime-stabilization.md`
+- `docs/archive/planning/ai-studio-project-folder-stabilization-trim-and-fix-plan-2026-04-24.md`
+- `docs/archive/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
+- `docs/archive/planning/ai-studio-project-persistence-stabilization-trim-and-fix-plan-2026-04-24.md`
+- `docs/archive/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`
+- `docs/archive/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`
 - `docs/archive/planning/media-library-move-tabs-plan.md`
 - `docs/archive/planning/mvp-pre-tester-anchor-plan.md`
 - `docs/archive/planning/tmp_generation_drain_audit_working_notes_2026-02-27.md`

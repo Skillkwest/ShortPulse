@@ -1,9 +1,0 @@
-
-> shortflow@1.0.0 test:expert-edit:coordinate-parity:browser-audit
-> npm run test:e2e:expert-edit-parity
-
-
-> shortflow@1.0.0 test:e2e:expert-edit-parity
-> NODE_PATH=./node_modules node ./tests/e2e/expert-edit-coordinate-parity.audit.js
-
-[expert-edit-coordinate-parity.audit] PLAYWRIGHT_AUDIT_EMAIL is required (env or frontend/.env.local).

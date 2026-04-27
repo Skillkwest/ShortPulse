@@ -764,7 +764,7 @@ describe("POST /api/media/list", () => {
       created_at: "2026-02-20T10:00:00.000Z",
       updated_at: null,
     } satisfies MediaRow;
-    const { createSignedUrlMock } = createSupabaseAdminMock([row]);
+    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([row]);
     resolveMediaSigningStoragePathsMock.mockReturnValueOnce([
       row.thumb_variant_path as string,
       row.storage_path,
@@ -784,11 +784,8 @@ describe("POST /api/media/list", () => {
 
     await handler(req as never, res as never);
 
-    expect(createSignedUrlMock).toHaveBeenCalledWith(
-      row.thumb_variant_path as string,
-      3600,
-      undefined
-    );
+    expect(createSignedUrlsMock).toHaveBeenCalledWith([row.thumb_variant_path as string], 3600);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         signedById: {

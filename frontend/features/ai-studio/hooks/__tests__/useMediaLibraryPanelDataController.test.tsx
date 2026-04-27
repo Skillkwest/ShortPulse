@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaLibraryPanelDataController } from "../useMediaLibraryPanelDataController";
 
@@ -213,5 +213,40 @@ describe("useMediaLibraryPanelDataController", () => {
       expect(result.current.mediaScopeResolved).toBe(true);
       expect(result.current.promptScopeResolved).toBe(true);
     });
+  });
+
+  it("requests library total count only for new media scopes", async () => {
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          includeLibraryTotalCount: true,
+        })
+      );
+    });
+
+    fetchMediaListPageMock.mockClear();
+
+    await act(async () => {
+      await result.current.loadMediaPage({ reset: true });
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeLibraryTotalCount: false,
+      })
+    );
   });
 });

@@ -103,6 +103,7 @@ export const useMediaLibraryPanelDataController = ({
   const promptRowsRef = React.useRef<PromptRow[]>([]);
   const mediaCursorRef = React.useRef<MediaListCursor | null>(null);
   const promptCursorRef = React.useRef<PromptListCursor | null>(null);
+  const mediaScopeCacheRef = React.useRef(mediaScopeCache);
 
   const requestFolderId = React.useMemo(
     () => normalizeRequestFolderId(activeFolderId),
@@ -133,6 +134,10 @@ export const useMediaLibraryPanelDataController = ({
   }, [mediaScopeCache.nextCursor]);
 
   React.useEffect(() => {
+    mediaScopeCacheRef.current = mediaScopeCache;
+  }, [mediaScopeCache]);
+
+  React.useEffect(() => {
     promptCursorRef.current = promptScopeCache.nextCursor;
   }, [promptScopeCache.nextCursor]);
 
@@ -153,6 +158,10 @@ export const useMediaLibraryPanelDataController = ({
         setMediaRows([]);
       }
       try {
+        const shouldRequestLibraryTotalCount =
+          reset &&
+          (mediaScopeCacheRef.current.libraryTotalCount === null ||
+            mediaScopeCacheRef.current.resolvedScopeKey !== scopeKey);
         const result = await fetchMediaListPage<MediaFileRow>({
           tab: null,
           mediaKind: resolveMediaKind(itemType),
@@ -163,7 +172,7 @@ export const useMediaLibraryPanelDataController = ({
           profile: "expanded",
           folderId: requestFolderId,
           projectId,
-          includeLibraryTotalCount: true,
+          includeLibraryTotalCount: shouldRequestLibraryTotalCount,
         });
         if (!result) {
           throw new Error("Unable to load media.");

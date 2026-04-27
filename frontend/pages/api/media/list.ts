@@ -311,30 +311,98 @@ const resolveInitialSignedById = async ({
   if (!candidatesById.size) return {};
 
   const supabaseAdmin = getSupabaseAdmin();
+  const storage = supabaseAdmin.storage.from(MEDIA_BUCKET);
   const signedById: Record<string, string | null> = {};
-  await Promise.all(
-    seedRows.map(async (row) => {
-      const candidates = candidatesById.get(row.id) ?? [];
-      if (!candidates.length) return;
-      let resolvedUrl: string | null = null;
-      for (const candidate of candidates) {
-        const transform = resolvePolicySignedImageTransform(previewProfile, candidate);
-        const { data, error } = await supabaseAdmin.storage
-          .from(MEDIA_BUCKET)
-          .createSignedUrl(
-            candidate,
-            DEFAULT_SIGNED_URL_TTL_SECONDS,
-            transform ? { transform } : undefined
-          );
-        if (error || !data?.signedUrl) continue;
-        resolvedUrl = data.signedUrl;
-        break;
+  const unresolvedRowIds = seedRows
+    .map((row) => row.id)
+    .filter((rowId) => (candidatesById.get(rowId)?.length ?? 0) > 0);
+
+  const signSingleCandidate = async ({
+    rowId,
+    path,
+    transform,
+  }: {
+    rowId: string;
+    path: string;
+    transform?: NonNullable<ReturnType<typeof resolvePolicySignedImageTransform>>;
+  }): Promise<void> => {
+    const { data, error } = await storage.createSignedUrl(
+      path,
+      DEFAULT_SIGNED_URL_TTL_SECONDS,
+      transform ? { transform } : undefined
+    );
+    if (error || !data?.signedUrl) return;
+    signedById[rowId] = data.signedUrl;
+  };
+
+  for (let candidateIndex = 0; unresolvedRowIds.length > 0; candidateIndex += 1) {
+    const batchEligiblePaths: string[] = [];
+    const batchEligibleRowIdsByPath = new Map<string, string[]>();
+    const transformBackedCandidates: Array<{
+      rowId: string;
+      path: string;
+      transform: NonNullable<ReturnType<typeof resolvePolicySignedImageTransform>>;
+    }> = [];
+
+    for (const rowId of unresolvedRowIds) {
+      if (signedById[rowId]) continue;
+      const candidate = candidatesById.get(rowId)?.[candidateIndex];
+      if (!candidate) continue;
+      const transform = resolvePolicySignedImageTransform(previewProfile, candidate);
+      if (transform) {
+        transformBackedCandidates.push({ rowId, path: candidate, transform });
+        continue;
       }
-      if (resolvedUrl) {
-        signedById[row.id] = resolvedUrl;
+      batchEligiblePaths.push(candidate);
+      const rowIdsForPath = batchEligibleRowIdsByPath.get(candidate) ?? [];
+      rowIdsForPath.push(rowId);
+      batchEligibleRowIdsByPath.set(candidate, rowIdsForPath);
+    }
+
+    if (batchEligiblePaths.length) {
+      const { data, error } = await storage.createSignedUrls(
+        batchEligiblePaths,
+        DEFAULT_SIGNED_URL_TTL_SECONDS
+      );
+      if (error) {
+        await Promise.all(
+          batchEligiblePaths.map(async (path) => {
+            const rowIdsForPath = batchEligibleRowIdsByPath.get(path) ?? [];
+            await Promise.all(rowIdsForPath.map((rowId) => signSingleCandidate({ rowId, path })));
+          })
+        );
+      } else {
+        for (const signedItem of data ?? []) {
+          const path = typeof signedItem?.path === "string" ? signedItem.path.trim() : "";
+          const signedUrl =
+            typeof signedItem?.signedUrl === "string" ? signedItem.signedUrl.trim() : "";
+          if (!path || !signedUrl) continue;
+          for (const rowId of batchEligibleRowIdsByPath.get(path) ?? []) {
+            signedById[rowId] = signedUrl;
+          }
+        }
       }
-    })
-  );
+    }
+
+    if (transformBackedCandidates.length) {
+      await Promise.all(
+        transformBackedCandidates.map(({ rowId, path, transform }) =>
+          signSingleCandidate({ rowId, path, transform })
+        )
+      );
+    }
+
+    for (let index = unresolvedRowIds.length - 1; index >= 0; index -= 1) {
+      if (signedById[unresolvedRowIds[index]]) {
+        unresolvedRowIds.splice(index, 1);
+        continue;
+      }
+      const nextCandidate = candidatesById.get(unresolvedRowIds[index])?.[candidateIndex + 1];
+      if (!nextCandidate) {
+        unresolvedRowIds.splice(index, 1);
+      }
+    }
+  }
 
   return signedById;
 };

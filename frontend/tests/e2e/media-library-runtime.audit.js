@@ -25,6 +25,28 @@ const SEVERE_SIGNAL_PATTERNS = [
   /resizeobserver loop limit exceeded/i,
 ];
 
+const GENERIC_RESOURCE_FAILURE_PATTERN =
+  /^failed to load resource: the server responded with a status of \d+/i;
+
+const MEDIA_LIBRARY_ROUTE_PATHS = [
+  "/api/account/media-compliance",
+  "/api/media/",
+  "/api/media",
+  "/media-library",
+];
+
+const MEDIA_LIBRARY_SUPABASE_TABLE_PATTERNS = [
+  /\/rest\/v1\/media_files(?:[/?#]|$)/i,
+  /\/rest\/v1\/media_prompts(?:[/?#]|$)/i,
+  /\/rest\/v1\/media_folders(?:[/?#]|$)/i,
+  /\/rest\/v1\/media_folder_memberships(?:[/?#]|$)/i,
+  /\/rest\/v1\/media_asset_variants(?:[/?#]|$)/i,
+];
+
+const MEDIA_LIBRARY_STORAGE_PATTERNS = [
+  /\/storage\/v1\/(?:object|render\/image)\/(?:sign|public)\/media_library(?:[/?#]|$)/i,
+];
+
 function loadEnvFromFileIfNeeded(filePath) {
   if (!fs.existsSync(filePath)) return;
   const raw = fs.readFileSync(filePath, "utf8");
@@ -77,16 +99,64 @@ function hasSevereSignal(text) {
   return SEVERE_SIGNAL_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-function summarizeSignals(consoleEntries, pageErrors) {
+function isGenericResourceFailure(text) {
+  return GENERIC_RESOURCE_FAILURE_PATTERN.test(text);
+}
+
+function isMediaLibraryRelevantUrl(rawUrl) {
+  if (typeof rawUrl !== "string" || rawUrl.length === 0) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    const candidate = `${parsed.pathname}${parsed.search}`;
+    if (MEDIA_LIBRARY_ROUTE_PATHS.some((segment) => candidate.includes(segment))) return true;
+    if (MEDIA_LIBRARY_SUPABASE_TABLE_PATTERNS.some((pattern) => pattern.test(candidate))) {
+      return true;
+    }
+    return MEDIA_LIBRARY_STORAGE_PATTERNS.some((pattern) => pattern.test(candidate));
+  } catch {
+    return MEDIA_LIBRARY_ROUTE_PATHS.some((segment) => rawUrl.includes(segment));
+  }
+}
+
+function isIgnorableRequestFailure(entry) {
+  if (!entry || typeof entry !== "object") return false;
+  if (!/net::ERR_ABORTED/i.test(entry.errorText || "")) return false;
+  if (
+    entry.method === "GET" &&
+    typeof entry.url === "string" &&
+    entry.url.includes("/api/account/media-compliance")
+  ) {
+    return true;
+  }
+  if (entry.isNavigationRequest) return true;
+  return entry.resourceType === "document";
+}
+
+function summarizeSignals(consoleEntries, pageErrors, httpFailures, requestFailures) {
   const severeConsole = consoleEntries.filter(
-    (entry) =>
-      (entry.type === "error" && !shouldIgnoreConsole(entry.text)) || hasSevereSignal(entry.text)
+    (entry) => {
+      if (hasSevereSignal(entry.text)) return true;
+      if (entry.type !== "error") return false;
+      if (shouldIgnoreConsole(entry.text)) return false;
+      if (isGenericResourceFailure(entry.text)) return false;
+      return true;
+    }
   );
   const severePageErrors = pageErrors.filter((entry) => !shouldIgnoreConsole(entry.text));
+  const relevantHttpFailures = httpFailures.filter((entry) => isMediaLibraryRelevantUrl(entry.url));
+  const relevantRequestFailures = requestFailures.filter(
+    (entry) => isMediaLibraryRelevantUrl(entry.url) && !isIgnorableRequestFailure(entry)
+  );
   return {
     severeConsole,
     severePageErrors,
-    ok: severeConsole.length === 0 && severePageErrors.length === 0,
+    relevantHttpFailures,
+    relevantRequestFailures,
+    ok:
+      severeConsole.length === 0 &&
+      severePageErrors.length === 0 &&
+      relevantHttpFailures.length === 0 &&
+      relevantRequestFailures.length === 0,
   };
 }
 
@@ -131,6 +201,7 @@ async function ensureSignedIn(page, baseUrl, targetPath, email, password) {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
   });
+  await satisfyMediaComplianceIfPresent(page);
 }
 
 async function clickLoadMore(page, buttonLocator, maxClicks, delayMs) {
@@ -180,6 +251,8 @@ async function churnScrollable(page, selector, iterations) {
 async function attachSurfaceObservers(page) {
   const consoleEntries = [];
   const pageErrors = [];
+  const httpFailures = [];
+  const requestFailures = [];
   page.on("console", (message) => {
     const text = message.text();
     if (shouldIgnoreConsole(text)) return;
@@ -193,7 +266,82 @@ async function attachSurfaceObservers(page) {
       text: String(error?.message || error),
     });
   });
-  return { consoleEntries, pageErrors };
+  page.on("response", (response) => {
+    if (response.status() < 400) return;
+    httpFailures.push({
+      status: response.status(),
+      url: response.url(),
+      method: response.request().method(),
+    });
+  });
+  page.on("requestfailed", (request) => {
+    requestFailures.push({
+      url: request.url(),
+      method: request.method(),
+      resourceType: request.resourceType(),
+      isNavigationRequest: request.isNavigationRequest(),
+      errorText: request.failure()?.errorText ?? "Request failed",
+    });
+  });
+  return { consoleEntries, pageErrors, httpFailures, requestFailures };
+}
+
+async function satisfyMediaComplianceIfPresent(page) {
+  const gateHeading = page.getByRole("heading", { name: /^confirm media rights$/i }).first();
+  const gateVisible = await gateHeading.isVisible().catch(() => false);
+  if (!gateVisible) return;
+
+  const agreementCheckbox = page
+    .getByLabel(/^i confirm that the media i use in shortpulse follows these rules\.$/i)
+    .first();
+  const continueButton = page.getByRole("button", { name: /^continue$/i }).first();
+
+  await agreementCheckbox.check({ force: true });
+  await continueButton.click({ timeout: 10_000 });
+  await gateHeading.waitFor({ state: "hidden", timeout: 20_000 });
+}
+
+async function openAiStudioMediaLibrarySurface(page, surface) {
+  const target =
+    surface === "modal"
+      ? page.getByRole("dialog", { name: /media library/i }).first()
+      : page.locator('section[aria-label="Media library panel"]').first();
+  if (await target.isVisible().catch(() => false)) return target;
+
+  const mediaButton = page.getByRole("button", { name: /^media$/i }).first();
+  const expandPanelButton = page
+    .getByRole("button", { name: /^expand media library panel$/i })
+    .first();
+  const retryProjectButton = page
+    .getByRole("button", { name: /^retry (project|workspace) load$/i })
+    .first();
+  const deadline = Date.now() + 45_000;
+
+  while (Date.now() < deadline) {
+    if (await target.isVisible().catch(() => false)) return target;
+
+    if (await retryProjectButton.isVisible().catch(() => false)) {
+      throw new Error("AI Studio did not finish loading: retry project/workspace state is visible.");
+    }
+
+    if (surface === "panel" && (await expandPanelButton.isVisible().catch(() => false))) {
+      await expandPanelButton.click({ timeout: 10_000 });
+      await target.waitFor({ timeout: 20_000 });
+      return target;
+    }
+
+    if (await mediaButton.isVisible().catch(() => false)) {
+      await mediaButton.click({ timeout: 10_000 });
+      await target.waitFor({ timeout: 20_000 });
+      return target;
+    }
+
+    await page.waitForTimeout(500);
+  }
+
+  throw new Error(
+    `Timed out waiting for the AI Studio ${surface} media library controls to become ready.`
+  );
 }
 
 async function runRouteAudit(browser, creds) {
@@ -246,7 +394,12 @@ async function runRouteAudit(browser, creds) {
     result.scrollChurn = await churnScrollable(page, "body", 6);
     await page.getByRole("heading", { name: /^media library$/i }).waitFor({ timeout: 10_000 });
     result.finalUrl = page.url();
-    result.severeSignals = summarizeSignals(observers.consoleEntries, observers.pageErrors);
+    result.severeSignals = summarizeSignals(
+      observers.consoleEntries,
+      observers.pageErrors,
+      observers.httpFailures,
+      observers.requestFailures
+    );
     result.ok = result.severeSignals.ok;
   } finally {
     await context.close();
@@ -277,9 +430,7 @@ async function runPanelAudit(browser, creds) {
 
   try {
     await ensureSignedIn(page, PANEL_BASE_URL, "/ai-studio", creds.email, creds.password);
-    await page.getByRole("button", { name: /^media$/i }).first().click();
-    const panel = page.locator('section[aria-label="Media library panel"]').first();
-    await panel.waitFor({ timeout: 20_000 });
+    const panel = await openAiStudioMediaLibrarySurface(page, "panel");
 
     const folderNameButtons = page.locator(".media-library-panel-folder-chip-name");
     const folderButtonCount = await folderNameButtons.count();
@@ -317,7 +468,12 @@ async function runPanelAudit(browser, creds) {
     result.scrollChurn = await churnScrollable(page, ".media-library-panel-body", 6);
     await panel.waitFor({ timeout: 10_000 });
     result.finalUrl = page.url();
-    result.severeSignals = summarizeSignals(observers.consoleEntries, observers.pageErrors);
+    result.severeSignals = summarizeSignals(
+      observers.consoleEntries,
+      observers.pageErrors,
+      observers.httpFailures,
+      observers.requestFailures
+    );
     result.ok = result.severeSignals.ok;
   } finally {
     await context.close();
@@ -343,10 +499,7 @@ async function runModalAudit(browser, creds) {
 
   try {
     await ensureSignedIn(page, MODAL_BASE_URL, "/ai-studio", creds.email, creds.password);
-    await page.getByRole("button", { name: /^media$/i }).first().click();
-
-    const modal = page.getByRole("dialog", { name: /media library/i }).first();
-    await modal.waitFor({ timeout: 20_000 });
+    const modal = await openAiStudioMediaLibrarySurface(page, "modal");
 
     const tabNames = [
       "Uploaded Videos",
@@ -371,7 +524,12 @@ async function runModalAudit(browser, creds) {
     result.scrollChurn = await churnScrollable(page, ".media-library-modal-body", 6);
     await modal.waitFor({ timeout: 10_000 });
     result.finalUrl = page.url();
-    result.severeSignals = summarizeSignals(observers.consoleEntries, observers.pageErrors);
+    result.severeSignals = summarizeSignals(
+      observers.consoleEntries,
+      observers.pageErrors,
+      observers.httpFailures,
+      observers.requestFailures
+    );
     result.ok = result.severeSignals.ok;
   } finally {
     await context.close();

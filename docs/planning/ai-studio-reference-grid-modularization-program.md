@@ -3,7 +3,7 @@
 Date: 2026-02-23
 Authority: Working
 Owner: Frontend + AI Studio Engineering
-Status: Active
+Status: active
 Tracker: `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
 
 ## Summary

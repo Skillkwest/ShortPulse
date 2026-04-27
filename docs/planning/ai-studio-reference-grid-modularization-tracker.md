@@ -4,6 +4,7 @@ Date: 2026-02-23
 Authority: Working
 Owner: Engineering
 Program Doc: `docs/planning/ai-studio-reference-grid-modularization-program.md`
+Status: active
 
 ## Status Overview
 | Phase | Status | Owner | Start | Target End | Gate | Evidence |

@@ -1,6 +1,6 @@
 # AI Studio Runtime V2: Staging Execution Checklist
 
-Status: Active  
+Status: active  
 Owner: AI Studio Engineering  
 Last updated: 2026-02-21
 

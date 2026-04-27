@@ -26,6 +26,7 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
 - `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
 - `docs/archive/planning/ai-studio-generation-runtime-stabilization.md`
+- `docs/archive/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
 - `docs/archive/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`
 - `docs/archive/planning/ai-studio-master-stage-phase-2-delete-duplicate-stage-surfaces-plan-2026-04-12.md`
 - `docs/archive/planning/ai-studio-master-stage-phase-3-stage-core-extraction-plan-2026-04-12.md`

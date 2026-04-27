@@ -1,6 +1,6 @@
 # AI Studio Generation Admission Rollout Plan
 
-Status: Active  
+Status: active  
 Owner: AI Studio Engineering  
 Last updated: 2026-04-09
 

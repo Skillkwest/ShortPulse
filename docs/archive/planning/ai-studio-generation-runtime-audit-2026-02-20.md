@@ -1,6 +1,8 @@
 # AI Studio Generation Runtime Audit (2026-02-20)
 
-Status: Completed snapshot  
+> Archived on 2026-04-27 during docs cleanup because this implementation-complete runtime audit is retained as historical context while the active runtime planning surface continues from `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`, `docs/planning/ai-studio-runtime-v2-staging-execution-checklist.md`, and `docs/planning/ai-studio-generation-admission-rollout-plan.md`.
+
+Status: complete  
 Scope: generation submit/status/billing/persistence/recovery paths under AI Studio
 
 ## Summary

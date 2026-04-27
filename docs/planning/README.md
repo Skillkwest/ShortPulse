@@ -143,7 +143,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `mvp-ui-ux-phase0-baseline-capture-template.md`: fill-in template for per-route baseline evidence and sign-off.
 - `mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`: full UX-0 baseline report for all priority routes plus first-pass keyboard baseline.
 - `ai-studio-generation-runtime-v2-locked-execution.md`: authoritative locked execution plan for server-authoritative runtime v2.
-- `ai-studio-generation-runtime-audit-2026-02-20.md`: repo audit findings and implementation deltas for runtime v2.
 - `ai-studio-full-recovery-program.md`: phased AI Studio stabilization and recovery program covering core stability, payload hardening, and UX consistency gates.
 - `ai-studio-reference-grid-reliability-master-plan-2026-03-21.md`: canonical program contract for resolving reference-grid missing/delayed card reliability gaps.
 - `ai-studio-reference-grid-reliability-master-roadmap-2026-03-21.md`: canonical sequencing/dependency roadmap for Reference Grid reliability workstreams (`WG-1` through `WG-5`).

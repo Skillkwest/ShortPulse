@@ -282,7 +282,6 @@ Start here for all repository documentation.
 - `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md`
 - `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`
 - `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
-- `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
 - `docs/planning/ai-studio-full-recovery-program.md`
 - `docs/planning/ai-studio-reference-grid-reliability-master-plan-2026-03-21.md`
 - `docs/planning/ai-studio-reference-grid-reliability-master-roadmap-2026-03-21.md`

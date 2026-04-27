@@ -54,7 +54,7 @@ Tooling audit references:
 - [ ] AI Studio runtime V2 closeout: pass Seedream canary gates for 72h with no duplicate settlement or persistence regressions.
   Reference: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - [ ] AI Studio runtime V2 closeout: remove legacy HMAC webhook fallback after the dual-mode cutover window.
-  Reference: `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
+  Reference: `docs/archive/planning/ai-studio-generation-runtime-audit-2026-02-20.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - [ ] AI Studio: keep server-side admission control and shared-provider rate-limit protection aligned with the live V2 docs.
   Reference: `docs/adr/0026-ai-studio-generation-admission-control.md`, `docs/planning/ai-studio-generation-admission-rollout-plan.md`
 - [ ] AI Studio: run staging smoke tests for aspect-ratio contract (verify submit payload and returned dimensions for Seedream `5:4`, `4:5`, `3:2`, `2:3`, `21:9`).

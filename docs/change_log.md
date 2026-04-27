@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the implementation-complete Runtime V2 audit snapshot under `docs/archive/planning/`,
+  - retargeted the surviving SOP, backlog, and index references to the archive path,
+  - and normalized the still-live runtime/admission planning docs onto the canonical `active` status vocabulary.
+- Documentation cleanup:
   - normalized the active Reference Grid modularization packet onto the canonical status vocabulary,
   - lowercasing the program status to `active`,
   - and adding the missing `Status: active` header to the tracker because the packet still carries open governance dependencies and remains in active planning.

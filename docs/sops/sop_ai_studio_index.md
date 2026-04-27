@@ -92,7 +92,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 
 ## Fal reliability rollout notes (v2 architecture)
 - Primary tracker: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
-- Audit snapshot: `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
+- Audit snapshot: `docs/archive/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
 - ADR: `docs/adr/0020-ai-studio-server-authoritative-runtime-v2.md`
 - Route contracts and rollout flags: `docs/api/api-internal-routes.md`
 - Provider/operator runbook: `docs/sops/sop_provider_incident_response.md`

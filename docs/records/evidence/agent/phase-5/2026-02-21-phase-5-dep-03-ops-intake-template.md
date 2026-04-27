@@ -38,4 +38,4 @@ Collect the external dashboard and alert artifacts required to close `DEP-03` an
 - Follow-up due date: before DEP-03 waiver retirement
 
 Waiver reference:
-- `docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
+- `docs/records/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`

@@ -37,7 +37,7 @@ Key artifacts:
 2. `frontend/features/ai-agent/logic/studioAgentThinkerFormatter.ts`
 3. `frontend/tests/api/studio-agent.runtime.test.ts`
 4. `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`
-5. `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-default-model-foundation-and-reliability-delta-closeout.md`
+5. `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-default-model-foundation-and-reliability-delta-closeout.md`
 6. `docs/sops/sop_ai_studio_agent.md`
 7. `docs/sops/sop_ai_studio_agent_chat_ops.md`
 8. `docs/change_log.md`
@@ -53,7 +53,7 @@ Closeout artifacts:
 2. `frontend/features/ai-studio/hooks/taskSubmission/__tests__/safetyPolicy.test.ts`
 3. `frontend/features/ai-studio/hooks/taskSubmission/__tests__/submissionPayloadMatrix.test.ts`
 4. `frontend/lib/model-runtime/modelCatalog.ts`
-5. `docs/planning/evidence/agent/phase-5/2026-02-25-phase-5-safety-policy-verification-closeout.md`
+5. `docs/records/evidence/agent/phase-5/2026-02-25-phase-5-safety-policy-verification-closeout.md`
 6. `docs/change_log.md`
 
 ## Guardrails

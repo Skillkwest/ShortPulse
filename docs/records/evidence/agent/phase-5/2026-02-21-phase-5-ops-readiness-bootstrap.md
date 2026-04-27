@@ -11,9 +11,9 @@ Prepare rollout operations artifacts before live ring execution to reduce proced
 1. Rollout operations SOP:
    - `docs/sops/sop_ai_studio_agent_rollout_operations.md`
 2. Rollout report template:
-   - `docs/planning/evidence/agent/phase-5/phase-5-rollout-report-template.md`
+   - `docs/records/evidence/agent/phase-5/phase-5-rollout-report-template.md`
 3. Rollback drill template:
-   - `docs/planning/evidence/agent/phase-5/phase-5-rollback-drill-template.md`
+   - `docs/records/evidence/agent/phase-5/phase-5-rollback-drill-template.md`
 4. SOP index linkage:
    - `docs/sops/sop_ai_studio_index.md` updated with rollout SOP entry.
 

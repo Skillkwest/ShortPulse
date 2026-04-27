@@ -11,6 +11,9 @@ Purpose: classify the current `docs/planning/evidence/` tree into migration buck
   - `docs/planning/evidence/lane-f/` moved to `docs/records/evidence/lane-f/`
 - Fourth markdown-only migration executed after this snapshot:
   - `docs/planning/evidence/kei/` moved to `docs/records/evidence/kei/`
+- First split-namespace migration executed after this snapshot:
+  - `docs/planning/evidence/agent/` moved to `docs/records/evidence/agent/`
+  - `docs/records/artifacts/agent/phase-5/phase-5-rollout-snapshot-input.template.json` now holds the retained raw rollout template payload
 - Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.
 
 ## Inventory snapshot

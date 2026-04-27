@@ -9,7 +9,7 @@ Start here for all repository documentation.
 - Product/domain docs live in `docs/product/`.
 - Active planning docs live in `docs/planning/`.
 - Archived planning docs live in `docs/archive/planning/`.
-- Records/evidence governance lives in `docs/records/`.
+- Records/evidence governance lives in `docs/records/`, with migrated namespaces indexed under `docs/records/evidence/` and `docs/records/artifacts/`.
 - Planning evidence remains physically preserved under `docs/planning/evidence/` during the current cleanup transition, but `docs/records/README.md` is the primary entrypoint and raw evidence is not part of the main reading path.
 - Standalone operational system docs live in `mini-ecosystem/` at repo root.
 - Durable architecture decisions live in `docs/adr/`.

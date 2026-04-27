@@ -44,6 +44,7 @@ This target shape is the destination model. The repo is not moving all retained 
 ## Current classification pass
 - `docs/records/evidence-migration-classification-2026-04-27.md`: no-move classification of the current planning-evidence tree, migration buckets, and first pilot recommendation.
 - `docs/records/evidence/README.md`: index of evidence namespaces that have already migrated into the records model.
+- `docs/records/artifacts/README.md`: index of migrated raw artifact namespaces that were split out of retained evidence families.
 
 ## Controlled exceptions
 - `docs/planning/archive/original-plans/` remains a protected checksum-backed exception for verbatim source-plan preservation.

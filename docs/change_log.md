@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - executed the first retained-records split-namespace migration by moving the `agent` evidence packet family into `docs/records/evidence/agent/`,
+  - introduced `docs/records/artifacts/README.md` plus `docs/records/artifacts/agent/` for the retained raw rollout-template payload,
+  - and retargeted the surviving planning and evidence references to the new records paths.
+- Documentation cleanup:
   - migrated the completed `kei` evidence packet family into `docs/records/evidence/kei/`,
   - retargeted the STG-04 planning and validation references to the retained-records paths,
   - and extended the evidence-migration follow-up so later namespace moves can treat completed stage packets as first-class records.
@@ -1565,7 +1569,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - `frontend/features/ai-studio/hooks/__tests__/useAiStudioReferenceAssetActions.test.ts`
   - `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx`
 - Added evidence note:
-  - `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-runtime-timeout-split-and-failover-hardening.md`
+  - `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-runtime-timeout-split-and-failover-hardening.md`
 
 ## 2026-02-24 (AI Studio default-model foundation + reliability delta closeout)
 - Added canonical Create model-selection policy module:
@@ -1593,7 +1597,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Added ADR:
   - `docs/adr/0025-ai-studio-create-startup-model-precedence.md`
 - Added evidence note:
-  - `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-default-model-foundation-and-reliability-delta-closeout.md`
+  - `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-default-model-foundation-and-reliability-delta-closeout.md`
 
 ## 2026-02-25 (AI Studio safety-policy track: image payload minimum-restriction alignment)
 - Centralized image generation safety payload defaults in:
@@ -1618,7 +1622,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 ## 2026-02-25 (AI Studio safety-policy track closeout verification)
 - Completed Workstream C closeout for Foundational Hardening Program v2 with official fal.ai verification across image models.
 - Added formal verification evidence and full-gate results:
-  - `docs/planning/evidence/agent/phase-5/2026-02-25-phase-5-safety-policy-verification-closeout.md`
+  - `docs/records/evidence/agent/phase-5/2026-02-25-phase-5-safety-policy-verification-closeout.md`
 - Corrected Seedream text model catalog doc source to fal canonical endpoint:
   - `frontend/lib/model-runtime/modelCatalog.ts`
   - updated from `.../seedream/v4.5/api` to `.../seedream/v4.5/text-to-image/api`

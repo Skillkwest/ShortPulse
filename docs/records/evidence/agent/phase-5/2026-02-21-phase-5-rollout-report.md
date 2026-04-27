@@ -26,23 +26,23 @@ Phase: 5 (Progressive Rollout)
 3. No open Sev-1/Sev-2 related incidents: no active Sev-1/Sev-2 linked in current repo evidence set; open GitHub issue list is empty at soak exit.
 4. Rollback path verified before promotion: runbook + rollback-drill template published; drill execution pending before 50% ring
 5. DEP-03 external dashboard/alert artifacts complete and reviewed: No (waiver active; non-blocking).
-6. DEP-03 waiver active with compensating controls: Yes (`docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`).
+6. DEP-03 waiver active with compensating controls: Yes (`docs/records/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`).
 7. Soak-exit decision (UTC 2026-02-23 01:43:14Z): Promote to 5% (waiver-approved)
-8. Pre-user MVP waiver for production rings active: Yes (`docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`).
+8. Pre-user MVP waiver for production rings active: Yes (`docs/records/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`).
 
 ## Evidence Links
-- Dashboard/alert readiness: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
-- DEP-03 ops intake: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`
-- DEP-03 waiver: `docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
-- Staging soak monitoring plan: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-staging-soak-monitoring-plan.md`
-- Checkpoint log: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md`
-- Pre-promotion gate checklist: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`
-- 5% promotion decision packet: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md`
-- Vercel preview throttle control: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-vercel-preview-throttle-control.md`
+- Dashboard/alert readiness: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
+- DEP-03 ops intake: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`
+- DEP-03 waiver: `docs/records/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
+- Staging soak monitoring plan: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-staging-soak-monitoring-plan.md`
+- Checkpoint log: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md`
+- Pre-promotion gate checklist: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`
+- 5% promotion decision packet: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md`
+- Vercel preview throttle control: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-vercel-preview-throttle-control.md`
 - CI run (kickoff): `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22258999203`
 - CI run (latest validation): `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22289631768`
-- Ops readiness bootstrap: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`
-- Pre-user MVP ring waiver: `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`
+- Ops readiness bootstrap: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`
+- Pre-user MVP ring waiver: `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`
 - Tracker update: `docs/planning/ai-studio-agent-modularization-tracker.md`
 
 ## Notes

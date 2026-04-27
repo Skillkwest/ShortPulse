@@ -11,6 +11,8 @@ Purpose: define the documentation information architecture, ownership rules, and
   - `docs/planning/policies/`: machine-checkable policy artifacts for planning/governance enforcement.
   - `docs/planning/evidence/`: temporary physical location for retained evidence namespaces during the current cleanup transition; keep this namespace out of the primary reading path.
 - `docs/records/`: retained records/evidence governance entrypoint and target namespace for evidence packets, templates, and raw artifacts.
+  - `docs/records/evidence/`: migrated human-readable retained evidence namespaces.
+  - `docs/records/artifacts/`: migrated raw retained artifact namespaces.
 - `docs/adr/`: durable architecture decisions.
 - `docs/agents/`: agent workflow helpers and execution guard aids.
 - `docs/design/`: design rationale used by implementation.

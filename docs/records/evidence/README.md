@@ -3,6 +3,7 @@
 Purpose: index retained evidence namespaces that have already moved into the records model.
 
 ## Active migrated namespaces
+- `docs/records/evidence/agent/`: retained evidence packet family for the AI Studio Agent hardening/modularization program, with raw payload inputs now split into `docs/records/artifacts/agent/`.
 - `docs/records/evidence/lane-a/`: retained evidence packet family for the closed Lane A gate recovery and governance hardening lane.
 - `docs/records/evidence/lane-f/`: retained evidence packet family for the closed Lane F release and CI governance lane.
 - `docs/records/evidence/kei/`: retained evidence packet family for the completed STG-04 KEI compatibility decommission lane.

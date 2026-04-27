@@ -12,7 +12,7 @@ Close the remaining governance-evidence gap after check-mode promotions and SQL 
 2. CI policy map: `docs/planning/ci-policy-checks.md`
 3. Branch-protection mapping evidence: `docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md`
 4. STG-06 cycle status: `docs/planning/evidence/docs/2026-02-21-stg-06-cycle-status.md`
-5. SQL lint bootstrap evidence: `docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-sql-lint-bootstrap.md`
+5. SQL lint bootstrap evidence: `docs/records/evidence/agent/phase-4/2026-02-21-phase-4-sql-lint-bootstrap.md`
 
 ## Verified Governance State
 1. Guardrail check modes are set to `enforce`:

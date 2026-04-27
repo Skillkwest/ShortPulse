@@ -20,7 +20,7 @@ This waiver closes Phase 5 for the current development stage only.
 1. Contract, continuity, and rollback verification suites pass on current head.
 2. Build and docs parity checks pass.
 3. Phase 5 readiness packet exists and includes rollback order and gate criteria:
-   - `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-prompt-only-single-stage-readiness.md`
+   - `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-prompt-only-single-stage-readiness.md`
 4. Rollout report and tracker are updated to record this waiver decision.
 
 ## MVP Done-State Criteria (Applied)

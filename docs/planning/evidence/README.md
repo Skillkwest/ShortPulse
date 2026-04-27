@@ -8,7 +8,6 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/sql/`
 - `docs/planning/evidence/docs/`
 - `docs/planning/evidence/architecture/`
-- `docs/planning/evidence/agent/`
 - `docs/planning/evidence/reference-grid-modularization/`
 - `docs/planning/evidence/naming-canonicalization/`
 - `docs/planning/evidence/style-adherence/`
@@ -24,6 +23,7 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/unified-buildout/`
 
 ## Migrated namespaces
+- `docs/records/evidence/agent/`
 - `docs/records/evidence/lane-a/`
 - `docs/records/evidence/lane-f/`
 - `docs/records/evidence/kei/`

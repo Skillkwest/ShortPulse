@@ -34,9 +34,9 @@ Provide a deterministic go/no-go checklist before advancing from staging soak to
 - Operator: `@codex`
 - Reviewer: `TBD`
 - Evidence package links:
-  - Rollout report: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`
-  - DEP-03 readiness: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
-  - DEP-03 waiver: `docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
+  - Rollout report: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`
+  - DEP-03 readiness: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
+  - DEP-03 waiver: `docs/records/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
   - Dashboard captures: not attached in repo evidence set (waived)
   - Incident packet (if any): none
 

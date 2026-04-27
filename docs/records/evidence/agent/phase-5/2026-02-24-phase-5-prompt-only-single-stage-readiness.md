@@ -88,7 +88,7 @@ Readiness status for Phase 5 ring progression:
 When the product has no external users/live traffic, production canary rings may be deferred under explicit waiver.
 
 Waiver artifact:
-- `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`
+- `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`
 
 Reactivation trigger:
 1. First external-user onboarding or first sustained production traffic cohort.

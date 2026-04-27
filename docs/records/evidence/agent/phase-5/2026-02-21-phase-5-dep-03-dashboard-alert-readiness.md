@@ -51,9 +51,9 @@ Verify repo-level readiness for `DEP-03` (dashboard + alert wiring for ring-gate
 1. Repo-level instrumentation and runbook wiring are ready.
 2. External dashboard/alert resource provisioning remains an operator task outside this repository.
 3. Ops intake template is published for deterministic artifact collection:
-   - `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`
+   - `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`
 4. Vercel plan-tier observability limitation and compensating-control waiver are documented:
-   - `docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
+   - `docs/records/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
 5. Waiver activation timestamp: `2026-02-23 01:43:14Z`.
 6. Promotion blocker status: removed under waiver; DEP-03 remains a hardening follow-up.
 
@@ -76,7 +76,7 @@ Preferred artifacts (required to retire waiver, not required for promotion while
    - [x] Operator: `@codex`
    - [ ] Reviewer:
    - [x] Tracker dependency update completed (`DEP-03`) via waiver decision:
-     - `docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
+     - `docs/records/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
 
 Promotion gate rule:
 When waiver is active, Production 5% may proceed with documented compensating controls.  

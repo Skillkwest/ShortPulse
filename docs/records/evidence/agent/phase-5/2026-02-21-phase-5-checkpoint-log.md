@@ -36,8 +36,8 @@ Phase: 5 (Staging soak)
 | C4 | No open Sev-1/2 in repo evidence set | Yes | Yes | Pass (waiver-approved) |
 
 ## Evidence Links
-- Rollout report: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`
-- DEP-03 readiness: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
-- Pre-promotion checklist: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`
-- DEP-03 waiver: `docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
+- Rollout report: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`
+- DEP-03 readiness: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
+- Pre-promotion checklist: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`
+- DEP-03 waiver: `docs/records/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
 - CI run for best-available checkpoint capture: `https://github.com/sleepyseamonster/ShortPulse/actions/runs/22289631768`

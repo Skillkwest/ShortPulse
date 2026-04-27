@@ -12,13 +12,13 @@ Phase dates in the program doc are target windows. Guardrail setup and initial s
 
 | Phase | Status | Owner | Start | Target End | Gate | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Phase 0: Contract Freeze | Completed | AI Platform | 2026-02-23 | 2026-02-25 | schema source-of-truth locked | `docs/planning/evidence/agent/phase-0/` |
-| Phase 1: Correctness Hardening | Completed | AI Platform + Frontend | 2026-02-26 | 2026-03-06 | audit-delta defects closed | `docs/planning/evidence/agent/phase-1/` |
-| Phase 2: Strangler Consolidation | Completed | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/planning/evidence/agent/phase-2/` |
+| Phase 0: Contract Freeze | Completed | AI Platform | 2026-02-23 | 2026-02-25 | schema source-of-truth locked | `docs/records/evidence/agent/phase-0/` |
+| Phase 1: Correctness Hardening | Completed | AI Platform + Frontend | 2026-02-26 | 2026-03-06 | audit-delta defects closed | `docs/records/evidence/agent/phase-1/` |
+| Phase 2: Strangler Consolidation | Completed | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/records/evidence/agent/phase-2/` |
 | Phase 3: Modularization Pass | Completed | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
-| Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles + governance evidence packet | `docs/planning/evidence/agent/phase-4/` |
-| Phase 5: Progressive Rollout | Completed (MVP Waiver) | AI Platform + Ops | 2026-02-21 | 2026-04-24 | pre-user MVP waiver accepted; live canary rings deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/` |
-| Phase 6: Legacy Decommission | Planned | AI Platform | 2026-04-27 | 2026-05-01 | 14-day zero first-party traffic | `docs/planning/evidence/agent/phase-6/` |
+| Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles + governance evidence packet | `docs/records/evidence/agent/phase-4/` |
+| Phase 5: Progressive Rollout | Completed (MVP Waiver) | AI Platform + Ops | 2026-02-21 | 2026-04-24 | pre-user MVP waiver accepted; live canary rings deferred until external traffic exists | `docs/records/evidence/agent/phase-5/` |
+| Phase 6: Legacy Decommission | Planned | AI Platform | 2026-04-27 | 2026-05-01 | 14-day zero first-party traffic | `docs/records/evidence/agent/phase-6/` |
 
 ## Execution Checklist
 
@@ -91,13 +91,13 @@ Exit validation:
 - [x] Add contract-test suite as required check (active warn/evaluate).
 - [x] Add disable-path continuity suite as required check (active warn/evaluate).
 - [x] Promote docs/parity checks to enforce mode after 2 green cycles (`DOCS_SEMANTIC_DRIFT_MODE=enforce`, `MIGRATION_PARITY_MODE=enforce`).
-- [x] Promote remaining guardrail checks to enforce mode (`ARCHIVE_MANIFEST_MODE`, `SQL_LINT_MODE`, `ARCHITECTURE_BOUNDARY_MODE`, `SIZE_BUDGET_MODE`, `AGENT_CONTRACT_TESTS_MODE`, `AGENT_DISABLE_CONTINUITY_MODE`) on 2026-02-21 (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-required-check-enforce-promotion.md`).
+- [x] Promote remaining guardrail checks to enforce mode (`ARCHIVE_MANIFEST_MODE`, `SQL_LINT_MODE`, `ARCHITECTURE_BOUNDARY_MODE`, `SIZE_BUDGET_MODE`, `AGENT_CONTRACT_TESTS_MODE`, `AGENT_DISABLE_CONTINUITY_MODE`) on 2026-02-21 (`docs/records/evidence/agent/phase-4/2026-02-21-phase-4-required-check-enforce-promotion.md`).
 - [x] Apply rollback-first stabilization for SQL lint (`SQL_LINT_MODE=warn`) after run `22251008051` failed due missing local Supabase/Postgres bootstrap in CI.
-- [x] Add SQL lint CI bootstrap in `.github/workflows/ci.yml` to start local Supabase (postgres-only footprint) before `supabase db lint --local` (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-sql-lint-bootstrap.md`).
+- [x] Add SQL lint CI bootstrap in `.github/workflows/ci.yml` to start local Supabase (postgres-only footprint) before `supabase db lint --local` (`docs/records/evidence/agent/phase-4/2026-02-21-phase-4-sql-lint-bootstrap.md`).
 - [x] Re-promote SQL lint to enforce mode (`SQL_LINT_MODE=enforce`) after bootstrap fix on 2026-02-21; validation cycles completed.
-- [x] Harden CI dependency install path with transient-retry wrapper for `npm ci` across install jobs (`scripts/ci_npm_ci_with_retry.sh`, `docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-npm-ci-transient-retry-hardening.md`, validated by runs `22259261557`, `22259338790`, `22259592274`, and `22262296039`).
+- [x] Harden CI dependency install path with transient-retry wrapper for `npm ci` across install jobs (`scripts/ci_npm_ci_with_retry.sh`, `docs/records/evidence/agent/phase-4/2026-02-21-phase-4-npm-ci-transient-retry-hardening.md`, validated by runs `22259261557`, `22259338790`, `22259592274`, and `22262296039`).
 - [x] Refresh branch-protection evidence mapping (`docs/planning/evidence/docs/2026-02-20-branch-protection-required-check-mapping.md` refreshed 2026-02-21).
-- [x] Publish governance closeout packet for STG-06 with explicit dependency tracking and compensating controls (`docs/planning/evidence/agent/phase-4/2026-02-21-phase-4-governance-closeout.md`).
+- [x] Publish governance closeout packet for STG-06 with explicit dependency tracking and compensating controls (`docs/records/evidence/agent/phase-4/2026-02-21-phase-4-governance-closeout.md`).
 
 Exit validation:
 - [x] Required checks reflect target state.
@@ -107,21 +107,21 @@ Exit validation:
 
 ### Phase 5: Progressive Rollout
 - [x] Publish on-call rollout runbook before ring execution (`docs/sops/sop_ai_studio_agent_rollout_operations.md`).
-- [x] Seed phase-5 evidence templates for rollout reports and rollback drills (`docs/planning/evidence/agent/phase-5/phase-5-rollout-report-template.md`, `docs/planning/evidence/agent/phase-5/phase-5-rollback-drill-template.md`).
-- [x] Record ops-readiness bootstrap evidence and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`, run `22258904215`).
-- [x] Record DEP-03 dashboard/alert readiness evidence with source mapping and CI validation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`, run `22258999203`).
-- [x] Publish DEP-03 ops intake template for external dashboard/alert artifact collection (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`).
-- [x] Kick off staging soak ring and archive rollout report (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`).
-- [x] Publish staging soak checkpoint monitoring plan with gate thresholds and evidence links (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-staging-soak-monitoring-plan.md`).
-- [x] Publish staging soak checkpoint log sheet for C1-C4 evidence capture (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md`).
-- [x] Publish pre-promotion gate checklist artifact for soak-exit decision control (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`).
-- [x] Publish 5% promotion decision packet template for deterministic go/no-go documentation (`docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md`).
-- [x] Add Vercel preview throttle control for docs-only/non-frontend commits (`frontend/vercel.json`, `frontend/scripts/vercel-ignore-build.sh`, evidence: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-vercel-preview-throttle-control.md`).
+- [x] Seed phase-5 evidence templates for rollout reports and rollback drills (`docs/records/evidence/agent/phase-5/phase-5-rollout-report-template.md`, `docs/records/evidence/agent/phase-5/phase-5-rollback-drill-template.md`).
+- [x] Record ops-readiness bootstrap evidence and CI validation (`docs/records/evidence/agent/phase-5/2026-02-21-phase-5-ops-readiness-bootstrap.md`, run `22258904215`).
+- [x] Record DEP-03 dashboard/alert readiness evidence with source mapping and CI validation (`docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`, run `22258999203`).
+- [x] Publish DEP-03 ops intake template for external dashboard/alert artifact collection (`docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`).
+- [x] Kick off staging soak ring and archive rollout report (`docs/records/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`).
+- [x] Publish staging soak checkpoint monitoring plan with gate thresholds and evidence links (`docs/records/evidence/agent/phase-5/2026-02-21-phase-5-staging-soak-monitoring-plan.md`).
+- [x] Publish staging soak checkpoint log sheet for C1-C4 evidence capture (`docs/records/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md`).
+- [x] Publish pre-promotion gate checklist artifact for soak-exit decision control (`docs/records/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`).
+- [x] Publish 5% promotion decision packet template for deterministic go/no-go documentation (`docs/records/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md`).
+- [x] Add Vercel preview throttle control for docs-only/non-frontend commits (`frontend/vercel.json`, `frontend/scripts/vercel-ignore-build.sh`, evidence: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-vercel-preview-throttle-control.md`).
 - [x] Execute soak-exit decision procedure; complete checkpoint log, pre-promotion checklist, and 5% decision packet with formal promotion decision at `2026-02-23 01:43:14Z`.
-- [x] Record DEP-03 Vercel observability waiver with compensating controls (`docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`).
+- [x] Record DEP-03 Vercel observability waiver with compensating controls (`docs/records/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`).
 - [x] Capture DEP-03 readiness/ops intake updates for waiver path.
 - [x] Staging soak 24h (window elapsed; promotion approved under DEP-03 waiver path).
-- [x] Publish prompt-only single-stage runtime readiness packet with verification matrix and ring flag controls (`docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-prompt-only-single-stage-readiness.md`).
+- [x] Publish prompt-only single-stage runtime readiness packet with verification matrix and ring flag controls (`docs/records/evidence/agent/phase-5/2026-02-24-phase-5-prompt-only-single-stage-readiness.md`).
 - [x] Classify runtime telemetry outcomes for rollout monitoring (`success_prompt`, `refusal_model`, `refusal_safety`, `upstream_error`, `route_error`) to disambiguate refusal/success/error classes during rings.
 - [x] Trim legacy formatter prompt contract to `apply_prompt`-only action output and add regression guard test (`frontend/lib/__tests__/agentPromptsConfig.test.ts`).
 - [x] Canonicalize legacy `context_type` naming to `agent-output | prompt | image` across orchestration + prompt contract to remove chat terminology drift.
@@ -134,7 +134,7 @@ Exit validation:
 - [x] Production 50% 24h. (Waived: pre-user MVP, no live cohort)
 - [x] Production 100% after gates. (Waived: pre-user MVP, no live cohort)
 - [x] Single active canary only. (Waived: pre-user MVP, no live cohort)
-- [x] Publish pre-user MVP rollout waiver artifact (`docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`).
+- [x] Publish pre-user MVP rollout waiver artifact (`docs/records/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md`).
 
 Exit validation:
 - [x] No unresolved Sev-1/Sev-2 regressions. (MVP stage)
@@ -171,11 +171,11 @@ Exit validation:
 ## Rollout Gate Tracker
 | Ring | Start | End | Pass/Fail | p95 | p99 | 5xx | timeout | refusal delta | Decision | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Staging soak 24h | 2026-02-21 15:13:00Z | 2026-02-22 15:13:00Z (elapsed); soak-exit review 2026-02-23 01:43:14Z | Pass (waiver) | waiver path | waiver path | waiver path | waiver path | waiver path | Promote to 5% approved under DEP-03 waiver | `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md` |
-| Production 5% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
-| Production 25% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
-| Production 50% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
-| Production 100% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/planning/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
+| Staging soak 24h | 2026-02-21 15:13:00Z | 2026-02-22 15:13:00Z (elapsed); soak-exit review 2026-02-23 01:43:14Z | Pass (waiver) | waiver path | waiver path | waiver path | waiver path | waiver path | Promote to 5% approved under DEP-03 waiver | `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md` |
+| Production 5% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
+| Production 25% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
+| Production 50% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
+| Production 100% | N/A (pre-user MVP) | N/A | Waived | N/A | N/A | N/A | N/A | N/A | Deferred until external traffic exists | `docs/records/evidence/agent/phase-5/2026-02-24-phase-5-pre-user-mvp-rollout-waiver.md` |
 
 ## Risk Register Tracker
 | Rank | Risk | State | Leading Indicator | Mitigation Owner | Last Review |
@@ -195,13 +195,13 @@ Exit validation:
 | DEP-03 | Dashboards + alert wiring for ring gates | Non-blocking under approved waiver; remains observability hardening follow-up | Ops | Waived (Compensating controls active) | Before waiver retirement |
 
 ## Evidence Links (to fill during execution)
-- Phase 0: `docs/planning/evidence/agent/phase-0/`
-- Phase 1: `docs/planning/evidence/agent/phase-1/`
-- Phase 2: `docs/planning/evidence/agent/phase-2/`
+- Phase 0: `docs/records/evidence/agent/phase-0/`
+- Phase 1: `docs/records/evidence/agent/phase-1/`
+- Phase 2: `docs/records/evidence/agent/phase-2/`
 - Phase 3: `docs/planning/evidence/architecture/`
-- Phase 4: `docs/planning/evidence/agent/phase-4/`
-- Phase 5: `docs/planning/evidence/agent/phase-5/`
-- Phase 6: `docs/planning/evidence/agent/phase-6/`
+- Phase 4: `docs/records/evidence/agent/phase-4/`
+- Phase 5: `docs/records/evidence/agent/phase-5/`
+- Phase 6: `docs/records/evidence/agent/phase-6/`
 
 ## Decision Log
 | Date | Decision | Rationale | Owner |

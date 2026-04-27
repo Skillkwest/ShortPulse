@@ -49,8 +49,8 @@ Under this waiver, DEP-03 remains a hardening follow-up item, not a production b
 
 ## Related artifacts
 
-- `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
-- `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`
-- `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`
-- `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md`
+- `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
+- `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-ops-intake-template.md`
+- `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`
+- `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-5pct-promotion-decision-packet.md`
 - `docs/sops/sop_ai_studio_agent_rollout_operations.md`

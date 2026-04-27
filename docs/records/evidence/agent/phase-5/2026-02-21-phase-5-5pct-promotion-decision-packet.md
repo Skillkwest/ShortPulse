@@ -39,8 +39,8 @@ Decision Scope: promote from staging soak to Production 5% ring
 - Re-evaluation checkpoint: N/A.
 
 ## Evidence Bundle
-1. Rollout report: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`
-2. Checkpoint log: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md`
-3. DEP-03 readiness: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
-4. Pre-promotion checklist: `docs/planning/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`
-5. DEP-03 waiver: `docs/planning/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`
+1. Rollout report: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-rollout-report.md`
+2. Checkpoint log: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-checkpoint-log.md`
+3. DEP-03 readiness: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-dep-03-dashboard-alert-readiness.md`
+4. Pre-promotion checklist: `docs/records/evidence/agent/phase-5/2026-02-21-phase-5-pre-promotion-gate-checklist.md`
+5. DEP-03 waiver: `docs/records/evidence/agent/phase-5/2026-02-23-phase-5-dep-03-vercel-observability-waiver.md`

@@ -2,6 +2,11 @@
 
 Purpose: classify the current `docs/planning/evidence/` tree into migration buckets without moving files yet, so later records migration work can happen namespace-by-namespace instead of file-by-file.
 
+## Follow-up status
+- First pilot executed after this snapshot:
+  - `docs/planning/evidence/media-library-runtime-rebuild/` moved to `docs/records/evidence/media-library-runtime-rebuild/`
+- Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.
+
 ## Inventory snapshot
 - Evidence root analyzed: `docs/planning/evidence/`
 - Namespace directories: `22`
@@ -69,7 +74,7 @@ Migration rule for split namespaces:
 3. Update the evidence README to point at its artifact subtree rather than keeping the raw payloads mixed together.
 
 ## Recommended first migration pilot
-Pilot namespace: `docs/planning/evidence/media-library-runtime-rebuild/`
+Pilot namespace selected from this snapshot: `docs/planning/evidence/media-library-runtime-rebuild/`
 
 Why this is the best first move:
 - small (`4` markdown files),

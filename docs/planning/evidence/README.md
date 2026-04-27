@@ -21,11 +21,13 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/lane-f/`
 - `docs/planning/evidence/generation-pipeline-hardening/`
 - `docs/planning/evidence/generation-reliability-hardening/`
-- `docs/planning/evidence/media-library-runtime-rebuild/`
 - `docs/planning/evidence/ai-studio-reference-grid-reliability/`
 - `docs/planning/evidence/media-rendering-hardening-v2/`
 - `docs/planning/evidence/agent-pipeline-remediation/`
 - `docs/planning/evidence/unified-buildout/`
+
+## Migrated namespaces
+- `docs/records/evidence/media-library-runtime-rebuild/`
 
 ## Notes
 - Keep packet names date-prefixed (`YYYY-MM-DD-...`).

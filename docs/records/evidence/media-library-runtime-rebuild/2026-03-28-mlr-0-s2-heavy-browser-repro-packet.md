@@ -98,7 +98,7 @@ Execute one repeatable browser-backed heavy repro packet across the Media Librar
 - `linked_pr_or_commit`: `pending current slice commit`
 
 ## References
-1. `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`
+1. `docs/records/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`
 2. `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
 3. `docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 4. `frontend/tests/e2e/media-library-runtime.audit.js`

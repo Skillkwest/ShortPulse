@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - executed the first records migration pilot by moving the closed `media-library-runtime-rebuild` evidence family into `docs/records/evidence/media-library-runtime-rebuild/`,
+  - updated the planning-evidence index to remove that namespace from the active physical list,
+  - and added a records-evidence index so migrated namespaces have a stable retained-records entrypoint.
+- Documentation cleanup:
   - added a no-move evidence migration classification under `docs/records/`,
   - bucketed the current planning-evidence namespaces into summary/index, future records/evidence, and future records/artifacts,
   - and selected the closed `media-library-runtime-rebuild` evidence family as the recommended first physical migration pilot.

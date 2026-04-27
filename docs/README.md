@@ -353,6 +353,7 @@ Start here for all repository documentation.
 
 ## Records And Evidence
 - `docs/records/README.md`
+- `docs/records/evidence/README.md`
 - `docs/records/evidence-migration-classification-2026-04-27.md`
 - `docs/planning/evidence/README.md` (transition-era physical evidence index; use through the records contract, not as part of the main reading path)
 - `docs/planning/archive/original-plans/manifest.json` (controlled checksum-backed source-plan exception)

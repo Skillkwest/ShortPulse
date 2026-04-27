@@ -117,5 +117,5 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 ## References
 1. `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
 2. `docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
-3. `docs/planning/evidence/media-library-runtime-rebuild/README.md`
-4. `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`
+3. `docs/records/evidence/media-library-runtime-rebuild/README.md`
+4. `docs/records/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`

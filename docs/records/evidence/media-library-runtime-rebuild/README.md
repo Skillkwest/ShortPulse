@@ -1,5 +1,7 @@
 # Media Library Runtime Rebuild Evidence
 
+> Moved to `docs/records/evidence/media-library-runtime-rebuild/` on 2026-04-27 because the Media Library runtime rebuild is a closed planning family and its retained evidence no longer belongs under active planning.
+
 Purpose: store execution evidence packets for the 2026-03-28 Media Library runtime rebuild program.
 
 ## Required packet fields
@@ -32,6 +34,6 @@ Use dated packet names:
 4. `docs/sops/sop_ai_studio_media_library_operations.md`
 
 ## Packets
-1. `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`
-2. `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`
-3. `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-5-s2-closeout-audit.md`
+1. `docs/records/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`
+2. `docs/records/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`
+3. `docs/records/evidence/media-library-runtime-rebuild/2026-03-28-mlr-5-s2-closeout-audit.md`

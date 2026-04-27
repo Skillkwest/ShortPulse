@@ -7,7 +7,7 @@
   - `scripts/check_docs_semantic_drift.js`
   - `docs/archive/planning/lane-e-execution-plan-2026-03-16.md`
   - `docs/archive/planning/lane-e-master-plan-2026-03-16.md`
-  - `docs/planning/evidence/lane-e/README.md`
+  - `docs/records/evidence/lane-e/README.md`
   - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 
 ## Commands Run

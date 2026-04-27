@@ -9,7 +9,7 @@ Roadmap anchor: `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 Tracker anchor: `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`  
 Tracker spec: `docs/archive/planning/lane-e-tracker-spec-2026-03-16.md`  
 Execution plan: `docs/archive/planning/lane-e-execution-plan-2026-03-16.md`  
-Evidence index: `docs/planning/evidence/lane-e/README.md`
+Evidence index: `docs/records/evidence/lane-e/README.md`
 
 ## Summary
 Lane E makes docs and architecture-governance discipline enforceable so foundational lanes stay no-regression and no-bloat.

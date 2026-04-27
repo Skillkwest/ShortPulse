@@ -150,7 +150,7 @@ Mandatory for any from-scratch replacement scope:
 1. Master plan: `docs/archive/planning/lane-e-master-plan-2026-03-16.md`
 2. Tracker spec: `docs/archive/planning/lane-e-tracker-spec-2026-03-16.md`
 3. Execution plan: `docs/archive/planning/lane-e-execution-plan-2026-03-16.md`
-4. Evidence index: `docs/planning/evidence/lane-e/README.md`
+4. Evidence index: `docs/records/evidence/lane-e/README.md`
 
 ## Lane F Artifacts
 
@@ -245,7 +245,7 @@ Execution plan: `docs/archive/planning/lane-e-execution-plan-2026-03-16.md`
 
 - [ ] Normalize changelog structure so chronology and non-future-date checks are enforceable.
 - [ ] Promote Lane E checks to enforce mode after required green cycles.
-- [ ] Attach all required evidence packets under `docs/planning/evidence/lane-e/`.
+- [ ] Attach all required evidence packets under `docs/records/evidence/lane-e/`.
 - [ ] Confirm Lane E exit metrics are all `0` drift (or explicit tracked exclusions only).
 
 ## Lane F Master Checklist

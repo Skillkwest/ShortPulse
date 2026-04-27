@@ -4,7 +4,7 @@ Purpose: record the final repo-backed stop/go audit for the docs-fat-trimming la
 
 ## Current snapshot
 - Audit date: `2026-04-27`
-- Validation: `cd frontend && npm run docs:check` passes fully.
+- Validation: `cd frontend && npm run docs:check` passes fully after the route-auth vocabulary correction for the GPT Image 2 handler-authenticated routes.
 - Top-level planning docs still under `docs/planning/`: `189`
 - Top-level planning docs with noncanonical status: `0`
 - Top-level planning docs missing status: `1` (`docs/planning/README.md`, intentionally status-less)
@@ -18,17 +18,22 @@ Purpose: record the final repo-backed stop/go audit for the docs-fat-trimming la
 6. `docs:check` is green, including semantic drift, archive manifest, naming drift, and model-catalog parity.
 
 ## Remaining strict done-state blockers
-These are the items that still block the strict original end state for this cleanup lane.
-
-### 1. Evidence is not fully migrated out of `docs/planning/evidence/`
-Remaining physical namespaces under `docs/planning/evidence/`:
-- `ai-studio-expert-edit/` (`17` files)
-- `reference-grid-modularization/` (`52`)
+None.
 
 Interpretation:
-- This does not currently break navigation or validation because records policy and indexes already route readers away from raw packet inventories.
-- `unified-buildout/` is now an explicit active-program exception rather than an untriaged migration hold, because the live unified tracker still depends on phase evidence as current execution gating.
-- The remaining strict blocker is the physical split for the other retained evidence namespaces that do not need that exception.
+- Validation is green.
+- The top-level planning surface no longer has meaningful status drift.
+- Remaining namespaces under `docs/planning/evidence/` are now explicitly classified active exceptions rather than ambiguous retained-records leftovers.
+
+## Active exceptions
+These namespaces intentionally remain under `docs/planning/evidence/` because they still function as current execution proof for active planning surfaces.
+
+- `ai-studio-expert-edit/` (`17` files)
+  - Active-program exception while `docs/planning/ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md` still has `CP-501` in progress and `CP-502` / `CP-503` pending.
+- `reference-grid-modularization/` (`52` files)
+  - Active-governance exception while `docs/planning/ai-studio-reference-grid-modularization-tracker.md` remains `Status: active` and governance dependencies `RG-DEP-04` / `RG-DEP-05` remain open.
+- `unified-buildout/` (`140` files)
+  - Active-program exception while `docs/planning/shortpulse-unified-buildout-tracker.md` still uses phase evidence as current execution gating.
 
 ## Optional follow-on judgment call
 ### Large governance docs could still be compressed later if the repo wants an even stricter current-truth surface
@@ -47,26 +52,28 @@ Interpretation:
 3. Completed top-level planning packets are no longer lingering in active indexes in obvious contradiction.
 4. Model-catalog drift is no longer blocking docs validation.
 5. Raw evidence is no longer part of the primary reading path.
+6. Remaining planning-evidence namespaces are no longer in an implicit or misleading state.
 
 ## Recommendation
-The cleanup lane has reached the point where broad continuation is optional rather than clearly justified.
+The cleanup lane has reached its intended stop point.
 
 Recommended stop posture:
 1. Treat the current state as operationally healthy.
 2. Do not resume broad namespace migration by default.
 3. Only continue if one of these is true:
-   - a remaining planning doc causes active-truth ambiguity for real contributors,
-   - a remaining evidence namespace creates navigation/operator confusion,
+   - an active planning doc creates new authority ambiguity,
+   - an active exception closes and its evidence can be migrated cleanly,
    - or a validation/governance check regresses.
 
 ## Highest-ROI follow-on options
-If the repo wants to keep going, the best bounded options are:
-1. One final active-surface pass on the remaining large governance docs if the repo wants to compress current-truth authority further.
-2. Otherwise stop this lane and preserve the current gains.
+If the repo wants to keep going later, the best bounded options are:
+1. Migrate an active exception only after its planning tracker is actually closed or replaced.
+2. Add lightweight enforcement for planning-evidence index drift if this starts to regress.
+3. Otherwise stop this lane and preserve the current gains.
 
 ## Audit conclusion
-The docs cleanup lane is not at the strict original done state yet, but it is very close to a practical stop point.
+The docs cleanup lane is now at its planned stop point.
 
 Practical judgment:
 - Current state: clean enough to stop without creating risk.
-- Remaining work: mostly about full physical evidence migration and optional governance-surface compression, not about broken authority or failing validation.
+- Remaining work: active exceptions that should be revisited only when their planning trackers close, plus optional future enforcement or governance-surface compression.

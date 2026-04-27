@@ -3,6 +3,11 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Documentation governance:
+  - corrected the `docs/routes.md` auth vocabulary so handler-authenticated GPT Image 2 routes no longer falsely claim shared runtime auth-guard coverage,
+  - updated the semantic-drift checker to distinguish shared runtime-protected routes from route-level bearer-authenticated routes,
+  - reclassified `ai-studio-expert-edit`, `reference-grid-modularization`, and `unified-buildout` as explicit active exceptions in the planning-evidence and records governance docs,
+  - and refreshed the docs-cleanup done-state audit so it reflects the current green validation baseline and the lane's stop condition truthfully.
 - Documentation cleanup:
   - moved the `generation-reliability-hardening` evidence namespace from `docs/planning/evidence/` into `docs/records/evidence/`,
   - retargeted the linked reliability planning docs to the records path,

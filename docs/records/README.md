@@ -50,6 +50,8 @@ This target shape is the destination model. The repo is not moving all retained 
 ## Controlled exceptions
 - `docs/planning/archive/original-plans/` remains a protected checksum-backed exception for verbatim source-plan preservation.
 - A temporary planning-evidence namespace may remain under `docs/planning/evidence/` until the corresponding records migration lane is executed.
+- `docs/planning/evidence/ai-studio-expert-edit/` remains an explicit active-program exception while the coordinate-parity tracker still has rollout and production-verification work open (`CP-501`, `CP-502`, `CP-503`).
+- `docs/planning/evidence/reference-grid-modularization/` remains an explicit active-governance exception while the tracker is still `Status: active` and governance dependencies `RG-DEP-04` / `RG-DEP-05` remain open.
 - `docs/planning/evidence/unified-buildout/` remains an explicit active-program exception while `docs/planning/shortpulse-unified-buildout-tracker.md` is still the authoritative live tracker and phase evidence is part of current execution gating. Do not migrate that namespace by default until the unified program itself is closed or replaced.
 
 ## Index rules

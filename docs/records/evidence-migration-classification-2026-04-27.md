@@ -41,7 +41,9 @@ Purpose: classify the current `docs/planning/evidence/` tree into migration buck
   - `docs/planning/evidence/naming-canonicalization/` moved to `docs/records/evidence/naming-canonicalization/`
 - Next markdown-only migration executed after this snapshot:
   - `docs/planning/evidence/generation-reliability-hardening/` moved to `docs/records/evidence/generation-reliability-hardening/`
-- Explicit governance decision after this snapshot:
+- Explicit governance decisions after this snapshot:
+  - `docs/planning/evidence/ai-studio-expert-edit/` remains in place as an active-program exception while `docs/planning/ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md` still has `CP-501` in progress and `CP-502` / `CP-503` pending.
+  - `docs/planning/evidence/reference-grid-modularization/` remains in place as an active-governance exception while `docs/planning/ai-studio-reference-grid-modularization-tracker.md` is still `Status: active` and governance dependencies `RG-DEP-04` / `RG-DEP-05` remain open.
   - `docs/planning/evidence/unified-buildout/` remains in place as an active-program exception while `docs/planning/shortpulse-unified-buildout-tracker.md` still treats phase evidence as current execution gating. It is no longer the default next migration target.
 - Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.
 
@@ -59,6 +61,7 @@ Current repo reality:
 - Most evidence namespaces are human-readable markdown packet families.
 - Only two namespaces currently require a true evidence-vs-artifacts split.
 - Top-level reader navigation should route through policy/index docs, not these packet files directly.
+- The remaining physical planning-evidence namespaces are now active-program or active-governance exceptions rather than untriaged retained-records leftovers.
 
 ## Classification buckets
 ### 1. Keep as summary/index during transition
@@ -131,17 +134,17 @@ These should not be the first physical move:
 - `lane-b`: large markdown family
 - `agent` and `agent-pipeline-remediation`: require evidence/artifacts split and path-sensitive references
 
-## Active-program exception
-`unified-buildout` is no longer classified as the default next records migration candidate.
+## Active exceptions
+The remaining namespaces under `docs/planning/evidence/` are no longer classified as default next records migrations.
 
-Reason:
-- its evidence namespace is still wired into the authoritative live tracker under `docs/planning/shortpulse-unified-buildout-tracker.md`,
-- multiple phases remain `In Progress` or `Deferred`,
-- and the namespace still functions as current execution proof rather than retained historical closeout only.
+Reasons:
+- `ai-studio-expert-edit` still supports an active coordinate-parity tracker with rollout and production verification work open.
+- `reference-grid-modularization` still supports an active tracker with open governance dependencies even though its execution phases are complete.
+- `unified-buildout` is still wired into the authoritative live tracker under `docs/planning/shortpulse-unified-buildout-tracker.md`, and multiple phases remain `In Progress` or `Deferred`.
 
 Migration rule:
-1. Leave `docs/planning/evidence/unified-buildout/` in place while the unified build-out tracker remains active.
-2. Revisit migration only after the unified program is closed, replaced, or deliberately split into current-vs-records surfaces.
+1. Leave each active exception under `docs/planning/evidence/` while its corresponding planning tracker still depends on the evidence namespace as current execution proof.
+2. Revisit migration only after the relevant program is closed, replaced, or deliberately split into current-vs-records surfaces.
 
 ## Stop rules for the migration lane
 - Do not bulk-move multiple namespaces at once.

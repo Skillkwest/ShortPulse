@@ -95,11 +95,21 @@ function listApiRoutes() {
 function parseRoutesDoc() {
   const text = readText(ROUTES_DOC);
   const entries = [];
-  const pattern = /\|\s*`([^`]+)`\s*\|\s*(Yes|No)\s*\|/gi;
-  let match = pattern.exec(text);
-  while (match) {
-    entries.push({ route: match[1].trim(), authRequired: match[2].toLowerCase() === "yes" });
-    match = pattern.exec(text);
+  for (const line of text.split("\n")) {
+    const routeMatch = line.match(/^\|\s*`([^`]+)`\s*\|/);
+    if (!routeMatch) continue;
+    const columns = line.split("|").slice(1, -1).map((value) => value.trim());
+    if (columns.length < 2) continue;
+
+    const authModeCell = columns[1];
+    let authMode = "public";
+    if (/^yes$/i.test(authModeCell)) {
+      authMode = "runtime";
+    } else if (/^route$/i.test(authModeCell)) {
+      authMode = "route";
+    }
+
+    entries.push({ route: routeMatch[1].trim(), authMode });
   }
   return entries;
 }
@@ -287,10 +297,10 @@ function run() {
   const apiDocEntries = routeDocEntries.filter((entry) => entry.route.startsWith("/api/"));
   const pageDocSet = new Set(pageDocEntries.map((entry) => entry.route));
   const protectedPageDocRoutes = pageDocEntries
-    .filter((entry) => entry.authRequired)
+    .filter((entry) => entry.authMode === "runtime")
     .map((entry) => entry.route);
   const protectedApiDocRoutes = apiDocEntries
-    .filter((entry) => entry.authRequired)
+    .filter((entry) => entry.authMode === "runtime")
     .map((entry) => entry.route);
 
   for (const route of pageRoutes) {

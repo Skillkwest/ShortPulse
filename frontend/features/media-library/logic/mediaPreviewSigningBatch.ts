@@ -16,7 +16,7 @@ export type MediaSignCandidateEntry = {
   primaryPath: string | null;
   primaryPathKind: MediaPreviewPathKind;
   candidates: string[];
-  directUrls: string[];
+  directUrl: string | null;
 };
 
 export type MediaSignResult = {
@@ -59,7 +59,7 @@ export const buildMediaSignCandidateEntry = <TRow extends PreviewSigningRowLike>
     primaryPath,
     primaryPathKind: classifyMediaPreviewPath(row, primaryPath, currentUserId),
     candidates,
-    directUrls: previewCandidates.directUrls,
+    directUrl: previewCandidates.directUrls[0] ?? null,
   };
 };
 
@@ -98,7 +98,7 @@ export const mapMediaSignResults = <TRow extends PreviewSigningRowLike>(params: 
   return entries.map((entry) => {
     const matchedPath = entry.candidates.find((path) => Boolean(signedByPath.get(path))) ?? null;
     const signedFromPath = matchedPath ? (signedByPath.get(matchedPath) ?? null) : null;
-    const directUrl = signedFromPath ? null : (entry.directUrls[0] ?? null);
+    const directUrl = signedFromPath ? null : entry.directUrl;
     const signedUrl = signedFromPath ?? directUrl;
     return {
       id: entry.id,

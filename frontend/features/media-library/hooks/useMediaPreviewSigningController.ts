@@ -190,7 +190,7 @@ export const useMediaPreviewSigningController = <
     const hasPreviewCandidate = (row: TRow) => {
       const entry = signCandidateEntryById.get(row.id);
       if (!entry) return false;
-      return entry.candidates.length > 0 || entry.directUrls.length > 0;
+      return entry.candidates.length > 0 || Boolean(entry.directUrl);
     };
     for (const queuedId of Object.keys(queueStateByIdRef.current)) {
       const queuedRow = rowById.get(queuedId);

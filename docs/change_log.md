@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the completed properties-panels modularization program and tracker under `docs/archive/planning/`,
+  - removed that closed packet from the active planning indexes,
+  - and retargeted the surviving ADR reference to the archive path.
+- Documentation cleanup:
   - archived the implementation-complete Runtime V2 audit snapshot under `docs/archive/planning/`,
   - retargeted the surviving SOP, backlog, and index references to the archive path,
   - and normalized the still-live runtime/admission planning docs onto the canonical `active` status vocabulary.

@@ -166,8 +166,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-expert-edit-coordinate-parity-phase-1-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 1 coordinate core unification (`CP-101`, `CP-102`, `CP-103`).
 - `ai-studio-expert-edit-coordinate-parity-phase-2-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 2 tool geometry parity (`CP-201`, `CP-202`, `CP-203`).
 - `ai-studio-expert-edit-coordinate-parity-phase-5-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 5 controlled rollout and closeout (`CP-501`, `CP-502`, `CP-503`).
-- `ai-studio-properties-panels-modularization-program.md`: completed modularization program for AI Studio properties-panel workflow architecture and beginner-mode hardening.
-- `ai-studio-properties-panels-modularization-tracker.md`: execution tracker for the properties-panels modularization program.
 - `ai-studio-create-character-mode-hardening-plan.md`: hardening plan for Create Character Mode model mapping and submit invariants.
 - `ai-studio-runtime-v2-recovery-execution-phase.md`: shared recovery execution phase tracker (webhook inbox, verify cutover, reconciler leases, guarded transitions).
 - `ai-studio-runtime-v2-staging-execution-checklist.md`: operator checklist with ordered staging migration/env/deploy/smoke-test commands and runtime gates.

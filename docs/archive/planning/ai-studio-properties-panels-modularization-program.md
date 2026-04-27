@@ -1,8 +1,10 @@
 # AI Studio Properties Panels Modularization Program
 
+> Archived on 2026-04-27 during docs cleanup because this completed modularization program is retained as historical execution context after delivery, with the durable workflow contract preserved in `docs/adr/0042-ai-studio-properties-panel-workflow-contract.md`.
+
 Date: 2026-02-23
 Owner: Frontend Engineering
-Status: Active
+Status: complete
 
 ## Summary
 This program hardens AI Studio properties-panel architecture into explicit workflow modules with canonical tool identity and robust beginner-mode persistence.

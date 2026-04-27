@@ -1,9 +1,11 @@
 # AI Studio Properties Panels Modularization Tracker
 
+> Archived on 2026-04-27 during docs cleanup because this completed tracker is retained as historical execution evidence after the properties-panels modularization program closed.
+
 Date: 2026-02-23
 Owner: Frontend Engineering
-Program Doc: `docs/planning/ai-studio-properties-panels-modularization-program.md`
-Status: Completed
+Program Doc: `docs/archive/planning/ai-studio-properties-panels-modularization-program.md`
+Status: complete
 
 ## Phase Status
 | Phase | Status | Scope |

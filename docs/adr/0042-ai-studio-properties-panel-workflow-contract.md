@@ -3,7 +3,7 @@
 - Date: 2026-02-23
 - Status: Accepted
 - Deciders: Frontend Engineering
-- Related: `docs/planning/ai-studio-properties-panels-modularization-program.md`
+- Related: `docs/archive/planning/ai-studio-properties-panels-modularization-program.md`
 
 ## Context
 AI Studio panel orchestration accumulated alias drift and dead wiring:

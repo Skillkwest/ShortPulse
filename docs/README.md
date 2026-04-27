@@ -304,8 +304,6 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-1-execution-plan-2026-03-20.md`
 - `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-2-execution-plan-2026-03-20.md`
 - `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-5-execution-plan-2026-03-20.md`
-- `docs/planning/ai-studio-properties-panels-modularization-program.md`
-- `docs/planning/ai-studio-properties-panels-modularization-tracker.md`
 - `docs/planning/ai-studio-create-character-mode-hardening-plan.md`
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/ai-studio-runtime-v2-staging-execution-checklist.md`

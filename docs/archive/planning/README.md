@@ -73,6 +73,8 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
 - `docs/archive/planning/ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`
 - `docs/archive/planning/ai-studio-expert-edit-properties-panel-tracker-2026-03-04.md`
+- `docs/archive/planning/ai-studio-properties-panels-modularization-program.md`
+- `docs/archive/planning/ai-studio-properties-panels-modularization-tracker.md`
 - `docs/archive/planning/ai-studio-expert-edit-coordinate-parity-phase-0-baseline-capture-execution-plan-2026-03-20.md`
 - `docs/archive/planning/ai-studio-expert-edit-coordinate-parity-phase-3-execution-plan-2026-03-20.md`
 - `docs/archive/planning/ai-studio-expert-edit-coordinate-parity-phase-4-execution-plan-2026-03-20.md`

@@ -1,5 +1,7 @@
 # Generation Pipeline Rebuild Master Roadmap (2026-03-27)
 
+> Archived on 2026-04-27 during docs cleanup because this roadmap explicitly reached its current checkpoint and the active continuation work now lives in `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md` plus the remaining active rebuild contract docs.
+
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  

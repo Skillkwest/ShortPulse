@@ -83,8 +83,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-hardening-contact-map-2026-03-16.md`: owner/escalation contact map for Track P1, sourced from `docs/operator-map.md`.
 - `generation-pipeline-hardening-execution-plan-2026-03-16.md`: concrete Track P1 slice sequencing with command bundles, acceptance criteria, and evidence packet outputs.
 - `generation-pipeline-rebuild-blueprint-2026-03-27.md`: branch-aware target architecture and migration path for the canonical request/output rebuild on `working-development`.
-- `generation-pipeline-rebuild-master-roadmap-2026-03-27.md`: lightweight master roadmap for the remaining rebuild lanes after runtime-authority hardening.
-- `generation-pipeline-rebuild-lane-1-request-attempt-plan-2026-03-27.md`: active planning lane for the request/attempt state-machine redesign that must precede backfill and broad read-model cutover.
 - `generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`: source-of-truth current-state matrix for request, attempt, output, and billing identities in Lane 1.
 - `generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`: legal transition and mutation-ownership matrix for the future request/attempt state machine in Lane 1.
 - `generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`: target request/attempt schema delta and explicit transition posture for `ai_generations`, queue rows, outputs, reservations, and webhook rows.

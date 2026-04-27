@@ -218,8 +218,6 @@ Start here for all repository documentation.
 - `docs/planning/media-library-ui-redesign-plan-2026-03-28.md`
 - `docs/planning/ai-architecture-follow-on-revisit-report-2026-03-29.md`
 - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-lane-1-request-attempt-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`

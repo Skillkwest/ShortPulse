@@ -1,5 +1,7 @@
 # Generation Pipeline Rebuild Lane 1 Request/Attempt Plan (2026-03-27)
 
+> Archived on 2026-04-27 during docs cleanup because Lane 1 reached its stronger checkpoint and the remaining active request/attempt authority work is preserved in the supporting Lane 1 contract docs still under `docs/planning/`.
+
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  

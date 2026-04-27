@@ -42,6 +42,8 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-3-durable-media-authority-plan-2026-04-26.md`
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-4-canonical-output-slot-convergence-plan-2026-04-26.md`
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-tracker-2026-04-26.md`
+- `docs/archive/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md`
+- `docs/archive/planning/generation-pipeline-rebuild-lane-1-request-attempt-plan-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`
 - `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`

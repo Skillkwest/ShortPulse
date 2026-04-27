@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the checkpoint-complete generation-pipeline rebuild master roadmap and Lane 1 request/attempt plan under `docs/archive/planning/`,
+  - removed those checkpoint docs from the active planning indexes,
+  - and retargeted the surviving continuation and revisit references to the archive paths.
+- Documentation cleanup:
   - archived the completed generation-pipeline rebuild Phase 1 and Phase 2 docs under `docs/archive/planning/`,
   - removed those completed checkpoint docs from the active planning indexes,
   - and retargeted the surviving ADR and planning references to the archive paths.

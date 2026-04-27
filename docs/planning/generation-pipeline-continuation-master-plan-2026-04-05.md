@@ -284,5 +284,5 @@ Stop the overall job when:
 6. `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
 7. `docs/sops/sop_generation_recovery_diagnostics.md`
 8. `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
-9. `docs/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md`
+9. `docs/archive/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md`
 10. `docs/planning/generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`

@@ -157,15 +157,20 @@ export default async function handler(
     .map((value) => value?.trim() ?? null)
     .filter((value): value is string => Boolean(value));
 
-  const isAuthorized =
-    expectedSecrets.length > 0 &&
-    expectedSecrets.some((expectedSecret) => {
-      const headerMatches =
-        providedHeaderSecret !== null && secureCompare(providedHeaderSecret, expectedSecret);
-      const bearerMatches =
-        providedBearerToken !== null && secureCompare(providedBearerToken, expectedSecret);
-      return headerMatches || bearerMatches;
+  if (expectedSecrets.length === 0) {
+    return res.status(503).json({
+      error: "Derivative worker misconfigured",
+      details: "Missing cron secret configuration",
     });
+  }
+
+  const isAuthorized = expectedSecrets.some((expectedSecret) => {
+    const headerMatches =
+      providedHeaderSecret !== null && secureCompare(providedHeaderSecret, expectedSecret);
+    const bearerMatches =
+      providedBearerToken !== null && secureCompare(providedBearerToken, expectedSecret);
+    return headerMatches || bearerMatches;
+  });
 
   if (!isAuthorized) {
     return res.status(401).json({ error: "Unauthorized" });

@@ -98,6 +98,25 @@ describe("POST /api/internal/media-derivatives/run", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Unauthorized" });
   });
 
+  it("returns a misconfiguration error when enabled without any cron secret", async () => {
+    delete process.env.SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET;
+    delete process.env.CRON_SECRET;
+
+    const req = {
+      method: "POST",
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Derivative worker misconfigured",
+      details: "Missing cron secret configuration",
+    });
+  });
+
   it("claims and processes derivatives", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({ rpc: supabase.rpc });

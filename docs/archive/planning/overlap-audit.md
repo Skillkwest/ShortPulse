@@ -1,5 +1,7 @@
 # Overlap And Conflict Audit
 
+> Archived on 2026-04-27 during docs cleanup because this governance-baseline overlap register is complete and the remaining active governance work lives in `docs/planning/master-rollout-proposal.md`, `docs/planning/implementation-tracker.md`, and `docs/planning/final-validation-summary.md`.
+
 Date: 2026-02-20
 Status: complete
 Authority: Working
@@ -29,6 +31,6 @@ Owner: Engineering
 
 ## Traceability
 
-- Source mapping: `docs/planning/_inventory.md`
-- Feasibility dependencies: `docs/planning/feasibility-report.md`
+- Source mapping: `docs/archive/planning/_inventory.md`
+- Feasibility dependencies: `docs/archive/planning/feasibility-report.md`
 - Stage execution contracts: `docs/planning/stages/stage-*.md`

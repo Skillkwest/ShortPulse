@@ -9,6 +9,9 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 
 ## Contents
 - `docs/archive/planning/ai-studio-character-mode-injection-plan.md`
+- `docs/archive/planning/_inventory.md`
+- `docs/archive/planning/overlap-audit.md`
+- `docs/archive/planning/feasibility-report.md`
 - `docs/archive/planning/ai-studio-elements-library-component-state-map-2026-04-06.md`
 - `docs/archive/planning/ai-studio-elements-library-decoupling-lane-1-primitives-and-host-contract-2026-04-09.md`
 - `docs/archive/planning/ai-studio-elements-library-decoupling-lane-2-dom-contract-dual-wire-2026-04-09.md`

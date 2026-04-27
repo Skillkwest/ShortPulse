@@ -28,10 +28,10 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 ## Stage Sequence
 | Stage | Purpose | Primary Outputs | Depends On | Exit Gate |
 | --- | --- | --- | --- | --- |
-| STG-00 | Governance contract lock | `_inventory.md` seed, decision register, check-name registry | None | Decision lock approved |
-| STG-01 | Inventory + overlap audit | `_inventory.md`, `overlap-audit.md` | STG-00 | Conflict resolutions locked |
+| STG-00 | Governance contract lock | `docs/archive/planning/_inventory.md` seed, decision register, check-name registry | None | Decision lock approved |
+| STG-01 | Inventory + overlap audit | `docs/archive/planning/_inventory.md`, `docs/archive/planning/overlap-audit.md` | STG-00 | Conflict resolutions locked |
 | STG-02 | SQL/RPC security hardening | `028` migration + rollback + SQL evidence | STG-01 | SQL security/correctness pass |
-| STG-03 | Schema/runtime/docs parity | `feasibility-report.md`, parity doc updates | STG-02 | Zero parity drift |
+| STG-03 | Schema/runtime/docs parity | `docs/archive/planning/feasibility-report.md`, parity doc updates | STG-02 | Zero parity drift |
 | STG-04 | KEI compatibility decommission | tombstones, replacement tests, then deletion | STG-03 | Compatibility + coverage gates pass |
 | STG-05 | Structural modularization | hotspot splits + architecture evidence | STG-03 | No behavior regressions |
 | STG-06 | CI/policy-as-code enforcement | `ci-policy-checks.md`, drift scripts, CI wiring | STG-04 | New checks active |
@@ -43,7 +43,7 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 ### STG-00 Governance Contract Lock
 - Scope: freeze authoritative rules, ownership, and control vocabulary.
 - Artifacts:
-- `docs/planning/_inventory.md`
+- `docs/archive/planning/_inventory.md`
 - `docs/planning/implementation-tracker.md`
 - `docs/planning/ci-policy-checks.md` (initial registry section)
 - Tasks:
@@ -59,8 +59,8 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 ### STG-01 Plan Inventory And Overlap Audit
 - Scope: formal source traceability and conflict register.
 - Artifacts:
-- `docs/planning/_inventory.md`
-- `docs/planning/overlap-audit.md`
+- `docs/archive/planning/_inventory.md`
+- `docs/archive/planning/overlap-audit.md`
 - Tasks:
 - Catalog Foundational, KIE, Governance, and Modularization plans with Source IDs.
 - Add risk register with severity, impact, mitigation, owner, due gate.
@@ -102,7 +102,7 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 ### STG-03 Schema/Runtime/Docs Parity
 - Scope: eliminate code-doc-schema drift.
 - Artifacts:
-- `docs/planning/feasibility-report.md`
+- `docs/archive/planning/feasibility-report.md`
 - `docs/database-migrations.md`
 - `docs/sops/sop_sql_migration_operations.md`
 - `docs/data-dictionary.md`

@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the completed governance-baseline packet (`_inventory`, `overlap-audit`, and `feasibility-report`) under `docs/archive/planning/`,
+  - removed those completed baseline docs from the active planning indexes,
+  - and retargeted the remaining active governance docs and stage docs to the archive paths.
+- Documentation cleanup:
   - normalized the older planning governance/control entrypoint docs onto the canonical status vocabulary,
   - marked the completed baseline artifacts explicitly as `complete`,
   - and marked the still-live governance surfaces as `active` with the unfinished final signoff summary as `draft`.

@@ -1,5 +1,7 @@
 # Plan Inventory
 
+> Archived on 2026-04-27 during docs cleanup because this governance-baseline inventory is complete and the remaining active governance work lives in `docs/planning/master-rollout-proposal.md`, `docs/planning/implementation-tracker.md`, and `docs/planning/final-validation-summary.md`.
+
 Date: 2026-02-20
 Status: complete
 Authority: Working

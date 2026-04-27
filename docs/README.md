@@ -181,9 +181,6 @@ Start here for all repository documentation.
 - `docs/planning/shortpulse-unified-overlap-matrix.md`
 - `docs/planning/shortpulse-unified-decision-log.md`
 - `docs/planning/migration-number-reservation-map.md`
-- `docs/planning/_inventory.md`
-- `docs/planning/overlap-audit.md`
-- `docs/planning/feasibility-report.md`
 - `docs/planning/implementation-tracker.md`
 - `docs/planning/ci-policy-checks.md`
 - `docs/planning/trunk-safety-contract.md`

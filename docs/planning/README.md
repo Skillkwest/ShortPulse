@@ -8,9 +8,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `docs/planning/evidence/` remains the retained evidence namespace during the current cleanup transition, but it is not part of the primary reading path through active planning.
 
 ## Contents
-- `_inventory.md`: source inventory, decision locks, and traceability map for the governance realignment program.
-- `overlap-audit.md`: conflict/risk register with severity and resolution mapping across plan sources.
-- `feasibility-report.md`: rollout critical path, blockers, and dependency gating analysis.
 - `master-rollout-proposal.md`: canonical staged rollout contract (`STG-00` through `STG-08`).
 - `shortpulse-unified-buildout-master-plan.md`: unified multi-track execution plan (`Phase 00` through `Phase 13`) covering security, runtime hardening, modularization, billing/admin, provider migration, and cross-plan consolidation.
 - `shortpulse-unified-buildout-tracker.md`: authoritative status tracker for unified phase progression and exit gates.

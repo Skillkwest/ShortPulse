@@ -9,8 +9,8 @@ Capture plan sources and resolve overlap/conflict risks with explicit traceabili
 - [x] Conflict resolutions mapped to future stages.
 
 ## Verification
-- `test -f docs/planning/overlap-audit.md`
-- `rg -n "R-00" docs/planning/overlap-audit.md`
+- `test -f docs/archive/planning/overlap-audit.md`
+- `rg -n "R-00" docs/archive/planning/overlap-audit.md`
 
 ## Owners and validators
 - Owner: Engineering
@@ -20,5 +20,5 @@ Capture plan sources and resolve overlap/conflict risks with explicit traceabili
 - Every conflict has a locked resolution and target stage.
 
 ## Evidence
-- `docs/planning/_inventory.md`
-- `docs/planning/overlap-audit.md`
+- `docs/archive/planning/_inventory.md`
+- `docs/archive/planning/overlap-audit.md`

@@ -10,7 +10,7 @@ Lock decision-critical governance assumptions before implementation phases proce
 - [x] Define controlled archive exception for verbatim source preservation.
 
 ## Verification
-- `test -f docs/planning/_inventory.md`
+- `test -f docs/archive/planning/_inventory.md`
 - `test -f docs/planning/ci-policy-checks.md`
 
 ## Owners and validators
@@ -21,5 +21,5 @@ Lock decision-critical governance assumptions before implementation phases proce
 - Decision lock set has zero unresolved conflicts.
 
 ## Evidence
-- `docs/planning/_inventory.md`
+- `docs/archive/planning/_inventory.md`
 - `docs/planning/ci-policy-checks.md`

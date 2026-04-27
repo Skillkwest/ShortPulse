@@ -2,7 +2,12 @@
  * Media Library custom-folder canvas snapshot contracts and adapters.
  */
 import { CANVAS_DEFAULT_CAMERA } from "../components/canvas/canvasGeometry";
-import type { CanvasCamera, CanvasSceneItem } from "../components/canvas/canvasTypes";
+import type {
+  CanvasCamera,
+  CanvasImageItem,
+  CanvasSceneItem,
+  CanvasTextItem,
+} from "../components/canvas/canvasTypes";
 import { resolveMediaCardAspectRatio } from "./mediaLibraryAspectRatio";
 import type { MediaFileRow, PromptRow } from "./mediaLibraryModalModel";
 
@@ -45,6 +50,8 @@ export type MediaFolderCanvasSnapshotV1 = {
   camera: CanvasCamera;
   items: FolderCanvasSnapshotItem[];
 };
+
+type FolderCanvasSceneItem = CanvasImageItem | CanvasTextItem;
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -158,7 +165,10 @@ const toCanvasSceneItem = (item: FolderCanvasSnapshotItem): CanvasSceneItem | nu
   };
 };
 
-const toSnapshotItem = (item: CanvasSceneItem): FolderCanvasSnapshotItem => {
+const isFolderCanvasSceneItem = (item: CanvasSceneItem): item is FolderCanvasSceneItem =>
+  item.kind === "image" || item.kind === "text";
+
+const toSnapshotItem = (item: FolderCanvasSceneItem): FolderCanvasSnapshotItem => {
   if (item.kind === "image") {
     return {
       id: item.id,
@@ -256,7 +266,7 @@ export const buildMediaFolderCanvasSnapshot = ({
 }): MediaFolderCanvasSnapshotV1 => ({
   schemaVersion: MEDIA_FOLDER_CANVAS_SCHEMA_VERSION,
   camera: normalizeCamera(camera),
-  items: items.map((item) => toSnapshotItem(item)),
+  items: items.filter(isFolderCanvasSceneItem).map((item) => toSnapshotItem(item)),
 });
 
 export const buildSeedItemsForFolderCanvas = ({
@@ -351,6 +361,9 @@ export const reconcileFolderMembershipCanvasItems = ({
           src,
           alt: (row.filename || item.alt).trim(),
         };
+      }
+      if (item.kind === "audio") {
+        return item;
       }
       const promptId = getPromptIdFromCanvasOutputId(item.outputId);
       if (!promptId) return item;

@@ -4,6 +4,7 @@
  */
 import { useCallback, useMemo, useState } from "react";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
+import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { AiStudioSessionRestoreSource } from "../logic/sessionRestoreCandidate";
 import { persistAiStudioSessionShadow } from "../logic/sessionShadowPersistence";
@@ -26,6 +27,7 @@ type UseAiStudioSessionPersistenceControllerParams = {
   hydrateFromSessionAgentSnapshot: (
     payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
   ) => void;
+  hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
@@ -91,6 +93,7 @@ export const useAiStudioSessionPersistenceController = ({
   sessionTitleOverride,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
+  hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   onPersistenceWarning,
 }: UseAiStudioSessionPersistenceControllerParams): AiStudioSessionPersistenceController => {
@@ -118,6 +121,7 @@ export const useAiStudioSessionPersistenceController = ({
     sessionRestoreCandidate,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     skipApplyForSessionId: skipRestoreApplyForSessionId,
   });

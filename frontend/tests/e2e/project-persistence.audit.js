@@ -1,4 +1,4 @@
-/* global require, process, console, __dirname, window, document, HTMLElement */
+/* global require, process, console, __dirname, window, document, fetch, URL, HTMLImageElement, HTMLVideoElement */
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Project persistence browser audit.

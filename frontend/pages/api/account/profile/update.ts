@@ -2,10 +2,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import {
   normalizeDisplayNameInput,
   updateSupabaseAuthUser,
-} from "../../../lib/server/api/accountIdentity";
-import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { requireApiUser } from "../../../lib/server/api/auth";
-import { syncStripeCustomerForUser } from "../../../lib/server/api/stripeCustomer";
+} from "../../../../lib/server/api/accountIdentity";
+import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { requireApiUser } from "../../../../lib/server/api/auth";
+import { syncStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
 
 type ProfileUpdateResponse = {
   displayName: string;

@@ -627,6 +627,7 @@ export function MediaLibraryFolderCanvas({
         });
         return;
       }
+      if (item.kind !== "text") return;
       const promptId = getPromptIdFromCanvasOutputId(item.outputId);
       const promptRow = promptId ? promptById.get(promptId) : null;
       const text = item.text.trim();
@@ -695,6 +696,10 @@ export function MediaLibraryFolderCanvas({
           previewKind: mediaRow && isVideoFile(mediaRow.file_type) ? "video" : "image",
         });
       } else {
+        if (item.kind !== "text") {
+          event.preventDefault();
+          return;
+        }
         const promptId = getPromptIdFromCanvasOutputId(item.outputId);
         const promptText = item.text.trim();
         if (!promptText) {

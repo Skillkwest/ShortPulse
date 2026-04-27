@@ -548,11 +548,14 @@ export const useAiStudioWorkflowSettings = ({
     previousWorkflowSettingsKeyRef.current = activeWorkflowSettingsKey;
     if (previous === activeWorkflowSettingsKey) return;
 
-    let snapshot = workflowSettingsRef.current[activeWorkflowSettingsKey];
-    if (!snapshot) {
+    const existingSnapshot = workflowSettingsRef.current[activeWorkflowSettingsKey];
+    let snapshot: WorkflowSettingsSnapshot;
+    if (!existingSnapshot) {
       const defaults = resolveDefaultWorkflowSettingsForKey();
       snapshot = cloneWorkflowSettingsSnapshot(defaults, defaults);
       workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
+    } else {
+      snapshot = existingSnapshot;
     }
     const inMemoryKlingElements = (
       inMemoryKlingElementsRef.current[activeWorkflowSettingsKey] ?? []

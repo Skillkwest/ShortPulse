@@ -126,7 +126,9 @@ export const resolveAiStudioKlingElementTokens = (
 export const resolveAiStudioKlingElementToken = (
   element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind">,
   index: number,
-  allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind">>
+  allElements?: Array<
+    Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind"> | null | undefined
+  >
 ): string => {
   if (!allElements) {
     return deriveAiStudioKlingElementBaseToken(element, index);
@@ -150,7 +152,9 @@ export const resolveKieKlingElementTokens = (
 export const resolveKieKlingElementToken = (
   element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">,
   index: number,
-  _allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">>
+  _allElements?: Array<
+    Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex"> | null | undefined
+  >
 ): string => {
   return buildCanonicalKieKlingElementToken(element.slotIndex ?? index);
 };
@@ -175,7 +179,9 @@ export const resolveLegacyKieKlingElementTokens = (
 export const resolveLegacyKieKlingElementToken = (
   element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">,
   index: number,
-  allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">>
+  allElements?: Array<
+    Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex"> | null | undefined
+  >
 ): string => {
   if (!allElements) {
     return (
@@ -193,7 +199,9 @@ export const resolveLegacyKieKlingElementToken = (
 export const resolveAiStudioKlingElementLegacyTokens = (
   element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">,
   index: number,
-  allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">>
+  allElements?: Array<
+    Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex"> | null | undefined
+  >
 ): string[] => {
   const candidates = [
     resolveAiStudioKlingElementToken(element, index, allElements).trim(),
@@ -207,7 +215,9 @@ export const resolveAiStudioKlingElementLegacyTokens = (
 export const resolveAiStudioKlingElementDisplayLabel = (
   element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">,
   index: number,
-  allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">>
+  allElements?: Array<
+    Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex"> | null | undefined
+  >
 ): string => {
   const name = element.name?.trim();
   if (name) return name;

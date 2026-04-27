@@ -36,7 +36,10 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 5. Invalid tokens are highlighted in warning red.
 6. Invalid-token warning feedback is deferred until Generate is attempted.
 7. Generate is blocked when invalid token references exist.
-8. Standard edit lanes include only secondary references explicitly linked by valid `@img1..@img3` tokens in provider `image_urls`; the primary image is always present as the first reference and `@main` resolves to that primary figure.
+8. Standard and Markup edit lanes always include the primary image first. Secondary reference behavior is lane-aware:
+   - when one or more valid `@img1..@img3` tokens are linked, only those linked secondary refs are included in provider `image_urls`;
+   - when no valid secondary token is linked, all populated secondary reference slots are included as ambient edit context.
+   - `@main` still resolves to the primary figure and does not by itself suppress the no-linked-secondary fallback.
 9. Inpaint has two explicit contracts:
    - default FLUX Fill inpaint supports `@main` only because `fal-ai/flux-pro/v1/fill` receives only the flattened base image plus mask.
    - reference-aware inpaint allows `@main` plus exactly one unique secondary token and routes to `fal-ai/flux-kontext-lora/inpaint` with `image_url + mask_url + reference_image_url`.
@@ -102,7 +105,9 @@ Normalization rules:
    - reveal inline invalid-token message below prompt.
 3. If valid:
    - continue flatten flow.
-   - build `referenceInputs` with flattened primary first and only token-linked secondary slots next.
+   - build `referenceInputs` with flattened primary first, optional markup composite second, and resolved secondary refs after that.
+   - for Standard/Markup with no valid secondary links, resolved secondary refs are all populated secondary slots.
+   - for Standard/Markup with one or more valid secondary links, resolved secondary refs are only the linked secondary slots.
    - compile provider-facing prompt when token references exist.
 4. Inpaint preflight is lane-aware:
    - default FLUX Fill lane: `@main` remains valid, `@img1..@img3` are blocked before flatten/submit/debit, and submit sends only the prepared base image plus prepared mask.
@@ -123,8 +128,9 @@ Output:
   - `Treat all secondary references as edits to Figure 1 unless explicitly overridden.`
 
 If no tokens are present:
-- submit behavior remains unchanged.
+- submit behavior keeps the raw prompt unchanged.
 - no token compilation block is appended.
+- Standard/Markup still include populated secondary references in the payload when available.
 
 If tokens exist but are invalid:
 - compile function returns display prompt unchanged.
@@ -191,6 +197,8 @@ Minimum suite coverage:
    - picker `Enter` inserts the selected token and closes the picker.
    - ordinary typing after picker open closes the picker and preserves manual text entry.
    - token generate path sends both display/submission prompt overrides.
+   - Standard/Markup generate without linked `@imgN` sends all populated secondary refs.
+   - Standard/Markup generate with linked `@imgN` keeps linked-only secondary refs in the payload.
    - default inpaint picker limits token choices to `@main`.
    - reference inpaint picker exposes populated secondary refs when the flag is enabled.
    - default inpaint generate blocks secondary tokens with the lane-specific error.

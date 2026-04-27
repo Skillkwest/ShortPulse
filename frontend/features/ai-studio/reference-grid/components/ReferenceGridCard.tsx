@@ -187,7 +187,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const shouldRenderImageElement = Boolean(
     (isImagePreview && cardPreviewUrl) || hasPosterBackedVideoPreview
   );
-  const shouldRenderAudioElement = Boolean(isAudioPreview && cardPreviewUrl);
+  const audioPreviewUrl = isAudioPreview ? (cardPreviewUrl?.trim() ?? "") : "";
+  const shouldRenderAudioElement = Boolean(audioPreviewUrl);
   const primaryImageSrc = hasPosterBackedVideoPreview
     ? (resolvedVideoPosterUrl ?? undefined)
     : imageSrc;
@@ -341,7 +342,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       {shouldRenderAudioElement ? (
         <ReferenceAudioPlayer
           audioId={item.id}
-          audioUrl={cardPreviewUrl}
+          audioUrl={audioPreviewUrl}
           durationMs={item.durationMs ?? null}
           waveformPeaks={item.waveformPeaks ?? null}
           playLabel="Play audio preview"

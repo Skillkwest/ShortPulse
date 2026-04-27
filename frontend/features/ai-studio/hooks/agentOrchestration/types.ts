@@ -54,6 +54,7 @@ export type UseAiStudioAgentOrchestrationParams = {
     response: unknown;
     actions: AgentActions | undefined;
     workflowSession?: AgentPulseWorkflowSession | null;
+    discarded?: boolean;
   }>;
   appendUserMessage: (text: string, attachments?: AgentAttachment[]) => string | null;
   updateMessageById: (

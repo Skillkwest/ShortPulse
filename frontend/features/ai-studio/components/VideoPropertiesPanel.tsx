@@ -725,17 +725,20 @@ export function VideoPropertiesPanel({
   );
   const klingPromptAttachedSlots = React.useMemo(
     () =>
-      populatedKlingPromptTokenSlotIndexes.map((slotIndex) => ({
-        token: klingElementCanonicalPromptTokens[slotIndex] ?? "",
-        legacyAliases: selectedKlingElements[slotIndex]
-          ? resolveAiStudioKlingElementLegacyTokens(
-              selectedKlingElements[slotIndex],
-              slotIndex,
-              selectedKlingElements
-            )
-          : [],
-        sourceKind: selectedKlingElements[slotIndex]?.sourceKind ?? null,
-      })),
+      populatedKlingPromptTokenSlotIndexes.map((slotIndex) => {
+        const selectedElement = selectedKlingElements[slotIndex];
+        return {
+          token: klingElementCanonicalPromptTokens[slotIndex] ?? "",
+          legacyAliases: selectedElement
+            ? resolveAiStudioKlingElementLegacyTokens(
+                selectedElement,
+                slotIndex,
+                selectedKlingElements
+              )
+            : [],
+          sourceKind: selectedElement?.sourceKind ?? null,
+        };
+      }),
     [klingElementCanonicalPromptTokens, populatedKlingPromptTokenSlotIndexes, selectedKlingElements]
   );
   const primaryPromptPlaceholder =

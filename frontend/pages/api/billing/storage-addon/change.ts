@@ -347,10 +347,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         "new uploads may be blocked until usage drops.",
     });
   } catch (error) {
-    await logApiRouteException("billing.storage-addon.change", error, {
-      userId: user.id,
-      storageAddonId,
-      action,
+    await logApiRouteException({
+      error,
+      routeLabel: "billing.storage-addon.change",
+      user,
+      metadata: {
+        storageAddonId,
+        action,
+      },
     });
     return res.status(500).json({
       error:

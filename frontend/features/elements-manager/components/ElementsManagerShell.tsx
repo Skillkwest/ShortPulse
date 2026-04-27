@@ -9,6 +9,7 @@ import {
   extractInternalReferenceDragPayload,
   hasInternalReferenceDragTypeHints,
 } from "../../../lib/internalReferenceDragPayload";
+import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryDragPayload";
 import { uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
 import { useElementsManagerViewState } from "../hooks/useElementsManagerViewState";
 import { ElementsDescriptionEditorCard } from "./ElementsDescriptionEditorCard";
@@ -53,6 +54,7 @@ export function ElementsManagerShell({
     onRequestDeleteElement,
     onCancelDeleteElement,
     onConfirmDeleteElement,
+    reportSaveElementRequired,
   } = useElementsManagerViewState({
     resolveProfileImageDropSource,
   });
@@ -70,16 +72,24 @@ export function ElementsManagerShell({
   }, [externalCreateRequestKey, onCreateElement]);
 
   const canAcceptSheetDrop = React.useCallback(
-    (transfer: DataTransfer | null | undefined): boolean =>
-      Boolean(
-        transfer &&
-        !hasUnsavedElementDraft &&
-        ((draft.assetType === "image" &&
-          Array.from(transfer.files ?? []).some((file) => file.type.startsWith("image/"))) ||
-          extractInternalReferenceDragPayload(transfer) ||
-          hasInternalReferenceDragTypeHints(transfer))
-      ),
-    [draft.assetType, hasUnsavedElementDraft]
+    (transfer: DataTransfer | null | undefined): boolean => {
+      if (!transfer) return false;
+      const libraryPayload = readMediaLibraryDragPayload(transfer);
+      const canAcceptLibraryMedia =
+        libraryPayload?.kind === "libraryMedia" &&
+        ((draft.assetType === "image" && libraryPayload.payload.fileType === "image") ||
+          (draft.assetType === "video" && libraryPayload.payload.fileType === "video"));
+      const canAcceptLocalImageFile =
+        draft.assetType === "image" &&
+        Array.from(transfer.files ?? []).some((file) => file.type.startsWith("image/"));
+      return Boolean(
+        canAcceptLocalImageFile ||
+        canAcceptLibraryMedia ||
+        extractInternalReferenceDragPayload(transfer) ||
+        hasInternalReferenceDragTypeHints(transfer)
+      );
+    },
+    [draft.assetType]
   );
 
   const resolveDroppedReferenceUrl = React.useCallback(
@@ -96,6 +106,29 @@ export function ElementsManagerShell({
         } finally {
           URL.revokeObjectURL(localObjectUrl);
         }
+      }
+
+      const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+      if (mediaLibraryPayload?.kind === "libraryMedia") {
+        if (
+          (draft.assetType === "image" && mediaLibraryPayload.payload.fileType !== "image") ||
+          (draft.assetType === "video" && mediaLibraryPayload.payload.fileType !== "video")
+        ) {
+          return null;
+        }
+        const mediaLibraryUrl =
+          mediaLibraryPayload.payload.fullUrl?.trim() ||
+          mediaLibraryPayload.payload.url?.trim() ||
+          mediaLibraryPayload.payload.previewUrl?.trim() ||
+          null;
+        if (!mediaLibraryUrl) return null;
+        if (
+          draft.assetType === "image" &&
+          (mediaLibraryUrl.startsWith("blob:") || mediaLibraryUrl.startsWith("data:image/"))
+        ) {
+          return await uploadImageToStorage(mediaLibraryUrl);
+        }
+        return mediaLibraryUrl;
       }
 
       const payload = extractInternalReferenceDragPayload(transfer);
@@ -167,6 +200,10 @@ export function ElementsManagerShell({
       if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
       setActiveSheetDropIndex(null);
+      if (hasUnsavedElementDraft) {
+        reportSaveElementRequired();
+        return;
+      }
       void resolveDroppedReferenceUrl(event.dataTransfer).then((droppedReferenceUrl) => {
         if (!droppedReferenceUrl) return;
         if (draft.assetType === "video") {
@@ -181,6 +218,8 @@ export function ElementsManagerShell({
       assignActiveVideoReference,
       canAcceptSheetDrop,
       draft.assetType,
+      hasUnsavedElementDraft,
+      reportSaveElementRequired,
       resolveDroppedReferenceUrl,
     ]
   );

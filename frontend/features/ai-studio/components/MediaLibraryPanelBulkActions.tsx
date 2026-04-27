@@ -45,15 +45,17 @@ export function MediaLibraryPanelBulkActions({
           <X size={14} weight="bold" aria-hidden />
           <span>Clear</span>
         </button>
-        <button
-          type="button"
-          className="media-library-panel-bulk-btn"
-          onClick={onMoveToFolder}
-          disabled={disabled || !canMoveToFolder}
-        >
-          <ArrowsClockwise size={14} weight="bold" aria-hidden />
-          <span>Move to folder</span>
-        </button>
+        {canMoveToFolder ? (
+          <button
+            type="button"
+            className="media-library-panel-bulk-btn"
+            onClick={onMoveToFolder}
+            disabled={disabled}
+          >
+            <ArrowsClockwise size={14} weight="bold" aria-hidden />
+            <span>Move to folder</span>
+          </button>
+        ) : null}
         {canRemoveFromFolder ? (
           <button
             type="button"

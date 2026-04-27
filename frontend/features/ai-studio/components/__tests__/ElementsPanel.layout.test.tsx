@@ -20,6 +20,7 @@ const elementsManagerPersistenceMockState = vi.hoisted(() => {
     "https://example.com/reference/red-lantern-02.jpg",
   ];
   const makeSnapshot = (overrides?: Partial<Record<string, unknown>>) => ({
+    userId: "user-1",
     elementId: "element-red-lantern",
     name: "Red Lantern",
     alias: "redlantern",
@@ -86,6 +87,7 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
       profileImageTransform,
     }) => {
       const snapshot = {
+        userId: "user-1",
         elementId: "element-new-element",
         name,
         alias: deriveElementAliasFromName(name),
@@ -220,6 +222,35 @@ const addInternalReferenceDragPayload = (
   }
 };
 
+const addMediaLibraryDragPayload = (
+  transfer: ReturnType<typeof createDataTransfer>,
+  options?: {
+    id?: string;
+    url?: string;
+    fileType?: "image" | "video" | "audio";
+    filename?: string;
+    originFolderId?: string;
+  }
+) => {
+  const payload = {
+    kind: "libraryMedia" as const,
+    source: "mediaLibrary" as const,
+    payload: {
+      id: options?.id ?? "media-library-1",
+      url: options?.url ?? "https://example.com/library-drop.png",
+      fileType: options?.fileType ?? "image",
+      originFolderId: options?.originFolderId ?? "all_items",
+      filename: options?.filename ?? "library-drop.png",
+      promptText: "A saved media item",
+      previewUrl: options?.url ?? "https://example.com/library-drop.png",
+      fullUrl: options?.url ?? "https://example.com/library-drop.png",
+    },
+  };
+  const serialized = JSON.stringify(payload);
+  transfer.setData("application/x-shortpulse-media-library-item", serialized);
+  transfer.setData("text/x-shortpulse-media-library-item", serialized);
+};
+
 const waitForElementEditor = async (options?: { timeout?: number }) => {
   const timeout = options?.timeout ?? 2000;
   const editor = await screen.findByLabelText("Element editor", undefined, { timeout });
@@ -258,7 +289,13 @@ describe("ElementsPanel layout", () => {
       .map((node) => node.getAttribute("data-layout-region"))
       .filter((value): value is string => Boolean(value));
     expect(regions).toEqual([]);
-    expect(container!.querySelector(".elements-panel-root > .elements-manager-shell")).toBeTruthy();
+    expect(
+      container!.querySelector(".elements-panel-root > .elements-panel-split-host")
+    ).toBeTruthy();
+    expect(
+      container!.querySelector(".elements-panel-top-section > .elements-manager-shell")
+    ).toBeTruthy();
+    expect(container!.querySelector(".elements-panel-bottom-section")).toBeTruthy();
     expect(container!.querySelector(".elements-manager-shell--panel")).toBeTruthy();
     expect(container!.querySelector(".character-manager-page")).toBeNull();
     expect(container!.querySelector(".character-manager-page--embedded")).toBeNull();
@@ -273,6 +310,11 @@ describe("ElementsPanel layout", () => {
     expect(screen.queryByRole("heading", { name: "Element Sheet" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save Element" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+ Create" })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "All Media type tabs" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /expand media library panel/i })
+    ).not.toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Edit element: Red Lantern" })).toBeInTheDocument();
     });
@@ -368,6 +410,7 @@ describe("ElementsPanel layout", () => {
       },
     ];
     elementsManagerPersistenceMockState.snapshots.set("element-blue-comet", {
+      userId: "user-1",
       elementId: "element-blue-comet",
       name: "Blue Comet",
       alias: "bluecomet",
@@ -594,5 +637,48 @@ describe("ElementsPanel layout", () => {
       );
     });
     expect(uploadImageToStorage).toHaveBeenCalledWith("blob:element-reference-local-file");
+  });
+
+  it("accepts a media-library drag into an explicit image reference slot", async () => {
+    render(<ElementsPanel />);
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Edit element: Red Lantern",
+      })
+    );
+    await waitForElementEditor();
+
+    const supportAngleZone = screen.getByText("Secondary Angle").closest("article");
+    if (!supportAngleZone) {
+      throw new Error("Expected secondary-angle drop zone to exist.");
+    }
+
+    const libraryDrag = createDataTransfer();
+    addMediaLibraryDragPayload(libraryDrag, {
+      url: "https://example.com/library-drop.png",
+      fileType: "image",
+    });
+
+    fireEvent.dragEnter(supportAngleZone, { dataTransfer: libraryDrag });
+    fireEvent.dragOver(supportAngleZone, { dataTransfer: libraryDrag });
+    fireEvent.drop(supportAngleZone, { dataTransfer: libraryDrag });
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Secondary Angle reference")).toHaveAttribute(
+        "src",
+        "https://example.com/library-drop.png"
+      );
+    });
+  });
+
+  it("does not show the media paginator when the embedded library is on the prompts tab", async () => {
+    render(<ElementsPanel />);
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Prompts" }));
+
+    expect(
+      screen.queryByTestId("media-library-panel-root-media-paginator")
+    ).not.toBeInTheDocument();
   });
 });

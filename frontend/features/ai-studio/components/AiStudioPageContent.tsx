@@ -1337,10 +1337,17 @@ export function AiStudioPageContent({
     () => (
       <ElementsPanel
         createRequestKey={elementCreateRequestKey}
+        projectId={projectId}
+        resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         resolveProfileImageDropSource={resolveElementProfileImageDropSource}
       />
     ),
-    [elementCreateRequestKey, resolveElementProfileImageDropSource]
+    [
+      elementCreateRequestKey,
+      projectId,
+      resolveElementProfileImageDropSource,
+      resolveMediaLibraryInternalDropItem,
+    ]
   );
   const stylesPropertiesPanelContent = React.useMemo(
     () => (

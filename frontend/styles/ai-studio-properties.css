@@ -171,8 +171,8 @@
 }
 
 .ai-properties {
-  --ai-properties-rail-enter-duration: 180ms;
-  --ai-properties-rail-exit-duration: 60ms;
+  --ai-properties-rail-enter-duration: 220ms;
+  --ai-properties-rail-exit-duration: 140ms;
   --ai-properties-rail-transition-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
   padding: 16px;
   max-height: var(--ai-shell-column-max-height, 100%);
@@ -185,6 +185,9 @@
 }
 
 .ai-properties[data-panel-transition="enter"] {
+  animation-duration: var(--ai-properties-rail-enter-duration);
+  animation-fill-mode: both;
+  animation-timing-function: var(--ai-properties-rail-transition-easing);
   will-change: opacity, transform;
 }
 
@@ -217,7 +220,7 @@
 @keyframes ai-properties-rail-enter-a {
   from {
     opacity: 0;
-    transform: translate3d(0, 4px, 0);
+    transform: translate3d(12px, 0, 0);
   }
 
   to {
@@ -229,7 +232,7 @@
 @keyframes ai-properties-rail-enter-b {
   from {
     opacity: 0;
-    transform: translate3d(0, 4px, 0);
+    transform: translate3d(12px, 0, 0);
   }
 
   to {
@@ -246,7 +249,7 @@
 
   to {
     opacity: 0;
-    transform: translate3d(0, -4px, 0);
+    transform: translate3d(-12px, 0, 0);
   }
 }
 

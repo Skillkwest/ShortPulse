@@ -6,8 +6,34 @@ import React from "react";
 import type { ToolId } from "../types";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
 
-const AI_PROPERTIES_RAIL_ENTER_TRANSITION_MS = 180;
-const AI_PROPERTIES_RAIL_EXIT_TRANSITION_MS = 60;
+const AI_PROPERTIES_RAIL_EXIT_TRANSITION_MS_FALLBACK = 120;
+
+const parseCssDurationToMs = (value: string, fallbackMs: number): number => {
+  const normalizedValue = value.trim().toLowerCase();
+  if (!normalizedValue) return fallbackMs;
+  if (normalizedValue.endsWith("ms")) {
+    const parsedValue = Number.parseFloat(normalizedValue.slice(0, -2));
+    return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : fallbackMs;
+  }
+  if (normalizedValue.endsWith("s")) {
+    const parsedValue = Number.parseFloat(normalizedValue.slice(0, -1));
+    return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue * 1000 : fallbackMs;
+  }
+  const parsedValue = Number.parseFloat(normalizedValue);
+  return Number.isFinite(parsedValue) && parsedValue >= 0 ? parsedValue : fallbackMs;
+};
+
+const readRailTransitionDurationMs = (
+  railNode: HTMLElement | null,
+  cssVariableName: "--ai-properties-rail-enter-duration" | "--ai-properties-rail-exit-duration",
+  fallbackMs: number
+): number => {
+  if (!railNode || typeof window === "undefined") return fallbackMs;
+  return parseCssDurationToMs(
+    window.getComputedStyle(railNode).getPropertyValue(cssVariableName),
+    fallbackMs
+  );
+};
 
 type AiStudioPropertiesRailProps = {
   selectedTool: ToolId | null;
@@ -78,6 +104,11 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
     clearExitTimeout();
 
     if (renderedPanel) {
+      const exitDurationMs = readRailTransitionDurationMs(
+        leftColumnRef.current,
+        "--ai-properties-rail-exit-duration",
+        AI_PROPERTIES_RAIL_EXIT_TRANSITION_MS_FALLBACK
+      );
       setExitingPanel(renderedPanel);
       setRenderedPanel(null);
       clearExitTimeoutRef.current = window.setTimeout(() => {
@@ -96,7 +127,7 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
           setEnterAnimationName(null);
         }
         clearExitTimeoutRef.current = null;
-      }, AI_PROPERTIES_RAIL_EXIT_TRANSITION_MS);
+      }, exitDurationMs);
       return;
     }
 
@@ -125,12 +156,9 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
       data-panel-transition={enterAnimationName ? "enter" : undefined}
       style={
         enterAnimationName
-          ? {
-              animationDuration: `${AI_PROPERTIES_RAIL_ENTER_TRANSITION_MS}ms`,
-              animationFillMode: "both",
+          ? ({
               animationName: enterAnimationName,
-              animationTimingFunction: "cubic-bezier(0.22, 0.61, 0.36, 1)",
-            }
+            } as React.CSSProperties)
           : undefined
       }
     >

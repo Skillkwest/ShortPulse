@@ -115,10 +115,9 @@ describe("useMediaTabDataController", () => {
     );
   });
 
-  it("syncs active cache rows when visible rows mutate", () => {
+  it("syncs active cache rows directly from the visible media rows", () => {
     const { result } = renderHook(() => {
       const [files, setFiles] = useState<Row[]>([
-        makeRow({ id: "dog", filename: "dog.png", storage_path: "user-1/images/dog.png" }),
         makeRow({ id: "cat", filename: "cat.png", storage_path: "user-1/images/cat.png" }),
       ]);
       const [prompts, setPrompts] = useState<Prompt[]>([]);
@@ -184,7 +183,7 @@ describe("useMediaTabDataController", () => {
       ]);
     });
 
-    expect(result.current.files.map((row) => row.id)).toEqual(["dog", "cat", "new"]);
+    expect(result.current.files.map((row) => row.id)).toEqual(["cat", "new"]);
     expect(result.current.mediaTabCache.uploaded_images.rows.map((row) => row.id)).toEqual([
       "cat",
       "new",

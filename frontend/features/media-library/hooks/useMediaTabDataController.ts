@@ -158,24 +158,17 @@ export const useMediaTabDataController = <
   const syncActiveMediaCacheRows = useCallback(
     (rows: TRow[]) => {
       if (!activeMediaTab) return;
-      const queryTerm = activeMediaQuery.toLowerCase();
       setMediaTabCache((prev) => ({
         ...prev,
         [activeMediaTab]: {
           ...prev[activeMediaTab],
-          rows: rows.filter((row) => {
-            if (getMediaDataTabForRow(row) !== activeMediaTab) return false;
-            if (!queryTerm) return true;
-            const name = row.filename?.toLowerCase() ?? "";
-            const path = row.storage_path?.toLowerCase() ?? "";
-            return name.includes(queryTerm) || path.includes(queryTerm);
-          }),
+          rows,
           loadedAtMs: Date.now(),
           loaded: true,
         },
       }));
     },
-    [activeMediaQuery, activeMediaTab, setMediaTabCache]
+    [activeMediaTab, setMediaTabCache]
   );
 
   const updateVisibleRows = useCallback(

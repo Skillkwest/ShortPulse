@@ -9,7 +9,8 @@ Purpose: define the documentation information architecture, ownership rules, and
 - `docs/product/`: product/domain source-of-truth documents.
 - `docs/planning/`: active plans, backlogs, and stabilization tracks only.
   - `docs/planning/policies/`: machine-checkable policy artifacts for planning/governance enforcement.
-  - `docs/planning/evidence/`: retained evidence namespaces and packet records for phase gates, promote/hold/rollback decisions, and closeout signoff. During the current cleanup transition, keep this namespace out of the primary reading path even while the evidence files remain preserved here.
+  - `docs/planning/evidence/`: temporary physical location for retained evidence namespaces during the current cleanup transition; keep this namespace out of the primary reading path.
+- `docs/records/`: retained records/evidence governance entrypoint and target namespace for evidence packets, templates, and raw artifacts.
 - `docs/adr/`: durable architecture decisions.
 - `docs/agents/`: agent workflow helpers and execution guard aids.
 - `docs/design/`: design rationale used by implementation.
@@ -25,7 +26,11 @@ Purpose: define the documentation information architecture, ownership rules, and
 - Planning docs and backlogs under `docs/planning/`.
 - Standalone operational system docs under `mini-ecosystem/` (separate entity with no runtime activation by default).
 
-3. Historical:
+3. Records:
+- Files retained for evidence, validation history, rollback context, and raw artifact preservation.
+- Records support active docs but do not replace them as current truth.
+
+4. Historical:
 - Files in `docs/archive/` and `docs/brainstorming/`.
 - Historical docs are non-authoritative for naming/terminology canonicalization unless explicitly designated by a migration plan.
 
@@ -37,6 +42,11 @@ Purpose: define the documentation information architecture, ownership rules, and
 Working-doc metadata:
 - Active planning docs should use the normalized status vocabulary: `draft`, `active`, `complete`, `superseded`, or `archived`.
 - Docs marked `superseded`, `complete`, `historical`, `temporary`, `dormant`, or `reference only` do not belong in active planning indexes.
+
+Records policy:
+- Use `docs/records/README.md` as the retained-records entrypoint.
+- Prefer namespace indexes and summary packets over raw payload links in top-level reading paths.
+- Raw logs, JSON exports, and other machine-generated artifacts belong in the records model, not the active planning reading path.
 
 Archive requirements:
 - Move superseded docs into `docs/archive/` (use subfolders like `docs/archive/planning/`, `docs/archive/sops/`, and `docs/archive/product/` when helpful).
@@ -50,6 +60,7 @@ A docs cleanup is complete when all are true:
 - Every doc is in the correct category folder.
 - `docs/README.md` and any section README indexes are updated.
 - `docs/planning/` contains only genuinely active working docs.
+- The top-level reading path points readers to records entrypoints instead of raw retained evidence payloads.
 - Cross-doc links point to existing files.
 - Durable decisions are captured in ADRs, not only planning docs.
 - Superseded docs are moved to `docs/archive/` and no longer treated as source of truth.
@@ -71,3 +82,4 @@ Covered after this cleanup:
 Remaining improvement opportunities:
 - Add explicit owner/review cadence metadata for high-churn docs.
 - Extend docs-index drift checks to cover `docs/agents/` and `docs/planning/policies/` inventories explicitly.
+- Migrate retained evidence physically from `docs/planning/evidence/` into the `docs/records/` namespace in indexed batches.

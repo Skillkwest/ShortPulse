@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - introduced `docs/records/README.md` as the retained-records policy entrypoint and target namespace contract for future evidence migration,
+  - updated docs governance to distinguish current truth from retained records,
+  - and trimmed the top-level docs/planning indexes so evidence discoverability now routes through records and namespace indexes instead of raw packet inventories.
+- Documentation cleanup:
   - archived the completed properties-panels modularization program and tracker under `docs/archive/planning/`,
   - removed that closed packet from the active planning indexes,
   - and retargeted the surviving ADR reference to the archive path.

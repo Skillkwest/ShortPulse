@@ -9,7 +9,8 @@ Start here for all repository documentation.
 - Product/domain docs live in `docs/product/`.
 - Active planning docs live in `docs/planning/`.
 - Archived planning docs live in `docs/archive/planning/`.
-- Planning evidence remains preserved under `docs/planning/evidence/` during the current cleanup transition, but it is not part of the primary reading path.
+- Records/evidence governance lives in `docs/records/`.
+- Planning evidence remains physically preserved under `docs/planning/evidence/` during the current cleanup transition, but `docs/records/README.md` is the primary entrypoint and raw evidence is not part of the main reading path.
 - Standalone operational system docs live in `mini-ecosystem/` at repo root.
 - Durable architecture decisions live in `docs/adr/`.
 - Agent workflow helpers live in `docs/agents/`.
@@ -348,45 +349,12 @@ Start here for all repository documentation.
 - `docs/planning/media-optimization-schema-and-migration-spec.md`
 - `docs/planning/tooling-audit-2026-02-16.md`
 - `docs/planning/stages/unified-phase-13-cross-plan-master-rollout.md`
-- `docs/planning/evidence/ai-studio-reference-grid-reliability/README.md`
-- `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`
-- `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md`
-- `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md`
-- `docs/planning/evidence/reference-grid-modularization/README.md`
-- `docs/planning/evidence/reference-grid-modularization/phase-report-template.md`
-- `docs/planning/evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`
-- `docs/planning/evidence/ai-studio-expert-edit/README.md`
-- `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp004-baseline-matrix.md`
-- `docs/planning/evidence/ai-studio-expert-edit/2026-03-20-cp004-gap-inventory.md`
-- `docs/planning/evidence/ai-studio-expert-edit/coordinate-parity-evidence-template.md`
-- `docs/planning/evidence/ai-studio-expert-edit/coordinate-parity-rollout-decision-log-2026-03-20.md`
-- `docs/planning/evidence/style-adherence/README.md`
-- `docs/planning/evidence/style-adherence/style-adherence-run-template.md`
-- `docs/planning/evidence/lane-a/README.md`
-- `docs/planning/evidence/lane-b/README.md`
-- `docs/planning/evidence/lane-c/README.md`
-- `docs/planning/evidence/lane-d/README.md`
-- `docs/planning/evidence/lane-e/README.md`
-- `docs/planning/evidence/lane-f/README.md`
-- `docs/planning/evidence/generation-pipeline-hardening/README.md`
-- `docs/planning/evidence/media-library-runtime-rebuild/README.md`
-- `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`
-- `docs/planning/evidence/agent-pipeline-remediation/README.md`
-- `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-1/README.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-2/README.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-3/README.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-4/README.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-4/rollout-checklist-template.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-4/ring-decision-log-template.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-4/stabilization-window-report-template.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-4/operational-handoff-template.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-4/phase-4-closeout-report-template.md`
-- `docs/planning/evidence/media-rendering-hardening-v2/README.md`
-- `docs/planning/evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`
-- `docs/planning/evidence/unified-buildout/phase-13/README.md`
-- `docs/planning/evidence/unified-buildout/phase-13/research-checkpoints.md`
 - `docs/change_log.md`
+
+## Records And Evidence
+- `docs/records/README.md`
+- `docs/planning/evidence/README.md` (transition-era physical evidence index; use through the records contract, not as part of the main reading path)
+- `docs/planning/archive/original-plans/manifest.json` (controlled checksum-backed source-plan exception)
 
 ## ADRs
 - `docs/adr/README.md`

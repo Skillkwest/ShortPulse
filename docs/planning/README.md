@@ -6,6 +6,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - This index is for active planning and current execution backlogs only.
 - Superseded, completed, historical, dormant, or reference-only planning docs belong in `docs/archive/planning/`.
 - `docs/planning/evidence/` remains the retained evidence namespace during the current cleanup transition, but it is not part of the primary reading path through active planning.
+- `docs/records/README.md` is the policy entrypoint for retained records and the target namespace for future evidence migration.
 
 ## Contents
 - `master-rollout-proposal.md`: canonical staged rollout contract (`STG-00` through `STG-08`).
@@ -210,56 +211,24 @@ Purpose: active planning artifacts and current execution backlogs.
 - `tooling-audit-2026-02-16.md`: comprehensive tooling and framework audit with prioritized recommendations for masonry layout, image optimization, DnD, toasts, lightbox, date formatting, state management, and schema validation.
 - `stages/stage-00-governance-contract-lock.md` through `stages/stage-08-final-validation-signoff.md`: decision-complete stage execution docs.
 - `stages/unified-phase-00-baseline-stabilization-and-incident-hygiene.md` through `stages/unified-phase-13-cross-plan-master-rollout.md`: decision-complete execution docs for the unified build-out program.
-- `evidence/unified-buildout/README.md`: canonical evidence index for unified phase validation and targeted research notes.
-- `evidence/unified-buildout/phase-13/README.md`: phase-13 evidence index for wave-by-wave validation and rollback records.
-- `evidence/unified-buildout/phase-13/research-checkpoints.md`: required targeted research checkpoints before externally coupled implementation slices.
 - `archive/original-plans/manifest.json`: machine-checkable inventory for verbatim source-plan preservation.
 - `archive/original-plans/shortpulse-governance-realignment-master-rollout-plan-2026-02-20.md`: verbatim archived source copy of the master rollout plan text.
 - `archive/original-plans/plan-01-foundational-cleanup.md`: verbatim source-plan archive copy.
 - `archive/original-plans/plan-02-kei-removal-v2.md`: verbatim source-plan archive copy.
 - `archive/original-plans/plan-03-doc-governance-realignment-v2.md`: verbatim source-plan archive copy.
 - `archive/original-plans/plan-04-decoupling-modularization-audited.md`: verbatim source-plan archive copy.
-- `evidence/reference-grid-modularization/README.md`: canonical evidence index and phase evidence folder structure for the reference-grid foundation program.
-- `evidence/reference-grid-modularization/phase-report-template.md`: standardized phase closeout template for scope/tests/perf/regression/rollback evidence.
-- `evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`: standardized naming-canonicalization evidence template for every execution slice.
-- `evidence/ai-studio-expert-edit/README.md`: evidence index for Expert Edit, including coordinate-parity baseline/canary/closeout artifacts.
-- `evidence/ai-studio-expert-edit/2026-03-20-cp004-baseline-matrix.md`: CP-004 baseline evidence packet capturing validated preflight results and remaining matrix coverage gaps before Phase 1 implementation.
-- `evidence/ai-studio-expert-edit/2026-03-20-cp004-gap-inventory.md`: repo-backed CP-004 gap inventory mapping existing automated coverage to unresolved baseline closure blockers.
-- `evidence/ai-studio-expert-edit/coordinate-parity-evidence-template.md`: reusable evidence packet template for `CP-004` through `CP-503`.
-- `evidence/ai-studio-expert-edit/coordinate-parity-rollout-decision-log-2026-03-20.md`: baseline/canary/production decision log for coordinate-parity rollout governance.
-- `evidence/style-adherence/README.md`: evidence index for model-family style adherence evaluations.
-- `evidence/style-adherence/style-adherence-run-template.md`: reusable run packet template for style adherence diagnostics and regression decisions.
-- `evidence/lane-a/README.md`: evidence packet schema and naming contract for Lane A gate-recovery/governance slices.
-- `evidence/lane-b/README.md`: evidence packet schema and naming contract for Lane B modularization slices.
-- `evidence/lane-c/README.md`: evidence packet schema and naming contract for Lane C regression-armor slices.
-- `evidence/lane-d/README.md`: evidence packet schema and naming contract for Lane D runtime safety and stability slices.
-- `evidence/lane-e/README.md`: evidence packet schema and naming contract for Lane E docs/ADR governance slices.
-- `evidence/lane-f/README.md`: evidence packet schema and naming contract for Lane F CI/release governance slices.
-- `evidence/generation-pipeline-hardening/README.md`: evidence packet schema and naming contract for Track P1 generation-pipeline hardening slices.
-- `evidence/media-library-runtime-rebuild/README.md`: evidence packet schema and closeout rule for Media Library runtime rebuild slices.
-- `evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`: initial characterization and freeze-repro baseline packet for `MLR-0-S2`.
-- `evidence/media-rendering-hardening-v2/README.md`: evidence index and packet naming contract for media rendering hardening v2 slices.
-- `evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`: reusable evidence packet template for media rendering hardening v2 slices.
-- `evidence/agent-pipeline-remediation/README.md`: evidence index and packet minimums for the AI Studio agent pipeline regression remediation program.
-- `evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`: Phase 1 dependency signoff packet (`M-01`, `M-02`, `M-08`, `M-09`) with waiver and carry-forward records.
-- `evidence/agent-pipeline-remediation/phase-1/README.md`: phase-specific evidence packet contract for OpenAI-only Phase 1 remediation validation.
-- `evidence/agent-pipeline-remediation/phase-2/README.md`: phase-specific evidence packet contract for OpenAI-only Phase 2 prompt quality and continuity validation.
-- `evidence/agent-pipeline-remediation/phase-3/README.md`: phase-specific evidence packet contract for OpenAI-only Phase 3 operational hardening and rollout guardrails.
-- `evidence/agent-pipeline-remediation/phase-4/README.md`: phase-specific evidence packet contract for OpenAI-only Phase 4 production activation and closeout validation.
-- `evidence/agent-pipeline-remediation/phase-4/rollout-checklist-template.md`: reusable checklist for launch readiness, ring plan, and preflight gate signoff.
-- `evidence/agent-pipeline-remediation/phase-4/ring-decision-log-template.md`: reusable per-ring promote/hold/rollback decision record with threshold comparisons.
-- `evidence/agent-pipeline-remediation/phase-4/stabilization-window-report-template.md`: reusable stabilization report for post-rollout metric deltas and SLO outcomes.
-- `evidence/agent-pipeline-remediation/phase-4/operational-handoff-template.md`: reusable operations handoff packet for dashboards, alerts, ownership, and escalation.
-- `evidence/agent-pipeline-remediation/phase-4/phase-4-closeout-report-template.md`: reusable final closeout report tying exit criteria to evidence.
+
+## Retained Records
+- `docs/records/README.md`: retained-records policy, target namespace shape, and reader workflow.
+- `evidence/README.md`: current physical planning-evidence index during the transition to the records namespace.
+- `evidence/unified-buildout/README.md`: canonical evidence namespace index for the unified build-out program.
+- `evidence/reference-grid-modularization/README.md`: canonical evidence namespace index for the reference-grid modularization program.
 - `evidence/ai-studio-reference-grid-reliability/README.md`: evidence namespace index and packet requirements for Reference Grid reliability slices.
-- `evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md`: seed evidence packet for `RGR-M01` defect inventory lock.
-- `evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-entry-baseline-packet.md`: implementation-entry baseline packet that closes blocker `RGR-B01` / gate `RGR-G03`.
-- `evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md`: `implementation_ready` kickoff packet that initializes `P0-S1` and marks `RGR-M02`..`RGR-M04` in progress.
-- `evidence/README.md`: top-level planning evidence index, including lane-specific evidence namespaces.
 
 ## Maintenance
 - Keep plans actionable and current.
 - Move obsolete plans to `docs/archive/planning/` when superseded.
 - Controlled exception: user-provided source-plan evidence remains under `docs/planning/archive/original-plans/` per `docs/documentation_overview.md`.
+- Route retained evidence discoverability through `docs/records/README.md` and namespace READMEs instead of adding raw packet inventories to the active reading path.
 - Superseded UX-0 partial baseline report moved to `docs/archive/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md`.
 - Log notable plan outcomes in `docs/change_log.md`.

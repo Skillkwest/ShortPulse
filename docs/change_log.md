@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - normalized the media-planning packet onto the canonical status vocabulary,
+  - marking the media optimization proposal/spec docs and the Media Library redesign lane as `draft`,
+  - so those retained planning docs no longer depend on legacy `Proposed` or `Ready to implement` labels.
+- Documentation cleanup:
   - normalized the active naming-canonicalization planning packet onto the canonical status vocabulary,
   - lowercasing the live program/map/Phase 7 statuses to `active`,
   - and adding the missing `Status: active` headers to the naming tracker and immutable decision log.

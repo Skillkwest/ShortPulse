@@ -1,6 +1,6 @@
 # Media Library UI Redesign Plan (2026-03-28)
 
-Status: Ready to implement  
+Status: draft  
 Owner: Frontend Engineering  
 Scope: `/media-library`, AI Studio Media Library modal, AI Studio Media Library panel  
 Depends on: completed Media Library runtime rebuild

@@ -1,6 +1,6 @@
 # Media Library + Reference Grid Optimization Plan
 
-Status: Proposed (planning only, no implementation in this pass)  
+Status: draft  
 Date: February 12, 2026  
 Owners: Frontend + Platform
 

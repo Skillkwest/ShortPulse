@@ -1,6 +1,6 @@
 # Media Optimization Phase 0 Measurement Spec
 
-Status: Proposed  
+Status: draft  
 Date: February 12, 2026  
 Scope: Media Library route, AI Studio Media Library modal, AI Studio Reference Grid
 
@@ -114,4 +114,3 @@ Per environment/profile:
 - Baseline report with charts/tables.
 - Approved gate thresholds for implementation phases.
 - Instrumentation checklist mapped to each surface.
-

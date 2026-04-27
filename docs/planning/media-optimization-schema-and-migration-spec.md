@@ -1,6 +1,6 @@
 # Media Optimization Schema and Migration Spec
 
-Status: Proposed  
+Status: draft  
 Date: February 12, 2026  
 Scope: Supabase schema/storage changes required for derivative-first media delivery
 

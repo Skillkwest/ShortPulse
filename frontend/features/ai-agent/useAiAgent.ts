@@ -58,10 +58,10 @@ export const useAiAgent = ({
   const messagesRef = useRef<AgentMessage[]>(initialMessages);
   const clientSessionKeyRef = useRef<string>();
   const sessionIdentityRef = useRef<string | null>(null);
+  const canonicalPromptBySessionIdentityRef = useRef<Map<string, string | null>>(new Map());
   if (!clientSessionKeyRef.current) {
     clientSessionKeyRef.current = ensureSessionKey(sessionNamespace, conversationId);
   }
-  const canonicalPromptRef = useRef<string | null>(null);
 
   useLayoutEffect(() => {
     const identity = `${sessionNamespace}::${conversationId?.trim() ?? ""}`;
@@ -70,7 +70,6 @@ export const useAiAgent = ({
     if (previousIdentity && previousIdentity !== identity) {
       setMessages([]);
       messagesRef.current = [];
-      canonicalPromptRef.current = null;
       setError(null);
       setIsSending(false);
     }
@@ -135,6 +134,8 @@ export const useAiAgent = ({
       }
 
       const previousMessages = isolateHistory ? EMPTY_MESSAGES : messagesRef.current;
+      const requestCanonicalPrompt =
+        canonicalPromptBySessionIdentityRef.current.get(requestSessionIdentity) ?? null;
       if (!skipUserEcho && !allowContextOnlyTurn) {
         // UI-visible history (keep the user's raw text)
         const uiUserMessage: AgentMessage = {
@@ -171,7 +172,7 @@ export const useAiAgent = ({
           enabled: isClientInputPrecheckEnabled(),
           messages: apiMessages,
           context: precheckContext,
-          canonicalPrompt: canonicalPromptRef.current,
+          canonicalPrompt: requestCanonicalPrompt,
           modality: resolveClientSafetyModality(safeContext),
           profileId: resolveClientSafetyProfileId(),
           environment: resolveSafetyEnvironment(process.env.NODE_ENV),
@@ -357,9 +358,15 @@ export const useAiAgent = ({
             : null;
 
         if (data?.canonicalPrompt) {
-          canonicalPromptRef.current = sanitizeGenerationPromptText(data.canonicalPrompt);
+          canonicalPromptBySessionIdentityRef.current.set(
+            requestSessionIdentity,
+            sanitizeGenerationPromptText(data.canonicalPrompt)
+          );
         } else if (actions?.applyPrompt) {
-          canonicalPromptRef.current = sanitizeGenerationPromptText(actions.applyPrompt ?? null);
+          canonicalPromptBySessionIdentityRef.current.set(
+            requestSessionIdentity,
+            sanitizeGenerationPromptText(actions.applyPrompt ?? null)
+          );
         }
 
         // The agent’s role here is to refine/iterate prompts. Always surface the refined prompt in the chat thread.
@@ -404,13 +411,15 @@ export const useAiAgent = ({
   );
 
   const reset = useCallback(() => {
+    const currentSessionIdentity =
+      sessionIdentityRef.current ?? `${sessionNamespace}::${conversationId?.trim() ?? ""}`;
     setMessages([]);
     messagesRef.current = [];
-    canonicalPromptRef.current = null;
+    canonicalPromptBySessionIdentityRef.current.delete(currentSessionIdentity);
     clientSessionKeyRef.current = randomId();
     persistSessionKey(sessionNamespace, clientSessionKeyRef.current);
     setError(null);
-  }, [sessionNamespace]);
+  }, [conversationId, sessionNamespace]);
 
   const updateMessageById = useCallback(
     (messageId: string, updater: (message: AgentMessage) => AgentMessage) => {

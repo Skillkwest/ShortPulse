@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the completed Elements decoupling packet plus the compact right-rail scope/tracker/readiness packet,
+  - moved those closeout docs out of `docs/planning/` into `docs/archive/planning/`,
+  - and refreshed archive indexes/descriptions so the archive surface matches the current repo state.
+- Documentation cleanup:
   - locked the docs-governance cleanup contract so `docs/planning/` is treated as active-working space and archived planning docs no longer belong in active indexes,
   - archived the first wave of self-declared historical planning docs for Elements, Projects, and right-rail execution history,
   - removed obvious junk artifacts from canonical docs space,

@@ -3,8 +3,10 @@
 Last updated: 2026-04-10  
 Status: Completed  
 Owner: Engineering  
-Roadmap anchor: `docs/planning/ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`  
-Tracker anchor: `docs/planning/ai-studio-elements-library-decoupling-tracker-2026-04-09.md`
+Roadmap anchor: `docs/archive/planning/ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`  
+Tracker anchor: `docs/archive/planning/ai-studio-elements-library-decoupling-tracker-2026-04-09.md`
+
+> Archived on 2026-04-26 during the docs-cleanup wave. This lane is completed and no longer belongs in active planning.
 
 ## Goal
 Introduce Elements-owned root selectors, cluster selectors, and required data-attribute contracts in parallel with the current Character-derived ones so Lane 3 can move style ownership safely.

@@ -51,10 +51,14 @@ type ExpertCreatePanelViewProps = {
   expertCreateMode?: ExpertCreateMode;
   onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
   activePulsePresetId?: CreatePulsePresetId | null;
+  hasActivePulseSession?: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
-  onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
+  onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => string | null | void;
   onPulsePresetStart?: (
-    preset: CreatePulseResolvedPreset
+    preset: CreatePulseResolvedPreset,
+    options?: {
+      pulseSessionInstanceId?: string | null;
+    }
   ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
   isPulseActivationBusy?: boolean;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
@@ -99,6 +103,7 @@ export function ExpertCreatePanelView({
   expertCreateMode,
   onExpertCreateModeChange,
   activePulsePresetId,
+  hasActivePulseSession = Boolean(activePulsePresetId),
   pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
@@ -118,7 +123,7 @@ export function ExpertCreatePanelView({
   const [isPulseRailMounted, setIsPulseRailMounted] = React.useState(false);
   const [isPulseRailActive, setIsPulseRailActive] = React.useState(false);
   const createMode = expertCreateMode ?? uncontrolledCreateMode;
-  const isActivePulseSession = createMode === "pulse" && Boolean(activePulsePresetId);
+  const isActivePulseSession = createMode === "pulse" && hasActivePulseSession;
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
   // Preserve the authored empty-shell layout until real transcript history exists.
   // Draft input, dropped references, pending Pulse state, and activation-in-progress must not

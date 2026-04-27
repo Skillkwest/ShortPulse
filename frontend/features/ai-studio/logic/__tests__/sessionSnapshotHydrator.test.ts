@@ -120,6 +120,7 @@ describe("sessionSnapshotHydrator", () => {
 
     expect(payload.workspace.expertCreateMode).toBe("pulse");
     expect(payload.workspace.activePulsePresetId).toBe("single_shot");
+    expect(payload.workspace.pulseSessionInstanceId).toMatch(/^pulse_restore_/);
     expect(payload.workspace.standardPrompt).toBe("");
     expect(payload.workspace.pulsePrompt).toBe("prompt");
     expect(payload.workspace.prompt).toBe("prompt");
@@ -211,7 +212,86 @@ describe("sessionSnapshotHydrator", () => {
 
     expect(payload.workspace.expertCreateMode).toBe("pulse");
     expect(payload.workspace.activePulsePresetId).toBe("story_builder");
+    expect(payload.workspace.pulseSessionInstanceId).toMatch(/^pulse_restore_/);
     expect(payload.agentRuntimes.pulsePresetId).toBe("story_builder");
+  });
+
+  it("forces Pulse runtime chat mode on during hydration", () => {
+    const payload = buildAiStudioSessionHydrationPayload({
+      ...createSnapshot(),
+      schemaVersion: 2,
+      meta: {
+        generatedAt: createSnapshot().updatedAt,
+        checksum: "test-checksum",
+      },
+      workspace: {
+        ...createSnapshot().workspace,
+        expertCreateMode: "pulse",
+        activePulsePresetId: "story_builder",
+      },
+      agentRuntimes: {
+        standard: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: "story_builder",
+        pulse: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    } as AiStudioSessionSnapshot);
+
+    expect(payload.agentRuntimes.standard.chatModeEnabled).toBe(false);
+    expect(payload.agentRuntimes.pulse.chatModeEnabled).toBe(true);
+    expect(payload.agent.chatModeEnabled).toBe(true);
+  });
+
+  it("does not seed Pulse runtime from Standard legacy agent state during a Standard-first restore", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          expertCreateMode: "standard",
+          activePulsePresetId: "story_builder",
+        },
+        agent: {
+          messages: [
+            {
+              id: "assistant-1",
+              role: "assistant",
+              content: "Standard agent reply",
+            },
+          ],
+          input: "standard draft",
+          latestAgentPrompt: "Standard agent reply",
+          promptOrigin: "agent",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+      })
+    );
+
+    expect(payload.workspace.activePulsePresetId).toBeNull();
+    expect(payload.workspace.pulseSessionInstanceId).toBeNull();
+    expect(payload.agent.messages).toEqual([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: "Standard agent reply",
+      },
+    ]);
+    expect(payload.agentRuntimes.pulse.messages).toEqual([]);
+    expect(payload.agentRuntimes.pulse.input).toBe("");
+    expect(payload.agentRuntimes.pulse.latestAgentPrompt).toBeNull();
   });
 
   it("hydrates selected character workspace state when present", () => {
@@ -230,6 +310,11 @@ describe("sessionSnapshotHydrator", () => {
   it("hydrates pulse workflow session state", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          expertCreateMode: "pulse",
+          activePulsePresetId: "story_builder",
+        },
         agent: {
           ...createSnapshot().agent,
           pulseWorkflowSession: {

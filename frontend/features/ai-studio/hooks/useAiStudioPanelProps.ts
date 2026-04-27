@@ -51,6 +51,7 @@ export type UseAiStudioPanelPropsParams = {
   agentMessages: AgentMessage[];
   agentActions?: AgentActions;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  hasActivePulseSession?: boolean;
   agentInput: string;
   chatModeEnabled: boolean;
   directOpenAiBypassEnabled: boolean;
@@ -143,9 +144,14 @@ export type UseAiStudioPanelPropsParams = {
   expertCreateMode?: "standard" | "pulse";
   onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
   activeCreatePulsePresetId?: CreatePulsePresetId | null;
-  onActiveCreatePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
+  onActiveCreatePulsePresetIdChange?: (
+    presetId: CreatePulsePresetId | null
+  ) => string | null | void;
   onCreatePulsePresetStart?: (
-    preset: CreatePulseResolvedPreset
+    preset: CreatePulseResolvedPreset,
+    options?: {
+      pulseSessionInstanceId?: string | null;
+    }
   ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
   onCreatePulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   expertEditSessionState?: ExpertEditSessionState | null;
@@ -249,6 +255,7 @@ export const useAiStudioPanelProps = ({
   agentMessages,
   agentActions,
   pulseWorkflowSession = null,
+  hasActivePulseSession = false,
   agentInput,
   chatModeEnabled,
   directOpenAiBypassEnabled,
@@ -511,6 +518,7 @@ export const useAiStudioPanelProps = ({
       savedPulsePresets: savedCreatePulsePresets,
       onSavedPulsePresetsChange: onSavedCreatePulsePresetsChange,
       expertCreateMode,
+      hasActivePulseSession,
       onExpertCreateModeChange,
       activePulsePresetId: activeCreatePulsePresetId,
       onActivePulsePresetIdChange: onActiveCreatePulsePresetIdChange,
@@ -561,6 +569,7 @@ export const useAiStudioPanelProps = ({
       handleChatOffInlineGenerate,
       handlePrimarySubmit,
       handleRemoveAgentAttachment,
+      hasActivePulseSession,
       hasSufficientCreditsForPromptReferenceGenerate,
       imageResolution,
       activeCreatePulsePresetId,

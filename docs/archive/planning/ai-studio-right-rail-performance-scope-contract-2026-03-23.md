@@ -3,7 +3,9 @@
 Last updated: 2026-03-24  
 Status: Completed (`scope done`)  
 Owner: AI Studio Engineering  
-Companion tracker: `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`
+Companion tracker: `docs/archive/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`
+
+> Archived on 2026-04-26 during the docs-cleanup wave. This closeout packet is completed and no longer belongs in active planning.
 
 ## Purpose
 Define the exact scope, stop rules, and done state for the current AI Studio right-rail performance effort so implementation stays high-value and does not drift into patchwork.

@@ -40,31 +40,49 @@ const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAc
 
 const createBridgeParams = (
   overrides: Partial<Parameters<typeof useAiStudioAgentBridge>[0]> = {}
-): Parameters<typeof useAiStudioAgentBridge>[0] => ({
-  sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
-  mode: "text",
-  selectedTool: "create",
-  expertCreateMode: "standard",
-  activePulsePresetId: null,
-  prompt: "",
-  setSharedPrompt: vi.fn(),
-  getAgentContext: vi.fn(() => ({})),
-  addAgentPromptReference: vi.fn(),
-  editReferenceText: "",
-  setEditReferenceText: vi.fn(),
-  videoReferenceText: "",
-  setVideoReferenceText: vi.fn(),
-  findOutputById: vi.fn(() => null),
-  resolvePanelOutputPreviewUrl: vi.fn(() => null),
-  aspect: "1:1",
-  model: null,
-  setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
-  setActiveOutputId: asDispatch<string | null>(vi.fn()),
-  setUiNotice: asDispatch<string | null>(vi.fn()),
-  setPulseWorkflowSession: asDispatch(vi.fn()),
-  trackAgentUiEvent: vi.fn(),
-  ...overrides,
-});
+): Parameters<typeof useAiStudioAgentBridge>[0] => {
+  const baseParams: Parameters<typeof useAiStudioAgentBridge>[0] = {
+    sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+    mode: "text",
+    selectedTool: "create",
+    expertCreateMode: "standard",
+    activePulsePresetId: null,
+    pulseSessionInstanceId: null,
+    prompt: "",
+    setSharedPrompt: vi.fn(),
+    getAgentContext: vi.fn(() => ({})),
+    addAgentPromptReference: vi.fn(),
+    editReferenceText: "",
+    setEditReferenceText: vi.fn(),
+    videoReferenceText: "",
+    setVideoReferenceText: vi.fn(),
+    findOutputById: vi.fn(() => null),
+    resolvePanelOutputPreviewUrl: vi.fn(() => null),
+    aspect: "1:1",
+    model: null,
+    setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+    setActiveOutputId: asDispatch<string | null>(vi.fn()),
+    setUiNotice: asDispatch<string | null>(vi.fn()),
+    setPulseWorkflowSession: asDispatch(vi.fn()),
+    trackAgentUiEvent: vi.fn(),
+  };
+  const merged = {
+    ...baseParams,
+    ...overrides,
+  };
+
+  return {
+    ...merged,
+    pulseSessionInstanceId: Object.prototype.hasOwnProperty.call(
+      overrides,
+      "pulseSessionInstanceId"
+    )
+      ? (overrides.pulseSessionInstanceId ?? null)
+      : merged.activePulsePresetId
+        ? "pulse-session-1"
+        : null,
+  };
+};
 
 describe("useAiStudioAgentBridge", () => {
   beforeEach(() => {
@@ -375,6 +393,7 @@ describe("useAiStudioAgentBridge", () => {
     });
 
     const base = createBridgeParams({ sessionId: null });
+    const initialProps: { sessionId: string | null } = { sessionId: null };
     const { result, rerender } = renderHook(
       ({ sessionId }: { sessionId: string | null }) =>
         useAiStudioAgentBridge({
@@ -382,7 +401,7 @@ describe("useAiStudioAgentBridge", () => {
           sessionId,
         }),
       {
-        initialProps: { sessionId: null },
+        initialProps,
       }
     );
 
@@ -578,23 +597,37 @@ describe("useAiStudioAgentBridge", () => {
     const bridgeModeProps: {
       expertCreateMode: "standard" | "pulse";
       activePulsePresetId: string | null;
+      pulseSessionInstanceId: string | null;
     } = {
       expertCreateMode: "standard",
       activePulsePresetId: null,
+      pulseSessionInstanceId: null,
     };
 
+    const initialRuntimeProps: {
+      expertCreateMode: "standard" | "pulse";
+      activePulsePresetId: string | null;
+      pulseSessionInstanceId: string | null;
+    } = {
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+    };
     const { result, rerender } = renderHook(
       ({
         expertCreateMode,
         activePulsePresetId,
+        pulseSessionInstanceId,
       }: {
         expertCreateMode: "standard" | "pulse";
         activePulsePresetId: string | null;
+        pulseSessionInstanceId: string | null;
       }) =>
         useAiStudioAgentBridge({
           ...base,
           expertCreateMode,
           activePulsePresetId,
+          pulseSessionInstanceId,
         }),
       {
         initialProps: bridgeModeProps,
@@ -623,13 +656,16 @@ describe("useAiStudioAgentBridge", () => {
     rerender({
       expertCreateMode: "pulse" as const,
       activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
     });
 
-    expect(useAiAgentMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        sessionNamespace: "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a::pulse:story_builder",
-      })
-    );
+    expect(
+      useAiAgentMock.mock.calls.some(
+        ([params]) =>
+          (params as { sessionNamespace?: string }).sessionNamespace ===
+          "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a::pulse:story_builder:pulse-session-1"
+      )
+    ).toBe(true);
     expect(result.current.latestAgentPrompt).toBeNull();
     expect(result.current.promptOrigin).toBe("manual");
     expect(result.current.agentActions).toBeUndefined();
@@ -646,14 +682,17 @@ describe("useAiStudioAgentBridge", () => {
 
     rerender({
       expertCreateMode: "standard" as const,
-      activePulsePresetId: null,
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
     });
 
-    expect(useAiAgentMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        sessionNamespace: "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
-      })
-    );
+    expect(
+      useAiAgentMock.mock.calls.some(
+        ([params]) =>
+          (params as { sessionNamespace?: string }).sessionNamespace ===
+          "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard"
+      )
+    ).toBe(true);
     expect(result.current.latestAgentPrompt).toBe("Standard prompt");
     expect(result.current.promptOrigin).toBe("agent");
     expect(result.current.agentActions).toEqual({ applyPrompt: "Standard prompt" });
@@ -967,6 +1006,13 @@ describe("useAiStudioAgentBridge", () => {
       };
     });
 
+    const initialRuntimeProps: {
+      expertCreateMode: "standard" | "pulse";
+      activePulsePresetId: string | null;
+    } = {
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+    };
     const { result, rerender } = renderHook(
       ({
         expertCreateMode,
@@ -982,10 +1028,7 @@ describe("useAiStudioAgentBridge", () => {
           })
         ),
       {
-        initialProps: {
-          expertCreateMode: "standard" as const,
-          activePulsePresetId: null,
-        },
+        initialProps: initialRuntimeProps,
       }
     );
 
@@ -1134,6 +1177,7 @@ describe("useAiStudioAgentBridge", () => {
         memoryPolicy: "session",
         isBuiltIn: true,
         isEditable: true,
+        hasUserOverride: false,
         isCustom: false,
       });
     });
@@ -1205,14 +1249,22 @@ describe("useAiStudioAgentBridge", () => {
       activePulsePresetId: "story_builder",
     });
     const { result, rerender } = renderHook(
-      ({ activePulsePresetId }: { activePulsePresetId: string | null }) =>
+      ({
+        activePulsePresetId,
+        pulseSessionInstanceId,
+      }: {
+        activePulsePresetId: string | null;
+        pulseSessionInstanceId: string | null;
+      }) =>
         useAiStudioAgentBridge({
           ...base,
           activePulsePresetId,
+          pulseSessionInstanceId,
         }),
       {
         initialProps: {
           activePulsePresetId: "story_builder",
+          pulseSessionInstanceId: "pulse-session-1",
         },
       }
     );
@@ -1226,10 +1278,16 @@ describe("useAiStudioAgentBridge", () => {
     });
     expect(result.current.latestAgentPrompt).toBe("Pulse A prompt");
 
-    rerender({ activePulsePresetId: "shot_designer" });
+    rerender({
+      activePulsePresetId: "shot_designer",
+      pulseSessionInstanceId: "pulse-session-2",
+    });
     expect(result.current.latestAgentPrompt).toBeNull();
 
-    rerender({ activePulsePresetId: "story_builder" });
+    rerender({
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-3",
+    });
     expect(result.current.latestAgentPrompt).toBeNull();
   });
 
@@ -1289,6 +1347,13 @@ describe("useAiStudioAgentBridge", () => {
       expertCreateMode: "pulse",
       activePulsePresetId: "story_builder",
     });
+    const initialBusyProps: {
+      expertCreateMode: "standard" | "pulse";
+      activePulsePresetId: string | null;
+    } = {
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+    };
     const { result, rerender } = renderHook(
       ({
         expertCreateMode,
@@ -1303,10 +1368,7 @@ describe("useAiStudioAgentBridge", () => {
           activePulsePresetId,
         }),
       {
-        initialProps: {
-          expertCreateMode: "pulse" as const,
-          activePulsePresetId: "story_builder",
-        },
+        initialProps: initialBusyProps,
       }
     );
 
@@ -1388,8 +1450,9 @@ describe("useAiStudioAgentBridge", () => {
     act(() => {
       result.current.hydrateFromSessionAgentSnapshot({
         workspace: {
-          expertCreateMode: "standard",
+          expertCreateMode: "pulse",
           activePulsePresetId: "story_builder",
+          pulseSessionInstanceId: "pulse-session-restore-1",
         } as AiStudioSessionHydrationPayload["workspace"],
         agent: {
           messages: [
@@ -1464,7 +1527,7 @@ describe("useAiStudioAgentBridge", () => {
     });
   });
 
-  it("preserves a stored Pulse workflow session when restore re-enters in Standard mode", async () => {
+  it("drops stored Pulse workflow session state when restore re-enters in Standard mode", async () => {
     const setPulseWorkflowSession = vi.fn();
 
     useAiAgentMock.mockReturnValue({
@@ -1525,6 +1588,7 @@ describe("useAiStudioAgentBridge", () => {
         workspace: {
           expertCreateMode: "standard",
           activePulsePresetId: "story_builder",
+          pulseSessionInstanceId: "pulse-session-restore-1",
         } as AiStudioSessionHydrationPayload["workspace"],
         agent: {
           messages: [],
@@ -1572,19 +1636,10 @@ describe("useAiStudioAgentBridge", () => {
       });
     });
 
-    expect(setPulseWorkflowSession).toHaveBeenCalledWith({
-      presetId: "story_builder",
-      status: "completed",
-      currentStepIndex: 6,
-      currentStepLabel: "Image Prompts",
-      currentStepPrompt: null,
-      collectedInputs: ["grimdark tone", "10 min runtime"],
-      lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
-      finalArtifactSource: "chat_reply",
-    });
+    expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
   });
 
-  it("restores a saved Pulse runtime after re-entering Pulse from a Standard-first restore", async () => {
+  it("does not restore hidden Pulse runtime after a Standard-first restore", async () => {
     const setPulseWorkflowSession = vi.fn();
 
     useAiAgentMock.mockReturnValue({
@@ -1633,26 +1688,35 @@ describe("useAiStudioAgentBridge", () => {
       handleCloseAgentChat: vi.fn(),
     });
 
+    const initialHydrationProps: {
+      expertCreateMode: "standard" | "pulse";
+      activePulsePresetId: string | null;
+      pulseSessionInstanceId: string | null;
+    } = {
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+    };
     const { result, rerender } = renderHook(
       ({
         expertCreateMode,
         activePulsePresetId,
+        pulseSessionInstanceId,
       }: {
         expertCreateMode: "standard" | "pulse";
         activePulsePresetId: string | null;
+        pulseSessionInstanceId: string | null;
       }) =>
         useAiStudioAgentBridge(
           createBridgeParams({
             expertCreateMode,
             activePulsePresetId,
+            pulseSessionInstanceId,
             setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
           })
         ),
       {
-        initialProps: {
-          expertCreateMode: "standard" as const,
-          activePulsePresetId: null,
-        },
+        initialProps: initialHydrationProps,
       }
     );
 
@@ -1661,6 +1725,7 @@ describe("useAiStudioAgentBridge", () => {
         workspace: {
           expertCreateMode: "standard",
           activePulsePresetId: "story_builder",
+          pulseSessionInstanceId: "pulse-session-restore-1",
         } as AiStudioSessionHydrationPayload["workspace"],
         agent: {
           messages: [],
@@ -1714,22 +1779,187 @@ describe("useAiStudioAgentBridge", () => {
     rerender({
       expertCreateMode: "pulse" as const,
       activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-restore-1",
     });
 
-    expect(result.current.latestAgentPrompt).toBe(
-      "Scene 1: cinematic wide shot of the knight entering the ruined hall."
-    );
-    expect(result.current.promptOrigin).toBe("agent");
-    expect(setPulseWorkflowSession).toHaveBeenCalledWith({
-      presetId: "story_builder",
-      status: "completed",
-      currentStepIndex: 6,
-      currentStepLabel: "Image Prompts",
-      currentStepPrompt: null,
-      collectedInputs: ["grimdark tone", "10 min runtime"],
-      lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
-      finalArtifactSource: "chat_reply",
+    expect(result.current.latestAgentPrompt).toBeNull();
+    expect(result.current.promptOrigin).toBe("manual");
+    expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
+  });
+
+  it("clears Pulse runtime state across Standard mode switches", async () => {
+    let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
     });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockImplementation((params) => {
+      setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
+      return {
+        handleAgentApplyPrompt: vi.fn(),
+        handleExpandChat: vi.fn(),
+        handleAgentAddToGrid: vi.fn(),
+        handleClearAgentChat: vi.fn(),
+        handleCloseAgentChat: vi.fn(),
+      };
+    });
+
+    const initialModeProps: {
+      expertCreateMode: "standard" | "pulse";
+      activePulsePresetId: string | null;
+      pulseSessionInstanceId: string | null;
+    } = {
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
+    };
+    const { result, rerender } = renderHook(
+      ({
+        expertCreateMode,
+        activePulsePresetId,
+        pulseSessionInstanceId,
+      }: {
+        expertCreateMode: "standard" | "pulse";
+        activePulsePresetId: string | null;
+        pulseSessionInstanceId: string | null;
+      }) =>
+        useAiStudioAgentBridge(
+          createBridgeParams({
+            expertCreateMode,
+            activePulsePresetId,
+            pulseSessionInstanceId,
+          })
+        ),
+      {
+        initialProps: initialModeProps,
+      }
+    );
+
+    await waitFor(() => {
+      expect(setLatestAgentPromptFromInteractions).toBeDefined();
+    });
+
+    act(() => {
+      setLatestAgentPromptFromInteractions?.("Pulse prompt");
+    });
+
+    expect(result.current.latestAgentPrompt).toBe("Pulse prompt");
+
+    rerender({
+      expertCreateMode: "standard",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
+    });
+    await waitFor(() => {
+      expect(result.current.latestAgentPrompt).toBeNull();
+    });
+
+    rerender({
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
+    });
+    await waitFor(() => {
+      expect(result.current.latestAgentPrompt).toBeNull();
+    });
+  });
+
+  it("keeps Pulse chat mode enabled even when the stored Standard preference is off", async () => {
+    readChatModeFromStorageMock.mockReturnValue(false);
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(
+        createBridgeParams({
+          expertCreateMode: "pulse",
+          activePulsePresetId: "story_builder",
+        })
+      )
+    );
+
+    expect(result.current.chatModeEnabled).toBe(true);
+    expect(result.current.persistedAgentRuntimes.standard.chatModeEnabled).toBe(false);
+    expect(result.current.persistedAgentRuntimes.pulse.chatModeEnabled).toBe(true);
   });
 
   it("skips local chat-mode preference hydration while a project route is pending", async () => {

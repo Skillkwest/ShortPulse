@@ -67,9 +67,11 @@ export const useAiStudioState = ({
   selectedStyleContext = null,
   expertCreateMode = "standard",
   activePulsePresetId = null,
+  pulseSessionInstanceId = null,
   pulseWorkflowSession = null,
   setExpertCreateMode,
   setActivePulsePresetId,
+  setPulseSessionInstanceId,
 }: {
   projectId?: string | null;
   projectRouteRequested?: boolean;
@@ -79,9 +81,11 @@ export const useAiStudioState = ({
   selectedStyleContext?: StudioOutput["styleContext"] | null;
   expertCreateMode?: "standard" | "pulse";
   activePulsePresetId?: string | null;
+  pulseSessionInstanceId?: string | null;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   setExpertCreateMode?: Dispatch<SetStateAction<"standard" | "pulse">>;
   setActivePulsePresetId?: Dispatch<SetStateAction<string | null>>;
+  setPulseSessionInstanceId?: Dispatch<SetStateAction<string | null>>;
 } = {}) => {
   const {
     promptRef,
@@ -328,6 +332,9 @@ export const useAiStudioState = ({
     restoreArchivedOutput,
     restoreAllArchivedOutputs,
     setOutputs,
+    prependOutput,
+    reconcileOutput,
+    removeOutput,
     addCuratedReference,
     removeCuratedReference,
     reorderCuratedReference,
@@ -337,6 +344,7 @@ export const useAiStudioState = ({
     activeOutputId,
     outputsLength: outputs.length,
     setActiveOutputId,
+    setActiveOutputState,
     setOutputsState,
     setArchivedOutputs,
     setReferenceProjectionState,
@@ -511,6 +519,8 @@ export const useAiStudioState = ({
         setUiError,
         setUiNotice,
         setOutputs,
+        reconcileOutput,
+        removeOutputById: removeOutput,
         setSaved,
         getDefaultDurationSeconds: getDefaultDurationSecondsForModel,
         notifyGenerationFailure,
@@ -559,6 +569,8 @@ export const useAiStudioState = ({
       aspect,
       model,
       setOutputs,
+      prependOutput,
+      removeOutputById: removeOutput,
       setSaved,
     });
 
@@ -573,6 +585,7 @@ export const useAiStudioState = ({
       aspect,
       expertCreateMode,
       activePulsePresetId,
+      pulseSessionInstanceId,
       pulseWorkflowSession,
       referenceImageUrl,
       extraImageUrls,
@@ -613,6 +626,7 @@ export const useAiStudioState = ({
       setAspect,
       setExpertCreateMode: setExpertCreateMode ?? (() => undefined),
       setActivePulsePresetId: setActivePulsePresetId ?? (() => undefined),
+      setPulseSessionInstanceId: setPulseSessionInstanceId ?? (() => undefined),
       setReferenceImageUrl,
       setExtraImageUrl,
       setEditReferenceText,

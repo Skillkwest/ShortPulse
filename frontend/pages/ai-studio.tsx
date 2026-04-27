@@ -21,6 +21,7 @@ import { useCreatePulsePresetPanelPreference } from "../features/ai-studio/hooks
 import {
   isCreatePulseBuiltInPresetId,
   resolveCreatePulsePresetById,
+  type CreatePulseResolvedPreset,
 } from "../features/ai-studio/components/create/createPulsePresets";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
@@ -348,11 +349,15 @@ export default function AiStudioPage() {
   const {
     expertCreateMode,
     activeCreatePulsePresetId,
+    pulseSessionInstanceId,
     pulseWorkflowSession,
     setExpertCreateMode,
     setActiveCreatePulsePresetId,
+    setPulseSessionInstanceId,
     setPulseWorkflowSession,
     clearPulseRuntime,
+    restartPulse,
+    deactivatePulse,
     handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange,
   } = useAiStudioCreateModeRuntime({
@@ -512,10 +517,18 @@ export default function AiStudioPage() {
     selectedStyleContext,
     expertCreateMode,
     activePulsePresetId: activeCreatePulsePresetId,
+    pulseSessionInstanceId,
     pulseWorkflowSession,
     setExpertCreateMode,
     setActivePulsePresetId: setActiveCreatePulsePresetId,
+    setPulseSessionInstanceId,
   });
+
+  const hasActivePulseSession =
+    selectedTool === "create" &&
+    expertCreateMode === "pulse" &&
+    Boolean(activeCreatePulsePresetId) &&
+    Boolean(pulseSessionInstanceId);
 
   const getPulseAwareAgentContext = useCallback(
     (params: {
@@ -524,7 +537,7 @@ export default function AiStudioPage() {
       modeHint?: "chat" | "text" | "describe" | "reference";
     }): AgentContext => {
       const baseContext = getAgentContext(params);
-      if (selectedTool !== "create" || expertCreateMode !== "pulse" || !activeCreatePulsePresetId) {
+      if (!hasActivePulseSession || !activeCreatePulsePresetId) {
         return baseContext;
       }
       const resolvedPulsePreset = resolveCreatePulsePresetById(
@@ -557,6 +570,7 @@ export default function AiStudioPage() {
       activeCreatePulsePresetId,
       expertCreateMode,
       getAgentContext,
+      hasActivePulseSession,
       pulseWorkflowSession,
       savedCreatePulsePresets,
       selectedTool,
@@ -1003,7 +1017,6 @@ export default function AiStudioPage() {
     handleAgentInputChange,
     handleAgentSend,
     handlePulsePresetStart,
-    handlePulsePresetRestart,
     handleAgentEnhanceSend,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,
@@ -1027,6 +1040,7 @@ export default function AiStudioPage() {
     selectedTool,
     expertCreateMode,
     activePulsePresetId: activeCreatePulsePresetId,
+    pulseSessionInstanceId,
     pulseWorkflowSession,
     prompt,
     setSharedPrompt,
@@ -1048,8 +1062,37 @@ export default function AiStudioPage() {
     trackAgentUiEvent: trackUiEvent,
   });
 
+  const handleCreatePulsePresetStart = useCallback(
+    (
+      preset: CreatePulseResolvedPreset,
+      options?: {
+        pulseSessionInstanceId?: string | null;
+      }
+    ) =>
+      handlePulsePresetStart(preset, {
+        pulseSessionInstanceId: options?.pulseSessionInstanceId ?? null,
+      }),
+    [handlePulsePresetStart]
+  );
+
+  const handleCreatePulsePresetRestart = useCallback(
+    async (preset: CreatePulseResolvedPreset) => {
+      const restartedPulse = restartPulse();
+      if (!restartedPulse || restartedPulse.presetId !== preset.presetId) {
+        return;
+      }
+      const result = await handlePulsePresetStart(preset, {
+        pulseSessionInstanceId: restartedPulse.sessionInstanceId,
+      });
+      if (result !== "started") {
+        deactivatePulse();
+      }
+    },
+    [deactivatePulse, handlePulsePresetStart, restartPulse]
+  );
+
   const activeWorkflowPulsePreset = useMemo(() => {
-    if (selectedTool !== "create" || expertCreateMode !== "pulse" || !activeCreatePulsePresetId) {
+    if (!hasActivePulseSession || !activeCreatePulsePresetId) {
       return null;
     }
     const resolvedPreset = resolveCreatePulsePresetById(
@@ -1058,7 +1101,7 @@ export default function AiStudioPage() {
     );
     if (!resolvedPreset || resolvedPreset.runtimeMode !== "workflow_gpt") return null;
     return resolvedPreset;
-  }, [activeCreatePulsePresetId, expertCreateMode, savedCreatePulsePresets, selectedTool]);
+  }, [activeCreatePulsePresetId, hasActivePulseSession, savedCreatePulsePresets]);
 
   const derivedPulseWorkflowSession = useMemo(
     () =>
@@ -1088,12 +1131,16 @@ export default function AiStudioPage() {
   );
 
   useEffect(() => {
+    if (!hasActivePulseSession) {
+      setPulseWorkflowSession(null);
+      return;
+    }
     setPulseWorkflowSession((current) =>
       arePulseWorkflowSessionsEqual(current, reconciledPulseWorkflowSession)
         ? current
         : reconciledPulseWorkflowSession
     );
-  }, [reconciledPulseWorkflowSession, setPulseWorkflowSession]);
+  }, [hasActivePulseSession, reconciledPulseWorkflowSession, setPulseWorkflowSession]);
 
   const buildProjectAwareSessionSnapshot = useCallback(
     (args: Parameters<typeof buildSessionSnapshot>[0]) =>
@@ -1149,10 +1196,10 @@ export default function AiStudioPage() {
       pulseWorkflowSession,
       agentRuntimes: {
         ...persistedAgentRuntimes,
-        pulsePresetId: activeCreatePulsePresetId,
+        pulsePresetId: hasActivePulseSession ? activeCreatePulsePresetId : null,
         pulse: {
           ...persistedAgentRuntimes.pulse,
-          pulseWorkflowSession: pulseWorkflowSession ?? null,
+          pulseWorkflowSession: hasActivePulseSession ? (pulseWorkflowSession ?? null) : null,
         },
       },
       expertEditSessionState,
@@ -1371,6 +1418,7 @@ export default function AiStudioPage() {
     selectedStyleContext,
     agentInput,
     chatModeEnabled,
+    usesAgentLane: expertCreateMode === "pulse" || chatModeEnabled,
     currentCostCredits,
     resolveCostCreditsForModel: resolveModelPickerCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
@@ -1440,6 +1488,7 @@ export default function AiStudioPage() {
     agentMessages,
     agentActions,
     pulseWorkflowSession,
+    hasActivePulseSession,
     agentInput,
     chatModeEnabled,
     directOpenAiBypassEnabled,
@@ -1453,8 +1502,8 @@ export default function AiStudioPage() {
     handleAgentInputChange,
     setChatModeEnabled,
     handleAgentSend,
-    onCreatePulsePresetStart: handlePulsePresetStart,
-    onCreatePulsePresetRestart: handlePulsePresetRestart,
+    onCreatePulsePresetStart: handleCreatePulsePresetStart,
+    onCreatePulsePresetRestart: handleCreatePulsePresetRestart,
     handleAgentEnhanceSend,
     handleAgentAttachmentDrop,
     handleAgentAttachmentDragOver,

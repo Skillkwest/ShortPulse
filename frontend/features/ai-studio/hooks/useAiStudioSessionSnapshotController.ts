@@ -35,6 +35,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   aspect: string;
   expertCreateMode: "standard" | "pulse";
   activePulsePresetId: string | null;
+  pulseSessionInstanceId: string | null;
   pulseWorkflowSession: AgentPulseWorkflowSession | null;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
@@ -75,6 +76,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   setAspect: Dispatch<SetStateAction<string>>;
   setExpertCreateMode: Dispatch<SetStateAction<"standard" | "pulse">>;
   setActivePulsePresetId: Dispatch<SetStateAction<string | null>>;
+  setPulseSessionInstanceId: Dispatch<SetStateAction<string | null>>;
   setReferenceImageUrl: (value: string | null) => void;
   setExtraImageUrl: (index: number, value: string | null) => void;
   setEditReferenceText: (value: string) => void;
@@ -126,6 +128,7 @@ export const useAiStudioSessionSnapshotController = ({
   aspect,
   expertCreateMode,
   activePulsePresetId,
+  pulseSessionInstanceId,
   pulseWorkflowSession,
   referenceImageUrl,
   extraImageUrls,
@@ -166,6 +169,7 @@ export const useAiStudioSessionSnapshotController = ({
   setAspect,
   setExpertCreateMode,
   setActivePulsePresetId,
+  setPulseSessionInstanceId,
   setReferenceImageUrl,
   setExtraImageUrl,
   setEditReferenceText,
@@ -211,6 +215,7 @@ export const useAiStudioSessionSnapshotController = ({
       setAspect(workspace.aspect);
       setExpertCreateMode(workspace.expertCreateMode);
       setActivePulsePresetId(workspace.activePulsePresetId);
+      setPulseSessionInstanceId(workspace.pulseSessionInstanceId);
       setReferenceImageUrl(workspace.referenceImageUrl);
       workspace.extraImageUrls.forEach((url, index) => {
         setExtraImageUrl(index, url);
@@ -311,6 +316,7 @@ export const useAiStudioSessionSnapshotController = ({
       setModel,
       setMotionReferenceVideoUrl,
       setOutputsState,
+      setPulseSessionInstanceId,
       setReferenceImageUrl,
       setReferenceProjectionState,
       setSaved,
@@ -363,6 +369,7 @@ export const useAiStudioSessionSnapshotController = ({
         aspect,
         expertCreateMode,
         activePulsePresetId,
+        pulseSessionInstanceId,
         referenceImageUrl,
         extraImageUrls,
         editReferenceText,
@@ -429,6 +436,7 @@ export const useAiStudioSessionSnapshotController = ({
       model,
       motionReferenceVideoUrl,
       outputs,
+      pulseSessionInstanceId,
       pulseCreatePrompt,
       pulseWorkflowSession,
       prompt,

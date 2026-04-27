@@ -102,6 +102,7 @@ export type AiStudioSessionWorkspaceV1 = {
   selectedCharacterLookId?: string | null;
   expertCreateMode?: AiStudioSessionExpertCreateMode;
   activePulsePresetId?: string | null;
+  pulseSessionInstanceId?: string | null;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
@@ -196,6 +197,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   selectedCharacterLookId?: string | null;
   expertCreateMode?: AiStudioSessionExpertCreateMode;
   activePulsePresetId?: string | null;
+  pulseSessionInstanceId?: string | null;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
@@ -497,6 +499,10 @@ export const buildAiStudioSessionSnapshot = (
     input.standardCreatePrompt ?? (input.expertCreateMode === "pulse" ? "" : input.prompt);
   const resolvedPulseCreatePrompt =
     input.pulseCreatePrompt ?? (input.expertCreateMode === "pulse" ? input.prompt : "");
+  const resolvedActivePulsePresetId =
+    input.expertCreateMode === "pulse" ? input.activePulsePresetId?.trim() || null : null;
+  const resolvedPulseSessionInstanceId =
+    input.expertCreateMode === "pulse" ? input.pulseSessionInstanceId?.trim() || null : null;
   const canvas = input.canvasState
     ? serializeAiStudioSessionCanvasState(input.canvasState)
     : undefined;
@@ -515,13 +521,15 @@ export const buildAiStudioSessionSnapshot = (
   const agentRuntimes = input.agentRuntimes
     ? {
         standard: sanitizeAgentRuntime(input.agentRuntimes.standard),
-        pulsePresetId: input.agentRuntimes.pulsePresetId?.trim() || null,
+        pulsePresetId:
+          input.expertCreateMode === "pulse"
+            ? input.agentRuntimes.pulsePresetId?.trim() || resolvedActivePulsePresetId
+            : null,
         pulse: sanitizeAgentRuntime(input.agentRuntimes.pulse),
       }
     : {
         standard: input.expertCreateMode === "pulse" ? emptyAgentRuntime : activeAgentRuntime,
-        pulsePresetId:
-          input.expertCreateMode === "pulse" ? input.activePulsePresetId?.trim() || null : null,
+        pulsePresetId: resolvedActivePulsePresetId,
         pulse: input.expertCreateMode === "pulse" ? activeAgentRuntime : emptyAgentRuntime,
       };
 
@@ -540,7 +548,8 @@ export const buildAiStudioSessionSnapshot = (
       selectedCharacterId: sanitizeSelectedCharacterId(input.selectedCharacterId),
       selectedCharacterLookId: sanitizeSelectedCharacterId(input.selectedCharacterLookId),
       expertCreateMode: input.expertCreateMode ?? "standard",
-      activePulsePresetId: input.activePulsePresetId?.trim() || null,
+      activePulsePresetId: resolvedActivePulsePresetId,
+      pulseSessionInstanceId: resolvedPulseSessionInstanceId,
       referenceImageUrl: sanitizeWorkspaceMediaUrl(input.referenceImageUrl),
       extraImageUrls: sanitizeWorkspaceExtraImageUrls(input.extraImageUrls),
       editReferenceText: input.editReferenceText,
@@ -615,6 +624,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
     selectedCharacterLookId: null,
     expertCreateMode: "standard",
     activePulsePresetId: null,
+    pulseSessionInstanceId: null,
     referenceImageUrl: null,
     extraImageUrls: [null, null, null],
     editReferenceText: "",
@@ -692,6 +702,11 @@ export const createAiStudioProjectWorkspaceSnapshot = (
     };
     const normalizedSnapshot = {
       ...baseSnapshot,
+      workspace: {
+        ...baseSnapshot.workspace,
+        activePulsePresetId: null,
+        pulseSessionInstanceId: null,
+      },
       agent: emptyAgentRuntime,
     };
     return {

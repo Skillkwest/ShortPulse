@@ -6,7 +6,9 @@ Depends on:
 - `docs/archive/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
 - `docs/archive/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
 - `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
-- `docs/planning/ai-studio-elements-library-component-state-map-2026-04-06.md`
+- `docs/archive/planning/ai-studio-elements-library-component-state-map-2026-04-06.md`
+
+> Archived on 2026-04-26 during the docs-cleanup wave. Superseded by the completed Elements decoupling packet.
 
 > Historical note: superseded by the Elements decoupling packet dated 2026-04-09. Retain this document only as the original first-build execution checklist for historical context.
 

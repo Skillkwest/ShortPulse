@@ -3,6 +3,8 @@
 Status: Superseded historical reference  
 Owner: Frontend Engineering
 
+> Archived on 2026-04-26 during the docs-cleanup wave. Superseded by the completed Elements decoupling packet.
+
 > Historical note: superseded by the Elements decoupling packet dated 2026-04-09. Keep this document only as an early implementation-planning reference for the original Elements feature shape. Any alias-state references below are historical; shipped Elements now derive workflow tokens from element name and do not expose alias authoring in the live UI.
 
 ## Purpose

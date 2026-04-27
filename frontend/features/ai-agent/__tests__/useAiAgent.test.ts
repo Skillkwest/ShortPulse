@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiAgent } from "../useAiAgent";
+import type { SendResult } from "../useAiAgentTypes";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
 vi.mock("../../../lib/authenticatedFetch", () => ({
@@ -124,7 +125,7 @@ describe("useAiAgent", () => {
       }
     );
 
-    let sendResultPromise: Promise<Awaited<ReturnType<typeof result.current.send>>> | null = null;
+    let sendResultPromise!: Promise<SendResult>;
     await act(async () => {
       sendResultPromise = result.current.send({
         text: "",
@@ -161,7 +162,7 @@ describe("useAiAgent", () => {
     });
 
     const sendResult = await sendResultPromise;
-    expect(sendResult?.discarded).not.toBe(true);
+    expect(sendResult.discarded).not.toBe(true);
     expect(result.current.messages.at(-1)).toEqual(
       expect.objectContaining({
         role: "assistant",
@@ -440,6 +441,65 @@ describe("useAiAgent", () => {
     };
     expect(secondBody.messages).toEqual([{ role: "user", content: "second turn" }]);
     expect(secondBody.canonicalPrompt ?? null).toBeNull();
+  });
+
+  it("isolates canonical prompt continuity for override-targeted Pulse bootstrap sends", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          message: "standard reply",
+          canonicalPrompt: "standard canonical prompt",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: "pulse activated" }),
+      } as Response);
+
+    const hook = renderHook(() =>
+      useAiAgent({ enabled: true, sessionNamespace: "ai-studio:session-a::standard" })
+    );
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "standard turn",
+        payloadText: "standard turn",
+      });
+    });
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "",
+        payloadText: "pulse_activation_seed:story_builder",
+        sessionNamespaceOverride: "ai-studio:session-a::pulse:story_builder",
+        isolateHistory: true,
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "story_builder",
+            label: "Story Builder",
+            instructions: "Guide the user through story setup.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your characters first.",
+            workflowStageHints: ["Upload Characters"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    const pulseBody = JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")) as {
+      messages?: Array<{ role: string; content: string }>;
+      canonicalPrompt?: string | null;
+    };
+    expect(pulseBody.messages).toEqual([
+      { role: "user", content: "pulse_activation_seed:story_builder" },
+    ]);
+    expect(pulseBody.canonicalPrompt ?? null).toBeNull();
   });
 
   it("discards a late response after the session namespace changes", async () => {

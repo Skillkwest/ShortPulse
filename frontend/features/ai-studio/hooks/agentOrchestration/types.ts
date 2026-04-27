@@ -79,5 +79,8 @@ export type UseAiStudioAgentOrchestrationParams = {
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   lastAssistantMessage: string | null;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
-  resolvePulseSessionNamespace?: (presetId: string) => string;
+  expertCreateMode?: "standard" | "pulse";
+  activePulsePresetId?: string | null;
+  pulseSessionInstanceId?: string | null;
+  resolvePulseSessionNamespace?: (presetId: string, pulseSessionInstanceId?: string) => string;
 };

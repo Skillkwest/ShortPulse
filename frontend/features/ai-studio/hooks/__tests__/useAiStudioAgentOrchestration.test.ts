@@ -526,6 +526,9 @@ describe("useAiStudioAgentOrchestration", () => {
       sendToAgent,
       setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
       getAgentContext: vi.fn(() => ({})),
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -548,7 +551,9 @@ describe("useAiStudioAgentOrchestration", () => {
     };
 
     await act(async () => {
-      await result.current.handlePulsePresetStart(preset);
+      await result.current.handlePulsePresetStart(preset, {
+        pulseSessionInstanceId: "pulse-session-1",
+      });
     });
 
     expect(setPulseWorkflowSession).toHaveBeenNthCalledWith(
@@ -579,6 +584,9 @@ describe("useAiStudioAgentOrchestration", () => {
       sendToAgent,
       setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
       getAgentContext: vi.fn(() => ({})),
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -601,7 +609,9 @@ describe("useAiStudioAgentOrchestration", () => {
 
     let startResult: Awaited<ReturnType<typeof result.current.handlePulsePresetStart>> | undefined;
     await act(async () => {
-      startResult = await result.current.handlePulsePresetStart(preset);
+      startResult = await result.current.handlePulsePresetStart(preset, {
+        pulseSessionInstanceId: "pulse-session-1",
+      });
     });
 
     expect(startResult).toBe("blocked_busy");
@@ -618,32 +628,42 @@ describe("useAiStudioAgentOrchestration", () => {
     const params = createParams({
       sendToAgent,
       getAgentContext: vi.fn(() => ({})),
-      resolvePulseSessionNamespace: (presetId) => `ai-studio:session-1::pulse:${presetId}`,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
+      resolvePulseSessionNamespace: (presetId, pulseSessionInstanceId) =>
+        `ai-studio:session-1::pulse-v2:${presetId}:${pulseSessionInstanceId}`,
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
     await act(async () => {
-      await result.current.handlePulsePresetStart({
-        presetId: "story_builder",
-        label: "Story Builder",
-        description: "Story workflow",
-        systemInstructions: "workflow instructions",
-        runtimeMode: "workflow_gpt",
-        activationMode: "activate_and_start",
-        starterAssistantMessage: "Step 1 - Upload your characters.",
-        workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
-        outputMode: "chat_reply",
-        memoryPolicy: "session",
-        isCustom: false,
-        isBuiltIn: true,
-        isEditable: true,
-        hasUserOverride: false,
-      });
+      await result.current.handlePulsePresetStart(
+        {
+          presetId: "story_builder",
+          label: "Story Builder",
+          description: "Story workflow",
+          systemInstructions: "workflow instructions",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          starterAssistantMessage: "Step 1 - Upload your characters.",
+          workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          isCustom: false,
+          isBuiltIn: true,
+          isEditable: true,
+          hasUserOverride: false,
+        },
+        {
+          pulseSessionInstanceId: "pulse-session-1",
+        }
+      );
     });
 
     expect(sendToAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        sessionNamespaceOverride: "ai-studio:session-1::pulse:story_builder",
+        sessionNamespaceOverride: "ai-studio:session-1::pulse-v2:story_builder:pulse-session-1",
+        isolateHistory: true,
       })
     );
   });

@@ -49,6 +49,7 @@ type UseAiStudioAgentBridgeParams = {
   selectedTool: ToolId | null;
   expertCreateMode?: "standard" | "pulse";
   activePulsePresetId?: string | null;
+  pulseSessionInstanceId?: string | null;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   prompt: string;
   setSharedPrompt: (value: string) => void;
@@ -107,20 +108,26 @@ const createDefaultAgentBridgeRuntimeState = (
 });
 
 const createAgentBridgeRuntimeStateFromHydration = (
-  runtime: AgentBridgeHydrationRuntime
+  runtime: AgentBridgeHydrationRuntime,
+  options?: {
+    forceChatModeEnabled?: boolean;
+  }
 ): AgentBridgeRuntimeState => ({
   messages: runtime.messages,
   input: runtime.input,
   attachments: [],
   latestAgentPrompt: runtime.latestAgentPrompt,
   promptOrigin: runtime.promptOrigin,
-  chatModeEnabled: runtime.chatModeEnabled,
+  chatModeEnabled: options?.forceChatModeEnabled ?? runtime.chatModeEnabled,
   agentActions: undefined,
   isAgentChatOpen: false,
 });
 
 const createPersistedAgentRuntimeSnapshot = (
-  runtime: AgentBridgeRuntimeState
+  runtime: AgentBridgeRuntimeState,
+  options?: {
+    forceChatModeEnabled?: boolean;
+  }
 ): AiStudioSessionAgentRuntimesV2["standard"] => ({
   messages: runtime.messages.map(
     (message): AiStudioSessionAgentMessageV1 => ({
@@ -142,7 +149,7 @@ const createPersistedAgentRuntimeSnapshot = (
   input: runtime.input,
   latestAgentPrompt: runtime.latestAgentPrompt,
   promptOrigin: runtime.promptOrigin,
-  chatModeEnabled: runtime.chatModeEnabled,
+  chatModeEnabled: options?.forceChatModeEnabled ?? runtime.chatModeEnabled,
   pulseWorkflowSession: null,
 });
 
@@ -218,6 +225,7 @@ export const useAiStudioAgentBridge = ({
   selectedTool,
   expertCreateMode = "standard",
   activePulsePresetId = null,
+  pulseSessionInstanceId = null,
   pulseWorkflowSession = null,
   prompt,
   setSharedPrompt,
@@ -238,6 +246,18 @@ export const useAiStudioAgentBridge = ({
   clearPulseRuntime,
   trackAgentUiEvent,
 }: UseAiStudioAgentBridgeParams) => {
+  const isPulseCreateMode = expertCreateMode === "pulse";
+  const resolvedActivePulsePresetId =
+    typeof activePulsePresetId === "string" && activePulsePresetId.trim().length > 0
+      ? activePulsePresetId.trim()
+      : null;
+  const resolvedPulseSessionInstanceId =
+    typeof pulseSessionInstanceId === "string" && pulseSessionInstanceId.trim().length > 0
+      ? pulseSessionInstanceId.trim()
+      : null;
+  const hasSelectedPulsePreset = resolvedActivePulsePresetId !== null;
+  const hasActivePulseSession =
+    isPulseCreateMode && hasSelectedPulsePreset && resolvedPulseSessionInstanceId !== null;
   const agentFlag =
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === undefined ||
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
@@ -245,28 +265,31 @@ export const useAiStudioAgentBridge = ({
     process.env.NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(agentFlag);
   const agentEnabled = agentFlag && agentSessionEnabled;
-  const directOpenAiBypassEnabled =
-    directOpenAiBypassEnabledByConfig && expertCreateMode !== "pulse";
+  const directOpenAiBypassEnabled = directOpenAiBypassEnabledByConfig && !isPulseCreateMode;
   const agentBootstrapReady = Boolean(sessionId);
-  const [chatModeEnabled, setChatModeEnabledState] = useState(() => {
+  const [standardChatModeEnabled, setStandardChatModeEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
     if (projectRouteRequested || projectId) return true;
     return readChatModeFromStorage(window.localStorage);
   });
-  const [defaultChatModeEnabled] = useState(chatModeEnabled);
+  const [defaultStandardChatModeEnabled] = useState(standardChatModeEnabled);
+  const chatModeEnabled = isPulseCreateMode ? true : standardChatModeEnabled;
 
   const setChatModeEnabled = useCallback(
     (value: boolean) => {
-      setChatModeEnabledState(value);
+      if (isPulseCreateMode) return;
+      setStandardChatModeEnabledState(value);
       if (typeof window !== "undefined" && !projectRouteRequested && !projectId) {
         writeChatModeToStorage(value, window.localStorage);
       }
     },
-    [projectId, projectRouteRequested]
+    [isPulseCreateMode, projectId, projectRouteRequested]
   );
 
-  const agentRuntimeScopeKey =
-    expertCreateMode === "pulse" ? `pulse:${activePulsePresetId ?? "none"}` : "standard";
+  const pulseRuntimeScopeKey = hasActivePulseSession
+    ? `pulse:${resolvedActivePulsePresetId}:${resolvedPulseSessionInstanceId}`
+    : "pulse:inactive";
+  const agentRuntimeScopeKey = isPulseCreateMode ? pulseRuntimeScopeKey : "standard";
   const agentBridgeSessionKey = `${sessionId ?? "none"}::${agentRuntimeScopeKey}`;
   const activeLiveRuntimeStateRef = useRef<{
     key: string;
@@ -302,17 +325,29 @@ export const useAiStudioAgentBridge = ({
     Record<string, AgentBridgeRuntimeState>
   >({});
   const createDefaultRuntimeState = useCallback(
-    () => createDefaultAgentBridgeRuntimeState(defaultChatModeEnabled),
-    [defaultChatModeEnabled]
+    (options?: { forceChatModeEnabled?: boolean }) =>
+      createDefaultAgentBridgeRuntimeState(
+        options?.forceChatModeEnabled ?? defaultStandardChatModeEnabled
+      ),
+    [defaultStandardChatModeEnabled]
   );
   const activeAgentBridgeSessionUiState = useMemo(
-    () => agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ?? createDefaultRuntimeState(),
-    [agentBridgeRuntimeStateBySessionKey, agentBridgeSessionKey, createDefaultRuntimeState]
+    () =>
+      agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ??
+      createDefaultRuntimeState({ forceChatModeEnabled: isPulseCreateMode ? true : undefined }),
+    [
+      agentBridgeRuntimeStateBySessionKey,
+      agentBridgeSessionKey,
+      createDefaultRuntimeState,
+      isPulseCreateMode,
+    ]
   );
   const updateAgentBridgeSessionUiState = useCallback(
     (updater: (current: AgentBridgeRuntimeState) => AgentBridgeRuntimeState) => {
       setAgentBridgeRuntimeStateBySessionKey((current) => {
-        const activeState = current[agentBridgeSessionKey] ?? createDefaultRuntimeState();
+        const activeState =
+          current[agentBridgeSessionKey] ??
+          createDefaultRuntimeState({ forceChatModeEnabled: isPulseCreateMode ? true : undefined });
         const nextState = updater(activeState);
         if (nextState === activeState) return current;
         return {
@@ -321,7 +356,7 @@ export const useAiStudioAgentBridge = ({
         };
       });
     },
-    [agentBridgeSessionKey, createDefaultRuntimeState]
+    [agentBridgeSessionKey, createDefaultRuntimeState, isPulseCreateMode]
   );
   const updateAgentBridgeSessionUiStateField = useCallback(
     <Key extends keyof Omit<AgentBridgeRuntimeState, "messages" | "input" | "attachments">>(
@@ -337,7 +372,9 @@ export const useAiStudioAgentBridge = ({
               ? activeLiveRuntimeStateRef.current.state
               : null;
         const activeState =
-          liveRuntimeState ?? current[agentBridgeSessionKey] ?? createDefaultRuntimeState();
+          liveRuntimeState ??
+          current[agentBridgeSessionKey] ??
+          createDefaultRuntimeState({ forceChatModeEnabled: isPulseCreateMode ? true : undefined });
         const nextValue = resolveStateActionValue(value, activeState[field]);
         if (activeState[field] === nextValue) return current;
         const nextState = {
@@ -360,7 +397,7 @@ export const useAiStudioAgentBridge = ({
         };
       });
     },
-    [agentBridgeSessionKey, createDefaultRuntimeState]
+    [agentBridgeSessionKey, createDefaultRuntimeState, isPulseCreateMode]
   );
   const setLatestAgentPrompt: Dispatch<SetStateAction<string | null>> = useCallback(
     (value) => updateAgentBridgeSessionUiStateField("latestAgentPrompt", value),
@@ -387,16 +424,24 @@ export const useAiStudioAgentBridge = ({
         agentBridgeRuntimeStateBySessionKey[`${sessionId ?? "none"}::standard`] ??
           createDefaultRuntimeState()
       ),
-      pulsePresetId: activePulsePresetId,
+      pulsePresetId: hasActivePulseSession ? resolvedActivePulsePresetId : null,
       pulse: createPersistedAgentRuntimeSnapshot(
-        activePulsePresetId
+        hasActivePulseSession
           ? (agentBridgeRuntimeStateBySessionKey[
-              `${sessionId ?? "none"}::pulse:${activePulsePresetId}`
-            ] ?? createDefaultRuntimeState())
-          : createDefaultRuntimeState()
+              `${sessionId ?? "none"}::${pulseRuntimeScopeKey}`
+            ] ?? createDefaultRuntimeState({ forceChatModeEnabled: true }))
+          : createDefaultRuntimeState({ forceChatModeEnabled: true }),
+        { forceChatModeEnabled: true }
       ),
     }),
-    [activePulsePresetId, agentBridgeRuntimeStateBySessionKey, createDefaultRuntimeState, sessionId]
+    [
+      agentBridgeRuntimeStateBySessionKey,
+      createDefaultRuntimeState,
+      hasActivePulseSession,
+      pulseRuntimeScopeKey,
+      resolvedActivePulsePresetId,
+      sessionId,
+    ]
   );
 
   const ensureAgentSession = useCallback(() => {
@@ -428,7 +473,8 @@ export const useAiStudioAgentBridge = ({
   });
 
   const resolvePulseSessionNamespace = useCallback(
-    (presetId: string) => `ai-studio:${sessionId ?? "none"}::pulse:${presetId}`,
+    (presetId: string, nextPulseSessionInstanceId: string) =>
+      `ai-studio:${sessionId ?? "none"}::pulse-v2:${presetId}:${nextPulseSessionInstanceId}`,
     [sessionId]
   );
 
@@ -441,9 +487,7 @@ export const useAiStudioAgentBridge = ({
         const isPulseEntry = key.startsWith(pulseSessionKeyPrefix);
         if (!isPulseEntry) return true;
         const shouldKeep =
-          expertCreateMode === "pulse" &&
-          key === agentBridgeSessionKey &&
-          activePulsePresetId !== null;
+          hasActivePulseSession && key === `${sessionId ?? "none"}::${pulseRuntimeScopeKey}`;
         if (!shouldKeep) {
           changed = true;
         }
@@ -452,11 +496,12 @@ export const useAiStudioAgentBridge = ({
       if (!changed) return current;
       return Object.fromEntries(nextEntries);
     });
-  }, [activePulsePresetId, agentBridgeSessionKey, expertCreateMode, sessionId]);
+  }, [hasActivePulseSession, pulseRuntimeScopeKey, sessionId]);
 
   useEffect(() => {
     const activeRuntimeState =
-      agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ?? createDefaultRuntimeState();
+      agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ??
+      createDefaultRuntimeState({ forceChatModeEnabled: isPulseCreateMode ? true : undefined });
     agentUiBusyRef.current = false;
     setAgentUiBusy(false);
     // eslint-disable-next-line react-hooks/immutability -- The hydration echo sentinel lives in a ref specifically so scope rehydration metadata does not trigger extra renders.
@@ -472,7 +517,9 @@ export const useAiStudioAgentBridge = ({
 
     setLatestAgentPrompt(activeRuntimeState.latestAgentPrompt);
     setPromptOrigin(activeRuntimeState.promptOrigin);
-    setChatModeEnabled(activeRuntimeState.chatModeEnabled);
+    if (!isPulseCreateMode) {
+      setStandardChatModeEnabledState(activeRuntimeState.chatModeEnabled);
+    }
     setAgentActions(activeRuntimeState.agentActions);
     setIsAgentChatOpen(activeRuntimeState.isAgentChatOpen);
   }, [
@@ -485,10 +532,10 @@ export const useAiStudioAgentBridge = ({
     setAgentAttachments,
     setAgentInput,
     setAgentUiBusy,
-    setChatModeEnabled,
     setIsAgentChatOpen,
     setLatestAgentPrompt,
     setPromptOrigin,
+    isPulseCreateMode,
   ]);
 
   const latestAssistantMessage = useMemo(
@@ -496,21 +543,21 @@ export const useAiStudioAgentBridge = ({
     [agentMessages]
   );
   const pulseArtifactPrompt =
-    expertCreateMode === "pulse" &&
+    hasActivePulseSession &&
     typeof pulseWorkflowSession?.lastArtifact === "string" &&
     pulseWorkflowSession.lastArtifact.trim().length > 0
       ? pulseWorkflowSession.lastArtifact.trim()
       : null;
   const effectiveLatestAgentPrompt = pulseArtifactPrompt ?? latestAgentPrompt;
   const effectivePromptOrigin =
-    pulseArtifactPrompt && expertCreateMode === "pulse" ? "agent" : promptOrigin;
+    pulseArtifactPrompt && hasActivePulseSession ? "agent" : promptOrigin;
   const liveRuntimeState: AgentBridgeRuntimeState = {
     messages: agentMessages,
     input: agentInput,
     attachments: agentAttachments,
     latestAgentPrompt: effectiveLatestAgentPrompt,
     promptOrigin: effectivePromptOrigin,
-    chatModeEnabled,
+    chatModeEnabled: isPulseCreateMode ? true : chatModeEnabled,
     agentActions,
     isAgentChatOpen,
   };
@@ -522,7 +569,7 @@ export const useAiStudioAgentBridge = ({
       attachments: agentAttachments,
       latestAgentPrompt,
       promptOrigin,
-      chatModeEnabled,
+      chatModeEnabled: isPulseCreateMode ? true : chatModeEnabled,
       agentActions,
       isAgentChatOpen,
     },
@@ -653,6 +700,9 @@ export const useAiStudioAgentBridge = ({
     lastAssistantMessage: latestAssistantMessage,
     setUiNotice,
     resolvePulseSessionNamespace,
+    expertCreateMode,
+    activePulsePresetId,
+    pulseSessionInstanceId,
   });
 
   const {
@@ -718,7 +768,7 @@ export const useAiStudioAgentBridge = ({
       if (nextEntries.length === Object.keys(current).length) return current;
       return Object.fromEntries(nextEntries);
     });
-    setChatModeEnabledState(true);
+    setStandardChatModeEnabledState(true);
     setPulseWorkflowSession(null);
     setAgentAttachmentError(null);
     setAgentAttachments([]);
@@ -774,10 +824,18 @@ export const useAiStudioAgentBridge = ({
           agentRuntimes.standard
         ),
       };
-      const pulsePresetId = agentRuntimes.pulsePresetId ?? workspace.activePulsePresetId;
-      if (pulsePresetId) {
-        nextStateBySessionKey[`${sessionKeyPrefix}pulse:${pulsePresetId}`] =
-          createAgentBridgeRuntimeStateFromHydration(agentRuntimes.pulse);
+      const pulsePresetId =
+        workspace.expertCreateMode === "pulse"
+          ? (agentRuntimes.pulsePresetId ?? workspace.activePulsePresetId)
+          : null;
+      const restoredPulseSessionInstanceId =
+        workspace.expertCreateMode === "pulse" ? workspace.pulseSessionInstanceId : null;
+      if (pulsePresetId && restoredPulseSessionInstanceId) {
+        nextStateBySessionKey[
+          `${sessionKeyPrefix}pulse:${pulsePresetId}:${restoredPulseSessionInstanceId}`
+        ] = createAgentBridgeRuntimeStateFromHydration(agentRuntimes.pulse, {
+          forceChatModeEnabled: true,
+        });
       }
 
       setAgentBridgeRuntimeStateBySessionKey((current) => {
@@ -790,7 +848,9 @@ export const useAiStudioAgentBridge = ({
         };
       });
       setPulseWorkflowSession(
-        agentRuntimes.pulse.pulseWorkflowSession ?? agent.pulseWorkflowSession ?? null
+        pulsePresetId && restoredPulseSessionInstanceId
+          ? (agentRuntimes.pulse.pulseWorkflowSession ?? agent.pulseWorkflowSession ?? null)
+          : null
       );
       setAgentActions(undefined);
       setAgentAttachmentError(null);

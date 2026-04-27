@@ -131,10 +131,14 @@ export type CreatePropertiesPanelProps = {
   expertCreateMode?: ExpertCreateMode;
   onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
   activePulsePresetId?: CreatePulsePresetId | null;
+  hasActivePulseSession?: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
-  onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
+  onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => string | null | void;
   onPulsePresetStart?: (
-    preset: CreatePulseResolvedPreset
+    preset: CreatePulseResolvedPreset,
+    options?: {
+      pulseSessionInstanceId?: string | null;
+    }
   ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
   onPulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
@@ -709,6 +713,7 @@ export function CreatePropertiesPanel({
   expertCreateMode,
   onExpertCreateModeChange,
   activePulsePresetId,
+  hasActivePulseSession = Boolean(activePulsePresetId),
   pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
@@ -1035,6 +1040,7 @@ export function CreatePropertiesPanel({
           expertCreateMode={expertCreateMode}
           onExpertCreateModeChange={onExpertCreateModeChange}
           activePulsePresetId={activePulsePresetId}
+          hasActivePulseSession={hasActivePulseSession}
           pulseWorkflowSession={pulseWorkflowSession}
           onActivePulsePresetIdChange={onActivePulsePresetIdChange}
           onPulsePresetStart={onPulsePresetStart}

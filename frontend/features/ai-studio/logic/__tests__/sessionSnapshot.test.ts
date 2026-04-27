@@ -378,7 +378,8 @@ describe("sessionSnapshot", () => {
     const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
 
     expect(projectSnapshot.workspace.expertCreateMode).toBe("pulse");
-    expect(projectSnapshot.workspace.activePulsePresetId).toBe("single_shot");
+    expect(projectSnapshot.workspace.activePulsePresetId).toBeNull();
+    expect(projectSnapshot.workspace.pulseSessionInstanceId).toBeNull();
     expect(projectSnapshot.agent).toEqual({
       messages: [],
       input: "",

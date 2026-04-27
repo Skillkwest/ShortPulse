@@ -68,6 +68,9 @@ export const useAiStudioAgentOrchestration = ({
   setActiveOutputId,
   lastAssistantMessage,
   setUiNotice,
+  expertCreateMode = "standard",
+  activePulsePresetId = null,
+  pulseSessionInstanceId = null,
   resolvePulseSessionNamespace,
 }: UseAiStudioAgentOrchestrationParams) => {
   const [isPromptRefining, setIsPromptRefining] = useState(false);
@@ -80,6 +83,22 @@ export const useAiStudioAgentOrchestration = ({
     setUiNotice("Preparing chat. Try again in a moment.");
     trackAgentUiEvent("studio_agent_send_blocked_bootstrap_pending");
   }, [setUiNotice, trackAgentUiEvent]);
+  const notifyPulseSelectionRequired = useCallback(() => {
+    setUiNotice("Select a Pulse to start.");
+    trackAgentUiEvent("studio_agent_send_blocked_no_active_pulse_session");
+  }, [setUiNotice, trackAgentUiEvent]);
+  const hasActivePulseSession =
+    expertCreateMode === "pulse" &&
+    typeof activePulsePresetId === "string" &&
+    activePulsePresetId.trim().length > 0 &&
+    typeof pulseSessionInstanceId === "string" &&
+    pulseSessionInstanceId.trim().length > 0;
+  const ensurePulseSessionReady = useCallback(() => {
+    if (expertCreateMode !== "pulse") return true;
+    if (hasActivePulseSession) return true;
+    notifyPulseSelectionRequired();
+    return false;
+  }, [expertCreateMode, hasActivePulseSession, notifyPulseSelectionRequired]);
 
   const handleAgentSend = useCallback(
     async (
@@ -88,6 +107,9 @@ export const useAiStudioAgentOrchestration = ({
     ): Promise<{ prompt: string; referenceTitle?: string | null } | void> => {
       if (!agentBootstrapReady) {
         notifyBootstrapPending();
+        return;
+      }
+      if (!ensurePulseSessionReady()) {
         return;
       }
       if (agentIsSending || agentUiBusyRef.current) return;
@@ -334,6 +356,7 @@ export const useAiStudioAgentOrchestration = ({
       setAgentAttachments,
       setAgentActions,
       setPulseWorkflowSession,
+      ensurePulseSessionReady,
       notifyBootstrapPending,
       trackAgentUiEvent,
     ]
@@ -342,6 +365,9 @@ export const useAiStudioAgentOrchestration = ({
   const handleAgentEnhanceSend = useCallback(async () => {
     if (!agentBootstrapReady) {
       notifyBootstrapPending();
+      return;
+    }
+    if (!ensurePulseSessionReady()) {
       return;
     }
     if (!prompt.trim()) return;
@@ -389,16 +415,24 @@ export const useAiStudioAgentOrchestration = ({
     setPulseWorkflowSession,
     setPromptOrigin,
     setSharedPrompt,
+    ensurePulseSessionReady,
     notifyBootstrapPending,
   ]);
 
   const handlePulsePresetStart = useCallback(
-    async (preset: CreatePulseResolvedPreset): Promise<CreatePulsePresetStartResult> => {
+    async (
+      preset: CreatePulseResolvedPreset,
+      options?: {
+        pulseSessionInstanceId?: string | null;
+      }
+    ): Promise<CreatePulsePresetStartResult> => {
       if (!agentBootstrapReady) {
         notifyBootstrapPending();
         return "failed";
       }
       if (agentIsSending || agentUiBusyRef.current) return "blocked_busy";
+      const targetPulseSessionInstanceId =
+        options?.pulseSessionInstanceId?.trim() || pulseSessionInstanceId?.trim() || randomId();
       const pulseContext = {
         ...getAgentContext({
           lastAssistantMessage,
@@ -444,14 +478,22 @@ export const useAiStudioAgentOrchestration = ({
           payloadText: activationSeed,
           previousPrompt: latestAgentPrompt ?? null,
           context: pulseContext,
-          sessionNamespaceOverride: resolvePulseSessionNamespace?.(preset.presetId),
+          sessionNamespaceOverride: resolvePulseSessionNamespace?.(
+            preset.presetId,
+            targetPulseSessionInstanceId
+          ),
+          isolateHistory: true,
           skipUserEcho: true,
         });
         if (discarded) {
+          setPulseWorkflowSession(null);
           return "failed";
         }
 
-        if (!response) return "failed";
+        if (!response) {
+          setPulseWorkflowSession(null);
+          return "failed";
+        }
 
         const appliedPrompt = normalizePromptText(actions?.applyPrompt);
         if (appliedPrompt) {
@@ -491,6 +533,7 @@ export const useAiStudioAgentOrchestration = ({
       setPromptOrigin,
       setSharedPrompt,
       notifyBootstrapPending,
+      pulseSessionInstanceId,
       resolvePulseSessionNamespace,
       trackAgentUiEvent,
     ]
@@ -499,6 +542,9 @@ export const useAiStudioAgentOrchestration = ({
   const handleReferencePromptEnhance = useCallback(async () => {
     if (!agentBootstrapReady) {
       notifyBootstrapPending();
+      return;
+    }
+    if (!ensurePulseSessionReady()) {
       return;
     }
     const isVideoPromptTool = selectedTool === "video" || selectedTool === "kling";
@@ -553,6 +599,7 @@ export const useAiStudioAgentOrchestration = ({
     setPromptOrigin,
     setVideoReferenceText,
     videoReferenceText,
+    ensurePulseSessionReady,
     notifyBootstrapPending,
   ]);
 
@@ -560,6 +607,9 @@ export const useAiStudioAgentOrchestration = ({
     async (outputId: string) => {
       if (!agentBootstrapReady) {
         notifyBootstrapPending();
+        return;
+      }
+      if (!ensurePulseSessionReady()) {
         return;
       }
       if (!outputId) return;
@@ -695,6 +745,7 @@ export const useAiStudioAgentOrchestration = ({
       setOutputs,
       setPromptOrigin,
       setSharedPrompt,
+      ensurePulseSessionReady,
       notifyBootstrapPending,
     ]
   );

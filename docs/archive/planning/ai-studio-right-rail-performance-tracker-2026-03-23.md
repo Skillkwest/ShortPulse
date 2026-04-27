@@ -3,7 +3,9 @@
 Last updated: 2026-03-24  
 Status: Completed (`scope done`)
 Owner: AI Studio Engineering  
-Program doc: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`
+Program doc: `docs/archive/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`
+
+> Archived on 2026-04-26 during the docs-cleanup wave. This closeout packet is completed and no longer belongs in active planning.
 
 ## Status legend
 - `Planned`

@@ -21,6 +21,7 @@ import {
 } from "./sessionSnapshotCanvas";
 import { parseAiStudioSessionExpertEditState } from "./sessionSnapshotExpertEdit";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import { buildRestoredPulseSessionInstanceId } from "./pulseSessionIdentity";
 
 const FALLBACK_MODE: StudioMode = "text";
 const FALLBACK_ASPECT = "9:16";
@@ -463,6 +464,7 @@ export type AiStudioSessionHydrationPayload = {
     selectedCharacterLookId: string | null;
     expertCreateMode: "standard" | "pulse";
     activePulsePresetId: string | null;
+    pulseSessionInstanceId: string | null;
     referenceImageUrl: string | null;
     extraImageUrls: [string | null, string | null, string | null];
     editReferenceText: string;
@@ -575,6 +577,15 @@ const buildHydratedAgentRuntime = (value: unknown) => {
   };
 };
 
+const coerceHydratedRuntimeChatMode = <
+  TRuntime extends ReturnType<typeof buildHydratedAgentRuntime>,
+>(
+  runtime: TRuntime,
+  options?: {
+    forceChatModeEnabled?: boolean;
+  }
+): TRuntime => (options?.forceChatModeEnabled ? { ...runtime, chatModeEnabled: true } : runtime);
+
 /**
  * Builds normalized state payload used by snapshot hydration apply paths.
  */
@@ -635,8 +646,15 @@ export const buildAiStudioSessionHydrationPayload = (
     asNullableString(
       (workspace as { activePulsePresetId?: unknown }).activePulsePresetId
     )?.trim() || null;
+  const workspacePulseSessionInstanceId =
+    asNullableString(
+      (workspace as { pulseSessionInstanceId?: unknown }).pulseSessionInstanceId
+    )?.trim() || null;
   const defaultAgentRuntime = buildHydratedAgentRuntime(null);
   const legacyAgentRuntime = buildHydratedAgentRuntime(agent);
+  const legacyPulseRuntime = coerceHydratedRuntimeChatMode(legacyAgentRuntime, {
+    forceChatModeEnabled: true,
+  });
   const hydratedAgentRuntimes = {
     standard: agentRuntimes?.standard
       ? buildHydratedAgentRuntime(agentRuntimes.standard)
@@ -644,21 +662,33 @@ export const buildAiStudioSessionHydrationPayload = (
         ? defaultAgentRuntime
         : legacyAgentRuntime,
     pulsePresetId:
-      asNullableString(agentRuntimes?.pulsePresetId)?.trim() ||
-      workspaceActivePulsePresetId ||
-      legacyAgentRuntime.pulseWorkflowSession?.presetId ||
-      null,
+      workspaceExpertCreateMode === "pulse"
+        ? asNullableString(agentRuntimes?.pulsePresetId)?.trim() ||
+          workspaceActivePulsePresetId ||
+          legacyAgentRuntime.pulseWorkflowSession?.presetId ||
+          null
+        : null,
     pulse: agentRuntimes?.pulse
-      ? buildHydratedAgentRuntime(agentRuntimes.pulse)
-      : workspaceExpertCreateMode === "pulse" ||
-          workspaceActivePulsePresetId !== null ||
-          legacyAgentRuntime.pulseWorkflowSession !== null
-        ? legacyAgentRuntime
+      ? coerceHydratedRuntimeChatMode(buildHydratedAgentRuntime(agentRuntimes.pulse), {
+          forceChatModeEnabled: true,
+        })
+      : workspaceExpertCreateMode === "pulse"
+        ? legacyPulseRuntime
         : defaultAgentRuntime,
   };
   const resolvedWorkspaceActivePulsePresetId =
-    workspaceActivePulsePresetId ||
-    (workspaceExpertCreateMode === "pulse" ? hydratedAgentRuntimes.pulsePresetId : null);
+    workspaceExpertCreateMode === "pulse"
+      ? workspaceActivePulsePresetId || hydratedAgentRuntimes.pulsePresetId
+      : null;
+  const resolvedWorkspacePulseSessionInstanceId =
+    workspaceExpertCreateMode !== "pulse" || !resolvedWorkspaceActivePulsePresetId
+      ? null
+      : workspacePulseSessionInstanceId ||
+        buildRestoredPulseSessionInstanceId({
+          sessionId: snapshot.sessionId,
+          updatedAt: snapshot.updatedAt,
+          presetId: resolvedWorkspaceActivePulsePresetId,
+        });
   const activeAgentRuntime =
     workspaceExpertCreateMode === "pulse"
       ? hydratedAgentRuntimes.pulse
@@ -678,6 +708,7 @@ export const buildAiStudioSessionHydrationPayload = (
       selectedCharacterLookId: asNullableString(workspace.selectedCharacterLookId)?.trim() || null,
       expertCreateMode: workspaceExpertCreateMode,
       activePulsePresetId: resolvedWorkspaceActivePulsePresetId,
+      pulseSessionInstanceId: resolvedWorkspacePulseSessionInstanceId,
       referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.referenceImageUrl)),
       extraImageUrls: asExtraImageUrls(workspace.extraImageUrls),
       editReferenceText: asString(workspace.editReferenceText, ""),

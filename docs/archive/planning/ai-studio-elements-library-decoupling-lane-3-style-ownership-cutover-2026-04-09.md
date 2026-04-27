@@ -3,8 +3,10 @@
 Last updated: 2026-04-10  
 Status: Completed  
 Owner: Engineering  
-Roadmap anchor: `docs/planning/ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`  
-Tracker anchor: `docs/planning/ai-studio-elements-library-decoupling-tracker-2026-04-09.md`
+Roadmap anchor: `docs/archive/planning/ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`  
+Tracker anchor: `docs/archive/planning/ai-studio-elements-library-decoupling-tracker-2026-04-09.md`
+
+> Archived on 2026-04-26 during the docs-cleanup wave. This lane is completed and no longer belongs in active planning.
 
 ## Goal
 Move live Elements rendering ownership out of Character stylesheets and resolve adjacent live runtime contracts that still borrow Character-owned CTA/avatar styling.

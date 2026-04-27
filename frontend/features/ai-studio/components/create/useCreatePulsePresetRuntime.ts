@@ -35,9 +35,12 @@ type UseCreatePulsePresetRuntimeParams = {
   updateSavedPresets: (
     updater: (previous: CreatePulseSavedPreset[]) => CreatePulseSavedPreset[]
   ) => void;
-  setActivePresetId: (presetId: CreatePulsePresetId | null) => void;
+  setActivePresetId: (presetId: CreatePulsePresetId | null) => string | null | void;
   onPresetStart?: (
-    preset: CreatePulseResolvedPreset
+    preset: CreatePulseResolvedPreset,
+    options?: {
+      pulseSessionInstanceId?: string | null;
+    }
   ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
   isActivationBusy?: boolean;
@@ -109,10 +112,16 @@ export const useCreatePulsePresetRuntime = ({
         showStatusToast("Wait for the current Pulse step to finish before switching.", "warning");
         return;
       }
-      setActivePresetId(presetId);
+      const pulseSessionInstanceId = setActivePresetId(presetId) ?? null;
+      if (previousActivePresetId === presetId && !pulseSessionInstanceId) {
+        return;
+      }
       let startResult: CreatePulsePresetStartResult = "started";
       if (resolvedPreset) {
-        startResult = (await onPresetStart?.(resolvedPreset)) ?? "started";
+        startResult =
+          (await onPresetStart?.(resolvedPreset, {
+            pulseSessionInstanceId,
+          })) ?? "started";
       }
       if (startResult === "blocked_busy") {
         setActivePresetId(previousActivePresetId ?? null);

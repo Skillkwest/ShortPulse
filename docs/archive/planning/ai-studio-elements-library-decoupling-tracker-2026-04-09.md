@@ -2,7 +2,9 @@
 
 Last updated: 2026-04-10  
 Status: Completed  
-Roadmap source: `docs/planning/ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`
+Roadmap source: `docs/archive/planning/ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`
+
+> Archived on 2026-04-26 during the docs-cleanup wave. This program is completed and no longer belongs in active planning.
 
 ## Purpose
 This tracker turns the repo-backed Elements decoupling roadmap into lane gates, validation bundles, and stop rules.

@@ -3,14 +3,16 @@
 Last updated: 2026-04-10  
 Status: Completed  
 Owner: Engineering  
-Tracker anchor: `docs/planning/ai-studio-elements-library-decoupling-tracker-2026-04-09.md`
+Tracker anchor: `docs/archive/planning/ai-studio-elements-library-decoupling-tracker-2026-04-09.md`
 
 Historical design anchors:
 1. `docs/archive/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
 2. `docs/archive/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
-3. `docs/planning/ai-studio-elements-library-component-state-map-2026-04-06.md`
+3. `docs/archive/planning/ai-studio-elements-library-component-state-map-2026-04-06.md`
 4. `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
-5. `docs/planning/ai-studio-elements-library-implementation-checklist-2026-04-06.md`
+5. `docs/archive/planning/ai-studio-elements-library-implementation-checklist-2026-04-06.md`
+
+> Archived on 2026-04-26 during the docs-cleanup wave. This program is completed and no longer belongs in active planning.
 
 ## Purpose
 This roadmap rewrites the Elements decoupling program against the live repo, not against the intended architecture.

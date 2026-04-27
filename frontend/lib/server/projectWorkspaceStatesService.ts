@@ -2,10 +2,7 @@
  * Project workspace persistence helpers.
  * Owns server-authoritative read/write access for user-owned project workspace snapshots.
  */
-import {
-  createAiStudioProjectWorkspaceSnapshot,
-  type AiStudioSessionSnapshot,
-} from "../../features/ai-studio/logic/sessionSnapshot";
+import { createAiStudioProjectWorkspaceSnapshot } from "../ai-studio-session/projectWorkspaceSnapshot";
 import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import {
@@ -50,7 +47,10 @@ const sanitizeProjectWorkspaceSnapshot = (
   snapshot: Record<string, unknown>
 ): Record<string, unknown> =>
   createAiStudioProjectWorkspaceSnapshot(
-    snapshot as unknown as AiStudioSessionSnapshot
+    snapshot as Record<string, unknown> & {
+      schemaVersion: number;
+      updatedAt: string;
+    }
   ) as unknown as Record<string, unknown>;
 
 const hasSettledOutputPayload = (row: Record<string, unknown>): boolean => {

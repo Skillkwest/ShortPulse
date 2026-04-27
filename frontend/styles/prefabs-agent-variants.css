@@ -246,7 +246,7 @@
   min-width: 0;
 }
 
-.agent-message-rich-label,
+.agent-message-rich-heading,
 .agent-message-rich-lead,
 .agent-message-rich-paragraph,
 .agent-message-rich-hint,
@@ -254,12 +254,48 @@
   margin: 0;
 }
 
-.agent-message-rich-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  line-height: 1.35;
-  text-transform: uppercase;
+.agent-message-rich-heading {
+  white-space: pre-wrap;
+  letter-spacing: -0.015em;
+}
+
+.agent-message-rich-heading--level-1 {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.agent-message-rich-heading--level-2 {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.18;
+}
+
+.agent-message-rich-heading--level-3 {
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.24;
+  text-transform: none;
+}
+
+.agent-message-rich-heading--level-1 strong,
+.agent-message-rich-heading--level-2 strong,
+.agent-message-rich-heading--level-3 strong,
+.agent-message-rich-paragraph strong,
+.agent-message-rich-hint strong,
+.agent-message-rich-option-title strong,
+.agent-message-rich-option-description strong {
+  font-weight: 850;
+}
+
+.agent-message-rich-heading--level-1 em,
+.agent-message-rich-heading--level-2 em,
+.agent-message-rich-heading--level-3 em,
+.agent-message-rich-paragraph em,
+.agent-message-rich-hint em,
+.agent-message-rich-option-title em,
+.agent-message-rich-option-description em {
+  font-style: italic;
 }
 
 .agent-message-rich-paragraph {
@@ -280,6 +316,43 @@
   border-radius: 10px;
   background: rgba(201, 205, 214, 0.05);
   white-space: pre-wrap;
+}
+
+.agent-message-rich-reply-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-message-rich-reply-intro {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+  white-space: pre-wrap;
+}
+
+.agent-message-rich-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-message-rich-choice-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  background: rgba(201, 205, 214, 0.13);
+  color: #f5f7fb;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
 }
 
 .agent-message-rich-list-block {
@@ -305,6 +378,35 @@
 
 .agent-message-rich-list li::marker {
   font-weight: 700;
+}
+
+.agent-message-rich-option-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.agent-message-rich-option-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+  white-space: pre-wrap;
+}
+
+.agent-message-rich-option-description {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.agent-message-rich-separator {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 4px 0 2px;
 }
 
 .agent-message-attachments {

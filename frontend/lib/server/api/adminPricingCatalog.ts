@@ -66,8 +66,15 @@ const slugifyForOfferId = (value: string): string => {
   return normalized || "offer";
 };
 
-export const buildCatalogOfferId = (baseId: string, offerName: string): string => {
-  return `${baseId}__${slugifyForOfferId(offerName)}__${Date.now().toString(36)}`;
+export const buildCatalogOfferId = (
+  baseId: string,
+  offerName: string,
+  billingInterval: "month" | "year" = "month"
+): string => {
+  return `${baseId}__${billingInterval}__${slugifyForOfferId(offerName)}__${Date.now().toString(36)}`;
 };
 
-export const buildCurrentCatalogOfferId = (baseId: string): string => `${baseId}__current`;
+export const buildCurrentCatalogOfferId = (
+  baseId: string,
+  billingInterval: "month" | "year" = "month"
+): string => (billingInterval === "month" ? `${baseId}__current` : `${baseId}__year_current`);

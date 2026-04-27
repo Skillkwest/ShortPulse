@@ -129,6 +129,18 @@ describe("Auth route behavior", () => {
     });
   });
 
+  it("opens directly in signup mode when requested by the route query", async () => {
+    routerState.query = { mode: "signup" };
+
+    render(<AuthPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Create your account" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "Sign up" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Create free account" })).toBeInTheDocument();
+  });
+
   it("submits signup with the free plan and returns to sign-in with a confirmation notice", async () => {
     render(<AuthPage />);
 

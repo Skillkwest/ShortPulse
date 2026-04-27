@@ -3,7 +3,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import {
   addMonthsUtc,
+  ANNUAL_CONTRACT_MONTHLY_GRANT_SOURCE,
   BILLING_CONTRACT_SOURCE_INTERNAL_COMP,
+  BILLING_CONTRACT_SOURCE_STRIPE,
+  BILLING_INTERVAL_YEAR,
+  buildAnnualContractMonthlyGrantRef,
   buildInternalCompRenewalRef,
   INTERNAL_COMP_RENEWAL_GRANT_SOURCE,
   isUniqueViolationError,
@@ -17,8 +21,11 @@ type BillingContractRow = {
   plan_id: string | null;
   stripe_customer_id: string | null;
   monthly_credits_cents: number | string | null;
+  billing_interval: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
+  last_credit_grant_at: string | null;
+  next_credit_grant_at: string | null;
   status: string | null;
   contract_source: string | null;
 };
@@ -112,7 +119,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const contractsResult = await supabaseAdmin
       .from("billing_subscription_contracts")
       .select(
-        "id, user_id, plan_id, stripe_customer_id, monthly_credits_cents, current_period_start, current_period_end, status, contract_source"
+        "id, user_id, plan_id, stripe_customer_id, monthly_credits_cents, billing_interval, current_period_start, current_period_end, last_credit_grant_at, next_credit_grant_at, status, contract_source"
       )
       .eq("contract_source", BILLING_CONTRACT_SOURCE_INTERNAL_COMP)
       .eq("status", "active")
@@ -130,6 +137,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let grantsAttempted = 0;
     let grantsInserted = 0;
     let duplicateGrants = 0;
+    let annualDueContracts = 0;
+    let annualAdvancedContracts = 0;
     const skippedMissingPeriod: string[] = [];
     const errors: Array<{ contractId: string; message: string }> = [];
 
@@ -230,11 +239,119 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       advancedContracts += 1;
     }
 
+    const annualContractsResult = await supabaseAdmin
+      .from("billing_subscription_contracts")
+      .select(
+        "id, user_id, plan_id, stripe_customer_id, monthly_credits_cents, billing_interval, current_period_start, current_period_end, last_credit_grant_at, next_credit_grant_at, status, contract_source"
+      )
+      .eq("contract_source", BILLING_CONTRACT_SOURCE_STRIPE)
+      .eq("billing_interval", BILLING_INTERVAL_YEAR)
+      .eq("status", "active")
+      .is("ended_at", null)
+      .not("next_credit_grant_at", "is", null)
+      .lte("next_credit_grant_at", now.toISOString())
+      .order("next_credit_grant_at", { ascending: true })
+      .limit(batchSize);
+
+    if (annualContractsResult.error) {
+      throw new Error(
+        annualContractsResult.error.message || "Failed to load annual billing contracts."
+      );
+    }
+
+    const annualContracts = (annualContractsResult.data ?? []) as BillingContractRow[];
+    for (const contract of annualContracts) {
+      const currentPeriodEnd = asDate(contract.current_period_end);
+      const nextCreditGrantAt = asDate(contract.next_credit_grant_at);
+      if (!currentPeriodEnd || !nextCreditGrantAt) {
+        skippedMissingPeriod.push(contract.id);
+        continue;
+      }
+
+      annualDueContracts += 1;
+      let nextGrantAt = new Date(nextCreditGrantAt.getTime());
+      let grantsAppliedForContract = 0;
+
+      while (
+        nextGrantAt.getTime() <= now.getTime() &&
+        nextGrantAt.getTime() < currentPeriodEnd.getTime()
+      ) {
+        const sourceRef = buildAnnualContractMonthlyGrantRef({
+          contractId: contract.id,
+          grantAtIso: nextGrantAt.toISOString(),
+        });
+        grantsAttempted += 1;
+        const ledgerResult = await insertCreditLedgerEntry({
+          userId: contract.user_id,
+          changeCents: asCents(contract.monthly_credits_cents),
+          reason: `Annual monthly credit allocation for ${contract.plan_id ?? "unknown plan"}`,
+          source: ANNUAL_CONTRACT_MONTHLY_GRANT_SOURCE,
+          sourceRef,
+          metadata: {
+            contract_id: contract.id,
+            contract_source: contract.contract_source,
+            plan_id: contract.plan_id,
+            billing_interval: contract.billing_interval,
+            grant_at: nextGrantAt.toISOString(),
+            current_period_end: currentPeriodEnd.toISOString(),
+          },
+          createdBy: null,
+        });
+
+        if (ledgerResult.error && !isUniqueViolationError(ledgerResult.error)) {
+          errors.push({
+            contractId: contract.id,
+            message: ledgerResult.error.message || "Annual monthly allocation failed.",
+          });
+          break;
+        }
+
+        if (ledgerResult.error) {
+          duplicateGrants += 1;
+        } else {
+          grantsInserted += 1;
+        }
+
+        nextGrantAt = addMonthsUtc(nextGrantAt, 1);
+        grantsAppliedForContract += 1;
+      }
+
+      if (!grantsAppliedForContract) {
+        continue;
+      }
+
+      const nextScheduledGrant =
+        nextGrantAt.getTime() < currentPeriodEnd.getTime() ? nextGrantAt.toISOString() : null;
+      const lastGrantAt = addMonthsUtc(nextGrantAt, -1).toISOString();
+      const updateResult = await supabaseAdmin
+        .from("billing_subscription_contracts")
+        .update({
+          last_credit_grant_at: lastGrantAt,
+          next_credit_grant_at: nextScheduledGrant,
+          updated_by_user_id: null,
+        })
+        .eq("id", contract.id);
+
+      if (updateResult.error) {
+        errors.push({
+          contractId: contract.id,
+          message:
+            updateResult.error.message || "Failed to advance annual credit allocation cursor.",
+        });
+        continue;
+      }
+
+      annualAdvancedContracts += 1;
+    }
+
     return res.status(errors.length > 0 ? 207 : 200).json({
       ok: errors.length === 0,
       scannedContracts: contracts.length,
+      scannedAnnualContracts: annualContractsResult.data?.length ?? 0,
       dueContracts,
       advancedContracts,
+      annualDueContracts,
+      annualAdvancedContracts,
       grantsAttempted,
       grantsInserted,
       duplicateGrants,

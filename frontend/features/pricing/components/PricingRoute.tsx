@@ -6,21 +6,23 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle, CreditCard, Database, SignIn, Sparkle } from "phosphor-react";
+import { CheckCircle } from "phosphor-react";
 import {
-  annotateCreditPackages,
   buildPlanView,
   type BillingCatalogSnapshot,
+  type BillingInterval,
   type BillingPlanRecord,
+  resolvePlanPricingForInterval,
 } from "../../billing/catalog";
 import { formatStorageBytes } from "../../billing/storage";
 import { formatCurrencyFromCents } from "../../profile/profilePageModel";
 import {
+  buildDashboardAuthPath,
   buildPricingAuthPath,
   buildPricingPath,
+  normalizePricingBillingInterval,
   normalizePricingIntent,
   normalizePricingPlanId,
-  type PricingIntent,
 } from "../paths";
 import { trackBillingPricingViewed } from "../../../lib/growthTelemetry";
 import { useSupabaseSessionState } from "../../../lib/supabaseClient";
@@ -28,25 +30,6 @@ import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 
 type PricingRouteProps = {
   billingCatalog: BillingCatalogSnapshot;
-};
-
-const resolveHeroCopy = (intent: PricingIntent) => {
-  if (intent === "create-project") {
-    return {
-      title: "Choose a plan to start your first project",
-      body: "Creating a saved project starts here. Compare live plans, sign up, and continue into AI Studio when you are ready.",
-    };
-  }
-  if (intent === "open-projects") {
-    return {
-      title: "Sign in or choose a plan to continue",
-      body: "Project libraries stay tied to your account. Log in to continue or start with a new plan if you are new to ShortPulse.",
-    };
-  }
-  return {
-    title: "Simple pricing built from the live ShortPulse catalog",
-    body: "Compare subscriptions, one-time credit packs, and recurring storage add-ons from one public pricing surface.",
-  };
 };
 
 const sortBillingPlans = (plans: readonly BillingPlanRecord[]) =>
@@ -82,6 +65,7 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
   const isAuthenticated = Boolean(user);
   const intent = normalizePricingIntent(router.query.intent);
   const selectedPlanId = normalizePricingPlanId(router.query.plan);
+  const selectedBillingInterval = normalizePricingBillingInterval(router.query.interval);
   const [planActionLoadingId, setPlanActionLoadingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -95,17 +79,31 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
   }, [intent, isAuthenticated, selectedPlanId]);
 
   const sortedPlans = useMemo(() => sortBillingPlans(billingCatalog.plans), [billingCatalog.plans]);
-  const packageCards = useMemo(
-    () => annotateCreditPackages(billingCatalog.packages),
-    [billingCatalog.packages]
-  );
-  const heroCopy = resolveHeroCopy(intent);
+
+  const handleIntervalToggle = async (billingInterval: BillingInterval) => {
+    if (billingInterval === selectedBillingInterval) return;
+    await router.replace(
+      buildPricingPath({
+        intent,
+        planId: selectedPlanId,
+        billingInterval,
+      }),
+      undefined,
+      { shallow: true }
+    );
+  };
 
   const handlePlanAction = async (planId: string) => {
     setNotice(null);
 
     if (!isAuthenticated) {
-      await router.push(buildPricingAuthPath({ intent, planId }));
+      await router.push(
+        buildPricingAuthPath({
+          intent,
+          planId,
+          billingInterval: selectedBillingInterval,
+        })
+      );
       return;
     }
 
@@ -123,6 +121,7 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
         },
         body: JSON.stringify({
           targetPlanId: planId,
+          billingInterval: selectedBillingInterval,
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as {
@@ -158,99 +157,92 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
         <header className="lp-nav sticky">
           <div className="lp-brand">
             <Link href="/" className="lp-brand-link">
-              <span className="logo-dot" />
+              <img src="/small good d.png" alt="ShortPulse logo" className="lp-brand-logo" />
               <span className="lp-brand-text">ShortPulse</span>
             </Link>
-            <span className="lp-badge teal">Pricing</span>
           </div>
 
-          <nav className="lp-nav-links">
-            <Link href="/">Dashboard</Link>
-            {isAuthenticated ? (
-              <Link href="/dashboard">Workspace</Link>
-            ) : (
-              <Link href={buildPricingAuthPath({ intent, planId: selectedPlanId })}>Log in</Link>
-            )}
-          </nav>
-
           <div className="lp-actions">
-            <Link
-              href={
-                isAuthenticated
-                  ? "/dashboard"
-                  : buildPricingAuthPath({ intent, planId: selectedPlanId })
-              }
-              className="primary-btn"
-            >
-              {isAuthenticated ? "Back to dashboard" : "Log in"}
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/dashboard" className="primary-btn">
+                Back to dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href={buildDashboardAuthPath()} className="ghost-btn">
+                  Log in
+                </Link>
+                <Link
+                  href={buildPricingAuthPath({
+                    intent,
+                    planId: selectedPlanId,
+                    billingInterval: selectedBillingInterval,
+                    mode: "signup",
+                  })}
+                  className="primary-btn"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </header>
 
         <main className="lp-main">
-          <section className="lp-hero pricing-route-hero">
-            <div className="lp-hero-grid pricing-route-hero-grid">
-              <div className="lp-hero-copy">
-                <div className="lp-pill">
-                  <Sparkle size={16} weight="bold" />
-                  Live billing catalog
-                </div>
-                <h1>
-                  {heroCopy.title}
-                  <span className="lp-hero-accent">
-                    ShortPulse pricing, credits, and media capacity.
-                  </span>
-                </h1>
-                <p className="lp-hero-sub">{heroCopy.body}</p>
-                <div className="lp-cta-row">
-                  <Link href={buildPricingPath({ intent })} className="ghost-btn lg">
-                    Reset filters
-                  </Link>
-                  {!isAuthenticated ? (
-                    <Link
-                      href={buildPricingAuthPath({ intent, planId: selectedPlanId })}
-                      className="primary-btn lg"
-                    >
-                      Start with email
-                      <SignIn size={18} weight="bold" />
-                    </Link>
-                  ) : (
-                    <Link href="/dashboard" className="primary-btn lg">
-                      Return to dashboard
-                    </Link>
-                  )}
-                </div>
-                {selectedPlanId ? (
-                  <div className="dashboard-guest-strip pricing-route-selected-plan">
-                    <div className="dashboard-guest-strip-copy">
-                      <p className="eyebrow">Selected plan</p>
-                      <p className="dashboard-guest-strip-title">
-                        {
-                          buildPlanView({ planId: selectedPlanId, plans: billingCatalog.plans })
-                            .displayName
-                        }
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
-                {notice ? <p className="pricing-route-notice">{notice}</p> : null}
-              </div>
-            </div>
-          </section>
-
           <section className="lp-section" aria-labelledby="pricing-plans-heading">
             <div className="pricing-hero">
               <h2 id="pricing-plans-heading">Subscription plans</h2>
-              <p>Use the live public offers from your current billing catalog.</p>
+              <p>Start with the plan that matches your workflow. You can always upgrade later.</p>
+              {selectedPlanId ? (
+                <div className="dashboard-guest-strip pricing-route-selected-plan">
+                  <div className="dashboard-guest-strip-copy">
+                    <p className="eyebrow">Selected plan</p>
+                    <p className="dashboard-guest-strip-title">
+                      {
+                        buildPlanView({ planId: selectedPlanId, plans: billingCatalog.plans })
+                          .displayName
+                      }
+                    </p>
+                    <p className="dashboard-guest-strip-description">
+                      {selectedBillingInterval === "year"
+                        ? "Annual billing selected"
+                        : "Monthly billing selected"}
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+              {notice ? <p className="pricing-route-notice">{notice}</p> : null}
+              <div className="pricing-interval-toggle" role="group" aria-label="Billing interval">
+                <button
+                  type="button"
+                  className={`pricing-interval-option ${selectedBillingInterval === "month" ? "is-active" : ""}`}
+                  onClick={() => {
+                    void handleIntervalToggle("month");
+                  }}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  className={`pricing-interval-option ${selectedBillingInterval === "year" ? "is-active" : ""}`}
+                  onClick={() => {
+                    void handleIntervalToggle("year");
+                  }}
+                >
+                  Annual
+                  <span className="pricing-interval-badge">Save up to 17%</span>
+                </button>
+              </div>
             </div>
 
             <div className="lp-plan-grid">
               {sortedPlans.map((plan) => {
                 const planView = buildPlanView({ planId: plan.id, plans: billingCatalog.plans });
+                const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
                 const isSelected = selectedPlanId === plan.id;
                 const actionLabel = resolvePlanActionLabel({
                   isAuthenticated,
-                  monthlyPriceCents: plan.monthly_price_cents,
+                  monthlyPriceCents: planPricing.monthlyEquivalentCents,
                   displayName: planView.displayName,
                 });
                 const isLoading = planActionLoadingId === plan.id;
@@ -258,42 +250,71 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
                 return (
                   <article
                     key={plan.id}
-                    className={`lp-plan-card pricing-card ${isSelected ? "pricing-plan-selected" : ""}`}
+                    className={`lp-plan-card pricing-card pricing-plan-card ${planView.className} ${isSelected ? "pricing-plan-selected" : ""}`}
                   >
-                    <div className="lp-plan-top">
-                      <div>
-                        <span className="lp-plan-name">{planView.displayName}</span>
-                        <p className="lp-plan-sub">{planView.description}</p>
+                    <div className="pricing-plan-head">
+                      <div className="pricing-plan-kicker">
+                        {plan.monthly_price_cents === 0
+                          ? "Start here"
+                          : selectedBillingInterval === "year"
+                            ? "Annual billing"
+                            : "Subscription"}
                       </div>
-                      {plan.id === "studio" ? (
-                        <span className="lp-badge teal">Most popular</span>
+                      <div className="lp-plan-top pricing-plan-top">
+                        <span className="lp-plan-name">{planView.displayName}</span>
+                        {plan.id === "studio" ? (
+                          <span className="lp-badge teal pricing-plan-badge">Most popular</span>
+                        ) : null}
+                      </div>
+                      <p className="lp-plan-sub pricing-plan-sub">{planView.description}</p>
+                    </div>
+
+                    <div className="lp-price-block pricing-plan-price">
+                      <div className="pricing-plan-price-row">
+                        <div className="lp-price-big">
+                          {plan.monthly_price_cents === 0
+                            ? "Free"
+                            : formatCurrencyFromCents(planPricing.monthlyEquivalentCents)}
+                        </div>
+                        <div className="lp-price-note pricing-plan-price-note">
+                          {plan.monthly_price_cents === 0 ? "forever" : "/mo"}
+                        </div>
+                      </div>
+                      {plan.monthly_price_cents > 0 && selectedBillingInterval === "year" ? (
+                        <div className="pricing-plan-billing-meta">
+                          {planPricing.savingsAmountCents > 0 ? (
+                            <span className="pricing-plan-billing-savings">
+                              Save {formatCurrencyFromCents(planPricing.savingsAmountCents)}/yr
+                            </span>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
 
-                    <div className="lp-price-block">
-                      <div className="lp-price-big">
-                        {plan.monthly_price_cents === 0
-                          ? "Free"
-                          : formatCurrencyFromCents(plan.monthly_price_cents)}
-                      </div>
-                      <div className="lp-price-note">
-                        {plan.monthly_price_cents === 0 ? "forever" : "per month"}
-                      </div>
-                    </div>
-
-                    <ul className="lp-plan-list">
+                    <ul className="lp-plan-list pricing-plan-list">
                       <li>
                         <CheckCircle size={16} weight="bold" />
-                        {plan.monthly_credits_cents.toLocaleString()} credits every month
+                        {planPricing.monthlyCreditsCents.toLocaleString()} credits every month
                       </li>
                       <li>
                         <CheckCircle size={16} weight="bold" />
-                        {formatStorageBytes(plan.storage_limit_bytes)} of included media storage
+                        {formatStorageBytes(planPricing.storageLimitBytes)} of included media
+                        storage
                       </li>
                       <li>
                         <CheckCircle size={16} weight="bold" />
                         {planView.seatsLabel}
                       </li>
+                      <li>
+                        <CheckCircle size={16} weight="bold" />
+                        Concurrent: {planView.concurrentGenerationsCompactLabel}
+                      </li>
+                      {planView.pricingHighlights.map((highlight) => (
+                        <li key={`${plan.id}-${highlight}`}>
+                          <CheckCircle size={16} weight="bold" />
+                          {highlight}
+                        </li>
+                      ))}
                     </ul>
 
                     <button
@@ -309,86 +330,6 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
                   </article>
                 );
               })}
-            </div>
-          </section>
-
-          <section className="lp-section" aria-labelledby="pricing-credits-heading">
-            <div className="lp-section-head">
-              <div>
-                <p className="eyebrow">Top-ups</p>
-                <h2 id="pricing-credits-heading">Credit packages</h2>
-              </div>
-            </div>
-
-            <div className="lp-plan-grid">
-              {packageCards.map((pkg) => (
-                <article key={pkg.id} className="lp-plan-card pricing-card pricing-detail-card">
-                  <div className="lp-plan-top">
-                    <div>
-                      <span className="lp-plan-name">{pkg.display_name}</span>
-                      <p className="lp-plan-sub">One-time top-up</p>
-                    </div>
-                    {pkg.badge ? <span className="lp-badge">{pkg.badge}</span> : null}
-                  </div>
-
-                  <div className="lp-price-block">
-                    <div className="lp-price-big">{formatCurrencyFromCents(pkg.price_cents)}</div>
-                    <div className="lp-price-note">one-time</div>
-                  </div>
-
-                  <ul className="lp-plan-list">
-                    <li>
-                      <CreditCard size={16} weight="bold" />
-                      {pkg.credit_amount_cents.toLocaleString()} credits added to your balance
-                    </li>
-                    <li>
-                      <CreditCard size={16} weight="bold" />${pkg.unitUsdPerThousand.toFixed(2)} per
-                      1,000 credits
-                    </li>
-                  </ul>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="lp-section" aria-labelledby="pricing-storage-heading">
-            <div className="lp-section-head">
-              <div>
-                <p className="eyebrow">Media capacity</p>
-                <h2 id="pricing-storage-heading">Recurring storage add-ons</h2>
-              </div>
-            </div>
-
-            <div className="lp-plan-grid">
-              {billingCatalog.storageAddons.map((addon) => (
-                <article key={addon.id} className="lp-plan-card pricing-card pricing-detail-card">
-                  <div className="lp-plan-top">
-                    <div>
-                      <span className="lp-plan-name">{addon.display_name}</span>
-                      <p className="lp-plan-sub">Recurring add-on</p>
-                    </div>
-                    <Database size={18} weight="bold" />
-                  </div>
-
-                  <div className="lp-price-block">
-                    <div className="lp-price-big">
-                      {formatCurrencyFromCents(addon.monthly_price_cents)}
-                    </div>
-                    <div className="lp-price-note">per month</div>
-                  </div>
-
-                  <ul className="lp-plan-list">
-                    <li>
-                      <CheckCircle size={16} weight="bold" />
-                      Adds {formatStorageBytes(addon.storage_limit_bytes)} to your workspace
-                    </li>
-                    <li>
-                      <CheckCircle size={16} weight="bold" />
-                      Renews with your paid subscription
-                    </li>
-                  </ul>
-                </article>
-              ))}
             </div>
           </section>
         </main>

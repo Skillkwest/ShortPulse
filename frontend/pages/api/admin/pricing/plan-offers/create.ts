@@ -14,6 +14,7 @@ import { getSupabaseAdmin } from "../../../../../lib/server/api/supabaseAdmin";
 type CreatePlanOfferRequest = {
   planId?: string;
   offerName?: string;
+  billingInterval?: "month" | "year";
   recurringPriceCents?: number | string;
   monthlyCreditsCents?: number | string;
   storageLimitBytes?: number | string;
@@ -22,11 +23,15 @@ type CreatePlanOfferRequest = {
 
 type CurrentPlanOfferRow = {
   id: string;
+  billing_interval: "month" | "year";
   recurring_price_cents: number;
   monthly_credits_cents: number;
   storage_limit_bytes: number;
   stripe_price_id: string | null;
 };
+
+const normalizeBillingInterval = (value: unknown): "month" | "year" =>
+  value === "year" ? "year" : "month";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -40,6 +45,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const body = (req.body ?? {}) as CreatePlanOfferRequest;
   const planId = normalizeRequiredText(body.planId).toLowerCase();
   const offerName = normalizeRequiredText(body.offerName);
+  const billingInterval = normalizeBillingInterval(body.billingInterval);
   const recurringPriceCents = parseNonNegativeInteger(body.recurringPriceCents);
   const monthlyCreditsCents = parseNonNegativeInteger(body.monthlyCreditsCents);
   const storageLimitBytes = parseNonNegativeInteger(body.storageLimitBytes);
@@ -71,9 +77,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin
         .from("billing_plan_offers")
         .select(
-          "id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id"
+          "id, billing_interval, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id"
         )
         .eq("plan_id", planId)
+        .eq("billing_interval", billingInterval)
         .eq("acquisition_enabled", true)
         .eq("is_active", true)
         .is("effective_end_at", null)
@@ -122,11 +129,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const nextOfferId = buildCatalogOfferId(planId, offerName);
+    const nextOfferId = buildCatalogOfferId(planId, offerName, billingInterval);
     const insertResult = await supabaseAdmin.from("billing_plan_offers").insert({
       id: nextOfferId,
       plan_id: planId,
       offer_name: offerName,
+      billing_interval: billingInterval,
       recurring_price_cents: recurringPriceCents,
       monthly_credits_cents: monthlyCreditsCents,
       storage_limit_bytes: storageLimitBytes,

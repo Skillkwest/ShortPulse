@@ -125,20 +125,27 @@ describe("Dashboard guest route", () => {
     expect(
       screen.getByRole("heading", { name: /build faster with shortpulse/i })
     ).toBeInTheDocument();
+    expect(screen.getAllByText("Offer 1")).toHaveLength(2);
+    expect(screen.getAllByText("Offer 2")).toHaveLength(2);
+    expect(screen.getAllByText("Offer 3")).toHaveLength(2);
+    expect(screen.getAllByText("Offer 4")).toHaveLength(2);
     expect(screen.getByRole("link", { name: "Log in" })).toHaveAttribute(
       "href",
       "/auth?next=%2Fdashboard"
     );
     expect(
       screen.getByRole("link", {
-        name: "Create New Project: Choose a plan to start building in AI Studio",
+        name: "New Project: Open the AI Studio",
       })
     ).toHaveAttribute("href", "/pricing?intent=create-project");
     expect(
-      screen.getByRole("link", {
-        name: "Open Projects: Sign in or choose a plan to continue",
+      screen.queryByRole("link", {
+        name: /open projects/i,
       })
-    ).toHaveAttribute("href", "/pricing?intent=open-projects");
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /choose where to start/i })
+    ).not.toBeInTheDocument();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Profile menu" })).not.toBeInTheDocument();
   });

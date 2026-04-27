@@ -65,12 +65,17 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
       if (fields === "id, storage_path") {
         const limit = vi.fn(async () => ({
           data: mediaStorageRows
-            .map((row) => ({
-              id: typeof row.id === "string" ? row.id : null,
-              storage_path: typeof row.storage_path === "string" ? row.storage_path : null,
-              user_id: typeof row.user_id === "string" ? row.user_id : null,
-            }))
-            .filter((row) => row.id && row.storage_path),
+            .map((row) => {
+              const rowRecord = row as Record<string, unknown>;
+              return {
+                id: typeof row.id === "string" ? row.id : null,
+                storage_path: typeof row.storage_path === "string" ? row.storage_path : null,
+                user_id: typeof rowRecord.user_id === "string" ? rowRecord.user_id : null,
+              };
+            })
+            .filter((row): row is { id: string; storage_path: string; user_id: string | null } =>
+              Boolean(row.id && row.storage_path)
+            ),
           error: null,
         }));
         const builder = {

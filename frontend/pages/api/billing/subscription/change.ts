@@ -16,6 +16,7 @@ import { ensureStripeCustomerForUser } from "../../../../lib/server/api/stripeCu
 
 type ChangeSubscriptionRequest = {
   targetPlanId?: string;
+  billingInterval?: "month" | "year";
 };
 
 type BillingProfileRow = {
@@ -31,6 +32,7 @@ type BillingContractRow = {
   id: string;
   plan_id: string | null;
   offer_id: string | null;
+  billing_interval: "month" | "year" | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   stripe_price_id: string | null;
@@ -47,6 +49,7 @@ type BillingPlanRow = {
 type BillingPlanOfferRow = {
   id: string;
   plan_id: string;
+  billing_interval: "month" | "year";
   stripe_price_id: string | null;
   recurring_price_cents: number;
   acquisition_enabled: boolean;
@@ -80,6 +83,9 @@ type StripeSubscriptionResponse = {
 
 const normalizePlanId = (value: unknown): string =>
   typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const normalizeBillingInterval = (value: unknown): "month" | "year" =>
+  value === "year" ? "year" : "month";
 
 const compareOfferRecency = (left: BillingPlanOfferRow, right: BillingPlanOfferRow): number => {
   const leftEffective = left.effective_start_at ? Date.parse(left.effective_start_at) : Number.NaN;
@@ -126,7 +132,7 @@ const loadBillingState = async (userId: string) => {
     supabaseAdmin
       .from("billing_subscription_contracts")
       .select(
-        "id, plan_id, offer_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, contract_source"
+        "id, plan_id, offer_id, billing_interval, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, contract_source"
       )
       .eq("user_id", userId)
       .is("ended_at", null)
@@ -149,7 +155,7 @@ const loadBillingState = async (userId: string) => {
   };
 };
 
-const loadTargetPlan = async (targetPlanId: string) => {
+const loadTargetPlan = async (targetPlanId: string, billingInterval: "month" | "year") => {
   const supabaseAdmin = getSupabaseAdmin();
   const [planResult, offersResult] = await Promise.all([
     supabaseAdmin
@@ -160,9 +166,10 @@ const loadTargetPlan = async (targetPlanId: string) => {
     supabaseAdmin
       .from("billing_plan_offers")
       .select(
-        "id, plan_id, stripe_price_id, recurring_price_cents, acquisition_enabled, is_active, effective_start_at, created_at"
+        "id, plan_id, billing_interval, stripe_price_id, recurring_price_cents, acquisition_enabled, is_active, effective_start_at, created_at"
       )
       .eq("plan_id", targetPlanId)
+      .eq("billing_interval", billingInterval)
       .eq("is_active", true)
       .eq("acquisition_enabled", true),
   ]);
@@ -258,6 +265,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const body = (req.body ?? {}) as ChangeSubscriptionRequest;
   const targetPlanId = normalizePlanId(body.targetPlanId);
+  const billingInterval = normalizeBillingInterval(body.billingInterval);
   if (!targetPlanId) {
     return res.status(400).json({ error: "targetPlanId is required." });
   }
@@ -265,13 +273,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const { billingProfile, billingContract } = await loadBillingState(user.id);
     const activePlanId = resolveActivePlanId(billingProfile, billingContract);
+    const activeBillingInterval = billingContract?.billing_interval === "year" ? "year" : "month";
     const stripeSubscriptionId =
       billingContract?.stripe_subscription_id ?? billingProfile?.stripe_subscription_id ?? null;
     const isInternalCompContract =
       billingContract?.contract_source === BILLING_CONTRACT_SOURCE_INTERNAL_COMP;
     const allowSamePlanMigration = isInternalCompContract && targetPlanId !== "free";
 
-    if (targetPlanId === activePlanId && !allowSamePlanMigration) {
+    if (
+      targetPlanId === activePlanId &&
+      billingInterval === activeBillingInterval &&
+      !allowSamePlanMigration
+    ) {
       return res.status(409).json({ error: "You are already on that plan." });
     }
 
@@ -362,9 +375,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const { plan: targetPlan, offer: targetOffer } = await loadTargetPlan(targetPlanId);
+    const { plan: targetPlan, offer: targetOffer } = await loadTargetPlan(
+      targetPlanId,
+      billingInterval
+    );
     if (!targetPlan || !targetOffer) {
-      return res.status(404).json({ error: "Selected plan is not available right now." });
+      return res.status(404).json({
+        error:
+          billingInterval === "year"
+            ? "Annual billing for that plan is not available right now."
+            : "Selected plan is not available right now.",
+      });
     }
     if (targetOffer.recurring_price_cents > 0 && !targetOffer.stripe_price_id) {
       return res

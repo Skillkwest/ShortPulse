@@ -426,7 +426,10 @@ describe("projectWorkspaceStatesService", () => {
       }),
       expect.anything()
     );
-    expect("agentRuntimes" in (workspaceUpsert.mock.calls[0]?.[0]?.snapshot ?? {})).toBe(false);
+    const firstWorkspaceUpsertArg = (
+      workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+    ).at(0)?.[0];
+    expect("agentRuntimes" in (firstWorkspaceUpsertArg?.snapshot ?? {})).toBe(false);
   });
 
   it("refreshes generated outputs from project-associated generations on workspace read", async () => {

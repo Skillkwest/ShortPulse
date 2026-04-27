@@ -124,7 +124,7 @@ describe("persistGeneratedVideoAsset", () => {
       promptText: "Cinematic skyline reveal",
       provider: "elevenlabs",
       modelId: "video_v1",
-      sourceMode: "video",
+      sourceMode: "voice-changer",
       outputBuffer: Buffer.from("video"),
       outputContentType: "video/mp4",
       generationReplay: { source: "reroll-1" },
@@ -135,6 +135,7 @@ describe("persistGeneratedVideoAsset", () => {
     expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith({
       generationId: "generation-1",
       userId: "user-1",
+      providerRequestId: null,
       resultUrls: ["https://signed.example/video.mp4"],
       mediaFileIds: [],
       metadata: expect.objectContaining({
@@ -142,6 +143,7 @@ describe("persistGeneratedVideoAsset", () => {
         autosave_enabled: false,
         autosave_decision: "autosave_skipped",
         autosave_decision_reason: "autosave_disabled",
+        provider_request_id: null,
         remuxed_from: "source-video-1",
       }),
     });

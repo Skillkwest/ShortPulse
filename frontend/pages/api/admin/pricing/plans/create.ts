@@ -128,7 +128,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const nowIso = new Date().toISOString();
-    const initialOfferId = buildCurrentCatalogOfferId(planId);
+    const initialOfferId = buildCurrentCatalogOfferId(planId, "month");
     const insertPlanResult = await supabaseAdmin.from("billing_plans").insert({
       id: planId,
       display_name: displayName,
@@ -158,6 +158,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       id: initialOfferId,
       plan_id: planId,
       offer_name: `${displayName} Current Offer`,
+      billing_interval: "month",
       recurring_price_cents: recurringPriceCents,
       monthly_credits_cents: monthlyCreditsCents,
       storage_limit_bytes: storageLimitBytes,

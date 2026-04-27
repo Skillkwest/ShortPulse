@@ -25,6 +25,17 @@ const MIN_PASSWORD_LENGTH = 8;
 const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
+const resolveMode = (value: string | string[] | undefined): Mode => {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  return rawValue === "signup" ? "signup" : "signin";
+};
+
+function resolveModeFromAsPath(asPath: string): Mode {
+  const queryString = asPath.includes("?") ? asPath.slice(asPath.indexOf("?") + 1) : "";
+  if (!queryString) return "signin";
+  return resolveMode(new URLSearchParams(queryString).get("mode") ?? undefined);
+}
+
 /**
  * Parse and sanitize the post-auth redirect target from the router query.
  */
@@ -49,7 +60,13 @@ function resolveNextPathFromAsPath(asPath: string): string {
 
 export default function AuthPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("signin");
+  const requestedMode = useMemo(() => {
+    if (router.isReady) {
+      return resolveMode(router.query.mode);
+    }
+    return resolveModeFromAsPath(router.asPath || "");
+  }, [router.asPath, router.isReady, router.query.mode]);
+  const [mode, setMode] = useState<Mode>(requestedMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -63,6 +80,10 @@ export default function AuthPage() {
     }
     return resolveNextPathFromAsPath(router.asPath || "");
   }, [router.asPath, router.isReady, router.query.next]);
+
+  useEffect(() => {
+    setMode(requestedMode);
+  }, [requestedMode]);
 
   useEffect(() => {
     void readSupabaseSession()

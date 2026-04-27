@@ -21,9 +21,9 @@ const routerState = vi.hoisted(() => ({
 const billingProfileState = vi.hoisted(() => ({
   plan_id: "business",
   subscription_status: "active",
-  current_period_end: "2026-05-01T00:00:00.000Z",
-  stripe_customer_id: "cus_123",
-  stripe_subscription_id: "sub_123",
+  current_period_end: "2026-05-01T00:00:00.000Z" as string | null,
+  stripe_customer_id: "cus_123" as string | null,
+  stripe_subscription_id: "sub_123" as string | null,
 }));
 
 const billingContractState = vi.hoisted(() => ({

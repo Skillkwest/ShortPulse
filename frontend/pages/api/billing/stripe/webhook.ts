@@ -4,6 +4,12 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { logApiRouteException, writeAppErrorLog } from "../../../../lib/server/api/appErrorLogs";
+import {
+  addMonthsUtc,
+  BILLING_INTERVAL_MONTH,
+  BILLING_INTERVAL_YEAR,
+  buildAnnualContractMonthlyGrantRef,
+} from "../../../../lib/server/api/billingContracts";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { verifyStripeWebhookSignature } from "../../../../lib/server/api/stripe";
 import { insertCreditLedgerEntry } from "../../../../lib/server/api/creditLedger";
@@ -29,6 +35,7 @@ type EventClaimResult =
 type ResolvedOffer = {
   offerId: string | null;
   planId: string | null;
+  billingInterval: "month" | "year";
   stripePriceId: string | null;
   recurringPriceCents: number;
   monthlyCreditsCents: number;
@@ -52,11 +59,16 @@ type BillingContractProjection = {
   id: string;
   plan_id: string | null;
   offer_id: string | null;
+  billing_interval: "month" | "year" | null;
   stripe_price_id: string | null;
   stripe_subscription_id: string | null;
   recurring_price_cents: number | null;
   monthly_credits_cents: number | null;
   storage_limit_bytes: number | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  last_credit_grant_at: string | null;
+  next_credit_grant_at: string | null;
   status: string | null;
 };
 
@@ -88,6 +100,12 @@ const STRIPE_WEBHOOK_MAX_BODY_BYTES = 256 * 1024;
 const asIsoDate = (unixSeconds?: number | null): string | null => {
   if (!unixSeconds) return null;
   return new Date(unixSeconds * 1000).toISOString();
+};
+
+const asDate = (value: string | null | undefined): Date | null => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
 const toRecord = (value: unknown): JsonObject =>
@@ -155,7 +173,7 @@ const resolveOfferFromPriceId = async (
   const { data: offer, error: offerError } = await supabaseAdmin
     .from("billing_plan_offers")
     .select(
-      "id, plan_id, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes"
+      "id, plan_id, billing_interval, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes"
     )
     .eq("stripe_price_id", stripePriceId)
     .maybeSingle();
@@ -164,6 +182,10 @@ const resolveOfferFromPriceId = async (
     return {
       offerId: typeof offer.id === "string" ? offer.id : null,
       planId: typeof offer.plan_id === "string" ? offer.plan_id : null,
+      billingInterval:
+        offer.billing_interval === BILLING_INTERVAL_YEAR
+          ? BILLING_INTERVAL_YEAR
+          : BILLING_INTERVAL_MONTH,
       stripePriceId:
         typeof offer.stripe_price_id === "string" ? offer.stripe_price_id : stripePriceId,
       recurringPriceCents: Number(offer.recurring_price_cents ?? 0),
@@ -190,6 +212,7 @@ const resolveOfferFromPriceId = async (
     return {
       offerId: null,
       planId: null,
+      billingInterval: BILLING_INTERVAL_MONTH,
       stripePriceId,
       recurringPriceCents: Number.isFinite(recurringPriceCents) ? recurringPriceCents : 0,
       monthlyCreditsCents: Number.isFinite(monthlyCreditsCents) ? monthlyCreditsCents : 0,
@@ -200,6 +223,7 @@ const resolveOfferFromPriceId = async (
   return {
     offerId: typeof plan.id === "string" ? `${plan.id}__current` : null,
     planId: typeof plan.id === "string" ? plan.id : null,
+    billingInterval: BILLING_INTERVAL_MONTH,
     stripePriceId: typeof plan.stripe_price_id === "string" ? plan.stripe_price_id : stripePriceId,
     recurringPriceCents: Number(plan.monthly_price_cents ?? 0),
     monthlyCreditsCents: Number(plan.monthly_credits_cents ?? 0),
@@ -330,7 +354,7 @@ const resolveCurrentContractForUser = async (
   const { data, error } = await supabaseAdmin
     .from("billing_subscription_contracts")
     .select(
-      "id, plan_id, offer_id, stripe_price_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status"
+      "id, plan_id, offer_id, billing_interval, stripe_price_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, current_period_start, current_period_end, last_credit_grant_at, next_credit_grant_at, status"
     )
     .eq("user_id", userId)
     .is("ended_at", null)
@@ -378,11 +402,19 @@ const resolveCurrentBillingContextByCustomer = async (stripeCustomerId: string) 
   const contract = await resolveCurrentContractForUser(profile.user_id);
   if (contract) {
     return {
+      contractId: contract.id,
       userId: profile.user_id,
       planId: contract.plan_id ?? profile.plan_id,
       offerId: contract.offer_id ?? null,
+      billingInterval:
+        contract.billing_interval === BILLING_INTERVAL_YEAR
+          ? BILLING_INTERVAL_YEAR
+          : BILLING_INTERVAL_MONTH,
       stripePriceId: contract.stripe_price_id ?? null,
       monthlyCreditsCents: Number(contract.monthly_credits_cents ?? 0),
+      currentPeriodStart: contract.current_period_start ?? null,
+      currentPeriodEnd: contract.current_period_end ?? null,
+      nextCreditGrantAt: contract.next_credit_grant_at ?? null,
     };
   }
   if (isPaidPlanId(profile.plan_id)) {
@@ -390,6 +422,18 @@ const resolveCurrentBillingContextByCustomer = async (stripeCustomerId: string) 
   }
 
   return null;
+};
+
+const resolveAnnualNextCreditGrantAt = (params: {
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+}): string | null => {
+  const periodStart = asDate(params.currentPeriodStart);
+  const periodEnd = asDate(params.currentPeriodEnd);
+  if (!periodStart || !periodEnd) return null;
+  const nextGrant = addMonthsUtc(periodStart, 1);
+  if (nextGrant.getTime() >= periodEnd.getTime()) return null;
+  return nextGrant.toISOString();
 };
 
 const syncSubscriptionContract = async (params: {
@@ -410,6 +454,14 @@ const syncSubscriptionContract = async (params: {
   const storageLimitBytes = Number(params.resolvedOffer?.storageLimitBytes ?? 0);
   const stripePriceId = params.resolvedOffer?.stripePriceId ?? null;
   const offerId = params.resolvedOffer?.offerId ?? null;
+  const billingInterval = params.resolvedOffer?.billingInterval ?? BILLING_INTERVAL_MONTH;
+  const nextCreditGrantAt =
+    billingInterval === BILLING_INTERVAL_YEAR
+      ? resolveAnnualNextCreditGrantAt({
+          currentPeriodStart: params.currentPeriodStart,
+          currentPeriodEnd: params.currentPeriodEnd,
+        })
+      : null;
 
   const current = await resolveCurrentContractForUser(params.userId);
   const endedAt =
@@ -428,9 +480,13 @@ const syncSubscriptionContract = async (params: {
     recurring_price_cents: Number.isFinite(recurringPriceCents) ? recurringPriceCents : 0,
     monthly_credits_cents: Number.isFinite(monthlyCreditsCents) ? monthlyCreditsCents : 0,
     storage_limit_bytes: Number.isFinite(storageLimitBytes) ? storageLimitBytes : 0,
+    billing_interval: billingInterval,
     status: params.status,
     current_period_start: params.currentPeriodStart,
     current_period_end: params.currentPeriodEnd,
+    last_credit_grant_at:
+      billingInterval === BILLING_INTERVAL_YEAR ? (current?.last_credit_grant_at ?? null) : null,
+    next_credit_grant_at: billingInterval === BILLING_INTERVAL_YEAR ? nextCreditGrantAt : null,
     cancel_at_period_end: params.cancelAtPeriodEnd,
     started_at: params.currentPeriodStart ?? new Date().toISOString(),
     ended_at: endedAt,
@@ -447,6 +503,7 @@ const syncSubscriptionContract = async (params: {
   const sameCommercialTerms =
     current.plan_id === params.planId &&
     current.offer_id === offerId &&
+    current.billing_interval === billingInterval &&
     current.stripe_subscription_id === params.stripeSubscriptionId &&
     current.stripe_price_id === stripePriceId &&
     Number(current.recurring_price_cents ?? 0) === payload.recurring_price_cents &&
@@ -454,12 +511,24 @@ const syncSubscriptionContract = async (params: {
     Number(current.storage_limit_bytes ?? 0) === payload.storage_limit_bytes;
 
   if (sameCommercialTerms) {
+    const periodShifted = current.current_period_start !== params.currentPeriodStart;
     const { error } = await supabaseAdmin
       .from("billing_subscription_contracts")
       .update({
+        billing_interval: payload.billing_interval,
         status: payload.status,
         current_period_start: payload.current_period_start,
         current_period_end: payload.current_period_end,
+        last_credit_grant_at:
+          billingInterval === BILLING_INTERVAL_YEAR && periodShifted
+            ? null
+            : payload.last_credit_grant_at,
+        next_credit_grant_at:
+          billingInterval === BILLING_INTERVAL_YEAR
+            ? periodShifted
+              ? nextCreditGrantAt
+              : (current.next_credit_grant_at ?? payload.next_credit_grant_at)
+            : null,
         cancel_at_period_end: payload.cancel_at_period_end,
         ended_at: payload.ended_at,
       })
@@ -858,6 +927,25 @@ const processInvoicePaymentSucceeded = async (invoice: JsonObject, eventId: stri
       stripe_price_id: billingContext.stripePriceId,
     },
   });
+
+  if (billingContext.billingInterval === BILLING_INTERVAL_YEAR) {
+    const annualNextGrantAt = resolveAnnualNextCreditGrantAt({
+      currentPeriodStart: billingContext.currentPeriodStart ?? null,
+      currentPeriodEnd: billingContext.currentPeriodEnd ?? null,
+    });
+    const { error } = await getSupabaseAdmin()
+      .from("billing_subscription_contracts")
+      .update({
+        last_credit_grant_at: new Date().toISOString(),
+        next_credit_grant_at: annualNextGrantAt,
+      })
+      .eq("id", billingContext.contractId);
+    if (error && !isIgnorableSchemaDriftError(error)) {
+      throw new Error(
+        error.message || "Failed to update annual credit allocation state after invoice payment."
+      );
+    }
+  }
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

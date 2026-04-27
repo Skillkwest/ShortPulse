@@ -3,6 +3,20 @@
  * Monetary values come from Supabase rows so pricing can be changed without app code edits.
  */
 
+export type BillingInterval = "month" | "year";
+
+export type BillingPlanIntervalOfferRecord = {
+  id: string;
+  billing_interval: BillingInterval;
+  recurring_price_cents: number;
+  monthly_credits_cents: number;
+  storage_limit_bytes: number;
+  stripe_price_id?: string | null;
+  acquisition_enabled?: boolean;
+  is_active?: boolean;
+  effective_start_at?: string | null;
+};
+
 export type BillingPlanRecord = {
   id: string;
   display_name: string;
@@ -11,6 +25,7 @@ export type BillingPlanRecord = {
   monthly_credits_cents: number;
   storage_limit_bytes: number;
   is_active?: boolean;
+  offers?: Partial<Record<BillingInterval, BillingPlanIntervalOfferRecord>>;
 };
 
 export type CreditPackageRecord = {
@@ -45,10 +60,33 @@ const DEFAULT_PLAN_STORAGE_LIMITS: Record<string, number> = {
   business: 500 * GIB,
 };
 
+type AnnualPricingConfig = {
+  yearlyPriceCents: number;
+  savingsBadge: string;
+};
+
+const ANNUAL_PRICING_CONFIG: Partial<Record<string, AnnualPricingConfig>> = {
+  media: {
+    yearlyPriceCents: 12_000,
+    savingsBadge: "2 months free",
+  },
+  studio: {
+    yearlyPriceCents: 39_000,
+    savingsBadge: "2 months free",
+  },
+  business: {
+    yearlyPriceCents: 139_200,
+    savingsBadge: "Save 10%",
+  },
+};
+
 type PlanPresentation = {
   className: string;
   seatsLabel: string;
   description: string;
+  concurrentGenerationsLabel: string;
+  concurrentGenerationsCompactLabel: string;
+  pricingHighlights?: string[];
 };
 
 const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
@@ -56,21 +94,30 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
     className: "plan-free",
     seatsLabel: "1 workspace seat",
     description: "Starter access for exploration.",
+    concurrentGenerationsLabel: "1 audio, 1 image, and 1 video generation at a time",
+    concurrentGenerationsCompactLabel: "1 audio · 1 image · 1 video",
   },
   media: {
     className: "plan-media",
-    seatsLabel: "2 seats",
+    seatsLabel: "1 workspace seat",
     description: "Ideal for creators testing cadence.",
+    concurrentGenerationsLabel: "2 audio, 2 image, and 1 video generations at a time",
+    concurrentGenerationsCompactLabel: "2 audio · 2 image · 1 video",
   },
   studio: {
     className: "plan-studio",
-    seatsLabel: "Up to 5 seats",
+    seatsLabel: "1 workspace seat",
     description: "Built for consistent creative production.",
+    concurrentGenerationsLabel: "4 audio, 3 image, and 2 video generations at a time",
+    concurrentGenerationsCompactLabel: "4 audio · 3 image · 2 video",
   },
   business: {
     className: "plan-business",
     seatsLabel: "Team access",
     description: "Highest throughput for heavy AI workloads.",
+    concurrentGenerationsLabel: "6 audio, 4 image, and 3 video generations at a time",
+    concurrentGenerationsCompactLabel: "6 audio · 4 image · 3 video",
+    pricingHighlights: ["Lowest cost per credit", "Discounted credit top-ups"],
   },
 };
 
@@ -79,6 +126,8 @@ const GENERIC_PLAN_PRESENTATION: PlanPresentation = {
   className: "plan-generic",
   seatsLabel: "Workspace access",
   description: "Subscription plan.",
+  concurrentGenerationsLabel: "Standard concurrent generation access",
+  concurrentGenerationsCompactLabel: "Standard concurrent access",
 };
 
 /**
@@ -143,10 +192,160 @@ export const buildPlanView = (params: {
     className: presentation.className,
     description: presentation.description,
     seatsLabel: presentation.seatsLabel,
+    concurrentGenerationsLabel: presentation.concurrentGenerationsLabel,
+    concurrentGenerationsCompactLabel: presentation.concurrentGenerationsCompactLabel,
+    pricingHighlights: presentation.pricingHighlights ?? [],
     monthlyPriceCents: resolvedCatalog?.monthly_price_cents ?? 0,
     monthlyCreditsCents: resolvedCatalog?.monthly_credits_cents ?? 0,
     storageLimitBytes:
       resolvedCatalog?.storage_limit_bytes ?? DEFAULT_PLAN_STORAGE_LIMITS[normalizedId] ?? 0,
+  };
+};
+
+export const resolvePlanOfferForInterval = (
+  plan: BillingPlanRecord,
+  billingInterval: BillingInterval
+): BillingPlanIntervalOfferRecord | null => {
+  const directOffer = plan.offers?.[billingInterval];
+  if (directOffer) return directOffer;
+
+  if (billingInterval === "month") {
+    return {
+      id: `${plan.id}__month_legacy`,
+      billing_interval: "month",
+      recurring_price_cents: plan.monthly_price_cents,
+      monthly_credits_cents: plan.monthly_credits_cents,
+      storage_limit_bytes: plan.storage_limit_bytes,
+      stripe_price_id: null,
+      acquisition_enabled: Boolean(plan.is_active),
+      is_active: Boolean(plan.is_active),
+      effective_start_at: null,
+    };
+  }
+
+  return null;
+};
+
+export type BillingPlanIntervalPricing = {
+  billingInterval: BillingInterval;
+  displayMode: "monthly" | "annual";
+  source: "catalog" | "recommended";
+  recurringPriceCents: number;
+  monthlyEquivalentCents: number;
+  monthlyCreditsCents: number;
+  storageLimitBytes: number;
+  billedPriceCents: number;
+  savingsAmountCents: number;
+  savingsPercent: number;
+  savingsBadge: string | null;
+  billingLabel: string;
+  stripePriceId: string | null;
+  offerId: string | null;
+  hasLiveOffer: boolean;
+};
+
+export const resolvePlanPricingForInterval = (
+  plan: BillingPlanRecord,
+  billingInterval: BillingInterval
+): BillingPlanIntervalPricing => {
+  const normalizedPlanId = normalizePlanId(plan.id);
+  const monthlyOffer = resolvePlanOfferForInterval(plan, "month");
+  const baseMonthlyPriceCents = Math.max(0, Number(plan.monthly_price_cents ?? 0));
+  const baseMonthlyCreditsCents = Math.max(0, Number(plan.monthly_credits_cents ?? 0));
+  const baseStorageLimitBytes = Math.max(0, Number(plan.storage_limit_bytes ?? 0));
+
+  if (billingInterval === "month" || normalizedPlanId === "free") {
+    return {
+      billingInterval: "month",
+      displayMode: "monthly",
+      source: monthlyOffer ? "catalog" : "recommended",
+      recurringPriceCents: baseMonthlyPriceCents,
+      monthlyEquivalentCents: baseMonthlyPriceCents,
+      monthlyCreditsCents: monthlyOffer?.monthly_credits_cents ?? baseMonthlyCreditsCents,
+      storageLimitBytes: monthlyOffer?.storage_limit_bytes ?? baseStorageLimitBytes,
+      billedPriceCents: baseMonthlyPriceCents,
+      savingsAmountCents: 0,
+      savingsPercent: 0,
+      savingsBadge: null,
+      billingLabel: baseMonthlyPriceCents === 0 ? "forever" : "per month",
+      stripePriceId: monthlyOffer?.stripe_price_id ?? null,
+      offerId: monthlyOffer?.id ?? null,
+      hasLiveOffer: Boolean(plan.offers?.month),
+    };
+  }
+
+  const annualOffer = resolvePlanOfferForInterval(plan, "year");
+  if (annualOffer) {
+    const billedPriceCents = Math.max(0, Number(annualOffer.recurring_price_cents ?? 0));
+    const monthlyEquivalentCents = Math.round(billedPriceCents / 12);
+    const monthlyValueCents = baseMonthlyPriceCents * 12;
+    const savingsAmountCents = Math.max(0, monthlyValueCents - billedPriceCents);
+    const savingsPercent =
+      monthlyValueCents > 0 ? Math.round((savingsAmountCents / monthlyValueCents) * 1000) / 10 : 0;
+
+    return {
+      billingInterval: "year",
+      displayMode: "annual",
+      source: "catalog",
+      recurringPriceCents: billedPriceCents,
+      monthlyEquivalentCents,
+      monthlyCreditsCents: Number(annualOffer.monthly_credits_cents ?? baseMonthlyCreditsCents),
+      storageLimitBytes: Number(annualOffer.storage_limit_bytes ?? baseStorageLimitBytes),
+      billedPriceCents,
+      savingsAmountCents,
+      savingsPercent,
+      savingsBadge: savingsPercent > 0 ? `Save ${savingsPercent}%` : null,
+      billingLabel: `billed annually as $${(billedPriceCents / 100).toFixed(0)}`,
+      stripePriceId: annualOffer.stripe_price_id ?? null,
+      offerId: annualOffer.id,
+      hasLiveOffer: true,
+    };
+  }
+
+  const annualConfig = ANNUAL_PRICING_CONFIG[normalizedPlanId];
+  if (!annualConfig) {
+    return {
+      billingInterval: "month",
+      displayMode: "monthly",
+      source: monthlyOffer ? "catalog" : "recommended",
+      recurringPriceCents: baseMonthlyPriceCents,
+      monthlyEquivalentCents: baseMonthlyPriceCents,
+      monthlyCreditsCents: monthlyOffer?.monthly_credits_cents ?? baseMonthlyCreditsCents,
+      storageLimitBytes: monthlyOffer?.storage_limit_bytes ?? baseStorageLimitBytes,
+      billedPriceCents: baseMonthlyPriceCents,
+      savingsAmountCents: 0,
+      savingsPercent: 0,
+      savingsBadge: null,
+      billingLabel: baseMonthlyPriceCents === 0 ? "forever" : "per month",
+      stripePriceId: monthlyOffer?.stripe_price_id ?? null,
+      offerId: monthlyOffer?.id ?? null,
+      hasLiveOffer: Boolean(plan.offers?.month),
+    };
+  }
+
+  const billedPriceCents = annualConfig.yearlyPriceCents;
+  const monthlyEquivalentCents = Math.round(billedPriceCents / 12);
+  const monthlyValueCents = baseMonthlyPriceCents * 12;
+  const savingsAmountCents = Math.max(0, monthlyValueCents - billedPriceCents);
+  const savingsPercent =
+    monthlyValueCents > 0 ? Math.round((savingsAmountCents / monthlyValueCents) * 1000) / 10 : 0;
+
+  return {
+    billingInterval: "year",
+    displayMode: "annual",
+    source: "recommended",
+    recurringPriceCents: billedPriceCents,
+    monthlyEquivalentCents,
+    monthlyCreditsCents: baseMonthlyCreditsCents,
+    storageLimitBytes: baseStorageLimitBytes,
+    billedPriceCents,
+    savingsAmountCents,
+    savingsPercent,
+    savingsBadge: annualConfig.savingsBadge,
+    billingLabel: `billed annually as $${(billedPriceCents / 100).toFixed(0)}`,
+    stripePriceId: null,
+    offerId: null,
+    hasLiveOffer: false,
   };
 };
 

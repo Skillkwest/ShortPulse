@@ -67,7 +67,7 @@ export const hydratePresetStateWithPreviewUrls = async (
       Object.values(state.presets)
         .flatMap((assignments) => Object.values(assignments))
         .filter((reference): reference is CharacterSheetPresetMediaReference => Boolean(reference))
-        .map((reference) => reference.storagePath)
+        .map((reference) => reference.previewStoragePath ?? reference.storagePath)
     )
   );
   if (!storagePaths.length) {
@@ -92,7 +92,9 @@ export const hydratePresetStateWithPreviewUrls = async (
               zoneKey,
               {
                 ...reference,
-                previewUrl: signedByPath.get(reference.storagePath) ?? reference.previewUrl,
+                previewUrl:
+                  signedByPath.get(reference.previewStoragePath ?? reference.storagePath) ??
+                  reference.previewUrl,
               },
             ];
           })

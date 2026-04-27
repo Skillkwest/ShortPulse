@@ -249,6 +249,8 @@ const toCharacterSheetPresetMediaReference = (
   return {
     mediaFileId,
     storagePath,
+    previewStoragePath:
+      asText(record.preview_storage_path) ?? asText(record.previewStoragePath) ?? null,
     previewUrl: asText(record.preview_url) ?? asText(record.previewUrl),
   };
 };
@@ -570,6 +572,9 @@ export const serializeCharacterSheetPresetState = (
               character_media_id: reference.mediaFileId,
               media_file_id: reference.mediaFileId,
               storage_path: reference.storagePath,
+              ...(reference.previewStoragePath
+                ? { preview_storage_path: reference.previewStoragePath }
+                : {}),
             },
           ];
         })

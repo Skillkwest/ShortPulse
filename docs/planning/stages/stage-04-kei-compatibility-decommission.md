@@ -16,7 +16,7 @@ Phase C is allowed only when all are true:
 - [x] Non-zero KEI tombstone traffic resets the 14-day clock (enforced as stage rule).
 
 Evidence requirement:
-- `docs/planning/evidence/kei/2026-02-20-phase-c-hold-window-validation.md`
+- `docs/records/evidence/kei/2026-02-20-phase-c-hold-window-validation.md`
 
 Decision note:
 - Product/engineering decision lock on `2026-02-20` treated KEI traffic as zero and approved Phase C execution.
@@ -36,8 +36,8 @@ Decision note:
 - Zero runtime KEI references after Phase C, with no auth-boundary coverage regressions.
 
 ## Evidence
-- `docs/planning/evidence/kei/`
-- `docs/planning/evidence/kei/2026-02-20-phase-a-runtime-caller-removal.md`
-- `docs/planning/evidence/kei/2026-02-20-phase-b-coverage-replacement-and-fast-lane-update.md`
-- `docs/planning/evidence/kei/2026-02-20-phase-c-hold-window-validation.md`
-- `docs/planning/evidence/kei/2026-02-20-phase-c-kei-surface-deletion.md`
+- `docs/records/evidence/kei/`
+- `docs/records/evidence/kei/2026-02-20-phase-a-runtime-caller-removal.md`
+- `docs/records/evidence/kei/2026-02-20-phase-b-coverage-replacement-and-fast-lane-update.md`
+- `docs/records/evidence/kei/2026-02-20-phase-c-hold-window-validation.md`
+- `docs/records/evidence/kei/2026-02-20-phase-c-kei-surface-deletion.md`

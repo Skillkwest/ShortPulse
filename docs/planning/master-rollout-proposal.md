@@ -143,7 +143,7 @@ It avoids big-bang risk by sequencing security/schema hardening first, then pari
 - Build/lint/type-check/test/docs-check all pass.
 - Auth boundary suites remain green after KEI test removal.
 - No runtime imports/references to KEI remain.
-- Hold-window evidence file exists: `docs/planning/evidence/kei/<date>-phase-c-hold-window-validation.md`.
+- Hold-window evidence file exists: `docs/records/evidence/kei/<date>-phase-c-hold-window-validation.md`.
 - Rollback:
 - Revert latest KEI phase PR only.
 - Keep tombstones if Phase C fails.

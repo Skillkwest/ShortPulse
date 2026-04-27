@@ -9,7 +9,6 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/docs/`
 - `docs/planning/evidence/architecture/`
 - `docs/planning/evidence/agent/`
-- `docs/planning/evidence/kei/`
 - `docs/planning/evidence/reference-grid-modularization/`
 - `docs/planning/evidence/naming-canonicalization/`
 - `docs/planning/evidence/style-adherence/`
@@ -27,6 +26,7 @@ This is the current physical evidence namespace during the records migration tra
 ## Migrated namespaces
 - `docs/records/evidence/lane-a/`
 - `docs/records/evidence/lane-f/`
+- `docs/records/evidence/kei/`
 - `docs/records/evidence/media-library-runtime-rebuild/`
 
 ## Notes

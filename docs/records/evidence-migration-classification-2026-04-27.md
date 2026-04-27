@@ -9,6 +9,8 @@ Purpose: classify the current `docs/planning/evidence/` tree into migration buck
   - `docs/planning/evidence/lane-a/` moved to `docs/records/evidence/lane-a/`
 - Third markdown-only pilot executed after this snapshot:
   - `docs/planning/evidence/lane-f/` moved to `docs/records/evidence/lane-f/`
+- Fourth markdown-only migration executed after this snapshot:
+  - `docs/planning/evidence/kei/` moved to `docs/records/evidence/kei/`
 - Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.
 
 ## Inventory snapshot

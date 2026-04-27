@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - migrated the completed `kei` evidence packet family into `docs/records/evidence/kei/`,
+  - retargeted the STG-04 planning and validation references to the retained-records paths,
+  - and extended the evidence-migration follow-up so later namespace moves can treat completed stage packets as first-class records.
+- Documentation cleanup:
   - executed the next markdown-only records migration by moving the closed `lane-f` evidence family into `docs/records/evidence/lane-f/`,
   - updated the foundation tracker and evidence indexes to point at the retained-records paths,
   - and extended the migration-classification follow-up so the next records move can continue from another proven closed markdown-only namespace.

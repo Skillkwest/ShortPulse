@@ -3,28 +3,33 @@
  * Orchestrates project-owned restore/apply and debounced write shadow against project workspace authority.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
+import {
+  createAiStudioProjectWorkspaceSnapshot,
+  type AiStudioSessionSnapshot,
+} from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { saveAiStudioProjectWorkspaceSnapshotViaApi } from "../logic/projectWorkspaceApiClient";
 import type { AiStudioSessionPersistenceController } from "./useAiStudioSessionPersistenceController";
 import { useAiStudioSessionWriteShadow } from "./useAiStudioSessionWriteShadow";
 import { useAiStudioProjectWorkspaceRestoreCandidate } from "./useAiStudioProjectWorkspaceRestoreCandidate";
 import { useAiStudioProjectWorkspaceRestoreHydration } from "./useAiStudioProjectWorkspaceRestoreHydration";
+import { resetAiStudioOutputStore } from "./aiStudioOutputStore";
+import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 
 type UseAiStudioProjectWorkspacePersistenceControllerParams = {
   projectId: string | null;
+  projectRouteRequested?: boolean;
   sessionId: string | null;
   buildSessionSnapshot: (sessionId: string) => AiStudioSessionSnapshot;
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
-  hydrateFromSessionAgentSnapshot: (
-    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
-  ) => void;
+  hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
   applyEmptyProjectState?: () => void;
+  resetProjectAgentConversation?: () => void;
   onPersistenceWarning?: (message: string) => void;
 };
 
@@ -61,16 +66,23 @@ const resolveProjectPersistenceWarningMessage = ({
  */
 export const useAiStudioProjectWorkspacePersistenceController = ({
   projectId,
+  projectRouteRequested = false,
   sessionId,
   buildSessionSnapshot,
   hydrateFromSessionSnapshot,
-  hydrateFromSessionAgentSnapshot,
+  hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   applyEmptyProjectState,
+  resetProjectAgentConversation,
   onPersistenceWarning,
 }: UseAiStudioProjectWorkspacePersistenceControllerParams): AiStudioSessionPersistenceController => {
   const [bootstrappedProjectId, setBootstrappedProjectId] = useState<string | null>(null);
-  const invalidatedProjectIdRef = useRef<string | null>(null);
+  const invalidatedAuthorityRef = useRef<string | null>(null);
+  const projectRuntimeAuthority = projectRouteRequested
+    ? projectId
+      ? `project:${projectId}`
+      : "project:pending"
+    : null;
   const sessionRestoreCandidate = useAiStudioProjectWorkspaceRestoreCandidate({
     projectId,
     enabled: Boolean(projectId),
@@ -80,29 +92,35 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     sessionRestoreCandidate.status === "ready" &&
     bootstrappedProjectId === projectId;
   const sessionSnapshot = useMemo(
-    () => (sessionId && projectBootstrapReady ? buildSessionSnapshot(sessionId) : null),
+    () =>
+      sessionId && projectBootstrapReady
+        ? createAiStudioProjectWorkspaceSnapshot(buildSessionSnapshot(sessionId))
+        : null,
     [buildSessionSnapshot, projectBootstrapReady, sessionId]
   );
 
   useEffect(() => {
-    if (!projectId) {
-      invalidatedProjectIdRef.current = null;
+    if (!projectRuntimeAuthority) {
+      invalidatedAuthorityRef.current = null;
       setBootstrappedProjectId(null);
       return;
     }
-    if (invalidatedProjectIdRef.current === projectId) return;
-    invalidatedProjectIdRef.current = projectId;
+    if (invalidatedAuthorityRef.current === projectRuntimeAuthority) return;
+    invalidatedAuthorityRef.current = projectRuntimeAuthority;
     setBootstrappedProjectId(null);
+    // Fail closed for decoupled selector-store surfaces before async restore finishes.
+    resetAiStudioOutputStore();
     applyEmptyProjectState?.();
-  }, [applyEmptyProjectState, projectId]);
+  }, [applyEmptyProjectState, projectRuntimeAuthority]);
 
   useAiStudioProjectWorkspaceRestoreHydration({
     projectId,
     projectWorkspaceRestoreCandidate: sessionRestoreCandidate,
     hydrateFromSessionSnapshot,
-    hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     applyEmptyProjectState,
+    resetProjectAgentConversation,
     onProjectBootstrapSettled: setBootstrappedProjectId,
   });
 

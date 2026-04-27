@@ -1,0 +1,3 @@
+-- Irreversible data cleanup migration.
+-- No rollback is provided because previously stored conversational runtime
+-- content is intentionally removed from project workspace rows.

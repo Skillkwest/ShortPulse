@@ -14,6 +14,7 @@ import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHy
 import { useAiStudioSessionPersistenceController } from "./useAiStudioSessionPersistenceController";
 import { useAiStudioProjectWorkspacePersistenceController } from "./useAiStudioProjectWorkspacePersistenceController";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 
 type BuildPageSessionSnapshotArgs = {
   sessionId: string;
@@ -47,10 +48,12 @@ type UseAiStudioPageSessionPersistenceParams = {
   hydrateFromSessionAgentSnapshot: (
     payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
   ) => void;
+  hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
   applyEmptyProjectState?: () => void;
+  resetProjectAgentConversation?: () => void;
   setUiNotice: (message: string | null) => void;
 };
 
@@ -73,8 +76,10 @@ export const useAiStudioPageSessionPersistence = ({
   expertEditSessionState,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
+  hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   applyEmptyProjectState,
+  resetProjectAgentConversation,
   setUiNotice,
 }: UseAiStudioPageSessionPersistenceParams) => {
   const buildSessionSnapshotForSessionId = useCallback(
@@ -112,12 +117,14 @@ export const useAiStudioPageSessionPersistence = ({
 
   const projectWorkspacePersistence = useAiStudioProjectWorkspacePersistenceController({
     projectId,
+    projectRouteRequested,
     sessionId,
     buildSessionSnapshot: buildSessionSnapshotForSessionId,
     hydrateFromSessionSnapshot,
-    hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     applyEmptyProjectState,
+    resetProjectAgentConversation,
     onPersistenceWarning: handleSessionPersistenceWarning,
   });
 
@@ -127,6 +134,7 @@ export const useAiStudioPageSessionPersistence = ({
     sessionTitleOverride,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     onPersistenceWarning: handleSessionPersistenceWarning,
   });

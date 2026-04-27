@@ -35,7 +35,20 @@ type UseAiStudioOutputCollectionStateResult = {
   setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
 };
 
-export const useAiStudioOutputCollectionState = (): UseAiStudioOutputCollectionStateResult => {
+const publishEmptyOutputStoreSnapshot = () => {
+  setAiStudioOutputStoreSnapshot({
+    outputOrder: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.order,
+    outputById: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.byId,
+    archivedOutputOrder: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.order,
+    archivedOutputById: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.byId,
+  });
+};
+
+export const useAiStudioOutputCollectionState = ({
+  authorityKey = "session:pending",
+}: {
+  authorityKey?: string;
+} = {}): UseAiStudioOutputCollectionStateResult => {
   const [activeOutputState, setActiveOutputState] = useState<OutputCollectionState>(
     EMPTY_STUDIO_OUTPUT_COLLECTION_STATE
   );
@@ -52,6 +65,7 @@ export const useAiStudioOutputCollectionState = (): UseAiStudioOutputCollectionS
   const outputStorePublishQueuedRef = useRef(false);
   const outputStorePublisherUnmountedRef = useRef(false);
   const outputStorePublishEpochRef = useRef(0);
+  const activeAuthorityKeyRef = useRef<string>(authorityKey);
 
   const outputs = useMemo(
     () => denormalizeStudioOutputCollection(activeOutputState),
@@ -144,6 +158,19 @@ export const useAiStudioOutputCollectionState = (): UseAiStudioOutputCollectionS
       outputStorePublishEpochRef.current += 1;
     };
   }, []);
+
+  useEffect(() => {
+    if (activeAuthorityKeyRef.current === authorityKey) return;
+    activeAuthorityKeyRef.current = authorityKey;
+    outputStorePublishQueuedRef.current = false;
+    outputStorePublishEpochRef.current += 1;
+    activeOutputStateRef.current = EMPTY_STUDIO_OUTPUT_COLLECTION_STATE;
+    archivedOutputStateRef.current = EMPTY_STUDIO_OUTPUT_COLLECTION_STATE;
+    activeOutputByIdRef.current = EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.byId;
+    setActiveOutputState(EMPTY_STUDIO_OUTPUT_COLLECTION_STATE);
+    setArchivedOutputState(EMPTY_STUDIO_OUTPUT_COLLECTION_STATE);
+    publishEmptyOutputStoreSnapshot();
+  }, [authorityKey]);
 
   return {
     activeOutputState,

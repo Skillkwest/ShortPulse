@@ -4,6 +4,10 @@ import collectionHandler from "../../pages/api/projects";
 import itemHandler from "../../pages/api/projects/[projectId]";
 import workspaceHandler from "../../pages/api/projects/[projectId]/workspace";
 
+const { MockInvalidProjectWorkspaceSnapshotError } = vi.hoisted(() => ({
+  MockInvalidProjectWorkspaceSnapshotError: class InvalidProjectWorkspaceSnapshotError extends Error {},
+}));
+
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const createProjectForUserMock = vi.fn();
@@ -37,6 +41,7 @@ vi.mock("../../lib/server/projectsService", () => ({
 vi.mock("../../lib/server/projectWorkspaceStatesService", () => ({
   getProjectWorkspaceStateForUser: (...args: unknown[]) =>
     getProjectWorkspaceStateForUserMock(...args),
+  InvalidProjectWorkspaceSnapshotError: MockInvalidProjectWorkspaceSnapshotError,
   upsertProjectWorkspaceStateForUser: (...args: unknown[]) =>
     upsertProjectWorkspaceStateForUserMock(...args),
 }));
@@ -289,5 +294,29 @@ describe("projects routes", () => {
       },
     });
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns 400 for invalid project workspace snapshots", async () => {
+    upsertProjectWorkspaceStateForUserMock.mockRejectedValueOnce(
+      new MockInvalidProjectWorkspaceSnapshotError("Invalid project workspace snapshot")
+    );
+    const req = {
+      method: "PUT",
+      query: { projectId: "project-1" },
+      body: {
+        schemaVersion: 2,
+        snapshot: "bad",
+      },
+    };
+    const res = createMockResponse();
+
+    await workspaceHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid project workspace snapshot",
+      details: "Invalid project workspace snapshot",
+    });
+    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 });

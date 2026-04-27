@@ -1,0 +1,92 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
+import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
+import { saveAiStudioProjectWorkspaceSnapshotViaApi } from "../projectWorkspaceApiClient";
+
+vi.mock("../../../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: vi.fn(),
+}));
+
+vi.mock("../../../../lib/clientBreadcrumbs", () => ({
+  addBreadcrumb: vi.fn(),
+}));
+
+const fetchWithAuthMock = vi.mocked(fetchWithAuth);
+const addBreadcrumbMock = vi.mocked(addBreadcrumb);
+
+describe("projectWorkspaceApiClient", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("records a breadcrumb when project workspace save fails with an invalid snapshot response", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Invalid project workspace snapshot",
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      })
+    ).rejects.toThrow(
+      "Failed to save project workspace snapshot: Invalid project workspace snapshot"
+    );
+
+    expect(addBreadcrumbMock).toHaveBeenCalledWith({
+      type: "network",
+      level: "warn",
+      message: "ai_studio_project_workspace_save_invalid_snapshot",
+      data: {
+        project_id: "project-1",
+        status: 400,
+        error: "Invalid project workspace snapshot",
+      },
+    });
+  });
+
+  it("does not record the invalid snapshot breadcrumb for non-terminal save failures", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: "Failed to save project workspace",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await expect(
+      saveAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        } as never,
+      })
+    ).rejects.toThrow(
+      "Failed to save project workspace snapshot: Failed to save project workspace"
+    );
+
+    expect(addBreadcrumbMock).not.toHaveBeenCalled();
+  });
+});

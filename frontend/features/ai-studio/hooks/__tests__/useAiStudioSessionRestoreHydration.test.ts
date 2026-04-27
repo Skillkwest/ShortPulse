@@ -143,7 +143,28 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload => ({
       pulseWorkflowSession: null,
     },
   },
-  canvas: null,
+  canvas: {
+    items: [
+      {
+        id: "canvas-note-1",
+        kind: "text",
+        x: 10,
+        y: 20,
+        z: 1,
+        selected: true,
+        outputId: null,
+        sourceSurface: null,
+        text: "Canvas note",
+        width: 260,
+      },
+    ],
+    draftTextEntry: null,
+    textEditSession: null,
+    draftOwnerInstanceId: null,
+    textEditOwnerInstanceId: null,
+    mainCamera: { x: 0, y: 0, zoom: 1 },
+    railCamera: { x: 0, y: 0, zoom: 1 },
+  },
   expertEdit: {
     version: 2,
     layers: {
@@ -201,6 +222,7 @@ describe("useAiStudioSessionRestoreHydration", () => {
   it("applies hydration once per sid when apply gate is enabled", async () => {
     const hydrateFromSessionSnapshot = vi.fn().mockReturnValue(createHydrationPayload());
     const hydrateFromSessionAgentSnapshot = vi.fn();
+    const hydrateFromSessionCanvasSnapshot = vi.fn();
     const hydrateFromSessionExpertEditSnapshot = vi.fn();
 
     const { rerender } = renderHook(
@@ -210,6 +232,7 @@ describe("useAiStudioSessionRestoreHydration", () => {
           sessionRestoreCandidate: candidate,
           hydrateFromSessionSnapshot,
           hydrateFromSessionAgentSnapshot,
+          hydrateFromSessionCanvasSnapshot,
           hydrateFromSessionExpertEditSnapshot,
           applyEnabled: true,
           agentApplyEnabled: true,
@@ -225,6 +248,17 @@ describe("useAiStudioSessionRestoreHydration", () => {
     await waitFor(() => {
       expect(hydrateFromSessionSnapshot).toHaveBeenCalledTimes(1);
       expect(hydrateFromSessionAgentSnapshot).toHaveBeenCalledTimes(1);
+      expect(hydrateFromSessionCanvasSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [
+            expect.objectContaining({
+              id: "canvas-note-1",
+              kind: "text",
+              text: "Canvas note",
+            }),
+          ],
+        })
+      );
       expect(hydrateFromSessionExpertEditSnapshot).toHaveBeenCalledTimes(1);
       expect(addBreadcrumbMock).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -251,6 +285,7 @@ describe("useAiStudioSessionRestoreHydration", () => {
     await waitFor(() => {
       expect(hydrateFromSessionSnapshot).toHaveBeenCalledTimes(2);
       expect(hydrateFromSessionAgentSnapshot).toHaveBeenCalledTimes(2);
+      expect(hydrateFromSessionCanvasSnapshot).toHaveBeenCalledTimes(2);
       expect(hydrateFromSessionExpertEditSnapshot).toHaveBeenCalledTimes(2);
     });
   });

@@ -77,6 +77,11 @@ const createSupabaseMock = () => {
       snapshot: {
         schemaVersion: 2,
         sessionId: "session-1",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:legacy",
+        },
         outputs: {
           active: [
             {
@@ -93,6 +98,51 @@ const createSupabaseMock = () => {
             },
           ],
           archived: [],
+        },
+        agent: {
+          messages: [{ id: "msg-1", role: "assistant", content: "Legacy chat" }],
+          input: "legacy draft",
+          latestAgentPrompt: "Legacy prompt",
+          promptOrigin: "agent",
+          chatModeEnabled: false,
+          pulseWorkflowSession: {
+            presetId: "single_shot",
+            status: "awaiting_input",
+            currentStepIndex: 1,
+            currentStepLabel: "Action",
+            currentStepPrompt: "What happens next?",
+            collectedInputs: ["Close-up"],
+            lastArtifact: null,
+            finalArtifactSource: null,
+          },
+        },
+        agentRuntimes: {
+          standard: {
+            messages: [{ id: "msg-0", role: "assistant", content: "Legacy standard" }],
+            input: "",
+            latestAgentPrompt: "Legacy standard",
+            promptOrigin: "agent",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: "single_shot",
+          pulse: {
+            messages: [{ id: "msg-1", role: "assistant", content: "Legacy chat" }],
+            input: "legacy draft",
+            latestAgentPrompt: "Legacy prompt",
+            promptOrigin: "agent",
+            chatModeEnabled: false,
+            pulseWorkflowSession: {
+              presetId: "single_shot",
+              status: "awaiting_input",
+              currentStepIndex: 1,
+              currentStepLabel: "Action",
+              currentStepPrompt: "What happens next?",
+              collectedInputs: ["Close-up"],
+              lastArtifact: null,
+              finalArtifactSource: null,
+            },
+          },
         },
       },
       created_at: "2026-04-23T00:00:00.000Z",
@@ -188,6 +238,11 @@ describe("projectWorkspaceStatesService", () => {
     const snapshot = {
       schemaVersion: 2,
       sessionId: "session-1",
+      updatedAt: "2026-04-23T01:00:00.000Z",
+      meta: {
+        generatedAt: "2026-04-23T01:00:00.000Z",
+        checksum: "fnv1a32:legacy",
+      },
       outputs: {
         active: [
           {
@@ -206,6 +261,51 @@ describe("projectWorkspaceStatesService", () => {
           },
         ],
       },
+      agent: {
+        messages: [{ id: "msg-1", role: "assistant", content: "Legacy chat" }],
+        input: "legacy draft",
+        latestAgentPrompt: "Legacy prompt",
+        promptOrigin: "agent",
+        chatModeEnabled: false,
+        pulseWorkflowSession: {
+          presetId: "single_shot",
+          status: "awaiting_input",
+          currentStepIndex: 1,
+          currentStepLabel: "Action",
+          currentStepPrompt: "What happens next?",
+          collectedInputs: ["Close-up"],
+          lastArtifact: null,
+          finalArtifactSource: null,
+        },
+      },
+      agentRuntimes: {
+        standard: {
+          messages: [{ id: "msg-0", role: "assistant", content: "Legacy standard" }],
+          input: "",
+          latestAgentPrompt: "Legacy standard",
+          promptOrigin: "agent",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: "single_shot",
+        pulse: {
+          messages: [{ id: "msg-1", role: "assistant", content: "Legacy chat" }],
+          input: "legacy draft",
+          latestAgentPrompt: "Legacy prompt",
+          promptOrigin: "agent",
+          chatModeEnabled: false,
+          pulseWorkflowSession: {
+            presetId: "single_shot",
+            status: "awaiting_input",
+            currentStepIndex: 1,
+            currentStepLabel: "Action",
+            currentStepPrompt: "What happens next?",
+            collectedInputs: ["Close-up"],
+            lastArtifact: null,
+            finalArtifactSource: null,
+          },
+        },
+      },
     };
 
     await expect(
@@ -215,29 +315,43 @@ describe("projectWorkspaceStatesService", () => {
         schemaVersion: 2,
         snapshot,
       })
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       projectId: "project-1",
       userId: "user-1",
       schemaVersion: 2,
       snapshot: {
         schemaVersion: 2,
         sessionId: "session-1",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
         outputs: {
           active: [
             {
               id: "out-1",
               generationId: "generation-1",
-              previewUrl: "https://expired.example.com/old.png",
-              resultUrls: ["https://expired.example.com/old.png"],
-            },
-            {
-              id: "out-2",
-              generationId: "generation-2",
-              previewUrl: "https://expired.example.com/other.png",
-              resultUrls: ["https://expired.example.com/other.png"],
+              promptId: "prompt-1",
+              savedMediaIds: ["media-1"],
+              prompt: "Server prompt",
+              previewUrl: "https://cdn.example.com/project-output.png",
+              resultUrls: ["https://cdn.example.com/project-output.png"],
+              previewStoragePath: "user-1/generated/project-output-preview.png",
+              fullStoragePath: "user-1/generated/project-output-full.png",
+              taskId: "task-1",
+              taskState: "success",
+              queueState: "dispatched",
             },
           ],
           archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
         },
       },
       createdAt: "2026-04-23T00:00:00.000Z",
@@ -249,11 +363,6 @@ describe("projectWorkspaceStatesService", () => {
         expect.objectContaining({
           project_id: "project-1",
           media_file_id: "media-1",
-          user_id: "user-1",
-        }),
-        expect.objectContaining({
-          project_id: "project-1",
-          media_file_id: "media-2",
           user_id: "user-1",
         }),
       ],
@@ -286,23 +395,63 @@ describe("projectWorkspaceStatesService", () => {
       })
     );
     expect(workspaceUpsert).toHaveBeenCalled();
+    expect(workspaceUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshot: expect.objectContaining({
+          outputs: {
+            active: [
+              expect.objectContaining({
+                id: "out-1",
+                generationId: "generation-1",
+                promptId: "prompt-1",
+                savedMediaIds: ["media-1"],
+                previewUrl: "https://cdn.example.com/project-output.png",
+                resultUrls: ["https://cdn.example.com/project-output.png"],
+              }),
+            ],
+            archived: [],
+            activeOutputId: null,
+            curatedReferenceIds: [],
+            removedFromAllRefsIds: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+        }),
+      }),
+      expect.anything()
+    );
+    expect("agentRuntimes" in (workspaceUpsert.mock.calls[0]?.[0]?.snapshot ?? {})).toBe(false);
   });
 
   it("refreshes generated outputs from project-associated generations on workspace read", async () => {
     createSupabaseMock();
 
-    await expect(
-      getProjectWorkspaceStateForUser({
-        userId: "user-1",
-        projectId: "project-1",
-      })
-    ).resolves.toMatchObject({
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result).toMatchObject({
       projectId: "project-1",
       userId: "user-1",
       schemaVersion: 2,
       snapshot: {
         schemaVersion: 2,
         sessionId: "session-1",
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
         outputs: {
           active: [
             {
@@ -317,18 +466,16 @@ describe("projectWorkspaceStatesService", () => {
               queueState: "dispatched",
               prompt: "Server prompt",
             },
-            {
-              id: "out-2",
-              generationId: "generation-2",
-              previewUrl: "https://expired.example.com/other.png",
-              resultUrls: ["https://expired.example.com/other.png"],
-            },
           ],
           archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
         },
       },
       createdAt: "2026-04-23T00:00:00.000Z",
       updatedAt: "2026-04-23T01:00:00.000Z",
     });
+    expect("agentRuntimes" in (result?.snapshot ?? {})).toBe(false);
   });
 });

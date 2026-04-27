@@ -31,6 +31,7 @@
     "test:e2e": "playwright test",
     "test:e2e:character": "NODE_PATH=./node_modules node ./tests/e2e/character-pipeline.audit.js",
     "test:e2e:media-library-runtime": "NODE_PATH=./node_modules node ./tests/e2e/media-library-runtime.audit.js",
+    "test:e2e:project-persistence": "NODE_PATH=./node_modules node ./tests/e2e/project-persistence.audit.js",
     "media:backfill-video-posters": "node ./scripts/backfill_video_posters.mjs",
     "test:e2e:style-drop": "NODE_PATH=./node_modules node ./tests/e2e/ai-studio-style-drop.audit.js",
     "test:e2e:expert-edit-parity": "NODE_PATH=./node_modules node ./tests/e2e/expert-edit-coordinate-parity.audit.js",

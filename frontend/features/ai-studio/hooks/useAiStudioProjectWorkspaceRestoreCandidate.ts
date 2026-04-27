@@ -8,7 +8,10 @@ import {
   parseAiStudioSessionSnapshotForRestore,
   type AiStudioSessionRestoreSource,
 } from "../logic/sessionRestoreCandidate";
-import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
+import {
+  createAiStudioProjectWorkspaceSnapshot,
+  type AiStudioSessionSnapshot,
+} from "../logic/sessionSnapshot";
 
 export type AiStudioProjectWorkspaceRestoreCandidateState = {
   status: "idle" | "loading" | "ready" | "error";
@@ -48,7 +51,13 @@ export const useAiStudioProjectWorkspaceRestoreCandidate = ({
         setLoadedCandidate({
           projectId,
           status: "ready",
-          snapshot: parseAiStudioSessionSnapshotForRestore(workspace?.snapshot ?? null, null),
+          snapshot: (() => {
+            const snapshot = parseAiStudioSessionSnapshotForRestore(
+              workspace?.snapshot ?? null,
+              null
+            );
+            return snapshot ? createAiStudioProjectWorkspaceSnapshot(snapshot) : null;
+          })(),
           error: null,
         });
       })

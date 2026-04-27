@@ -7,6 +7,7 @@ import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { getProjectForUser, parseProjectId } from "../../../../lib/server/projectsService";
 import {
   getProjectWorkspaceStateForUser,
+  InvalidProjectWorkspaceSnapshotError,
   upsertProjectWorkspaceStateForUser,
 } from "../../../../lib/server/projectWorkspaceStatesService";
 
@@ -100,6 +101,12 @@ export default async function handler(
         : null,
     });
   } catch (error) {
+    if (error instanceof InvalidProjectWorkspaceSnapshotError) {
+      return res.status(400).json({
+        error: "Invalid project workspace snapshot",
+        details: error.message,
+      });
+    }
     await logApiRouteException({
       req,
       error,

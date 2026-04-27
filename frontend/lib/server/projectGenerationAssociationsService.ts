@@ -65,6 +65,30 @@ const asTrimmedStringArray = (value: unknown): string[] => {
     .filter((entry): entry is string => Boolean(entry));
 };
 
+const hasSettledSnapshotOutputPayload = (row: SnapshotRecord): boolean => {
+  if (
+    Array.isArray(row.resultUrls) &&
+    row.resultUrls.some((value) => typeof value === "string" && value.trim().length > 0)
+  ) {
+    return true;
+  }
+  if (typeof row.previewUrl === "string" && row.previewUrl.trim().length > 0) return true;
+  if (typeof row.previewText === "string" && row.previewText.trim().length > 0) return true;
+  if (typeof row.previewStoragePath === "string" && row.previewStoragePath.trim().length > 0) {
+    return true;
+  }
+  if (typeof row.fullStoragePath === "string" && row.fullStoragePath.trim().length > 0) {
+    return true;
+  }
+  if (
+    Array.isArray(row.savedMediaIds) &&
+    row.savedMediaIds.some((value) => typeof value === "string" && value.trim().length > 0)
+  ) {
+    return true;
+  }
+  return row.status === "saved";
+};
+
 const collectSnapshotGenerationIds = (snapshot: SnapshotRecord): string[] => {
   const outputsRecord = asRecord(snapshot.outputs);
   const rows = [
@@ -309,31 +333,50 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
     projectId,
     generationIds: snapshotGenerationIds,
   });
-  if (associatedGenerationIds.size === 0) return snapshot;
-
-  const projectionByGenerationId = await buildProjectionByGenerationId({
-    userId,
-    generationIds: [...associatedGenerationIds],
-  });
-  if (projectionByGenerationId.size === 0) return snapshot;
 
   let changed = false;
+  const projectionByGenerationId =
+    associatedGenerationIds.size > 0
+      ? await buildProjectionByGenerationId({
+          userId,
+          generationIds: [...associatedGenerationIds],
+        })
+      : new Map<string, ProjectGenerationProjectionRow>();
   const patchRows = (value: unknown): unknown => {
     if (!Array.isArray(value)) return value;
-    return value.map((row) => {
-      const normalizedRow = asRecord(row);
-      const generationId = asTrimmedString(normalizedRow.generationId);
-      if (!generationId || !associatedGenerationIds.has(generationId)) {
-        return row;
-      }
-      const projection = projectionByGenerationId.get(generationId);
-      if (!projection) return row;
-      changed = true;
-      return patchSnapshotOutputRow({
-        row: normalizedRow,
-        projection,
-      });
-    });
+    return value
+      .map((row) => {
+        const normalizedRow = asRecord(row);
+        const generationId = asTrimmedString(normalizedRow.generationId);
+        if (generationId && !associatedGenerationIds.has(generationId)) {
+          changed = true;
+          return null;
+        }
+        if (!generationId && hasSettledSnapshotOutputPayload(normalizedRow)) {
+          changed = true;
+          return null;
+        }
+        if (!generationId) {
+          return row;
+        }
+        const projection = projectionByGenerationId.get(generationId);
+        if (!projection) {
+          changed = true;
+          return {
+            ...normalizedRow,
+            resultUrls: [],
+            previewUrl: null,
+            previewStoragePath: null,
+            fullStoragePath: null,
+          };
+        }
+        changed = true;
+        return patchSnapshotOutputRow({
+          row: normalizedRow,
+          projection,
+        });
+      })
+      .filter((row): row is SnapshotRecord => Boolean(row));
   };
 
   const nextOutputs = {

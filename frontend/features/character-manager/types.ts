@@ -38,6 +38,7 @@ export type CharacterSheetPresetId = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "
 export type CharacterSheetPresetMediaReference = {
   mediaFileId: string;
   storagePath: string;
+  previewStoragePath?: string | null;
   previewUrl: string | null;
 };
 
@@ -79,6 +80,7 @@ export type CharacterSlotValidationNotes = {
 export type CharacterSlotFile = {
   mediaFileId: string;
   storagePath: string;
+  previewStoragePath?: string | null;
   validationStatus: CharacterSlotValidationStatus;
   validationNotes: CharacterSlotValidationNotes;
   name: string;
@@ -96,6 +98,7 @@ export type CharacterQuickSwapItem = {
   id: string;
   mediaFileId: string;
   storagePath: string;
+  previewStoragePath?: string | null;
   previewUrl: string;
   status: CharacterQuickSwapStatus;
   createdAt: string;

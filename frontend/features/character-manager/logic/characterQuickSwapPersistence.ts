@@ -3,6 +3,7 @@
  * Handles dynamic quick-swap read/write flows with active/archive limits and legacy fallback reads.
  */
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
+import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
   CHARACTER_MANAGER_MAX_IMAGE_BYTES,
@@ -35,6 +36,19 @@ type QuickSwapRow = {
   status: QuickSwapStatus;
   created_at: string;
   archived_at: string | null;
+};
+
+type MediaFilePreviewRow = {
+  id: string;
+  filename: string | null;
+  storage_path: string;
+  file_type: string | null;
+  file_size: number | null;
+  metadata?: Record<string, unknown> | null;
+  thumb_variant_path?: string | null;
+  poster_variant_path?: string | null;
+  preview_variant_path?: string | null;
+  created_at: string | null;
 };
 
 type CharacterSheetRow = {
@@ -138,13 +152,49 @@ const buildArchivedCursorFilter = (cursor: QuickSwapArchivedCursor): string | nu
 const hydrateQuickSwapRows = async (rows: QuickSwapRow[]): Promise<CharacterQuickSwapItem[]> => {
   if (!rows.length) return [];
   const v2ReadsEnabled = isCharacterMediaV2ReadsEnabled();
+  const { supabase, userId } = await resolveSupabaseContext();
+  const mediaIds = Array.from(
+    new Set(
+      rows
+        .map((row) => row.media_file_id?.trim() ?? "")
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  const mediaRowById = new Map<string, MediaFilePreviewRow>();
+  if (mediaIds.length) {
+    const { data: mediaRows, error: mediaRowsError } = await supabase
+      .from("media_files")
+      .select(
+        "id, filename, storage_path, file_type, file_size, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at"
+      )
+      .eq("user_id", userId)
+      .in("id", mediaIds);
+    if (mediaRowsError) {
+      throw new Error(asErrorMessage(mediaRowsError, "Failed to load quick swap media files."));
+    }
+    for (const row of (mediaRows ?? []) as MediaFilePreviewRow[]) {
+      mediaRowById.set(row.id, row);
+    }
+  }
+  const previewPathByItemId = new Map<string, string>();
   const signedByPath = await getSignedMediaUrlsBatch({
     bucket: MEDIA_BUCKET,
-    storagePaths: rows.map((row) => row.storage_path),
+    storagePaths: rows.map((row) => {
+      const mediaRow = row.media_file_id?.trim()
+        ? mediaRowById.get(row.media_file_id.trim())
+        : null;
+      const previewPath = mediaRow
+        ? (resolveMediaSigningStoragePaths(mediaRow, userId)[0] ?? row.storage_path)
+        : row.storage_path;
+      previewPathByItemId.set(row.id, previewPath);
+      return previewPath;
+    }),
+    surface: "character-grid",
   });
   const items: CharacterQuickSwapItem[] = [];
   for (const row of rows) {
-    const previewUrl = signedByPath.get(row.storage_path) ?? null;
+    const previewStoragePath = previewPathByItemId.get(row.id) ?? row.storage_path;
+    const previewUrl = signedByPath.get(previewStoragePath) ?? null;
     if (!previewUrl) continue;
     const mediaReferenceId = (
       v2ReadsEnabled
@@ -156,6 +206,7 @@ const hydrateQuickSwapRows = async (rows: QuickSwapRow[]): Promise<CharacterQuic
       id: row.id,
       mediaFileId: mediaReferenceId,
       storagePath: row.storage_path,
+      previewStoragePath,
       previewUrl,
       status: row.status,
       createdAt: row.created_at,
@@ -294,6 +345,7 @@ const loadLegacyQuickSwapFallback = async (
       id: `legacy:${characterSheetId}:${slot.key}`,
       mediaFileId: slotFile.mediaFileId,
       storagePath: slotFile.storagePath,
+      previewStoragePath: slotFile.previewStoragePath ?? null,
       previewUrl: slotFile.previewUrl,
       status: "active",
       createdAt: slotFile.updatedAt,

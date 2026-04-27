@@ -95,6 +95,7 @@ export const useCharacterManagerCharacterSheetInteractions = ({
         [characterSheetSlotKey]: {
           mediaFileId: referenceEntry.mediaFileId,
           storagePath: referenceEntry.storagePath,
+          previewStoragePath: referenceEntry.previewStoragePath ?? null,
           previewUrl: referenceEntry.previewUrl,
         },
       };

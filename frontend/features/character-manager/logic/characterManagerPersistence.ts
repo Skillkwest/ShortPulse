@@ -3,6 +3,7 @@
  * Exposes high-level operations used by the Character Manager draft hook.
  */
 import { getSignedMediaUrl, getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
+import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import {
   createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetPresetAssignments,
@@ -138,6 +139,16 @@ type SaveCharacterSheetPresetAssetInput = {
   file: File;
 };
 
+type PresetPreviewMediaRow = {
+  id: string;
+  storage_path: string;
+  file_type: string | null;
+  metadata?: Record<string, unknown> | null;
+  thumb_variant_path?: string | null;
+  poster_variant_path?: string | null;
+  preview_variant_path?: string | null;
+};
+
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
 const PROFILE_OFFSET_MIN = -40;
@@ -174,6 +185,7 @@ const toPresetReferenceFromSlot = (
   return {
     mediaFileId: slotFile.mediaFileId,
     storagePath: slotFile.storagePath,
+    previewStoragePath: slotFile.previewStoragePath ?? null,
     previewUrl: slotFile.previewUrl,
   };
 };
@@ -197,12 +209,51 @@ const hydratePresetStatePreviewUrls = async (
   state: CharacterSheetPresetState,
   slots: CharacterSlotFileMap
 ): Promise<CharacterSheetPresetState> => {
+  const references = Object.values(state.presets)
+    .flatMap((assignments) => Object.values(assignments))
+    .filter((reference): reference is CharacterSheetPresetMediaReference => Boolean(reference));
+  const mediaIds = Array.from(
+    new Set(references.map((reference) => reference.mediaFileId).filter(Boolean))
+  );
+  const previewPathByMediaId = new Map<string, string>();
+
+  if (mediaIds.length) {
+    const { supabase, userId } = await resolveSupabaseContext();
+    const { data: mediaRows, error: mediaRowsError } = await supabase
+      .from("media_files")
+      .select(
+        "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
+      )
+      .eq("user_id", userId)
+      .in("id", mediaIds);
+    if (mediaRowsError) {
+      throw new Error(
+        asErrorMessage(mediaRowsError, "Failed to hydrate character preset previews.")
+      );
+    }
+    for (const row of (mediaRows ?? []) as PresetPreviewMediaRow[]) {
+      previewPathByMediaId.set(
+        row.id,
+        resolveMediaSigningStoragePaths(row, userId)[0] ?? row.storage_path
+      );
+    }
+  }
+
   const storagePaths = Array.from(
     new Set(
-      Object.values(state.presets)
-        .flatMap((assignments) => Object.values(assignments))
-        .filter((reference): reference is CharacterSheetPresetMediaReference => Boolean(reference))
-        .map((reference) => reference.storagePath)
+      references.map((reference) => {
+        const slotPreviewMatch = Object.values(slots).find(
+          (slot) =>
+            slot?.mediaFileId === reference.mediaFileId ||
+            slot?.storagePath === reference.storagePath
+        );
+        return (
+          previewPathByMediaId.get(reference.mediaFileId) ??
+          slotPreviewMatch?.previewStoragePath ??
+          reference.previewStoragePath ??
+          reference.storagePath
+        );
+      })
     )
   );
   if (!storagePaths.length) {
@@ -211,6 +262,7 @@ const hydratePresetStatePreviewUrls = async (
   const signedByPath = await getSignedMediaUrlsBatch({
     bucket: MEDIA_BUCKET,
     storagePaths,
+    surface: "character-grid",
   });
   return normalizeCharacterSheetPresetState({
     activePresetId: state.activePresetId,
@@ -225,12 +277,18 @@ const hydratePresetStatePreviewUrls = async (
                 slot?.mediaFileId === reference.mediaFileId ||
                 slot?.storagePath === reference.storagePath
             );
+            const previewStoragePath =
+              previewPathByMediaId.get(reference.mediaFileId) ??
+              slotPreviewMatch?.previewStoragePath ??
+              reference.previewStoragePath ??
+              reference.storagePath;
             return [
               zoneKey,
               {
                 ...reference,
+                previewStoragePath,
                 previewUrl:
-                  signedByPath.get(reference.storagePath) ??
+                  signedByPath.get(previewStoragePath) ??
                   slotPreviewMatch?.previewUrl ??
                   reference.previewUrl,
               },
@@ -1612,6 +1670,7 @@ export const saveCharacterManagerSlot = async (
   return {
     mediaFileId: mediaRow.id,
     storagePath,
+    previewStoragePath: storagePath,
     validationStatus: input.validationStatus,
     validationNotes: input.validationNotes,
     name: mediaRow.filename?.trim() || input.file.name,

@@ -734,12 +734,15 @@ export function CharacterManagerShell({
                   resolveQuickSwapPreviewUrl={(item, cardLongEdgePx) =>
                     resolveCharacterCardPreviewUrl({
                       previewUrl: item.previewUrl,
-                      storagePath: item.storagePath,
+                      storagePath: item.previewStoragePath ?? item.storagePath,
                       cardLongEdgePx,
                     })
                   }
                   onCardPreviewError={(item, failedUrl) => {
-                    refreshCardPreviewSignedUrl(item.storagePath, failedUrl);
+                    refreshCardPreviewSignedUrl(
+                      item.previewStoragePath ?? item.storagePath,
+                      failedUrl
+                    );
                   }}
                   onDragEnter={(event) => {
                     if (isQuickSwapCollapsed) return;
@@ -924,7 +927,9 @@ export function CharacterManagerShell({
                                   src={
                                     resolveCharacterCardPreviewUrl({
                                       previewUrl: assignedReference.previewUrl,
-                                      storagePath: assignedReference.storagePath,
+                                      storagePath:
+                                        assignedReference.previewStoragePath ??
+                                        assignedReference.storagePath,
                                       cardLongEdgePx: 300,
                                     }) ?? assignedReference.previewUrl
                                   }
@@ -934,7 +939,8 @@ export function CharacterManagerShell({
                                   height={300}
                                   onError={(event) => {
                                     refreshCardPreviewSignedUrl(
-                                      assignedReference.storagePath,
+                                      assignedReference.previewStoragePath ??
+                                        assignedReference.storagePath,
                                       event.currentTarget.currentSrc ||
                                         event.currentTarget.src ||
                                         null

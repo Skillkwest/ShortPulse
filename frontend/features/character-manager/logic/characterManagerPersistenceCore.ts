@@ -151,6 +151,23 @@ type CharacterSheetImageRow = {
   storage_path: string | null;
 };
 
+const resolveSignedPreviewCandidatePath = (
+  mediaRow: MediaFileRow | CharacterMediaAssetRow | null | undefined,
+  fallbackStoragePath: string,
+  userId?: string | null
+): string => {
+  if (!mediaRow) return fallbackStoragePath;
+  if (
+    "metadata" in mediaRow ||
+    "thumb_variant_path" in mediaRow ||
+    "poster_variant_path" in mediaRow ||
+    "preview_variant_path" in mediaRow
+  ) {
+    return resolveMediaSigningStoragePaths(mediaRow, userId)[0] ?? fallbackStoragePath;
+  }
+  return mediaRow.storage_path?.trim() || fallbackStoragePath;
+};
+
 export const asErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
 
@@ -930,7 +947,8 @@ export const cleanupOrphanedMedia = async ({
 
 const mapSlotRowsToSlotFileMap = async (
   imageRows: CharacterReferenceImageRow[],
-  mediaRows: Array<MediaFileRow | CharacterMediaAssetRow>
+  mediaRows: Array<MediaFileRow | CharacterMediaAssetRow>,
+  userId?: string | null
 ): Promise<CharacterSlotFileMap> => {
   const slots = createEmptyCharacterSlotMap();
   if (!imageRows.length) {
@@ -938,10 +956,24 @@ const mapSlotRowsToSlotFileMap = async (
   }
 
   const mediaById = new Map(mediaRows.map((row) => [row.id, row]));
-  const storagePaths = imageRows.map((row) => row.storage_path).filter(Boolean);
+  const previewPathByRowId = new Map<string, string>();
+  const storagePaths = imageRows
+    .map((row) => {
+      const mediaReferenceId = (
+        row.character_media_id?.trim() ||
+        row.media_file_id?.trim() ||
+        ""
+      ).trim();
+      const mediaRow = mediaReferenceId ? mediaById.get(mediaReferenceId) : null;
+      const previewPath = resolveSignedPreviewCandidatePath(mediaRow, row.storage_path, userId);
+      previewPathByRowId.set(row.id, previewPath);
+      return previewPath;
+    })
+    .filter(Boolean);
   const signedByPath = await getSignedMediaUrlsBatch({
     bucket: MEDIA_BUCKET,
     storagePaths,
+    surface: "character-grid",
   });
 
   for (const imageRow of imageRows) {
@@ -955,12 +987,14 @@ const mapSlotRowsToSlotFileMap = async (
     const mediaRow = mediaById.get(mediaReferenceId);
     if (!mediaRow) continue;
 
-    const signedUrl = signedByPath.get(imageRow.storage_path) ?? null;
+    const previewStoragePath = previewPathByRowId.get(imageRow.id) ?? imageRow.storage_path;
+    const signedUrl = signedByPath.get(previewStoragePath) ?? null;
     if (!signedUrl) continue;
 
     const slot: CharacterSlotFile = {
       mediaFileId: mediaReferenceId,
       storagePath: imageRow.storage_path,
+      previewStoragePath,
       validationStatus: imageRow.validation_status,
       validationNotes: toValidationNotes(imageRow.validation_notes),
       name: mediaRow.filename?.trim() || `${imageRow.slot_key}.jpg`,
@@ -1032,7 +1066,9 @@ export const loadSlotFilesForCharacterSheet = async (
   if (mediaIds.length) {
     const { data: mediaRows, error: mediaError } = await supabase
       .from("media_files")
-      .select("id, filename, storage_path, file_type, file_size, created_at")
+      .select(
+        "id, filename, storage_path, file_type, file_size, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at"
+      )
       .eq("user_id", userId)
       .in("id", mediaIds);
     if (mediaError) {
@@ -1061,7 +1097,7 @@ export const loadSlotFilesForCharacterSheet = async (
     }
   }
 
-  return mapSlotRowsToSlotFileMap(typedImageRows, combinedRows);
+  return mapSlotRowsToSlotFileMap(typedImageRows, combinedRows, userId);
 };
 
 /**

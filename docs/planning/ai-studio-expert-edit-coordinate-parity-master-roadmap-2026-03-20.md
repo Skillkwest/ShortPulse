@@ -1,5 +1,7 @@
 # AI Studio Expert Edit Coordinate Parity Master Roadmap (2026-03-20)
 
+Status: active
+
 ## Purpose
 Define the canonical, decision-locked execution roadmap to restore and harden pixel-accurate draw behavior for Expert Edit markup and inpaint across inline and modal stages.
 

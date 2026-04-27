@@ -1,5 +1,7 @@
 # AI Studio Expert Edit Coordinate Parity Phase 5 Execution Plan (2026-03-20)
 
+Status: active
+
 ## Purpose
 Define the implementation-ready execution plan for Phase 5 (`Controlled Rollout and Closeout`) of the Expert Edit coordinate parity program.
 

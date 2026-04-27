@@ -1,5 +1,7 @@
 # AI Studio Expert Edit Coordinate Parity Phase 2 Execution Plan (2026-03-20)
 
+Status: draft
+
 ## Purpose
 Define the implementation-ready execution plan for Phase 2 (`Tool Geometry Parity`) of the Expert Edit coordinate parity program.
 

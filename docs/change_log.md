@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - normalized the remaining active coordinate-parity roadmap, tracker, and unfinished phase docs onto the canonical status vocabulary,
+  - marking the roadmap/tracker plus active rollout phase as `active`,
+  - and marking the pending Phase 1 and Phase 2 execution plans as `draft`.
+- Documentation cleanup:
   - corrected the `/dashboard` route contract across `README.md`, `docs/routes.md`, `docs/security-checklist.md`, and `docs/agent-playbook.md` so it matches the live public-home runtime instead of claiming auth-required protection.
 - Documentation cleanup:
   - archived the completed coordinate-parity Phase 0, Phase 3, and Phase 4 execution plans under `docs/archive/planning/`,

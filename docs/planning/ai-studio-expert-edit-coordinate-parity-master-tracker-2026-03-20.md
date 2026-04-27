@@ -1,5 +1,7 @@
 # AI Studio Expert Edit Coordinate Parity Master Tracker (2026-03-20)
 
+Status: active
+
 ## Objective
 Track execution status for the coordinate-parity hardening roadmap, including phase-level docs and supporting governance artifacts.
 

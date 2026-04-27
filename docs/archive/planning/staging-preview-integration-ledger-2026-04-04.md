@@ -1,4 +1,7 @@
 # Staging Preview Integration Ledger (2026-04-04)
+
+> Archived on 2026-04-26 during docs cleanup because the staging-preview consolidation packet is closed and no longer belongs in active planning.
+
 Status: complete
 
 Purpose: working checkpoint for the current `staging-preview` consolidation effort. This document records what has landed from `origin/codex/full-unified-layers`, which local commits were created to stabilize that work on `staging-preview`, which rollback anchors still matter, and what remains intentionally deferred.

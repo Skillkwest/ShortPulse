@@ -183,8 +183,6 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`
 - `docs/planning/ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`
 - `docs/planning/ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`
-- `docs/planning/staging-preview-integration-ledger-2026-04-04.md`
-- `docs/planning/staging-preview-ui-properties-extraction-plan-2026-04-04.md`
 - `docs/planning/master-rollout-proposal.md`
 - `docs/planning/shortpulse-unified-buildout-master-plan.md`
 - `docs/planning/shortpulse-unified-buildout-tracker.md`
@@ -543,6 +541,8 @@ Start here for all repository documentation.
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-2-core-server-correctness-plan-2026-04-26.md`
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-3-durable-media-authority-plan-2026-04-26.md`
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-4-canonical-output-slot-convergence-plan-2026-04-26.md`
+- `docs/archive/planning/staging-preview-integration-ledger-2026-04-04.md`
+- `docs/archive/planning/staging-preview-ui-properties-extraction-plan-2026-04-04.md`
 - `docs/archive/ai-studio-agent-implementation-plan.md`
 - `docs/archive/ai-studio-prompts.md`
 - `docs/archive/character-manager-character-sheet-plan.md`

@@ -51,6 +51,8 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-right-rail-performance-readiness-state-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`
+- `docs/archive/planning/staging-preview-integration-ledger-2026-04-04.md`
+- `docs/archive/planning/staging-preview-ui-properties-extraction-plan-2026-04-04.md`
 - `docs/archive/planning/media-library-move-tabs-plan.md`
 - `docs/archive/planning/mvp-pre-tester-anchor-plan.md`
 - `docs/archive/planning/tmp_generation_drain_audit_working_notes_2026-02-27.md`

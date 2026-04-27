@@ -23,8 +23,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `final-validation-summary.md`: closeout validation matrix and signoff checklist.
 - `policies/README.md`: planning policy artifacts and machine-checkable governance policy surfaces.
 - `backlog.md`: active and upcoming work.
-- `staging-preview-integration-ledger-2026-04-04.md`: working ledger for the current `staging-preview` consolidation effort, including landed `codex/full-unified-layers` lanes, local adaptation commits, rollback anchors, and remaining runtime/UI lanes.
-- `staging-preview-ui-properties-extraction-plan-2026-04-04.md`: product-only extraction plan for the remaining AI Studio routing/session-hydration and deferred properties-panel UI delta on `staging-preview`.
 - `generation-pipeline-continuation-master-plan-2026-04-05.md`: removal-led continuation plan for the generation pipeline with bucketed authority cutover, client demotion, compatibility retirement, and Reference Grid read-model simplification.
 - `generation-pipeline-continuation-tracker-2026-04-05.md`: index for the bucket-specific continuation subplans.
 - `generation-pipeline-continuation-server-authority-cutover-2026-04-05.md`: bucket subplan for server-owned lifecycle authority cutover.

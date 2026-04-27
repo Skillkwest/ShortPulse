@@ -9,7 +9,6 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/naming-canonicalization/`
 - `docs/planning/evidence/lane-b/`
 - `docs/planning/evidence/lane-c/`
-- `docs/planning/evidence/generation-pipeline-hardening/`
 - `docs/planning/evidence/generation-reliability-hardening/`
 - `docs/planning/evidence/ai-studio-reference-grid-reliability/`
 - `docs/planning/evidence/media-rendering-hardening-v2/`
@@ -24,6 +23,7 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/records/evidence/lane-d/`
 - `docs/records/evidence/lane-e/`
 - `docs/records/evidence/lane-f/`
+- `docs/records/evidence/generation-pipeline-hardening/`
 - `docs/records/evidence/kei/`
 - `docs/records/evidence/media-library-runtime-rebuild/`
 - `docs/records/evidence/sql/`

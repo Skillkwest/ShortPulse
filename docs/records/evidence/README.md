@@ -11,6 +11,7 @@ Purpose: index retained evidence namespaces that have already moved into the rec
 - `docs/records/evidence/lane-d/`: retained evidence packet family for the completed Lane D runtime safety and stability lane.
 - `docs/records/evidence/lane-e/`: retained evidence packet family for the completed Lane E docs and ADR governance lane.
 - `docs/records/evidence/lane-f/`: retained evidence packet family for the closed Lane F release and CI governance lane.
+- `docs/records/evidence/generation-pipeline-hardening/`: retained evidence packet family for the completed P1 generation-pipeline hardening track.
 - `docs/records/evidence/kei/`: retained evidence packet family for the completed STG-04 KEI compatibility decommission lane.
 - `docs/records/evidence/media-library-runtime-rebuild/`: retained evidence packet family for the closed Media Library runtime rebuild lane.
 - `docs/records/evidence/sql/`: retained STG-02 SQL hardening validation packets and evidence template.

@@ -23,7 +23,7 @@
 4. Closed Track P1 in the control docs:
    - `docs/archive/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`
    - `docs/archive/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
-   - `docs/planning/evidence/generation-pipeline-hardening/README.md`
+   - `docs/records/evidence/generation-pipeline-hardening/README.md`
    - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 5. Full closeout gate passed:
    - `lint`: pass with baseline `2` warnings

@@ -284,6 +284,7 @@ Tracker contract: `docs/archive/planning/lane-f-tracker-spec-2026-03-16.md`
 1. Master plan: `docs/archive/planning/generation-pipeline-hardening-master-plan-2026-03-16.md`
 2. Tracker spec: `docs/archive/planning/generation-pipeline-hardening-tracker-spec-2026-03-16.md`
 3. Contact map: `docs/archive/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
+4. Evidence index: `docs/records/evidence/generation-pipeline-hardening/README.md`
 
 ## Notes Log
 

@@ -1,5 +1,7 @@
 # Generation Pipeline Hardening Evidence
 
+Moved from `docs/planning/evidence/generation-pipeline-hardening/` on 2026-04-27 as part of the retained-records migration.
+
 Purpose: store execution evidence packets for Track P1 generation-pipeline hardening slices.
 
 ## Required packet fields

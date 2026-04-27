@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - migrated the retained `generation-pipeline-hardening` evidence namespace into `docs/records/evidence/generation-pipeline-hardening/`,
+  - retargeted the archived P1 execution references plus the active foundation tracker to the records path,
+  - and removed that namespace from the active planning-evidence index.
+- Documentation cleanup:
   - migrated the retained `lane-e` evidence namespace into `docs/records/evidence/lane-e/`,
   - retargeted the surviving foundation tracker and archived Lane E plan references to the records path,
   - and removed that namespace from the active planning-evidence index.
@@ -3238,7 +3242,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - roadmap-level task contract in `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`,
   - per-slice task contract + parity closeout checks in `docs/archive/planning/lane-a-execution-plan-2026-03-16.md`,
   - tracker schema extensions for DoD/audit/parity fields in `docs/archive/planning/lane-a-tracker-spec-2026-03-16.md`,
-  - evidence packet contract expansion in `docs/planning/evidence/generation-pipeline-hardening/README.md`,
+  - evidence packet contract expansion in `docs/records/evidence/generation-pipeline-hardening/README.md`,
   - PR template enforcement checkboxes in `.github/pull_request_template.md`.
 - Closed Lane A documentation tracking drift:
   - added Lane A evidence packets for size-budget gate recovery (`A1-02`), validate relock (`A1-03`), policy-surface alignment (`A2-01`), and docs governance cleanup (`A3-01`),

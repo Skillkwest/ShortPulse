@@ -1,6 +1,8 @@
 # AI Studio Reference Grid Runtime Simplification Plan (2026-03-31)
 
-Status: draft
+> Archived on 2026-04-27 during docs cleanup because this paused freeze-lane checkpoint is retained as historical performance context while any future reference-grid follow-on work must re-enter from fresh evidence instead of treating this as active execution.
+
+Status: archived
 
 Purpose: define the narrow simplify/rebuild lane for the AI Studio reference runtime after the March 2026 freeze investigation. This is a paused execution checkpoint for a narrow runtime lane, not a new broad architecture program.
 

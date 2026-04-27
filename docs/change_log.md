@@ -3,6 +3,10 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Documentation cleanup:
+  - archived the paused Supabase production cutover handoff, the paused Reference Grid runtime simplification checkpoint, and the deferred Wave H webhook canary closeout plan/tracker out of `docs/planning/`,
+  - updated active/archive indexes and continuation-plan references to point at the archived locations,
+  - and narrowed the remaining done-state audit blocker set to full evidence migration plus the optional governance-doc compression judgment call.
 - Documentation governance:
   - added `docs/records/docs-cleanup-done-state-audit-2026-04-27.md` as the repo-backed stop/go audit for the docs cleanup lane,
   - recorded the remaining strict blockers as full evidence migration and a smaller set of mixed-purpose resumable planning docs,

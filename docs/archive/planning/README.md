@@ -9,6 +9,10 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 
 ## Contents
 - `docs/archive/planning/ai-studio-character-mode-injection-plan.md`
+- `docs/archive/planning/ai-studio-reference-grid-runtime-simplification-plan-2026-03-31.md`
+- `docs/archive/planning/ai-studio-webhook-canary-closeout-plan.md`
+- `docs/archive/planning/ai-studio-webhook-canary-closeout-tracker.md`
+- `docs/archive/planning/supabase-production-cutover-handoff-2026-03-13.md`
 - `docs/archive/planning/_inventory.md`
 - `docs/archive/planning/overlap-audit.md`
 - `docs/archive/planning/feasibility-report.md`

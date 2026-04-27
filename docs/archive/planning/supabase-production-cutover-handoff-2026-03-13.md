@@ -1,6 +1,8 @@
 # Supabase Production Cutover Handoff (2026-03-13)
 
-Status: draft
+> Archived on 2026-04-27 during docs cleanup because this paused-state cutover handoff is retained as historical operator context while the active database/deployment authority now lives in current migration docs, SQL migration SOPs, and deployment runbooks.
+
+Status: archived
 Owner context: Supabase + Vercel + GitHub environment cutover to a new production Supabase project.
 
 ## Scope And Goal

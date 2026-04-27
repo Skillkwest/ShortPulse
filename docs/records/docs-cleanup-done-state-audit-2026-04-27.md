@@ -5,7 +5,7 @@ Purpose: record the final repo-backed stop/go audit for the docs-fat-trimming la
 ## Current snapshot
 - Audit date: `2026-04-27`
 - Validation: `cd frontend && npm run docs:check` passes fully.
-- Top-level planning docs still under `docs/planning/`: `193`
+- Top-level planning docs still under `docs/planning/`: `189`
 - Top-level planning docs with noncanonical status: `0`
 - Top-level planning docs missing status: `1` (`docs/planning/README.md`, intentionally status-less)
 
@@ -35,20 +35,16 @@ Interpretation:
 - This does not currently break navigation or validation because records policy and indexes already route readers away from raw packet inventories.
 - It does block the strictest version of the cleanup end state because retained evidence is still physically split between `docs/planning/evidence/` and `docs/records/`.
 
-### 2. Some active-planning docs are still better described as resumable checkpoints or mixed-purpose governance memory
+## Optional follow-on judgment call
+### Large governance docs could still be compressed later if the repo wants an even stricter current-truth surface
 Examples:
-- `docs/planning/supabase-production-cutover-handoff-2026-03-13.md`
-- `docs/planning/ai-studio-reference-grid-runtime-simplification-plan-2026-03-31.md`
-- `docs/planning/ai-studio-webhook-canary-closeout-plan.md`
-- `docs/planning/ai-studio-webhook-canary-closeout-tracker.md`
 - `docs/planning/master-rollout-proposal.md`
 - `docs/planning/shortpulse-unified-buildout-master-plan.md`
 - `docs/planning/shortpulse-unified-buildout-tracker.md`
 
 Interpretation:
-- These docs are no longer metadata-broken; they have canonical statuses or otherwise sit within the current active contract.
-- They still blur the line between active execution, deferred closeout, and retained governance memory.
-- This is the main remaining planning-surface judgment call if the repo wants the strictest possible active/historical separation.
+- These docs still act as live authority surfaces today, so they are not obvious archive candidates.
+- This is no longer a blocker for a clean, validated planning surface; it is only a later compression decision if the repo wants even stricter current-truth separation.
 
 ## What is no longer a blocker
 1. Missing top-level planning statuses are no longer a real issue.
@@ -70,7 +66,7 @@ Recommended stop posture:
 
 ## Highest-ROI follow-on options
 If the repo wants to keep going, the best bounded options are:
-1. One final active-surface pass on paused/resumable planning docs to decide whether they belong in `docs/planning/`, `docs/archive/planning/`, or `docs/records/`.
+1. One final active-surface pass on the remaining large governance docs if the repo wants to compress current-truth authority further.
 2. One deliberate large-namespace decision on `unified-buildout/` rather than more small evidence moves.
 3. Otherwise stop this lane and preserve the current gains.
 
@@ -79,4 +75,4 @@ The docs cleanup lane is not at the strict original done state yet, but it is ve
 
 Practical judgment:
 - Current state: clean enough to stop without creating risk.
-- Remaining work: mostly about stricter archival semantics and full physical evidence migration, not about broken authority or failing validation.
+- Remaining work: mostly about full physical evidence migration and optional governance-surface compression, not about broken authority or failing validation.

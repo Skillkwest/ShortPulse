@@ -1,7 +1,7 @@
 # AI Studio Reference Grid Reliability Readiness State (2026-03-21)
 
 Last updated: 2026-03-21  
-Status: Active
+Status: active
 
 ## Purpose
 Track current readiness posture for moving from planning into phased implementation and define the trigger for immediate implementation start.

@@ -1,7 +1,7 @@
 # AI Studio Reference Grid Reliability Implementation Entry Checklist (2026-03-21)
 
 Last updated: 2026-03-21  
-Status: Active
+Status: active
 
 ## Purpose
 Define explicit go/no-go criteria before behavior-changing implementation starts and formalize the `implementation_ready` promotion contract.

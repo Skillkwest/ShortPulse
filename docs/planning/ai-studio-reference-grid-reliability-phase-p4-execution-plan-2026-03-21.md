@@ -3,7 +3,7 @@
 Date: 2026-03-21  
 Authority: Working  
 Owner: AI Studio Engineering  
-Status: Planned (implementation gated on P3 closeout)
+Status: draft
 
 ## Summary
 Phase `P4` certifies final hardening, rollout governance, and program closeout for Reference Grid reliability.

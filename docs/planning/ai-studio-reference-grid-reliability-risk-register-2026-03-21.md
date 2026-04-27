@@ -1,7 +1,7 @@
 # AI Studio Reference Grid Reliability Risk Register (2026-03-21)
 
 Last updated: 2026-03-21  
-Status: Active
+Status: active
 
 ## Purpose
 Track execution risks for Reference Grid reliability hardening and define mitigation/rollback posture.

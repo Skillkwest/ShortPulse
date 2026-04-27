@@ -1,7 +1,7 @@
 # AI Studio Reference Grid Reliability Decision Log (2026-03-21)
 
 Last updated: 2026-03-21  
-Status: Active
+Status: active
 
 ## Purpose
 Capture durable execution decisions for Reference Grid reliability hardening.

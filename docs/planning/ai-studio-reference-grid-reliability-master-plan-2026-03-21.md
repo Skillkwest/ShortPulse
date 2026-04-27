@@ -1,7 +1,7 @@
 # AI Studio Reference Grid Reliability Master Plan (2026-03-21)
 
 Last updated: 2026-03-21  
-Status: Active (P0-P4 plans published; implementation pending)  
+Status: active  
 Owner: AI Studio Engineering  
 Roadmap anchor: `docs/planning/ai-studio-reference-grid-reliability-master-roadmap-2026-03-21.md`  
 Tracker anchor: `docs/planning/ai-studio-reference-grid-reliability-master-tracker-2026-03-21.md`  

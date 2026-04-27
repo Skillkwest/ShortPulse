@@ -3,7 +3,7 @@
 Date: 2026-03-21  
 Authority: Working  
 Owner: AI Studio Engineering  
-Status: Planned (implementation gated; no behavior changes executed)
+Status: draft
 
 ## Summary
 Phase `P0` establishes correctness for recovery dispatch so recoverable generations are not prematurely failed or removed from the Reference Grid lifecycle.

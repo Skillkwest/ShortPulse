@@ -1,7 +1,7 @@
 # AI Studio Reference Grid Reliability Tracker Spec (2026-03-21)
 
 Last updated: 2026-03-21  
-Status: Active  
+Status: active  
 Companion plan: `docs/planning/ai-studio-reference-grid-reliability-master-plan-2026-03-21.md`  
 Companion tracker: `docs/planning/ai-studio-reference-grid-reliability-master-tracker-2026-03-21.md`
 

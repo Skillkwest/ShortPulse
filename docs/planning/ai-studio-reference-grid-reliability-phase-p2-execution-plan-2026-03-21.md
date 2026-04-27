@@ -3,7 +3,7 @@
 Date: 2026-03-21  
 Authority: Working  
 Owner: AI Studio Engineering  
-Status: Planned (implementation gated on P1 closeout)
+Status: draft
 
 ## Summary
 Phase `P2` hardens Reference Grid hydration/media convergence so generated cards do not remain in persistent blank/spinner states when decode/hydration paths stall.

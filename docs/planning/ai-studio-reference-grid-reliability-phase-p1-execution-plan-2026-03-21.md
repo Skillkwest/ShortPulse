@@ -3,7 +3,7 @@
 Date: 2026-03-21  
 Authority: Working  
 Owner: AI Studio Engineering  
-Status: Planned (implementation gated on P0 closeout)
+Status: draft
 
 ## Summary
 Phase `P1` establishes a single output-authority contract across assistant bubble previews and Reference Grid rendering while page-output decoupling is enabled.

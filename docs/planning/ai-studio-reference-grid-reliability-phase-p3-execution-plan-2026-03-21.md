@@ -3,7 +3,7 @@
 Date: 2026-03-21  
 Authority: Working  
 Owner: AI Studio Engineering  
-Status: Planned (implementation gated on P2 closeout)
+Status: draft
 
 ## Summary
 Phase `P3` aligns recovery semantics and state projection so queue status, status-proxy recovery kicks, and overdue-running reconciliation resolve to one deterministic contract.

@@ -1,5 +1,7 @@
 # AI Studio Reference Grid Reliability Evidence Packet Template
 
+Status: active
+
 Use this template for each phase slice evidence packet.
 
 ## Packet Metadata

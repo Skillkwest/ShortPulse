@@ -32,6 +32,7 @@ const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioAgentOrchestration>[0]> = {}
 ): Parameters<typeof useAiStudioAgentOrchestration>[0] => ({
   agentIsSending: false,
+  agentBootstrapReady: true,
   agentUiBusyRef: { current: false } as MutableRefObject<boolean>,
   setAgentUiBusy: asDispatch<boolean>(vi.fn()),
   agentSessionEnabled: true,
@@ -96,6 +97,30 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(sendToAgent).not.toHaveBeenCalled();
     expect(appendUserMessage).not.toHaveBeenCalled();
     expect(trackAgentUiEvent).not.toHaveBeenCalled();
+  });
+
+  it("blocks outbound chat send while agent bootstrap is still pending", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
+    const trackAgentUiEvent = vi.fn();
+    const setUiNotice = vi.fn();
+    const params = createParams({
+      agentBootstrapReady: false,
+      agentInput: "hello",
+      prompt: "hello",
+      sendToAgent,
+      trackAgentUiEvent,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+    });
+
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("Preparing chat. Try again in a moment.");
+    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_send_blocked_bootstrap_pending");
   });
 
   it("sends image-only turns without auto-injecting describe text", async () => {
@@ -317,6 +342,45 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(setVideoReferenceText).toHaveBeenCalledWith("Refined video prompt");
     expect(setEditReferenceText).not.toHaveBeenCalled();
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
+  });
+
+  it("blocks prompt enhancement while agent bootstrap is still pending", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
+    const setUiNotice = vi.fn();
+    const params = createParams({
+      agentBootstrapReady: false,
+      prompt: "Base prompt",
+      sendToAgent,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentEnhanceSend();
+    });
+
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("Preparing chat. Try again in a moment.");
+  });
+
+  it("blocks reference prompt enhancement while agent bootstrap is still pending", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
+    const setUiNotice = vi.fn();
+    const params = createParams({
+      agentBootstrapReady: false,
+      selectedTool: "video",
+      videoReferenceText: "Base video prompt",
+      sendToAgent,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleReferencePromptEnhance();
+    });
+
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("Preparing chat. Try again in a moment.");
   });
 
   it("describes a reference through the canonical agent path without legacy describe route", async () => {

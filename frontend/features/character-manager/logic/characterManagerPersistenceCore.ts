@@ -162,6 +162,13 @@ const isMissingColumnError = (error: unknown): boolean =>
     (error as { code?: string }).code === "42703"
   );
 
+const isDuplicateKeyError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? String((error as { code?: string }).code ?? "") : "";
+  const message = "message" in error ? String((error as { message?: string }).message ?? "") : "";
+  return code === "23505" || /duplicate key value/i.test(message);
+};
+
 export const isCharacterReferenceSlotKey = (value: string): value is CharacterReferenceSlotKey =>
   CHARACTER_MANAGER_SLOT_KEYS.includes(value as CharacterReferenceSlotKey);
 
@@ -691,6 +698,7 @@ export const createDraftCharacter = async (name: string): Promise<CreatedCharact
     .select("id, version, status")
     .single();
   if (createCharacterSheetError || !createdCharacterSheet) {
+    await supabase.from("characters").delete().eq("user_id", userId).eq("id", createdCharacter.id);
     throw new Error(
       asErrorMessage(createCharacterSheetError, "Unable to create a character sheet right now.")
     );
@@ -740,6 +748,53 @@ export const resolveCharacterSheet = async (
     );
   }
   return createdCharacterSheet as CharacterCharacterSheetRow;
+};
+
+const createOrLoadLatestCharacterSheetForList = async ({
+  supabase,
+  userId,
+  characterId,
+}: {
+  supabase: ReturnType<typeof ensureSupabaseQueryClient>;
+  userId: string;
+  characterId: string;
+}): Promise<CharacterSheetIndexRow> => {
+  const { data: createdCharacterSheet, error: createCharacterSheetError } = await supabase
+    .from("character_reference_packs")
+    .insert({
+      character_id: characterId,
+      user_id: userId,
+      version: 1,
+      status: "draft",
+    })
+    .select("id, character_id, status, version")
+    .single();
+  if (createdCharacterSheet && !createCharacterSheetError) {
+    return createdCharacterSheet as CharacterSheetIndexRow;
+  }
+  if (!isDuplicateKeyError(createCharacterSheetError)) {
+    throw new Error(
+      asErrorMessage(createCharacterSheetError, "Unable to create a character sheet.")
+    );
+  }
+
+  const { data: existingCharacterSheet, error: existingCharacterSheetError } = await supabase
+    .from("character_reference_packs")
+    .select("id, character_id, status, version")
+    .eq("user_id", userId)
+    .eq("character_id", characterId)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (existingCharacterSheetError) {
+    throw new Error(
+      asErrorMessage(existingCharacterSheetError, "Failed to load character sheets.")
+    );
+  }
+  if (!existingCharacterSheet) {
+    throw new Error("Unable to create a character sheet.");
+  }
+  return existingCharacterSheet as CharacterSheetIndexRow;
 };
 
 /**
@@ -1033,6 +1088,24 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   const latestCharacterSheetByCharacter = new Map<string, CharacterSheetIndexRow>();
   for (const characterSheet of (characterSheetRows ?? []) as CharacterSheetIndexRow[]) {
     if (!latestCharacterSheetByCharacter.has(characterSheet.character_id)) {
+      latestCharacterSheetByCharacter.set(characterSheet.character_id, characterSheet);
+    }
+  }
+
+  const missingCharacterIds = characterIds.filter(
+    (characterId) => !latestCharacterSheetByCharacter.has(characterId)
+  );
+  if (missingCharacterIds.length) {
+    const repairedCharacterSheets = await Promise.all(
+      missingCharacterIds.map((characterId) =>
+        createOrLoadLatestCharacterSheetForList({
+          supabase,
+          userId,
+          characterId,
+        })
+      )
+    );
+    for (const characterSheet of repairedCharacterSheets) {
       latestCharacterSheetByCharacter.set(characterSheet.character_id, characterSheet);
     }
   }

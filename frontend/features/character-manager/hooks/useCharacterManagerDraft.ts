@@ -182,6 +182,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     createEmptyCharacterSheetAssignments()
   );
   const selectedCharacterStorageScopeRef = useRef<string | null>(null);
+  const selectionRequestIdRef = useRef(0);
   const characterSheetAssignmentsRequestRef = useRef(0);
   const activeCharacterSheetPresetIdRef = useRef<CharacterSheetPresetId>("1");
   const activeCharacterSheetPresetRequestRef = useRef(0);
@@ -642,16 +643,23 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     async (nextCharacterId: string) => {
       if (!nextCharacterId || nextCharacterId === characterId) return;
       clearMessages();
+      const requestId = selectionRequestIdRef.current + 1;
+      selectionRequestIdRef.current = requestId;
       setIsSwitchingCharacter(true);
       try {
-        await loadAndApplyCharacterSnapshot(nextCharacterId);
+        const snapshot = await loadCharacterManagerDraftByCharacterId(nextCharacterId);
+        if (selectionRequestIdRef.current !== requestId) return;
+        applyLoadedCharacterSnapshot(snapshot);
       } catch (nextError) {
+        if (selectionRequestIdRef.current !== requestId) return;
         setError(toErrorMessage(nextError, "Failed to switch character."));
       } finally {
-        setIsSwitchingCharacter(false);
+        if (selectionRequestIdRef.current === requestId) {
+          setIsSwitchingCharacter(false);
+        }
       }
     },
-    [characterId, clearMessages, loadAndApplyCharacterSnapshot]
+    [applyLoadedCharacterSnapshot, characterId, clearMessages]
   );
 
   const isSlotBusy = useCallback(

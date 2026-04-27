@@ -120,6 +120,75 @@ describe("prepareExpertEditSubmission", () => {
     });
   });
 
+  it("falls back to all populated secondary refs for standard submits when no secondary tokens are linked", () => {
+    analyzeExpertEditPromptTokensMock.mockReturnValue({
+      hasInvalidTokens: false,
+      inlineError: null,
+      referencedSlotIndexes: [],
+    });
+
+    prepareExpertEditSubmission({
+      promptText: "Refine the scene",
+      extraImageUrls: ["https://example.com/ref-1.png", null, "https://example.com/ref-3.png"],
+      flattenedPrimaryUrl: "blob:flatten-1",
+      flattenedMarkupReferenceUrl: null,
+      editSubmitIntent: "standard",
+    });
+
+    expect(buildExpertEditSubmissionReferenceInputsMock).toHaveBeenCalledWith({
+      flattenedPrimaryUrl: "blob:flatten-1",
+      flattenedMarkupReferenceUrl: null,
+      secondarySlots: ["https://example.com/ref-1.png", null, "https://example.com/ref-3.png"],
+      referencedSlotIndexes: [0, 2],
+    });
+  });
+
+  it("falls back to all populated secondary refs for markup submits when no secondary tokens are linked", () => {
+    analyzeExpertEditPromptTokensMock.mockReturnValue({
+      hasInvalidTokens: false,
+      inlineError: null,
+      referencedSlotIndexes: [],
+    });
+
+    prepareExpertEditSubmission({
+      promptText: "Refine the scene",
+      extraImageUrls: ["https://example.com/ref-1.png", "https://example.com/ref-2.png", null],
+      flattenedPrimaryUrl: "blob:flatten-1",
+      flattenedMarkupReferenceUrl: "blob:markup-1",
+      editSubmitIntent: "markup",
+    });
+
+    expect(buildExpertEditSubmissionReferenceInputsMock).toHaveBeenCalledWith({
+      flattenedPrimaryUrl: "blob:flatten-1",
+      flattenedMarkupReferenceUrl: "blob:markup-1",
+      secondarySlots: ["https://example.com/ref-1.png", "https://example.com/ref-2.png", null],
+      referencedSlotIndexes: [0, 1],
+    });
+  });
+
+  it("does not fall back to populated secondary refs for inpaint when no secondary tokens are linked", () => {
+    analyzeExpertEditPromptTokensMock.mockReturnValue({
+      hasInvalidTokens: false,
+      inlineError: null,
+      referencedSlotIndexes: [],
+    });
+
+    prepareExpertEditSubmission({
+      promptText: "Use @main",
+      extraImageUrls: ["https://example.com/ref-1.png", "https://example.com/ref-2.png", null],
+      flattenedPrimaryUrl: "blob:flatten-1",
+      flattenedMarkupReferenceUrl: null,
+      editSubmitIntent: "inpaint",
+    });
+
+    expect(buildExpertEditSubmissionReferenceInputsMock).toHaveBeenCalledWith({
+      flattenedPrimaryUrl: "blob:flatten-1",
+      flattenedMarkupReferenceUrl: null,
+      secondarySlots: ["https://example.com/ref-1.png", "https://example.com/ref-2.png", null],
+      referencedSlotIndexes: [],
+    });
+  });
+
   it("blocks secondary prompt tokens when secondary references are disabled", () => {
     analyzeExpertEditPromptTokensMock.mockReturnValue({
       hasInvalidTokens: true,

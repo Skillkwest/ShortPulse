@@ -1,21 +1,17 @@
 /**
  * AI Studio Elements panel scroll-lock hook.
- * Locks the properties rail scroll while the embedded Elements manager tab is active.
+ * Locks the properties rail scroll while the embedded Elements manager is mounted.
  */
 import React from "react";
-import type { ElementsWorkflowTab } from "../../elements-manager/types";
 
 type UseElementsPanelPropertiesScrollLockParams = {
-  activeTab: ElementsWorkflowTab;
   rootRef: React.RefObject<HTMLElement | null>;
 };
 
 export function useElementsPanelPropertiesScrollLock({
-  activeTab,
   rootRef,
 }: UseElementsPanelPropertiesScrollLockParams) {
   React.useEffect(() => {
-    if (activeTab !== "manage") return;
     const rootNode = rootRef.current;
     if (!rootNode) return;
     const propertiesPanel = rootNode.closest(".ai-properties");
@@ -28,5 +24,5 @@ export function useElementsPanelPropertiesScrollLock({
       propertiesPanel.style.overflowY = previousOverflowY;
       propertiesPanel.style.overscrollBehaviorY = previousOverscrollBehaviorY;
     };
-  }, [activeTab, rootRef]);
+  }, [rootRef]);
 }

@@ -23,6 +23,8 @@ export type StudioOutputCharacterContext = {
   applied: boolean;
   characterId?: string | null;
   characterName?: string | null;
+  lookId?: string | null;
+  lookName?: string | null;
   characterProfileImageUrl?: string | null;
 };
 

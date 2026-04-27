@@ -7,12 +7,7 @@ import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { InternalReferenceDragPayload } from "../../../lib/internalReferenceDragPayload";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 import { createEmptyElementDraft } from "../constants";
-import type {
-  ElementAssetType,
-  ElementDraft,
-  ElementLibraryItem,
-  ElementsWorkflowTab,
-} from "../types";
+import type { ElementAssetType, ElementDraft, ElementLibraryItem } from "../types";
 import {
   clearElementProfileImage,
   deleteElementManagerDraft,
@@ -321,10 +316,12 @@ type UseElementsManagerViewStateParams = {
 export const useElementsManagerViewState = ({
   resolveProfileImageDropSource,
 }: UseElementsManagerViewStateParams = {}) => {
-  const [activeTab, setActiveTab] = React.useState<ElementsWorkflowTab>("manage");
   const [elements, setElements] = React.useState<ElementLibraryItem[]>([]);
   const [selectedElementId, setSelectedElementId] = React.useState<string | null>(null);
   const [pendingDeleteElementId, setPendingDeleteElementId] = React.useState<string | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = React.useState(false);
+  const [editorMode, setEditorMode] = React.useState<"create" | "edit">("edit");
+  const [pendingDiscardDraft, setPendingDiscardDraft] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isCreatingElement, setIsCreatingElement] = React.useState(false);
@@ -345,10 +342,14 @@ export const useElementsManagerViewState = ({
   const selectedElementIdRef = React.useRef<string | null>(null);
   const suppressNextPersistRef = React.useRef(false);
   const persistTimerRef = React.useRef<number | null>(null);
+  const selectionRequestIdRef = React.useRef(0);
   const lastPersistedDraftRef = React.useRef<string>(
     serializeDraftState(createEmptyElementDraft())
   );
   const hasUnsavedElementDraft = selectedElementId === null;
+  const isDraftDirty =
+    serializeDraftState(draft) !== lastPersistedDraftRef.current &&
+    serializeDraftState(draft) !== serializeDraftState(createEmptyElementDraft());
 
   React.useEffect(() => {
     selectedElementIdRef.current = selectedElementId;
@@ -433,7 +434,9 @@ export const useElementsManagerViewState = ({
       lastPersistedDraftRef.current = serializeDraftState(nextDraft);
       setSelectedElementId(null);
       resetDraft();
-      setActiveTab("profile");
+      setEditorMode("create");
+      setPendingDiscardDraft(false);
+      setIsEditorOpen(true);
     } catch (nextError) {
       setError(toErrorMessage(nextError, "Failed to create a new element."));
     } finally {
@@ -464,7 +467,9 @@ export const useElementsManagerViewState = ({
       updateElementListEntry(nextItem);
       setSelectedElementId(snapshot.elementId);
       hydrateDraft(nextItem);
-      setActiveTab("profile");
+      setEditorMode("edit");
+      setPendingDiscardDraft(false);
+      setIsEditorOpen(true);
       return true;
     } catch (nextError) {
       setError(toErrorMessage(nextError, "Failed to save element."));
@@ -477,11 +482,19 @@ export const useElementsManagerViewState = ({
   const handleSelectElement = React.useCallback(
     async (elementId: string) => {
       if (!elementId) return;
-      if (elementId === selectedElementIdRef.current && activeTab === "profile") return;
+      if (elementId === selectedElementIdRef.current) {
+        setEditorMode("edit");
+        setPendingDiscardDraft(false);
+        setIsEditorOpen(true);
+        return;
+      }
       setError(null);
+      const requestId = selectionRequestIdRef.current + 1;
+      selectionRequestIdRef.current = requestId;
       setIsSwitchingElement(true);
       try {
         const snapshot = await loadElementManagerDraftByElementId(elementId);
+        if (selectionRequestIdRef.current !== requestId) return;
         const nextItem = buildElementItemFromSnapshot(snapshot);
         const nextDraft = buildDraftFromItem(nextItem);
         suppressNextPersistRef.current = true;
@@ -489,14 +502,19 @@ export const useElementsManagerViewState = ({
         updateElementListEntry(nextItem);
         setSelectedElementId(elementId);
         hydrateDraft(nextItem);
-        setActiveTab("profile");
+        setEditorMode("edit");
+        setPendingDiscardDraft(false);
+        setIsEditorOpen(true);
       } catch (nextError) {
+        if (selectionRequestIdRef.current !== requestId) return;
         setError(toErrorMessage(nextError, "Failed to switch element."));
       } finally {
-        setIsSwitchingElement(false);
+        if (selectionRequestIdRef.current === requestId) {
+          setIsSwitchingElement(false);
+        }
       }
     },
-    [activeTab, hydrateDraft, updateElementListEntry]
+    [hydrateDraft, updateElementListEntry]
   );
 
   const handleDeleteElement = React.useCallback(async () => {
@@ -510,7 +528,8 @@ export const useElementsManagerViewState = ({
         setSelectedElementId(null);
         resetDraft();
         lastPersistedDraftRef.current = serializeDraftState(createEmptyElementDraft());
-        setActiveTab("manage");
+        setPendingDiscardDraft(false);
+        setIsEditorOpen(false);
       }
       setPendingDeleteElementId(null);
     } catch (nextError) {
@@ -851,11 +870,31 @@ export const useElementsManagerViewState = ({
     []
   );
 
+  const closeEditor = React.useCallback(() => {
+    setPendingDiscardDraft(false);
+    setIsEditorOpen(false);
+    setError(null);
+    if (selectedElementIdRef.current === null) {
+      resetDraft();
+      lastPersistedDraftRef.current = serializeDraftState(createEmptyElementDraft());
+    }
+  }, [resetDraft]);
+
+  const requestCloseEditor = React.useCallback(() => {
+    if (selectedElementIdRef.current === null && isDraftDirty) {
+      setPendingDiscardDraft(true);
+      return;
+    }
+    closeEditor();
+  }, [closeEditor, isDraftDirty]);
+
   return {
-    activeTab,
     elements,
     selectedElementId,
     pendingDeleteElementId,
+    isEditorOpen,
+    editorMode,
+    pendingDiscardDraft,
     draft,
     error,
     loading,
@@ -865,7 +904,6 @@ export const useElementsManagerViewState = ({
     isSavingElement,
     isSavingProfileImage,
     hasUnsavedElementDraft,
-    setActiveTab,
     updateDraftField,
     onSetAssetType,
     assignActiveImageReferenceAtIndex,
@@ -877,6 +915,9 @@ export const useElementsManagerViewState = ({
     onSetProfileImageFromInternalDrop,
     onSaveProfileImageTransform,
     onClearProfileImage,
+    onRequestCloseEditor: requestCloseEditor,
+    onCancelCloseEditor: () => setPendingDiscardDraft(false),
+    onConfirmCloseEditor: closeEditor,
     onCreateElement: () => {
       void handleCreateElement();
     },

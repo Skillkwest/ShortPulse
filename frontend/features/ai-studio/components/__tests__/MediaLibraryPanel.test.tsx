@@ -14,6 +14,7 @@ const fetchMediaPromptListPageMock = vi.fn();
 const fetchMediaListPageMock = vi.fn();
 const mediaGridPropsSpy = vi.fn();
 const allItemsGridPropsSpy = vi.fn();
+const promptGridPropsSpy = vi.fn();
 const storageDownloadMock = vi.fn();
 const deleteMediaFileWithStorageMock = vi.fn();
 const deleteMediaPromptByIdMock = vi.fn();
@@ -342,54 +343,57 @@ vi.mock("../media-library-modal/MediaLibraryPromptGrid", () => ({
       title: string | null;
       prompt_text: string;
     }) => void;
-  }) => (
-    <div data-testid="mock-prompt-grid">
-      {props.sortedPrompts.map((row) => (
-        <React.Fragment key={row.id}>
-          <button
-            type="button"
-            onClick={() =>
-              props.onSelectPromptCard({
-                id: row.id,
-                title: row.title,
-                prompt_text: "Prompt text",
-              })
-            }
-          >
-            Select prompt {row.title || row.id}
-          </button>
-          {props.showRemoveAction && props.onRemovePromptFromFolder ? (
+  }) => {
+    promptGridPropsSpy(props);
+    return (
+      <div data-testid="mock-prompt-grid">
+        {props.sortedPrompts.map((row) => (
+          <React.Fragment key={row.id}>
             <button
               type="button"
               onClick={() =>
-                props.onRemovePromptFromFolder?.({
+                props.onSelectPromptCard({
                   id: row.id,
                   title: row.title,
                   prompt_text: "Prompt text",
                 })
               }
             >
-              Remove prompt {row.title || row.id}
+              Select prompt {row.title || row.id}
             </button>
-          ) : null}
-          {props.showDeleteAction && props.onDeletePromptFromLibrary ? (
-            <button
-              type="button"
-              onClick={() =>
-                props.onDeletePromptFromLibrary?.({
-                  id: row.id,
-                  title: row.title,
-                  prompt_text: "Prompt text",
-                })
-              }
-            >
-              Delete prompt {row.title || row.id}
-            </button>
-          ) : null}
-        </React.Fragment>
-      ))}
-    </div>
-  ),
+            {props.showRemoveAction && props.onRemovePromptFromFolder ? (
+              <button
+                type="button"
+                onClick={() =>
+                  props.onRemovePromptFromFolder?.({
+                    id: row.id,
+                    title: row.title,
+                    prompt_text: "Prompt text",
+                  })
+                }
+              >
+                Remove prompt {row.title || row.id}
+              </button>
+            ) : null}
+            {props.showDeleteAction && props.onDeletePromptFromLibrary ? (
+              <button
+                type="button"
+                onClick={() =>
+                  props.onDeletePromptFromLibrary?.({
+                    id: row.id,
+                    title: row.title,
+                    prompt_text: "Prompt text",
+                  })
+                }
+              >
+                Delete prompt {row.title || row.id}
+              </button>
+            ) : null}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  },
 }));
 
 describe("MediaLibraryPanel", () => {
@@ -397,6 +401,7 @@ describe("MediaLibraryPanel", () => {
     vi.clearAllMocks();
     mediaGridPropsSpy.mockReset();
     allItemsGridPropsSpy.mockReset();
+    promptGridPropsSpy.mockReset();
     storageDownloadMock.mockResolvedValue({
       data: new Blob(["panel-download"], { type: "image/png" }),
       error: null,
@@ -533,7 +538,7 @@ describe("MediaLibraryPanel", () => {
     );
   });
 
-  it("loads folders + media data and keeps media click free of ingest side effects", async () => {
+  it("loads folders + media data and keeps panel click selection free of ingest side effects", async () => {
     const onSelectMedia = vi.fn();
     const onSelectPrompt = vi.fn();
     render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={onSelectPrompt} />);
@@ -555,16 +560,17 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: "Select prompt Prompt One" }));
-    expect(onSelectPrompt).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "prompt-1",
-        promptText: "Prompt text",
-      })
-    );
+    expect(onSelectPrompt).not.toHaveBeenCalled();
+
+    const latestPromptGridProps = promptGridPropsSpy.mock.calls.at(-1)?.[0] as
+      | { selectedIds: Set<string> }
+      | undefined;
+    expect(latestPromptGridProps?.selectedIds.has("prompt-1")).toBe(true);
   });
 
   it("shows saved prompts inside the root All Media view", async () => {
-    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+    const onSelectPrompt = vi.fn();
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={onSelectPrompt} />);
 
     await waitFor(() => {
       expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
@@ -579,6 +585,14 @@ describe("MediaLibraryPanel", () => {
     const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
     expect(latestProps?.mediaRows).toHaveLength(2);
     expect(latestProps?.promptRows).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Select prompt Prompt One" }));
+    expect(onSelectPrompt).not.toHaveBeenCalled();
+
+    const selectedProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0] as
+      | { selectedIds: Set<string> }
+      | undefined;
+    expect(selectedProps?.selectedIds.has("prompt-1")).toBe(true);
   });
 
   it("shows folder prompts and media in the same grid without split section headings", async () => {

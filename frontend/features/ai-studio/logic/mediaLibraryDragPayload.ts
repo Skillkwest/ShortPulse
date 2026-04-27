@@ -3,6 +3,7 @@
  * Supports custom MIME payloads plus text/* fallback markers for degraded browser transfers.
  */
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
+import { isAudioUrl, isVideoUrl } from "./stateParsers";
 
 const MEDIA_LIBRARY_DRAG_TYPE = "application/x-shortpulse-media-library-item";
 const MEDIA_LIBRARY_DRAG_TEXT_TYPE = "text/x-shortpulse-media-library-item";
@@ -26,8 +27,7 @@ const MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE = "text/shortpulse-media-library-height
 const MEDIA_LIBRARY_FALLBACK_PROMPT_TEXT_TYPE = "text/shortpulse-media-library-prompt";
 const MEDIA_LIBRARY_FALLBACK_TITLE_TYPE = "text/shortpulse-media-library-title";
 const MEDIA_LIBRARY_FALLBACK_MARKER_VALUE = "shortpulse-media-library-v1";
-const URLISH_TEXT_PATTERN = /^(?:data:(?:image|video)\/|blob:|https?:\/\/)/i;
-const VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:[?#].*)?$/i;
+const URLISH_TEXT_PATTERN = /^(?:data:(?:image|video|audio)\/|blob:|https?:\/\/)/i;
 
 type LibraryMediaPayload = Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>;
 type LibraryPromptPayload = Extract<ReferenceIngestionInput, { kind: "libraryPrompt" }>;
@@ -85,9 +85,12 @@ const getFirstUriListValue = (value: string): string | null =>
     .map((item) => item.trim())
     .find((item) => item.length > 0 && !item.startsWith("#")) ?? null;
 
-const inferLibraryMediaFileType = (url: string | null): "image" | "video" => {
+const inferLibraryMediaFileType = (
+  url: string | null
+): Extract<ReferenceIngestionInput, { kind: "libraryMedia" }>["payload"]["fileType"] => {
   if (!url) return "image";
-  if (/^data:video\//i.test(url) || VIDEO_URL_PATTERN.test(url)) return "video";
+  if (isAudioUrl(url)) return "audio";
+  if (isVideoUrl(url)) return "video";
   return "image";
 };
 
@@ -133,8 +136,8 @@ const readFallbackMediaLibraryDragPayload = (
     const fileTypeRaw = normalizeTransferText(
       transfer.getData(MEDIA_LIBRARY_FALLBACK_FILE_TYPE_TYPE)
     );
-    const fileType: "image" | "video" =
-      fileTypeRaw === "image" || fileTypeRaw === "video"
+    const fileType =
+      fileTypeRaw === "image" || fileTypeRaw === "video" || fileTypeRaw === "audio"
         ? fileTypeRaw
         : inferLibraryMediaFileType(url);
     return {

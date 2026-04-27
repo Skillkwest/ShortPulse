@@ -82,6 +82,7 @@ import {
   AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
+  AI_SHELL_RIGHT_ELEMENTS_MIN_PX,
   resolveExpertCreateShellResizeAction,
   shouldCollapseExpertCreateOnSessionChange,
   shouldCollapseAiShellOnToolSelect,
@@ -904,7 +905,11 @@ export function AiStudioPageContent({
             : undefined;
   const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
   const minRightWidthPx =
-    selectedTool === "media-library" ? AI_SHELL_RIGHT_CANVAS_MIN_PX : undefined;
+    selectedTool === "media-library"
+      ? AI_SHELL_RIGHT_CANVAS_MIN_PX
+      : selectedTool === "elements"
+        ? AI_SHELL_RIGHT_ELEMENTS_MIN_PX
+        : undefined;
   const defaultLeftRatio = isSoundWorkflow(selectedTool)
     ? 0.65
     : selectedTool === "character" || selectedTool === "elements"

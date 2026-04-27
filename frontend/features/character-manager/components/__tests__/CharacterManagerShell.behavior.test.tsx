@@ -828,9 +828,7 @@ describe("CharacterManagerShell behavior", () => {
 
     expect(screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Add character look" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add character look" })).toBeInTheDocument();
   });
 
   it("supports renaming preset tabs with Enter", async () => {
@@ -1944,6 +1942,79 @@ describe("CharacterManagerShell behavior", () => {
     expect(
       screen.getByText("Create a new character to start building your library.")
     ).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: /Character list/i })).not.toBeInTheDocument();
+  });
+
+  it("renders embedded manage cards without falling back to the empty state", async () => {
+    characterManagerMockState.characters = [
+      {
+        characterId: "character-1",
+        characterName: "Taylor",
+        profileImageUrl: null,
+        profileImageTransform: null,
+      },
+      {
+        characterId: "character-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+        profileImageTransform: null,
+      },
+    ];
+    characterManagerMockState.selectedCharacterId = "character-1";
+
+    render(<CharacterManagerShell surface="panel" initialWorkflowTab="manage" />);
+
+    expect(screen.queryByText("No saved characters yet.")).not.toBeInTheDocument();
+    const characterList = screen.getByRole("list", { name: /Character list/i });
+    expect(within(characterList).getByText("Taylor")).toBeInTheDocument();
+    expect(within(characterList).getByText("Ayla")).toBeInTheDocument();
+  });
+
+  it("opens the character profile when the visible manage card surface is clicked", async () => {
+    characterManagerMockState.characters = [
+      {
+        characterId: "character-1",
+        characterName: "Taylor",
+        profileImageUrl: null,
+        profileImageTransform: null,
+      },
+      {
+        characterId: "character-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+        profileImageTransform: null,
+      },
+    ];
+    characterManagerMockState.selectedCharacterId = "character-1";
+
+    render(<CharacterManagerShell surface="panel" initialWorkflowTab="manage" />);
+
+    const aylaCard = screen.getByText("Ayla").closest("article");
+    expect(aylaCard).toBeTruthy();
+
+    fireEvent.click(aylaCard as HTMLElement);
+
+    await waitFor(() => {
+      expect(screen.getByText("Character Sheet")).toBeInTheDocument();
+      expect(characterManagerMockState.selectedCharacterId).toBe("character-2");
+    });
+  });
+
+  it("keeps Manage Characters loading visible while bootstrap still reports loading", async () => {
+    characterManagerMockState.loading = true;
+    characterManagerMockState.characters = [
+      {
+        characterId: "character-1",
+        characterName: "Taylor",
+        profileImageUrl: null,
+        profileImageTransform: null,
+      },
+    ];
+
+    await renderShell({ initialWorkflowTab: "manage" });
+
+    expect(screen.getByText("Loading characters...")).toBeInTheDocument();
+    expect(screen.getByText("Pulling your character library into view.")).toBeInTheDocument();
     expect(screen.queryByRole("list", { name: /Character list/i })).not.toBeInTheDocument();
   });
 

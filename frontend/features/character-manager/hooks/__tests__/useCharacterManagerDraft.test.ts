@@ -176,6 +176,16 @@ const configureBootstrap = (snapshot: DraftSnapshot) => {
   ] as never);
 };
 
+const createDeferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("useCharacterManagerDraft", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -322,6 +332,66 @@ describe("useCharacterManagerDraft", () => {
     });
 
     expect(persistSelectedCharacterIdMock).toHaveBeenLastCalledWith(null, { userId: "user-1" });
+  });
+
+  it("ignores stale character selection responses when a newer selection wins", async () => {
+    const snapshot = createDraftSnapshot();
+    configureBootstrap(snapshot);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBe("char-1");
+    });
+
+    const altSnapshot = {
+      ...createDraftSnapshot(),
+      characterId: "char-2",
+      characterName: "Alt Hero",
+    } as DraftSnapshot;
+    const spareSnapshot = {
+      ...createDraftSnapshot(),
+      characterId: "char-3",
+      characterName: "Spare Hero",
+    } as DraftSnapshot;
+    const altSelection = createDeferred<DraftSnapshot>();
+    const spareSelection = createDeferred<DraftSnapshot>();
+
+    loadCharacterManagerDraftByCharacterIdMock.mockImplementation((characterId: string) => {
+      if (characterId === "char-2") {
+        return altSelection.promise as ReturnType<typeof loadCharacterManagerDraftByCharacterId>;
+      }
+      if (characterId === "char-3") {
+        return spareSelection.promise as ReturnType<typeof loadCharacterManagerDraftByCharacterId>;
+      }
+      throw new Error(`Unexpected character id: ${characterId}`);
+    });
+
+    await act(async () => {
+      void result.current.selectCharacter("char-2");
+      void result.current.selectCharacter("char-3");
+    });
+
+    await act(async () => {
+      spareSelection.resolve(spareSnapshot);
+      await spareSelection.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-3");
+      expect(result.current.characterName).toBe("Spare Hero");
+    });
+
+    await act(async () => {
+      altSelection.resolve(altSnapshot);
+      await altSelection.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-3");
+      expect(result.current.characterName).toBe("Spare Hero");
+    });
   });
 
   it("stages local draft assets before save and flushes them during the first save", async () => {

@@ -54,6 +54,7 @@ describe("useMediaLibraryFolderDropController", () => {
     const setMembershipMessage = vi.fn();
     const setMembershipPendingMessage = vi.fn();
     const refreshActiveRows = vi.fn().mockResolvedValue(undefined);
+    const refreshFolders = vi.fn().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useMediaLibraryFolderDropController({
@@ -71,6 +72,7 @@ describe("useMediaLibraryFolderDropController", () => {
         setMembershipMessage,
         setMembershipPendingMessage,
         refreshActiveRows,
+        refreshFolders,
       })
     );
 
@@ -96,5 +98,6 @@ describe("useMediaLibraryFolderDropController", () => {
       },
       "project-1"
     );
+    expect(refreshFolders).toHaveBeenCalledTimes(1);
   });
 });

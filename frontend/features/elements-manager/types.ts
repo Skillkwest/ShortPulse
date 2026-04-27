@@ -25,8 +25,6 @@ export type ElementLibraryItem = {
   status: ElementStatus;
 };
 
-export type ElementsWorkflowTab = "manage" | "profile";
-
 export type ElementDraft = {
   name: string;
   description: string;

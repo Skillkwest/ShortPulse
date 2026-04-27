@@ -5,7 +5,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
-import type { CharacterSheetDropZoneKey, CharacterProfileImageTransform } from "../types";
+import type { CharacterSheetDropZoneKey } from "../types";
 
 type UseCharacterManagerShellActionHandlersParams = {
   pageBusy: boolean;
@@ -17,33 +17,18 @@ type UseCharacterManagerShellActionHandlersParams = {
   appendQuickSwapFiles: (files: File[]) => Promise<unknown>;
   setPendingCharacterSheetUploadZoneKey: Dispatch<SetStateAction<CharacterSheetDropZoneKey | null>>;
   characterSheetFileInputRef: RefObject<HTMLInputElement | null>;
-  profileFileInputRef: RefObject<HTMLInputElement | null>;
   simpleFileInputRef: RefObject<HTMLInputElement | null>;
-  profileImageUrl: string | null;
-  isProfileAdjusterVisible: boolean;
-  profileImageTransform: CharacterProfileImageTransform;
-  setProfileAdjustDraft: Dispatch<SetStateAction<CharacterProfileImageTransform | null>>;
-  setIsProfileAdjusterVisible: Dispatch<SetStateAction<boolean>>;
-  setProfileImageFile: (file: File) => Promise<unknown>;
-  clearProfileImage: () => Promise<unknown>;
   createCharacter: () => Promise<unknown>;
   setActiveTab: (tab: "create" | "manage") => void;
   characterNameInputRef: RefObject<HTMLInputElement | null>;
-  profileImageVisibleTransform: CharacterProfileImageTransform;
-  saveProfileImageTransform: (transform: CharacterProfileImageTransform) => Promise<boolean>;
-  defaultProfileImageTransform: CharacterProfileImageTransform;
 };
 
 type UseCharacterManagerShellActionHandlersResult = {
   uploadSimpleFiles: (incomingFiles: FileList | File[]) => Promise<void>;
   handleSimpleFileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
   openCharacterSheetPicker: (dropZoneKey: CharacterSheetDropZoneKey) => void;
-  openProfilePicker: () => void;
   openQuickSwapUploadPicker: () => void;
-  handleProfileSelection: (event: ChangeEvent<HTMLInputElement>) => void;
-  clearProfilePreview: () => void;
   handleCreateNewCharacter: () => void;
-  saveProfileAdjustments: () => Promise<void>;
 };
 
 export const useCharacterManagerShellActionHandlers = ({
@@ -56,21 +41,10 @@ export const useCharacterManagerShellActionHandlers = ({
   appendQuickSwapFiles,
   setPendingCharacterSheetUploadZoneKey,
   characterSheetFileInputRef,
-  profileFileInputRef,
   simpleFileInputRef,
-  profileImageUrl,
-  isProfileAdjusterVisible,
-  profileImageTransform,
-  setProfileAdjustDraft,
-  setIsProfileAdjusterVisible,
-  setProfileImageFile,
-  clearProfileImage,
   createCharacter,
   setActiveTab,
   characterNameInputRef,
-  profileImageVisibleTransform,
-  saveProfileImageTransform,
-  defaultProfileImageTransform,
 }: UseCharacterManagerShellActionHandlersParams): UseCharacterManagerShellActionHandlersResult => {
   const uploadSimpleFiles = useCallback(
     async (incomingFiles: FileList | File[]) => {
@@ -121,26 +95,6 @@ export const useCharacterManagerShellActionHandlers = ({
     ]
   );
 
-  const openProfilePicker = useCallback(() => {
-    if (pageBusy) return;
-    if (profileImageUrl && !isProfileAdjusterVisible) {
-      setProfileAdjustDraft(profileImageTransform);
-      setIsProfileAdjusterVisible(true);
-      return;
-    }
-    clearAllMessages();
-    profileFileInputRef.current?.click();
-  }, [
-    clearAllMessages,
-    isProfileAdjusterVisible,
-    pageBusy,
-    profileFileInputRef,
-    profileImageTransform,
-    profileImageUrl,
-    setIsProfileAdjusterVisible,
-    setProfileAdjustDraft,
-  ]);
-
   const openQuickSwapUploadPicker = useCallback(() => {
     if (pageBusy || quickSwapMutating || isDropResolutionBusy) return;
     if (!hasPersistedCharacter) {
@@ -160,37 +114,8 @@ export const useCharacterManagerShellActionHandlers = ({
     simpleFileInputRef,
   ]);
 
-  const handleProfileSelection = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      event.target.value = "";
-      if (!file || pageBusy) return;
-      void setProfileImageFile(file);
-      setProfileAdjustDraft(defaultProfileImageTransform);
-      setIsProfileAdjusterVisible(true);
-    },
-    [
-      defaultProfileImageTransform,
-      pageBusy,
-      setIsProfileAdjusterVisible,
-      setProfileAdjustDraft,
-      setProfileImageFile,
-    ]
-  );
-
-  const clearProfilePreview = useCallback(() => {
-    void clearProfileImage();
-    setProfileAdjustDraft(null);
-    setIsProfileAdjusterVisible(false);
-    if (profileFileInputRef.current) {
-      profileFileInputRef.current.value = "";
-    }
-  }, [clearProfileImage, profileFileInputRef, setIsProfileAdjusterVisible, setProfileAdjustDraft]);
-
   const handleCreateNewCharacter = useCallback(() => {
     setActiveTab("create");
-    setProfileAdjustDraft(null);
-    setIsProfileAdjusterVisible(false);
 
     void createCharacter().finally(() => {
       setActiveTab("create");
@@ -198,47 +123,13 @@ export const useCharacterManagerShellActionHandlers = ({
         characterNameInputRef.current?.focus();
       });
     });
-  }, [
-    characterNameInputRef,
-    createCharacter,
-    setActiveTab,
-    setIsProfileAdjusterVisible,
-    setProfileAdjustDraft,
-  ]);
-
-  const saveProfileAdjustments = useCallback(async () => {
-    if (!profileImageUrl) {
-      setProfileAdjustDraft(null);
-      setIsProfileAdjusterVisible(false);
-      return;
-    }
-
-    const didSave = await saveProfileImageTransform({
-      zoom: profileImageVisibleTransform.zoom,
-      offsetX: profileImageVisibleTransform.offsetX,
-      offsetY: profileImageVisibleTransform.offsetY,
-    });
-    if (didSave) {
-      setProfileAdjustDraft(null);
-      setIsProfileAdjusterVisible(false);
-    }
-  }, [
-    profileImageUrl,
-    profileImageVisibleTransform,
-    saveProfileImageTransform,
-    setIsProfileAdjusterVisible,
-    setProfileAdjustDraft,
-  ]);
+  }, [characterNameInputRef, createCharacter, setActiveTab]);
 
   return {
     uploadSimpleFiles,
     handleSimpleFileSelection,
     openCharacterSheetPicker,
-    openProfilePicker,
     openQuickSwapUploadPicker,
-    handleProfileSelection,
-    clearProfilePreview,
     handleCreateNewCharacter,
-    saveProfileAdjustments,
   };
 };

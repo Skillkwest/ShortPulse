@@ -33,6 +33,7 @@ const extractAgentResponseMessage = (response: unknown): string | null => {
 
 export const useAiStudioAgentOrchestration = ({
   agentIsSending,
+  agentBootstrapReady,
   agentUiBusyRef,
   setAgentUiBusy,
   agentSessionEnabled,
@@ -64,9 +65,10 @@ export const useAiStudioAgentOrchestration = ({
   aspect,
   model,
   setOutputs,
-  resolvePulseSessionNamespace,
   setActiveOutputId,
   lastAssistantMessage,
+  setUiNotice,
+  resolvePulseSessionNamespace,
 }: UseAiStudioAgentOrchestrationParams) => {
   const [isPromptRefining, setIsPromptRefining] = useState(false);
   const [isReferencePromptEnhancing, setIsReferencePromptEnhancing] = useState(false);
@@ -74,12 +76,20 @@ export const useAiStudioAgentOrchestration = ({
   const preparedImageUrlCacheRef = useRef(
     new Map<string, { safeUrl: string; expiresAtMs: number }>()
   );
+  const notifyBootstrapPending = useCallback(() => {
+    setUiNotice("Preparing chat. Try again in a moment.");
+    trackAgentUiEvent("studio_agent_send_blocked_bootstrap_pending");
+  }, [setUiNotice, trackAgentUiEvent]);
 
   const handleAgentSend = useCallback(
     async (
       textOverride?: string,
       options?: AgentSendOptions
     ): Promise<{ prompt: string; referenceTitle?: string | null } | void> => {
+      if (!agentBootstrapReady) {
+        notifyBootstrapPending();
+        return;
+      }
       if (agentIsSending || agentUiBusyRef.current) return;
       const rawInput = typeof textOverride === "string" ? textOverride : agentInput;
       const trimmed = rawInput.trim();
@@ -301,6 +311,7 @@ export const useAiStudioAgentOrchestration = ({
     },
     [
       agentAttachments,
+      agentBootstrapReady,
       agentInput,
       agentIsSending,
       agentSessionEnabled,
@@ -323,11 +334,16 @@ export const useAiStudioAgentOrchestration = ({
       setAgentAttachments,
       setAgentActions,
       setPulseWorkflowSession,
+      notifyBootstrapPending,
       trackAgentUiEvent,
     ]
   );
 
   const handleAgentEnhanceSend = useCallback(async () => {
+    if (!agentBootstrapReady) {
+      notifyBootstrapPending();
+      return;
+    }
     if (!prompt.trim()) return;
     setIsPromptRefining(true);
     try {
@@ -363,6 +379,7 @@ export const useAiStudioAgentOrchestration = ({
     }
   }, [
     addAgentPromptReference,
+    agentBootstrapReady,
     getAgentContext,
     lastAssistantMessage,
     latestAgentPrompt,
@@ -372,10 +389,15 @@ export const useAiStudioAgentOrchestration = ({
     setPulseWorkflowSession,
     setPromptOrigin,
     setSharedPrompt,
+    notifyBootstrapPending,
   ]);
 
   const handlePulsePresetStart = useCallback(
     async (preset: CreatePulseResolvedPreset): Promise<CreatePulsePresetStartResult> => {
+      if (!agentBootstrapReady) {
+        notifyBootstrapPending();
+        return "failed";
+      }
       if (agentIsSending || agentUiBusyRef.current) return "blocked_busy";
       const pulseContext = {
         ...getAgentContext({
@@ -420,9 +442,9 @@ export const useAiStudioAgentOrchestration = ({
         const { response, actions, workflowSession, discarded } = await sendToAgent({
           text: "",
           payloadText: activationSeed,
-          sessionNamespaceOverride: resolvePulseSessionNamespace?.(preset.presetId),
           previousPrompt: latestAgentPrompt ?? null,
           context: pulseContext,
+          sessionNamespaceOverride: resolvePulseSessionNamespace?.(preset.presetId),
           skipUserEcho: true,
         });
         if (discarded) {
@@ -451,12 +473,12 @@ export const useAiStudioAgentOrchestration = ({
       }
     },
     [
+      agentBootstrapReady,
       agentIsSending,
       agentSessionEnabled,
       agentUiBusyRef,
       getAgentContext,
       lastAssistantMessage,
-      resolvePulseSessionNamespace,
       latestAgentPrompt,
       selectedTool,
       sendToAgent,
@@ -468,11 +490,17 @@ export const useAiStudioAgentOrchestration = ({
       setPulseWorkflowSession,
       setPromptOrigin,
       setSharedPrompt,
+      notifyBootstrapPending,
+      resolvePulseSessionNamespace,
       trackAgentUiEvent,
     ]
   );
 
   const handleReferencePromptEnhance = useCallback(async () => {
+    if (!agentBootstrapReady) {
+      notifyBootstrapPending();
+      return;
+    }
     const isVideoPromptTool = selectedTool === "video" || selectedTool === "kling";
     const currentPrompt =
       (isVideoPromptTool ? videoReferenceText : editReferenceText)?.trim() ?? "";
@@ -512,6 +540,7 @@ export const useAiStudioAgentOrchestration = ({
       setIsReferencePromptEnhancing(false);
     }
   }, [
+    agentBootstrapReady,
     editReferenceText,
     getAgentContext,
     isReferencePromptEnhancing,
@@ -524,10 +553,15 @@ export const useAiStudioAgentOrchestration = ({
     setPromptOrigin,
     setVideoReferenceText,
     videoReferenceText,
+    notifyBootstrapPending,
   ]);
 
   const handleDescribeReference = useCallback(
     async (outputId: string) => {
+      if (!agentBootstrapReady) {
+        notifyBootstrapPending();
+        return;
+      }
       if (!outputId) return;
       const target = getOutputById(outputId);
       if (!target?.previewUrl) return;
@@ -648,6 +682,7 @@ export const useAiStudioAgentOrchestration = ({
       }
     },
     [
+      agentBootstrapReady,
       aspect,
       getOutputById,
       model,
@@ -660,6 +695,7 @@ export const useAiStudioAgentOrchestration = ({
       setOutputs,
       setPromptOrigin,
       setSharedPrompt,
+      notifyBootstrapPending,
     ]
   );
 

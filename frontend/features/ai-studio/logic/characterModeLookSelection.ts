@@ -31,7 +31,7 @@ export type ResolvedCharacterModeLookSelection = {
 const normalizeCharacterLookLabel = (lookId: CharacterSheetPresetId, label: string): string => {
   const trimmed = label.trim();
   if (!trimmed) return `Look ${lookId}`;
-  return /^\d+$/.test(trimmed) ? `Look ${trimmed}` : trimmed;
+  return trimmed;
 };
 
 export const buildCharacterModeLookOptions = (
@@ -95,6 +95,7 @@ export const buildCharacterModeInjectionBundleFromSnapshot = (
     characterDescription: effectiveCharacterDescription,
     characterLookId: resolvedLook.lookId,
     characterLookName: resolvedLook.lookLabel,
+    characterProfileImageUrl: snapshot.profileImageUrl ?? null,
     sheetReferenceStoragePaths:
       lookReferenceStoragePaths.length > 0 ? lookReferenceStoragePaths : fallbackStoragePaths,
     sheetReferenceUrls: lookReferenceUrls.length > 0 ? lookReferenceUrls : fallbackUrls,

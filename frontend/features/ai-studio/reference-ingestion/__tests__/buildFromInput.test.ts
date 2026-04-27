@@ -263,6 +263,33 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.fullStoragePath).toBe("user/full.jpg");
   });
 
+  it("builds library media output with audio semantics", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-audio-1",
+          url: "https://example.com/library-audio.mp3",
+          fileType: "audio",
+          filename: "Library Audio",
+          previewStoragePath: "user/library-audio.mp3",
+          fullStoragePath: "user/library-audio.mp3",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.mode).toBe("audio");
+    expect(output?.previewTier).toBe("full");
+    expect(output?.previewUrl).toBe("https://example.com/library-audio.mp3");
+    expect(output?.resultUrls).toEqual(["https://example.com/library-audio.mp3"]);
+    expect(output?.savedMediaIds).toEqual(["media-audio-1"]);
+  });
+
   it("builds library prompt output with saved state", async () => {
     const context = createContext();
     const result = await buildStudioOutputsFromReferenceInput(

@@ -5,6 +5,7 @@
 import type { StudioMode, StudioOutput } from "../types";
 
 export type ReferenceIngestionSource = "filePicker" | "drop" | "paste" | "mediaLibrary" | "agent";
+export type LibraryMediaFileType = "image" | "video" | "audio";
 
 export type ReferenceIngestionInput =
   | {
@@ -30,7 +31,7 @@ export type ReferenceIngestionInput =
       payload: {
         id: string;
         url: string;
-        fileType: "image" | "video";
+        fileType: LibraryMediaFileType;
         originFolderId?: string | null;
         filename?: string | null;
         promptText?: string | null;

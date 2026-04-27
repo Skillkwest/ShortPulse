@@ -28,6 +28,7 @@ import {
 } from "../logic/mediaFolderCanvasSnapshot";
 import {
   BUCKET,
+  isAudioFile,
   isVideoFile,
   resolveMediaMetadataPromptText,
   type MediaFileRow,
@@ -54,7 +55,7 @@ type MediaLibraryFolderCanvasProps = {
   onSelectMedia: (payload: {
     id: string;
     url: string;
-    fileType: "image" | "video";
+    fileType: "image" | "video" | "audio";
     filename?: string | null;
     promptText?: string | null;
     source?: string | null;
@@ -610,7 +611,12 @@ export function MediaLibraryFolderCanvas({
         onSelectMedia({
           id: mediaId,
           url: item.src,
-          fileType: mediaRow && isVideoFile(mediaRow.file_type) ? "video" : "image",
+          fileType:
+            mediaRow && isAudioFile(mediaRow.file_type)
+              ? "audio"
+              : mediaRow && isVideoFile(mediaRow.file_type)
+                ? "video"
+                : "image",
           filename: mediaRow?.filename ?? item.alt,
           promptText: mediaRow ? resolveMediaMetadataPromptText(mediaRow.metadata) : null,
           source: mediaRow?.source ?? null,
@@ -660,7 +666,12 @@ export function MediaLibraryFolderCanvas({
           payload: {
             id: item.mediaId ?? item.id,
             url: item.src,
-            fileType: mediaRow && isVideoFile(mediaRow.file_type) ? "video" : "image",
+            fileType:
+              mediaRow && isAudioFile(mediaRow.file_type)
+                ? "audio"
+                : mediaRow && isVideoFile(mediaRow.file_type)
+                  ? "video"
+                  : "image",
             originFolderId: folderId,
             filename: mediaRow?.filename ?? item.alt,
             promptText: mediaRow ? resolveMediaMetadataPromptText(mediaRow.metadata) : null,

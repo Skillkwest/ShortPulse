@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildStudioAgentPulseSystemMessage,
   buildStudioAgentWorkflowSessionUpdate,
   resolveLatestStudioAgentUserInput,
 } from "../studioAgentPulseRuntime";
@@ -84,5 +85,33 @@ describe("studioAgentPulseRuntime", () => {
     );
 
     warnSpy.mockRestore();
+  });
+
+  it("includes workflow stage hints and anti-restart guidance in the hidden Pulse system message", () => {
+    const systemMessage = buildStudioAgentPulseSystemMessage({
+      presetId: "image",
+      label: "Video Prompt Magic",
+      instructions: "Follow the guided video workflow one step at a time.",
+      starterAssistantMessage: "Upload your image to get the process started :)",
+      workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection", "Dialogue"],
+      workflowSession: {
+        presetId: "image",
+        status: "awaiting_input",
+        currentStepIndex: 3,
+        currentStepLabel: "Action Selection",
+        currentStepPrompt: "What should the subject do in the clip?",
+        collectedInputs: ["uploaded bird image", "360 orbit"],
+        lastArtifact: null,
+        finalArtifactSource: null,
+      },
+    });
+
+    expect(systemMessage).toContain("workflow_stage_hints:");
+    expect(systemMessage).toContain("1. Image Gate");
+    expect(systemMessage).toContain("3. Action Selection");
+    expect(systemMessage).toContain("Continue from the active workflow_session_state.");
+    expect(systemMessage).toContain(
+      "Do not restart from the first step, substitute a different workflow, or invent a new intake step unless the user explicitly asks to restart."
+    );
   });
 });

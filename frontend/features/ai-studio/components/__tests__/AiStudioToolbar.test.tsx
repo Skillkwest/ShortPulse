@@ -6,6 +6,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiStudioToolbar } from "../AiStudioToolbar";
 
+const dashboardNavPrefabMock = vi.hoisted(() => vi.fn());
+
 vi.mock("next/image", () => ({
   default: ({ alt, ...props }: { alt?: string } & Record<string, unknown>) => {
     const imgProps = { ...props };
@@ -18,7 +20,10 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("../../../../components/DashboardNavPrefab", () => ({
-  DashboardNavPrefab: () => <div data-testid="dashboard-nav-prefab" />,
+  DashboardNavPrefab: (props: Record<string, unknown>) => {
+    dashboardNavPrefabMock(props);
+    return <div data-testid="dashboard-nav-prefab" />;
+  },
 }));
 
 describe("AiStudioToolbar", () => {
@@ -198,6 +203,12 @@ describe("AiStudioToolbar", () => {
     );
 
     expect(screen.getByTestId("dashboard-nav-prefab")).toBeInTheDocument();
+    expect(dashboardNavPrefabMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        className: "toolbar-back-link",
+        navigationMode: "assign",
+      })
+    );
     expect(screen.getByRole("button", { name: "Projects" })).toHaveClass(
       "dashboard-nav-prefab",
       "toolbar-back-link",

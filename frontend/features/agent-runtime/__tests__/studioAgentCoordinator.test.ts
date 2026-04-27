@@ -15,6 +15,7 @@ describe("buildStudioAgentOpenAiMessages", () => {
           label: "Ad Hook",
           instructions: "Lead with an instantly readable hook and clear product payoff.",
           source: "builtin",
+          workflowStageHints: ["Intake", "Hook", "Payoff"],
           workflowSession: {
             presetId: "ad_hook",
             status: "awaiting_input",
@@ -52,6 +53,8 @@ describe("buildStudioAgentOpenAiMessages", () => {
       }),
     ]);
     expect(messages[1]?.content).toContain("workflow_session_state:");
+    expect(messages[1]?.content).toContain("workflow_stage_hints:");
+    expect(messages[1]?.content).toContain("2. Hook");
     expect(messages[1]?.content).toContain('"currentStepLabel":"Hook"');
   });
 });

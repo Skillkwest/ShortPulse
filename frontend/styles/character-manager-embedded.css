@@ -117,7 +117,7 @@
 .character-manager-page--embedded[data-active-tab="manage"] .character-manage-chip-container {
   flex: 1 1 auto;
   min-height: 0;
-  padding-top: 80px;
+  padding-top: 0;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -240,36 +240,29 @@
   color: rgba(220, 229, 238, 0.86);
 }
 
+.character-manager-page--embedded .character-section {
+  background: rgba(201, 205, 214, 0.05);
+  border-color: rgba(201, 205, 214, 0.05);
+}
+
+.character-manager-page--embedded .character-sheet-preset-tab.is-active {
+  background: rgba(201, 205, 214, 0.05);
+  border-color: rgba(201, 205, 214, 0.05);
+  border-bottom-color: rgba(201, 205, 214, 0.05);
+  box-shadow: none;
+  transform: none;
+}
+
 .character-manager-page--embedded .character-profile-card {
   grid-template-columns: minmax(0, 1fr);
   min-height: auto;
-  align-items: stretch;
-  row-gap: 6px;
+  align-items: start;
+  row-gap: 10px;
   padding: 10px;
 }
 
-.character-manager-page--embedded .character-profile-card-top-row {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  align-items: start;
-  gap: 10px;
-}
-
-.character-manager-page--embedded .character-profile-photo-stack {
-  align-content: start;
-}
-
-.character-manager-page--embedded .character-profile-photo-btn {
-  width: 120px;
-  height: 120px;
-}
-
-.character-manager-page--embedded .character-profile-placeholder-icon svg {
-  width: 40px;
-  height: 40px;
-}
-
 .character-manager-page--embedded .character-profile-fields {
+  grid-column: 1;
   align-content: start;
   gap: 8px;
 }

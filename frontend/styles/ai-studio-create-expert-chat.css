@@ -90,6 +90,81 @@
   border-color: rgba(201, 205, 214, 0.16);
 }
 
+.create-expert-panel .create-expert-pulse-session-banner {
+  margin: 0 0 10px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  border-radius: 12px;
+  background: rgba(10, 13, 20, 0.82);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.create-expert-panel .create-expert-pulse-session-banner--completed {
+  border-color: rgba(82, 196, 124, 0.28);
+  background: rgba(10, 19, 14, 0.88);
+}
+
+.create-expert-panel .create-expert-pulse-session-banner-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.create-expert-panel .create-expert-pulse-session-banner-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 320px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.create-expert-panel .create-expert-pulse-session-banner-status,
+.create-expert-panel .create-expert-pulse-session-banner-step {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 0 9px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.create-expert-panel .create-expert-pulse-session-banner-status {
+  border: 1px solid rgba(87, 212, 255, 0.34);
+  color: #78ddff;
+  background: rgba(52, 200, 255, 0.1);
+}
+
+.create-expert-panel
+  .create-expert-pulse-session-banner--completed
+  .create-expert-pulse-session-banner-status {
+  border-color: rgba(82, 196, 124, 0.34);
+  color: #a6f0bf;
+  background: rgba(82, 196, 124, 0.14);
+}
+
+.create-expert-panel .create-expert-pulse-session-banner-step {
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  color: rgba(225, 233, 242, 0.82);
+  background: rgba(201, 205, 214, 0.08);
+}
+
+.create-expert-panel .create-expert-pulse-session-banner-detail {
+  margin: 0;
+  color: rgba(225, 233, 242, 0.88);
+  font-size: 12px;
+  line-height: 1.45;
+  flex: 1 1 220px;
+}
+
 .create-expert-panel .create-expert-mode-shell {
   display: inline-flex;
   min-width: 198px;

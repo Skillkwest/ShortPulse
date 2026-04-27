@@ -24,6 +24,7 @@ import {
 import {
   BUCKET,
   getMediaDataTabForRow,
+  isAudioFile,
   isImageFile,
   isNextImageOptimizerUrl,
   isVideoFile,
@@ -79,7 +80,7 @@ type MediaLibraryPanelProps = {
   onSelectMedia: (payload: {
     id: string;
     url: string;
-    fileType: "image" | "video";
+    fileType: "image" | "video" | "audio";
     filename?: string | null;
     promptText?: string | null;
     source?: string | null;
@@ -118,6 +119,11 @@ const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string
   }
 };
 
+const resolveLibraryMediaReferenceFileType = (
+  fileType?: string | null
+): "image" | "video" | "audio" =>
+  isAudioFile(fileType) ? "audio" : isVideoFile(fileType) ? "video" : "image";
+
 const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab => {
   if (itemType === "videos") return "uploaded_videos";
   return "uploaded_images";
@@ -125,7 +131,7 @@ const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab =>
 
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
-  onSelectPrompt,
+  onSelectPrompt: _onSelectPrompt,
   projectId = null,
   projectName = null,
   onProjectNameCommit,
@@ -156,6 +162,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     commitFolderRename,
     moveFolder,
     deleteFolder,
+    refreshFolders,
   } = useMediaLibraryFoldersState(projectId);
 
   const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
@@ -166,6 +173,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
   const [membershipPendingMessage, setMembershipPendingMessage] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [selectedPromptIds, setSelectedPromptIds] = useState<Set<string>>(() => new Set());
   const [pendingBulkDeleteIds, setPendingBulkDeleteIds] = useState<string[] | null>(null);
   const [bulkMoveDialogOpen, setBulkMoveDialogOpen] = useState(false);
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
@@ -248,6 +256,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     activeFolderId,
     folders,
     refreshActiveRows,
+    refreshFolders,
     setFolderError,
     setMembershipMessage,
     setMediaRows,
@@ -442,7 +451,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     previewModalUrl,
     previewModalLoading,
     previewModalError,
-    handleSelectPromptCard,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,
     closePreviewModal,
@@ -450,17 +458,23 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     activeFolderId,
     currentUserIdRef,
     onSelectMedia,
-    onSelectPrompt,
     refreshSignedUrl,
     signStoragePath,
   });
 
-  const handleSelectPromptCardWithSelection = useCallback(
-    (prompt: PromptRow) => {
-      handleSelectPromptCard(prompt);
-    },
-    [handleSelectPromptCard]
-  );
+  const handleToggleSelectedPrompt = useCallback((prompt: PromptRow) => {
+    setPendingBulkDeleteIds(null);
+    setBulkMoveDialogOpen(false);
+    setSelectedPromptIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(prompt.id)) {
+        next.delete(prompt.id);
+      } else {
+        next.add(prompt.id);
+      }
+      return next;
+    });
+  }, []);
 
   const toggleSelectedMediaFile = useCallback((file: MediaFileRow) => {
     setPendingBulkDeleteIds(null);
@@ -476,10 +490,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     });
   }, []);
 
-  const clearSelectedMediaIds = useCallback(() => {
+  const clearSelections = useCallback(() => {
     setPendingBulkDeleteIds(null);
     setBulkMoveDialogOpen(false);
     setSelectedIds(new Set());
+    setSelectedPromptIds(new Set());
   }, []);
 
   const handleToggleSelectedMedia = useCallback(
@@ -488,6 +503,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     },
     [toggleSelectedMediaFile]
   );
+
+  const combinedSelectedIds = useMemo(() => {
+    if (!selectedPromptIds.size) return selectedIds;
+    if (!selectedIds.size) return selectedPromptIds;
+    const next = new Set(selectedIds);
+    for (const id of selectedPromptIds) {
+      next.add(id);
+    }
+    return next;
+  }, [selectedIds, selectedPromptIds]);
 
   const handleCloseBulkDeleteConfirm = useCallback(() => {
     if (deleteConfirmSubmitting) return;
@@ -543,6 +568,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setMembershipMessage,
     setMembershipPendingMessage,
     refreshActiveRows,
+    refreshFolders,
     resolveInternalDropItem,
     onDropFilesToFolder: async (folderId, files) => {
       await uploadDroppedFilesToFolder({
@@ -572,7 +598,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         payload: {
           id: file.id,
           url: signedUrl,
-          fileType: isVideoFile(file.file_type) ? "video" : "image",
+          fileType: resolveLibraryMediaReferenceFileType(file.file_type),
           originFolderId: activeFolderId,
           filename: file.filename,
           promptText,
@@ -599,7 +625,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         label: file.filename || "Media",
         detail: promptText,
         previewUrl: signedUrl,
-        previewKind: isVideoFile(file.file_type) ? "video" : "image",
+        previewKind: isVideoFile(file.file_type)
+          ? "video"
+          : isAudioFile(file.file_type)
+            ? "text"
+            : "image",
       });
     },
     [activeFolderId]
@@ -945,7 +975,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       <MediaLibraryAllItemsGrid
         mediaRows={gridMediaRows}
         promptRows={gridPromptRows}
-        selectedIds={selectedIds}
+        selectedIds={combinedSelectedIds}
         optimizerFallbackMediaIds={optimizerFallbackMediaIds}
         adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
         adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
@@ -954,7 +984,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         getMediaCardRef={getMediaCardRef}
         onSelectMediaFile={handleToggleSelectedMedia}
         onToggleMediaSelection={handleToggleSelectedMedia}
-        onSelectPromptCard={handleSelectPromptCardWithSelection}
+        onSelectPromptCard={handleToggleSelectedPrompt}
         onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
         onPromptDragStart={handlePromptCardDragStart}
@@ -1003,7 +1033,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaPreviewError,
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,
-      handleSelectPromptCardWithSelection,
+      combinedSelectedIds,
+      handleToggleSelectedPrompt,
       handleToggleSelectedMedia,
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
@@ -1038,8 +1069,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             <MediaLibraryPromptGrid
               prompts={visiblePromptRows}
               sortedPrompts={visiblePromptRows}
-              selectedIds={selectedIds}
-              onSelectPromptCard={handleSelectPromptCardWithSelection}
+              selectedIds={selectedPromptIds}
+              onSelectPromptCard={handleToggleSelectedPrompt}
               onPromptDragStart={handlePromptCardDragStart}
               onPromptDragEnd={handleCardDragEnd}
               showRemoveAction={canShowFolderItemRemoveAction}
@@ -1079,10 +1110,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleCardDragEnd,
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,
-      handleSelectPromptCardWithSelection,
+      handleToggleSelectedPrompt,
       promptHasMore,
       promptLoading,
-      selectedIds,
+      selectedPromptIds,
       setPendingLibraryDelete,
       visiblePromptRows,
       loadPromptPage,
@@ -1228,7 +1259,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       canMoveToFolder={canMoveSelectedMediaToFolder}
       canRemoveFromFolder={!isRootFolderSelected}
       disabled={deleteConfirmSubmitting}
-      onClearSelection={clearSelectedMediaIds}
+      onClearSelection={clearSelections}
       onMoveToFolder={handleOpenBulkMoveDialog}
       onDeleteFromLibrary={handleOpenBulkDeleteConfirm}
       onRemoveFromFolder={() => {
@@ -1282,6 +1313,25 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       return changed ? next : prev;
     });
   }, [bulkVisibleMediaRows, selectedIds.size]);
+
+  useEffect(() => {
+    if (!selectedPromptIds.size) return;
+    const visiblePromptIdSet = new Set(
+      shouldShowPrompts ? visiblePromptRows.map((row) => row.id) : []
+    );
+    setSelectedPromptIds((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (!visiblePromptIdSet.has(id)) {
+          changed = true;
+          continue;
+        }
+        next.add(id);
+      }
+      return changed ? next : prev;
+    });
+  }, [selectedPromptIds.size, shouldShowPrompts, visiblePromptRows]);
 
   useEffect(() => {
     if (selectedVisibleMediaRows.length > 0) return;

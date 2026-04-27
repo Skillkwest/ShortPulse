@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { LibraryMediaFileType } from "../reference-ingestion/types";
 
 export type ShellDropMode = "none" | "text" | "media";
 
@@ -12,7 +13,7 @@ export type ShellDropPayload =
       payload: {
         id: string;
         url: string;
-        fileType: "image" | "video";
+        fileType: LibraryMediaFileType;
         originFolderId?: string | null;
         filename?: string | null;
         promptText?: string | null;
@@ -44,7 +45,7 @@ type UseAiStudioShellDndControllerParams = {
   onDropLibraryMediaReference?: (payload: {
     id: string;
     url: string;
-    fileType: "image" | "video";
+    fileType: LibraryMediaFileType;
     originFolderId?: string | null;
     filename?: string | null;
     promptText?: string | null;

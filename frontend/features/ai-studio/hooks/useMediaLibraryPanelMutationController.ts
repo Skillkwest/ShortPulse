@@ -43,6 +43,7 @@ type UseMediaLibraryPanelMutationControllerParams = {
   activeFolderId: string;
   folders: Array<{ id: string; name: string }>;
   refreshActiveRows: () => Promise<void>;
+  refreshFolders: () => Promise<void>;
   setFolderError: (value: string | null) => void;
   setMembershipMessage: React.Dispatch<React.SetStateAction<string | null>>;
   setMediaRows: React.Dispatch<React.SetStateAction<MediaFileRow[]>>;
@@ -85,6 +86,7 @@ export const useMediaLibraryPanelMutationController = ({
   activeFolderId,
   folders,
   refreshActiveRows,
+  refreshFolders,
   setFolderError,
   setMembershipMessage,
   setMediaRows,
@@ -93,6 +95,10 @@ export const useMediaLibraryPanelMutationController = ({
   const [pendingLibraryDelete, setPendingLibraryDelete] =
     React.useState<PendingLibraryDeleteState | null>(null);
   const [deleteConfirmSubmitting, setDeleteConfirmSubmitting] = React.useState(false);
+
+  const refreshFolderState = React.useCallback(async () => {
+    await refreshFolders().catch(() => undefined);
+  }, [refreshFolders]);
 
   const runFolderMembershipBatch = React.useCallback(
     async ({
@@ -153,7 +159,7 @@ export const useMediaLibraryPanelMutationController = ({
           );
         }
         setMembershipMessage(successMessage);
-        await refreshActiveRows();
+        await Promise.all([refreshActiveRows(), refreshFolderState()]);
         return true;
       } catch (membershipError) {
         setFolderError(
@@ -162,7 +168,14 @@ export const useMediaLibraryPanelMutationController = ({
         return false;
       }
     },
-    [activeFolderId, projectId, refreshActiveRows, setFolderError, setMembershipMessage]
+    [
+      activeFolderId,
+      projectId,
+      refreshActiveRows,
+      refreshFolderState,
+      setFolderError,
+      setMembershipMessage,
+    ]
   );
 
   const handleRemoveItemFromActiveFolder = React.useCallback(
@@ -230,7 +243,7 @@ export const useMediaLibraryPanelMutationController = ({
           projectId
         );
         setMembershipMessage("Added to this folder.");
-        await refreshActiveRows();
+        await Promise.all([refreshActiveRows(), refreshFolderState()]);
         return true;
       } catch (membershipError) {
         setFolderError(
@@ -239,7 +252,14 @@ export const useMediaLibraryPanelMutationController = ({
         return false;
       }
     },
-    [activeFolderId, projectId, refreshActiveRows, setFolderError, setMembershipMessage]
+    [
+      activeFolderId,
+      projectId,
+      refreshActiveRows,
+      refreshFolderState,
+      setFolderError,
+      setMembershipMessage,
+    ]
   );
 
   const handleMoveItemsToFolder = React.useCallback(
@@ -364,7 +384,7 @@ export const useMediaLibraryPanelMutationController = ({
       }
 
       try {
-        await refreshActiveRows();
+        await Promise.all([refreshActiveRows(), refreshFolderState()]);
       } catch (refreshError) {
         setFolderError(
           toMediaLibraryErrorText(
@@ -380,6 +400,7 @@ export const useMediaLibraryPanelMutationController = ({
       folders,
       projectId,
       refreshActiveRows,
+      refreshFolderState,
       setFolderError,
       setMediaRows,
       setMembershipMessage,
@@ -395,6 +416,7 @@ export const useMediaLibraryPanelMutationController = ({
         await deleteMediaFileWithStorage(file);
         setMediaRows((previous) => previous.filter((row) => row.id !== file.id));
         setMembershipMessage("Deleted from All Media.");
+        await refreshFolderState();
         void logMediaEvent("delete", "media_file", file.id, {
           storage_path: file.storage_path,
           surface: "ai-studio-media-library-panel",
@@ -403,7 +425,7 @@ export const useMediaLibraryPanelMutationController = ({
         setFolderError(toMediaLibraryErrorText(deleteError, "Unable to delete media."));
       }
     },
-    [activeFolderId, setFolderError, setMediaRows, setMembershipMessage]
+    [activeFolderId, refreshFolderState, setFolderError, setMediaRows, setMembershipMessage]
   );
 
   const deleteMediaRowsFromLibrary = React.useCallback(
@@ -435,6 +457,7 @@ export const useMediaLibraryPanelMutationController = ({
       if (deletedIds.length) {
         const deletedIdSet = new Set(deletedIds);
         setMediaRows((previous) => previous.filter((row) => !deletedIdSet.has(row.id)));
+        await refreshFolderState();
       }
 
       if (deletedIds.length === uniqueRows.length) {
@@ -465,7 +488,7 @@ export const useMediaLibraryPanelMutationController = ({
       setDeleteConfirmSubmitting(false);
       return false;
     },
-    [activeFolderId, setFolderError, setMediaRows, setMembershipMessage]
+    [activeFolderId, refreshFolderState, setFolderError, setMediaRows, setMembershipMessage]
   );
 
   const handleDeletePromptFromLibrary = React.useCallback(
@@ -477,6 +500,7 @@ export const useMediaLibraryPanelMutationController = ({
         await deleteMediaPromptById(prompt.id);
         setPromptRows((previous) => previous.filter((row) => row.id !== prompt.id));
         setMembershipMessage("Deleted from All Media.");
+        await refreshFolderState();
         void logMediaEvent("delete", "media_prompt", prompt.id, {
           surface: "ai-studio-media-library-panel",
         });
@@ -484,7 +508,7 @@ export const useMediaLibraryPanelMutationController = ({
         setFolderError(toMediaLibraryErrorText(deleteError, "Unable to delete prompt."));
       }
     },
-    [activeFolderId, setFolderError, setMembershipMessage, setPromptRows]
+    [activeFolderId, refreshFolderState, setFolderError, setMembershipMessage, setPromptRows]
   );
 
   const resetDeleteConfirmState = React.useCallback(() => {

@@ -12,6 +12,7 @@ import {
   MEDIA_MODAL_PAGE_SIZE,
   createMediaTabCacheState,
   getMediaDataTabForRow,
+  isAudioFile,
   isMediaDataTab,
   isNextImageOptimizerUrl,
   isVideoFile,
@@ -43,7 +44,7 @@ type MediaLibraryModalProps = {
   onSelectMedia: (payload: {
     id: string;
     url: string;
-    fileType: "image" | "video";
+    fileType: "image" | "video" | "audio";
     filename?: string | null;
     promptText?: string | null;
     source?: string | null;
@@ -322,7 +323,11 @@ export function MediaLibraryModal({
       onSelectMedia({
         id: file.id,
         url: nextUrl,
-        fileType: isVideoFile(file.file_type) ? "video" : "image",
+        fileType: isAudioFile(file.file_type)
+          ? "audio"
+          : isVideoFile(file.file_type)
+            ? "video"
+            : "image",
         filename: file.filename,
         promptText: resolveMediaMetadataPromptText(file.metadata),
         source: file.source ?? "upload",

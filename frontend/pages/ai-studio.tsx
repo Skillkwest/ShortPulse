@@ -543,6 +543,7 @@ export default function AiStudioPage() {
           runtimeMode: resolvedPulsePreset.runtimeMode,
           activationMode: resolvedPulsePreset.activationMode,
           starterAssistantMessage: resolvedPulsePreset.starterAssistantMessage,
+          workflowStageHints: resolvedPulsePreset.workflowStageHints,
           outputMode: resolvedPulsePreset.outputMode,
           memoryPolicy: resolvedPulsePreset.memoryPolicy,
           source: isCreatePulseBuiltInPresetId(activeCreatePulsePresetId)
@@ -631,6 +632,9 @@ export default function AiStudioPage() {
   const handleOpenCharacterCreate = useCallback(() => {
     setSelectedToolWithEditIntentReset("character");
     setCharacterCreateRequestKey((current) => current + 1);
+  }, [setSelectedToolWithEditIntentReset]);
+  const handleOpenCharacterLibrary = useCallback(() => {
+    setSelectedToolWithEditIntentReset("character");
   }, [setSelectedToolWithEditIntentReset]);
   const handleOpenElementCreate = useCallback(() => {
     setSelectedToolWithEditIntentReset("elements");
@@ -1494,6 +1498,7 @@ export default function AiStudioPage() {
     setSelectedCharacterId: handleCreateCharacterSelection,
     selectedCharacterLookId: createSelectedCharacterLookId,
     selectedCharacterLookLabel: selectedCreateCharacterLookLabel,
+    onOpenCharacterLibrary: handleOpenCharacterLibrary,
     loadCharacterLookOptions: loadCreateCharacterLookOptions,
     isCharacterOptionsLoading,
     isCharacterModeEnabled: isCreateCharacterModeEnabled,

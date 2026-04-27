@@ -150,6 +150,11 @@ describe("useExpertEditInlineGenerate", () => {
     await waitFor(() => {
       expect(result.current.isInlineGeneratePending).toBe(false);
     });
+    expect(prepareExpertEditSubmissionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        editSubmitIntent: "standard",
+      })
+    );
   });
 
   it("removes the optimistic placeholder when export fails before submit", async () => {
@@ -201,5 +206,34 @@ describe("useExpertEditInlineGenerate", () => {
     expect(exportExpertEditStageArtifactsMock).not.toHaveBeenCalled();
     expect(onRegenerateWithReferenceInputs).not.toHaveBeenCalled();
     expect(result.current.isInlineGeneratePending).toBe(false);
+  });
+
+  it("passes markup submit intent into Expert Edit submission preparation", async () => {
+    const { result } = renderHook(() =>
+      useExpertEditInlineGenerate(
+        createArgs({
+          editSubmitIntent: "markup",
+        })
+      )
+    );
+
+    exportExpertEditStageArtifactsMock.mockResolvedValue({
+      flattenedBlob: null,
+      flattenedMarkupReferenceBlob: null,
+      inpaintMaskBlob: null,
+      reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+    });
+
+    act(() => {
+      result.current.handleInlineGenerate();
+    });
+
+    await waitFor(() => {
+      expect(prepareExpertEditSubmissionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          editSubmitIntent: "markup",
+        })
+      );
+    });
   });
 });

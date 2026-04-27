@@ -66,6 +66,7 @@ type PromptStepChatSurfaceProps = {
   onChatModeEnabledChange?: (value: boolean) => void;
   hideChatModeToggle?: boolean;
   directOpenAiBypassEnabled?: boolean;
+  agentBootstrapPending: boolean;
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
@@ -144,6 +145,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   onChatModeEnabledChange,
   hideChatModeToggle = false,
   directOpenAiBypassEnabled = false,
+  agentBootstrapPending,
   onAgentSend,
   onGenerateOutputPrompt,
   chatModeInlineGenerate,
@@ -347,7 +349,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
       {hasInsideInputSendButton ? (
         <AgentSendButton
           onClick={handleAgentSendClick}
-          disabled={!chatModeEnabled || agentIsSending}
+          disabled={agentBootstrapPending || !chatModeEnabled || agentIsSending}
           loading={agentIsSending}
           ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
           icon="arrow-up"
@@ -381,7 +383,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     !embedSendButtonInInput && chatModeEnabled ? (
       <AgentSendButton
         onClick={handleAgentSendClick}
-        disabled={!chatModeEnabled || agentIsSending}
+        disabled={agentBootstrapPending || !chatModeEnabled || agentIsSending}
         loading={agentIsSending}
         ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
         label="Send"

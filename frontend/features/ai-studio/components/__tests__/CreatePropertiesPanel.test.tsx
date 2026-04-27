@@ -258,6 +258,23 @@ describe("CreatePropertiesPanel", () => {
     });
   });
 
+  it("opens the character library from the picker header action", () => {
+    const onOpenCharacterLibrary = vi.fn();
+    renderPanel({
+      beginnerMode: true,
+      characterModeEnabled: true,
+      characterOptions: [{ id: "char-1", name: "Avery Pulse" }],
+      selectedCharacterId: "char-1",
+      onOpenCharacterLibrary,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Character Library" }));
+
+    expect(onOpenCharacterLibrary).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog", { name: "Choose character" })).not.toBeInTheDocument();
+  });
+
   it("shows look choices in the picker and applies the selected look with the character", async () => {
     const onSelectedCharacterIdChange = vi.fn();
     const loadCharacterLookOptions = vi
@@ -280,13 +297,14 @@ describe("CreatePropertiesPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open character picker" }));
 
-    const lookSelect = await screen.findByRole("combobox", {
+    const lookTrigger = await screen.findByRole("button", {
       name: "Choose look for Avery Pulse",
     });
-    fireEvent.change(lookSelect, { target: { value: "2" } });
-    fireEvent.click(screen.getByRole("button", { name: /Avery Pulse/i }));
+    fireEvent.click(lookTrigger);
+    fireEvent.click(await screen.findByRole("option", { name: "Hero Close-Up" }));
 
     expect(onSelectedCharacterIdChange).toHaveBeenCalledWith("char-1", "2");
+    expect(screen.queryByRole("dialog", { name: "Choose character" })).not.toBeInTheDocument();
   });
 
   it("keeps the picker openable when character mode is on and options are empty", () => {
@@ -507,7 +525,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
   });
 
-  it("hides the expert empty-state shell once a pulse workflow session exists even before thread messages render", () => {
+  it("keeps the expert empty-state shell visible even when a pulse workflow session exists before thread messages render", () => {
     const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -528,13 +546,14 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
-    expect(container.querySelector(".create-expert-empty-state-shell")).toBeFalsy();
-    expect(container.querySelector(".create-expert-empty-preview-frame")).toBeFalsy();
-    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeFalsy();
+    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
+    expect(container.querySelector(".create-expert-empty-state-shell")).toBeTruthy();
+    expect(container.querySelector(".create-expert-empty-preview-frame")).toBeTruthy();
+    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeTruthy();
   });
 
-  it("keeps the pulse chat surface mounted when a workflow session exists before transcript rows render", () => {
+  it("keeps the pulse chat surface unmounted until transcript rows actually render", () => {
     const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -555,11 +574,11 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    expect(container.querySelector(".agent-chat-wrapper")).toBeTruthy();
-    expect(container.querySelector(".create-expert-chat-spacer")).toBeFalsy();
+    expect(container.querySelector(".agent-chat-wrapper")).toBeNull();
+    expect(container.querySelector(".create-expert-chat-spacer")).toBeTruthy();
   });
 
-  it("keeps the expert empty-state shell hidden while a pulse activation is in progress", () => {
+  it("keeps the expert empty-state shell visible while a pulse activation is in progress", () => {
     const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -572,10 +591,11 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
-    expect(container.querySelector(".create-expert-empty-state-shell")).toBeFalsy();
-    expect(container.querySelector(".create-expert-empty-preview-frame")).toBeFalsy();
-    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeFalsy();
+    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
+    expect(container.querySelector(".create-expert-empty-state-shell")).toBeTruthy();
+    expect(container.querySelector(".create-expert-empty-preview-frame")).toBeTruthy();
+    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeTruthy();
   });
 
   it("fades the expert title out at eight visual rows and fades it back in below that threshold", async () => {
@@ -1072,6 +1092,25 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Send to agent" })).toBeInTheDocument();
   });
 
+  it("hides the lower create controls cluster in pulse mode", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      imageResolution: "2k",
+      onImageResolutionChange: vi.fn(),
+    });
+
+    expect(container.querySelector(".create-expert-controls-row")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Disable character mode" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Open model picker" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Aspect ratio" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Image resolution" })).toBeNull();
+  });
+
   it("surfaces an explicit deactivate control for active pulses", () => {
     const onClearAgentChat = vi.fn();
 
@@ -1095,8 +1134,8 @@ describe("CreatePropertiesPanel", () => {
     expect(onClearAgentChat).toHaveBeenCalledTimes(1);
   });
 
-  it("does not render the large workflow session banner for an active workflow pulse", () => {
-    renderPanel({
+  it("keeps the expert empty shell visible before a pulse conversation has started", () => {
+    const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
       agentEnabled: true,
@@ -1115,8 +1154,11 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
+    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Active pulse session")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Completed pulse session")).not.toBeInTheDocument();
+    expect(container.querySelectorAll(".create-expert-empty-preview-frame")).toHaveLength(1);
+    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeTruthy();
   });
 
   it("hides chat-history inline generate controls in pulse mode", () => {
@@ -1161,8 +1203,8 @@ describe("CreatePropertiesPanel", () => {
     expect(items[2]).toHaveTextContent("Dolly In - Moves camera closer");
   });
 
-  it("does not render the large workflow session banner while a workflow pulse is awaiting input", () => {
-    renderPanel({
+  it("does not replace the expert empty shell with pulse chrome before any pulse history exists", () => {
+    const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
       agentEnabled: true,
@@ -1182,11 +1224,13 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
+    expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
+    expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Active pulse session")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Completed pulse session")).not.toBeInTheDocument();
+    expect(container.querySelectorAll(".create-expert-empty-preview-frame")).toHaveLength(1);
   });
 
-  it("keeps the active workflow guidance in the thread instead of a separate banner", () => {
+  it("renders an active pulse session banner alongside workflow guidance", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -1235,10 +1279,12 @@ describe("CreatePropertiesPanel", () => {
         "Which camera motion should I use? Pick one from the list below or type your own."
       )
     ).toBeInTheDocument();
-    expect(screen.queryByLabelText("Active pulse session")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Active pulse session")).toBeInTheDocument();
+    expect(screen.getByText("Pulse active")).toBeInTheDocument();
+    expect(screen.getByText("Current step: Camera Motion.")).toBeInTheDocument();
   });
 
-  it("does not render a separate completed banner for finished workflow pulses", () => {
+  it("renders a completed pulse session banner for finished workflow pulses", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -1267,7 +1313,9 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    expect(screen.queryByLabelText("Completed pulse session")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Completed pulse session")).toBeInTheDocument();
+    expect(screen.getByText("Pulse complete")).toBeInTheDocument();
+    expect(screen.getByText("Generate will use the completed Pulse output.")).toBeInTheDocument();
     expect(
       screen.getByText(
         "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight."

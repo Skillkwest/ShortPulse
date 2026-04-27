@@ -63,6 +63,7 @@ export type CharacterModeInjectionBundle = {
   characterDescription: string;
   characterLookId?: string | null;
   characterLookName?: string | null;
+  characterProfileImageUrl?: string | null;
   sheetReferenceStoragePaths: string[];
   sheetReferenceUrls: string[];
   loadedAtMs: number;
@@ -389,7 +390,10 @@ export const useAiStudioCharacterModeController = ({
             characterName: selectedCharacterOption?.name ?? null,
             lookId: effectiveBundle?.characterLookId ?? null,
             lookName: effectiveBundle?.characterLookName ?? null,
-            characterProfileImageUrl: selectedCharacterOption?.profileImageUrl ?? null,
+            characterProfileImageUrl:
+              effectiveBundle?.characterProfileImageUrl ??
+              selectedCharacterOption?.profileImageUrl ??
+              null,
           }
         : undefined;
 

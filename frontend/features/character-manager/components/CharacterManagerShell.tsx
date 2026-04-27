@@ -13,15 +13,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  Plus,
-  PencilSimpleLine,
-  ShieldCheck,
-  Trash,
-  UploadSimple,
-  UserCircle,
-  XCircle,
-} from "phosphor-react";
+import { Plus, ShieldCheck, Trash, UploadSimple, XCircle } from "phosphor-react";
 import {
   isAdaptiveSurfaceEnabled,
   logAdaptiveDetailFullQualityUsed,
@@ -81,16 +73,11 @@ type CharacterManagerShellProps = {
   resolveCharacterDropReference?: ResolveCharacterDropReference;
   onActiveTabChange?: (activeTab: CharacterWorkflowTab) => void;
 };
-const PROFILE_ZOOM_MIN = 1;
-const PROFILE_ZOOM_MAX = 2.4;
-const PROFILE_OFFSET_MIN = -40;
-const PROFILE_OFFSET_MAX = 40;
-const PROFILE_PREVIEW_IMAGE_SIZE = 144;
-const PROFILE_PREVIEW_IMAGE_EMBEDDED_SIZE = 72;
 const CHARACTER_CHIP_AVATAR_SIZE = 44;
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const CHARACTER_DESCRIPTION_HELPER_TEXT =
   "Tip: Character description will be used as part of consistency generation.";
+const PROFILE_PREVIEW_IMAGE_SIZE = 144;
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
@@ -98,25 +85,12 @@ const DND_QUICK_SWAP_ITEM = "application/x-shortpulse-quickswap-item";
 const DND_CHARACTER_SHEET_ZONE_KEY = "application/x-shortpulse-character-sheet-zone-key";
 const MEDIA_BUCKET = "media_library";
 
-const DEFAULT_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
-  zoom: PROFILE_ZOOM_MIN,
-  offsetX: 0,
-  offsetY: 0,
-};
-
 const PLAN_MAP: Record<string, { label: string; className: string }> = {
   free: { label: "Free", className: "plan-free" },
   media: { label: "Media", className: "plan-media" },
   studio: { label: "Studio", className: "plan-studio" },
   business: { label: "Business", className: "plan-business" },
 };
-
-function clampReferencePreviewAspectRatio(value: number | null | undefined): number {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
-    return DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO;
-  }
-  return Math.min(Math.max(value, 0.45), 2.8);
-}
 
 function buildProfileImageTransformStyle(
   transform: CharacterProfileImageTransform,
@@ -129,6 +103,13 @@ function buildProfileImageTransformStyle(
     transform: `translate(${offsetX}px, ${offsetY}px) scale(${transform.zoom})`,
     transformOrigin: "center center",
   };
+}
+
+function clampReferencePreviewAspectRatio(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO;
+  }
+  return Math.min(Math.max(value, 0.45), 2.8);
 }
 
 /**
@@ -152,8 +133,6 @@ export function CharacterManagerShell({
     visibleCharacterSheetPresetIds,
     characterSheetPresetLabels,
     characterSheetPresetAssignments,
-    profileImageUrl,
-    profileImageTransform,
     error,
     setErrorMessage,
     loading,
@@ -162,14 +141,10 @@ export function CharacterManagerShell({
     isSavingCharacter,
     isDeletingCharacter,
     isSwitchingCharacter,
-    isSavingProfileImage,
     isSavingCharacterSheetPreset,
     hasUnsavedCharacterDraft,
     setCharacterName,
     setCharacterDescription,
-    setProfileImageFile,
-    saveProfileImageTransform,
-    clearProfileImage,
     setActiveCharacterSheetPreset,
     saveCharacterSheetPresetAssignments,
     addCharacterSheetPreset,
@@ -189,13 +164,9 @@ export function CharacterManagerShell({
     useState<CharacterSheetDropZoneKey | null>(null);
   const [activeCharacterSheetDropZone, setActiveCharacterSheetDropZone] =
     useState<CharacterSheetDropZoneKey | null>(null);
-  const [isProfileAdjusterVisible, setIsProfileAdjusterVisible] = useState(false);
-  const [profileAdjustDraft, setProfileAdjustDraft] =
-    useState<CharacterProfileImageTransform | null>(null);
   const [pendingCharacterSheetUploadZoneKey, setPendingCharacterSheetUploadZoneKey] =
     useState<CharacterSheetDropZoneKey | null>(null);
   const characterNameInputRef = useRef<HTMLInputElement | null>(null);
-  const profileFileInputRef = useRef<HTMLInputElement | null>(null);
   const simpleFileInputRef = useRef<HTMLInputElement | null>(null);
   const characterSheetFileInputRef = useRef<HTMLInputElement | null>(null);
   const fileDragDepthRef = useRef(0);
@@ -204,8 +175,7 @@ export function CharacterManagerShell({
     isSwitchingCharacter ||
     isCreatingCharacter ||
     isSavingCharacter ||
-    isDeletingCharacter ||
-    isSavingProfileImage;
+    isDeletingCharacter;
 
   const {
     activeItems: quickSwapItems,
@@ -333,9 +303,7 @@ export function CharacterManagerShell({
     (loading && deferredCharacters.length === 0) ||
     isSwitchingCharacter ||
     (quickSwapLoading && !isSwitchingCharacter);
-  const isManageCharactersLoading = loading && deferredCharacters.length === 0;
-  const activeProfileImageTransform =
-    isProfileAdjusterVisible && profileAdjustDraft ? profileAdjustDraft : profileImageTransform;
+  const isManageCharactersLoading = loading;
   const resolvedCharacterSheetPresetAssignments = useMemo(
     () => characterSheetPresetAssignments ?? createEmptyCharacterSheetPresetAssignments(),
     [characterSheetPresetAssignments]
@@ -381,9 +349,6 @@ export function CharacterManagerShell({
   );
   const combinedError = error ?? quickSwapError;
   const RootContainer: "div" | "main" = isEmbeddedSurface ? "div" : "main";
-  const profileImageRenderSize = isEmbeddedSurface
-    ? PROFILE_PREVIEW_IMAGE_EMBEDDED_SIZE
-    : PROFILE_PREVIEW_IMAGE_SIZE;
   const quickSwapContentId = useId();
   const characterSheetPresetTabsIdBase = `character-sheet-preset-${useId()}`;
   const lastHandledExternalCreateRequestKeyRef = useRef(0);
@@ -538,12 +503,8 @@ export function CharacterManagerShell({
     uploadSimpleFiles,
     handleSimpleFileSelection,
     openCharacterSheetPicker,
-    openProfilePicker,
     openQuickSwapUploadPicker,
-    handleProfileSelection,
-    clearProfilePreview,
     handleCreateNewCharacter,
-    saveProfileAdjustments,
   } = useCharacterManagerShellActionHandlers({
     pageBusy,
     hasPersistedCharacter: Boolean(selectedCharacterId),
@@ -554,21 +515,10 @@ export function CharacterManagerShell({
     appendQuickSwapFiles: appendQuickSwapFilesFromHook,
     setPendingCharacterSheetUploadZoneKey,
     characterSheetFileInputRef,
-    profileFileInputRef,
     simpleFileInputRef,
-    profileImageUrl,
-    isProfileAdjusterVisible,
-    profileImageTransform,
-    setProfileAdjustDraft,
-    setIsProfileAdjusterVisible,
-    setProfileImageFile,
-    clearProfileImage,
     createCharacter,
     setActiveTab,
     characterNameInputRef,
-    profileImageVisibleTransform: activeProfileImageTransform,
-    saveProfileImageTransform,
-    defaultProfileImageTransform: DEFAULT_PROFILE_IMAGE_TRANSFORM,
   });
 
   useEffect(() => {
@@ -859,172 +809,26 @@ export function CharacterManagerShell({
                   </div>
 
                   <div className="character-profile-card">
-                    <div className="character-profile-card-top-row">
-                      <div className="character-profile-photo-stack">
-                        <button
-                          type="button"
-                          className={`character-profile-photo-btn ${profileImageUrl ? "has-image" : ""}`}
-                          onClick={openProfilePicker}
-                          disabled={pageBusy}
-                          aria-label={
-                            profileImageUrl && !isProfileAdjusterVisible
-                              ? "Edit profile photo adjustments"
-                              : "Upload profile photo"
-                          }
-                        >
-                          {profileImageUrl ? (
-                            <Image
-                              src={profileImageUrl}
-                              alt="Character profile"
-                              className="character-profile-photo"
-                              style={buildProfileImageTransformStyle(
-                                activeProfileImageTransform,
-                                profileImageRenderSize
-                              )}
-                              width={profileImageRenderSize}
-                              height={profileImageRenderSize}
-                              unoptimized
-                            />
-                          ) : (
-                            <span className="character-profile-placeholder-icon" aria-hidden>
-                              <UserCircle size={46} weight="light" aria-hidden="true" />
-                            </span>
-                          )}
-                        </button>
-                        {profileImageUrl ? (
-                          <span className="character-profile-edit-indicator" aria-hidden="true">
-                            <PencilSimpleLine size={14} weight="bold" />
-                            <span>Edit photo</span>
-                          </span>
-                        ) : null}
-                        {profileImageUrl && isProfileAdjusterVisible ? (
-                          <div
-                            className="character-profile-adjuster"
-                            role="group"
-                            aria-label="Profile crop controls"
-                          >
-                            <div className="character-profile-adjuster-row">
-                              <label
-                                className="character-profile-adjuster-label"
-                                htmlFor="profile-adjust-zoom"
-                              >
-                                <span>Zoom</span>
-                                <span>{Math.round(activeProfileImageTransform.zoom * 100)}%</span>
-                              </label>
-                              <input
-                                id="profile-adjust-zoom"
-                                className="character-profile-adjuster-range"
-                                type="range"
-                                min={PROFILE_ZOOM_MIN}
-                                max={PROFILE_ZOOM_MAX}
-                                step={0.01}
-                                value={activeProfileImageTransform.zoom}
-                                onChange={(event) => {
-                                  const nextZoom = Number(event.target.value);
-                                  setProfileAdjustDraft((previous) => ({
-                                    ...(previous ?? profileImageTransform),
-                                    zoom: nextZoom,
-                                  }));
-                                }}
-                              />
-                            </div>
-                            <div className="character-profile-adjuster-row">
-                              <label
-                                className="character-profile-adjuster-label"
-                                htmlFor="profile-adjust-x"
-                              >
-                                <span>Horizontal</span>
-                                <span>
-                                  {activeProfileImageTransform.offsetX > 0
-                                    ? `+${activeProfileImageTransform.offsetX}`
-                                    : activeProfileImageTransform.offsetX}
-                                </span>
-                              </label>
-                              <input
-                                id="profile-adjust-x"
-                                className="character-profile-adjuster-range"
-                                type="range"
-                                min={PROFILE_OFFSET_MIN}
-                                max={PROFILE_OFFSET_MAX}
-                                step={1}
-                                value={activeProfileImageTransform.offsetX}
-                                onChange={(event) => {
-                                  const nextOffsetX = Number(event.target.value);
-                                  setProfileAdjustDraft((previous) => ({
-                                    ...(previous ?? profileImageTransform),
-                                    offsetX: nextOffsetX,
-                                  }));
-                                }}
-                              />
-                            </div>
-                            <div className="character-profile-adjuster-row">
-                              <label
-                                className="character-profile-adjuster-label"
-                                htmlFor="profile-adjust-y"
-                              >
-                                <span>Vertical</span>
-                                <span>
-                                  {activeProfileImageTransform.offsetY > 0
-                                    ? `+${activeProfileImageTransform.offsetY}`
-                                    : activeProfileImageTransform.offsetY}
-                                </span>
-                              </label>
-                              <input
-                                id="profile-adjust-y"
-                                className="character-profile-adjuster-range"
-                                type="range"
-                                min={PROFILE_OFFSET_MIN}
-                                max={PROFILE_OFFSET_MAX}
-                                step={1}
-                                value={activeProfileImageTransform.offsetY}
-                                onChange={(event) => {
-                                  const nextOffsetY = Number(event.target.value);
-                                  setProfileAdjustDraft((previous) => ({
-                                    ...(previous ?? profileImageTransform),
-                                    offsetY: nextOffsetY,
-                                  }));
-                                }}
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              className="ghost-btn small character-profile-adjuster-reset"
-                              onClick={() => {
-                                void saveProfileAdjustments();
-                              }}
-                              disabled={pageBusy}
-                            >
-                              {isSavingProfileImage ? "Saving..." : "Save"}
-                            </button>
-                            <button
-                              type="button"
-                              className="ghost-btn small character-profile-adjuster-remove character-remove-btn"
-                              onClick={clearProfilePreview}
-                              disabled={pageBusy}
-                            >
-                              Remove photo
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
+                    <label
+                      className="control-row character-simple-field character-simple-field--label-serif"
+                      htmlFor="character-manager-name"
+                    >
+                      <span className="input-label">Name:</span>
+                      <input
+                        ref={characterNameInputRef}
+                        id="character-manager-name"
+                        className="character-name-input"
+                        type="text"
+                        value={characterName}
+                        maxLength={80}
+                        onChange={(event) => setCharacterName(event.target.value)}
+                        placeholder="Enter character name"
+                        disabled={loading}
+                      />
+                    </label>
 
-                      <label
-                        className="control-row character-simple-field character-simple-field--label-serif"
-                        htmlFor="character-manager-name"
-                      >
-                        <span className="input-label">Name:</span>
-                        <input
-                          ref={characterNameInputRef}
-                          id="character-manager-name"
-                          className="character-name-input"
-                          type="text"
-                          value={characterName}
-                          maxLength={80}
-                          onChange={(event) => setCharacterName(event.target.value)}
-                          placeholder="Enter character name"
-                          disabled={loading}
-                        />
-                      </label>
+                    <div className="character-sheet-looks-title-row character-profile-fields character-profile-fields--label-serif">
+                      <p className="input-label">Looks:</p>
                     </div>
                   </div>
 
@@ -1297,6 +1101,18 @@ export function CharacterManagerShell({
                         className={`character-list-card ${isSelected ? "is-active" : ""} ${
                           pageBusy ? "is-disabled" : ""
                         }`}
+                        onClick={(event) => {
+                          if (pageBusy) return;
+                          const target = event.target as HTMLElement | null;
+                          if (
+                            target?.closest(".character-list-select-btn") ||
+                            target?.closest(".character-list-delete-btn")
+                          ) {
+                            return;
+                          }
+                          void selectCharacter(character.characterId);
+                          setActiveTab("create");
+                        }}
                       >
                         <button
                           type="button"
@@ -1497,14 +1313,6 @@ export function CharacterManagerShell({
         </div>
       ) : null}
       <>
-        <input
-          ref={profileFileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleProfileSelection}
-          hidden
-        />
-
         <input
           ref={simpleFileInputRef}
           type="file"

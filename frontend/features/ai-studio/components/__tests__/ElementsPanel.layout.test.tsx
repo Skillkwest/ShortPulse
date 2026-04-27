@@ -6,12 +6,11 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { describe, expect, it, vi } from "vitest";
 import { ElementsPanel } from "../ElementsPanel";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../utils/dragDrop";
-import type {
-  ResolveInternalReferenceDrop,
-  ResolvedInternalReferenceSource,
-} from "../../logic/referenceSource/internalReferenceSource";
 import { deriveElementAliasFromName } from "../../../elements-manager/logic/elementAlias";
-import { saveElementManagerDraft } from "../../../elements-manager/logic/elementsManagerPersistence";
+import {
+  loadElementManagerDraftByElementId,
+  saveElementManagerDraft,
+} from "../../../elements-manager/logic/elementsManagerPersistence";
 import { uploadImageToStorage } from "../../utils/imageUpload";
 
 const elementsManagerPersistenceMockState = vi.hoisted(() => {
@@ -221,18 +220,21 @@ const addInternalReferenceDragPayload = (
   }
 };
 
-const waitForElementProfileShell = async (timeout = 2000) => {
-  await screen.findByDisplayValue("Red Lantern", undefined, { timeout });
-  await screen.findByText("References", undefined, { timeout });
+const waitForElementEditor = async (options?: { timeout?: number }) => {
+  const timeout = options?.timeout ?? 2000;
+  const editor = await screen.findByLabelText("Element editor", undefined, { timeout });
+  await within(editor).findByText("References", undefined, { timeout });
+  return editor;
 };
 
-const stubProfileImageFetch = () => {
-  const fetchMock = vi.fn(async () => {
-    const blob = new Blob(["profile-image"], { type: "image/png" });
-    return new Response(blob, { status: 200, headers: { "Content-Type": "image/png" } });
+const createDeferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
   });
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
+  return { promise, resolve, reject };
 };
 
 describe("ElementsPanel layout", () => {
@@ -263,32 +265,34 @@ describe("ElementsPanel layout", () => {
     expect(container!.querySelector(".elements-manager-shell--character-clone")).toBeNull();
     expect(container!.querySelector(".panel.media-panel.elements-manage-panel")).toBeNull();
     expect(container!.querySelector(".elements-manage-list")).toBeTruthy();
+    const chipViewport = container!.querySelector(".elements-manage-chip-container");
+    expect(chipViewport).toBeTruthy();
+    expect(chipViewport?.querySelector(".elements-manage-header-actions")).toBeNull();
     expect(screen.getByRole("heading", { name: "Elements Library" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Element Deck" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Element Sheet" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create New Element" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save Element" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ Create" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Open element profile: Red Lantern" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Edit element: Red Lantern" })).toBeInTheDocument();
     });
   });
 
   it("stages a new element locally and only persists it after Save Element is clicked", async () => {
     render(<ElementsPanel />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Create New Element" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Create" }));
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Save Element" })).toBeInTheDocument();
-    });
-    expect(screen.getByRole("button", { name: "Save Element" })).toBeEnabled();
-    expect(screen.getByLabelText("Name:")).toHaveValue("");
+    const dialog = await waitForElementEditor();
+    expect(within(dialog).getByRole("button", { name: "Save Element" })).toBeEnabled();
+    expect(within(dialog).getByLabelText("Name:")).toHaveValue("");
+    expect(screen.queryByRole("heading", { name: "New Element" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close element editor" })).not.toBeInTheDocument();
     expect(saveElementManagerDraft).not.toHaveBeenCalled();
     expect(elementsManagerPersistenceMockState.list).toHaveLength(1);
 
-    fireEvent.change(screen.getByLabelText("Name:"), { target: { value: "Taylor" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save Element" }));
+    fireEvent.change(within(dialog).getByLabelText("Name:"), { target: { value: "Taylor" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save Element" }));
 
     await waitFor(() => {
       expect(saveElementManagerDraft).toHaveBeenCalledWith({
@@ -301,164 +305,169 @@ describe("ElementsPanel layout", () => {
       });
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "Manage Elements" }));
-
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Open element profile: Taylor" })
-      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Save Element" })).not.toBeInTheDocument();
     });
+    expect(screen.getByRole("button", { name: "Edit element: Taylor" })).toBeInTheDocument();
     expect(elementsManagerPersistenceMockState.list).toHaveLength(2);
   });
 
-  it("requires saving a new element before adding profile photos or references", async () => {
-    render(<ElementsPanel />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Create New Element" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Save Element" })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Upload element profile photo" }));
-
-    expect(
-      screen.getByText("Save the element before adding a profile photo or references.")
-    ).toBeInTheDocument();
-  });
-
-  it("opens the profile editor as a single-column profile workspace", async () => {
+  it("opens the element editor in a right-side column from the manage list with no workflow tabs or extra wrapper chrome", async () => {
     const { container } = render(<ElementsPanel />);
 
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Edit element: Red Lantern",
+      })
+    );
+    const dialog = await waitForElementEditor();
 
-    const workflowTablist = screen.getByRole("tablist", { name: "Elements workflow mode" });
-    const workflowTabs = within(workflowTablist).getAllByRole("tab");
-    expect(workflowTabs[0]).toHaveTextContent("Manage Elements");
-    expect(workflowTabs[1]).toHaveTextContent("Element Profile");
-    expect(screen.getByRole("tab", { name: "Element Profile" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    expect(screen.getByRole("tab", { name: "Element Profile" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    expect(container.querySelector(".elements-profile-hero")).toBeNull();
+    expect(
+      screen.queryByRole("tablist", { name: "Elements workflow mode" })
+    ).not.toBeInTheDocument();
+    expect(within(dialog).getByDisplayValue("Red Lantern")).toBeInTheDocument();
+    expect(within(dialog).getByText("References")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "Save Element" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Red Lantern" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Reference Assets" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Identity and Notes" })).not.toBeInTheDocument();
-    expect(screen.getByDisplayValue("Red Lantern")).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Double click me" })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Add character sheet preset tab" })
-    ).not.toBeInTheDocument();
-
-    const regions = Array.from(container.querySelectorAll("[data-layout-region]"))
-      .map((node) => node.getAttribute("data-layout-region"))
-      .filter((value): value is string => Boolean(value));
-    expect(regions).toEqual(["sheet"]);
-    expect(container.querySelector(".elements-profile-panel")).toBeTruthy();
-    expect(container.querySelector(".elements-workflow-tab-row")).toBeTruthy();
-    expect(container.querySelector(".elements-references-grid")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Close element editor" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit element: Red Lantern" })).toBeInTheDocument();
+    expect(container.querySelector(".elements-library-workspace")).toBeTruthy();
+    expect(container.querySelector(".elements-library-column")).toBeTruthy();
+    expect(container.querySelector(".elements-editor-column")).toBeTruthy();
   });
 
-  it("does not render the shared preset-tab system in the elements profile", async () => {
+  it("opens the element editor when the visible chip surface is clicked", async () => {
     render(<ElementsPanel />);
 
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
+    const elementButton = await screen.findByRole("button", { name: "Edit element: Red Lantern" });
+    const elementCard = elementButton.closest("article");
+    if (!elementCard) {
+      throw new Error("Expected element card article to exist.");
+    }
 
-    expect(screen.queryByRole("tab", { name: "Double click me" })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Add character sheet preset tab" })
-    ).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: /Delete reference set/i })).not.toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(elementCard);
+    });
+    const dialog = await waitForElementEditor();
+
+    expect(within(dialog).getByDisplayValue("Red Lantern")).toBeInTheDocument();
   });
 
-  it("supports local profile image upload and crop controls in the element hero", async () => {
-    const createObjectURLMock = vi.fn(() => "blob:element-profile-image");
-    const revokeObjectURLMock = vi.fn();
-    Object.defineProperty(URL, "createObjectURL", {
-      configurable: true,
-      writable: true,
-      value: createObjectURLMock,
-    });
-    Object.defineProperty(URL, "revokeObjectURL", {
-      configurable: true,
-      writable: true,
-      value: revokeObjectURLMock,
+  it("ignores stale element selection responses when a newer chip is clicked", async () => {
+    elementsManagerPersistenceMockState.list = [
+      ...elementsManagerPersistenceMockState.list,
+      {
+        elementId: "element-blue-comet",
+        elementName: "Blue Comet",
+        elementAlias: "bluecomet",
+        elementAssetType: "image" as const,
+        elementStatus: "ready" as const,
+        profileImageUrl: null,
+        profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
+        updatedAt: "2026-04-07T09:00:00.000Z",
+      },
+    ];
+    elementsManagerPersistenceMockState.snapshots.set("element-blue-comet", {
+      elementId: "element-blue-comet",
+      name: "Blue Comet",
+      alias: "bluecomet",
+      status: "ready" as const,
+      profileImageUrl: null,
+      profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
+      description: "A cool blue comet with icy tails.",
+      assetType: "image" as const,
+      imageReferenceUrls: [],
+      videoReferenceUrl: null,
+      updatedAt: "2026-04-07T09:00:00.000Z",
     });
 
+    const redSelection =
+      createDeferred<Awaited<ReturnType<typeof loadElementManagerDraftByElementId>>>();
+    const blueSelection =
+      createDeferred<Awaited<ReturnType<typeof loadElementManagerDraftByElementId>>>();
+
+    vi.mocked(loadElementManagerDraftByElementId).mockImplementation((elementId: string) => {
+      if (elementId === "element-red-lantern") {
+        return redSelection.promise;
+      }
+      if (elementId === "element-blue-comet") {
+        return blueSelection.promise;
+      }
+      throw new Error(`Unexpected element id: ${elementId}`);
+    });
+
+    render(<ElementsPanel />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Edit element: Red Lantern" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit element: Blue Comet" }));
+
+    await act(async () => {
+      blueSelection.resolve(
+        elementsManagerPersistenceMockState.snapshots.get("element-blue-comet")!
+      );
+      await blueSelection.promise;
+    });
+
+    const dialog = await waitForElementEditor();
+    expect(within(dialog).getByDisplayValue("Blue Comet")).toBeInTheDocument();
+
+    await act(async () => {
+      redSelection.resolve(
+        elementsManagerPersistenceMockState.snapshots.get("element-red-lantern")!
+      );
+      await redSelection.promise;
+    });
+
+    await waitFor(() => {
+      expect(within(dialog).getByDisplayValue("Blue Comet")).toBeInTheDocument();
+    });
+  });
+
+  it("opens create mode in the right-side editor column without the old wrapper chrome", async () => {
+    render(<ElementsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Create" }));
+    const dialog = await waitForElementEditor();
+    fireEvent.change(within(dialog).getByLabelText("Name:"), {
+      target: { value: "Draft Beach" },
+    });
+
+    expect(within(dialog).getByDisplayValue("Draft Beach")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Save Element" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Discard new element?" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Close element editor" })).not.toBeInTheDocument();
+  });
+
+  it("does not render profile photo controls in the element profile editor", async () => {
     const { container } = render(<ElementsPanel />);
 
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Edit element: Red Lantern",
+      })
+    );
+    await waitForElementEditor();
 
-    const profileFileInput = container.querySelector('input[type="file"][accept="image/*"]');
-    if (!(profileFileInput instanceof HTMLInputElement)) {
-      throw new Error("Expected element profile file input to exist.");
-    }
-
-    const uploadFile = new File(["element-profile"], "element-profile.png", {
-      type: "image/png",
-    });
-
-    fireEvent.change(profileFileInput, { target: { files: [uploadFile] } });
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Element profile")).toBeInTheDocument();
-      expect(
-        screen.getByRole("group", { name: "Element profile crop controls" })
-      ).toBeInTheDocument();
-    });
-
-    const cropControls = screen.getByRole("group", { name: "Element profile crop controls" });
-    const zoomInput = cropControls.querySelector("#element-profile-adjust-zoom");
-    if (!(zoomInput instanceof HTMLInputElement)) {
-      throw new Error("Expected element profile zoom slider to exist.");
-    }
-
-    fireEvent.change(zoomInput, { target: { value: "1.4" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("group", { name: "Element profile crop controls" })
-      ).not.toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Edit element profile photo adjustments" }));
-    fireEvent.click(screen.getByRole("button", { name: "Remove photo" }));
-
-    await waitFor(() => {
-      expect(screen.queryByAltText("Element profile")).not.toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Upload element profile photo" })
-      ).toBeInTheDocument();
-    });
+    expect(container.querySelector('input[type="file"][accept="image/*"]')).toBeNull();
+    expect(screen.queryByAltText("Element profile")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "Element profile crop controls" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /element profile photo/i })
+    ).not.toBeInTheDocument();
   });
 
   it("returns to Manage Elements after confirming delete", async () => {
     render(<ElementsPanel />);
 
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
+    fireEvent.click(await screen.findByRole("button", { name: "Edit element: Red Lantern" }));
+
+    const deleteButton = await screen.findByRole("button", {
+      name: "Delete element: Red Lantern",
     });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-    fireEvent.click(screen.getByRole("tab", { name: "Manage Elements" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete element: Red Lantern" }));
+
+    fireEvent.click(deleteButton);
 
     expect(screen.getByText("Delete this element?")).toBeInTheDocument();
 
@@ -471,19 +480,20 @@ describe("ElementsPanel layout", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Elements Library" })).toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: "Open element profile: Red Lantern" })
+        screen.queryByRole("button", { name: "Edit element: Red Lantern" })
       ).not.toBeInTheDocument();
     });
   });
 
-  it("shows element profile guidance without redundant summary chrome", async () => {
+  it("shows element editor guidance without redundant summary chrome", async () => {
     render(<ElementsPanel />);
 
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Edit element: Red Lantern",
+      })
+    );
+    const dialog = await waitForElementEditor();
 
     expect(screen.queryByLabelText("Element profile summary")).not.toBeInTheDocument();
     expect(screen.queryByText("Element Type")).not.toBeInTheDocument();
@@ -491,7 +501,7 @@ describe("ElementsPanel layout", () => {
     expect(screen.queryByRole("button", { name: "Video Element" })).not.toBeInTheDocument();
     expect(screen.queryByText("Prompt Guidance:")).not.toBeInTheDocument();
     expect(screen.queryByText(/@redlantern/i)).not.toBeInTheDocument();
-    expect(screen.getByText("References")).toBeInTheDocument();
+    expect(within(dialog).getByText("References")).toBeInTheDocument();
   });
 
   it("locks the properties rail scroll in Manage Elements mode", async () => {
@@ -505,7 +515,7 @@ describe("ElementsPanel layout", () => {
       throw new Error("Expected ai-properties wrapper to exist.");
     }
 
-    await screen.findByRole("button", { name: "Open element profile: Red Lantern" });
+    await screen.findByRole("button", { name: "Edit element: Red Lantern" });
 
     expect(propertiesRail.style.overflowY).toBe("hidden");
     expect(propertiesRail.style.overscrollBehaviorY).toBe("none");
@@ -514,15 +524,16 @@ describe("ElementsPanel layout", () => {
   it("accepts an internal reference-grid drop into the element sheet locally", async () => {
     render(<ElementsPanel />);
 
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Edit element: Red Lantern",
+      })
+    );
+    await waitForElementEditor();
 
-    const portraitLikeZone = screen.getByText("Support Angle").closest("article");
+    const portraitLikeZone = screen.getByText("Secondary Angle").closest("article");
     if (!portraitLikeZone) {
-      throw new Error("Expected support-angle drop zone to exist.");
+      throw new Error("Expected secondary-angle drop zone to exist.");
     }
 
     const internalDrag = createDataTransfer();
@@ -537,7 +548,7 @@ describe("ElementsPanel layout", () => {
     fireEvent.drop(portraitLikeZone, { dataTransfer: internalDrag });
 
     await waitFor(() => {
-      expect(screen.getByAltText("Support Angle reference")).toBeInTheDocument();
+      expect(screen.getByAltText("Secondary Angle reference")).toBeInTheDocument();
     });
   });
 
@@ -555,18 +566,19 @@ describe("ElementsPanel layout", () => {
 
     render(<ElementsPanel />);
 
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Edit element: Red Lantern",
+      })
+    );
+    await waitForElementEditor();
 
-    const supportAngleZone = screen.getByText("Support Angle").closest("article");
+    const supportAngleZone = screen.getByText("Secondary Angle").closest("article");
     if (!supportAngleZone) {
-      throw new Error("Expected support-angle drop zone to exist.");
+      throw new Error("Expected secondary-angle drop zone to exist.");
     }
 
-    const localFile = new File(["local-reference"], "support-angle.png", {
+    const localFile = new File(["local-reference"], "secondary-angle.png", {
       type: "image/png",
     });
     const fileDrag = createFileDataTransfer(localFile);
@@ -576,130 +588,11 @@ describe("ElementsPanel layout", () => {
     fireEvent.drop(supportAngleZone, { dataTransfer: fileDrag });
 
     await waitFor(() => {
-      expect(screen.getByAltText("Support Angle reference")).toHaveAttribute(
+      expect(screen.getByAltText("Secondary Angle reference")).toHaveAttribute(
         "src",
         "https://example.com/uploaded/internal-drop.png"
       );
     });
     expect(uploadImageToStorage).toHaveBeenCalledWith("blob:element-reference-local-file");
-  });
-
-  it("saves a new profile image when a reference-grid image is dropped on the profile photo", async () => {
-    const fetchMock = stubProfileImageFetch();
-    render(<ElementsPanel />);
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    const profileButton = screen.getByRole("button", { name: "Upload element profile photo" });
-    const dragTransfer = createDataTransfer();
-    addInternalReferenceDragPayload(dragTransfer, {
-      outputId: "output-elements-profile-1",
-      mediaId: "media-elements-profile-1",
-      sourceSurface: "all-refs",
-      referenceUrl: "https://example.com/reference/mantis-profile.png",
-    });
-
-    const originalReferenceGetData = dragTransfer.getData;
-    dragTransfer.getData = () => "";
-    fireEvent.dragEnter(profileButton, { dataTransfer: dragTransfer });
-    fireEvent.dragOver(profileButton, { dataTransfer: dragTransfer });
-    dragTransfer.getData = originalReferenceGetData;
-    fireEvent.drop(profileButton, { dataTransfer: dragTransfer });
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Element profile")).toHaveAttribute(
-        "src",
-        "blob:mantis-profile.png"
-      );
-    });
-    expect(fetchMock).toHaveBeenCalledWith("https://example.com/reference/mantis-profile.png");
-  });
-
-  it("saves a new profile image when a local image file is dropped on the profile photo", async () => {
-    render(<ElementsPanel />);
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    const profileButton = screen.getByRole("button", { name: "Upload element profile photo" });
-    const localFile = new File(["profile-image"], "local-profile.png", { type: "image/png" });
-    const fileDrag = createFileDataTransfer(localFile);
-
-    fireEvent.dragEnter(profileButton, { dataTransfer: fileDrag });
-    fireEvent.dragOver(profileButton, { dataTransfer: fileDrag });
-    fireEvent.drop(profileButton, { dataTransfer: fileDrag });
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Element profile")).toHaveAttribute(
-        "src",
-        "blob:local-profile.png"
-      );
-    });
-  });
-
-  it("saves a new profile image when an internal reference drop needs resolver fallback", async () => {
-    const resolveProfileImageDropSource = vi.fn(
-      async (): Promise<ResolvedInternalReferenceSource | null> => ({
-        kind: "internal",
-        sourceKind: "generated_output",
-        sourceId: "media-elements-profile-2",
-        outputId: "output-elements-profile-2",
-        mediaId: "media-elements-profile-2",
-        mediaSource: "generated",
-        preview: { url: null },
-        previewStoragePath: "user-1/generations/images/mantis-preview.png",
-        fullStoragePath: "user-1/generations/images/mantis-full.png",
-        promptText: "Taylor",
-        provenance: {
-          origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
-          outputId: "output-elements-profile-2",
-          mediaId: "media-elements-profile-2",
-          imageIndex: 0,
-          sourceSurface: "all-refs",
-          resolutionReason: "saved_media_lookup",
-        },
-        preparedImageUrl: null,
-        loadBlob: async () => new Blob(["profile-image"], { type: "image/png" }),
-      })
-    ) as ResolveInternalReferenceDrop;
-    render(<ElementsPanel resolveProfileImageDropSource={resolveProfileImageDropSource} />);
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    const profileButton = screen.getByRole("button", { name: "Upload element profile photo" });
-    const dragTransfer = createDataTransfer();
-    addInternalReferenceDragPayload(dragTransfer, {
-      outputId: "output-elements-profile-2",
-      mediaId: "media-elements-profile-2",
-      sourceSurface: "all-refs",
-    });
-
-    const originalReferenceGetData = dragTransfer.getData;
-    dragTransfer.getData = () => "";
-    fireEvent.dragEnter(profileButton, { dataTransfer: dragTransfer });
-    fireEvent.dragOver(profileButton, { dataTransfer: dragTransfer });
-    dragTransfer.getData = originalReferenceGetData;
-    fireEvent.drop(profileButton, { dataTransfer: dragTransfer });
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Element profile")).toHaveAttribute("src", "blob:mantis-full.png");
-    });
-    expect(resolveProfileImageDropSource).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outputId: "output-elements-profile-2",
-        mediaId: "media-elements-profile-2",
-      })
-    );
   });
 });

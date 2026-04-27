@@ -3,10 +3,10 @@ import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTran
 import { AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED } from "../../media-library/logic/mediaLibraryFeatureFlags";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
+  isAudioFile,
   isVideoFile,
   resolveMediaMetadataPromptText,
   type MediaFileRow,
-  type PromptRow,
 } from "../logic/mediaLibraryModalModel";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 
@@ -16,7 +16,7 @@ type UseMediaLibraryPanelSelectionControllerParams = {
   onSelectMedia: (payload: {
     id: string;
     url: string;
-    fileType: "image" | "video";
+    fileType: "image" | "video" | "audio";
     filename?: string | null;
     promptText?: string | null;
     source?: string | null;
@@ -25,7 +25,6 @@ type UseMediaLibraryPanelSelectionControllerParams = {
     previewUrl?: string | null;
     fullUrl?: string | null;
   }) => void;
-  onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
   refreshSignedUrl: (row: MediaFileRow) => Promise<string | null>;
   signStoragePath: (
     storagePath: string,
@@ -38,7 +37,6 @@ type UseMediaLibraryPanelSelectionControllerResult = {
   previewModalUrl: string | null;
   previewModalLoading: boolean;
   previewModalError: string | null;
-  handleSelectPromptCard: (prompt: PromptRow) => void;
   handleSelectMediaFile: (file: MediaFileRow) => void;
   handleMediaCardDoubleClick: (file: MediaFileRow) => void;
   handleMediaCardContextMenu: (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => void;
@@ -49,7 +47,6 @@ export const useMediaLibraryPanelSelectionController = ({
   activeFolderId,
   currentUserIdRef,
   onSelectMedia,
-  onSelectPrompt,
   refreshSignedUrl,
   signStoragePath,
 }: UseMediaLibraryPanelSelectionControllerParams): UseMediaLibraryPanelSelectionControllerResult => {
@@ -58,17 +55,6 @@ export const useMediaLibraryPanelSelectionController = ({
   const [previewModalLoading, setPreviewModalLoading] = React.useState(false);
   const [previewModalError, setPreviewModalError] = React.useState<string | null>(null);
   const previewResolveTokenRef = React.useRef(0);
-
-  const handleSelectPromptCard = React.useCallback(
-    (prompt: PromptRow) => {
-      onSelectPrompt({
-        id: prompt.id,
-        promptText: prompt.prompt_text,
-        title: prompt.title,
-      });
-    },
-    [onSelectPrompt]
-  );
 
   const addMediaReferenceFromFile = React.useCallback(
     async (file: MediaFileRow) => {
@@ -88,7 +74,11 @@ export const useMediaLibraryPanelSelectionController = ({
       onSelectMedia({
         id: file.id,
         url: nextUrl,
-        fileType: isVideoFile(file.file_type) ? "video" : "image",
+        fileType: isAudioFile(file.file_type)
+          ? "audio"
+          : isVideoFile(file.file_type)
+            ? "video"
+            : "image",
         filename: file.filename,
         promptText: resolveMediaMetadataPromptText(file.metadata),
         source: file.source ?? "upload",
@@ -177,7 +167,6 @@ export const useMediaLibraryPanelSelectionController = ({
     previewModalUrl,
     previewModalLoading,
     previewModalError,
-    handleSelectPromptCard,
     handleSelectMediaFile,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,

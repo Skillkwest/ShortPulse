@@ -1386,6 +1386,8 @@ body.ai-shell-resizing * {
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound-effects"]
   .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="music"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="elements"]
+  .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="text"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
@@ -1402,6 +1404,8 @@ body.ai-shell-resizing * {
   height: 100%;
 }
 
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="elements"]
+  .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="kling"]
   .panel.ai-panel.ai-properties {
@@ -1421,6 +1425,8 @@ body.ai-shell-resizing * {
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound-effects"]
   .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="music"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="elements"]
+  .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="kling"]

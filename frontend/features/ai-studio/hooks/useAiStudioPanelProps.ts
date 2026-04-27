@@ -117,6 +117,7 @@ export type UseAiStudioPanelPropsParams = {
   setSelectedCharacterId: (characterId: string, lookId: string) => void;
   selectedCharacterLookId?: string;
   selectedCharacterLookLabel?: string | null;
+  onOpenCharacterLibrary?: () => void;
   isCharacterOptionsLoading: boolean;
   isCharacterModeEnabled: boolean;
   setIsCharacterModeEnabled: Dispatch<SetStateAction<boolean>>;
@@ -304,6 +305,7 @@ export const useAiStudioPanelProps = ({
   setSelectedCharacterId,
   selectedCharacterLookId = "",
   selectedCharacterLookLabel = null,
+  onOpenCharacterLibrary,
   isCharacterOptionsLoading,
   isCharacterModeEnabled,
   setIsCharacterModeEnabled,
@@ -495,6 +497,7 @@ export const useAiStudioPanelProps = ({
       selectedCharacterLookId,
       selectedCharacterLookLabel,
       onSelectedCharacterIdChange: setSelectedCharacterId,
+      onOpenCharacterLibrary,
       isCharacterOptionsLoading,
       characterModeEnabled: isCharacterModeEnabled,
       onCharacterModeEnabledChange: setIsCharacterModeEnabled,
@@ -580,6 +583,7 @@ export const useAiStudioPanelProps = ({
       selectedCharacterId,
       selectedCharacterLookId,
       selectedCharacterLookLabel,
+      onOpenCharacterLibrary,
       setAspect,
       setChatModeEnabled,
       onSelectedCreatePulsePresetIdsChange,

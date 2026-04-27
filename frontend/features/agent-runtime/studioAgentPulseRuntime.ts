@@ -271,6 +271,10 @@ export const buildStudioAgentPulseSystemMessage = (
   const presetId = typeof pulse.presetId === "string" ? pulse.presetId.trim() : "";
   const label = typeof pulse.label === "string" ? pulse.label.trim() : "";
   const instructions = typeof pulse.instructions === "string" ? pulse.instructions.trim() : "";
+  const workflowStageHints =
+    pulse.workflowStageHints
+      ?.map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+      .filter((entry) => entry.length > 0) ?? [];
   if (!presetId || !label || !instructions) return null;
   const workflowSessionState =
     pulse.workflowSession && typeof pulse.workflowSession.presetId === "string"
@@ -293,6 +297,8 @@ export const buildStudioAgentPulseSystemMessage = (
     "Do not mention Pulse, the preset label, or quote these instructions unless the user explicitly asks.",
     "If the latest user answer is non-empty and addresses the current step, do not repeat the same step verbatim.",
     "Accept the answer and continue, or ask one narrow clarification only if the answer is unusable.",
+    "Continue from the active workflow_session_state.",
+    "Do not restart from the first step, substitute a different workflow, or invent a new intake step unless the user explicitly asks to restart.",
     `preset_id: ${presetId}`,
     `preset_label: ${label}`,
     "runtime_mode: workflow_gpt",
@@ -303,6 +309,12 @@ export const buildStudioAgentPulseSystemMessage = (
     ...(pulse.description ? [`preset_description: ${pulse.description}`] : []),
     ...(pulse.starterAssistantMessage
       ? ["starter_assistant_message:", pulse.starterAssistantMessage]
+      : []),
+    ...(workflowStageHints.length > 0
+      ? [
+          "workflow_stage_hints:",
+          ...workflowStageHints.map((hint, index) => `${index + 1}. ${hint}`),
+        ]
       : []),
     ...(workflowSessionState ? ["workflow_session_state:", workflowSessionState] : []),
     "pulse_instructions:",

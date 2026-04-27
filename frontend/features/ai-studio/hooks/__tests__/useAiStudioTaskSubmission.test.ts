@@ -2368,6 +2368,14 @@ describe("useAiStudioTaskSubmission", () => {
         modeOverride: "image",
         selectedToolOverride: "create",
         modelIdOverride: "fal-ai/nano-banana-pro/edit",
+        characterContextOverride: {
+          applied: true,
+          characterId: "char-1",
+          characterName: "Hero",
+          lookId: "2",
+          lookName: "2",
+          characterProfileImageUrl: "https://cdn.test/profile.png",
+        },
       });
     });
 
@@ -2375,6 +2383,15 @@ describe("useAiStudioTaskSubmission", () => {
     expect(handleImageModelSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
         finalModel: "fal-ai/nano-banana-pro/edit",
+        preparedImageInputs: ["https://cdn.test/char-ref.png"],
+        characterContext: {
+          applied: true,
+          characterId: "char-1",
+          characterName: "Hero",
+          lookId: "2",
+          lookName: "2",
+          characterProfileImageUrl: "https://cdn.test/profile.png",
+        },
       })
     );
     expect(handleDefaultModelSubmission).not.toHaveBeenCalledWith(

@@ -2,42 +2,13 @@
  * Elements Manager embedded overrides.
  * Keeps the Elements panel compact at smaller widths.
  */
-.elements-manager-shell--panel .elements-profile-photo-btn.is-drop-active {
-  border-color: rgba(239, 78, 135, 0.92);
-  box-shadow:
-    0 0 0 2px rgba(239, 78, 135, 0.18),
-    0 0 18px rgba(239, 78, 135, 0.28);
-  transform: translateY(-1px);
-}
-
 @media (max-width: 1180px) {
-  .elements-manager-shell--panel .elements-profile-top-row {
-    grid-template-columns: 150px minmax(0, 1fr);
-  }
-
-  .elements-manager-shell--panel .elements-profile-photo-btn {
-    width: 140px;
-    height: 140px;
-  }
-
   .elements-manager-shell--panel .elements-references-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 860px) {
-  .elements-manager-shell--panel .elements-workflow-header-main {
-    grid-template-columns: 1fr;
-  }
-
-  .elements-manager-shell--panel .elements-workflow-header-actions {
-    width: 100%;
-  }
-
-  .elements-manager-shell--panel .elements-profile-top-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   .elements-manager-shell--panel .elements-references-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

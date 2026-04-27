@@ -173,6 +173,7 @@ export const useExpertEditInlineGenerate = ({
           extraImageUrls,
           flattenedPrimaryUrl: primaryReferenceUrl,
           flattenedMarkupReferenceUrl: objectUrls.flattenedMarkupReferenceUrl,
+          editSubmitIntent,
           allowSecondaryReferenceTokens,
           maxSecondaryReferenceTokens,
         });

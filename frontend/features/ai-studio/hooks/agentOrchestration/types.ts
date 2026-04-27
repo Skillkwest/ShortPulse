@@ -23,6 +23,7 @@ export type AgentSendOptions = {
 
 export type UseAiStudioAgentOrchestrationParams = {
   agentIsSending: boolean;
+  agentBootstrapReady: boolean;
   agentUiBusyRef: MutableRefObject<boolean>;
   setAgentUiBusy: Dispatch<SetStateAction<boolean>>;
   agentSessionEnabled: boolean;
@@ -43,9 +44,9 @@ export type UseAiStudioAgentOrchestrationParams = {
   sendToAgent: (params: {
     text: string;
     payloadText?: string;
-    sessionNamespaceOverride?: string;
     previousPrompt?: string | null;
     context?: AgentContext;
+    sessionNamespaceOverride?: string;
     isolateHistory?: boolean;
     skipUserEcho?: boolean;
     optimisticUserMessageId?: string | null;
@@ -75,7 +76,7 @@ export type UseAiStudioAgentOrchestrationParams = {
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
-  resolvePulseSessionNamespace?: (presetId: string) => string;
   lastAssistantMessage: string | null;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
+  resolvePulseSessionNamespace?: (presetId: string) => string;
 };

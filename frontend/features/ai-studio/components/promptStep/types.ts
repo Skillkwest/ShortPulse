@@ -26,6 +26,7 @@ export type PromptStepProps = {
   onPromptChange: (value: string) => void;
   // Agent props
   agentEnabled?: boolean;
+  agentBootstrapPending?: boolean;
   agentMessages?: AgentMessage[];
   agentActions?: AgentActions;
   agentInput?: string;
@@ -86,11 +87,11 @@ export type PromptStepProps = {
   chatPromptSaveButtonClassName?: string;
   chatPromptSaveButtonUnstyled?: boolean;
   embedSendButtonInInput?: boolean;
-  forceRenderAgentChatPanel?: boolean;
   hideAgentIntroMessage?: boolean;
   agentAttachmentDropTarget?: "history" | "input";
   hideInputDropHint?: boolean;
   hideEmptyAgentChatState?: boolean;
+  forceRenderAgentChatPanel?: boolean;
   emptyAgentChatSpacerClassName?: string;
   highlightLatestAssistantOnly?: boolean;
   assistantMessagePresentation?: "default" | "pulse_guided";

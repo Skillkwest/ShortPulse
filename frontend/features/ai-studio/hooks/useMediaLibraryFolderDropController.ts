@@ -39,6 +39,7 @@ type UseMediaLibraryFolderDropControllerArgs = {
   setMembershipMessage: (value: string | null) => void;
   setMembershipPendingMessage: (value: string | null) => void;
   refreshActiveRows: () => Promise<void>;
+  refreshFolders: () => Promise<void>;
   resolveInternalDropItem?: ResolveInternalDropItem;
   onDropFilesToFolder?: (folderId: string, files: FileList) => Promise<void>;
 };
@@ -163,11 +164,16 @@ export const useMediaLibraryFolderDropController = ({
   setMembershipMessage,
   setMembershipPendingMessage,
   refreshActiveRows,
+  refreshFolders,
   resolveInternalDropItem,
   onDropFilesToFolder,
 }: UseMediaLibraryFolderDropControllerArgs): UseMediaLibraryFolderDropControllerResult => {
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
   const [hoveredContentFolderId, setHoveredContentFolderId] = useState<string | null>(null);
+
+  const refreshFolderState = useCallback(async () => {
+    await refreshFolders().catch(() => undefined);
+  }, [refreshFolders]);
 
   const resolveDropItem = useCallback(
     async (transfer: DataTransfer): Promise<ResolvedFolderDropItem> => {
@@ -303,7 +309,7 @@ export const useMediaLibraryFolderDropController = ({
 
         if (intent.kind === "save") {
           try {
-            await refreshActiveRows();
+            await Promise.all([refreshActiveRows(), refreshFolderState()]);
             const message = resolveFolderDropFeedbackMessage({
               intent,
               result: null,
@@ -374,8 +380,10 @@ export const useMediaLibraryFolderDropController = ({
             !options?.forceRefreshActiveRows &&
             intent.kind === "assign" &&
             sourceFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
-          if (!skipActiveRowsRefresh) {
-            await refreshActiveRows();
+          if (skipActiveRowsRefresh) {
+            await refreshFolderState();
+          } else {
+            await Promise.all([refreshActiveRows(), refreshFolderState()]);
           }
         } catch (error) {
           setMembershipPendingMessage(null);
@@ -410,6 +418,7 @@ export const useMediaLibraryFolderDropController = ({
       onDropFilesToFolder,
       projectId,
       refreshActiveRows,
+      refreshFolderState,
       resolveDropItem,
       setFolderError,
       setMembershipMessage,

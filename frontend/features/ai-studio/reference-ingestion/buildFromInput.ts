@@ -128,7 +128,7 @@ const buildLibraryMediaOutput = ({
   return {
     id,
     prompt: resolvedPromptText,
-    mode: payload.fileType === "video" ? "video" : "image",
+    mode: payload.fileType === "audio" ? "audio" : payload.fileType === "video" ? "video" : "image",
     aspect: context.aspect,
     model: displayModelLabel,
     status: "ready",
@@ -138,7 +138,12 @@ const buildLibraryMediaOutput = ({
     previewStoragePath,
     fullStoragePath,
     mediaSource: payload.source === "ai_studio" ? "generated" : "library",
-    previewTier: payload.fileType === "video" ? "preview_loop" : "thumb",
+    previewTier:
+      payload.fileType === "video"
+        ? "preview_loop"
+        : payload.fileType === "audio"
+          ? "full"
+          : "thumb",
     archivedAt: null,
     archiveReason: null,
     saveState: "idle",

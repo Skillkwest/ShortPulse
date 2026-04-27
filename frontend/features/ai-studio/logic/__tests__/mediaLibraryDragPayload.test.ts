@@ -99,6 +99,38 @@ describe("mediaLibraryDragPayload", () => {
     });
   });
 
+  it("infers audio file type from fallback URL markers", () => {
+    const transfer = {
+      getData: vi.fn((type: string) => {
+        if (type === "application/x-shortpulse-media-library-item") return "";
+        if (type === "text/x-shortpulse-media-library-item") return "";
+        if (type === "text/shortpulse-media-library-marker") return "shortpulse-media-library-v1";
+        if (type === "text/shortpulse-media-library-kind") return "libraryMedia";
+        if (type === "text/shortpulse-media-library-id") return "media-audio-fallback";
+        if (type === "text/reference-url") return "https://example.com/fallback-audio.mp3";
+        return "";
+      }),
+    } as unknown as DataTransfer;
+
+    expect(readMediaLibraryDragPayload(transfer)).toEqual({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-audio-fallback",
+        url: "https://example.com/fallback-audio.mp3",
+        fileType: "audio",
+        originFolderId: null,
+        filename: null,
+        promptText: null,
+        source: null,
+        previewStoragePath: null,
+        fullStoragePath: null,
+        previewUrl: null,
+        fullUrl: null,
+      },
+    });
+  });
+
   it("exposes both drag transfer types", () => {
     expect(getMediaLibraryDragTypes()).toContain("application/x-shortpulse-media-library-item");
     expect(getMediaLibraryDragTypes()).toContain("text/x-shortpulse-media-library-item");

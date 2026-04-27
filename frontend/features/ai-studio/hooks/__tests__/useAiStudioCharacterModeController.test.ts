@@ -50,6 +50,7 @@ const createSnapshotWithLookReference = (
     legacyDescription?: string;
     storagePath?: string;
     previewUrl?: string;
+    profileImageUrl?: string | null;
   } = {}
 ) =>
   (() => {
@@ -94,7 +95,7 @@ const createSnapshotWithLookReference = (
         close_up: null,
         front_shot: null,
       },
-      profileImageUrl: null,
+      profileImageUrl: input.profileImageUrl ?? null,
       profileImageTransform: {
         zoom: 1,
         offsetX: 0,
@@ -209,6 +210,7 @@ describe("useAiStudioCharacterModeController", () => {
         description: "Look 1 description",
         storagePath: "user/chars/look-1.png",
         previewUrl: "https://example.com/look-1.png",
+        profileImageUrl: "https://example.com/bundle-avatar.png",
       }),
       activeCharacterSheetPresetId: "1",
       visibleCharacterSheetPresetIds: ["1", "2"],
@@ -250,7 +252,9 @@ describe("useAiStudioCharacterModeController", () => {
     const params = createParams({
       selectedCharacterId: "char-1",
       selectedCharacterLookId: "2",
-      characterOptions: [{ id: "char-1", name: "Hero", profileImageUrl: null }],
+      characterOptions: [
+        { id: "char-1", name: "Hero", profileImageUrl: "https://example.com/list-avatar.png" },
+      ],
     });
     const { result } = renderHook(() => useAiStudioCharacterModeController(params));
 
@@ -276,6 +280,7 @@ describe("useAiStudioCharacterModeController", () => {
         characterName: "Hero",
         lookId: "2",
         lookName: "Hero Close-Up",
+        characterProfileImageUrl: "https://example.com/bundle-avatar.png",
       })
     );
     expect(overrides?.submissionPromptOverride).toContain("Look 2 description");

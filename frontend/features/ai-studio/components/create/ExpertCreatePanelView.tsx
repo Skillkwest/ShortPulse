@@ -119,12 +119,11 @@ export function ExpertCreatePanelView({
   const [isPulseRailActive, setIsPulseRailActive] = React.useState(false);
   const createMode = expertCreateMode ?? uncontrolledCreateMode;
   const isActivePulseSession = createMode === "pulse" && Boolean(activePulsePresetId);
-  const hasPulseWorkflowSession = pulseWorkflowSession !== null;
-  const hasAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
-  const hasPulseConversationState =
-    hasPulseWorkflowSession ||
-    (createMode === "pulse" && (Boolean(activePulsePresetId) || isPulseActivationBusy));
-  const hasConversationStarted = hasAgentMessages || hasPulseConversationState;
+  const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
+  // Preserve the authored empty-shell layout until real transcript history exists.
+  // Draft input, dropped references, pending Pulse state, and activation-in-progress must not
+  // collapse the spacer frames or the "What do you want to make?" title.
+  const shouldShowPersistentEmptyShell = !hasVisibleAgentMessages;
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
@@ -201,8 +200,10 @@ export function ExpertCreatePanelView({
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
-    forceRenderAgentChatPanel: hasPulseConversationState,
-    emptyAgentChatSpacerClassName: hasConversationStarted ? "" : "create-expert-chat-spacer",
+    forceRenderAgentChatPanel: !shouldShowPersistentEmptyShell,
+    emptyAgentChatSpacerClassName: shouldShowPersistentEmptyShell
+      ? "create-expert-chat-spacer"
+      : "",
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
     onClearAgentChat: undefined,
     composerLeadingContent: promptStepProps.composerLeadingContent,
@@ -210,7 +211,7 @@ export function ExpertCreatePanelView({
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
   const promptAndControls = (
     <>
-      {!hasConversationStarted ? (
+      {shouldShowPersistentEmptyShell ? (
         <>
           <div className="create-expert-empty-preview-frame" aria-hidden="true" />
           <div className="create-expert-ready-row" aria-hidden={shouldHideReadyTitle}>
@@ -225,110 +226,114 @@ export function ExpertCreatePanelView({
       ) : null}
       <div className="create-expert-bottom-block">
         <PromptStep {...promptStepLayoutProps} />
-        <div className="create-expert-secondary-row create-expert-controls-row">
-          <div className="create-expert-controls">
-            <div
-              className={`create-expert-control create-expert-character-mode-control ${
-                characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
-              }`}
-            >
-              <div className="create-expert-character-mode-meta">
-                <span className="create-expert-character-mode-title">Character</span>
-                <button
-                  type="button"
-                  className={`audio-toggle ai-character-mode-toggle create-expert-toggle-control ${
-                    characterModeEnabled ? "is-active" : ""
-                  }`}
-                  aria-pressed={characterModeEnabled}
-                  aria-label={
-                    characterModeEnabled ? "Disable character mode" : "Enable character mode"
-                  }
-                  onClick={onCharacterModeEnabledToggle}
-                >
-                  <span className="audio-toggle-track" aria-hidden="true">
-                    <span className="audio-toggle-dot" />
-                  </span>
-                </button>
-              </div>
-            </div>
-            {characterModeEnabled ? (
-              <div className="create-expert-control create-expert-character-picker-control">
-                <button
-                  type="button"
-                  className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
-                    isCharacterSelectionEmpty ? "is-empty" : ""
-                  } ${isCharacterPickerOpen ? "is-open" : ""}`}
-                  aria-haspopup="dialog"
-                  aria-expanded={isCharacterPickerOpen}
-                  aria-label="Open character picker"
-                  disabled={characterSelectDisabled}
-                  onClick={onCharacterPickerOpen}
-                >
-                  {selectedCharacterProfileImageUrl ? (
-                    <Image
-                      src={selectedCharacterProfileImageUrl}
-                      alt={`${selectedCharacterName} profile`}
-                      className="ai-character-picker-trigger-avatar"
-                      width={20}
-                      height={20}
-                      unoptimized
-                      onError={onSelectedCharacterAvatarError}
-                      onLoad={onSelectedCharacterAvatarLoad}
-                    />
-                  ) : selectedCharacterInitials ? (
-                    <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
-                      {selectedCharacterInitials}
-                    </span>
-                  ) : null}
-                  <span className="model-picker-name">{resolvedSelectedCharacterDisplayName}</span>
-                </button>
-              </div>
-            ) : null}
-            <div className="create-expert-control create-expert-model-control">
-              <span className="create-expert-control-label">Model</span>
-              <button
-                type="button"
-                className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
-                  isModelSelectionEmpty ? "is-empty" : ""
-                } ${isCreateModelPickerOpen ? "is-open" : ""}`}
-                data-model-anchor="create-model"
-                aria-label="Open model picker"
-                onClick={onCreateModelOpen}
+        {createMode !== "pulse" ? (
+          <div className="create-expert-secondary-row create-expert-controls-row">
+            <div className="create-expert-controls">
+              <div
+                className={`create-expert-control create-expert-character-mode-control ${
+                  characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
+                }`}
               >
-                {effectiveModelLogoSrc ? (
-                  <Image
-                    className="model-chip-logo-img"
-                    src={effectiveModelLogoSrc}
-                    alt=""
-                    aria-hidden
-                    width={modelLogoWidth}
-                    height={modelLogoHeight}
-                    unoptimized={useUnoptimizedModelLogo}
-                  />
-                ) : null}
-                <span className="model-picker-name">{effectiveModelLabel}</span>
-              </button>
-            </div>
-            <div className="create-expert-control create-expert-aspect-control">
-              <span className="create-expert-control-label">Aspect</span>
-              <AspectDropdown
-                aspect={aspect}
-                onSelect={onAspectChange}
-                options={aspectOptionsForModel}
-              />
-            </div>
-            {shouldShowImageResolutionCard ? (
-              <div className="create-expert-control create-expert-resolution-control">
-                <span className="create-expert-control-label">Resolution</span>
-                <ResolutionDropdown
-                  value={imageResolutionValue}
-                  options={imageResolutionOptions}
-                  onSelect={onImageResolutionChange}
+                <div className="create-expert-character-mode-meta">
+                  <span className="create-expert-character-mode-title">Character</span>
+                  <button
+                    type="button"
+                    className={`audio-toggle ai-character-mode-toggle create-expert-toggle-control ${
+                      characterModeEnabled ? "is-active" : ""
+                    }`}
+                    aria-pressed={characterModeEnabled}
+                    aria-label={
+                      characterModeEnabled ? "Disable character mode" : "Enable character mode"
+                    }
+                    onClick={onCharacterModeEnabledToggle}
+                  >
+                    <span className="audio-toggle-track" aria-hidden="true">
+                      <span className="audio-toggle-dot" />
+                    </span>
+                  </button>
+                </div>
+              </div>
+              {characterModeEnabled ? (
+                <div className="create-expert-control create-expert-character-picker-control">
+                  <button
+                    type="button"
+                    className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
+                      isCharacterSelectionEmpty ? "is-empty" : ""
+                    } ${isCharacterPickerOpen ? "is-open" : ""}`}
+                    aria-haspopup="dialog"
+                    aria-expanded={isCharacterPickerOpen}
+                    aria-label="Open character picker"
+                    disabled={characterSelectDisabled}
+                    onClick={onCharacterPickerOpen}
+                  >
+                    {selectedCharacterProfileImageUrl ? (
+                      <Image
+                        src={selectedCharacterProfileImageUrl}
+                        alt={`${selectedCharacterName} profile`}
+                        className="ai-character-picker-trigger-avatar"
+                        width={20}
+                        height={20}
+                        unoptimized
+                        onError={onSelectedCharacterAvatarError}
+                        onLoad={onSelectedCharacterAvatarLoad}
+                      />
+                    ) : selectedCharacterInitials ? (
+                      <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
+                        {selectedCharacterInitials}
+                      </span>
+                    ) : null}
+                    <span className="model-picker-name">
+                      {resolvedSelectedCharacterDisplayName}
+                    </span>
+                  </button>
+                </div>
+              ) : null}
+              <div className="create-expert-control create-expert-model-control">
+                <span className="create-expert-control-label">Model</span>
+                <button
+                  type="button"
+                  className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
+                    isModelSelectionEmpty ? "is-empty" : ""
+                  } ${isCreateModelPickerOpen ? "is-open" : ""}`}
+                  data-model-anchor="create-model"
+                  aria-label="Open model picker"
+                  onClick={onCreateModelOpen}
+                >
+                  {effectiveModelLogoSrc ? (
+                    <Image
+                      className="model-chip-logo-img"
+                      src={effectiveModelLogoSrc}
+                      alt=""
+                      aria-hidden
+                      width={modelLogoWidth}
+                      height={modelLogoHeight}
+                      unoptimized={useUnoptimizedModelLogo}
+                    />
+                  ) : null}
+                  <span className="model-picker-name">{effectiveModelLabel}</span>
+                </button>
+              </div>
+              <div className="create-expert-control create-expert-aspect-control">
+                <span className="create-expert-control-label">Aspect</span>
+                <AspectDropdown
+                  aspect={aspect}
+                  onSelect={onAspectChange}
+                  options={aspectOptionsForModel}
                 />
               </div>
-            ) : null}
+              {shouldShowImageResolutionCard ? (
+                <div className="create-expert-control create-expert-resolution-control">
+                  <span className="create-expert-control-label">Resolution</span>
+                  <ResolutionDropdown
+                    value={imageResolutionValue}
+                    options={imageResolutionOptions}
+                    onSelect={onImageResolutionChange}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
-        </div>
+        ) : null}
         <div className="create-expert-secondary-row create-expert-generate-row">
           <div className="create-expert-inline-generate">
             <AgentGenerateButton
@@ -348,7 +353,7 @@ export function ExpertCreatePanelView({
 
   return (
     <div
-      className={`tool-properties text-properties-panel create-expert-panel ${!hasConversationStarted ? "create-expert-panel--no-history" : ""}`.trim()}
+      className={`tool-properties text-properties-panel create-expert-panel ${shouldShowPersistentEmptyShell ? "create-expert-panel--no-history" : ""}`.trim()}
       role="group"
       aria-label="Expert create composer"
     >
@@ -402,7 +407,7 @@ export function ExpertCreatePanelView({
                 </button>
               ) : null}
             </div>
-            {!hasConversationStarted ? (
+            {shouldShowPersistentEmptyShell ? (
               <div className="create-expert-empty-state-shell">{promptAndControls}</div>
             ) : (
               <div className="create-expert-flow-shell">{promptAndControls}</div>

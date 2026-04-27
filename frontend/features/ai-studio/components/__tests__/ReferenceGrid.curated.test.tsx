@@ -75,6 +75,18 @@ const makeLibraryMediaTransfer = (overrides: Record<string, string> = {}): DataT
     ...overrides,
   });
 
+const makeLibraryAudioTransfer = (overrides: Record<string, string> = {}): DataTransfer =>
+  makeTransfer({
+    "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+    "text/shortpulse-media-library-kind": "libraryMedia",
+    "text/shortpulse-media-library-id": "media-audio-1",
+    "text/shortpulse-media-library-file-type": "audio",
+    "text/reference-url": "https://cdn.example.com/library-audio-1.mp3",
+    "text/shortpulse-media-library-filename": "library-audio-1.mp3",
+    "text/prompt": "Library audio prompt",
+    ...overrides,
+  });
+
 const makeLibraryPromptTransfer = (overrides: Record<string, string> = {}): DataTransfer =>
   makeTransfer({
     "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
@@ -1201,6 +1213,38 @@ describe("ReferenceGrid curated split", () => {
         fileType: "image",
         filename: "library-drop-1.png",
         promptText: "Library media prompt",
+      }),
+      {
+        targetId: null,
+        placement: "end",
+      }
+    );
+  });
+
+  it("preserves audio file type for media-library quick-slot drops", () => {
+    const onAddLibraryMediaReferenceToQuickSlot = vi.fn(async () => "library-audio-out-1");
+    const onSelectOutput = vi.fn();
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          onSelectOutput,
+          onAddLibraryMediaReferenceToQuickSlot,
+        })}
+      />
+    );
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+
+    fireEvent.drop(curatedSection, {
+      dataTransfer: makeLibraryAudioTransfer(),
+    });
+
+    expect(onAddLibraryMediaReferenceToQuickSlot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "media-audio-1",
+        url: "https://cdn.example.com/library-audio-1.mp3",
+        fileType: "audio",
+        filename: "library-audio-1.mp3",
       }),
       {
         targetId: null,

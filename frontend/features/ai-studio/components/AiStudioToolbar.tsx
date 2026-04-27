@@ -152,7 +152,7 @@ function AiStudioToolbarComponent({
           priority
         />
       </div>
-      <DashboardNavPrefab className="toolbar-back-link" />
+      <DashboardNavPrefab className="toolbar-back-link" navigationMode="assign" />
       <button
         type="button"
         className="ghost-btn small dashboard-nav-prefab dashboard-nav-prefab--rail toolbar-back-link toolbar-back-link-secondary"

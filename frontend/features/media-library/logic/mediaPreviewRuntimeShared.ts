@@ -1,6 +1,6 @@
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
+import { resolveMediaPreviewCandidates } from "../../../lib/mediaPreviewPath";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { BUCKET, type MediaDataTab } from "./mediaLibraryPageHelpers";
 import { collectUniqueMediaIds, resolveSignedPreviewUrlsByMediaIds } from "./mediaPreviewResolver";
@@ -77,7 +77,7 @@ export const hydrateMediaPreviewViaStorageDownload = async <TRow extends Signing
   downloadFromStoragePath,
   applyObjectUrlForRow,
 }: HydrateMediaPreviewViaStorageDownloadArgs<TRow>): Promise<string | null> => {
-  const storageCandidates = resolveMediaSigningStoragePaths(row, currentUserId);
+  const storageCandidates = resolveMediaPreviewCandidates(row, currentUserId).storagePaths;
   for (const storagePath of storageCandidates) {
     const blob = await downloadFromStoragePath(storagePath).catch(() => null);
     if (!blob || !blob.size) continue;

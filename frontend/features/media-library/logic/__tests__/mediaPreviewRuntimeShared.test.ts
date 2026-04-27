@@ -16,7 +16,10 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
   classifyMediaPreviewPath: vi.fn(() => "unknown"),
-  resolveMediaSigningStoragePaths: mockResolveMediaSigningStoragePaths,
+  resolveMediaPreviewCandidates: vi.fn((row: { storage_path?: string | null }) => ({
+    storagePaths: mockResolveMediaSigningStoragePaths(row),
+    directUrls: [],
+  })),
 }));
 
 describe("mediaPreviewRuntimeShared", () => {

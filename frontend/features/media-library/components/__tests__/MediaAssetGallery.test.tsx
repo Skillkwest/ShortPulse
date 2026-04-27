@@ -7,6 +7,9 @@ type MediaRow = {
   id: string;
   filename: string;
   file_type: string;
+  storage_path?: string;
+  poster_variant_path?: string | null;
+  preview_variant_path?: string | null;
   signedUrl?: string;
   status?: "uploading" | "ready";
 };
@@ -69,5 +72,46 @@ describe("MediaAssetGallery", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Load more" }));
     expect(fetchMediaTabPage).toHaveBeenCalledWith("uploaded_images", { query: "cat" });
+  });
+
+  it("renders poster-backed video previews as images instead of video elements", () => {
+    const file: MediaRow = {
+      id: "video-1",
+      filename: "clip.mp4",
+      file_type: "video/mp4",
+      storage_path: "user-1/uploads/video-1.mp4",
+      poster_variant_path: "user-1/variants/videos/video-1/poster_720",
+      preview_variant_path: null,
+      signedUrl: "https://signed/video-1-poster",
+      status: "ready",
+    };
+
+    render(
+      <MediaAssetGallery
+        activeMediaQuery=""
+        activeMediaTab="uploaded_videos"
+        adaptivePressureLevel={0}
+        adaptivePreviewQualityEnabled={false}
+        aspectMap={{}}
+        downloadFile={vi.fn(async () => {})}
+        fetchMediaTabPage={vi.fn(async () => {})}
+        files={[file]}
+        getMediaCardRef={() => () => {}}
+        handleImageLoad={vi.fn()}
+        handleMediaPreviewError={vi.fn()}
+        handleVideoMeta={vi.fn()}
+        hasMoreMediaPages={false}
+        isVideoFile={(fileType) => fileType.startsWith("video/")}
+        loadMoreSentinelRef={createRef<HTMLDivElement>()}
+        loadingMoreMedia={false}
+        openModal={vi.fn()}
+        requestDeleteFile={vi.fn()}
+        selectedIds={[]}
+        toggleSelect={vi.fn()}
+      />
+    );
+
+    expect(screen.getByAltText("clip.mp4")).toBeInTheDocument();
+    expect(document.querySelector("video.media-thumb")).toBeNull();
   });
 });

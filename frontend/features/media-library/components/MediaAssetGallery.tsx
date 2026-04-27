@@ -4,6 +4,10 @@
  */
 import { CheckCircle, DownloadSimple, Trash } from "phosphor-react";
 import { useCallback, useMemo, type Ref, type SyntheticEvent } from "react";
+import {
+  resolveDurablePreviewStoragePath,
+  resolveVideoPosterStoragePath,
+} from "../../../lib/mediaPreviewPath";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
 import { useMediaGridVideoBudgetController } from "../hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../hooks/useMediaMasonryVirtualization";
@@ -17,6 +21,11 @@ type MediaAssetRow = {
   id: string;
   filename: string;
   file_type: string;
+  storage_path?: string | null;
+  metadata?: Record<string, unknown> | null;
+  thumb_variant_path?: string | null;
+  poster_variant_path?: string | null;
+  preview_variant_path?: string | null;
   signedUrl?: string;
   status?: "uploading" | "ready";
 };
@@ -139,6 +148,11 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
               cardLongEdgePx: 320,
               devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
             }) ?? undefined;
+          const durablePreviewPath = resolveDurablePreviewStoragePath(file);
+          const posterPreviewPath = resolveVideoPosterStoragePath(file);
+          const shouldRenderVideoPreview =
+            isVideoFileType(file.file_type) &&
+            (!durablePreviewPath || !posterPreviewPath || durablePreviewPath !== posterPreviewPath);
           const autoPlayEnabled = isVideoAutoplayEnabled(file.id);
           const managedVideoSrc = resolveVideoSource(file.id, cardPreviewUrl);
           const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
@@ -169,7 +183,7 @@ export function MediaAssetGallery<TRow extends MediaAssetRow>({
                   <div className="loader-spin" />
                 </div>
               ) : cardPreviewUrl ? (
-                isVideoFileType(file.file_type) ? (
+                shouldRenderVideoPreview ? (
                   <video
                     className="media-thumb"
                     ref={getVideoNodeRef(file.id)}

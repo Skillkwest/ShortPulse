@@ -11,10 +11,23 @@ export type AiStudioProjectEntryPhase =
   | "restoring-workspace"
   | "preparing-empty-workspace";
 
+export type AiStudioProjectEntryStep = {
+  id: string;
+  label: string;
+  hint: string;
+};
+
 type AiStudioProjectEntryStateProps = {
   variant: "loading" | "error";
   phase: AiStudioProjectEntryPhase;
   projectTitle?: string | null;
+  pillLabel?: string;
+  metaLabel?: string;
+  title?: string;
+  message?: string;
+  steps?: AiStudioProjectEntryStep[];
+  activeStepIndex?: number;
+  stepsAriaLabel?: string;
   errorTitle?: string;
   errorMessage?: string | null;
   primaryActionLabel?: string;
@@ -25,13 +38,7 @@ type AiStudioProjectEntryStateProps = {
 
 type EntryStepState = "complete" | "active" | "pending";
 
-type EntryStepDefinition = {
-  id: "resolve" | "workspace" | "prepare";
-  label: string;
-  hint: string;
-};
-
-const ENTRY_STEPS: EntryStepDefinition[] = [
+const ENTRY_STEPS: AiStudioProjectEntryStep[] = [
   {
     id: "resolve",
     label: "Resolve project",
@@ -143,6 +150,13 @@ export function AiStudioProjectEntryState({
   variant,
   phase,
   projectTitle = null,
+  pillLabel,
+  metaLabel,
+  title,
+  message,
+  steps,
+  activeStepIndex,
+  stepsAriaLabel,
   errorTitle,
   errorMessage,
   primaryActionLabel,
@@ -150,10 +164,12 @@ export function AiStudioProjectEntryState({
   secondaryActionLabel,
   onSecondaryAction,
 }: AiStudioProjectEntryStateProps) {
-  const title = getTitle({ variant, phase, projectTitle, errorTitle });
-  const message = getMessage({ variant, phase, projectTitle, errorMessage });
-  const metaLabel = getMetaLabel(phase);
-  const currentStepIndex = getCurrentStepIndex(phase);
+  const resolvedTitle = title ?? getTitle({ variant, phase, projectTitle, errorTitle });
+  const resolvedMessage = message ?? getMessage({ variant, phase, projectTitle, errorMessage });
+  const resolvedMetaLabel = metaLabel ?? getMetaLabel(phase);
+  const resolvedPillLabel = pillLabel ?? getStatusPillLabel(variant);
+  const resolvedSteps = steps ?? ENTRY_STEPS;
+  const currentStepIndex = activeStepIndex ?? getCurrentStepIndex(phase);
   const liveRole = variant === "error" ? "alert" : "status";
   const liveMode = variant === "error" ? "assertive" : "polite";
 
@@ -162,10 +178,8 @@ export function AiStudioProjectEntryState({
       <section className="panel ai-studio-project-entry-card">
         <div className="ai-studio-project-entry-orb" aria-hidden="true" />
         <div className="ai-studio-project-entry-header">
-          <span className={`ai-studio-project-entry-pill is-${variant}`}>
-            {getStatusPillLabel(variant)}
-          </span>
-          <span className="ai-studio-project-entry-meta">{metaLabel}</span>
+          <span className={`ai-studio-project-entry-pill is-${variant}`}>{resolvedPillLabel}</span>
+          <span className="ai-studio-project-entry-meta">{resolvedMetaLabel}</span>
         </div>
 
         <div
@@ -174,8 +188,8 @@ export function AiStudioProjectEntryState({
           aria-live={liveMode}
           aria-atomic="true"
         >
-          <h1 className="ai-studio-project-entry-title">{title}</h1>
-          <p className="ai-studio-project-entry-message">{message}</p>
+          <h1 className="ai-studio-project-entry-title">{resolvedTitle}</h1>
+          <p className="ai-studio-project-entry-message">{resolvedMessage}</p>
         </div>
 
         <div className="ai-studio-project-entry-body">
@@ -184,8 +198,11 @@ export function AiStudioProjectEntryState({
             <div className="ai-studio-project-entry-loader-bar" />
           </div>
 
-          <ol className="ai-studio-project-entry-steps" aria-label="Project restore progress">
-            {ENTRY_STEPS.map((step, index) => {
+          <ol
+            className="ai-studio-project-entry-steps"
+            aria-label={stepsAriaLabel ?? "Project restore progress"}
+          >
+            {resolvedSteps.map((step, index) => {
               const stepState = getStepState(index, currentStepIndex, variant);
               return (
                 <li

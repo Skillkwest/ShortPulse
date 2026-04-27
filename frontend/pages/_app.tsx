@@ -5,6 +5,10 @@
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
+import {
+  AiStudioProjectEntryState,
+  type AiStudioProjectEntryStep,
+} from "../features/ai-studio/components/AiStudioProjectEntryState";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { MediaComplianceGate } from "../features/compliance/components/MediaComplianceGate";
 import { useMediaComplianceGate } from "../features/compliance/hooks/useMediaComplianceGate";
@@ -14,12 +18,34 @@ import { addBreadcrumb, redactUrlForTelemetry } from "../lib/clientBreadcrumbs";
 import { installMediaPerfDebugHandle } from "../lib/mediaPerfTelemetry";
 import "../styles/globals.css";
 
+const AI_STUDIO_PREFLIGHT_STEPS: AiStudioProjectEntryStep[] = [
+  {
+    id: "session",
+    label: "Verify session",
+    hint: "Confirm your authenticated workspace access.",
+  },
+  {
+    id: "compliance",
+    label: "Check media agreement",
+    hint: "Load your one-time media compliance acceptance.",
+  },
+  {
+    id: "studio",
+    label: "Open studio",
+    hint: "Continue into the AI Studio workspace.",
+  },
+];
+
+const isAiStudioRoutePath = (pathname: string): boolean =>
+  pathname.startsWith("/ai-studio") || pathname.startsWith("/creator-studio");
+
 /**
  * Render the active page with its provided props.
  */
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isProtected = PROTECTED_ROUTES.some((route) => router.pathname.startsWith(route));
+  const isAiStudioRoute = isAiStudioRoutePath(router.pathname);
   const { loading, session, user } = useProtectedRoute(isProtected);
   const mediaCompliance = useMediaComplianceGate({
     enabled: isProtected && Boolean(session),
@@ -128,6 +154,21 @@ export default function App({ Component, pageProps }: AppProps) {
   }, []);
 
   if (isProtected && (loading || !session)) {
+    if (isAiStudioRoute) {
+      return (
+        <AiStudioProjectEntryState
+          variant="loading"
+          phase="resolving-project"
+          pillLabel="AI Studio Access Check"
+          metaLabel="Checking your session…"
+          title="Opening AI Studio"
+          message="Checking your session before AI Studio opens."
+          steps={AI_STUDIO_PREFLIGHT_STEPS}
+          activeStepIndex={0}
+          stepsAriaLabel="AI Studio access progress"
+        />
+      );
+    }
     return (
       <main className="page page-wide">
         <div className="panel">
@@ -138,6 +179,21 @@ export default function App({ Component, pageProps }: AppProps) {
   }
 
   if (isProtected && !mediaCompliance.initialized) {
+    if (isAiStudioRoute) {
+      return (
+        <AiStudioProjectEntryState
+          variant="loading"
+          phase="loading-workspace"
+          pillLabel="AI Studio Access Check"
+          metaLabel="Checking your media agreement…"
+          title="Opening AI Studio"
+          message="Checking your media agreement before the project workspace opens."
+          steps={AI_STUDIO_PREFLIGHT_STEPS}
+          activeStepIndex={1}
+          stepsAriaLabel="AI Studio access progress"
+        />
+      );
+    }
     return (
       <main className="page page-wide">
         <div className="panel">

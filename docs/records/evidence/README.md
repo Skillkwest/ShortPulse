@@ -8,6 +8,7 @@ Purpose: index retained evidence namespaces that have already moved into the rec
 - `docs/records/evidence/architecture/`: retained phase-3 structural modularization packet family for the AI Studio agent modularization program.
 - `docs/records/evidence/docs/`: retained governance evidence packet family for STG validation, branch-protection mapping, and pre-closeout signoff packets.
 - `docs/records/evidence/lane-a/`: retained evidence packet family for the closed Lane A gate recovery and governance hardening lane.
+- `docs/records/evidence/lane-b/`: retained evidence packet family for the completed Lane B foundational modularization lane.
 - `docs/records/evidence/lane-d/`: retained evidence packet family for the completed Lane D runtime safety and stability lane.
 - `docs/records/evidence/lane-e/`: retained evidence packet family for the completed Lane E docs and ADR governance lane.
 - `docs/records/evidence/lane-f/`: retained evidence packet family for the closed Lane F release and CI governance lane.

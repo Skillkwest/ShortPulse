@@ -7,7 +7,6 @@ This is the current physical evidence namespace during the records migration tra
 ## Active evidence namespaces
 - `docs/planning/evidence/reference-grid-modularization/`
 - `docs/planning/evidence/naming-canonicalization/`
-- `docs/planning/evidence/lane-b/`
 - `docs/planning/evidence/lane-c/`
 - `docs/planning/evidence/generation-reliability-hardening/`
 - `docs/planning/evidence/ai-studio-reference-grid-reliability/`
@@ -20,6 +19,7 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/records/evidence/architecture/`
 - `docs/records/evidence/docs/`
 - `docs/records/evidence/lane-a/`
+- `docs/records/evidence/lane-b/`
 - `docs/records/evidence/lane-d/`
 - `docs/records/evidence/lane-e/`
 - `docs/records/evidence/lane-f/`

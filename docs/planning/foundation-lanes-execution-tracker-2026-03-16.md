@@ -117,7 +117,7 @@ Mandatory for any from-scratch replacement scope:
 1. Master plan: `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
 2. Tracker spec: `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
 3. Execution plan: `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
-4. Evidence index: `docs/planning/evidence/lane-b/README.md`
+4. Evidence index: `docs/records/evidence/lane-b/README.md`
 
 ## Lane A Evidence
 
@@ -319,84 +319,84 @@ Tracker contract: `docs/archive/planning/lane-f-tracker-spec-2026-03-16.md`
 - Completed Lane A A2 policy-surface alignment packet and confirmed scoped Supabase policy contract parity:
   - `docs/records/evidence/lane-a/2026-03-16-a2-01-policy-surface-alignment.md`
 - Continued Lane B B2-01 seam extraction by moving Expert Edit viewport/zoom/pan utilities into a dedicated helper module:
-  - `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-2.md`
+  - `docs/records/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-2.md`
 - Continued Lane B B2-01 seam extraction by moving Expert Edit layer-transform/history/geometry primitives into a dedicated helper module:
-  - `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-3.md`
+  - `docs/records/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-3.md`
 
 ### 2026-03-17
 
 - Continued Lane B B2-01 seam extraction by moving Expert Edit cursor-reticle builders into a dedicated helper module:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-4.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-4.md`
 - Continued Lane B B2-01 seam extraction by moving Expert Edit layer/session initialization and layer-stack normalization helpers into a dedicated helper module:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-5.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-5.md`
 - Continued Lane B B2-01 seam extraction by moving Expert Edit interaction helpers (transform pointer session, keyboard editable-target guard, stage context-menu position resolver) into a dedicated helper module:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-6.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-6.md`
 - Continued Lane B B2-01 seam extraction by moving Expert Edit transform gesture mode/session/update math into a dedicated helper module:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-7.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-7.md`
 - Continued Lane B B2-01 seam extraction by moving layer reorder/delete transition logic into layer-session helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-8.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-8.md`
 - Continued Lane B B2-01 seam extraction by moving stage context-menu remove-image layer reset mapping into layer-session helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-9.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-9.md`
 - Continued Lane B B2-01 seam extraction by moving generation-mode rail mapping and inpaint-collapse decision logic into interaction helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-10.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-10.md`
 - Continued Lane B B2-01 seam extraction by moving repeated timeout clear/null-reset logic into interaction helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-11.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-11.md`
 - Continued Lane B B2-01 seam extraction by moving transient object-URL revoke timer scheduling/cleanup into interaction helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-12.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-12.md`
 - Continued Lane B B2-01 seam extraction by moving global document cursor lock/unlock behavior into interaction helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-13.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-13.md`
 - Continued Lane B B2-01 seam extraction by moving session dispatch RAF schedule/cancel behavior into interaction helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-14.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-14.md`
 - Continued Lane B B2-01 seam extraction by moving owned-layer image URL collection and stale diff behavior into layer-session helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-15.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-15.md`
 - Continued Lane B B2-01 seam extraction by moving selected-layer index bounds/normalization behavior into layer-session helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-16.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-16.md`
 - Continued Lane B B2-01 seam extraction by moving prompt textarea mirror-scroll/auto-resize/caret-clamp behavior into interaction helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-17.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-17.md`
 - Continued Lane B B2-01 seam extraction by moving repeated event-target containment checks into interaction helper utilities:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-18.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-18.md`
 - Continued Lane B B2-01 seam extraction by moving repeated inpaint-stage terminal pointer sequencing into interaction helper utilities and locking the Lane B seam-selection rubric:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-19.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-19.md`
 - Continued Lane B B2-01 seam extraction by removing pass-through move-stage closures and collapsing duplicated markup middle-click suppression handlers:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-20.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-20.md`
 - Continued Lane B B2-01 seam extraction by removing duplicated transform terminal callbacks and collapsing markup terminal stage routing:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-21.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-21.md`
 - Continued Lane B B2-01 seam extraction by centralizing pointer-capture release/check logic used by markup pan/draw and transform terminal flows:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-22.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-22.md`
 - Continued Lane B B2-01 seam extraction by consolidating local markup pan reset behavior across recenter, terminal, leave, and tool-exit paths:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-23.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-23.md`
 - Captured Lane B B2-01 hotspot map to shift from low-yield micro-seams toward boundary-driven extraction planning inside `ExpertEditPanelView.tsx`:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-hotspot-map.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-hotspot-map.md`
 - Continued Lane B B2-01 with the first hotspot-map-driven boundary extraction by moving markup draw lifecycle control into a dedicated hook and bringing `ExpertEditPanelView.tsx` below the warn-mode size budget:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-24.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-24.md`
 - Continued Lane B B2-01 with the paired hotspot-map-driven boundary extraction by moving markup viewport/pan lifecycle control into a dedicated hook and further reducing `ExpertEditPanelView.tsx`:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-25.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-25.md`
 - Continued Lane B B2-01 with a third hotspot-map-driven boundary extraction by moving move-stage transform lifecycle control into a dedicated hook and further reducing `ExpertEditPanelView.tsx`:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-26.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-01-expert-edit-seam-26.md`
 - Completed B2-01 stop-condition review and moved Lane B focus to `useInpaintMaskController.ts` with a characterization-first hotspot map:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-controller-hotspot-map.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-02-inpaint-controller-hotspot-map.md`
 - Opened B2-02 with a characterization-lock slice covering inpaint snapshot/export/clear hook behavior:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-characterization-lock.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-02-inpaint-characterization-lock.md`
 - Continued B2-02 with the first production extraction by moving inpaint geometry and mask-space math into a dedicated helper module:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-geometry-split.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-02-inpaint-geometry-split.md`
 - Continued B2-02 with the second production extraction by moving contour derivation and overlay rendering into a dedicated helper module and bringing `useInpaintMaskController.ts` below warn budget:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-overlay-split.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-02-inpaint-overlay-split.md`
 - Completed the `B2-02` checkpoint review and moved Lane B focus to `MediaLibraryPanel.tsx` with a hotspot-map-first handoff:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-02-inpaint-checkpoint-review.md`
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-hotspot-map.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-02-inpaint-checkpoint-review.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-03-media-library-hotspot-map.md`
 - Continued `B2-03` with the first production extraction by moving media/prompt query loading and infinite-scroll refresh orchestration into a dedicated controller hook:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-loader-controller-split.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-03-media-library-loader-controller-split.md`
 - Continued `B2-03` with the second production extraction by moving folder assignment, upload, and delete-confirm mutation workflows into a dedicated controller hook and bringing `MediaLibraryPanel.tsx` below warn budget:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-mutation-controller-split.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-03-media-library-mutation-controller-split.md`
 - Continued `B2-03` with the third production extraction by moving preview-modal and selection orchestration into a dedicated controller hook and further reducing `MediaLibraryPanel.tsx`:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-selection-controller-split.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-03-media-library-selection-controller-split.md`
 - Completed the `B2-03` checkpoint review and moved Lane B focus to `CharacterManagerShell.tsx` with a hotspot-map-first handoff:
-  - `docs/planning/evidence/lane-b/2026-03-17-b2-03-media-library-checkpoint-review.md`
-  - `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-hotspot-map.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b2-03-media-library-checkpoint-review.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b3-01-character-shell-hotspot-map.md`
 - Continued `B3-01` with the first production extraction by moving shell-local view state and responsive layout control into a dedicated controller hook:
-  - `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-view-state-split.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b3-01-character-shell-view-state-split.md`
 - Continued `B3-01` with the second production extraction by moving dropped-reference resolution, ingestion, and pending-drop ownership into a dedicated controller hook and bringing `CharacterManagerShell.tsx` below warn budget:
-  - `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-drop-reference-controller-split.md`
+  - `docs/records/evidence/lane-b/2026-03-17-b3-01-character-shell-drop-reference-controller-split.md`
 - Completed Lane A A3 docs-governance cleanup packet (API route-table dedupe, index parity repair, migration-reference drift correction):
   - `docs/records/evidence/lane-a/2026-03-16-a3-01-docs-governance-cleanup.md`
 - Completed Lane A A4-01 conservative dead-code pass (safe wrapper/dependency removals + active docs/skill sync):
@@ -406,11 +406,11 @@ Tracker contract: `docs/archive/planning/lane-f-tracker-spec-2026-03-16.md`
 - Completed Lane A A5 signoff and handed deferred debt to downstream lanes:
   - `docs/records/evidence/lane-a/2026-03-16-a5-01-lane-signoff.md`
 - Completed Lane B B0-01 governance bootstrap (ADR + SOP extraction checklist + roadmap/tracker/evidence alignment):
-  - `docs/planning/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md`
+  - `docs/records/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md`
 - Completed Lane B B1-01 guardrail bootstrap (Lane B size-budget modes + boundary/cycle mode wiring in check scripts):
-  - `docs/planning/evidence/lane-b/2026-03-16-b1-01-guardrail-bootstrap.md`
+  - `docs/records/evidence/lane-b/2026-03-16-b1-01-guardrail-bootstrap.md`
 - Started Lane B B2-01 Expert Edit seam extraction; moved Character Picker modal plus preset/blob/canvas/color helpers into dedicated edit modules with parity checks green:
-  - `docs/planning/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-1.md`
+  - `docs/records/evidence/lane-b/2026-03-16-b2-01-expert-edit-seam-1.md`
 
 ### 2026-03-20
 

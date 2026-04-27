@@ -7,7 +7,7 @@ Status: complete
 Owner: Engineering  
 Master plan: `docs/archive/planning/lane-b-master-plan-2026-03-16.md`  
 Tracker spec: `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`  
-Evidence root: `docs/planning/evidence/lane-b/`
+Evidence root: `docs/records/evidence/lane-b/`
 
 ## Purpose
 Convert Lane B modularization strategy into concrete extraction slices with strict parity and anti-bloat controls.
@@ -27,18 +27,18 @@ Out of scope:
 ## Slice Backlog
 | Slice ID | Track | Hotspot | Primary Goal | Primary Evidence Artifact | Status |
 | --- | --- | --- | --- | --- | --- |
-| `B0-01` | B-Core | Governance bootstrap | Publish Lane B ADR/SOP/checklist alignment and freeze extraction policy | `docs/planning/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md` | Completed |
-| `B1-01` | B-Core | Guardrail controls | Add Lane B size-budget/boundary/cycle guardrail modes | `docs/planning/evidence/lane-b/2026-03-16-b1-01-guardrail-bootstrap.md` | Completed |
-| `B2-01` | B-Core | `ExpertEditPanelView.tsx` | Extract orchestration/presenter seams while preserving prop contract | `docs/planning/evidence/lane-b/README.md` | Checkpoint Complete |
-| `B2-02` | B-Core | `useInpaintMaskController.ts` | Split math/state helpers from orchestration hook | `docs/planning/evidence/lane-b/README.md` | Checkpoint Complete |
-| `B2-03` | B-Core | `MediaLibraryPanel.tsx` | Split panel controller/presentation seams with parity tests | `docs/planning/evidence/lane-b/README.md` | Checkpoint Complete |
-| `B3-01` | B-Core | `CharacterManagerShell.tsx` | Extract domain hooks + shell presentation seams | `docs/planning/evidence/lane-b/2026-03-17-b3-01-character-shell-checkpoint-review.md` | Checkpoint Complete |
-| `B3-02` | B-Core | `useCharacterManagerDraft.ts` | Split draft-state orchestration into feature slices while preserving caller contract | `docs/planning/evidence/lane-b/2026-03-17-b3-02-character-draft-checkpoint-review.md` | Checkpoint Complete |
-| `B4-01` | B-Core | `/pages/admin/index.tsx` | Split tab-specific controllers and reduce page coupling | `docs/planning/evidence/lane-b/2026-03-17-b4-01-admin-shell-checkpoint-review.md` | Checkpoint Complete |
-| `B4-02` | B-Core | admin health server modules | Split user-health and fleet lifecycle services | `docs/planning/evidence/lane-b/2026-03-17-b4-02-admin-health-checkpoint-review.md` | Checkpoint Complete |
-| `B5-01` | B-Style | style token authority | Lock canonical panel/token values and alias policy | `docs/planning/evidence/lane-b/2026-03-17-b5-01-style-token-authority-checkpoint-review.md` | Checkpoint Complete |
-| `B5-02` | B-Style | AI Studio style migration | Migrate scoped literal styles to canonical tokens/classes | `docs/planning/evidence/lane-b/2026-03-17-b5-02-style-checkpoint-review.md` | Checkpoint Complete |
-| `B6-01` | B-Core/B-Style | convergence | Promote guardrails to enforce after two green cycles | `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-closeout-review.md` | Completed |
+| `B0-01` | B-Core | Governance bootstrap | Publish Lane B ADR/SOP/checklist alignment and freeze extraction policy | `docs/records/evidence/lane-b/2026-03-16-b0-01-governance-bootstrap.md` | Completed |
+| `B1-01` | B-Core | Guardrail controls | Add Lane B size-budget/boundary/cycle guardrail modes | `docs/records/evidence/lane-b/2026-03-16-b1-01-guardrail-bootstrap.md` | Completed |
+| `B2-01` | B-Core | `ExpertEditPanelView.tsx` | Extract orchestration/presenter seams while preserving prop contract | `docs/records/evidence/lane-b/README.md` | Checkpoint Complete |
+| `B2-02` | B-Core | `useInpaintMaskController.ts` | Split math/state helpers from orchestration hook | `docs/records/evidence/lane-b/README.md` | Checkpoint Complete |
+| `B2-03` | B-Core | `MediaLibraryPanel.tsx` | Split panel controller/presentation seams with parity tests | `docs/records/evidence/lane-b/README.md` | Checkpoint Complete |
+| `B3-01` | B-Core | `CharacterManagerShell.tsx` | Extract domain hooks + shell presentation seams | `docs/records/evidence/lane-b/2026-03-17-b3-01-character-shell-checkpoint-review.md` | Checkpoint Complete |
+| `B3-02` | B-Core | `useCharacterManagerDraft.ts` | Split draft-state orchestration into feature slices while preserving caller contract | `docs/records/evidence/lane-b/2026-03-17-b3-02-character-draft-checkpoint-review.md` | Checkpoint Complete |
+| `B4-01` | B-Core | `/pages/admin/index.tsx` | Split tab-specific controllers and reduce page coupling | `docs/records/evidence/lane-b/2026-03-17-b4-01-admin-shell-checkpoint-review.md` | Checkpoint Complete |
+| `B4-02` | B-Core | admin health server modules | Split user-health and fleet lifecycle services | `docs/records/evidence/lane-b/2026-03-17-b4-02-admin-health-checkpoint-review.md` | Checkpoint Complete |
+| `B5-01` | B-Style | style token authority | Lock canonical panel/token values and alias policy | `docs/records/evidence/lane-b/2026-03-17-b5-01-style-token-authority-checkpoint-review.md` | Checkpoint Complete |
+| `B5-02` | B-Style | AI Studio style migration | Migrate scoped literal styles to canonical tokens/classes | `docs/records/evidence/lane-b/2026-03-17-b5-02-style-checkpoint-review.md` | Checkpoint Complete |
+| `B6-01` | B-Core/B-Style | convergence | Promote guardrails to enforce after two green cycles | `docs/records/evidence/lane-b/2026-03-17-b6-01-lane-b-closeout-review.md` | Completed |
 
 Policy:
 1. One seam per PR.
@@ -135,4 +135,4 @@ Acceptance:
 Lane-level closeout:
 1. `npm -C frontend run test`
 2. `npm -C frontend run docs:check`
-3. complete evidence packet set under `docs/planning/evidence/lane-b/`
+3. complete evidence packet set under `docs/records/evidence/lane-b/`

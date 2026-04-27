@@ -22,8 +22,8 @@ Generation pipeline contract/queue hardening is intentionally separated from Lan
 The default contract is unchanged user behavior, unchanged API response shapes, and small one-seam PRs.
 
 Closeout evidence:
-1. `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-convergence-gate-cycle-2.md`
-2. `docs/planning/evidence/lane-b/2026-03-17-b6-01-lane-b-closeout-review.md`
+1. `docs/records/evidence/lane-b/2026-03-17-b6-01-lane-b-convergence-gate-cycle-2.md`
+2. `docs/records/evidence/lane-b/2026-03-17-b6-01-lane-b-closeout-review.md`
 
 ## Baseline Findings (Audit Snapshot)
 As of 2026-03-16:

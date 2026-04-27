@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - migrated the retained `lane-b` evidence namespace into `docs/records/evidence/lane-b/`,
+  - retargeted the archived Lane B closeout references plus the active foundation tracker to the records path,
+  - and removed that namespace from the active planning-evidence index.
+- Documentation cleanup:
   - migrated the retained `generation-pipeline-hardening` evidence namespace into `docs/records/evidence/generation-pipeline-hardening/`,
   - retargeted the archived P1 execution references plus the active foundation tracker to the records path,
   - and removed that namespace from the active planning-evidence index.

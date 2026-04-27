@@ -435,12 +435,12 @@ export const resolveMediaPreviewCandidates = (
   userId?: string | null
 ): {
   storagePaths: string[];
-  directUrls: string[];
+  directUrl: string | null;
 } => {
   const metadataPaths = resolveFromMetadata(row.metadata ?? null);
   return {
     storagePaths: buildMediaSigningStoragePaths(row, metadataPaths, userId),
-    directUrls: buildMediaDirectPreviewUrls(row, metadataPaths, userId),
+    directUrl: buildMediaDirectPreviewUrls(row, metadataPaths, userId)[0] ?? null,
   };
 };
 

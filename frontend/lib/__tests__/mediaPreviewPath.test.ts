@@ -103,7 +103,7 @@ describe("mediaPreviewPath", () => {
         "user-1/uploads/images/original.png",
         "variants/images/media-1/thumb_480",
       ],
-      directUrls: [],
+      directUrl: null,
     });
   });
 

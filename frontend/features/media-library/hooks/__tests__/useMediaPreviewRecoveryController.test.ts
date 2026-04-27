@@ -33,7 +33,7 @@ describe("useMediaPreviewRecoveryController", () => {
     resolveMediaPreviewCandidatesMock.mockImplementation(
       (row: { storage_path?: string | null }) => ({
         storagePaths: row.storage_path ? [row.storage_path] : [],
-        directUrls: [],
+        directUrl: null,
       })
     );
   });

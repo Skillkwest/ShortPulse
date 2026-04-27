@@ -7,7 +7,7 @@ import {
 
 const { mockGetSignedMediaUrl, mockResolveMediaSigningStoragePaths } = vi.hoisted(() => ({
   mockGetSignedMediaUrl: vi.fn(async () => null as string | null),
-  mockResolveMediaSigningStoragePaths: vi.fn(() => [] as string[]),
+  mockResolveMediaSigningStoragePaths: vi.fn((_row?: unknown) => [] as string[]),
 }));
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
@@ -18,7 +18,7 @@ vi.mock("../../../../lib/mediaPreviewPath", () => ({
   classifyMediaPreviewPath: vi.fn(() => "unknown"),
   resolveMediaPreviewCandidates: vi.fn((row: { storage_path?: string | null }) => ({
     storagePaths: mockResolveMediaSigningStoragePaths(row),
-    directUrls: [],
+    directUrl: null,
   })),
 }));
 

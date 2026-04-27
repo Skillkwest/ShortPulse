@@ -59,7 +59,7 @@ export const buildMediaSignCandidateEntry = <TRow extends PreviewSigningRowLike>
     primaryPath,
     primaryPathKind: classifyMediaPreviewPath(row, primaryPath, currentUserId),
     candidates,
-    directUrl: previewCandidates.directUrls[0] ?? null,
+    directUrl: previewCandidates.directUrl,
   };
 };
 

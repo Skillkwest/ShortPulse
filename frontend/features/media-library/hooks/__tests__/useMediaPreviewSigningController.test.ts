@@ -85,7 +85,7 @@ describe("useMediaPreviewSigningController", () => {
     resolveMediaPreviewCandidatesMock.mockImplementation(
       (row: { storage_path?: string | null }, currentUserId?: string | null) => ({
         storagePaths: resolveMediaSigningStoragePathsMock(row, currentUserId),
-        directUrls: [],
+        directUrl: null,
       })
     );
   });
@@ -313,7 +313,7 @@ describe("useMediaPreviewSigningController", () => {
         "user/images/fallback-b.png",
         "user/images/fallback-c.png",
       ],
-      directUrls: [],
+      directUrl: null,
     });
 
     renderHook(() => {
@@ -365,7 +365,7 @@ describe("useMediaPreviewSigningController", () => {
   it("applies trusted direct preview URLs even when there are no storage paths to sign", async () => {
     resolveMediaPreviewCandidatesMock.mockReturnValue({
       storagePaths: [],
-      directUrls: ["https://cdn.example.com/direct-preview.png"],
+      directUrl: "https://cdn.example.com/direct-preview.png",
     });
     const applySpy = vi.fn();
 

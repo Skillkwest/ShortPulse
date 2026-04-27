@@ -102,7 +102,7 @@ export const resolveSignedSelectionUrl = async <TRow extends { storage_path?: st
     const signedUrl = await signStoragePath(storagePath, { forceRefresh: true });
     if (signedUrl) return signedUrl;
   }
-  const directUrl = previewCandidates.directUrls[0] ?? null;
+  const directUrl = previewCandidates.directUrl;
   if (directUrl) return directUrl;
   return null;
 };

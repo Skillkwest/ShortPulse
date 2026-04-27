@@ -1,9 +1,11 @@
 # Generation Settlement Control-Plane Hardening Execution Plan (2026-03-23)
 
+> Archived on 2026-04-27 during docs cleanup because this plan is partially superseded on `working-development` and now serves as historical context behind the active generation-pipeline rebuild and continuation planning surface.
+
 Date: 2026-03-23  
 Authority: Working  
 Owner: Engineering  
-Status: Partially superseded on `working-development`
+Status: superseded
 
 ## Summary
 This plan sequences the next corrective pass for the generation pipeline after the queue/recovery audit.

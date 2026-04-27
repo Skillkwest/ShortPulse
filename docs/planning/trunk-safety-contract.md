@@ -1,7 +1,7 @@
 # Trunk Safety Contract
 
 Last updated: 2026-03-20  
-Status: Active (implementation-governed)  
+Status: active  
 Owner: Engineering
 
 ## Purpose

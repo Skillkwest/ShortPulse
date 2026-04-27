@@ -53,6 +53,7 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/generation-pipeline-rebuild-provider-event-replay-plan-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-admin-trace-health-alignment-plan-2026-03-27.md`
 - `docs/archive/planning/generation-pipeline-rebuild-generated-reuse-dragdrop-authority-plan-2026-03-27.md`
+- `docs/archive/planning/generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`
 - `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
 - `docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 - `docs/archive/planning/ai-studio-project-folder-stabilization-trim-and-fix-plan-2026-04-24.md`

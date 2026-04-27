@@ -1,6 +1,6 @@
 # Supabase Production Cutover Handoff (2026-03-13)
 
-Status: `PAUSED - READY TO RESUME`
+Status: draft
 Owner context: Supabase + Vercel + GitHub environment cutover to a new production Supabase project.
 
 ## Scope And Goal

@@ -197,7 +197,6 @@ Start here for all repository documentation.
 - `docs/planning/lane-c-master-plan-2026-03-16.md`
 - `docs/planning/lane-c-tracker-spec-2026-03-16.md`
 - `docs/planning/lane-c-execution-plan-2026-03-16.md`
-- `docs/planning/generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`
 - `docs/planning/media-library-ui-redesign-plan-2026-03-28.md`
 - `docs/planning/ai-architecture-follow-on-revisit-report-2026-03-29.md`
 - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`

@@ -25,7 +25,6 @@ import type {
   AiStudioSessionAgentMessageV1,
   AiStudioSessionAgentRuntimesV2,
 } from "../logic/sessionSnapshot";
-import { isEditPromptTool } from "../logic/promptTargeting";
 import { useAiStudioAgentComposer } from "./useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "./useAiStudioAgentInteractions";
 import { useAiStudioAgentOrchestration } from "./useAiStudioAgentOrchestration";
@@ -527,18 +526,29 @@ export const useAiStudioAgentBridge = ({
   const effectiveLatestAgentPrompt = pulseArtifactPrompt ?? latestAgentPrompt;
   const effectivePromptOrigin =
     pulseArtifactPrompt && hasActivePulseSession ? "agent" : promptOrigin;
-  const liveRuntimeState: AgentBridgeRuntimeState = {
-    messages: agentMessages,
-    input: agentInput,
-    attachments: agentAttachments,
-    latestAgentPrompt: effectiveLatestAgentPrompt,
-    promptOrigin: effectivePromptOrigin,
-    chatModeEnabled: isPulseCreateMode ? true : chatModeEnabled,
-    isAgentChatOpen,
-  };
-  activeLiveRuntimeStateRef.current = {
-    key: agentBridgeSessionKey,
-    state: {
+  const liveRuntimeState = useMemo<AgentBridgeRuntimeState>(
+    () => ({
+      messages: agentMessages,
+      input: agentInput,
+      attachments: agentAttachments,
+      latestAgentPrompt: effectiveLatestAgentPrompt,
+      promptOrigin: effectivePromptOrigin,
+      chatModeEnabled: isPulseCreateMode ? true : chatModeEnabled,
+      isAgentChatOpen,
+    }),
+    [
+      agentAttachments,
+      agentInput,
+      agentMessages,
+      chatModeEnabled,
+      effectiveLatestAgentPrompt,
+      effectivePromptOrigin,
+      isAgentChatOpen,
+      isPulseCreateMode,
+    ]
+  );
+  const activeLiveRuntimeState = useMemo<AgentBridgeRuntimeState>(
+    () => ({
       messages: agentMessages,
       input: agentInput,
       attachments: agentAttachments,
@@ -546,7 +556,21 @@ export const useAiStudioAgentBridge = ({
       promptOrigin,
       chatModeEnabled: isPulseCreateMode ? true : chatModeEnabled,
       isAgentChatOpen,
-    },
+    }),
+    [
+      agentAttachments,
+      agentInput,
+      agentMessages,
+      chatModeEnabled,
+      isAgentChatOpen,
+      isPulseCreateMode,
+      latestAgentPrompt,
+      promptOrigin,
+    ]
+  );
+  activeLiveRuntimeStateRef.current = {
+    key: agentBridgeSessionKey,
+    state: activeLiveRuntimeState,
   };
 
   useLayoutEffect(() => {
@@ -624,7 +648,6 @@ export const useAiStudioAgentBridge = ({
     updateAgentBridgeSessionUiState,
   ]);
   const stagedAgentPrompt = getStagedAgentPrompt(effectivePromptOrigin, effectiveLatestAgentPrompt);
-  const editPromptToolSelected = isEditPromptTool(selectedTool);
 
   const {
     isPromptRefining,
@@ -679,8 +702,6 @@ export const useAiStudioAgentBridge = ({
   const { handleExpandChat, handleAgentAddToGrid, handleClearAgentChat, handleCloseAgentChat } =
     useAiStudioAgentInteractions({
       expertCreateMode,
-      editPromptToolSelected,
-      setSharedPrompt,
       setLatestAgentPrompt,
       setPromptOrigin,
       trackAgentUiEvent,

@@ -48,7 +48,6 @@ export type CreatePropertiesPanelProps = {
   modelId: string | null;
   modelLabel: string;
   prompt: string;
-  promptRef: React.RefObject<HTMLTextAreaElement>;
   agentEnabled?: boolean;
   agentBootstrapPending?: boolean;
   agentMessages?: AgentMessage[];
@@ -61,8 +60,6 @@ export type CreatePropertiesPanelProps = {
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
-  useReferenceImageIndicator: boolean;
-  hasReferencePreview: boolean;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   onAspectChange: (value: string) => void;
@@ -72,10 +69,7 @@ export type CreatePropertiesPanelProps = {
     context?: ModelModalContext | null
   ) => void;
   onPromptChange: (value: string) => void;
-  onToggleReferenceIndicator: () => void;
   costCredits?: number | null;
-  balanceCredits?: number | null;
-  balanceLoading?: boolean;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
   isChatOffInlineGenerateDisabled?: boolean;

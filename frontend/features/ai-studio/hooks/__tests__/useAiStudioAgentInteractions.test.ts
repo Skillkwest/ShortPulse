@@ -12,8 +12,6 @@ const createParams = (
 ): Parameters<typeof useAiStudioAgentInteractions>[0] => {
   const baseParams: Parameters<typeof useAiStudioAgentInteractions>[0] = {
     expertCreateMode: "standard",
-    editPromptToolSelected: false,
-    setSharedPrompt: vi.fn(),
     setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
     setPromptOrigin: asDispatch<PromptOrigin>(vi.fn()),
     trackAgentUiEvent: vi.fn(),
@@ -36,29 +34,6 @@ const createParams = (
 describe("useAiStudioAgentInteractions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("applies normalized assistant prompt to shared state", () => {
-    const setSharedPrompt = vi.fn();
-    const setLatestAgentPrompt = vi.fn();
-    const setPromptOrigin = vi.fn();
-    const trackAgentUiEvent = vi.fn();
-    const params = createParams({
-      setSharedPrompt,
-      setLatestAgentPrompt: asDispatch<string | null>(setLatestAgentPrompt),
-      setPromptOrigin: asDispatch<PromptOrigin>(setPromptOrigin),
-      trackAgentUiEvent,
-    });
-    const { result } = renderHook(() => useAiStudioAgentInteractions(params));
-
-    act(() => {
-      result.current.handleAgentApplyPrompt("  polished concept prompt  ");
-    });
-
-    expect(setSharedPrompt).toHaveBeenCalledWith("polished concept prompt");
-    expect(setLatestAgentPrompt).toHaveBeenCalledWith("polished concept prompt");
-    expect(setPromptOrigin).toHaveBeenCalledWith("agent");
-    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_apply_prompt");
   });
 
   it("clears agent chat and resets dependent state", () => {

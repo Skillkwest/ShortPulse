@@ -2,14 +2,7 @@
  * AI Studio panel prop composition hook.
  * Builds create/edit/video panel prop objects so page-level orchestration stays lean.
  */
-import {
-  useCallback,
-  useMemo,
-  type Dispatch,
-  type DragEvent,
-  type RefObject,
-  type SetStateAction,
-} from "react";
+import { useCallback, useMemo, type Dispatch, type DragEvent, type SetStateAction } from "react";
 import type {
   AgentAssistantMessageEditRequest,
   AgentAttachment,
@@ -18,7 +11,7 @@ import type {
   AgentOutputGenerateInput,
 } from "../../ai-agent/types";
 import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
-import type { StudioMode, StudioOutput } from "../types";
+import type { StudioMode } from "../types";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../logic/editSubmitIntent";
 import { createWorkflowBeginnerModePolicy } from "../logic/beginnerWorkflowPolicy";
@@ -44,7 +37,6 @@ export type UseAiStudioPanelPropsParams = {
   model: string | null;
   currentModelLabel: string;
   prompt: string;
-  promptRef: RefObject<HTMLTextAreaElement>;
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
   agentMessages: AgentMessage[];
@@ -73,7 +65,6 @@ export type UseAiStudioPanelPropsParams = {
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   handleGenerateFromAgentOutputPrompt: (request: AgentOutputGenerateInput) => void;
   useReferenceImageIndicator: boolean;
-  activeOutput: StudioOutput | null;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
   handleOpenModelModal: (
@@ -88,10 +79,8 @@ export type UseAiStudioPanelPropsParams = {
       | null
   ) => void;
   handleManualPromptChange: (value: string) => void;
-  toggleReferenceIndicator: () => void;
   createIsGenerating: boolean;
   editIsGenerating: boolean;
-  videoIsGenerating: boolean;
   isPrimaryEditStageGenerating: boolean;
   isPromptRefining: boolean;
   describeInFlightCount: number;
@@ -101,7 +90,6 @@ export type UseAiStudioPanelPropsParams = {
   isGenerateDisabled: boolean;
   isCreateGenerateClickLocked: boolean;
   isEditGenerateClickLocked: boolean;
-  isVideoGenerateClickLocked: boolean;
   generationGuardrail: string | null;
   handleExpandChat: () => void;
   handleClearAgentChat: () => void;
@@ -244,7 +232,6 @@ export const useAiStudioPanelProps = ({
   model,
   currentModelLabel,
   prompt,
-  promptRef,
   agentEnabled,
   agentBootstrapReady,
   agentMessages,
@@ -273,15 +260,12 @@ export const useAiStudioPanelProps = ({
   handleAssistantMessageEdit,
   handleGenerateFromAgentOutputPrompt,
   useReferenceImageIndicator,
-  activeOutput,
   isModelModalOpen,
   modelModalAnchor,
   handleOpenModelModal,
   handleManualPromptChange,
-  toggleReferenceIndicator,
   createIsGenerating,
   editIsGenerating,
-  videoIsGenerating,
   isPrimaryEditStageGenerating,
   isPromptRefining,
   describeInFlightCount,
@@ -291,7 +275,6 @@ export const useAiStudioPanelProps = ({
   isGenerateDisabled,
   isCreateGenerateClickLocked,
   isEditGenerateClickLocked,
-  isVideoGenerateClickLocked,
   generationGuardrail,
   handleExpandChat,
   handleClearAgentChat,
@@ -438,7 +421,6 @@ export const useAiStudioPanelProps = ({
       modelId: model,
       modelLabel: currentModelLabel,
       prompt,
-      promptRef,
       agentEnabled,
       agentBootstrapPending: !agentBootstrapReady,
       agentMessages,
@@ -464,14 +446,11 @@ export const useAiStudioPanelProps = ({
       onClearAgentAttachments: handleClearAgentAttachments,
       onAssistantMessageEdit: handleAssistantMessageEdit,
       onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
-      useReferenceImageIndicator,
-      hasReferencePreview: Boolean(activeOutput?.previewUrl),
       isModelModalOpen,
       modelModalAnchor,
       onAspectChange: setAspect,
       onModelPickerOpen: handleOpenModelModal,
       onPromptChange: handleManualPromptChange,
-      onToggleReferenceIndicator: toggleReferenceIndicator,
       isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
       costCredits: createGenerateCostCredits,
       outputGenerateCostCredits: promptReferenceGenerateCostCredits,
@@ -515,7 +494,6 @@ export const useAiStudioPanelProps = ({
       expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
     }),
     [
-      activeOutput?.previewUrl,
       agentAttachmentError,
       agentAttachments,
       agentBusy,
@@ -570,7 +548,6 @@ export const useAiStudioPanelProps = ({
       modelModalAnchor,
       prompt,
       promptReferenceGenerateCostCredits,
-      promptRef,
       savePromptReference,
       selectedCreatePulsePresetIds,
       selectedCharacterId,
@@ -592,7 +569,6 @@ export const useAiStudioPanelProps = ({
       loadCharacterLookOptions,
       resolveCharacterAvatarUrlById,
       stagedAgentPrompt,
-      toggleReferenceIndicator,
       useReferenceImageIndicator,
       beginnerPolicy.create.beginnerMode,
       beginnerPolicy.create.expertCreateEligible,

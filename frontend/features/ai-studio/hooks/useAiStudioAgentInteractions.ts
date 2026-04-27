@@ -1,12 +1,10 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import { normalizePromptText, type PromptOrigin } from "../logic/agentPromptOwnership";
+import type { PromptOrigin } from "../logic/agentPromptOwnership";
 
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
 type UseAiStudioAgentInteractionsParams = {
   expertCreateMode: "standard" | "pulse";
-  editPromptToolSelected: boolean;
-  setSharedPrompt: (value: string) => void;
   setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
   setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
@@ -25,8 +23,6 @@ type UseAiStudioAgentInteractionsParams = {
 
 export const useAiStudioAgentInteractions = ({
   expertCreateMode,
-  editPromptToolSelected,
-  setSharedPrompt,
   setLatestAgentPrompt,
   setPromptOrigin,
   trackAgentUiEvent,
@@ -39,25 +35,6 @@ export const useAiStudioAgentInteractions = ({
   resetAgentComposer,
   clearPulseRuntime,
 }: UseAiStudioAgentInteractionsParams) => {
-  const handleAgentApplyPrompt = useCallback(
-    (nextPrompt: string) => {
-      if (editPromptToolSelected) return;
-      const normalized = normalizePromptText(nextPrompt);
-      if (!normalized) return;
-      setSharedPrompt(normalized);
-      setLatestAgentPrompt(normalized);
-      setPromptOrigin("agent");
-      trackAgentUiEvent("studio_agent_apply_prompt");
-    },
-    [
-      editPromptToolSelected,
-      setLatestAgentPrompt,
-      setPromptOrigin,
-      setSharedPrompt,
-      trackAgentUiEvent,
-    ]
-  );
-
   const handleExpandChat = useCallback(() => {
     if (!agentSessionEnabled) setAgentSessionEnabled(true);
     setIsAgentChatOpen((prev) => !prev);
@@ -104,7 +81,6 @@ export const useAiStudioAgentInteractions = ({
   }, [setIsAgentChatOpen]);
 
   return {
-    handleAgentApplyPrompt,
     handleExpandChat,
     handleAgentAddToGrid,
     handleClearAgentChat,

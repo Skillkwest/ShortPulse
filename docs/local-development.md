@@ -44,7 +44,7 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `STUDIO_AGENT_FORMATTER`
    - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
    - `NEXT_PUBLIC_AGENT_V2`
-   - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` (set `true` only when you want AI Studio save/restore)
+   - AI Studio legacy `sid` session persistence is retired; do not add the old `NEXT_PUBLIC_AI_STUDIO_SESSION_*` or `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` flags to local runtime config.
    - `SHORTPULSE_RELEASE` (optional explicit release/build tag for error incidents)
    - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client release tag for error incidents)
    - `SHORTPULSE_ADMIN_ALERT_TOTAL_15M` (optional admin event spike threshold; default `40`)

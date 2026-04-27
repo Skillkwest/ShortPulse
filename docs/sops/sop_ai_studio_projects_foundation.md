@@ -3,7 +3,7 @@
 Purpose: define the currently shipped Projects contract so dashboard handoff, API behavior, AI Studio route identity, project-scoped Media Library folder behavior, project-scoped Media Library folder canvas behavior, and the current project-owned workspace snapshot boundary are documented in one authoritative operational reference instead of being spread across planning docs.
 
 ## Scope
-- In scope: `projects` table foundation, authenticated project create/list/read/update-title/workspace routes, authenticated project Media Library folder routes, authenticated project Media Library folder canvas routes, dashboard `New Project` handoff, dashboard recent-project preview card + saved-project modal handoff, project-aware AI Studio entry, AI Studio left-rail project switcher modal, AI Studio project-title edits backed by `projects.title`, project-owned workspace snapshot read/write for project routes, project-owned media/prompt/generated-output association for save and reopen flows, project-scoped Media Library custom folders, folder membership, and folder canvas persistence for saved media/prompts, and current `projectId` + `sid` coexistence behavior.
+- In scope: `projects` table foundation, authenticated project create/list/read/update-title/workspace routes, authenticated project Media Library folder routes, authenticated project Media Library folder canvas routes, dashboard `New Project` handoff, dashboard `Open Projects` handoff, project-aware AI Studio entry, AI Studio left-rail project switcher modal, AI Studio project-title edits backed by `projects.title`, project-owned workspace snapshot read/write for project routes, project-owned media/prompt/generated-output association for save and reopen flows, project-scoped Media Library custom folders, folder membership, and folder canvas persistence for saved media/prompts, and current `projectId` + `sid` coexistence behavior.
 - Out of scope: project-scoped `All Media`, full live generated-output authority cutover outside the shipped project route seams, and full legacy session cleanup.
 
 ## Current shipped contract
@@ -12,22 +12,24 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 3. AI Studio currently accepts `?projectId=<uuid>` as the top-level project handoff boundary while legacy `sid` session identity still coexists during migration.
 4. When `projectId` is present, AI Studio resolves the owned project record before restore continues.
 5. The visible Media Library project title now reads from and writes to `projects.title`.
-6. Project routes now load and save the shared AI Studio snapshot envelope through a project-owned workspace record instead of the legacy remote `sid` snapshot route.
-7. Browser-global workflow-settings, chat-mode, and selected-character persistence are disabled on project routes so the project workspace snapshot becomes the current restore authority for those fields.
-8. Media and prompt saves that happen from a project route now attach those saved assets to the active project through project association tables.
-9. Project workspace saves also backfill project asset associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot.
-10. Project workspace saves now also backfill project-owned generation associations from restore-relevant `generationId` values already present in the snapshot.
-11. Project workspace reads now refresh generated-output delivery only from generation rows explicitly associated to that project.
-12. On project routes, the Media Library custom-folder area is scoped to the active project and does not bleed across projects.
-13. `All Media` remains the user-global inventory even on project routes.
-14. Project folder membership currently supports saved media and saved prompts.
-15. Project folder canvas persistence now uses project-scoped authority on project routes.
-16. Broader live generated-output authority cleanup is still follow-up work.
-17. The AI Studio left-rail `Projects` action opens a saved-project modal, lists the full caller-owned project catalog through `GET /api/projects?limit=all`, and routes selection to `/ai-studio?projectId=<uuid>` from inside AI Studio.
-18. The dashboard recent-projects surface is preview-only; the full card opens that same saved-project modal, and the individual preview tiles inside the card are not directly selectable.
-19. The shared Projects modal now supports permanent delete for non-current projects through `DELETE /api/projects/:projectId`; deleting a project also removes its project-owned workspace, folder canvas state, and project-only organization rows through database cascade.
-20. Project cards in the shared Projects modal now render up to four snapshot-derived thumbnails. Thumbnail priority is: first four Quick Slot Inventory images, otherwise the first four visible Reference Grid images, otherwise no preview strip.
-21. Storage-backed project-card thumbnails are signed as tiny dedicated project-card preview variants so the modal can render the stacked thumbnails without fetching larger preview assets than the surface needs.
+6. Project routes now load and save a project-owned workspace projection derived from the shared AI Studio snapshot envelope instead of the legacy remote `sid` snapshot route.
+7. Project workspace persistence includes authored workspace state, outputs, canvas state, and expert-edit state, but excludes conversational runtime such as agent transcripts, draft agent input, chat-mode state, Pulse workflow progress, and split agent runtime lanes.
+8. Opening or switching a project resets the project-visible agent conversation lane instead of restoring it from project workspace state.
+9. Media and prompt saves that happen from a project route now attach those saved assets to the active project through project association tables.
+10. Project workspace saves also backfill project asset associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot.
+11. Project workspace saves now also backfill project-owned generation associations from restore-relevant `generationId` values already present in the snapshot.
+12. Project workspace reads now refresh generated-output delivery only from generation rows explicitly associated to that project.
+13. On project routes, the Media Library custom-folder area is scoped to the active project and does not bleed across projects.
+14. `All Media` remains the user-global inventory even on project routes.
+15. Project folder membership currently supports saved media and saved prompts.
+16. Project folder canvas persistence now uses project-scoped authority on project routes.
+17. Broader live generated-output authority cleanup is still follow-up work.
+18. The AI Studio left-rail `Projects` action opens a saved-project modal, lists the full caller-owned project catalog through `GET /api/projects?limit=all`, and routes selection to `/ai-studio?projectId=<uuid>` from inside AI Studio.
+19. The dashboard `Open Projects` surface is a pure modal-launch action; it does not render project previews or inline saved-project state.
+20. The shared Projects modal now supports permanent delete for non-current projects through `DELETE /api/projects/:projectId`; deleting a project also removes its project-owned workspace, folder canvas state, and project-only organization rows through database cascade.
+21. Project cards in the shared Projects modal now render up to four snapshot-derived thumbnails. Thumbnail priority is: first four Quick Slot Inventory images, otherwise the first four visible Reference Grid images, otherwise no preview strip.
+22. Storage-backed project-card thumbnails are signed as tiny dedicated project-card preview variants so the modal can render the stacked thumbnails without fetching larger preview assets than the surface needs.
+23. Fresh AI Studio startup no longer auto-hydrates user-global generated outputs on plain `/ai-studio?sid=...` routes unless explicitly re-enabled by env flag, so new project and fresh-session startup can fail closed to empty workspace state while `All Media` remains global.
 
 ## Primary repo surfaces
 | Surface | Role |
@@ -37,10 +39,10 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 | `frontend/pages/api/projects/index.ts` | Authenticated collection route used by the dashboard saved-project surface. |
 | `frontend/pages/api/projects/create.ts` | Authenticated create route used by the dashboard handoff. |
 | `frontend/pages/api/projects/[projectId].ts` | Authenticated single-project item route for ownership checks, title updates, and permanent delete. |
-| `frontend/pages/api/projects/[projectId]/workspace.ts` | Authenticated workspace route used by project-aware AI Studio restore/write. |
+| `frontend/pages/api/projects/[projectId]/workspace.ts` | Authenticated workspace route used by project-aware AI Studio restore/write against the sanitized project snapshot projection. |
 | `frontend/pages/api/projects/[projectId]/media/folders/*.ts` | Authenticated project Media Library folder CRUD and membership routes. |
 | `frontend/pages/api/projects/[projectId]/media/folders/[folderId]/canvas.ts` | Authenticated project Media Library folder canvas route. |
-| `frontend/pages/dashboard.tsx` | `New Project` UI entry plus a preview-only recent-projects card that opens the shared saved-project modal and routes selection into AI Studio with `projectId`. |
+| `frontend/pages/dashboard.tsx` | `New Project` UI entry plus an `Open Projects` action card that opens the shared saved-project modal and routes selection into AI Studio with `projectId`. |
 | `frontend/pages/ai-studio.tsx` | Current AI Studio page entry where `projectId` coexists with legacy `sid`, gates restore on project resolution, routes visible title edits through project authority, and switches project routes onto project-owned workspace persistence. |
 | `frontend/features/ai-studio/components/ProjectsModal.tsx` | Saved-project picker modal used by the AI Studio left rail to reopen owned projects without leaving AI Studio. |
 | `frontend/features/ai-studio/hooks/useAiStudioProjectIdentity.ts` | Canonical client hook for `projectId` query resolution, owned-project fetch, and AI Studio title updates. |
@@ -59,6 +61,7 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 | `docs/adr/0065-project-generated-output-association-and-restore-refresh.md` | Durable architectural decision establishing project-owned generated-output association for reopen-time delivery refresh. |
 | `docs/adr/0066-project-media-library-folder-authority.md` | Durable architectural decision establishing project-scoped Media Library custom folders while keeping `All Media` global. |
 | `docs/adr/0067-project-media-library-folder-canvas-authority.md` | Durable architectural decision establishing project-scoped Media Library folder canvas persistence while preserving the legacy user-scoped lane for non-project surfaces. |
+| `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md` | Durable architectural decision excluding conversational runtime from project-owned workspace persistence. |
 
 ## Data model contract
 Current project row shape:
@@ -120,7 +123,7 @@ Behavior:
 3. Resolves the owned project before workspace read/write proceeds.
 4. `GET` returns the current caller-owned project workspace snapshot or `workspace: null` when none exists yet.
 5. `PUT` validates the posted snapshot through the shared AI Studio snapshot parser before upsert.
-6. Current storage contract intentionally reuses the AI Studio session snapshot envelope while project-owned asset association is still migrating.
+6. Current storage contract intentionally reuses the AI Studio session snapshot envelope as a parser boundary, but project persistence sanitizes conversational runtime out of the stored payload.
 7. `GET` refreshes generated-output delivery only from generation rows explicitly associated to the active project.
 7. Returns:
    - `400` for invalid project id
@@ -156,13 +159,12 @@ Behavior:
    - `500` for unexpected server failure
 
 ## Dashboard handoff workflow
-1. `/dashboard` loads recent caller-owned projects through `GET /api/projects?limit=3`.
-2. User clicks `New Project` or the preview-only Projects card on `/dashboard`.
-3. `New Project` calls `POST /api/projects/create`.
-4. On Projects-card click, the dashboard opens the shared saved-project modal, which loads the full caller-owned catalog through `GET /api/projects?limit=all`.
-5. On project selection from that modal, the dashboard routes to `/ai-studio?projectId=<uuid>`.
-6. On create failure, the dashboard keeps the user on `/dashboard` and surfaces a create-project error message.
-7. Once already inside AI Studio, the left-rail `Projects` action reuses the same `projectId` handoff boundary by opening that shared saved-project modal, allowing permanent delete for non-current projects, and routing the selected project back to `/ai-studio?projectId=<uuid>`.
+1. User clicks `New Project` or `Open Projects` on `/dashboard`.
+2. `New Project` calls `POST /api/projects/create`.
+3. `Open Projects` opens the shared saved-project modal, which loads the full caller-owned catalog through `GET /api/projects?limit=all`.
+4. On project selection from that modal, the dashboard routes to `/ai-studio?projectId=<uuid>`.
+5. On create failure, the dashboard keeps the user on `/dashboard` and surfaces a create-project error message.
+6. Once already inside AI Studio, the left-rail `Projects` action reuses the same `projectId` handoff boundary by opening that shared saved-project modal, allowing permanent delete for non-current projects, and routing the selected project back to `/ai-studio?projectId=<uuid>`.
 
 ## AI Studio identity boundary
 1. `projectId` is now the top-level durable handoff identity for the Projects migration.
@@ -179,9 +181,9 @@ Behavior:
 
 ## AI Studio workspace authority
 1. When AI Studio is opened with `?projectId=<uuid>`, project routes read/write workspace snapshots through `GET|PUT /api/projects/:projectId/workspace`.
-2. The current workspace storage contract reuses the AI Studio session snapshot envelope (`workspace`, `outputs`, `agent`, optional `canvas`, optional `expertEdit`) as a temporary migration schema boundary.
+2. The current workspace storage contract reuses the AI Studio session snapshot envelope as a temporary migration schema boundary, but project persistence sanitizes the project payload before write and ignores legacy conversational fields on restore.
 3. Project routes do not use the legacy remote `sid` session snapshot API as their primary durable authority.
-4. Project routes suppress browser-global workflow-settings session storage, chat-mode local storage, and selected-character local storage so those values restore through the project workspace snapshot instead.
+4. Project routes suppress browser-global workflow-settings session storage and selected-character local storage; project reopen resets conversational runtime instead of restoring it from project workspace state.
 5. Project workspace writes also backfill `project_generation_items` from restore-relevant `generationId` values already in the snapshot.
 6. Project workspace reads refresh generated-output delivery only from `project_generation_items` + project-owned generation projection rows rather than scanning all user-global generated outputs.
 7. This does not yet make Media Library folder authority or every live generation read path fully project-scoped.
@@ -212,7 +214,7 @@ Behavior:
 
 ## Source-of-truth guidance
 1. Use this SOP for the shipped Projects foundation contract.
-2. Use ADR 0062 for the durable identity decision, ADR 0063 for project workspace authority, ADR 0064 for project media/prompt asset association, ADR 0065 for project generated-output association, ADR 0066 for project Media Library folder authority, and ADR 0067 for project Media Library folder canvas authority.
+2. Use ADR 0062 for the durable identity decision, ADR 0063 for project workspace authority, ADR 0064 for project media/prompt asset association, ADR 0065 for project generated-output association, ADR 0066 for project Media Library folder authority, ADR 0067 for project Media Library folder canvas authority, and ADR 0070 for project conversational-runtime exclusion.
 3. Use the `docs/planning/ai-studio-project-persistence-*.md` files only for future migration phases, not as the source of truth for already shipped behavior.
 
 ## Validation
@@ -220,6 +222,7 @@ Behavior:
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioProjectIdentity.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioSessionIdentity.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts`
+- `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioProjectWorkspaceRestoreCandidate.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioPersistenceActions.identity.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioWorkflowSettings.test.ts`

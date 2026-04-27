@@ -103,17 +103,18 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 ### 7) Bulk selection and action semantics
 1. Bulk media actions are panel-first and media-only in v1; prompt bulk actions remain out of scope.
-2. Card click, right-click, and double-click preserve the existing ingest/preview gesture contract and do not implicitly select.
-3. Selection is explicit through the card selection affordance and is toggle-based.
-4. The bulk action bar appears only when one or more visible media rows are selected and must show the selected count plus `Clear`.
-5. In `All Media`, bulk actions allow:
+2. Card click in the panel toggles selected state for both media and prompt cards and must not ingest that item into Reference Grid.
+3. Right-click and double-click preserve their dedicated gesture contracts: root `All Media` right-click sends media to Reference Grid, and root `All Media` double-click opens a preview-only modal for media.
+4. Media cards expose a dedicated selection affordance in addition to card-click toggle behavior; prompt cards use card-click toggle behavior only.
+5. The bulk action bar appears only when one or more visible media rows are selected and must show the selected count plus `Clear`.
+6. In `All Media`, bulk actions allow:
    - `Move to folder` using project folder membership assignment semantics.
    - `Delete from library` for permanent library removal.
-6. In custom folders, bulk actions allow:
+7. In custom folders, bulk actions allow:
    - `Move to folder` using project folder membership move semantics.
    - `Remove from folder` for membership removal only.
-7. Selection must be pruned whenever folder, tab, or visible result scope changes so off-scope media cannot be mutated silently.
-8. Character-scoped media and unsupported audio rows remain out of scope for v1 bulk actions.
+8. Selection must be pruned whenever folder, tab, or visible result scope changes so off-scope media cannot be mutated silently.
+9. Character-scoped media and unsupported audio rows remain out of scope for v1 bulk actions.
 
 ### 8) Deletion behavior
 1. Deleting a custom folder removes that folder and its memberships; master items remain in `All Media`.
@@ -161,7 +162,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - customer quota counts canonical `media_files.file_size` only, not derivative poster/thumb/preview assets
   - over-limit accounts keep read/delete access but new canonical saves fail closed until usage drops or capacity increases
 
-## Current Runtime Delta (as of 2026-03-24)
+## Current Runtime Delta (as of 2026-04-25)
 1. `All Media` inline-tab layout:
    - Status: Aligned.
    - Current: `All Media`, `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved images, videos, audio, and prompts in one mixed feed, while `Prompts` remains the prompt-only view.
@@ -182,7 +183,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: Media Library media and prompt payloads route directly into Reference Grid and Quick Slot Inventory without shell fallback stealing the interaction. Dedicated canvas surfaces continue to own their own drops when mounted explicitly.
 7. Panel bulk media actions:
    - Status: Aligned.
-   - Current: `All Media` now exposes explicit per-card media selection plus a bulk action bar with `Clear`, `Move to folder`, and `Delete from library`. Custom folders expose `Clear`, `Move to folder`, and `Remove from folder`. Card click/right-click/double-click continue to preserve their existing ingest and preview behavior.
+   - Current: `All Media` exposes per-card media selection plus a bulk action bar with `Clear`, `Move to folder`, and `Delete from library`. Custom folders expose `Clear`, `Move to folder`, and `Remove from folder`. Panel card click toggles selected state for media and prompt cards without ingesting them into Reference Grid, while root `All Media` right-click still ingests media and root `All Media` double-click still opens preview-only modal behavior.
 8. Delete from `All Media` permanent remove:
    - Status: Aligned.
    - Current: Root-level delete action permanently removes media/prompt rows from library (including best-effort storage cleanup for media after metadata delete succeeds).
@@ -257,7 +258,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - `Custom -> All Media` unassigns membership.
    - `Custom -> Custom` moves membership.
 4. Bulk media selection:
-   - Explicit card selection toggles selected media without hijacking click/right-click/double-click behaviors.
+   - Media and prompt card click toggles selection state without ingesting the clicked card into Reference Grid.
+   - Root `All Media` right-click still sends media to Reference Grid.
+   - Root `All Media` double-click still opens media preview without ingest side effects.
    - `All Media` bulk bar offers `Move to folder` and `Delete from library`.
    - Custom-folder bulk bar offers `Move to folder` and `Remove from folder`.
    - Changing tab or folder prunes out-of-scope selections.

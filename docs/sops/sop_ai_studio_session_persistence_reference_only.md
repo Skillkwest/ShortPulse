@@ -1,7 +1,7 @@
 # SOP: AI Studio Session Persistence (Full Canvas Durability)
 
 ## Scope
-Operational runbook for AI Studio session persistence with full durability across:
+Historical runbook for the retired AI Studio legacy session persistence system with former durability across:
 1. workspace settings,
    including Expert Create Pulse mode plus active pinned Pulse preset id,
 2. outputs/reference projections,
@@ -9,26 +9,17 @@ Operational runbook for AI Studio session persistence with full durability acros
    including derived Pulse workflow session state for active `workflow_gpt` Pulses (`status`, current step label/prompt, collected user inputs, last artifact when present),
 4. canvas scene + main/rail viewport cameras + transient text edit state.
 
-This SOP governs the legacy AI Studio session persistence system. That system is now hard-disabled by default pending the future Projects redesign; use this SOP only when explicitly opting the legacy system back on for controlled testing.
+This SOP governs the retired legacy AI Studio session persistence system. That system is no longer available in the shipped product. `sid` remains runtime identity only and no longer restores or saves durable session snapshots.
 
 ## Prerequisites
-1. Session SQL migration `044_add_ai_studio_sessions_persistence.sql` is applied.
-2. Hotfix migration `053_fix_ai_studio_session_upsert_ambiguity.sql` is applied.
-3. Session APIs are reachable and authenticated in the active environment.
+1. Session SQL migration `044_add_ai_studio_sessions_persistence.sql` may still exist in older environments.
+2. Hotfix migration `053_fix_ai_studio_session_upsert_ambiguity.sql` may still exist in older environments.
+3. The legacy `/api/ai/sessions/*` routes are retired and should not be used for runtime product behavior.
 
 ## Runtime Flags
-Core flags:
-1. `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (default enabled)
-2. `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` (client master switch; default disabled)
-3. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED` (default enabled once persistence is enabled)
-4. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (default enabled once persistence is enabled)
-5. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (default enabled once persistence is enabled)
-6. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (default enabled once persistence is enabled)
-7. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (default enabled once persistence is enabled)
-
-Policy note:
-1. When `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` is unset or `false`, client persistence is fully disabled regardless of the scoped per-lane flags below.
-2. Remote restore/list reads require both restore shadow and remote shadow lanes to be enabled.
+Legacy flags:
+1. Historical AI Studio session-persistence env flags are ignored by current runtime policy.
+2. The legacy `/api/ai/sessions/*` routes now return a retired response and do not persist or restore session data.
 
 ## Persistence Contract
 1. Snapshot schema version is `2` (V2 write path).

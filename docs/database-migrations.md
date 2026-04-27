@@ -214,7 +214,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 100. `sql/migrations/100_add_admin_global_stats_v1_rpc.sql`
 101. `sql/migrations/101_fix_admin_stats_and_pricing_rpc_lint.sql`
 102. `sql/migrations/102_add_admin_growth_stats_v1.sql`
-103. Rollback files:
+103. `sql/migrations/103_sanitize_project_workspace_conversational_runtime.sql`
+104. `sql/migrations/104_add_user_media_compliance_acceptances.sql`
+105. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -275,10 +277,13 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/097_retire_model_pricing_rounding_exceptions_rollback.sql`
     - `sql/migrations/rollback/098_add_billing_plan_creation_metadata_rollback.sql`
     - `sql/migrations/rollback/099_add_admin_global_stats_rpcs_rollback.sql`
+    - `sql/migrations/rollback/103_sanitize_project_workspace_conversational_runtime_rollback.sql`
+    - `sql/migrations/rollback/104_add_user_media_compliance_acceptances_rollback.sql`
 
 Hosted SQL lint note:
 - Apply `sql/migrations/101_fix_admin_stats_and_pricing_rpc_lint.sql` when linked-hosted lint surfaces the legacy admin stats `model_id` ambiguity or the `rollback_model_pricing_policy()` `%rowtype` warning.
 - Apply `sql/migrations/102_add_admin_growth_stats_v1.sql` to provision `growth_attribution_identities` and `get_admin_growth_stats_v1()` before expecting `/admin/stats` Marketing/Sales lenses to load beyond safe fallback values.
+- Apply `sql/migrations/104_add_user_media_compliance_acceptances.sql` before enforcing the protected-route media agreement gate so acceptance records can be stored and replayed by version.
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -329,6 +334,7 @@ Billing safety note:
 - Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` adds durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) so high-density deck users do not repeatedly see the same embedded tip bubble.
 - Migration `082_add_user_preferences_ai_studio_saved_voices.sql` adds durable per-user AI Studio saved-voice persistence (`user_preferences.ai_studio_saved_voices`) so created ElevenLabs voices survive refreshes and provider outages.
 - Migration `090_add_user_preferences_ai_studio_style_panel_ids.sql` adds durable per-user Styles Library ordering persistence (`user_preferences.ai_studio_style_panel_ids`) so the primary library panel and right-rail Styles chooser share one canonical tile order.
+- Migration `104_add_user_media_compliance_acceptances.sql` adds versioned per-user media agreement acceptance records (`user_media_compliance_acceptances`) so the protected-route compliance gate can store one-time acceptance history with the accepted timestamp, IP address, and user agent.
 - Migration `060_add_media_folders_and_membership.sql` adds user-owned Media Library folders (`media_folders`) and scoped media/prompt membership junctions (`media_folder_media_items`, `media_folder_prompt_items`) for AI Studio folder-based organization.
 - Migration `061_backfill_media_image_dimensions_metadata.sql` canonicalizes legacy image-dimension metadata keys to `metadata.width`, `metadata.height`, and `metadata.aspect_ratio` so masonry surfaces can render true image ratios consistently.
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.

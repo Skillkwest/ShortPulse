@@ -247,6 +247,10 @@ Symptoms:
 Checklist:
 - Confirm tokens are in supported range: only `@img1`, `@img2`, `@img3`.
 - Confirm referenced secondary slots are populated (for example, `@img2` requires slot 2 image present).
+- Confirm the expected lane behavior:
+  - Standard/Markup with linked `@imgN` tokens send only linked secondary refs.
+  - Standard/Markup with no linked secondary token send all populated secondary refs.
+  - Inpaint still requires explicit linked-token behavior for secondary references.
 - Confirm behavior is in the canonical Expert Edit workflow (legacy Edit fallback has been removed).
 - Verify prompt references use the Expert Edit token logic path:
   - `frontend/features/ai-studio/logic/expertEditPromptReferences.ts`
@@ -571,80 +575,6 @@ Checklist:
   where user_id = auth.uid();
   ```
 
-## AI Studio session persistence emergency rollback posture
-Checklist:
-- Default posture is now client session persistence hard-off.
-- Confirm this client master gate is unset or `false`:
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED`
-- If forcing a full rollback baseline, also confirm these flags are `false` in the active frontend/server runtime:
-  - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED`
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED`
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED`
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED`
-- Expected behavior in this baseline:
-  - no session restore/switch UX,
-  - no `/api/ai/sessions*` traffic during normal AI Studio usage,
-  - workspace state remains runtime-local only,
-  - `sid` remains runtime identity only and does not imply resumable restore.
-- Full-canvas persistence runbook:
-  - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
-  - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
-
-## AI Studio session shadow persistence not syncing to server
-Checklist:
-- Ensure migration `sql/migrations/044_add_ai_studio_sessions_persistence.sql` is applied.
-- Ensure ambiguity hotfix migration `sql/migrations/053_fix_ai_studio_session_upsert_ambiguity.sql` is applied.
-- Ensure server route flag is enabled (or unset):
-  - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` must not be `false`.
-- Ensure client remote-shadow flag is enabled for write-through shadow mode (enabled by default):
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` must not be `false`.
-- Verify authenticated `POST /api/ai/sessions/save` responses are `200` for active users.
-- Verify snapshot payload size is below server cap (`~900KB` serialized JSON).
-- If `POST /api/ai/sessions/save` returns `500`, inspect API/server logs for SQLSTATE `42702` with
-  `column reference "user_id" is ambiguous` from `upsert_ai_studio_session_snapshot`.
-  This indicates the database function body is running pre-hotfix SQL and will fail every remote save.
-- Note: local IndexedDB shadow remains active when remote shadow is disabled/unavailable, but cross-device durability depends on remote save success.
-
-## AI Studio session restore candidate does not appear
-Checklist:
-- Confirm client session persistence is explicitly opted in:
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=true`
-- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` is not `false` in the frontend environment.
-- Ensure `sid` is present and valid in URL (`/ai-studio?sid=<uuid>`).
-- If remote restore candidate is expected, ensure `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` is not `false`.
-- Verify authenticated `GET /api/ai/sessions/:sid` returns `200` (or `404` when not found).
-- Inspect client breadcrumbs for `ai_studio_session_restore_candidate_loaded` to confirm source (`local` or `remote`).
-
-## AI Studio session snapshot is loaded but not applied to UI
-Checklist:
-- Confirm client session persistence is explicitly opted in:
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=true`
-- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` is not `false`.
-- Ensure restore-candidate loading is enabled:
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` is not `false`.
-- If agent transcript/input should also restore, ensure:
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` is not `false`.
-- Verify candidate-load breadcrumb exists:
-  - `ai_studio_session_restore_candidate_loaded`.
-- Verify hydration-apply breadcrumb exists:
-  - `ai_studio_session_hydration_applied`.
-- If candidate breadcrumb exists but hydration breadcrumb does not, confirm current session `sid` has not already been hydrated in this page lifecycle and that snapshot payload includes expected workspace/output fields.
-- When hydration apply is enabled, restored state includes workspace, outputs, agent transcript/input, and canvas state (scene + dual viewport cameras + transient text-edit sessions).
-- If hydration breadcrumb is present with `agent_hydration_applied=false`, workspace/output restore ran but transcript/input restore is intentionally staged off.
-
-## AI Studio restored session shows placeholder reference cards
-Checklist:
-- Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED=true`.
-- Verify restored outputs include canonical storage paths (`previewStoragePath`/`fullStoragePath`) in session snapshot payload.
-- Verify signed URL batch succeeds for restore-time rehydration:
-  - authenticated media sign route (`POST /api/media/sign-batch`) returns `200`,
-  - returned `urls` map contains keys for restored storage paths.
-- If placeholders persist, inspect client breadcrumbs for:
-  - `ai_studio_session_restore_sign_batch_failed` (signed URL rehydration failed),
-  - `ai_studio_session_restore_candidate_loaded` + `ai_studio_session_hydration_applied` (restore path executed).
-- Confirm storage objects still exist for those paths in `media_library`; missing objects cannot be restored.
-
 ## AI Studio unsaved local references are missing after refresh/switch
 Checklist:
 - Unsaved local references (blob/data previews) now auto-upload to private user-scoped storage for session durability.
@@ -654,24 +584,17 @@ Checklist:
   - verify `POST /api/upload-image` / `POST /api/upload-video` returned `200`,
   - confirm the local preview URL was still present (not removed/replaced) before upload completed.
 
-## AI Studio Sessions modal cannot load recent sessions
+## AI Studio legacy `sid` session persistence is retired
 Checklist:
-- Ensure `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` is not `false`.
-- Verify authenticated `GET /api/ai/sessions?limit=20` returns `200` with `{ sessions, nextCursor }`.
-- Confirm the browser request includes a valid bearer token (same auth lane as `/api/ai/*` routes).
-- If API returns `400`, validate query params:
-  - `limit` must be between `1` and `50`.
-  - `cursor` must be a valid base64url session cursor from a prior response.
-
-## AI Studio session switch fails during save-and-switch
-Checklist:
-- Verify authenticated `POST /api/ai/sessions/save` returns `200` for the current `sid`.
-- Confirm `snapshot` payload size is below route/RPC limit (current guard rejects oversized payloads).
-- Ensure session save route is enabled:
-  - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` must not be `false`.
-- If using remote shadow write-through expectations, ensure:
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` is not `false`.
-  - (Local IndexedDB write-shadow still persists even when remote mirror is off.)
+- `sid` remains runtime identity only and does not restore or save durable workspace state.
+- `/api/ai/sessions/*` is expected to return a retired response rather than `200`.
+- Do not troubleshoot `NEXT_PUBLIC_AI_STUDIO_SESSION_*` or `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` as active product flags; current runtime ignores that lane.
+- If resumable workspace restore is needed, validate the project workspace path instead:
+  - `GET|PUT /api/projects/:projectId/workspace`
+  - `docs/sops/sop_ai_studio_projects_foundation.md`
+- Historical background for the retired system remains in:
+  - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
+  - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
 
 ## AI Studio canvas item cap reached
 Symptoms:
@@ -693,14 +616,9 @@ Checklist:
   - remove unused canvas items,
   - avoid non-essential large text blocks in canvas/agent/workspace fields.
 - Confirm warning includes current size vs max limit.
-- Retry after reducing state size and verify `POST /api/ai/sessions/save` returns `200`.
-
-## AI Studio selected session shows unavailable/expired on switch
-Checklist:
-- Verify target session still exists via authenticated `GET /api/ai/sessions/:sid`.
-- If `404`, the session was likely pruned by TTL/cap policy or never mirrored remotely for this user.
-- Confirm target `sid` belongs to the authenticated user (user-scoped session ownership is enforced server-side).
-- Re-open Sessions modal and refresh list; if missing from list, create a new session and continue from current workspace state.
+- Retry after reducing state size and verify the active persistence surface succeeds:
+  - project routes: `PUT /api/projects/:projectId/workspace`
+  - non-project routes: runtime-local shadow only (legacy `/api/ai/sessions/*` is retired)
 
 ## AI Studio safety behavior differs from expected mode
 Checklist:

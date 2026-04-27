@@ -12,6 +12,9 @@ Purpose: outline how to test the ShortPulse app (client UI plus internal API rou
   - `cd frontend && npm run test:e2e`
   - Character pipeline audit: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character`
     - Safety: this audit now refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and will reject `@example.com` addresses to prevent accidental user creation.
+  - Project workspace persistence audit:
+    - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:project-persistence`
+    - Uses the real project create/save/read/delete APIs plus an authenticated `/ai-studio?projectId=...` reopen to verify legacy orphan output payloads are stripped before persistence and do not leak back into the UI.
   - Lane C style-drop characterization capture:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:style-drop`
     - Uses the authenticated AI Studio runtime plus audit-only `window.__shortpulseAiStudioPerf` helpers to print one passing and one failing Reference Grid -> Styles packet summary.

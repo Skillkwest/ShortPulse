@@ -6830,8 +6830,10 @@ describe("ExpertEditPanelView", () => {
     if (!referenceInputs) {
       throw new Error("Expected flattened reference inputs.");
     }
-    expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
-    expect(referenceInputs).toHaveLength(1);
+    expect(referenceInputs).toEqual([
+      expect.stringMatching(/^blob:flatten-/),
+      "https://example.com/extra.png",
+    ]);
     expect(submitOptions?.referenceInputsMode).toBe("replace");
     expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
   });
@@ -7051,6 +7053,60 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.displayPromptOverride).toBe("Put @img1 in the background.");
     expect(submitOptions?.submissionPromptOverride).toContain("Put Figure 2 in the background.");
     expect(submitOptions?.submissionPromptOverride).toContain("Reference map:");
+  });
+
+  it("auto-flatten generate sends all populated secondary references when no @img tokens are linked", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Refine the background and styling."
+        extraImageUrls={[
+          "https://example.com/extra-one.png",
+          "https://example.com/extra-two.png",
+          null,
+        ]}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<
+            [
+              string[],
+              {
+                displayPromptOverride?: string | null;
+                submissionPromptOverride?: string | null;
+              }?,
+            ]
+          >;
+        };
+      }
+    ).mock.calls;
+    const submittedReferences = submissionCalls[0]?.[0] ?? [];
+    const submitOptions = submissionCalls[0]?.[1];
+    expect(submittedReferences).toEqual([
+      expect.stringMatching(/^blob:flatten-/),
+      "https://example.com/extra-one.png",
+      "https://example.com/extra-two.png",
+    ]);
+    expect(submitOptions?.displayPromptOverride).toBeUndefined();
+    expect(submitOptions?.submissionPromptOverride).toBeUndefined();
   });
 
   it("auto-flatten generate sends only explicitly linked secondary references to the model", async () => {

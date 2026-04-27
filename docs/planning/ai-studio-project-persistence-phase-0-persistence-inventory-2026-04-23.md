@@ -1,6 +1,6 @@
 # AI Studio Project Persistence Phase 0 Persistence Inventory (2026-04-23)
 
-Last updated: 2026-04-23  
+Last updated: 2026-04-25  
 Status: Accepted Working Artifact  
 Owner: Engineering
 
@@ -32,7 +32,7 @@ The master contract remains:
 8. no restored generated outputs pulled in from another project or from user-global projection reads.
 
 ### Saved Project Reopen
-Opening a saved project is correct only when AI Studio restores one coherent project-owned session that includes:
+Opening a saved project is correct only when AI Studio restores one coherent project-owned workspace that includes:
 1. project title,
 2. custom project folders,
 3. media memberships in those folders,
@@ -42,14 +42,15 @@ Opening a saved project is correct only when AI Studio restores one coherent pro
 7. canvas/workspace state,
 8. relevant Create/Edit selections,
 9. durable asset references required to resolve the project’s media and prompts,
-10. project-visible agent/prompt runtime state when that state is part of the saved workspace.
+10. project-visible Pulse selection state when that selection is part of the saved workspace,
+11. no restored agent transcript, draft agent input, chat-mode state, Pulse workflow-step state, or split agent runtime lanes.
 
 ## Current Persistence Authority Map
 | Authority | Current Repo Owner | Current Backing Store | Current Scope | Notes |
 | --- | --- | --- | --- | --- |
 | URL session identity | `useAiStudioSessionIdentity.ts` | `sid` query param | Session | `/ai-studio` is still `sid`-first and auto-seeds a session id when missing. |
-| Session snapshot write shadow | `sessionSnapshot.ts`, `sessionSnapshotStorage.ts`, `useAiStudioSessionPersistenceController.ts` | IndexedDB + in-memory fallback + optional remote AI sessions API | Session | Primary durable restore authority today for much of AI Studio. |
-| Remote session metadata/title | `sessionApiClient.ts`, `pages/ai-studio.tsx` | `/api/ai/sessions/*` | Session | Visible project name is still derived from session-era title logic. |
+| Session snapshot write shadow | `sessionSnapshot.ts`, `sessionSnapshotStorage.ts`, `useAiStudioSessionPersistenceController.ts` | IndexedDB + in-memory fallback | Retired legacy session lane | Client policy now hard-disables the legacy `sid` restore/write path; projects own durable restore. |
+| Remote session metadata/title | `sessionApiClient.ts`, `pages/ai-studio.tsx` | `/api/ai/sessions/*` | Retired legacy session lane | Route family is retired and page title no longer derives from session-era remote metadata. |
 | Workflow settings storage | `useAiStudioWorkflowSettings.ts` | `sessionStorage` | Browser session | Shared per-tool blob, not truly partitioned by project. |
 | Resolution fallback storage | `aiStudioStateConfig.ts`, `useAiStudioStateEffects.ts` | `sessionStorage` | Browser session | Video duration, video resolution, image resolution. |
 | Beginner mode preference | `useBeginnerModePreference.ts` | `user_preferences` + `localStorage` fallback | User global | Correctly a user-global preference. |
@@ -57,7 +58,7 @@ Opening a saved project is correct only when AI Studio restores one coherent pro
 | Create Pulse panel/saved presets | `useCreatePulsePresetPanelPreference.ts` | `user_preferences` + `localStorage` fallback | User global | Catalog/default preference surface, not project restore authority. |
 | Expert Edit preset panel/custom presets | `useExpertEditPresetPanelPreference.ts` | `user_preferences` + `localStorage` fallback | User global | Catalog/default preference surface, not project restore authority. |
 | Styles library ordering/details/deletions | `useStylesLibraryPanelIdsPreference.ts`, `useStylesLibraryStyleDetailsPreference.ts`, `useStylesLibraryDeletedStyleIdsPreference.ts` | `user_preferences` + `localStorage` fallback | User global | Library customization, not per-project content. |
-| Chat mode | `chatModePreference.ts`, `useAiStudioAgentBridge.ts` | `localStorage` | Browser global | Currently leaks across projects even though it is restore-visible session behavior. |
+| Chat mode | `chatModePreference.ts`, `useAiStudioAgentBridge.ts` | `localStorage` | Browser global runtime | Project routes now reset agent conversation state instead of restoring chat mode from project persistence. |
 | Selected character | `selectedCharacterPersistence.ts`, `useAiStudioCharacterModeLifecycle.ts` | user-scoped `localStorage` | User global today | Shared helper across Character Manager and AI Studio; likely wrong for project reopen in AI Studio. |
 | Model recents | `ModelModal.tsx` | `localStorage` | User global | UI convenience only. |
 | Shell split width | `useAiStudioShellResize.ts` | `localStorage` | User global | UI preference only. |
@@ -97,13 +98,13 @@ Opening a saved project is correct only when AI Studio restores one coherent pro
 ### Agent And Prompt Runtime
 | Surface | Current Owner | Current Storage | Classification | Target Authority | Owning Phase | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Agent messages | `sessionSnapshot.ts`, `useAiStudioAgentBridge.ts` | session snapshot + in-memory runtime | Project-scoped | `project_workspace_states` | 3 | Part of restoring the saved AI Studio session coherently. |
-| Agent input draft | `sessionSnapshot.ts` | session snapshot | Project-scoped | `project_workspace_states` | 3 | Reopen-visible unfinished work. |
-| Latest agent prompt | `sessionSnapshot.ts` | session snapshot | Project-scoped | `project_workspace_states` | 3 | Needed to resume saved session state. |
-| Prompt origin | `sessionSnapshot.ts` | session snapshot | Project-scoped | `project_workspace_states` | 3 | Restore-visible behavior. |
-| Chat mode enabled | `chatModePreference.ts`, `useAiStudioAgentBridge.ts` | `localStorage` | Project-scoped | `project_workspace_states` | 3 | Current browser-global storage is a cross-project leak. |
-| Pulse workflow session | `sessionSnapshot.ts` | session snapshot | Project-scoped | `project_workspace_states` | 3 | Explicitly part of saved Pulse session. |
-| Agent runtimes split (`standard`, `pulse`) | `sessionSnapshot.ts` | session snapshot | Project-scoped | `project_workspace_states` | 3 | Must survive project reopen if runtime split remains product-visible. |
+| Agent messages | `sessionSnapshot.ts`, `useAiStudioAgentBridge.ts` | session snapshot + in-memory runtime | Session/runtime only | Legacy `sid` session persistence only | 7 | No longer project-owned restore content. |
+| Agent input draft | `sessionSnapshot.ts` | session snapshot | Session/runtime only | Legacy `sid` session persistence only | 7 | Project reopen must not restore drafts. |
+| Latest agent prompt | `sessionSnapshot.ts` | session snapshot | Session/runtime only | Legacy `sid` session persistence only | 7 | Persist outputs of conversation, not the conversation itself. |
+| Prompt origin | `sessionSnapshot.ts` | session snapshot | Session/runtime only | Legacy `sid` session persistence only | 7 | Project reopen must fail closed to fresh conversational state. |
+| Chat mode enabled | `chatModePreference.ts`, `useAiStudioAgentBridge.ts` | `localStorage` | Session/runtime only | Runtime reset on project open | 7 | Project routes must not restore chat-mode state from project data. |
+| Pulse workflow session | `sessionSnapshot.ts` | session snapshot | Session/runtime only | Runtime reset on project open | 7 | Project reopen keeps Pulse selection only, not workflow progress. |
+| Agent runtimes split (`standard`, `pulse`) | `sessionSnapshot.ts` | session snapshot | Session/runtime only | Legacy `sid` session persistence only | 7 | Project snapshots must strip both runtime lanes. |
 
 ### Media Library, Assets, And Folder Membership
 | Surface | Current Owner | Current Storage | Classification | Target Authority | Owning Phase | Notes |
@@ -159,14 +160,14 @@ Opening a saved project is correct only when AI Studio restores one coherent pro
 | P0 | Visible project name still bound to session title logic | Project rename is not actually writing to the project domain | `pages/ai-studio.tsx`, `MediaLibraryPanel.tsx` | 2 |
 | P0 | `projects/create` still bootstraps old default folder flow | Project creation is coupled to the wrong folder domain | `pages/api/projects/create.ts` | 1 |
 | P1 | AI Studio selected character in localStorage | Character-mode selection can bleed between unrelated projects | `useAiStudioCharacterModeLifecycle.ts` | 3 |
-| P1 | Chat mode stored in browser-global localStorage | Saved project reopen can mismatch the project’s prior session behavior | `chatModePreference.ts`, `useAiStudioAgentBridge.ts` | 3 |
+| P1 | Chat mode stored in browser-global localStorage | Project reopen must reset conversation state instead of restoring browser-global chat behavior | `chatModePreference.ts`, `useAiStudioAgentBridge.ts` | 7 |
 | P1 | Resolution fallback keys in `sessionStorage` | Project reopen can pick up stale browser-session values | `useAiStudioStateEffects.ts` | 3 |
 | P1 | Local-only blob/data refs uploaded without project association | Durable asset exists, but project ownership is still undefined | `useAiStudioSessionReferenceDurability.ts` | 4 |
 
 ## Implementation Notes For Later Phases
 1. Phase 1 must keep `projects` creation focused on project identity and stop bootstrapping the old user-global folder path.
 2. Phase 2 must move project title authority from session title logic to `projects.title`.
-3. Phase 3 must migrate restore-visible workflow selections, chat mode, selected character, and other reopen-visible state into one project-owned workspace authority.
+3. Phase 3 must migrate restore-visible workflow selections and selected character into one project-owned workspace authority while keeping conversational runtime out of the project model.
 4. Phase 4 must stop project reopen from reading user-global generated output projections and instead resolve restore-relevant assets by project association.
 5. Phase 5 must replace the visible folder authority, not just relabel the current user-global folder tables.
 

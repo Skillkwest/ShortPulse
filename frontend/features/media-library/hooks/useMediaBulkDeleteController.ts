@@ -11,9 +11,9 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
+import { resolveMediaPreviewStoragePath } from "../logic/mediaPreviewStoragePath";
 
 type BulkDeleteMediaRowBase = {
   id: string;
@@ -166,9 +166,10 @@ export const useMediaBulkDeleteController = <
                 (row) => ({
                   id: row.id,
                   storage_path: row.storage_path,
-                  preview_storage_path:
-                    resolveMediaSigningStoragePaths(row, currentUserIdRef.current)[0] ??
-                    row.storage_path,
+                  preview_storage_path: resolveMediaPreviewStoragePath(
+                    row,
+                    currentUserIdRef.current
+                  ),
                   thumb_variant_path: row.thumb_variant_path,
                   poster_variant_path: row.poster_variant_path,
                   preview_variant_path: row.preview_variant_path,

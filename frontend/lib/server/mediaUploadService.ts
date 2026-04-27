@@ -10,7 +10,7 @@ import {
   isMediaStorageQuotaExceededError,
 } from "../mediaStorageQuota";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
-import { resolveMediaSigningStoragePaths } from "../mediaPreviewPath";
+import { resolveMediaPreviewStoragePath } from "../../features/media-library/logic/mediaPreviewStoragePath";
 import { withCanonicalImageDimensions } from "../mediaDimensionMetadata";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { extractImageDimensionsFromBuffer } from "./imageDimensions";
@@ -882,8 +882,7 @@ export const uploadMediaForUser = async ({
     }
 
     const normalizedRow = insertedRow as InsertedMediaRow;
-    const previewStoragePath =
-      resolveMediaSigningStoragePaths(normalizedRow, userId)[0] ?? normalizedRow.storage_path;
+    const previewStoragePath = resolveMediaPreviewStoragePath(normalizedRow, userId);
     let signedUrl = uploaded.signedUrl;
     if (previewStoragePath !== uploaded.storagePath) {
       const { data: signedPreview, error: signError } = await supabaseAdmin.storage

@@ -17,6 +17,7 @@ import {
   type MediaFileRow,
   type MediaCardRefCallback,
 } from "../../logic/mediaLibraryModalModel";
+import { useMediaAspectRatioCache } from "./useMediaAspectRatioCache";
 
 type ResolveMediaLibraryGridPreviewUrlArgs = {
   signedUrl: string | null | undefined;
@@ -77,30 +78,7 @@ export function MediaLibraryMediaGrid({
   onMediaPaint,
   onSignedUrlLoaded,
 }: MediaLibraryMediaGridProps) {
-  const [aspectRatioById, setAspectRatioById] = React.useState<Record<string, number>>({});
-  const cacheAspectRatio = React.useCallback((id: string, ratio: number) => {
-    if (!Number.isFinite(ratio) || ratio <= 0) return;
-    setAspectRatioById((prev) => {
-      if (prev[id] === ratio) return prev;
-      return { ...prev, [id]: ratio };
-    });
-  }, []);
-
-  React.useEffect(() => {
-    const activeIdSet = new Set(activeMedia.map((item) => item.id));
-    setAspectRatioById((prev) => {
-      let changed = false;
-      const next: Record<string, number> = {};
-      for (const [id, ratio] of Object.entries(prev)) {
-        if (!activeIdSet.has(id)) {
-          changed = true;
-          continue;
-        }
-        next[id] = ratio;
-      }
-      return changed ? next : prev;
-    });
-  }, [activeMedia]);
+  const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(activeMedia);
 
   const {
     containerRef: virtualContainerRef,

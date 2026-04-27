@@ -15,6 +15,7 @@ import type {
   MediaLibrarySurfaceState,
   MediaLibraryTabCacheState,
 } from "./types";
+import type { MediaDataTab, MediaTabCache } from "../logic/mediaLibraryPageHelpers";
 
 const createEmptyMediaLibraryTabCacheState = (): MediaLibraryTabCacheState => {
   const cache = createEmptyMediaTabCache<MediaLibraryMediaRow>();
@@ -94,31 +95,25 @@ export const createMediaLibraryRuntimeState = <
   },
 });
 
-const cloneSurfaceState = (state: MediaLibrarySurfaceState): MediaLibrarySurfaceState => {
-  const surface = state;
-  return {
-    ...surface,
-    cacheByTab: { ...surface.cacheByTab },
-    aggregateScopeCacheByKind: {
-      media: { ...surface.aggregateScopeCacheByKind.media },
-      prompts: { ...surface.aggregateScopeCacheByKind.prompts },
-    },
-    orderedViews: {
-      mediaIdsByTab: { ...surface.orderedViews.mediaIdsByTab },
-      promptIds: [...surface.orderedViews.promptIds],
-    },
-    selection: {
-      ...surface.selection,
-      selectedIds: new Set(surface.selection.selectedIds),
-    },
-    preview: {
-      ...surface.preview,
-      signedUrlById: { ...surface.preview.signedUrlById },
-      aspectRatioById: { ...surface.preview.aspectRatioById },
-      previewErrorById: { ...surface.preview.previewErrorById },
-      visibleIds: new Set(surface.preview.visibleIds),
-    },
+const cloneRuntimeSurface = <
+  TMedia extends MediaLibraryMediaRow,
+  TPrompt extends MediaLibraryPromptRow,
+>(
+  state: MediaLibraryRuntimeState<TMedia, TPrompt>,
+  surface: MediaLibrarySurfaceKind
+): {
+  next: MediaLibraryRuntimeState<TMedia, TPrompt>;
+  surfaceState: MediaLibrarySurfaceState;
+} => {
+  const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
+    ...state,
+    surfaceStateByKind: { ...state.surfaceStateByKind },
   };
+  const surfaceState: MediaLibrarySurfaceState = {
+    ...state.surfaceStateByKind[surface],
+  };
+  next.surfaceStateByKind[surface] = surfaceState;
+  return { next, surfaceState };
 };
 
 const areShallowObjectsEqual = (
@@ -203,18 +198,22 @@ export const replaceSurfaceMediaTabRows = <
   if (areOrderedRowsEqual(currentRows, rows) && areTabCacheStatesEqual(currentCache, nextCache)) {
     return state;
   }
-  const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
-    ...state,
-    mediaById: { ...state.mediaById },
-    surfaceStateByKind: { ...state.surfaceStateByKind },
-  };
-  const surfaceState = cloneSurfaceState(state.surfaceStateByKind[surface]);
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
+  next.mediaById = { ...state.mediaById };
   for (const row of rows) {
     next.mediaById[row.id] = row;
   }
-  surfaceState.orderedViews.mediaIdsByTab[tab] = rows.map((row) => row.id);
-  surfaceState.cacheByTab[tab] = nextCache;
-  next.surfaceStateByKind[surface] = surfaceState;
+  surfaceState.orderedViews = {
+    ...surfaceState.orderedViews,
+    mediaIdsByTab: {
+      ...surfaceState.orderedViews.mediaIdsByTab,
+      [tab]: rows.map((row) => row.id),
+    },
+  };
+  surfaceState.cacheByTab = {
+    ...surfaceState.cacheByTab,
+    [tab]: nextCache,
+  };
   return next;
 };
 
@@ -233,20 +232,18 @@ export const replaceSurfacePromptRows = <
     promptsLoaded?: boolean;
   }
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
-  const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
-    ...state,
-    promptById: { ...state.promptById },
-    surfaceStateByKind: { ...state.surfaceStateByKind },
-  };
-  const surfaceState = cloneSurfaceState(state.surfaceStateByKind[surface]);
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
+  next.promptById = { ...state.promptById };
   for (const row of rows) {
     next.promptById[row.id] = row;
   }
-  surfaceState.orderedViews.promptIds = rows.map((row) => row.id);
+  surfaceState.orderedViews = {
+    ...surfaceState.orderedViews,
+    promptIds: rows.map((row) => row.id),
+  };
   if (typeof promptsLoaded === "boolean") {
     surfaceState.promptsLoaded = promptsLoaded;
   }
-  next.surfaceStateByKind[surface] = surfaceState;
   return next;
 };
 
@@ -275,14 +272,22 @@ export const applyMediaSignedUrls = <
   }
 
   for (const surface of ["route", "modal", "panel"] as const) {
-    const surfaceState = cloneSurfaceState(state.surfaceStateByKind[surface]);
     let changed = false;
+    const currentSurfaceState = state.surfaceStateByKind[surface];
+    const nextSignedUrlById = { ...currentSurfaceState.preview.signedUrlById };
     for (const [mediaId, signedUrl] of signedUrlById) {
-      if (surfaceState.preview.signedUrlById[mediaId] === signedUrl) continue;
-      surfaceState.preview.signedUrlById[mediaId] = signedUrl;
+      if (nextSignedUrlById[mediaId] === signedUrl) continue;
+      nextSignedUrlById[mediaId] = signedUrl;
       changed = true;
     }
-    next.surfaceStateByKind[surface] = changed ? surfaceState : state.surfaceStateByKind[surface];
+    if (!changed) continue;
+    next.surfaceStateByKind[surface] = {
+      ...currentSurfaceState,
+      preview: {
+        ...currentSurfaceState.preview,
+        signedUrlById: nextSignedUrlById,
+      },
+    };
   }
 
   return next;
@@ -305,13 +310,14 @@ export const setSurfaceAspectRatio = <
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
   const current = state.surfaceStateByKind[surface].preview.aspectRatioById[mediaId];
   if (current === aspectRatio) return state;
-  const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
-    ...state,
-    surfaceStateByKind: { ...state.surfaceStateByKind },
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
+  surfaceState.preview = {
+    ...surfaceState.preview,
+    aspectRatioById: {
+      ...surfaceState.preview.aspectRatioById,
+      [mediaId]: aspectRatio,
+    },
   };
-  const surfaceState = cloneSurfaceState(state.surfaceStateByKind[surface]);
-  surfaceState.preview.aspectRatioById[mediaId] = aspectRatio;
-  next.surfaceStateByKind[surface] = surfaceState;
   return next;
 };
 
@@ -330,18 +336,18 @@ export const setSurfaceSignedUrls = <
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
   if (signedUrlById.size === 0) return state;
   let changed = false;
-  const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
-    ...state,
-    surfaceStateByKind: { ...state.surfaceStateByKind },
-  };
-  const surfaceState = cloneSurfaceState(state.surfaceStateByKind[surface]);
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
+  const nextSignedUrlById = { ...surfaceState.preview.signedUrlById };
   for (const [mediaId, signedUrl] of signedUrlById) {
-    if (surfaceState.preview.signedUrlById[mediaId] === signedUrl) continue;
-    surfaceState.preview.signedUrlById[mediaId] = signedUrl;
+    if (nextSignedUrlById[mediaId] === signedUrl) continue;
+    nextSignedUrlById[mediaId] = signedUrl;
     changed = true;
   }
   if (!changed) return state;
-  next.surfaceStateByKind[surface] = surfaceState;
+  surfaceState.preview = {
+    ...surfaceState.preview,
+    signedUrlById: nextSignedUrlById,
+  };
   return next;
 };
 
@@ -368,13 +374,11 @@ export const setSurfaceAggregateScopeCache = <
   if (areAggregateScopeCacheStatesEqual(currentCache, nextCache)) {
     return state;
   }
-  const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
-    ...state,
-    surfaceStateByKind: { ...state.surfaceStateByKind },
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
+  surfaceState.aggregateScopeCacheByKind = {
+    ...surfaceState.aggregateScopeCacheByKind,
+    [kind]: nextCache,
   };
-  const surfaceState = cloneSurfaceState(state.surfaceStateByKind[surface]);
-  surfaceState.aggregateScopeCacheByKind[kind] = nextCache;
-  next.surfaceStateByKind[surface] = surfaceState;
   return next;
 };
 
@@ -392,13 +396,8 @@ export const setSurfaceError = <
   }
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
   if (state.surfaceStateByKind[surface].error === error) return state;
-  const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
-    ...state,
-    surfaceStateByKind: { ...state.surfaceStateByKind },
-  };
-  const surfaceState = cloneSurfaceState(state.surfaceStateByKind[surface]);
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
   surfaceState.error = error;
-  next.surfaceStateByKind[surface] = surfaceState;
   return next;
 };
 
@@ -423,13 +422,11 @@ export const setSurfaceSelectedIds = <
   ) {
     return state;
   }
-  const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
-    ...state,
-    surfaceStateByKind: { ...state.surfaceStateByKind },
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
+  surfaceState.selection = {
+    ...surfaceState.selection,
+    selectedIds: nextSelectedIds,
   };
-  const surfaceState = cloneSurfaceState(state.surfaceStateByKind[surface]);
-  surfaceState.selection.selectedIds = nextSelectedIds;
-  next.surfaceStateByKind[surface] = surfaceState;
   return next;
 };
 
@@ -447,13 +444,8 @@ export const setSurfacePromptsLoaded = <
   }
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
   if (state.surfaceStateByKind[surface].promptsLoaded === promptsLoaded) return state;
-  const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
-    ...state,
-    surfaceStateByKind: { ...state.surfaceStateByKind },
-  };
-  const surfaceState = cloneSurfaceState(state.surfaceStateByKind[surface]);
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
   surfaceState.promptsLoaded = promptsLoaded;
-  next.surfaceStateByKind[surface] = surfaceState;
   return next;
 };
 
@@ -510,6 +502,34 @@ export const selectSurfaceAggregateScopeCache = <
   }
 ): MediaLibraryAggregateScopeCacheState =>
   state.surfaceStateByKind[surface].aggregateScopeCacheByKind[kind];
+
+export const selectSurfaceMediaTabCacheRecord = <
+  TMedia extends MediaLibraryMediaRow,
+  TPrompt extends MediaLibraryPromptRow,
+>(
+  state: MediaLibraryRuntimeState<TMedia, TPrompt>,
+  surface: MediaLibrarySurfaceKind
+): Record<MediaDataTab, MediaTabCache<TMedia>> => {
+  const surfaceState = state.surfaceStateByKind[surface];
+  return {
+    uploaded_images: {
+      ...surfaceState.cacheByTab.uploaded_images,
+      rows: selectSurfaceMediaRows(state, { surface, tab: "uploaded_images" }),
+    },
+    uploaded_videos: {
+      ...surfaceState.cacheByTab.uploaded_videos,
+      rows: selectSurfaceMediaRows(state, { surface, tab: "uploaded_videos" }),
+    },
+    private: {
+      ...surfaceState.cacheByTab.private,
+      rows: selectSurfaceMediaRows(state, { surface, tab: "private" }),
+    },
+    ai_generations: {
+      ...surfaceState.cacheByTab.ai_generations,
+      rows: selectSurfaceMediaRows(state, { surface, tab: "ai_generations" }),
+    },
+  };
+};
 
 export const selectSurfaceSelectedIds = <
   TMedia extends MediaLibraryMediaRow,

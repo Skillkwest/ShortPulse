@@ -4,6 +4,7 @@ import {
   createMediaLibraryRuntimeState,
   replaceSurfaceMediaTabRows,
   replaceSurfacePromptRows,
+  selectSurfaceMediaTabCacheRecord,
   selectSurfaceMediaRows,
   selectSurfacePromptRows,
   selectSurfaceSelectedIds,
@@ -148,6 +149,45 @@ describe("media runtime store", () => {
     });
 
     expect(nextState).toBe(state);
+  });
+
+  it("reconstructs surface media-tab cache records from normalized rows and tab metadata", () => {
+    let state = createMediaLibraryRuntimeState();
+    state = replaceSurfaceMediaTabRows(state, {
+      surface: "route",
+      tab: "uploaded_images",
+      rows: [makeMediaRow("image-1")],
+      cache: {
+        loaded: true,
+        loading: false,
+        pagesLoaded: 2,
+        query: "portrait",
+        hasMore: true,
+      },
+    });
+    state = replaceSurfaceMediaTabRows(state, {
+      surface: "route",
+      tab: "uploaded_videos",
+      rows: [makeMediaRow("video-1", { file_type: "video/mp4" })],
+      cache: {
+        loaded: true,
+        loading: false,
+        pagesLoaded: 1,
+        query: "",
+        hasMore: false,
+      },
+    });
+
+    const routeCache = selectSurfaceMediaTabCacheRecord(state, "route");
+
+    expect(routeCache.uploaded_images.rows.map((row) => row.id)).toEqual(["image-1"]);
+    expect(routeCache.uploaded_images.pagesLoaded).toBe(2);
+    expect(routeCache.uploaded_images.query).toBe("portrait");
+    expect(routeCache.uploaded_images.hasMore).toBe(true);
+    expect(routeCache.uploaded_videos.rows.map((row) => row.id)).toEqual(["video-1"]);
+    expect(routeCache.uploaded_videos.pagesLoaded).toBe(1);
+    expect(routeCache.private.rows).toEqual([]);
+    expect(routeCache.ai_generations.rows).toEqual([]);
   });
 
   it("tracks prompts, selection, aspect ratio, and deduped byte totals per surface", () => {

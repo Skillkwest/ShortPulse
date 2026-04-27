@@ -8,6 +8,7 @@ import {
   createMediaLibraryRuntimeState,
   replaceSurfaceMediaTabRows,
   replaceSurfacePromptRows,
+  selectSurfaceMediaTabCacheRecord,
   selectSurfaceMediaRows,
   selectSurfacePromptRows,
   selectTotalCachedMediaBytes,
@@ -62,39 +63,10 @@ export const useMediaLibraryRouteRuntime = <
     createMediaLibraryRuntimeState<TMedia, TPrompt>()
   );
 
-  const mediaTabCache = useMemo(() => {
-    const routeState = runtimeState.surfaceStateByKind.route;
-    return {
-      uploaded_images: {
-        ...routeState.cacheByTab.uploaded_images,
-        rows: selectSurfaceMediaRows(runtimeState, {
-          surface: "route",
-          tab: "uploaded_images",
-        }),
-      },
-      uploaded_videos: {
-        ...routeState.cacheByTab.uploaded_videos,
-        rows: selectSurfaceMediaRows(runtimeState, {
-          surface: "route",
-          tab: "uploaded_videos",
-        }),
-      },
-      private: {
-        ...routeState.cacheByTab.private,
-        rows: selectSurfaceMediaRows(runtimeState, {
-          surface: "route",
-          tab: "private",
-        }),
-      },
-      ai_generations: {
-        ...routeState.cacheByTab.ai_generations,
-        rows: selectSurfaceMediaRows(runtimeState, {
-          surface: "route",
-          tab: "ai_generations",
-        }),
-      },
-    };
-  }, [runtimeState]);
+  const mediaTabCache = useMemo(
+    () => selectSurfaceMediaTabCacheRecord(runtimeState, "route"),
+    [runtimeState]
+  );
 
   const files = useMemo(() => {
     if (!activeMediaTab) return [];
@@ -149,25 +121,7 @@ export const useMediaLibraryRouteRuntime = <
     Dispatch<SetStateAction<Record<MediaDataTab, MediaTabCache<TMedia>>>>
   >((updater) => {
     setRuntimeState((prev) => {
-      const currentRouteState = prev.surfaceStateByKind.route;
-      const currentCache: Record<MediaDataTab, MediaTabCache<TMedia>> = {
-        uploaded_images: {
-          ...currentRouteState.cacheByTab.uploaded_images,
-          rows: selectSurfaceMediaRows(prev, { surface: "route", tab: "uploaded_images" }),
-        },
-        uploaded_videos: {
-          ...currentRouteState.cacheByTab.uploaded_videos,
-          rows: selectSurfaceMediaRows(prev, { surface: "route", tab: "uploaded_videos" }),
-        },
-        private: {
-          ...currentRouteState.cacheByTab.private,
-          rows: selectSurfaceMediaRows(prev, { surface: "route", tab: "private" }),
-        },
-        ai_generations: {
-          ...currentRouteState.cacheByTab.ai_generations,
-          rows: selectSurfaceMediaRows(prev, { surface: "route", tab: "ai_generations" }),
-        },
-      };
+      const currentCache = selectSurfaceMediaTabCacheRecord(prev, "route");
       const nextCache = typeof updater === "function" ? updater(currentCache) : updater;
       let nextState = prev;
       for (const tab of tabOrder) {

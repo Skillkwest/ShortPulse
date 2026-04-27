@@ -70,19 +70,18 @@ export const useMediaLibraryPanelRuntime = ({
 
   const mediaRows = useMemo(() => {
     const panelRows = selectPanelMediaRows(runtimeState);
-    const deduped = Array.from(new Map(panelRows.map((row) => [row.id, row])).values());
     if (itemType === "images") {
-      return sortByCreatedAtDesc(deduped.filter((row) => isImageFile(row.file_type)));
+      return sortByCreatedAtDesc(panelRows.filter((row) => isImageFile(row.file_type)));
     }
     if (itemType === "videos") {
       return sortByCreatedAtDesc(
-        deduped.filter((row) => row.file_type.toLowerCase().startsWith("video"))
+        panelRows.filter((row) => row.file_type.toLowerCase().startsWith("video"))
       );
     }
     if (itemType === "prompts") {
       return [];
     }
-    return sortByCreatedAtDesc(deduped);
+    return sortByCreatedAtDesc(panelRows);
   }, [itemType, runtimeState]);
 
   const promptRows = useMemo(() => selectSurfacePromptRows(runtimeState, "panel"), [runtimeState]);

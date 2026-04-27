@@ -33,6 +33,8 @@ Purpose: classify the current `docs/planning/evidence/` tree into migration buck
   - `docs/planning/evidence/lane-b/` moved to `docs/records/evidence/lane-b/`
 - Next markdown-only migration executed after this snapshot:
   - `docs/planning/evidence/generation-pipeline-hardening/` moved to `docs/records/evidence/generation-pipeline-hardening/`
+- Explicit governance decision after this snapshot:
+  - `docs/planning/evidence/unified-buildout/` remains in place as an active-program exception while `docs/planning/shortpulse-unified-buildout-tracker.md` still treats phase evidence as current execution gating. It is no longer the default next migration target.
 - Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.
 
 ## Inventory snapshot
@@ -86,7 +88,6 @@ These namespaces are primarily human-readable evidence packets, templates, and c
 | `reference-grid-modularization` | `52` markdown | `docs/records/evidence/reference-grid-modularization/` |
 | `sql` | `5` markdown | `docs/records/evidence/sql/` |
 | `style-adherence` | `2` markdown | `docs/records/evidence/style-adherence/` |
-| `unified-buildout` | `140` markdown | `docs/records/evidence/unified-buildout/` |
 
 ### 3. Future split between `docs/records/evidence/` and `docs/records/artifacts/`
 These namespaces contain both human-readable packets and raw machine-generated material. They need an internal split during migration.
@@ -119,10 +120,21 @@ Target pilot shape:
 
 ## Deferred higher-complexity migrations
 These should not be the first physical move:
-- `unified-buildout`: largest retained markdown packet family
 - `reference-grid-modularization`: large packet family with many phase files
 - `lane-b`: large markdown family
 - `agent` and `agent-pipeline-remediation`: require evidence/artifacts split and path-sensitive references
+
+## Active-program exception
+`unified-buildout` is no longer classified as the default next records migration candidate.
+
+Reason:
+- its evidence namespace is still wired into the authoritative live tracker under `docs/planning/shortpulse-unified-buildout-tracker.md`,
+- multiple phases remain `In Progress` or `Deferred`,
+- and the namespace still functions as current execution proof rather than retained historical closeout only.
+
+Migration rule:
+1. Leave `docs/planning/evidence/unified-buildout/` in place while the unified build-out tracker remains active.
+2. Revisit migration only after the unified program is closed, replaced, or deliberately split into current-vs-records surfaces.
 
 ## Stop rules for the migration lane
 - Do not bulk-move multiple namespaces at once.

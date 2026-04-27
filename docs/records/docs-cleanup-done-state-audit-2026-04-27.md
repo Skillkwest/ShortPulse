@@ -29,11 +29,11 @@ Remaining physical namespaces under `docs/planning/evidence/`:
 - `media-rendering-hardening-v2/` (`11`)
 - `naming-canonicalization/` (`23`)
 - `reference-grid-modularization/` (`52`)
-- `unified-buildout/` (`140`)
 
 Interpretation:
 - This does not currently break navigation or validation because records policy and indexes already route readers away from raw packet inventories.
-- It does block the strictest version of the cleanup end state because retained evidence is still physically split between `docs/planning/evidence/` and `docs/records/`.
+- `unified-buildout/` is now an explicit active-program exception rather than an untriaged migration hold, because the live unified tracker still depends on phase evidence as current execution gating.
+- The remaining strict blocker is the physical split for the other retained evidence namespaces that do not need that exception.
 
 ## Optional follow-on judgment call
 ### Large governance docs could still be compressed later if the repo wants an even stricter current-truth surface
@@ -67,8 +67,7 @@ Recommended stop posture:
 ## Highest-ROI follow-on options
 If the repo wants to keep going, the best bounded options are:
 1. One final active-surface pass on the remaining large governance docs if the repo wants to compress current-truth authority further.
-2. One deliberate large-namespace decision on `unified-buildout/` rather than more small evidence moves.
-3. Otherwise stop this lane and preserve the current gains.
+2. Otherwise stop this lane and preserve the current gains.
 
 ## Audit conclusion
 The docs cleanup lane is not at the strict original done state yet, but it is very close to a practical stop point.

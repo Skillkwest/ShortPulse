@@ -33,5 +33,6 @@ This is the current physical evidence namespace during the records migration tra
 - Keep packet names date-prefixed (`YYYY-MM-DD-...`).
 - Keep evidence scoped to active planning tracks; archive superseded tracks under `docs/archive/` when retired.
 - New top-level reading paths should point to namespace indexes and records policy docs rather than directly to raw packet files.
+- `docs/planning/evidence/unified-buildout/` is an intentional active-program exception, not just an untriaged migration hold. Keep it here while `docs/planning/shortpulse-unified-buildout-tracker.md` still uses phase evidence as a live execution gate.
 - Reliability packet template: `docs/planning/generation-reliability-hardening-evidence-packet-template.md`.
 - Reference Grid reliability packet template: `docs/planning/ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`.

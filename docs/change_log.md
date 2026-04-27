@@ -3,6 +3,9 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Documentation governance:
+  - locked `docs/planning/evidence/unified-buildout/` as an explicit active-program exception while the unified build-out tracker still uses phase evidence as live execution gating,
+  - updated the records policy, planning-evidence index, migration classification note, and done-state audit so `unified-buildout` is no longer treated as the default next records migration target.
 - Documentation cleanup:
   - archived the paused Supabase production cutover handoff, the paused Reference Grid runtime simplification checkpoint, and the deferred Wave H webhook canary closeout plan/tracker out of `docs/planning/`,
   - updated active/archive indexes and continuation-plan references to point at the archived locations,

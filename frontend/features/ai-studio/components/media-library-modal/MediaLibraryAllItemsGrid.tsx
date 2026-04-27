@@ -1,10 +1,7 @@
 import React, { type MutableRefObject } from "react";
 import { Check, DownloadSimple, X } from "phosphor-react";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
-import {
-  resolveMediaSigningStoragePaths,
-  resolveVideoPosterSigningStoragePaths,
-} from "../../../../lib/mediaPreviewPath";
+import { resolveVideoBrowseSigningCandidates } from "../../../../lib/mediaPreviewPath";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
 import { MEDIA_LIBRARY_VIRTUALIZATION_ENABLED } from "../../../media-library/logic/mediaLibraryFeatureFlags";
@@ -100,13 +97,7 @@ const resolveHoverVideoSigningPath = (
 ): string | null => {
   if (!isVideoFile(file.file_type)) return null;
   if (file.signedUrl && isVideoUrl(file.signedUrl)) return null;
-
-  const posterCandidates = new Set(resolveVideoPosterSigningStoragePaths(file, currentUserId));
-  const hoverCandidates = resolveMediaSigningStoragePaths(file, currentUserId).filter(
-    (candidate) => !posterCandidates.has(candidate)
-  );
-
-  return hoverCandidates[0] ?? null;
+  return resolveVideoBrowseSigningCandidates(file, currentUserId).hoverVideoPath;
 };
 
 const readAudioDurationMs = (file: MediaFileRow): number | null => {
@@ -654,7 +645,7 @@ export function MediaLibraryAllItemsGrid({
       if (!isVideoFile(row.file_type)) continue;
       if (resolveVideoPosterSourceUrl(row, null, null, row.signedUrl ?? null)) continue;
 
-      const posterCandidates = resolveVideoPosterSigningStoragePaths(row, currentUserId);
+      const posterCandidates = resolveVideoBrowseSigningCandidates(row, currentUserId).posterPaths;
       if (posterCandidates.length === 0) continue;
       posterPathByRowId.set(row.id, posterCandidates);
       for (const candidate of posterCandidates) {

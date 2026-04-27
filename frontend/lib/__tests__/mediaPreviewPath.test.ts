@@ -5,6 +5,7 @@ import {
   resolveMediaPreviewCandidates,
   resolveMediaSigningStoragePaths,
   resolvePreviewStoragePath,
+  resolveVideoBrowseSigningCandidates,
   resolveVideoPosterSigningStoragePaths,
   resolveVideoPosterStoragePath,
 } from "../mediaPreviewPath";
@@ -131,5 +132,25 @@ describe("mediaPreviewPath", () => {
       "user-1/variants/videos/media-3/poster_720.jpg",
       "variants/videos/media-3/poster_720.jpg",
     ]);
+  });
+
+  it("resolves video browse poster and hover candidates from one shared pass", () => {
+    expect(
+      resolveVideoBrowseSigningCandidates(
+        {
+          file_type: "video/mp4",
+          storage_path: "uploads/videos/original.mp4",
+          preview_variant_path: "variants/videos/media-4/preview_loop_360p.mp4",
+          poster_variant_path: "variants/videos/media-4/poster_720.jpg",
+        },
+        "user-1"
+      )
+    ).toEqual({
+      posterPaths: [
+        "user-1/variants/videos/media-4/poster_720.jpg",
+        "variants/videos/media-4/poster_720.jpg",
+      ],
+      hoverVideoPath: "user-1/variants/videos/media-4/preview_loop_360p.mp4",
+    });
   });
 });

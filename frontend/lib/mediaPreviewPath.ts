@@ -294,6 +294,58 @@ export const resolveVideoPosterSigningStoragePaths = (
 };
 
 /**
+ * Resolves the signable poster-image candidates plus the first non-poster hover-video candidate.
+ * Uses one metadata pass so browse surfaces do not rebuild separate poster and hover candidate sets.
+ */
+export const resolveVideoBrowseSigningCandidates = (
+  row: MediaRowLike,
+  userId?: string | null
+): {
+  posterPaths: string[];
+  hoverVideoPath: string | null;
+} => {
+  const type = (row.file_type ?? "").toLowerCase();
+  if (!type.startsWith("video")) {
+    return {
+      posterPaths: [],
+      hoverVideoPath: null,
+    };
+  }
+
+  const metadataPaths = resolveFromMetadata(row.metadata ?? null);
+  const allCandidates = buildMediaSigningStoragePaths(row, metadataPaths, userId);
+  const posterPreferredPath = firstNonEmpty(
+    asStoragePath(row.poster_variant_path),
+    asStoragePath(row.thumb_variant_path),
+    metadataPaths.imagePreviewPath
+  );
+  const posterCandidates = [
+    posterPreferredPath,
+    asStoragePath(row.poster_variant_path),
+    asStoragePath(row.thumb_variant_path),
+    metadataPaths.imagePreviewPath,
+  ];
+
+  const posterPaths: string[] = [];
+  const seenPoster = new Set<string>();
+  for (const candidate of posterCandidates) {
+    for (const expandedCandidate of expandScopedStoragePathCandidates(candidate, userId)) {
+      if (!expandedCandidate || seenPoster.has(expandedCandidate)) continue;
+      seenPoster.add(expandedCandidate);
+      posterPaths.push(expandedCandidate);
+    }
+  }
+
+  const posterPathSet = new Set(posterPaths);
+  const hoverVideoPath = allCandidates.find((candidate) => !posterPathSet.has(candidate)) ?? null;
+
+  return {
+    posterPaths,
+    hoverVideoPath,
+  };
+};
+
+/**
  * Chooses a preview variant path when available; otherwise returns the original storage path.
  */
 export const resolvePreviewStoragePath = (row: MediaRowLike): string | null => {

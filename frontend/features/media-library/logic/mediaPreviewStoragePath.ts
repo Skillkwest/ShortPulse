@@ -2,7 +2,7 @@
  * Shared Media Library preview-storage-path normalization.
  * Centralizes the preview-path fallback used by route fetches and mutation flows.
  */
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
+import { resolvePreferredMediaSigningStoragePath } from "../../../lib/mediaPreviewPath";
 
 type PreviewStoragePathRow = {
   storage_path: string;
@@ -17,4 +17,4 @@ type PreviewStoragePathRow = {
 export const resolveMediaPreviewStoragePath = <TRow extends PreviewStoragePathRow>(
   row: TRow,
   currentUserId: string | null
-): string => resolveMediaSigningStoragePaths(row, currentUserId)[0] ?? row.storage_path;
+): string => resolvePreferredMediaSigningStoragePath(row, currentUserId) ?? row.storage_path;

@@ -404,6 +404,20 @@ export const classifyMediaPreviewPath = (
  * Returns ordered storage-path candidates to try when signing a media preview.
  * The first item is the preferred path.
  */
+export const resolvePreferredMediaSigningStoragePath = (
+  row: MediaRowLike,
+  userId?: string | null
+): string | null => {
+  const metadataPaths = resolveFromMetadata(row.metadata ?? null);
+  const preferredPath = resolvePreviewStoragePathWithMetadata(row, metadataPaths);
+  if (!preferredPath) return null;
+  return expandScopedStoragePathCandidates(preferredPath, userId)[0] ?? null;
+};
+
+/**
+ * Returns ordered storage-path candidates to try when signing a media preview.
+ * The first item is the preferred path.
+ */
 export const resolveMediaSigningStoragePaths = (
   row: MediaRowLike,
   userId?: string | null

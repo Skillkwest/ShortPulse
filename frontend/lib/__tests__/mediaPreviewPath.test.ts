@@ -4,6 +4,7 @@ import {
   resolveDurablePreviewStoragePath,
   resolveMediaPreviewCandidates,
   resolveMediaSigningStoragePaths,
+  resolvePreferredMediaSigningStoragePath,
   resolvePreviewStoragePath,
   resolveVideoBrowseSigningCandidates,
   resolveVideoPosterSigningStoragePaths,
@@ -70,6 +71,18 @@ describe("mediaPreviewPath", () => {
       "variants/images/media-1/thumb_480",
       "uploads/images/original.png",
     ]);
+  });
+
+  it("resolves the preferred signable preview path without building the full candidate list", () => {
+    const row = {
+      file_type: "image",
+      storage_path: "uploads/images/original.png",
+      thumb_variant_path: "variants/images/media-1/thumb_480",
+    };
+
+    expect(resolvePreferredMediaSigningStoragePath(row, "user-1")).toBe(
+      "user-1/variants/images/media-1/thumb_480"
+    );
   });
 
   it("resolves signing paths and trusted direct urls from one preview-candidate helper", () => {

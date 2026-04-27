@@ -263,6 +263,82 @@ describe("useAiStudioAgentOrchestration", () => {
         context: expect.objectContaining({
           focusedSource: "agent-output",
           selectedReferenceIds: ["ref-1"],
+          activePrompt: "A cinematic portrait in neon light.",
+          lastAssistantMessage: "A cinematic portrait in neon light.",
+        }),
+      })
+    );
+  });
+
+  it("keeps the transcript assistant message separate from the latest agent prompt seed", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
+    const params = createParams({
+      agentInput: "Help me shape this concept.",
+      latestAgentPrompt: "Refined pulse guidance",
+      lastAssistantMessage: "Previous assistant turn",
+      sendToAgent,
+      getAgentContext: vi.fn(() => ({
+        activePrompt: "Refined pulse guidance",
+        lastAssistantMessage: "Previous assistant turn",
+        focusedSource: "agent-output" as const,
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          activePrompt: "Refined pulse guidance",
+          lastAssistantMessage: "Previous assistant turn",
+        }),
+      })
+    );
+  });
+
+  it("keeps Video Prompt Magic prompt seed separate from the transcript assistant message", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
+    const params = createParams({
+      agentInput: "truck left",
+      latestAgentPrompt: "Which camera motion should I use?",
+      lastAssistantMessage: "Upload your image to get the process started :)",
+      sendToAgent,
+      getAgentContext: vi.fn(() => ({
+        activePrompt: "Which camera motion should I use?",
+        lastAssistantMessage: "Upload your image to get the process started :)",
+        focusedSource: "agent-output" as const,
+        pulse: {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          instructions: "Direct the user through a single-shot video workflow.",
+          runtimeMode: "workflow_gpt" as const,
+          activationMode: "activate_and_start" as const,
+          starterAssistantMessage: "Upload your image to get the process started :)",
+          workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection"],
+          outputMode: "chat_reply" as const,
+          memoryPolicy: "session" as const,
+          source: "builtin" as const,
+        },
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          activePrompt: "Which camera motion should I use?",
+          lastAssistantMessage: "Upload your image to get the process started :)",
+          pulse: expect.objectContaining({
+            label: "Video Prompt Magic",
+            presetId: "image",
+          }),
         }),
       })
     );

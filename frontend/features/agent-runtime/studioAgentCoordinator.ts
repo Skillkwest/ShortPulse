@@ -86,8 +86,18 @@ export const buildStudioAgentOpenAiMessages = ({
     { role: "system", content: `ORCHESTRATION:\n${JSON.stringify(orchestration)}` },
   ];
 
-  if (context.lastAssistantMessage) {
-    chat.push({ role: "assistant", content: context.lastAssistantMessage });
+  const latestAssistantMessage = [...messages]
+    .reverse()
+    .find((message) => message.role === "assistant")
+    ?.content?.trim();
+  const lastAssistantMessage = context.lastAssistantMessage?.trim();
+
+  if (
+    lastAssistantMessage &&
+    lastAssistantMessage.length > 0 &&
+    lastAssistantMessage !== latestAssistantMessage
+  ) {
+    chat.push({ role: "assistant", content: lastAssistantMessage });
   }
 
   if (context.media && context.media.length) {

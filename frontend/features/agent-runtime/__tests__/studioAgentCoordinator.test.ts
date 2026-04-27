@@ -57,4 +57,48 @@ describe("buildStudioAgentOpenAiMessages", () => {
     expect(messages[1]?.content).toContain("2. Hook");
     expect(messages[1]?.content).toContain('"currentStepLabel":"Hook"');
   });
+
+  it("does not prepend the latest assistant message twice when it already exists in history", () => {
+    const messages = buildStudioAgentOpenAiMessages({
+      messages: [
+        { role: "user", content: "Step 1" },
+        { role: "assistant", content: "Step 1 - Upload your image." },
+        { role: "user", content: "Step 2" },
+      ],
+      context: {
+        mode: "text",
+        lastAssistantMessage: "Step 1 - Upload your image. ",
+      },
+      systemPrompt: "base-system",
+      orchestration: {
+        flow: "TEXT_ONLY",
+        contextType: "agent-output",
+        userInput: "Step 2",
+        textInput: "Step 2",
+        imageReferenceIds: [],
+        promptReferenceIds: [],
+        shouldRunTextExpansion: true,
+        shouldRunVisionDescription: false,
+        shouldRunFusion: false,
+      },
+    });
+
+    expect(messages).toHaveLength(6);
+    expect(messages.map((message) => message.role)).toEqual([
+      "system",
+      "system",
+      "system",
+      "user",
+      "assistant",
+      "user",
+    ]);
+    expect(messages).not.toContainEqual({
+      role: "assistant",
+      content: "Step 1 - Upload your image. ",
+    });
+    expect(messages).toContainEqual({
+      role: "assistant",
+      content: "Step 1 - Upload your image.",
+    });
+  });
 });

@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../logic/promptTargeting";
-import { randomId } from "../logic/ids";
 import type {
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
@@ -253,7 +252,6 @@ export const useAiStudioAgentOrchestration = ({
         const shouldInjectLatestAgentPrompt = Boolean(latestAgentPrompt) && outboundText.length > 0;
         if (shouldInjectLatestAgentPrompt) {
           baseContext.activePrompt = latestAgentPrompt;
-          baseContext.lastAssistantMessage = latestAgentPrompt;
         }
         const mediaPatchedContext = mergeAttachmentContext({
           baseContext,

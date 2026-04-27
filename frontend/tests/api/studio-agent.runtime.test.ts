@@ -1861,6 +1861,7 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
   });
 
   it("fails closed to assistant fallback when upstream returns only meta-summary text", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -1906,6 +1907,18 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         fallback_reason: "parse_repair_failed",
       })
     );
+    const telemetryPayload = extractTelemetryPayloads(infoSpy).find(
+      (payload) => payload.path === "single_stage"
+    );
+    expect(telemetryPayload).toEqual(
+      expect.objectContaining({
+        path: "single_stage",
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+        fallback_reason: "parse_repair_failed",
+      })
+    );
+    infoSpy.mockRestore();
   });
 
   it("recovers meta-summary fast-path output when bounded repair returns valid prompt JSON", async () => {

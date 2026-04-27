@@ -3,9 +3,12 @@
  * Mirrors the Voices workflow feel while keeping all panel logic local to Sound Effects.
  */
 import React from "react";
+import { ELEVENLABS_SOUND_EFFECTS_MODEL_ID } from "../../../lib/model-runtime/elevenLabsModels";
+import { computeCostForModel } from "../../../lib/model-runtime/pricing";
+import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 
 export type SoundEffectFormat = "mp3_44100_128" | "pcm_48000";
-export const hardcodedSoundEffectsModelId = "eleven_text_to_sound_v2";
+export const hardcodedSoundEffectsModelId = ELEVENLABS_SOUND_EFFECTS_MODEL_ID;
 
 export type SoundEffectsGenerateRequest = {
   text: string;
@@ -16,14 +19,15 @@ export type SoundEffectsGenerateRequest = {
 };
 
 export type SoundEffectsPropertiesPanelProps = {
+  balanceCredits?: number | null;
   isGenerating?: boolean;
   onGenerate?: (request: SoundEffectsGenerateRequest) => Promise<void> | void;
+  pricingPolicy?: ModelPricingPolicyDocument | null;
 };
 
 const soundEffectPromptPlaceholder =
   "Describe the sound effect you want to generate with detail, texture, space, and motion.";
 const maxPromptCharacters = 450;
-const autoDurationCredits = 100;
 const defaultTopPanePercent = 58;
 const minBottomPaneHeightPx = 264;
 const splitStepPercent = 6;
@@ -42,8 +46,10 @@ const formatCreditValue = (value: number): string => {
 };
 
 export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPropertiesPanel({
+  balanceCredits = null,
   isGenerating = false,
   onGenerate,
+  pricingPolicy = null,
 }: SoundEffectsPropertiesPanelProps) {
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [prompt, setPrompt] = React.useState("");
@@ -53,8 +59,18 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   const hasInitializedDefaultSplitRef = React.useRef(false);
 
   const durationSeconds = null;
-  const generateCost = autoDurationCredits;
-  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0 && !isGenerating;
+  const generateCost =
+    computeCostForModel(
+      hardcodedSoundEffectsModelId,
+      {
+        generationCount: 1,
+      },
+      pricingPolicy
+    )?.credits ?? null;
+  const isInsufficientCredits =
+    balanceCredits != null && generateCost != null ? balanceCredits < generateCost : false;
+  const isGenerateEnabled =
+    Boolean(onGenerate) && prompt.trim().length > 0 && !isGenerating && !isInsufficientCredits;
   const isLibraryVisible = topPanePercent > 0;
   const minTopPanePercent = 0;
 
@@ -251,7 +267,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                   <span className="sound-effects-properties-generate-pill" aria-hidden="true">
                     <span className="sound-effects-properties-generate-cost-icon">✦</span>
                     <span className="sound-effects-properties-generate-cost-value">
-                      {formatCreditValue(generateCost)}
+                      {formatCreditValue(generateCost ?? 0)}
                     </span>
                   </span>
                 </button>

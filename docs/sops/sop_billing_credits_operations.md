@@ -161,6 +161,8 @@ Primary path:
 Operational rules:
 
 - Treat catalog pricing and runtime model pricing as separate domains even though they share `/admin/pricing`.
+- Treat ElevenLabs sound-generation rows on `/admin/pricing` as `Shared policy` models once they are wired through shared runtime pricing and server debits. These rows should expose live previews and shared-policy override controls.
+- Treat remaining ElevenLabs `Metadata only` rows as informational supporting/provider-preview inventory. They are not billable through the shared model-pricing control plane.
 - `Create new plan` is a new tier-identity flow. It creates the `billing_plans` row, the first current public `billing_plan_offers` row, the Stripe product, and the Stripe recurring price together.
 - Plan and storage changes create new public offers for future acquisitions; they do not mutate historical subscriber contracts.
 - Credit-package updates change the active package row used for future top-up checkout.

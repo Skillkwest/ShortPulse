@@ -112,7 +112,8 @@ const normalizeDurationForModel = (
 ): number | undefined => {
   if (!duration || !Number.isFinite(duration)) return undefined;
   const config = getModelConfig(modelId);
-  let normalizedDuration = Math.max(1, Math.round(duration));
+  const isAudioModel = config?.mediaType === "audio";
+  let normalizedDuration = isAudioModel ? duration : Math.max(1, Math.round(duration));
 
   const allowedDurations = [...(config?.allowedDurations ?? [])]
     .filter((value) => Number.isFinite(value))
@@ -129,7 +130,7 @@ const normalizeDurationForModel = (
   if (typeof config?.maxDurationSeconds === "number") {
     normalizedDuration = Math.min(config.maxDurationSeconds, normalizedDuration);
   }
-  return normalizedDuration;
+  return isAudioModel ? Number(normalizedDuration.toFixed(3)) : normalizedDuration;
 };
 
 const resolveBooleanAlias = (payload: JsonObject, aliases: string[]): boolean | undefined => {
@@ -161,8 +162,13 @@ export const summarizePayload = (payload: JsonObject): JsonObject => {
     "aspect_ratio",
     "duration",
     "duration_seconds",
+    "generation_count",
     "resolution",
     "mode",
+    "source_duration_ms",
+    "source_duration_seconds",
+    "text",
+    "text_characters",
     "generate_audio",
     "sound",
     "voice_ids",
@@ -200,6 +206,11 @@ export const buildPricingParams = (
   const duration = normalizeDurationForModel(durationRaw, modelId);
   if (duration) params.durationSeconds = duration;
 
+  const generationCount = asNumber(payload.generation_count);
+  if (generationCount && generationCount > 0) {
+    params.generationCount = Math.max(1, Math.round(generationCount));
+  }
+
   const resolution = normalizeResolutionForModel(resolveResolution(payload), modelId);
   if (resolution) params.resolution = resolution;
 
@@ -221,11 +232,41 @@ export const buildPricingParams = (
   const webSearch = resolveWebSearchFlag(payload, modelId);
   if (webSearch !== undefined) params.webSearch = webSearch;
 
+  const sourceDurationSeconds =
+    asNumber(payload.source_duration_seconds) ??
+    (() => {
+      const sourceDurationMs = asNumber(payload.source_duration_ms);
+      if (!sourceDurationMs || sourceDurationMs <= 0) return undefined;
+      return sourceDurationMs / 1000;
+    })();
+  if (sourceDurationSeconds && sourceDurationSeconds > 0) {
+    params.sourceDurationSeconds = Number(sourceDurationSeconds.toFixed(3));
+  }
+
+  const directTextCharacters = asNumber(payload.text_characters);
+  if (directTextCharacters && directTextCharacters > 0) {
+    params.textCharacters = Math.max(1, Math.round(directTextCharacters));
+  } else {
+    const text = asString(payload.text);
+    if (text) {
+      params.textCharacters = text.length;
+    }
+  }
+
   if (!params.durationSeconds && config?.defaultDurationSeconds) {
     params.durationSeconds = config.defaultDurationSeconds;
   }
   if (!params.resolution && config?.defaultResolution) {
     params.resolution = config.defaultResolution;
+  }
+  if (!params.generationCount && config?.defaultGenerationCount) {
+    params.generationCount = config.defaultGenerationCount;
+  }
+  if (!params.sourceDurationSeconds && config?.defaultSourceDurationSeconds) {
+    params.sourceDurationSeconds = config.defaultSourceDurationSeconds;
+  }
+  if (!params.textCharacters && config?.defaultTextCharacters) {
+    params.textCharacters = config.defaultTextCharacters;
   }
   if (params.audio === undefined && config?.defaultAudio !== undefined) {
     params.audio = config.defaultAudio;

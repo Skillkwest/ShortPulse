@@ -3,10 +3,12 @@ import handler from "../../pages/api/elevenlabs/speech-to-speech";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const chargeGenerationRequestMock = vi.fn();
 const generateElevenLabsVoiceChangerMock = vi.fn();
 const createRemuxedVoiceChangerVideoMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 const persistGeneratedVideoAssetMock = vi.fn();
+const probeMediaDurationSecondsMock = vi.fn();
 const readRemoteSourceBufferMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
 
@@ -63,6 +65,10 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
 }));
 
+vi.mock("../../lib/server/api/generationBilling", () => ({
+  chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
+}));
+
 vi.mock("../../lib/server/api/trustedRemoteMediaUrl", () => ({
   assertTrustedRemoteMediaUrl: vi.fn(),
   TrustedRemoteMediaUrlError: MockTrustedRemoteMediaUrlError,
@@ -79,6 +85,7 @@ vi.mock("../../lib/server/elevenlabs", () => ({
 }));
 
 vi.mock("../../lib/server/mediaAudioExtraction", () => ({
+  probeMediaDurationSeconds: (...args: unknown[]) => probeMediaDurationSecondsMock(...args),
   readStoredMediaBuffer: (...args: unknown[]) => readStoredMediaBufferMock(...args),
   readRemoteMediaBuffer: vi.fn(),
   MAX_VOICE_CHANGER_SOURCE_BYTES: 40 * 1024 * 1024,
@@ -114,9 +121,31 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     };
     readRemoteSourceBufferMock.mockReset();
     readStoredMediaBufferMock.mockReset();
+    probeMediaDurationSecondsMock.mockReset();
+    probeMediaDurationSecondsMock.mockResolvedValue(12);
+    chargeGenerationRequestMock.mockResolvedValue({
+      userId: "user-1",
+      modelId: "eleven_multilingual_sts_v2",
+      credits: 15,
+      sourceRef: "billing-source-voice-1",
+      billingMode: "direct_debit",
+      chargeMetadata: { debited_credits: 15 },
+      pricingBreakdown: {
+        billedCredits: 15,
+        billedUsd: 0.15,
+        pricingPolicySource: "control_plane",
+        pricingPolicyVersion: 3,
+        rawCredits: 13,
+        usdRaw: 0.12,
+      },
+      pricingParams: { sourceDurationSeconds: 12 },
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "attached" }),
+      refund: vi.fn().mockResolvedValue(undefined),
+    });
     generateElevenLabsVoiceChangerMock.mockResolvedValue({
       buffer: Buffer.from("converted-audio"),
       contentType: "audio/mpeg",
+      providerRequestId: "provider-voice-req-1",
     });
     createRemuxedVoiceChangerVideoMock.mockResolvedValue({
       buffer: Buffer.from("remuxed-video"),
@@ -196,8 +225,13 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
           aspect: "9:16",
         },
         extraMetadata: expect.objectContaining({
+          billing_source_ref: "billing-source-voice-1",
+          debited_credits: 15,
           derivative_kind: "voice_changer_remuxed_video",
+          provider_request_id: "provider-voice-req-1",
           source_audio_generation_id: "gen-audio-1",
+          source_duration_ms: 12000,
+          source_duration_seconds: 12,
           source_video_storage_path: "user-1/voice-changer/source-video/source.mp4",
         }),
       })
@@ -215,7 +249,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         previewStoragePath: "user-1/generations/audio/gen-audio-1/source.mp3",
         fullStoragePath: "user-1/generations/audio/gen-audio-1/source.mp3",
         mimeType: "audio/mpeg",
-        durationMs: null,
+        durationMs: 12000,
         waveformPeaks: null,
         modelId: "eleven_multilingual_sts_v2",
         voiceId: "voice-1",
@@ -313,7 +347,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         previewStoragePath: "user-1/generations/audio/gen-audio-1/source.mp3",
         fullStoragePath: "user-1/generations/audio/gen-audio-1/source.mp3",
         mimeType: "audio/mpeg",
-        durationMs: null,
+        durationMs: 12000,
         waveformPeaks: null,
         modelId: "eleven_multilingual_sts_v2",
         voiceId: "voice-1",

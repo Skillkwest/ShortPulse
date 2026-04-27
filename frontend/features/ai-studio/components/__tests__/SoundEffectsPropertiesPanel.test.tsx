@@ -54,7 +54,7 @@ describe("SoundEffectsPropertiesPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
     expect(screen.getByText("0 / 450")).toBeInTheDocument();
-    expect(screen.getByText("100")).toBeInTheDocument();
+    expect(screen.getByText("15")).toBeInTheDocument();
   });
 
   it("keeps the composer empty by default", () => {
@@ -69,7 +69,7 @@ describe("SoundEffectsPropertiesPanel", () => {
       "mp3_44100_128"
     );
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
-    expect(screen.getByText("100")).toBeInTheDocument();
+    expect(screen.getByText("15")).toBeInTheDocument();
   });
 
   it("submits manual prompt settings without placeholder cards", () => {

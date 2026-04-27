@@ -38,6 +38,12 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - Current blocked set: none.
 - `usdRaw` is provider USD before markup/quantization; `usd` is billed USD (`credits * 0.01`).
 - Runtime authority: admin edits create a new versioned policy document and update the control-plane singleton; AI Studio clients and server billing both resolve that same active document with a short cache TTL.
+- ElevenLabs sound generation now bills through the shared model-pricing engine for:
+  - `eleven_multilingual_v2` (voiceover) by billed character count
+  - `eleven_multilingual_sts_v2` (voice changer) by processed source duration
+  - `eleven_text_to_sound_v2` (sound effects) by generation or explicit duration
+  - `music_v1` (music) by requested duration
+- `metadata_only` ElevenLabs rows remain informational only for supporting/provider-preview models that are not user-billable through the shared runtime pricing policy.
 
 ## Current strategies
 - `fal-economy-image-per-mp`: `fal-ai/flux-2/klein/9b` uses `$0.006/MP`; `fal-ai/bria/background/remove` uses fixed `$0.018` per generation. Any model-specific billed result now comes from the shared global policy plus explicit per-model overrides in the admin pricing panel.

@@ -15,6 +15,7 @@ const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const extractAudioWaveformPeaksFromUrlMock = vi.hoisted(() => vi.fn());
 const uploadVoiceChangerSourceFileMock = vi.hoisted(() => vi.fn());
 const extractVoiceChangerVideoSourceMock = vi.hoisted(() => vi.fn());
+const resolveVoiceChangerMediaDurationMsMock = vi.hoisted(() => vi.fn());
 const resolveVoiceChangerVideoAspectMock = vi.hoisted(() => vi.fn());
 const resolveVoiceChangerSourceStoragePathMock = vi.hoisted(() => vi.fn());
 const signVoiceChangerStoragePathMock = vi.hoisted(() => vi.fn());
@@ -29,6 +30,8 @@ vi.mock("../../utils/voiceChangerSourceAsset", () => ({
   uploadVoiceChangerSourceFile: (...args: unknown[]) => uploadVoiceChangerSourceFileMock(...args),
   extractVoiceChangerVideoSource: (...args: unknown[]) =>
     extractVoiceChangerVideoSourceMock(...args),
+  resolveVoiceChangerMediaDurationMs: (...args: unknown[]) =>
+    resolveVoiceChangerMediaDurationMsMock(...args),
   resolveVoiceChangerVideoAspect: (...args: unknown[]) =>
     resolveVoiceChangerVideoAspectMock(...args),
   resolveVoiceChangerSourceStoragePath: (...args: unknown[]) =>
@@ -54,6 +57,7 @@ describe("VoicesPropertiesPanel", () => {
     extractAudioWaveformPeaksFromUrlMock.mockReset();
     uploadVoiceChangerSourceFileMock.mockReset();
     extractVoiceChangerVideoSourceMock.mockReset();
+    resolveVoiceChangerMediaDurationMsMock.mockReset();
     resolveVoiceChangerVideoAspectMock.mockReset();
     resolveVoiceChangerSourceStoragePathMock.mockReset();
     signVoiceChangerStoragePathMock.mockReset();
@@ -75,6 +79,7 @@ describe("VoicesPropertiesPanel", () => {
       name: "source.wav",
       size: 128,
     });
+    resolveVoiceChangerMediaDurationMsMock.mockResolvedValue(4200);
     resolveVoiceChangerVideoAspectMock.mockResolvedValue("9:16");
     resolveVoiceChangerSourceStoragePathMock.mockReturnValue(null);
     signVoiceChangerStoragePathMock.mockImplementation(async (storagePath: string) => {
@@ -1429,7 +1434,7 @@ describe("VoicesPropertiesPanel", () => {
     );
   });
 
-  it("keeps generate enabled and allows repeated submissions while generation is in flight", async () => {
+  it("disables generate while a voice generation is already in flight", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -1460,15 +1465,11 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     const generateButton = screen.getByRole("button", { name: "Generate" });
-    expect(generateButton).toBeEnabled();
+    expect(generateButton).toBeDisabled();
     expect(screen.getByText("Generating…")).toBeInTheDocument();
 
     fireEvent.click(generateButton);
-    fireEvent.click(generateButton);
-
-    await waitFor(() => {
-      expect(onGenerate).toHaveBeenCalledTimes(2);
-    });
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 
   it("plays and stops a live voice sample from the chip play button", async () => {

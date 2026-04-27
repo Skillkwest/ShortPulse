@@ -131,18 +131,21 @@ describe("persistGeneratedAudioAsset", () => {
     });
 
     expect(mediaFilesInsertMock).not.toHaveBeenCalled();
-    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith({
-      generationId: "generation-1",
-      userId: "user-1",
-      resultUrls: ["https://signed.example/audio.mp3"],
-      mediaFileIds: [],
-      metadata: expect.objectContaining({
-        media_kind: "audio",
-        autosave_enabled: false,
-        autosave_decision: "autosave_skipped",
-        autosave_decision_reason: "autosave_disabled",
-      }),
-    });
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        userId: "user-1",
+        providerRequestId: null,
+        resultUrls: ["https://signed.example/audio.mp3"],
+        mediaFileIds: [],
+        metadata: expect.objectContaining({
+          media_kind: "audio",
+          autosave_enabled: false,
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: "autosave_disabled",
+        }),
+      })
+    );
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "generation-1",

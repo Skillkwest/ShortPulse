@@ -5,6 +5,12 @@
 import React from "react";
 import { Microphone, Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import {
+  ELEVENLABS_VOICEOVER_MODEL_ID,
+  ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+} from "../../../lib/model-runtime/elevenLabsModels";
+import { computeCostForModel } from "../../../lib/model-runtime/pricing";
+import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useSharedVoicesGrid, type SharedVoiceOption } from "../hooks/useSharedVoicesGrid";
 import type { ToolId } from "../types";
@@ -17,6 +23,7 @@ import {
 } from "./VoiceChangerSourceDropzone";
 import {
   extractVoiceChangerVideoSource,
+  resolveVoiceChangerMediaDurationMs,
   resolveVoiceChangerVideoAspect,
   resolveVoiceChangerSourceStoragePath,
   signVoiceChangerStoragePath,
@@ -70,7 +77,6 @@ const maxVoicePromptCharacters = 1000;
 const minVoicePromptCharacters = 20;
 const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
-const voiceGenerateCost = 15;
 const splitModeTransitionDurationMs = 240;
 const minTopVoicesPaneHeightPx = 0;
 const minBottomComposePaneHeightPx = 480;
@@ -79,7 +85,7 @@ const minVisibleVoicesPaneHeightPx = 76;
 const minBottomVoiceChangerPaneHeightPx = 520;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
-export const hardcodedVoiceoverModelId = "eleven_multilingual_v2";
+export const hardcodedVoiceoverModelId = ELEVENLABS_VOICEOVER_MODEL_ID;
 export const hardcodedVoiceoverLanguageCode = null;
 export const hardcodedVoiceoverStyleValue = 0 as const;
 
@@ -159,7 +165,7 @@ const voiceChangerOutputFormatOptions = [
   { value: "pcm_24000", label: "PCM" },
 ] as const;
 
-const hardcodedVoiceChangerModel = "eleven_multilingual_sts_v2";
+const hardcodedVoiceChangerModel = ELEVENLABS_VOICE_CHANGER_MODEL_ID;
 const hardcodedVoiceChangerSpeakerBoostEnabled = true;
 const hardcodedVoiceChangerInputFormat = "other";
 const hardcodedVideoDerivedVoiceChangerSettings = {
@@ -340,6 +346,8 @@ export type VoicesGenerateRequest =
     };
 
 export type VoicesPropertiesPanelProps = {
+  balanceCredits?: number | null;
+  pricingPolicy?: ModelPricingPolicyDocument | null;
   selectedTool?: ToolId | null;
   isGenerating?: boolean;
   onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
@@ -351,6 +359,9 @@ export type ActiveVoiceChangerSourceVideo = {
   referenceMediaId: string | null;
   aspect: string | null;
 };
+
+const formatCreditValue = (value: number): string =>
+  Number.isInteger(value) ? String(value) : value.toFixed(1);
 
 const resolveActiveVoiceChangerSourceVideo = ({
   source,
@@ -437,6 +448,8 @@ function VoicesSlider({
  * Renders the dedicated Voices workflow panel.
  */
 export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
+  balanceCredits = null,
+  pricingPolicy = null,
   selectedTool = null,
   isGenerating = false,
   onGenerate,
@@ -512,12 +525,35 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const isSelectedVoiceProviderReady =
     selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
   const normalizedVoicePromptLength = voicePrompt.trim().length;
+  const estimatedCredits =
+    surfaceMode === "create"
+      ? (computeCostForModel(
+          hardcodedVoiceoverModelId,
+          {
+            textCharacters: voiceScript.trim().length,
+          },
+          pricingPolicy
+        )?.credits ?? null)
+      : (computeCostForModel(
+          hardcodedVoiceChangerModel,
+          {
+            sourceDurationSeconds:
+              voiceChangerSource?.durationMs != null
+                ? voiceChangerSource.durationMs / 1000
+                : undefined,
+          },
+          pricingPolicy
+        )?.credits ?? null);
+  const isInsufficientCredits =
+    balanceCredits != null && estimatedCredits != null ? balanceCredits < estimatedCredits : false;
   const isGenerateEnabled =
     Boolean(selectedLibraryVoice?.id) &&
     (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
     (surfaceMode === "create"
       ? voiceScript.trim().length > 0
-      : voiceChangerSource?.status === "ready");
+      : voiceChangerSource?.status === "ready") &&
+    !isGenerating &&
+    !isInsufficientCredits;
   const isCreateVoiceEnabled =
     voiceName.trim().length > 0 &&
     normalizedVoicePromptLength >= minVoicePromptCharacters &&
@@ -705,6 +741,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         status: initialStatus,
         storagePath:
           nextSource.storagePath ?? resolveVoiceChangerSourceStoragePath(nextSource.sourceUrl),
+        durationMs: nextSource.durationMs,
         errorMessage: null,
         extractedFrom: null,
       };
@@ -717,6 +754,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         let stagedMimeType = initialSource.mimeType;
         let stagedName = initialSource.name;
         const stagedAspect = initialSource.aspect;
+        let stagedDurationMs = initialSource.durationMs;
 
         try {
           if (initialSource.file) {
@@ -739,11 +777,18 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               throw new Error("Unable to resolve the staged audio source URL.");
             }
 
+            stagedDurationMs =
+              stagedDurationMs ??
+              (await resolveVoiceChangerMediaDurationMs(stagedSourceUrl, "audio").catch(
+                () => null
+              ));
+
             setVoiceChangerSource({
               ...initialSource,
               kind: "audio",
               status: "ready",
               aspect: null,
+              durationMs: stagedDurationMs,
               name: stagedName,
               mimeType: stagedMimeType,
               file: null,
@@ -777,6 +822,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               ? Promise.resolve(stagedAspect)
               : resolveVoiceChangerVideoAspect(initialSource.previewUrl ?? stagedSourceUrl)
           ).catch(() => null);
+          const durationResolutionPromise = resolveVoiceChangerMediaDurationMs(
+            initialSource.previewUrl ?? stagedSourceUrl,
+            "video"
+          ).catch(() => null);
 
           const extracted = await extractVoiceChangerVideoSource({
             sourceName: stagedName,
@@ -793,6 +842,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             kind: "audio",
             status: "ready",
             aspect: null,
+            durationMs: await durationResolutionPromise,
             name: extracted.name,
             mimeType: extracted.mimeType,
             file: null,
@@ -1603,7 +1653,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   <span className="voices-properties-generate-pill" aria-hidden="true">
                     <span className="voices-properties-generate-cost-icon">✦</span>
                     <span className="voices-properties-generate-cost-value">
-                      {voiceGenerateCost}
+                      {formatCreditValue(estimatedCredits ?? 0)}
                       <span className="voices-properties-generate-cost-label">credits</span>
                     </span>
                   </span>

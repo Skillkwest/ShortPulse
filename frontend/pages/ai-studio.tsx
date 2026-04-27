@@ -2138,16 +2138,22 @@ export default function AiStudioPage() {
         propertiesEditExpert={propertiesEditExpert}
         propertiesVideo={propertiesVideo}
         propertiesMusic={{
+          balanceCredits: effectiveBalanceCredits,
           isGenerating: musicIsGenerating,
           onGenerate: handleMusicGenerate,
+          pricingPolicy: modelPricingPolicy,
         }}
         propertiesSoundEffects={{
+          balanceCredits: effectiveBalanceCredits,
           isGenerating: soundEffectsIsGenerating,
           onGenerate: handleSoundEffectsGenerate,
+          pricingPolicy: modelPricingPolicy,
         }}
         propertiesVoices={{
+          balanceCredits: effectiveBalanceCredits,
           isGenerating: voicesIsGenerating,
           onGenerate: handleVoicesGenerate,
+          pricingPolicy: modelPricingPolicy,
         }}
         refreshCharacterOptions={refreshCharacterOptions}
         resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}

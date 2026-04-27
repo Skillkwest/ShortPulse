@@ -19,6 +19,14 @@ const BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD = 0.018;
 const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
 const GPT_IMAGE_PER_IMAGE_USD = 0.04;
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
+const ELEVENLABS_TEXT_TO_SPEECH_USD_PER_1K_CHARACTERS = 0.1;
+const ELEVENLABS_VOICE_CHANGER_USD_PER_MINUTE = 0.12;
+const ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION = 0.12;
+// ElevenLabs documents explicit-duration sound effects as 20 internal credits / second and
+// auto-duration as 100 credits / generation. We normalize both onto the published USD basis.
+const ELEVENLABS_SOUND_EFFECT_EXPLICIT_USD_PER_SECOND =
+  ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION / 5;
+const ELEVENLABS_MUSIC_USD_PER_MINUTE = 0.3;
 const VEO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.4;
 const VEO_NO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.2;
 const VEO_AUDIO_RATE_4K_USD_PER_SECOND = 0.6;
@@ -44,6 +52,11 @@ const SEEDANCE_RESOLUTION_MAP = {
 const kieCreditsToUsd = (credits: number): number => credits * KIE_CREDIT_USD;
 
 type StrategyFn = (params: PricingParams) => CostBreakdown | null;
+
+const resolvePositiveFiniteNumber = (value: number | undefined): number | null => {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  return value;
+};
 
 const toCostBreakdown = ({
   modelId,
@@ -245,6 +258,85 @@ const computeGpt41NanoPerTokenCost: StrategyFn = ({
   return toCostBreakdown({
     modelId,
     usdRaw: totalUsd,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+    policy: pricingPolicy,
+  });
+};
+
+const computeElevenLabsTextToSpeechCost: StrategyFn = ({
+  modelId,
+  pricingPolicy,
+  textCharacters,
+}) => {
+  const resolvedCharacters = resolvePositiveFiniteNumber(textCharacters);
+  if (resolvedCharacters == null) return null;
+
+  return toCostBreakdown({
+    modelId,
+    usdRaw:
+      (Math.round(resolvedCharacters) / 1_000) * ELEVENLABS_TEXT_TO_SPEECH_USD_PER_1K_CHARACTERS,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+    policy: pricingPolicy,
+  });
+};
+
+const computeElevenLabsVoiceChangerCost: StrategyFn = ({
+  modelId,
+  pricingPolicy,
+  sourceDurationSeconds,
+}) => {
+  const resolvedDurationSeconds = resolvePositiveFiniteNumber(sourceDurationSeconds);
+  if (resolvedDurationSeconds == null) return null;
+
+  return toCostBreakdown({
+    modelId,
+    usdRaw: (resolvedDurationSeconds / 60) * ELEVENLABS_VOICE_CHANGER_USD_PER_MINUTE,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+    policy: pricingPolicy,
+  });
+};
+
+const computeElevenLabsSoundEffectCost: StrategyFn = ({
+  durationSeconds,
+  generationCount,
+  modelId,
+  pricingPolicy,
+}) => {
+  const resolvedDurationSeconds = resolvePositiveFiniteNumber(durationSeconds);
+  const resolvedGenerationCount = Math.max(
+    1,
+    Math.round(resolvePositiveFiniteNumber(generationCount) ?? 1)
+  );
+  const usdRaw =
+    resolvedDurationSeconds == null
+      ? resolvedGenerationCount * ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION
+      : resolvedDurationSeconds * ELEVENLABS_SOUND_EFFECT_EXPLICIT_USD_PER_SECOND;
+
+  return toCostBreakdown({
+    modelId,
+    usdRaw,
+    megapixels: 0,
+    width: 0,
+    height: 0,
+    policy: pricingPolicy,
+  });
+};
+
+const computeElevenLabsMusicCost: StrategyFn = ({ durationSeconds, modelId, pricingPolicy }) => {
+  const resolvedDurationSeconds =
+    resolvePositiveFiniteNumber(durationSeconds) ?? resolveDefaultDuration({ modelId }, 30);
+  const normalizedDurationSeconds = resolvePositiveFiniteNumber(resolvedDurationSeconds);
+  if (normalizedDurationSeconds == null) return null;
+
+  return toCostBreakdown({
+    modelId,
+    usdRaw: (normalizedDurationSeconds / 60) * ELEVENLABS_MUSIC_USD_PER_MINUTE,
     megapixels: 0,
     width: 0,
     height: 0,
@@ -471,6 +563,10 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
 };
 
 export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
+  "elevenlabs-music-per-minute": computeElevenLabsMusicCost,
+  "elevenlabs-sound-effect": computeElevenLabsSoundEffectCost,
+  "elevenlabs-text-to-speech-per-kchar": computeElevenLabsTextToSpeechCost,
+  "elevenlabs-voice-changer-per-minute": computeElevenLabsVoiceChangerCost,
   "fal-per-mp": computeFalPerMpCost,
   "fal-economy-image-per-mp": computeEconomyFalImageCost,
   "fal-fill-per-mp": computeFalFillPerMpCost,

@@ -29,6 +29,7 @@ const VIDEO_EXTENSION_BY_MIME_TYPE: Record<string, string> = {
   "video/x-m4v": "m4v",
   "video/webm": "webm",
 };
+const DURATION_PATTERN = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/i;
 
 export type TempFileHandle = {
   path: string;
@@ -92,6 +93,41 @@ export const makeTempFileHandle = async ({
   };
 };
 
+const parseDurationSeconds = (value: string): number | null => {
+  const match = value.match(DURATION_PATTERN);
+  if (!match) return null;
+  const hours = Number(match[1] ?? 0);
+  const minutes = Number(match[2] ?? 0);
+  const seconds = Number(match[3] ?? 0);
+  if (![hours, minutes, seconds].every((part) => Number.isFinite(part) && part >= 0)) {
+    return null;
+  }
+  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) return null;
+  return Number(totalSeconds.toFixed(3));
+};
+
+const resolveSourceExtension = ({
+  filename,
+  mimeType,
+}: {
+  filename: string | null;
+  mimeType: string | null;
+}): string => {
+  const filenameExtension = path
+    .extname(filename ?? "")
+    .replace(/^\./, "")
+    .trim()
+    .toLowerCase();
+  if (filenameExtension) return filenameExtension;
+  const normalizedMimeType = mimeType?.trim().toLowerCase() ?? "";
+  return (
+    AUDIO_EXTENSION_BY_MIME_TYPE[normalizedMimeType] ??
+    VIDEO_EXTENSION_BY_MIME_TYPE[normalizedMimeType] ??
+    "bin"
+  );
+};
+
 export const isVideoSource = (mimeType: string | null, filename: string | null): boolean => {
   if (mimeType && VIDEO_MIME_PATTERN.test(mimeType)) return true;
   if (mimeType && AUDIO_MIME_PATTERN.test(mimeType)) return false;
@@ -143,6 +179,48 @@ export const extractAudioTrack = async ({
       await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined);
     },
   };
+};
+
+export const probeMediaDurationSeconds = async ({
+  buffer,
+  filename,
+  mimeType,
+}: {
+  buffer: Buffer;
+  filename: string | null;
+  mimeType: string | null;
+}): Promise<number | null> => {
+  if (!ffmpegStatic) {
+    throw new Error("FFmpeg runtime is unavailable.");
+  }
+
+  const sourceHandle = await makeTempFileHandle({
+    buffer,
+    extension: resolveSourceExtension({ filename, mimeType }),
+  });
+  try {
+    try {
+      const { stdout, stderr } = await execFileAsync(ffmpegStatic, [
+        "-hide_banner",
+        "-i",
+        sourceHandle.path,
+        "-f",
+        "null",
+        "-",
+      ]);
+      return parseDurationSeconds(`${stdout}\n${stderr}`);
+    } catch (error) {
+      const stderr =
+        typeof (error as { stderr?: unknown }).stderr === "string"
+          ? (error as { stderr: string }).stderr
+          : error instanceof Error
+            ? error.message
+            : "";
+      return parseDurationSeconds(stderr);
+    }
+  } finally {
+    await sourceHandle.cleanup().catch(() => undefined);
+  }
 };
 
 const resolveAudioExtension = (mimeType: string | null, fallback = "wav"): string => {

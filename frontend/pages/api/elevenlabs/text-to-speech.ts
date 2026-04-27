@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
 import {
   generateElevenLabsVoiceover,
   persistGeneratedAudioAsset,
@@ -55,6 +56,7 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   try {
     const body = (req.body ?? {}) as TextToSpeechRequestBody;
@@ -75,6 +77,18 @@ export default async function handler(
       });
     }
 
+    charge = await chargeGenerationRequest({
+      req,
+      res,
+      modelId,
+      payload: {
+        text,
+        text_characters: text.length,
+      },
+      reason: "elevenlabs-text-to-speech generation",
+    });
+    if (!charge) return;
+
     const generated = await generateElevenLabsVoiceover({
       voiceId,
       text,
@@ -82,17 +96,32 @@ export default async function handler(
       body: config,
     });
     const persisted = await persistGeneratedAudioAsset({
-      userId: user.id,
+      userId: charge.userId,
       promptText: text,
       provider: "elevenlabs",
       modelId,
+      providerRequestId: generated.providerRequestId,
+      requestId: charge.sourceRef,
       sourceMode: "voiceover",
       voiceId,
       voiceName,
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
+      extraMetadata: {
+        billing_mode: charge.billingMode,
+        billing_source_ref: charge.sourceRef,
+        debited_credits: charge.credits,
+        pricing_metadata: charge.chargeMetadata,
+        provider_request_id: generated.providerRequestId,
+        text_character_count: text.length,
+      },
     });
+    if (generated.providerRequestId) {
+      await charge.markSubmitted(generated.providerRequestId, {
+        source_mode: "voiceover",
+      });
+    }
 
     return res.status(200).json({
       output: {
@@ -114,6 +143,11 @@ export default async function handler(
       },
     });
   } catch (error) {
+    if (charge) {
+      await charge.refund("Auto-refund: ElevenLabs voiceover generation failed.", {
+        source_mode: "voiceover",
+      });
+    }
     await logApiRouteException({
       req,
       error,

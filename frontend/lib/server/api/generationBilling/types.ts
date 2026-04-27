@@ -17,6 +17,16 @@ export type ChargeResult = {
   credits: number;
   sourceRef: string;
   billingMode: "reservation" | "direct_debit";
+  chargeMetadata: JsonObject;
+  pricingBreakdown: {
+    billedCredits: number;
+    billedUsd: number;
+    pricingPolicySource: string | null;
+    pricingPolicyVersion: number | null;
+    rawCredits: number;
+    usdRaw: number;
+  };
+  pricingParams: JsonObject;
   markSubmitted: (providerRequestId: string, extra?: JsonObject) => Promise<ChargeSubmitLinkResult>;
   refund: (message?: string, extra?: JsonObject) => Promise<void>;
 };

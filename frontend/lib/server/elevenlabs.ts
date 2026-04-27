@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
-import { ELEVENLABS_DEFAULT_VOICES } from "../../features/ai-studio/constants/elevenLabsDefaultVoices";
+import { ELEVENLABS_DEFAULT_VOICES } from "../model-runtime/elevenLabsDefaultVoices";
 import { canAutoPersistRecoveryMedia } from "../mediaAutosavePolicy";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
@@ -66,6 +66,8 @@ type PersistGeneratedAudioInput = {
   promptText: string;
   provider: "elevenlabs";
   modelId: string;
+  providerRequestId?: string | null;
+  requestId?: string | null;
   sourceMode: "voiceover" | "voice-changer" | "sound-effects" | "music";
   voiceId?: string | null;
   voiceName?: string | null;
@@ -80,6 +82,8 @@ type PersistGeneratedVideoInput = {
   promptText: string;
   provider: "elevenlabs";
   modelId: string;
+  providerRequestId?: string | null;
+  requestId?: string | null;
   sourceMode: "voice-changer";
   outputBuffer: Buffer;
   outputContentType: "video/mp4" | "video/webm";
@@ -133,6 +137,11 @@ const getElevenLabsApiKey = (): string => {
 const buildElevenLabsHeaders = (): HeadersInit => ({
   "xi-api-key": getElevenLabsApiKey(),
 });
+
+const readProviderRequestId = (headers: Headers): string | null =>
+  normalizeOptionalString(headers.get("request-id")) ??
+  normalizeOptionalString(headers.get("x-request-id")) ??
+  normalizeOptionalString(headers.get("request_id"));
 
 export const buildFallbackElevenLabsVoices = (): ElevenLabsVoice[] =>
   ELEVENLABS_DEFAULT_VOICES.map((voice) => ({
@@ -440,7 +449,7 @@ export const generateElevenLabsVoiceover = async ({
   text: string;
   outputFormat: string;
   body: Record<string, unknown>;
-}): Promise<{ buffer: Buffer; contentType: string }> => {
+}): Promise<{ buffer: Buffer; contentType: string; providerRequestId: string | null }> => {
   const response = await fetch(
     `${ELEVENLABS_BASE_URL}/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=${encodeURIComponent(outputFormat)}`,
     {
@@ -467,6 +476,7 @@ export const generateElevenLabsVoiceover = async ({
   return {
     buffer: Buffer.from(arrayBuffer),
     contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
+    providerRequestId: readProviderRequestId(response.headers),
   };
 };
 
@@ -478,7 +488,12 @@ export const generateElevenLabsSoundEffect = async ({
   text: string;
   outputFormat: string;
   body: Record<string, unknown>;
-}): Promise<{ buffer: Buffer; contentType: string; characterCost: number | null }> => {
+}): Promise<{
+  buffer: Buffer;
+  characterCost: number | null;
+  contentType: string;
+  providerRequestId: string | null;
+}> => {
   const response = await fetch(
     `${ELEVENLABS_BASE_URL}/v1/sound-generation?output_format=${encodeURIComponent(outputFormat)}`,
     {
@@ -506,6 +521,7 @@ export const generateElevenLabsSoundEffect = async ({
     buffer: Buffer.from(arrayBuffer),
     contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
     characterCost: parseOptionalNumber(response.headers.get("character-cost")),
+    providerRequestId: readProviderRequestId(response.headers),
   };
 };
 
@@ -517,7 +533,12 @@ export const generateElevenLabsMusic = async ({
   prompt: string;
   outputFormat: string;
   body: Record<string, unknown>;
-}): Promise<{ buffer: Buffer; contentType: string; songId: string | null }> => {
+}): Promise<{
+  buffer: Buffer;
+  contentType: string;
+  providerRequestId: string | null;
+  songId: string | null;
+}> => {
   const response = await fetch(
     `${ELEVENLABS_BASE_URL}/v1/music?output_format=${encodeURIComponent(outputFormat)}`,
     {
@@ -544,6 +565,7 @@ export const generateElevenLabsMusic = async ({
   return {
     buffer: Buffer.from(arrayBuffer),
     contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
+    providerRequestId: readProviderRequestId(response.headers),
     songId: normalizeOptionalString(response.headers.get("song-id")),
   };
 };
@@ -568,7 +590,7 @@ export const generateElevenLabsVoiceChanger = async ({
   voiceSettings: Record<string, unknown>;
   removeBackgroundNoise: boolean;
   inputFormat: string;
-}): Promise<{ buffer: Buffer; contentType: string }> => {
+}): Promise<{ buffer: Buffer; contentType: string; providerRequestId: string | null }> => {
   const sourceExtension =
     path.extname(sourceFilename).replace(/^\./, "") ||
     (sourceMimeType?.split("/")[1]?.replace(/[^a-z0-9]+/gi, "") ?? "bin");
@@ -615,6 +637,7 @@ export const generateElevenLabsVoiceChanger = async ({
     return {
       buffer: Buffer.from(arrayBuffer),
       contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
+      providerRequestId: readProviderRequestId(response.headers),
     };
   } finally {
     await extractedHandle?.cleanup().catch(() => undefined);
@@ -649,6 +672,8 @@ export const persistGeneratedAudioAsset = async ({
   promptText,
   provider,
   modelId,
+  providerRequestId = null,
+  requestId = null,
   sourceMode,
   voiceId = null,
   voiceName = null,
@@ -659,7 +684,8 @@ export const persistGeneratedAudioAsset = async ({
 }: PersistGeneratedAudioInput): Promise<PersistGeneratedAudioResult> => {
   const supabaseAdmin = getSupabaseAdmin();
   const generationId = randomUUID();
-  const requestId = randomUUID();
+  const resolvedRequestId = normalizeOptionalString(requestId) ?? randomUUID();
+  const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const createdAtIso = new Date().toISOString();
   const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({ supabaseAdmin, userId });
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
@@ -700,10 +726,11 @@ export const persistGeneratedAudioAsset = async ({
       provider,
       model_id: modelId,
       prompt_text: promptText,
-      request_id: requestId,
+      request_id: resolvedRequestId,
       status: "success",
       completed_at: createdAtIso,
       metadata: {
+        provider_request_id: resolvedProviderRequestId,
         source_mode: sourceMode,
         voice_id: voiceId,
         voice_name: voiceName,
@@ -735,6 +762,7 @@ export const persistGeneratedAudioAsset = async ({
         metadata: {
           provider,
           model_id: modelId,
+          provider_request_id: resolvedProviderRequestId,
           source_mode: sourceMode,
           mime_type: outputContentType,
           output_format: outputFormat,
@@ -757,14 +785,17 @@ export const persistGeneratedAudioAsset = async ({
 
   const outputRows = await persistGenerationOutputRecords({
     generationId,
+    providerRequestId: resolvedProviderRequestId,
     userId,
     resultUrls: [signedResult.data.signedUrl],
     mediaFileIds: mediaFileId ? [mediaFileId] : [],
     metadata: {
       media_kind: "audio",
+      provider_request_id: resolvedProviderRequestId,
       autosave_enabled: mediaAutosaveEnabled,
       autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
       autosave_decision_reason: autosavePolicyDecision.reason,
+      ...extraMetadata,
     },
   });
   const outputRowId = outputRows[0]?.id ?? null;
@@ -783,9 +814,11 @@ export const persistGeneratedAudioAsset = async ({
       publishedAt: createdAtIso,
       metadata: {
         media_kind: "audio",
+        provider_request_id: resolvedProviderRequestId,
         autosave_enabled: mediaAutosaveEnabled,
         autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
         autosave_decision_reason: autosavePolicyDecision.reason,
+        ...extraMetadata,
       },
     });
   }
@@ -793,8 +826,10 @@ export const persistGeneratedAudioAsset = async ({
   await upsertGenerationProjection({
     generationId,
     userId,
-    requestId,
+    sourceRef: resolvedRequestId,
+    requestId: resolvedRequestId,
     provider,
+    providerRequestId: resolvedProviderRequestId,
     status: "success",
     taskState: "success",
     displayPrompt: promptText,
@@ -815,7 +850,7 @@ export const persistGeneratedAudioAsset = async ({
   return {
     generationId,
     mediaFileId,
-    requestId,
+    requestId: resolvedRequestId,
     storagePath,
     signedUrl: signedResult.data.signedUrl,
     outputRowId,
@@ -827,6 +862,8 @@ export const persistGeneratedVideoAsset = async ({
   promptText,
   provider,
   modelId,
+  providerRequestId = null,
+  requestId = null,
   sourceMode,
   outputBuffer,
   outputContentType,
@@ -835,7 +872,8 @@ export const persistGeneratedVideoAsset = async ({
 }: PersistGeneratedVideoInput): Promise<PersistGeneratedVideoResult> => {
   const supabaseAdmin = getSupabaseAdmin();
   const generationId = randomUUID();
-  const requestId = randomUUID();
+  const resolvedRequestId = normalizeOptionalString(requestId) ?? randomUUID();
+  const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const createdAtIso = new Date().toISOString();
   const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({ supabaseAdmin, userId });
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
@@ -876,10 +914,11 @@ export const persistGeneratedVideoAsset = async ({
       provider,
       model_id: modelId,
       prompt_text: promptText,
-      request_id: requestId,
+      request_id: resolvedRequestId,
       status: "success",
       completed_at: createdAtIso,
       metadata: {
+        provider_request_id: resolvedProviderRequestId,
         source_mode: sourceMode,
         autosave_enabled: mediaAutosaveEnabled,
         autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
@@ -908,6 +947,7 @@ export const persistGeneratedVideoAsset = async ({
         metadata: {
           provider,
           model_id: modelId,
+          provider_request_id: resolvedProviderRequestId,
           source_mode: sourceMode,
           mime_type: outputContentType,
           autosave_enabled: mediaAutosaveEnabled,
@@ -927,11 +967,13 @@ export const persistGeneratedVideoAsset = async ({
 
   const outputRows = await persistGenerationOutputRecords({
     generationId,
+    providerRequestId: resolvedProviderRequestId,
     userId,
     resultUrls: [signedResult.data.signedUrl],
     mediaFileIds: mediaFileId ? [mediaFileId] : [],
     metadata: {
       media_kind: "video",
+      provider_request_id: resolvedProviderRequestId,
       autosave_enabled: mediaAutosaveEnabled,
       autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
       autosave_decision_reason: autosavePolicyDecision.reason,
@@ -954,6 +996,7 @@ export const persistGeneratedVideoAsset = async ({
       publishedAt: createdAtIso,
       metadata: {
         media_kind: "video",
+        provider_request_id: resolvedProviderRequestId,
         autosave_enabled: mediaAutosaveEnabled,
         autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
         autosave_decision_reason: autosavePolicyDecision.reason,
@@ -965,8 +1008,10 @@ export const persistGeneratedVideoAsset = async ({
   await upsertGenerationProjection({
     generationId,
     userId,
-    requestId,
+    sourceRef: resolvedRequestId,
+    requestId: resolvedRequestId,
     provider,
+    providerRequestId: resolvedProviderRequestId,
     status: "success",
     taskState: "success",
     displayPrompt: promptText,
@@ -988,7 +1033,7 @@ export const persistGeneratedVideoAsset = async ({
   return {
     generationId,
     mediaFileId,
-    requestId,
+    requestId: resolvedRequestId,
     storagePath,
     signedUrl: signedResult.data.signedUrl,
     outputRowId,

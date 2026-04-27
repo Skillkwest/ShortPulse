@@ -1,6 +1,10 @@
 /**
  * Registry of supported AI Studio models with metadata for UI and pricing.
  */
+import {
+  ELEVENLABS_RUNTIME_MODEL_DEFINITIONS,
+  type ElevenLabsModelPricingAuthority,
+} from "./elevenLabsModels";
 import { PricingStrategyId } from "./pricingTypes";
 import { AspectSize, falImageSizeMap } from "./modelSizes";
 import {
@@ -19,16 +23,22 @@ import {
   getModelDefaultResolution,
 } from "./modelApiContracts";
 
+export type ModelPricingAuthority = "shared_policy" | ElevenLabsModelPricingAuthority;
+
 export type ModelConfig = {
   id: string;
   label: string;
-  provider: "fal" | "kie" | "openai" | "other";
-  mediaType: "image" | "video" | "image-to-video" | "multi" | "text";
+  provider: "fal" | "kie" | "openai" | "elevenlabs" | "other";
+  mediaType: "image" | "video" | "image-to-video" | "multi" | "text" | "audio";
   defaultAspect: string;
   allowedAspects: string[];
-  pricingStrategy: PricingStrategyId;
+  pricingStrategy?: PricingStrategyId;
+  pricingAuthority?: ModelPricingAuthority;
   sizeMap?: Record<string, AspectSize>;
   defaultDurationSeconds?: number;
+  defaultGenerationCount?: number;
+  defaultSourceDurationSeconds?: number;
+  defaultTextCharacters?: number;
   minDurationSeconds?: number;
   maxDurationSeconds?: number;
   defaultResolution?: string;
@@ -65,6 +75,34 @@ const contractAllowedDurations = (
   modelId: string,
   fallback: number[] | undefined
 ): number[] | undefined => getModelAllowedDurations(modelId, fallback);
+
+const buildElevenLabsModelConfig = ({
+  id,
+  label,
+  pricingAuthority,
+  pricingStrategy,
+  defaultDurationSeconds,
+  defaultGenerationCount,
+  defaultSourceDurationSeconds,
+  defaultTextCharacters,
+  minDurationSeconds,
+  maxDurationSeconds,
+}: (typeof ELEVENLABS_RUNTIME_MODEL_DEFINITIONS)[number]): ModelConfig => ({
+  id,
+  label,
+  provider: "elevenlabs",
+  mediaType: "audio",
+  defaultAspect: "audio",
+  allowedAspects: [],
+  pricingAuthority,
+  pricingStrategy,
+  defaultDurationSeconds,
+  defaultGenerationCount,
+  defaultSourceDurationSeconds,
+  defaultTextCharacters,
+  minDurationSeconds,
+  maxDurationSeconds,
+});
 
 const registry: Record<string, ModelConfig> = {
   "fal-ai/flux-2/klein/9b": {
@@ -712,6 +750,12 @@ const registry: Record<string, ModelConfig> = {
     allowedAspects: contractAllowedAspects("gpt-5-nano", []),
     pricingStrategy: "gpt41nano-per-token",
   },
+  ...Object.fromEntries(
+    ELEVENLABS_RUNTIME_MODEL_DEFINITIONS.map((definition) => [
+      definition.id,
+      buildElevenLabsModelConfig(definition),
+    ])
+  ),
 };
 
 export const getModelConfig = (id: string): ModelConfig | null => registry[id] ?? null;

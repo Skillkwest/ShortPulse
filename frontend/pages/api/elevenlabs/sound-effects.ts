@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { ELEVENLABS_SOUND_EFFECTS_MODEL_ID } from "../../../lib/model-runtime/elevenLabsModels";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
 import {
   generateElevenLabsSoundEffect,
   persistGeneratedAudioAsset,
@@ -38,7 +40,7 @@ type GenerateSoundEffectErrorResponse = {
   details?: string;
 };
 
-const DEFAULT_SOUND_EFFECTS_MODEL_ID = "eleven_text_to_sound_v2";
+const DEFAULT_SOUND_EFFECTS_MODEL_ID = ELEVENLABS_SOUND_EFFECTS_MODEL_ID;
 const DEFAULT_PROMPT_INFLUENCE = 0.3;
 const MIN_DURATION_SECONDS = 0.5;
 const MAX_DURATION_SECONDS = 30;
@@ -65,6 +67,7 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {
     return res.status(503).json({
@@ -98,6 +101,18 @@ export default async function handler(
       });
     }
 
+    charge = await chargeGenerationRequest({
+      req,
+      res,
+      modelId,
+      payload: {
+        duration_seconds: durationSeconds ?? undefined,
+        generation_count: durationSeconds == null ? 1 : undefined,
+      },
+      reason: "elevenlabs-sound-effects generation",
+    });
+    if (!charge) return;
+
     const generated = await generateElevenLabsSoundEffect({
       text,
       outputFormat,
@@ -110,15 +125,34 @@ export default async function handler(
     });
 
     const persisted = await persistGeneratedAudioAsset({
-      userId: user.id,
+      userId: charge.userId,
       promptText: text,
       provider: "elevenlabs",
       modelId,
+      providerRequestId: generated.providerRequestId,
+      requestId: charge.sourceRef,
       sourceMode: "sound-effects",
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
+      extraMetadata: {
+        billing_mode: charge.billingMode,
+        billing_source_ref: charge.sourceRef,
+        debited_credits: charge.credits,
+        duration_seconds: durationSeconds,
+        loop_enabled: loop,
+        pricing_metadata: charge.chargeMetadata,
+        prompt_influence: DEFAULT_PROMPT_INFLUENCE,
+        provider_character_cost: generated.characterCost,
+        provider_request_id: generated.providerRequestId,
+      },
     });
+    if (generated.providerRequestId) {
+      await charge.markSubmitted(generated.providerRequestId, {
+        source_mode: "sound-effects",
+        provider_character_cost: generated.characterCost,
+      });
+    }
 
     return res.status(200).json({
       output: {
@@ -139,6 +173,11 @@ export default async function handler(
       },
     });
   } catch (error) {
+    if (charge) {
+      await charge.refund("Auto-refund: ElevenLabs sound effect generation failed.", {
+        source_mode: "sound-effects",
+      });
+    }
     await logApiRouteException({
       req,
       error,

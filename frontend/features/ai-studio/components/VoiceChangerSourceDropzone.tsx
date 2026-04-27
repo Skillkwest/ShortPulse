@@ -27,6 +27,7 @@ export type VoiceChangerSource = {
   origin: VoiceChangerSourceOrigin;
   status: VoiceChangerSourceStatus;
   aspect: string | null;
+  durationMs: number | null;
   name: string;
   mimeType: string | null;
   file: File | null;
@@ -120,6 +121,7 @@ const createSourceFromFile = (file: File): VoiceChangerSource | null => {
     origin: "local",
     status: "ready",
     aspect: null,
+    durationMs: null,
     name: file.name.trim() || `uploaded-${kind}`,
     mimeType: file.type.trim() || null,
     file,
@@ -231,6 +233,7 @@ const createSourceFromUrl = ({
     origin,
     status: "ready",
     aspect: null,
+    durationMs: null,
     name: filename ?? fallbackName,
     mimeType: inferMimeTypeFromUrl(normalizedUrl),
     file: null,

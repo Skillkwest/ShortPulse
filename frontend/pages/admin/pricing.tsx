@@ -30,6 +30,7 @@ const getProviderLabelClassName = (provider: string): string => {
   const normalized = provider.trim().toLowerCase();
   if (normalized === "fal") return styles.pricingProviderFal;
   if (normalized === "kie") return styles.pricingProviderKie;
+  if (normalized === "elevenlabs") return styles.pricingProviderElevenLabs;
   return "";
 };
 
@@ -37,6 +38,22 @@ const getPlanStatusClassName = (status: "active" | "legacy" | "inactive"): strin
   if (status === "active") return styles.pillOk;
   if (status === "legacy") return styles.pillWarn;
   return styles.pillCritical;
+};
+
+const getPricingAuthorityClassName = (
+  authority: "shared_policy" | "local_pricing" | "metadata_only"
+): string => {
+  if (authority === "shared_policy") return styles.pillOk;
+  if (authority === "local_pricing") return styles.pillWarn;
+  return styles.pillInfo;
+};
+
+const getPricingAuthorityLabel = (
+  authority: "shared_policy" | "local_pricing" | "metadata_only"
+): string => {
+  if (authority === "shared_policy") return "Shared policy";
+  if (authority === "local_pricing") return "Local pricing";
+  return "Metadata only";
 };
 
 type CreditPackageDraft = {
@@ -291,6 +308,7 @@ export default function AdminPricingPage() {
         model.workflowType,
         model.pricingStrategy,
         model.pricingStrategyLabel,
+        model.pricingAuthority,
       ].some((value) => value.toLowerCase().includes(query))
     );
   }, [modelSearchQuery, pricingState?.models]);
@@ -897,6 +915,7 @@ export default function AdminPricingPage() {
                           >
                             <span className={styles.pricingPrimaryCell}>
                               <strong>{model.label}</strong>
+                              <small>{model.id}</small>
                             </span>
                             <span
                               className={`${styles.pricingProviderLabel} ${getProviderLabelClassName(
@@ -910,6 +929,12 @@ export default function AdminPricingPage() {
                             <span className={styles.pricingPrimaryCell}>
                               {activePreview ? (
                                 <strong>{formatCredits(activePreview.billedCredits ?? 0)}</strong>
+                              ) : model.pricingAuthority !== "shared_policy" ? (
+                                <span
+                                  className={getPricingAuthorityClassName(model.pricingAuthority)}
+                                >
+                                  {getPricingAuthorityLabel(model.pricingAuthority)}
+                                </span>
                               ) : (
                                 <small>Unavailable</small>
                               )}
@@ -933,121 +958,137 @@ export default function AdminPricingPage() {
                           {isSelected ? (
                             <div className={styles.pricingInlineEditorCard}>
                               <p className="eyebrow">Edit model pricing policy</p>
-                              <div className={styles.pricingInlineEditorTopRow}>
-                                <div className={styles.pricingInlineOverridesGrid}>
-                                  <label className={styles.manualAdjustField}>
-                                    <span className="tiny subdued">Credit conversion override</span>
-                                    <input
-                                      className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
-                                      value={
-                                        draftOverride?.creditUsdScale != null
-                                          ? String(draftOverride.creditUsdScale)
-                                          : ""
-                                      }
-                                      placeholder="none"
-                                      onChange={(event) =>
-                                        updateModelPolicyDraft((current) =>
-                                          normalizeModelOverrideDraft(current, model.id, {
-                                            creditUsdScale: parseIntegerInput(event.target.value),
-                                          })
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                  <label className={styles.manualAdjustField}>
-                                    <span className="tiny subdued">Markup override</span>
-                                    <input
-                                      className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
-                                      value={
-                                        draftOverride?.markupBps != null
-                                          ? String(draftOverride.markupBps / 100)
-                                          : ""
-                                      }
-                                      placeholder="none"
-                                      onChange={(event) =>
-                                        updateModelPolicyDraft((current) =>
-                                          normalizeModelOverrideDraft(current, model.id, {
-                                            markupBps: parsePercentToBps(event.target.value),
-                                          })
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                  <label className={styles.manualAdjustField}>
-                                    <span className="tiny subdued">Roundup increment override</span>
-                                    <input
-                                      className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
-                                      value={
-                                        draftOverride?.roundingIncrement != null
-                                          ? String(draftOverride.roundingIncrement)
-                                          : ""
-                                      }
-                                      placeholder="none"
-                                      onChange={(event) =>
-                                        updateModelPolicyDraft((current) =>
-                                          normalizeModelOverrideDraft(current, model.id, {
-                                            roundingIncrement: parseIntegerInput(
-                                              event.target.value
-                                            ),
-                                          })
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                </div>
-                              </div>
-                              <div className={styles.pricingInlineEditorBottomRow}>
-                                <div className={styles.pricingEditorActionsColumn}>
-                                  <div className={styles.pricingEditorActions}>
-                                    <button
-                                      type="button"
-                                      className="ghost-btn mini"
-                                      onClick={() => void applyModelPolicy()}
-                                      disabled={
-                                        modelPolicySaving ||
-                                        modelPolicyRollbackLoading ||
-                                        !modelPolicyDirty
-                                      }
-                                    >
-                                      {modelPolicySaving ? "Applying…" : "Apply policy"}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="ghost-btn mini"
-                                      onClick={resetModelPolicyDraft}
-                                      disabled={
-                                        modelPolicySaving ||
-                                        modelPolicyRollbackLoading ||
-                                        !modelPolicyDirty
-                                      }
-                                    >
-                                      Reset draft
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="ghost-btn mini"
-                                      onClick={() => void rollbackModelPolicy()}
-                                      disabled={modelPolicySaving || modelPolicyRollbackLoading}
-                                    >
-                                      {modelPolicyRollbackLoading
-                                        ? "Rolling back…"
-                                        : "Rollback active policy"}
-                                    </button>
+                              {model.pricingAuthority !== "shared_policy" ? (
+                                <p className={styles.pricingInlineNotice}>
+                                  This ElevenLabs model is metadata-only. It stays visible for
+                                  operator inventory, but shared model-pricing overrides do not
+                                  control billing for this provider-preview lane.
+                                </p>
+                              ) : (
+                                <>
+                                  <div className={styles.pricingInlineEditorTopRow}>
+                                    <div className={styles.pricingInlineOverridesGrid}>
+                                      <label className={styles.manualAdjustField}>
+                                        <span className="tiny subdued">
+                                          Credit conversion override
+                                        </span>
+                                        <input
+                                          className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
+                                          value={
+                                            draftOverride?.creditUsdScale != null
+                                              ? String(draftOverride.creditUsdScale)
+                                              : ""
+                                          }
+                                          placeholder="none"
+                                          onChange={(event) =>
+                                            updateModelPolicyDraft((current) =>
+                                              normalizeModelOverrideDraft(current, model.id, {
+                                                creditUsdScale: parseIntegerInput(
+                                                  event.target.value
+                                                ),
+                                              })
+                                            )
+                                          }
+                                        />
+                                      </label>
+                                      <label className={styles.manualAdjustField}>
+                                        <span className="tiny subdued">Markup override</span>
+                                        <input
+                                          className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
+                                          value={
+                                            draftOverride?.markupBps != null
+                                              ? String(draftOverride.markupBps / 100)
+                                              : ""
+                                          }
+                                          placeholder="none"
+                                          onChange={(event) =>
+                                            updateModelPolicyDraft((current) =>
+                                              normalizeModelOverrideDraft(current, model.id, {
+                                                markupBps: parsePercentToBps(event.target.value),
+                                              })
+                                            )
+                                          }
+                                        />
+                                      </label>
+                                      <label className={styles.manualAdjustField}>
+                                        <span className="tiny subdued">
+                                          Roundup increment override
+                                        </span>
+                                        <input
+                                          className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
+                                          value={
+                                            draftOverride?.roundingIncrement != null
+                                              ? String(draftOverride.roundingIncrement)
+                                              : ""
+                                          }
+                                          placeholder="none"
+                                          onChange={(event) =>
+                                            updateModelPolicyDraft((current) =>
+                                              normalizeModelOverrideDraft(current, model.id, {
+                                                roundingIncrement: parseIntegerInput(
+                                                  event.target.value
+                                                ),
+                                              })
+                                            )
+                                          }
+                                        />
+                                      </label>
+                                    </div>
                                   </div>
-                                </div>
-                                <label
-                                  className={`${styles.manualAdjustField} ${styles.pricingEditorNoteField}`}
-                                >
-                                  <span className="tiny subdued">Change note</span>
-                                  <textarea
-                                    className={`${styles.searchInput} ${styles.pricingNoteInput}`}
-                                    value={modelPolicyNote}
-                                    onChange={(event) => setModelPolicyNote(event.target.value)}
-                                    placeholder="Short operator note for this version"
-                                    rows={3}
-                                  />
-                                </label>
-                              </div>
+                                  <div className={styles.pricingInlineEditorBottomRow}>
+                                    <div className={styles.pricingEditorActionsColumn}>
+                                      <div className={styles.pricingEditorActions}>
+                                        <button
+                                          type="button"
+                                          className="ghost-btn mini"
+                                          onClick={() => void applyModelPolicy()}
+                                          disabled={
+                                            modelPolicySaving ||
+                                            modelPolicyRollbackLoading ||
+                                            !modelPolicyDirty
+                                          }
+                                        >
+                                          {modelPolicySaving ? "Applying…" : "Apply policy"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="ghost-btn mini"
+                                          onClick={resetModelPolicyDraft}
+                                          disabled={
+                                            modelPolicySaving ||
+                                            modelPolicyRollbackLoading ||
+                                            !modelPolicyDirty
+                                          }
+                                        >
+                                          Reset draft
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="ghost-btn mini"
+                                          onClick={() => void rollbackModelPolicy()}
+                                          disabled={modelPolicySaving || modelPolicyRollbackLoading}
+                                        >
+                                          {modelPolicyRollbackLoading
+                                            ? "Rolling back…"
+                                            : "Rollback active policy"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <label
+                                      className={`${styles.manualAdjustField} ${styles.pricingEditorNoteField}`}
+                                    >
+                                      <span className="tiny subdued">Change note</span>
+                                      <textarea
+                                        className={`${styles.searchInput} ${styles.pricingNoteInput}`}
+                                        value={modelPolicyNote}
+                                        onChange={(event) => setModelPolicyNote(event.target.value)}
+                                        placeholder="Short operator note for this version"
+                                        rows={3}
+                                      />
+                                    </label>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           ) : null}
                         </React.Fragment>

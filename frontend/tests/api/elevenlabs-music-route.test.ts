@@ -3,6 +3,7 @@ import handler from "../../pages/api/elevenlabs/music";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const chargeGenerationRequestMock = vi.fn();
 const generateElevenLabsMusicMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 
@@ -12,6 +13,10 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationBilling", () => ({
+  chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
 }));
 
 vi.mock("../../lib/server/elevenlabs", () => ({
@@ -31,6 +36,25 @@ describe("POST /api/elevenlabs/music", () => {
     vi.clearAllMocks();
     process.env.ELEVENLABS_API_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
+    chargeGenerationRequestMock.mockResolvedValue({
+      userId: "user-1",
+      modelId: "music_v1",
+      credits: 35,
+      sourceRef: "billing-source-1",
+      billingMode: "direct_debit",
+      chargeMetadata: { debited_credits: 35 },
+      pricingBreakdown: {
+        billedCredits: 35,
+        billedUsd: 0.35,
+        pricingPolicySource: "control_plane",
+        pricingPolicyVersion: 3,
+        rawCredits: 31,
+        usdRaw: 0.315,
+      },
+      pricingParams: { durationSeconds: 42 },
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "attached" }),
+      refund: vi.fn().mockResolvedValue(undefined),
+    });
   });
 
   afterAll(() => {
@@ -127,6 +151,7 @@ describe("POST /api/elevenlabs/music", () => {
     generateElevenLabsMusicMock.mockResolvedValue({
       buffer: Buffer.from("music"),
       contentType: "audio/mpeg",
+      providerRequestId: "provider-req-1",
       songId: "song-123",
     });
     persistGeneratedAudioAssetMock.mockResolvedValue({
@@ -170,14 +195,19 @@ describe("POST /api/elevenlabs/music", () => {
         promptText: "Warm melodic house cue with a soft vocal texture.",
         provider: "elevenlabs",
         modelId: "music_v1",
+        requestId: "billing-source-1",
+        providerRequestId: "provider-req-1",
         sourceMode: "music",
         outputFormat: "mp3_44100_128",
         extraMetadata: expect.objectContaining({
+          billing_source_ref: "billing-source-1",
+          debited_credits: 35,
           duration_seconds: 42,
           tempo_bpm: 124,
           structure: "full-track",
           energy_percent: 81,
           music_mode: "vocal",
+          provider_request_id: "provider-req-1",
           provider_song_id: "song-123",
         }),
       })

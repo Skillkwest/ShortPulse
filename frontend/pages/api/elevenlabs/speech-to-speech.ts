@@ -3,6 +3,7 @@ import formidable from "formidable";
 import { promises as fs } from "fs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
 import {
   assertTrustedRemoteMediaUrl,
   TrustedRemoteMediaUrlError,
@@ -18,6 +19,7 @@ import {
 import {
   MAX_VOICE_CHANGER_SOURCE_BYTES,
   MediaAudioExtractionInputError,
+  probeMediaDurationSeconds,
   readRemoteMediaBuffer,
   readStoredMediaBuffer,
 } from "../../../lib/server/mediaAudioExtraction";
@@ -34,7 +36,7 @@ type GenerateAudioSuccessResponse = {
     previewStoragePath: string;
     fullStoragePath: string;
     mimeType: string;
-    durationMs: null;
+    durationMs: number | null;
     waveformPeaks: null;
     modelId: string;
     voiceId: string;
@@ -123,6 +125,7 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   try {
     const { fields, files } = await parseMultipart(req);
@@ -200,6 +203,29 @@ export default async function handler(
       });
     }
 
+    const sourceDurationSeconds = await probeMediaDurationSeconds({
+      buffer: sourceBuffer,
+      filename: sourceFilename,
+      mimeType: sourceMimeType,
+    });
+    if (!sourceDurationSeconds) {
+      return res.status(422).json({
+        error: "Invalid request",
+        details: "Unable to determine the voice changer source duration for billing.",
+      });
+    }
+
+    charge = await chargeGenerationRequest({
+      req,
+      res,
+      modelId,
+      payload: {
+        source_duration_seconds: sourceDurationSeconds,
+      },
+      reason: "elevenlabs-speech-to-speech generation",
+    });
+    if (!charge) return;
+
     if (originalVideoStoragePath) {
       const trustedStoragePath = assertUserScopedMediaStoragePath({
         path: originalVideoStoragePath,
@@ -247,17 +273,34 @@ export default async function handler(
     });
 
     const persisted = await persistGeneratedAudioAsset({
-      userId: user.id,
+      userId: charge.userId,
       promptText: `${sourceName} -> ${voiceName}`,
       provider: "elevenlabs",
       modelId,
+      providerRequestId: generated.providerRequestId,
+      requestId: charge.sourceRef,
       sourceMode: "voice-changer",
       voiceId,
       voiceName,
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
       outputFormat,
+      extraMetadata: {
+        billing_mode: charge.billingMode,
+        billing_source_ref: charge.sourceRef,
+        debited_credits: charge.credits,
+        pricing_metadata: charge.chargeMetadata,
+        provider_request_id: generated.providerRequestId,
+        source_duration_ms: Math.round(sourceDurationSeconds * 1000),
+        source_duration_seconds: sourceDurationSeconds,
+      },
     });
+    if (generated.providerRequestId) {
+      await charge.markSubmitted(generated.providerRequestId, {
+        source_mode: "voice-changer",
+        source_duration_seconds: sourceDurationSeconds,
+      });
+    }
 
     let remuxedVideo: Awaited<ReturnType<typeof createRemuxedVoiceChangerVideo>> | null = null;
     let persistedRemuxedVideo: Awaited<ReturnType<typeof persistGeneratedVideoAsset>> | null = null;
@@ -277,13 +320,20 @@ export default async function handler(
           promptText: `${originalVideoName ?? sourceName} -> ${voiceName} video`,
           provider: "elevenlabs",
           modelId,
+          providerRequestId: generated.providerRequestId,
           sourceMode: "voice-changer",
           outputBuffer: remuxedVideo.buffer,
           outputContentType: remuxedVideo.contentType,
           generationReplay: originalVideoAspect ? { aspect: originalVideoAspect } : undefined,
           extraMetadata: {
             derivative_kind: "voice_changer_remuxed_video",
+            billing_source_ref: charge.sourceRef,
+            debited_credits: charge.credits,
+            pricing_metadata: charge.chargeMetadata,
+            provider_request_id: generated.providerRequestId,
             source_audio_generation_id: persisted.generationId,
+            source_duration_ms: Math.round(sourceDurationSeconds * 1000),
+            source_duration_seconds: sourceDurationSeconds,
             source_video_storage_path: originalVideoStoragePath,
           },
         });
@@ -312,7 +362,7 @@ export default async function handler(
         previewStoragePath: persisted.storagePath,
         fullStoragePath: persisted.storagePath,
         mimeType: generated.contentType,
-        durationMs: null,
+        durationMs: Math.round(sourceDurationSeconds * 1000),
         waveformPeaks: null,
         modelId,
         voiceId,
@@ -337,6 +387,11 @@ export default async function handler(
         : {}),
     });
   } catch (error) {
+    if (charge) {
+      await charge.refund("Auto-refund: ElevenLabs voice changer generation failed.", {
+        source_mode: "voice-changer",
+      });
+    }
     if (
       error instanceof TrustedRemoteMediaUrlError ||
       error instanceof MediaAudioExtractionInputError

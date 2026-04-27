@@ -1,5 +1,5 @@
 import React from "react";
-import { ELEVENLABS_DEFAULT_VOICES } from "../constants/elevenLabsDefaultVoices";
+import { ELEVENLABS_DEFAULT_VOICES } from "../../../lib/model-runtime/elevenLabsDefaultVoices";
 
 export type SharedVoiceOption = {
   id: string;

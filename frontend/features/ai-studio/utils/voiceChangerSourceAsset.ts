@@ -296,6 +296,49 @@ const toAspectToken = (width: number, height: number): string | null => {
   return `${Math.round(width) / divisor}:${Math.round(height) / divisor}`;
 };
 
+export const resolveVoiceChangerMediaDurationMs = async (
+  sourceUrl: string | null | undefined,
+  kind: "audio" | "video"
+): Promise<number | null> => {
+  const normalized = typeof sourceUrl === "string" ? sourceUrl.trim() : "";
+  if (!normalized || typeof document === "undefined") return null;
+
+  const media = document.createElement(kind);
+  media.preload = "metadata";
+  media.crossOrigin = "anonymous";
+  if (kind === "video") {
+    media.muted = true;
+    (media as HTMLVideoElement).playsInline = true;
+  }
+
+  return await new Promise<number | null>((resolve) => {
+    let settled = false;
+    const finalize = (value: number | null) => {
+      if (settled) return;
+      settled = true;
+      media.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      media.removeEventListener("error", handleFailure);
+      media.removeAttribute("src");
+      media.load();
+      resolve(value);
+    };
+
+    const handleFailure = () => finalize(null);
+    const handleLoadedMetadata = () => {
+      const durationSeconds = Number(media.duration);
+      if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+        finalize(null);
+        return;
+      }
+      finalize(Math.max(1, Math.round(durationSeconds * 1000)));
+    };
+
+    media.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
+    media.addEventListener("error", handleFailure, { once: true });
+    media.src = normalized;
+  });
+};
+
 export const resolveVoiceChangerVideoAspect = async (
   sourceUrl: string | null | undefined
 ): Promise<string | null> => {

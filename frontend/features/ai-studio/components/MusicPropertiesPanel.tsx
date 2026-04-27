@@ -3,12 +3,15 @@
  * Keeps music composition UI isolated from generic Sound and Sound Effects panels.
  */
 import React from "react";
+import { ELEVENLABS_MUSIC_MODEL_ID } from "../../../lib/model-runtime/elevenLabsModels";
+import { computeCostForModel } from "../../../lib/model-runtime/pricing";
+import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 
 export type MusicMode = "instrumental" | "vocal";
 export type MusicStructure = "loop" | "full-track" | "cinematic";
 export type MusicFormat = "mp3_44100_128" | "wav_48000";
-export const hardcodedMusicModelId = "music_v1";
+export const hardcodedMusicModelId = ELEVENLABS_MUSIC_MODEL_ID;
 
 export type MusicGenerateRequest = {
   text: string;
@@ -22,8 +25,10 @@ export type MusicGenerateRequest = {
 };
 
 export type MusicPropertiesPanelProps = {
+  balanceCredits?: number | null;
   isGenerating?: boolean;
   onGenerate?: (request: MusicGenerateRequest) => Promise<void> | void;
+  pricingPolicy?: ModelPricingPolicyDocument | null;
 };
 
 type MusicSliderProps = {
@@ -41,8 +46,6 @@ const minDurationSeconds = 8;
 const maxDurationSeconds = 180;
 const minBpm = 60;
 const maxBpm = 180;
-const musicBaseCredits = 90;
-const musicPerSecondCredits = 4;
 const minTopLibraryHeightPx = 0;
 const minBottomComposerHeightPx = 480;
 const minVisibleLibraryHeightPx = 76;
@@ -119,8 +122,10 @@ function MusicSlider({ label, helper, value, displayValue, onChange }: MusicSlid
 }
 
 export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
+  balanceCredits = null,
   isGenerating = false,
   onGenerate,
+  pricingPolicy = null,
 }: MusicPropertiesPanelProps) {
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [prompt, setPrompt] = React.useState("");
@@ -143,8 +148,18 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
 
   const isLibraryVisible =
     topSectionHeightPx > 0 ? topSectionHeightPx > minVisibleLibraryHeightPx : topRatio > 0.2;
-  const isGenerateEnabled = Boolean(onGenerate) && prompt.trim().length > 0 && !isGenerating;
-  const estimatedCredits = musicBaseCredits + durationSeconds * musicPerSecondCredits;
+  const estimatedCredits =
+    computeCostForModel(
+      hardcodedMusicModelId,
+      {
+        durationSeconds,
+      },
+      pricingPolicy
+    )?.credits ?? null;
+  const isInsufficientCredits =
+    balanceCredits != null && estimatedCredits != null ? balanceCredits < estimatedCredits : false;
+  const isGenerateEnabled =
+    Boolean(onGenerate) && prompt.trim().length > 0 && !isGenerating && !isInsufficientCredits;
 
   const handleGenerate = React.useCallback(async () => {
     const text = prompt.trim();
@@ -240,7 +255,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                   <span className="music-properties-generate-pill" aria-hidden="true">
                     <span className="music-properties-generate-cost-icon">✦</span>
                     <span className="music-properties-generate-cost-value">
-                      {formatCreditValue(estimatedCredits)}
+                      {formatCreditValue(estimatedCredits ?? 0)}
                     </span>
                   </span>
                 </button>

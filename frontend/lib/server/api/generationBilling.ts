@@ -73,6 +73,16 @@ export const chargeGenerationRequest = async ({
       credits: 0,
       sourceRef,
       billingMode: "reservation",
+      chargeMetadata: {},
+      pricingBreakdown: {
+        billedCredits: 0,
+        billedUsd: 0,
+        pricingPolicySource: null,
+        pricingPolicyVersion: null,
+        rawCredits: 0,
+        usdRaw: 0,
+      },
+      pricingParams: {},
       markSubmitted: async () => ({
         ok: true,
         status: "skipped",
@@ -121,6 +131,14 @@ export const chargeGenerationRequest = async ({
       pricing_policy_source: runtimePricingPolicy.source,
     },
     debited_credits: breakdown.credits,
+  };
+  const pricingBreakdown = {
+    usdRaw: breakdown.usdRaw,
+    rawCredits: breakdown.rawCredits,
+    billedCredits: breakdown.credits,
+    billedUsd: breakdown.usd,
+    pricingPolicyVersion: runtimePricingPolicy.activePolicyVersion,
+    pricingPolicySource: runtimePricingPolicy.source,
   };
   const respondChargeFailure = async (
     statusCode: number,
@@ -354,6 +372,9 @@ export const chargeGenerationRequest = async ({
         credits: breakdown.credits,
         sourceRef,
         billingMode: "reservation",
+        chargeMetadata,
+        pricingBreakdown,
+        pricingParams,
         markSubmitted,
         refund,
       };
@@ -454,6 +475,9 @@ export const chargeGenerationRequest = async ({
     credits: breakdown.credits,
     sourceRef,
     billingMode: "direct_debit",
+    chargeMetadata,
+    pricingBreakdown,
+    pricingParams,
     markSubmitted,
     refund,
   };

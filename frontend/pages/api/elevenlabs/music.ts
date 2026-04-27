@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { ELEVENLABS_MUSIC_MODEL_ID } from "../../../lib/model-runtime/elevenLabsModels";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
 import {
   generateElevenLabsMusic,
   persistGeneratedAudioAsset,
@@ -40,7 +42,7 @@ type GenerateMusicErrorResponse = {
   details?: string;
 };
 
-const DEFAULT_MUSIC_MODEL_ID = "music_v1";
+const DEFAULT_MUSIC_MODEL_ID = ELEVENLABS_MUSIC_MODEL_ID;
 const MIN_DURATION_SECONDS = 8;
 const MAX_DURATION_SECONDS = 180;
 const MIN_BPM = 60;
@@ -95,6 +97,7 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
+  let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {
     return res.status(503).json({
@@ -176,6 +179,17 @@ export default async function handler(
       });
     }
 
+    charge = await chargeGenerationRequest({
+      req,
+      res,
+      modelId,
+      payload: {
+        duration_seconds: durationSeconds,
+      },
+      reason: "elevenlabs-music generation",
+    });
+    if (!charge) return;
+
     const providerPrompt = buildProviderPrompt({
       text,
       bpm,
@@ -195,10 +209,12 @@ export default async function handler(
     });
 
     const persisted = await persistGeneratedAudioAsset({
-      userId: user.id,
+      userId: charge.userId,
       promptText: text,
       provider: "elevenlabs",
       modelId,
+      providerRequestId: generated.providerRequestId,
+      requestId: charge.sourceRef,
       sourceMode: "music",
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,
@@ -209,10 +225,21 @@ export default async function handler(
         structure,
         energy_percent: energyPercent,
         music_mode: mode,
+        billing_mode: charge.billingMode,
+        billing_source_ref: charge.sourceRef,
+        debited_credits: charge.credits,
+        pricing_metadata: charge.chargeMetadata,
+        provider_request_id: generated.providerRequestId,
         provider_song_id: generated.songId,
         provider_prompt: providerPrompt,
       },
     });
+    if (generated.providerRequestId) {
+      await charge.markSubmitted(generated.providerRequestId, {
+        source_mode: "music",
+        song_id: generated.songId,
+      });
+    }
 
     return res.status(200).json({
       output: {
@@ -232,6 +259,11 @@ export default async function handler(
       },
     });
   } catch (error) {
+    if (charge) {
+      await charge.refund("Auto-refund: ElevenLabs music generation failed.", {
+        source_mode: "music",
+      });
+    }
     await logApiRouteException({
       req,
       error,

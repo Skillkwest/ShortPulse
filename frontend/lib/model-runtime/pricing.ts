@@ -21,7 +21,12 @@ export const buildDefaultPricingParams = (
   const defaults: Omit<PricingParams, "modelId"> = {};
   if (config.defaultAspect) defaults.aspect = config.defaultAspect;
   if (config.defaultDurationSeconds) defaults.durationSeconds = config.defaultDurationSeconds;
+  if (config.defaultGenerationCount) defaults.generationCount = config.defaultGenerationCount;
   if (config.defaultResolution) defaults.resolution = config.defaultResolution;
+  if (config.defaultSourceDurationSeconds) {
+    defaults.sourceDurationSeconds = config.defaultSourceDurationSeconds;
+  }
+  if (config.defaultTextCharacters) defaults.textCharacters = config.defaultTextCharacters;
   if (config.defaultAudio !== undefined) defaults.audio = config.defaultAudio;
   return { ...defaults, ...overrides };
 };
@@ -36,6 +41,7 @@ export const computeCostForModel = (
 ): CostBreakdown | null => {
   const config = getModelConfig(modelId);
   if (!config) return null;
+  if (!config.pricingStrategy) return null;
 
   const strategy = pricingStrategies[config.pricingStrategy];
   if (!strategy) return null;

@@ -4,6 +4,10 @@
 import type { ModelPricingPolicyDocument } from "./pricingPolicy";
 
 export type PricingStrategyId =
+  | "elevenlabs-music-per-minute"
+  | "elevenlabs-sound-effect"
+  | "elevenlabs-text-to-speech-per-kchar"
+  | "elevenlabs-voice-changer-per-minute"
   | "fal-per-mp"
   | "fal-economy-image-per-mp"
   | "fal-fill-per-mp"
@@ -29,8 +33,11 @@ export type PricingParams = {
   inputTokens?: number;
   outputTokens?: number;
   durationSeconds?: number;
+  generationCount?: number;
   resolution?: string;
   mode?: string;
+  sourceDurationSeconds?: number;
+  textCharacters?: number;
   webSearch?: boolean;
   audio?: boolean;
   voiceControl?: boolean;

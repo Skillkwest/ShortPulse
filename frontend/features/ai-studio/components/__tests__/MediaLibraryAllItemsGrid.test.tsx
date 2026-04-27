@@ -1,7 +1,6 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 import { MediaLibraryAllItemsGrid } from "../media-library-modal/MediaLibraryAllItemsGrid";
 
 const useMediaMasonryVirtualizationMock = vi.fn();
@@ -10,13 +9,7 @@ vi.mock("../../../media-library/hooks/useMediaMasonryVirtualization", () => ({
   useMediaMasonryVirtualization: (...args: unknown[]) => useMediaMasonryVirtualizationMock(...args),
 }));
 
-vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
-  getSignedMediaUrlsBatch: vi.fn(),
-}));
-
 describe("MediaLibraryAllItemsGrid", () => {
-  const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
-
   beforeEach(() => {
     vi.clearAllMocks();
     useMediaMasonryVirtualizationMock.mockImplementation(({ items }: { items: unknown[] }) => ({
@@ -30,8 +23,6 @@ describe("MediaLibraryAllItemsGrid", () => {
         index,
       })),
     }));
-    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
-
     Object.defineProperty(HTMLMediaElement.prototype, "play", {
       configurable: true,
       value: vi.fn().mockResolvedValue(undefined),
@@ -85,7 +76,8 @@ describe("MediaLibraryAllItemsGrid", () => {
     onMediaPreviewError: vi.fn(),
     onMediaPaint: vi.fn(),
     onSignedUrlLoaded: vi.fn(),
-    currentUserId: "user-1",
+    signedPosterUrlById: {},
+    signedVideoUrlById: {},
   });
 
   it("renders video cards as poster-first in the mixed all-media feed", () => {
@@ -101,17 +93,7 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
   });
 
-  it("does not batch-sign extra video paths when the row already has signed hover and poster previews", async () => {
-    render(<MediaLibraryAllItemsGrid {...baseProps()} />);
-
-    await waitFor(() => {
-      expect(screen.getByAltText("clip-1.mp4")).toBeInTheDocument();
-    });
-
-    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
-  });
-
-  it("attaches and plays the hover video preview on pointer enter", async () => {
+  it("attaches and plays the provided hover video preview on pointer enter", async () => {
     const props = baseProps();
     props.mediaRows = [
       {
@@ -119,21 +101,11 @@ describe("MediaLibraryAllItemsGrid", () => {
         signedUrl: "https://cdn.example.com/clip-1-poster.jpg",
       },
     ];
-    getSignedMediaUrlsBatchMock.mockResolvedValue(
-      new Map([["user-1/uploads/clip-1.mp4", "https://cdn.example.com/signed/clip-1.mp4"]])
-    );
+    props.signedVideoUrlById = {
+      "video-1": "https://cdn.example.com/signed/clip-1.mp4",
+    };
 
     render(<MediaLibraryAllItemsGrid {...props} />);
-
-    await waitFor(() =>
-      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          bucket: "media_library",
-          storagePaths: ["user-1/uploads/clip-1.mp4"],
-          surface: "media-library-panel",
-        })
-      )
-    );
 
     const [cardButton] = screen.getAllByRole("button");
     fireEvent.pointerEnter(cardButton);
@@ -241,17 +213,7 @@ describe("MediaLibraryAllItemsGrid", () => {
     );
   });
 
-  it("signs poster storage paths and routes them through the adaptive preview resolver", async () => {
-    getSignedMediaUrlsBatchMock.mockResolvedValue(
-      new Map([
-        [
-          "user-1/variants/videos/video-1/poster_720.jpg",
-          "https://cdn.example.com/signed/clip-1-poster.jpg",
-        ],
-        ["user-1/uploads/clip-1.mp4", "https://cdn.example.com/signed/clip-1.mp4"],
-      ])
-    );
-
+  it("renders provided signed poster urls through the adaptive preview resolver", async () => {
     const props = baseProps();
     props.mediaRows = [
       {
@@ -259,19 +221,11 @@ describe("MediaLibraryAllItemsGrid", () => {
         poster_variant_path: "user-1/variants/videos/video-1/poster_720.jpg",
       },
     ];
+    props.signedPosterUrlById = {
+      "video-1": "https://cdn.example.com/signed/clip-1-poster.jpg",
+    };
 
     render(<MediaLibraryAllItemsGrid {...props} />);
-
-    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(1));
-
-    expect(getSignedMediaUrlsBatchMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        bucket: "media_library",
-        storagePaths: ["user-1/variants/videos/video-1/poster_720.jpg"],
-        surface: "media-library-panel",
-      })
-    );
 
     await waitFor(() =>
       expect(screen.getByAltText("clip-1.mp4")).toHaveAttribute(
@@ -284,39 +238,6 @@ describe("MediaLibraryAllItemsGrid", () => {
       expect.objectContaining({
         signedUrl: "https://cdn.example.com/signed/clip-1-poster.jpg",
         fileType: "image/jpeg",
-      })
-    );
-  });
-
-  it("keeps signing the original video path when only a poster image is already signed", async () => {
-    getSignedMediaUrlsBatchMock.mockResolvedValue(
-      new Map([["user-1/uploads/clip-1.mp4", "https://cdn.example.com/signed/clip-1.mp4"]])
-    );
-
-    const props = baseProps();
-    props.mediaRows = [
-      {
-        ...props.mediaRows[0],
-        signedUrl: "https://cdn.example.com/clip-1-poster.jpg",
-        poster_variant_path: "user-1/variants/videos/video-1/poster_720.jpg",
-      },
-    ];
-
-    render(<MediaLibraryAllItemsGrid {...props} />);
-
-    await waitFor(() =>
-      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          bucket: "media_library",
-          storagePaths: ["user-1/uploads/clip-1.mp4"],
-          surface: "media-library-panel",
-        })
-      )
-    );
-
-    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        storagePaths: expect.arrayContaining(["user-1/variants/videos/video-1/poster_720.jpg"]),
       })
     );
   });

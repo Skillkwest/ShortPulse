@@ -1,17 +1,16 @@
 import React, { type MutableRefObject } from "react";
 import { Check, DownloadSimple, X } from "phosphor-react";
-import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
-import { resolveVideoBrowseSigningCandidates } from "../../../../lib/mediaPreviewPath";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
 import { MEDIA_LIBRARY_VIRTUALIZATION_ENABLED } from "../../../media-library/logic/mediaLibraryFeatureFlags";
-import { isVideoUrl } from "../../logic/stateParsers";
 import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
+import { resolveVideoPosterSourceUrl } from "../../logic/mediaVideoBrowsePreview";
+import { useMediaVideoBrowsePreviewUrls } from "../../hooks/useMediaVideoBrowsePreviewUrls";
+import { isVideoUrl } from "../../logic/stateParsers";
 import { ReferenceAudioPlayer } from "../shared/ReferenceAudioPlayer";
 import { MediaLibraryPromptReferenceCard } from "./MediaLibraryPromptReferenceCard";
 import { useMediaAspectRatioCache } from "./useMediaAspectRatioCache";
 import {
-  BUCKET,
   createdAtTime,
   isAudioFile,
   isVideoFile,
@@ -60,6 +59,8 @@ type MediaLibraryAllItemsGridProps = {
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
   currentUserId?: string | null;
+  signedPosterUrlById?: Record<string, string>;
+  signedVideoUrlById?: Record<string, string>;
 };
 
 type MediaLibraryAllItem =
@@ -67,38 +68,6 @@ type MediaLibraryAllItem =
   | { key: string; kind: "prompt"; id: string; createdAt: number; row: PromptRow };
 
 const PROMPT_CARD_ASPECT_RATIO = 4 / 5;
-const RENDERABLE_IMAGE_URL_PATTERN = /^(?:https?:\/\/|blob:|data:image\/|\/)/i;
-
-const asRenderableImageUrl = (value: string | null | undefined): string | null => {
-  const trimmed = value?.trim() ?? "";
-  if (!trimmed || isVideoUrl(trimmed)) return null;
-  return RENDERABLE_IMAGE_URL_PATTERN.test(trimmed) ? trimmed : null;
-};
-
-const resolveVideoPosterSourceUrl = (
-  file: MediaFileRow,
-  signedPosterUrl: string | null,
-  hoverVideoUrl: string | null,
-  signedPreviewUrl?: string | null
-): string | null => {
-  if (!isVideoFile(file.file_type)) return null;
-  return (
-    asRenderableImageUrl(signedPosterUrl) ??
-    asRenderableImageUrl(signedPreviewUrl) ??
-    asRenderableImageUrl(file.poster_variant_path) ??
-    asRenderableImageUrl(file.thumb_variant_path) ??
-    (hoverVideoUrl && !isVideoUrl(hoverVideoUrl) ? hoverVideoUrl : null)
-  );
-};
-
-const resolveHoverVideoSigningPath = (
-  file: MediaFileRow,
-  currentUserId?: string | null
-): string | null => {
-  if (!isVideoFile(file.file_type)) return null;
-  if (file.signedUrl && isVideoUrl(file.signedUrl)) return null;
-  return resolveVideoBrowseSigningCandidates(file, currentUserId).hoverVideoPath;
-};
 
 const readAudioDurationMs = (file: MediaFileRow): number | null => {
   const metadata = file.metadata;
@@ -625,98 +594,26 @@ export function MediaLibraryAllItemsGrid({
   onMediaPaint,
   onSignedUrlLoaded,
   currentUserId = null,
+  signedPosterUrlById: signedPosterUrlOverrides = {},
+  signedVideoUrlById: signedVideoUrlOverrides = {},
 }: MediaLibraryAllItemsGridProps) {
   const { aspectRatioById, cacheAspectRatio } = useMediaAspectRatioCache(mediaRows);
-  const [signedPosterUrlById, setSignedPosterUrlById] = React.useState<Record<string, string>>({});
-  const [signedVideoUrlById, setSignedVideoUrlById] = React.useState<Record<string, string>>({});
-
-  React.useEffect(() => {
-    const hoverVideoPathByRowId = new Map<string, string>();
-    const posterPathByRowId = new Map<string, string[]>();
-    const storagePaths = new Set<string>();
-
-    for (const row of mediaRows) {
-      const hoverPath = resolveHoverVideoSigningPath(row, currentUserId);
-      if (hoverPath) {
-        hoverVideoPathByRowId.set(row.id, hoverPath);
-        storagePaths.add(hoverPath);
-      }
-
-      if (!isVideoFile(row.file_type)) continue;
-      if (resolveVideoPosterSourceUrl(row, null, null, row.signedUrl ?? null)) continue;
-
-      const posterCandidates = resolveVideoBrowseSigningCandidates(row, currentUserId).posterPaths;
-      if (posterCandidates.length === 0) continue;
-      posterPathByRowId.set(row.id, posterCandidates);
-      for (const candidate of posterCandidates) {
-        storagePaths.add(candidate);
-      }
-    }
-
-    if (storagePaths.size === 0) {
-      setSignedVideoUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
-      setSignedPosterUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
-      return;
-    }
-
-    let cancelled = false;
-    void getSignedMediaUrlsBatch({
-      bucket: BUCKET,
-      storagePaths: Array.from(storagePaths),
-      surface: "media-library-panel",
-    })
-      .then((signedByPath) => {
-        if (cancelled) return;
-        const nextSignedVideoUrlById: Record<string, string> = {};
-        for (const [rowId, storagePath] of hoverVideoPathByRowId.entries()) {
-          const signedUrl = signedByPath.get(storagePath) ?? null;
-          if (signedUrl) {
-            nextSignedVideoUrlById[rowId] = signedUrl;
-          }
-        }
-        setSignedVideoUrlById((prev) => {
-          const prevKeys = Object.keys(prev);
-          const nextKeys = Object.keys(nextSignedVideoUrlById);
-          if (
-            prevKeys.length === nextKeys.length &&
-            nextKeys.every((key) => prev[key] === nextSignedVideoUrlById[key])
-          ) {
-            return prev;
-          }
-          return nextSignedVideoUrlById;
-        });
-
-        const nextSignedPosterUrlById: Record<string, string> = {};
-        for (const [rowId, candidates] of posterPathByRowId.entries()) {
-          const signedUrl = candidates
-            .map((candidate) => signedByPath.get(candidate) ?? null)
-            .find((candidate): candidate is string => Boolean(candidate));
-          if (signedUrl) {
-            nextSignedPosterUrlById[rowId] = signedUrl;
-          }
-        }
-        setSignedPosterUrlById((prev) => {
-          const prevKeys = Object.keys(prev);
-          const nextKeys = Object.keys(nextSignedPosterUrlById);
-          if (
-            prevKeys.length === nextKeys.length &&
-            nextKeys.every((key) => prev[key] === nextSignedPosterUrlById[key])
-          ) {
-            return prev;
-          }
-          return nextSignedPosterUrlById;
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setSignedVideoUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
-        setSignedPosterUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUserId, mediaRows]);
+  const {
+    signedPosterUrlById: signedPosterUrlByIdFromHook,
+    signedVideoUrlById: signedVideoUrlByIdFromHook,
+  } = useMediaVideoBrowsePreviewUrls({
+    mediaRows,
+    currentUserId,
+    surface: "media-library-panel",
+  });
+  const signedPosterUrlById = React.useMemo(
+    () => ({ ...signedPosterUrlByIdFromHook, ...signedPosterUrlOverrides }),
+    [signedPosterUrlByIdFromHook, signedPosterUrlOverrides]
+  );
+  const signedVideoUrlById = React.useMemo(
+    () => ({ ...signedVideoUrlByIdFromHook, ...signedVideoUrlOverrides }),
+    [signedVideoUrlByIdFromHook, signedVideoUrlOverrides]
+  );
 
   const combinedItems = React.useMemo<MediaLibraryAllItem[]>(() => {
     const items: MediaLibraryAllItem[] = [

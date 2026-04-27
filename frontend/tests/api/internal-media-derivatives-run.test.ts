@@ -262,4 +262,108 @@ describe("POST /api/internal/media-derivatives/run", () => {
       })
     );
   });
+
+  it("treats unsupported input failures as terminal on first attempt", async () => {
+    processClaimedMediaDerivativeMock.mockRejectedValueOnce(
+      new Error("unsupported_input: invalid_source_storage_path")
+    );
+    const rpc = vi.fn(async (functionName: string) => {
+      if (functionName === "claim_media_derivative_batch") {
+        return {
+          data: [
+            {
+              id: "media-4",
+              user_id: "user-4",
+              storage_path: "user-4/generations/images/image-4.png",
+              file_type: "image",
+              processing_attempts: 1,
+              processing_status: "processing",
+            },
+          ],
+          error: null,
+        };
+      }
+      return { data: true, error: null };
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "derivative-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(rpc).toHaveBeenCalledWith("mark_media_derivative_failed", {
+      p_media_file_id: "media-4",
+      p_user_id: "user-4",
+      p_error: "unsupported_input: invalid_source_storage_path",
+      p_retry_seconds: 60,
+      p_exhausted: true,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        ready: 0,
+        failed: 1,
+        exhausted: 1,
+        errors: 1,
+      })
+    );
+  });
+
+  it("keeps upload failures retryable before max attempts", async () => {
+    processClaimedMediaDerivativeMock.mockRejectedValueOnce(new Error("upload_failed: timeout"));
+    const rpc = vi.fn(async (functionName: string) => {
+      if (functionName === "claim_media_derivative_batch") {
+        return {
+          data: [
+            {
+              id: "media-5",
+              user_id: "user-5",
+              storage_path: "user-5/generations/images/image-5.png",
+              file_type: "image",
+              processing_attempts: 1,
+              processing_status: "processing",
+            },
+          ],
+          error: null,
+        };
+      }
+      return { data: true, error: null };
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "derivative-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(rpc).toHaveBeenCalledWith("mark_media_derivative_failed", {
+      p_media_file_id: "media-5",
+      p_user_id: "user-5",
+      p_error: "upload_failed: timeout",
+      p_retry_seconds: 60,
+      p_exhausted: false,
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        ready: 0,
+        failed: 1,
+        exhausted: 0,
+        errors: 1,
+      })
+    );
+  });
 });

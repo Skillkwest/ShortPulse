@@ -126,9 +126,12 @@ const resolveBackoffSeconds = ({
   return Math.max(1, Math.min(maxSeconds, Math.trunc(backoff)));
 };
 
+const TERMINAL_DERIVATIVE_ERROR_PREFIXES = ["unsupported_input", "decode_failed"] as const;
+
 const isTerminalDerivativeError = (message: string): boolean => {
   const normalized = message.trim().toLowerCase();
-  return normalized.includes("unsupported image format");
+  if (normalized.includes("unsupported image format")) return true;
+  return TERMINAL_DERIVATIVE_ERROR_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 };
 
 const toClaimedRows = (value: unknown): ClaimedMediaDerivativeRow[] => {

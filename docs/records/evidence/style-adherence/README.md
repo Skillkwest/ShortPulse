@@ -1,5 +1,7 @@
 # Style Adherence Evidence
 
+Moved from `docs/planning/evidence/style-adherence/` on 2026-04-27 as part of the retained-records migration.
+
 Purpose: capture repeatable model-by-model evidence when evaluating AI Studio style adherence behavior.
 
 Use this folder when:

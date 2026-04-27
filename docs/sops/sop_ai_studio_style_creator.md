@@ -81,9 +81,9 @@ Rules:
 - This is expected unless there is evidence of a new regression in the style append path.
 6. Evidence capture standard:
 - For cross-model style behavior checks, capture runs using:
-  - `docs/planning/evidence/style-adherence/style-adherence-run-template.md`
+  - `docs/records/evidence/style-adherence/style-adherence-run-template.md`
 - Store completed packets under:
-  - `docs/planning/evidence/style-adherence/`
+  - `docs/records/evidence/style-adherence/`
 
 ## Telemetry contract
 Source: `telemetry.ai_studio.style_extraction`

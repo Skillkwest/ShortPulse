@@ -10,6 +10,7 @@ Purpose: index retained evidence namespaces that have already moved into the rec
 - `docs/records/evidence/lane-f/`: retained evidence packet family for the closed Lane F release and CI governance lane.
 - `docs/records/evidence/kei/`: retained evidence packet family for the completed STG-04 KEI compatibility decommission lane.
 - `docs/records/evidence/media-library-runtime-rebuild/`: retained evidence packet family for the closed Media Library runtime rebuild lane.
+- `docs/records/evidence/style-adherence/`: retained style-behavior evidence templates and run packets for cross-model AI Studio style adherence checks.
 
 ## Usage
 - Use this index when you need human-readable evidence packets that no longer belong under active planning.

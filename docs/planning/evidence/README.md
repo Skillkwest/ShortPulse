@@ -9,7 +9,6 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/architecture/`
 - `docs/planning/evidence/reference-grid-modularization/`
 - `docs/planning/evidence/naming-canonicalization/`
-- `docs/planning/evidence/style-adherence/`
 - `docs/planning/evidence/lane-b/`
 - `docs/planning/evidence/lane-c/`
 - `docs/planning/evidence/lane-d/`
@@ -28,6 +27,7 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/records/evidence/lane-f/`
 - `docs/records/evidence/kei/`
 - `docs/records/evidence/media-library-runtime-rebuild/`
+- `docs/records/evidence/style-adherence/`
 
 ## Notes
 - Keep packet names date-prefixed (`YYYY-MM-DD-...`).

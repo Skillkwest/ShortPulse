@@ -19,6 +19,8 @@ Purpose: classify the current `docs/planning/evidence/` tree into migration buck
   - raw payloads and generated outputs now live under `docs/records/artifacts/agent-pipeline-remediation/`
 - Next markdown-only migration executed after this snapshot:
   - `docs/planning/evidence/docs/` moved to `docs/records/evidence/docs/`
+- Next markdown-only migration executed after this snapshot:
+  - `docs/planning/evidence/style-adherence/` moved to `docs/records/evidence/style-adherence/`
 - Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.
 
 ## Inventory snapshot

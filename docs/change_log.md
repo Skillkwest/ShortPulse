@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - migrated the retained `style-adherence` evidence namespace into `docs/records/evidence/style-adherence/`,
+  - retargeted the style-creator SOP to the records path,
+  - and removed that namespace from the active planning-evidence index.
+- Documentation cleanup:
   - migrated the retained `docs` governance-evidence namespace into `docs/records/evidence/docs/`,
   - retargeted the surviving planning, SOP, and records references to the records path,
   - and removed that namespace from the active planning-evidence index.

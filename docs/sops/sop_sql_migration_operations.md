@@ -146,6 +146,7 @@ Current set:
 - `097_retire_model_pricing_rounding_exceptions.sql`
 - `103_sanitize_project_workspace_conversational_runtime.sql`
 - `104_add_user_media_compliance_acceptances.sql`
+- `105_enforce_spendable_balance_for_direct_generation_charges.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

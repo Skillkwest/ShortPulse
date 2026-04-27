@@ -43,6 +43,7 @@ This target shape is the destination model. The repo is not moving all retained 
 
 ## Current classification pass
 - `docs/records/evidence-migration-classification-2026-04-27.md`: no-move classification of the current planning-evidence tree, migration buckets, and first pilot recommendation.
+- `docs/records/docs-cleanup-done-state-audit-2026-04-27.md`: repo-backed stop/go audit of what still blocks the strict docs-cleanup end state versus what is now optional cleanup.
 - `docs/records/evidence/README.md`: index of evidence namespaces that have already migrated into the records model.
 - `docs/records/artifacts/README.md`: index of migrated raw artifact namespaces that were split out of retained evidence families.
 

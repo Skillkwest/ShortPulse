@@ -3,6 +3,10 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Documentation governance:
+  - added `docs/records/docs-cleanup-done-state-audit-2026-04-27.md` as the repo-backed stop/go audit for the docs cleanup lane,
+  - recorded the remaining strict blockers as full evidence migration and a smaller set of mixed-purpose resumable planning docs,
+  - and made the practical stop posture explicit so follow-on work requires a better reason than adjacency cleanup.
 - Documentation cleanup:
   - archived the completed pricing-audit, pricing-recalibration, foundational-hardening-v2, and expert-workflow CSS-reorg planning packets out of the active planning surface,
   - normalized the remaining top-level missing-status planning docs onto canonical `active` or `draft` statuses where they still serve as live or resumable planning context,

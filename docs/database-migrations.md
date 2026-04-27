@@ -216,7 +216,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 102. `sql/migrations/102_add_admin_growth_stats_v1.sql`
 103. `sql/migrations/103_sanitize_project_workspace_conversational_runtime.sql`
 104. `sql/migrations/104_add_user_media_compliance_acceptances.sql`
-105. Rollback files:
+105. `sql/migrations/105_enforce_spendable_balance_for_direct_generation_charges.sql`
+106. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -335,6 +336,7 @@ Billing safety note:
 - Migration `082_add_user_preferences_ai_studio_saved_voices.sql` adds durable per-user AI Studio saved-voice persistence (`user_preferences.ai_studio_saved_voices`) so created ElevenLabs voices survive refreshes and provider outages.
 - Migration `090_add_user_preferences_ai_studio_style_panel_ids.sql` adds durable per-user Styles Library ordering persistence (`user_preferences.ai_studio_style_panel_ids`) so the primary library panel and right-rail Styles chooser share one canonical tile order.
 - Migration `104_add_user_media_compliance_acceptances.sql` adds versioned per-user media agreement acceptance records (`user_media_compliance_acceptances`) so the protected-route compliance gate can store one-time acceptance history with the accepted timestamp, IP address, and user agent.
+- Migration `105_enforce_spendable_balance_for_direct_generation_charges.sql` hardens `enforce_credit_ledger_insert()` so direct generation debits cannot spend credits already reserved by active generation reservations.
 - Migration `060_add_media_folders_and_membership.sql` adds user-owned Media Library folders (`media_folders`) and scoped media/prompt membership junctions (`media_folder_media_items`, `media_folder_prompt_items`) for AI Studio folder-based organization.
 - Migration `061_backfill_media_image_dimensions_metadata.sql` canonicalizes legacy image-dimension metadata keys to `metadata.width`, `metadata.height`, and `metadata.aspect_ratio` so masonry surfaces can render true image ratios consistently.
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.

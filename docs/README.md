@@ -226,8 +226,6 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
 - `docs/planning/generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`
-- `docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
-- `docs/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 - `docs/planning/media-library-ui-redesign-plan-2026-03-28.md`
 - `docs/planning/ai-architecture-follow-on-revisit-report-2026-03-29.md`
 - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
@@ -543,6 +541,8 @@ Start here for all repository documentation.
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-4-canonical-output-slot-convergence-plan-2026-04-26.md`
 - `docs/archive/planning/staging-preview-integration-ledger-2026-04-04.md`
 - `docs/archive/planning/staging-preview-ui-properties-extraction-plan-2026-04-04.md`
+- `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
+- `docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 - `docs/archive/ai-studio-agent-implementation-plan.md`
 - `docs/archive/ai-studio-prompts.md`
 - `docs/archive/character-manager-character-sheet-plan.md`

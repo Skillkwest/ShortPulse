@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the completed Media Library runtime rebuild packet under `docs/archive/planning/`,
+  - removed those closeout docs from the active planning indexes,
+  - and retargeted the surviving evidence/history references to the new archive paths.
+- Documentation cleanup:
   - archived the closed staging-preview consolidation packet under `docs/archive/planning/`,
   - removed those completed branch-integration docs from the active planning indexes,
   - and kept the archive navigation aligned with the new historical locations.

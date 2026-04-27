@@ -49,7 +49,7 @@ Evidence:
 - [README.md](../../README.md)
 - [frontend/pages/api/media/list.ts](../../frontend/pages/api/media/list.ts)
 - [frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts](../../frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts)
-- [docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](./media-library-runtime-rebuild-master-plan-2026-03-28.md)
+- [docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](../archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md)
 
 Signals already present:
 - server-authoritative uploads
@@ -117,7 +117,7 @@ Recommended direction:
 This is not a new idea from external research. It is a repo-confirmed lane that should be finished instead of reopened conceptually.
 
 Primary evidence:
-- [docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](./media-library-runtime-rebuild-master-plan-2026-03-28.md)
+- [docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](../archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md)
 - [frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts](../../frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts)
 
 Why it matters:
@@ -198,7 +198,7 @@ When this document is read in a future session:
 2. If the current date is earlier, treat this report as a hold.
 3. If the current date is `2026-04-12` or later, review the current status of:
    - `docs/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md`
-   - `docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
+   - `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
    - this document
 4. Only open the broader follow-on lane if the active rebuild work has stabilized enough that the new lane will reduce risk more than it adds churn.
 

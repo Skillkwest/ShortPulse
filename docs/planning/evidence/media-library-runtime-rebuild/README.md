@@ -26,8 +26,8 @@ Use dated packet names:
   2. heavy media-library browser repro coverage across route, modal, and panel on large datasets
 
 ## Linked docs
-1. `docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
-2. `docs/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
+1. `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
+2. `docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 3. `docs/sops/sop_media_library_ui.md`
 4. `docs/sops/sop_ai_studio_media_library_operations.md`
 

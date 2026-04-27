@@ -1,5 +1,8 @@
 # Media Library Runtime Rebuild Master Plan (2026-03-28)
 
+
+> Archived on 2026-04-26 during docs cleanup because the Media Library runtime rebuild program is complete and the active follow-on work lives in `docs/planning/media-library-ui-redesign-plan-2026-03-28.md`.
+
 Status: Complete  
 Owner: Frontend Engineering  
 Scope: Media Library route, AI Studio Media Library modal, AI Studio Media Library panel  

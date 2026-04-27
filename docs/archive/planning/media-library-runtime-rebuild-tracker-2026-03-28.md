@@ -1,8 +1,11 @@
 # Media Library Runtime Rebuild Tracker (2026-03-28)
 
+
+> Archived on 2026-04-26 during docs cleanup because the Media Library runtime rebuild program is complete and the active follow-on work lives in `docs/planning/media-library-ui-redesign-plan-2026-03-28.md`.
+
 Status: Complete  
 Owner: Frontend Engineering  
-Companion plan: `docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
+Companion plan: `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
 
 ## Tracker Rules
 - One runtime seam per PR.

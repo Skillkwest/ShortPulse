@@ -13,7 +13,7 @@
 Audit the rebuilt Media Library runtime against the tracker’s remaining in-progress rows, determine whether any substantive runtime work is still required, and stop the program if the done-state gate is satisfied.
 
 ## Commands Run
-1. `sed -n '1,220p' docs/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
+1. `sed -n '1,220p' docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 2. `rg -n "useMediaPreviewRecoveryController|useMediaPreviewSigningController|useMediaSurfacePreviewRuntime|useMediaSurfacePreviewSigning|useMediaLibraryRouteRuntime|useMediaTabDataController|useMediaLibraryPanelDataController" frontend -g '!frontend/.next/**'`
 3. `rg -n "IntersectionObserver|ResizeObserver|loadMoreSentinelRef|useMediaTabLoadMoreController|useMediaTabActiveViewSync|visibleMediaIdsRef|signPassNonce|mediaCardObserverRef" frontend/pages/media-library.tsx frontend/features/ai-studio/components/MediaLibraryModal.tsx frontend/features/media-library/hooks -g '!frontend/.next/**'`
 4. `cd frontend && PLAYWRIGHT_MODAL_BASE_URL=http://127.0.0.1:3001 npm run test:e2e:media-library-runtime`
@@ -88,7 +88,7 @@ Mark the Media Library runtime rebuild tracker complete.
 - `linked_pr_or_commit`: `pending current slice commit`
 
 ## References
-1. `docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
-2. `docs/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
+1. `docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
+2. `docs/archive/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 3. `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`
 4. `frontend/tests/e2e/media-library-runtime.audit.js`

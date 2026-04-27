@@ -180,14 +180,13 @@ export default function AuthPage() {
                   style={{ height: "auto" }}
                 />
               </Link>
-              <span className="auth-card-pill">ShortPulse workspace access</span>
               <h1 className="auth-title">
                 {mode === "signin" ? "Welcome back" : "Create your account"}
               </h1>
               <p className="auth-subtitle">
                 {mode === "signin"
                   ? "Use your email and password to continue."
-                  : "Create an account to start using ShortPulse."}
+                  : "Create an account to get started."}
               </p>
             </div>
 

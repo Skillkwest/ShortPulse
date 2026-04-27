@@ -124,23 +124,6 @@ const buildSupabaseClient = () => ({
   }),
 });
 
-const createDeferredResponse = () => {
-  let resolve!: (value: {
-    ok: boolean;
-    json: () => Promise<{ projects: Array<Record<string, unknown>> }>;
-  }) => void;
-  const promise = new Promise<{
-    ok: boolean;
-    json: () => Promise<{ projects: Array<Record<string, unknown>> }>;
-  }>((resolver) => {
-    resolve = resolver;
-  });
-  return {
-    promise,
-    resolve,
-  };
-};
-
 describe("Dashboard actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -180,22 +163,6 @@ describe("Dashboard actions", () => {
           json: async () => ({ announcement: null }),
         };
       }
-      if (input === "/api/projects?limit=3") {
-        return {
-          ok: true,
-          json: async () => ({
-            projects: [
-              {
-                id: "project-1",
-                title: "Project One",
-                createdAt: "2026-04-23T00:00:00.000Z",
-                updatedAt: "2026-04-23T01:00:00.000Z",
-                previewImageUrls: ["https://cdn.example.com/project-one-preview.png"],
-              },
-            ],
-          }),
-        };
-      }
       if (input === "/api/projects?limit=all") {
         return {
           ok: true,
@@ -206,14 +173,12 @@ describe("Dashboard actions", () => {
                 title: "Project One",
                 createdAt: "2026-04-23T00:00:00.000Z",
                 updatedAt: "2026-04-23T01:00:00.000Z",
-                previewImageUrls: ["https://cdn.example.com/project-one-preview.png"],
               },
               {
                 id: "project-2",
                 title: "Project Two",
                 createdAt: "2026-04-22T00:00:00.000Z",
                 updatedAt: "2026-04-22T01:00:00.000Z",
-                previewImageUrls: [],
               },
             ],
           }),
@@ -265,7 +230,7 @@ describe("Dashboard actions", () => {
     );
     expect(screen.getByRole("link", { name: "Billing & subscription" })).toHaveAttribute(
       "href",
-      "/profile?section=billing"
+      "/profile?section=credits"
     );
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
   });
@@ -318,88 +283,15 @@ describe("Dashboard actions", () => {
     });
   });
 
-  it("shows a full-card spinner while recent projects are loading", async () => {
-    const deferredProjectsResponse = createDeferredResponse();
-
-    fetchWithAuthMock.mockImplementation(async (input: unknown) => {
-      if (input === "/api/announcements/active") {
-        return {
-          ok: true,
-          json: async () => ({ announcement: null }),
-        };
-      }
-      if (input === "/api/projects?limit=3") {
-        return deferredProjectsResponse.promise;
-      }
-      if (input === "/api/projects?limit=all") {
-        return {
-          ok: true,
-          json: async () => ({
-            projects: [
-              {
-                id: "project-1",
-                title: "Project One",
-                createdAt: "2026-04-23T00:00:00.000Z",
-                updatedAt: "2026-04-23T01:00:00.000Z",
-              },
-            ],
-          }),
-        };
-      }
-      if (input === "/api/projects/create") {
-        return {
-          ok: true,
-          json: async () => ({
-            project: {
-              id: "project-created",
-            },
-          }),
-        };
-      }
-      throw new Error(`Unexpected fetch ${String(input)}`);
-    });
-
-    render(<DashboardPage />);
-
-    const recentProjectsButton = await screen.findByRole("button", {
-      name: "Recent Projects: Open saved projects",
-    });
-    expect(recentProjectsButton).toHaveAttribute("aria-busy", "true");
-    expect(screen.getByRole("status")).toHaveTextContent("Loading recent projects");
-    expect(screen.queryByText("Loading projects...")).not.toBeInTheDocument();
-
-    deferredProjectsResponse.resolve({
-      ok: true,
-      json: async () => ({
-        projects: [
-          {
-            id: "project-1",
-            title: "Project One",
-            createdAt: "2026-04-23T00:00:00.000Z",
-            updatedAt: "2026-04-23T01:00:00.000Z",
-          },
-        ],
-      }),
-    });
-
-    await waitFor(() => {
-      expect(recentProjectsButton).toHaveAttribute("aria-busy", "false");
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    });
-  });
-
   it("opens the shared projects modal from the dashboard projects card", async () => {
     render(<DashboardPage />);
 
     expect(
       screen.queryByRole("button", { name: "Open project Project One" })
     ).not.toBeInTheDocument();
-    expect(await screen.findByTestId("hero-session-card-art-project-1")).toHaveStyle({
-      backgroundImage: 'url("https://cdn.example.com/project-one-preview.png")',
-    });
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "Recent Projects: Open saved projects" })
+      await screen.findByRole("button", { name: "Open Projects: Open saved projects" })
     );
 
     expect(await screen.findByRole("dialog", { name: "Projects" })).toBeInTheDocument();

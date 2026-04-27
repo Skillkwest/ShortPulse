@@ -45,14 +45,6 @@ type DashboardAnnouncement = {
   updatedAt: string | null;
 };
 
-type DashboardProject = {
-  id: string;
-  title: string;
-  createdAt: string;
-  updatedAt: string;
-  previewImageUrls?: string[];
-};
-
 type CurrentSubscriptionContractRow = {
   plan_id: string | null;
 };
@@ -105,9 +97,6 @@ export default function DashboardPage() {
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [projectCreateError, setProjectCreateError] = useState<string | null>(null);
-  const [recentProjects, setRecentProjects] = useState<DashboardProject[]>([]);
-  const [projectsLoading, setProjectsLoading] = useState(true);
-  const [projectsError, setProjectsError] = useState<string | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
@@ -144,11 +133,6 @@ export default function DashboardPage() {
   const { quotaSummary, loading: quotaLoading } = useMediaStorageQuotaSummary({
     fallbackPlanId: planMeta.id,
   });
-  const recentProjectsNote = projectsError
-    ? projectsError
-    : recentProjects.length > 0
-      ? null
-      : "No saved projects yet.";
   const initials =
     displayName
       .split(" ")
@@ -246,51 +230,6 @@ export default function DashboardPage() {
     };
 
     void loadUsage();
-    return () => {
-      active = false;
-    };
-  }, [user]);
-
-  useEffect(() => {
-    let active = true;
-
-    const loadProjects = async () => {
-      if (!user) {
-        if (!active) return;
-        setRecentProjects([]);
-        setProjectsError(null);
-        setProjectsLoading(false);
-        return;
-      }
-
-      setProjectsLoading(true);
-      try {
-        const response = await fetchWithAuth("/api/projects?limit=3", {
-          method: "GET",
-        });
-        const payload = (await response.json().catch(() => ({}))) as {
-          error?: string;
-          details?: string;
-          projects?: DashboardProject[];
-        };
-        if (!response.ok || !Array.isArray(payload.projects)) {
-          throw new Error(payload.error || payload.details || "Failed to load projects.");
-        }
-        if (!active) return;
-        setRecentProjects(payload.projects);
-        setProjectsError(null);
-      } catch (error) {
-        if (!active) return;
-        setRecentProjects([]);
-        setProjectsError(error instanceof Error ? error.message : "Failed to load projects.");
-      } finally {
-        if (active) {
-          setProjectsLoading(false);
-        }
-      }
-    };
-
-    void loadProjects();
     return () => {
       active = false;
     };
@@ -535,7 +474,7 @@ export default function DashboardPage() {
                   <Link href="/profile?section=account" onClick={() => setProfileMenuOpen(false)}>
                     Account & profile settings
                   </Link>
-                  <Link href="/profile?section=billing" onClick={() => setProfileMenuOpen(false)}>
+                  <Link href="/profile?section=credits" onClick={() => setProfileMenuOpen(false)}>
                     Billing & subscription
                   </Link>
                   <button
@@ -608,59 +547,23 @@ export default function DashboardPage() {
                   </button>
                   <button
                     type="button"
-                    className="hero-sessions-group hero-sessions-group-button"
-                    aria-label="Recent Projects: Open saved projects"
-                    aria-busy={projectsLoading}
+                    className="hero-sessions-group hero-sessions-group-button hero-open-projects-card"
+                    aria-label="Open Projects: Open saved projects"
                     onClick={openProjectsModal}
                   >
-                    <span className="hero-sessions-title">Recent Projects</span>
-                    {projectsLoading ? (
-                      <>
-                        <span className="hero-sessions-loading" aria-hidden="true">
-                          <span className="hero-sessions-spinner" />
-                        </span>
-                        <span className="sr-only" role="status" aria-live="polite">
-                          Loading recent projects
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="hero-sessions-wrapper">
-                          {recentProjects.length > 0 ? (
-                            recentProjects.map((project) => {
-                              const previewImageUrl = project.previewImageUrls?.[0] ?? null;
-                              return (
-                                <span
-                                  key={project.id}
-                                  className={`hero-session-card${
-                                    previewImageUrl ? " has-preview" : ""
-                                  }`}
-                                  aria-hidden="true"
-                                >
-                                  {previewImageUrl ? (
-                                    <span
-                                      className="hero-session-card-art"
-                                      data-testid={`hero-session-card-art-${project.id}`}
-                                      style={{ backgroundImage: `url("${previewImageUrl}")` }}
-                                    />
-                                  ) : null}
-                                  <span className="hero-session-card-title">{project.title}</span>
-                                </span>
-                              );
-                            })
-                          ) : (
-                            <>
-                              <span className="hero-session-square" aria-hidden="true" />
-                              <span className="hero-session-square" aria-hidden="true" />
-                              <span className="hero-session-square" aria-hidden="true" />
-                            </>
-                          )}
-                        </span>
-                        {recentProjectsNote ? (
-                          <span className="hero-sessions-note">{recentProjectsNote}</span>
-                        ) : null}
-                      </>
-                    )}
+                    <span className="hero-new-project-content">
+                      <span className="hero-new-project-icon-column" aria-hidden="true">
+                        <FolderSimple
+                          size={30}
+                          weight="duotone"
+                          className="hero-open-projects-icon"
+                        />
+                      </span>
+                      <span className="hero-new-project-text-column">
+                        <span className="hero-new-project-label">Open Projects</span>
+                        <p className="hero-new-project-helper">Open the project library</p>
+                      </span>
+                    </span>
                   </button>
                 </>
               ) : (

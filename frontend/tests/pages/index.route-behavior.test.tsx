@@ -65,7 +65,7 @@ describe("Index route behavior", () => {
   it("shows the sign-in entry surface at the root route", async () => {
     render(<IndexPage />);
 
-    expect(screen.getByText("ShortPulse workspace access")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   });
 });

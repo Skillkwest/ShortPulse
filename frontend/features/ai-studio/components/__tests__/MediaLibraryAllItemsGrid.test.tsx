@@ -101,18 +101,14 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
   });
 
-  it("does not batch-sign hover video paths when the row already has a signed video preview", async () => {
+  it("does not batch-sign extra video paths when the row already has signed hover and poster previews", async () => {
     render(<MediaLibraryAllItemsGrid {...baseProps()} />);
 
     await waitFor(() => {
-      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalled();
+      expect(screen.getByAltText("clip-1.mp4")).toBeInTheDocument();
     });
 
-    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        storagePaths: expect.arrayContaining(["user-1/uploads/clip-1.mp4"]),
-      })
-    );
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
   });
 
   it("attaches and plays the hover video preview on pointer enter", async () => {
@@ -302,7 +298,7 @@ describe("MediaLibraryAllItemsGrid", () => {
       {
         ...props.mediaRows[0],
         signedUrl: "https://cdn.example.com/clip-1-poster.jpg",
-        poster_variant_path: "https://cdn.example.com/clip-1-poster.jpg",
+        poster_variant_path: "user-1/variants/videos/video-1/poster_720.jpg",
       },
     ];
 
@@ -316,6 +312,12 @@ describe("MediaLibraryAllItemsGrid", () => {
           surface: "media-library-panel",
         })
       )
+    );
+
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        storagePaths: expect.arrayContaining(["user-1/variants/videos/video-1/poster_720.jpg"]),
+      })
     );
   });
 

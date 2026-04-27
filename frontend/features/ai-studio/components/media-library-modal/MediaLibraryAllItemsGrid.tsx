@@ -80,11 +80,13 @@ const asRenderableImageUrl = (value: string | null | undefined): string | null =
 const resolveVideoPosterSourceUrl = (
   file: MediaFileRow,
   signedPosterUrl: string | null,
-  hoverVideoUrl: string | null
+  hoverVideoUrl: string | null,
+  signedPreviewUrl?: string | null
 ): string | null => {
   if (!isVideoFile(file.file_type)) return null;
   return (
     asRenderableImageUrl(signedPosterUrl) ??
+    asRenderableImageUrl(signedPreviewUrl) ??
     asRenderableImageUrl(file.poster_variant_path) ??
     asRenderableImageUrl(file.thumb_variant_path) ??
     (hoverVideoUrl && !isVideoUrl(hoverVideoUrl) ? hoverVideoUrl : null)
@@ -723,6 +725,7 @@ export function MediaLibraryAllItemsGrid({
   React.useEffect(() => {
     const videoPosterRows = mediaRows.filter((row) => {
       if (!isVideoFile(row.file_type)) return false;
+      if (resolveVideoPosterSourceUrl(row, null, null, row.signedUrl ?? null)) return false;
       const posterCandidates = resolveVideoPosterSigningStoragePaths(row, currentUserId);
       return posterCandidates.length > 0;
     });
@@ -916,7 +919,12 @@ export function MediaLibraryAllItemsGrid({
           ? (signedVideoUrlById[file.id] ??
             (file.signedUrl && isVideoUrl(file.signedUrl) ? file.signedUrl : null))
           : null;
-        const posterSourceUrl = resolveVideoPosterSourceUrl(file, signedPosterUrl, hoverVideoUrl);
+        const posterSourceUrl = resolveVideoPosterSourceUrl(
+          file,
+          signedPosterUrl,
+          hoverVideoUrl,
+          file.signedUrl ?? null
+        );
         const posterPreviewUrl = posterSourceUrl
           ? resolveCardPreviewUrl
             ? resolveCardPreviewUrl({

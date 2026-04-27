@@ -171,9 +171,6 @@
 }
 
 .ai-properties {
-  --ai-properties-rail-enter-duration: 220ms;
-  --ai-properties-rail-exit-duration: 140ms;
-  --ai-properties-rail-transition-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
   padding: 16px;
   max-height: var(--ai-shell-column-max-height, 100%);
   overflow-y: auto;
@@ -182,75 +179,6 @@
   position: relative;
   scrollbar-width: thin;
   scrollbar-color: rgba(201, 205, 214, 0.3) transparent;
-}
-
-.ai-properties[data-panel-transition="enter"] {
-  animation-duration: var(--ai-properties-rail-enter-duration);
-  animation-fill-mode: both;
-  animation-timing-function: var(--ai-properties-rail-transition-easing);
-  will-change: opacity, transform;
-}
-
-.ai-properties-panel-transition-exit {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  pointer-events: none;
-  animation: ai-properties-rail-exit var(--ai-properties-rail-exit-duration)
-    var(--ai-properties-rail-transition-easing) both;
-}
-
-.ai-properties-panel-transition-exit > .character-panel-root,
-.ai-properties-panel-transition-exit > .elements-panel-root {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 100%;
-  height: 100%;
-}
-
-.ai-properties-panel-transition-exit > .character-panel-root > .character-manager-page--embedded,
-.ai-properties-panel-transition-exit > .elements-panel-root > .elements-manager-shell {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-@keyframes ai-properties-rail-enter-a {
-  from {
-    opacity: 0;
-    transform: translate3d(12px, 0, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes ai-properties-rail-enter-b {
-  from {
-    opacity: 0;
-    transform: translate3d(12px, 0, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
-@keyframes ai-properties-rail-exit {
-  from {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-
-  to {
-    opacity: 0;
-    transform: translate3d(-12px, 0, 0);
-  }
 }
 
 .ai-properties::-webkit-scrollbar {
@@ -334,25 +262,4 @@
   max-height: 520px;
   overflow: auto;
   padding-right: 4px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ai-properties[data-panel-transition="enter"] {
-    animation: none !important;
-  }
-
-  .ai-properties-panel-transition-exit {
-    animation-duration: 1ms;
-    animation-name: ai-properties-rail-fade-out-reduced;
-  }
-
-  @keyframes ai-properties-rail-fade-out-reduced {
-    from {
-      opacity: 1;
-    }
-
-    to {
-      opacity: 0;
-    }
-  }
 }

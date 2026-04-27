@@ -154,6 +154,7 @@ describe("POST /api/internal/media-derivatives/run", () => {
         processed: 1,
         ready: 1,
         failed: 0,
+        retryScheduled: 0,
         exhausted: 0,
         variantRowsUpserted: 2,
         errors: 0,
@@ -207,6 +208,7 @@ describe("POST /api/internal/media-derivatives/run", () => {
         triggerSource: "scheduled",
         ready: 0,
         failed: 1,
+        retryScheduled: 0,
         exhausted: 1,
         errors: 1,
       })
@@ -261,6 +263,7 @@ describe("POST /api/internal/media-derivatives/run", () => {
         triggerSource: "scheduled",
         ready: 0,
         failed: 1,
+        retryScheduled: 0,
         exhausted: 1,
         errors: 1,
       })
@@ -315,6 +318,7 @@ describe("POST /api/internal/media-derivatives/run", () => {
         triggerSource: "scheduled",
         ready: 0,
         failed: 1,
+        retryScheduled: 0,
         exhausted: 1,
         errors: 1,
       })
@@ -367,6 +371,7 @@ describe("POST /api/internal/media-derivatives/run", () => {
         triggerSource: "scheduled",
         ready: 0,
         failed: 1,
+        retryScheduled: 1,
         exhausted: 0,
         errors: 1,
       })
@@ -394,6 +399,7 @@ describe("POST /api/internal/media-derivatives/run", () => {
         ok: true,
         triggerSource: "manual",
         durationMs: expect.any(Number),
+        retryScheduled: 0,
       })
     );
   });

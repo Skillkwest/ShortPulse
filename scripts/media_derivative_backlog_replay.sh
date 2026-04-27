@@ -148,6 +148,7 @@ invoke_worker() {
     const processed = Number(payload.processed ?? 0);
     const ready = Number(payload.ready ?? 0);
     const failed = Number(payload.failed ?? 0);
+    const retryScheduled = Number(payload.retryScheduled ?? 0);
     const exhausted = Number(payload.exhausted ?? 0);
     const errors = Number(payload.errors ?? 0);
     const summary = [
@@ -155,6 +156,7 @@ invoke_worker() {
       `processed=${processed}`,
       `ready=${ready}`,
       `failed=${failed}`,
+      `retryScheduled=${retryScheduled}`,
       `exhausted=${exhausted}`,
       `errors=${errors}`,
     ];

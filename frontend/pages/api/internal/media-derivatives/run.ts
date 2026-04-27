@@ -22,6 +22,7 @@ type RunDerivativesSuccessResponse = {
   processed: number;
   ready: number;
   failed: number;
+  retryScheduled: number;
   exhausted: number;
   variantRowsUpserted: number;
   errors: number;
@@ -223,6 +224,7 @@ export default async function handler(
     let processed = 0;
     let ready = 0;
     let failed = 0;
+    let retryScheduled = 0;
     let exhausted = 0;
     let errors = 0;
     let variantRowsUpserted = 0;
@@ -301,6 +303,8 @@ export default async function handler(
 
         if (exhaustedNow) {
           exhausted += 1;
+        } else {
+          retryScheduled += 1;
         }
       }
     }
@@ -313,6 +317,7 @@ export default async function handler(
       processed,
       ready,
       failed,
+      retryScheduled,
       exhausted,
       variantRowsUpserted,
       errors,

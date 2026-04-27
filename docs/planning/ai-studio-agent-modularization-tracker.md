@@ -15,7 +15,7 @@ Phase dates in the program doc are target windows. Guardrail setup and initial s
 | Phase 0: Contract Freeze | Completed | AI Platform | 2026-02-23 | 2026-02-25 | schema source-of-truth locked | `docs/records/evidence/agent/phase-0/` |
 | Phase 1: Correctness Hardening | Completed | AI Platform + Frontend | 2026-02-26 | 2026-03-06 | audit-delta defects closed | `docs/records/evidence/agent/phase-1/` |
 | Phase 2: Strangler Consolidation | Completed | AI Platform | 2026-02-21 | 2026-03-20 | no logic duplication across 3 routes | `docs/records/evidence/agent/phase-2/` |
-| Phase 3: Modularization Pass | Completed | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/planning/evidence/architecture/` |
+| Phase 3: Modularization Pass | Completed | Frontend | 2026-03-23 | 2026-04-03 | size budget pass or ADR exceptions | `docs/records/evidence/architecture/` |
 | Phase 4: Guardrails + Governance | In Progress | Platform + DevEx | 2026-02-21 | 2026-04-10 | enforce mode stable for 2 cycles + governance evidence packet | `docs/records/evidence/agent/phase-4/` |
 | Phase 5: Progressive Rollout | Completed (MVP Waiver) | AI Platform + Ops | 2026-02-21 | 2026-04-24 | pre-user MVP waiver accepted; live canary rings deferred until external traffic exists | `docs/records/evidence/agent/phase-5/` |
 | Phase 6: Legacy Decommission | Planned | AI Platform | 2026-04-27 | 2026-05-01 | 14-day zero first-party traffic | `docs/records/evidence/agent/phase-6/` |
@@ -198,7 +198,7 @@ Exit validation:
 - Phase 0: `docs/records/evidence/agent/phase-0/`
 - Phase 1: `docs/records/evidence/agent/phase-1/`
 - Phase 2: `docs/records/evidence/agent/phase-2/`
-- Phase 3: `docs/planning/evidence/architecture/`
+- Phase 3: `docs/records/evidence/architecture/`
 - Phase 4: `docs/records/evidence/agent/phase-4/`
 - Phase 5: `docs/records/evidence/agent/phase-5/`
 - Phase 6: `docs/records/evidence/agent/phase-6/`

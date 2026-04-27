@@ -21,5 +21,5 @@ Reduce oversized hotspot files by concern-oriented splits without feature behavi
 - Hotspot files under budget or explicitly exceptioned.
 
 ## Evidence
-- `docs/planning/evidence/architecture/`
-- `docs/planning/evidence/architecture/2026-02-21-phase-3-closeout-validation.md`
+- `docs/records/evidence/architecture/`
+- `docs/records/evidence/architecture/2026-02-21-phase-3-closeout-validation.md`

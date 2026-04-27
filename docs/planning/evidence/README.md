@@ -6,7 +6,6 @@ This is the current physical evidence namespace during the records migration tra
 
 ## Active evidence namespaces
 - `docs/planning/evidence/sql/`
-- `docs/planning/evidence/architecture/`
 - `docs/planning/evidence/reference-grid-modularization/`
 - `docs/planning/evidence/naming-canonicalization/`
 - `docs/planning/evidence/lane-b/`
@@ -22,6 +21,7 @@ This is the current physical evidence namespace during the records migration tra
 ## Migrated namespaces
 - `docs/records/evidence/agent/`
 - `docs/records/evidence/agent-pipeline-remediation/`
+- `docs/records/evidence/architecture/`
 - `docs/records/evidence/docs/`
 - `docs/records/evidence/lane-a/`
 - `docs/records/evidence/lane-f/`

@@ -249,4 +249,81 @@ describe("useMediaLibraryPanelDataController", () => {
       })
     );
   });
+
+  it("keeps current media rows visible during same-scope refresh", async () => {
+    const refreshDeferred = createDeferred<{
+      rows: Array<{ id: string; filename: string; file_type: string; created_at: string }>;
+      nextCursor: null;
+      hasMore: false;
+      signedById: Map<string, string>;
+      libraryTotalCount: number;
+    }>();
+
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: "media-1",
+            filename: "cat.png",
+            file_type: "image/png",
+            created_at: "2026-04-27T00:00:00.000Z",
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      })
+      .mockReturnValueOnce(refreshDeferred.promise);
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaRows).toHaveLength(1);
+      expect(result.current.mediaScopeResolved).toBe(true);
+    });
+
+    act(() => {
+      void result.current.loadMediaPage({ reset: true });
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaLoading).toBe(true);
+    });
+
+    expect(result.current.mediaRows).toHaveLength(1);
+    expect(result.current.mediaRows[0]?.id).toBe("media-1");
+    expect(result.current.mediaScopeResolved).toBe(true);
+
+    refreshDeferred.resolve({
+      rows: [
+        {
+          id: "media-1",
+          filename: "cat.png",
+          file_type: "image/png",
+          created_at: "2026-04-27T00:00:00.000Z",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 1,
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaLoading).toBe(false);
+      expect(result.current.mediaScopeResolved).toBe(true);
+    });
+  });
 });

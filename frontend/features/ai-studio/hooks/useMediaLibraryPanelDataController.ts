@@ -104,6 +104,7 @@ export const useMediaLibraryPanelDataController = ({
   const mediaCursorRef = React.useRef<MediaListCursor | null>(null);
   const promptCursorRef = React.useRef<PromptListCursor | null>(null);
   const mediaScopeCacheRef = React.useRef(mediaScopeCache);
+  const promptScopeCacheRef = React.useRef(promptScopeCache);
 
   const requestFolderId = React.useMemo(
     () => normalizeRequestFolderId(activeFolderId),
@@ -141,20 +142,26 @@ export const useMediaLibraryPanelDataController = ({
     promptCursorRef.current = promptScopeCache.nextCursor;
   }, [promptScopeCache.nextCursor]);
 
+  React.useEffect(() => {
+    promptScopeCacheRef.current = promptScopeCache;
+  }, [promptScopeCache]);
+
   const loadMediaPage = React.useCallback(
     async ({ reset }: { reset: boolean }) => {
       const scopeKey = activeRowsScopeKey;
       const requestToken = mediaRequestTokenRef.current + 1;
       mediaRequestTokenRef.current = requestToken;
+      const shouldPreserveRowsDuringRefresh =
+        reset && mediaScopeCacheRef.current.resolvedScopeKey === scopeKey;
       setMediaScopeCache((prev) => ({
         ...prev,
         nextCursor: reset ? null : prev.nextCursor,
-        hasMore: reset ? false : prev.hasMore,
+        hasMore: prev.hasMore,
         loading: true,
         error: null,
-        resolvedScopeKey: reset ? null : prev.resolvedScopeKey,
+        resolvedScopeKey: reset && !shouldPreserveRowsDuringRefresh ? null : prev.resolvedScopeKey,
       }));
-      if (reset) {
+      if (reset && !shouldPreserveRowsDuringRefresh) {
         setMediaRows([]);
       }
       try {
@@ -226,15 +233,17 @@ export const useMediaLibraryPanelDataController = ({
       const scopeKey = activeRowsScopeKey;
       const requestToken = promptRequestTokenRef.current + 1;
       promptRequestTokenRef.current = requestToken;
+      const shouldPreserveRowsDuringRefresh =
+        reset && promptScopeCacheRef.current.resolvedScopeKey === scopeKey;
       setPromptScopeCache((prev) => ({
         ...prev,
         nextCursor: reset ? null : prev.nextCursor,
-        hasMore: reset ? false : prev.hasMore,
+        hasMore: prev.hasMore,
         loading: true,
         error: null,
-        resolvedScopeKey: reset ? null : prev.resolvedScopeKey,
+        resolvedScopeKey: reset && !shouldPreserveRowsDuringRefresh ? null : prev.resolvedScopeKey,
       }));
-      if (reset) {
+      if (reset && !shouldPreserveRowsDuringRefresh) {
         setPromptRows([]);
       }
       try {

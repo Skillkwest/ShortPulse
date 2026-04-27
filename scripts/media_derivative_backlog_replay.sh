@@ -53,7 +53,9 @@ fi
 mkdir -p "$LOG_DIR"
 COMBINED_LOG="$LOG_DIR/combined.log"
 FINAL_SUMMARY_JSON="$LOG_DIR/final_summary.json"
+CYCLE_SUMMARIES_JSONL="$LOG_DIR/cycle_summaries.jsonl"
 : > "$COMBINED_LOG"
+: > "$CYCLE_SUMMARIES_JSONL"
 TOTAL_CLAIMED=0
 TOTAL_PROCESSED=0
 TOTAL_READY=0
@@ -152,6 +154,8 @@ invoke_worker() {
   fi
 
   node -e '
+    const cycle = Number(process.argv[2]);
+    const httpStatus = Number(process.argv[3]);
     const payload = JSON.parse(process.argv[1]);
     if (!payload || payload.ok !== true) {
       throw new Error("Worker response did not return ok=true.");
@@ -180,9 +184,27 @@ invoke_worker() {
     }
     console.log(summary.join(" "));
     process.stdout.write(
-      JSON.stringify({ claimed, processed, ready, failed, retryScheduled, exhausted, errors })
+      JSON.stringify({
+        cycle,
+        httpStatus,
+        triggerSource:
+          typeof payload.triggerSource === "string" && payload.triggerSource.trim().length > 0
+            ? payload.triggerSource.trim()
+            : null,
+        durationMs:
+          typeof payload.durationMs === "number" && Number.isFinite(payload.durationMs)
+            ? payload.durationMs
+            : null,
+        claimed,
+        processed,
+        ready,
+        failed,
+        retryScheduled,
+        exhausted,
+        errors,
+      })
     );
-  ' "$response_body" > "$LOG_DIR/run_cycle_${cycle}.parsed"
+  ' "$response_body" "$cycle" "$http_status" > "$LOG_DIR/run_cycle_${cycle}.parsed"
 
   local summary_line
   summary_line="$(head -n 1 "$LOG_DIR/run_cycle_${cycle}.parsed")"
@@ -190,6 +212,7 @@ invoke_worker() {
 
   local control_json
   control_json="$(tail -n 1 "$LOG_DIR/run_cycle_${cycle}.parsed")"
+  printf '%s\n' "$control_json" >> "$CYCLE_SUMMARIES_JSONL"
   local claimed
   claimed="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.claimed));' "$control_json")"
   local processed
@@ -287,6 +310,7 @@ node -e '
   "$TOTAL_EXHAUSTED" \
   "$TOTAL_ERRORS" > "$FINAL_SUMMARY_JSON"
 echo "[media-derivative-replay] Final summary JSON: $FINAL_SUMMARY_JSON" | tee -a "$COMBINED_LOG"
+echo "[media-derivative-replay] Cycle summaries JSONL: $CYCLE_SUMMARIES_JSONL" | tee -a "$COMBINED_LOG"
 
 if (( DRAINED == 0 )); then
   echo "[media-derivative-replay] Max cycle cap reached before claims drained." | tee -a "$COMBINED_LOG"

@@ -188,13 +188,13 @@ This rebuild runs through seven implementation phases:
 7. cutover, deletion, and closeout
 
 Phase-specific execution details live in:
-1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`
-2. `docs/planning/ai-studio-master-stage-phase-2-delete-duplicate-stage-surfaces-plan-2026-04-12.md`
-3. `docs/planning/ai-studio-master-stage-phase-3-stage-core-extraction-plan-2026-04-12.md`
-4. `docs/planning/ai-studio-master-stage-phase-4-artboard-selection-transform-plan-2026-04-12.md`
-5. `docs/planning/ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`
-6. `docs/planning/ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`
-7. `docs/planning/ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`
+1. `docs/archive/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`
+2. `docs/archive/planning/ai-studio-master-stage-phase-2-delete-duplicate-stage-surfaces-plan-2026-04-12.md`
+3. `docs/archive/planning/ai-studio-master-stage-phase-3-stage-core-extraction-plan-2026-04-12.md`
+4. `docs/archive/planning/ai-studio-master-stage-phase-4-artboard-selection-transform-plan-2026-04-12.md`
+5. `docs/archive/planning/ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`
+6. `docs/archive/planning/ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`
+7. `docs/archive/planning/ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`
 
 ## Done State
 ### Planning-Task Done State
@@ -257,4 +257,4 @@ The implementation tracker is the operational source of truth, but every phase s
 2. `docs/adr/0030-ai-studio-dual-canvas-right-rail-shared-scene.md`
 3. `docs/adr/0034-ai-studio-expert-edit-shared-stage-interaction-parity.md`
 4. `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`
-5. `docs/planning/ai-studio-master-stage-rebuild-tracker-2026-04-12.md`
+5. `docs/archive/planning/ai-studio-master-stage-rebuild-tracker-2026-04-12.md`

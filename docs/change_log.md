@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - kept the master-stage rebuild spec active in `docs/planning/` as the canonical stage authority,
+  - archived the completed master-stage tracker and phase packet under `docs/archive/planning/`,
+  - and retargeted ADR/spec/index references so the active-vs-historical split is explicit.
+- Documentation cleanup:
   - archived the completed Media Library runtime rebuild packet under `docs/archive/planning/`,
   - removed those closeout docs from the active planning indexes,
   - and retargeted the surviving evidence/history references to the new archive paths.

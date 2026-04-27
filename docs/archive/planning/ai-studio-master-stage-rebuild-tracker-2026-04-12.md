@@ -1,5 +1,7 @@
 # AI Studio Master Stage Rebuild Tracker (2026-04-12)
 
+> Archived on 2026-04-26 during docs cleanup because the master-stage implementation packet is complete while the canonical stage spec remains active in `docs/planning/ai-studio-master-stage-rebuild-spec-2026-04-12.md`.
+
 Last updated: 2026-04-12  
 Status: complete  
 Owner: Engineering
@@ -172,10 +174,10 @@ The rebuild program done state is now satisfied:
 6. no follow-on rebuild lane remains necessary to reach the V1 stage target.
 
 ## Phase Links
-1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`
-2. `docs/planning/ai-studio-master-stage-phase-2-delete-duplicate-stage-surfaces-plan-2026-04-12.md`
-3. `docs/planning/ai-studio-master-stage-phase-3-stage-core-extraction-plan-2026-04-12.md`
-4. `docs/planning/ai-studio-master-stage-phase-4-artboard-selection-transform-plan-2026-04-12.md`
-5. `docs/planning/ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`
-6. `docs/planning/ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`
-7. `docs/planning/ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`
+1. `docs/archive/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`
+2. `docs/archive/planning/ai-studio-master-stage-phase-2-delete-duplicate-stage-surfaces-plan-2026-04-12.md`
+3. `docs/archive/planning/ai-studio-master-stage-phase-3-stage-core-extraction-plan-2026-04-12.md`
+4. `docs/archive/planning/ai-studio-master-stage-phase-4-artboard-selection-transform-plan-2026-04-12.md`
+5. `docs/archive/planning/ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`
+6. `docs/archive/planning/ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`
+7. `docs/archive/planning/ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`

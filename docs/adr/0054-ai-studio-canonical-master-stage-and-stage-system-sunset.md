@@ -64,4 +64,4 @@ The repo now needs one higher-level decision about which stage model is canonica
 2. `docs/adr/0034-ai-studio-expert-edit-shared-stage-interaction-parity.md`
 3. `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`
 4. `docs/planning/ai-studio-master-stage-rebuild-spec-2026-04-12.md`
-5. `docs/planning/ai-studio-master-stage-rebuild-tracker-2026-04-12.md`
+5. `docs/archive/planning/ai-studio-master-stage-rebuild-tracker-2026-04-12.md`

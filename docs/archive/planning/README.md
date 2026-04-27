@@ -23,6 +23,14 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
 - `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
 - `docs/archive/planning/ai-studio-generation-runtime-stabilization.md`
+- `docs/archive/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`
+- `docs/archive/planning/ai-studio-master-stage-phase-2-delete-duplicate-stage-surfaces-plan-2026-04-12.md`
+- `docs/archive/planning/ai-studio-master-stage-phase-3-stage-core-extraction-plan-2026-04-12.md`
+- `docs/archive/planning/ai-studio-master-stage-phase-4-artboard-selection-transform-plan-2026-04-12.md`
+- `docs/archive/planning/ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`
+- `docs/archive/planning/ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`
+- `docs/archive/planning/ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`
+- `docs/archive/planning/ai-studio-master-stage-rebuild-tracker-2026-04-12.md`
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-authority-and-proof-inventory-2026-04-26.md`
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-done-state-and-stop-rules-2026-04-26.md`
 - `docs/archive/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`

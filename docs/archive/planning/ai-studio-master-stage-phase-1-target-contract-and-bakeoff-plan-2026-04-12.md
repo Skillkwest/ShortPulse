@@ -1,5 +1,7 @@
 # AI Studio Master Stage Phase 1: Target Contract And Bakeoff Plan (2026-04-12)
 
+> Archived on 2026-04-26 during docs cleanup because the master-stage implementation packet is complete while the canonical stage spec remains active in `docs/planning/ai-studio-master-stage-rebuild-spec-2026-04-12.md`.
+
 Status: complete  
 Owner: Engineering
 

@@ -641,122 +641,84 @@ export function MediaLibraryAllItemsGrid({
 
   React.useEffect(() => {
     const hoverVideoPathByRowId = new Map<string, string>();
+    const posterPathByRowId = new Map<string, string[]>();
+    const storagePaths = new Set<string>();
+
     for (const row of mediaRows) {
       const hoverPath = resolveHoverVideoSigningPath(row, currentUserId);
-      if (!hoverPath) continue;
-      hoverVideoPathByRowId.set(row.id, hoverPath);
+      if (hoverPath) {
+        hoverVideoPathByRowId.set(row.id, hoverPath);
+        storagePaths.add(hoverPath);
+      }
+
+      if (!isVideoFile(row.file_type)) continue;
+      if (resolveVideoPosterSourceUrl(row, null, null, row.signedUrl ?? null)) continue;
+
+      const posterCandidates = resolveVideoPosterSigningStoragePaths(row, currentUserId);
+      if (posterCandidates.length === 0) continue;
+      posterPathByRowId.set(row.id, posterCandidates);
+      for (const candidate of posterCandidates) {
+        storagePaths.add(candidate);
+      }
     }
 
-    if (hoverVideoPathByRowId.size === 0) {
+    if (storagePaths.size === 0) {
       setSignedVideoUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
-      return;
-    }
-
-    const storagePaths: string[] = [];
-    for (const storagePath of hoverVideoPathByRowId.values()) {
-      storagePaths.push(storagePath);
-    }
-
-    if (storagePaths.length === 0) {
-      setSignedVideoUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
+      setSignedPosterUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
       return;
     }
 
     let cancelled = false;
     void getSignedMediaUrlsBatch({
       bucket: BUCKET,
-      storagePaths,
+      storagePaths: Array.from(storagePaths),
       surface: "media-library-panel",
     })
       .then((signedByPath) => {
         if (cancelled) return;
-        const nextById: Record<string, string> = {};
+        const nextSignedVideoUrlById: Record<string, string> = {};
         for (const [rowId, storagePath] of hoverVideoPathByRowId.entries()) {
           const signedUrl = signedByPath.get(storagePath) ?? null;
           if (signedUrl) {
-            nextById[rowId] = signedUrl;
+            nextSignedVideoUrlById[rowId] = signedUrl;
           }
         }
         setSignedVideoUrlById((prev) => {
           const prevKeys = Object.keys(prev);
-          const nextKeys = Object.keys(nextById);
+          const nextKeys = Object.keys(nextSignedVideoUrlById);
           if (
             prevKeys.length === nextKeys.length &&
-            nextKeys.every((key) => prev[key] === nextById[key])
+            nextKeys.every((key) => prev[key] === nextSignedVideoUrlById[key])
           ) {
             return prev;
           }
-          return nextById;
+          return nextSignedVideoUrlById;
         });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setSignedVideoUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
-      });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUserId, mediaRows]);
-
-  React.useEffect(() => {
-    const videoPosterRows = mediaRows.filter((row) => {
-      if (!isVideoFile(row.file_type)) return false;
-      if (resolveVideoPosterSourceUrl(row, null, null, row.signedUrl ?? null)) return false;
-      const posterCandidates = resolveVideoPosterSigningStoragePaths(row, currentUserId);
-      return posterCandidates.length > 0;
-    });
-
-    if (videoPosterRows.length === 0) {
-      setSignedPosterUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
-      return;
-    }
-
-    const posterPathByRowId = new Map<string, string[]>();
-    const posterPaths: string[] = [];
-    for (const row of videoPosterRows) {
-      const candidates = resolveVideoPosterSigningStoragePaths(row, currentUserId);
-      if (candidates.length === 0) continue;
-      posterPathByRowId.set(row.id, candidates);
-      posterPaths.push(...candidates);
-    }
-
-    if (posterPaths.length === 0) {
-      setSignedPosterUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
-      return;
-    }
-
-    let cancelled = false;
-    void getSignedMediaUrlsBatch({
-      bucket: BUCKET,
-      storagePaths: posterPaths,
-      surface: "media-library-panel",
-    })
-      .then((signedByPath) => {
-        if (cancelled) return;
-        const nextById: Record<string, string> = {};
+        const nextSignedPosterUrlById: Record<string, string> = {};
         for (const [rowId, candidates] of posterPathByRowId.entries()) {
           const signedUrl = candidates
             .map((candidate) => signedByPath.get(candidate) ?? null)
             .find((candidate): candidate is string => Boolean(candidate));
           if (signedUrl) {
-            nextById[rowId] = signedUrl;
+            nextSignedPosterUrlById[rowId] = signedUrl;
           }
         }
         setSignedPosterUrlById((prev) => {
           const prevKeys = Object.keys(prev);
-          const nextKeys = Object.keys(nextById);
+          const nextKeys = Object.keys(nextSignedPosterUrlById);
           if (
             prevKeys.length === nextKeys.length &&
-            nextKeys.every((key) => prev[key] === nextById[key])
+            nextKeys.every((key) => prev[key] === nextSignedPosterUrlById[key])
           ) {
             return prev;
           }
-          return nextById;
+          return nextSignedPosterUrlById;
         });
       })
       .catch(() => {
         if (cancelled) return;
+        setSignedVideoUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
         setSignedPosterUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
       });
 

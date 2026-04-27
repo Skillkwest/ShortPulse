@@ -45,4 +45,11 @@ describe("mediaPerfTelemetry sampling policy", () => {
     expect(getMediaPerfSnapshot()).toHaveLength(1);
     expect(getMediaPerfSnapshot()[0]?.event).toBe("media.grid.render.commit");
   });
+
+  it("accepts panel media paint events", () => {
+    logMediaPerf("media.panel.first_media_paint", { asset_kind: "image", duration_ms: 42 });
+
+    expect(getMediaPerfSnapshot()).toHaveLength(1);
+    expect(getMediaPerfSnapshot()[0]?.event).toBe("media.panel.first_media_paint");
+  });
 });

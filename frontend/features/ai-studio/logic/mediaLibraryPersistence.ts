@@ -479,6 +479,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   storagePath: string | null;
   fileType: MediaLibraryFileType;
   posterVariantPath: string | null;
+  previewVariantPath: string | null;
 } | null> => {
   const publicationMediaRow = await resolvePublishedGenerationMediaByIndex({
     supabase,
@@ -491,6 +492,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
       storagePath: publicationMediaRow.storagePath,
       fileType: publicationMediaRow.fileType,
       posterVariantPath: publicationMediaRow.posterVariantPath,
+      previewVariantPath: publicationMediaRow.previewVariantPath,
     };
   }
 

@@ -1,5 +1,7 @@
 # Generation Pipeline Rebuild Phase 1 Stabilization Plan (2026-03-27)
 
+> Archived on 2026-04-27 during docs cleanup because Phase 1 is complete and the active generation-pipeline rebuild work now continues from Phase 3 and later lane/contract docs in `docs/planning/`.
+
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
@@ -71,4 +73,4 @@ The branch also completed several supporting hardening slices immediately after 
 ## Closeout
 Phase 1 is complete on `generation-pipeline-rebuild`.
 
-The next planned work is tracked separately in `generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`.
+The next planned work moved through Phase 2 and now continues from `docs/planning/generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`.

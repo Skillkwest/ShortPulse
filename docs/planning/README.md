@@ -111,8 +111,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`: concrete Lane 2 execution plan for historical row classification, canonical backfill, quarantine handling, and fallback-retirement order.
 - `generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`: baseline Lane 2 query set for historical row classes, inconsistency checks, and the bounded legacy fallback-reader inventory.
 - `generation-pipeline-rebuild-lane-3-cutover-gates-2026-03-27.md`: explicit cutover gates protecting drag/drop, reuse, and delivery contracts before broad read-model migration.
-- `generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`: completed checkpoint for the initial fail-closed submit and durable-linkage hardening slices.
-- `generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`: completed execution tracker for generated-output read-authority tightening before schema introduction.
 - `generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`: active execution tracker for additive canonical output schema introduction and server-read cutover.
 - `generation-reliability-hardening-master-plan-2026-03-20.md`: reliability hardening program contract focused on scheduler/control-plane health, bounded recovery behavior, and operations governance.
 - `generation-reliability-hardening-master-roadmap-2026-03-20.md`: canonical sequencing/dependency roadmap for reliability workstreams (`WR-1` through `WR-7`).

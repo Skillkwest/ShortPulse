@@ -1,5 +1,7 @@
 # Generation Pipeline Rebuild Phase 2 Read Authority Plan (2026-03-27)
 
+> Archived on 2026-04-27 during docs cleanup because Phase 2 is complete and the active generation-pipeline rebuild work now continues from `docs/planning/generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`.
+
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
@@ -32,7 +34,7 @@ By the end of Phase 2, generated-media read surfaces should distinguish clearly 
 
 The UI may still preview transient output, but it should not misclassify that output as durably reusable or fully saved.
 
-Phase 2 has now handed off to [generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md](./generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md) for additive schema and server-authoritative output recording.
+Phase 2 has now handed off to [generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md](../../planning/generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md) for additive schema and server-authoritative output recording.
 
 ## Slice Tracker
 | Slice ID | Goal | Primary Surfaces | Exit Gate | Validation | Status |

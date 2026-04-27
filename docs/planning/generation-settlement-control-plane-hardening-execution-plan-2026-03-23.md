@@ -13,7 +13,7 @@ Branch update on 2026-03-27:
 2. Current forward execution for the canonical rebuild should follow:
    - `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`
    - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
-   - `docs/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
+   - `docs/archive/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
 3. This document remains useful as historical context for settlement/control-plane hardening, but it is no longer the primary execution artifact for the next generation-pipeline phase on `working-development`.
 
 Primary objectives:

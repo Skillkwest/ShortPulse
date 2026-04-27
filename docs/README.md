@@ -246,8 +246,6 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-3-cutover-gates-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
-- `docs/planning/generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`
 - `docs/planning/generation-reliability-hardening-master-plan-2026-03-20.md`
 - `docs/planning/generation-reliability-hardening-master-roadmap-2026-03-20.md`

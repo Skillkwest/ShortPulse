@@ -8,7 +8,7 @@
   - `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
   - `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
   - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
-  - `docs/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
+  - `docs/archive/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
 
 ## Context
 The generation pipeline is more hardened than it was earlier in March 2026, but the core lifecycle is still split across overlapping identities and partial authorities:

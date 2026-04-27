@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the completed generation-pipeline rebuild Phase 1 and Phase 2 docs under `docs/archive/planning/`,
+  - removed those completed checkpoint docs from the active planning indexes,
+  - and retargeted the surviving ADR and planning references to the archive paths.
+- Documentation cleanup:
   - normalized the full `generation-pipeline-rebuild-*` planning family onto the canonical status vocabulary,
   - kept the packet active in place and preserved checkpoint-complete semantics in the body text rather than reclassifying the family mid-slice,
   - and deferred any archive split for those checkpoint docs to a separate active-vs-historical pass.

@@ -306,6 +306,21 @@ export const resolveMediaSigningStoragePaths = (
 };
 
 /**
+ * Resolves both signable storage-path candidates and trusted direct preview URLs.
+ * Computes preview metadata once so signing hot paths do not duplicate candidate work.
+ */
+export const resolveMediaPreviewCandidates = (
+  row: MediaRowLike,
+  userId?: string | null
+): {
+  storagePaths: string[];
+  directUrls: string[];
+} => ({
+  storagePaths: resolveMediaSigningStoragePaths(row, userId),
+  directUrls: resolveMediaDirectPreviewUrls(row, userId),
+});
+
+/**
  * Returns URL-shaped preview candidates that can be used directly when signing fails.
  */
 export const resolveMediaDirectPreviewUrls = (

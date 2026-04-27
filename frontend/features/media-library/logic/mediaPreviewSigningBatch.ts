@@ -1,7 +1,6 @@
 import {
   classifyMediaPreviewPath,
-  resolveMediaDirectPreviewUrls,
-  resolveMediaSigningStoragePaths,
+  resolveMediaPreviewCandidates,
   type MediaPreviewPathKind,
 } from "../../../lib/mediaPreviewPath";
 import { logMediaPerf, type MediaPerfEventName } from "../../../lib/mediaPerfTelemetry";
@@ -52,17 +51,15 @@ export const buildMediaSignCandidateEntry = <TRow extends PreviewSigningRowLike>
   currentUserId: string | null,
   maxSignCandidatesPerRow: number
 ): MediaSignCandidateEntry => {
-  const candidates = resolveMediaSigningStoragePaths(row, currentUserId).slice(
-    0,
-    maxSignCandidatesPerRow
-  );
+  const previewCandidates = resolveMediaPreviewCandidates(row, currentUserId);
+  const candidates = previewCandidates.storagePaths.slice(0, maxSignCandidatesPerRow);
   const primaryPath = candidates[0] ?? null;
   return {
     id: row.id,
     primaryPath,
     primaryPathKind: classifyMediaPreviewPath(row, primaryPath, currentUserId),
     candidates,
-    directUrls: resolveMediaDirectPreviewUrls(row, currentUserId),
+    directUrls: previewCandidates.directUrls,
   };
 };
 

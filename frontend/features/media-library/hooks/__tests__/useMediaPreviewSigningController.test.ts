@@ -5,7 +5,7 @@ import { useMediaPreviewSigningController } from "../useMediaPreviewSigningContr
 import { createMediaPerfTimer, logMediaPerf } from "../../../../lib/mediaPerfTelemetry";
 import {
   classifyMediaPreviewPath,
-  resolveMediaDirectPreviewUrls,
+  resolveMediaPreviewCandidates,
   resolveMediaSigningStoragePaths,
 } from "../../../../lib/mediaPreviewPath";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
@@ -22,7 +22,7 @@ vi.mock("../../../../lib/mediaPreviewPath", async (importOriginal) => {
   return {
     ...actual,
     classifyMediaPreviewPath: vi.fn(actual.classifyMediaPreviewPath),
-    resolveMediaDirectPreviewUrls: vi.fn(),
+    resolveMediaPreviewCandidates: vi.fn(),
     resolveMediaSigningStoragePaths: vi.fn(),
   };
 });
@@ -34,7 +34,7 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
 const createMediaPerfTimerMock = vi.mocked(createMediaPerfTimer);
 const logMediaPerfMock = vi.mocked(logMediaPerf);
 const classifyMediaPreviewPathMock = vi.mocked(classifyMediaPreviewPath);
-const resolveMediaDirectPreviewUrlsMock = vi.mocked(resolveMediaDirectPreviewUrls);
+const resolveMediaPreviewCandidatesMock = vi.mocked(resolveMediaPreviewCandidates);
 const resolveMediaSigningStoragePathsMock = vi.mocked(resolveMediaSigningStoragePaths);
 const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
 
@@ -82,7 +82,12 @@ describe("useMediaPreviewSigningController", () => {
     resolveMediaSigningStoragePathsMock.mockImplementation(
       (row: { storage_path?: string | null }) => [row.storage_path ?? ""]
     );
-    resolveMediaDirectPreviewUrlsMock.mockReturnValue([]);
+    resolveMediaPreviewCandidatesMock.mockImplementation(
+      (row: { storage_path?: string | null }, currentUserId?: string | null) => ({
+        storagePaths: resolveMediaSigningStoragePathsMock(row, currentUserId),
+        directUrls: [],
+      })
+    );
   });
 
   afterEach(() => {
@@ -202,8 +207,7 @@ describe("useMediaPreviewSigningController", () => {
     });
 
     await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalled());
-    expect(resolveMediaSigningStoragePathsMock).toHaveBeenCalledTimes(1);
-    expect(resolveMediaDirectPreviewUrlsMock).toHaveBeenCalledTimes(1);
+    expect(resolveMediaPreviewCandidatesMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not run proactive hydrate fallback during routine signing passes", async () => {
@@ -302,12 +306,15 @@ describe("useMediaPreviewSigningController", () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([["user/images/primary.png", "https://signed/primary"]])
     );
-    resolveMediaSigningStoragePathsMock.mockReturnValue([
-      "user/images/primary.png",
-      "user/images/fallback-a.png",
-      "user/images/fallback-b.png",
-      "user/images/fallback-c.png",
-    ]);
+    resolveMediaPreviewCandidatesMock.mockReturnValue({
+      storagePaths: [
+        "user/images/primary.png",
+        "user/images/fallback-a.png",
+        "user/images/fallback-b.png",
+        "user/images/fallback-c.png",
+      ],
+      directUrls: [],
+    });
 
     renderHook(() => {
       const rows = [makeRow()];
@@ -356,10 +363,10 @@ describe("useMediaPreviewSigningController", () => {
   });
 
   it("applies trusted direct preview URLs even when there are no storage paths to sign", async () => {
-    resolveMediaSigningStoragePathsMock.mockReturnValue([]);
-    resolveMediaDirectPreviewUrlsMock.mockReturnValue([
-      "https://cdn.example.com/direct-preview.png",
-    ]);
+    resolveMediaPreviewCandidatesMock.mockReturnValue({
+      storagePaths: [],
+      directUrls: ["https://cdn.example.com/direct-preview.png"],
+    });
     const applySpy = vi.fn();
 
     const { result } = renderHook(() => {

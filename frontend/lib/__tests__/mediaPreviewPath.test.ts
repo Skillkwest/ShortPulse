@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyMediaPreviewPath,
   resolveDurablePreviewStoragePath,
+  resolveMediaPreviewCandidates,
   resolveMediaSigningStoragePaths,
   resolvePreviewStoragePath,
   resolveVideoPosterSigningStoragePaths,
@@ -68,6 +69,23 @@ describe("mediaPreviewPath", () => {
       "variants/images/media-1/thumb_480",
       "uploads/images/original.png",
     ]);
+  });
+
+  it("resolves signing paths and trusted direct urls from one preview-candidate helper", () => {
+    const row = {
+      file_type: "image",
+      storage_path: "https://cdn.example.com/user-1/uploads/images/original.png",
+      thumb_variant_path: "variants/images/media-1/thumb_480",
+    };
+
+    expect(resolveMediaPreviewCandidates(row, "user-1")).toEqual({
+      storagePaths: [
+        "user-1/variants/images/media-1/thumb_480",
+        "user-1/uploads/images/original.png",
+        "variants/images/media-1/thumb_480",
+      ],
+      directUrls: [],
+    });
   });
 
   it("prefers explicit video poster variants over loop previews", () => {

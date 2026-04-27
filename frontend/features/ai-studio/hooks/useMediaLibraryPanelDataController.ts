@@ -4,6 +4,7 @@ import {
   type MediaListCursor,
   type MediaListMediaKind,
 } from "../../media-library/logic/mediaListApi";
+import type { MediaListProfile } from "../../../lib/mediaListProfile";
 import { shouldAutoLoadNearBottom } from "../../media-library/logic/mediaLoadMoreGating";
 import { mergePageRows } from "../../media-library/logic/mediaLibraryPageHelpers";
 import { useMediaLibraryPanelRuntime } from "../../media-library/runtime";
@@ -60,6 +61,11 @@ const resolveMediaKind = (itemType: MediaLibraryPanelItemType): MediaListMediaKi
   if (itemType === "images") return "images";
   if (itemType === "videos") return "videos";
   return "all";
+};
+
+const resolveMediaListProfile = (itemType: MediaLibraryPanelItemType): MediaListProfile => {
+  if (itemType === "images" || itemType === "videos") return "minimal";
+  return "expanded";
 };
 
 const waitForAnimationFrame = async (): Promise<void> => {
@@ -176,7 +182,7 @@ export const useMediaLibraryPanelDataController = ({
           cursor: reset ? null : mediaCursorRef.current,
           limit: MEDIA_PAGE_SIZE,
           surface: "media-library-panel",
-          profile: "expanded",
+          profile: resolveMediaListProfile(itemType),
           folderId: requestFolderId,
           projectId,
           includeLibraryTotalCount: shouldRequestLibraryTotalCount,

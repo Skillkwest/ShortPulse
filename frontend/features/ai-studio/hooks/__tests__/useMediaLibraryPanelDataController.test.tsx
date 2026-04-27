@@ -326,4 +326,68 @@ describe("useMediaLibraryPanelDataController", () => {
       expect(result.current.mediaScopeResolved).toBe(true);
     });
   });
+
+  it("uses the minimal media list profile for dedicated image and video tabs", async () => {
+    const { rerender } = renderHook(
+      ({ itemType }) =>
+        useMediaLibraryPanelDataController({
+          projectId: "project-1",
+          activeFolderId: "all_items",
+          itemType,
+          normalizedSearch: "",
+          shouldShowMedia: true,
+          shouldShowPrompts: false,
+          showFolderCanvas: false,
+          panelBodyRef: { current: null },
+        }),
+      {
+        initialProps: {
+          itemType: "images" as const,
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          profile: "minimal",
+        })
+      );
+    });
+
+    fetchMediaListPageMock.mockClear();
+
+    rerender({ itemType: "videos" as const });
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          profile: "minimal",
+        })
+      );
+    });
+  });
+
+  it("keeps the expanded media list profile for the mixed all-items tab", async () => {
+    renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          profile: "expanded",
+        })
+      );
+    });
+  });
 });

@@ -11,8 +11,8 @@ It locks architecture decisions, operating constraints, and workstream sequencin
 
 Program links:
 1. Master tracker: `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
-2. Evidence index: `docs/planning/evidence/agent-pipeline-remediation/README.md`
-3. Master evidence folder: `docs/planning/evidence/agent-pipeline-remediation/master/`
+2. Evidence index: `docs/records/evidence/agent-pipeline-remediation/README.md`
+3. Master evidence folder: `docs/records/evidence/agent-pipeline-remediation/master/`
 4. Threshold contract: `docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`
 5. Authority precedence addendum: `docs/planning/ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`
 6. Tracker gate clarification: `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`

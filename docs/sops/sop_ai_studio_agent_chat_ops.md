@@ -160,7 +160,7 @@ Demotion/retirement rules:
 
 Storage and review cadence:
 1. Store active corpus artifacts under:
-   - `docs/planning/evidence/agent-pipeline-remediation/master/ws-5/artifacts/`
+   - `docs/records/artifacts/agent-pipeline-remediation/master/ws-5/artifacts/`
 2. Review cadence:
    - daily quick triage for new candidates,
    - weekly promotion/retirement decision review.

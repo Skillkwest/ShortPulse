@@ -94,7 +94,7 @@ Shared type source:
 1. Route-level contract tests for all in-scope endpoints.
 2. Cross-route parity tests for same-scenario outcome mapping.
 3. Client tests asserting machine-field precedence over message heuristics.
-4. Evidence packet recorded under `docs/planning/evidence/agent-pipeline-remediation/phase-1/`.
+4. Evidence packet recorded under `docs/records/evidence/agent-pipeline-remediation/phase-1/`.
 
 ## References
 1. `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`

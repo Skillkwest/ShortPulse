@@ -9,7 +9,7 @@ Authority Addendum: `docs/planning/ai-studio-agent-pipeline-regression-authority
 Gate Clarification: `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`
 Environment Labels: `docs/planning/ai-studio-agent-pipeline-regression-environment-label-normalization-2026-03-20.md`
 Supporting Docs Plan: `docs/planning/ai-studio-agent-pipeline-regression-supporting-docs-plan-2026-03-20.md`
-Evidence Root: `docs/planning/evidence/agent-pipeline-remediation/master/`
+Evidence Root: `docs/records/evidence/agent-pipeline-remediation/master/`
 Phase 1 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
 Phase 2 Plan: `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
 Phase 3 Plan: `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
@@ -19,38 +19,38 @@ Status: active
 ## Master Status Overview
 | Workstream | Status | Owner | Entry Gate | Exit Gate | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| WS-1 IR Contract And Schema Governance | Planned | AI Platform | Master roadmap approved | Schema/version/repair contract approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-1/` |
-| WS-2 Orchestration And Canonical Continuity | Planned | Frontend + AI Platform | WS-1 contract draft available | Canonical continuity invariants approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-2/` |
-| WS-3 Safety And Policy Envelope | In Progress | AI Platform + Platform | WS-1/WS-2 draft assumptions captured | OpenAI envelope and reason taxonomy approved (current scope) | `docs/planning/evidence/agent-pipeline-remediation/master/ws-3/` |
-| WS-4 Reliability, Latency, And Cost Lanes | Completed | Platform | WS-1 through WS-3 contracts stable | Experiment matrix and lane policy approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-4/` |
-| WS-5 Evaluation And Adversarial Defense | Completed | Frontend + AI Platform | WS-1 through WS-4 assumptions documented | Eval gates and corpus workflow approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-5/` |
-| WS-6 Rollout Governance And Observability | Completed | Platform Ops + Platform | WS-1 through WS-5 gate drafts available | Canary/rollback/precedence controls approved | `docs/planning/evidence/agent-pipeline-remediation/master/ws-6/` |
+| WS-1 IR Contract And Schema Governance | Planned | AI Platform | Master roadmap approved | Schema/version/repair contract approved | `docs/records/evidence/agent-pipeline-remediation/master/ws-1/` |
+| WS-2 Orchestration And Canonical Continuity | Planned | Frontend + AI Platform | WS-1 contract draft available | Canonical continuity invariants approved | `docs/records/evidence/agent-pipeline-remediation/master/ws-2/` |
+| WS-3 Safety And Policy Envelope | In Progress | AI Platform + Platform | WS-1/WS-2 draft assumptions captured | OpenAI envelope and reason taxonomy approved (current scope) | `docs/records/evidence/agent-pipeline-remediation/master/ws-3/` |
+| WS-4 Reliability, Latency, And Cost Lanes | Completed | Platform | WS-1 through WS-3 contracts stable | Experiment matrix and lane policy approved | `docs/records/evidence/agent-pipeline-remediation/master/ws-4/` |
+| WS-5 Evaluation And Adversarial Defense | Completed | Frontend + AI Platform | WS-1 through WS-4 assumptions documented | Eval gates and corpus workflow approved | `docs/records/evidence/agent-pipeline-remediation/master/ws-5/` |
+| WS-6 Rollout Governance And Observability | Completed | Platform Ops + Platform | WS-1 through WS-5 gate drafts available | Canary/rollback/precedence controls approved | `docs/records/evidence/agent-pipeline-remediation/master/ws-6/` |
 
 ## Master Tracker Rows
 | ID | Task | Owner | Status | Risk | Validation | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| M-01 | Lock canonical prompt-compiler IR schema (`schema_version`, required fields, strict object policy) | AI Platform | Completed (Phase 1 baseline) | High | Phase 1 additive outcome contract lock + shared type contract + validation pass | `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
-| M-02 | Define bounded parse-validate-repair-fail-closed contract for invalid IR | AI Platform | Waived (Phase 1 entry) | High | Formal waiver + carry-forward requirements documented | `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
+| M-01 | Lock canonical prompt-compiler IR schema (`schema_version`, required fields, strict object policy) | AI Platform | Completed (Phase 1 baseline) | High | Phase 1 additive outcome contract lock + shared type contract + validation pass | `docs/records/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
+| M-02 | Define bounded parse-validate-repair-fail-closed contract for invalid IR | AI Platform | Waived (Phase 1 entry) | High | Formal waiver + carry-forward requirements documented | `docs/records/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
 | M-03 | Define schema migration rules (compatibility windows + translators + canary criteria) | Platform | Planned | Medium | Migration simulation tests + rollback checklist | Pending |
 | M-04 | Lock orchestration boundaries (interpreter/renderer/validator contracts) | AI Platform + Frontend | Planned | Medium | Contract tests + payload boundary review | Pending |
 | M-05 | Lock canonical continuity commit rules (no commit on fallback/error/invalid IR) | Frontend | Planned | High | Continuity matrix tests + failure-path assertions | Pending |
 | M-06 | Define multimodal untrusted-content isolation contract for OCR/caption/image text | AI Platform | Planned | High | Injection regression suite + sink-boundary checks | Pending |
-| M-07 | Publish OpenAI policy envelope matrix (policy and empirical layers for current remediation scope) | Platform | Completed | High | Matrix review + nightly matrix validation plan | `docs/planning/evidence/agent-pipeline-remediation/master/ws-3/2026-03-20-m07-openai-policy-envelope-matrix-and-nightly-validation-plan.md` |
-| M-08 | Lock refusal/fallback/error reason-code taxonomy and retryability contract | AI Platform | Completed | High | Canonical mapping contract + shared type source lock | `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
-| M-09 | Define runtime precedence order and proof tests (env/control-plane/profile/request/killswitch) | Platform | Waived (Phase 1 entry) | High | Formal waiver + carry-forward requirements documented | `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
-| M-10 | Define cache key and invalidation contract (prompt/schema/control-plane versioning) | Platform | Completed | Medium | Cache-key parity tests + drift simulation | `docs/planning/evidence/agent-pipeline-remediation/master/ws-4/2026-03-20-m10-cache-key-and-invalidation-contract.md` |
-| M-11 | Define latency/cost experiment matrix (fast-validator vs strong-compiler lanes) | Platform + Frontend | Completed | Medium | Experiment report with pass/fail thresholds | `docs/planning/evidence/agent-pipeline-remediation/master/ws-4/2026-03-20-m11-latency-cost-experiment-matrix.md` |
-| M-12 | Define compiler-specific eval gates (schema/fidelity/continuity/false-refusal) | Frontend + AI Platform | Completed | High | CI gate definitions + baseline dataset report | `docs/planning/evidence/agent-pipeline-remediation/master/ws-5/2026-03-20-m12-compiler-eval-gates-and-baseline.md` |
-| M-13 | Define production-trace adversarial mining loop and corpus promotion rules | AI Platform | Completed | Medium | Corpus lifecycle SOP + sample packet review | `docs/planning/evidence/agent-pipeline-remediation/master/ws-5/2026-03-20-m13-adversarial-trace-mining-and-corpus-promotion.md` |
-| M-14 | Define canary thresholds and rollback triggers for compiler-native metrics | Platform Ops | Completed | High | Threshold contract + canary policy doc + rollback drill checklist | `docs/planning/evidence/agent-pipeline-remediation/master/ws-6/2026-03-20-m14-canary-thresholds-and-rollback-drill.md` |
-| M-15 | Build master signoff packet enabling phase implementation start and gated execution | Engineering | Waived (Staging Scope Directive) | High | Explicit waiver + carry-forward requirements documented | `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-m15-master-signoff-staging-directive-waiver.md` |
+| M-07 | Publish OpenAI policy envelope matrix (policy and empirical layers for current remediation scope) | Platform | Completed | High | Matrix review + nightly matrix validation plan | `docs/records/evidence/agent-pipeline-remediation/master/ws-3/2026-03-20-m07-openai-policy-envelope-matrix-and-nightly-validation-plan.md` |
+| M-08 | Lock refusal/fallback/error reason-code taxonomy and retryability contract | AI Platform | Completed | High | Canonical mapping contract + shared type source lock | `docs/records/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
+| M-09 | Define runtime precedence order and proof tests (env/control-plane/profile/request/killswitch) | Platform | Waived (Phase 1 entry) | High | Formal waiver + carry-forward requirements documented | `docs/records/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md` |
+| M-10 | Define cache key and invalidation contract (prompt/schema/control-plane versioning) | Platform | Completed | Medium | Cache-key parity tests + drift simulation | `docs/records/evidence/agent-pipeline-remediation/master/ws-4/2026-03-20-m10-cache-key-and-invalidation-contract.md` |
+| M-11 | Define latency/cost experiment matrix (fast-validator vs strong-compiler lanes) | Platform + Frontend | Completed | Medium | Experiment report with pass/fail thresholds | `docs/records/evidence/agent-pipeline-remediation/master/ws-4/2026-03-20-m11-latency-cost-experiment-matrix.md` |
+| M-12 | Define compiler-specific eval gates (schema/fidelity/continuity/false-refusal) | Frontend + AI Platform | Completed | High | CI gate definitions + baseline dataset report | `docs/records/evidence/agent-pipeline-remediation/master/ws-5/2026-03-20-m12-compiler-eval-gates-and-baseline.md` |
+| M-13 | Define production-trace adversarial mining loop and corpus promotion rules | AI Platform | Completed | Medium | Corpus lifecycle SOP + sample packet review | `docs/records/evidence/agent-pipeline-remediation/master/ws-5/2026-03-20-m13-adversarial-trace-mining-and-corpus-promotion.md` |
+| M-14 | Define canary thresholds and rollback triggers for compiler-native metrics | Platform Ops | Completed | High | Threshold contract + canary policy doc + rollback drill checklist | `docs/records/evidence/agent-pipeline-remediation/master/ws-6/2026-03-20-m14-canary-thresholds-and-rollback-drill.md` |
+| M-15 | Build master signoff packet enabling phase implementation start and gated execution | Engineering | Waived (Staging Scope Directive) | High | Explicit waiver + carry-forward requirements documented | `docs/records/evidence/agent-pipeline-remediation/master/2026-03-20-m15-master-signoff-staging-directive-waiver.md` |
 
 ## Phase Closeout Rows
 | ID | Task | Owner | Status | Risk | Validation | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | PX-01 | Phase 1 closeout packet linked and approved | AI Platform + Frontend | Planned | Medium | Phase 1 exit criteria pass + evidence links complete | Pending |
-| PX-02 | Phase 2 closeout packet linked and approved | Frontend + AI Platform | Completed (Staging Scope) | Medium | Phase 2 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md` |
-| PX-03 | Phase 3 closeout packet linked and approved | Platform Ops + Platform + AI Platform | Completed (Staging Scope) | High | Phase 3 exit criteria pass + evidence links complete | `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-closeout-packet-staging-scope.md` |
+| PX-02 | Phase 2 closeout packet linked and approved | Frontend + AI Platform | Completed (Staging Scope) | Medium | Phase 2 exit criteria pass + evidence links complete | `docs/records/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md` |
+| PX-03 | Phase 3 closeout packet linked and approved | Platform Ops + Platform + AI Platform | Completed (Staging Scope) | High | Phase 3 exit criteria pass + evidence links complete | `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-closeout-packet-staging-scope.md` |
 | PX-04 | Phase 4 closeout packet linked and approved | Platform Ops + AI Platform + Frontend | Planned | High | Phase 4 exit criteria pass + evidence links complete | Pending |
 
 ## Phase Execution Gate
@@ -63,16 +63,16 @@ Phase implementation is allowed when:
 
 ## Current Phase Entry Decisions
 1. Phase 1: Ready (2026-03-20)
-   - dependencies reviewed in `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`.
+   - dependencies reviewed in `docs/records/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`.
    - `M-01` and `M-08` marked complete; `M-02` and `M-09` explicitly waived for Phase 1 entry with carry-forward requirements.
 2. Phase 2: Complete (2026-03-20, staging scope)
    - active evidence packets:
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-continuity-guard-validation.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-runtime-truth-staging-packet.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-golden-quality-false-refusal-comparative-report.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-precheck-scope-parity-progress.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-continuity-guard-validation.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-quality-refusal-and-runtime-truth-local-baseline.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-runtime-truth-staging-packet.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-golden-quality-false-refusal-comparative-report.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-2/2026-03-20-phase-2-closeout-packet-staging-scope.md`
    - scope/enforcement parity, local+staging runtime truth, and comparative quality/refusal gates are complete.
    - production runtime-truth capture is deferred by owner directive for this phase and remains a follow-up item.
 3. Phase 3: Complete (2026-03-20, staging scope)
@@ -82,15 +82,15 @@ Phase implementation is allowed when:
      - Staging runtime truth packet: satisfied.
      - Master rows `M-07` through `M-14`: satisfied (`M-07`, `M-08`, `M-10`, `M-11`, `M-12`, `M-13`, `M-14` complete; `M-09` waived).
    - active evidence packets:
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-runtime-scope-telemetry-parity-generate-describe.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-precedence-cache-ttl-proof-tests.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-canary-threshold-decision-utility.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-rollback-drill-local-dry-run.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-delta-packet-generator-tooling.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-live-canary-delta-packet.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-window-sufficiency-waiver.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-rollback-drill-packet.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-closeout-packet-staging-scope.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-runtime-scope-telemetry-parity-generate-describe.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-precedence-cache-ttl-proof-tests.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-canary-threshold-decision-utility.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-rollback-drill-local-dry-run.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-delta-packet-generator-tooling.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-live-canary-delta-packet.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-canary-window-sufficiency-waiver.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-staging-rollback-drill-packet.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-3/2026-03-20-phase-3-closeout-packet-staging-scope.md`
    - closeout outcome:
      - Canary window-duration sufficiency is owner-waived for current staging cycle; waiver linked and approved for this scope.
      - Staging rollback drill packet is complete and linked.
@@ -113,9 +113,9 @@ Phase implementation is allowed when:
      - active blocker:
        - staging alias currently resolves to an older preview deployment lineage (created `2026-03-15T16:52:51.341Z`), so strict machine-outcome gates remain red until alias/deployment is refreshed.
    - active entry-status packet:
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-entry-gate-status-staging-directive.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-rollout-readiness-checklist-staging-directive.md`
-     - `docs/planning/evidence/agent-pipeline-remediation/phase-4/2026-03-21-phase-4-staging-openai-lane-audit-tooling-implementation.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-entry-gate-status-staging-directive.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-4/2026-03-20-phase-4-rollout-readiness-checklist-staging-directive.md`
+     - `docs/records/evidence/agent-pipeline-remediation/phase-4/2026-03-21-phase-4-staging-openai-lane-audit-tooling-implementation.md`
 
 ## PX-02 Timeboxed Closeout Gate (2026-03-20)
 1. Timebox:

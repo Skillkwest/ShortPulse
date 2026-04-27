@@ -21,7 +21,7 @@ Out-of-scope:
 Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
-3. `docs/planning/evidence/agent-pipeline-remediation/master/README.md`
+3. `docs/records/evidence/agent-pipeline-remediation/master/README.md`
 4. `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`
 5. `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-route-outcome-contract-2026-03-20.md`
 
@@ -64,7 +64,7 @@ Phase 1 implementation may begin when these master rows are approved:
    - Preserve legacy fallback behavior where machine fields are absent.
 4. Docs and evidence:
    - Record final outcome taxonomy contract and route mapping matrix.
-   - Store all packets in `docs/planning/evidence/agent-pipeline-remediation/phase-1/`.
+   - Store all packets in `docs/records/evidence/agent-pipeline-remediation/phase-1/`.
 
 ## Validation
 1. API contract tests:

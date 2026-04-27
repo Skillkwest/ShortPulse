@@ -1,0 +1,66 @@
+{
+  "environment": "staging",
+  "ring": "internal_verification",
+  "controlWindow": {
+    "label": "control:agent-sim-batch-1774042450869-correctness-summary.json",
+    "startUtc": "2026-03-20T21:34:10.869Z",
+    "endUtc": "2026-03-20T21:40:54.918Z",
+    "volume": 210
+  },
+  "canaryWindow": {
+    "label": "canary:agent-sim-batch-1774042864755-correctness-summary.json",
+    "startUtc": "2026-03-20T21:41:04.755Z",
+    "endUtc": "2026-03-20T21:47:17.783Z",
+    "volume": 210
+  },
+  "metrics": {
+    "schema_failure_rate": {
+      "control": 0,
+      "canary": 0
+    },
+    "fallback_rate": {
+      "control": 0,
+      "canary": 0
+    },
+    "false_refusal_rate": {
+      "control": 0,
+      "canary": 0
+    },
+    "repair_rate": {
+      "control": 0,
+      "canary": 0
+    },
+    "p95_latency_ms": {
+      "control": 19797,
+      "canary": 19543
+    },
+    "error_rate": {
+      "control": 0,
+      "canary": 0.4761904761904762
+    }
+  },
+  "derivations": {
+    "control": {
+      "allow_total": 210,
+      "allow_refusal_count": 0,
+      "missing_apply_prompt": 0,
+      "fallback_count": 0,
+      "non200_count": 0,
+      "repair_rate_assumption": "0 (no server repair-attempt signal currently exposed in safety-sim outputs)"
+    },
+    "canary": {
+      "allow_total": 210,
+      "allow_refusal_count": 0,
+      "missing_apply_prompt": 0,
+      "fallback_count": 0,
+      "non200_count": 1,
+      "repair_rate_assumption": "0 (no server repair-attempt signal currently exposed in safety-sim outputs)"
+    }
+  },
+  "sources": {
+    "control_summary": "docs/records/artifacts/agent-pipeline-remediation/phase-3/artifacts/2026-03-20/live-canary/control/agent-sim-batch-1774042450869-correctness-summary.json",
+    "control_aggregates": null,
+    "canary_summary": "docs/records/artifacts/agent-pipeline-remediation/phase-3/artifacts/2026-03-20/live-canary/canary/agent-sim-batch-1774042864755-correctness-summary.json",
+    "canary_aggregates": null
+  }
+}

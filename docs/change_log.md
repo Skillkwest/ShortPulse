@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - executed the second retained-records split-namespace migration by moving the `agent-pipeline-remediation` evidence family into `docs/records/evidence/agent-pipeline-remediation/`,
+  - introduced `docs/records/artifacts/agent-pipeline-remediation/` for the remediation program's retained raw payloads and generated outputs,
+  - and retargeted the surviving planning, SOP, evidence, and artifact references to the new records paths.
+- Documentation cleanup:
   - executed the first retained-records split-namespace migration by moving the `agent` evidence packet family into `docs/records/evidence/agent/`,
   - introduced `docs/records/artifacts/README.md` plus `docs/records/artifacts/agent/` for the retained raw rollout-template payload,
   - and retargeted the surviving planning and evidence references to the new records paths.

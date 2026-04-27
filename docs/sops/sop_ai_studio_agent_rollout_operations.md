@@ -9,7 +9,7 @@ Purpose: define the operational runbook for progressive rollout of AI Studio age
 Remediation-scope precedence:
 1. For the 2026-03-20 OpenAI prompt-compiler remediation stream, this SOP maps rollout evidence and closeout to:
    - `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
-   - `docs/planning/evidence/agent-pipeline-remediation/phase-4/`
+   - `docs/records/evidence/agent-pipeline-remediation/phase-4/`
 2. Legacy modularization evidence paths remain valid only for the historical modularization rollout stream.
 
 ## Preconditions (must be true before Phase 5 starts)
@@ -113,15 +113,15 @@ For the prompt-only single-stage release, ring operators must apply flags in thi
 6. 5% promotion decision packet completed at soak exit.
 7. If dashboard/alert links are unavailable due tooling constraints, include a waiver artifact with explicit compensating controls and approval context.
 
-For remediation rollout operations, store evidence under `docs/planning/evidence/agent-pipeline-remediation/phase-4/`.
+For remediation rollout operations, store evidence under `docs/records/evidence/agent-pipeline-remediation/phase-4/`.
 
 ### Optional Automation: Gate Snapshot Generator
 Use the snapshot generator to standardize ring evidence blocks and gate decisions from structured input.
 
 Template pack (remediation):
-- `docs/planning/evidence/agent-pipeline-remediation/phase-4/rollout-checklist-template.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-4/ring-decision-log-template.md`
-- `docs/planning/evidence/agent-pipeline-remediation/phase-4/stabilization-window-report-template.md`
+- `docs/records/evidence/agent-pipeline-remediation/phase-4/rollout-checklist-template.md`
+- `docs/records/evidence/agent-pipeline-remediation/phase-4/ring-decision-log-template.md`
+- `docs/records/evidence/agent-pipeline-remediation/phase-4/stabilization-window-report-template.md`
 
 Command examples:
 ```bash
@@ -149,6 +149,6 @@ node scripts/generate_phase5_rollout_snapshot.js \
 3. Confirm next ring start time and owner handoff.
 4. Re-validate alert routing/on-call coverage before promotion.
 5. For each ring promotion transition, ensure:
-   - `docs/planning/evidence/agent-pipeline-remediation/phase-4/rollout-checklist-template.md` is instantiated and updated for the current window.
-   - `docs/planning/evidence/agent-pipeline-remediation/phase-4/ring-decision-log-template.md` is instantiated and updated with promote/hold/rollback decision evidence.
+   - `docs/records/evidence/agent-pipeline-remediation/phase-4/rollout-checklist-template.md` is instantiated and updated for the current window.
+   - `docs/records/evidence/agent-pipeline-remediation/phase-4/ring-decision-log-template.md` is instantiated and updated with promote/hold/rollback decision evidence.
 6. If DEP-03 waiver is active, ensure waiver evidence is linked in the rollout report and decision packet.

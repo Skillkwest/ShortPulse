@@ -19,11 +19,11 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/generation-reliability-hardening/`
 - `docs/planning/evidence/ai-studio-reference-grid-reliability/`
 - `docs/planning/evidence/media-rendering-hardening-v2/`
-- `docs/planning/evidence/agent-pipeline-remediation/`
 - `docs/planning/evidence/unified-buildout/`
 
 ## Migrated namespaces
 - `docs/records/evidence/agent/`
+- `docs/records/evidence/agent-pipeline-remediation/`
 - `docs/records/evidence/lane-a/`
 - `docs/records/evidence/lane-f/`
 - `docs/records/evidence/kei/`

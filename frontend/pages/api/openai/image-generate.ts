@@ -16,6 +16,7 @@ type ImageGenerateRequestBody = {
   prompt?: unknown;
   size?: unknown;
   quality?: unknown;
+  project_id?: unknown;
   generation_replay?: unknown;
   character_context?: unknown;
   style_context?: unknown;
@@ -88,6 +89,7 @@ export default async function handler(
     const prompt = normalizeRequiredString(body.prompt);
     const size = normalizeSize(body.size);
     const quality = normalizeQuality(body.quality);
+    const projectId = normalizeRequiredString(body.project_id);
     const generationReplay = asRecord(body.generation_replay) ?? {};
     const characterContext = asRecord(body.character_context) ?? {};
     const styleContext = asRecord(body.style_context) ?? {};
@@ -127,6 +129,7 @@ export default async function handler(
 
     const persisted = await persistGeneratedImageAsset({
       userId: charge.userId,
+      projectId,
       promptText: prompt,
       modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
       providerRequestId: generated.providerRequestId ?? `openai:${charge.sourceRef}`,

@@ -767,6 +767,8 @@ language plpgsql
 as $$
 declare
     current_balance bigint;
+    active_reserved_total bigint;
+    is_reservation_capture boolean;
 begin
     if new.change_cents = 0 then
         raise exception 'Credit change cannot be zero';
@@ -783,7 +785,21 @@ begin
      where user_id = new.user_id;
 
     current_balance := coalesce(current_balance, 0);
-    if current_balance + new.change_cents < 0 then
+    is_reservation_capture := coalesce((new.metadata ->> 'captured_from_reservation')::boolean, false);
+
+    if new.change_cents < 0
+       and new.source = 'generation_charge'
+       and not is_reservation_capture then
+        select coalesce(sum(r.amount_cents), 0)
+          into active_reserved_total
+          from ai_credit_reservations r
+         where r.user_id = new.user_id
+           and r.status = 'reserved';
+
+        if current_balance - coalesce(active_reserved_total, 0) + new.change_cents < 0 then
+            raise exception 'Insufficient credits';
+        end if;
+    elsif current_balance + new.change_cents < 0 then
         raise exception 'Insufficient credits';
     end if;
 

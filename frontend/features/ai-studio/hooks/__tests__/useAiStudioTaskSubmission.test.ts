@@ -231,6 +231,99 @@ describe("useAiStudioTaskSubmission", () => {
     expect(outputs[0]?.generationId).toBe("gen-from-record-1");
   });
 
+  it("runs ensureGenerationRecord after direct-complete submissions", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => "gen-direct-complete-1");
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("default");
+    vi.mocked(handleDefaultModelSubmission).mockImplementationOnce(
+      async ({ completeGenerationImmediately }) => {
+        completeGenerationImmediately?.({
+          provider: "openai-image",
+          generationId: "gen-direct-complete-1",
+          requestId: "openai-req-1",
+          previewUrl: "https://cdn.test/openai-preview.png",
+          resultUrls: ["https://cdn.test/openai-preview.png"],
+          previewStoragePath: "user-1/generations/images/openai-preview.png",
+          fullStoragePath: "user-1/generations/images/openai-preview.png",
+          mimeType: "image/png",
+          savedMediaIds: ["media-openai-1"],
+        });
+      }
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "gpt-image-2",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "medium",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        projectId: "project-1",
+        setPanelGenerating: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A polished studio portrait", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(startPollingTask).not.toHaveBeenCalled();
+    expect(ensureGenerationRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: outputs[0]?.id,
+        provider: "openai-image",
+        taskId: "openai-req-1",
+        metadata: expect.objectContaining({
+          completion_mode: "direct",
+          generation_trace_id: "openai-req-1",
+        }),
+      })
+    );
+    expect(outputs[0]?.generationId).toBe("gen-direct-complete-1");
+    expect(outputs[0]?.taskId).toBe("openai-req-1");
+  });
+
   it("routes Veo First/Last to text-video when no frame images are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

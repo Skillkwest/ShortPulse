@@ -97,6 +97,7 @@ describe("POST /api/openai/image-generate", () => {
         prompt: "cinematic portrait",
         size: "1024x1024",
         quality: "medium",
+        project_id: "project-1",
         generation_replay: { source: "reroll" },
         character_context: { characterId: "char-1" },
         style_context: { styleId: "style-1" },
@@ -137,6 +138,7 @@ describe("POST /api/openai/image-generate", () => {
     expect(persistGeneratedImageAssetMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
+        projectId: "project-1",
         requestId: "billing-source-image-1",
         providerRequestId: "provider-image-1",
         requestedSize: "1024x1024",

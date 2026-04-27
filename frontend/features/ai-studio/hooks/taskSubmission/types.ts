@@ -26,6 +26,7 @@ export type ImmediateGenerationResult = {
 
 export type BaseSubmissionArgs = {
   id: string;
+  projectId?: string | null;
   finalModel: string;
   cleanedPrompt: string;
   aspect: string;

@@ -16,6 +16,7 @@ import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
+import { associateGenerationWithProjectForUser } from "./projectGenerationAssociationsService";
 
 const DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1";
 const MEDIA_BUCKET = "media_library";
@@ -28,6 +29,7 @@ type OpenAiGenerateImageInput = {
 
 type PersistGeneratedImageInput = {
   userId: string;
+  projectId?: string | null;
   promptText: string;
   modelId: string;
   providerRequestId?: string | null;
@@ -171,6 +173,7 @@ export const generateOpenAiImage = async ({
  */
 export const persistGeneratedImageAsset = async ({
   userId,
+  projectId = null,
   promptText,
   modelId,
   providerRequestId = null,
@@ -189,6 +192,7 @@ export const persistGeneratedImageAsset = async ({
   const generationId = randomUUID();
   const resolvedRequestId = normalizeOptionalString(requestId) ?? randomUUID();
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
+  const resolvedProjectId = normalizeOptionalString(projectId);
   const createdAtIso = new Date().toISOString();
   const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser(userId);
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
@@ -330,6 +334,14 @@ export const persistGeneratedImageAsset = async ({
     startedAt: createdAtIso,
     completedAt: createdAtIso,
   });
+
+  if (resolvedProjectId) {
+    await associateGenerationWithProjectForUser({
+      userId,
+      projectId: resolvedProjectId,
+      generationId,
+    });
+  }
 
   return {
     generationId,

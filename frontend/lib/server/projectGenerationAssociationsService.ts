@@ -225,6 +225,58 @@ const buildProjectionByGenerationId = async ({
   );
 };
 
+/**
+ * Associates one owned generation with one owned project.
+ * This is used by direct-complete provider lanes that must eagerly persist
+ * project ownership at generation success time rather than waiting for later
+ * workspace snapshot backfill.
+ */
+export const associateGenerationWithProjectForUser = async ({
+  userId,
+  projectId,
+  generationId,
+}: {
+  userId: string;
+  projectId: string;
+  generationId: string;
+}): Promise<boolean> => {
+  const normalizedProjectId = asTrimmedString(projectId);
+  const normalizedGenerationId = asTrimmedString(generationId);
+  if (!normalizedProjectId || !normalizedGenerationId) return false;
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data: projectRow, error: projectError } = await supabaseAdmin
+    .from("projects")
+    .select("id")
+    .eq("id", normalizedProjectId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (projectError) {
+    throw new Error(projectError.message || "Failed to verify owned project before association");
+  }
+  if (!projectRow) return false;
+
+  const nowIso = new Date().toISOString();
+  const { error } = await supabaseAdmin.from("project_generation_items").upsert(
+    {
+      project_id: normalizedProjectId,
+      generation_id: normalizedGenerationId,
+      user_id: userId,
+      updated_at: nowIso,
+    },
+    {
+      onConflict: "project_id,generation_id",
+    }
+  );
+
+  if (error) {
+    throw new Error(error.message || "Failed to associate generation with project");
+  }
+
+  return true;
+};
+
 const patchSnapshotOutputRow = ({
   row,
   projection,

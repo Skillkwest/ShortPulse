@@ -57,6 +57,7 @@ const handoffSubmitResponse = ({
  * Handles default/fallback Fal submissions (Seedream + Nano Banana variants).
  */
 export const handleDefaultModelSubmission = async ({
+  projectId,
   finalModel,
   cleanedPrompt,
   aspect,
@@ -88,6 +89,7 @@ export const handleDefaultModelSubmission = async ({
       prompt: cleanedPrompt,
       size: resolveOpenAiGptImage2SizeForAspect(aspect),
       quality: normalizeOpenAiGptImage2Quality(requestedResolution),
+      ...(projectId ? { project_id: projectId } : {}),
       ...shortpulseSubmitPayload,
     });
     if (!completeGenerationImmediately) {

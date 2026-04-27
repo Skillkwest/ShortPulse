@@ -46,6 +46,7 @@ ShortPulse route body:
   "prompt": "cinematic portrait",
   "size": "1024x1024",
   "quality": "medium",
+  "project_id": "project-uuid-optional",
   "generation_replay": {},
   "character_context": {},
   "style_context": {},
@@ -58,6 +59,7 @@ Validation rules:
 - `prompt` is required and trimmed.
 - `size` must be one of the supported phase-1 sizes.
 - `quality` must be one of `low | medium | high`.
+- `project_id` is optional; when present, successful direct-complete generations are eagerly associated to the owned project so restore/reopen can find them without waiting for later workspace-save backfill.
 - Server enforces `n = 1`; callers do not supply arbitrary counts in phase 1.
 
 ## Aspect and quality mapping

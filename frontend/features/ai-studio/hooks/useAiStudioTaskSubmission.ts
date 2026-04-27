@@ -762,6 +762,39 @@ export const useAiStudioTaskSubmission = ({
                 savedMediaIds,
               })
             );
+            void ensureGenerationRecord({
+              outputId: id,
+              provider,
+              taskId: requestId,
+              durationSeconds: requestedDurationSeconds,
+              resolution: requestedResolution ?? null,
+              metadata: {
+                tool: effectiveTool,
+                audio: requestedAudio,
+                requested_aspect: requestedAspect,
+                effective_aspect: effectiveAspect,
+                resolution: requestedResolution ?? null,
+                duration_seconds: requestedDurationSeconds,
+                submission_trace_id: submissionTraceId,
+                generation_trace_id: requestId,
+                completion_mode: "direct",
+              },
+            }).then((resolvedGenerationId) => {
+              if (
+                typeof resolvedGenerationId !== "string" ||
+                resolvedGenerationId.trim().length === 0
+              ) {
+                return;
+              }
+              const normalizedGenerationId = resolvedGenerationId.trim();
+              updateOutputById(id, (item) => {
+                if (item.generationId === normalizedGenerationId) return item;
+                return {
+                  ...item,
+                  generationId: normalizedGenerationId,
+                };
+              });
+            });
           };
 
           const route = resolveSubmissionHandlerRoute(finalModel);
@@ -805,6 +838,7 @@ export const useAiStudioTaskSubmission = ({
           } else if (route === "image") {
             const handled = await handleImageModelSubmission({
               id,
+              projectId,
               finalModel,
               cleanedPrompt: cleanedSubmissionPrompt,
               aspect: effectiveAspect,
@@ -832,6 +866,7 @@ export const useAiStudioTaskSubmission = ({
           } else {
             await handleDefaultModelSubmission({
               id,
+              projectId,
               finalModel,
               cleanedPrompt: cleanedSubmissionPrompt,
               aspect: effectiveAspect,

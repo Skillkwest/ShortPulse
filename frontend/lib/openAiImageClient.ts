@@ -9,6 +9,7 @@ export type OpenAiImageSubmitRequest = {
   prompt: string;
   size: OpenAiImage2Size;
   quality: OpenAiImage2Quality;
+  project_id?: string;
   generation_replay?: Record<string, unknown>;
   character_context?: Record<string, unknown>;
   style_context?: Record<string, unknown>;

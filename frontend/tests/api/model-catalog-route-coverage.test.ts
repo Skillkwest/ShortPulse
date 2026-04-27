@@ -4,12 +4,15 @@ import { describe, expect, it } from "vitest";
 import { getModelCatalogEntry } from "../../lib/model-runtime/modelCatalog";
 
 const FAL_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "fal");
+const OPENAI_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "openai");
 const PROVIDER_MODEL_IDS_PATH = path.join(
   process.cwd(),
   "lib",
   "model-runtime",
   "providerModelIds.ts"
 );
+const OPENAI_IMAGE_MODEL_ID = "gpt-image-2";
+const OPENAI_IMAGE_ROUTE_FILES = ["image-generate.ts", "image-edit.ts"] as const;
 
 const listFalSubmitRouteFiles = (): string[] =>
   fs
@@ -98,5 +101,28 @@ describe("model catalog route coverage", () => {
         "https://queue.fal.run/fal-ai/bytedance/requests",
       ]);
     }
+  });
+
+  it("covers the GPT Image 2 OpenAI route family in the shared catalog", () => {
+    expect(getModelCatalogEntry(OPENAI_IMAGE_MODEL_ID)).toBeTruthy();
+
+    const missingContracts: string[] = [];
+
+    for (const fileName of OPENAI_IMAGE_ROUTE_FILES) {
+      const filePath = path.join(OPENAI_ROUTES_DIR, fileName);
+      const contents = fs.readFileSync(filePath, "utf8");
+
+      if (!contents.includes("OPENAI_GPT_IMAGE_2_MODEL_ID")) {
+        missingContracts.push(`${fileName}: missing model id constant`);
+      }
+      if (!contents.includes("requireApiUser")) {
+        missingContracts.push(`${fileName}: missing route auth`);
+      }
+      if (!contents.includes("chargeGenerationRequest")) {
+        missingContracts.push(`${fileName}: missing shared billing`);
+      }
+    }
+
+    expect(missingContracts).toEqual([]);
   });
 });

@@ -20,6 +20,17 @@ describe("getAdminModelWorkflowType", () => {
     ).toBe("Image to image");
   });
 
+  it("maps dual-capability image models to the combined admin label", () => {
+    expect(
+      getAdminModelWorkflowType({
+        id: "gpt-image-2",
+        mediaType: "image",
+        supportsTextToImage: true,
+        supportsImageToImage: true,
+      })
+    ).toBe("Text + image edit");
+  });
+
   it("maps prompt-first Kie video lanes to text-to-video", () => {
     expect(
       getAdminModelWorkflowType({

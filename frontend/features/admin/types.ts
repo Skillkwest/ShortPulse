@@ -548,10 +548,16 @@ export type AdminDashboardAnnouncement = {
 
 export type AdminPricingPolicySnapshot = ModelPricingPolicySnapshot;
 
+export type AdminPricingPreviewVariant = {
+  id: string;
+  label: string;
+  breakdown: AdminCreditPricingBreakdown;
+};
+
 export type AdminPricingModelRow = {
   id: string;
   label: string;
-  provider: "fal" | "kie" | "openai" | "other";
+  provider: "fal" | "kie" | "openai" | "elevenlabs" | "other";
   workflowType: AdminModelWorkflowType;
   pricingStrategy: string;
   pricingStrategyLabel: string;
@@ -559,7 +565,9 @@ export type AdminPricingModelRow = {
   defaultResolution: string | null;
   defaultDurationSeconds: number | null;
   roundingIncrement: number;
+  pricingAuthority: "shared_policy" | "local_pricing" | "metadata_only";
   pricingPreview: AdminCreditPricingBreakdown | null;
+  pricingPreviewVariants: AdminPricingPreviewVariant[];
 };
 
 export type AdminPricingPlanRow = {
@@ -577,6 +585,26 @@ export type AdminPricingPlanRow = {
   acquisitionEnabled: boolean;
   isActive: boolean;
   effectiveStartAt: string | null;
+  monthlyOffer: {
+    offerId: string | null;
+    recurringPriceCents: number;
+    monthlyCreditsCents: number;
+    storageLimitBytes: number;
+    stripePriceId: string | null;
+    acquisitionEnabled: boolean;
+    isActive: boolean;
+    effectiveStartAt: string | null;
+  } | null;
+  annualOffer: {
+    offerId: string | null;
+    recurringPriceCents: number;
+    monthlyCreditsCents: number;
+    storageLimitBytes: number;
+    stripePriceId: string | null;
+    acquisitionEnabled: boolean;
+    isActive: boolean;
+    effectiveStartAt: string | null;
+  } | null;
 };
 
 export type AdminPricingCreditPackageRow = {

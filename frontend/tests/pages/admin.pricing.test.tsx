@@ -83,6 +83,18 @@ const buildPricingState = () => ({
         billedCredits: 10,
         billedUsd: 0.1,
       },
+      pricingPreviewVariants: [
+        {
+          id: "default",
+          label: "Default",
+          breakdown: {
+            usdRaw: 0.08,
+            rawCredits: 8,
+            billedCredits: 10,
+            billedUsd: 0.1,
+          },
+        },
+      ],
     },
   ],
   plans: [],
@@ -174,5 +186,58 @@ describe("Admin pricing page", () => {
         "Background refresh failed. Showing the last loaded pricing snapshot while refresh recovers."
       )
     ).toBeInTheDocument();
+  });
+
+  it("renders inline create/edit pricing preview variants for dual-capability models", () => {
+    const state = buildPricingState();
+    state.models = [
+      {
+        ...state.models[0],
+        id: "gpt-image-2",
+        label: "ChatGPT Image 2",
+        workflowType: "Text + image edit",
+        pricingPreview: {
+          usdRaw: 0.08,
+          rawCredits: 8,
+          billedCredits: 10,
+          billedUsd: 0.1,
+        },
+        pricingPreviewVariants: [
+          {
+            id: "create",
+            label: "Create",
+            breakdown: {
+              usdRaw: 0.08,
+              rawCredits: 8,
+              billedCredits: 10,
+              billedUsd: 0.1,
+            },
+          },
+          {
+            id: "edit",
+            label: "Edit",
+            breakdown: {
+              usdRaw: 0.12,
+              rawCredits: 12,
+              billedCredits: 15,
+              billedUsd: 0.15,
+            },
+          },
+        ],
+      },
+    ];
+
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: state,
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminPricingPage />);
+
+    expect(screen.getByText("Text + image edit")).toBeInTheDocument();
+    expect(screen.getByText("Create 10 • Edit 15")).toBeInTheDocument();
   });
 });

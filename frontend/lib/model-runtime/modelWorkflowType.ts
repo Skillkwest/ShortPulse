@@ -9,6 +9,7 @@ import {
 
 export type AdminModelWorkflowType =
   | "Text to image"
+  | "Text + image edit"
   | "Image to image"
   | "Text to video"
   | "Image to video"
@@ -34,6 +35,10 @@ const IMAGE_TO_VIDEO_MODEL_IDS = new Set<string>([KIE_KLING_30_MODEL_ID]);
 export const getAdminModelWorkflowType = (
   model: Pick<ModelConfig, "id" | "mediaType" | "supportsTextToImage" | "supportsImageToImage">
 ): AdminModelWorkflowType => {
+  if (model.supportsTextToImage && model.supportsImageToImage) {
+    return "Text + image edit";
+  }
+
   if (IMAGE_TO_IMAGE_MODEL_IDS.has(model.id) || model.supportsImageToImage) {
     return "Image to image";
   }

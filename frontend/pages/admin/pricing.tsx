@@ -896,6 +896,16 @@ export default function AdminPricingPage() {
                     ) : null}
                     {filteredModels.map((model) => {
                       const activePreview = model.pricingPreview;
+                      const previewVariants = model.pricingPreviewVariants ?? [];
+                      const secondaryPreviewSummary =
+                        previewVariants.length > 1
+                          ? previewVariants
+                              .map((variant) => {
+                                const billedCredits = variant.breakdown.billedCredits ?? 0;
+                                return `${variant.label} ${formatCredits(billedCredits)}`;
+                              })
+                              .join(" • ")
+                          : null;
                       const isSelected = selectedModelRow?.id === model.id;
                       const draftOverride = effectiveModelPolicyDraft.perModel[model.id] ?? null;
                       return (
@@ -928,7 +938,12 @@ export default function AdminPricingPage() {
                             <span>{model.pricingStrategyLabel}</span>
                             <span className={styles.pricingPrimaryCell}>
                               {activePreview ? (
-                                <strong>{formatCredits(activePreview.billedCredits ?? 0)}</strong>
+                                <>
+                                  <strong>{formatCredits(activePreview.billedCredits ?? 0)}</strong>
+                                  {secondaryPreviewSummary ? (
+                                    <small>{secondaryPreviewSummary}</small>
+                                  ) : null}
+                                </>
                               ) : model.pricingAuthority !== "shared_policy" ? (
                                 <span
                                   className={getPricingAuthorityClassName(model.pricingAuthority)}

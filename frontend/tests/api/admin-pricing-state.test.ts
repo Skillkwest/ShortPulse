@@ -51,27 +51,40 @@ describe("GET /api/admin/pricing/state", () => {
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
     listModelConfigsMock.mockReturnValue([
       {
-        id: "fal-ai/flux-2/klein/9b",
-        label: "FLUX.2 Lite",
-        provider: "fal",
+        id: "gpt-image-2",
+        label: "ChatGPT Image 2",
+        provider: "openai",
         mediaType: "image",
         supportsTextToImage: true,
-        pricingStrategy: "fal-economy-image-per-mp",
-        defaultAspect: "4:3",
-        defaultResolution: "model_default",
+        supportsImageToImage: true,
+        pricingStrategy: "gpt-image-2-per-image",
+        defaultAspect: "1:1",
+        defaultResolution: "medium",
         defaultDurationSeconds: undefined,
       },
     ]);
-    buildDefaultPricingParamsMock.mockReturnValue({ aspect: "4:3" });
-    computeCostForModelMock.mockReturnValue({
-      credits: 10,
-      usd: 0.1,
-      rawCredits: 8,
-      usdRaw: 0.08,
-      megapixels: 1,
-      width: 1024,
-      height: 768,
-    });
+    buildDefaultPricingParamsMock.mockImplementation((modelId: string, overrides = {}) => ({
+      aspect: "1:1",
+      resolution: "medium",
+      ...overrides,
+      modelId,
+    }));
+    computeCostForModelMock.mockImplementation(
+      (_modelId: string, params: Record<string, unknown>) =>
+        params.inputImageCount
+          ? {
+              credits: 15,
+              usd: 0.15,
+              rawCredits: 12,
+              usdRaw: 0.12,
+            }
+          : {
+              credits: 10,
+              usd: 0.1,
+              rawCredits: 8,
+              usdRaw: 0.08,
+            }
+    );
     resolveRuntimeModelPricingPolicyMock.mockResolvedValue({
       policy: {
         schemaVersion: 1,
@@ -165,6 +178,7 @@ describe("GET /api/admin/pricing/state", () => {
                     {
                       id: "studio__current",
                       plan_id: "studio",
+                      billing_interval: "month",
                       recurring_price_cents: 3900,
                       monthly_credits_cents: 3000,
                       storage_limit_bytes: 107374182400,
@@ -310,14 +324,30 @@ describe("GET /api/admin/pricing/state", () => {
         }),
         models: [
           expect.objectContaining({
-            id: "fal-ai/flux-2/klein/9b",
-            workflowType: "Text to image",
-            pricingStrategyLabel: "Per megapixel",
+            id: "gpt-image-2",
+            workflowType: "Text + image edit",
+            pricingStrategyLabel: "Per image",
             roundingIncrement: 5,
             pricingPreview: expect.objectContaining({
               billedCredits: 10,
               usdRaw: 0.08,
             }),
+            pricingPreviewVariants: [
+              expect.objectContaining({
+                id: "create",
+                label: "Create",
+                breakdown: expect.objectContaining({
+                  billedCredits: 10,
+                }),
+              }),
+              expect.objectContaining({
+                id: "edit",
+                label: "Edit",
+                breakdown: expect.objectContaining({
+                  billedCredits: 15,
+                }),
+              }),
+            ],
           }),
         ],
         plans: [

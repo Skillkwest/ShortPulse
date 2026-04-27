@@ -159,6 +159,53 @@ describe("useMediaPreviewSigningController", () => {
     expect(result.current.signPassNonce).toBe(0);
   });
 
+  it("reuses resolved preview candidates across queueing and signing within one pass", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/images/first.png", "https://signed/first"]])
+    );
+
+    renderHook(() => {
+      const rows = [makeRow()];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+      const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+      const hydrateViaStorageDownload = vi.fn(async () => null);
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 1, prefetchWindow: 1, signBatchSize: 1 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 0,
+      });
+    });
+
+    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalled());
+    expect(resolveMediaSigningStoragePathsMock).toHaveBeenCalledTimes(1);
+    expect(resolveMediaDirectPreviewUrlsMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not run proactive hydrate fallback during routine signing passes", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
     const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));

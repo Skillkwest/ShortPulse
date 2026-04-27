@@ -21,6 +21,7 @@ import {
   type MediaTabBooleanState,
 } from "../logic/mediaLibraryPageHelpers";
 import {
+  buildMediaSignCandidateEntry,
   buildMediaSignCandidateEntries,
   collectMediaSignPaths,
   finalizeMediaSignCompletion,
@@ -147,9 +148,24 @@ export const useMediaPreviewSigningController = <
     if (mediaSignInFlightRef.current[activeMediaTab]) return;
     const readyRows = filteredMedia.filter((row) => row.status !== "uploading");
     if (!readyRows.length) return;
-    const hasPreviewCandidate = (row: TRow) =>
-      resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length > 0 ||
-      resolveMediaDirectPreviewUrls(row, currentUserIdRef.current).length > 0;
+    const signCandidateCap = Number.isFinite(maxSignCandidatesPerRow)
+      ? Math.max(1, Math.trunc(maxSignCandidatesPerRow))
+      : 4;
+    const signCandidateEntryById = new Map<
+      string,
+      ReturnType<typeof buildMediaSignCandidateEntry<TRow>>
+    >();
+    const getSignCandidateEntry = (row: TRow) => {
+      const cached = signCandidateEntryById.get(row.id);
+      if (cached) return cached;
+      const next = buildMediaSignCandidateEntry(row, currentUserIdRef.current, signCandidateCap);
+      signCandidateEntryById.set(row.id, next);
+      return next;
+    };
+    const hasPreviewCandidate = (row: TRow) => {
+      const entry = getSignCandidateEntry(row);
+      return entry.candidates.length > 0 || entry.directUrls.length > 0;
+    };
     const rowById = new Map(readyRows.map((row) => [row.id, row]));
     const readyIds = new Set(rowById.keys());
     for (const queuedId of Object.keys(queueStateByIdRef.current)) {
@@ -271,14 +287,7 @@ export const useMediaPreviewSigningController = <
       query_mode: queryForBatch ? "search" : "default",
       sign_prefetch_enabled: isSignPrefetchEnabled,
     });
-    const signCandidateCap = Number.isFinite(maxSignCandidatesPerRow)
-      ? Math.max(1, Math.trunc(maxSignCandidatesPerRow))
-      : 4;
-    const signCandidatesByRow = buildMediaSignCandidateEntries(
-      signBatch,
-      currentUserIdRef.current,
-      signCandidateCap
-    );
+    const signCandidatesByRow = signBatch.map((row) => getSignCandidateEntry(row));
     const signPaths = collectMediaSignPaths(signCandidatesByRow);
     const previewProfile = resolvePreviewProfileForSurface(surface);
     const previewDeliveryMode =

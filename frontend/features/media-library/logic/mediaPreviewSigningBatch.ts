@@ -47,25 +47,31 @@ type MediaSignCompletionParams = {
   unresolvedWarningPrefix: string;
 };
 
+export const buildMediaSignCandidateEntry = <TRow extends PreviewSigningRowLike>(
+  row: TRow,
+  currentUserId: string | null,
+  maxSignCandidatesPerRow: number
+): MediaSignCandidateEntry => {
+  const candidates = resolveMediaSigningStoragePaths(row, currentUserId).slice(
+    0,
+    maxSignCandidatesPerRow
+  );
+  const primaryPath = candidates[0] ?? null;
+  return {
+    id: row.id,
+    primaryPath,
+    primaryPathKind: classifyMediaPreviewPath(row, primaryPath, currentUserId),
+    candidates,
+    directUrls: resolveMediaDirectPreviewUrls(row, currentUserId),
+  };
+};
+
 export const buildMediaSignCandidateEntries = <TRow extends PreviewSigningRowLike>(
   rows: TRow[],
   currentUserId: string | null,
   maxSignCandidatesPerRow: number
 ): MediaSignCandidateEntry[] =>
-  rows.map((row) => {
-    const candidates = resolveMediaSigningStoragePaths(row, currentUserId).slice(
-      0,
-      maxSignCandidatesPerRow
-    );
-    const primaryPath = candidates[0] ?? null;
-    return {
-      id: row.id,
-      primaryPath,
-      primaryPathKind: classifyMediaPreviewPath(row, primaryPath, currentUserId),
-      candidates,
-      directUrls: resolveMediaDirectPreviewUrls(row, currentUserId),
-    };
-  });
+  rows.map((row) => buildMediaSignCandidateEntry(row, currentUserId, maxSignCandidatesPerRow));
 
 export const collectMediaSignPaths = (entries: MediaSignCandidateEntry[]): string[] =>
   Array.from(new Set(entries.flatMap((entry) => entry.candidates)));

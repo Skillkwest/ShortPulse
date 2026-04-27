@@ -21,7 +21,7 @@ describe("AiStudioProjectEntryState", () => {
     expect(screen.getByText("Check media agreement")).toBeInTheDocument();
     expect(screen.getByText("Resolve project")).toBeInTheDocument();
     expect(screen.getByText("Load workspace")).toBeInTheDocument();
-    expect(screen.getByText("Prepare studio")).toBeInTheDocument();
+    expect(screen.queryByText("Prepare studio")).not.toBeInTheDocument();
     expect(screen.queryByText("Workspace snapshot loading")).not.toBeInTheDocument();
   });
 

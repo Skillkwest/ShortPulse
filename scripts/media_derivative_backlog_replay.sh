@@ -52,6 +52,16 @@ fi
 mkdir -p "$LOG_DIR"
 COMBINED_LOG="$LOG_DIR/combined.log"
 : > "$COMBINED_LOG"
+TOTAL_CLAIMED=0
+TOTAL_PROCESSED=0
+TOTAL_READY=0
+TOTAL_FAILED=0
+TOTAL_RETRY_SCHEDULED=0
+TOTAL_EXHAUSTED=0
+TOTAL_ERRORS=0
+COMPLETED_CYCLES=0
+DRAINED=0
+STOP_REASON="cycle_cap_reached"
 
 DIAGNOSTIC_SQL_FILES=(
   "$ROOT_DIR/sql/check_media_derivative_processing_backlog.sql"
@@ -167,7 +177,9 @@ invoke_worker() {
       summary.unshift(`durationMs=${payload.durationMs}`);
     }
     console.log(summary.join(" "));
-    process.stdout.write(JSON.stringify({ claimed, processed }));
+    process.stdout.write(
+      JSON.stringify({ claimed, processed, ready, failed, retryScheduled, exhausted, errors })
+    );
   ' "$response_body" > "$LOG_DIR/run_cycle_${cycle}.parsed"
 
   local summary_line
@@ -180,9 +192,30 @@ invoke_worker() {
   claimed="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.claimed));' "$control_json")"
   local processed
   processed="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.processed));' "$control_json")"
+  local ready
+  ready="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.ready));' "$control_json")"
+  local failed
+  failed="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.failed));' "$control_json")"
+  local retry_scheduled
+  retry_scheduled="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.retryScheduled));' "$control_json")"
+  local exhausted
+  exhausted="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.exhausted));' "$control_json")"
+  local errors
+  errors="$(node -e 'const parsed = JSON.parse(process.argv[1]); process.stdout.write(String(parsed.errors));' "$control_json")"
+
+  TOTAL_CLAIMED=$((TOTAL_CLAIMED + claimed))
+  TOTAL_PROCESSED=$((TOTAL_PROCESSED + processed))
+  TOTAL_READY=$((TOTAL_READY + ready))
+  TOTAL_FAILED=$((TOTAL_FAILED + failed))
+  TOTAL_RETRY_SCHEDULED=$((TOTAL_RETRY_SCHEDULED + retry_scheduled))
+  TOTAL_EXHAUSTED=$((TOTAL_EXHAUSTED + exhausted))
+  TOTAL_ERRORS=$((TOTAL_ERRORS + errors))
+  COMPLETED_CYCLES=$cycle
 
   if (( claimed == 0 )) || (( processed == 0 )); then
     echo "[media-derivative-replay] Drain condition met after cycle ${cycle}." | tee -a "$COMBINED_LOG"
+    DRAINED=1
+    STOP_REASON="drained"
     return 1
   fi
 
@@ -207,6 +240,15 @@ for (( cycle=1; cycle<=MAX_CYCLES; cycle++ )); do
 done
 
 run_diagnostics "after"
+
+FINAL_SUMMARY="[media-derivative-replay] Final summary: stopReason=${STOP_REASON} cycles=${COMPLETED_CYCLES} totalClaimed=${TOTAL_CLAIMED} totalProcessed=${TOTAL_PROCESSED} totalReady=${TOTAL_READY} totalFailed=${TOTAL_FAILED} totalRetryScheduled=${TOTAL_RETRY_SCHEDULED} totalExhausted=${TOTAL_EXHAUSTED} totalErrors=${TOTAL_ERRORS}"
+echo "$FINAL_SUMMARY" | tee -a "$COMBINED_LOG"
+
+if (( DRAINED == 0 )); then
+  echo "[media-derivative-replay] Max cycle cap reached before claims drained." | tee -a "$COMBINED_LOG"
+  echo "[media-derivative-replay] Combined log: $COMBINED_LOG"
+  exit 2
+fi
 
 echo "[media-derivative-replay] Completed."
 echo "[media-derivative-replay] Combined log: $COMBINED_LOG"

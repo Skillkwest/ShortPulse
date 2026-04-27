@@ -129,14 +129,14 @@ const resolveFromMetadata = (metadata: Record<string, unknown> | null | undefine
   return { imagePreviewPath, videoPreviewPath };
 };
 
-/**
- * Resolves only durable preview asset paths from row columns or metadata variant hints.
- * Does not fall back to the original source object path.
- */
-export const resolveDurablePreviewStoragePath = (row: MediaRowLike): string | null => {
+type ResolvedMetadataPaths = ReturnType<typeof resolveFromMetadata>;
+
+const resolveDurablePreviewStoragePathWithMetadata = (
+  row: MediaRowLike,
+  metadataPaths: ResolvedMetadataPaths
+): string | null => {
   const type = (row.file_type ?? "").toLowerCase();
   const isVideo = type.startsWith("video");
-  const metadataPaths = resolveFromMetadata(row.metadata ?? null);
 
   if (isVideo) {
     return firstNonEmpty(
@@ -147,6 +147,94 @@ export const resolveDurablePreviewStoragePath = (row: MediaRowLike): string | nu
   }
 
   return firstNonEmpty(asStoragePath(row.thumb_variant_path), metadataPaths.imagePreviewPath);
+};
+
+const resolvePreviewStoragePathWithMetadata = (
+  row: MediaRowLike,
+  metadataPaths: ResolvedMetadataPaths
+): string | null => {
+  const fallback = asStoragePath(row.storage_path);
+  return firstNonEmpty(resolveDurablePreviewStoragePathWithMetadata(row, metadataPaths), fallback);
+};
+
+const buildMediaSigningStoragePaths = (
+  row: MediaRowLike,
+  metadataPaths: ResolvedMetadataPaths,
+  userId?: string | null
+): string[] => {
+  const preferredPath = resolvePreviewStoragePathWithMetadata(row, metadataPaths);
+  const candidates = [
+    preferredPath,
+    asStoragePath(row.storage_path),
+    asStoragePath(row.preview_variant_path),
+    asStoragePath(row.poster_variant_path),
+    asStoragePath(row.thumb_variant_path),
+    metadataPaths.videoPreviewPath,
+    metadataPaths.imagePreviewPath,
+  ];
+
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (!candidate || seen.has(candidate)) continue;
+    seen.add(candidate);
+    deduped.push(candidate);
+  }
+
+  if (!userId) return deduped;
+  const prefix = `${userId}/`;
+  const expanded = deduped.flatMap((path) => expandScopedStoragePathCandidates(path, userId));
+
+  const expandedDeduped: string[] = [];
+  const seenExpanded = new Set<string>();
+  for (const path of expanded) {
+    if (!path || seenExpanded.has(path)) continue;
+    seenExpanded.add(path);
+    expandedDeduped.push(path);
+  }
+
+  const scoped = expandedDeduped.filter((path) => path.startsWith(prefix));
+  const unscoped = expandedDeduped.filter((path) => !path.startsWith(prefix));
+  return [...scoped, ...unscoped];
+};
+
+const buildMediaDirectPreviewUrls = (
+  row: MediaRowLike,
+  metadataPaths: ResolvedMetadataPaths,
+  userId?: string | null
+): string[] => {
+  const type = (row.file_type ?? "").toLowerCase();
+  const isVideo = type.startsWith("video");
+
+  const candidates = isVideo
+    ? [
+        asHttpUrl(row.preview_variant_path),
+        asHttpUrl(row.poster_variant_path),
+        asHttpUrl(metadataPaths.videoPreviewPath),
+        asHttpUrl(row.storage_path),
+      ]
+    : [
+        asHttpUrl(row.thumb_variant_path),
+        asHttpUrl(metadataPaths.imagePreviewPath),
+        asHttpUrl(row.storage_path),
+      ];
+
+  const deduped = Array.from(
+    new Set(candidates.filter((candidate): candidate is string => Boolean(candidate)))
+  );
+  return filterTrustedMediaDirectPreviewUrls(deduped, {
+    userId,
+    requireUserScope: Boolean(userId),
+  });
+};
+
+/**
+ * Resolves only durable preview asset paths from row columns or metadata variant hints.
+ * Does not fall back to the original source object path.
+ */
+export const resolveDurablePreviewStoragePath = (row: MediaRowLike): string | null => {
+  const metadataPaths = resolveFromMetadata(row.metadata ?? null);
+  return resolveDurablePreviewStoragePathWithMetadata(row, metadataPaths);
 };
 
 /**
@@ -209,8 +297,8 @@ export const resolveVideoPosterSigningStoragePaths = (
  * Chooses a preview variant path when available; otherwise returns the original storage path.
  */
 export const resolvePreviewStoragePath = (row: MediaRowLike): string | null => {
-  const fallback = asStoragePath(row.storage_path);
-  return firstNonEmpty(resolveDurablePreviewStoragePath(row), fallback);
+  const metadataPaths = resolveFromMetadata(row.metadata ?? null);
+  return resolvePreviewStoragePathWithMetadata(row, metadataPaths);
 };
 
 const expandScopedStoragePathCandidates = (
@@ -269,40 +357,7 @@ export const resolveMediaSigningStoragePaths = (
   userId?: string | null
 ): string[] => {
   const metadataPaths = resolveFromMetadata(row.metadata ?? null);
-  const preferredPath = resolvePreviewStoragePath(row);
-  const candidates = [
-    preferredPath,
-    asStoragePath(row.storage_path),
-    asStoragePath(row.preview_variant_path),
-    asStoragePath(row.poster_variant_path),
-    asStoragePath(row.thumb_variant_path),
-    metadataPaths.videoPreviewPath,
-    metadataPaths.imagePreviewPath,
-  ];
-
-  const deduped: string[] = [];
-  const seen = new Set<string>();
-  for (const candidate of candidates) {
-    if (!candidate || seen.has(candidate)) continue;
-    seen.add(candidate);
-    deduped.push(candidate);
-  }
-
-  if (!userId) return deduped;
-  const prefix = `${userId}/`;
-  const expanded = deduped.flatMap((path) => expandScopedStoragePathCandidates(path, userId));
-
-  const expandedDeduped: string[] = [];
-  const seenExpanded = new Set<string>();
-  for (const path of expanded) {
-    if (!path || seenExpanded.has(path)) continue;
-    seenExpanded.add(path);
-    expandedDeduped.push(path);
-  }
-
-  const scoped = expandedDeduped.filter((path) => path.startsWith(prefix));
-  const unscoped = expandedDeduped.filter((path) => !path.startsWith(prefix));
-  return [...scoped, ...unscoped];
+  return buildMediaSigningStoragePaths(row, metadataPaths, userId);
 };
 
 /**
@@ -315,10 +370,13 @@ export const resolveMediaPreviewCandidates = (
 ): {
   storagePaths: string[];
   directUrls: string[];
-} => ({
-  storagePaths: resolveMediaSigningStoragePaths(row, userId),
-  directUrls: resolveMediaDirectPreviewUrls(row, userId),
-});
+} => {
+  const metadataPaths = resolveFromMetadata(row.metadata ?? null);
+  return {
+    storagePaths: buildMediaSigningStoragePaths(row, metadataPaths, userId),
+    directUrls: buildMediaDirectPreviewUrls(row, metadataPaths, userId),
+  };
+};
 
 /**
  * Returns URL-shaped preview candidates that can be used directly when signing fails.
@@ -328,27 +386,5 @@ export const resolveMediaDirectPreviewUrls = (
   userId?: string | null
 ): string[] => {
   const metadataPaths = resolveFromMetadata(row.metadata ?? null);
-  const type = (row.file_type ?? "").toLowerCase();
-  const isVideo = type.startsWith("video");
-
-  const candidates = isVideo
-    ? [
-        asHttpUrl(row.preview_variant_path),
-        asHttpUrl(row.poster_variant_path),
-        asHttpUrl(metadataPaths.videoPreviewPath),
-        asHttpUrl(row.storage_path),
-      ]
-    : [
-        asHttpUrl(row.thumb_variant_path),
-        asHttpUrl(metadataPaths.imagePreviewPath),
-        asHttpUrl(row.storage_path),
-      ];
-
-  const deduped = Array.from(
-    new Set(candidates.filter((candidate): candidate is string => Boolean(candidate)))
-  );
-  return filterTrustedMediaDirectPreviewUrls(deduped, {
-    userId,
-    requireUserScope: Boolean(userId),
-  });
+  return buildMediaDirectPreviewUrls(row, metadataPaths, userId);
 };

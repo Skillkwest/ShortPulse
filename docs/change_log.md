@@ -3,6 +3,11 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Documentation cleanup:
+  - removed dead `/api/ai/generate-prompt` and `/api/ai/describe-image` claims from active authority docs,
+  - aligned the AI Studio Media Library root-tab contract with the shipped `All Media` / `Images` / `Videos` / `Prompts` surface,
+  - archived dormant or temporary planning artifacts that no longer belong in `docs/planning/`,
+  - and trimmed active indexes/backlog entries that were still surfacing archived-pointer or historical planning docs.
 - Normalized legacy Pulse metadata to the guided runtime contract:
   - active runtime boundaries now upgrade legacy `prompt_editor`, `activate_only`, and `apply_prompt` Pulse metadata to `workflow_gpt`, `activate_and_start`, and `chat_reply`,
   - malformed or partial saved Pulse records now fall back to guided GPT-style defaults instead of prompt-editor defaults,

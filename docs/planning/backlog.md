@@ -56,18 +56,6 @@ Tooling audit references:
   Reference: `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - [ ] AI Studio: keep server-side admission control and shared-provider rate-limit protection aligned with the live V2 docs.
   Reference: `docs/adr/0026-ai-studio-generation-admission-control.md`, `docs/planning/ai-studio-generation-admission-rollout-plan.md`
-- [ ] AI Studio: Fal reliability rollout (submit + retrieval modular core, shadow -> canary). Tracker: `docs/planning/ai-studio-fal-reliability-rollout.md`.
-- [ ] AI Studio Fal reliability rollout - Phase 0 (Baseline + UX Freeze). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-0-baseline--ux-freeze`
-- [x] AI Studio Fal reliability rollout - Phase 1 (Retrieval Correctness Hotfix). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-1-retrieval-correctness-hotfix`
-  Evidence: `frontend/lib/server/api/falStatusProxy.ts`, `frontend/tests/api/fal-status-proxy.test.ts`
-- [x] AI Studio Fal reliability rollout - Phase 2 (Veo I2V Drift Removal). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-2-veo-i2v-drift-removal`
-  Evidence: `frontend/pages/api/fal/veo-image-to-video-submit.ts`, `frontend/pages/api/fal/veo-image-to-video-status.ts`, `frontend/tests/api/fal-submit-proxy.test.ts`
-- [ ] AI Studio Fal reliability rollout - Phase 3 (Modular Core Shadow Mode). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-3-modular-core-shadow-mode`
-- [ ] AI Studio Fal reliability rollout - Phase 4 (Persistence Decoupling). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-4-persistence-decoupling`
-- [ ] AI Studio Fal reliability rollout - Phase 5 (Reconciler + Admin Repair). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-5-reconciler--admin-repair`
-- [ ] AI Studio Fal reliability rollout - Phase 6 (Canary Rollout). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-6-canary-rollout`
-- [ ] AI Studio Fal reliability rollout - Phase 7 (Lean Hardening Add-ons). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-7-lean-hardening-add-ons`
-- [ ] AI Studio Fal reliability rollout - complete docs/runbook pass and post-rollout audit checklist. `docs/planning/ai-studio-fal-reliability-rollout.md#plan-audit-checklist`
 - [ ] AI Studio: run staging smoke tests for aspect-ratio contract (verify submit payload and returned dimensions for Seedream `5:4`, `4:5`, `3:2`, `2:3`, `21:9`).
 - [ ] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
 - [ ] AI Studio: alter existing e2e coverage for aspect clamping + submit-time `effective_aspect` consistency after the contract overhaul.

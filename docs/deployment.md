@@ -97,7 +97,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `OPENAI_VISION_FALLBACK_MODEL`
   - `SHORTPULSE_OPENAI_RESPONSES_ENABLED` (optional; enables Responses API compatibility mode)
   - `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED` (optional; defaults to `true`)
-  - `OPENAI_DESCRIBE_ALLOWED_HOSTS` (comma-separated trusted hosts for describe-image external URL intake; non-allowlisted external hosts are blocked by default)
+  - `OPENAI_DESCRIBE_ALLOWED_HOSTS` (comma-separated trusted hosts for legacy or compatibility remote-image URL intake; non-allowlisted external hosts stay blocked by default)
   - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (optional server-side trusted direct-preview hosts; extends built-in trusted provider result hosts such as `tempfile.aiquickdraw.com`)
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`)
   - `NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (optional client-side trusted direct-preview hosts; keep aligned with server value)

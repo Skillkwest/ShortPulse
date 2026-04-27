@@ -151,9 +151,6 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`
 - `docs/planning/ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`
 - `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
-- `docs/planning/ai-studio-project-persistence-stabilization-trim-and-fix-plan-2026-04-24.md`
-- `docs/planning/ai-studio-project-folder-stabilization-trim-and-fix-plan-2026-04-24.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-persistence-inventory-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-1-projects-foundation-hardening-plan-2026-04-23.md`
@@ -379,7 +376,6 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`
 - `docs/planning/ai-studio-generation-queue-hardening-2026-03-04.md`
 - `docs/planning/ai-studio-generation-queue-hardening-tracker-2026-03-04.md`
-- `docs/planning/tmp_generation_drain_audit_working_notes_2026-02-27.md` (temporary active working note)
 - `docs/planning/ai-studio-session-persistence-reference-only-plan-2026-03-04.md`
 - `docs/planning/ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`
 - `docs/planning/ai-studio-expert-edit-properties-panel-plan-2026-03-04.md`
@@ -397,8 +393,6 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-create-character-mode-hardening-plan.md`
 - `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
 - `docs/planning/ai-studio-runtime-v2-staging-execution-checklist.md`
-- `docs/planning/ai-studio-fal-reliability-rollout.md` (archived pointer)
-- `docs/planning/ai-studio-generation-runtime-stabilization.md` (archived pointer)
 - `docs/planning/ai-studio-generation-admission-rollout-plan.md`
 - `docs/planning/foundational-hardening-program-v2-tracker.md`
 - `docs/planning/ai-studio-agent-tooling-phased-plan.md`

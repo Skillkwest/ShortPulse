@@ -5,7 +5,7 @@ Status: Completed (`done_required_scope`)
 Owner: AI Studio Engineering  
 Canonical closeout docs: `docs/planning/ai-studio-right-rail-performance-scope-contract-2026-03-23.md`, `docs/planning/ai-studio-right-rail-performance-tracker-2026-03-23.md`  
 Tracker anchor: `docs/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`  
-Implementation entry checklist: `docs/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`  
+Implementation entry checklist: `docs/archive/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`  
 Readiness state: `docs/planning/ai-studio-right-rail-performance-readiness-state-2026-03-23.md`  
 ADR anchor: `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
 

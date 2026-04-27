@@ -4,12 +4,9 @@
 - **Issue ID:** `KI-AI-RG-STYLES-001`
 - **Severity:** P0 major workflow blocker
 - **Status:** Deferred as of March 13, 2026 pending a new end-to-end investigation pass
-- **Program gate classification:** Non-blocking for `P0/WG-1` under an explicit time-bounded waiver; blocking for final closeout until resolved or re-waived
+- **Program gate classification:** Blocking for final closeout until resolved or explicitly re-waived after a fresh investigation pass
 - **Owner:** AI Studio Engineering
-- **Waiver decision:** Approved (time-bounded implementation-entry waiver)
-- **Waiver risk note:** Proceeding with `P0/WG-1` recovery correctness work while styles-drop lane remains deferred; this waiver does not remove the requirement to resolve or re-waive before final reliability closeout.
-- **Waiver expiry date (UTC):** 2026-03-28
-- **Next review date (UTC):** 2026-03-24
+- **Waiver history:** A prior time-bounded implementation-entry waiver allowed `P0/WG-1` recovery correctness work to proceed while this lane stayed deferred. That waiver window expired and is no longer current.
 - **Linked tracker reference:** `RGR-B02`
 - **Primary surface:** `AI Studio -> Shortcuts -> Styles` panel
 - **Symptom:** Dragging an image from Reference Grid into Styles still intermittently fails with:

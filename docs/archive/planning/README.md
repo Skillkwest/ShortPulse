@@ -11,5 +11,7 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-character-mode-injection-plan.md`
 - `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
 - `docs/archive/planning/ai-studio-generation-runtime-stabilization.md`
+- `docs/archive/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`
 - `docs/archive/planning/media-library-move-tabs-plan.md`
 - `docs/archive/planning/mvp-pre-tester-anchor-plan.md`
+- `docs/archive/planning/tmp_generation_drain_audit_working_notes_2026-02-27.md`

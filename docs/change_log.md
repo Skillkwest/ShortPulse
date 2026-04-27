@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - migrated the retained `lane-d` evidence namespace into `docs/records/evidence/lane-d/`,
+  - retargeted the surviving foundation tracker references to the records path,
+  - and removed that namespace from the active planning-evidence index.
+- Documentation cleanup:
   - migrated the retained `sql` evidence namespace into `docs/records/evidence/sql/`,
   - retargeted the surviving STG-02 planning references to the records path,
   - and removed that namespace from the active planning-evidence index.

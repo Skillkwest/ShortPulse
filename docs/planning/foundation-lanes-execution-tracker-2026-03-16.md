@@ -143,7 +143,7 @@ Mandatory for any from-scratch replacement scope:
 1. Master plan: `docs/archive/planning/lane-d-master-plan-2026-03-16.md`
 2. Tracker spec: `docs/archive/planning/lane-d-tracker-spec-2026-03-16.md`
 3. Execution plan: `docs/archive/planning/lane-d-execution-plan-2026-03-16.md`
-4. Evidence index: `docs/planning/evidence/lane-d/README.md`
+4. Evidence index: `docs/records/evidence/lane-d/README.md`
 
 ## Lane E Artifacts
 
@@ -214,7 +214,7 @@ Concrete sequencing: `docs/archive/planning/lane-d-execution-plan-2026-03-16.md`
 ### D5: Convergence
 
 - [ ] Publish Lane D runtime safety command bundle and evidence references.
-- [ ] Attach all required evidence packets under `docs/planning/evidence/lane-d/`.
+- [ ] Attach all required evidence packets under `docs/records/evidence/lane-d/`.
 - [ ] Confirm warning/suppression targets are closed or deferred with owner/date.
 
 ## Lane E Master Checklist
@@ -296,13 +296,13 @@ Tracker contract: `docs/archive/planning/lane-f-tracker-spec-2026-03-16.md`
 - Added Lane D master plan/tracker artifacts, connected roadmap/tracker references, and seeded a Lane D evidence namespace.
 - Added Lane D concrete execution plan artifact and linked it across roadmap/tracker/index surfaces.
 - Locked Lane D `D0-01` baseline evidence, including runtime warning inventory, suppression inventory, strict runtime lint output, and explicit note that the full baseline test suite is red on an unrelated admin ledger assertion:
-  - `docs/planning/evidence/lane-d/2026-03-17-d0-01-baseline-lock.md`
+  - `docs/records/evidence/lane-d/2026-03-17-d0-01-baseline-lock.md`
 - Completed Lane D `D1-01` by replacing the edit-submit-intent reset effect with explicit tool-transition orchestration and adding direct hook coverage:
-  - `docs/planning/evidence/lane-d/2026-03-17-d1-01-edit-submit-intent-hardening.md`
+  - `docs/records/evidence/lane-d/2026-03-17-d1-01-edit-submit-intent-hardening.md`
 - Completed Lane D `D1-02` by replacing bridge-owned direct effect resets with session-keyed UI state and extending direct hook coverage:
-  - `docs/planning/evidence/lane-d/2026-03-17-d1-02-agent-bridge-reset-hardening.md`
+  - `docs/records/evidence/lane-d/2026-03-17-d1-02-agent-bridge-reset-hardening.md`
 - Completed Lane D `D1-03` by removing the remaining DetailModal avatar-flow effect warnings while preserving attribution and recovery behavior:
-  - `docs/planning/evidence/lane-d/2026-03-17-d1-03-detail-modal-avatar-hardening.md`
+  - `docs/records/evidence/lane-d/2026-03-17-d1-03-detail-modal-avatar-hardening.md`
 - Added Lane E master plan/tracker artifacts, connected roadmap/tracker/index surfaces, and seeded a Lane E evidence namespace.
 - Added Lane F contact map artifact to seed owner/escalation routing for release and CI discipline planning.
 - Added Lane F master plan/tracker artifacts and seeded a Lane F evidence namespace for CI/release governance execution.

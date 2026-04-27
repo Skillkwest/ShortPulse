@@ -4,6 +4,9 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - normalized the paused reference-only session-persistence plan and tracker onto the canonical status vocabulary,
+  - marking both docs as `draft` because the packet is documentation-only and intentionally paused pending a future re-enable lane.
+- Documentation cleanup:
   - normalized the remaining active coordinate-parity roadmap, tracker, and unfinished phase docs onto the canonical status vocabulary,
   - marking the roadmap/tracker plus active rollout phase as `active`,
   - and marking the pending Phase 1 and Phase 2 execution plans as `draft`.

@@ -1,5 +1,7 @@
 # AI Studio Session Persistence Reference-Only Tracker (2026-03-04)
 
+Status: draft
+
 ## Objective
 Track execution status for the reference-only session persistence rebuild from a stable hard-off baseline.
 

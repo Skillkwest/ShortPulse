@@ -1,5 +1,7 @@
 # AI Studio Session Persistence Rebuild Plan (Reference-Only, 2026-03-04)
 
+Status: draft
+
 ## Purpose
 Document a decision-complete rebuild plan for AI Studio session persistence that stores and restores only reference-grid and quick-slot state, while explicitly excluding workspace settings and agent/chat state.
 

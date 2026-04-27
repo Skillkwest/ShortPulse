@@ -1,7 +1,7 @@
 # Lane B Execution Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Completed  
+Status: complete  
 Owner: Engineering  
 Master plan: `docs/planning/lane-b-master-plan-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-b-tracker-spec-2026-03-16.md`  

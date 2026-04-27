@@ -1,7 +1,7 @@
 # Lane A Tracker Spec (2026-03-16)
 
 Last updated: 2026-03-16  
-Status: Active  
+Status: complete  
 Companion plan: `docs/planning/lane-a-master-plan-2026-03-16.md`  
 Execution plan: `docs/planning/lane-a-execution-plan-2026-03-16.md`
 

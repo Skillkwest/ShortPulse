@@ -1,7 +1,7 @@
 # Generation Pipeline Hardening Contact Map (2026-03-16)
 
 Last updated: 2026-03-16  
-Status: Active  
+Status: complete  
 Source of truth: `docs/operator-map.md`
 
 ## Purpose

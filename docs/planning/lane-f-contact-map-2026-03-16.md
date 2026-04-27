@@ -1,7 +1,7 @@
 # Lane F Contact Map (2026-03-16)
 
 Last updated: 2026-03-16  
-Status: Active  
+Status: complete  
 Roadmap scope: `Lane F | Release + CI Discipline`  
 Source of truth: `docs/operator-map.md`  
 Companion plan: `docs/planning/lane-f-master-plan-2026-03-16.md`  

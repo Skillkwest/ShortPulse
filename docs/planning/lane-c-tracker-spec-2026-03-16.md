@@ -1,7 +1,7 @@
 # Lane C Tracker Spec (2026-03-16)
 
 Last updated: 2026-03-16  
-Status: Active  
+Status: active  
 Companion plan: `docs/planning/lane-c-master-plan-2026-03-16.md`
 Execution plan: `docs/planning/lane-c-execution-plan-2026-03-16.md`
 

@@ -1,7 +1,7 @@
 # Lane C Execution Plan (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active  
+Status: active  
 Owner: Engineering  
 Master plan: `docs/planning/lane-c-master-plan-2026-03-16.md`  
 Tracker spec: `docs/planning/lane-c-tracker-spec-2026-03-16.md`  

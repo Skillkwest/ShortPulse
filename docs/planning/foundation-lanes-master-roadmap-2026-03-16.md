@@ -1,7 +1,7 @@
 # Foundation Lanes Master Roadmap (2026-03-16)
 
 Last updated: 2026-03-17  
-Status: Active
+Status: active
 
 ## Purpose
 Provide one canonical roadmap for all foundational hardening lanes so execution stays aligned to:

@@ -3218,3 +3218,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 ## 2026-04-27 (Agent rollout tracker status normalization)
 - Normalized the `ai-studio-agent-modularization`, `ai-studio-agent-safety-control-plane`, and `ai-studio-ux-prompt-adjacency` plan/tracker pairs onto canonical `active` status values so those still-live execution packets stop contributing status drift in the active planning index.
 - Normalized the deferred `ai-studio-webhook-canary-closeout` plan/tracker pair to canonical `draft` status values so the packet remains discoverable without pretending it is currently active execution work.
+
+## 2026-04-27 (Foundation lanes status normalization)
+- Normalized the `foundation-lanes-*` roadmap/tracker pair and the still-open Lane C packet to canonical `active` status values.
+- Normalized the completed Lane A, B, D, E, F, and separate generation-pipeline hardening (`P1`) docs to canonical `complete` status values, including their tracker-spec and contact-map surfaces, so the remaining archive work is explicit instead of hidden behind mixed legacy status phrases.

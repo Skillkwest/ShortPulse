@@ -1,7 +1,7 @@
 # Lane F Tracker Spec (2026-03-16)
 
 Last updated: 2026-03-16  
-Status: Active  
+Status: complete  
 Companion plan: `docs/planning/lane-f-master-plan-2026-03-16.md`  
 Contact map: `docs/planning/lane-f-contact-map-2026-03-16.md`
 

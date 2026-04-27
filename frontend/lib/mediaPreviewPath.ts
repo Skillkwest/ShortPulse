@@ -445,6 +445,17 @@ export const resolveMediaPreviewCandidates = (
 };
 
 /**
+ * Returns the first trusted direct preview URL for a row when one exists.
+ */
+export const resolvePreferredMediaDirectPreviewUrl = (
+  row: MediaRowLike,
+  userId?: string | null
+): string | null => {
+  const metadataPaths = resolveFromMetadata(row.metadata ?? null);
+  return buildMediaDirectPreviewUrls(row, metadataPaths, userId)[0] ?? null;
+};
+
+/**
  * Returns URL-shaped preview candidates that can be used directly when signing fails.
  */
 export const resolveMediaDirectPreviewUrls = (

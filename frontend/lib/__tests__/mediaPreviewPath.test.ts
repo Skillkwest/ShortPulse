@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   classifyMediaPreviewPath,
   resolveDurablePreviewStoragePath,
   resolveMediaPreviewCandidates,
+  resolvePreferredMediaDirectPreviewUrl,
   resolveMediaSigningStoragePaths,
   resolvePreferredMediaSigningStoragePath,
   resolvePreviewStoragePath,
@@ -12,6 +13,10 @@ import {
 } from "../mediaPreviewPath";
 
 describe("mediaPreviewPath", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("prefers durable image preview variants over the original storage path", () => {
     expect(
       resolveDurablePreviewStoragePath({
@@ -100,6 +105,24 @@ describe("mediaPreviewPath", () => {
       ],
       directUrls: [],
     });
+  });
+
+  it("resolves the first trusted direct preview url without building consumer-side fallback logic", () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.test");
+
+    const directUrl = "https://cdn.example.test/media_library/user-1/private/images/legacy.jpg";
+
+    expect(
+      resolvePreferredMediaDirectPreviewUrl(
+        {
+          file_type: "image/jpeg",
+          storage_path: "user-1/images/local.jpg",
+          thumb_variant_path: directUrl,
+        },
+        "user-1"
+      )
+    ).toBe(directUrl);
   });
 
   it("prefers explicit video poster variants over loop previews", () => {

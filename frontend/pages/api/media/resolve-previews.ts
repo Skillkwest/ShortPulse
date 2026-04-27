@@ -8,7 +8,7 @@ import {
   type MediaPreviewTransformProfile,
 } from "../../../lib/mediaPreviewTransformProfile";
 import {
-  resolveMediaDirectPreviewUrls,
+  resolvePreferredMediaDirectPreviewUrl,
   resolveMediaSigningStoragePaths,
 } from "../../../lib/mediaPreviewPath";
 import { requireApiUser } from "../../../lib/server/api/auth";
@@ -331,7 +331,7 @@ export default async function handler(
         urls[mediaId] = signedUrl;
         continue;
       }
-      urls[mediaId] = resolveMediaDirectPreviewUrls(row, user.id)[0] ?? null;
+      urls[mediaId] = resolvePreferredMediaDirectPreviewUrl(row, user.id);
     }
 
     res.setHeader("x-shortpulse-media-resolve-row-count", String(mediaIds.length));

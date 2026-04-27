@@ -368,7 +368,18 @@ describe("ElementsPanel layout", () => {
       screen.queryByRole("tablist", { name: "Elements workflow mode" })
     ).not.toBeInTheDocument();
     expect(within(dialog).getByDisplayValue("Red Lantern")).toBeInTheDocument();
-    expect(within(dialog).getByText("References")).toBeInTheDocument();
+    const referencesHeading = within(dialog).getByText("References");
+    const descriptionHeading = within(dialog).getByText("Description:");
+    expect(referencesHeading).toBeInTheDocument();
+    expect(within(dialog).getByText("Detail Shot")).toBeInTheDocument();
+    expect(
+      referencesHeading.compareDocumentPosition(descriptionHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(dialog.querySelectorAll(".elements-reference-card")).toHaveLength(3);
+    expect(
+      dialog.querySelector(".elements-description-text-container .elements-description-count")
+    ).toBeTruthy();
     expect(within(dialog).queryByRole("button", { name: "Save Element" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Red Lantern" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Close element editor" })).not.toBeInTheDocument();
@@ -376,6 +387,7 @@ describe("ElementsPanel layout", () => {
     expect(container.querySelector(".elements-library-workspace")).toBeTruthy();
     expect(container.querySelector(".elements-library-column")).toBeTruthy();
     expect(container.querySelector(".elements-editor-column")).toBeTruthy();
+    expect(container.querySelector(".elements-editor-column-panel")).toBeTruthy();
   });
 
   it("opens the element editor when the visible chip surface is clicked", async () => {
@@ -512,13 +524,10 @@ describe("ElementsPanel layout", () => {
 
     fireEvent.click(deleteButton);
 
-    expect(screen.getByText("Delete this element?")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Delete this element?" });
+    expect(within(dialog).getByText("Delete this element?")).toBeInTheDocument();
 
-    fireEvent.click(
-      within(
-        screen.getByText("Delete this element?").closest(".modal-card") as HTMLElement
-      ).getByRole("button", { name: "Delete" })
-    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Elements Library" })).toBeInTheDocument();

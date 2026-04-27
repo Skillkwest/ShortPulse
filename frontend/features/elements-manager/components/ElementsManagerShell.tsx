@@ -9,6 +9,7 @@ import {
   extractInternalReferenceDragPayload,
   hasInternalReferenceDragTypeHints,
 } from "../../../lib/internalReferenceDragPayload";
+import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { readMediaLibraryDragPayload } from "../../ai-studio/logic/mediaLibraryDragPayload";
 import { uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
 import { useElementsManagerViewState } from "../hooks/useElementsManagerViewState";
@@ -20,7 +21,7 @@ type ElementsManagerShellProps = {
   externalCreateRequestKey?: number;
 };
 
-const IMAGE_REFERENCE_SLOT_LABELS = ["Primary Look", "Secondary Angle"] as const;
+const IMAGE_REFERENCE_SLOT_LABELS = ["Primary Look", "Secondary Angle", "Detail Shot"] as const;
 const ELEMENT_DESCRIPTION_MAX_LENGTH = 150;
 
 const buildElementInitials = (name: string): string => {
@@ -241,14 +242,6 @@ export function ElementsManagerShell({
       </div>
 
       <div className="elements-profile-sheet-panel">
-        <ElementsDescriptionEditorCard
-          description={draft.description}
-          maxLength={ELEMENT_DESCRIPTION_MAX_LENGTH}
-          rows={6}
-          disabled={false}
-          onChangeDescription={(value) => updateDraftField("description", value)}
-        />
-
         <div className="elements-references-title-row elements-profile-fields">
           <p className="input-label">References</p>
         </div>
@@ -351,6 +344,14 @@ export function ElementsManagerShell({
             }
           )}
         </div>
+
+        <ElementsDescriptionEditorCard
+          description={draft.description}
+          maxLength={ELEMENT_DESCRIPTION_MAX_LENGTH}
+          rows={6}
+          disabled={false}
+          onChangeDescription={(value) => updateDraftField("description", value)}
+        />
       </div>
     </>
   );
@@ -450,58 +451,43 @@ export function ElementsManagerShell({
         </section>
 
         <aside className="elements-editor-column" aria-label="Element editor">
-          {isEditorOpen ? (
-            <div className="elements-editor-column-body">{editorBody}</div>
-          ) : (
-            <section className="elements-editor-column-empty">
-              <h3>Element Profile</h3>
-              <p className="tiny subdued">
-                Select an element from the library or create a new one to edit its details here.
-              </p>
-            </section>
-          )}
+          <div className="elements-editor-column-panel">
+            {isEditorOpen ? (
+              <div className="elements-editor-column-body">{editorBody}</div>
+            ) : (
+              <section className="elements-editor-column-empty">
+                <h3>Element Profile</h3>
+                <p className="tiny subdued">
+                  Select an element from the library or create a new one to edit its details here.
+                </p>
+              </section>
+            )}
 
-          {showSaveAction ? (
-            <div className="elements-editor-column-footer">
-              <button
-                type="button"
-                className="elements-manage-create-btn elements-manage-save-btn"
-                onClick={onSaveElement}
-                disabled={!hasUnsavedElementDraft || isSavingElement || loading}
-              >
-                {isSavingElement ? "Saving..." : "Save Element"}
-              </button>
-            </div>
-          ) : null}
+            {showSaveAction ? (
+              <div className="elements-editor-column-footer">
+                <button
+                  type="button"
+                  className="elements-manage-create-btn elements-manage-save-btn"
+                  onClick={onSaveElement}
+                  disabled={!hasUnsavedElementDraft || isSavingElement || loading}
+                >
+                  {isSavingElement ? "Saving..." : "Save Element"}
+                </button>
+              </div>
+            ) : null}
+          </div>
         </aside>
       </div>
 
       {pendingDeleteElementId ? (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-element-title"
-        >
-          <div className="modal-card elements-delete-confirm-card">
-            <h3 id="delete-element-title">Delete this element?</h3>
-            <p className="subdued tiny elements-delete-confirm-copy">
-              This will permanently remove the selected element from your Elements library.
-            </p>
-            <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={onCancelDeleteElement}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger elements-delete-confirm-btn"
-                onClick={onConfirmDeleteElement}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmationModal
+          title="Delete this element?"
+          titleId="delete-element-title"
+          body={<p>This element will be removed permanently from your Elements library.</p>}
+          confirmLabel="Delete"
+          onCancel={onCancelDeleteElement}
+          onConfirm={onConfirmDeleteElement}
+        />
       ) : null}
     </div>
   );

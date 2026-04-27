@@ -63,7 +63,7 @@
     "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, "Times New Roman", serif;
   --elements-embedded-sheet-max-width: 520px;
   --elements-embedded-sheet-card-max-width: 96px;
-  --elements-manage-card-min-width: 152px;
+  --elements-manage-card-min-width: 158px;
   --elements-card-border: rgba(201, 205, 214, 0.2);
   --elements-card-ink: rgba(219, 228, 238, 0.9);
   --elements-card-muted: rgba(145, 158, 172, 0.74);
@@ -165,9 +165,9 @@
 
 .elements-manager-shell--panel .elements-library-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1.85fr) minmax(340px, 0.95fr);
+  grid-template-columns: minmax(0, 1.64fr) minmax(340px, 1.16fr);
   align-items: stretch;
-  gap: 12px;
+  gap: 8px;
   flex: 1 1 auto;
   min-height: 0;
 }
@@ -191,8 +191,20 @@
 .elements-manager-shell--panel .elements-editor-column {
   display: flex;
   flex-direction: column;
-  padding: 18px;
+  padding: 10px;
+  gap: 0;
+}
+
+.elements-manager-shell--panel .elements-editor-column-panel {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
   gap: 14px;
+  padding: 14px 18px 18px;
+  border: 1px solid rgba(201, 205, 214, 0.05);
+  border-radius: 16px;
+  background: rgba(201, 205, 214, 0.05);
 }
 
 .elements-manager-shell--panel .elements-editor-column-footer {
@@ -246,10 +258,10 @@
     auto-fit,
     minmax(min(100%, var(--elements-manage-card-min-width)), var(--elements-manage-card-min-width))
   );
-  justify-content: start;
+  width: 100%;
+  justify-content: center;
   align-items: stretch;
   gap: 8px;
-  margin-inline: 0;
   align-content: start;
 }
 
@@ -385,7 +397,7 @@
 
 .elements-manager-shell--panel .elements-description-card {
   width: 100%;
-  margin: 0 0 12px;
+  margin: 10px 0 12px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -396,11 +408,12 @@
 }
 
 .elements-manager-shell--panel .elements-description-text-container {
+  position: relative;
   border: 1px solid var(--elements-panel-card-border);
   border-radius: 12px;
   background: var(--color-bg);
   box-shadow: none;
-  padding: 14px 16px;
+  padding: 14px 16px 30px;
 }
 
 .elements-manager-shell--panel .elements-description-input {
@@ -411,6 +424,7 @@
   background: transparent;
   color: rgba(233, 242, 248, 0.93);
   padding: 0;
+  padding-right: 56px;
   font: inherit;
   line-height: 1.45;
 }
@@ -422,7 +436,7 @@
 .elements-manager-shell--panel .elements-description-footer-row {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
   flex-wrap: wrap;
   row-gap: 8px;
@@ -435,9 +449,13 @@
 }
 
 .elements-manager-shell--panel .elements-description-count {
-  margin: 0 0 0 auto;
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  margin: 0;
   text-align: right;
   flex-shrink: 0;
+  pointer-events: none;
 }
 
 .elements-manager-shell--panel .elements-references-title-row {
@@ -458,7 +476,7 @@
 }
 
 .elements-manager-shell--panel .elements-references-grid--image {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .elements-manager-shell--panel .elements-references-grid--video {
@@ -492,7 +510,7 @@
 
 .elements-manager-shell--panel .elements-reference-media {
   width: 100%;
-  aspect-ratio: 0.9 / 1;
+  aspect-ratio: 1 / 1;
   background: var(--color-bg);
   border-bottom: 1px dashed rgba(201, 205, 214, 0.18);
   display: grid;
@@ -673,31 +691,6 @@
 
 .elements-manager-shell--panel .elements-manage-title-stack h2 {
   color: var(--elements-theme-accent);
-}
-
-.elements-manager-shell--panel .elements-reference-card {
-  width: 100%;
-  max-width: none;
-}
-
-.elements-manager-shell--panel .elements-reference-card.is-filled {
-  border-color: var(--elements-panel-card-border);
-}
-
-.elements-manager-shell--panel .elements-reference-media {
-  aspect-ratio: 0.9 / 1;
-}
-
-.elements-manager-shell--panel .elements-references-grid {
-  gap: 8px;
-}
-
-.elements-manager-shell--panel .elements-profile-sheet-panel {
-  padding-top: 8px;
-}
-
-.elements-manager-shell--panel .elements-description-card {
-  margin-bottom: 12px;
 }
 
 .elements-manager-shell--panel .elements-reference-delete-btn:hover {

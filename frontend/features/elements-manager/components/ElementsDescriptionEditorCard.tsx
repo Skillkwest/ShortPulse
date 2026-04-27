@@ -42,14 +42,14 @@ export function ElementsDescriptionEditorCard({
           placeholder="A sleek midnight-blue sports car with a low profile, sculpted bodywork, glowing headlights, and polished alloy rims."
           disabled={disabled}
         />
+        <p className="elements-description-count tiny subdued">
+          {description.length}/{maxLength}
+        </p>
       </div>
       <div className="elements-description-footer-row">
         {helperText ? (
           <p className="elements-description-helper tiny subdued">{helperText}</p>
         ) : null}
-        <p className="elements-description-count tiny subdued">
-          {description.length}/{maxLength}
-        </p>
       </div>
     </div>
   );

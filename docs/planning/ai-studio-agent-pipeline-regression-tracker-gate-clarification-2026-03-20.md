@@ -3,6 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Engineering
+Status: active
 
 ## Purpose
 Clarify master-vs-phase gate semantics so implementation start and phase completion are tracked without ambiguity.

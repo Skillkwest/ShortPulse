@@ -11,10 +11,10 @@ Environment Labels: `docs/planning/ai-studio-agent-pipeline-regression-environme
 Supporting Docs Plan: `docs/planning/ai-studio-agent-pipeline-regression-supporting-docs-plan-2026-03-20.md`
 Evidence Root: `docs/planning/evidence/agent-pipeline-remediation/master/`
 Phase 1 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
-Phase 2 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
-Phase 3 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
+Phase 2 Plan: `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
+Phase 3 Plan: `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
 Phase 4 Plan: `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
-Status: Active (master planning complete; Phase 2 and Phase 3 closeout complete with staging scope; Phase 4 staging readiness tooling in progress)
+Status: active
 
 ## Master Status Overview
 | Workstream | Status | Owner | Entry Gate | Exit Gate | Evidence |

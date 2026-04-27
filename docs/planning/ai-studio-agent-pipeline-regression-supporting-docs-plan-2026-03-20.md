@@ -4,6 +4,7 @@ Date: 2026-03-20
 Authority: Working  
 Owner: Engineering  
 Program: `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
+Status: active
 
 ## Purpose
 Define the minimum supporting documentation set required to execute and close the remediation program without rollout ambiguity.

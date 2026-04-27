@@ -11,7 +11,7 @@ Amendment note (2026-03-20):
 Reference docs:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
-3. `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
+3. `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
 
 Required packet contents:
 1. Date, commit SHA, and runtime snapshot for `local` and `staging` (production capture deferred for this closeout scope).

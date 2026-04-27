@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: AI Platform + Frontend  
-Status: Planned (rebaselined to master roadmap; implementation pending)
+Status: draft
 
 ## Summary
 Phase 1 establishes deterministic outcome contracts and cross-route policy parity for OpenAI agent lanes.  

@@ -1,9 +1,11 @@
 # AI Studio Agent Prompt-Compiler Hardening - Phase 3 OpenAI Execution Plan
 
+> Archived on 2026-04-27 during docs cleanup because Phase 3 is complete and the active remediation family now continues from the master roadmap, tracker, and Phase 4 readiness work in `docs/planning/`.
+
 Date: 2026-03-20  
 Authority: Working  
 Owner: Platform Ops + Platform + AI Platform  
-Status: Completed (staging-scoped closeout)
+Status: complete
 
 ## Summary
 Phase 3 operationalizes rollout governance for the OpenAI prompt-compiler lanes.  
@@ -26,7 +28,7 @@ Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
 3. `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
-4. `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
+4. `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
 5. `docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`
 6. `docs/planning/ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`
 7. `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`

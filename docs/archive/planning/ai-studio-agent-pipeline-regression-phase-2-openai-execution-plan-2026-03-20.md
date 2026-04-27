@@ -1,9 +1,11 @@
 # AI Studio Agent Prompt-Compiler Hardening - Phase 2 OpenAI Execution Plan
 
+> Archived on 2026-04-27 during docs cleanup because Phase 2 is complete and the active remediation family now continues from the master roadmap, tracker, and remaining live Phase 1/Phase 4 contracts in `docs/planning/`.
+
 Date: 2026-03-20  
 Authority: Working  
 Owner: Frontend + AI Platform  
-Status: Completed (staging-scoped closeout)
+Status: complete
 
 ## Summary
 Phase 2 hardens prompt quality and canonical continuity while narrowing safety precheck blast radius.  

@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: AI Platform + Frontend + Platform Ops  
-Status: Active (master planning baseline complete, Phase 1/2/3/4 plans rebaselined, Phase 2 and Phase 3 closeout complete with staging scope; Phase 4 planning pending)
+Status: active
 
 ## Summary
 This document is the master roadmap for hardening the AI Studio multimodal agent into a deterministic prompt-compiler system.  
@@ -21,8 +21,8 @@ Program links:
 
 Phase execution plans:
 1. Phase 1: `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
-2. Phase 2: `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
-3. Phase 3: `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
+2. Phase 2: `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
+3. Phase 3: `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
 4. Phase 4: `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
 5. Phase execution remains gated by master workstream criteria and phase-specific entry gates.
 

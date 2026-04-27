@@ -3,6 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Engineering + Platform Ops
+Status: active
 
 ## Purpose
 Resolve governance overlap between active agent plans and define deterministic precedence for remediation-scope decisions.
@@ -38,4 +39,3 @@ Applies to:
 ## Supersession Notes
 1. `ai-studio-agent-pipeline-hardening-plan.md` is treated as historical baseline context for this remediation stream.
 2. No historical plan is deleted or invalidated; precedence is scoped by this addendum.
-

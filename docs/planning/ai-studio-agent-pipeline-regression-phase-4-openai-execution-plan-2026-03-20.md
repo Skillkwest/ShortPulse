@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Platform Ops + AI Platform + Frontend  
-Status: In Progress (staging readiness tooling implementation in progress; production rollout still deferred by staging-only directive)
+Status: active
 
 ## Summary
 Phase 4 executes controlled production activation and operational closeout for the OpenAI prompt-compiler lanes.  
@@ -41,7 +41,7 @@ Implementation progress addendum (2026-03-21):
 Master references:
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
-3. `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
+3. `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
 4. `docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`
 5. `docs/planning/ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`
 6. `docs/planning/ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`

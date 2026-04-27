@@ -4,6 +4,7 @@ Date: 2026-03-20
 Authority: Working  
 Owner: Platform Ops + Platform + AI Platform  
 Scope: OpenAI remediation lanes only (`studio-agent`, `generate-prompt`, `describe-image`)
+Status: active
 
 ## Purpose
 Define one canonical numeric contract for promote/hold/rollback decisions used in Phase 3 and Phase 4.
@@ -11,7 +12,7 @@ Define one canonical numeric contract for promote/hold/rollback decisions used i
 ## References
 1. `docs/planning/ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
-3. `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
+3. `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
 4. `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
 
 ## Metric Definitions
@@ -55,4 +56,3 @@ Define one canonical numeric contract for promote/hold/rollback decisions used i
 ## Change Control
 1. Threshold edits require roadmap/tracker amendment record and owner signoff.
 2. Template packets must reference this contract version/date.
-

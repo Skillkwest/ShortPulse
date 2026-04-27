@@ -204,8 +204,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`: master workstream tracker for pre-phase decision gates, validation criteria, and evidence linkage.
 - `ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`: rebaselined Phase 1 OpenAI execution plan for deterministic outcome contracts and cross-route policy parity.
 - `ai-studio-agent-pipeline-regression-phase-1-openai-route-outcome-contract-2026-03-20.md`: canonical additive machine-readable route outcome contract (`decision`, `outcome_class`, `reason_code`, `retryable`) for Phase 1 OpenAI lanes.
-- `ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`: rebaselined Phase 2 OpenAI execution plan for scoped safety prechecks, continuity protection, and quality hardening.
-- `ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`: rebaselined Phase 3 OpenAI execution plan for precedence governance, canary thresholds, observability, and rollback guardrails.
 - `ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`: rebaselined Phase 4 OpenAI execution plan for controlled production activation, stabilization, and operational closeout.
 - `ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`: canonical numeric threshold contract for promote/hold/rollback decisions and ring windows.
 - `ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`: authority order and conflict-resolution rules across overlapping active agent programs.

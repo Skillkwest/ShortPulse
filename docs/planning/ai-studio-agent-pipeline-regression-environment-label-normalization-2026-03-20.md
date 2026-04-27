@@ -3,6 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Platform Ops + Engineering
+Status: active
 
 ## Purpose
 Normalize environment label usage across remediation evidence packets and rollout templates.
@@ -26,4 +27,3 @@ Normalize environment label usage across remediation evidence packets and rollou
 All remediation evidence packets must include:
 1. environment label(s) used,
 2. mapping note if labels differ from canonical rollout ring terms.
-

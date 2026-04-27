@@ -3206,3 +3206,11 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Updated the Pulse master plan, tracker, and Phase 7 closeout doc to reflect actual implementation posture: Phases 0-6 complete, Phase 7 in progress, and the remaining closeout work narrowed to explicit telemetry/eval documentation plus a decision on the separate pre-existing `docs/routes.md` semantic-drift blocker.
 - Documented the explicit Pulse telemetry/eval posture in `docs/monitoring.md`, including the split between studio-agent route telemetry and authoritative `pulseWorkflowSession` state.
 - Classified the lingering `docs/routes.md` semantic-drift failure as a separate repo-wide docs-governance issue outside Pulse scope, then closed the Pulse master plan, tracker, and Phase 7 plan as complete.
+
+## 2026-04-27 (Agent regression remediation split + status normalization)
+- Archived the completed remediation `Phase 2` and `Phase 3` execution plans out of `docs/planning/` into `docs/archive/planning/` because those closeout docs were still indexed as active even though the family now continues from the master roadmap/tracker and the remaining live Phase 1/Phase 4 contracts.
+- Updated the active/archive indexes and remediation evidence READMEs so they point at the archived `Phase 2` and `Phase 3` plan paths instead of stale active-planning locations.
+- Normalized the remaining `ai-studio-agent-pipeline-regression-*` family onto the canonical planning status vocabulary:
+  - `active` for the live roadmap, tracker, Phase 1 route outcome contract, Phase 4 plan, and supporting governance contracts
+  - `draft` for the still-pending `Phase 1` execution plan
+  - `complete` for the archived `Phase 2` and `Phase 3` closeout plans

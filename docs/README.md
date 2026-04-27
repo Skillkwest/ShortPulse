@@ -342,8 +342,6 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`
 - `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`
 - `docs/planning/ai-studio-agent-pipeline-regression-phase-1-openai-route-outcome-contract-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
-- `docs/planning/ai-studio-agent-pipeline-regression-phase-3-openai-execution-plan-2026-03-20.md`
 - `docs/planning/ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`
 - `docs/planning/ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`
 - `docs/planning/ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`

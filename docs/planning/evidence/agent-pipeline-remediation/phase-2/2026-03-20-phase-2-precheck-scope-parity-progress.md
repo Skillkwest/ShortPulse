@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Phase: 2  
 Status: In Progress  
-Scope authority: `docs/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
+Scope authority: `docs/archive/planning/ai-studio-agent-pipeline-regression-phase-2-openai-execution-plan-2026-03-20.md`
 
 ## Summary
 This packet records completed Phase 2 work for precheck enforcement scoping, field-level telemetry, and client/server parity controls.

@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: AI Platform + Frontend  
-Status: Locked for implementation
+Status: active
 
 ## Purpose
 Define one additive, machine-readable outcome contract for OpenAI remediation endpoints so client logic can distinguish success, refusal, fallback, and hard errors without message-string heuristics.

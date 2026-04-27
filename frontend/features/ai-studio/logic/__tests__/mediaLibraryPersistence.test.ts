@@ -1109,6 +1109,111 @@ describe("saveMediaUrlToLibrary", () => {
     expect(mediaUpdateEqUser).toHaveBeenCalledWith("user_id", "user-1");
   });
 
+  it("registers a durable preview-loop variant when a new video save provides a distinct preview path", async () => {
+    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValueOnce("uuid-video-preview");
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputInsert = vi.fn(async () => ({ error: null }));
+    const single = vi.fn().mockResolvedValue({
+      data: { id: "media-video-preview-1" },
+      error: null,
+    });
+    const insert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single,
+      })),
+    }));
+    const mediaUpdateEqUser = vi.fn(async () => ({ error: null }));
+    const mediaUpdateEqId = vi.fn(() => ({
+      eq: mediaUpdateEqUser,
+    }));
+    const mediaUpdate = vi.fn(() => ({
+      eq: mediaUpdateEqId,
+    }));
+    const variantUpsert = vi.fn(async () => ({ error: null }));
+    const upload = vi.fn().mockResolvedValue({ error: null });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert,
+            update: mediaUpdate,
+          };
+        }
+        if (table === "media_asset_variants") {
+          return {
+            upsert: variantUpsert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            insert: generationOutputInsert,
+            update: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (url.includes("output.mp4")) {
+          return Promise.resolve(
+            new Response(new Blob(["video"], { type: "video/mp4" }), {
+              status: 200,
+              headers: { "content-type": "video/mp4" },
+            })
+          );
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      })
+    );
+
+    await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/output.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-video-preview-1",
+      index: 0,
+      previewStoragePathHint: "user-1/variants/videos/media-video-preview-1/preview_loop_360p.mp4",
+      fullStoragePathHint: "user-1/generations/videos/uuid-video-preview-0.mp4",
+    });
+
+    expect(variantUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media_file_id: "media-video-preview-1",
+        variant_kind: "preview_loop_360p",
+        storage_path: "user-1/variants/videos/media-video-preview-1/preview_loop_360p.mp4",
+        mime_type: "video/mp4",
+      }),
+      expect.objectContaining({
+        onConflict: "media_file_id,variant_kind",
+      })
+    );
+    expect(mediaUpdate).toHaveBeenCalledWith({
+      preview_variant_path: "user-1/variants/videos/media-video-preview-1/preview_loop_360p.mp4",
+    });
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects ai_studio saves without a durable generation id", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

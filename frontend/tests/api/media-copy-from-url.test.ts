@@ -447,6 +447,70 @@ describe("POST /api/media/copy-from-url", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("registers a durable preview-loop variant when a copied video provides a distinct preview path", async () => {
+    detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
+      buffer.toString() === "video-buffer" ? "video/mp4" : null
+    );
+
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-video-preview-1",
+        storage_path: "user-1/generations/videos/media-video-preview-1.mp4",
+        file_type: "video",
+        metadata: {},
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(Buffer.from("video-buffer"), {
+          status: 200,
+          headers: { "content-type": "video/mp4" },
+        })
+      )
+    );
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/output.mp4",
+        source: "ai_studio",
+        mode: "video",
+        generationId: "gen-preview-1",
+        index: 0,
+        previewStoragePathHint:
+          "user-1/variants/videos/media-video-preview-1/preview_loop_360p.mp4",
+        fullStoragePathHint: "user-1/generations/videos/media-video-preview-1.mp4",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(supabase.mediaAssetVariantUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media_file_id: "media-video-preview-1",
+        variant_kind: "preview_loop_360p",
+        storage_path: "user-1/variants/videos/media-video-preview-1/preview_loop_360p.mp4",
+        mime_type: "video/mp4",
+      }),
+      expect.objectContaining({
+        onConflict: "media_file_id,variant_kind",
+      })
+    );
+    expect(supabase.mediaUpdateMock).toHaveBeenCalledWith({
+      preview_variant_path: "user-1/variants/videos/media-video-preview-1/preview_loop_360p.mp4",
+    });
+    expect(supabase.uploadMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("skips oversized inline poster payloads without failing the main video save", async () => {
     detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
       buffer.toString() === "video-buffer" ? "video/mp4" : null

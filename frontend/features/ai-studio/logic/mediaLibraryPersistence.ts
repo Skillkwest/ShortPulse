@@ -4,6 +4,7 @@
  */
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import {
   MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
   isMediaStorageQuotaExceededError,
@@ -55,6 +56,12 @@ const CONTENT_TYPE_EXTENSION: Record<string, string> = {
 
 const sanitizeFilename = (value: string) => value.replace(/[^\w.-]+/g, "_");
 const URL_PROTOCOL_PATTERN = /^https?:\/\//i;
+const VIDEO_PREVIEW_MIME_TYPE_BY_EXTENSION: Record<string, string> = {
+  m4v: "video/x-m4v",
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+  webm: "video/webm",
+};
 
 const clampPrompt = (value?: string | null) => {
   const trimmed = (value ?? "").trim();
@@ -76,13 +83,19 @@ const resolveFileType = (
 };
 
 const extensionFromUrl = (url: string) => {
+  const resolveFromPathLike = (value: string) => {
+    const sanitized = value.split("?")[0]?.split("#")[0] ?? value;
+    const base = sanitized.split("/").pop() ?? "";
+    const ext = base.includes(".") ? (base.split(".").pop() ?? "") : "";
+    return ext.replace(/[^a-z0-9]+/gi, "").toLowerCase();
+  };
   try {
     const parsed = new URL(url);
     const base = parsed.pathname.split("/").pop() ?? "";
     const ext = base.includes(".") ? (base.split(".").pop() ?? "") : "";
     return ext.replace(/[^a-z0-9]+/gi, "").toLowerCase();
   } catch {
-    return "";
+    return resolveFromPathLike(url);
   }
 };
 
@@ -102,6 +115,30 @@ const resolveExtension = (contentType: string | null, url: string) => {
     return CONTENT_TYPE_EXTENSION[contentType];
   }
   return extensionFromUrl(url) || "bin";
+};
+
+const resolveVideoPreviewVariantCandidatePath = ({
+  fileType,
+  previewStoragePath,
+  fullStoragePath,
+}: {
+  fileType: MediaLibraryFileType;
+  previewStoragePath: string | null | undefined;
+  fullStoragePath: string | null | undefined;
+}): string | null => {
+  if (fileType !== "video") return null;
+  const canonicalPreviewPath = asCanonicalStoragePath(previewStoragePath ?? null);
+  if (!canonicalPreviewPath) return null;
+  const canonicalFullPath = asCanonicalStoragePath(fullStoragePath ?? null);
+  if (canonicalFullPath && canonicalPreviewPath === canonicalFullPath) {
+    return null;
+  }
+  return canonicalPreviewPath;
+};
+
+const inferVideoPreviewVariantMimeType = (storagePath: string): string | null => {
+  const extension = extensionFromUrl(storagePath);
+  return VIDEO_PREVIEW_MIME_TYPE_BY_EXTENSION[extension] ?? null;
 };
 
 const buildFilename = (promptText: string | null | undefined, extension: string, index: number) => {
@@ -470,7 +507,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     if (mediaFileId) {
       const { data: canonicalMediaRow, error: canonicalMediaError } = await supabase
         .from("media_files")
-        .select("id, storage_path, file_type, poster_variant_path")
+        .select("id, storage_path, file_type, poster_variant_path, preview_variant_path")
         .eq("user_id", userId)
         .eq("id", mediaFileId)
         .limit(1)
@@ -491,6 +528,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
             storagePath,
             fileType,
             posterVariantPath: asOptionalString(canonicalMediaRow.poster_variant_path),
+            previewVariantPath: asOptionalString(canonicalMediaRow.preview_variant_path),
           };
         }
       }
@@ -499,7 +537,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
 
   const { data, error } = await supabase
     .from("media_files")
-    .select("id, storage_path, file_type, poster_variant_path")
+    .select("id, storage_path, file_type, poster_variant_path, preview_variant_path")
     .eq("user_id", userId)
     .eq("source", "ai_studio")
     .eq("source_ref", generationId)
@@ -522,6 +560,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     storagePath,
     fileType,
     posterVariantPath: asOptionalString(data.poster_variant_path),
+    previewVariantPath: asOptionalString(data.preview_variant_path),
   };
 };
 
@@ -617,6 +656,62 @@ const upsertVideoPosterVariant = async ({
   return storagePath;
 };
 
+const upsertVideoPreviewVariantReference = async ({
+  supabase,
+  userId,
+  mediaFileId,
+  previewStoragePath,
+}: {
+  supabase: ReturnType<typeof ensureSupabaseQueryClient>;
+  userId: string;
+  mediaFileId: string;
+  previewStoragePath: string;
+}): Promise<string> => {
+  const storagePath = assertUserScopedMediaStoragePath({
+    path: previewStoragePath,
+    userId,
+    label: "AI Studio video preview storage path",
+  });
+  const mimeType = inferVideoPreviewVariantMimeType(storagePath);
+
+  const { error: variantError } = await supabase.from("media_asset_variants").upsert(
+    {
+      media_file_id: mediaFileId,
+      user_id: userId,
+      variant_kind: "preview_loop_360p",
+      storage_path: storagePath,
+      mime_type: mimeType,
+      width: null,
+      height: null,
+      byte_size: null,
+      status: "ready",
+      metadata: {
+        generated_by: "ai_studio_media_persistence",
+        preview_source: "existing_storage_object",
+      },
+    },
+    {
+      onConflict: "media_file_id,variant_kind",
+    }
+  );
+  if (variantError) {
+    throw variantError;
+  }
+
+  const { error: updateError } = await supabase
+    .from("media_files")
+    .update({
+      preview_variant_path: storagePath,
+    })
+    .eq("id", mediaFileId)
+    .eq("user_id", userId);
+  if (updateError) {
+    throw updateError;
+  }
+
+  return storagePath;
+};
+
 // Generated media rows can land a moment after the task reports success, so
 // retry briefly before we fall back to copying the provider URL.
 const readExistingAiStudioMediaRowByOutputIndexWithRetry = async ({
@@ -634,6 +729,7 @@ const readExistingAiStudioMediaRowByOutputIndexWithRetry = async ({
   storagePath: string | null;
   fileType: MediaLibraryFileType;
   posterVariantPath: string | null;
+  previewVariantPath: string | null;
 } | null> => {
   for (let attempt = 0; attempt < AI_STUDIO_EXISTING_ROW_RETRY_ATTEMPTS; attempt += 1) {
     const existingRow = await readExistingAiStudioMediaRowByOutputIndex({
@@ -825,6 +921,23 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
           // best-effort durable poster hydration only
         }
       }
+      const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
+        fileType: existingRow.fileType,
+        previewStoragePath: input.previewStoragePathHint,
+        fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
+      });
+      if (existingRow.id && previewVariantPath) {
+        try {
+          await upsertVideoPreviewVariantReference({
+            supabase,
+            userId,
+            mediaFileId: existingRow.id,
+            previewStoragePath: previewVariantPath,
+          });
+        } catch {
+          // best-effort durable preview hydration only
+        }
+      }
       const delivery = {
         previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
         fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
@@ -948,6 +1061,23 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         } catch {
           // best-effort canonical output linkage only
         }
+        const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
+          fileType: existingRow.fileType,
+          previewStoragePath: input.previewStoragePathHint,
+          fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
+        });
+        if (existingRow.id && previewVariantPath) {
+          try {
+            await upsertVideoPreviewVariantReference({
+              supabase,
+              userId,
+              mediaFileId: existingRow.id,
+              previewStoragePath: previewVariantPath,
+            });
+          } catch {
+            // best-effort durable preview hydration only
+          }
+        }
         const delivery = {
           previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
           fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
@@ -974,6 +1104,23 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   };
 
   const mediaFileId = data?.id ?? null;
+  const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
+    fileType,
+    previewStoragePath: input.previewStoragePathHint,
+    fullStoragePath: input.fullStoragePathHint ?? storagePath,
+  });
+  if (mediaFileId && previewVariantPath) {
+    try {
+      await upsertVideoPreviewVariantReference({
+        supabase,
+        userId,
+        mediaFileId,
+        previewStoragePath: previewVariantPath,
+      });
+    } catch {
+      // best-effort durable preview hydration only
+    }
+  }
   const projectId = normalizeProjectId(input.projectId);
   if (mediaFileId && projectId) {
     await associateMediaFilesWithProject({

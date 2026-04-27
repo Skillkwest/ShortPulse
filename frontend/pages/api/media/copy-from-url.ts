@@ -91,6 +91,12 @@ const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "audio/x-m4a": "m4a",
   "audio/x-wav": "wav",
 };
+const VIDEO_PREVIEW_MIME_TYPE_BY_EXTENSION: Record<string, string> = {
+  m4v: "video/x-m4v",
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+  webm: "video/webm",
+};
 const GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR =
   "Generated media is missing durable generation tracking.";
 
@@ -535,6 +541,62 @@ const persistVideoPosterVariant = async ({
   return storagePath;
 };
 
+const persistVideoPreviewVariantReference = async ({
+  userId,
+  mediaFileId,
+  previewStoragePath,
+}: {
+  userId: string;
+  mediaFileId: string;
+  previewStoragePath: string;
+}): Promise<string> => {
+  const storagePath = assertUserScopedMediaStoragePath({
+    path: previewStoragePath,
+    userId,
+    label: "AI Studio copied video preview storage path",
+  });
+  const mimeType = inferVideoPreviewVariantMimeType(storagePath);
+
+  const { error: variantError } = await getSupabaseAdmin()
+    .from("media_asset_variants")
+    .upsert(
+      {
+        media_file_id: mediaFileId,
+        user_id: userId,
+        variant_kind: "preview_loop_360p",
+        storage_path: storagePath,
+        mime_type: mimeType,
+        width: null,
+        height: null,
+        byte_size: null,
+        status: "ready",
+        metadata: {
+          generated_by: "media-copy-from-url",
+          preview_source: "existing_storage_object",
+        },
+      },
+      {
+        onConflict: "media_file_id,variant_kind",
+      }
+    );
+  if (variantError) {
+    throw variantError;
+  }
+
+  const { error: updateError } = await getSupabaseAdmin()
+    .from("media_files")
+    .update({
+      preview_variant_path: storagePath,
+    })
+    .eq("id", mediaFileId)
+    .eq("user_id", userId);
+  if (updateError) {
+    throw updateError;
+  }
+
+  return storagePath;
+};
+
 const sanitizeFilename = (value: string) => value.replace(/[^\w.-]+/g, "_");
 
 const clampPrompt = (value?: string | null) => {
@@ -544,14 +606,44 @@ const clampPrompt = (value?: string | null) => {
 };
 
 const extensionFromUrl = (url: string) => {
+  const resolveFromPathLike = (value: string) => {
+    const sanitized = value.split("?")[0]?.split("#")[0] ?? value;
+    const base = sanitized.split("/").pop() ?? "";
+    const ext = base.includes(".") ? (base.split(".").pop() ?? "") : "";
+    return ext.replace(/[^a-z0-9]+/gi, "").toLowerCase();
+  };
   try {
     const parsed = new URL(url);
     const base = parsed.pathname.split("/").pop() ?? "";
     const ext = base.includes(".") ? (base.split(".").pop() ?? "") : "";
     return ext.replace(/[^a-z0-9]+/gi, "").toLowerCase();
   } catch {
-    return "";
+    return resolveFromPathLike(url);
   }
+};
+
+const resolveVideoPreviewVariantCandidatePath = ({
+  fileType,
+  previewStoragePath,
+  fullStoragePath,
+}: {
+  fileType: MediaLibraryFileType;
+  previewStoragePath: string | null | undefined;
+  fullStoragePath: string | null | undefined;
+}): string | null => {
+  if (fileType !== "video") return null;
+  const canonicalPreviewPath = asCanonicalStoragePath(previewStoragePath ?? null);
+  if (!canonicalPreviewPath) return null;
+  const canonicalFullPath = asCanonicalStoragePath(fullStoragePath ?? null);
+  if (canonicalFullPath && canonicalPreviewPath === canonicalFullPath) {
+    return null;
+  }
+  return canonicalPreviewPath;
+};
+
+const inferVideoPreviewVariantMimeType = (storagePath: string): string | null => {
+  const extension = extensionFromUrl(storagePath);
+  return VIDEO_PREVIEW_MIME_TYPE_BY_EXTENSION[extension] ?? null;
 };
 
 const buildFilename = (promptText: string | null | undefined, extension: string, index: number) => {
@@ -825,6 +917,22 @@ export default async function handler(
             // best-effort durable poster hydration only
           }
         }
+        const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
+          fileType: existing.fileType,
+          previewStoragePath: previewStoragePathHint,
+          fullStoragePath: fullStoragePathHint ?? existing.storagePath,
+        });
+        if (previewVariantPath) {
+          try {
+            await persistVideoPreviewVariantReference({
+              userId: user.id,
+              mediaFileId: existing.id,
+              previewStoragePath: previewVariantPath,
+            });
+          } catch {
+            // best-effort durable preview hydration only
+          }
+        }
         try {
           await reconcileOwnedGenerationOutputSlot({
             generationId,
@@ -983,6 +1091,22 @@ export default async function handler(
           } catch {
             // best-effort canonical output-slot convergence only
           }
+          const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
+            fileType: existing.fileType,
+            previewStoragePath: previewStoragePathHint,
+            fullStoragePath: fullStoragePathHint ?? existing.storagePath,
+          });
+          if (previewVariantPath) {
+            try {
+              await persistVideoPreviewVariantReference({
+                userId: user.id,
+                mediaFileId: existing.id,
+                previewStoragePath: previewVariantPath,
+              });
+            } catch {
+              // best-effort durable preview hydration only
+            }
+          }
           const delivery = await resolveDelivery({
             row: {
               storage_path: existing.storagePath,
@@ -1030,6 +1154,22 @@ export default async function handler(
     });
 
     const insertedMediaFileId = asOptionalString(data?.id);
+    const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
+      fileType,
+      previewStoragePath: previewStoragePathHint,
+      fullStoragePath: fullStoragePathHint ?? storagePath,
+    });
+    if (insertedMediaFileId && previewVariantPath) {
+      try {
+        await persistVideoPreviewVariantReference({
+          userId: user.id,
+          mediaFileId: insertedMediaFileId,
+          previewStoragePath: previewVariantPath,
+        });
+      } catch {
+        // best-effort durable preview hydration only
+      }
+    }
     if (insertedMediaFileId && posterUrlHint) {
       try {
         await persistVideoPosterVariant({

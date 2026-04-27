@@ -9,10 +9,7 @@ import {
 import { createMediaPerfTimer } from "../../../lib/mediaPerfTelemetry";
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { canAttemptMediaPreviewSignBatch } from "../../../lib/mediaPreviewRuntimePolicy";
-import {
-  resolveMediaDirectPreviewUrls,
-  resolveMediaSigningStoragePaths,
-} from "../../../lib/mediaPreviewPath";
+import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import {
   BUCKET,

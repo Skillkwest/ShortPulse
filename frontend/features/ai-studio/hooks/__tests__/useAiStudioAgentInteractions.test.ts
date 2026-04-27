@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioAgentInteractions } from "../useAiStudioAgentInteractions";
 import type { PromptOrigin } from "../../logic/agentPromptOwnership";
-import type { AgentActions } from "../../../../prefabs/agent";
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -26,7 +25,6 @@ const createParams = (
     resetAgentChat: vi.fn(),
     resetAgentComposer: vi.fn(),
     clearPulseRuntime: vi.fn(),
-    setAgentActions: asDispatch<AgentActions | undefined>(vi.fn()),
   };
 
   return {
@@ -68,7 +66,6 @@ describe("useAiStudioAgentInteractions", () => {
     const resetAgentComposer = vi.fn();
     const setLatestAgentPrompt = vi.fn();
     const setPromptOrigin = vi.fn();
-    const setAgentActions = vi.fn();
     const setIsAgentChatOpen = vi.fn();
     const trackAgentUiEvent = vi.fn();
     const params = createParams({
@@ -76,7 +73,6 @@ describe("useAiStudioAgentInteractions", () => {
       resetAgentComposer,
       setLatestAgentPrompt: asDispatch<string | null>(setLatestAgentPrompt),
       setPromptOrigin: asDispatch<PromptOrigin>(setPromptOrigin),
-      setAgentActions: asDispatch<AgentActions | undefined>(setAgentActions),
       setIsAgentChatOpen: asDispatch<boolean>(setIsAgentChatOpen),
       trackAgentUiEvent,
     });
@@ -93,7 +89,6 @@ describe("useAiStudioAgentInteractions", () => {
     });
     expect(setLatestAgentPrompt).toHaveBeenCalledWith(null);
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(setAgentActions).toHaveBeenCalledWith(undefined);
     expect(setIsAgentChatOpen).toHaveBeenCalledWith(false);
     expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_chat_cleared");
   });

@@ -352,7 +352,6 @@ type AgentChatProps = {
   agentInput: string;
   agentIsSending: boolean;
   latestAgentPrompt: string | null;
-  agentPrimarySource?: "agent" | "manual" | "reference";
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments: AgentAttachment[];
   agentDropActive: boolean;

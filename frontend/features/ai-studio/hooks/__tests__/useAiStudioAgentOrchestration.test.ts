@@ -45,7 +45,6 @@ const createParams = (
   prompt: "",
   latestAgentPrompt: null,
   setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
-  setAgentActions: asDispatch<unknown>(vi.fn()),
   setPulseWorkflowSession: asDispatch(vi.fn()),
   selectedTool: "create",
   setSharedPrompt: vi.fn(),

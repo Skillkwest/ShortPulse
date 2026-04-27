@@ -1,5 +1,4 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import type { AgentActions } from "../../../prefabs/agent";
 import { normalizePromptText, type PromptOrigin } from "../logic/agentPromptOwnership";
 
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
@@ -22,7 +21,6 @@ type UseAiStudioAgentInteractionsParams = {
     preserveAttachments?: boolean;
   }) => void;
   clearPulseRuntime?: () => void;
-  setAgentActions: Dispatch<SetStateAction<AgentActions | undefined>>;
 };
 
 export const useAiStudioAgentInteractions = ({
@@ -40,7 +38,6 @@ export const useAiStudioAgentInteractions = ({
   resetAgentChat,
   resetAgentComposer,
   clearPulseRuntime,
-  setAgentActions,
 }: UseAiStudioAgentInteractionsParams) => {
   const handleAgentApplyPrompt = useCallback(
     (nextPrompt: string) => {
@@ -86,7 +83,6 @@ export const useAiStudioAgentInteractions = ({
     resetAgentComposer({ preserveAttachments: false });
     setLatestAgentPrompt(null);
     setPromptOrigin("manual");
-    setAgentActions(undefined);
     if (expertCreateMode === "pulse") {
       clearPulseRuntime?.();
     }
@@ -99,7 +95,6 @@ export const useAiStudioAgentInteractions = ({
     resetAgentComposer,
     setLatestAgentPrompt,
     setPromptOrigin,
-    setAgentActions,
     setIsAgentChatOpen,
     trackAgentUiEvent,
   ]);

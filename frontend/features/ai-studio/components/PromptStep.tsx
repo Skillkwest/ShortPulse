@@ -25,8 +25,6 @@ export function PromptStep({
   directOpenAiBypassEnabled = false,
   agentIsSending = false,
   agentError,
-  agentPrimaryPrompt = null,
-  agentPrimarySource = "manual",
   stagedPrompt = null,
   assistantBubbleMedia,
   stagedAttachments = [],
@@ -350,9 +348,7 @@ export function PromptStep({
                 chatPromptSaveButtonClassName={chatPromptSaveButtonClassName}
                 chatPromptSaveButtonUnstyled={chatPromptSaveButtonUnstyled}
                 imageAttachmentCounts={imageAttachmentCounts}
-                agentPrimaryPrompt={agentPrimaryPrompt}
                 prompt={prompt}
-                agentPrimarySource={agentPrimarySource}
                 onAssistantMessageEdit={onAssistantMessageEdit}
               />
             ) : (

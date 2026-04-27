@@ -45,11 +45,11 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - prompt-editor turns still resolve to `message` plus `actions.applyPrompt`,
 - workflow Pulse turns may return message-only step prompts until they intentionally emit a final prompt artifact,
 - refusal turns return message-only.
-12) UI applies `actions.applyPrompt` to state (`setPrompt`, `setLatestAgentPrompt`), clears input, and exposes actions in the panel. Clicking a message or “Add to grid” writes a prompt reference card.
+12) UI applies `actions.applyPrompt` to state (`setPrompt`, `setLatestAgentPrompt`) and clears input. Clicking a message or “Add to grid” writes a prompt reference card.
 
 Prompt ownership rule:
 - Prompt state is updated from `actions.applyPrompt` only (not generic assistant message text) so generation always uses explicit, structured prompt output from the agent route.
-- Prompt ownership and action chips are shown in both inline prompt cards and the expanded Agent Chat column for parity.
+- There is no separate apply/action strip in the inline prompt card or expanded Agent Chat column; prompt application happens when the response is received.
 
 ## User workflows & expected outcomes
 - **Iterate in Chat mode (Create tool):**
@@ -79,7 +79,7 @@ Prompt ownership rule:
   - Uses `/api/ai/studio-agent` with isolated history, focused image context, and `modeHint="describe"`.
   - Result becomes prompt + prompt card.
 - **Expanded Agent Chat column:**
-  - Shows the same history, plus the same action strip as inline chat (`Apply latest prompt`).
+  - Shows the same history and attachment behavior as inline chat.
   - “Add to grid” pushes the latest agent prompt as a card; close returns to Reference Grid.
 
 ## Safeguards & drift control

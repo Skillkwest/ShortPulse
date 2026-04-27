@@ -14,18 +14,13 @@ import {
 } from "react";
 import { useAiAgent } from "../../ai-agent/useAiAgent";
 import type {
-  AgentActions,
   AgentAttachment,
   AgentAssistantMessageEditRequest,
   AgentContext,
   AgentMessage,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
-import {
-  getStagedAgentPrompt,
-  resolvePromptSourceBadge,
-  type PromptOrigin,
-} from "../logic/agentPromptOwnership";
+import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import type {
   AiStudioSessionAgentMessageV1,
   AiStudioSessionAgentRuntimesV2,
@@ -82,7 +77,6 @@ type AgentBridgeRuntimeState = {
   latestAgentPrompt: string | null;
   promptOrigin: PromptOrigin;
   chatModeEnabled: boolean;
-  agentActions: AgentActions | undefined;
   isAgentChatOpen: boolean;
 };
 
@@ -103,7 +97,6 @@ const createDefaultAgentBridgeRuntimeState = (
   latestAgentPrompt: null,
   promptOrigin: "manual",
   chatModeEnabled: defaultChatModeEnabled,
-  agentActions: undefined,
   isAgentChatOpen: false,
 });
 
@@ -119,7 +112,6 @@ const createAgentBridgeRuntimeStateFromHydration = (
   latestAgentPrompt: runtime.latestAgentPrompt,
   promptOrigin: runtime.promptOrigin,
   chatModeEnabled: options?.forceChatModeEnabled ?? runtime.chatModeEnabled,
-  agentActions: undefined,
   isAgentChatOpen: false,
 });
 
@@ -193,14 +185,6 @@ const areAgentMessagesEqual = (left: AgentMessage[], right: AgentMessage[]): boo
   });
 };
 
-const areAgentActionsEqual = (
-  left: AgentActions | undefined,
-  right: AgentActions | undefined
-): boolean => {
-  if (left === right) return true;
-  return (left?.applyPrompt ?? null) === (right?.applyPrompt ?? null);
-};
-
 const isAgentBridgeRuntimeStateEqual = (
   left: AgentBridgeRuntimeState,
   right: AgentBridgeRuntimeState
@@ -211,7 +195,6 @@ const isAgentBridgeRuntimeStateEqual = (
   left.latestAgentPrompt === right.latestAgentPrompt &&
   left.promptOrigin === right.promptOrigin &&
   left.chatModeEnabled === right.chatModeEnabled &&
-  areAgentActionsEqual(left.agentActions, right.agentActions) &&
   left.isAgentChatOpen === right.isAgentChatOpen;
 
 /**
@@ -407,16 +390,11 @@ export const useAiStudioAgentBridge = ({
     (value) => updateAgentBridgeSessionUiStateField("promptOrigin", value),
     [updateAgentBridgeSessionUiStateField]
   );
-  const setAgentActions: Dispatch<SetStateAction<AgentActions | undefined>> = useCallback(
-    (value) => updateAgentBridgeSessionUiStateField("agentActions", value),
-    [updateAgentBridgeSessionUiStateField]
-  );
   const setIsAgentChatOpen: Dispatch<SetStateAction<boolean>> = useCallback(
     (value) => updateAgentBridgeSessionUiStateField("isAgentChatOpen", value),
     [updateAgentBridgeSessionUiStateField]
   );
-  const { agentActions, isAgentChatOpen, latestAgentPrompt, promptOrigin } =
-    activeAgentBridgeSessionUiState;
+  const { isAgentChatOpen, latestAgentPrompt, promptOrigin } = activeAgentBridgeSessionUiState;
   const pendingRuntimeHydrationRef = useRef<PendingRuntimeHydration | null>(null);
   const persistedAgentRuntimes = useMemo(
     () => ({
@@ -473,8 +451,8 @@ export const useAiStudioAgentBridge = ({
   });
 
   const resolvePulseSessionNamespace = useCallback(
-    (presetId: string, nextPulseSessionInstanceId: string) =>
-      `ai-studio:${sessionId ?? "none"}::pulse-v2:${presetId}:${nextPulseSessionInstanceId}`,
+    (presetId: string, nextPulseSessionInstanceId?: string) =>
+      `ai-studio:${sessionId ?? "none"}::pulse-v2:${presetId}:${nextPulseSessionInstanceId ?? "pending"}`,
     [sessionId]
   );
 
@@ -520,14 +498,12 @@ export const useAiStudioAgentBridge = ({
     if (!isPulseCreateMode) {
       setStandardChatModeEnabledState(activeRuntimeState.chatModeEnabled);
     }
-    setAgentActions(activeRuntimeState.agentActions);
     setIsAgentChatOpen(activeRuntimeState.isAgentChatOpen);
   }, [
     agentBridgeRuntimeStateBySessionKey,
     agentBridgeSessionKey,
     createDefaultRuntimeState,
     replaceMessages,
-    setAgentActions,
     setAgentAttachmentError,
     setAgentAttachments,
     setAgentInput,
@@ -558,7 +534,6 @@ export const useAiStudioAgentBridge = ({
     latestAgentPrompt: effectiveLatestAgentPrompt,
     promptOrigin: effectivePromptOrigin,
     chatModeEnabled: isPulseCreateMode ? true : chatModeEnabled,
-    agentActions,
     isAgentChatOpen,
   };
   activeLiveRuntimeStateRef.current = {
@@ -570,7 +545,6 @@ export const useAiStudioAgentBridge = ({
       latestAgentPrompt,
       promptOrigin,
       chatModeEnabled: isPulseCreateMode ? true : chatModeEnabled,
-      agentActions,
       isAgentChatOpen,
     },
   };
@@ -638,7 +612,6 @@ export const useAiStudioAgentBridge = ({
       return liveRuntimeState;
     });
   }, [
-    agentActions,
     agentAttachments,
     agentBridgeSessionKey,
     agentInput,
@@ -650,7 +623,6 @@ export const useAiStudioAgentBridge = ({
     effectiveLatestAgentPrompt,
     updateAgentBridgeSessionUiState,
   ]);
-  const agentPrimarySource = resolvePromptSourceBadge(effectivePromptOrigin);
   const stagedAgentPrompt = getStagedAgentPrompt(effectivePromptOrigin, effectiveLatestAgentPrompt);
   const editPromptToolSelected = isEditPromptTool(selectedTool);
 
@@ -677,7 +649,6 @@ export const useAiStudioAgentBridge = ({
     prompt,
     latestAgentPrompt,
     setLatestAgentPrompt,
-    setAgentActions,
     setPulseWorkflowSession,
     selectedTool,
     setSharedPrompt,
@@ -705,29 +676,23 @@ export const useAiStudioAgentBridge = ({
     pulseSessionInstanceId,
   });
 
-  const {
-    handleAgentApplyPrompt,
-    handleExpandChat,
-    handleAgentAddToGrid,
-    handleClearAgentChat,
-    handleCloseAgentChat,
-  } = useAiStudioAgentInteractions({
-    expertCreateMode,
-    editPromptToolSelected,
-    setSharedPrompt,
-    setLatestAgentPrompt,
-    setPromptOrigin,
-    trackAgentUiEvent,
-    addAgentPromptReference,
-    setIsAgentChatOpen,
-    agentSessionEnabled,
-    setAgentSessionEnabled,
-    latestAgentPrompt: effectiveLatestAgentPrompt,
-    resetAgentChat,
-    resetAgentComposer,
-    clearPulseRuntime,
-    setAgentActions,
-  });
+  const { handleExpandChat, handleAgentAddToGrid, handleClearAgentChat, handleCloseAgentChat } =
+    useAiStudioAgentInteractions({
+      expertCreateMode,
+      editPromptToolSelected,
+      setSharedPrompt,
+      setLatestAgentPrompt,
+      setPromptOrigin,
+      trackAgentUiEvent,
+      addAgentPromptReference,
+      setIsAgentChatOpen,
+      agentSessionEnabled,
+      setAgentSessionEnabled,
+      latestAgentPrompt: effectiveLatestAgentPrompt,
+      resetAgentChat,
+      resetAgentComposer,
+      clearPulseRuntime,
+    });
 
   const handlePulsePresetRestart = useCallback(
     async (preset: CreatePulseResolvedPreset) => {
@@ -740,7 +705,6 @@ export const useAiStudioAgentBridge = ({
       resetAgentComposer({ preserveAttachments: false });
       setLatestAgentPrompt(null);
       setPromptOrigin("manual");
-      setAgentActions(undefined);
       setPulseWorkflowSession(null);
       await handlePulsePresetStart(preset);
     },
@@ -748,7 +712,6 @@ export const useAiStudioAgentBridge = ({
       handlePulsePresetStart,
       resetAgentChat,
       resetAgentComposer,
-      setAgentActions,
       setLatestAgentPrompt,
       setPromptOrigin,
       setPulseWorkflowSession,
@@ -851,17 +814,10 @@ export const useAiStudioAgentBridge = ({
           ? (agentRuntimes.pulse.pulseWorkflowSession ?? agent.pulseWorkflowSession ?? null)
           : null
       );
-      setAgentActions(undefined);
       setAgentAttachmentError(null);
       setAgentAttachments([]);
     },
-    [
-      sessionId,
-      setAgentActions,
-      setAgentAttachmentError,
-      setAgentAttachments,
-      setPulseWorkflowSession,
-    ]
+    [sessionId, setAgentAttachmentError, setAgentAttachments, setPulseWorkflowSession]
   );
 
   return {
@@ -876,7 +832,6 @@ export const useAiStudioAgentBridge = ({
     agentAttachments,
     linkedPromptReferenceIds,
     isAgentDropActive,
-    agentActions,
     isAgentChatOpen,
     latestAgentPrompt: effectiveLatestAgentPrompt,
     promptOrigin: effectivePromptOrigin,
@@ -884,7 +839,6 @@ export const useAiStudioAgentBridge = ({
     chatModeEnabled,
     setChatModeEnabled,
     setPromptOrigin,
-    agentPrimarySource,
     stagedAgentPrompt,
     isPromptRefining,
     isReferencePromptEnhancing,
@@ -903,7 +857,6 @@ export const useAiStudioAgentBridge = ({
     handleAgentAttachmentDrop,
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
-    handleAgentApplyPrompt,
     handleAssistantMessageEdit,
     handleExpandChat,
     handleAgentAddToGrid,

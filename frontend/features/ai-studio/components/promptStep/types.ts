@@ -32,8 +32,6 @@ export type PromptStepProps = {
   directOpenAiBypassEnabled?: boolean;
   agentIsSending?: boolean;
   agentError?: string;
-  agentPrimaryPrompt?: string | null;
-  agentPrimarySource?: "agent" | "manual" | "reference";
   stagedPrompt?: string | null;
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments?: AgentAttachment[];

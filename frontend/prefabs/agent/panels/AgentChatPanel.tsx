@@ -6,7 +6,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AgentSendButton } from "../buttons/AgentSendButton";
 import { AgentResponseInlineGenerateButton } from "../buttons/AgentResponseInlineGenerateButton";
 import { AgentInputBar } from "../inputs/AgentInputBar";
-import { AgentPromptActions } from "../components/AgentPromptActions";
 import {
   captureAssistantInlineEditPresentation,
   resolveAssistantInlineEditStyle,
@@ -79,10 +78,8 @@ type AgentChatPanelProps = {
   introMessage?: AgentMessage | null;
   showMessages?: boolean;
   showInput?: boolean;
-  showPromptActions?: boolean;
   showThinkingIndicator?: boolean;
   thinkingIndicatorPlacement?: "panel" | "history";
-  showPrimaryPromptStatus?: boolean;
   dropHintText?: string;
   emptyStateText?: string;
   stagedAttachments?: AgentAttachment[];
@@ -90,8 +87,6 @@ type AgentChatPanelProps = {
   isDropActive?: boolean;
   showClearAttachmentsButton?: boolean;
   assistantMessagePresentation?: "default" | "pulse_guided";
-  primaryPrompt?: string | null;
-  primarySource?: "agent" | "manual" | "reference";
   onInputChange: (value: string) => void;
   onSend: () => void;
   onMessageClick?: (message: AgentMessage) => void;
@@ -121,10 +116,8 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   introMessage = null,
   showMessages = true,
   showInput = true,
-  showPromptActions = false,
   showThinkingIndicator = true,
   thinkingIndicatorPlacement = "panel",
-  showPrimaryPromptStatus = true,
   dropHintText = "Drag & drop reference cards here to attach context.",
   emptyStateText = "Drop references and send your next instruction.",
   stagedAttachments = [],
@@ -132,8 +125,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   isDropActive = false,
   showClearAttachmentsButton = false,
   assistantMessagePresentation = "default",
-  primaryPrompt = null,
-  primarySource = "manual",
   onInputChange,
   onSend,
   onMessageClick,
@@ -714,13 +705,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
             <div className="agent-chat-empty tiny">{emptyStateText}</div>
           )}
         </div>
-      ) : null}
-      {showPromptActions ? (
-        <AgentPromptActions
-          showPrimaryPromptStatus={showPrimaryPromptStatus}
-          primaryPrompt={primaryPrompt}
-          primarySource={primarySource}
-        />
       ) : null}
       {shouldShowThinkingIndicator && thinkingIndicatorPlacement !== "history" ? (
         <p className="agent-thinking" aria-live="polite">

@@ -56,7 +56,6 @@ export type UseAiStudioPanelPropsParams = {
   agentBusy: boolean;
   agentAttachmentError: string | null;
   agentError?: string | null;
-  agentPrimarySource?: "agent" | "manual" | "reference";
   stagedAgentPrompt?: string | null;
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   agentAttachments: AgentAttachment[];
@@ -257,7 +256,6 @@ export const useAiStudioPanelProps = ({
   agentBusy,
   agentAttachmentError,
   agentError,
-  agentPrimarySource,
   stagedAgentPrompt,
   assistantBubbleMedia,
   agentAttachments,
@@ -450,7 +448,6 @@ export const useAiStudioPanelProps = ({
       directOpenAiBypassEnabled,
       agentIsSending: agentBusy,
       agentError: agentAttachmentError ?? agentError ?? undefined,
-      agentPrimarySource,
       stagedPrompt: stagedAgentPrompt,
       assistantBubbleMedia,
       stagedAttachments: agentAttachments,
@@ -530,7 +527,6 @@ export const useAiStudioPanelProps = ({
       agentInput,
       agentMessages,
       pulseWorkflowSession,
-      agentPrimarySource,
       assistantBubbleMedia,
       aspect,
       characterOptions,

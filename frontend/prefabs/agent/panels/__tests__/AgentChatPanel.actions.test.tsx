@@ -1,6 +1,6 @@
 /**
- * AgentChatPanel action parity tests.
- * Ensures expanded chat can expose prompt ownership status and action chips.
+ * AgentChatPanel regression tests.
+ * Ensures staged attachments and generate controls behave correctly.
  */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -36,23 +36,6 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.queryByText("Image Ref")).not.toBeInTheDocument();
     expect(screen.queryByText("Text Ref")).not.toBeInTheDocument();
     expect(screen.queryByText("Should stay hidden")).not.toBeInTheDocument();
-  });
-
-  it("renders primary prompt status when enabled", () => {
-    render(
-      <AgentChatPanel
-        messages={[]}
-        input=""
-        showPromptActions
-        primaryPrompt="cinematic neon city alley at night"
-        primarySource="agent"
-        onInputChange={vi.fn()}
-        onSend={vi.fn()}
-      />
-    );
-
-    expect(screen.getByText("Primary generation prompt")).toBeInTheDocument();
-    expect(screen.getByText("Agent output")).toBeInTheDocument();
   });
 
   it("forwards inline generate prompts and does not trigger bubble click", () => {

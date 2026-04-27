@@ -36,7 +36,6 @@ export type UseAiStudioAgentOrchestrationParams = {
   prompt: string;
   latestAgentPrompt: string | null;
   setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
-  setAgentActions: Dispatch<SetStateAction<AgentActions | undefined>>;
   setPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
   selectedTool: ToolId | null;
   setSharedPrompt: (value: string) => void;

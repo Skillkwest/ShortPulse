@@ -27,7 +27,6 @@ type AgentChatProps = {
   agentInput: string;
   agentIsSending: boolean;
   latestAgentPrompt: string | null;
-  agentPrimarySource?: "agent" | "manual" | "reference";
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments: AgentAttachment[];
   agentDropActive: boolean;
@@ -189,10 +188,6 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
               input={agentChat.agentInput}
               sendLabel="Send"
               isSending={agentChat.agentIsSending}
-              showPromptActions
-              showPrimaryPromptStatus={false}
-              primaryPrompt={agentChat.latestAgentPrompt}
-              primarySource={agentChat.agentPrimarySource}
               assistantBubbleMedia={agentChat.assistantBubbleMedia}
               stagedAttachments={agentChat.stagedAttachments}
               isDropActive={agentChat.agentDropActive}

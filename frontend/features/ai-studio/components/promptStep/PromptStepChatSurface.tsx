@@ -7,7 +7,6 @@ import { ArrowsOutSimple, Trash } from "phosphor-react";
 import {
   AgentChatPanel,
   AgentInputBar,
-  AgentPromptActions,
   AgentResponseInlineGenerateButton,
   AgentSaveButton,
   AgentSendButton,
@@ -103,9 +102,7 @@ type PromptStepChatSurfaceProps = {
     ready: number;
     failed: number;
   };
-  agentPrimaryPrompt: string | null;
   prompt: string;
-  agentPrimarySource: "agent" | "manual" | "reference";
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
 };
 
@@ -175,9 +172,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   chatPromptSaveButtonClassName,
   chatPromptSaveButtonUnstyled,
   imageAttachmentCounts,
-  agentPrimaryPrompt,
   prompt,
-  agentPrimarySource,
   onAssistantMessageEdit,
 }) => {
   const [isAgentInputExpanded, setIsAgentInputExpanded] = React.useState(false);
@@ -616,11 +611,6 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
           3 sent per message.
         </p>
       ) : null}
-      <AgentPromptActions
-        showPrimaryPromptStatus={false}
-        primaryPrompt={agentPrimaryPrompt ?? prompt}
-        primarySource={agentPrimarySource}
-      />
     </>
   );
 };

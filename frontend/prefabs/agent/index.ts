@@ -12,4 +12,3 @@ export * from "./buttons/AgentResponseInlineGenerateButton";
 export * from "./buttons/MiniGenerateButton";
 export * from "./inputs/AgentInputBar";
 export * from "./panels/AgentChatPanel";
-export * from "./components/AgentPromptActions";

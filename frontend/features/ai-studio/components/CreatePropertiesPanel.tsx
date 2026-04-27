@@ -57,7 +57,6 @@ export type CreatePropertiesPanelProps = {
   directOpenAiBypassEnabled?: boolean;
   agentIsSending?: boolean;
   agentError?: string;
-  agentPrimarySource?: "agent" | "manual" | "reference";
   stagedPrompt?: string | null;
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments?: AgentAttachment[];
@@ -652,7 +651,6 @@ export function CreatePropertiesPanel({
   directOpenAiBypassEnabled = false,
   agentIsSending = false,
   agentError,
-  agentPrimarySource = "manual",
   stagedPrompt = null,
   assistantBubbleMedia,
   stagedAttachments = [],
@@ -866,8 +864,6 @@ export function CreatePropertiesPanel({
     agentInput,
     agentIsSending,
     agentError,
-    agentPrimaryPrompt: prompt,
-    agentPrimarySource,
     stagedPrompt,
     assistantBubbleMedia,
     stagedAttachments,

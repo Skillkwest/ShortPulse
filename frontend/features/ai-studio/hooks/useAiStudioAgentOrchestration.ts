@@ -46,7 +46,6 @@ export const useAiStudioAgentOrchestration = ({
   prompt,
   latestAgentPrompt,
   setLatestAgentPrompt,
-  setAgentActions,
   setPulseWorkflowSession,
   selectedTool,
   setSharedPrompt,
@@ -318,7 +317,6 @@ export const useAiStudioAgentOrchestration = ({
           }
         }
 
-        setAgentActions(actions);
         if (workflowSession) {
           setPulseWorkflowSession(workflowSession);
         }
@@ -354,7 +352,6 @@ export const useAiStudioAgentOrchestration = ({
       setPromptOrigin,
       setSharedPrompt,
       setAgentAttachments,
-      setAgentActions,
       setPulseWorkflowSession,
       ensurePulseSessionReady,
       notifyBootstrapPending,
@@ -504,7 +501,6 @@ export const useAiStudioAgentOrchestration = ({
           }
         }
 
-        setAgentActions(actions);
         if (workflowSession) {
           setPulseWorkflowSession(workflowSession);
         }
@@ -524,7 +520,6 @@ export const useAiStudioAgentOrchestration = ({
       latestAgentPrompt,
       selectedTool,
       sendToAgent,
-      setAgentActions,
       setAgentAttachmentError,
       setAgentSessionEnabled,
       setAgentUiBusy,

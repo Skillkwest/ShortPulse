@@ -2,7 +2,6 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioAgentBridge } from "../useAiStudioAgentBridge";
-import type { AgentActions } from "../../../../prefabs/agent";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import type { StudioMode, ToolId, StudioOutput } from "../../types";
 import { readChatModeFromStorage } from "../../logic/chatModePreference";
@@ -162,9 +161,6 @@ describe("useAiStudioAgentBridge", () => {
     let setPromptOriginFromInteractions:
       | Dispatch<SetStateAction<"manual" | "agent" | "reference">>
       | undefined;
-    let setAgentActionsFromInteractions:
-      | Dispatch<SetStateAction<AgentActions | undefined>>
-      | undefined;
     let setIsAgentChatOpenFromInteractions: Dispatch<SetStateAction<boolean>> | undefined;
 
     useAiAgentMock.mockReturnValue({
@@ -207,7 +203,6 @@ describe("useAiStudioAgentBridge", () => {
     useAiStudioAgentInteractionsMock.mockImplementation((params) => {
       setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
       setPromptOriginFromInteractions = params.setPromptOrigin;
-      setAgentActionsFromInteractions = params.setAgentActions;
       setIsAgentChatOpenFromInteractions = params.setIsAgentChatOpen;
       return {
         handleAgentApplyPrompt: vi.fn(),
@@ -256,25 +251,21 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(setLatestAgentPromptFromInteractions).toBeDefined();
       expect(setPromptOriginFromInteractions).toBeDefined();
-      expect(setAgentActionsFromInteractions).toBeDefined();
       expect(setIsAgentChatOpenFromInteractions).toBeDefined();
     });
 
     expect(result.current.latestAgentPrompt).toBeNull();
     expect(result.current.promptOrigin).toBe("manual");
-    expect(result.current.agentActions).toBeUndefined();
     expect(result.current.isAgentChatOpen).toBe(false);
 
     act(() => {
       setLatestAgentPromptFromInteractions?.("Applied prompt");
       setPromptOriginFromInteractions?.("agent");
-      setAgentActionsFromInteractions?.({ applyPrompt: "Applied prompt" } as AgentActions);
       setIsAgentChatOpenFromInteractions?.(true);
     });
 
     expect(result.current.latestAgentPrompt).toBe("Applied prompt");
     expect(result.current.promptOrigin).toBe("agent");
-    expect(result.current.agentActions).toEqual({ applyPrompt: "Applied prompt" });
     expect(result.current.isAgentChatOpen).toBe(true);
 
     rerender({
@@ -292,15 +283,11 @@ describe("useAiStudioAgentBridge", () => {
     );
     expect(result.current.latestAgentPrompt).toBeNull();
     expect(result.current.promptOrigin).toBe("manual");
-    expect(result.current.agentActions).toBeUndefined();
     expect(result.current.isAgentChatOpen).toBe(false);
 
     act(() => {
       setLatestAgentPromptFromInteractions?.("Persist across tool switch");
       setPromptOriginFromInteractions?.("agent");
-      setAgentActionsFromInteractions?.({
-        applyPrompt: "Persist across tool switch",
-      } as AgentActions);
       setIsAgentChatOpenFromInteractions?.(true);
     });
 
@@ -319,7 +306,6 @@ describe("useAiStudioAgentBridge", () => {
     );
     expect(result.current.latestAgentPrompt).toBe("Persist across tool switch");
     expect(result.current.promptOrigin).toBe("agent");
-    expect(result.current.agentActions).toEqual({ applyPrompt: "Persist across tool switch" });
     expect(result.current.isAgentChatOpen).toBe(true);
 
     rerender({
@@ -337,7 +323,6 @@ describe("useAiStudioAgentBridge", () => {
     );
     expect(result.current.latestAgentPrompt).toBe("Persist across tool switch");
     expect(result.current.promptOrigin).toBe("agent");
-    expect(result.current.agentActions).toEqual({ applyPrompt: "Persist across tool switch" });
     expect(result.current.isAgentChatOpen).toBe(true);
 
     resetAgentComposer.mock.calls.forEach((args) => {
@@ -536,9 +521,6 @@ describe("useAiStudioAgentBridge", () => {
     let setPromptOriginFromInteractions:
       | Dispatch<SetStateAction<"manual" | "agent" | "reference">>
       | undefined;
-    let setAgentActionsFromInteractions:
-      | Dispatch<SetStateAction<AgentActions | undefined>>
-      | undefined;
     let setIsAgentChatOpenFromInteractions: Dispatch<SetStateAction<boolean>> | undefined;
 
     useAiAgentMock.mockReturnValue({
@@ -582,7 +564,6 @@ describe("useAiStudioAgentBridge", () => {
     useAiStudioAgentInteractionsMock.mockImplementation((params) => {
       setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
       setPromptOriginFromInteractions = params.setPromptOrigin;
-      setAgentActionsFromInteractions = params.setAgentActions;
       setIsAgentChatOpenFromInteractions = params.setIsAgentChatOpen;
       return {
         handleAgentApplyPrompt: vi.fn(),
@@ -595,16 +576,6 @@ describe("useAiStudioAgentBridge", () => {
 
     const base = createBridgeParams();
     const bridgeModeProps: {
-      expertCreateMode: "standard" | "pulse";
-      activePulsePresetId: string | null;
-      pulseSessionInstanceId: string | null;
-    } = {
-      expertCreateMode: "standard",
-      activePulsePresetId: null,
-      pulseSessionInstanceId: null,
-    };
-
-    const initialRuntimeProps: {
       expertCreateMode: "standard" | "pulse";
       activePulsePresetId: string | null;
       pulseSessionInstanceId: string | null;
@@ -637,20 +608,17 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(setLatestAgentPromptFromInteractions).toBeDefined();
       expect(setPromptOriginFromInteractions).toBeDefined();
-      expect(setAgentActionsFromInteractions).toBeDefined();
       expect(setIsAgentChatOpenFromInteractions).toBeDefined();
     });
 
     act(() => {
       setLatestAgentPromptFromInteractions?.("Standard prompt");
       setPromptOriginFromInteractions?.("agent");
-      setAgentActionsFromInteractions?.({ applyPrompt: "Standard prompt" } as AgentActions);
       setIsAgentChatOpenFromInteractions?.(true);
     });
 
     expect(result.current.latestAgentPrompt).toBe("Standard prompt");
     expect(result.current.promptOrigin).toBe("agent");
-    expect(result.current.agentActions).toEqual({ applyPrompt: "Standard prompt" });
     expect(result.current.isAgentChatOpen).toBe(true);
 
     rerender({
@@ -668,13 +636,11 @@ describe("useAiStudioAgentBridge", () => {
     ).toBe(true);
     expect(result.current.latestAgentPrompt).toBeNull();
     expect(result.current.promptOrigin).toBe("manual");
-    expect(result.current.agentActions).toBeUndefined();
     expect(result.current.isAgentChatOpen).toBe(false);
 
     act(() => {
       setLatestAgentPromptFromInteractions?.("Pulse prompt");
       setPromptOriginFromInteractions?.("agent");
-      setAgentActionsFromInteractions?.({ applyPrompt: "Pulse prompt" } as AgentActions);
       setIsAgentChatOpenFromInteractions?.(true);
     });
 
@@ -695,7 +661,6 @@ describe("useAiStudioAgentBridge", () => {
     ).toBe(true);
     expect(result.current.latestAgentPrompt).toBe("Standard prompt");
     expect(result.current.promptOrigin).toBe("agent");
-    expect(result.current.agentActions).toEqual({ applyPrompt: "Standard prompt" });
     expect(result.current.isAgentChatOpen).toBe(true);
   });
 
@@ -768,14 +733,12 @@ describe("useAiStudioAgentBridge", () => {
     expect(result.current.latestAgentPrompt).toBe(
       "Scene 1: cinematic wide shot of the knight entering the ruined hall."
     );
-    expect(result.current.agentPrimarySource).toBe("agent");
+    expect(result.current.promptOrigin).toBe("agent");
   });
 
   it("does not rehydrate stale Standard history over a newly arrived assistant response", async () => {
     const replaceMessages = vi.fn();
-    let setAgentActionsFromInteractions:
-      | Dispatch<SetStateAction<AgentActions | undefined>>
-      | undefined;
+    let setIsAgentChatOpenFromInteractions: Dispatch<SetStateAction<boolean>> | undefined;
     let currentMessages: Array<{ id: string; role: "user" | "assistant"; content: string }> = [];
 
     useAiAgentMock.mockImplementation(() => ({
@@ -817,7 +780,7 @@ describe("useAiStudioAgentBridge", () => {
       handleReferencePromptEnhance: vi.fn(),
     });
     useAiStudioAgentInteractionsMock.mockImplementation((params) => {
-      setAgentActionsFromInteractions = params.setAgentActions;
+      setIsAgentChatOpenFromInteractions = params.setIsAgentChatOpen;
       return {
         handleAgentApplyPrompt: vi.fn(),
         handleExpandChat: vi.fn(),
@@ -831,7 +794,7 @@ describe("useAiStudioAgentBridge", () => {
 
     await waitFor(() => {
       expect(replaceMessages).toHaveBeenCalledWith([]);
-      expect(setAgentActionsFromInteractions).toBeDefined();
+      expect(setIsAgentChatOpenFromInteractions).toBeDefined();
     });
 
     replaceMessages.mockClear();
@@ -850,9 +813,7 @@ describe("useAiStudioAgentBridge", () => {
     rerender();
 
     act(() => {
-      setAgentActionsFromInteractions?.({
-        applyPrompt: "Cinematic golden-hour portrait.",
-      } as AgentActions);
+      setIsAgentChatOpenFromInteractions?.(true);
     });
 
     await waitFor(() => {
@@ -862,9 +823,7 @@ describe("useAiStudioAgentBridge", () => {
   });
 
   it("preserves newly arrived assistant history when UI-state setters run before runtime sync catches up", async () => {
-    let setAgentActionsFromInteractions:
-      | Dispatch<SetStateAction<AgentActions | undefined>>
-      | undefined;
+    let setIsAgentChatOpenFromInteractions: Dispatch<SetStateAction<boolean>> | undefined;
     let currentMessages: Array<{ id: string; role: "user" | "assistant"; content: string }> = [
       { id: "user-1", role: "user", content: "Make it cinematic." },
     ];
@@ -908,7 +867,7 @@ describe("useAiStudioAgentBridge", () => {
       handleReferencePromptEnhance: vi.fn(),
     });
     useAiStudioAgentInteractionsMock.mockImplementation((params) => {
-      setAgentActionsFromInteractions = params.setAgentActions;
+      setIsAgentChatOpenFromInteractions = params.setIsAgentChatOpen;
       return {
         handleAgentApplyPrompt: vi.fn(),
         handleExpandChat: vi.fn(),
@@ -921,7 +880,7 @@ describe("useAiStudioAgentBridge", () => {
     const { result, rerender } = renderHook(() => useAiStudioAgentBridge(createBridgeParams()));
 
     await waitFor(() => {
-      expect(setAgentActionsFromInteractions).toBeDefined();
+      expect(setIsAgentChatOpenFromInteractions).toBeDefined();
       expect(result.current.persistedAgentRuntimes.standard.messages).toEqual(currentMessages);
     });
 
@@ -935,9 +894,7 @@ describe("useAiStudioAgentBridge", () => {
         },
       ];
       rerender();
-      setAgentActionsFromInteractions?.({
-        applyPrompt: "Cinematic golden-hour portrait.",
-      } as AgentActions);
+      setIsAgentChatOpenFromInteractions?.(true);
     });
 
     await waitFor(() => {
@@ -1084,9 +1041,6 @@ describe("useAiStudioAgentBridge", () => {
     let setPromptOriginFromInteractions:
       | Dispatch<SetStateAction<"manual" | "agent" | "reference">>
       | undefined;
-    let setAgentActionsFromInteractions:
-      | Dispatch<SetStateAction<AgentActions | undefined>>
-      | undefined;
 
     useAiAgentMock.mockReturnValue({
       messages: [],
@@ -1129,7 +1083,6 @@ describe("useAiStudioAgentBridge", () => {
     useAiStudioAgentInteractionsMock.mockImplementation((params) => {
       setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
       setPromptOriginFromInteractions = params.setPromptOrigin;
-      setAgentActionsFromInteractions = params.setAgentActions;
       return {
         handleAgentApplyPrompt: vi.fn(),
         handleExpandChat: vi.fn(),
@@ -1152,13 +1105,11 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(setLatestAgentPromptFromInteractions).toBeDefined();
       expect(setPromptOriginFromInteractions).toBeDefined();
-      expect(setAgentActionsFromInteractions).toBeDefined();
     });
 
     act(() => {
       setLatestAgentPromptFromInteractions?.("Completed artifact");
       setPromptOriginFromInteractions?.("agent");
-      setAgentActionsFromInteractions?.({ applyPrompt: "Completed artifact" } as AgentActions);
     });
     expect(result.current.latestAgentPrompt).toBe("Completed artifact");
     expect(result.current.promptOrigin).toBe("agent");

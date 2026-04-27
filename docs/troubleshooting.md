@@ -135,10 +135,10 @@ Mitigation:
   - `SHORTPULSE_MEDIA_DERIVATIVES_RUN_URL=<full-run-url> SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET=<secret> SUPABASE_DB_URL=<db-url> ./scripts/media_derivative_backlog_replay.sh`
   - Optional protected-deployment auth:
     - `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN=<bypass-token>`
-  - The replay helper captures before/after backlog + terminal diagnostics when `SUPABASE_DB_URL` is set and loops the worker until claims drain or the bounded cycle cap is reached.
+  - The replay helper captures before/after backlog + terminal diagnostics when `SUPABASE_DB_URL` is set, logs per-cycle worker summaries (`triggerSource`, `durationMs`, `claimed`, `ready`, `failed`, `retryScheduled`, `exhausted`, `errors`), and exits non-zero if the bounded cycle cap is reached before claims drain.
 - Trigger a guarded manual run:
   - `curl -X POST -H \"x-shortpulse-cron-secret: <secret>\" http://localhost:3000/api/internal/media-derivatives/run`
-- Inspect response metrics (`claimed`, `ready`, `failed`, `exhausted`, `variantRowsUpserted`, `errors`).
+- Inspect response metrics (`triggerSource`, `durationMs`, `claimed`, `ready`, `failed`, `retryScheduled`, `exhausted`, `variantRowsUpserted`, `errors`).
 - For exhausted rows, inspect `media_files.processing_last_error` and re-queue deliberately with:
   - `sql/repair_media_derivative_requeue_terminal_row.sql`
 

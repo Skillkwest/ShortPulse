@@ -316,7 +316,8 @@ Monitor these events during rollout:
       - add `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN=<bypass-token>` when the target deployment is protected
     - backlog diagnostics: `sql/check_media_derivative_processing_backlog.sql`
     - terminal diagnostics: `sql/check_media_derivative_terminal_failures.sql`
-  - Validate worker metrics (`claimed`, `ready`, `failed`, `exhausted`, `variantRowsUpserted`) and check `media_files.processing_last_error` for exhausted rows.
+  - Validate worker metrics (`triggerSource`, `durationMs`, `claimed`, `ready`, `failed`, `retryScheduled`, `exhausted`, `variantRowsUpserted`) and check `media_files.processing_last_error` for exhausted rows.
+  - Treat replay exit code `2` as “bounded run stopped at safety cap before claims drained”; inspect the final summary in `/tmp/media_derivative_backlog_replay/combined.log` before increasing the cycle cap.
   - Terminal handling contract for local derivative errors (`unsupported_input`, `decode_failed`, `upload_failed`, `variant_upsert_failed`):
     - Keep exhausted deterministic failures terminal (`processing_attempts >= 5`, `processing_next_retry_at is null`) to avoid retry churn.
     - Re-queue only after source asset repair/replacement via `sql/repair_media_derivative_requeue_terminal_row.sql`.

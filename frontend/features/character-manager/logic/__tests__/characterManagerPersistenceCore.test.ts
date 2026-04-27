@@ -46,6 +46,11 @@ describe("characterManagerPersistenceCore", () => {
 
   it("repairs missing character sheets while listing characters", async () => {
     const createdSheetRows: Array<Record<string, unknown>> = [];
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        ["user-1/variants/images/media-profile-1/thumb_240", "https://signed.example/thumb.webp"],
+      ])
+    );
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "characters") {
@@ -58,7 +63,10 @@ describe("characterManagerPersistenceCore", () => {
                   description: "",
                   status: "draft",
                   updated_at: "2026-04-25T00:00:00.000Z",
-                  metadata: {},
+                  metadata: {
+                    profile_image_storage_path: "user-1/characters/char-1/profile/original.png",
+                    profile_image_media_file_id: "media-profile-1",
+                  },
                 },
                 {
                   id: "char-2",
@@ -67,6 +75,25 @@ describe("characterManagerPersistenceCore", () => {
                   status: "draft",
                   updated_at: "2026-04-24T00:00:00.000Z",
                   metadata: {},
+                },
+              ]),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: () =>
+              createAwaitableQuery([
+                {
+                  id: "media-profile-1",
+                  filename: "original.png",
+                  storage_path: "user-1/characters/char-1/profile/original.png",
+                  file_type: "image/png",
+                  file_size: 2048,
+                  metadata: {},
+                  thumb_variant_path: "user-1/variants/images/media-profile-1/thumb_240",
+                  poster_variant_path: null,
+                  preview_variant_path: null,
+                  created_at: "2026-04-25T00:00:00.000Z",
                 },
               ]),
           };
@@ -119,12 +146,21 @@ describe("characterManagerPersistenceCore", () => {
       expect.objectContaining({
         characterId: "char-1",
         characterSheetId: "sheet-1",
+        profileImageUrl: "https://signed.example/thumb.webp",
+        profileImageMediaFileId: "media-profile-1",
+        profileImageStoragePath: "user-1/characters/char-1/profile/original.png",
+        profileImagePreviewStoragePath: "user-1/variants/images/media-profile-1/thumb_240",
       }),
       expect.objectContaining({
         characterId: "char-2",
         characterSheetId: "sheet-2",
       }),
     ]);
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePaths: ["user-1/variants/images/media-profile-1/thumb_240"],
+      surface: "character-grid",
+    });
   });
 
   it("cleans up the created character row when initial sheet creation fails", async () => {

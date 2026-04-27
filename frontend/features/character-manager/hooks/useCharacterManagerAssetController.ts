@@ -18,10 +18,7 @@ import {
   saveCharacterManagerProfileImageAdjustments,
   saveCharacterManagerSlot,
 } from "../logic/characterManagerPersistence";
-import {
-  publishCharacterListChanged,
-  type CharacterListChangeReason,
-} from "../logic/characterListSyncEvents";
+import { publishCharacterListChanged } from "../logic/characterListSyncEvents";
 import { validateCharacterReferenceFile } from "../logic/referenceValidation";
 import type {
   CharacterProfileImageTransform,
@@ -162,15 +159,18 @@ export const useCharacterManagerAssetController = ({
 
       setIsSavingProfileImage(true);
       try {
-        const signedUrl = await saveCharacterManagerProfileImage({
+        const savedProfileImage = await saveCharacterManagerProfileImage({
           characterId,
           file,
         });
-        setProfileImageUrl(signedUrl);
+        setProfileImageUrl(savedProfileImage.signedUrl);
         setProfileImageTransform(defaultProfileImageTransform);
         patchCharacterListItem(characterId, (item) => ({
           ...item,
-          profileImageUrl: signedUrl,
+          profileImageUrl: savedProfileImage.signedUrl,
+          profileImageMediaFileId: savedProfileImage.mediaFileId,
+          profileImagePreviewStoragePath: savedProfileImage.previewStoragePath,
+          profileImageStoragePath: savedProfileImage.storagePath,
           profileImageTransform: defaultProfileImageTransform,
           updatedAt: new Date().toISOString(),
         }));

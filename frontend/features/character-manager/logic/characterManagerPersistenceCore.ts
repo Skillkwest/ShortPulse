@@ -7,6 +7,7 @@ import {
   invalidateSignedMediaUrl,
 } from "../../../lib/mediaSignedUrlCache";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
+import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import {
   CHARACTER_SHEET_PRESET_IDS,
@@ -93,6 +94,10 @@ type MediaFileRow = {
   storage_path: string;
   file_type: string | null;
   file_size: number | null;
+  metadata?: Record<string, unknown> | null;
+  thumb_variant_path?: string | null;
+  poster_variant_path?: string | null;
+  preview_variant_path?: string | null;
   created_at: string | null;
 };
 
@@ -116,6 +121,9 @@ export type CharacterManagerListItem = {
   characterStatus: "draft" | "active" | "archived";
   characterSheetId: string;
   profileImageUrl: string | null;
+  profileImageMediaFileId?: string | null;
+  profileImageStoragePath?: string | null;
+  profileImagePreviewStoragePath?: string | null;
   profileImageTransform: CharacterProfileImageTransform | null;
   characterSheetStatus: "draft" | "validating" | "ready" | "failed";
   updatedAt: string;
@@ -1119,12 +1127,36 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   }
 
   const profilePathByCharacter = new Map<string, string>();
+  const profileMediaIdByCharacter = new Map<string, string>();
   const profileTransformByCharacter = new Map<string, CharacterProfileImageTransform>();
   for (const row of typedCharacterRows) {
     const profileMetadata = getCharacterProfileImageMetadata(row.metadata);
     if (profileMetadata.storagePath) {
       profilePathByCharacter.set(row.id, profileMetadata.storagePath);
       profileTransformByCharacter.set(row.id, getCharacterProfileImageTransform(row.metadata));
+    }
+    if (profileMetadata.mediaFileId) {
+      profileMediaIdByCharacter.set(row.id, profileMetadata.mediaFileId);
+    }
+  }
+
+  const profileMediaIds = Array.from(new Set(profileMediaIdByCharacter.values()));
+  const profileMediaRowById = new Map<string, MediaFileRow>();
+  if (profileMediaIds.length) {
+    const { data: profileMediaRows, error: profileMediaRowsError } = await supabase
+      .from("media_files")
+      .select(
+        "id, filename, storage_path, file_type, file_size, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at"
+      )
+      .eq("user_id", userId)
+      .in("id", profileMediaIds);
+    if (profileMediaRowsError && !isMissingColumnError(profileMediaRowsError)) {
+      throw new Error(
+        asErrorMessage(profileMediaRowsError, "Failed to load character profile media.")
+      );
+    }
+    for (const row of (profileMediaRows ?? []) as MediaFileRow[]) {
+      profileMediaRowById.set(row.id, row);
     }
   }
 
@@ -1152,21 +1184,33 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
   }
 
   const avatarPathByCharacter = new Map<string, string>();
+  const avatarPreviewPathByCharacter = new Map<string, string>();
   for (const row of typedCharacterRows) {
     const preferredPath =
       profilePathByCharacter.get(row.id) ?? fallbackAvatarPathByCharacter.get(row.id) ?? null;
     if (preferredPath) {
       avatarPathByCharacter.set(row.id, preferredPath);
     }
+    const profileMediaId = profileMediaIdByCharacter.get(row.id) ?? null;
+    const profileMediaRow = profileMediaId
+      ? (profileMediaRowById.get(profileMediaId) ?? null)
+      : null;
+    const previewPath = profileMediaRow
+      ? (resolveMediaSigningStoragePaths(profileMediaRow, userId)[0] ?? preferredPath)
+      : preferredPath;
+    if (previewPath) {
+      avatarPreviewPathByCharacter.set(row.id, previewPath);
+    }
   }
 
   const avatarUrlByCharacter = new Map<string, string | null>();
-  if (avatarPathByCharacter.size) {
+  if (avatarPreviewPathByCharacter.size) {
     const signedUrlByStoragePath = await getSignedMediaUrlsBatch({
       bucket: MEDIA_BUCKET,
-      storagePaths: Array.from(avatarPathByCharacter.values()),
+      storagePaths: Array.from(avatarPreviewPathByCharacter.values()),
+      surface: "character-grid",
     });
-    for (const [characterId, storagePath] of avatarPathByCharacter.entries()) {
+    for (const [characterId, storagePath] of avatarPreviewPathByCharacter.entries()) {
       avatarUrlByCharacter.set(characterId, signedUrlByStoragePath.get(storagePath) ?? null);
     }
   }
@@ -1175,16 +1219,20 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
     .map((row) => {
       const latestCharacterSheet = latestCharacterSheetByCharacter.get(row.id);
       if (!latestCharacterSheet) return null;
-      return {
+      const item: CharacterManagerListItem = {
         characterId: row.id,
         characterName: row.name?.trim() || DEFAULT_CHARACTER_NAME,
         characterStatus: row.status,
         characterSheetId: latestCharacterSheet.id,
         profileImageUrl: avatarUrlByCharacter.get(row.id) ?? null,
+        profileImageMediaFileId: profileMediaIdByCharacter.get(row.id) ?? null,
+        profileImageStoragePath: avatarPathByCharacter.get(row.id) ?? null,
+        profileImagePreviewStoragePath: avatarPreviewPathByCharacter.get(row.id) ?? null,
         profileImageTransform: profileTransformByCharacter.get(row.id) ?? null,
         characterSheetStatus: latestCharacterSheet.status,
         updatedAt: row.updated_at,
-      } satisfies CharacterManagerListItem;
+      };
+      return item;
     })
-    .filter((item): item is CharacterManagerListItem => Boolean(item));
+    .filter((item): item is CharacterManagerListItem => item !== null);
 };

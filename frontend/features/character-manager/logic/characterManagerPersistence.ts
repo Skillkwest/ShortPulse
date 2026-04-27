@@ -119,6 +119,13 @@ type SaveCharacterProfileImageInput = {
   file: File;
 };
 
+export type SavedCharacterProfileImage = {
+  signedUrl: string;
+  mediaFileId: string | null;
+  previewStoragePath: string;
+  storagePath: string;
+};
+
 type SaveCharacterProfileImageAdjustmentsInput = {
   characterId: string;
   zoom: number;
@@ -585,7 +592,7 @@ export const loadCharacterManagerDraftByCharacterId = async (
  */
 export const saveCharacterManagerProfileImage = async (
   input: SaveCharacterProfileImageInput
-): Promise<string> => {
+): Promise<SavedCharacterProfileImage> => {
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: characterRow, error: characterError } = await supabase
     .from("characters")
@@ -703,7 +710,12 @@ export const saveCharacterManagerProfileImage = async (
   if (!signedUrl) {
     throw new Error("Profile image saved, but preview URL could not be created.");
   }
-  return signedUrl;
+  return {
+    signedUrl,
+    mediaFileId: characterMediaWritesEnabled ? null : mediaReferenceId,
+    previewStoragePath: storagePath,
+    storagePath,
+  };
 };
 
 /**

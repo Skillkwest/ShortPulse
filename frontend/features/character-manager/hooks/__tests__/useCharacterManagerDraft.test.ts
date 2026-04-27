@@ -460,9 +460,12 @@ describe("useCharacterManagerDraft", () => {
       slots: createEmptyCharacterSlotMap(),
     } as never);
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(hydratedSnapshot as never);
-    saveCharacterManagerProfileImageMock.mockResolvedValue(
-      "https://signed.example/profile-saved.png" as never
-    );
+    saveCharacterManagerProfileImageMock.mockResolvedValue({
+      signedUrl: "https://signed.example/profile-saved.png",
+      mediaFileId: "media-profile-saved",
+      previewStoragePath: "user-1/characters/char-saved/profile/profile-saved.png",
+      storagePath: "user-1/characters/char-saved/profile/profile-saved.png",
+    } as never);
     saveCharacterManagerCharacterSheetPresetAssetMock.mockResolvedValue(
       persistedPresetAsset as never
     );
@@ -746,9 +749,12 @@ describe("useCharacterManagerDraft", () => {
           updatedAt: "2026-03-17T00:00:01.000Z",
         },
       ] as never);
-    saveCharacterManagerProfileImageMock.mockResolvedValue(
-      "https://signed.example/profile.png" as never
-    );
+    saveCharacterManagerProfileImageMock.mockResolvedValue({
+      signedUrl: "https://signed.example/profile.png",
+      mediaFileId: "media-profile-1",
+      previewStoragePath: "user-1/characters/char-1/profile/profile.png",
+      storagePath: "user-1/characters/char-1/profile/profile.png",
+    } as never);
 
     const { result } = renderHook(() => useCharacterManagerDraft());
 

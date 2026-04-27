@@ -41,9 +41,29 @@ describe("characterGridPreviewUrl", () => {
     ).toBe(variantUrl);
   });
 
-  it("keeps signed storage URLs unchanged when adaptive preview is enabled", () => {
+  it("compacts signed storage URLs when adaptive preview is enabled", () => {
     const signedUrl =
-      "https://supabase.test/storage/v1/object/sign/media_library/user-1/upload/original.png?token=abc";
+      "https://demo.supabase.co/storage/v1/object/sign/media_library/user-1/upload/original.png?token=abc";
+
+    const resolved = resolveCharacterGridPreviewUrl({
+      url: signedUrl,
+      adaptivePreviewEnabled: true,
+      pressureLevel: 1,
+      cardLongEdgePx: 320,
+      devicePixelRatio: 1,
+    });
+
+    expect(resolved).toContain("/_next/image?url=");
+    expect(
+      decodeURIComponent(
+        new URL(`https://shortpulse.local${resolved}`).searchParams.get("url") ?? ""
+      )
+    ).toBe(signedUrl);
+  });
+
+  it("keeps signed durable variant URLs unchanged when adaptive preview is enabled", () => {
+    const signedUrl =
+      "https://supabase.test/storage/v1/object/sign/media_library/user-1/variants/images/media-1/thumb_240?token=abc";
 
     expect(
       resolveCharacterGridPreviewUrl({

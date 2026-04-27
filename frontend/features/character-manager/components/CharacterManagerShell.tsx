@@ -1128,10 +1128,13 @@ export function CharacterManagerShell({
                               {character.profileImageUrl ? (
                                 <Image
                                   src={
-                                    resolveCharacterGridPreviewUrl(
-                                      character.profileImageUrl,
-                                      CHARACTER_CHIP_AVATAR_SIZE
-                                    ) ?? character.profileImageUrl
+                                    resolveCharacterCardPreviewUrl({
+                                      previewUrl: character.profileImageUrl,
+                                      storagePath:
+                                        character.profileImagePreviewStoragePath ??
+                                        character.profileImageStoragePath,
+                                      cardLongEdgePx: CHARACTER_CHIP_AVATAR_SIZE,
+                                    }) ?? character.profileImageUrl
                                   }
                                   alt=""
                                   className="character-list-avatar-image"
@@ -1145,6 +1148,13 @@ export function CharacterManagerShell({
                                   }
                                   width={CHARACTER_CHIP_AVATAR_SIZE}
                                   height={CHARACTER_CHIP_AVATAR_SIZE}
+                                  onError={(event) => {
+                                    refreshCardPreviewSignedUrl(
+                                      character.profileImagePreviewStoragePath ??
+                                        character.profileImageStoragePath,
+                                      event.currentTarget.currentSrc || event.currentTarget.src
+                                    );
+                                  }}
                                   unoptimized
                                 />
                               ) : (

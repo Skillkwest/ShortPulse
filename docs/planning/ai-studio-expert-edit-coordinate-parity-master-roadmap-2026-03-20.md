@@ -141,11 +141,11 @@ Mitigation: pointer capture and `pointercancel` first-class handling tests.
 1. Master roadmap (this document).
 2. Master tracker document with task rows and evidence links.
 3. Phase docs authored and tracked as planning scaffolds; behavior-changing implementation remains gated by Phase 0 exit criteria.
-4. Phase 0 baseline capture execution plan: `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-0-baseline-capture-execution-plan-2026-03-20.md`.
+4. Phase 0 baseline capture execution plan: `docs/archive/planning/ai-studio-expert-edit-coordinate-parity-phase-0-baseline-capture-execution-plan-2026-03-20.md`.
 5. Phase 1 execution plan scaffold: `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-1-execution-plan-2026-03-20.md`.
 6. Phase 2 execution plan scaffold: `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-2-execution-plan-2026-03-20.md`.
-7. Phase 3 execution plan scaffold: `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-3-execution-plan-2026-03-20.md`.
-8. Phase 4 execution plan scaffold: `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-4-execution-plan-2026-03-20.md`.
+7. Phase 3 execution plan scaffold: `docs/archive/planning/ai-studio-expert-edit-coordinate-parity-phase-3-execution-plan-2026-03-20.md`.
+8. Phase 4 execution plan scaffold: `docs/archive/planning/ai-studio-expert-edit-coordinate-parity-phase-4-execution-plan-2026-03-20.md`.
 9. Phase 5 execution plan scaffold: `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-5-execution-plan-2026-03-20.md`.
 10. Coordinate parity evidence template: `docs/planning/evidence/ai-studio-expert-edit/coordinate-parity-evidence-template.md`.
 11. Coordinate parity rollout decision log: `docs/planning/evidence/ai-studio-expert-edit/coordinate-parity-rollout-decision-log-2026-03-20.md`.
@@ -155,6 +155,6 @@ Mitigation: pointer capture and `pointercancel` first-class handling tests.
 2. `docs/planning/ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md`
 3. `docs/adr/0034-ai-studio-expert-edit-shared-stage-interaction-parity.md`
 4. `docs/sops/sop_image_generation.md`
-5. `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-0-baseline-capture-execution-plan-2026-03-20.md`
+5. `docs/archive/planning/ai-studio-expert-edit-coordinate-parity-phase-0-baseline-capture-execution-plan-2026-03-20.md`
 6. `docs/planning/evidence/ai-studio-expert-edit/coordinate-parity-evidence-template.md`
 7. `docs/planning/evidence/ai-studio-expert-edit/coordinate-parity-rollout-decision-log-2026-03-20.md`

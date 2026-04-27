@@ -117,7 +117,7 @@ Mitigation: include production-equivalent DPR/aspect fixtures and verify export-
 ## References
 1. `docs/planning/ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md`
-3. `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-4-execution-plan-2026-03-20.md`
+3. `docs/archive/planning/ai-studio-expert-edit-coordinate-parity-phase-4-execution-plan-2026-03-20.md`
 4. `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`
 5. `docs/planning/evidence/ai-studio-expert-edit/coordinate-parity-evidence-template.md`
 6. `docs/planning/evidence/ai-studio-expert-edit/coordinate-parity-rollout-decision-log-2026-03-20.md`

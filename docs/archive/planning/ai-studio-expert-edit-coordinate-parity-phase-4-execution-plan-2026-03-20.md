@@ -1,5 +1,7 @@
 # AI Studio Expert Edit Coordinate Parity Phase 4 Execution Plan (2026-03-20)
 
+> Archived on 2026-04-27 because the master tracker marks Phase 4 complete. This execution plan is retained as historical gate-enforcement context while the remaining active work stays in `docs/planning/`.
+
 ## Purpose
 Define the implementation-ready execution plan for Phase 4 (`Regression Harness and CI Gates`) of the Expert Edit coordinate parity program.
 
@@ -133,6 +135,6 @@ Mitigation: threshold changes require ADR/tracker note plus before/after evidenc
 ## References
 1. `docs/planning/ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`
 2. `docs/planning/ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md`
-3. `docs/planning/ai-studio-expert-edit-coordinate-parity-phase-3-execution-plan-2026-03-20.md`
+3. `docs/archive/planning/ai-studio-expert-edit-coordinate-parity-phase-3-execution-plan-2026-03-20.md`
 4. `docs/adr/0045-ai-studio-expert-edit-canonical-coordinate-and-interaction-contract.md`
 5. `docs/planning/evidence/ai-studio-expert-edit/coordinate-parity-evidence-template.md`

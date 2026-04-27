@@ -1,5 +1,7 @@
 # AI Studio Expert Edit Coordinate Parity Phase 0 Baseline Capture Execution Plan (2026-03-20)
 
+> Archived on 2026-04-27 because the master tracker marks Phase 0 baseline capture complete. This runbook is retained as historical execution context while later active phases remain in `docs/planning/`.
+
 ## Purpose
 Define the execution contract for `CP-004` baseline capture before any behavior-changing coordinate-parity implementation begins.
 

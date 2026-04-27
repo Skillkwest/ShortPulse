@@ -1,5 +1,7 @@
 # AI Studio Expert Edit Coordinate Parity Phase 3 Execution Plan (2026-03-20)
 
+> Archived on 2026-04-27 because the master tracker marks Phase 3 complete. This execution plan is retained as historical implementation context while the mixed-state program continues through later active phases.
+
 ## Purpose
 Define the implementation-ready execution plan for Phase 3 (`Mask and Export Camera Parity`) of the Expert Edit coordinate parity program.
 

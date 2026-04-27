@@ -4,6 +4,12 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - corrected the `/dashboard` route contract across `README.md`, `docs/routes.md`, `docs/security-checklist.md`, and `docs/agent-playbook.md` so it matches the live public-home runtime instead of claiming auth-required protection.
+- Documentation cleanup:
+  - archived the completed coordinate-parity Phase 0, Phase 3, and Phase 4 execution plans under `docs/archive/planning/`,
+  - kept the mixed-state master/tracker plus unfinished Phase 1, Phase 2, and Phase 5 docs active in `docs/planning/`,
+  - and retargeted the surviving roadmap, tracker, and Phase 5 references to the archive paths.
+- Documentation cleanup:
   - archived the completed AI Studio generation-queue hardening plan/tracker packet and the completed Expert Edit properties-panel rollout plan/tracker packet under `docs/archive/planning/`,
   - removed those completed execution-history docs from the active planning indexes,
   - and retargeted the surviving fresh-start properties-panel plan to the archive paths.

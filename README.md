@@ -77,12 +77,12 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 ## Manual data actions
 
 - Performance Analytics (`/performance`) provides a demo refresh + filtering workflow for the sample dataset.
-- Root entry (`/`) now routes users through `/dashboard` (unauthenticated users are redirected to `/auth` by the dashboard guard).
+- Root entry (`/`) now routes users through `/dashboard`, which serves as the current public home/landing shell.
 - Saved Creators and Media Library actions write/read directly through the Supabase client from the frontend (Saved Creators is post‑MVP).
 
 ## Frontend surfaces
 
-- **Dashboard (`/dashboard`)**: Launchpad with plan/status chips, a `New Project` quick action, and an `Open Projects` quick action that opens the shared saved-project modal. Selecting a project from that modal routes into AI Studio using `?projectId=<uuid>`. `New Project` creates a real user-owned `projects` row in Supabase before routing into AI Studio. The hero helper slot renders an active global announcement when one exists and fails soft to default helper copy otherwise. Set `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` to temporarily restore legacy quick-start/workflow cards, tools grid, footer helper text, and Searches header metric during redesign work.
+- **Dashboard (`/dashboard`)**: Public home/dashboard shell with plan/status chips, a `New Project` quick action, and an `Open Projects` quick action that opens the shared saved-project modal. Selecting a project from that modal routes into AI Studio using `?projectId=<uuid>`. `New Project` creates a real user-owned `projects` row in Supabase before routing into AI Studio. The hero helper slot renders an active global announcement when one exists and fails soft to default helper copy otherwise. Set `NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS=false` to temporarily restore legacy quick-start/workflow cards, tools grid, footer helper text, and Searches header metric during redesign work.
 - **Performance Analytics (`/performance`)**: Authenticated demo analytics surface (staged rollout; dashboard currently points to `/performance-soon`).
 - **Performance Placeholder (`/performance-soon`)**: Temporary landing page that explains the analytics workspace is still under construction.
 - **Saved Creators (`/saved-creators`)**: Post‑MVP (Coming Soon); per-user handle list.
@@ -125,7 +125,7 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
 
 - Only the Supabase anon key is used on the client; never share the service role key.
 - Enable RLS on `saved_creators` and `media_files` (per-user isolation) and keep the `media_library` bucket private with paths prefixed by `auth.uid()`.
-- Route protection: `/dashboard`, `/performance`, `/performance-soon`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/creator-studio`, `/character`, `/character-soon`, and `/admin*` expect authenticated sessions and redirect to `/auth` when missing.
+- Route protection: `/performance`, `/performance-soon`, `/saved-creators`, `/media-library`, `/profile`, `/ai-studio`, `/creator-studio`, `/character`, `/character-soon`, and `/admin*` expect authenticated sessions and redirect to `/auth` when missing.
 - API protection: announcement routes, provider proxy routes, media routes, billing routes, upload routes, and admin routes require bearer-authenticated Supabase sessions.
 
 ## Testing

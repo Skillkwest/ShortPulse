@@ -58,5 +58,5 @@
 
 ## References
 1. docs/planning/generation-reliability-hardening-tracker-spec-2026-03-20.md
-2. docs/planning/evidence/generation-reliability-hardening/README.md
+2. docs/records/evidence/generation-reliability-hardening/README.md
 3. docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md

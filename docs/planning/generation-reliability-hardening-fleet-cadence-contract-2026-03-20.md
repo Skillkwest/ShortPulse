@@ -46,11 +46,11 @@ Rollback from hourly to daily when any occurs:
 
 ## Validation And Evidence
 Required evidence packet for cadence transition:
-1. docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-s1-fleet-hourly-cadence-policy.md
-2. docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-s2-recovery-cadence-guardrail.md
-3. docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-s3-scheduler-secret-rotation-contract.md
-4. docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-s4-route-parity-precondition.md
-5. docs/planning/evidence/generation-reliability-hardening/2026-03-20-r2-i1-hourly-fleet-cadence-implementation.md
+1. docs/records/evidence/generation-reliability-hardening/2026-03-20-r2-s1-fleet-hourly-cadence-policy.md
+2. docs/records/evidence/generation-reliability-hardening/2026-03-20-r2-s2-recovery-cadence-guardrail.md
+3. docs/records/evidence/generation-reliability-hardening/2026-03-20-r2-s3-scheduler-secret-rotation-contract.md
+4. docs/records/evidence/generation-reliability-hardening/2026-03-20-r2-s4-route-parity-precondition.md
+5. docs/records/evidence/generation-reliability-hardening/2026-03-20-r2-i1-hourly-fleet-cadence-implementation.md
 
 Validation gates:
 1. npm -C frontend run docs:check

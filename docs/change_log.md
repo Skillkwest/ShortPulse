@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - moved the `generation-reliability-hardening` evidence namespace from `docs/planning/evidence/` into `docs/records/evidence/`,
+  - retargeted the linked reliability planning docs to the records path,
+  - and narrowed the remaining strict evidence-migration blocker set again.
+- Documentation cleanup:
   - moved the `naming-canonicalization` evidence namespace from `docs/planning/evidence/` into `docs/records/evidence/`,
   - added a records README for that retained evidence family,
   - and narrowed the remaining strict evidence-migration blocker set again.

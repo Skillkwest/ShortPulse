@@ -15,7 +15,7 @@
 
 ## Commands Run
 1. rg -n 'control-plane|incident|pg_cron|pg_net|packet' docs/planning/generation-reliability-hardening-phase-r1-execution-plan-2026-03-20.md docs/sops/sop_provider_incident_response.md docs/sops/sop_generation_recovery_diagnostics.md
-2. rg -n 'evidence packet|required fields' docs/planning/evidence/generation-reliability-hardening/README.md docs/planning/generation-reliability-hardening-evidence-packet-template.md
+2. rg -n 'evidence packet|required fields' docs/records/evidence/generation-reliability-hardening/README.md docs/planning/generation-reliability-hardening-evidence-packet-template.md
 3. npm -C frontend run docs:check
 
 ## Results
@@ -58,5 +58,5 @@
 
 ## References
 1. docs/planning/generation-reliability-hardening-tracker-spec-2026-03-20.md
-2. docs/planning/evidence/generation-reliability-hardening/README.md
+2. docs/records/evidence/generation-reliability-hardening/README.md
 3. docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md

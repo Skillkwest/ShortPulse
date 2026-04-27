@@ -6,7 +6,6 @@ This is the current physical evidence namespace during the records migration tra
 
 ## Active evidence namespaces
 - `docs/planning/evidence/reference-grid-modularization/`
-- `docs/planning/evidence/generation-reliability-hardening/`
 - `docs/planning/evidence/unified-buildout/`
 
 ## Migrated namespaces
@@ -21,6 +20,7 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/records/evidence/lane-e/`
 - `docs/records/evidence/lane-f/`
 - `docs/records/evidence/generation-pipeline-hardening/`
+- `docs/records/evidence/generation-reliability-hardening/`
 - `docs/records/evidence/kei/`
 - `docs/records/evidence/ai-studio-reference-grid-reliability/`
 - `docs/records/evidence/media-library-runtime-rebuild/`

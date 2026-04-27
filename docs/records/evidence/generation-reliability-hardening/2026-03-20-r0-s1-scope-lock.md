@@ -1,17 +1,17 @@
-# Reliability Evidence Packet: R5-S2
+# Reliability Evidence Packet: R0-S1
 
-- slice_id: R5-S2
+- slice_id: R0-S1
 - date_utc: 2026-03-20
-- phase: R5
-- workstream: WR-6
+- phase: R0
+- workstream: WR-1
 - status: Completed (planning evidence finalized 2026-03-20)
 - owner: Engineering
 
 ## Scope
-- Objective: Define deterministic jitter/stagger policy for cron and reconciliation workloads.
-- Non-goals: No scheduler jitter implementation changes during planning.
-- Related tracker row(s): R-M10
-- Related phase slice(s): R5-S2
+- Objective: Freeze reliability scope and non-goals across master planning docs.
+- Non-goals: No scheduler/runtime behavior edits; no provider-callback implementation changes.
+- Related tracker row(s): R-M01,R-M02
+- Related phase slice(s): R0-S1
 
 ## Commands Run
 1. rg -n 'Entry Criteria|Exit Criteria|Planning-Only Gate|Status' docs/planning/generation-reliability-hardening-phase-r*-execution-plan-2026-03-20.md
@@ -19,18 +19,18 @@
 3. npm -C frontend run docs:check
 
 ## Results
-1. Planning artifact for R5-S2 is now linked, non-placeholder, and aligned with master planning gates.
+1. Planning artifact for R0-S1 is now linked, non-placeholder, and aligned with master planning gates.
 2. Related docs/index references are present and resolve in-repo for reliability planning surfaces.
 3. Validation gate passed for documentation integrity and semantic drift checks.
 
 ## Validation
-- Targeted validation outcome: Pass. Artifact contract and gate alignment verified for R5-S2.
+- Targeted validation outcome: Pass. Artifact contract and gate alignment verified for R0-S1.
 - Full-gate validation outcome (npm -C frontend run docs:check): Pass (2026-03-20).
 
 ## Risk And Rollback
 - risk_class: High
-- Risk delta: Reduced planning ambiguity for R5-S2 and improved implementation-gate traceability.
-- rollback_note: Revert jitter policy contract and restore baseline scheduler notes.
+- Risk delta: Reduced planning ambiguity for R0-S1 and improved implementation-gate traceability.
+- rollback_note: Revert scope-lock amendments in master plan and roadmap if governance review fails.
 
 ## Task Contract Checklist
 - [x] Reliability objective unchanged or explicitly amended
@@ -50,7 +50,7 @@
 1. Runtime behavior changes are deferred to post-planning implementation slices.
 
 ## Follow-up Actions
-1. Complete remaining phase slices that map to R-M10.
+1. Complete remaining phase slices that map to R-M01,R-M02.
 2. Update packet status from In Progress to Completed when exit-gate evidence is finalized.
 
 ## Linked PR Or Commit
@@ -58,5 +58,5 @@
 
 ## References
 1. docs/planning/generation-reliability-hardening-tracker-spec-2026-03-20.md
-2. docs/planning/evidence/generation-reliability-hardening/README.md
+2. docs/records/evidence/generation-reliability-hardening/README.md
 3. docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md

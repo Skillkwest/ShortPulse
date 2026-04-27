@@ -1,17 +1,17 @@
-# Reliability Evidence Packet: R6-S1
+# Reliability Evidence Packet: R0-S2
 
-- slice_id: R6-S1
+- slice_id: R0-S2
 - date_utc: 2026-03-20
-- phase: R6
-- workstream: WR-7
+- phase: R0
+- workstream: WR-1
 - status: Completed (planning evidence finalized 2026-03-20)
 - owner: Engineering
 
 ## Scope
-- Objective: Lock required game-day scenario classes and validation criteria.
-- Non-goals: No live game-day execution during planning.
-- Related tracker row(s): R-M11
-- Related phase slice(s): R6-S1
+- Objective: Define canonical SLO/SLI catalog and ownership cadence for reliability monitoring.
+- Non-goals: No alert-engine runtime tuning; no threshold automation rollout.
+- Related tracker row(s): R-M01
+- Related phase slice(s): R0-S2
 
 ## Commands Run
 1. rg -n 'Entry Criteria|Exit Criteria|Planning-Only Gate|Status' docs/planning/generation-reliability-hardening-phase-r*-execution-plan-2026-03-20.md
@@ -19,18 +19,18 @@
 3. npm -C frontend run docs:check
 
 ## Results
-1. Planning artifact for R6-S1 is now linked, non-placeholder, and aligned with master planning gates.
+1. Planning artifact for R0-S2 is now linked, non-placeholder, and aligned with master planning gates.
 2. Related docs/index references are present and resolve in-repo for reliability planning surfaces.
 3. Validation gate passed for documentation integrity and semantic drift checks.
 
 ## Validation
-- Targeted validation outcome: Pass. Artifact contract and gate alignment verified for R6-S1.
+- Targeted validation outcome: Pass. Artifact contract and gate alignment verified for R0-S2.
 - Full-gate validation outcome (npm -C frontend run docs:check): Pass (2026-03-20).
 
 ## Risk And Rollback
-- risk_class: Medium
-- Risk delta: Reduced planning ambiguity for R6-S1 and improved implementation-gate traceability.
-- rollback_note: Revert scenario matrix updates and restore baseline incident references.
+- risk_class: High
+- Risk delta: Reduced planning ambiguity for R0-S2 and improved implementation-gate traceability.
+- rollback_note: Revert SLI catalog section and restore prior monitoring target language.
 
 ## Task Contract Checklist
 - [x] Reliability objective unchanged or explicitly amended
@@ -50,7 +50,7 @@
 1. Runtime behavior changes are deferred to post-planning implementation slices.
 
 ## Follow-up Actions
-1. Complete remaining phase slices that map to R-M11.
+1. Complete remaining phase slices that map to R-M01.
 2. Update packet status from In Progress to Completed when exit-gate evidence is finalized.
 
 ## Linked PR Or Commit
@@ -58,5 +58,5 @@
 
 ## References
 1. docs/planning/generation-reliability-hardening-tracker-spec-2026-03-20.md
-2. docs/planning/evidence/generation-reliability-hardening/README.md
+2. docs/records/evidence/generation-reliability-hardening/README.md
 3. docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md

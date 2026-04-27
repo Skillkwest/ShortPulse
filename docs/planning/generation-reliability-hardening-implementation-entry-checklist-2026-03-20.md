@@ -18,7 +18,7 @@ All must be true:
 7. Implementation scope and rollback boundaries are approved by owner.
 
 ## Required Evidence Bundle
-1. `docs/planning/evidence/generation-reliability-hardening/` packet set for all completed slices.
+1. `docs/records/evidence/generation-reliability-hardening/` packet set for all completed slices.
 2. Program closeout packet from `R6-S4` including:
    - explicit recommendation (`ready_for_implementation` or `hold_with_blockers`),
    - deferred risks with owner/date,

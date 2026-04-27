@@ -23,7 +23,6 @@ These are the items that still block the strict original end state for this clea
 ### 1. Evidence is not fully migrated out of `docs/planning/evidence/`
 Remaining physical namespaces under `docs/planning/evidence/`:
 - `ai-studio-expert-edit/` (`17` files)
-- `generation-reliability-hardening/` (`32`)
 - `reference-grid-modularization/` (`52`)
 
 Interpretation:

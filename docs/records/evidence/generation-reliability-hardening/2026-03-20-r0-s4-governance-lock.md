@@ -14,7 +14,7 @@
 - Related phase slice(s): R0-S4
 
 ## Commands Run
-1. rg -n 'Required packet fields|Naming format' docs/planning/evidence/generation-reliability-hardening/README.md docs/planning/generation-reliability-hardening-evidence-packet-template.md
+1. rg -n 'Required packet fields|Naming format' docs/records/evidence/generation-reliability-hardening/README.md docs/planning/generation-reliability-hardening-evidence-packet-template.md
 2. rg -n 'Evidence Link|Implementation Entry Gate|Program closeout' docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md docs/planning/generation-reliability-hardening-implementation-entry-checklist-2026-03-20.md
 3. npm -C frontend run docs:check
 
@@ -58,5 +58,5 @@
 
 ## References
 1. docs/planning/generation-reliability-hardening-tracker-spec-2026-03-20.md
-2. docs/planning/evidence/generation-reliability-hardening/README.md
+2. docs/records/evidence/generation-reliability-hardening/README.md
 3. docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md

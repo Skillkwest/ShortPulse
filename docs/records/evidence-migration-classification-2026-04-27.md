@@ -39,6 +39,8 @@ Purpose: classify the current `docs/planning/evidence/` tree into migration buck
   - `docs/planning/evidence/media-rendering-hardening-v2/` moved to `docs/records/evidence/media-rendering-hardening-v2/`
 - Next markdown-only migration executed after this snapshot:
   - `docs/planning/evidence/naming-canonicalization/` moved to `docs/records/evidence/naming-canonicalization/`
+- Next markdown-only migration executed after this snapshot:
+  - `docs/planning/evidence/generation-reliability-hardening/` moved to `docs/records/evidence/generation-reliability-hardening/`
 - Explicit governance decision after this snapshot:
   - `docs/planning/evidence/unified-buildout/` remains in place as an active-program exception while `docs/planning/shortpulse-unified-buildout-tracker.md` still treats phase evidence as current execution gating. It is no longer the default next migration target.
 - Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.
@@ -80,7 +82,6 @@ These namespaces are primarily human-readable evidence packets, templates, and c
 | `architecture` | `13` markdown | `docs/records/evidence/architecture/` |
 | `docs` | `7` markdown | `docs/records/evidence/docs/` |
 | `generation-pipeline-hardening` | `27` markdown | `docs/records/evidence/generation-pipeline-hardening/` |
-| `generation-reliability-hardening` | `32` markdown | `docs/records/evidence/generation-reliability-hardening/` |
 | `kei` | `4` markdown | `docs/records/evidence/kei/` |
 | `lane-a` | `10` markdown | `docs/records/evidence/lane-a/` |
 | `lane-b` | `81` markdown | `docs/records/evidence/lane-b/` |

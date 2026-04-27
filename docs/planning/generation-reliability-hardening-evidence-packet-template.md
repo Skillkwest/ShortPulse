@@ -2,7 +2,7 @@
 
 Status: active
 
-Use this template for all evidence packets under `docs/planning/evidence/generation-reliability-hardening/`.
+Use this template for all evidence packets under `docs/records/evidence/generation-reliability-hardening/`.
 
 ## Header
 - `slice_id`:
@@ -63,4 +63,4 @@ Use this template for all evidence packets under `docs/planning/evidence/generat
 
 ## References
 1. `docs/planning/generation-reliability-hardening-tracker-spec-2026-03-20.md`
-2. `docs/planning/evidence/generation-reliability-hardening/README.md`
+2. `docs/records/evidence/generation-reliability-hardening/README.md`

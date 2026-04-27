@@ -1,7 +1,7 @@
 # Generation Reliability Hardening Fleet Cadence Contract (2026-03-20)
 
 Last updated: 2026-03-20  
-Status: Active (hourly cadence implemented; rollback contract active)  
+Status: active  
 Program anchor: docs/planning/generation-reliability-hardening-master-plan-2026-03-20.md
 
 ## Purpose

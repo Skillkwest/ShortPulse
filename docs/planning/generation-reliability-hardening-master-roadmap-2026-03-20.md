@@ -1,7 +1,7 @@
 # Generation Reliability Hardening Master Roadmap (2026-03-20)
 
 Last updated: 2026-03-20  
-Status: Active  
+Status: active  
 Companion plan: `docs/planning/generation-reliability-hardening-master-plan-2026-03-20.md`  
 Companion tracker: `docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md`
 

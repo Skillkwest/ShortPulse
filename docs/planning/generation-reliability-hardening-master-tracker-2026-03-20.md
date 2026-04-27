@@ -1,7 +1,7 @@
 # Generation Reliability Hardening Master Tracker (2026-03-20)
 
 Last updated: 2026-03-20  
-Status: Active (planning complete; implementation ready)  
+Status: active  
 Owner: Engineering  
 Program doc: `docs/planning/generation-reliability-hardening-master-plan-2026-03-20.md`  
 Roadmap doc: `docs/planning/generation-reliability-hardening-master-roadmap-2026-03-20.md`  

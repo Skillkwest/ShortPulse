@@ -1,7 +1,7 @@
 # Generation Reliability Hardening Provider Contract Matrix (2026-03-20)
 
 Last updated: 2026-03-20  
-Status: Active (planning)  
+Status: active  
 Program anchor: `docs/planning/generation-reliability-hardening-master-plan-2026-03-20.md`
 
 ## Purpose

@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Engineering  
-Status: Planning Complete (implementation in progress; runtime changes started)
+Status: active
 
 ## Summary
 Phase `R1` defines the control-plane observability contract for Supabase `pg_cron` + `pg_net` reliability checks.

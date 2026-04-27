@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - normalized the entire `generation-reliability-hardening-*` planning family onto the canonical status vocabulary,
+  - added the missing status header on the family evidence-packet template,
+  - and kept the packet active without changing its planning scope or rollout meaning.
+- Documentation cleanup:
   - archived the completed governance-baseline packet (`_inventory`, `overlap-audit`, and `feasibility-report`) under `docs/archive/planning/`,
   - removed those completed baseline docs from the active planning indexes,
   - and retargeted the remaining active governance docs and stage docs to the archive paths.

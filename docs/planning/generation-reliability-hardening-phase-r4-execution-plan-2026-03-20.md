@@ -3,7 +3,7 @@
 Date: 2026-03-20  
 Authority: Working  
 Owner: Engineering  
-Status: Planning Complete (implementation ready; no runtime changes started)
+Status: active
 
 ## Summary
 Phase `R4` defines bounded retry, timeout, lease, and quarantine policy.

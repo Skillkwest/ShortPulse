@@ -1,5 +1,7 @@
 # Generation Reliability Hardening Evidence Packet Template
 
+Status: active
+
 Use this template for all evidence packets under `docs/planning/evidence/generation-reliability-hardening/`.
 
 ## Header

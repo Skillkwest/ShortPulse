@@ -16,6 +16,8 @@ type JsonObject = Record<string, unknown>;
 
 type RunDerivativesSuccessResponse = {
   ok: true;
+  triggerSource: "scheduled" | "manual";
+  durationMs: number;
   claimed: number;
   processed: number;
   ready: number;
@@ -111,6 +113,29 @@ const readBearerToken = (req: NextApiRequest): string | null => {
   return normalized.length ? normalized : null;
 };
 
+const normalizeTriggerSource = (value: unknown): "scheduled" | "manual" => {
+  return value === "manual" ? "manual" : "scheduled";
+};
+
+const readTriggerSource = (req: NextApiRequest): "scheduled" | "manual" => {
+  const headerValue = readHeader(req, "x-shortpulse-trigger-source");
+  if (headerValue !== null) {
+    return normalizeTriggerSource(headerValue.trim().toLowerCase());
+  }
+
+  const triggerSourceQuery = req.query?.triggerSource;
+  const queryValue = Array.isArray(triggerSourceQuery) ? triggerSourceQuery[0] : triggerSourceQuery;
+  if (typeof queryValue === "string") {
+    return normalizeTriggerSource(queryValue.trim().toLowerCase());
+  }
+
+  if (req.body && typeof req.body === "object" && !Array.isArray(req.body)) {
+    return normalizeTriggerSource((req.body as JsonObject).triggerSource);
+  }
+
+  return "scheduled";
+};
+
 const resolveBackoffSeconds = ({
   attempts,
   baseSeconds,
@@ -145,6 +170,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<RunDerivativesSuccessResponse | RunDerivativesErrorResponse>
 ) {
+  const startedAt = Date.now();
+
   if (req.method !== "POST" && req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -180,6 +207,7 @@ export default async function handler(
   }
 
   const supabaseAdmin = getSupabaseAdmin();
+  const triggerSource = readTriggerSource(req);
 
   try {
     const claimResponse = await supabaseAdmin.rpc("claim_media_derivative_batch", {
@@ -279,6 +307,8 @@ export default async function handler(
 
     return res.status(200).json({
       ok: true,
+      triggerSource,
+      durationMs: Math.max(0, Date.now() - startedAt),
       claimed: claimedRows.length,
       processed,
       ready,

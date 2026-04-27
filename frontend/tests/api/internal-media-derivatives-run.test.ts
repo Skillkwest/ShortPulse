@@ -148,6 +148,8 @@ describe("POST /api/internal/media-derivatives/run", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
+        triggerSource: "scheduled",
+        durationMs: expect.any(Number),
         claimed: 1,
         processed: 1,
         ready: 1,
@@ -202,6 +204,7 @@ describe("POST /api/internal/media-derivatives/run", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
+        triggerSource: "scheduled",
         ready: 0,
         failed: 1,
         exhausted: 1,
@@ -255,6 +258,7 @@ describe("POST /api/internal/media-derivatives/run", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
+        triggerSource: "scheduled",
         ready: 0,
         failed: 1,
         exhausted: 1,
@@ -308,6 +312,7 @@ describe("POST /api/internal/media-derivatives/run", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
+        triggerSource: "scheduled",
         ready: 0,
         failed: 1,
         exhausted: 1,
@@ -359,10 +364,36 @@ describe("POST /api/internal/media-derivatives/run", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
+        triggerSource: "scheduled",
         ready: 0,
         failed: 1,
         exhausted: 0,
         errors: 1,
+      })
+    );
+  });
+
+  it("labels manually triggered runs from the request header", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({ rpc: supabase.rpc });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-shortpulse-cron-secret": "derivative-secret",
+        "x-shortpulse-trigger-source": "manual",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        triggerSource: "manual",
+        durationMs: expect.any(Number),
       })
     );
   });

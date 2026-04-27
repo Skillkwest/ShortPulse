@@ -84,10 +84,10 @@ Each batch requires:
 
 ## Release Window Evidence Procedure
 1. At each production release boundary during the deprecation window, create a checkpoint file from:
-- `docs/planning/evidence/naming-canonicalization/phase-7/phase-7-release-window-checkpoint-template.md`
+- `docs/records/evidence/naming-canonicalization/phase-7/phase-7-release-window-checkpoint-template.md`
 2. Save checkpoint artifacts as:
-- `docs/planning/evidence/naming-canonicalization/phase-7/YYYY-MM-DD-phase-7-r1-release-window-checkpoint.md`
-- `docs/planning/evidence/naming-canonicalization/phase-7/YYYY-MM-DD-phase-7-r2-release-window-checkpoint.md`
+- `docs/records/evidence/naming-canonicalization/phase-7/YYYY-MM-DD-phase-7-r1-release-window-checkpoint.md`
+- `docs/records/evidence/naming-canonicalization/phase-7/YYYY-MM-DD-phase-7-r2-release-window-checkpoint.md`
 3. Attach validation outputs for:
 - `validate`, `docs:check`, `test:adaptive-v2-gate`, `build`, `check:architecture-boundary`, `check:size-budget`
 4. If Playwright credentials are available, include `perf:ai-studio:release-check`; otherwise record waiver.

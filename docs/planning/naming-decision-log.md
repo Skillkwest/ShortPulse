@@ -19,7 +19,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - docs checks pass
   - active SOP component paths validated during edits
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-1/2026-02-23-phase-1-active-docs-canonicalization.md`
+  - `docs/records/evidence/naming-canonicalization/phase-1/2026-02-23-phase-1-active-docs-canonicalization.md`
 - Next allowed action: Phase 3 bridge-layer expansion.
 
 ## 2026-02-23: Stop-Point 1 (Active SOP follow-up sweep)
@@ -29,7 +29,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `npm -C frontend run docs:check` pass
   - canonical file-path existence checks pass for `CreatePropertiesPanel.tsx` and `ReferenceGrid.tsx`
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-1/2026-02-23-phase-1-active-sops-canonical-terminology-sweep.md`
+  - `docs/records/evidence/naming-canonicalization/phase-1/2026-02-23-phase-1-active-sops-canonical-terminology-sweep.md`
 - Next allowed action: continue active phase execution (Phase 6 asset-path batches, then Phase 7 stability-window planning).
 
 ## 2026-02-23: Stop-Point 2 (User-facing copy)
@@ -40,7 +40,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate`, `test:adaptive-v2-gate`, `build`, and `docs:check` pass
   - Playwright perf gate intentionally not executed per explicit no-Playwright direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-2/2026-02-23-phase-2-user-facing-copy-canonicalization.md`
+  - `docs/records/evidence/naming-canonicalization/phase-2/2026-02-23-phase-2-user-facing-copy-canonicalization.md`
 - Next allowed action: continue bridge/callsite/path migration phases.
 
 ## 2026-02-23: Stop-Point 3 (Bridge layer)
@@ -50,7 +50,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - type-check and targeted suites pass
   - no runtime behavior changes introduced
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-3/2026-02-23-phase-3-bridge-layer-expand.md`
+  - `docs/records/evidence/naming-canonicalization/phase-3/2026-02-23-phase-3-bridge-layer-expand.md`
 - Next allowed action: bounded callsite migration slices.
 
 ## 2026-02-23: Stop-Point 4 (Callsite migration slice A)
@@ -60,7 +60,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - validate/adaptive/docs/boundary/size gates pass
   - perf release check remains blocked by missing environment credentials
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-runtime-slice-a.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-runtime-slice-a.md`
 - Next allowed action: continue Phase 4 bounded slices (tests/internal module symbol families), then Phase 5 path rename planning.
 
 ## 2026-02-23: Stop-Point 4 (Callsite migration slice B)
@@ -70,7 +70,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - type-check and targeted reference-grid suites pass
   - legacy type alias remains available for compatibility
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-internal-drop-mode-slice-b.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-internal-drop-mode-slice-b.md`
 - Next allowed action: continue Phase 4 bounded slices.
 
 ## 2026-02-23: Stop-Point 4 (Callsite migration slice C)
@@ -81,7 +81,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate` and `test:adaptive-v2-gate` pass
   - perf release check remains blocked by missing `PLAYWRIGHT_AUDIT_EMAIL`
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md`
 - Next allowed action: continue Phase 4 bounded slices focused on remaining legacy file/symbol families before Phase 5 path renames.
 
 ## 2026-02-23: Stop-Point 4 (Callsite migration slice D)
@@ -92,7 +92,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate` and `test:adaptive-v2-gate` pass
   - Playwright perf gate intentionally not executed in this run per explicit user direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-hook-canonicalization-slice-d.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-hook-canonicalization-slice-d.md`
 - Next allowed action: continue Phase 4 bounded slices for residual symbol families, then prepare Phase 5 file/path rename batch plan.
 
 ## 2026-02-23: Stop-Point 4 (Callsite migration slice E)
@@ -103,7 +103,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate`, `test:adaptive-v2-gate`, and production `build` pass
   - Playwright perf gate intentionally not executed per explicit no-Playwright direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-create-panel-file-ownership-canonicalization-slice-e.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-create-panel-file-ownership-canonicalization-slice-e.md`
 - Next allowed action: continue Phase 4 bounded slices for residual reference-grid/canvas file-ownership and alias families; then Phase 5 path rename planning.
 
 ## 2026-02-23: Stop-Point 4 (Callsite migration slice F)
@@ -114,7 +114,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate`, `test:adaptive-v2-gate`, and production `build` pass
   - Playwright perf gate intentionally not executed per explicit no-Playwright direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-file-ownership-canonicalization-slice-f.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-file-ownership-canonicalization-slice-f.md`
 - Next allowed action: continue Phase 4 cleanup for remaining legacy symbol/file-name usage in tests/scripts/docs references before Phase 5 path rename batches.
 
 ## 2026-02-23: Stop-Point 4 (Callsite migration slice G)
@@ -125,7 +125,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate`, `test:adaptive-v2-gate`, and production `build` pass
   - Playwright perf gate intentionally not executed per explicit no-Playwright direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md`
 - Next allowed action: continue Phase 4 cleanup for remaining legacy test/script/doc references, then prepare Phase 5 file/path rename batches.
 
 ## 2026-02-23: Stop-Point 5 (File/path rename batch A)
@@ -136,7 +136,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate`, `test:adaptive-v2-gate`, `build`, `docs:check`, `check:architecture-boundary`, and `check:size-budget` pass
   - Playwright perf gate intentionally not executed per explicit no-Playwright direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-reference-grid-internal-file-path-canonicalization-batch-a.md`
+  - `docs/records/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-reference-grid-internal-file-path-canonicalization-batch-a.md`
 - Next allowed action: continue Phase 5 in bounded batches for remaining legacy file-name families (tests/hooks/wrappers/assets) using the same shim-first strategy.
 
 ## 2026-02-23: Stop-Point 5 (File/path rename batch B)
@@ -147,7 +147,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate`, `test:adaptive-v2-gate`, `build`, `docs:check`, `check:architecture-boundary`, and `check:size-budget` pass
   - Playwright perf gate intentionally not executed per explicit no-Playwright direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-reference-grid-drop-controller-path-canonicalization-batch-b.md`
+  - `docs/records/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-reference-grid-drop-controller-path-canonicalization-batch-b.md`
 - Next allowed action: continue Phase 5 shim-first canonicalization batches for remaining legacy file-name families.
 
 ## 2026-02-23: Stop-Point 5 (File/path rename batch C)
@@ -158,7 +158,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate`, `test:adaptive-v2-gate`, `build`, `docs:check`, `check:architecture-boundary`, and `check:size-budget` pass
   - Playwright perf gate intentionally not executed per explicit no-Playwright direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-test-and-gate-script-path-canonicalization-batch-c.md`
+  - `docs/records/evidence/naming-canonicalization/phase-5/2026-02-23-phase-5-test-and-gate-script-path-canonicalization-batch-c.md`
 - Next allowed action: continue Phase 5 bounded batches for remaining runtime/file wrapper legacy families and asset-path canonicalization prep.
 
 ## 2026-02-23: Stop-Point 4 (Phase closeout audit)
@@ -168,13 +168,13 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - targeted callsite scan shows no active runtime consumer usage of legacy prop/file-input/handler names outside bridge points
   - all Phase 4 slices A-G completed with passing non-Playwright validation evidence
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-runtime-slice-a.md`
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-internal-drop-mode-slice-b.md`
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md`
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-hook-canonicalization-slice-d.md`
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-create-panel-file-ownership-canonicalization-slice-e.md`
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-file-ownership-canonicalization-slice-f.md`
-  - `docs/planning/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-runtime-slice-a.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-internal-drop-mode-slice-b.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-callsite-migration-canonical-props-and-tests-slice-c.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-hook-canonicalization-slice-d.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-create-panel-file-ownership-canonicalization-slice-e.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-file-ownership-canonicalization-slice-f.md`
+  - `docs/records/evidence/naming-canonicalization/phase-4/2026-02-23-phase-4-reference-grid-internal-symbol-canonicalization-slice-g.md`
 - Next allowed action: continue Phase 5 file/path canonicalization and Phase 6 asset-path dual-path rollout planning.
 
 ## 2026-02-23: Stop-Point 6 (Asset canonicalization batch A)
@@ -185,7 +185,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate`, `test:adaptive-v2-gate`, `build`, `docs:check`, `check:architecture-boundary`, and `check:size-budget` pass
   - Playwright perf gate intentionally not executed per explicit no-Playwright direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-a.md`
+  - `docs/records/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-a.md`
 - Next allowed action: continue Phase 6 with residual asset inventory/sunset prep, then Phase 7 alias-sunset entry planning after stability window.
 
 ## 2026-02-23: Stop-Point 6 (Asset canonicalization batch B)
@@ -196,8 +196,8 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `validate`, `test:adaptive-v2-gate`, `build`, `docs:check`, `check:architecture-boundary`, and `check:size-budget` pass
   - Playwright perf gate intentionally not executed per explicit no-Playwright direction
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-b.md`
-  - `docs/planning/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-residual-asset-inventory.md`
+  - `docs/records/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-asset-path-canonicalization-batch-b.md`
+  - `docs/records/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-residual-asset-inventory.md`
 - Next allowed action: continue Phase 6 residual runtime asset-path canonicalization batches (if any remain), then prepare Phase 6 sunset candidate set for Stop-Point approval.
 
 ## 2026-02-23: Stop-Point 7 (Contract entry readiness package)
@@ -208,7 +208,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `docs:check` now enforces canonical naming drift guard for active docs
   - compatibility alias inventory and removal batch plan documented
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-7/2026-02-23-phase-7-entry-readiness-and-drift-guard.md`
+  - `docs/records/evidence/naming-canonicalization/phase-7/2026-02-23-phase-7-entry-readiness-and-drift-guard.md`
   - `docs/planning/naming-phase-7-entry-readiness.md`
 - Next allowed action: maintain stability window, capture release-cycle evidence, and begin contraction only after explicit Stop-Point 7 removal approval.
 
@@ -220,7 +220,7 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - `npm -C frontend run validate` pass with `check:naming-legacy-usage` included
   - `npm -C frontend run docs:check` pass
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-7/2026-02-23-phase-7-runtime-legacy-usage-guard.md`
+  - `docs/records/evidence/naming-canonicalization/phase-7/2026-02-23-phase-7-runtime-legacy-usage-guard.md`
   - `docs/planning/naming-phase-7-entry-readiness.md`
 - Next allowed action: maintain release-window stability evidence and prepare explicit contraction batch approvals when entry criteria are met.
 
@@ -232,8 +232,8 @@ Purpose: immutable log of naming decisions and stop-point approvals.
   - file naming convention for R1/R2 checkpoints defined
   - `docs:check` pass
 - Evidence links:
-  - `docs/planning/evidence/naming-canonicalization/phase-7/2026-02-23-phase-7-release-window-evidence-scaffold.md`
-  - `docs/planning/evidence/naming-canonicalization/phase-7/phase-7-release-window-checkpoint-template.md`
+  - `docs/records/evidence/naming-canonicalization/phase-7/2026-02-23-phase-7-release-window-evidence-scaffold.md`
+  - `docs/records/evidence/naming-canonicalization/phase-7/phase-7-release-window-checkpoint-template.md`
   - `docs/planning/naming-phase-7-entry-readiness.md`
 - Next allowed action: capture R1 checkpoint on next release boundary, then repeat for R2 and request contraction approval if both pass.
 

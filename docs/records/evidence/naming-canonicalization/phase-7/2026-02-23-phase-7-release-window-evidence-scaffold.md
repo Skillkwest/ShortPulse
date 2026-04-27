@@ -12,7 +12,7 @@
 3. Prepared deterministic file naming conventions for R1/R2 checkpoint artifacts.
 
 ## Changed Files
-- `docs/planning/evidence/naming-canonicalization/phase-7/phase-7-release-window-checkpoint-template.md`
+- `docs/records/evidence/naming-canonicalization/phase-7/phase-7-release-window-checkpoint-template.md`
 - `docs/planning/naming-phase-7-entry-readiness.md`
 - `docs/planning/naming-canonicalization-program.md`
 - `docs/planning/naming-canonicalization-tracker.md`

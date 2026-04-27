@@ -16,7 +16,7 @@
 ## Changed Files
 - `frontend/pages/dashboard.tsx`
 - `docs/sops/sop_saved_creators.md`
-- `docs/planning/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-residual-asset-inventory.md`
+- `docs/records/evidence/naming-canonicalization/phase-6/2026-02-23-phase-6-residual-asset-inventory.md`
 
 ## Validation
 - `npm -C frontend run test -- CreatePropertiesPanel.test.tsx AiStudioToolbar.test.tsx MediaLibraryModal.test.tsx` - Pass

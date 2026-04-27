@@ -12,7 +12,7 @@
 - `docs/planning/naming-canonical-map.md`
 - `docs/planning/naming-decision-log.md`
 - `docs/planning/naming-canonicalization-tracker.md`
-- `docs/planning/evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`
+- `docs/records/evidence/naming-canonicalization/naming-canonicalization-evidence-template.md`
 - `docs/sops/sop_naming_canonicalization_rollback.md`
 - `docs/adr/0023-ai-studio-naming-canonicalization-and-alias-sunset-policy.md`
 

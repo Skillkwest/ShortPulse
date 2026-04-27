@@ -35,7 +35,7 @@ Purpose: deliver a zero-regression naming canonicalization program using paralle
 3. One-domain slices:
 - Each slice may touch one primary domain only (docs, UI copy, symbols, paths, assets).
 4. Mandatory evidence:
-- Every slice must attach an evidence artifact under `docs/planning/evidence/naming-canonicalization/`.
+- Every slice must attach an evidence artifact under `docs/records/evidence/naming-canonicalization/`.
 5. Stop-point approvals:
 - Required before phase transitions and before any contraction/deletion.
 6. Active-doc drift guard:

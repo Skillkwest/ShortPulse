@@ -8,14 +8,14 @@ Status key: `pending` | `in_progress` | `blocked` | `completed`
 
 | Phase | Status | Owner | Exit criteria | Evidence |
 | --- | --- | --- | --- | --- |
-| 0 Baseline freeze | blocked | Frontend + Docs | Baseline gates captured and canonical map frozen | `docs/planning/evidence/naming-canonicalization/phase-0/` |
-| 1 Active docs canonicalization | completed | Docs | Active docs path/naming drift resolved | `docs/planning/evidence/naming-canonicalization/phase-1/` |
-| 2 User-facing copy canonicalization | completed | Frontend | UI copy canonical with no UX regressions | `docs/planning/evidence/naming-canonicalization/phase-2/` |
-| 3 Bridge layer (expand) | completed | Frontend | Canonical aliases added and backward compatibility preserved | `docs/planning/evidence/naming-canonicalization/phase-3/` |
-| 4 Callsite migration (migrate) | completed | Frontend | Legacy callsites migrated in bounded slices | `docs/planning/evidence/naming-canonicalization/phase-4/` |
-| 5 File/path renames | in_progress | Frontend | Renamed files stable with shim strategy | `docs/planning/evidence/naming-canonicalization/phase-5/` |
-| 6 Asset canonicalization | in_progress | Frontend | Canonical asset paths in use with dual-path window | `docs/planning/evidence/naming-canonicalization/phase-6/` |
-| 7 Alias sunset (contract) | in_progress | Frontend + Docs | Alias removals approved after stability window | `docs/planning/evidence/naming-canonicalization/phase-7/` |
+| 0 Baseline freeze | blocked | Frontend + Docs | Baseline gates captured and canonical map frozen | `docs/records/evidence/naming-canonicalization/phase-0/` |
+| 1 Active docs canonicalization | completed | Docs | Active docs path/naming drift resolved | `docs/records/evidence/naming-canonicalization/phase-1/` |
+| 2 User-facing copy canonicalization | completed | Frontend | UI copy canonical with no UX regressions | `docs/records/evidence/naming-canonicalization/phase-2/` |
+| 3 Bridge layer (expand) | completed | Frontend | Canonical aliases added and backward compatibility preserved | `docs/records/evidence/naming-canonicalization/phase-3/` |
+| 4 Callsite migration (migrate) | completed | Frontend | Legacy callsites migrated in bounded slices | `docs/records/evidence/naming-canonicalization/phase-4/` |
+| 5 File/path renames | in_progress | Frontend | Renamed files stable with shim strategy | `docs/records/evidence/naming-canonicalization/phase-5/` |
+| 6 Asset canonicalization | in_progress | Frontend | Canonical asset paths in use with dual-path window | `docs/records/evidence/naming-canonicalization/phase-6/` |
+| 7 Alias sunset (contract) | in_progress | Frontend + Docs | Alias removals approved after stability window | `docs/records/evidence/naming-canonicalization/phase-7/` |
 
 ## Slice Log
 

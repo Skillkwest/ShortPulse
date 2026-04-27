@@ -37,6 +37,8 @@ Purpose: classify the current `docs/planning/evidence/` tree into migration buck
   - `docs/planning/evidence/ai-studio-reference-grid-reliability/` moved to `docs/records/evidence/ai-studio-reference-grid-reliability/`
   - `docs/planning/evidence/lane-c/` moved to `docs/records/evidence/lane-c/`
   - `docs/planning/evidence/media-rendering-hardening-v2/` moved to `docs/records/evidence/media-rendering-hardening-v2/`
+- Next markdown-only migration executed after this snapshot:
+  - `docs/planning/evidence/naming-canonicalization/` moved to `docs/records/evidence/naming-canonicalization/`
 - Explicit governance decision after this snapshot:
   - `docs/planning/evidence/unified-buildout/` remains in place as an active-program exception while `docs/planning/shortpulse-unified-buildout-tracker.md` still treats phase evidence as current execution gating. It is no longer the default next migration target.
 - Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.

@@ -1,5 +1,9 @@
 import React, { type MutableRefObject } from "react";
 import { Check, DownloadSimple, X } from "phosphor-react";
+import {
+  resolveDurablePreviewStoragePath,
+  resolveVideoPosterStoragePath,
+} from "../../../../lib/mediaPreviewPath";
 import { useMediaGridVideoBudgetController } from "../../../media-library/hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
@@ -194,6 +198,11 @@ export function MediaLibraryMediaGrid({
                 cardLongEdgePx: 320,
                 devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
               });
+          const durablePreviewPath = resolveDurablePreviewStoragePath(file);
+          const posterPreviewPath = resolveVideoPosterStoragePath(file);
+          const shouldRenderVideoPreview =
+            isVideoFile(file.file_type) &&
+            (!durablePreviewPath || !posterPreviewPath || durablePreviewPath !== posterPreviewPath);
           const autoPlayEnabled = isVideoAutoplayEnabled(file.id);
           const managedVideoSrc = resolveVideoSource(file.id, cardPreviewUrl);
           const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
@@ -242,7 +251,7 @@ export function MediaLibraryMediaGrid({
                 onContextMenu={(event) => onMediaContextMenu?.(event, file)}
               >
                 {cardPreviewUrl ? (
-                  isVideoFile(file.file_type) ? (
+                  shouldRenderVideoPreview ? (
                     <video
                       className="media-thumb"
                       ref={getVideoNodeRef(file.id)}

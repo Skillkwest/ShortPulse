@@ -1,5 +1,9 @@
 # Expert Workflow Hardening + CSS Reorg Plan
 
+> Archived on 2026-04-27 during docs cleanup because the tracked hardening and CSS reorganization slices are complete and the document is retained as historical closeout context.
+
+Status: complete
+
 Purpose: execution tracker for the unified expert-mode robustness + styling reorganization effort. This is the source of truth for scope, sequencing, gates, and rollout safety.
 
 ## Scope Summary

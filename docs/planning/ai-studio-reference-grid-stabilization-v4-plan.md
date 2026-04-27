@@ -1,5 +1,7 @@
 # AI Studio Reference Grid Stabilization Plan (v4)
 
+Status: active
+
 ## Goal
 Stabilize AI Studio interactions in the 50-60 reference zone without introducing third-party prop/state libraries.
 

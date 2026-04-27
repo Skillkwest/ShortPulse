@@ -27,6 +27,8 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
 - `docs/archive/planning/ai-studio-generation-runtime-stabilization.md`
 - `docs/archive/planning/ai-studio-generation-runtime-audit-2026-02-20.md`
+- `docs/archive/planning/ai-studio-model-pricing-audit-checklist-2026-03-14.md`
+- `docs/archive/planning/ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md`
 - `docs/archive/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`
 - `docs/archive/planning/ai-studio-master-stage-phase-2-delete-duplicate-stage-surfaces-plan-2026-04-12.md`
 - `docs/archive/planning/ai-studio-master-stage-phase-3-stage-core-extraction-plan-2026-04-12.md`
@@ -101,6 +103,9 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/lane-b-master-plan-2026-03-16.md`
 - `docs/archive/planning/lane-b-tracker-spec-2026-03-16.md`
 - `docs/archive/planning/lane-b-execution-plan-2026-03-16.md`
+- `docs/archive/planning/foundational-hardening-program-v2-tracker.md`
+- `docs/archive/planning/expert-workflow-hardening-css-reorg-plan.md`
+- `docs/archive/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`

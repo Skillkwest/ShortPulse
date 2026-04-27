@@ -435,6 +435,6 @@ Monitor these events during rollout:
 - `docs/planning/ai-studio-reference-grid-modularization-program.md`
 - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
 - `docs/planning/media-library-reference-grid-optimization-plan.md`
-- `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`
+- `docs/archive/planning/ai-studio-shell-render-isolation-v3-plan.md`
 - `docs/planning/media-optimization-phase0-measurement-spec.md`
 - `docs/troubleshooting.md`

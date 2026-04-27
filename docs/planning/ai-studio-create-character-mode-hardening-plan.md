@@ -1,5 +1,7 @@
 # AI Studio Create Character Mode Hardening Plan
 
+Status: draft
+
 ## Goal
 Harden Create Properties Character Mode so model selection, model remapping, and submit payload invariants stay consistent and regression-safe.
 

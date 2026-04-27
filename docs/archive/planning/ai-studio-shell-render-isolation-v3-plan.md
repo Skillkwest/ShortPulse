@@ -1,5 +1,9 @@
 # AI Studio Shell Render-Isolation v3 Plan
 
+> Archived on 2026-04-27 during docs cleanup because the baseline selector-store and shell-boundary isolation work is already implemented and the document now serves as historical performance-hardening context.
+
+Status: complete
+
 ## Status
 Implemented baseline architecture and rollout controls on February 18, 2026.
 
@@ -91,4 +95,3 @@ Adopt a custom selector-subscribed output store (`useSyncExternalStore`) and rou
 await window.__shortpulseAiStudioPerf?.runReferenceGridAudit();
 await window.__shortpulseAiStudioPerf?.runStudioShellAudit();
 ```
-

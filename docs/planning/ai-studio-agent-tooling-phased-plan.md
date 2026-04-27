@@ -1,5 +1,7 @@
 # AI Studio Agent Tooling Phased Plan
 
+Status: active
+
 Purpose: ship high-impact agent tooling now (without MCP runtime), while preserving a clean migration path if MCP becomes objectively necessary later.
 
 ## Decision snapshot

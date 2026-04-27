@@ -1,5 +1,7 @@
 # Tooling & Framework Audit — 2026-02-16
 
+Status: draft
+
 Purpose: identify gaps in the current ShortPulse dependency set that can be filled with targeted, high-value packages. This document is a **research reference**, not an implementation plan. Each recommendation links to the codebase area it addresses and includes evaluation criteria so future agents can pick up any item without re-auditing.
 
 Related docs:

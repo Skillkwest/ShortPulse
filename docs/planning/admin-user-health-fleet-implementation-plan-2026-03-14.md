@@ -1,5 +1,7 @@
 # Admin User Health Fleet Implementation Plan (2026-03-14)
 
+Status: draft
+
 ## Goal
 Add daily fleet-level triage for active users that complements existing per-user `/api/admin/user-health` diagnostics without introducing deep-analyzer bulk fan-out, runtime bloat, or contract regressions.
 

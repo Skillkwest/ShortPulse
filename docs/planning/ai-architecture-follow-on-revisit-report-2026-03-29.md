@@ -1,5 +1,7 @@
 # AI Architecture Follow-On Revisit Report (2026-03-29)
 
+Status: draft
+
 Purpose: preserve one easy-to-find source of truth for the external architecture-research takeaways, the current ShortPulse interpretation of them, and the date/criteria for when broader follow-on work should be reconsidered.
 
 ## Snapshot

@@ -1,5 +1,7 @@
 # ShortPulse Automation Audit Progress
 
+Status: draft
+
 This captures the “Week 1 foundation” work we just completed plus the remaining automation/documentation backlog from the original audit plan so we can pick up the thread later.
 
 ## Week 1 (Foundation) — done

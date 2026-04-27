@@ -131,8 +131,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `supabase-production-cutover-handoff-2026-03-13.md`: paused-state handoff log for production Supabase cutover (status, evidence, risks, resume runbook).
 - `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).
 - `audit-progress.md`: automation/docs audit status.
-- `ai-studio-model-pricing-audit-checklist-2026-03-14.md`: family-by-family model pricing research checklist with per-model source links, current vs recalculated credits, and approval gates.
-- `ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md`: execution checklist for pricing recalibration Phase B (implementation) and Phase C (docs/metadata sync), including parity and no-regression gates.
 - `admin-user-health-fleet-implementation-plan-2026-03-14.md`: implementation contract for daily active-user fleet health triage (set-based scan pipeline, bounded runtime, persistence, and operator workflows).
 - `mvp-pretester-full-audit-remediation-plan.md`: full-app audit remediation runbook for pre-tester release hardening.
 - `mvp-ui-ux-stabilization-remediation-plan.md`: standalone UI/UX stabilization and remediation runbook for pre-tester quality hardening.
@@ -170,7 +168,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-runtime-v2-recovery-execution-phase.md`: shared recovery execution phase tracker (webhook inbox, verify cutover, reconciler leases, guarded transitions).
 - `ai-studio-runtime-v2-staging-execution-checklist.md`: operator checklist with ordered staging migration/env/deploy/smoke-test commands and runtime gates.
 - `ai-studio-generation-admission-rollout-plan.md`: staged rollout for generation admission policy and validation gates.
-- `foundational-hardening-program-v2-tracker.md`: tracker for the earlier foundational hardening v2 program and its completed workstreams.
 - `ai-studio-agent-tooling-phased-plan.md`: phased rollout for media analysis, prompt optimization, evaluation, and MCP adoption gates.
 - `ai-studio-agent-pipeline-hardening-plan.md`: quality-first hardening plan for deterministic routing, server-owned vision summaries, durable canonical state, and no-question action contracts.
 - `ai-studio-agent-modularization-program.md`: decision-complete hardening and modularization program plan (v3) with architecture invariants, gates, budgets, and rollback policy.
@@ -205,8 +202,6 @@ Purpose: active planning artifacts and current execution backlogs.
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
 - `ai-studio-primary-character-panel-build-plan.md`: execution plan for making the AI Studio Character panel the primary management surface, with Media Library-informed image-performance guidance.
-- `ai-studio-shell-render-isolation-v3-plan.md`: selector-store + shell-boundary isolation execution and rollout plan for 50-60 reference shell responsiveness.
-- `expert-workflow-hardening-css-reorg-plan.md`: execution tracker for expert workflow hardening and expert CSS reorganization.
 - `tooling-audit-2026-02-16.md`: comprehensive tooling and framework audit with prioritized recommendations for masonry layout, image optimization, DnD, toasts, lightbox, date formatting, state management, and schema validation.
 - `stages/stage-00-governance-contract-lock.md` through `stages/stage-08-final-validation-signoff.md`: decision-complete stage execution docs.
 - `stages/unified-phase-00-baseline-stabilization-and-incident-hygiene.md` through `stages/unified-phase-13-cross-plan-master-rollout.md`: decision-complete execution docs for the unified build-out program.

@@ -1,5 +1,9 @@
 # AI Studio Model Pricing Audit Checklist (2026-03-14)
 
+> Archived on 2026-04-27 during docs cleanup because this model-pricing research checklist is fully completed and now serves as historical pricing-audit evidence rather than active planning.
+
+Status: complete
+
 Purpose: track model-by-model pricing research and inspection as we audit and update credits.
 
 ## Policy Snapshot (Locked)

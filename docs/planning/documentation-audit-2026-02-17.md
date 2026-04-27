@@ -1,5 +1,7 @@
 # Documentation Governance Audit — 2026-02-17
 
+Status: draft
+
 ## Purpose
 Execute the documentation governance + backlog recovery pass using a hybrid method:
 1. Scripted inventory/status extraction.
@@ -37,7 +39,7 @@ Use this sequence on future audits:
 | `docs/planning/ai-studio-agent-tooling-phased-plan.md` | Active | Rollout phases and deferred MCP gates remain future work. |
 | `docs/planning/ai-studio-agent-pipeline-hardening-plan.md` | Active | Implementation complete, but explicit operational follow-up remains. |
 | `docs/planning/ai-studio-primary-character-panel-build-plan.md` | Active | Open acceptance checklist items remain. |
-| `docs/planning/expert-workflow-hardening-css-reorg-plan.md` | Active | Manual visual-baseline sign-off still pending. |
+| `docs/archive/planning/expert-workflow-hardening-css-reorg-plan.md` | Archived | Historical closeout tracker retained after the expert workflow hardening + CSS reorganization packet completed. |
 | `docs/planning/mvp-ui-ux-phase0-baseline-qa-checklist.md` | Reference | Reusable QA checklist template artifact. |
 | `docs/planning/mvp-ui-ux-phase0-baseline-capture-template.md` | Reference | Reusable capture template artifact. |
 | `docs/planning/mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md` | Reference | Baseline evidence report (historical snapshot). |

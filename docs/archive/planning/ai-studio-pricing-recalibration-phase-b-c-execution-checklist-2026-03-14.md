@@ -1,5 +1,9 @@
 # AI Studio Pricing Recalibration Phase B-C Execution Checklist (2026-03-14)
 
+> Archived on 2026-04-27 during docs cleanup because this pricing recalibration execution checklist is fully completed and now serves as historical rollout proof rather than active planning.
+
+Status: complete
+
 Purpose: provide a single execution checklist for the remaining pricing recalibration work after Phase A model research approvals.
 
 ## Scope

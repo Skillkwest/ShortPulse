@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the completed pricing-audit, pricing-recalibration, foundational-hardening-v2, and expert-workflow CSS-reorg planning packets out of the active planning surface,
+  - normalized the remaining top-level missing-status planning docs onto canonical `active` or `draft` statuses where they still serve as live or resumable planning context,
+  - and reduced the top-level planning metadata debt without reopening broad historical migration work.
+- Documentation cleanup:
   - archived the partially superseded `generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md` out of active planning,
   - normalized the remaining live governance docs onto canonical `active`/`draft` statuses,
   - and removed the contradictory active-planning index entries for the superseded settlement hardening plan.
@@ -1021,7 +1025,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   `NEXT_PUBLIC_AI_STUDIO_SELECTOR_CALLBACKS`,
   `NEXT_PUBLIC_AI_STUDIO_RAF_STATUS_FLUSH`.
 - Added planning/architecture docs:
-  `docs/planning/ai-studio-shell-render-isolation-v3-plan.md`,
+  `docs/archive/planning/ai-studio-shell-render-isolation-v3-plan.md`,
   `docs/adr/0015-ai-studio-selector-subscribed-shell-isolation.md`,
   and updated `docs/sops/sop_media_performance_operations.md`.
 - Added and updated regression tests:
@@ -3212,14 +3216,14 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Updated SOP indexes in `docs/README.md` and `docs/sops/README.md` to include the new walkthrough.
 
 ## 2026-03-14 (AI Studio pricing recalibration Phase B/C checklist)
-- Added `docs/planning/ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md` as the operational runbook for remaining pricing recalibration phases.
+- Added `docs/archive/planning/ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md` as the operational runbook for remaining pricing recalibration phases.
 - Captured Phase B implementation gates (shared conversion, dynamic-settings preservation, cross-layer parity, and test commands) and Phase C docs/metadata sync gates.
 - Updated planning indexes in `docs/planning/README.md` and `docs/README.md` for discoverability.
 
 ## 2026-03-14 (AI Studio pricing recalibration Phase B/C execution closeout)
 - Completed Phase B/C checklist execution and marked all gates complete in:
-  - `docs/planning/ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md`
-  - `docs/planning/ai-studio-model-pricing-audit-checklist-2026-03-14.md`
+  - `docs/archive/planning/ai-studio-pricing-recalibration-phase-b-c-execution-checklist-2026-03-14.md`
+  - `docs/archive/planning/ai-studio-model-pricing-audit-checklist-2026-03-14.md`
 - Re-ran full targeted pricing/debit parity suite (`115` tests) and docs integrity checks; all gates passed.
 
 ## 2026-04-23 (Pulse workflow session banner)

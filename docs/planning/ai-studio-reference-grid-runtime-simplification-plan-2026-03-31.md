@@ -1,5 +1,7 @@
 # AI Studio Reference Grid Runtime Simplification Plan (2026-03-31)
 
+Status: draft
+
 Purpose: define the narrow simplify/rebuild lane for the AI Studio reference runtime after the March 2026 freeze investigation. This is a paused execution checkpoint for a narrow runtime lane, not a new broad architecture program.
 
 ## Resume Handles

@@ -1,5 +1,9 @@
 # Foundational Hardening Program v2 Tracker
 
+> Archived on 2026-04-27 during docs cleanup because all tracked workstreams are completed and this tracker now serves as historical execution context only.
+
+Status: complete
+
 Last updated: 2026-02-25  
 Branch: `audit-properties-panels`
 

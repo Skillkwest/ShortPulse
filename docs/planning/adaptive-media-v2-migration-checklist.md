@@ -1,5 +1,7 @@
 # Adaptive Media V2 Migration Checklist
 
+Status: active
+
 ## Goals
 - Keep UX behavior unchanged while modularizing adaptive media logic.
 - Roll out with parity-first gates before tuned quality settings.

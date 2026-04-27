@@ -1,5 +1,7 @@
 # AI Studio Agent Pipeline Hardening Plan
 
+Status: active
+
 ## Summary
 This plan hardens AI Studio prompt-agent behavior to be deterministic, durable, and fast without changing the product goal: return one enhanced prompt, never ask clarifying questions, and fuse available context (canonical prompt + typed text + prompt references + image signals).
 

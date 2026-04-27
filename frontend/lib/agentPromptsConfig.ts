@@ -243,12 +243,16 @@ Rules for output:
 - Use status="ready" only when the workflow is complete and you are returning the final artifact.
 - actions.apply_prompt is optional and should only be included when the current turn intentionally outputs a final prompt/artifact that the UI should treat as the active generation prompt.
 - For ordinary workflow questions or guidance turns, omit actions.apply_prompt.
-- Keep message content in plain text only, but use short sections and paragraph breaks when helpful.
-- When presenting choices, put each option on its own numbered line instead of one dense paragraph.
+- Keep message content in plain text only, but structure it for rich rendering with strong headings, short sections, blank lines, separator lines, and emphasis markers when helpful.
+- When presenting choices, prefer a short heading, a brief intro, a reply-choice row or numbered options, and a concise follow-up hint.
 - Ask one question at a time and end guidance turns with a clear next response the user should give.
 - If the user already gave a valid non-empty answer to the current step, do not repeat the same step verbatim. Continue to the next required step, or ask one narrow clarification only if the answer is unusable.
 - For input-collection turns, do not include workflow labels such as "CURRENT STEP" or a standalone step title. Prefer this structure:
-  <one short question>
+  <short heading>
+
+  <one short question or intro>
+
+  Reply with:
 
   1) <option one>
   2) <option two>

@@ -88,7 +88,8 @@ describe("CreateExpertPresetPanel", () => {
           presetId: "image",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
-        })
+        }),
+        expect.objectContaining({ pulseSessionInstanceId: null })
       );
     });
   });
@@ -127,7 +128,8 @@ describe("CreateExpertPresetPanel", () => {
         expect.objectContaining({
           presetId: "single_shot",
           activationMode: "activate_and_start",
-        })
+        }),
+        expect.objectContaining({ pulseSessionInstanceId: null })
       );
     });
   });
@@ -152,7 +154,8 @@ describe("CreateExpertPresetPanel", () => {
           presetId: "story_builder",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
-        })
+        }),
+        expect.objectContaining({ pulseSessionInstanceId: null })
       );
     });
   });
@@ -181,7 +184,8 @@ describe("CreateExpertPresetPanel", () => {
           presetId: "story_builder",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
-        })
+        }),
+        expect.objectContaining({ pulseSessionInstanceId: null })
       );
     });
 
@@ -208,7 +212,7 @@ describe("CreateExpertPresetPanel", () => {
 
     expect(onActivePresetIdChange).not.toHaveBeenCalled();
     expect(onPresetStart).not.toHaveBeenCalled();
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(screen.getByRole("alert")).toHaveTextContent(
       "Wait for the current Pulse step to finish before switching."
     );
   });
@@ -415,7 +419,8 @@ describe("CreateExpertPresetPanel", () => {
           presetId: "ad_hook",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
-        })
+        }),
+        expect.objectContaining({ pulseSessionInstanceId: null })
       );
     });
 

@@ -37,35 +37,52 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
       eq: vi.fn().mockResolvedValue({ error: null }),
     });
     const profileUpsert = vi.fn().mockResolvedValue({ error: null });
+    const dueContractsResult = {
+      data: [
+        {
+          id: "contract-1",
+          user_id: "user-1",
+          plan_id: "business",
+          stripe_customer_id: "cus_123",
+          monthly_credits_cents: 12000,
+          current_period_start: "2026-03-01T00:00:00.000Z",
+          current_period_end: "2026-04-01T00:00:00.000Z",
+          status: "active",
+          contract_source: "internal_comp",
+        },
+      ],
+      error: null,
+    };
+    const emptyAnnualResult = { data: [], error: null };
+    const annualAfterIsResult = {
+      not: vi.fn().mockReturnValue({
+        lte: () => ({
+          order: () => ({
+            limit: async () => emptyAnnualResult,
+          }),
+        }),
+      }),
+    };
 
     getSupabaseAdminMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "billing_subscription_contracts") {
+          const annualQueryResult = {
+            is: vi.fn().mockReturnValue(annualAfterIsResult),
+          };
+          const dueQueryResult = {
+            order: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue(dueContractsResult),
+            }),
+          };
+          const secondEqResult = {
+            eq: vi.fn().mockReturnValue(annualQueryResult),
+            is: vi.fn().mockReturnValue(dueQueryResult),
+          };
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  is: vi.fn().mockReturnValue({
-                    order: vi.fn().mockReturnValue({
-                      limit: vi.fn().mockResolvedValue({
-                        data: [
-                          {
-                            id: "contract-1",
-                            user_id: "user-1",
-                            plan_id: "business",
-                            stripe_customer_id: "cus_123",
-                            monthly_credits_cents: 12000,
-                            current_period_start: "2026-03-01T00:00:00.000Z",
-                            current_period_end: "2026-04-01T00:00:00.000Z",
-                            status: "active",
-                            contract_source: "internal_comp",
-                          },
-                        ],
-                        error: null,
-                      }),
-                    }),
-                  }),
-                }),
+                eq: vi.fn().mockReturnValue(secondEqResult),
               }),
             }),
             update: contractUpdate,
@@ -119,35 +136,52 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
     contractUpdate.mockReturnValue({
       eq: vi.fn().mockResolvedValue({ error: null }),
     });
+    const dueContractsResult = {
+      data: [
+        {
+          id: "contract-1",
+          user_id: "user-1",
+          plan_id: "studio",
+          stripe_customer_id: null,
+          monthly_credits_cents: 3000,
+          current_period_start: "2026-03-01T00:00:00.000Z",
+          current_period_end: "2026-04-01T00:00:00.000Z",
+          status: "active",
+          contract_source: "internal_comp",
+        },
+      ],
+      error: null,
+    };
+    const emptyAnnualResult = { data: [], error: null };
+    const annualAfterIsResult = {
+      not: vi.fn().mockReturnValue({
+        lte: () => ({
+          order: () => ({
+            limit: async () => emptyAnnualResult,
+          }),
+        }),
+      }),
+    };
 
     getSupabaseAdminMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "billing_subscription_contracts") {
+          const annualQueryResult = {
+            is: vi.fn().mockReturnValue(annualAfterIsResult),
+          };
+          const dueQueryResult = {
+            order: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue(dueContractsResult),
+            }),
+          };
+          const secondEqResult = {
+            eq: vi.fn().mockReturnValue(annualQueryResult),
+            is: vi.fn().mockReturnValue(dueQueryResult),
+          };
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
-                  is: vi.fn().mockReturnValue({
-                    order: vi.fn().mockReturnValue({
-                      limit: vi.fn().mockResolvedValue({
-                        data: [
-                          {
-                            id: "contract-1",
-                            user_id: "user-1",
-                            plan_id: "studio",
-                            stripe_customer_id: null,
-                            monthly_credits_cents: 3000,
-                            current_period_start: "2026-03-01T00:00:00.000Z",
-                            current_period_end: "2026-04-01T00:00:00.000Z",
-                            status: "active",
-                            contract_source: "internal_comp",
-                          },
-                        ],
-                        error: null,
-                      }),
-                    }),
-                  }),
-                }),
+                eq: vi.fn().mockReturnValue(secondEqResult),
               }),
             }),
             update: contractUpdate,

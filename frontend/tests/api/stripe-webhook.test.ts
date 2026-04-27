@@ -763,7 +763,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     );
     expect(contractUpdateSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "canceled",
+        ended_at: "2024-01-01T00:00:00.000Z",
       })
     );
   });

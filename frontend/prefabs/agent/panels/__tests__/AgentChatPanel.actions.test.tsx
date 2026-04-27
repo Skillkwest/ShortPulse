@@ -169,6 +169,45 @@ describe("AgentChatPanel prompt actions", () => {
     ]);
   });
 
+  it("renders richer pulse-guided layouts with headings, reply chips, separators, and option cards", () => {
+    const { container } = render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content:
+              "# Which Camera Motion Should You Use?\n\nChoose one option below or *type your own custom motion*.\n\nReply with:\n\n1 2 3 ... 10\n\nor type your own camera motion\n\n---\n\n## Camera Motion Options\n\n1 — Static\nLocked-off camera on a tripod. No movement — only the subject or environment moves.\n\n2 — Selfie (Handheld POV)\nFront-facing, arm’s-length framing with natural bob and micro-shake.",
+          },
+        ]}
+        input=""
+        showInput={false}
+        assistantMessagePresentation="pulse_guided"
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("Which Camera Motion Should You Use?")).toBeInTheDocument();
+    expect(container.querySelector(".agent-message-rich-hint")).toHaveTextContent(
+      "Choose one option below or type your own custom motion."
+    );
+    expect(screen.getByText("Reply with:")).toBeInTheDocument();
+    expect(screen.getByText("Camera Motion Options")).toBeInTheDocument();
+    expect(screen.getByText("1 — Static")).toBeInTheDocument();
+    expect(screen.getByText("2 — Selfie (Handheld POV)")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Locked-off camera on a tripod. No movement — only the subject or environment moves."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Front-facing, arm’s-length framing with natural bob and micro-shake.")
+    ).toBeInTheDocument();
+    expect(container.querySelectorAll(".agent-message-rich-choice-chip")).toHaveLength(5);
+    expect(container.querySelector(".agent-message-rich-separator")).not.toBeNull();
+  });
+
   it("removes title-case step headings from pulse-guided assistant replies", () => {
     render(
       <AgentChatPanel
@@ -271,6 +310,7 @@ describe("AgentChatPanel prompt actions", () => {
       value: 1000,
     });
     messagesEl.scrollTop = 120;
+    fireEvent.scroll(messagesEl);
 
     rerender(
       <AgentChatPanel
@@ -280,6 +320,53 @@ describe("AgentChatPanel prompt actions", () => {
     );
 
     expect(messagesEl.scrollTop).toBe(120);
+    expect(screen.getByTestId("footer-two")).toBeInTheDocument();
+  });
+
+  it("keeps following new history while the user stays at the bottom", () => {
+    let scrollHeightPx = 1000;
+    const sharedProps = {
+      messages: [{ id: "a-1", role: "assistant" as const, content: "Assistant output one." }],
+      input: "",
+      showInput: false,
+      onInputChange: vi.fn(),
+      onSend: vi.fn(),
+    };
+    const { container, rerender } = render(
+      <AgentChatPanel
+        {...sharedProps}
+        historyFooterContent={<div data-testid="footer-one">Loading</div>}
+      />
+    );
+    const messagesEl = container.querySelector(".agent-messages") as HTMLDivElement;
+    Object.defineProperty(messagesEl, "clientHeight", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(messagesEl, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeightPx,
+    });
+    Object.defineProperty(messagesEl, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 600,
+    });
+    fireEvent.scroll(messagesEl);
+
+    scrollHeightPx = 1200;
+    rerender(
+      <AgentChatPanel
+        {...sharedProps}
+        messages={[
+          { id: "a-1", role: "assistant" as const, content: "Assistant output one." },
+          { id: "a-2", role: "assistant" as const, content: "Assistant output two." },
+        ]}
+        historyFooterContent={<div data-testid="footer-two">Loading</div>}
+      />
+    );
+
+    expect(messagesEl.scrollTop).toBe(1200);
     expect(screen.getByTestId("footer-two")).toBeInTheDocument();
   });
 

@@ -377,7 +377,7 @@ describe("sessionSnapshot", () => {
 
     const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
 
-    expect(projectSnapshot.workspace.expertCreateMode).toBe("pulse");
+    expect(projectSnapshot.workspace.expertCreateMode).toBe("standard");
     expect(projectSnapshot.workspace.selectedTool).toBe("create");
     expect(projectSnapshot.workspace.activePulsePresetId).toBeNull();
     expect(projectSnapshot.workspace.pulseSessionInstanceId).toBeNull();

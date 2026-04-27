@@ -24,6 +24,7 @@ const PROMPT_DRAG_GHOST_MIN_WIDTH_PX = 220;
 const PROMPT_DRAG_GHOST_MAX_WIDTH_PX = 360;
 const PROMPT_DRAG_GHOST_MAX_HEIGHT_PX = 220;
 const STAGED_AGENT_OUTPUT_MESSAGE_ID = "staged-agent-output";
+const CHAT_HISTORY_FOLLOW_THRESHOLD_PX = 24;
 const promptDragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 
 const clearPromptDragGhost = (source: HTMLElement) => {
@@ -145,6 +146,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   hideOutputGenerateControls = false,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
+  const shouldFollowHistoryRef = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const assistantMessageTextNodesRef = useRef<Map<string, HTMLElement>>(new Map());
@@ -183,9 +185,15 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     : "";
   const historyFooterVisible = Boolean(historyFooterContent);
 
+  const syncHistoryFollowState = useCallback((messagesEl: HTMLDivElement) => {
+    const scrollBottomGap =
+      messagesEl.scrollHeight - messagesEl.clientHeight - messagesEl.scrollTop;
+    shouldFollowHistoryRef.current = scrollBottomGap <= CHAT_HISTORY_FOLLOW_THRESHOLD_PX;
+  }, []);
+
   useEffect(() => {
     const messagesEl = messagesRef.current;
-    if (messagesEl) {
+    if (messagesEl && shouldFollowHistoryRef.current) {
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
   }, [
@@ -512,7 +520,12 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           stagedAttachments.length > 0 ||
           historyFooterContent ||
           shouldRenderThinkingInHistory ? (
-            <div className="agent-messages" aria-live="polite" ref={messagesRef}>
+            <div
+              className="agent-messages"
+              aria-live="polite"
+              ref={messagesRef}
+              onScroll={(event) => syncHistoryFollowState(event.currentTarget)}
+            >
               {introMessage ? (
                 <div className="agent-message agent-assistant agent-intro">
                   <p className="tiny">{introMessage.content}</p>

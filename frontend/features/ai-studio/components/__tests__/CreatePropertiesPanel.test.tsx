@@ -908,7 +908,7 @@ describe("CreatePropertiesPanel", () => {
     });
 
     expect(container.querySelector(".agent-messages")).toHaveStyle({
-      maxHeight: "min(58vh, 620px)",
+      maxHeight: "min(62vh, 680px)",
     });
   });
 
@@ -1233,7 +1233,7 @@ describe("CreatePropertiesPanel", () => {
         "true"
       );
       expect(
-        screen.getByText("Step 1 - Upload your characters. Please upload 1-3+ character images.")
+        screen.getByText(/Upload your characters\. Please upload 1-3\+ character images\./)
       ).toBeInTheDocument();
     });
   });

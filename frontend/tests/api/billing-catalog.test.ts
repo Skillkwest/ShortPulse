@@ -77,6 +77,7 @@ describe("GET /api/billing/catalog", () => {
                           {
                             id: "free__current",
                             plan_id: "free",
+                            billing_interval: "month",
                             recurring_price_cents: 0,
                             monthly_credits_cents: 100,
                             storage_limit_bytes: 1073741824,
@@ -88,6 +89,7 @@ describe("GET /api/billing/catalog", () => {
                           {
                             id: "studio__spring_promo",
                             plan_id: "studio",
+                            billing_interval: "month",
                             recurring_price_cents: 3900,
                             monthly_credits_cents: 3000,
                             storage_limit_bytes: 107374182400,
@@ -196,6 +198,19 @@ describe("GET /api/billing/catalog", () => {
           monthly_credits_cents: 100,
           storage_limit_bytes: 1073741824,
           is_active: true,
+          offers: {
+            month: {
+              id: "free__current",
+              billing_interval: "month",
+              recurring_price_cents: 0,
+              monthly_credits_cents: 100,
+              storage_limit_bytes: 1073741824,
+              stripe_price_id: undefined,
+              acquisition_enabled: true,
+              is_active: true,
+              effective_start_at: "2026-04-01T00:00:00.000Z",
+            },
+          },
         },
         {
           id: "studio",
@@ -205,6 +220,19 @@ describe("GET /api/billing/catalog", () => {
           monthly_credits_cents: 3000,
           storage_limit_bytes: 107374182400,
           is_active: true,
+          offers: {
+            month: {
+              id: "studio__spring_promo",
+              billing_interval: "month",
+              recurring_price_cents: 3900,
+              monthly_credits_cents: 3000,
+              storage_limit_bytes: 107374182400,
+              stripe_price_id: undefined,
+              acquisition_enabled: true,
+              is_active: true,
+              effective_start_at: "2026-04-15T00:00:00.000Z",
+            },
+          },
         },
       ],
       packages: [

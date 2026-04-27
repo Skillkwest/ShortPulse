@@ -54,6 +54,7 @@ export const createAiStudioProjectWorkspaceSnapshot = <
       workspace: {
         ...asRecord(baseSnapshot.workspace),
         selectedTool: "create",
+        expertCreateMode: "standard",
         activePulsePresetId: null,
         pulseSessionInstanceId: null,
       },
@@ -73,6 +74,9 @@ export const createAiStudioProjectWorkspaceSnapshot = <
     workspace: {
       ...asRecord(snapshot.workspace),
       selectedTool: "create",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
     },
     agent: emptyAgentRuntime,
   } as unknown as TSnapshot;

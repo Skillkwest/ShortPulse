@@ -41,7 +41,7 @@ type PulseGuidedMessageBlock =
     };
 
 const LABEL_LINE_PATTERN =
-  /^(?:[A-Z][A-Z\s/&-]{2,}|Step\s+\d+(?:\s*[-:]\s*.+)?|Current\s+step|Next\s+step|Tip|Options?)$/i;
+  /^(?:[A-Z][A-Z\s/&-]{2,}|Step\s+\d+|Current\s+step|Next\s+step|Tip|Options?)$/i;
 const QUESTION_LINE_PATTERN = /.+\?$/;
 const TITLE_CASE_LINE_PATTERN = /^(?:[A-Z][a-z0-9'’()/-]+(?:\s+[A-Z][a-z0-9'’()/-]+){0,7})$/;
 const HEADING_PREFIX_PATTERN = /^#{1,3}\s+(.+)$/;
@@ -51,7 +51,7 @@ const OPTION_CARD_PATTERN = /^(\d+)\s*[—-]\s*(.+)$/;
 const ORDERED_ITEM_PATTERN = /^\s*\d+[.)]\s+/;
 const BULLET_ITEM_PATTERN = /^\s*[-*•]\s+/;
 const HINT_LINE_PATTERN =
-  /^(?:Reply with|Type your own|Type one|Choose one|Pick one|You can also|If none fit|If you want)/i;
+  /^(?:Reply with|Type your own|or type your own|Type one|Choose one|Pick one|You can also|If none fit|If you want)/i;
 const SEPARATOR_PATTERN = /^(?:-{3,}|\*{3,}|_{3,})$/;
 
 const normalizeText = (value: string): string =>
@@ -69,12 +69,21 @@ const splitParagraphBlocks = (value: string): string[] =>
 const stripListPrefix = (value: string): string =>
   value.replace(ORDERED_ITEM_PATTERN, "").replace(BULLET_ITEM_PATTERN, "").trim();
 
+const stripFusedWorkflowLabel = (value: string): string => {
+  const match = value.match(/^Concept\s+(.+)$/i);
+  if (!match) return value;
+  const remainder = match[1]?.trim() ?? "";
+  if (!remainder) return value;
+  return remainder;
+};
+
 const stripWorkflowChrome = (value: string): string[] => {
   const lines = value
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
     .map((line) => line.replace(WORKFLOW_LABEL_PREFIX_PATTERN, "").trim())
+    .map(stripFusedWorkflowLabel)
     .filter((line) => line.length > 0);
 
   while (lines.length > 1 && LABEL_LINE_PATTERN.test(lines[0] ?? "")) {
@@ -190,7 +199,8 @@ const parsePulseGuidedMessageBlocks = (value: string): PulseGuidedMessageBlock[]
   const blocks = splitParagraphBlocks(value);
   const parsedBlocks: PulseGuidedMessageBlock[] = [];
 
-  for (const rawBlock of blocks) {
+  for (let blockIndex = 0; blockIndex < blocks.length; blockIndex += 1) {
+    const rawBlock = blocks[blockIndex] ?? "";
     const lines = stripWorkflowChrome(rawBlock);
     if (!lines.length) continue;
 
@@ -211,14 +221,18 @@ const parsePulseGuidedMessageBlocks = (value: string): PulseGuidedMessageBlock[]
     }
 
     if (REPLY_WITH_PATTERN.test(firstLine)) {
-      const replyLine = lines[1] ?? "";
-      const replyChoices = splitReplyChoices(replyLine);
+      const inlineReplyLine = lines[1] ?? "";
+      const lookaheadReplyLine = splitReplyChoices(blocks[blockIndex + 1] ?? "");
+      const replyChoices = splitReplyChoices(inlineReplyLine) ?? lookaheadReplyLine;
       if (replyChoices) {
         parsedBlocks.push({
           kind: "replyChoices",
           intro: firstLine.replace(/:?\s*$/, ":"),
           choices: replyChoices,
         });
+        if (!splitReplyChoices(inlineReplyLine) && lookaheadReplyLine) {
+          blockIndex += 1;
+        }
         if (lines.length > 2) {
           const rest = lines.slice(2).join("\n").trim();
           if (rest.length) {

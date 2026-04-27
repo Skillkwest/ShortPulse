@@ -120,10 +120,11 @@ describe("App AI Studio entry behavior", () => {
 
     renderApp();
 
-    expect(screen.getByRole("status")).toHaveTextContent("Opening AI Studio");
-    expect(screen.getByText("Checking your session before AI Studio opens.")).toBeInTheDocument();
-    expect(screen.getByText("AI Studio Access Check")).toBeInTheDocument();
-    expect(screen.getByLabelText("AI Studio access progress")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading project");
+    expect(
+      screen.getByText("Checking your session before project restore continues.")
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Project loading progress")).toBeInTheDocument();
     expect(screen.queryByTestId("page-content")).not.toBeInTheDocument();
   });
 
@@ -137,11 +138,11 @@ describe("App AI Studio entry behavior", () => {
 
     renderApp();
 
-    expect(screen.getByRole("status")).toHaveTextContent("Opening AI Studio");
+    expect(screen.getByRole("status")).toHaveTextContent("Loading project");
     expect(
-      screen.getByText("Checking your media agreement before the project workspace opens.")
+      screen.getByText("Checking your media agreement before project restore continues.")
     ).toBeInTheDocument();
-    expect(screen.getByText("Checking your media agreement…")).toBeInTheDocument();
+    expect(screen.getByLabelText("Project loading progress")).toBeInTheDocument();
   });
 
   it("keeps the explicit compliance form when acceptance is still required", () => {

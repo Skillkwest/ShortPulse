@@ -93,10 +93,12 @@ const createSupabaseAdminMock = (params: {
       return {
         select: () => ({
           eq: () => ({
-            maybeSingle: async () => ({
-              data: params.billingPlan ?? null,
-              error: null,
-            }),
+            maybeSingle: async () => {
+              return {
+                data: params.billingPlan ?? null,
+                error: null,
+              };
+            },
           }),
         }),
       };
@@ -107,14 +109,12 @@ const createSupabaseAdminMock = (params: {
         select: () => ({
           eq: (column: string, value: unknown) => {
             if (column === "plan_id") {
-              return {
-                eq: () => ({
-                  eq: async () => ({
-                    data: params.billingOffers ?? [],
-                    error: null,
-                  }),
-                }),
+              const result = {
+                data: params.billingOffers ?? [],
+                error: null,
+                eq: () => result,
               };
+              return result;
             }
 
             if (column === "stripe_price_id") {
@@ -187,6 +187,7 @@ describe("POST /api/billing/subscription/change", () => {
           plan_id: "media",
           stripe_subscription_id: "sub_123",
           stripe_price_id: "price_media",
+          billing_interval: "month",
           contract_source: "stripe",
         },
         billingPlan: {
@@ -199,6 +200,7 @@ describe("POST /api/billing/subscription/change", () => {
             id: "business__current",
             plan_id: "business",
             stripe_price_id: "price_business",
+            billing_interval: "month",
             recurring_price_cents: 12900,
             acquisition_enabled: true,
             is_active: true,
@@ -249,6 +251,7 @@ describe("POST /api/billing/subscription/change", () => {
           plan_id: "business",
           stripe_subscription_id: null,
           stripe_price_id: null,
+          billing_interval: "month",
           contract_source: "internal_comp",
         },
         billingPlan: {
@@ -261,6 +264,7 @@ describe("POST /api/billing/subscription/change", () => {
             id: "business__current",
             plan_id: "business",
             stripe_price_id: "price_business",
+            billing_interval: "month",
             recurring_price_cents: 12900,
             acquisition_enabled: true,
             is_active: true,
@@ -317,6 +321,7 @@ describe("POST /api/billing/subscription/change", () => {
             id: "business__current",
             plan_id: "business",
             stripe_price_id: "price_business",
+            billing_interval: "month",
             recurring_price_cents: 12900,
             acquisition_enabled: true,
             is_active: true,
@@ -327,6 +332,7 @@ describe("POST /api/billing/subscription/change", () => {
             id: "media_storage_100__current",
             plan_id: "media_storage_100",
             stripe_price_id: "price_storage_100",
+            billing_interval: "month",
             recurring_price_cents: 1000,
             acquisition_enabled: true,
             is_active: true,
@@ -378,6 +384,7 @@ describe("POST /api/billing/subscription/change", () => {
           plan_id: "media",
           stripe_subscription_id: "sub_123",
           stripe_price_id: "price_media",
+          billing_interval: "month",
           contract_source: "stripe",
         },
       })

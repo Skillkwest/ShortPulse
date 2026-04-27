@@ -118,17 +118,20 @@ describe("admin pricing mutation routes", () => {
               eq: () => ({
                 eq: () => ({
                   eq: () => ({
-                    is: () => ({
-                      limit: () => ({
-                        maybeSingle: async () => ({
-                          data: {
-                            id: "studio__current",
-                            recurring_price_cents: 3900,
-                            monthly_credits_cents: 3000,
-                            storage_limit_bytes: 107374182400,
-                            stripe_price_id: "price_studio_current",
-                          },
-                          error: null,
+                    eq: () => ({
+                      is: () => ({
+                        limit: () => ({
+                          maybeSingle: async () => ({
+                            data: {
+                              id: "studio__current",
+                              billing_interval: "month",
+                              recurring_price_cents: 3900,
+                              monthly_credits_cents: 3000,
+                              storage_limit_bytes: 107374182400,
+                              stripe_price_id: "price_studio_current",
+                            },
+                            error: null,
+                          }),
                         }),
                       }),
                     }),

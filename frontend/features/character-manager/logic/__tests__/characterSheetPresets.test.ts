@@ -51,11 +51,13 @@ describe("characterSheetPresets metadata helpers", () => {
       mediaFileId: "media-1",
       storagePath: "user/chars/presets/p1.png",
       previewUrl: null,
+      previewStoragePath: null,
     });
     expect(normalized.close_up).toEqual({
       mediaFileId: "media-2",
       storagePath: "user/chars/presets/p2.png",
       previewUrl: null,
+      previewStoragePath: null,
     });
     expect(normalized.front_shot).toBeNull();
   });
@@ -96,6 +98,7 @@ describe("characterSheetPresets metadata helpers", () => {
       mediaFileId: "media-portrait",
       storagePath: "user/chars/presets/portrait.png",
       previewUrl: null,
+      previewStoragePath: null,
     });
     expect(parsed?.tabOrder).toEqual(["1", "2", "3"]);
     expect(parsed?.tabLabels["1"]).toBe("Primary");

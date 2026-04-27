@@ -109,6 +109,12 @@ describe("studioAgentPulseRuntime", () => {
     expect(systemMessage).toContain("workflow_stage_hints:");
     expect(systemMessage).toContain("1. Image Gate");
     expect(systemMessage).toContain("3. Action Selection");
+    expect(systemMessage).toContain(
+      "Use a polished rich-guided layout for user-facing replies instead of flat plain text."
+    );
+    expect(systemMessage).toContain(
+      "Prefer markdown-like headings, short intro paragraphs, blank-line separated sections, separator lines, reply-choice rows, and numbered option cards when they improve scanability."
+    );
     expect(systemMessage).toContain("Continue from the active workflow_session_state.");
     expect(systemMessage).toContain(
       "Do not restart from the first step, substitute a different workflow, or invent a new intake step unless the user explicitly asks to restart."

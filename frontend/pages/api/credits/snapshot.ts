@@ -132,13 +132,7 @@ const fetchReservationSnapshot = async (userId: string): Promise<ReservationSnap
   }
 
   if (!isSchemaCompatibilityError(error.message ?? "")) {
-    // Degrade gracefully when reservation reads fail unexpectedly so
-    // balance snapshots remain available instead of hard-failing.
-    return {
-      reservedCents: 0,
-      updatedAt: null,
-      reservationsSupported: false,
-    };
+    throw new Error(error.message ?? "Unable to read active credit reservations.");
   }
 
   return {

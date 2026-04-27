@@ -158,7 +158,12 @@ export default function AiStudioPage() {
     setSavedPresets: setSavedCreatePulsePresets,
   } = useCreatePulsePresetPanelPreference();
   const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
-  const { modelPricingPolicy } = useActiveModelPricingPolicy({
+  const {
+    modelPricingPolicy,
+    modelPricingPolicyReady,
+    modelPricingPolicyLoading,
+    modelPricingPolicyError,
+  } = useActiveModelPricingPolicy({
     enabled: true,
   });
   const balanceCredits = useMemo(() => {
@@ -1087,6 +1092,9 @@ export default function AiStudioPage() {
     editSubmitIntent,
     costParamsForModel,
     pricingPolicy: modelPricingPolicy,
+    pricingPolicyReady: modelPricingPolicyReady,
+    pricingPolicyLoading: modelPricingPolicyLoading,
+    pricingPolicyError: modelPricingPolicyError,
   });
   const isCharacterLoadingGenerateDisabled = useMemo(() => {
     const hasUsableCreateCharacterBundle = hasUsableCharacterModeInjectionBundle({

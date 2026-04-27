@@ -170,7 +170,7 @@ describe("GET /api/credits/snapshot", () => {
     });
   });
 
-  it("degrades reservation support when reservation query returns an unexpected backend error", async () => {
+  it("fails closed when reservation query returns an unexpected backend error", async () => {
     getSupabaseAdminMock.mockReturnValue({
       from: (table: string) => {
         if (table === "ai_credit_balance") {
@@ -210,19 +210,11 @@ describe("GET /api/credits/snapshot", () => {
 
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
-      userId: "user-1",
-      availableCents: 900,
-      reservedCents: 0,
-      spendableCents: 900,
-      balanceUpdatedAt: "2026-02-16T20:41:20.000Z",
-      reservationsUpdatedAt: null,
-      updatedAt: "2026-02-16T20:41:20.000Z",
-      reservationsSupported: false,
-      source: "balance_table",
+      error: "Unable to load credit snapshot.",
     });
-    expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+    expect(logApiRouteExceptionMock).toHaveBeenCalledTimes(1);
   });
 
   it("clamps spendable credits to zero when active reservations exceed available balance", async () => {
@@ -304,7 +296,10 @@ describe("GET /api/credits/snapshot", () => {
         }
 
         if (table === "ai_credit_reservations") {
-          const chain = {
+          const chain: {
+            eq: (column: string, value: string) => typeof chain;
+            order: ReturnType<typeof vi.fn>;
+          } = {
             eq: vi.fn((column: string, value: string) => {
               userFilters.push({ table, column, value });
               return chain;

@@ -180,6 +180,34 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(true);
   });
 
+  it("blocks generation when model pricing policy is unavailable", () => {
+    const modelId = "gpt-image-2";
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        mode: "image",
+        selectedTool: "create",
+        model: modelId,
+        aspect: "1:1",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoReferenceMode: "standard",
+        imageResolution: "high",
+        costParamsForModel: makeCostParamsForModel(modelId),
+        pricingPolicyReady: false,
+        pricingPolicyLoading: false,
+        pricingPolicyError: "Failed to load model pricing policy.",
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBeNull();
+    expect(result.current.promptReferenceGenerateCostCredits).toBeNull();
+    expect(result.current.generationGuardrail).toBe(
+      "Pricing is temporarily unavailable. Reload and retry."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+  });
+
   it("computes model-picker credits from the candidate model defaults instead of the active model", () => {
     const activeModelId = "fal-ai/nano-banana-pro";
     const costParamsForModel = (

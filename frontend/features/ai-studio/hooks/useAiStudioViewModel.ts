@@ -59,6 +59,9 @@ type ViewModelInput = {
     overrides?: Omit<PricingParams, "modelId">
   ) => PricingParams;
   pricingPolicy?: PricingParams["pricingPolicy"];
+  pricingPolicyReady?: boolean;
+  pricingPolicyLoading?: boolean;
+  pricingPolicyError?: string | null;
 };
 
 export const useAiStudioViewModel = ({
@@ -89,6 +92,9 @@ export const useAiStudioViewModel = ({
   editSubmitIntent,
   costParamsForModel,
   pricingPolicy = null,
+  pricingPolicyReady = true,
+  pricingPolicyLoading = false,
+  pricingPolicyError = null,
 }: ViewModelInput) => {
   const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
   const isEditWorkflowSelected = isEditWorkflow(selectedTool);
@@ -138,6 +144,9 @@ export const useAiStudioViewModel = ({
   const hasSeedance2LinkedAssetReferences = klingElements.some(
     (element) => element.videoUrl.trim() || getAiStudioKlingElementReferenceUrls(element).length > 0
   );
+  const requiresResolvedPricingPolicy =
+    isVideoTool || isEditWorkflowSelected || isCreateWorkflowSelected;
+  const isPricingPolicyUnavailable = requiresResolvedPricingPolicy && !pricingPolicyReady;
 
   const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
   const estimatedDescribeTokens = useMemo(
@@ -146,6 +155,7 @@ export const useAiStudioViewModel = ({
   );
 
   const currentCost = useMemo(() => {
+    if (isPricingPolicyUnavailable) return null;
     if (isCreateWorkflowSelected) {
       if (mode === "image") {
         if (!model) return null;
@@ -220,11 +230,13 @@ export const useAiStudioViewModel = ({
     videoResolution,
     pricingImageResolution,
     videoGenerateAudio,
+    isPricingPolicyUnavailable,
   ]);
 
   const currentCostCredits = currentCost?.credits ?? null;
   // Cost shown in the model picker (also used by agent-output generation affordances).
   const modelPickerCostCredits = useMemo(() => {
+    if (isPricingPolicyUnavailable) return null;
     if (!effectiveEditSubmitModelId) return null;
     if (isKlingMotionMode && effectiveEditSubmitModelId === KIE_KLING_30_MODEL_ID) return null;
     const breakdown = computeCostForModel(
@@ -250,6 +262,7 @@ export const useAiStudioViewModel = ({
     isVideoTool,
     isImageTool,
     isKlingMotionMode,
+    isPricingPolicyUnavailable,
     pricingPolicy,
     pricingImageResolution,
     videoDurationSeconds,
@@ -259,6 +272,7 @@ export const useAiStudioViewModel = ({
 
   const resolveModelPickerCredits = useCallback(
     (modelIdForChip: string): number | null => {
+      if (isPricingPolicyUnavailable) return null;
       if (!modelIdForChip) return null;
       const breakdown = computeCostForModel(
         modelIdForChip,
@@ -281,6 +295,7 @@ export const useAiStudioViewModel = ({
     [
       costParamsForModel,
       isImageTool,
+      isPricingPolicyUnavailable,
       isVideoTool,
       pricingPolicy,
       pricingImageResolution,
@@ -291,6 +306,7 @@ export const useAiStudioViewModel = ({
   );
 
   const promptGenerateCostCredits = useMemo(() => {
+    if (isPricingPolicyUnavailable) return null;
     if (!effectiveEditSubmitModelId || !isImageTool) return null;
     const breakdown = computeCostForModel(
       effectiveEditSubmitModelId,
@@ -306,10 +322,12 @@ export const useAiStudioViewModel = ({
     costParamsForModel,
     effectiveEditSubmitModelId,
     isImageTool,
+    isPricingPolicyUnavailable,
     pricingImageResolution,
     pricingPolicy,
   ]);
   const createTextImageGenerateCostCredits = useMemo(() => {
+    if (isPricingPolicyUnavailable) return null;
     if (!isCreateWorkflowSelected || mode !== "text" || !effectiveEditSubmitModelId) return null;
     const breakdown = computeCostForModel(
       effectiveEditSubmitModelId,
@@ -325,6 +343,7 @@ export const useAiStudioViewModel = ({
     costParamsForModel,
     effectiveEditSubmitModelId,
     isCreateWorkflowSelected,
+    isPricingPolicyUnavailable,
     mode,
     pricingImageResolution,
     pricingPolicy,
@@ -349,10 +368,16 @@ export const useAiStudioViewModel = ({
       ? true
       : balanceCredits >= currentCostCredits;
   const isCreditGuardrail = costedFlow && !hasSufficientCreditsForCost;
-
   const generationGuardrail = useMemo(() => {
     if (requiresModelSelection && !isModelSelected)
       return "Select a model before running a generation.";
+    if (isPricingPolicyUnavailable) {
+      return pricingPolicyLoading
+        ? "Pricing is loading. Please wait before generating."
+        : pricingPolicyError
+          ? "Pricing is temporarily unavailable. Reload and retry."
+          : "Pricing is unavailable. Reload and retry.";
+    }
     if (isEditWorkflowSelected) {
       if (!referenceImageUrl) return "Add a reference image before generating.";
     }
@@ -448,12 +473,15 @@ export const useAiStudioViewModel = ({
     hasSufficientCreditsForPromptReferenceGenerate,
     hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
+    isPricingPolicyUnavailable,
     isVideoTool,
     isCreditGuardrail,
     isDescribeMode,
     isModelSelected,
     model,
     motionReferenceVideoUrl,
+    pricingPolicyError,
+    pricingPolicyLoading,
     referenceImageUrl,
     requiresModelSelection,
     klingMultiPrompts,

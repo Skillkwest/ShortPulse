@@ -21,6 +21,7 @@ type UseActiveModelPricingPolicyResult = {
   modelPricingPolicySnapshot: ModelPricingPolicySnapshot | null;
   modelPricingPolicyLoading: boolean;
   modelPricingPolicyError: string | null;
+  modelPricingPolicyReady: boolean;
   refreshModelPricingPolicy: () => Promise<void>;
 };
 
@@ -29,7 +30,7 @@ export const useActiveModelPricingPolicy = ({
 }: UseActiveModelPricingPolicyParams): UseActiveModelPricingPolicyResult => {
   const [modelPricingPolicySnapshot, setModelPricingPolicySnapshot] =
     useState<ModelPricingPolicySnapshot | null>(null);
-  const [modelPricingPolicyLoading, setModelPricingPolicyLoading] = useState(false);
+  const [modelPricingPolicyLoading, setModelPricingPolicyLoading] = useState(enabled);
   const [modelPricingPolicyError, setModelPricingPolicyError] = useState<string | null>(null);
 
   const fetchModelPricingPolicy = useCallback(async () => {
@@ -56,7 +57,6 @@ export const useActiveModelPricingPolicy = ({
 
       setModelPricingPolicySnapshot((payload as ModelPricingPolicyApiResponse).modelPolicy);
     } catch (error) {
-      setModelPricingPolicySnapshot(null);
       setModelPricingPolicyError(
         error instanceof Error ? error.message : "Failed to load model pricing policy."
       );
@@ -75,6 +75,7 @@ export const useActiveModelPricingPolicy = ({
     modelPricingPolicySnapshot,
     modelPricingPolicyLoading,
     modelPricingPolicyError,
+    modelPricingPolicyReady: modelPricingPolicySnapshot !== null,
     refreshModelPricingPolicy: fetchModelPricingPolicy,
   };
 };

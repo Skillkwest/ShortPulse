@@ -2,10 +2,7 @@
  * Tab data/cache controller for Media Library.
  * Owns media-tab fetch orchestration, prompt loading, cache staleness policy, and load-more wiring.
  */
-import {
-  resolveMediaListSelectColumns,
-  type MediaListProfile,
-} from "../../../lib/mediaListProfile";
+import { type MediaListProfile } from "../../../lib/mediaListProfile";
 import {
   useCallback,
   useEffect,
@@ -16,7 +13,6 @@ import {
 } from "react";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { MediaTab } from "../logic/mediaMoveRouting";
-import { MEDIA_LIST_API_ENABLED } from "../logic/mediaLibraryFeatureFlags";
 import { fetchMediaListPage } from "../logic/mediaListApi";
 import { resolveMediaFetchTransition, type MediaFetchReason } from "../logic/mediaFetchTransition";
 import { resolveMediaPreviewStoragePath } from "../logic/mediaPreviewStoragePath";
@@ -28,15 +24,11 @@ import {
 } from "./useMediaTabLoadMoreController";
 import {
   MEDIA_DATA_TABS,
-  buildCursorFromRows,
   createMediaTabBooleanState,
   createMediaTabRequestState,
-  getMediaDataTabForRow,
   mergePageRows,
   normalizeMediaSearchTerm,
-  withMediaSearchFilter,
   withUserScopedPromptQuery,
-  withMediaTabFilter,
   type MediaDataTab,
   type MediaTabCache,
   type MediaTabBooleanState,
@@ -303,73 +295,27 @@ export const useMediaTabDataController = <
           : null;
 
       try {
-        const supabase = ensureSupabaseQueryClient();
         const userId = await readSupabaseUserId();
         if (!userId) throw new Error("Not signed in");
         currentUserIdRef.current = userId;
 
-        let fetchedRows: TRow[] = [];
-        let derivedCursor = cursor;
-        let hasMore = false;
-        let apiSignedById = new Map<string, string>();
-        let usedListApi = false;
-
-        if (MEDIA_LIST_API_ENABLED) {
-          const profile = resolveProfileForSurface(surface);
-          const apiResult = await fetchMediaListPage<TRow>({
-            tab,
-            query: normalizedQuery,
-            cursor,
-            limit: pageSize,
-            surface,
-            profile,
-          });
-          if (apiResult) {
-            usedListApi = true;
-            fetchedRows = mergePageRows([], apiResult.rows).slice(0, pageSize);
-            derivedCursor = apiResult.nextCursor;
-            hasMore = apiResult.hasMore;
-            apiSignedById = apiResult.signedById;
-          }
+        const profile = resolveProfileForSurface(surface);
+        const apiResult = await fetchMediaListPage<TRow>({
+          tab,
+          query: normalizedQuery,
+          cursor,
+          limit: pageSize,
+          surface,
+          profile,
+        });
+        if (!apiResult) {
+          throw new Error("Unable to load media.");
         }
 
-        if (!usedListApi) {
-          const selectColumns = resolveMediaListSelectColumns(resolveProfileForSurface(surface));
-          const buildBaseQuery = () => {
-            let query = supabase.from("media_files").select(selectColumns).eq("user_id", userId);
-            query = withMediaTabFilter(query, tab);
-            query = withMediaSearchFilter(query, normalizedQuery);
-            return query
-              .order("created_at", { ascending: false })
-              .order("id", { ascending: false });
-          };
-
-          if (!cursor) {
-            const firstPageResponse = await buildBaseQuery().limit(pageSize);
-            if (firstPageResponse.error) throw firstPageResponse.error;
-            fetchedRows = (firstPageResponse.data ?? []) as unknown as TRow[];
-          } else {
-            const sameTimestampResponse = await buildBaseQuery()
-              .eq("created_at", cursor.createdAt)
-              .lt("id", cursor.id)
-              .limit(pageSize);
-            if (sameTimestampResponse.error) throw sameTimestampResponse.error;
-            const sameTimestampRows = (sameTimestampResponse.data ?? []) as unknown as TRow[];
-            fetchedRows = [...sameTimestampRows];
-
-            const remaining = pageSize - sameTimestampRows.length;
-            if (remaining > 0) {
-              const olderRowsResponse = await buildBaseQuery()
-                .lt("created_at", cursor.createdAt)
-                .limit(remaining);
-              if (olderRowsResponse.error) throw olderRowsResponse.error;
-              fetchedRows.push(...((olderRowsResponse.data ?? []) as unknown as TRow[]));
-            }
-          }
-          fetchedRows = mergePageRows([], fetchedRows).slice(0, pageSize);
-          derivedCursor = buildCursorFromRows(fetchedRows);
-          hasMore = fetchedRows.length === pageSize && Boolean(derivedCursor);
-        }
+        const fetchedRows = mergePageRows([], apiResult.rows).slice(0, pageSize);
+        const derivedCursor = apiResult.nextCursor;
+        const hasMore = apiResult.hasMore;
+        const apiSignedById = apiResult.signedById;
 
         if (isStaleRequest()) return;
         const existingById = new Map(cache.rows.map((row) => [row.id, row]));

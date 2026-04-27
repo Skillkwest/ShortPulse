@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { useRef, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaTabDataController } from "../useMediaTabDataController";
+import { fetchMediaListPage } from "../../logic/mediaListApi";
 import { resolveMediaSigningStoragePaths } from "../../../../lib/mediaPreviewPath";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 import {
@@ -12,6 +13,9 @@ import {
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
   classifyMediaPreviewPath: vi.fn(() => "unknown"),
   resolveMediaSigningStoragePaths: vi.fn(),
+  resolvePreferredMediaSigningStoragePath: vi.fn(
+    (row: { storage_path?: string | null }) => row.storage_path ?? null
+  ),
 }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
@@ -19,14 +23,11 @@ vi.mock("../../../../lib/supabaseClient", () => ({
   readSupabaseUserId: vi.fn(),
 }));
 
-vi.mock("../../logic/mediaLibraryFeatureFlags", () => ({
-  MEDIA_LIST_API_ENABLED: false,
-}));
-
 vi.mock("../../logic/mediaListApi", () => ({
   fetchMediaListPage: vi.fn(async () => null),
 }));
 
+const fetchMediaListPageMock = vi.mocked(fetchMediaListPage);
 const resolveMediaSigningStoragePathsMock = vi.mocked(resolveMediaSigningStoragePaths);
 const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
 const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
@@ -62,39 +63,6 @@ const makeRow = (overrides: Partial<Row> = {}): Row => ({
   ...overrides,
 });
 
-const createMediaClient = (rows: Row[]) => {
-  const queryBuilder = {
-    eq: vi.fn().mockReturnThis(),
-    ilike: vi.fn().mockReturnThis(),
-    limit: vi.fn(async () => ({ data: rows, error: null })),
-    lt: vi.fn().mockReturnThis(),
-    or: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-  };
-
-  return {
-    from: vi.fn((table: string) => {
-      if (table === "media_files") {
-        return {
-          select: vi.fn(() => queryBuilder),
-        };
-      }
-      if (table === "media_prompts") {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn().mockReturnValue({
-              order: vi.fn().mockReturnValue({
-                order: vi.fn(async () => ({ data: [], error: null })),
-              }),
-            }),
-          })),
-        };
-      }
-      throw new Error(`Unexpected table: ${table}`);
-    }),
-  };
-};
-
 const createDeferred = <T>() => {
   let resolve!: (value: T | PromiseLike<T>) => void;
   let reject!: (reason?: unknown) => void;
@@ -110,6 +78,12 @@ describe("useMediaTabDataController", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
     readSupabaseUserIdMock.mockResolvedValue("user-1");
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+    });
     resolveMediaSigningStoragePathsMock.mockImplementation(
       (row: { storage_path?: string | null }) => [row.storage_path ?? ""]
     );
@@ -271,15 +245,22 @@ describe("useMediaTabDataController", () => {
   });
 
   it("fetches a media page and normalizes preview fields", async () => {
-    const supabaseClient = createMediaClient([
-      makeRow({
-        id: "row-fetch",
-        filename: "fresh.png",
-        storage_path: "user-1/images/fresh.png",
-        source: undefined,
-      }),
-    ]);
-    ensureSupabaseQueryClientMock.mockReturnValue(supabaseClient as never);
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [
+        makeRow({
+          id: "row-fetch",
+          filename: "fresh.png",
+          storage_path: "user-1/images/fresh.png",
+          source: undefined,
+        }),
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map([["row-fetch", "https://signed.example/fresh.png"]]),
+    });
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn(),
+    } as never);
 
     const { result } = renderHook(() => {
       const [files, setFiles] = useState<Row[]>([]);
@@ -350,8 +331,79 @@ describe("useMediaTabDataController", () => {
       id: "row-fetch",
       preview_storage_path: "user-1/images/fresh.png",
       source: "upload",
+      signedUrl: "https://signed.example/fresh.png",
     });
     expect(result.current.currentUserIdRef.current).toBe("user-1");
+  });
+
+  it("surfaces an error when the list API cannot fulfill the request", async () => {
+    fetchMediaListPageMock.mockResolvedValue(null);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([]);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => {
+        const cache = createMediaTabCacheState<Row>();
+        cache.uploaded_images = {
+          ...cache.uploaded_images,
+          loaded: true,
+          loadedAtMs: Date.now(),
+          query: "",
+        };
+        return cache;
+      });
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      const tabData = useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "",
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-route",
+        currentUserIdRef,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        files,
+        loading,
+        mediaTabCache,
+        prompts,
+        tabData,
+      };
+    });
+
+    await act(async () => {
+      await result.current.tabData.fetchMediaTabPage("uploaded_images", {
+        query: "",
+        reset: true,
+      });
+    });
+
+    expect(result.current.error).toBe("Unable to load media.");
+    expect(result.current.mediaTabCache.uploaded_images.error).toBe("Unable to load media.");
+    expect(result.current.files).toEqual([]);
   });
 
   it("keeps existing rows visible while stale refresh is unresolved", async () => {
@@ -361,35 +413,15 @@ describe("useMediaTabDataController", () => {
       storage_path: "user-1/images/stale.png",
       created_at: "2026-02-14T00:00:00.000Z",
     });
-    const deferred = createDeferred<{ data: Row[]; error: null }>();
-    const queryBuilder = {
-      eq: vi.fn().mockReturnThis(),
-      ilike: vi.fn().mockReturnThis(),
-      limit: vi.fn(() => deferred.promise),
-      lt: vi.fn().mockReturnThis(),
-      or: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-    };
+    const deferred = createDeferred<{
+      rows: Row[];
+      nextCursor: { createdAt: string; id: string } | null;
+      hasMore: boolean;
+      signedById: Map<string, string>;
+    }>();
+    fetchMediaListPageMock.mockImplementation(() => deferred.promise);
     ensureSupabaseQueryClientMock.mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table === "media_files") {
-          return {
-            select: vi.fn(() => queryBuilder),
-          };
-        }
-        if (table === "media_prompts") {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  order: vi.fn(async () => ({ data: [], error: null })),
-                }),
-              }),
-            })),
-          };
-        }
-        throw new Error(`Unexpected table: ${table}`);
-      }),
+      from: vi.fn(),
     } as never);
 
     const { result } = renderHook(() => {
@@ -461,8 +493,13 @@ describe("useMediaTabDataController", () => {
     ]);
 
     deferred.resolve({
-      data: [existingRow],
-      error: null,
+      rows: [existingRow],
+      nextCursor: {
+        createdAt: existingRow.created_at,
+        id: existingRow.id,
+      },
+      hasMore: true,
+      signedById: new Map(),
     });
     await waitFor(() => {
       expect(result.current.mediaTabCache.uploaded_images.loading).toBe(false);
@@ -482,34 +519,17 @@ describe("useMediaTabDataController", () => {
       storage_path: "user-1/images/newer.png",
       created_at: "2026-02-13T00:00:00.000Z",
     });
-    const queryBuilder = {
-      eq: vi.fn().mockReturnThis(),
-      ilike: vi.fn().mockReturnThis(),
-      limit: vi.fn(async () => ({ data: [rowTwo], error: null })),
-      lt: vi.fn().mockReturnThis(),
-      or: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-    };
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [rowTwo],
+      nextCursor: {
+        createdAt: rowTwo.created_at,
+        id: rowTwo.id,
+      },
+      hasMore: true,
+      signedById: new Map(),
+    });
     ensureSupabaseQueryClientMock.mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table === "media_files") {
-          return {
-            select: vi.fn(() => queryBuilder),
-          };
-        }
-        if (table === "media_prompts") {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  order: vi.fn(async () => ({ data: [], error: null })),
-                }),
-              }),
-            })),
-          };
-        }
-        throw new Error(`Unexpected table: ${table}`);
-      }),
+      from: vi.fn(),
     } as never);
 
     const { result } = renderHook(() => {
@@ -594,37 +614,17 @@ describe("useMediaTabDataController", () => {
       data: { session: { user: { id: string } } };
       error: null;
     }>();
-    const queryBuilder = {
-      eq: vi.fn().mockReturnThis(),
-      ilike: vi.fn().mockReturnThis(),
-      limit: vi.fn(async () => ({ data: [makeRow({ id: "row-overlap-1" })], error: null })),
-      lt: vi.fn().mockReturnThis(),
-      or: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-    };
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [makeRow({ id: "row-overlap-1" })],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+    });
     readSupabaseUserIdMock.mockImplementation(() =>
       sessionDeferred.promise.then((value) => value.data.session.user.id)
     );
     ensureSupabaseQueryClientMock.mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table === "media_files") {
-          return {
-            select: vi.fn(() => queryBuilder),
-          };
-        }
-        if (table === "media_prompts") {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  order: vi.fn(async () => ({ data: [], error: null })),
-                }),
-              }),
-            })),
-          };
-        }
-        throw new Error(`Unexpected table: ${table}`);
-      }),
+      from: vi.fn(),
     } as never);
 
     const { result } = renderHook(() => {
@@ -760,34 +760,17 @@ describe("useMediaTabDataController", () => {
         .mockImplementationOnce(() =>
           secondSessionDeferred.promise.then((value) => value.data.session.user.id)
         );
-      const queryBuilder = {
-        eq: vi.fn().mockReturnThis(),
-        ilike: vi.fn().mockReturnThis(),
-        limit: vi.fn(async () => ({ data: [makeRow({ id: "row-auto-1" })], error: null })),
-        lt: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        order: vi.fn().mockReturnThis(),
-      };
+      fetchMediaListPageMock.mockResolvedValue({
+        rows: [makeRow({ id: "row-auto-1" })],
+        nextCursor: {
+          createdAt: "2026-02-14T00:00:00.000Z",
+          id: "row-auto-1",
+        },
+        hasMore: true,
+        signedById: new Map(),
+      });
       ensureSupabaseQueryClientMock.mockReturnValue({
-        from: vi.fn((table: string) => {
-          if (table === "media_files") {
-            return {
-              select: vi.fn(() => queryBuilder),
-            };
-          }
-          if (table === "media_prompts") {
-            return {
-              select: vi.fn(() => ({
-                eq: vi.fn().mockReturnValue({
-                  order: vi.fn().mockReturnValue({
-                    order: vi.fn(async () => ({ data: [], error: null })),
-                  }),
-                }),
-              })),
-            };
-          }
-          throw new Error(`Unexpected table: ${table}`);
-        }),
+        from: vi.fn(),
       } as never);
 
       const { result } = renderHook(() => {
@@ -930,34 +913,17 @@ describe("useMediaTabDataController", () => {
       storage_path: "user-1/images/steady.png",
       created_at: "2026-02-14T00:00:00.000Z",
     });
-    const queryBuilder = {
-      eq: vi.fn().mockReturnThis(),
-      ilike: vi.fn().mockReturnThis(),
-      limit: vi.fn(async () => ({ data: [rowOne], error: null })),
-      lt: vi.fn().mockReturnThis(),
-      or: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-    };
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [rowOne],
+      nextCursor: {
+        createdAt: rowOne.created_at,
+        id: rowOne.id,
+      },
+      hasMore: true,
+      signedById: new Map(),
+    });
     ensureSupabaseQueryClientMock.mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table === "media_files") {
-          return {
-            select: vi.fn(() => queryBuilder),
-          };
-        }
-        if (table === "media_prompts") {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockReturnValue({
-                  order: vi.fn(async () => ({ data: [], error: null })),
-                }),
-              }),
-            })),
-          };
-        }
-        throw new Error(`Unexpected table: ${table}`);
-      }),
+      from: vi.fn(),
     } as never);
 
     const { result } = renderHook(() => {

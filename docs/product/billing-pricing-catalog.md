@@ -12,7 +12,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 ## Source of truth
 
 - Public acquisition pricing shown in UI is loaded from current acquisition offer rows plus shared metadata:
-  - `billing_plan_offers` for current recurring plan prices, credits, and storage
+  - `billing_plan_offers` for current recurring plan prices, credits, storage, and billing interval
   - `billing_plans` for shared plan metadata such as stable ids, display names, Stripe product linkage, and UI ordering
   - `billing_credit_packages`
   - `billing_storage_addon_offers` for current recurring storage add-on prices and capacity
@@ -41,6 +41,9 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 ## Subscriber pricing policy
 
 - Public offers can change over time for new purchases.
+- Recurring plan pricing is now interval-aware:
+  - monthly and annual recurring offers are versioned separately in `billing_plan_offers`
+  - only one current acquisition-enabled offer may exist per `plan_id + billing_interval`
 - Existing subscribers keep the recurring price and included monthly credits from the offer they originally bought while the subscription remains continuously active.
 - Plan changes move the subscriber onto the current public offer for the target plan unless an operator explicitly preserves a legacy contract.
 - Canceling and later restarting defaults to the current public offer rather than restoring the old legacy price automatically.
@@ -48,15 +51,19 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - internal/admin comp access is never acquisition-enabled
   - internal comp contracts use hidden offers with `recurring_price_cents = 0`
   - monthly renewals for internal comp contracts come from the internal renewal runner, not Stripe invoices
+- Annual billing policy:
+  - annual subscribers pay yearly but still receive credits monthly
+  - `billing_subscription_contracts.next_credit_grant_at` tracks the next monthly allocation due inside the active annual term
+  - annual monthly allocations are processed by the secured billing renewal runner rather than by annual Stripe invoices alone
 
 ## Current catalog (2026-02-10)
 
 ### Subscription plans
 
 - `free`: `$0`, `100` credits/month, `1 GB`
-- `media`: `$12`, `600` credits/month, `25 GB`
-- `studio`: `$39`, `3,000` credits/month, `100 GB`
-- `business`: `$129`, `12,000` credits/month, `500 GB`
+- `media`: `$12/month` or `$120/year`, `600` credits/month, `25 GB`
+- `studio`: `$39/month` or `$390/year`, `3,000` credits/month, `100 GB`
+- `business`: `$129/month` or `$1,392/year`, `12,000` credits/month, `500 GB`
 
 ### Recurring storage add-ons
 

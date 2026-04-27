@@ -35,7 +35,7 @@ The prior Pulse runtime program is already closed. This scope is not a continuat
 3. Standard and Pulse are separate operating modes.
 4. Standard and Pulse do not implicitly share transcript history, staged attachments, hidden runtime context, workflow session state, or optional memory.
 5. Switching Pulses starts a fresh Pulse session by default.
-6. Leaving Pulse mode deactivates Pulse runtime completely.
+6. Temporarily leaving Pulse mode hides Pulse while preserving the live hidden Pulse runtime until explicit deactivate/restart/change-Pulse actions clear it.
 7. Custom Pulse authoring is centered on:
    - `Name`
    - `System Instructions`
@@ -51,7 +51,7 @@ The prior Pulse runtime program is already closed. This scope is not a continuat
 | `clear` in Pulse | Clear the current Pulse session and deactivate the active Pulse. | Remove Pulse transcript/attachments/workflow state, clear `activePulseId`, and leave Pulse mode active with the rail visible but no active Pulse runtime. |
 | `restartPulse` | Restart the currently active Pulse immediately. | Keep Pulse mode active, preserve the selected Pulse id, clear current Pulse session state, and start a fresh session for that same Pulse. |
 | `deactivatePulse` | Explicitly stop the active Pulse without leaving Pulse mode. | Clear `activePulseId`, clear Pulse transcript/attachments/workflow state, and leave Pulse mode active with no active Pulse runtime. |
-| `exitPulse` | Leave Pulse mode and return to Standard mode. | Deactivate any active Pulse, clear Pulse runtime state, hide the Pulse rail, and restore only Standard-owned state. No Pulse transcript or hidden runtime context carries back into Standard. |
+| `exitPulse` | Leave Pulse mode and return to Standard mode. | Hide the Pulse rail, restore only Standard-owned visible state, and keep the live hidden Pulse runtime available for a same-session return to Pulse. Explicit deactivate/restart/change-Pulse actions remain the only clear/reset owners for that hidden Pulse runtime. |
 
 ## Non-Goals
 1. No broad AI Studio redesign outside the Standard/Pulse contract.
@@ -182,7 +182,7 @@ This scope is done when all of the following are true:
 1. Standard and Pulse are truly isolated by runtime behavior and tests.
 2. Clicking any Pulse starts it immediately and reliably.
 3. Switching Pulses starts a fresh Pulse session by default.
-4. Leaving Pulse mode deactivates Pulse runtime completely.
+4. Temporarily leaving Pulse mode preserves the live hidden Pulse runtime until explicit deactivate/restart/change-Pulse actions clear it.
 5. One controller is the explicit source of truth for mode and Pulse runtime ownership.
 6. Transitional duplicate ownership paths have been removed.
 7. Custom Pulse authoring matches the custom-GPT mental model.

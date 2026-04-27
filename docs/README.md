@@ -115,6 +115,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`
 - `docs/sops/sop_ai_studio_agent_safety_control_plane.md`
 - `docs/sops/sop_ai_studio_agent_rollout_operations.md`
+- `docs/sops/sop_ai_studio_pulse_mode.md`
 - `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`
 - `docs/sops/sop_ai_studio_projects_foundation.md`
 - `docs/sops/sop_ai_studio_style_creator.md`

@@ -55,7 +55,7 @@ create table if not exists billing_plan_offers (
     storage_limit_bytes bigint not null check (storage_limit_bytes >= 0),
     stripe_price_id text unique,
     currency text not null default 'usd' check (currency = lower(currency)),
-    billing_interval text not null default 'month' check (billing_interval in ('month')),
+    billing_interval text not null default 'month' check (billing_interval in ('month', 'year')),
     acquisition_enabled boolean not null default false,
     is_active boolean not null default true,
     effective_start_at timestamptz,
@@ -66,7 +66,7 @@ create table if not exists billing_plan_offers (
 
 create index if not exists ix_billing_plan_offers_plan on billing_plan_offers (plan_id);
 create unique index if not exists ux_billing_plan_offers_current_acquisition
-    on billing_plan_offers (plan_id)
+    on billing_plan_offers (plan_id, billing_interval)
     where acquisition_enabled = true and is_active = true and effective_end_at is null;
 
 insert into billing_plan_offers (
@@ -77,6 +77,7 @@ insert into billing_plan_offers (
     monthly_credits_cents,
     storage_limit_bytes,
     stripe_price_id,
+    billing_interval,
     acquisition_enabled,
     is_active,
     effective_start_at
@@ -89,6 +90,7 @@ select
     p.monthly_credits_cents,
     p.storage_limit_bytes,
     p.stripe_price_id,
+    'month',
     p.is_active,
     p.is_active,
     now()
@@ -99,6 +101,7 @@ set offer_name = excluded.offer_name,
     monthly_credits_cents = excluded.monthly_credits_cents,
     storage_limit_bytes = excluded.storage_limit_bytes,
     stripe_price_id = excluded.stripe_price_id,
+    billing_interval = excluded.billing_interval,
     acquisition_enabled = excluded.acquisition_enabled,
     is_active = excluded.is_active;
 
@@ -110,14 +113,15 @@ insert into billing_plan_offers (
     monthly_credits_cents,
     storage_limit_bytes,
     stripe_price_id,
+    billing_interval,
     acquisition_enabled,
     is_active,
     effective_start_at
 )
 values
-    ('media__internal_comp', 'media', 'Media Internal Comp', 0, 600, 25::bigint * 1024 * 1024 * 1024, null, false, true, now()),
-    ('studio__internal_comp', 'studio', 'Studio Internal Comp', 0, 3000, 100::bigint * 1024 * 1024 * 1024, null, false, true, now()),
-    ('business__internal_comp', 'business', 'Business Internal Comp', 0, 12000, 500::bigint * 1024 * 1024 * 1024, null, false, true, now())
+    ('media__internal_comp', 'media', 'Media Internal Comp', 0, 600, 25::bigint * 1024 * 1024 * 1024, null, 'month', false, true, now()),
+    ('studio__internal_comp', 'studio', 'Studio Internal Comp', 0, 3000, 100::bigint * 1024 * 1024 * 1024, null, 'month', false, true, now()),
+    ('business__internal_comp', 'business', 'Business Internal Comp', 0, 12000, 500::bigint * 1024 * 1024 * 1024, null, 'month', false, true, now())
 on conflict (id) do update
 set offer_name = excluded.offer_name,
     recurring_price_cents = excluded.recurring_price_cents,
@@ -237,11 +241,13 @@ create table if not exists billing_subscription_contracts (
     monthly_credits_cents integer not null check (monthly_credits_cents >= 0),
     storage_limit_bytes bigint not null check (storage_limit_bytes >= 0),
     currency text not null default 'usd' check (currency = lower(currency)),
-    billing_interval text not null default 'month' check (billing_interval in ('month')),
+    billing_interval text not null default 'month' check (billing_interval in ('month', 'year')),
     status text not null default 'inactive',
     contract_source text not null default 'stripe' check (contract_source in ('stripe', 'internal_comp')),
     current_period_start timestamptz,
     current_period_end timestamptz,
+    last_credit_grant_at timestamptz,
+    next_credit_grant_at timestamptz,
     cancel_at_period_end boolean not null default false,
     granted_by_user_id uuid references auth.users(id) on delete set null,
     grant_reason text,
@@ -256,6 +262,9 @@ create index if not exists ix_billing_subscription_contracts_user on billing_sub
 create index if not exists ix_billing_subscription_contracts_plan on billing_subscription_contracts (plan_id);
 create index if not exists ix_billing_subscription_contracts_status on billing_subscription_contracts (status);
 create index if not exists ix_billing_subscription_contracts_contract_source on billing_subscription_contracts (contract_source, status);
+create index if not exists ix_billing_subscription_contracts_next_credit_grant
+    on billing_subscription_contracts (next_credit_grant_at)
+    where ended_at is null and status = 'active' and billing_interval = 'year' and contract_source = 'stripe';
 create unique index if not exists ux_billing_subscription_contracts_current_user
     on billing_subscription_contracts (user_id)
     where ended_at is null;
@@ -298,6 +307,7 @@ insert into billing_subscription_contracts (
     recurring_price_cents,
     monthly_credits_cents,
     storage_limit_bytes,
+    billing_interval,
     status,
     current_period_end,
     started_at,
@@ -313,6 +323,7 @@ select
     p.monthly_price_cents,
     p.monthly_credits_cents,
     p.storage_limit_bytes,
+    'month',
     bp.subscription_status,
     bp.current_period_end,
     coalesce(bp.created_at, now()),

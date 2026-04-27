@@ -2,10 +2,16 @@
  * Subscription section for the profile workspace.
  * Presents the active plan summary and public plan catalog using the shared settings panel language.
  */
-import { CheckCircle, WarningCircle } from "phosphor-react";
+import { Receipt, WarningCircle } from "phosphor-react";
 import { buildPlanView, getPlanTierRank, type BillingPlanRecord } from "../../billing/catalog";
 import { formatStorageBytes } from "../../billing/storage";
-import { formatCurrencyFromCents } from "../profilePageModel";
+import {
+  formatCurrencyAmount,
+  formatCurrencyFromCents,
+  formatDateTimeLabel,
+  formatStatusLabel,
+  type SubscriptionTransaction,
+} from "../profilePageModel";
 
 type ActivePlanView = ReturnType<typeof buildPlanView>;
 
@@ -16,13 +22,14 @@ type ProfileSubscriptionSectionProps = {
   currentSubscriptionCreditsCents: number;
   currentSubscriptionPriceCents: number;
   currentSubscriptionStorageLimitBytes: number;
-  subscriptionStatusLabel: string;
   subscriptionRenewalText: string;
-  contractDescriptor: string;
   billingPlans: BillingPlanRecord[];
   billingPlansLoading: boolean;
   isInternalCompContract: boolean;
   planChangeLoadingPlanId: string | null;
+  subscriptionTransactions: SubscriptionTransaction[];
+  subscriptionTransactionsLoading: boolean;
+  subscriptionTransactionsError: string | null;
   onRequestPlanChange: (planId: string) => void;
   onRequestCancel: (planId: string) => void;
 };
@@ -37,16 +44,29 @@ export function ProfileSubscriptionSection({
   currentSubscriptionCreditsCents,
   currentSubscriptionPriceCents,
   currentSubscriptionStorageLimitBytes,
-  subscriptionStatusLabel,
   subscriptionRenewalText,
-  contractDescriptor,
   billingPlans,
   billingPlansLoading,
   isInternalCompContract,
   planChangeLoadingPlanId,
+  subscriptionTransactions,
+  subscriptionTransactionsLoading,
+  subscriptionTransactionsError,
   onRequestPlanChange,
   onRequestCancel,
 }: ProfileSubscriptionSectionProps) {
+  const renewalHelperText =
+    subscriptionRenewalText === "Not scheduled"
+      ? "No active renewal is scheduled"
+      : "Plan term refreshes automatically";
+  const monthlyCreditsHelperText = "Credits added each renewal cycle";
+  const storageIncludedHelperText = "Included with your base plan";
+  const activeAddonsHelperText =
+    activeAddonStorageBytes > 0
+      ? "Recurring storage add-ons renew monthly"
+      : "No recurring storage add-ons active";
+  const showRenewalChip = activePlan.id !== "free";
+
   return (
     <>
       <details className="panel profile-detail-panel profile-billing-how">
@@ -58,55 +78,52 @@ export function ProfileSubscriptionSection({
         </p>
       </details>
 
-      <div className="profile-summary-grid">
-        <article className="panel profile-summary-card">
-          <p className="tiny subdued">Current plan</p>
-          <p className="summary-value">{activePlan.displayName}</p>
-          <p className="tiny subdued">{activePlan.description}</p>
-        </article>
-
-        <article className="panel profile-summary-card">
-          <p className="tiny subdued">Current recurring price</p>
-          <p className="summary-value small">
-            {formatCurrencyFromCents(currentSubscriptionPriceCents)} / month
-          </p>
-          <p className="tiny subdued">{contractDescriptor}</p>
-        </article>
-
-        <article className="panel profile-summary-card">
-          <p className="tiny subdued">Status</p>
-          <p className="summary-value small">{subscriptionStatusLabel}</p>
-          <p className="tiny subdued">{subscriptionRenewalText}</p>
-        </article>
-
-        <article className="panel profile-summary-card">
-          <p className="tiny subdued">Monthly credits</p>
-          <p className="summary-value">{currentSubscriptionCreditsCents.toLocaleString()}</p>
-          <p className="tiny subdued">Renews automatically each billing cycle</p>
-        </article>
-
-        <article className="panel profile-summary-card">
-          <p className="tiny subdued">Storage included</p>
-          <p className="summary-value small">
-            {formatStorageBytes(currentSubscriptionStorageLimitBytes)}
-          </p>
+      <article
+        className={`panel profile-hero-card profile-subscription-hero-card ${activePlan.className}`}
+      >
+        <div className="profile-hero-copy">
+          <p className="eyebrow">Current plan</p>
+          <h2 className="profile-hero-title">Your subscription</h2>
+          <p className="profile-hero-value profile-hero-value-text">{activePlan.displayName}</p>
           <p className="tiny subdued">
-            {activeAddonStorageBytes > 0
-              ? `${formatStorageBytes(activeAddonStorageBytes)} extra from active add-ons`
-              : "Base plan capacity before any recurring add-ons"}
+            {formatCurrencyFromCents(currentSubscriptionPriceCents)} / month ·{" "}
+            {activePlan.description}
           </p>
-        </article>
-      </div>
+        </div>
 
-      {isInternalCompContract ? (
-        <aside className="profile-callout">
-          <WarningCircle size={18} />
-          <p className="tiny">
-            This account is currently managed internally. Choose a public plan to move billing into
-            Stripe, or switch to Free to end the internal plan immediately.
-          </p>
-        </aside>
-      ) : null}
+        <div className="profile-hero-meta">
+          {showRenewalChip ? (
+            <div className="profile-hero-stat-card">
+              <p className="profile-hero-stat-label">Next renewal</p>
+              <p className="profile-hero-stat-value">{subscriptionRenewalText}</p>
+              <p className="profile-hero-stat-helper">{renewalHelperText}</p>
+            </div>
+          ) : null}
+          <div className="profile-hero-stat-card">
+            <p className="profile-hero-stat-label">Monthly credits</p>
+            <p className="profile-hero-stat-value">
+              {currentSubscriptionCreditsCents.toLocaleString()}
+            </p>
+            <p className="profile-hero-stat-helper">{monthlyCreditsHelperText}</p>
+          </div>
+          <div className="profile-hero-stat-card">
+            <p className="profile-hero-stat-label">Storage included</p>
+            <p className="profile-hero-stat-value">
+              {formatStorageBytes(currentSubscriptionStorageLimitBytes)}
+            </p>
+            <p className="profile-hero-stat-helper">{storageIncludedHelperText}</p>
+          </div>
+          {activeAddonStorageBytes > 0 ? (
+            <div className="profile-hero-stat-card">
+              <p className="profile-hero-stat-label">Active add-ons</p>
+              <p className="profile-hero-stat-value">
+                +{formatStorageBytes(activeAddonStorageBytes)}
+              </p>
+              <p className="profile-hero-stat-helper">{activeAddonsHelperText}</p>
+            </div>
+          ) : null}
+        </div>
+      </article>
 
       <section className="panel profile-panel profile-panel-stack">
         <div className="panel-header profile-panel-header">
@@ -198,7 +215,7 @@ export function ProfileSubscriptionSection({
               return (
                 <div
                   key={plan.id}
-                  className={`profile-plan-card ${isCurrentPlan ? "current" : ""}`}
+                  className={`profile-plan-card ${planView.className} ${isCurrentPlan ? "current" : ""}`}
                 >
                   <div className="profile-plan-top">
                     <div>
@@ -209,9 +226,7 @@ export function ProfileSubscriptionSection({
                     </div>
                     {isCurrentPlan ? (
                       <span className="profile-plan-badge">Current Plan</span>
-                    ) : (
-                      <CheckCircle size={18} />
-                    )}
+                    ) : null}
                   </div>
 
                   <p className="meta-value">
@@ -238,6 +253,86 @@ export function ProfileSubscriptionSection({
               );
             })
           )}
+        </div>
+      </section>
+
+      <section className="panel profile-panel profile-panel-stack">
+        <div className="panel-header profile-panel-header">
+          <div>
+            <p className="eyebrow">Payment history</p>
+            <h2 className="profile-panel-title">Recent subscription payments</h2>
+            <p className="subdued tiny">
+              {isInternalCompContract
+                ? "This account is managed internally, so there are no Stripe subscription charges to show here."
+                : "Recent recurring subscription invoices charged through Stripe."}
+            </p>
+          </div>
+          <span className="profile-panel-icon-chip" aria-hidden="true">
+            <Receipt size={18} weight="bold" />
+          </span>
+        </div>
+
+        <div className="profile-receipts profile-receipts-standalone">
+          <div className="profile-receipts-header">
+            <h3 className="profile-subsection-title">Recent transactions</h3>
+            <Receipt size={16} />
+          </div>
+
+          {subscriptionTransactionsLoading ? (
+            <p className="tiny subdued">Loading recent payments…</p>
+          ) : null}
+          {!subscriptionTransactionsLoading && subscriptionTransactionsError ? (
+            <p className="tiny subdued">{subscriptionTransactionsError}</p>
+          ) : null}
+          {!subscriptionTransactionsLoading &&
+          !subscriptionTransactionsError &&
+          subscriptionTransactions.length === 0 ? (
+            <p className="tiny subdued">
+              {isInternalCompContract
+                ? "No Stripe subscription payments are available for this internally managed account."
+                : "No recent subscription payments yet."}
+            </p>
+          ) : null}
+          {!subscriptionTransactionsLoading &&
+          !subscriptionTransactionsError &&
+          subscriptionTransactions.length > 0 ? (
+            <ul className="profile-receipt-list">
+              {subscriptionTransactions.map((transaction) => {
+                const timestamp = transaction.paidAt ?? transaction.createdAt;
+                return (
+                  <li key={transaction.id} className="profile-receipt-item">
+                    <div>
+                      <p className="label">{transaction.title}</p>
+                      <p className="tiny subdued">
+                        {formatDateTimeLabel(timestamp)}
+                        {transaction.invoiceNumber ? ` · Invoice ${transaction.invoiceNumber}` : ""}
+                      </p>
+                      {transaction.receiptUrl ? (
+                        <a
+                          href={transaction.receiptUrl}
+                          className="tiny subdued profile-receipt-link"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View invoice
+                        </a>
+                      ) : null}
+                    </div>
+
+                    <div className="profile-receipt-item-meta">
+                      <p className="label">
+                        {formatCurrencyAmount(
+                          transaction.amountPaidCents,
+                          transaction.currency ?? "usd"
+                        )}
+                      </p>
+                      <p className="tiny subdued">{formatStatusLabel(transaction.status)}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
         </div>
       </section>
 

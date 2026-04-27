@@ -6,6 +6,8 @@ import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
+import { MediaComplianceGate } from "../features/compliance/components/MediaComplianceGate";
+import { useMediaComplianceGate } from "../features/compliance/hooks/useMediaComplianceGate";
 import { PROTECTED_ROUTES, useProtectedRoute } from "../lib/authGuard";
 import { installGlobalAppErrorHandlers, reportAppError } from "../lib/appErrorReporter";
 import { addBreadcrumb, redactUrlForTelemetry } from "../lib/clientBreadcrumbs";
@@ -18,7 +20,11 @@ import "../styles/globals.css";
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isProtected = PROTECTED_ROUTES.some((route) => router.pathname.startsWith(route));
-  const { loading, session } = useProtectedRoute(isProtected);
+  const { loading, session, user } = useProtectedRoute(isProtected);
+  const mediaCompliance = useMediaComplianceGate({
+    enabled: isProtected && Boolean(session),
+    userId: user?.id ?? null,
+  });
 
   useEffect(() => {
     return installGlobalAppErrorHandlers();
@@ -128,6 +134,30 @@ export default function App({ Component, pageProps }: AppProps) {
           <p className="subdued">Checking your session…</p>
         </div>
       </main>
+    );
+  }
+
+  if (isProtected && !mediaCompliance.initialized) {
+    return (
+      <main className="page page-wide">
+        <div className="panel">
+          <p className="subdued">Checking your media agreement…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (isProtected && !mediaCompliance.accepted) {
+    return (
+      <AppErrorBoundary>
+        <MediaComplianceGate
+          agreement={mediaCompliance.agreement}
+          error={mediaCompliance.error}
+          loading={mediaCompliance.loading}
+          onAccept={mediaCompliance.acceptAgreement}
+          onRetry={mediaCompliance.refreshStatus}
+        />
+      </AppErrorBoundary>
     );
   }
 

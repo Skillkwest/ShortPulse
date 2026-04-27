@@ -118,6 +118,18 @@ export const formatDateLabel = (value: string | null): string => {
 };
 
 /**
+ * Formats a stored ISO date as a long local date label for hero chips.
+ */
+export const formatLongDateLabel = (value: string | null): string => {
+  if (!value) return "Not scheduled";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+};
+
+/**
  * Formats a stored ISO date as a local date-time label.
  */
 export const formatDateTimeLabel = (value: string | null): string => {
@@ -144,35 +156,6 @@ export const resolveProfileActivePlanId = ({
   billingContract: BillingSubscriptionContract | null;
   billingProfile: BillingProfile | null;
 }): string => billingContract?.plan_id ?? billingProfile?.plan_id ?? "free";
-
-/**
- * Describes how the current plan summary was resolved so billing drift stays legible.
- */
-export const resolveContractDescriptor = ({
-  billingContract,
-  billingProfile,
-  isLegacyContract,
-  hasOfferId,
-}: {
-  billingContract: BillingSubscriptionContract | null;
-  billingProfile: BillingProfile | null;
-  isLegacyContract: boolean;
-  hasOfferId: boolean;
-}): string => {
-  if (billingContract?.contract_source === "internal_comp") {
-    return "Internal comp contract managed outside Stripe";
-  }
-  if (isLegacyContract) {
-    return "Legacy contract locked for your active subscription";
-  }
-  if (billingContract && hasOfferId) {
-    return "Current contract synced from Stripe subscription state";
-  }
-  if (!billingContract && billingProfile?.plan_id) {
-    return "Using billing profile while subscription contract sync completes";
-  }
-  return "Using the current public offer for this tier";
-};
 
 /**
  * Pulls the most useful reference id from a billing ledger event.

@@ -4,33 +4,56 @@
  */
 @media (max-width: 1180px) {
   .profile-page.page {
-    padding: 22px 20px 56px;
+    --profile-rail-width: 224px;
+    --profile-rail-gap: 12px;
+    --profile-page-padding: 18px;
+    padding: var(--profile-page-padding) var(--profile-page-padding) 56px
+      calc(var(--profile-rail-width) + var(--profile-rail-gap) + var(--profile-page-padding));
   }
 
   .profile-app-bar {
-    flex-direction: column;
-    gap: 18px;
+    gap: 14px;
   }
 
-  .profile-app-bar-right {
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-
-  .profile-header-cards {
-    width: 100%;
-  }
-
-  .profile-header-card {
-    min-width: 0;
-    flex: 1 1 220px;
+  .profile-account-grid {
+    grid-template-columns: repeat(2, minmax(290px, 1fr));
   }
 }
 
 @media (max-width: 900px) {
+  .profile-page.page {
+    padding: 22px 20px 56px;
+  }
+
   .profile-identity {
     flex-direction: column;
+  }
+
+  .profile-side-rail {
+    position: static;
+    top: auto;
+    left: auto;
+    width: auto;
+    height: auto;
+    padding: 16px;
+    border-radius: var(--radius-xl);
+    box-shadow: none;
+  }
+
+  .profile-side-rail-main,
+  .profile-side-rail-footer {
+    gap: 10px;
+  }
+
+  .profile-section-tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .profile-side-rail-action,
+  .profile-shell-nav-action {
+    width: 100%;
+    justify-content: center;
   }
 
   .profile-section-tab {
@@ -52,6 +75,11 @@
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .profile-receipt-item-meta {
+    align-items: flex-start;
+    text-align: left;
+  }
 }
 
 @media (max-width: 640px) {
@@ -60,12 +88,19 @@
   }
 
   .profile-app-bar,
-  .profile-section-tabs-panel,
+  .profile-side-rail,
   .profile-panel,
   .profile-summary-card,
+  .profile-hero-card,
+  .profile-credit-hero-card,
   .profile-preference-card {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .profile-app-bar {
+    padding-top: 18px;
+    padding-bottom: 18px;
   }
 
   .profile-identity-copy h1 {
@@ -84,9 +119,32 @@
     grid-template-columns: 1fr;
   }
 
-  .profile-header-card {
+  .profile-hero-card,
+  .profile-credit-hero-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .profile-hero-meta,
+  .profile-credit-hero-meta {
+    min-width: 0;
     width: 100%;
-    flex: 1 1 100%;
+  }
+
+  .profile-hero-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-credit-hero-meta {
+    grid-template-columns: 1fr;
+    justify-items: flex-start;
+    text-align: left;
+  }
+
+  .profile-credit-hero-stat-card,
+  .profile-hero-stat-card {
+    min-height: 0;
+    width: 100%;
   }
 
   .profile-actions {

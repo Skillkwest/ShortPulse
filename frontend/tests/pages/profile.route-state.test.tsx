@@ -124,6 +124,14 @@ describe("Profile route state", () => {
     expect(screen.getByRole("heading", { name: "Account settings" })).toBeInTheDocument();
   });
 
+  it("renders the dedicated transactions section", () => {
+    routerState.query = { section: "transactions" };
+
+    render(<ProfilePage />);
+
+    expect(screen.getByRole("heading", { name: "Transaction history" })).toBeInTheDocument();
+  });
+
   it("shows a checkout success notice, refreshes credits, and clears the query flag", async () => {
     const refreshBalance = vi.fn(async () => 1250);
     useCreditsMock.mockReturnValue({

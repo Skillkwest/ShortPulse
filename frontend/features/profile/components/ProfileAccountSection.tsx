@@ -37,13 +37,13 @@ export function ProfileAccountSection({
   onMediaAutosaveToggle,
 }: ProfileAccountSectionProps) {
   return (
-    <div className="profile-section-grid">
-      <section className="panel profile-panel">
+    <div className="profile-section-grid profile-account-grid">
+      <section className="panel profile-panel profile-identity-panel">
         <div className="panel-header profile-panel-header">
           <div>
             <p className="eyebrow">Identity</p>
             <h2 className="profile-panel-title">Profile</h2>
-            <p className="subdued tiny">This name appears in your dashboard and workspace views.</p>
+            <p className="subdued tiny">This name appears in your dashboard.</p>
           </div>
         </div>
         <div className="profile-field">

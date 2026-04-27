@@ -7,13 +7,24 @@ describe("ProfileStorageSection", () => {
     render(
       <ProfileStorageSection
         activeAddonStorageBytes={100 * 1024 * 1024 * 1024}
+        activePlanClassName="plan-business"
+        activeStorageAddons={[
+          {
+            id: "row-1",
+            storageAddonId: "addon_100gb",
+            offerId: "offer-1",
+            stripeSubscriptionItemId: "si_123",
+            storageLimitBytes: 100 * 1024 * 1024 * 1024,
+            quantity: 1,
+            recurringPriceCents: 1500,
+            status: "active",
+          },
+        ]}
         billingContractLoading={false}
         billingPlansLoading={false}
         currentSubscriptionStorageLimitBytes={500 * 1024 * 1024 * 1024}
-        planLabel="Business"
-        portalActionLabel="Manage in billing portal"
-        portalLoading={false}
-        portalManagementAvailable={true}
+        storageAddonChangeLoadingId={null}
+        storageAddonManagementState="eligible"
         storageAddons={[
           {
             id: "addon_100gb",
@@ -23,14 +34,18 @@ describe("ProfileStorageSection", () => {
             sort_order: 1,
           },
         ]}
+        storageTransactions={[]}
+        storageTransactionsError={null}
+        storageTransactionsLoading={false}
         totalStorageLimitBytes={600 * 1024 * 1024 * 1024}
         usedStorageBytes={50 * 1024 * 1024 * 1024}
-        onOpenBillingPortal={vi.fn()}
+        onStorageAddonChange={vi.fn()}
       />
     );
 
-    expect(screen.getByText("100 GB add-on")).toBeInTheDocument();
+    expect(screen.getAllByText("100 GB add-on").length).toBeGreaterThan(0);
     expect(screen.getByText("$15.00")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Manage in billing portal" })).toBeInTheDocument();
+    expect(screen.getByText("Active add-on")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
   });
 });

@@ -13,6 +13,7 @@
 @import "./ui-patterns.css";
 @import "./workspace-shared.css";
 @import "./workspace-chrome.css";
+@import "./workspace-compliance.css";
 @import "./workspace-dashboard.css";
 @import "./ai-studio-layout.css";
 @import "./ai-studio-coming-soon.css";

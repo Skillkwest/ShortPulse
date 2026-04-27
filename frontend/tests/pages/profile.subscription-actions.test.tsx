@@ -301,14 +301,12 @@ describe("Profile subscription actions", () => {
     expect(screen.getByRole("heading", { name: "Your subscription" })).toBeInTheDocument();
     expect(container.querySelector(".profile-subscription-hero-card.plan-media")).not.toBeNull();
     expect(container.querySelector(".profile-plan-card.current.plan-media")).not.toBeNull();
+    expect(screen.queryByText("Status")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Downgrade to Free" })).toBeInTheDocument();
     expect(
       screen.getByText("$10.00 / month · Ideal for creators testing cadence.")
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Legacy contract locked for your active subscription")
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Recent subscription payments" })
@@ -329,11 +327,26 @@ describe("Profile subscription actions", () => {
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
     expect(screen.getAllByText("Media")[0]).toBeInTheDocument();
     expect(
-      screen.getByText("Using billing profile while subscription contract sync completes")
-    ).toBeInTheDocument();
-    expect(
       screen.getByText("$19.00 / month · Ideal for creators testing cadence.")
     ).toBeInTheDocument();
+  });
+
+  it("hides the renewal hero chip for the free plan", async () => {
+    billingProfileState.plan_id = "free";
+    billingProfileState.subscription_status = "inactive";
+    billingProfileState.current_period_end = null;
+    billingProfileState.stripe_customer_id = null;
+    billingProfileState.stripe_subscription_id = null;
+    billingContractState.value = null;
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
+    expect(screen.getAllByText("Free")[0]).toBeInTheDocument();
+    expect(screen.queryByText("Next renewal")).not.toBeInTheDocument();
+    expect(screen.queryByText("Not scheduled")).not.toBeInTheDocument();
+    expect(screen.getByText("Monthly credits")).toBeInTheDocument();
+    expect(screen.getByText("Storage included")).toBeInTheDocument();
   });
 
   it("opens and closes the cancel subscription modal", async () => {
@@ -429,12 +442,7 @@ describe("Profile subscription actions", () => {
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
     expect(container.querySelector(".profile-subscription-hero-card.plan-business")).not.toBeNull();
     expect(container.querySelector(".profile-plan-card.current.plan-business")).not.toBeNull();
-    expect(screen.getByText("Internal comp contract managed outside Stripe")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "This account is currently managed internally. Choose a public plan to move billing into Stripe, or switch to Free to end the internal plan immediately."
-      )
-    ).toBeInTheDocument();
+    expect(screen.getByText(/2026/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Switch to Free" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose Media" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose Studio" })).toBeInTheDocument();

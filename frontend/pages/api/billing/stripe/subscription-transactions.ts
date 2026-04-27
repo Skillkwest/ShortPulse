@@ -1,0 +1,64 @@
+/**
+ * Returns recent Stripe-backed payment transactions for the authenticated user.
+ * Powers the subscription and storage billing history panels on the profile page.
+ */
+import type { NextApiRequest, NextApiResponse } from "next";
+import { requireApiUser } from "../../../../lib/server/api/auth";
+import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import {
+  buildStorageTransaction,
+  buildSubscriptionTransaction,
+  listPaidInvoices,
+  resolveStorageCatalog,
+  resolveStripeCustomerBillingState,
+  resolveTransactionKindFilter,
+} from "../../../../lib/server/api/stripeTransactions";
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const user = await requireApiUser(req, res);
+  if (!user) return;
+
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return res.status(200).json({ transactions: [] });
+  }
+
+  try {
+    const transactionKind = resolveTransactionKindFilter(req.query?.kind);
+    const billingState = await resolveStripeCustomerBillingState(user.id);
+
+    if (billingState.isInternalComp || !billingState.stripeCustomerId) {
+      return res.status(200).json({ transactions: [] });
+    }
+
+    const invoices = await listPaidInvoices(billingState.stripeCustomerId);
+
+    let transactions;
+    if (transactionKind === "storage") {
+      const storageCatalog = await resolveStorageCatalog();
+      transactions = invoices
+        .map((invoice) => buildStorageTransaction(invoice, storageCatalog))
+        .filter((value): value is NonNullable<typeof value> => Boolean(value))
+        .slice(0, 5);
+    } else {
+      transactions = invoices.slice(0, 5).map((invoice) => buildSubscriptionTransaction(invoice));
+    }
+
+    return res.status(200).json({ transactions });
+  } catch (error) {
+    await logApiRouteException({
+      req,
+      error,
+      routeLabel: "billing/stripe/subscription-transactions",
+      user,
+    });
+    return res.status(500).json({
+      error:
+        error instanceof Error ? error.message : "Unable to load recent subscription payments.",
+    });
+  }
+}

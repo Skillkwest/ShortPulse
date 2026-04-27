@@ -21,7 +21,6 @@ type ProfileStorageSectionProps = {
   billingContractLoading: boolean;
   billingPlansLoading: boolean;
   currentSubscriptionStorageLimitBytes: number;
-  planLabel: string;
   storageAddonChangeLoadingId: string | null;
   storageAddonManagementState: "eligible" | "requires_paid_plan" | "syncing" | "managed_internally";
   storageAddons: BillingStorageAddonRecord[];
@@ -39,15 +38,14 @@ type ProfileStorageSectionProps = {
 export function ProfileStorageSection({
   activeAddonStorageBytes,
   activePlanClassName,
-  activeStorageAddons,
+  activeStorageAddons = [],
   billingContractLoading,
   billingPlansLoading,
   currentSubscriptionStorageLimitBytes,
-  planLabel,
   storageAddonChangeLoadingId,
   storageAddonManagementState,
-  storageAddons,
-  storageTransactions,
+  storageAddons = [],
+  storageTransactions = [],
   storageTransactionsError,
   storageTransactionsLoading,
   totalStorageLimitBytes,
@@ -61,10 +59,25 @@ export function ProfileStorageSection({
     activeAddonRowsById.set(addon.storageAddonId, currentRows);
   });
 
-  const activeAddonSelectionCount = activeStorageAddons.reduce(
-    (total, addon) => total + Math.max(1, addon.quantity),
-    0
-  );
+  const activeAddonSummary = (() => {
+    if (activeStorageAddons.length === 0) return "None";
+
+    const activeCatalogEntries = storageAddons
+      .filter((addon) => (activeAddonRowsById.get(addon.id)?.length ?? 0) > 0)
+      .map((addon) => {
+        const quantity = (activeAddonRowsById.get(addon.id) ?? []).reduce(
+          (total, row) => total + Math.max(1, row.quantity),
+          0
+        );
+        return quantity > 1 ? `${quantity} × ${addon.display_name}` : addon.display_name;
+      });
+
+    if (activeCatalogEntries.length > 0) {
+      return activeCatalogEntries.join(", ");
+    }
+
+    return `+${formatStorageBytes(activeAddonStorageBytes)}`;
+  })();
   const isStorageAddonManagementAvailable = storageAddonManagementState === "eligible";
   const storagePaymentsAvailable = storageAddonManagementState !== "managed_internally";
   const storageCalloutMessage =
@@ -75,6 +88,12 @@ export function ProfileStorageSection({
         : storageAddonManagementState === "syncing"
           ? "Your Stripe subscription is still syncing. Storage add-on controls will unlock once billing finishes linking."
           : null;
+  const planCapacityHelperText = "Included with your base plan";
+  const currentUsageHelperText = `of ${formatStorageBytes(totalStorageLimitBytes)} available`;
+  const activeAddonsHelperText =
+    activeStorageAddons.length > 0
+      ? "Recurring storage add-ons renew monthly"
+      : "No active add-ons";
 
   return (
     <>
@@ -102,31 +121,22 @@ export function ProfileStorageSection({
         </div>
 
         <div className="profile-hero-meta">
-          <div className="profile-hero-stat">
-            <p className="tiny subdued">Plan capacity</p>
-            <p className="label">{formatStorageBytes(currentSubscriptionStorageLimitBytes)}</p>
+          <div className="profile-hero-stat-card">
+            <p className="profile-hero-stat-label">Plan capacity</p>
+            <p className="profile-hero-stat-value">
+              {formatStorageBytes(currentSubscriptionStorageLimitBytes)}
+            </p>
+            <p className="profile-hero-stat-helper">{planCapacityHelperText}</p>
           </div>
-          <div className="profile-hero-stat">
-            <p className="tiny subdued">Current usage</p>
-            <p className="label">{formatStorageBytes(usedStorageBytes)}</p>
+          <div className="profile-hero-stat-card">
+            <p className="profile-hero-stat-label">Current usage</p>
+            <p className="profile-hero-stat-value">{formatStorageBytes(usedStorageBytes)}</p>
+            <p className="profile-hero-stat-helper">{currentUsageHelperText}</p>
           </div>
-          {activeAddonStorageBytes > 0 ? (
-            <div className="profile-hero-stat">
-              <p className="tiny subdued">Active add-ons</p>
-              <p className="label">
-                +{formatStorageBytes(activeAddonStorageBytes)} · {activeAddonSelectionCount}{" "}
-                selected
-              </p>
-            </div>
-          ) : (
-            <div className="profile-hero-stat">
-              <p className="tiny subdued">Active add-ons</p>
-              <p className="label">None selected</p>
-            </div>
-          )}
-          <div className="profile-hero-stat">
-            <p className="tiny subdued">Plan</p>
-            <p className="label">{planLabel}</p>
+          <div className="profile-hero-stat-card">
+            <p className="profile-hero-stat-label">Active add-ons</p>
+            <p className="profile-hero-stat-value">{activeAddonSummary}</p>
+            <p className="profile-hero-stat-helper">{activeAddonsHelperText}</p>
           </div>
         </div>
       </article>

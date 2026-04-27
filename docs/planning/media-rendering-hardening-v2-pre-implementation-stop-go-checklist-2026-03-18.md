@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Pre-Implementation Stop/Go Checklist (2026-03-18)
 
 Last updated: 2026-03-18
-Status: Accepted
+Status: active
 
 ## Purpose
 Define the minimum planning completeness required before behavior-changing implementation starts.

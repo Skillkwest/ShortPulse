@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 QA And Release Checklist (2026-03-16)
 
 Last updated: 2026-03-18
-Status: Active
+Status: active  
 
 ## Pre-Implementation Stop/Go
 - [x] `docs/planning/media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md` is accepted.

@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Folder Query Scalability Spec (2026-03-16)
 
 Last updated: 2026-03-18
-Status: Active
+Status: active  
 
 ## Problem Statement
 Current folder-filter path materializes membership IDs and applies `.in("id", ids)` fan-in, which does not scale with large folder memberships.

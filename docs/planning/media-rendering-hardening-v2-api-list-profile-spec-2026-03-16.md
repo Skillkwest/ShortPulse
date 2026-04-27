@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 API List Profile Spec (2026-03-16)
 
 Last updated: 2026-03-18
-Status: Active
+Status: active  
 
 ## Endpoint
 `POST /api/media/list`

@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Image Surface Inventory Lock (2026-03-16)
 
 Last updated: 2026-03-18
-Status: Active
+Status: active  
 
 ## Purpose
 Maintain authoritative image-surface inventory for all render callsites touched by this program.

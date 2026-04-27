@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Surface Policy Matrix (2026-03-18)
 
 Last updated: 2026-03-18
-Status: Active
+Status: active  
 
 ## Purpose
 Provide one place to decide and lock image-delivery policy per surface before implementation slices change behavior.

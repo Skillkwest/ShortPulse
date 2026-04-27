@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Surface Lane Master Plan (2026-03-18)
 
 Last updated: 2026-03-18  
-Status: Active  
+Status: active  
 Owner: Engineering  
 Program anchors:
 - [Master plan](./media-rendering-hardening-v2-master-plan-2026-03-16.md)

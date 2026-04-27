@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Risk Register (2026-03-16)
 
 Last updated: 2026-03-18
-Status: Active
+Status: active  
 
 ## Severity Scale
 - `S0`: critical outage/data risk

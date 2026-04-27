@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Contract Matrix (2026-03-16)
 
 Last updated: 2026-03-18
-Status: Active
+Status: active  
 
 ## Purpose
 Define and lock producer/consumer ownership across media list/upload/sign/resolve/adaptive surfaces and the new supporting policy docs.

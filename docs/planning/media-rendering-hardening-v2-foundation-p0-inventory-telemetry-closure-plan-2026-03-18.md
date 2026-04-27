@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Foundation P0 Inventory And Telemetry Closure Plan (2026-03-18)
 
 Last updated: 2026-03-18
-Status: Active  
+Status: active  
 Scope: Foundation lane planning support for `MRH2-P0-001`, `MRH2-P0-002`, and `MRH2-P0-003`
 
 ## Purpose

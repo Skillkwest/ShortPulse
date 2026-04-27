@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Execution Tracker (2026-03-16)
 
 Last updated: 2026-03-18
-Status: Active  
+Status: active  
 Roadmap source: `docs/planning/media-rendering-hardening-v2-master-roadmap-2026-03-16.md`
 
 ## Status Legend

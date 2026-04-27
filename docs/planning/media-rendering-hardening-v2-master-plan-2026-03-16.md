@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Master Plan (2026-03-16)
 
 Last updated: 2026-03-18
-Status: Active  
+Status: active  
 Owner: Engineering  
 Program type: No-regression, no-bloat strangler hardening track
 

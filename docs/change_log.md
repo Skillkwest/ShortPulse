@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - normalized the full `media-rendering-hardening-v2-*` planning family onto the canonical status vocabulary,
+  - mapped the accepted pre-implementation stop/go checklist onto `active` because it still governs the live planning path,
+  - and kept the entire packet active without changing scope or rollout intent.
+- Documentation cleanup:
   - normalized the full `ai-studio-reference-grid-reliability-*` planning family onto the canonical status vocabulary,
   - marked the gated `P0` through `P4` execution plans as `draft` while keeping the program/control docs `active`,
   - and added the missing status header on the family evidence-packet template.

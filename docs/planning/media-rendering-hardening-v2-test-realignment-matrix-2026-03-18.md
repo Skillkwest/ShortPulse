@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Test Realignment Matrix (2026-03-18)
 
 Last updated: 2026-03-18
-Status: Active
+Status: active  
 
 ## Purpose
 Separate valuable characterization tests from tests that currently lock in media-delivery drift so implementation can move without accidental regressions or false blockers.

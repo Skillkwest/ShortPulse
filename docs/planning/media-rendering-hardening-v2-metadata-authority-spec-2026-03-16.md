@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Metadata Authority Spec (2026-03-16)
 
 Last updated: 2026-03-16  
-Status: Active
+Status: active  
 
 ## Purpose
 Define one authoritative dimension/metadata policy from ingest to render.

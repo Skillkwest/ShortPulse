@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Telemetry Baseline Truth Spec (2026-03-18)
 
 Last updated: 2026-03-18
-Status: Active
+Status: active  
 
 ## Purpose
 Define which telemetry fields are trustworthy enough to support baseline capture, rollout evaluation, and parity evidence for this program.

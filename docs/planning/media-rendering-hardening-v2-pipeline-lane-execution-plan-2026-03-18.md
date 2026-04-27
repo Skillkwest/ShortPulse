@@ -1,7 +1,7 @@
 # Media Rendering Hardening v2 Pipeline Lane Execution Plan (2026-03-18)
 
 Last updated: 2026-03-18  
-Status: Active  
+Status: active  
 Primary control docs:
 - [Pipeline lane master plan](./media-rendering-hardening-v2-pipeline-lane-master-plan-2026-03-18.md)
 - [Master execution tracker](./media-rendering-hardening-v2-execution-tracker-2026-03-16.md)

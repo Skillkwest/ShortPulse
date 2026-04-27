@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - added a no-move evidence migration classification under `docs/records/`,
+  - bucketed the current planning-evidence namespaces into summary/index, future records/evidence, and future records/artifacts,
+  - and selected the closed `media-library-runtime-rebuild` evidence family as the recommended first physical migration pilot.
+- Documentation cleanup:
   - introduced `docs/records/README.md` as the retained-records policy entrypoint and target namespace contract for future evidence migration,
   - updated docs governance to distinguish current truth from retained records,
   - and trimmed the top-level docs/planning indexes so evidence discoverability now routes through records and namespace indexes instead of raw packet inventories.

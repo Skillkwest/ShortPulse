@@ -41,6 +41,9 @@ This target shape is the destination model. The repo is not moving all retained 
 - Raw artifacts should move before or alongside bulky evidence packet families whenever that can be done without breaking traceability.
 - Keep path moves incremental and index-backed; do not do bulk unreviewed relocations.
 
+## Current classification pass
+- `docs/records/evidence-migration-classification-2026-04-27.md`: no-move classification of the current planning-evidence tree, migration buckets, and first pilot recommendation.
+
 ## Controlled exceptions
 - `docs/planning/archive/original-plans/` remains a protected checksum-backed exception for verbatim source-plan preservation.
 - A temporary planning-evidence namespace may remain under `docs/planning/evidence/` until the corresponding records migration lane is executed.

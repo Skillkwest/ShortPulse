@@ -7,7 +7,7 @@ import type { ToolId } from "../types";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
 
 const AI_PROPERTIES_RAIL_ENTER_TRANSITION_MS = 180;
-const AI_PROPERTIES_RAIL_EXIT_TRANSITION_MS = 180;
+const AI_PROPERTIES_RAIL_EXIT_TRANSITION_MS = 60;
 
 type AiStudioPropertiesRailProps = {
   selectedTool: ToolId | null;

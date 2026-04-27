@@ -172,7 +172,7 @@
 
 .ai-properties {
   --ai-properties-rail-enter-duration: 180ms;
-  --ai-properties-rail-exit-duration: 180ms;
+  --ai-properties-rail-exit-duration: 60ms;
   --ai-properties-rail-transition-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
   padding: 16px;
   max-height: var(--ai-shell-column-max-height, 100%);

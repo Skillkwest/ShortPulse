@@ -10,7 +10,7 @@
 3. `docs/release-checklist.md`
 4. `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`
 5. `docs/archive/planning/lane-f-master-plan-2026-03-16.md`
-6. `docs/planning/evidence/lane-f/README.md`
+6. `docs/records/evidence/lane-f/README.md`
 7. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 
 ## Commands Run

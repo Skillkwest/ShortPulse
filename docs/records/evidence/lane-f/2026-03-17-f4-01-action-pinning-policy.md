@@ -9,7 +9,7 @@
 2. `docs/planning/ci-policy-checks.md`
 3. `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`
 4. `docs/archive/planning/lane-f-master-plan-2026-03-16.md`
-5. `docs/planning/evidence/lane-f/README.md`
+5. `docs/records/evidence/lane-f/README.md`
 6. `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 
 ## Commands Run

@@ -17,7 +17,6 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/planning/evidence/lane-c/`
 - `docs/planning/evidence/lane-d/`
 - `docs/planning/evidence/lane-e/`
-- `docs/planning/evidence/lane-f/`
 - `docs/planning/evidence/generation-pipeline-hardening/`
 - `docs/planning/evidence/generation-reliability-hardening/`
 - `docs/planning/evidence/ai-studio-reference-grid-reliability/`
@@ -27,6 +26,7 @@ This is the current physical evidence namespace during the records migration tra
 
 ## Migrated namespaces
 - `docs/records/evidence/lane-a/`
+- `docs/records/evidence/lane-f/`
 - `docs/records/evidence/media-library-runtime-rebuild/`
 
 ## Notes

@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - executed the next markdown-only records migration by moving the closed `lane-f` evidence family into `docs/records/evidence/lane-f/`,
+  - updated the foundation tracker and evidence indexes to point at the retained-records paths,
+  - and extended the migration-classification follow-up so the next records move can continue from another proven closed markdown-only namespace.
+- Documentation cleanup:
   - executed the second markdown-only records migration pilot by moving the closed `lane-a` evidence family into `docs/records/evidence/lane-a/`,
   - updated the foundation tracker and evidence indexes to point at the retained-records paths,
   - and marked the migration classification follow-up so the next namespace move can build on the proven markdown-only pattern.

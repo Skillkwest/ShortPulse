@@ -4,6 +4,7 @@ Purpose: index retained evidence namespaces that have already moved into the rec
 
 ## Active migrated namespaces
 - `docs/records/evidence/lane-a/`: retained evidence packet family for the closed Lane A gate recovery and governance hardening lane.
+- `docs/records/evidence/lane-f/`: retained evidence packet family for the closed Lane F release and CI governance lane.
 - `docs/records/evidence/media-library-runtime-rebuild/`: retained evidence packet family for the closed Media Library runtime rebuild lane.
 
 ## Usage

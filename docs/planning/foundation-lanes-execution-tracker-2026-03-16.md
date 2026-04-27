@@ -158,7 +158,7 @@ Mandatory for any from-scratch replacement scope:
 2. Tracker spec: `docs/archive/planning/lane-f-tracker-spec-2026-03-16.md`
 3. Execution plan: `docs/archive/planning/lane-f-execution-plan-2026-03-16.md`
 4. Contact map: `docs/archive/planning/lane-f-contact-map-2026-03-16.md`
-5. Evidence index: `docs/planning/evidence/lane-f/README.md`
+5. Evidence index: `docs/records/evidence/lane-f/README.md`
 
 ## Lane C Master Checklist
 
@@ -276,7 +276,7 @@ Tracker contract: `docs/archive/planning/lane-f-tracker-spec-2026-03-16.md`
 ### F6: Ownership + Convergence
 
 - [x] Normalize ownership identity across operator map/contact map/CODEOWNERS surfaces or defer explicitly with owner/date.
-- [x] Attach all required evidence packets under `docs/planning/evidence/lane-f/`.
+- [x] Attach all required evidence packets under `docs/records/evidence/lane-f/`.
 - [x] Confirm Lane F exit criteria with two post-change green cycles.
 
 ## Parallel Track Artifacts

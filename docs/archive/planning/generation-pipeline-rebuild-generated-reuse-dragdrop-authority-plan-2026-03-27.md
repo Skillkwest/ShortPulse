@@ -1,5 +1,7 @@
 # Generation Pipeline Rebuild Generated Reuse And Drag/Drop Authority Plan (2026-03-27)
 
+> Archived on 2026-04-27 because this execution plan reached its bounded checkpoint done state. The active generated reuse and drag/drop authority contract remains in `docs/planning/`.
+
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  

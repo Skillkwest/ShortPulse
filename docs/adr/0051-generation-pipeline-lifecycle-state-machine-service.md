@@ -7,7 +7,7 @@
   - `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`
   - `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
   - `docs/adr/0021-fal-webhook-inbox-and-shared-recovery-execution.md`
-  - `docs/planning/generation-pipeline-rebuild-state-machine-service-plan-2026-03-27.md`
+  - `docs/archive/planning/generation-pipeline-rebuild-state-machine-service-plan-2026-03-27.md`
 
 ## Context
 The generation pipeline now has canonical request/attempt/output architecture guidance, and the forward-path code has already moved toward shared transition helpers. That work improved correctness, but the orchestration layer is still distributed across several helper modules.
@@ -43,4 +43,3 @@ The current shape is:
   - Rejected: the current problem is orchestration shape, not missing schema definition.
 - Move the remaining lifecycle logic back into individual callsites.
   - Rejected: that would recreate the split-authority problem the rebuild is trying to remove.
-

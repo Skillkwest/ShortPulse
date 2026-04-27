@@ -1,5 +1,7 @@
 # Generation Pipeline Rebuild Admin Trace And Health Alignment Plan (2026-03-27)
 
+> Archived on 2026-04-27 because this execution plan reached its stated checkpoint done state. The active admin trace and health contract remains in `docs/planning/`.
+
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  

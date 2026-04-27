@@ -1,5 +1,7 @@
 # Generation Pipeline Rebuild Lifecycle Read-Model And Control-Plane Plan (2026-03-27)
 
+> Archived on 2026-04-27 because this execution plan reached its checkpoint closeout and handed follow-on work to later control-plane planning. The active observer/control-plane contract remains in `docs/planning/`.
+
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
@@ -149,4 +151,4 @@ Stop this job when:
 3. remaining work is mostly operational governance rather than lifecycle authority reduction
 
 ## Follow-On Job
-1. `docs/planning/generation-pipeline-rebuild-recovery-control-plane-orchestration-plan-2026-03-27.md`
+1. `docs/archive/planning/generation-pipeline-rebuild-recovery-control-plane-orchestration-plan-2026-03-27.md`

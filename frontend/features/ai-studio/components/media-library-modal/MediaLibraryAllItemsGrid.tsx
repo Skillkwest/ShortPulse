@@ -1,7 +1,10 @@
 import React, { type MutableRefObject } from "react";
 import { Check, DownloadSimple, X } from "phosphor-react";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
-import { resolveVideoPosterSigningStoragePaths } from "../../../../lib/mediaPreviewPath";
+import {
+  resolveMediaSigningStoragePaths,
+  resolveVideoPosterSigningStoragePaths,
+} from "../../../../lib/mediaPreviewPath";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
 import { MEDIA_LIBRARY_VIRTUALIZATION_ENABLED } from "../../../media-library/logic/mediaLibraryFeatureFlags";
@@ -86,6 +89,21 @@ const resolveVideoPosterSourceUrl = (
     asRenderableImageUrl(file.thumb_variant_path) ??
     (hoverVideoUrl && !isVideoUrl(hoverVideoUrl) ? hoverVideoUrl : null)
   );
+};
+
+const resolveHoverVideoSigningPath = (
+  file: MediaFileRow,
+  currentUserId?: string | null
+): string | null => {
+  if (!isVideoFile(file.file_type)) return null;
+  if (file.signedUrl && isVideoUrl(file.signedUrl)) return null;
+
+  const posterCandidates = new Set(resolveVideoPosterSigningStoragePaths(file, currentUserId));
+  const hoverCandidates = resolveMediaSigningStoragePaths(file, currentUserId).filter(
+    (candidate) => !posterCandidates.has(candidate)
+  );
+
+  return hoverCandidates[0] ?? null;
 };
 
 const readAudioDurationMs = (file: MediaFileRow): number | null => {
@@ -643,21 +661,20 @@ export function MediaLibraryAllItemsGrid({
   }, [mediaRows]);
 
   React.useEffect(() => {
-    const videoRows = mediaRows.filter(
-      (row) => isVideoFile(row.file_type) && (row.storage_path ?? "").trim().length > 0
-    );
+    const hoverVideoPathByRowId = new Map<string, string>();
+    for (const row of mediaRows) {
+      const hoverPath = resolveHoverVideoSigningPath(row, currentUserId);
+      if (!hoverPath) continue;
+      hoverVideoPathByRowId.set(row.id, hoverPath);
+    }
 
-    if (videoRows.length === 0) {
+    if (hoverVideoPathByRowId.size === 0) {
       setSignedVideoUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
       return;
     }
 
-    const storagePathByRowId = new Map<string, string>();
     const storagePaths: string[] = [];
-    for (const row of videoRows) {
-      const storagePath = (row.storage_path ?? "").trim();
-      if (!storagePath) continue;
-      storagePathByRowId.set(row.id, storagePath);
+    for (const storagePath of hoverVideoPathByRowId.values()) {
       storagePaths.push(storagePath);
     }
 
@@ -675,7 +692,7 @@ export function MediaLibraryAllItemsGrid({
       .then((signedByPath) => {
         if (cancelled) return;
         const nextById: Record<string, string> = {};
-        for (const [rowId, storagePath] of storagePathByRowId.entries()) {
+        for (const [rowId, storagePath] of hoverVideoPathByRowId.entries()) {
           const signedUrl = signedByPath.get(storagePath) ?? null;
           if (signedUrl) {
             nextById[rowId] = signedUrl;
@@ -701,7 +718,7 @@ export function MediaLibraryAllItemsGrid({
     return () => {
       cancelled = true;
     };
-  }, [mediaRows]);
+  }, [currentUserId, mediaRows]);
 
   React.useEffect(() => {
     const videoPosterRows = mediaRows.filter((row) => {

@@ -101,6 +101,20 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled();
   });
 
+  it("does not batch-sign hover video paths when the row already has a signed video preview", async () => {
+    render(<MediaLibraryAllItemsGrid {...baseProps()} />);
+
+    await waitFor(() => {
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalled();
+    });
+
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        storagePaths: expect.arrayContaining(["user-1/uploads/clip-1.mp4"]),
+      })
+    );
+  });
+
   it("attaches and plays the hover video preview on pointer enter", async () => {
     const props = baseProps();
     props.mediaRows = [
@@ -252,18 +266,10 @@ describe("MediaLibraryAllItemsGrid", () => {
 
     render(<MediaLibraryAllItemsGrid {...props} />);
 
-    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(1));
 
     expect(getSignedMediaUrlsBatchMock).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({
-        bucket: "media_library",
-        storagePaths: ["user-1/uploads/clip-1.mp4"],
-        surface: "media-library-panel",
-      })
-    );
-    expect(getSignedMediaUrlsBatchMock).toHaveBeenNthCalledWith(
-      2,
       expect.objectContaining({
         bucket: "media_library",
         storagePaths: ["user-1/variants/videos/video-1/poster_720.jpg"],
@@ -283,6 +289,33 @@ describe("MediaLibraryAllItemsGrid", () => {
         signedUrl: "https://cdn.example.com/signed/clip-1-poster.jpg",
         fileType: "image/jpeg",
       })
+    );
+  });
+
+  it("keeps signing the original video path when only a poster image is already signed", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user-1/uploads/clip-1.mp4", "https://cdn.example.com/signed/clip-1.mp4"]])
+    );
+
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        ...props.mediaRows[0],
+        signedUrl: "https://cdn.example.com/clip-1-poster.jpg",
+        poster_variant_path: "https://cdn.example.com/clip-1-poster.jpg",
+      },
+    ];
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    await waitFor(() =>
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bucket: "media_library",
+          storagePaths: ["user-1/uploads/clip-1.mp4"],
+          surface: "media-library-panel",
+        })
+      )
     );
   });
 

@@ -26,6 +26,17 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-project-folder-stabilization-trim-and-fix-plan-2026-04-24.md`
 - `docs/archive/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
 - `docs/archive/planning/ai-studio-project-persistence-stabilization-trim-and-fix-plan-2026-04-24.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-decision-log-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-master-plan-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-phase-0-v1-contract-and-stop-rules-plan-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-phase-1-domain-model-and-storage-plan-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-phase-2-client-runtime-state-plan-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-phase-3-session-persistence-plan-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-phase-4-agent-contract-and-transport-plan-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-phase-5-server-runtime-activation-plan-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`
+- `docs/archive/planning/ai-studio-pulse-runtime-tracker-2026-04-20.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-master-plan-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`
 - `docs/archive/planning/ai-studio-right-rail-performance-master-tracker-2026-03-23.md`

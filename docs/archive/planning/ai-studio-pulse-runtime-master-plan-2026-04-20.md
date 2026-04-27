@@ -1,5 +1,7 @@
 # AI Studio Pulse Runtime Master Plan (2026-04-20)
 
+> Archived on 2026-04-26 during docs cleanup because the Pulse runtime program is complete and the active follow-on plan is `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`.
+
 Last updated: 2026-04-23
 Status: complete
 Owner: Engineering
@@ -106,14 +108,14 @@ The recommended default posture for implementation start is:
 | 7 | Validation, Docs, and Support Posture | Complete | P1 |
 
 ## Phase Links
-1. `docs/planning/ai-studio-pulse-runtime-phase-0-v1-contract-and-stop-rules-plan-2026-04-20.md`
-2. `docs/planning/ai-studio-pulse-runtime-phase-1-domain-model-and-storage-plan-2026-04-20.md`
-3. `docs/planning/ai-studio-pulse-runtime-phase-2-client-runtime-state-plan-2026-04-20.md`
-4. `docs/planning/ai-studio-pulse-runtime-phase-3-session-persistence-plan-2026-04-20.md`
-5. `docs/planning/ai-studio-pulse-runtime-phase-4-agent-contract-and-transport-plan-2026-04-20.md`
-6. `docs/planning/ai-studio-pulse-runtime-phase-5-server-runtime-activation-plan-2026-04-20.md`
-7. `docs/planning/ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`
-8. `docs/planning/ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`
+1. `docs/archive/planning/ai-studio-pulse-runtime-phase-0-v1-contract-and-stop-rules-plan-2026-04-20.md`
+2. `docs/archive/planning/ai-studio-pulse-runtime-phase-1-domain-model-and-storage-plan-2026-04-20.md`
+3. `docs/archive/planning/ai-studio-pulse-runtime-phase-2-client-runtime-state-plan-2026-04-20.md`
+4. `docs/archive/planning/ai-studio-pulse-runtime-phase-3-session-persistence-plan-2026-04-20.md`
+5. `docs/archive/planning/ai-studio-pulse-runtime-phase-4-agent-contract-and-transport-plan-2026-04-20.md`
+6. `docs/archive/planning/ai-studio-pulse-runtime-phase-5-server-runtime-activation-plan-2026-04-20.md`
+7. `docs/archive/planning/ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`
+8. `docs/archive/planning/ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`
 
 ## Done State
 The program is done when:

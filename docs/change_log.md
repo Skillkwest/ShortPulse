@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the completed Pulse runtime planning family under `docs/archive/planning/`,
+  - removed that closed packet from the active planning indexes,
+  - and retargeted the surviving ADR/archive references to the new historical paths.
+- Documentation cleanup:
   - normalized the April 2026 active-planning families onto the canonical status vocabulary (`draft`, `active`, `complete`),
   - marked completed April planning families explicitly as `complete` so later archive work is visible in metadata instead of hidden behind custom status phrases,
   - and filled the missing status headers on the current staging-preview and Pulse decision-log planning docs.

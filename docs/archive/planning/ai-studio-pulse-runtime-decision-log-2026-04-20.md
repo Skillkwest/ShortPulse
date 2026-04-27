@@ -1,5 +1,7 @@
 # AI Studio Pulse Runtime Decision Log (2026-04-20)
 
+> Archived on 2026-04-26 during docs cleanup because the Pulse runtime program is complete and the active follow-on plan is `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`.
+
 Last updated: 2026-04-20
 Status: complete
 

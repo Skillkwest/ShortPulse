@@ -5,8 +5,8 @@
 - Deciders: Frontend Engineering
 - Related:
   - `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
-  - `docs/planning/ai-studio-pulse-runtime-master-plan-2026-04-20.md`
-  - `docs/planning/ai-studio-pulse-runtime-decision-log-2026-04-20.md`
+  - `docs/archive/planning/ai-studio-pulse-runtime-master-plan-2026-04-20.md`
+  - `docs/archive/planning/ai-studio-pulse-runtime-decision-log-2026-04-20.md`
 
 ## Context
 The completed Pulse runtime program made Pulse a saved Create agent-profile runtime, but the current repo still carries a product-contract mismatch:

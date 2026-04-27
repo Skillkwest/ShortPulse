@@ -12,25 +12,16 @@ import {
   type SetStateAction,
 } from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
-import {
-  withCanonicalImageDimensions,
-  type ImageDimensions,
-} from "../../../lib/mediaDimensionMetadata";
-import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
+import { readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { MediaTab } from "../logic/mediaMoveRouting";
 import { resolveMediaPreviewStoragePath } from "../logic/mediaPreviewStoragePath";
 import {
-  BUCKET,
   PRIVATE_MEDIA_SOURCE,
   fileTypeFromMime,
-  sanitizeFileName,
   type MediaDataTab,
 } from "../logic/mediaLibraryPageHelpers";
-import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 
-const PRIVATE_MEDIA_FOLDER = "private";
 const MEDIA_UPLOAD_API_ROUTE = "/api/media/upload";
-const IMAGE_DIMENSION_READ_TIMEOUT_MS = 1500;
 
 type UploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
 
@@ -61,10 +52,6 @@ type UseMediaUploadControllerArgs<TRow extends UploadMediaRowBase> = {
   markInactiveMediaCachesStale: (currentTab: MediaDataTab | null) => void;
   refreshStorageUsageBytes: () => Promise<void>;
   setError: Dispatch<SetStateAction<string | null>>;
-  signStoragePath: (
-    storagePath: string,
-    options?: { forceRefresh?: boolean }
-  ) => Promise<string | null>;
   updateVisibleRows: (updater: (prev: TRow[]) => TRow[]) => void;
 };
 
@@ -73,16 +60,6 @@ type ApiUploadResponse = {
   error?: string;
   details?: string;
 };
-
-const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean => {
-  const normalized = value?.trim().toLowerCase();
-  if (normalized === "true") return true;
-  if (normalized === "false") return false;
-  return fallback;
-};
-
-const isMediaUploadApiEnabled = (): boolean =>
-  parseBooleanEnv(process.env.NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED, true);
 
 const resolveUploadDestinationTab = (
   file: File,
@@ -123,59 +100,11 @@ const uploadViaServerApi = async ({
   return payload.file;
 };
 
-const readImageDimensionsFromFile = async (file: File): Promise<ImageDimensions | null> => {
-  if (!file.type.toLowerCase().startsWith("image/")) return null;
-  if (typeof createImageBitmap === "function") {
-    try {
-      const bitmap = await createImageBitmap(file);
-      const width = Math.max(1, Math.round(bitmap.width));
-      const height = Math.max(1, Math.round(bitmap.height));
-      bitmap.close();
-      if (width > 0 && height > 0) {
-        return { width, height };
-      }
-    } catch {
-      // fallback below
-    }
-  }
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    return await new Promise<ImageDimensions | null>((resolve) => {
-      let settled = false;
-      const finish = (value: ImageDimensions | null) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeoutId);
-        image.onload = null;
-        image.onerror = null;
-        resolve(value);
-      };
-      const image = new Image();
-      const timeoutId = setTimeout(() => {
-        finish(null);
-      }, IMAGE_DIMENSION_READ_TIMEOUT_MS);
-      image.onload = () => {
-        const width = Math.max(1, Math.round(image.naturalWidth || image.width || 0));
-        const height = Math.max(1, Math.round(image.naturalHeight || image.height || 0));
-        if (width > 0 && height > 0) {
-          finish({ width, height });
-          return;
-        }
-        finish(null);
-      };
-      image.onerror = () => finish(null);
-      image.src = objectUrl;
-    });
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-};
-
 /**
  * Creates upload handlers and upload-state flags for the Media Library page.
  * Inputs: active tab metadata, row reconciliation callbacks, and signing/event helpers.
  * Output: drag-drop/file-picker handlers plus uploading state and manual upload action.
- * Side effects: writes files to Supabase storage, inserts `media_files` rows, and refreshes usage totals.
+ * Side effects: posts files to the upload API, reconciles optimistic rows, and refreshes usage totals.
  */
 export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
   activeMediaTab,
@@ -186,7 +115,6 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
   markInactiveMediaCachesStale,
   refreshStorageUsageBytes,
   setError,
-  signStoragePath,
   updateVisibleRows,
 }: UseMediaUploadControllerArgs<TRow>) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -200,7 +128,6 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
       setUploading(true);
       let placeholderIds: string[] = [];
       try {
-        const supabase = ensureSupabaseQueryClient();
         const userId = await readSupabaseUserId();
         if (!userId) {
           setError("Not signed in");
@@ -221,7 +148,6 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
           }
         }
         const uploads: TRow[] = [];
-        const useServerUploadApi = isMediaUploadApiEnabled();
         // Create optimistic placeholders so users see upload activity in the grid immediately.
         const placeholders: TRow[] = filesToProcess.map((file) => ({
           id: crypto.randomUUID(),
@@ -244,68 +170,17 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
           const resolvedFileType = fileTypeFromMime(mimeType);
           const destinationTab = resolveUploadDestinationTab(file, isPrivateUpload);
 
-          let inserted: UploadMediaRowBase;
-          let previewStoragePath: string;
-          let signedUrl: string | null;
-
-          if (useServerUploadApi) {
-            inserted = await uploadViaServerApi({
-              file,
-              destinationTab,
-            });
-            previewStoragePath = resolveMediaPreviewStoragePath(inserted, userId);
-            signedUrl = inserted.signedUrl ?? null;
-          } else {
-            const imageDimensions =
-              resolvedFileType === "image" ? await readImageDimensionsFromFile(file) : null;
-            const typeFolder = resolvedFileType === "video" ? "videos" : "images";
-            const extension = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-            const storedName = `${crypto.randomUUID()}-${sanitizeFileName(file.name.replace(extension, ""))}${extension}`;
-            const path = assertUserScopedMediaStoragePath({
-              path: isPrivateUpload
-                ? `${userId}/${PRIVATE_MEDIA_FOLDER}/images/${storedName}`
-                : `${userId}/${typeFolder}/${storedName}`,
-              userId,
-              label: "Upload storage path",
-            });
-
-            const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
-              upsert: false,
-              contentType: mimeType,
-            });
-            if (uploadError) {
-              throw uploadError;
-            }
-
-            const { data, error: insertError } = await supabase
-              .from("media_files")
-              .insert({
-                user_id: userId,
-                filename: file.name,
-                storage_path: path,
-                file_type: resolvedFileType,
-                file_size: file.size,
-                source: isPrivateUpload ? PRIVATE_MEDIA_SOURCE : "upload",
-                metadata: withCanonicalImageDimensions(null, imageDimensions),
-              })
-              .select("*")
-              .single();
-            if (insertError || !data) {
-              throw insertError ?? new Error("Missing inserted media row.");
-            }
-
-            inserted = data as UploadMediaRowBase;
-            previewStoragePath = resolveMediaPreviewStoragePath(
-              inserted ?? { storage_path: path },
-              userId
-            );
-            signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
-          }
+          const inserted = await uploadViaServerApi({
+            file,
+            destinationTab,
+          });
+          const previewStoragePath = resolveMediaPreviewStoragePath(inserted, userId);
+          const signedUrl = inserted.signedUrl ?? null;
 
           if (inserted?.id) {
             void logMediaEvent("upload", "media_file", inserted.id, {
               storage_path: inserted.storage_path,
-              file_type: inserted.file_type,
+              file_type: inserted.file_type ?? resolvedFileType,
               file_size: inserted.file_size ?? file.size,
               visibility:
                 (inserted.source ?? "upload") === PRIVATE_MEDIA_SOURCE ? "private" : "standard",
@@ -361,7 +236,6 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
       refreshStorageUsageBytes,
       selectedFiles,
       setError,
-      signStoragePath,
       updateVisibleRows,
     ]
   );

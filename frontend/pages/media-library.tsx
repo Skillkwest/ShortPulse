@@ -295,7 +295,6 @@ export default function MediaLibrary() {
     markInactiveMediaCachesStale,
     refreshStorageUsageBytes,
     setError,
-    signStoragePath,
     updateVisibleRows,
   });
 

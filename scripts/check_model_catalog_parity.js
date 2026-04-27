@@ -69,6 +69,12 @@ const MODEL_DOC_MAP = {
   "kie-ai/seedance-1.5-pro": "api-kie-seedance-1-5-pro.md",
   "kie-ai/seedance-2": "api-kie-seedance-2.md",
   "kie-ai/seedance-2-fast": "api-kie-seedance-2-fast.md",
+  "gpt-image-2": "api-openai-gpt-image-2.md",
+  music_v1: "api-elevenlabs-audio-models.md",
+  eleven_text_to_sound_v2: "api-elevenlabs-audio-models.md",
+  eleven_multilingual_v2: "api-elevenlabs-audio-models.md",
+  eleven_multilingual_sts_v2: "api-elevenlabs-audio-models.md",
+  eleven_multilingual_ttv_v2: "api-elevenlabs-audio-models.md",
   "gpt-5-nano": "api-responses.md",
 };
 

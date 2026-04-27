@@ -3,6 +3,10 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Documentation sync:
+  - added `docs/api/api-elevenlabs-audio-models.md` as the canonical API reference for the shared ElevenLabs audio model ids,
+  - mapped `gpt-image-2` and the five ElevenLabs runtime ids into the model-catalog parity checker,
+  - and restored model-catalog docs coverage for the OpenAI image and ElevenLabs audio lanes.
 - Documentation cleanup:
   - migrated the retained `lane-b` evidence namespace into `docs/records/evidence/lane-b/`,
   - retargeted the archived Lane B closeout references plus the active foundation tracker to the records path,

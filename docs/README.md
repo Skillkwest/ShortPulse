@@ -69,6 +69,7 @@ Start here for all repository documentation.
 - `docs/api/api-internal-routes.md`
 - `docs/api/api-responses.md`
 - `docs/api/api-chat-completions.md`
+- `docs/api/api-elevenlabs-audio-models.md`
 - `docs/api/api-fal-kling-3-pro-image-to-video.md`
 - `docs/api/api-fal-kling-3-pro-text-to-video.md`
 - `docs/api/api-fal-veo3.md`

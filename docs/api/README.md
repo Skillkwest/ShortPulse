@@ -20,6 +20,7 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-responses.md`
 - `docs/api/api-chat-completions.md`
 - `docs/api/api-openai-gpt-image-2.md`
+- `docs/api/api-elevenlabs-audio-models.md`
 - `docs/api/api-fal-kling-3-pro-image-to-video.md`
 - `docs/api/api-fal-kling-3-pro-text-to-video.md`
 - `docs/api/api-fal-veo3.md`

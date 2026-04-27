@@ -35,6 +35,32 @@ const resolveExplicitImageSize = (payload: JsonObject): string | undefined => {
   return undefined;
 };
 
+const resolveInputImageCount = (payload: JsonObject): number | undefined => {
+  const directCount = asNumber(payload.input_image_count);
+  if (directCount && directCount > 0) {
+    return Math.max(1, Math.round(directCount));
+  }
+
+  const images = payload.images;
+  if (!Array.isArray(images)) return undefined;
+  const count = images.filter((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+    const image = entry as Record<string, unknown>;
+    return Boolean(asString(image.image_url) ?? asString(image.file_id));
+  }).length;
+  return count > 0 ? count : undefined;
+};
+
+const resolveMaskPresent = (payload: JsonObject): boolean | undefined => {
+  const directMaskPresent = asBoolean(payload.mask_present);
+  if (directMaskPresent !== undefined) return directMaskPresent;
+
+  const mask = payload.mask;
+  if (!mask || typeof mask !== "object" || Array.isArray(mask)) return undefined;
+  const record = mask as Record<string, unknown>;
+  return Boolean(asString(record.image_url) ?? asString(record.file_id));
+};
+
 const resolveAspectFromImageSize = (
   payload: JsonObject,
   dimensions?: { width: number; height: number }
@@ -184,6 +210,9 @@ export const summarizePayload = (payload: JsonObject): JsonObject => {
     "n",
     "resolution",
     "quality",
+    "input_fidelity",
+    "input_image_count",
+    "mask_present",
     "size",
     "mode",
     "source_duration_ms",
@@ -246,6 +275,12 @@ export const buildPricingParams = (
   if (typeof resolution === "string" && ["low", "medium", "high"].includes(resolution)) {
     params.quality = resolution;
   }
+  const inputFidelity = asString(payload.input_fidelity);
+  if (inputFidelity) params.inputFidelity = inputFidelity;
+  const inputImageCount = resolveInputImageCount(payload);
+  if (inputImageCount) params.inputImageCount = inputImageCount;
+  const maskPresent = resolveMaskPresent(payload);
+  if (maskPresent !== undefined) params.maskPresent = maskPresent;
 
   const mode = asString(payload.mode);
   if (mode) params.mode = mode;

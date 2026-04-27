@@ -26,7 +26,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ## Environment prerequisites
 
 1. Fal-backed image models rely on `FAL_KEY`; those provider submissions do not route through legacy prompt-generation endpoints.
-2. `OPENAI_API_KEY` is required for separate text/describe workflows documented in `docs/sops/sop_text_generation.md` and for the phase-1 `gpt-image-2` Create -> Image lane exposed through `POST /api/openai/image-generate`.
+2. `OPENAI_API_KEY` is required for separate text/describe workflows documented in `docs/sops/sop_text_generation.md` and for the `gpt-image-2` Create/Edit lanes exposed through `POST /api/openai/image-generate` and `POST /api/openai/image-edit`.
 3. Credits: generation debit/refund is server-authoritative through API submit routes; `useCredits` reads balance only.
 
 ## Image generation workflow (Create → Image)
@@ -38,10 +38,10 @@ For Create properties panel, model-selector, and submission wiring details, see 
 5. On click:  
    - `CreatePropertiesPanel.onGenerate` routes through `useAiStudioGenerationController.handlePrimarySubmit`, which runs start invariants/preflight and delegates prompt composition to `useAiStudioGenerationPromptComposer`.
    - `useAiStudioTaskSubmission` creates/reconciles optimistic output state, resolves `taskSubmission` handler route by model id, and submits provider payloads (including aspect/resolution/reference mappings).
-   - Fal submit routes reserve credits before provider submission (no immediate debit posted), while phase-1 `gpt-image-2` requests use a direct-response submit path through `/api/openai/image-generate`.
+   - Fal submit routes reserve credits before provider submission (no immediate debit posted), while `gpt-image-2` requests use direct-response submit paths through `/api/openai/image-generate` and `/api/openai/image-edit`.
    - Submit admission control may reject over-limit requests with `429` (`code: GENERATION_ADMISSION_LIMIT`), `Retry-After`, and limiter metadata (`admissionScope`, `admissionReason`); denied requests release reservations immediately.
    - Fal success captures reservation into a debit; failed submit/status outcomes release reservation. `gpt-image-2` is direct-debit and refunds on route failure through the shared billing helper.
-   - Fal/Kie task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. `gpt-image-2` completes immediately without provider polling and patches the optimistic output into terminal success once the route returns. Failures set `errorMessage` and stop polling.  
+   - Fal/Kie task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. `gpt-image-2` create and standard edit complete immediately without provider polling and patch the optimistic output into terminal success once the route returns. Failures set `errorMessage` and stop polling.
 6. Reference Grid prepends the new output card; Studio Preview shows the latest image.  
 7. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
 
@@ -191,7 +191,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 | Provider | Model id | Allowed aspects (examples) | Notes |
 | --- | --- | --- | --- |
 | Fal | `fal-ai/flux-2/klein/9b` | Uses `falSizeForAspect` (maps 1:1, 9:16, 16:9, etc.) | Text-to-image; billed credits now come from the shared global pricing policy plus any explicit per-model override configured in `/admin/pricing`; safety checker off by default. |
-| OpenAI | `gpt-image-2` | `auto`, `1:1`, `4:5`, `3:4`, `2:3`, `9:16`, `5:4`, `4:3`, `3:2`, `16:9`, `21:9` | Create-only in phase 1. AI Studio maps aspects onto the supported OpenAI size matrix (`1024x1024`, `1024x1536`, `1536x1024`) and uses `low` / `medium` / `high` as the model-specific quality tiers. Submission is direct through `/api/openai/image-generate`, outputs are persisted synchronously from base64 provider data, and pricing is table-driven from the documented GPT Image 2 size/quality examples before the shared credit conversion policy is applied. |
+| OpenAI | `gpt-image-2` | `auto`, `1:1`, `4:5`, `3:4`, `2:3`, `9:16`, `5:4`, `4:3`, `3:2`, `16:9`, `21:9` | Supports prompt-only create plus standard reference-image edit. AI Studio maps aspects onto the supported OpenAI size matrix (`1024x1024`, `1024x1536`, `1536x1024`) and uses `low` / `medium` / `high` as the model-specific quality tiers. Create submits go through `/api/openai/image-generate`; standard edits go through `/api/openai/image-edit` with deterministic input-fidelity/image-count pricing. Both lanes persist outputs synchronously from base64 provider data and complete without provider polling. |
 | Fal | `fal-ai/nano-banana` | 1:1 default (allowed: 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Text-to-image via the Fal queue; flat per-image pricing ($0.039 -> 5 credits with 5-credit rounding) and PNG outputs, proxied through `/api/fal/nano-banana-*`. |
 | Fal | `fal-ai/nano-banana/edit` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Image-to-image/edit; requires `image_urls` references; flat per-image pricing (5 credits), proxied through `/api/fal/nano-banana-edit-*`. |
 | Fal | `fal-ai/nano-banana-2` | `auto` default (allowed: auto, 21:9, 16:9, 3:2, 4:3, 5:4, 1:1, 4:5, 3:4, 2:3, 9:16) | Text-to-image via the Fal queue; base per-image pricing starts at $0.08 with resolution multipliers (`0.5K x0.75`, `2K x1.5`, `4K x2`) and optional web-search surcharge, proxied through `/api/fal/nano-banana-2-*`. |

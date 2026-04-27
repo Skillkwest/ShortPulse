@@ -8,6 +8,10 @@ import { buildDefaultPricingParams, getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { resolveAiStudioAllowedModelOptions } from "../logic/modelSelectionPolicy";
 import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
+import {
+  OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
+  OPENAI_GPT_IMAGE_2_MODEL_ID,
+} from "../../../lib/model-runtime/openAiImage2";
 import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import type { StudioMode, ToolId } from "../types";
 
@@ -47,14 +51,30 @@ export const useAiStudioPageDerivations = ({
     selectedTool === "my-generations" ||
     selectedTool === "community";
 
+  const preparedReferenceImageCount = useMemo(() => {
+    const candidateUrls = [referenceImageUrl, ...extraImageUrls];
+    return candidateUrls.filter((value) => typeof value === "string" && value.trim().length > 0)
+      .length;
+  }, [extraImageUrls, referenceImageUrl]);
+
   const costParamsForModel = useCallback(
-    (targetModelId: string, overrides: Omit<PricingParams, "modelId"> = {}) => ({
-      modelId: targetModelId,
-      ...buildDefaultPricingParams(targetModelId),
-      aspect,
-      ...overrides,
-    }),
-    [aspect]
+    (targetModelId: string, overrides: Omit<PricingParams, "modelId"> = {}) => {
+      const gptImage2EditPricingDefaults =
+        targetModelId === OPENAI_GPT_IMAGE_2_MODEL_ID && preparedReferenceImageCount > 0
+          ? {
+              inputImageCount: preparedReferenceImageCount,
+              inputFidelity: OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
+            }
+          : {};
+      return {
+        modelId: targetModelId,
+        ...buildDefaultPricingParams(targetModelId),
+        aspect,
+        ...gptImage2EditPricingDefaults,
+        ...overrides,
+      };
+    },
+    [aspect, preparedReferenceImageCount]
   );
 
   const filteredModelOptions = useMemo(() => {

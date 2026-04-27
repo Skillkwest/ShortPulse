@@ -7,7 +7,9 @@ import {
   OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD,
   OPENAI_GPT_IMAGE_2_DEFAULT_SIZE,
   OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS,
+  resolveOpenAiGptImage2InputImageUsd,
   normalizeOpenAiGptImage2Quality,
+  normalizeOpenAiGptImage2InputFidelity,
   resolveOpenAiGptImage2SizeForAspect,
 } from "./openAiImage2";
 import { convertUsdToCredits } from "./pricingCredits";
@@ -258,17 +260,36 @@ const computeGptImage2PerImageCost: StrategyFn = ({
   modelId,
   generationCount,
   pricingPolicy,
+  inputImageCount = 0,
+  inputFidelity,
+  maskPresent = false,
   ...params
 }) => {
   const size = resolveGptImage2Size(params);
   const quality = resolveGptImage2Quality(params);
-  const usdPerImage = OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD[size][quality];
+  const outputUsdPerImage = OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD[size][quality];
   const outputCount = Math.max(1, Math.round(resolvePositiveFiniteNumber(generationCount) ?? 1));
   const dimensions = OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS[size];
   const megapixels = (dimensions.width * dimensions.height) / 1_000_000;
+  const normalizedInputImageCount = Math.max(
+    0,
+    Math.round(resolvePositiveFiniteNumber(inputImageCount) ?? 0)
+  );
+  const normalizedInputFidelity = normalizeOpenAiGptImage2InputFidelity(inputFidelity);
+  const perInputImageUsd = resolveOpenAiGptImage2InputImageUsd({
+    size,
+    inputFidelity: normalizedInputFidelity,
+  });
+  const maskUsd = maskPresent
+    ? resolveOpenAiGptImage2InputImageUsd({
+        size,
+        inputFidelity: "low",
+      })
+    : 0;
   return toCostBreakdown({
     modelId,
-    usdRaw: usdPerImage * outputCount,
+    usdRaw:
+      outputUsdPerImage * outputCount + perInputImageUsd * normalizedInputImageCount + maskUsd,
     megapixels,
     width: dimensions.width,
     height: dimensions.height,

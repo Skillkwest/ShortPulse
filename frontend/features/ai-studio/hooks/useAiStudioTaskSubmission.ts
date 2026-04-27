@@ -242,7 +242,9 @@ export const useAiStudioTaskSubmission = ({
       const hasReferenceImages = imageInputs && imageInputs.length > 0;
       const isEditWorkflow = normalizedTool === "image";
       const finalModelConfig = finalModel ? getModelConfig(finalModel) : null;
-      const requiresImageToImageReferences = Boolean(finalModelConfig?.supportsImageToImage);
+      const requiresImageToImageReferences = isEditWorkflow
+        ? Boolean(finalModelConfig?.supportsImageToImage)
+        : Boolean(finalModelConfig?.supportsImageToImage && !finalModelConfig?.supportsTextToImage);
       const requiresPrompt = isEditWorkflow ? shouldRequirePromptForEditModel(finalModel) : true;
       const submissionStartUiError = resolveSubmissionStartUiError({
         cleanedSubmissionPrompt,
@@ -884,6 +886,7 @@ export const useAiStudioTaskSubmission = ({
               startPollingWithGeneration,
               completeGenerationImmediately,
               falReferencePayload,
+              inpaintOverride: preparedInpaintOverride,
             });
           }
           if (submissionFailureSignaled) {

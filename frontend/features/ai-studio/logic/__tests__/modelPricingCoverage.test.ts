@@ -7,6 +7,7 @@ import { listModelConfigs } from "../modelRegistry";
 import {
   OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD,
   OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS,
+  resolveOpenAiGptImage2InputImageUsd,
 } from "../../../../lib/model-runtime/openAiImage2";
 
 const AUDIO_STRATEGIES = new Set([
@@ -198,6 +199,29 @@ describe("model pricing coverage", () => {
     expect(landscapeFallback?.width).toBe(OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1536x1024"].width);
     expect(landscapeFallback?.height).toBe(
       OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS["1536x1024"].height
+    );
+  });
+
+  it("adds deterministic GPT Image 2 edit input-image surcharges", () => {
+    const editEstimate = computeCostForModel("gpt-image-2", {
+      aspect: "1:1",
+      resolution: "medium",
+      inputImageCount: 2,
+      inputFidelity: "high",
+      maskPresent: true,
+    });
+
+    expect(editEstimate?.usdRaw).toBeCloseTo(
+      OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD["1024x1024"].medium +
+        resolveOpenAiGptImage2InputImageUsd({
+          size: "1024x1024",
+          inputFidelity: "high",
+        }) *
+          2 +
+        resolveOpenAiGptImage2InputImageUsd({
+          size: "1024x1024",
+          inputFidelity: "low",
+        })
     );
   });
 });

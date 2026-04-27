@@ -206,6 +206,7 @@ const registry: Record<string, ModelConfig> = {
     defaultResolution: contractDefaultResolution("gpt-image-2", "medium"),
     allowedResolutions: contractAllowedResolutions("gpt-image-2", ["low", "medium", "high"]),
     supportsTextToImage: true,
+    supportsImageToImage: true,
   },
   "fal-ai/nano-banana": {
     id: "fal-ai/nano-banana",

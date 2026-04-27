@@ -1,13 +1,18 @@
 # OpenAI GPT Image 2
 
-Purpose: document the ShortPulse phase-1 `gpt-image-2` integration that powers AI Studio Create -> Image through the authenticated internal OpenAI route.
+Purpose: document the ShortPulse `gpt-image-2` integration that powers AI Studio Create -> Image and standard Edit through authenticated internal OpenAI routes.
 
-## ShortPulse entrypoint
+## ShortPulse entrypoints
 
-- Client submit route: `POST /api/openai/image-generate`
-- Server transport: OpenAI Images API `POST /v1/images/generations`
+- Client submit routes:
+  - `POST /api/openai/image-generate`
+  - `POST /api/openai/image-edit`
+- Server transport:
+  - OpenAI Images API `POST /v1/images/generations`
+  - OpenAI Images API `POST /v1/images/edits`
 - Route source of truth:
   - `frontend/pages/api/openai/image-generate.ts`
+  - `frontend/pages/api/openai/image-edit.ts`
   - `frontend/lib/server/openaiImageGeneration.ts`
   - `frontend/lib/model-runtime/openAiImage2.ts`
 
@@ -16,9 +21,11 @@ Purpose: document the ShortPulse phase-1 `gpt-image-2` integration that powers A
 - ShortPulse route auth: route-level bearer auth via `requireApiUser`
 - Provider auth: server-owned `OPENAI_API_KEY`
 
-## Phase-1 scope
+## Current scope
 
-- Workflow: AI Studio Create -> Image only
+- Workflows:
+  - AI Studio Create -> Image
+  - AI Studio standard Edit
 - Model id: `gpt-image-2`
 - Outputs per request: `n = 1`
 - Supported sizes:
@@ -29,17 +36,21 @@ Purpose: document the ShortPulse phase-1 `gpt-image-2` integration that powers A
   - `low`
   - `medium`
   - `high`
+- Supported edit input fidelity:
+  - `high`
 - Output format: `png`
 - Moderation mode: `auto`
-- Not in scope:
-  - edits
-  - Responses tool path
-  - streaming
+- Standard edit inputs:
+  - up to 8 reference images through the current AI Studio client path
+  - optional mask on the route contract for future/power-user parity
+- Still not in scope:
   - Character Mode
+  - streaming
+  - Responses tool path
 
-## Request contract
+## Request contracts
 
-ShortPulse route body:
+Create route body:
 
 ```json
 {
@@ -54,13 +65,37 @@ ShortPulse route body:
 }
 ```
 
+Edit route body:
+
+```json
+{
+  "prompt": "restyle this portrait",
+  "size": "1024x1024",
+  "quality": "medium",
+  "images": [
+    { "image_url": "https://example.com/base.png" },
+    { "image_url": "https://example.com/reference.png" }
+  ],
+  "input_fidelity": "high",
+  "mask": { "image_url": "https://example.com/mask.png" },
+  "project_id": "project-uuid-optional",
+  "generation_replay": {},
+  "character_context": {},
+  "style_context": {},
+  "shortpulse_context": {}
+}
+```
+
 Validation rules:
 
 - `prompt` is required and trimmed.
 - `size` must be one of the supported phase-1 sizes.
 - `quality` must be one of `low | medium | high`.
+- `images` is required for `/api/openai/image-edit` and must contain `1..8` image URLs.
+- `input_fidelity` for `/api/openai/image-edit` must be `high` or `low`; current AI Studio standard-edit flow always uses `high`.
+- `mask` is optional for `/api/openai/image-edit`.
 - `project_id` is optional; when present, successful direct-complete generations are eagerly associated to the owned project so restore/reopen can find them without waiting for later workspace-save backfill.
-- Server enforces `n = 1`; callers do not supply arbitrary counts in phase 1.
+- Server enforces `n = 1`; callers do not supply arbitrary counts.
 
 ## Aspect and quality mapping
 
@@ -110,21 +145,26 @@ Route response shape:
 
 ## Billing
 
-Phase-1 billing is deterministic and request-shape based.
+Billing is deterministic and request-shape based.
 
 - Shared conversion policy still applies:
   - `1 credit = $0.01`
   - `+3%` markup
   - nearest-5 credit rounding
-- Phase-1 raw provider price table used by the runtime:
+- Raw provider output price table used by the runtime:
   - `1024x1024`: `low $0.006`, `medium $0.053`, `high $0.211`
   - `1024x1536`: `low $0.005`, `medium $0.041`, `high $0.165`
   - `1536x1024`: `low $0.005`, `medium $0.041`, `high $0.165`
+- Standard edit pricing adds deterministic input-image surcharges based on:
+  - output size proxy
+  - input image count
+  - `input_fidelity`
+  - optional mask presence
 - Billing mode is direct debit, not Fal-style reservation capture.
 - Route failures refund through the shared generation-billing helper.
 
 ## Notes
 
 - This lane is intentionally separate from the Fal image submit/status registry.
-- The route is synchronous from the client perspective: no provider polling is required once the request returns successfully.
+- Both routes are synchronous from the client perspective: no provider polling is required once the request returns successfully.
 - The AI Studio output lifecycle uses the direct-complete path for this model instead of the queue/poll path used by Fal image runs.

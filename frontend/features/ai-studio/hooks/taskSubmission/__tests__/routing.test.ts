@@ -22,6 +22,7 @@ describe("resolveSubmissionHandlerRoute", () => {
   it("routes unknown and fallback models to default handler", () => {
     expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/nonexistent")).toBe("default");
     expect(resolveSubmissionHandlerRoute("fal-ai/nano-banana")).toBe("default");
+    expect(resolveSubmissionHandlerRoute("gpt-image-2")).toBe("default");
     expect(resolveSubmissionHandlerRoute("legacy/provider-image")).toBe("default");
     expect(resolveSubmissionHandlerRoute("custom/unknown-model")).toBe("default");
   });

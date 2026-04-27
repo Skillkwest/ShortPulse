@@ -14,7 +14,10 @@ import {
   submitFalNanoBananaProEdit,
   submitFalFlux2Klein,
 } from "../../../../../lib/falClient";
-import { submitOpenAiGptImage2 } from "../../../../../lib/openAiImageClient";
+import {
+  submitOpenAiGptImage2,
+  submitOpenAiGptImage2Edit,
+} from "../../../../../lib/openAiImageClient";
 
 vi.mock("../../../../../lib/falClient", () => ({
   submitFalSeedream: vi.fn(),
@@ -30,6 +33,7 @@ vi.mock("../../../../../lib/falClient", () => ({
 
 vi.mock("../../../../../lib/openAiImageClient", () => ({
   submitOpenAiGptImage2: vi.fn(),
+  submitOpenAiGptImage2Edit: vi.fn(),
 }));
 
 const makeArgs = (overrides: Partial<ImageSubmissionArgs> = {}): ImageSubmissionArgs => ({
@@ -87,6 +91,22 @@ describe("Seedream submission payloads", () => {
     vi.mocked(submitFalNanoBananaProEdit).mockResolvedValue({ request_id: "nano-pro-edit-req" });
     vi.mocked(submitFalFlux2Klein).mockResolvedValue({ request_id: "flux2-klein-req" });
     vi.mocked(submitOpenAiGptImage2).mockResolvedValue({
+      output: {
+        provider: "openai-image",
+        mode: "image",
+        generationId: "openai-gen-1",
+        mediaFileId: "media-openai-1",
+        requestId: "openai-request-1",
+        previewUrl: "https://cdn.test/openai-preview.png",
+        resultUrls: ["https://cdn.test/openai-preview.png"],
+        previewStoragePath: "user-1/generations/images/openai-preview.png",
+        fullStoragePath: "user-1/generations/images/openai-full.png",
+        mimeType: "image/png",
+        modelId: "gpt-image-2",
+        savedMediaIds: ["media-openai-1"],
+      },
+    });
+    vi.mocked(submitOpenAiGptImage2Edit).mockResolvedValue({
       output: {
         provider: "openai-image",
         mode: "image",
@@ -297,6 +317,37 @@ describe("Seedream submission payloads", () => {
       mimeType: "image/png",
       savedMediaIds: ["media-openai-1"],
     });
+    expect(args.startPollingWithGeneration).not.toHaveBeenCalled();
+  });
+
+  it("routes gpt-image-2 reference-image edits through the OpenAI edit lane", async () => {
+    const completeGenerationImmediately = vi.fn();
+    const args = makeArgs({
+      finalModel: "gpt-image-2",
+      modelConfig: getModelConfig("gpt-image-2"),
+      aspect: "16:9",
+      requestedResolution: "medium",
+      preparedImageInputs: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
+      falReferencePayload: {},
+      shortpulseContext: { surface: "ai-studio-edit" },
+      completeGenerationImmediately,
+    });
+
+    await handleDefaultModelSubmission(args);
+
+    expect(submitOpenAiGptImage2Edit).toHaveBeenCalledWith({
+      prompt: "A polished portrait",
+      size: "1536x1024",
+      quality: "medium",
+      images: [
+        { image_url: "https://cdn.test/ref-1.png" },
+        { image_url: "https://cdn.test/ref-2.png" },
+      ],
+      input_fidelity: "high",
+      shortpulse_context: { surface: "ai-studio-edit" },
+    });
+    expect(submitOpenAiGptImage2).not.toHaveBeenCalled();
+    expect(completeGenerationImmediately).toHaveBeenCalledOnce();
     expect(args.startPollingWithGeneration).not.toHaveBeenCalled();
   });
 });

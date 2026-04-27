@@ -244,6 +244,63 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("direct-debits gpt-image-2 edit requests with edit pricing params", async () => {
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-openai-image-edit",
+      },
+      url: "/api/openai/image-edit",
+    };
+    const res = createMockResponse();
+
+    const payload = {
+      prompt: "restyle the portrait",
+      size: "1536x1024",
+      quality: "medium",
+      n: 1,
+      input_fidelity: "high",
+      images: [
+        { image_url: "https://example.com/base.png" },
+        { image_url: "https://example.com/ref.png" },
+      ],
+      mask: {
+        image_url: "https://example.com/mask.png",
+      },
+    };
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "gpt-image-2",
+      payload,
+      reason: "OpenAI GPT Image 2 edit",
+    });
+
+    const expectedPricingParams = buildPricingParams("gpt-image-2", payload);
+    const expectedEstimate = computeCostForModel("gpt-image-2", expectedPricingParams);
+
+    expect(charge).not.toBeNull();
+    expect(charge?.billingMode).toBe("direct_debit");
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        changeCents: -Math.abs(expectedEstimate?.credits ?? 0),
+        source: "generation_charge",
+        sourceRef: "req-openai-image-edit",
+        metadata: expect.objectContaining({
+          model_id: "gpt-image-2",
+          route: "/api/openai/image-edit",
+          debited_credits: expectedEstimate?.credits,
+          pricing_params: expectedPricingParams,
+        }),
+      })
+    );
+
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
   it("returns charge helpers when reservation RPC succeeds and calls mark/release RPCs", async () => {
     const rpcMock = vi
       .fn()

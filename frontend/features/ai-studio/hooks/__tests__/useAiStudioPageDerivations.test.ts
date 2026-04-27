@@ -63,6 +63,22 @@ describe("useAiStudioPageDerivations", () => {
     expect(params.durationSeconds).toBe(8);
   });
 
+  it("adds GPT Image 2 edit pricing inputs when reference images are present", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageDerivations(
+        createParams({
+          model: "gpt-image-2",
+          referenceImageUrl: "https://example.com/base.png",
+          extraImageUrls: ["https://example.com/ref.png", null, null],
+        })
+      )
+    );
+
+    const params = result.current.costParamsForModel("gpt-image-2");
+    expect(params.inputImageCount).toBe(2);
+    expect(params.inputFidelity).toBe("high");
+  });
+
   it("uses shared create/image model policy and keeps only image-capable create models", () => {
     const { result } = renderHook(() =>
       useAiStudioPageDerivations(

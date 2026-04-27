@@ -1,8 +1,12 @@
 /**
  * Default submission handlers (OpenAI GPT Image 2, Seedream, and Nano Banana) for AI Studio.
  */
-import { submitOpenAiGptImage2 } from "../../../../lib/openAiImageClient";
 import {
+  submitOpenAiGptImage2,
+  submitOpenAiGptImage2Edit,
+} from "../../../../lib/openAiImageClient";
+import {
+  OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
   normalizeOpenAiGptImage2Quality,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
   resolveOpenAiGptImage2SizeForAspect,
@@ -62,6 +66,7 @@ export const handleDefaultModelSubmission = async ({
   cleanedPrompt,
   aspect,
   requestedResolution,
+  preparedImageInputs,
   falReferencePayload,
   generationReplay,
   characterContext,
@@ -69,6 +74,7 @@ export const handleDefaultModelSubmission = async ({
   shortpulseContext,
   completeGenerationImmediately,
   startPollingWithGeneration,
+  inpaintOverride,
 }: ImageSubmissionArgs): Promise<void> => {
   let response: FalSubmitResponse;
   let pollingProvider:
@@ -85,13 +91,36 @@ export const handleDefaultModelSubmission = async ({
   };
 
   if (finalModel === OPENAI_GPT_IMAGE_2_MODEL_ID) {
-    const response = await submitOpenAiGptImage2({
-      prompt: cleanedPrompt,
-      size: resolveOpenAiGptImage2SizeForAspect(aspect),
-      quality: normalizeOpenAiGptImage2Quality(requestedResolution),
-      ...(projectId ? { project_id: projectId } : {}),
-      ...shortpulseSubmitPayload,
-    });
+    const size = resolveOpenAiGptImage2SizeForAspect(aspect);
+    const quality = normalizeOpenAiGptImage2Quality(requestedResolution);
+    const openAiReferenceImages = inpaintOverride?.baseImageInput?.trim()
+      ? [
+          inpaintOverride.baseImageInput.trim(),
+          ...(inpaintOverride.referenceImageInput?.trim()
+            ? [inpaintOverride.referenceImageInput.trim()]
+            : []),
+        ]
+      : preparedImageInputs.slice(0, 8);
+    const maskImageUrl = inpaintOverride?.maskInput?.trim();
+    const response =
+      openAiReferenceImages.length > 0 || maskImageUrl
+        ? await submitOpenAiGptImage2Edit({
+            prompt: cleanedPrompt,
+            size,
+            quality,
+            images: openAiReferenceImages.map((imageUrl) => ({ image_url: imageUrl })),
+            input_fidelity: OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
+            ...(maskImageUrl ? { mask: { image_url: maskImageUrl } } : {}),
+            ...(projectId ? { project_id: projectId } : {}),
+            ...shortpulseSubmitPayload,
+          })
+        : await submitOpenAiGptImage2({
+            prompt: cleanedPrompt,
+            size,
+            quality,
+            ...(projectId ? { project_id: projectId } : {}),
+            ...shortpulseSubmitPayload,
+          });
     if (!completeGenerationImmediately) {
       throw new Error("OpenAI image submission requires an immediate completion callback.");
     }

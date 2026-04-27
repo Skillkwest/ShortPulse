@@ -4,8 +4,10 @@
  */
 import { randomUUID } from "crypto";
 import {
+  type OpenAiImage2InputFidelity,
   type OpenAiImage2Quality,
   type OpenAiImage2Size,
+  OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
 } from "../model-runtime/openAiImage2";
 import { canAutoPersistRecoveryMedia } from "../mediaAutosavePolicy";
@@ -25,6 +27,12 @@ type OpenAiGenerateImageInput = {
   prompt: string;
   size: OpenAiImage2Size;
   quality: OpenAiImage2Quality;
+};
+
+type OpenAiEditImageInput = OpenAiGenerateImageInput & {
+  images: string[];
+  inputFidelity?: OpenAiImage2InputFidelity;
+  maskUrl?: string | null;
 };
 
 type PersistGeneratedImageInput = {
@@ -59,6 +67,15 @@ type OpenAiImageGenerationResult = {
   contentType: string;
   providerRequestId: string | null;
   revisedPrompt: string | null;
+  usage: {
+    inputTokens: number | null;
+    outputTokens: number | null;
+    totalTokens: number | null;
+    inputImageTokens: number | null;
+    inputTextTokens: number | null;
+    outputImageTokens: number | null;
+    outputTextTokens: number | null;
+  } | null;
 };
 
 const normalizeOptionalString = (value: unknown): string | null => {
@@ -95,6 +112,67 @@ const readOpenAiErrorMessage = (payload: unknown): string => {
   const message = normalizeOptionalString(errorRecord?.message);
   if (message) return message;
   return "OpenAI image generation failed.";
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const asNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+const readOpenAiImageUsage = (
+  payload: Record<string, unknown>
+): OpenAiImageGenerationResult["usage"] => {
+  const usage = asRecord(payload.usage);
+  if (!usage) return null;
+  const inputTokensDetails = asRecord(usage.input_tokens_details);
+  const outputTokensDetails = asRecord(usage.output_tokens_details);
+  return {
+    inputTokens: asNumber(usage.input_tokens),
+    outputTokens: asNumber(usage.output_tokens),
+    totalTokens: asNumber(usage.total_tokens),
+    inputImageTokens: asNumber(inputTokensDetails?.image_tokens),
+    inputTextTokens: asNumber(inputTokensDetails?.text_tokens),
+    outputImageTokens: asNumber(outputTokensDetails?.image_tokens),
+    outputTextTokens: asNumber(outputTokensDetails?.text_tokens),
+  };
+};
+
+const resolveProviderRequestId = ({
+  payload,
+  response,
+}: {
+  payload: Record<string, unknown>;
+  response: Response;
+}): string | null =>
+  normalizeOptionalString(payload.id) ??
+  normalizeOptionalString(response.headers.get("x-request-id")) ??
+  normalizeOptionalString(response.headers.get("request-id"));
+
+const parseOpenAiImageResponse = async (
+  response: Response
+): Promise<OpenAiImageGenerationResult> => {
+  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok) {
+    throw new Error(readOpenAiErrorMessage(payload));
+  }
+
+  const data = Array.isArray(payload.data) ? payload.data[0] : null;
+  const imageRecord = asRecord(data);
+  const b64Json = normalizeOptionalString(imageRecord?.b64_json);
+  if (!b64Json) {
+    throw new Error("OpenAI image generation returned no image data.");
+  }
+
+  return {
+    buffer: Buffer.from(b64Json, "base64"),
+    contentType: resolveOutputContentType(),
+    providerRequestId: resolveProviderRequestId({ payload, response }),
+    revisedPrompt: normalizeOptionalString(imageRecord?.revised_prompt),
+    usage: readOpenAiImageUsage(payload),
+  };
 };
 
 const readMediaAutosaveEnabledForUser = async (userId: string): Promise<boolean> => {
@@ -142,30 +220,46 @@ export const generateOpenAiImage = async ({
     }),
   });
 
-  const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!response.ok) {
-    throw new Error(readOpenAiErrorMessage(payload));
+  return parseOpenAiImageResponse(response);
+};
+
+/**
+ * Calls the OpenAI Images API for a single GPT Image 2 edit.
+ */
+export const editOpenAiImage = async ({
+  prompt,
+  size,
+  quality,
+  images,
+  inputFidelity = OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
+  maskUrl = null,
+}: OpenAiEditImageInput): Promise<OpenAiImageGenerationResult> => {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not configured.");
   }
 
-  const data = Array.isArray(payload.data) ? payload.data[0] : null;
-  const imageRecord =
-    data && typeof data === "object" && !Array.isArray(data)
-      ? (data as Record<string, unknown>)
-      : null;
-  const b64Json = normalizeOptionalString(imageRecord?.b64_json);
-  if (!b64Json) {
-    throw new Error("OpenAI image generation returned no image data.");
-  }
+  const response = await fetch(`${resolveOpenAiApiBase()}/images/edits`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      images: images.map((imageUrl) => ({ image_url: imageUrl })),
+      prompt,
+      size,
+      quality,
+      n: 1,
+      output_format: "png",
+      moderation: "auto",
+      input_fidelity: inputFidelity,
+      ...(maskUrl ? { mask: { image_url: maskUrl } } : {}),
+    }),
+  });
 
-  return {
-    buffer: Buffer.from(b64Json, "base64"),
-    contentType: resolveOutputContentType(),
-    providerRequestId:
-      normalizeOptionalString(payload.id) ??
-      normalizeOptionalString(response.headers.get("x-request-id")) ??
-      normalizeOptionalString(response.headers.get("request-id")),
-    revisedPrompt: normalizeOptionalString(imageRecord?.revised_prompt),
-  };
+  return parseOpenAiImageResponse(response);
 };
 
 /**

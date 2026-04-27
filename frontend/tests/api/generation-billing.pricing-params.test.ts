@@ -74,4 +74,24 @@ describe("generationBilling pricing params normalization", () => {
     expect(params.aspect).toBe("1:1");
     expect(params.resolution).toBe("medium");
   });
+
+  it("normalizes gpt-image-2 edit payload inputs into pricing params", () => {
+    const params = buildPricingParams("gpt-image-2", {
+      size: "1536x1024",
+      quality: "MEDIUM",
+      input_fidelity: "high",
+      images: [
+        { image_url: "https://example.com/base.png" },
+        { image_url: "https://example.com/ref.png" },
+      ],
+      mask: { image_url: "https://example.com/mask.png" },
+    });
+
+    expect(params.size).toBe("1536x1024");
+    expect(params.aspect).toBe("16:9");
+    expect(params.quality).toBe("medium");
+    expect(params.inputFidelity).toBe("high");
+    expect(params.inputImageCount).toBe(2);
+    expect(params.maskPresent).toBe(true);
+  });
 });

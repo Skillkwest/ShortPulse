@@ -32,6 +32,9 @@ export type PricingParams = {
   imageHeight?: number;
   size?: string;
   quality?: string;
+  inputImageCount?: number;
+  inputFidelity?: string;
+  maskPresent?: boolean;
   inputTokens?: number;
   outputTokens?: number;
   durationSeconds?: number;

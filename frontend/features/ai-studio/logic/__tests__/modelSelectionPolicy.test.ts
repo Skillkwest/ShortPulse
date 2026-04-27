@@ -20,6 +20,7 @@ import {
 
 const createImageOptions: ModelOption[] = [
   { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
+  { value: "gpt-image-2", label: "ChatGPT Image 2", mediaType: "image" },
   { value: "fal-ai/nano-banana-2", label: "Nano Banana 2", mediaType: "image" },
   { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2 Edit", mediaType: "image" },
   { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
@@ -112,6 +113,7 @@ const videoReferenceOptions: ModelOption[] = [
 
 const getModelConfig = (id: string) => {
   if (
+    id === "gpt-image-2" ||
     id === "fal-ai/flux-2/klein/9b" ||
     id === "fal-ai/nano-banana-2" ||
     id === "fal-ai/nano-banana-pro" ||
@@ -119,9 +121,9 @@ const getModelConfig = (id: string) => {
     id === CREATE_DEFAULT_MODEL_ID
   ) {
     return {
-      provider: "fal",
+      provider: id === "gpt-image-2" ? "openai" : "fal",
       supportsTextToImage: true,
-      supportsImageToImage: false,
+      supportsImageToImage: id === "gpt-image-2",
     };
   }
   if (
@@ -189,6 +191,31 @@ describe("modelSelectionPolicy", () => {
     expect(values.has(CREATE_DEFAULT_MODEL_ID)).toBe(true);
     expect(values.has("fal-ai/nano-banana-2/edit")).toBe(false);
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(false);
+  });
+
+  it("includes gpt-image-2 in standard Edit while keeping it out of character mode", () => {
+    const standardEditValues = new Set(
+      resolveAiStudioAllowedModelOptions({
+        selectedTool: "edit",
+        mode: "image",
+        videoReferenceMode: "standard",
+        options: createImageOptions,
+        getModelConfig,
+      }).map((option) => option.value)
+    );
+    const characterModeValues = new Set(
+      resolveAiStudioAllowedModelOptions({
+        selectedTool: "create",
+        mode: "image",
+        videoReferenceMode: "standard",
+        isCharacterModeEnabled: true,
+        options: createImageOptions,
+        getModelConfig,
+      }).map((option) => option.value)
+    );
+
+    expect(standardEditValues.has("gpt-image-2")).toBe(true);
+    expect(characterModeValues.has("gpt-image-2")).toBe(false);
   });
 
   it("hides FLUX.2 Lite for create/image while character mode is enabled", () => {

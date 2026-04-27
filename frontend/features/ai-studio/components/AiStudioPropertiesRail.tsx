@@ -6,7 +6,8 @@ import React from "react";
 import type { ToolId } from "../types";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
 
-const AI_PROPERTIES_RAIL_TRANSITION_MS = 120;
+const AI_PROPERTIES_RAIL_ENTER_TRANSITION_MS = 180;
+const AI_PROPERTIES_RAIL_EXIT_TRANSITION_MS = 180;
 
 type AiStudioPropertiesRailProps = {
   selectedTool: ToolId | null;
@@ -95,7 +96,7 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
           setEnterAnimationName(null);
         }
         clearExitTimeoutRef.current = null;
-      }, AI_PROPERTIES_RAIL_TRANSITION_MS);
+      }, AI_PROPERTIES_RAIL_EXIT_TRANSITION_MS);
       return;
     }
 
@@ -125,7 +126,7 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
       style={
         enterAnimationName
           ? {
-              animationDuration: `${AI_PROPERTIES_RAIL_TRANSITION_MS}ms`,
+              animationDuration: `${AI_PROPERTIES_RAIL_ENTER_TRANSITION_MS}ms`,
               animationFillMode: "both",
               animationName: enterAnimationName,
               animationTimingFunction: "cubic-bezier(0.22, 0.61, 0.36, 1)",

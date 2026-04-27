@@ -171,7 +171,8 @@
 }
 
 .ai-properties {
-  --ai-properties-rail-transition-duration: 120ms;
+  --ai-properties-rail-enter-duration: 180ms;
+  --ai-properties-rail-exit-duration: 180ms;
   --ai-properties-rail-transition-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
   padding: 16px;
   max-height: var(--ai-shell-column-max-height, 100%);
@@ -193,7 +194,7 @@
   min-width: 0;
   min-height: 0;
   pointer-events: none;
-  animation: ai-properties-rail-exit var(--ai-properties-rail-transition-duration)
+  animation: ai-properties-rail-exit var(--ai-properties-rail-exit-duration)
     var(--ai-properties-rail-transition-easing) both;
 }
 

@@ -1,8 +1,10 @@
 # Generation Pipeline Fundamental Hardening Phase 1 Proof And Characterization Plan (2026-04-26)
 
+> Archived on 2026-04-26 during docs cleanup because the fundamental hardening program reached its done state and no further active work remains under this packet.
+
 Last updated: 2026-04-26  
 Status: complete  
-Master plan: `docs/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
+Master plan: `docs/archive/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
 
 ## Goal
 Add only the direct proof needed to safely harden the weak high-risk branches.

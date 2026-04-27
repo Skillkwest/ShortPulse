@@ -1,8 +1,10 @@
 # Generation Pipeline Fundamental Hardening Phase 3 Durable Media Authority Plan (2026-04-26)
 
+> Archived on 2026-04-26 during docs cleanup because the fundamental hardening program reached its done state and no further active work remains under this packet.
+
 Last updated: 2026-04-26  
 Status: complete  
-Master plan: `docs/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
+Master plan: `docs/archive/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
 
 ## Goal
 Make owned/generated media internally durable and storage-backed for current writes without changing what the user sees.

@@ -1,5 +1,7 @@
 # Generation Pipeline Fundamental Hardening Master Plan (2026-04-26)
 
+> Archived on 2026-04-26 during docs cleanup because the fundamental hardening program reached its done state and no further active work remains under this packet.
+
 Last updated: 2026-04-26  
 Status: complete  
 Owner: Engineering
@@ -41,13 +43,13 @@ If a proposed task does not improve one of those six areas, it is out of scope.
 ## Program Artifacts
 | Artifact | Role |
 | --- | --- |
-| `docs/planning/generation-pipeline-fundamental-hardening-tracker-2026-04-26.md` | Compact execution tracker and gate surface |
-| `docs/planning/generation-pipeline-fundamental-hardening-done-state-and-stop-rules-2026-04-26.md` | Final stopping point and reporting contract |
-| `docs/planning/generation-pipeline-fundamental-hardening-authority-and-proof-inventory-2026-04-26.md` | Scope justification and proof baseline |
-| `docs/planning/generation-pipeline-fundamental-hardening-phase-1-proof-and-characterization-plan-2026-04-26.md` | Direct proof for weak high-risk branches |
-| `docs/planning/generation-pipeline-fundamental-hardening-phase-2-core-server-correctness-plan-2026-04-26.md` | Three core server correctness fixes |
-| `docs/planning/generation-pipeline-fundamental-hardening-phase-3-durable-media-authority-plan-2026-04-26.md` | Current-write durable media authority normalization |
-| `docs/planning/generation-pipeline-fundamental-hardening-phase-4-canonical-output-slot-convergence-plan-2026-04-26.md` | One canonical output-slot convergence path |
+| `docs/archive/planning/generation-pipeline-fundamental-hardening-tracker-2026-04-26.md` | Compact execution tracker and gate surface |
+| `docs/archive/planning/generation-pipeline-fundamental-hardening-done-state-and-stop-rules-2026-04-26.md` | Final stopping point and reporting contract |
+| `docs/archive/planning/generation-pipeline-fundamental-hardening-authority-and-proof-inventory-2026-04-26.md` | Scope justification and proof baseline |
+| `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-1-proof-and-characterization-plan-2026-04-26.md` | Direct proof for weak high-risk branches |
+| `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-2-core-server-correctness-plan-2026-04-26.md` | Three core server correctness fixes |
+| `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-3-durable-media-authority-plan-2026-04-26.md` | Current-write durable media authority normalization |
+| `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-4-canonical-output-slot-convergence-plan-2026-04-26.md` | One canonical output-slot convergence path |
 
 ## Phase Sequence
 1. Phase 1 proves the weak high-risk branches directly.
@@ -82,4 +84,4 @@ This program is done when:
 5. no intended external behavior changes were introduced
 6. remaining work would be optional cleanup, not fundamental hardening
 
-The full stop rules live in `docs/planning/generation-pipeline-fundamental-hardening-done-state-and-stop-rules-2026-04-26.md`.
+The full stop rules live in `docs/archive/planning/generation-pipeline-fundamental-hardening-done-state-and-stop-rules-2026-04-26.md`.

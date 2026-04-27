@@ -23,6 +23,14 @@ Purpose: completed or superseded planning artifacts moved out of active planning
 - `docs/archive/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
 - `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
 - `docs/archive/planning/ai-studio-generation-runtime-stabilization.md`
+- `docs/archive/planning/generation-pipeline-fundamental-hardening-authority-and-proof-inventory-2026-04-26.md`
+- `docs/archive/planning/generation-pipeline-fundamental-hardening-done-state-and-stop-rules-2026-04-26.md`
+- `docs/archive/planning/generation-pipeline-fundamental-hardening-master-plan-2026-04-26.md`
+- `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-1-proof-and-characterization-plan-2026-04-26.md`
+- `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-2-core-server-correctness-plan-2026-04-26.md`
+- `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-3-durable-media-authority-plan-2026-04-26.md`
+- `docs/archive/planning/generation-pipeline-fundamental-hardening-phase-4-canonical-output-slot-convergence-plan-2026-04-26.md`
+- `docs/archive/planning/generation-pipeline-fundamental-hardening-tracker-2026-04-26.md`
 - `docs/archive/planning/ai-studio-project-folder-stabilization-trim-and-fix-plan-2026-04-24.md`
 - `docs/archive/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
 - `docs/archive/planning/ai-studio-project-persistence-stabilization-trim-and-fix-plan-2026-04-24.md`

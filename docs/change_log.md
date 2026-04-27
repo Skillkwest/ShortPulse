@@ -4,6 +4,10 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - archived the completed generation fundamental hardening planning family under `docs/archive/planning/`,
+  - removed that closed packet from the active planning indexes,
+  - and kept the archived family internally linkable by retargeting its self-references to the archive paths.
+- Documentation cleanup:
   - archived the completed Pulse runtime planning family under `docs/archive/planning/`,
   - removed that closed packet from the active planning indexes,
   - and retargeted the surviving ADR/archive references to the new historical paths.

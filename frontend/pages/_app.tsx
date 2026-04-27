@@ -138,7 +138,6 @@ export default function App({ Component, pageProps }: AppProps) {
         <AiStudioProjectEntryState
           variant="loading"
           phase="resolving-project"
-          metaLabel="Checking your session…"
           message="Checking your session before project restore continues."
           activeStepIndex={0}
           stepsAriaLabel="Project loading progress"
@@ -160,7 +159,6 @@ export default function App({ Component, pageProps }: AppProps) {
         <AiStudioProjectEntryState
           variant="loading"
           phase="resolving-project"
-          metaLabel="Checking your media agreement…"
           message="Checking your media agreement before project restore continues."
           activeStepIndex={1}
           stepsAriaLabel="Project loading progress"

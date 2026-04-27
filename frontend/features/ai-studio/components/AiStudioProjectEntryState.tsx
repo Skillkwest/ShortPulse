@@ -21,8 +21,6 @@ type AiStudioProjectEntryStateProps = {
   variant: "loading" | "error";
   phase: AiStudioProjectEntryPhase;
   projectTitle?: string | null;
-  pillLabel?: string;
-  metaLabel?: string;
   title?: string;
   message?: string;
   steps?: AiStudioProjectEntryStep[];
@@ -90,9 +88,6 @@ const getStepState = (
   return variant === "error" ? "pending" : "pending";
 };
 
-const getStatusPillLabel = (variant: "loading" | "error"): string =>
-  variant === "error" ? "Project Restore Error" : "AI Studio Project Restore";
-
 const getTitle = ({
   variant,
   phase,
@@ -138,21 +133,6 @@ const getMessage = ({
   }
 };
 
-const getMetaLabel = (phase: AiStudioProjectEntryPhase): string => {
-  switch (phase) {
-    case "resolving-project":
-      return "Project identity pending";
-    case "loading-workspace":
-      return "Workspace snapshot loading";
-    case "restoring-workspace":
-      return "Saved workspace found";
-    case "preparing-empty-workspace":
-      return "Fresh workspace";
-    default:
-      return "Preparing AI Studio";
-  }
-};
-
 /**
  * Renders the full-page AI Studio entry surface used during project bootstrap and failure states.
  */
@@ -160,8 +140,6 @@ export function AiStudioProjectEntryState({
   variant,
   phase,
   projectTitle = null,
-  pillLabel,
-  metaLabel,
   title,
   message,
   steps,
@@ -176,8 +154,6 @@ export function AiStudioProjectEntryState({
 }: AiStudioProjectEntryStateProps) {
   const resolvedTitle = title ?? getTitle({ variant, phase, projectTitle, errorTitle });
   const resolvedMessage = message ?? getMessage({ variant, phase, projectTitle, errorMessage });
-  const resolvedMetaLabel = metaLabel ?? getMetaLabel(phase);
-  const resolvedPillLabel = pillLabel ?? getStatusPillLabel(variant);
   const resolvedSteps = steps ?? AI_STUDIO_PROJECT_OPEN_STEPS;
   const currentStepIndex = activeStepIndex ?? getCurrentStepIndex(phase);
   const liveRole = variant === "error" ? "alert" : "status";
@@ -187,11 +163,6 @@ export function AiStudioProjectEntryState({
     <main className="page page-wide ai-studio-project-entry-page">
       <section className="panel ai-studio-project-entry-card">
         <div className="ai-studio-project-entry-orb" aria-hidden="true" />
-        <div className="ai-studio-project-entry-header">
-          <span className={`ai-studio-project-entry-pill is-${variant}`}>{resolvedPillLabel}</span>
-          <span className="ai-studio-project-entry-meta">{resolvedMetaLabel}</span>
-        </div>
-
         <div
           className="ai-studio-project-entry-copy"
           role={liveRole}

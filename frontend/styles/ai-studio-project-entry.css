@@ -63,7 +63,6 @@
   pointer-events: none;
 }
 
-.ai-studio-project-entry-header,
 .ai-studio-project-entry-copy,
 .ai-studio-project-entry-body,
 .ai-studio-project-entry-actions {
@@ -71,49 +70,8 @@
   z-index: 1;
 }
 
-.ai-studio-project-entry-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.ai-studio-project-entry-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(111, 118, 129, 0.28);
-  background: rgba(20, 24, 31, 0.88);
-  color: rgba(226, 234, 244, 0.82);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.ai-studio-project-entry-pill.is-loading {
-  border-color: rgba(83, 215, 236, 0.34);
-  background: rgba(37, 169, 191, 0.12);
-  color: #d9fbff;
-}
-
-.ai-studio-project-entry-pill.is-error {
-  border-color: rgba(248, 113, 113, 0.34);
-  background: rgba(127, 29, 29, 0.2);
-  color: #fecaca;
-}
-
-.ai-studio-project-entry-meta {
-  color: rgba(201, 214, 227, 0.7);
-  font-size: 12px;
-  letter-spacing: 0.03em;
-}
-
 .ai-studio-project-entry-copy {
-  margin-top: 22px;
+  margin-top: 0;
 }
 
 .ai-studio-project-entry-title {

@@ -22,7 +22,7 @@ describe("AiStudioProjectEntryState", () => {
     expect(screen.getByText("Resolve project")).toBeInTheDocument();
     expect(screen.getByText("Load workspace")).toBeInTheDocument();
     expect(screen.getByText("Prepare studio")).toBeInTheDocument();
-    expect(screen.getByText("Workspace snapshot loading")).toBeInTheDocument();
+    expect(screen.queryByText("Workspace snapshot loading")).not.toBeInTheDocument();
   });
 
   it("renders the error state actions and forwards button events", () => {
@@ -60,6 +60,6 @@ describe("AiStudioProjectEntryState", () => {
     expect(
       screen.getByText("No saved workspace was found. Starting with a fresh AI Studio workspace.")
     ).toBeInTheDocument();
-    expect(screen.getByText("Fresh workspace")).toBeInTheDocument();
+    expect(screen.queryByText("Fresh workspace")).not.toBeInTheDocument();
   });
 });

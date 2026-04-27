@@ -80,7 +80,7 @@ describe("App AI Studio protected gates", () => {
     renderApp();
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading project");
-    expect(screen.getByText("Checking your session…")).toBeInTheDocument();
+    expect(screen.queryByText("Checking your session…")).not.toBeInTheDocument();
     expect(
       screen.getByText("Checking your session before project restore continues.")
     ).toBeInTheDocument();
@@ -103,7 +103,7 @@ describe("App AI Studio protected gates", () => {
     renderApp();
 
     expect(screen.getByRole("status")).toHaveTextContent("Loading project");
-    expect(screen.getByText("Checking your media agreement…")).toBeInTheDocument();
+    expect(screen.queryByText("Checking your media agreement…")).not.toBeInTheDocument();
     expect(
       screen.getByText("Checking your media agreement before project restore continues.")
     ).toBeInTheDocument();

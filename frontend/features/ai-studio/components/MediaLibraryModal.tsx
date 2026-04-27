@@ -35,6 +35,7 @@ import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdap
 import { useMediaTabDataController } from "../../media-library/hooks/useMediaTabDataController";
 import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../../media-library/logic/mediaLibraryFeatureFlags";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
+import { resolveVisibleMediaRows } from "../../media-library/logic/resolveVisibleMediaRows";
 import { getMediaLibrarySurfaceConfig } from "../../media-library/runtime";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
@@ -230,7 +231,6 @@ export function MediaLibraryModal({
     openToFirstMediaLoggedRef.current = false;
   }, [activeMediaQuery, activeTab, isOpen]);
 
-  const mediaSearchTerm = useMemo(() => activeMediaQuery.toLowerCase(), [activeMediaQuery]);
   const promptSearchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
   const sortedPrompts = useMemo(() => {
     const promptRows = !promptSearchTerm
@@ -243,15 +243,13 @@ export function MediaLibraryModal({
     return sortByCreatedAtDesc(promptRows);
   }, [promptSearchTerm, prompts]);
   const activeMedia = useMemo(() => {
-    if (!activeMediaTab) return [];
-    const base = files.filter((item) => getMediaDataTabForRow(item) === activeMediaTab);
-    if (!mediaSearchTerm) return base;
-    return base.filter((file) => {
-      const name = file.filename?.toLowerCase() ?? "";
-      const path = file.storage_path?.toLowerCase() ?? "";
-      return name.includes(mediaSearchTerm) || path.includes(mediaSearchTerm);
+    return resolveVisibleMediaRows({
+      rows: files,
+      activeMediaTab,
+      activeMediaQuery,
+      cachedMediaQuery: activeMediaCache?.query,
     });
-  }, [activeMediaTab, files, mediaSearchTerm]);
+  }, [activeMediaCache?.query, activeMediaQuery, activeMediaTab, files]);
   const effectiveSignBudget = useMemo(() => {
     if (activeMediaTab !== "private") return previewRuntime.signBudget;
     return {

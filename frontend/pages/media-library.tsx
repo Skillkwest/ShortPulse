@@ -46,12 +46,12 @@ import {
   BUCKET,
   formatDate,
   getErrorMessage,
-  getMediaDataTabForRow,
   isMediaDataTab,
   isVideoFile,
   normalizeMediaSearchTerm,
   sortByCreatedAtDesc,
 } from "../features/media-library/logic/mediaLibraryPageHelpers";
+import { resolveVisibleMediaRows } from "../features/media-library/logic/resolveVisibleMediaRows";
 
 type MediaRow = {
   id: string;
@@ -299,20 +299,17 @@ export default function MediaLibrary() {
     updateVisibleRows,
   });
 
-  const mediaSearchTerm = useMemo(() => activeMediaQuery.toLowerCase(), [activeMediaQuery]);
   const promptSearchTerm = useMemo(() => search.trim().toLowerCase(), [search]);
   const loadingMoreMedia = Boolean(activeMediaCache?.loaded && activeMediaCache?.loading);
   const hasMoreMediaPages = Boolean(activeMediaCache?.hasMore);
   const filteredMedia = useMemo(() => {
-    if (!activeMediaTab) return [];
-    const base = files.filter((file) => getMediaDataTabForRow(file) === activeMediaTab);
-    if (!mediaSearchTerm) return base;
-    return base.filter((f) => {
-      const name = f.filename?.toLowerCase() ?? "";
-      const path = f.storage_path?.toLowerCase() ?? "";
-      return name.includes(mediaSearchTerm) || path.includes(mediaSearchTerm);
+    return resolveVisibleMediaRows({
+      rows: files,
+      activeMediaTab,
+      activeMediaQuery,
+      cachedMediaQuery: activeMediaCache?.query,
     });
-  }, [activeMediaTab, files, mediaSearchTerm]);
+  }, [activeMediaCache?.query, activeMediaQuery, activeMediaTab, files]);
   const effectiveSignBudget = useMemo(() => {
     if (activeMediaTab !== "private") return previewRuntime.signBudget;
     return {

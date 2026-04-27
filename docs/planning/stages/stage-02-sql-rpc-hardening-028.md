@@ -46,7 +46,7 @@ Harden conversation-state storage and RPC behavior with deterministic retention 
 - `scripts/conversation_state_hardening_gate.sh`
 - `.github/workflows/conversation-state-hardening-gate.yml`
 - `.github/workflows/apply-conversation-state-migration-028.yml`
-- `docs/planning/evidence/sql/`
-- `docs/planning/evidence/sql/2026-02-20-stg-02-local-preflight.md`
-- `docs/planning/evidence/sql/2026-02-20-stg-02-staging-validation.md`
-- `docs/planning/evidence/sql/2026-02-20-stg-02-production-validation.md`
+- `docs/records/evidence/sql/`
+- `docs/records/evidence/sql/2026-02-20-stg-02-local-preflight.md`
+- `docs/records/evidence/sql/2026-02-20-stg-02-staging-validation.md`
+- `docs/records/evidence/sql/2026-02-20-stg-02-production-validation.md`

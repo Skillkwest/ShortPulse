@@ -9,7 +9,7 @@ Owner: Engineering
 
 | Control | Status | Evidence |
 | --- | --- | --- |
-| No migration ordering conflict | Pass | `docs/archive/planning/feasibility-report.md`, `docs/planning/evidence/sql/2026-02-20-stg-02-production-validation.md` |
+| No migration ordering conflict | Pass | `docs/archive/planning/feasibility-report.md`, `docs/records/evidence/sql/2026-02-20-stg-02-production-validation.md` |
 | No enforcement before compatibility windows | Pass | `docs/planning/master-rollout-proposal.md`, `docs/records/evidence/kei/2026-02-20-phase-c-hold-window-validation.md` |
 | No CI job collisions | Pass | `docs/planning/ci-policy-checks.md` |
 | Machine-checkable risk controls | Pass | `scripts/check_*.js`, `docs/records/evidence/docs/2026-02-21-stg-08-precloseout-validation.md` |

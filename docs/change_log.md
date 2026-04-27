@@ -4,6 +4,14 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 
 ## Unreleased
 - Documentation cleanup:
+  - migrated the retained `sql` evidence namespace into `docs/records/evidence/sql/`,
+  - retargeted the surviving STG-02 planning references to the records path,
+  - and removed that namespace from the active planning-evidence index.
+- Documentation sync:
+  - added `/api/openai/image-generate` to `docs/api/api-internal-routes.md`,
+  - documented its route-level bearer auth posture and canonical GPT Image 2 generation/persistence contract,
+  - and cleared the semantic-drift docs mismatch for the newly added internal OpenAI image route.
+- Documentation cleanup:
   - migrated the retained `architecture` evidence namespace into `docs/records/evidence/architecture/`,
   - retargeted the surviving modularization planning references to the records path,
   - and removed that namespace from the active planning-evidence index.

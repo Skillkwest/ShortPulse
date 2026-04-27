@@ -5,7 +5,6 @@ Store stage evidence snapshots here with dated filenames.
 This is the current physical evidence namespace during the records migration transition. Use `docs/records/README.md` as the governance entrypoint for retained records and evidence.
 
 ## Active evidence namespaces
-- `docs/planning/evidence/sql/`
 - `docs/planning/evidence/reference-grid-modularization/`
 - `docs/planning/evidence/naming-canonicalization/`
 - `docs/planning/evidence/lane-b/`
@@ -27,6 +26,7 @@ This is the current physical evidence namespace during the records migration tra
 - `docs/records/evidence/lane-f/`
 - `docs/records/evidence/kei/`
 - `docs/records/evidence/media-library-runtime-rebuild/`
+- `docs/records/evidence/sql/`
 - `docs/records/evidence/style-adherence/`
 
 ## Notes

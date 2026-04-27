@@ -28,5 +28,5 @@ Operator: @sleepyseamonster
    - `target_environment=staging`
    - `mode=warn` (promote to `enforce` after stability window)
 3. Record run URL and artifact summary in:
-   - `docs/planning/evidence/sql/<date>-stg-02-staging-validation.md`
+   - `docs/records/evidence/sql/<date>-stg-02-staging-validation.md`
 4. Repeat for production after staging signoff.

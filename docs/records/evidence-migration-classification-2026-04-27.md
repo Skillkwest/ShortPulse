@@ -23,6 +23,8 @@ Purpose: classify the current `docs/planning/evidence/` tree into migration buck
   - `docs/planning/evidence/style-adherence/` moved to `docs/records/evidence/style-adherence/`
 - Next markdown-only migration executed after this snapshot:
   - `docs/planning/evidence/architecture/` moved to `docs/records/evidence/architecture/`
+- Next markdown-only migration executed after this snapshot:
+  - `docs/planning/evidence/sql/` moved to `docs/records/evidence/sql/`
 - Treat the inventory counts below as the pre-migration snapshot used to choose that pilot.
 
 ## Inventory snapshot

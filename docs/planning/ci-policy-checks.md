@@ -308,7 +308,7 @@ Mode policy:
 - Secret source: GitHub Environment secret `SUPABASE_DB_URL` (staging/production)
 - Command: `./scripts/conversation_state_hardening_gate.sh`
 - Modes: `warn` and `enforce` via dispatch input
-- Evidence: upload run log artifact and link run URL in `docs/planning/evidence/sql/*.md`
+- Evidence: upload run log artifact and link run URL in `docs/records/evidence/sql/*.md`
 
 ## Conversation-state migration apply workflow
 

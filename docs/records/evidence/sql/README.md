@@ -1,5 +1,7 @@
 # SQL Evidence
 
+Moved from `docs/planning/evidence/sql/` on 2026-04-27 as part of the retained-records migration.
+
 Store STG-02 SQL hardening execution evidence here using ISO-dated files.
 
 Recommended naming:

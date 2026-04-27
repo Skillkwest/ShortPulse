@@ -17,6 +17,7 @@ import {
   invalidateSignedMediaUrl,
 } from "../../../lib/mediaSignedUrlCache";
 import { buildBulkMoveFeedback } from "../logic/bulkMoveFeedback";
+import { resolveMediaPreviewStoragePath } from "../logic/mediaPreviewStoragePath";
 import { buildBulkMoveTabOptions, getMoveTabLabel, type MediaTab } from "../logic/mediaMoveRouting";
 import {
   BUCKET,
@@ -200,8 +201,7 @@ export const useMediaBulkMoveController = <TRow extends BulkMoveMediaRowBase>({
         const previewPathById = new Map<string, string>();
         const previewPaths: string[] = [];
         for (const row of movedRowsRaw) {
-          const previewPath =
-            resolveMediaSigningStoragePaths(row, currentUserIdRef.current)[0] ?? row.storage_path;
+          const previewPath = resolveMediaPreviewStoragePath(row, currentUserIdRef.current);
           previewPathById.set(row.id, previewPath);
           previewPaths.push(previewPath);
         }

@@ -16,9 +16,9 @@ import {
   withCanonicalImageDimensions,
   type ImageDimensions,
 } from "../../../lib/mediaDimensionMetadata";
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { MediaTab } from "../logic/mediaMoveRouting";
+import { resolveMediaPreviewStoragePath } from "../logic/mediaPreviewStoragePath";
 import {
   BUCKET,
   PRIVATE_MEDIA_SOURCE,
@@ -253,7 +253,7 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
               file,
               destinationTab,
             });
-            previewStoragePath = inserted.preview_storage_path ?? inserted.storage_path;
+            previewStoragePath = resolveMediaPreviewStoragePath(inserted, userId);
             signedUrl = inserted.signedUrl ?? null;
           } else {
             const imageDimensions =
@@ -295,9 +295,10 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
             }
 
             inserted = data as UploadMediaRowBase;
-            previewStoragePath =
-              resolveMediaSigningStoragePaths(inserted ?? { storage_path: path }, userId)[0] ??
-              path;
+            previewStoragePath = resolveMediaPreviewStoragePath(
+              inserted ?? { storage_path: path },
+              userId
+            );
             signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
           }
 

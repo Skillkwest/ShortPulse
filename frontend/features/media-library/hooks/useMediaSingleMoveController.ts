@@ -15,6 +15,7 @@ import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { invalidateSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { buildModalMoveTabOptions, type MediaTab } from "../logic/mediaMoveRouting";
 import { applyMovedRowsToMediaTabCache } from "../logic/mediaMoveCache";
+import { resolveMediaPreviewStoragePath } from "../logic/mediaPreviewStoragePath";
 import {
   BUCKET,
   getMediaDataTabForRow,
@@ -129,9 +130,10 @@ export const useMediaSingleMoveController = <TRow extends SingleMoveRowBase>({
 
       const payload = (await response.json()) as MoveMediaResponse<TRow>;
       const movedFile = payload.file;
-      const previewStoragePath =
-        resolveMediaSigningStoragePaths(movedFile, currentUserIdRef.current)[0] ??
-        movedFile.storage_path;
+      const previewStoragePath = resolveMediaPreviewStoragePath(
+        movedFile,
+        currentUserIdRef.current
+      );
       const signedUrl = await signStoragePath(previewStoragePath, { forceRefresh: true });
 
       return {

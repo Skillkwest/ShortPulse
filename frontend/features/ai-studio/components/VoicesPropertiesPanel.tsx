@@ -1493,7 +1493,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   </div>
                   {voicesLoadError ? <p className="tiny subdued">{voicesLoadError}</p> : null}
                   {voicesLoadNotice ? <p className="tiny subdued">{voicesLoadNotice}</p> : null}
-                  <ul className="voices-properties-voice-grid" aria-label="Available voices list">
+                  <ul
+                    className="voices-properties-voice-grid voices-properties-voice-grid--panel-enter"
+                    aria-label="Available voices list"
+                  >
                     {isVoicesLoading ? (
                       <>
                         <li className="sr-only" role="status" aria-live="polite">

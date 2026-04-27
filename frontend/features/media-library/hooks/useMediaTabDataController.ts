@@ -14,12 +14,12 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import type { MediaTab } from "../logic/mediaMoveRouting";
 import { MEDIA_LIST_API_ENABLED } from "../logic/mediaLibraryFeatureFlags";
 import { fetchMediaListPage } from "../logic/mediaListApi";
 import { resolveMediaFetchTransition, type MediaFetchReason } from "../logic/mediaFetchTransition";
+import { resolveMediaPreviewStoragePath } from "../logic/mediaPreviewStoragePath";
 import { useMediaTabActiveViewSync } from "./useMediaTabActiveViewSync";
 import {
   createMediaTabNoProgressState,
@@ -374,8 +374,7 @@ export const useMediaTabDataController = <
         if (isStaleRequest()) return;
         const existingById = new Map(cache.rows.map((row) => [row.id, row]));
         const normalizedRows = fetchedRows.map((row) => {
-          const signingCandidates = resolveMediaSigningStoragePaths(row, userId);
-          const previewStoragePath = signingCandidates[0] ?? row.storage_path;
+          const previewStoragePath = resolveMediaPreviewStoragePath(row, userId);
           const cachedRow = existingById.get(row.id);
           const signedFromApi = apiSignedById.get(row.id);
           return {

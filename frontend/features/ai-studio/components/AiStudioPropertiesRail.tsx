@@ -6,7 +6,7 @@ import React from "react";
 import type { ToolId } from "../types";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
 
-const AI_PROPERTIES_RAIL_TRANSITION_MS = 180;
+const AI_PROPERTIES_RAIL_TRANSITION_MS = 120;
 
 type AiStudioPropertiesRailProps = {
   selectedTool: ToolId | null;
@@ -22,9 +22,13 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
   panelContent,
 }: AiStudioPropertiesRailProps) {
   const clearExitTimeoutRef = React.useRef<number | null>(null);
-  const previousPanelSnapshotRef = React.useRef<{ key: string; content: React.ReactNode } | null>(
-    selectedTool && panelKey ? { key: panelKey, content: panelContent } : null
+  const pendingPanelSnapshotRef = React.useRef<{ key: string; content: React.ReactNode } | null>(
+    null
   );
+  const [renderedPanel, setRenderedPanel] = React.useState<{
+    key: string;
+    content: React.ReactNode;
+  } | null>(() => (selectedTool && panelKey ? { key: panelKey, content: panelContent } : null));
   const [exitingPanel, setExitingPanel] = React.useState<{
     key: string;
     content: React.ReactNode;
@@ -38,7 +42,7 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
     () => (selectedTool && panelKey ? { key: panelKey, content: panelContent } : null),
     [panelContent, panelKey, selectedTool]
   );
-  const shouldRenderRail = activePanelSnapshot !== null || exitingPanel !== null;
+  const shouldRenderRail = renderedPanel !== null || exitingPanel !== null;
 
   const clearExitTimeout = React.useCallback(() => {
     if (clearExitTimeoutRef.current == null) return;
@@ -49,16 +53,13 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
   React.useEffect(() => clearExitTimeout, [clearExitTimeout]);
 
   React.useEffect(() => {
-    const previousPanelSnapshot = previousPanelSnapshotRef.current;
-    const panelKeyChanged = previousPanelSnapshot?.key !== activePanelSnapshot?.key;
-
-    if (!panelKeyChanged) {
-      previousPanelSnapshotRef.current = activePanelSnapshot;
+    if (activePanelSnapshot?.key === renderedPanel?.key) {
+      setRenderedPanel(activePanelSnapshot);
       return;
     }
 
     if (
-      previousPanelSnapshot &&
+      (renderedPanel || exitingPanel) &&
       leftColumnRef.current &&
       typeof document !== "undefined" &&
       document.activeElement instanceof HTMLElement &&
@@ -67,32 +68,52 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
       document.activeElement.blur();
     }
 
+    pendingPanelSnapshotRef.current = activePanelSnapshot;
+
+    if (exitingPanel) {
+      return;
+    }
+
     clearExitTimeout();
-    if (previousPanelSnapshot) {
-      setExitingPanel(previousPanelSnapshot);
+
+    if (renderedPanel) {
+      setExitingPanel(renderedPanel);
+      setRenderedPanel(null);
       clearExitTimeoutRef.current = window.setTimeout(() => {
-        setExitingPanel((currentValue) =>
-          currentValue?.key === previousPanelSnapshot.key ? null : currentValue
-        );
+        const nextPanelSnapshot = pendingPanelSnapshotRef.current;
+        pendingPanelSnapshotRef.current = null;
+        setExitingPanel(null);
+        setRenderedPanel(nextPanelSnapshot);
+        if (nextPanelSnapshot) {
+          const nextAnimationName = nextEnterAnimationNameRef.current;
+          setEnterAnimationName(nextAnimationName);
+          nextEnterAnimationNameRef.current =
+            nextAnimationName === "ai-properties-rail-enter-a"
+              ? "ai-properties-rail-enter-b"
+              : "ai-properties-rail-enter-a";
+        } else {
+          setEnterAnimationName(null);
+        }
         clearExitTimeoutRef.current = null;
       }, AI_PROPERTIES_RAIL_TRANSITION_MS);
-    } else {
-      setExitingPanel(null);
+      return;
     }
 
     if (activePanelSnapshot) {
       const nextAnimationName = nextEnterAnimationNameRef.current;
+      setExitingPanel(null);
+      setRenderedPanel(activePanelSnapshot);
       setEnterAnimationName(nextAnimationName);
       nextEnterAnimationNameRef.current =
         nextAnimationName === "ai-properties-rail-enter-a"
           ? "ai-properties-rail-enter-b"
           : "ai-properties-rail-enter-a";
     } else {
+      setRenderedPanel(null);
+      setExitingPanel(null);
       setEnterAnimationName(null);
     }
-
-    previousPanelSnapshotRef.current = activePanelSnapshot;
-  }, [activePanelSnapshot, clearExitTimeout, leftColumnRef]);
+  }, [activePanelSnapshot, clearExitTimeout, exitingPanel, leftColumnRef, renderedPanel]);
 
   if (!shouldRenderRail) return null;
   recordAiStudioShellSectionRender("properties");
@@ -112,7 +133,7 @@ export const AiStudioPropertiesRail = React.memo(function AiStudioPropertiesRail
           : undefined
       }
     >
-      {activePanelSnapshot ? activePanelSnapshot.content : null}
+      {renderedPanel ? renderedPanel.content : null}
       {exitingPanel ? (
         <div
           aria-hidden="true"

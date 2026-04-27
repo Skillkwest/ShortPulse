@@ -21,7 +21,7 @@ describe("AiStudioPropertiesRail", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("keeps the rail mounted briefly while closing so the panel can animate out", () => {
+  it("keeps the rail mounted briefly while closing so the panel can animate out", async () => {
     const { container, rerender } = render(
       <AiStudioPropertiesRail
         selectedTool="create"
@@ -44,14 +44,14 @@ describe("AiStudioPropertiesRail", () => {
     expect(container.querySelector(".ai-properties-panel-transition-exit")).toBeTruthy();
     expect(screen.getByText("create panel")).toBeInTheDocument();
 
-    act(() => {
-      vi.advanceTimersByTime(180);
+    await act(async () => {
+      vi.runAllTimers();
     });
 
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders current content and an exiting overlay while swapping panels", () => {
+  it("renders current content and an exiting overlay while swapping panels", async () => {
     const { container, rerender } = render(
       <AiStudioPropertiesRail
         selectedTool="create"
@@ -70,15 +70,16 @@ describe("AiStudioPropertiesRail", () => {
       />
     );
 
-    expect(screen.getByText("edit panel")).toBeInTheDocument();
     expect(container.querySelector(".ai-properties-panel-transition-exit")).toBeTruthy();
     expect(screen.getByText("create panel")).toBeInTheDocument();
+    expect(screen.queryByText("edit panel")).not.toBeInTheDocument();
 
-    act(() => {
-      vi.advanceTimersByTime(180);
+    await act(async () => {
+      vi.runAllTimers();
     });
 
     expect(container.querySelector(".ai-properties-panel-transition-exit")).toBeNull();
+    expect(screen.getByText("edit panel")).toBeInTheDocument();
     expect(screen.queryByText("create panel")).not.toBeInTheDocument();
   });
 

@@ -78,12 +78,10 @@ describe("model catalog route coverage", () => {
     expect(missingValidation).toEqual([]);
   });
 
-  it("keeps queue URL literals isolated to legacy fallback routes", () => {
-    const allowedFiles = new Set(["submit.ts", "status.ts"]);
+  it("keeps provider routes free of direct queue URL literals", () => {
     const filesWithQueueLiterals = [...listFalSubmitRouteFiles(), ...listFalStatusRouteFiles()]
       .filter((filePath) => fs.readFileSync(filePath, "utf8").includes("queue.fal.run"))
-      .map((filePath) => path.basename(filePath))
-      .filter((fileName) => !allowedFiles.has(fileName));
+      .map((filePath) => path.basename(filePath));
 
     expect(filesWithQueueLiterals).toEqual([]);
   });

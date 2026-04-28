@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { resolveVisibleGenerationReconcile } from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
-import type { Provider } from "../logic/stateParsers";
+import { resolveTaskPollingProvider, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "./useAiStudioTasks";
@@ -279,7 +279,14 @@ export const useAiStudioTaskOrchestration = ({
         setUiNotice("Unable to retry status because this generation has no task id.");
         return;
       }
-      const provider = (output.provider as Provider | undefined) ?? "fal";
+      const provider = resolveTaskPollingProvider({
+        provider: output.provider,
+        modelId: output.modelId,
+      });
+      if (!provider) {
+        setUiNotice("Unable to retry status because this generation has no active polling route.");
+        return;
+      }
       updateOutputById(outputId, (item) => ({
         ...item,
         taskState: "running",

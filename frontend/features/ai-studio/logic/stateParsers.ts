@@ -37,6 +37,28 @@ export type Provider =
   | "kie-seedance-2"
   | "kie-seedance-2-fast";
 
+const activePollingProviders = new Set<Provider>([
+  "fal-flux2-klein",
+  "fal-flux-pro-fill",
+  "fal-flux-kontext-inpaint",
+  "fal-bria-background-remove",
+  "fal-nano-banana",
+  "fal-nano-banana-2",
+  "fal-nano-banana-edit",
+  "fal-nano-banana-2-edit",
+  "fal-nano-banana-pro",
+  "fal-nano-banana-pro-edit",
+  "fal-seedream",
+  "fal-seedream-edit",
+  "fal-seedream-v5-lite",
+  "fal-seedream-v5-lite-edit",
+  "kie-veo",
+  "kie-kling",
+  "kie-seedance",
+  "kie-seedance-2",
+  "kie-seedance-2-fast",
+]);
+
 export const normalizeProviderForPolling = (
   value: string | null | undefined,
   fallback: Provider = "fal"
@@ -101,6 +123,21 @@ export const normalizeProviderForPolling = (
     return normalized.includes("kling") ? "kie-kling" : "kie-veo";
   }
   return fallback;
+};
+
+const resolveActivePollingProvider = (value: string | null | undefined): Provider | null => {
+  const provider = normalizeProviderForPolling(value, "fal");
+  return activePollingProviders.has(provider) ? provider : null;
+};
+
+export const resolveTaskPollingProvider = ({
+  provider,
+  modelId,
+}: {
+  provider?: string | null;
+  modelId?: string | null;
+}): Provider | null => {
+  return resolveActivePollingProvider(provider) ?? resolveActivePollingProvider(modelId);
 };
 
 export const resolveModelLabel = (value?: string) =>

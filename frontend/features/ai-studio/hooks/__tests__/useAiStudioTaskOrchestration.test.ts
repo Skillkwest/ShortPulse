@@ -443,8 +443,15 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(updateOutputById).not.toHaveBeenCalled();
   });
 
-  it("restarts polling and clears error fields for retry", () => {
-    let outputs = [createOutput({ id: "out-1", taskId: " task-123 ", provider: "fal" })];
+  it("restarts polling through the model-specific route and clears error fields for retry", () => {
+    let outputs = [
+      createOutput({
+        id: "out-1",
+        taskId: " task-123 ",
+        provider: "fal",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      }),
+    ];
 
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
       outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
@@ -492,10 +499,64 @@ describe("useAiStudioTaskOrchestration", () => {
     });
 
     expect(clearPollTimer).toHaveBeenCalledWith("out-1");
-    expect(startPollingTask).toHaveBeenCalledWith("task-123", "out-1", 0, "fal");
+    expect(startPollingTask).toHaveBeenCalledWith("task-123", "out-1", 0, "fal-seedream-edit");
     expect(outputs[0]?.taskState).toBe("running");
     expect(outputs[0]?.timestamp).toBe("Retrying status...");
     expect(outputs[0]?.errorMessage).toBeNull();
+  });
+
+  it("does not retry status through retired generic Fal polling", () => {
+    const outputs = [createOutput({ id: "out-1", taskId: " task-123 ", provider: "fal" })];
+    const updateOutputById = vi.fn();
+    const setUiNotice = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setPanelGenerating: vi.fn(),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(setUiNotice),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    act(() => {
+      result.current.retryOutputStatus("out-1");
+    });
+
+    expect(setUiNotice).toHaveBeenCalledWith(
+      "Unable to retry status because this generation has no active polling route."
+    );
+    expect(clearPollTimer).not.toHaveBeenCalled();
+    expect(startPollingTask).not.toHaveBeenCalled();
+    expect(updateOutputById).not.toHaveBeenCalled();
   });
 
   it("does not resume task-backed outputs from the browser watchdog once a task id exists", async () => {

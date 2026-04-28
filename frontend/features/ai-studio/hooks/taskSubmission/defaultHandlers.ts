@@ -1,5 +1,5 @@
 /**
- * Default submission handlers (OpenAI GPT Image 2, Seedream, and Nano Banana) for AI Studio.
+ * Default image submission handlers (OpenAI GPT Image 2, Seedream, and Nano Banana) for AI Studio.
  */
 import {
   submitOpenAiGptImage2,
@@ -51,7 +51,7 @@ const handoffSubmitResponse = ({
 };
 
 /**
- * Handles default/fallback Fal submissions (Seedream + Nano Banana variants).
+ * Handles default image submissions (Seedream + Nano Banana variants).
  */
 export const handleDefaultModelSubmission = async ({
   projectId,

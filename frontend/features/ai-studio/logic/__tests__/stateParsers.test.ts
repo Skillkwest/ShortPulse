@@ -3,7 +3,11 @@
  * Focuses on provider payload shape drift for result URL arrays.
  */
 import { describe, expect, it } from "vitest";
-import { extractFalMediaUrls, extractResultUrls } from "../stateParsers";
+import {
+  extractFalMediaUrls,
+  extractResultUrls,
+  resolveTaskPollingProvider,
+} from "../stateParsers";
 
 describe("extractResultUrls", () => {
   it("extracts URL objects from nested data.response.resultUrls", () => {
@@ -65,5 +69,34 @@ describe("extractFalMediaUrls", () => {
     );
 
     expect(result).toEqual(["https://cdn.shortpulse.test/output.mp4"]);
+  });
+});
+
+describe("resolveTaskPollingProvider", () => {
+  it("resolves generic Fal outputs through the exact model route", () => {
+    expect(
+      resolveTaskPollingProvider({
+        provider: "fal",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      })
+    ).toBe("fal-seedream-edit");
+  });
+
+  it("rejects generic Fal polling when no active model route can be inferred", () => {
+    expect(
+      resolveTaskPollingProvider({
+        provider: "fal",
+        modelId: "unknown-model",
+      })
+    ).toBeNull();
+  });
+
+  it("keeps active Kie Seedance 2 polling routes exact", () => {
+    expect(
+      resolveTaskPollingProvider({
+        provider: "kie-ai/seedance-2-fast",
+        modelId: "kie-ai/seedance-2",
+      })
+    ).toBe("kie-seedance-2-fast");
   });
 });

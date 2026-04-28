@@ -19,7 +19,6 @@ import {
   fetchFalNanoBanana2EditStatus,
   fetchFalNanoBananaProStatus,
   fetchFalNanoBananaProEditStatus,
-  fetchFalStatus,
   fetchFalSeedreamStatus,
   fetchFalSeedreamEditStatus,
   fetchFalSeedreamV5LiteStatus,
@@ -189,8 +188,6 @@ const normalizeLifecycleQueueState = (
 
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
   switch (provider) {
-    case "fal":
-      return fetchFalStatus(taskId);
     case "fal-flux2-klein":
       return fetchFalFlux2KleinStatus(taskId);
     case "fal-flux-pro-fill":
@@ -230,7 +227,9 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
     case "kie-seedance-2-fast":
       return fetchKieSeedance2FastVideoStatus(taskId);
     default:
-      return fetchFalStatus(taskId);
+      throw new Error(
+        `Unsupported generation polling provider '${provider}'. Use a model-specific status client.`
+      );
   }
 };
 
@@ -454,13 +453,22 @@ export function useAiStudioTasks({
       taskId: string,
       outputId: string,
       attempt = 0,
-      provider: Provider = "fal",
+      provider?: Provider,
       startedAt = Date.now(),
       noMediaAttempt = 0,
       pollSessionId?: number,
       options?: StartPollingTaskOptions
     ) {
       incrementFreezeInvestigationCounter("aiStudioTasks.startPollingTask.calls");
+      if (!provider) {
+        notifyGenerationFailure(
+          outputId,
+          "Generation status retry is missing a model-specific polling route.",
+          "Generation status retry is missing a model-specific polling route.",
+          { reasonCode: "status_poll_error" }
+        );
+        return;
+      }
       setFreezeInvestigationGauge(
         "aiStudioTasks.statusRequestsInFlight",
         statusRequestsInFlightRef.current

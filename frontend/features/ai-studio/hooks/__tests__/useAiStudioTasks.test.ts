@@ -6,8 +6,8 @@ import { MAX_CONCURRENT_STATUS_REQUESTS } from "../taskPolling/pollingSchedulePo
 import { resolveVisibleGenerationReconcile } from "../../logic/generatedMediaAuthority";
 import {
   fetchFalBriaBackgroundRemoveStatus,
+  fetchFalNanoBananaStatus,
   fetchFalSeedreamStatus,
-  fetchFalStatus,
   fetchKieKlingImageToVideoStatus,
   fetchKieSeedanceVideoStatus,
   fetchKieVeoImageToVideoStatus,
@@ -18,7 +18,6 @@ vi.mock("../../../../lib/clientBreadcrumbs", () => ({
 }));
 
 vi.mock("../../../../lib/falClient", () => ({
-  fetchFalStatus: vi.fn(),
   fetchFalBriaBackgroundRemoveStatus: vi.fn(),
   fetchFalFlux2KleinStatus: vi.fn(),
   fetchFalNanoBananaStatus: vi.fn(),
@@ -57,8 +56,10 @@ const createDeferred = <T>() => {
   return { promise, resolve, reject };
 };
 
-const asFalStatusResponse = (value: unknown): Awaited<ReturnType<typeof fetchFalStatus>> =>
-  value as Awaited<ReturnType<typeof fetchFalStatus>>;
+const asFalNanoBananaStatusResponse = (
+  value: unknown
+): Awaited<ReturnType<typeof fetchFalNanoBananaStatus>> =>
+  value as Awaited<ReturnType<typeof fetchFalNanoBananaStatus>>;
 const asKieVeoStatusResponse = (
   value: unknown
 ): Awaited<ReturnType<typeof fetchKieVeoImageToVideoStatus>> =>
@@ -78,7 +79,7 @@ const flushQueuedOutputUpdates = async () => {
 };
 
 describe("useAiStudioTasks", () => {
-  const fetchFalStatusMock = vi.mocked(fetchFalStatus);
+  const fetchFalNanoBananaStatusMock = vi.mocked(fetchFalNanoBananaStatus);
   const fetchFalBriaBackgroundRemoveStatusMock = vi.mocked(fetchFalBriaBackgroundRemoveStatus);
   const fetchFalSeedreamStatusMock = vi.mocked(fetchFalSeedreamStatus);
   const fetchKieVeoImageToVideoStatusMock = vi.mocked(fetchKieVeoImageToVideoStatus);
@@ -97,16 +98,18 @@ describe("useAiStudioTasks", () => {
   });
 
   it("continues direct polling and restores preview URL when canonical media appears later", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce({ status: "completed" }).mockResolvedValueOnce({
-      status: "completed",
-      generationId: "gen-recovered-1",
-      data: { images: [{ url: "https://cdn.test/recovered.png" }] },
-      shortpulseLifecycle: {
-        taskState: "success",
-        isTerminal: true,
-        resultUrls: ["https://cdn.test/recovered.png"],
-      },
-    });
+    fetchFalNanoBananaStatusMock
+      .mockResolvedValueOnce({ status: "completed" })
+      .mockResolvedValueOnce({
+        status: "completed",
+        generationId: "gen-recovered-1",
+        data: { images: [{ url: "https://cdn.test/recovered.png" }] },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/recovered.png"],
+        },
+      });
 
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -129,7 +132,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-1", "out-1", 0, "fal", Date.now(), 20);
+      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana", Date.now(), 20);
     });
 
     await vi.advanceTimersByTimeAsync(2_500);
@@ -141,12 +144,12 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(onGenerationSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
         taskId: "task-1",
-        provider: "fal",
+        provider: "fal-nano-banana",
         resultUrls: ["https://cdn.test/recovered.png"],
       })
     );
@@ -156,8 +159,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("backfills generation id from status polling when provider returns it", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "completed",
         generationId: "gen-polled-1",
         data: { images: [{ url: "https://cdn.test/polled.png" }] },
@@ -184,7 +187,14 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-status-gen-1", "out-1", 0, "fal", Date.now(), 20);
+      result.current.startPollingTask(
+        "task-status-gen-1",
+        "out-1",
+        0,
+        "fal-nano-banana",
+        Date.now(),
+        20
+      );
     });
 
     await vi.advanceTimersByTimeAsync(1_250);
@@ -196,8 +206,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("honors the dispatch handoff delay override before the first status poll", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "completed",
         shortpulseLifecycle: {
           taskState: "success",
@@ -226,7 +236,7 @@ describe("useAiStudioTasks", () => {
         "task-handoff-delay",
         "out-1",
         0,
-        "fal",
+        "fal-nano-banana",
         Date.now(),
         0,
         undefined,
@@ -235,18 +245,18 @@ describe("useAiStudioTasks", () => {
     });
 
     await vi.advanceTimersByTimeAsync(DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS - 25);
-    expect(fetchFalStatusMock).not.toHaveBeenCalled();
+    expect(fetchFalNanoBananaStatusMock).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(50);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
     expect(output.taskState).toBe("success");
   });
 
   it("prefers server lifecycle success hints over raw provider payload interpretation", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "IN_PROGRESS",
         shortpulseLifecycle: {
           taskState: "success",
@@ -273,7 +283,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-server-hint-success", "out-1", 0, "fal");
+      result.current.startPollingTask("task-server-hint-success", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(1_250);
@@ -291,8 +301,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("hands lifecycle success without canonical result URLs over to server recovery", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "completed",
         data: { images: [{ url: "https://cdn.test/raw-fallback.png" }] },
         shortpulseLifecycle: {
@@ -321,7 +331,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-lifecycle-no-urls", "out-1", 0, "fal");
+      result.current.startPollingTask("task-lifecycle-no-urls", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(1_250);
@@ -484,8 +494,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("prefers server lifecycle failure hints over raw provider failure parsing", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "IN_PROGRESS",
         shortpulseLifecycle: {
           taskState: "fail",
@@ -515,7 +525,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-server-hint-failure", "out-1", 0, "fal");
+      result.current.startPollingTask("task-server-hint-failure", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -541,7 +551,7 @@ describe("useAiStudioTasks", () => {
   });
 
   it("clears active poll timers on unmount", async () => {
-    fetchFalStatusMock.mockResolvedValue({ status: "completed" });
+    fetchFalNanoBananaStatusMock.mockResolvedValue({ status: "completed" });
 
     const updateOutputById = vi.fn();
     const { result, unmount } = renderHook(() =>
@@ -552,25 +562,25 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-1", "out-1", 0, "fal", Date.now(), 20);
+      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana", Date.now(), 20);
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
 
     unmount();
     await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
 
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
   });
 
   it("defers status polling while the tab is hidden and resumes when visible", async () => {
     const visibilityStateSpy = vi.spyOn(document, "visibilityState", "get");
     try {
       visibilityStateSpy.mockReturnValue("hidden");
-      fetchFalStatusMock.mockResolvedValueOnce(
-        asFalStatusResponse({
+      fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+        asFalNanoBananaStatusResponse({
           status: "completed",
           data: { images: [{ url: "https://cdn.test/hidden-visible.png" }] },
           shortpulseLifecycle: {
@@ -601,22 +611,22 @@ describe("useAiStudioTasks", () => {
       );
 
       act(() => {
-        result.current.startPollingTask("task-hidden-tab", "out-1", 0, "fal");
+        result.current.startPollingTask("task-hidden-tab", "out-1", 0, "fal-nano-banana");
       });
 
       await vi.advanceTimersByTimeAsync(14_500);
-      expect(fetchFalStatusMock).not.toHaveBeenCalled();
+      expect(fetchFalNanoBananaStatusMock).not.toHaveBeenCalled();
 
       visibilityStateSpy.mockReturnValue("visible");
       await vi.advanceTimersByTimeAsync(4_000);
       await flushQueuedOutputUpdates();
 
-      expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+      expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
       expect(onGenerationSuccess).toHaveBeenCalledWith(
         expect.objectContaining({
           outputId: "out-1",
           taskId: "task-hidden-tab",
-          provider: "fal",
+          provider: "fal-nano-banana",
           resultUrls: ["https://cdn.test/hidden-visible.png"],
         })
       );
@@ -628,8 +638,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("surfaces provider detail array messages (file_download_error) as primary failure text", async () => {
-    fetchFalStatusMock.mockImplementationOnce(async () =>
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockImplementationOnce(async () =>
+      asFalNanoBananaStatusResponse({
         status: "error",
         detail: [
           {
@@ -666,7 +676,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-1", "out-1", 0, "fal");
+      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -684,7 +694,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal",
+        provider: "fal-nano-banana",
         reasonCode: "provider_error",
       })
     );
@@ -693,8 +703,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("fails immediately on terminal provider error payloads and does not continue polling", async () => {
-    fetchFalStatusMock.mockImplementationOnce(async () =>
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockImplementationOnce(async () =>
+      asFalNanoBananaStatusResponse({
         status: "error",
         detail: [{ type: "downstream_service_error", msg: "Downstream service error" }],
         shortpulseLifecycle: {
@@ -725,13 +735,13 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-terminal-error", "out-1", 0, "fal");
+      result.current.startPollingTask("task-terminal-error", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
       "Downstream service error",
@@ -744,7 +754,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal",
+        provider: "fal-nano-banana",
         reasonCode: "provider_error",
       })
     );
@@ -753,12 +763,12 @@ describe("useAiStudioTasks", () => {
 
     await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
     await flushQueuedOutputUpdates();
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not surface non-failure status text on terminal failures", async () => {
-    fetchFalStatusMock.mockImplementationOnce(async () =>
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockImplementationOnce(async () =>
+      asFalNanoBananaStatusResponse({
         status: "failed",
         statusMessage: "Success",
         shortpulseLifecycle: {
@@ -789,7 +799,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-failed-success-text", "out-1", 0, "fal");
+      result.current.startPollingTask("task-failed-success-text", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -807,7 +817,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal",
+        provider: "fal-nano-banana",
         message: "Generation failed",
         reasonCode: "provider_error",
       })
@@ -818,8 +828,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("does not surface neutral raw message text on terminal failures", async () => {
-    fetchFalStatusMock.mockImplementationOnce(async () =>
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockImplementationOnce(async () =>
+      asFalNanoBananaStatusResponse({
         status: "failed",
         message: "Queued for retry",
         shortpulseLifecycle: {
@@ -850,7 +860,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-failed-neutral-message", "out-1", 0, "fal");
+      result.current.startPollingTask("task-failed-neutral-message", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -868,7 +878,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal",
+        provider: "fal-nano-banana",
         message: "Generation failed",
         reasonCode: "provider_error",
       })
@@ -878,8 +888,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("uses raw message text when provider explicitly reports error status", async () => {
-    fetchFalStatusMock.mockImplementationOnce(async () =>
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockImplementationOnce(async () =>
+      asFalNanoBananaStatusResponse({
         status: "error",
         message: "Downstream service error",
         shortpulseLifecycle: {
@@ -910,7 +920,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-error-message-field", "out-1", 0, "fal");
+      result.current.startPollingTask("task-error-message-field", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -928,7 +938,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal",
+        provider: "fal-nano-banana",
         message: "Downstream service error",
         reasonCode: "provider_error",
       })
@@ -973,7 +983,7 @@ describe("useAiStudioTasks", () => {
   });
 
   it("does not force success for raw provider payloads that include media without terminal state", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce({
       data: { images: [{ url: "https://cdn.test/raw-media-without-status.png" }] },
     });
 
@@ -996,7 +1006,12 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-raw-media-without-status", "out-1", 0, "fal");
+      result.current.startPollingTask(
+        "task-raw-media-without-status",
+        "out-1",
+        0,
+        "fal-nano-banana"
+      );
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1010,8 +1025,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("prefers video URLs for video-mode outputs when provider payload includes images and videos", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "completed",
         data: {
           images: [{ url: "https://cdn.test/video-poster.png" }],
@@ -1049,19 +1064,19 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("video-task-1", "out-1", 0, "fal");
+      result.current.startPollingTask("video-task-1", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock).toHaveBeenCalledWith("video-task-1");
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledWith("video-task-1");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
         taskId: "video-task-1",
-        provider: "fal",
+        provider: "fal-nano-banana",
         resultUrls: ["https://cdn.test/video-output.mp4"],
       })
     );
@@ -1071,7 +1086,7 @@ describe("useAiStudioTasks", () => {
 
   it("polls Bria background-remove tasks via the Bria status endpoint", async () => {
     fetchFalBriaBackgroundRemoveStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+      asFalNanoBananaStatusResponse({
         status: "completed",
         data: { images: [{ url: "https://cdn.test/bria-output.png" }] },
         shortpulseLifecycle: {
@@ -1364,7 +1379,7 @@ describe("useAiStudioTasks", () => {
   });
 
   it("normalizes provider nonterminal states to running task state", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce({ status: "processing" });
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce({ status: "processing" });
 
     let output: StudioOutput = {
       ...makeOutput(),
@@ -1385,7 +1400,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-processing", "out-1", 0, "fal");
+      result.current.startPollingTask("task-processing", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1396,8 +1411,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("prefers server lifecycle running hints for nonterminal polling state", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "QUEUED",
         shortpulseLifecycle: {
           taskState: "running",
@@ -1426,7 +1441,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-lifecycle-running", "out-1", 0, "fal");
+      result.current.startPollingTask("task-lifecycle-running", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1437,8 +1452,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("prefers server lifecycle recovery-pending hints for nonterminal polling state", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "IN_PROGRESS",
         shortpulseLifecycle: {
           taskState: "running",
@@ -1471,7 +1486,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-lifecycle-recovery", "out-1", 0, "fal");
+      result.current.startPollingTask("task-lifecycle-recovery", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1485,8 +1500,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("does not fail on transient error fields when server lifecycle marks the poll nonterminal", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         error: "upstream temporarily unavailable",
         shortpulseLifecycle: {
           taskState: "running",
@@ -1519,7 +1534,12 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-transient-recovery-hint", "out-1", 0, "fal");
+      result.current.startPollingTask(
+        "task-transient-recovery-hint",
+        "out-1",
+        0,
+        "fal-nano-banana"
+      );
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1532,8 +1552,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("does not treat raw completed status as success when server lifecycle marks recovery pending", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "COMPLETED",
         shortpulseLifecycle: {
           taskState: "running",
@@ -1565,7 +1585,12 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-completed-recovery-hint", "out-1", 0, "fal");
+      result.current.startPollingTask(
+        "task-completed-recovery-hint",
+        "out-1",
+        0,
+        "fal-nano-banana"
+      );
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1576,7 +1601,7 @@ describe("useAiStudioTasks", () => {
     expect(output.timestamp).toBe("Processing...");
   });
   it("does not requeue identical running progress state across repeated pending polls", async () => {
-    fetchFalStatusMock.mockResolvedValue({ status: "processing" });
+    fetchFalNanoBananaStatusMock.mockResolvedValue({ status: "processing" });
 
     let output: StudioOutput = {
       ...makeOutput(),
@@ -1597,7 +1622,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-processing-repeat", "out-1", 0, "fal");
+      result.current.startPollingTask("task-processing-repeat", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_100);
@@ -1605,7 +1630,7 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(3_500);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(updateOutputById).toHaveBeenCalledTimes(1);
     expect(output.taskState).toBe("running");
     expect(output.timestamp).toBe("Processing...");
@@ -1631,7 +1656,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-timeout", "out-1", 4, "fal", startedAt, 2);
+      result.current.startPollingTask("task-timeout", "out-1", 4, "fal-nano-banana", startedAt, 2);
     });
 
     await flushQueuedOutputUpdates();
@@ -1643,10 +1668,10 @@ describe("useAiStudioTasks", () => {
   });
 
   it("retries timeout-classified status transport errors and succeeds on a later poll", async () => {
-    fetchFalStatusMock
+    fetchFalNanoBananaStatusMock
       .mockRejectedValueOnce(new Error("[fal-status:flux] timed out after 75000ms"))
       .mockResolvedValueOnce(
-        asFalStatusResponse({
+        asFalNanoBananaStatusResponse({
           status: "completed",
           data: { images: [{ url: "https://cdn.test/timeout-retry-success.png" }] },
           shortpulseLifecycle: {
@@ -1677,13 +1702,13 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-timeout-retry", "out-1", 0, "fal");
+      result.current.startPollingTask("task-timeout-retry", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_100);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationFailure).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
@@ -1692,14 +1717,14 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(2_200);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
         taskId: "task-timeout-retry",
-        provider: "fal",
+        provider: "fal-nano-banana",
         resultUrls: ["https://cdn.test/timeout-retry-success.png"],
       })
     );
@@ -1708,7 +1733,7 @@ describe("useAiStudioTasks", () => {
   });
 
   it("does not requeue identical retry progress state across repeated status errors", async () => {
-    fetchFalStatusMock
+    fetchFalNanoBananaStatusMock
       .mockRejectedValueOnce(new Error("[fal-status:flux] timed out after 75000ms"))
       .mockRejectedValueOnce(new Error("[fal-status:flux] timed out after 75000ms"));
 
@@ -1727,7 +1752,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-timeout-repeat", "out-1", 0, "fal");
+      result.current.startPollingTask("task-timeout-repeat", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_100);
@@ -1735,14 +1760,14 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(2_500);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(updateOutputById).toHaveBeenCalledTimes(1);
     expect(output.taskState).toBe("running");
     expect(output.timestamp).toBe("Retrying status...");
   });
 
   it("keeps output live when status transport errors exhaust the retry budget", async () => {
-    fetchFalStatusMock.mockRejectedValue(new Error("status transport unavailable"));
+    fetchFalNanoBananaStatusMock.mockRejectedValue(new Error("status transport unavailable"));
 
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -1762,7 +1787,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-status-error", "out-1", 30, "fal");
+      result.current.startPollingTask("task-status-error", "out-1", 30, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(4_600);
@@ -1789,11 +1814,11 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-gone", "out-gone", 0, "fal");
+      result.current.startPollingTask("task-gone", "out-gone", 0, "fal-nano-banana");
     });
     await vi.advanceTimersByTimeAsync(2_000);
 
-    expect(fetchFalStatusMock).not.toHaveBeenCalled();
+    expect(fetchFalNanoBananaStatusMock).not.toHaveBeenCalled();
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(updateOutputById).not.toHaveBeenCalled();
   });
@@ -1814,25 +1839,25 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-hard-stop", "out-gone", 0, "fal");
+      result.current.startPollingTask("task-hard-stop", "out-gone", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 5_000);
 
-    expect(fetchFalStatusMock).not.toHaveBeenCalled();
+    expect(fetchFalNanoBananaStatusMock).not.toHaveBeenCalled();
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onPollingOutputLookupHardStop).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-gone",
         taskId: "task-hard-stop",
-        provider: "fal",
+        provider: "fal-nano-banana",
       })
     );
   });
 
   it("recovers from transient output lookup misses and resumes polling", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "completed",
         data: { images: [{ url: "https://cdn.test/transient-recovery.png" }] },
         shortpulseLifecycle: {
@@ -1869,19 +1894,19 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-transient", "out-1", 0, "fal");
+      result.current.startPollingTask("task-transient", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(4_500);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
         taskId: "task-transient",
-        provider: "fal",
+        provider: "fal-nano-banana",
         resultUrls: ["https://cdn.test/transient-recovery.png"],
       })
     );
@@ -1890,8 +1915,8 @@ describe("useAiStudioTasks", () => {
   });
 
   it("keeps polling alive after extended output lookup misses and resumes when output returns", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce(
-      asFalStatusResponse({
+    fetchFalNanoBananaStatusMock.mockResolvedValueOnce(
+      asFalNanoBananaStatusResponse({
         status: "completed",
         data: { images: [{ url: "https://cdn.test/extended-recovery.png" }] },
         shortpulseLifecycle: {
@@ -1928,19 +1953,19 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-extended", "out-1", 0, "fal");
+      result.current.startPollingTask("task-extended", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(13_000);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
         taskId: "task-extended",
-        provider: "fal",
+        provider: "fal-nano-banana",
         resultUrls: ["https://cdn.test/extended-recovery.png"],
       })
     );
@@ -1949,7 +1974,7 @@ describe("useAiStudioTasks", () => {
   });
 
   it("resets an existing timer before restarting polling for the same output", async () => {
-    fetchFalStatusMock.mockResolvedValue({
+    fetchFalNanoBananaStatusMock.mockResolvedValue({
       status: "pending",
     });
     const output = makeOutput();
@@ -1965,20 +1990,20 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-dup", "out-1", 0, "fal");
-      result.current.startPollingTask("task-dup", "out-1", 0, "fal");
+      result.current.startPollingTask("task-dup", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-dup", "out-1", 0, "fal-nano-banana");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
   });
 
   it("allows four fresh status polls before deferring the fifth for concurrency backpressure", async () => {
     const deferreds = Array.from({ length: MAX_CONCURRENT_STATUS_REQUESTS + 1 }, () =>
-      createDeferred<Awaited<ReturnType<typeof fetchFalStatus>>>()
+      createDeferred<Awaited<ReturnType<typeof fetchFalNanoBananaStatus>>>()
     );
     let callIndex = 0;
-    fetchFalStatusMock.mockImplementation(() => {
+    fetchFalNanoBananaStatusMock.mockImplementation(() => {
       const next = deferreds[callIndex];
       callIndex += 1;
       if (!next) {
@@ -2012,17 +2037,22 @@ describe("useAiStudioTasks", () => {
 
     act(() => {
       Array.from({ length: MAX_CONCURRENT_STATUS_REQUESTS + 1 }, (_, index) => {
-        result.current.startPollingTask(`task-${index + 1}`, `out-${index + 1}`, 0, "fal");
+        result.current.startPollingTask(
+          `task-${index + 1}`,
+          `out-${index + 1}`,
+          0,
+          "fal-nano-banana"
+        );
       });
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
 
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(MAX_CONCURRENT_STATUS_REQUESTS);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(MAX_CONCURRENT_STATUS_REQUESTS);
 
     deferreds.slice(0, MAX_CONCURRENT_STATUS_REQUESTS).forEach((deferred, index) =>
       deferred.resolve(
-        asFalStatusResponse({
+        asFalNanoBananaStatusResponse({
           status: "completed",
           data: { images: [{ url: `https://cdn.test/concurrency-${index + 1}.png` }] },
           shortpulseLifecycle: {
@@ -2040,10 +2070,10 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(6_000);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(MAX_CONCURRENT_STATUS_REQUESTS + 1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(MAX_CONCURRENT_STATUS_REQUESTS + 1);
 
     deferreds[MAX_CONCURRENT_STATUS_REQUESTS]?.resolve(
-      asFalStatusResponse({
+      asFalNanoBananaStatusResponse({
         status: "completed",
         data: { images: [{ url: "https://cdn.test/concurrency-5.png" }] },
         shortpulseLifecycle: {
@@ -2062,7 +2092,7 @@ describe("useAiStudioTasks", () => {
   });
 
   it("keeps direct polling alive across repeated no-media terminal responses", async () => {
-    fetchFalStatusMock.mockResolvedValue({ status: "completed" });
+    fetchFalNanoBananaStatusMock.mockResolvedValue({ status: "completed" });
 
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -2080,23 +2110,30 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-no-media-tail", "out-1", 0, "fal", Date.now(), 20);
+      result.current.startPollingTask(
+        "task-no-media-tail",
+        "out-1",
+        0,
+        "fal-nano-banana",
+        Date.now(),
+        20
+      );
     });
 
     await vi.advanceTimersByTimeAsync(1_250);
     await flushQueuedOutputUpdates();
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalNanoBananaStatusMock).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
-    expect(fetchFalStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(2);
 
     await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
-    expect(fetchFalStatusMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(3);
 
     await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
-    expect(fetchFalStatusMock.mock.calls.length).toBeGreaterThanOrEqual(4);
+    expect(fetchFalNanoBananaStatusMock.mock.calls.length).toBeGreaterThanOrEqual(4);
   });
 });

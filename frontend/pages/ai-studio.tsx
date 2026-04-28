@@ -79,9 +79,14 @@ import {
   createVoiceChangerSourceFromFile,
   createVoiceChangerSourceFromReference,
   type ResolveVoiceChangerInternalReferenceSource,
-  type VoiceChangerSourceKind,
 } from "../features/ai-studio/components/VoiceChangerSourceDropzone";
-import { isAudioUrl, isVideoUrl } from "../features/ai-studio/logic/stateParsers";
+import {
+  normalizeOptionalText,
+  resolveVoiceChangerBlobFilename,
+  resolveVoiceChangerOutputLocalUrl,
+  resolveVoiceChangerOutputRemoteUrl,
+  resolveVoiceChangerOutputStoragePath,
+} from "../features/ai-studio/logic/voiceChangerReferenceSource";
 import {
   createEmptyAiStudioSessionSnapshot,
   patchAiStudioSessionSnapshotCanvas,
@@ -110,92 +115,6 @@ const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
-
-const REMOTE_MEDIA_URL_PROTOCOL_PATTERN = /^https?:\/\//i;
-const LOCAL_BROWSER_MEDIA_URL_PATTERN = /^(?:blob:|data:)/i;
-
-const normalizeOptionalText = (value: string | null | undefined): string | null => {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.length ? trimmed : null;
-};
-
-const isCanonicalStoragePath = (value: string | null | undefined): value is string => {
-  const trimmed = normalizeOptionalText(value);
-  return Boolean(
-    trimmed &&
-    !REMOTE_MEDIA_URL_PROTOCOL_PATTERN.test(trimmed) &&
-    !LOCAL_BROWSER_MEDIA_URL_PATTERN.test(trimmed)
-  );
-};
-
-const resolveVoiceChangerOutputStoragePath = (output: StudioOutput): string | null =>
-  normalizeOptionalText(
-    isCanonicalStoragePath(output.fullStoragePath)
-      ? output.fullStoragePath
-      : isCanonicalStoragePath(output.previewStoragePath)
-        ? output.previewStoragePath
-        : null
-  );
-
-const matchesVoiceChangerKind = (value: string, kind: VoiceChangerSourceKind): boolean =>
-  kind === "audio" ? isAudioUrl(value) : isVideoUrl(value);
-
-const resolveVoiceChangerOutputRemoteUrl = ({
-  output,
-  kind,
-  payloadReferenceUrl,
-}: {
-  output: StudioOutput;
-  kind: VoiceChangerSourceKind;
-  payloadReferenceUrl?: string | null;
-}): string | null => {
-  const candidates = [
-    output.fullStoragePath,
-    output.previewStoragePath,
-    ...(output.resultUrls ?? []),
-    output.previewUrl,
-    payloadReferenceUrl,
-  ];
-  for (const candidate of candidates) {
-    const normalized = normalizeOptionalText(candidate);
-    if (!normalized || !REMOTE_MEDIA_URL_PROTOCOL_PATTERN.test(normalized)) continue;
-    if (matchesVoiceChangerKind(normalized, kind) || output.mode === kind) return normalized;
-  }
-  return null;
-};
-
-const resolveVoiceChangerOutputLocalUrl = (output: StudioOutput): string | null => {
-  const candidates = [output.localObjectUrl, output.previewUrl, ...(output.resultUrls ?? [])];
-  for (const candidate of candidates) {
-    const normalized = normalizeOptionalText(candidate);
-    if (normalized && LOCAL_BROWSER_MEDIA_URL_PATTERN.test(normalized)) return normalized;
-  }
-  return null;
-};
-
-const resolveVoiceChangerBlobFilename = ({
-  output,
-  kind,
-  mimeType,
-}: {
-  output: StudioOutput;
-  kind: VoiceChangerSourceKind;
-  mimeType: string | null;
-}): string => {
-  const existingName = normalizeOptionalText(output.prompt || output.previewText);
-  if (existingName && /\.[a-z0-9]{2,5}$/i.test(existingName)) return existingName;
-  const extension = (() => {
-    const normalizedMime = mimeType?.toLowerCase() ?? "";
-    if (normalizedMime.includes("wav")) return "wav";
-    if (normalizedMime.includes("mpeg") || normalizedMime.includes("mp3")) return "mp3";
-    if (normalizedMime.includes("mp4")) return kind === "audio" ? "m4a" : "mp4";
-    if (normalizedMime.includes("ogg")) return "ogg";
-    if (normalizedMime.includes("webm")) return "webm";
-    if (normalizedMime.includes("quicktime")) return "mov";
-    return kind === "audio" ? "mp3" : "mp4";
-  })();
-  return `${existingName ?? `reference-grid-${kind}`}.${extension}`;
-};
 
 export default function AiStudioPage() {
   const router = useRouter();

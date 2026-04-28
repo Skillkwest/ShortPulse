@@ -116,10 +116,21 @@ const createAiGenerationsAdmin = (
     }),
   };
 
+  const generationAbandonmentsTable = {
+    select: vi.fn(() => {
+      const builder: Record<string, unknown> = {};
+      builder.eq = vi.fn(() => builder);
+      builder.limit = vi.fn(() => builder);
+      builder.maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+      return builder;
+    }),
+  };
+
   const from = vi.fn((tableName: string) => {
     if (tableName === "ai_generations") return table;
     if (tableName === "user_preferences") return userPreferencesTable;
     if (tableName === "media_events") return mediaEventsTable;
+    if (tableName === "generation_abandonments") return generationAbandonmentsTable;
     throw new Error(`unexpected table ${tableName}`);
   });
 

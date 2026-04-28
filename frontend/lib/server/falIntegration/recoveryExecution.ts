@@ -817,8 +817,12 @@ export const executeGenerationRecovery = async ({
       force: hasStructuredContentPolicyViolation || Boolean(providerContentPolicyMessage),
     });
     const failureReasonCode = explicitContentFailure ? "content_policy_block" : "provider_error";
+    const providerFailureMessage =
+      asOptionalString(currentObservation.payload?.error) ??
+      asOptionalString(currentObservation.payload?.detail);
     const failureMessage =
       explicitContentFailure?.errorDetail ??
+      providerFailureMessage ??
       "Provider reported failed state during recovery execution.";
     const failureShortMessage = explicitContentFailure?.errorMessageShort ?? "Generation failed";
     await applyRecoveryTransition({

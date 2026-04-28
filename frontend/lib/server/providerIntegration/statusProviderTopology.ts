@@ -83,10 +83,10 @@ export const resolveProviderModelStatusBaseUrls = ({
 }): string[] => {
   if (isFalProviderKey(provider)) {
     const profile = getFalModelProfileByModelId(modelId);
-    const baseUrls = profile?.statusBases?.length
-      ? profile.statusBases
-      : [`https://queue.fal.run/${modelId}/requests`];
-    return filterTrustedFalProviderUrls(baseUrls);
+    if (!profile?.statusBases?.length) {
+      throw new Error(`Missing Fal model profile status bases for ${modelId}`);
+    }
+    return filterTrustedFalProviderUrls(profile.statusBases);
   }
   if (isKieProviderKey(provider)) {
     return resolveKieStatusBaseUrlsForModel(modelId);
@@ -107,7 +107,11 @@ export const resolveProviderModelStatusTimeoutMs = ({
   defaultTimeoutMs?: number;
 }): number => {
   if (isFalProviderKey(provider)) {
-    return getFalModelProfileByModelId(modelId)?.timeoutMs ?? defaultTimeoutMs;
+    const profile = getFalModelProfileByModelId(modelId);
+    if (!profile) {
+      throw new Error(`Missing Fal model profile timeout for ${modelId}`);
+    }
+    return profile.timeoutMs ?? defaultTimeoutMs;
   }
   if (isKieProviderKey(provider)) {
     const flags = readKieRuntimeFlags();

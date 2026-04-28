@@ -45,31 +45,31 @@ describe("statusProviderTopology", () => {
     expect(urls).toEqual(["https://queue.fal.run/fal-ai/model/requests/req-1"]);
   });
 
-  it("falls back to canonical Fal queue base when model profile is absent", () => {
+  it("fails closed when a Fal model profile is absent", () => {
     const modelId = "fal-ai/custom-unknown-model";
-    const bases = resolveProviderModelStatusBaseUrls({
-      provider: "fal",
-      modelId,
-    });
-
-    expect(bases).toEqual([`https://queue.fal.run/${modelId}/requests`]);
+    expect(() =>
+      resolveProviderModelStatusBaseUrls({
+        provider: "fal",
+        modelId,
+      })
+    ).toThrow(`Missing Fal model profile status bases for ${modelId}`);
   });
 
   it("resolves Fal model timeout from profile and fallback default", () => {
     expect(
       resolveProviderModelStatusTimeoutMs({
         provider: "fal",
-        modelId: "fal-ai/veo3.1/image-to-video",
+        modelId: "fal-ai/nano-banana-pro",
       })
-    ).toBe(90000);
+    ).toBe(60000);
 
-    expect(
+    expect(() =>
       resolveProviderModelStatusTimeoutMs({
         provider: "fal",
         modelId: "fal-ai/custom-unknown-model",
         defaultTimeoutMs: 12345,
       })
-    ).toBe(12345);
+    ).toThrow("Missing Fal model profile timeout for fal-ai/custom-unknown-model");
   });
 
   it("fails closed for kie while dark path is disabled", () => {

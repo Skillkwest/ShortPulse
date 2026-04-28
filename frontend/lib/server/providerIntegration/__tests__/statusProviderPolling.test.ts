@@ -16,10 +16,10 @@ describe("statusProviderPolling", () => {
   it("uses model-profile timeout when not overridden", () => {
     const session = startProviderPollingSession({
       provider: "fal",
-      modelId: "fal-ai/veo3.1/image-to-video",
+      modelId: "fal-ai/nano-banana-pro",
     });
 
-    expect(session.timeoutMs).toBe(90000);
+    expect(session.timeoutMs).toBe(60000);
     session.dispose();
   });
 

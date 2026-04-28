@@ -589,12 +589,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     allowedAspects: ["16:9", "9:16", "1:1"],
     defaultDurationSeconds: 10,
     allowedDurations: [5, 6, 7, 8, 9, 10],
-    falSubmitUrl: "https://queue.fal.run/fal-ai/kling-video/v3/pro/text-to-video",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/kling-video/requests",
-      "https://queue.fal.run/fal-ai/kling-video/v3/pro/text-to-video/requests",
-    ],
-    falTimeoutMs: 60000,
     payloadValidation: {
       allowedTopLevelFields: [
         "prompt",
@@ -627,12 +621,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     allowedDurations: [5, 6, 7, 8, 9, 10],
     defaultResolution: "1080p",
     allowedResolutions: ["720p", "1080p"],
-    falSubmitUrl: "https://queue.fal.run/fal-ai/kling-video/v3/pro/image-to-video",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/kling-video/requests",
-      "https://queue.fal.run/fal-ai/kling-video/v3/pro/image-to-video/requests",
-    ],
-    falTimeoutMs: 60000,
     payloadValidation: {
       allowedTopLevelFields: [
         "prompt",
@@ -670,13 +658,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     allowedDurations: [4, 6, 8],
     defaultResolution: "1080p",
     allowedResolutions: ["720p", "1080p", "4k"],
-    falSubmitUrl: "https://queue.fal.run/fal-ai/veo3.1",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/veo3.1/requests",
-      "https://queue.fal.run/fal-ai/veo3.1/first-last-frame-to-video/requests",
-      "https://queue.fal.run/fal-ai/veo3.1/image-to-video/requests",
-    ],
-    falTimeoutMs: 90000,
     payloadValidation: {
       allowedTopLevelFields: [
         "prompt",
@@ -711,13 +692,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     allowedDurations: [4, 6, 8],
     defaultResolution: "720p",
     allowedResolutions: ["720p", "1080p", "4k"],
-    falSubmitUrl: "https://queue.fal.run/fal-ai/veo3.1/image-to-video",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/veo3.1/requests",
-      "https://queue.fal.run/fal-ai/veo3.1/image-to-video/requests",
-      "https://queue.fal.run/fal-ai/veo3.1/reference-to-video/requests",
-    ],
-    falTimeoutMs: 90000,
     payloadValidation: {
       allowedTopLevelFields: [
         "prompt",
@@ -756,13 +730,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     allowedDurations: [4, 6, 8],
     defaultResolution: "720p",
     allowedResolutions: ["720p", "1080p", "4k"],
-    falSubmitUrl: "https://queue.fal.run/fal-ai/veo3.1/first-last-frame-to-video",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/veo3.1/requests",
-      "https://queue.fal.run/fal-ai/veo3.1/first-last-frame-to-video/requests",
-      "https://queue.fal.run/fal-ai/veo3.1/image-to-video/requests",
-    ],
-    falTimeoutMs: 90000,
     payloadValidation: {
       allowedTopLevelFields: [
         "prompt",
@@ -798,13 +765,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     allowedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12],
     defaultResolution: "1080p",
     allowedResolutions: ["480p", "720p", "1080p"],
-    falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/bytedance/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedance/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedance/v1.5/pro/text-to-video/requests",
-    ],
-    falTimeoutMs: 60000,
     payloadValidation: {
       allowedTopLevelFields: [
         "prompt",
@@ -840,13 +800,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     allowedDurations: [4, 5, 6, 7, 8, 9, 10, 11, 12],
     defaultResolution: "1080p",
     allowedResolutions: ["480p", "720p", "1080p"],
-    falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/bytedance/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedance/requests",
-      "https://queue.fal.run/fal-ai/bytedance/seedance/v1.5/pro/image-to-video/requests",
-    ],
-    falTimeoutMs: 60000,
     payloadValidation: {
       allowedTopLevelFields: [
         "prompt",

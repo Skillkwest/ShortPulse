@@ -29,60 +29,11 @@ const defaultFalProfilesByModelId: Record<string, FalModelProfile> = Object.from
     ])
 );
 
-const veoImageToVideoProfile: FalModelProfile = {
-  profileId: "veo-image-to-video",
-  modelId: "fal-ai/veo3.1/image-to-video",
-  submitTargets: [
-    {
-      submitUrl: "https://queue.fal.run/fal-ai/veo3.1/image-to-video",
-      transformPayload: (payload) => {
-        const firstImageUrl = Array.isArray(payload.image_urls)
-          ? payload.image_urls[0]
-          : typeof payload.image_urls === "string"
-            ? payload.image_urls
-            : payload.image_url;
-        return {
-          ...payload,
-          image_url: firstImageUrl,
-        };
-      },
-    },
-    {
-      submitUrl: "https://queue.fal.run/fal-ai/veo3.1/reference-to-video",
-      transformPayload: (payload) => {
-        const firstImageUrl = Array.isArray(payload.image_urls)
-          ? payload.image_urls[0]
-          : typeof payload.image_urls === "string"
-            ? payload.image_urls
-            : payload.image_url;
-        const imageUrls = Array.isArray(payload.image_urls)
-          ? payload.image_urls
-          : firstImageUrl
-            ? [firstImageUrl]
-            : [];
-        return {
-          ...payload,
-          image_urls: imageUrls.length ? imageUrls : undefined,
-        };
-      },
-    },
-  ],
-  statusBases: [
-    "https://queue.fal.run/fal-ai/veo3.1/requests",
-    "https://queue.fal.run/fal-ai/veo3.1/image-to-video/requests",
-    "https://queue.fal.run/fal-ai/veo3.1/reference-to-video/requests",
-  ],
-  timeoutMs: 90000,
-};
-
 export const falModelProfilesByModelId: Record<string, FalModelProfile> = {
   ...defaultFalProfilesByModelId,
-  [veoImageToVideoProfile.modelId]: veoImageToVideoProfile,
 };
 
 export const getFalModelProfileByModelId = (modelId: string): FalModelProfile | null =>
   falModelProfilesByModelId[modelId] ?? null;
 
-export const falModelProfiles: Record<string, FalModelProfile> = {
-  veoImageToVideo: veoImageToVideoProfile,
-};
+export const falModelProfiles: Record<string, FalModelProfile> = {};

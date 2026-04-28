@@ -13,6 +13,15 @@ const PROVIDER_MODEL_IDS_PATH = path.join(
 );
 const OPENAI_IMAGE_MODEL_ID = "gpt-image-2";
 const OPENAI_IMAGE_ROUTE_FILES = ["image-generate.ts", "image-edit.ts"] as const;
+const RETIRED_FAL_VIDEO_MODEL_IDS = [
+  "fal-ai/kling-video/v3/pro/text-to-video",
+  "fal-ai/kling-video/v3/pro/image-to-video",
+  "fal-ai/veo3.1",
+  "fal-ai/veo3.1/image-to-video",
+  "fal-ai/veo3.1/first-last-frame-to-video",
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+] as const;
 
 const listFalSubmitRouteFiles = (): string[] =>
   fs
@@ -98,6 +107,14 @@ describe("model catalog route coverage", () => {
       expect(getModelCatalogEntry(modelId)?.falStatusBaseUrls).toEqual([
         "https://queue.fal.run/fal-ai/bytedance/requests",
       ]);
+    }
+  });
+
+  it("keeps retired Fal video models out of executable provider routes", () => {
+    for (const modelId of RETIRED_FAL_VIDEO_MODEL_IDS) {
+      const entry = getModelCatalogEntry(modelId);
+      expect(entry?.falSubmitUrl).toBeUndefined();
+      expect(entry?.falStatusBaseUrls).toBeUndefined();
     }
   });
 

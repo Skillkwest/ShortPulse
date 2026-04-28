@@ -27,6 +27,9 @@ export const resolveVoiceChangerOutputStoragePath = (output: StudioOutput): stri
   resolveCanonicalStoragePath(output.fullStoragePath) ??
   resolveCanonicalStoragePath(output.previewStoragePath);
 
+const hasCanonicalVoiceChangerSourceStorage = (output: StudioOutput): boolean =>
+  resolveVoiceChangerOutputStoragePath(output) !== null;
+
 const matchesVoiceChangerKind = (value: string, kind: VoiceChangerReferenceSourceKind): boolean =>
   kind === "audio" ? isAudioUrl(value) : isVideoUrl(value);
 
@@ -45,6 +48,10 @@ export const resolveVoiceChangerOutputRemoteUrl = ({
   kind: VoiceChangerReferenceSourceKind;
   payloadReferenceUrl?: string | null;
 }): string | null => {
+  if (output.mediaSource === "generated" && !hasCanonicalVoiceChangerSourceStorage(output)) {
+    return null;
+  }
+
   const sourceCandidates = [
     output.fullStoragePath,
     ...(output.resultUrls ?? []),

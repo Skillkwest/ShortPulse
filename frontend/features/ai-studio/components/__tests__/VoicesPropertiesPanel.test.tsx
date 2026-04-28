@@ -921,6 +921,45 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
+  it("treats ogg reference URLs as audio in voice changer mode", async () => {
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+    const dataTransfer = {
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-url",
+        "text/reference-render-url",
+      ],
+      files: [],
+      getData: (type: string) =>
+        (
+          ({
+            "text/reference-origin": "ai-studio-reference-grid",
+            "text/reference-output-id": "output-audio-ogg",
+            "text/reference-url": "https://cdn.shortpulse.test/renders/sample-voice.ogg",
+            "text/reference-render-url": "https://cdn.shortpulse.test/renders/sample-voice.ogg",
+          }) as Record<string, string>
+        )[type] ?? "",
+      dropEffect: "none",
+    };
+
+    fireEvent.dragOver(dropZone, { dataTransfer });
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    await waitFor(() => {
+      expect(resolveVoiceChangerMediaDurationMsMock).toHaveBeenCalledWith(
+        "https://cdn.shortpulse.test/renders/sample-voice.ogg",
+        "audio"
+      );
+    });
+    expect(extractVoiceChangerVideoSourceMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
   it("accepts a real audio reference drag payload from the reference grid", async () => {
     render(<VoicesPropertiesPanel />);
 

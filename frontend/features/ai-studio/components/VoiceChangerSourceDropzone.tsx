@@ -88,8 +88,8 @@ const inferSourceKindFromUrl = (
 ): VoiceChangerSourceKind | null => {
   const normalized = normalizeReferenceTransferUrlCandidate(value, { unwrapNextImage: false });
   if (!normalized) return null;
-  if (isVideoUrl(normalized)) return "video";
   if (isAudioUrl(normalized)) return "audio";
+  if (isVideoUrl(normalized)) return "video";
   return null;
 };
 

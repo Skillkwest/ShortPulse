@@ -60,6 +60,18 @@ describe("voiceChangerReferenceSource", () => {
     expect(resolveVoiceChangerOutputRemoteUrl({ output, kind: "audio" })).toBeNull();
   });
 
+  it("does not accept storage-less generated preview URLs as remote source media", () => {
+    const output = makeOutput({
+      mode: "audio",
+      mediaSource: "generated",
+      generationId: "generation-audio-1",
+      previewUrl: "https://provider.example.com/reference-audio.mp3",
+      resultUrls: ["https://provider.example.com/reference-audio.mp3"],
+    });
+
+    expect(resolveVoiceChangerOutputRemoteUrl({ output, kind: "audio" })).toBeNull();
+  });
+
   it("accepts extensionless source candidates when the output mode matches", () => {
     const output = makeOutput({
       mode: "audio",

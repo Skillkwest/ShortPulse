@@ -401,7 +401,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               type="button"
               className="reference-card-action-btn reference-card-action-btn--danger reference-loading-clear-btn"
               aria-label="Clear generation from grid"
+              onPointerDown={(event) => {
+                event.stopPropagation();
+              }}
               onClick={(event) => {
+                event.preventDefault();
                 event.stopPropagation();
                 onClearGenerationOutput(item.id);
               }}

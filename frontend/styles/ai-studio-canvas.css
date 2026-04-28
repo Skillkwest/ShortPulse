@@ -972,6 +972,7 @@
   gap: 8px;
   background: linear-gradient(180deg, rgba(12, 15, 22, 0.45), rgba(12, 15, 22, 0.6));
   border-radius: inherit;
+  pointer-events: none;
 }
 
 .reference-loading-clear-btn {
@@ -979,6 +980,8 @@
   top: 6px;
   right: 6px;
   z-index: 4;
+  cursor: pointer;
+  pointer-events: auto;
 }
 
 .reference-loading--hydrating {

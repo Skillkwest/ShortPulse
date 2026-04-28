@@ -173,6 +173,31 @@ describe("ReferenceGridCard", () => {
     expect(onClearGenerationOutput).toHaveBeenCalledWith("out-1");
   });
 
+  it("keeps placeholder clear pointer events from reaching parent surfaces", () => {
+    const onClearGenerationOutput = vi.fn();
+    const onParentPointerDown = vi.fn();
+
+    render(
+      <div onPointerDown={onParentPointerDown}>
+        <ReferenceGridCard
+          {...createProps({
+            item: createOutput({ taskState: "running" }),
+            isLoading: true,
+            loadingVisual: "spinner",
+            onClearGenerationOutput,
+          })}
+        />
+      </div>
+    );
+
+    const clearButton = screen.getByLabelText("Clear generation from grid");
+    fireEvent.pointerDown(clearButton);
+    fireEvent.click(clearButton);
+
+    expect(onParentPointerDown).not.toHaveBeenCalled();
+    expect(onClearGenerationOutput).toHaveBeenCalledWith("out-1");
+  });
+
   it("marks hydrating image previews as loaded after the fallback timeout", async () => {
     const markLoaded = vi.fn();
 

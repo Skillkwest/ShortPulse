@@ -143,6 +143,7 @@ export default async function handler(
     const originalVideoName = readFieldString(fields.originalVideoName);
     const originalVideoMimeType = readFieldString(fields.originalVideoMimeType);
     const originalVideoAspect = readFieldString(fields.originalVideoAspect);
+    const projectId = readFieldString(fields.project_id) ?? readFieldString(fields.projectId);
     const removeBackgroundNoise = parseBooleanField(fields.removeBackgroundNoise);
     const voiceSettingsField = readFieldString(fields.voiceSettings);
     const voiceSettings = voiceSettingsField ? JSON.parse(voiceSettingsField) : null;
@@ -279,6 +280,7 @@ export default async function handler(
       modelId,
       providerRequestId: generated.providerRequestId,
       requestId: charge.sourceRef,
+      projectId,
       sourceMode: "voice-changer",
       voiceId,
       voiceName,
@@ -321,6 +323,7 @@ export default async function handler(
           provider: "elevenlabs",
           modelId,
           providerRequestId: generated.providerRequestId,
+          projectId,
           sourceMode: "voice-changer",
           outputBuffer: remuxedVideo.buffer,
           outputContentType: remuxedVideo.contentType,

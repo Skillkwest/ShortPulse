@@ -4,6 +4,8 @@ const randomUUIDMock = vi.fn();
 const persistGenerationOutputRecordsMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
+const associateGenerationWithProjectForUserMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 
 type MockQueryResult = {
   data?: unknown;
@@ -77,6 +79,15 @@ vi.mock("../../lib/server/api/generationPublications", () => ({
   upsertGenerationPublication: (...args: unknown[]) => upsertGenerationPublicationMock(...args),
 }));
 
+vi.mock("../../lib/server/api/appErrorLogs", () => ({
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
+}));
+
+vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
+  associateGenerationWithProjectForUser: (...args: unknown[]) =>
+    associateGenerationWithProjectForUserMock(...args),
+}));
+
 import { persistGeneratedAudioAsset } from "../../lib/server/elevenlabs";
 
 const resolveInsertSingle = (result: MockQueryResult) => ({
@@ -116,6 +127,8 @@ describe("persistGeneratedAudioAsset", () => {
     ]);
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
+    associateGenerationWithProjectForUserMock.mockResolvedValue(true);
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
   });
 
   it("skips media_files persistence when autosave is disabled", async () => {
@@ -124,6 +137,7 @@ describe("persistGeneratedAudioAsset", () => {
       promptText: "Rainy city ambience",
       provider: "elevenlabs",
       modelId: "music_v1",
+      projectId: "project-1",
       sourceMode: "music",
       outputBuffer: Buffer.from("audio"),
       outputContentType: "audio/mpeg",
@@ -155,6 +169,11 @@ describe("persistGeneratedAudioAsset", () => {
         publicationState: "published",
       })
     );
+    expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "generation-1",
+    });
     expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "generation-1",

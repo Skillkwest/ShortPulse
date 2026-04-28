@@ -30,8 +30,6 @@ const createMockResponse = () => ({
 });
 
 describe("POST /api/elevenlabs/sound-effects", () => {
-  const originalEnv = process.env.ELEVENLABS_API_KEY;
-
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.ELEVENLABS_API_KEY = "test-key";
@@ -99,6 +97,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         loop: true,
         outputFormat: "mp3_44100_128",
         modelId: "eleven_text_to_sound_v2",
+        project_id: "project-1",
       },
     };
     const res = createMockResponse();
@@ -117,6 +116,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
       expect.objectContaining({
         requestId: "billing-source-sfx-1",
         providerRequestId: "provider-sfx-1",
+        projectId: "project-1",
         extraMetadata: expect.objectContaining({
           debited_credits: 15,
           loop_enabled: true,

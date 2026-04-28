@@ -8,6 +8,8 @@ import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
+import { writeAppErrorLog } from "./api/appErrorLogs";
+import { associateGenerationWithProjectForUser } from "./projectGenerationAssociationsService";
 import {
   extractAudioTrack,
   isVideoSource,
@@ -68,6 +70,7 @@ type PersistGeneratedAudioInput = {
   modelId: string;
   providerRequestId?: string | null;
   requestId?: string | null;
+  projectId?: string | null;
   sourceMode: "voiceover" | "voice-changer" | "sound-effects" | "music";
   voiceId?: string | null;
   voiceName?: string | null;
@@ -84,6 +87,7 @@ type PersistGeneratedVideoInput = {
   modelId: string;
   providerRequestId?: string | null;
   requestId?: string | null;
+  projectId?: string | null;
   sourceMode: "voice-changer";
   outputBuffer: Buffer;
   outputContentType: "video/mp4" | "video/webm";
@@ -111,6 +115,53 @@ const normalizeOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const associateGeneratedElevenLabsAssetWithProject = async ({
+  generationId,
+  mediaKind,
+  modelId,
+  projectId,
+  providerRequestId,
+  requestId,
+  sourceMode,
+  userId,
+}: {
+  generationId: string;
+  mediaKind: "audio" | "video";
+  modelId: string;
+  projectId: string | null;
+  providerRequestId: string | null;
+  requestId: string;
+  sourceMode: string;
+  userId: string;
+}): Promise<void> => {
+  if (!projectId) return;
+  try {
+    await associateGenerationWithProjectForUser({
+      userId,
+      projectId,
+      generationId,
+    });
+  } catch (error) {
+    await writeAppErrorLog({
+      source: "telemetry.elevenlabs.project_association_failed",
+      message: "ElevenLabs generation project association failed.",
+      requestId,
+      userId,
+      statusCode: 200,
+      metadata: {
+        generation_id: generationId,
+        project_id: projectId,
+        provider: "elevenlabs",
+        provider_request_id: providerRequestId,
+        model_id: modelId,
+        media_kind: mediaKind,
+        source_mode: sourceMode,
+        association_error: error instanceof Error ? error.message : String(error),
+      },
+    }).catch(() => undefined);
+  }
 };
 
 const normalizeVoiceLookupKey = (value: string): string => value.trim().toLowerCase();
@@ -674,6 +725,7 @@ export const persistGeneratedAudioAsset = async ({
   modelId,
   providerRequestId = null,
   requestId = null,
+  projectId = null,
   sourceMode,
   voiceId = null,
   voiceName = null,
@@ -686,6 +738,7 @@ export const persistGeneratedAudioAsset = async ({
   const generationId = randomUUID();
   const resolvedRequestId = normalizeOptionalString(requestId) ?? randomUUID();
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
+  const resolvedProjectId = normalizeOptionalString(projectId);
   const createdAtIso = new Date().toISOString();
   const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({ supabaseAdmin, userId });
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
@@ -739,6 +792,7 @@ export const persistGeneratedAudioAsset = async ({
         autosave_decision_reason: autosavePolicyDecision.reason,
         output_format: outputFormat,
         mime_type: outputContentType,
+        project_id: resolvedProjectId,
         ...extraMetadata,
       },
     })
@@ -771,6 +825,7 @@ export const persistGeneratedAudioAsset = async ({
           autosave_enabled: mediaAutosaveEnabled,
           autosave_decision: "auto_persisted",
           autosave_decision_reason: autosavePolicyDecision.reason,
+          project_id: resolvedProjectId,
           ...extraMetadata,
         },
         user_id: userId,
@@ -795,6 +850,7 @@ export const persistGeneratedAudioAsset = async ({
       autosave_enabled: mediaAutosaveEnabled,
       autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
       autosave_decision_reason: autosavePolicyDecision.reason,
+      project_id: resolvedProjectId,
       ...extraMetadata,
     },
   });
@@ -818,6 +874,7 @@ export const persistGeneratedAudioAsset = async ({
         autosave_enabled: mediaAutosaveEnabled,
         autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
         autosave_decision_reason: autosavePolicyDecision.reason,
+        project_id: resolvedProjectId,
         ...extraMetadata,
       },
     });
@@ -847,6 +904,17 @@ export const persistGeneratedAudioAsset = async ({
     completedAt: createdAtIso,
   });
 
+  await associateGeneratedElevenLabsAssetWithProject({
+    generationId,
+    mediaKind: "audio",
+    modelId,
+    projectId: resolvedProjectId,
+    providerRequestId: resolvedProviderRequestId,
+    requestId: resolvedRequestId,
+    sourceMode,
+    userId,
+  });
+
   return {
     generationId,
     mediaFileId,
@@ -864,6 +932,7 @@ export const persistGeneratedVideoAsset = async ({
   modelId,
   providerRequestId = null,
   requestId = null,
+  projectId = null,
   sourceMode,
   outputBuffer,
   outputContentType,
@@ -874,6 +943,7 @@ export const persistGeneratedVideoAsset = async ({
   const generationId = randomUUID();
   const resolvedRequestId = normalizeOptionalString(requestId) ?? randomUUID();
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
+  const resolvedProjectId = normalizeOptionalString(projectId);
   const createdAtIso = new Date().toISOString();
   const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({ supabaseAdmin, userId });
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
@@ -924,6 +994,7 @@ export const persistGeneratedVideoAsset = async ({
         autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
         autosave_decision_reason: autosavePolicyDecision.reason,
         mime_type: outputContentType,
+        project_id: resolvedProjectId,
         ...extraMetadata,
       },
     })
@@ -953,6 +1024,7 @@ export const persistGeneratedVideoAsset = async ({
           autosave_enabled: mediaAutosaveEnabled,
           autosave_decision: "auto_persisted",
           autosave_decision_reason: autosavePolicyDecision.reason,
+          project_id: resolvedProjectId,
           ...extraMetadata,
         },
         user_id: userId,
@@ -977,6 +1049,7 @@ export const persistGeneratedVideoAsset = async ({
       autosave_enabled: mediaAutosaveEnabled,
       autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
       autosave_decision_reason: autosavePolicyDecision.reason,
+      project_id: resolvedProjectId,
       ...extraMetadata,
     },
   });
@@ -1000,6 +1073,7 @@ export const persistGeneratedVideoAsset = async ({
         autosave_enabled: mediaAutosaveEnabled,
         autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
         autosave_decision_reason: autosavePolicyDecision.reason,
+        project_id: resolvedProjectId,
         ...extraMetadata,
       },
     });
@@ -1028,6 +1102,17 @@ export const persistGeneratedVideoAsset = async ({
     generationReplay,
     startedAt: createdAtIso,
     completedAt: createdAtIso,
+  });
+
+  await associateGeneratedElevenLabsAssetWithProject({
+    generationId,
+    mediaKind: "video",
+    modelId,
+    projectId: resolvedProjectId,
+    providerRequestId: resolvedProviderRequestId,
+    requestId: resolvedRequestId,
+    sourceMode,
+    userId,
   });
 
   return {

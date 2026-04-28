@@ -13,6 +13,8 @@ type TextToSpeechRequestBody = {
   text?: unknown;
   outputFormat?: unknown;
   config?: unknown;
+  project_id?: unknown;
+  projectId?: unknown;
 };
 
 type GenerateAudioSuccessResponse = {
@@ -69,6 +71,7 @@ export default async function handler(
         ? (body.config as Record<string, unknown>)
         : null;
     const modelId = normalizeRequiredString(config?.model_id);
+    const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
 
     if (!voiceId || !voiceName || !text || !outputFormat || !config || !modelId) {
       return res.status(400).json({
@@ -102,6 +105,7 @@ export default async function handler(
       modelId,
       providerRequestId: generated.providerRequestId,
       requestId: charge.sourceRef,
+      projectId,
       sourceMode: "voiceover",
       voiceId,
       voiceName,

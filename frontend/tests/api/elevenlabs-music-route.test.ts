@@ -174,6 +174,7 @@ describe("POST /api/elevenlabs/music", () => {
         energyPercent: 81,
         outputFormat: "mp3_44100_128",
         modelId: "music_v1",
+        project_id: "project-1",
       },
     };
     const res = createMockResponse();
@@ -197,6 +198,7 @@ describe("POST /api/elevenlabs/music", () => {
         modelId: "music_v1",
         requestId: "billing-source-1",
         providerRequestId: "provider-req-1",
+        projectId: "project-1",
         sourceMode: "music",
         outputFormat: "mp3_44100_128",
         extraMetadata: expect.objectContaining({

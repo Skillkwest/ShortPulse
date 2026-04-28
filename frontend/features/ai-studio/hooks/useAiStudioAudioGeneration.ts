@@ -85,6 +85,7 @@ type AudioGenerateErrorResponse = {
 };
 
 type UseAiStudioAudioGenerationParams = {
+  projectId?: string | null;
   setUiError: Dispatch<SetStateAction<string | null>>;
   insertOptimisticGenerationPlaceholder: (args: {
     prompt: string;
@@ -207,6 +208,7 @@ const applyAudioOutputToPlaceholder = ({
  * Returns AI Studio audio generation handlers and loading state for Music, Sound Effects, and Voices.
  */
 export const useAiStudioAudioGeneration = ({
+  projectId = null,
   setUiError,
   insertOptimisticGenerationPlaceholder,
   notifyGenerationFailure,
@@ -253,6 +255,7 @@ export const useAiStudioAudioGeneration = ({
                   text: request.script,
                   outputFormat: request.outputFormat,
                   config: request.config,
+                  ...(projectId ? { project_id: projectId } : {}),
                 }),
                 shortpulseLogScope: "generation",
               })
@@ -268,6 +271,9 @@ export const useAiStudioAudioGeneration = ({
                   request.removeBackgroundNoise ? "true" : "false"
                 );
                 formData.append("voiceSettings", JSON.stringify(request.voiceSettings));
+                if (projectId) {
+                  formData.append("project_id", projectId);
+                }
                 formData.append(
                   "sourceName",
                   request.source.extractedFrom?.name ?? request.source.name
@@ -346,6 +352,7 @@ export const useAiStudioAudioGeneration = ({
     [
       insertOptimisticGenerationPlaceholder,
       notifyGenerationFailure,
+      projectId,
       setOutputs,
       setUiError,
       updateOutputById,
@@ -380,7 +387,10 @@ export const useAiStudioAudioGeneration = ({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(request),
+          body: JSON.stringify({
+            ...request,
+            ...(projectId ? { project_id: projectId } : {}),
+          }),
           shortpulseLogScope: "generation",
         });
 
@@ -412,7 +422,13 @@ export const useAiStudioAudioGeneration = ({
         setMusicIsGenerating(false);
       }
     },
-    [insertOptimisticGenerationPlaceholder, notifyGenerationFailure, setUiError, updateOutputById]
+    [
+      insertOptimisticGenerationPlaceholder,
+      notifyGenerationFailure,
+      projectId,
+      setUiError,
+      updateOutputById,
+    ]
   );
 
   const handleSoundEffectsGenerate = useCallback(
@@ -443,7 +459,10 @@ export const useAiStudioAudioGeneration = ({
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(request),
+          body: JSON.stringify({
+            ...request,
+            ...(projectId ? { project_id: projectId } : {}),
+          }),
           shortpulseLogScope: "generation",
         });
 
@@ -475,7 +494,13 @@ export const useAiStudioAudioGeneration = ({
         setSoundEffectsIsGenerating(false);
       }
     },
-    [insertOptimisticGenerationPlaceholder, notifyGenerationFailure, setUiError, updateOutputById]
+    [
+      insertOptimisticGenerationPlaceholder,
+      notifyGenerationFailure,
+      projectId,
+      setUiError,
+      updateOutputById,
+    ]
   );
 
   return {

@@ -176,6 +176,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       originalVideoName: "source.mp4",
       originalVideoMimeType: "video/mp4",
       originalVideoAspect: "9:16",
+      project_id: "project-1",
     };
     readStoredMediaBufferMock
       .mockResolvedValueOnce({
@@ -214,11 +215,19 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       convertedAudioBuffer: Buffer.from("converted-audio"),
       convertedAudioContentType: "audio/mpeg",
     });
+    expect(persistGeneratedAudioAssetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        projectId: "project-1",
+        sourceMode: "voice-changer",
+      })
+    );
     expect(persistGeneratedVideoAssetMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         provider: "elevenlabs",
         modelId: "eleven_multilingual_sts_v2",
+        projectId: "project-1",
         outputBuffer: Buffer.from("remuxed-video"),
         outputContentType: "video/mp4",
         generationReplay: {

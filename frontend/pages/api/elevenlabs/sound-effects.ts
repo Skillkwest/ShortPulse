@@ -14,6 +14,8 @@ type SoundEffectsRequestBody = {
   loop?: unknown;
   outputFormat?: unknown;
   modelId?: unknown;
+  project_id?: unknown;
+  projectId?: unknown;
 };
 
 type GenerateSoundEffectSuccessResponse = {
@@ -81,6 +83,7 @@ export default async function handler(
     const text = normalizeRequiredString(body.text);
     const outputFormat = normalizeRequiredString(body.outputFormat);
     const modelId = normalizeRequiredString(body.modelId) ?? DEFAULT_SOUND_EFFECTS_MODEL_ID;
+    const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
     const durationSeconds = parseOptionalNumber(body.durationSeconds);
     const loop = typeof body.loop === "boolean" ? body.loop : false;
 
@@ -131,6 +134,7 @@ export default async function handler(
       modelId,
       providerRequestId: generated.providerRequestId,
       requestId: charge.sourceRef,
+      projectId,
       sourceMode: "sound-effects",
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,

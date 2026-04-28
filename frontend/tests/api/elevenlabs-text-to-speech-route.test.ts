@@ -87,6 +87,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         voiceName: "Darian",
         text: "Voiceover billing path verification script.",
         outputFormat: "mp3_44100_128",
+        project_id: "project-1",
         config: {
           model_id: "eleven_multilingual_v2",
         },
@@ -108,6 +109,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
       expect.objectContaining({
         requestId: "billing-source-tts-1",
         providerRequestId: "provider-tts-1",
+        projectId: "project-1",
         extraMetadata: expect.objectContaining({
           debited_credits: 15,
           provider_request_id: "provider-tts-1",

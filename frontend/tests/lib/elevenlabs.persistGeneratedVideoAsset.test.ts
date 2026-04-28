@@ -4,6 +4,8 @@ const randomUUIDMock = vi.fn();
 const persistGenerationOutputRecordsMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
+const associateGenerationWithProjectForUserMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 
 type MockQueryResult = {
   data?: unknown;
@@ -77,6 +79,15 @@ vi.mock("../../lib/server/api/generationPublications", () => ({
   upsertGenerationPublication: (...args: unknown[]) => upsertGenerationPublicationMock(...args),
 }));
 
+vi.mock("../../lib/server/api/appErrorLogs", () => ({
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
+}));
+
+vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
+  associateGenerationWithProjectForUser: (...args: unknown[]) =>
+    associateGenerationWithProjectForUserMock(...args),
+}));
+
 import { persistGeneratedVideoAsset } from "../../lib/server/elevenlabs";
 
 const resolveInsertSingle = (result: MockQueryResult) => ({
@@ -116,6 +127,8 @@ describe("persistGeneratedVideoAsset", () => {
     ]);
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
+    associateGenerationWithProjectForUserMock.mockResolvedValue(true);
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
   });
 
   it("keeps published signed-url authority when autosave is disabled", async () => {
@@ -124,6 +137,7 @@ describe("persistGeneratedVideoAsset", () => {
       promptText: "Cinematic skyline reveal",
       provider: "elevenlabs",
       modelId: "video_v1",
+      projectId: "project-1",
       sourceMode: "voice-changer",
       outputBuffer: Buffer.from("video"),
       outputContentType: "video/mp4",
@@ -178,6 +192,11 @@ describe("persistGeneratedVideoAsset", () => {
         generationReplay: { source: "reroll-1" },
       })
     );
+    expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "generation-1",
+    });
     expect(result).toMatchObject({
       generationId: "generation-1",
       mediaFileId: null,

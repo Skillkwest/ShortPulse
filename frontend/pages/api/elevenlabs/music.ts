@@ -17,6 +17,8 @@ type MusicRequestBody = {
   energyPercent?: unknown;
   outputFormat?: unknown;
   modelId?: unknown;
+  project_id?: unknown;
+  projectId?: unknown;
 };
 
 type GenerateMusicSuccessResponse = {
@@ -111,6 +113,7 @@ export default async function handler(
     const text = normalizeRequiredString(body.text);
     const outputFormat = normalizeRequiredString(body.outputFormat);
     const modelId = normalizeRequiredString(body.modelId) ?? DEFAULT_MUSIC_MODEL_ID;
+    const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
     const durationSeconds = parseRequiredFiniteNumber(body.durationSeconds);
     const bpm = parseRequiredFiniteNumber(body.bpm);
     const energyPercent = parseRequiredFiniteNumber(body.energyPercent);
@@ -215,6 +218,7 @@ export default async function handler(
       modelId,
       providerRequestId: generated.providerRequestId,
       requestId: charge.sourceRef,
+      projectId,
       sourceMode: "music",
       outputBuffer: generated.buffer,
       outputContentType: generated.contentType,

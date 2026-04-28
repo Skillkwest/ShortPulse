@@ -81,6 +81,7 @@ describe("useAiStudioAudioGeneration", () => {
 
     const { result } = renderHook(() =>
       useAiStudioAudioGeneration({
+        projectId: "project-1",
         setUiError,
         insertOptimisticGenerationPlaceholder,
         notifyGenerationFailure,
@@ -116,6 +117,7 @@ describe("useAiStudioAudioGeneration", () => {
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
         modelId: hardcodedMusicModelId,
+        project_id: "project-1",
       }),
       shortpulseLogScope: "generation",
     });
@@ -160,6 +162,7 @@ describe("useAiStudioAudioGeneration", () => {
 
     const { result } = renderHook(() =>
       useAiStudioAudioGeneration({
+        projectId: "project-1",
         setUiError,
         insertOptimisticGenerationPlaceholder,
         notifyGenerationFailure,
@@ -243,6 +246,7 @@ describe("useAiStudioAudioGeneration", () => {
 
     const { result } = renderHook(() =>
       useAiStudioAudioGeneration({
+        projectId: "project-1",
         setUiError,
         insertOptimisticGenerationPlaceholder,
         notifyGenerationFailure,
@@ -309,6 +313,8 @@ describe("useAiStudioAudioGeneration", () => {
         shortpulseLogScope: "generation",
       })
     );
+    const formData = fetchWithAuthMock.mock.calls[0]?.[1]?.body as FormData;
+    expect(formData.get("project_id")).toBe("project-1");
     expect(uiError).toBeNull();
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(outputs).toHaveLength(2);

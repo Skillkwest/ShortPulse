@@ -8,6 +8,7 @@ const persistRecoveryMediaFilesForGenerationMock = vi.fn();
 const applyGenerationLifecycleTransitionMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
+const readGenerationAbandonmentContextMock = vi.fn();
 const updateGenerationEqMock = vi.fn();
 const updateGenerationUpdateMock = vi.fn();
 const mediaFilesInMock = vi.fn();
@@ -49,6 +50,13 @@ vi.mock("../generationProjection", () => ({
 
 vi.mock("../generationPublications", () => ({
   upsertGenerationPublication: (...args: unknown[]) => upsertGenerationPublicationMock(...args),
+}));
+
+vi.mock("../generationAbandonment", () => ({
+  readGenerationAbandonmentContext: (...args: unknown[]) =>
+    readGenerationAbandonmentContextMock(...args),
+  isGenerationAbandonedMetadata: (metadata: unknown) =>
+    Boolean((metadata as Record<string, unknown> | null)?.user_abandoned),
 }));
 
 vi.mock("../supabaseAdmin", () => ({
@@ -159,6 +167,11 @@ describe("directGenerationSettlement", () => {
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     settleGenerationOutcomeMock.mockResolvedValue(undefined);
+    readGenerationAbandonmentContextMock.mockResolvedValue({
+      abandoned: false,
+      noRefund: false,
+      source: null,
+    });
   });
 
   it("persists direct terminal success with storage-backed media authority when autosave allows it", async () => {
@@ -290,6 +303,47 @@ describe("directGenerationSettlement", () => {
     );
   });
 
+  it("settles abandoned direct terminal success without republishing to the reference grid", async () => {
+    readGenerationAbandonmentContextMock.mockResolvedValue({
+      abandoned: true,
+      noRefund: true,
+      source: "abandonment_row",
+    });
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-abandoned",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/out-1.png"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+    });
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicationState: "suppressed",
+        visibleInReferenceGrid: false,
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicationState: "suppressed",
+        hiddenInReferenceGrid: true,
+        referenceGridVisible: false,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+      })
+    );
+  });
+
   it("suppresses publications and projection output on direct terminal failure", async () => {
     const result = await settleDirectGenerationFailure({
       generationId: "gen-1",
@@ -330,6 +384,42 @@ describe("directGenerationSettlement", () => {
         providerRequestId: "req-1",
         outcome: "fail",
         reason: "Provider rejected request",
+      })
+    );
+  });
+
+  it("does not refund abandoned direct terminal failures", async () => {
+    readGenerationAbandonmentContextMock.mockResolvedValue({
+      abandoned: true,
+      noRefund: true,
+      source: "abandonment_row",
+    });
+
+    const result = await settleDirectGenerationFailure({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-failure-abandoned",
+      providerState: "FAILED",
+      errorMessage: "Provider failed after clear",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+    });
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicationState: "suppressed",
+        hiddenInReferenceGrid: true,
+        referenceGridVisible: false,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "fail",
+        abandonedNoRefund: true,
       })
     );
   });

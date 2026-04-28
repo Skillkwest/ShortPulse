@@ -6,6 +6,10 @@ import { persistGenerationOutputRecords } from "./generationOutputs";
 import { applyGenerationLifecycleTransition } from "./generationLifecycleTransitionService";
 import { upsertGenerationProjection } from "./generationProjection";
 import { upsertGenerationPublication } from "./generationPublications";
+import {
+  readGenerationAbandonmentContext,
+  isGenerationAbandonedMetadata,
+} from "./generationAbandonment";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 
@@ -220,8 +224,23 @@ export const settleDirectGenerationSuccess = async ({
   });
   const nowIso = new Date().toISOString();
   const generationMetadata = asObject(generation.metadata);
-  const mergedMetadata = mergeSettlementMetadata({
+  const abandonment = await readGenerationAbandonmentContext({
+    userId: generation.user_id,
+    generationId: generation.id,
+    requestId: generation.request_id,
+    sourceRef: asString(generationMetadata.source_ref),
     metadata: generationMetadata,
+  });
+  const isAbandoned = abandonment.abandoned;
+  const mergedMetadata = mergeSettlementMetadata({
+    metadata: isAbandoned
+      ? {
+          ...generationMetadata,
+          user_abandoned: true,
+          abandoned_no_refund: abandonment.noRefund,
+          hidden_in_reference_grid: true,
+        }
+      : generationMetadata,
     nowIso,
     providerState,
     outcome: "success",
@@ -325,8 +344,11 @@ export const settleDirectGenerationSuccess = async ({
     });
 
   const hiddenInReferenceGrid =
-    readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
-    false;
+    isAbandoned ||
+    (readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
+      false);
+  const publicationState =
+    hasCanonicalStorageAuthority && !isAbandoned ? "published" : "suppressed";
 
   await Promise.all(
     persistedOutputRows.map((row) => {
@@ -339,7 +361,7 @@ export const settleDirectGenerationSuccess = async ({
         generationOutputId: row.id,
         userId: generation.user_id,
         generationAttemptId: attempt?.id ?? null,
-        publicationState: hasCanonicalStorageAuthority ? "published" : "suppressed",
+        publicationState,
         reusable: true,
         visibleInAiStudio: true,
         visibleInReferenceGrid: !hiddenInReferenceGrid,
@@ -353,6 +375,7 @@ export const settleDirectGenerationSuccess = async ({
           direct_terminal_settlement: true,
           direct_terminal_settlement_outcome: "success",
           direct_terminal_provider_state: providerState,
+          user_abandoned: isAbandoned,
           autosave_enabled: mediaAutosaveEnabled,
           autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
           autosave_decision_reason: autosavePolicyDecision.reason,
@@ -387,7 +410,7 @@ export const settleDirectGenerationSuccess = async ({
     saveState: "idle",
     hiddenInReferenceGrid,
     referenceGridVisible: !hiddenInReferenceGrid,
-    publicationState: hasCanonicalStorageAuthority ? "published" : "suppressed",
+    publicationState,
     resultUrls: normalizedResultUrls,
     savedMediaIds: hasCanonicalStorageAuthority ? mediaFileIds : [],
     generationReplay: readMetadataObject(
@@ -416,6 +439,7 @@ export const settleDirectGenerationSuccess = async ({
       output_count: normalizedResultUrls.length,
       direct_terminal_settlement: true,
       provider_state: providerState,
+      user_abandoned: isAbandoned,
     },
   });
 
@@ -454,8 +478,23 @@ export const settleDirectGenerationFailure = async ({
   const normalizedErrorMessage = asString(errorMessage) ?? "Generation failed";
   const normalizedErrorDetail = stringifyDetail(errorDetail, normalizedErrorMessage);
   const generationMetadata = asObject(generation.metadata);
-  const mergedMetadata = mergeSettlementMetadata({
+  const abandonment = await readGenerationAbandonmentContext({
+    userId: generation.user_id,
+    generationId: generation.id,
+    requestId: generation.request_id,
+    sourceRef: asString(generationMetadata.source_ref),
     metadata: generationMetadata,
+  });
+  const isAbandoned = abandonment.abandoned || isGenerationAbandonedMetadata(generationMetadata);
+  const mergedMetadata = mergeSettlementMetadata({
+    metadata: isAbandoned
+      ? {
+          ...generationMetadata,
+          user_abandoned: true,
+          abandoned_no_refund: abandonment.noRefund,
+          hidden_in_reference_grid: true,
+        }
+      : generationMetadata,
     nowIso,
     providerState,
     outcome: "fail",
@@ -511,8 +550,9 @@ export const settleDirectGenerationFailure = async ({
   }
 
   const hiddenInReferenceGrid =
-    readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
-    false;
+    isAbandoned ||
+    (readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
+      false);
 
   await upsertGenerationProjection({
     generationId: generation.id,
@@ -563,7 +603,9 @@ export const settleDirectGenerationFailure = async ({
       direct_terminal_settlement: true,
       provider_state: providerState,
       error_detail: normalizedErrorDetail,
+      user_abandoned: isAbandoned,
     },
+    abandonedNoRefund: isAbandoned && abandonment.noRefund,
   });
 
   return {

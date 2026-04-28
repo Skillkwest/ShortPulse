@@ -17,6 +17,7 @@ import { extractImageDimensionsFromBuffer } from "./imageDimensions";
 import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
+import { readGenerationAbandonmentContext } from "./api/generationAbandonment";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { associateGenerationWithProjectForUser } from "./projectGenerationAssociationsService";
 
@@ -288,6 +289,12 @@ export const persistGeneratedImageAsset = async ({
   const resolvedProviderRequestId = normalizeOptionalString(providerRequestId);
   const resolvedProjectId = normalizeOptionalString(projectId);
   const createdAtIso = new Date().toISOString();
+  const abandonment = await readGenerationAbandonmentContext({
+    userId,
+    sourceRef: resolvedRequestId,
+    requestId: resolvedRequestId,
+  });
+  const effectiveHiddenInReferenceGrid = hiddenInReferenceGrid || abandonment.abandoned;
   const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser(userId);
   const autosavePolicyDecision = canAutoPersistRecoveryMedia({
     intent: "auto",
@@ -324,6 +331,9 @@ export const persistGeneratedImageAsset = async ({
       requested_size: requestedSize,
       requested_quality: requestedQuality,
       autosave_enabled: mediaAutosaveEnabled,
+      user_abandoned: abandonment.abandoned,
+      abandoned_no_refund: abandonment.noRefund,
+      hidden_in_reference_grid: effectiveHiddenInReferenceGrid,
       autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
       autosave_decision_reason: autosavePolicyDecision.reason,
       mime_type: outputContentType,
@@ -389,14 +399,14 @@ export const persistGeneratedImageAsset = async ({
       generationId,
       generationOutputId: outputRowId,
       userId,
-      publicationState: "published",
+      publicationState: abandonment.abandoned ? "suppressed" : "published",
       ownedMediaFileId: mediaFileId,
       previewUrl: signedResult.data.signedUrl,
       fullUrl: signedResult.data.signedUrl,
       previewStoragePath: storagePath,
       fullStoragePath: storagePath,
       publishedAt: createdAtIso,
-      visibleInReferenceGrid: !hiddenInReferenceGrid,
+      visibleInReferenceGrid: !effectiveHiddenInReferenceGrid,
       metadata: generationMetadata,
     });
   }
@@ -417,9 +427,9 @@ export const persistGeneratedImageAsset = async ({
     previewStoragePath: storagePath,
     fullStoragePath: storagePath,
     saveState: mediaFileId ? "saved" : "idle",
-    hiddenInReferenceGrid,
-    referenceGridVisible: !hiddenInReferenceGrid,
-    publicationState: "published",
+    hiddenInReferenceGrid: effectiveHiddenInReferenceGrid,
+    referenceGridVisible: !effectiveHiddenInReferenceGrid,
+    publicationState: abandonment.abandoned ? "suppressed" : "published",
     resultUrls: [signedResult.data.signedUrl],
     savedMediaIds: mediaFileId ? [mediaFileId] : [],
     generationReplay,

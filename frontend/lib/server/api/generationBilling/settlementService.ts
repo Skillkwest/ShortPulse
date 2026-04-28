@@ -398,6 +398,79 @@ const settleLegacyDirectDebitOutcome = async ({
   });
 };
 
+const settleAbandonedNoRefundOutcome = async ({
+  userId,
+  providerRequestId,
+  reason,
+  routeLabel,
+  detail,
+}: {
+  userId: string;
+  providerRequestId: string;
+  reason: string;
+  routeLabel: string;
+  detail: JsonObject;
+}): Promise<GenerationSettlementResult> => {
+  const metadata = {
+    route: routeLabel,
+    provider_request_id: providerRequestId,
+    captured_at: new Date().toISOString(),
+    abandoned_no_refund: true,
+    ...detail,
+  };
+  let captureResult = await captureGenerationReservationByProviderRequest({
+    userId,
+    providerRequestId,
+    reason,
+    metadata,
+  });
+  if (captureResult.status === "not_found") {
+    const repaired = await maybeRepairReservationLinkage({
+      userId,
+      providerRequestId,
+      routeLabel,
+      detail,
+    });
+    if (repaired) {
+      captureResult = await captureGenerationReservationByProviderRequest({
+        userId,
+        providerRequestId,
+        reason,
+        metadata,
+      });
+    }
+  }
+
+  const capturePolicy = resolveCaptureSettlementPolicy(captureResult.status);
+  if (capturePolicy.settled) {
+    return {
+      settled: true,
+      sourceRef: captureResult.sourceRef ?? null,
+      note: `abandoned_no_refund_${capturePolicy.note}`,
+    };
+  }
+  if (!capturePolicy.allowLegacyFallback) {
+    return {
+      settled: false,
+      sourceRef: captureResult.sourceRef ?? null,
+      note: capturePolicy.note,
+    };
+  }
+  const legacyCharge = await lookupLegacyChargeByProviderRequestId(userId, providerRequestId);
+  if (legacyCharge) {
+    return {
+      settled: true,
+      sourceRef: legacyCharge.source_ref ?? null,
+      note: "abandoned_direct_debit_no_refund",
+    };
+  }
+  return {
+    settled: false,
+    sourceRef: captureResult.sourceRef ?? null,
+    note: "charge_not_found",
+  };
+};
+
 export const settleGenerationOutcome = async ({
   userId,
   providerRequestId,
@@ -405,6 +478,7 @@ export const settleGenerationOutcome = async ({
   reason,
   routeLabel,
   detail = {},
+  abandonedNoRefund = false,
 }: GenerationSettlementOptions): Promise<GenerationSettlementResult> => {
   if (!providerRequestId) {
     return { settled: false, note: "missing_provider_request_id" };
@@ -482,6 +556,15 @@ export const settleGenerationOutcome = async ({
     settled_at: new Date().toISOString(),
     ...detail,
   };
+  if (abandonedNoRefund) {
+    return settleAbandonedNoRefundOutcome({
+      userId,
+      providerRequestId,
+      reason,
+      routeLabel,
+      detail: metadata,
+    });
+  }
   let releaseResult = await releaseGenerationReservationByProviderRequest({
     userId,
     providerRequestId,

@@ -11,6 +11,7 @@ import { StudioOutput } from "../types";
 import { listVisibleGeneratedOutputs } from "../logic/generatedMediaAuthority";
 import { mergeCanonicalGeneratedOutputs } from "../logic/generatedOutputHydration";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
+import { abandonGenerationOutput } from "../logic/generationAbandonment";
 import { useAiStudioCreationState } from "./useAiStudioCreationState";
 import { useAiStudioOutputDerivations } from "./useAiStudioOutputDerivations";
 import { useAiStudioReferenceGridStateActions } from "./useAiStudioReferenceGridStateActions";
@@ -492,6 +493,7 @@ export const useAiStudioState = ({
     ensureGenerationRecord,
     ensureOutputPersisted,
     findOutputById,
+    forceDeleteOutput,
     notifyGenerationFailure,
     saveActiveOutput,
     savePromptReference,
@@ -528,6 +530,7 @@ export const useAiStudioState = ({
     removeOptimisticGenerationPlaceholder,
     rerollOutputFromReplay,
     retryOutputStatus,
+    abandonTaskOutput,
   } = useAiStudioStateRuntimeControllers({
     activeOutputId,
     activeOutputPreviewUrl,
@@ -628,6 +631,19 @@ export const useAiStudioState = ({
     videoResolution,
     ensureGenerationRecord,
   });
+
+  const clearGenerationOutput = useCallback(
+    (outputId: string) => {
+      const output = findOutputById(outputId);
+      abandonTaskOutput(outputId);
+      forceDeleteOutput(outputId);
+      if (!output) return;
+      void abandonGenerationOutput({ output }).catch((error) => {
+        console.warn("[ai-studio] failed to persist generation abandonment", error);
+      });
+    },
+    [abandonTaskOutput, findOutputById, forceDeleteOutput]
+  );
 
   const {
     addAgentPromptReference,
@@ -801,6 +817,7 @@ export const useAiStudioState = ({
     closeModelModal,
     updateOutputPrompt,
     deleteOutput,
+    clearGenerationOutput,
     restoreArchivedOutput,
     restoreAllArchivedOutputs,
     archiveOlderOutputs,

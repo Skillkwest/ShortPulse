@@ -40,6 +40,19 @@ const resolveSourceRef = (req: ChargeOptions["req"]): string => {
   const headerValue = req.headers["x-shortpulse-request-id"];
   if (typeof headerValue === "string" && headerValue.trim()) return headerValue.trim();
   if (Array.isArray(headerValue) && headerValue[0]?.trim()) return headerValue[0].trim();
+  const body = req.body;
+  const shortpulseContext =
+    body && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>).shortpulse_context
+      : null;
+  if (
+    shortpulseContext &&
+    typeof shortpulseContext === "object" &&
+    !Array.isArray(shortpulseContext)
+  ) {
+    const sourceRef = (shortpulseContext as Record<string, unknown>).source_ref;
+    if (typeof sourceRef === "string" && sourceRef.trim()) return sourceRef.trim();
+  }
   return randomUUID();
 };
 

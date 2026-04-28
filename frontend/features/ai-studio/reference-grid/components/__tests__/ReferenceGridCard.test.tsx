@@ -154,6 +154,25 @@ describe("ReferenceGridCard", () => {
     expect(container.querySelector(".reference-spinner")).not.toBeNull();
   });
 
+  it("clears a generation loading placeholder from the grid", () => {
+    const onClearGenerationOutput = vi.fn();
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ taskState: "running" }),
+          isLoading: true,
+          loadingVisual: "spinner",
+          onClearGenerationOutput,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Clear generation from grid"));
+
+    expect(onClearGenerationOutput).toHaveBeenCalledWith("out-1");
+  });
+
   it("marks hydrating image previews as loaded after the fallback timeout", async () => {
     const markLoaded = vi.fn();
 

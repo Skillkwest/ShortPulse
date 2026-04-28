@@ -137,6 +137,8 @@ type UseAiStudioTaskSubmissionParams = {
     options?: { initialDelayMs?: number }
   ) => void;
   ensureGenerationRecord: (input: EnsureGenerationRecordInput) => Promise<string | null>;
+  isOutputAbandoned?: (outputId: string) => boolean;
+  markOutputSubmissionActive?: (outputId: string) => void;
 };
 
 /**
@@ -180,6 +182,8 @@ export const useAiStudioTaskSubmission = ({
   updateOutputById,
   startPollingTask,
   ensureGenerationRecord,
+  isOutputAbandoned,
+  markOutputSubmissionActive,
 }: UseAiStudioTaskSubmissionParams) => {
   return useCallback(
     async (
@@ -276,6 +280,8 @@ export const useAiStudioTaskSubmission = ({
       try {
         const id = optimisticOutputId ?? `out-${randomId()}`;
         const submissionTraceId = buildGenerationSubmissionTraceId(id);
+        const sourceRef = submissionTraceId;
+        markOutputSubmissionActive?.(id);
         const modelLabel = resolveModelLabel(finalModel);
 
         const isDedicatedVeoFirstLastFrameModel = finalModel === FAL_VEO_FIRST_LAST_MODEL_ID;
@@ -357,6 +363,7 @@ export const useAiStudioTaskSubmission = ({
           saveError: null,
           characterContext: options?.characterContextOverride,
           submissionTraceId,
+          sourceRef,
           ...(options?.styleContextOverride ? { styleContext: options.styleContextOverride } : {}),
           hiddenInReferenceGrid:
             finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID || options?.hideOutputFromReferenceGrid
@@ -563,6 +570,7 @@ export const useAiStudioTaskSubmission = ({
         const shortpulseContext = {
           selected_tool: effectiveTool,
           mode: outputMode,
+          source_ref: sourceRef,
           project_id_present: Boolean(projectId),
           is_character_mode: Boolean(options?.characterContextOverride?.applied),
           selected_character_id: options?.characterContextOverride?.characterId ?? null,
@@ -670,6 +678,7 @@ export const useAiStudioTaskSubmission = ({
             taskStarted = true;
             startedTaskId = normalizedTaskId;
             startedProvider = provider;
+            if (isOutputAbandoned?.(id)) return;
             updateOutputById(id, (item) =>
               applyDispatchedSubmissionPatch({
                 item,
@@ -690,6 +699,7 @@ export const useAiStudioTaskSubmission = ({
               metadata: {
                 tool: effectiveTool,
                 audio: requestedAudio,
+                source_ref: sourceRef,
                 requested_aspect: requestedAspect,
                 effective_aspect: effectiveAspect,
                 resolution: requestedResolution ?? null,
@@ -750,6 +760,7 @@ export const useAiStudioTaskSubmission = ({
             taskStarted = true;
             startedTaskId = requestId;
             startedProvider = provider;
+            if (isOutputAbandoned?.(id)) return;
             updateOutputById(id, (item) =>
               applyCompletedSubmissionPatch({
                 item,
@@ -773,6 +784,7 @@ export const useAiStudioTaskSubmission = ({
               metadata: {
                 tool: effectiveTool,
                 audio: requestedAudio,
+                source_ref: sourceRef,
                 requested_aspect: requestedAspect,
                 effective_aspect: effectiveAspect,
                 resolution: requestedResolution ?? null,
@@ -966,6 +978,8 @@ export const useAiStudioTaskSubmission = ({
       selectedTool,
       startPollingTask,
       ensureGenerationRecord,
+      isOutputAbandoned,
+      markOutputSubmissionActive,
       updateOutputById,
       videoDurationSeconds,
       videoResolution,

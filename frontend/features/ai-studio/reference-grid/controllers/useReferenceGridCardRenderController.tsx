@@ -59,6 +59,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
+  onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
   onSaveToLibrary?: (output: StudioOutput) => void;
   onDownload?: (output: StudioOutput) => void;
@@ -100,6 +101,7 @@ export const useReferenceGridCardRenderController = ({
   onRetryStatus,
   onRerollOutput,
   onDeleteOutput,
+  onClearGenerationOutput,
   onRemoveCuratedReference,
   onSaveToLibrary,
   onDownload,
@@ -248,6 +250,7 @@ export const useReferenceGridCardRenderController = ({
           onRetryStatus={onRetryStatus}
           onRerollOutput={options.isCuratedSurface ? undefined : onRerollOutput}
           onDeleteOutput={options.isCuratedSurface ? undefined : onDeleteOutput}
+          onClearGenerationOutput={isGenerationLoading ? onClearGenerationOutput : undefined}
           onRemoveCuratedReference={options.isCuratedSurface ? onRemoveCuratedReference : undefined}
           showCuratedRemoveAction={options.isCuratedSurface}
           onSaveToLibrary={onSaveToLibrary}
@@ -274,6 +277,7 @@ export const useReferenceGridCardRenderController = ({
       onCuratedSectionDragLeave,
       onCuratedSectionDragOver,
       onDeleteOutput,
+      onClearGenerationOutput,
       onDownload,
       onOpenDetails,
       onRemoveCuratedReference,

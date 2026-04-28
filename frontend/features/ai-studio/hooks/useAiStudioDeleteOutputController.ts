@@ -46,6 +46,23 @@ export const useAiStudioDeleteOutputController = ({
     [deleteOutputFromLifecycle, quickSlotIds, setActiveOutputId, setReferenceProjectionState]
   );
 
+  const forceDeleteOutput = useCallback(
+    (id: string) => {
+      const outputId = id.trim();
+      if (!outputId) return;
+      setReferenceProjectionState((prev) => markReferenceRemovedFromAllRefs(prev, outputId));
+      setActiveOutputId((prev) => (prev === outputId ? null : prev));
+      pendingFinalizeRemovalIdsRef.current.delete(outputId);
+      deleteOutputFromLifecycle(outputId);
+    },
+    [
+      deleteOutputFromLifecycle,
+      pendingFinalizeRemovalIdsRef,
+      setActiveOutputId,
+      setReferenceProjectionState,
+    ]
+  );
+
   useEffect(() => {
     if (pendingFinalizeRemovalIdsRef.current.size === 0) return;
     const quickSlotIdSet = new Set(quickSlotIds);
@@ -63,5 +80,6 @@ export const useAiStudioDeleteOutputController = ({
 
   return {
     deleteOutput,
+    forceDeleteOutput,
   };
 };

@@ -116,6 +116,9 @@ export const areReferenceGridPropsEqual = (
   if (previous.onDeleteOutput !== next.onDeleteOutput) {
     return false;
   }
+  if (previous.onClearGenerationOutput !== next.onClearGenerationOutput) {
+    return false;
+  }
   if (previous.onAddCuratedReference !== next.onAddCuratedReference) {
     return false;
   }

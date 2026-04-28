@@ -42,6 +42,7 @@ export type ReferenceGridProps = {
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
+  onClearGenerationOutput?: (id: string) => void;
   onAddCuratedReference?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
   onReorderCuratedReference?: (

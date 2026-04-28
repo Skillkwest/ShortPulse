@@ -120,6 +120,7 @@ export const useAiStudioTaskOrchestration = ({
   const visibleGenerationInFlightRef = useRef<Record<string, boolean>>({});
   const visibleGenerationLastCheckedAtRef = useRef<Record<string, number>>({});
   const visibleGenerationSignatureRef = useRef<string>("");
+  const abandonedOutputIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     queueResumeCandidatesRef.current = outputs.filter((output) => isQueueResumeEligible(output));
@@ -216,6 +217,7 @@ export const useAiStudioTaskOrchestration = ({
             ...(projectId ? { projectId } : {}),
           });
           if (!visibleGeneration) return;
+          if (abandonedOutputIdsRef.current.has(output.id)) return;
           if (!findOutputById(output.id)) return;
           updateOutputById(output.id, (item) => {
             const nextResultUrls =
@@ -289,7 +291,24 @@ export const useAiStudioTaskOrchestration = ({
   const submitTask = useAiStudioTaskSubmission({
     ...taskSubmissionConfig,
     startPollingTask,
+    isOutputAbandoned: (outputId) => abandonedOutputIdsRef.current.has(outputId),
+    markOutputSubmissionActive: (outputId) => abandonedOutputIdsRef.current.delete(outputId),
   });
+
+  const abandonTaskOutput = useCallback(
+    (outputId: string) => {
+      const normalizedOutputId = outputId.trim();
+      if (!normalizedOutputId) return;
+      abandonedOutputIdsRef.current.add(normalizedOutputId);
+      delete visibleGenerationInFlightRef.current[normalizedOutputId];
+      delete visibleGenerationLastCheckedAtRef.current[normalizedOutputId];
+      delete queueResumeInFlightRef.current[normalizedOutputId];
+      delete queueResumeLastCheckedAtRef.current[normalizedOutputId];
+      delete queueResumeNotFoundRetriesRef.current[normalizedOutputId];
+      clearPollTimer(normalizedOutputId);
+    },
+    [clearPollTimer]
+  );
 
   const onReferenceOutputMediaLoaded = useCallback((outputId: string) => {
     void outputId;
@@ -349,6 +368,7 @@ export const useAiStudioTaskOrchestration = ({
             generationId: generationId || undefined,
             sourceRef: sourceRef || undefined,
           });
+          if (abandonedOutputIdsRef.current.has(output.id)) return;
           if (!findOutputById(output.id)) return;
           if (queueStatus.status === "dispatched") {
             delete queueResumeNotFoundRetriesRef.current[output.id];
@@ -498,5 +518,6 @@ export const useAiStudioTaskOrchestration = ({
     submitTask,
     onReferenceOutputMediaLoaded,
     retryOutputStatus,
+    abandonTaskOutput,
   };
 };

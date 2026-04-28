@@ -66,7 +66,7 @@ export const useAiStudioStateOutputControllers = ({
     pendingAutoSavesRef,
   });
 
-  const { deleteOutput } = useAiStudioDeleteOutputController({
+  const { deleteOutput, forceDeleteOutput } = useAiStudioDeleteOutputController({
     quickSlotIds,
     setReferenceProjectionState,
     setActiveOutputId,
@@ -99,6 +99,7 @@ export const useAiStudioStateOutputControllers = ({
     ensureGenerationRecord,
     ensureOutputPersisted,
     findOutputById,
+    forceDeleteOutput,
     notifyGenerationFailure,
     saveActiveOutput,
     savePromptReference,

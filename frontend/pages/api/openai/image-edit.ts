@@ -14,6 +14,7 @@ import {
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
+import { readGenerationAbandonmentContext } from "../../../lib/server/api/generationAbandonment";
 import {
   editOpenAiImage,
   persistGeneratedImageAsset,
@@ -228,10 +229,17 @@ export default async function handler(
     });
   } catch (error) {
     if (charge) {
-      await charge.refund("Auto-refund: OpenAI image edit failed.", {
-        source_mode: "image",
-        openai_operation: "edit",
+      const abandonment = await readGenerationAbandonmentContext({
+        userId: charge.userId,
+        sourceRef: charge.sourceRef,
+        requestId: charge.sourceRef,
       });
+      if (!abandonment.abandoned || !abandonment.noRefund) {
+        await charge.refund("Auto-refund: OpenAI image edit failed.", {
+          source_mode: "image",
+          openai_operation: "edit",
+        });
+      }
     }
     await logApiRouteException({
       req,

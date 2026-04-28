@@ -24,6 +24,7 @@ export type UseAiStudioReferenceGridPropsParams = {
   retryOutputStatus: (id: string) => void;
   handleRerollOutput?: (id: string) => void;
   deleteOutput: (id: string) => void;
+  clearGenerationOutput?: (id: string) => void;
   addCuratedReference?: (id: string) => void;
   removeCuratedReference?: (id: string) => void;
   reorderCuratedReference?: (
@@ -56,6 +57,7 @@ export const useAiStudioReferenceGridProps = ({
   retryOutputStatus,
   handleRerollOutput,
   deleteOutput,
+  clearGenerationOutput,
   addCuratedReference,
   removeCuratedReference,
   reorderCuratedReference,
@@ -86,6 +88,7 @@ export const useAiStudioReferenceGridProps = ({
           }
         : undefined,
       onDeleteOutput: deleteOutput,
+      onClearGenerationOutput: clearGenerationOutput,
       onAddCuratedReference: addCuratedReference,
       onRemoveCuratedReference: removeCuratedReference,
       onReorderCuratedReference: reorderCuratedReference,
@@ -99,6 +102,7 @@ export const useAiStudioReferenceGridProps = ({
       curatedReferenceIds,
       removedFromAllRefsIds,
       topNotice,
+      clearGenerationOutput,
       deleteOutput,
       handleDownloadReference,
       handlePasteMediaReference,

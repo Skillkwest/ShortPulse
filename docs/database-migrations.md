@@ -218,7 +218,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 104. `sql/migrations/104_add_user_media_compliance_acceptances.sql`
 105. `sql/migrations/105_enforce_spendable_balance_for_direct_generation_charges.sql`
 106. `sql/migrations/106_add_annual_billing_intervals_and_credit_allocation_cursors.sql`
-107. Rollback files:
+107. `sql/migrations/107_add_generation_abandonments.sql`
+108. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -246,6 +247,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/082_add_user_preferences_ai_studio_saved_voices_rollback.sql`
     - `sql/migrations/rollback/085_add_billing_plan_offers_and_subscription_contracts_rollback.sql`
     - `sql/migrations/rollback/086_add_internal_comp_billing_contract_support_rollback.sql`
+    - `sql/migrations/rollback/107_add_generation_abandonments_rollback.sql`
     - `sql/migrations/rollback/087_add_storage_entitlements_and_recurring_storage_addons_rollback.sql`
     - `sql/migrations/rollback/060_add_media_folders_and_membership_rollback.sql`
     - `sql/migrations/rollback/061_backfill_media_image_dimensions_metadata_rollback.sql`

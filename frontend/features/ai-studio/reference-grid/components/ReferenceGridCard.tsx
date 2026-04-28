@@ -65,6 +65,7 @@ export type ReferenceGridCardProps = {
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
+  onClearGenerationOutput?: (id: string) => void;
   onRemoveCuratedReference?: (id: string) => void;
   showCuratedRemoveAction?: boolean;
   onSaveToLibrary?: (output: StudioOutput) => void;
@@ -136,6 +137,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onRetryStatus,
   onRerollOutput,
   onDeleteOutput,
+  onClearGenerationOutput,
   onRemoveCuratedReference,
   showCuratedRemoveAction = false,
   onSaveToLibrary,
@@ -394,6 +396,19 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ) : null}
       {loadingVisual !== "none" ? (
         <div className="reference-loading">
+          {onClearGenerationOutput ? (
+            <button
+              type="button"
+              className="reference-card-action-btn reference-card-action-btn--danger reference-loading-clear-btn"
+              aria-label="Clear generation from grid"
+              onClick={(event) => {
+                event.stopPropagation();
+                onClearGenerationOutput(item.id);
+              }}
+            >
+              <X size={16} weight="bold" aria-hidden />
+            </button>
+          ) : null}
           <div className="reference-spinner" />
         </div>
       ) : null}

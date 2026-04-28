@@ -402,6 +402,20 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Admin stats v1 treats this as the primary workflow-context authority for style-applied, character-mode, and reference-assisted generation analytics.
   - Accepted submit paths now pass additive `generation_replay`, `character_context`, and `style_context` snapshots through the provider submit proxy so direct accepted runs preserve workflow analytics context.
 
+### generation_abandonments
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `user_id` (uuid): Owner for RLS scoping.
+- `source_ref` (text, nullable): Client/server submit correlation used before provider request ids or generation ids exist.
+- `generation_id` (uuid, nullable): Linked `ai_generations` row when known.
+- `request_id` (text, nullable): Provider request id when known.
+- `reason` (text): Abandon origin, currently `reference_grid_clear` for spinner clear actions.
+- `no_refund` (boolean): Whether later provider failure should keep/capture the charge instead of refunding/releasing it.
+- `metadata` (jsonb, default `{}`): Output id and route context for audit/debugging.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update allowed only when `user_id = auth.uid()`.
+- Notes:
+  - Used when a user clears an in-flight Reference Grid placeholder. Provider work may continue upstream, but recovery/direct settlement suppresses projection/publication and honors no-refund semantics.
+
 ### media_events
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.

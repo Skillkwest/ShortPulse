@@ -246,7 +246,7 @@ export const useAiStudioStateRuntimeControllers = ({
     pulseSessionInstanceId,
   });
 
-  const { submitTask, onReferenceOutputMediaLoaded, retryOutputStatus } =
+  const { submitTask, onReferenceOutputMediaLoaded, retryOutputStatus, abandonTaskOutput } =
     useAiStudioTaskOrchestration({
       taskSubmissionConfig: {
         aspect,
@@ -426,5 +426,6 @@ export const useAiStudioStateRuntimeControllers = ({
     removeOptimisticGenerationPlaceholder,
     rerollOutputFromReplay,
     retryOutputStatus,
+    abandonTaskOutput,
   };
 };

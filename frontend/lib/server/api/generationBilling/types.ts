@@ -55,6 +55,7 @@ export type GenerationSettlementOptions = {
   reason: string;
   routeLabel: string;
   detail?: JsonObject;
+  abandonedNoRefund?: boolean;
 };
 
 export type GenerationSettlementResult = {

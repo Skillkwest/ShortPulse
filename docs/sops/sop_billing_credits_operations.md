@@ -208,6 +208,7 @@ Recommended operator sequence:
 - Webhook/recovery routes settle generation outcomes idempotently by `provider_request_id`:
   - Success with usable media: capture reservation into `generation_charge` ledger debit.
   - Failed/error/content-policy/malformed output: release reservation (no debit posted).
+- User-cleared in-flight Reference Grid placeholders are recorded in `generation_abandonments` through `POST /api/generation/abandon`. Recovery/direct settlement still converges lifecycle, but abandoned failures are no-refund outcomes: reservations are captured when possible and direct-debit charges are left in place. Later success is persisted for audit/recovery but suppressed from Reference Grid publication/projection.
 - Status polling is observational only; it does not capture or release reservations.
 - Direct-debit fallback is an emergency-only kill switch (`SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED=false` by default).
 - Atomic admit+reserve is feature flagged (`SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED=false` by default) and should be enabled only after migration `032` is applied.
@@ -238,6 +239,7 @@ Recommended operator sequence:
 3. Status route settles final outcome:
    - success -> capture reservation as `generation_charge`.
    - failure -> release reservation.
+   - abandoned no-refund failure -> capture/keep charge and keep projection suppressed.
 4. Reservation + ledger uniqueness keep settlement idempotent across retries/polling races.
 
 ## Stripe grants behavior

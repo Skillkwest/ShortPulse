@@ -33,18 +33,26 @@ const makeTransfer = (data: Record<string, string>): DataTransfer =>
 
 const makeDragEvent = () => {
   const dragNode = document.createElement("div");
-  const setData = vi.fn();
+  const transferData: Record<string, string> = {};
+  const setData = vi.fn((type: string, value: string) => {
+    transferData[type] = value;
+  });
   const setDragImage = vi.fn();
   const event = {
     dataTransfer: {
       effectAllowed: "all",
       setData,
+      getData: (type: string) => transferData[type] ?? "",
+      get types() {
+        return Object.keys(transferData);
+      },
+      files: emptyFileList,
       setDragImage,
     },
     currentTarget: dragNode,
   } as unknown as Parameters<typeof prepareReferenceDrag>[0];
 
-  return { dragNode, setData, setDragImage, event };
+  return { dragNode, setData, setDragImage, event, transferData };
 };
 
 describe("dragDrop payload extraction", () => {
@@ -247,6 +255,36 @@ describe("dragDrop payload extraction", () => {
     );
     expect(setData).toHaveBeenCalledWith("text/uri-list", "https://example.com/ref-video-full.mp4");
     expect(setData).toHaveBeenCalledWith("image/url", "https://example.com/ref-video-poster.jpg");
+  });
+
+  it("writes playable audio reference URLs for audio drags", () => {
+    const { event, setData } = makeDragEvent();
+
+    prepareReferenceDrag(event, {
+      id: "ref-audio",
+      prompt: "Voice sample",
+      mode: "audio",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/ref-audio-preview.mp3",
+      fullStoragePath: "https://example.com/ref-audio-full.mp3",
+      previewStoragePath: "https://example.com/ref-audio-preview.mp3",
+      resultUrls: ["https://example.com/ref-audio-full.mp3"],
+      savedMediaIds: ["media-audio-1"],
+    });
+
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://example.com/ref-audio-full.mp3"
+    );
+    expect(setData).toHaveBeenCalledWith("text/uri-list", "https://example.com/ref-audio-full.mp3");
+    expect(setData).toHaveBeenCalledWith("text/reference-media-id", "media-audio-1");
+
+    const payload = extractInternalReferenceDragPayload(event.dataTransfer);
+    expect(payload?.referenceUrl).toBe("https://example.com/ref-audio-full.mp3");
+    expect(payload?.mediaId).toBe("media-audio-1");
   });
 
   it("writes rendered-image transfer metadata for image drags", () => {

@@ -36,6 +36,7 @@ import type {
   ActiveVoiceChangerSourceVideo,
   VoicesPropertiesPanelProps,
 } from "./VoicesPropertiesPanel";
+import type { ResolveVoiceChangerInternalReferenceSource } from "./VoiceChangerSourceDropzone";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
@@ -569,6 +570,7 @@ export type AiStudioPageContentProps = {
   triggerFilePicker: () => void;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
   resolveElementProfileImageDropSource?: ResolveInternalReferenceDrop;
+  resolveVoiceChangerInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
   onSelectedStylePromptChange?: (stylePrompt: string | null) => void;
   onSelectedStyleContextChange?: (styleContext: StudioOutput["styleContext"] | null) => void;
 };
@@ -629,6 +631,7 @@ export function AiStudioPageContent({
   triggerFilePicker,
   resolveCharacterDropReference,
   resolveElementProfileImageDropSource,
+  resolveVoiceChangerInternalReferenceSource,
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
@@ -1425,6 +1428,9 @@ export function AiStudioPageContent({
                 setActiveVoiceChangerSourceVideo(source);
                 propertiesVoices?.onActiveVoiceChangerSourceVideoChange?.(source);
               }}
+              resolveVoiceChangerInternalReferenceSource={
+                resolveVoiceChangerInternalReferenceSource
+              }
             />
           );
         case "character":
@@ -1451,6 +1457,7 @@ export function AiStudioPageContent({
       propertiesMusic,
       propertiesSoundEffects,
       propertiesVoices,
+      resolveVoiceChangerInternalReferenceSource,
       presetsPropertiesPanelContent,
       selectedTool,
       stylesPropertiesPanelContent,

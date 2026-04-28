@@ -1,6 +1,6 @@
 import { StudioOutput } from "../types";
 import { canExposeDirectReferenceUrls } from "../logic/referenceOutputAuthority";
-import { isVideoUrl } from "../logic/stateParsers";
+import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 import {
   hasInternalReferenceDragTypeHints,
@@ -25,7 +25,7 @@ export {
 const imageUrlPattern = /^(data:image\/|blob:|https?:\/\/)/i;
 const NEXT_IMAGE_OPTIMIZER_PATH = "/_next/image";
 const RELATIVE_MEDIA_PATH_HINT_PATTERN =
-  /^\/(?:_next\/image|storage\/|.*\.(?:avif|bmp|gif|heic|heif|jpe?g|png|webp|m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#]))/i;
+  /^\/(?:_next\/image|storage\/|.*\.(?:aac|avif|bmp|flac|gif|heic|heif|jpe?g|m4a|mp3|oga|ogg|png|wav|webp|m4v|mov|mp4|ogv|webm)(?:$|[?#]))/i;
 
 const dedupeText = (value?: string) => (value ? value.trim() : "");
 
@@ -54,7 +54,7 @@ const DRAG_GHOST_SNAPSHOT_WIDTH = 768;
 const DRAG_GHOST_SNAPSHOT_HEIGHT = 960;
 const DRAG_GHOST_SNAPSHOT_QUALITY = 0.82;
 
-type ReferenceDragPreviewKind = "image" | "video" | "text";
+type ReferenceDragPreviewKind = "image" | "video" | "audio" | "text";
 
 type ReferenceDragPreviewDataset = {
   previewUrl: string | null;
@@ -117,6 +117,7 @@ const safeSetDragImage = (
 const resolveOutputPreviewKind = (output: StudioOutput): ReferenceDragPreviewKind => {
   if (output.mode === "image") return "image";
   if (output.mode === "video") return "video";
+  if (output.mode === "audio") return "audio";
   return "text";
 };
 
@@ -395,15 +396,21 @@ export const looksLikeVideoUrl = (value?: string) => {
   return isVideoUrl(normalized);
 };
 
+export const looksLikeAudioUrl = (value?: string) => {
+  if (!value) return false;
+  const normalized = normalizeReferenceTransferUrlCandidate(value) ?? value.trim();
+  return isAudioUrl(normalized);
+};
+
 const isLikelyImageTransferUrl = (value?: string) =>
-  looksLikeImageUrl(value) && !looksLikeVideoUrl(value);
+  looksLikeImageUrl(value) && !looksLikeVideoUrl(value) && !looksLikeAudioUrl(value);
 
 export const resolveReferenceTransferUrl = (
   output: Pick<
     StudioOutput,
     "previewUrl" | "previewStoragePath" | "fullStoragePath" | "resultUrls"
   >,
-  kind: "image" | "video" | "any" = "any"
+  kind: "image" | "video" | "audio" | "any" = "any"
 ): string | null => {
   const candidates = [
     output.fullStoragePath,
@@ -423,7 +430,13 @@ export const resolveReferenceTransferUrl = (
     if (!isRenderableAdaptiveUrl(normalized)) continue;
     if (kind === "image" && isLikelyImageTransferUrl(normalized)) return normalized;
     if (kind === "video" && looksLikeVideoUrl(normalized)) return normalized;
-    if (kind === "any" && (isLikelyImageTransferUrl(normalized) || looksLikeVideoUrl(normalized))) {
+    if (kind === "audio" && looksLikeAudioUrl(normalized)) return normalized;
+    if (
+      kind === "any" &&
+      (isLikelyImageTransferUrl(normalized) ||
+        looksLikeVideoUrl(normalized) ||
+        looksLikeAudioUrl(normalized))
+    ) {
       return normalized;
     }
   }
@@ -431,7 +444,13 @@ export const resolveReferenceTransferUrl = (
   for (const candidate of localCandidates) {
     if (kind === "image" && isLikelyImageTransferUrl(candidate)) return candidate;
     if (kind === "video" && looksLikeVideoUrl(candidate)) return candidate;
-    if (kind === "any" && (isLikelyImageTransferUrl(candidate) || looksLikeVideoUrl(candidate))) {
+    if (kind === "audio" && looksLikeAudioUrl(candidate)) return candidate;
+    if (
+      kind === "any" &&
+      (isLikelyImageTransferUrl(candidate) ||
+        looksLikeVideoUrl(candidate) ||
+        looksLikeAudioUrl(candidate))
+    ) {
       return candidate;
     }
   }
@@ -668,8 +687,10 @@ export const prepareReferenceDrag = (
   const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);
   const previewDataset = readReferenceDragPreviewDataset(dragNode);
   const allowDirectReferenceUrls = canExposeDirectReferenceUrls(output);
+  const transferKind =
+    output.mode === "video" ? "video" : output.mode === "audio" ? "audio" : "any";
   const previewUrl = allowDirectReferenceUrls
-    ? resolveReferenceTransferUrl(output, output.mode === "video" ? "video" : "any")
+    ? resolveReferenceTransferUrl(output, transferKind)
     : null;
   const imagePreviewUrl = allowDirectReferenceUrls
     ? resolveReferenceTransferUrl(output, "image")

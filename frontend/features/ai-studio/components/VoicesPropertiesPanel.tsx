@@ -21,6 +21,7 @@ import { CreateVoiceModal, type CreateVoiceModalPreview } from "./CreateVoiceMod
 import {
   releaseVoiceChangerSource,
   VoiceChangerSourceDropzone,
+  type ResolveVoiceChangerInternalReferenceSource,
   type VoiceChangerSource,
 } from "./VoiceChangerSourceDropzone";
 import {
@@ -354,6 +355,7 @@ export type VoicesPropertiesPanelProps = {
   isGenerating?: boolean;
   onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
   onActiveVoiceChangerSourceVideoChange?: (source: ActiveVoiceChangerSourceVideo | null) => void;
+  resolveVoiceChangerInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
 };
 
 export type ActiveVoiceChangerSourceVideo = {
@@ -455,6 +457,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   selectedTool = null,
   onGenerate,
   onActiveVoiceChangerSourceVideoChange,
+  resolveVoiceChangerInternalReferenceSource,
 }: VoicesPropertiesPanelProps) {
   const {
     voices: libraryVoices,
@@ -1612,6 +1615,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 <VoiceChangerSourceDropzone
                   source={voiceChangerSource}
                   onSourceChange={handleVoiceChangerSourceChange}
+                  resolveInternalReferenceSource={resolveVoiceChangerInternalReferenceSource}
                 />
               )}
 

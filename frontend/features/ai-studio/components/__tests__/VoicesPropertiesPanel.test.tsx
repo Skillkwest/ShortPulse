@@ -10,6 +10,8 @@ import {
   buildVoiceoverElevenV3RequestConfig,
   VoicesPropertiesPanel,
 } from "../VoicesPropertiesPanel";
+import { createVoiceChangerSourceFromFile } from "../VoiceChangerSourceDropzone";
+import { prepareReferenceDrag } from "../../utils/dragDrop";
 
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const extractAudioWaveformPeaksFromUrlMock = vi.hoisted(() => vi.fn());
@@ -21,6 +23,31 @@ const resolveVoiceChangerSourceStoragePathMock = vi.hoisted(() => vi.fn());
 const signVoiceChangerStoragePathMock = vi.hoisted(() => vi.fn());
 const createObjectUrlMock = vi.hoisted(() => vi.fn());
 const revokeObjectUrlMock = vi.hoisted(() => vi.fn());
+
+const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
+
+const createReferenceDragTransfer = () => {
+  const data: Record<string, string> = {};
+  const transfer = {
+    effectAllowed: "all",
+    dropEffect: "none",
+    files: emptyFileList,
+    setData: (type: string, value: string) => {
+      data[type] = value;
+    },
+    getData: (type: string) => data[type] ?? "",
+    get types() {
+      return Object.keys(data);
+    },
+    setDragImage: () => undefined,
+  } as unknown as DataTransfer;
+  const dragNode = document.createElement("div");
+  const event = {
+    dataTransfer: transfer,
+    currentTarget: dragNode,
+  } as unknown as Parameters<typeof prepareReferenceDrag>[0];
+  return { transfer, event };
+};
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
@@ -249,7 +276,7 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByLabelText("Voice changer settings")).not.toBeInTheDocument();
   });
 
-  it("uses the top create button as the entry point to the create panel", () => {
+  it("uses the top create button as the entry point to the create panel", async () => {
     render(<VoicesPropertiesPanel />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
@@ -258,7 +285,9 @@ describe("VoicesPropertiesPanel", () => {
 
     const createVoiceModal = screen.getByRole("dialog", { name: "Create New Voice" });
     const voiceNameField = screen.getByRole("textbox", { name: "Voice name" });
-    expect(voiceNameField).toHaveFocus();
+    await waitFor(() => {
+      expect(voiceNameField).toHaveFocus();
+    });
     expect(voiceNameField).toHaveValue("");
     expect(screen.getByRole("tab", { name: "Voiceover" })).toHaveAttribute("aria-selected", "true");
     expect(createVoiceModal).toBeInTheDocument();
@@ -890,6 +919,122 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByText("Audio source")).not.toBeInTheDocument();
     expect(screen.getByText(/ready for conversion/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("accepts a real audio reference drag payload from the reference grid", async () => {
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const { transfer, event } = createReferenceDragTransfer();
+    prepareReferenceDrag(event, {
+      id: "output-audio-real",
+      prompt: "Reference voice",
+      mode: "audio",
+      aspect: "1:1",
+      model: "Audio model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://cdn.shortpulse.test/renders/reference-voice-preview.mp3",
+      fullStoragePath: "https://cdn.shortpulse.test/renders/reference-voice-full.mp3",
+      previewStoragePath: "https://cdn.shortpulse.test/renders/reference-voice-preview.mp3",
+      resultUrls: ["https://cdn.shortpulse.test/renders/reference-voice-full.mp3"],
+      savedMediaIds: ["media-audio-real"],
+    });
+
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+    fireEvent.dragOver(dropZone, { dataTransfer: transfer });
+    fireEvent.drop(dropZone, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(screen.getByText(/ready for conversion/i)).toBeInTheDocument();
+    });
+
+    expect(resolveVoiceChangerMediaDurationMsMock).toHaveBeenCalledWith(
+      "https://cdn.shortpulse.test/renders/reference-voice-full.mp3",
+      "audio"
+    );
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("resolves blob-backed reference-grid audio through the internal voice changer resolver", async () => {
+    const sourceFile = new File(["local-audio"], "local-reference.wav", { type: "audio/wav" });
+    const resolveVoiceChangerInternalReferenceSource = vi.fn((payload) =>
+      createVoiceChangerSourceFromFile(sourceFile, {
+        origin: "reference-grid",
+        referenceOutputId: payload.outputId,
+        referenceMediaId: payload.mediaId,
+        durationMs: 1200,
+      })
+    );
+
+    render(
+      <VoicesPropertiesPanel
+        resolveVoiceChangerInternalReferenceSource={resolveVoiceChangerInternalReferenceSource}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const dataTransfer = {
+      types: ["text/reference-origin", "text/reference-output-id", "text/reference-media-id"],
+      files: [],
+      getData: (type: string) =>
+        (
+          ({
+            "text/reference-origin": "ai-studio-reference-grid",
+            "text/reference-output-id": "output-local-audio",
+            "text/reference-media-id": "media-local-audio",
+          }) as Record<string, string>
+        )[type] ?? "",
+      dropEffect: "none",
+    };
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+
+    fireEvent.dragOver(dropZone, { dataTransfer });
+    expect(dataTransfer.dropEffect).toBe("copy");
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    await waitFor(() => {
+      expect(uploadVoiceChangerSourceFileMock).toHaveBeenCalledWith({
+        file: sourceFile,
+        kind: "audio",
+      });
+    });
+    expect(resolveVoiceChangerInternalReferenceSource).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("shows an error when an internal reference-grid audio drop cannot be resolved", async () => {
+    const resolveVoiceChangerInternalReferenceSource = vi.fn(() => null);
+    render(
+      <VoicesPropertiesPanel
+        resolveVoiceChangerInternalReferenceSource={resolveVoiceChangerInternalReferenceSource}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const dataTransfer = {
+      types: ["text/reference-origin", "text/reference-output-id"],
+      files: [],
+      getData: (type: string) =>
+        (
+          ({
+            "text/reference-origin": "ai-studio-reference-grid",
+            "text/reference-output-id": "output-unresolved-audio",
+          }) as Record<string, string>
+        )[type] ?? "",
+      dropEffect: "none",
+    };
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+    fireEvent.dragOver(dropZone, { dataTransfer });
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    expect(
+      await screen.findByText("Unable to use this reference as source audio.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
   });
 
   it("falls back to a durable reference-grid URL when the render URL is a blob", async () => {

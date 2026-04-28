@@ -23,12 +23,15 @@ The feature requirement is stricter than a local patch:
 Adopt one canonical Voice Changer intake path:
 
 1. Local source files are uploaded directly from the browser into private storage.
-2. Video sources are converted into staged WAV audio through `POST /api/media/extract-audio`.
-3. The Voices panel replaces the staged source with that derived audio asset before `Generate`
+2. Audio dragged from the Reference Grid or Quick Slot Inventory must resolve to either a durable
+   storage/trusted media URL source or a same-session local `File` that is staged through the same
+   local audio upload path; `blob:` and `data:` URLs are never submitted as final source media.
+3. Video sources are converted into staged WAV audio through `POST /api/media/extract-audio`.
+4. The Voices panel replaces the staged source with that derived audio asset before `Generate`
    becomes available.
-4. Final conversion submits the staged audio reference (`sourceStoragePath`) to
+5. Final conversion submits the staged audio reference (`sourceStoragePath`) to
    `/api/elevenlabs/speech-to-speech`.
-5. When the staged audio was extracted from video, final conversion also remuxes the converted
+6. When the staged audio was extracted from video, final conversion also remuxes the converted
    voice back onto the original video and publishes that remuxed clip as a sibling generated video
    output in AI Studio.
 

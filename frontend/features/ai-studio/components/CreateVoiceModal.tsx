@@ -111,6 +111,7 @@ export function CreateVoiceModal({
                   onChange={(event) => onVoiceNameChange(event.target.value)}
                   placeholder="Late-night storyteller"
                   aria-label="Voice name"
+                  autoFocus
                 />
               </label>
 

@@ -6,7 +6,9 @@ import React from "react";
 import { CircleNotch, UploadSimple, X } from "phosphor-react";
 import {
   extractInternalReferenceDragPayload,
+  hasInternalReferenceDragTypeHints,
   normalizeReferenceTransferUrlCandidate,
+  type InternalReferenceDragPayload,
 } from "../utils/dragDrop";
 import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
 import { VoiceChangerAudioSourcePreview } from "./VoiceChangerAudioSourcePreview";
@@ -51,9 +53,14 @@ export type VoiceChangerSource = {
   } | null;
 };
 
+export type ResolveVoiceChangerInternalReferenceSource = (
+  payload: InternalReferenceDragPayload
+) => Promise<VoiceChangerSource | null> | VoiceChangerSource | null;
+
 type VoiceChangerSourceDropzoneProps = {
   source: VoiceChangerSource | null;
   onSourceChange: (nextSource: VoiceChangerSource | null) => void;
+  resolveInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
 };
 
 type BrowserMediaRecorder = typeof MediaRecorder;
@@ -111,17 +118,25 @@ const inferSourceKindFromFile = (file: File): VoiceChangerSourceKind | null => {
   return null;
 };
 
-const createSourceFromFile = (file: File): VoiceChangerSource | null => {
+export const createVoiceChangerSourceFromFile = (
+  file: File,
+  options?: {
+    origin?: VoiceChangerSourceOrigin;
+    referenceOutputId?: string | null;
+    referenceMediaId?: string | null;
+    durationMs?: number | null;
+  }
+): VoiceChangerSource | null => {
   const kind = inferSourceKindFromFile(file);
   if (!kind) return null;
   const objectUrl = URL.createObjectURL(file);
   return {
     id: buildSourceId("voice-changer-file"),
     kind,
-    origin: "local",
+    origin: options?.origin ?? "local",
     status: "ready",
     aspect: null,
-    durationMs: null,
+    durationMs: options?.durationMs ?? null,
     name: file.name.trim() || `uploaded-${kind}`,
     mimeType: file.type.trim() || null,
     file,
@@ -129,8 +144,8 @@ const createSourceFromFile = (file: File): VoiceChangerSource | null => {
     sourceUrl: objectUrl,
     objectUrl,
     storagePath: null,
-    referenceOutputId: null,
-    referenceMediaId: null,
+    referenceOutputId: options?.referenceOutputId ?? null,
+    referenceMediaId: options?.referenceMediaId ?? null,
     errorMessage: null,
     extractedFrom: null,
   };
@@ -198,6 +213,77 @@ const isLikelyNativeFileTransfer = (transfer: DataTransfer): boolean => {
   );
 };
 
+export const createVoiceChangerSourceFromReference = ({
+  kind,
+  origin,
+  name,
+  mimeType,
+  sourceUrl,
+  previewUrl = null,
+  storagePath = null,
+  durationMs = null,
+  aspect = null,
+  referenceOutputId = null,
+  referenceMediaId = null,
+}: {
+  kind: VoiceChangerSourceKind;
+  origin: VoiceChangerSourceOrigin;
+  name: string;
+  mimeType?: string | null;
+  sourceUrl?: string | null;
+  previewUrl?: string | null;
+  storagePath?: string | null;
+  durationMs?: number | null;
+  aspect?: string | null;
+  referenceOutputId?: string | null;
+  referenceMediaId?: string | null;
+}): VoiceChangerSource | null => {
+  const normalizedUrl = normalizeReferenceTransferUrlCandidate(sourceUrl, {
+    unwrapNextImage: false,
+  });
+  if (normalizedUrl && /^(?:blob:|data:)/i.test(normalizedUrl)) return null;
+  if (normalizedUrl) {
+    try {
+      const parsed = new URL(
+        normalizedUrl,
+        typeof window === "undefined" ? "https://shortpulse.local" : window.location.href
+      );
+      if (!REMOTE_FETCHABLE_URL_PROTOCOL_PATTERN.test(parsed.protocol)) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+  const normalizedStoragePath = storagePath?.trim() || null;
+  if (!normalizedUrl && !normalizedStoragePath) return null;
+  const normalizedPreviewUrl =
+    kind === "video"
+      ? normalizeReferenceTransferUrlCandidate(previewUrl ?? normalizedUrl, {
+          unwrapNextImage: false,
+        })
+      : null;
+  return {
+    id: buildSourceId("voice-changer-reference"),
+    kind,
+    origin,
+    status: "ready",
+    aspect,
+    durationMs,
+    name: name.trim() || `Reference Grid ${kind}`,
+    mimeType: mimeType?.trim() || (normalizedUrl ? inferMimeTypeFromUrl(normalizedUrl) : null),
+    file: null,
+    previewUrl: normalizedPreviewUrl,
+    sourceUrl: normalizedUrl,
+    objectUrl: null,
+    storagePath: normalizedStoragePath,
+    referenceOutputId,
+    referenceMediaId,
+    errorMessage: null,
+    extractedFrom: null,
+  };
+};
+
 const createSourceFromUrl = ({
   url,
   origin,
@@ -213,45 +299,24 @@ const createSourceFromUrl = ({
 }): VoiceChangerSource | null => {
   const normalizedUrl = normalizeReferenceTransferUrlCandidate(url, { unwrapNextImage: false });
   if (!normalizedUrl || /^(?:blob:|data:)/i.test(normalizedUrl)) return null;
-  try {
-    const parsed = new URL(
-      normalizedUrl,
-      typeof window === "undefined" ? "https://shortpulse.local" : window.location.href
-    );
-    if (!REMOTE_FETCHABLE_URL_PROTOCOL_PATTERN.test(parsed.protocol)) {
-      return null;
-    }
-  } catch {
-    return null;
-  }
   const kind = inferSourceKindFromUrl(normalizedUrl);
   if (!kind) return null;
   const filename = getUrlFilename(normalizedUrl);
-  return {
-    id: buildSourceId("voice-changer-url"),
+  const source = createVoiceChangerSourceFromReference({
     kind,
     origin,
-    status: "ready",
-    aspect: null,
-    durationMs: null,
     name: filename ?? fallbackName,
-    mimeType: inferMimeTypeFromUrl(normalizedUrl),
-    file: null,
-    previewUrl: kind === "video" ? normalizedUrl : null,
     sourceUrl: normalizedUrl,
-    objectUrl: null,
-    storagePath: null,
     referenceOutputId,
     referenceMediaId,
-    errorMessage: null,
-    extractedFrom: null,
-  };
+  });
+  return source ? { ...source, id: buildSourceId("voice-changer-url") } : null;
 };
 
 const createSourceFromTransfer = (transfer: DataTransfer): VoiceChangerSource | null => {
   const supportedFile = findFirstSupportedFile(transfer.files);
   if (supportedFile) {
-    return createSourceFromFile(supportedFile);
+    return createVoiceChangerSourceFromFile(supportedFile);
   }
 
   const internalPayload = extractInternalReferenceDragPayload(transfer);
@@ -295,9 +360,13 @@ const createSourceFromTransfer = (transfer: DataTransfer): VoiceChangerSource | 
   return null;
 };
 
-const canAcceptTransfer = (transfer: DataTransfer | null | undefined): boolean => {
+const canAcceptTransfer = (
+  transfer: DataTransfer | null | undefined,
+  canResolveInternalReference = false
+): boolean => {
   if (!transfer) return false;
   if (isLikelyNativeFileTransfer(transfer)) return true;
+  if (canResolveInternalReference && hasInternalReferenceDragTypeHints(transfer)) return true;
   return Boolean(createSourceFromTransfer(transfer));
 };
 
@@ -348,6 +417,7 @@ const shouldShowSourceLoadingPreview = (source: VoiceChangerSource): boolean =>
 export function VoiceChangerSourceDropzone({
   source,
   onSourceChange,
+  resolveInternalReferenceSource,
 }: VoiceChangerSourceDropzoneProps) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const dragDepthRef = React.useRef(0);
@@ -382,43 +452,78 @@ export function VoiceChangerSourceDropzone({
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const supportedFile = findFirstSupportedFile(event.target.files);
       if (supportedFile) {
-        handleSourceSelection(createSourceFromFile(supportedFile));
+        handleSourceSelection(createVoiceChangerSourceFromFile(supportedFile));
       }
       event.target.value = "";
     },
     [handleSourceSelection]
   );
 
-  const handleDragEnter = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    if (!canAcceptTransfer(event.dataTransfer)) return;
-    dragDepthRef.current += 1;
-    setIsDragActive(true);
-  }, []);
+  const canResolveInternalReference = Boolean(resolveInternalReferenceSource);
 
-  const handleDragOver = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    if (!canAcceptTransfer(event.dataTransfer)) return;
-    event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
-    setIsDragActive(true);
-  }, []);
+  const handleDragEnter = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!canAcceptTransfer(event.dataTransfer, canResolveInternalReference)) return;
+      dragDepthRef.current += 1;
+      setIsDragActive(true);
+    },
+    [canResolveInternalReference]
+  );
 
-  const handleDragLeave = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    if (!canAcceptTransfer(event.dataTransfer)) return;
-    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-    if (dragDepthRef.current === 0) {
-      setIsDragActive(false);
-    }
-  }, []);
+  const handleDragOver = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!canAcceptTransfer(event.dataTransfer, canResolveInternalReference)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      setIsDragActive(true);
+    },
+    [canResolveInternalReference]
+  );
+
+  const handleDragLeave = React.useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!canAcceptTransfer(event.dataTransfer, canResolveInternalReference)) return;
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setIsDragActive(false);
+      }
+    },
+    [canResolveInternalReference]
+  );
 
   const handleDrop = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
-      if (!canAcceptTransfer(event.dataTransfer)) return;
+      if (!canAcceptTransfer(event.dataTransfer, canResolveInternalReference)) return;
       event.preventDefault();
       dragDepthRef.current = 0;
       setIsDragActive(false);
-      handleSourceSelection(createSourceFromTransfer(event.dataTransfer));
+
+      const directSource = createSourceFromTransfer(event.dataTransfer);
+      if (directSource) {
+        handleSourceSelection(directSource);
+        return;
+      }
+
+      const internalPayload = extractInternalReferenceDragPayload(event.dataTransfer);
+      if (!internalPayload || !resolveInternalReferenceSource) {
+        setRecordingError("Unable to use this reference as source audio.");
+        return;
+      }
+
+      void (async () => {
+        try {
+          const resolvedSource = await resolveInternalReferenceSource(internalPayload);
+          if (!resolvedSource) {
+            setRecordingError("Unable to use this reference as source audio.");
+            return;
+          }
+          handleSourceSelection(resolvedSource);
+        } catch {
+          setRecordingError("Unable to use this reference as source audio.");
+        }
+      })();
     },
-    [handleSourceSelection]
+    [canResolveInternalReference, handleSourceSelection, resolveInternalReferenceSource]
   );
 
   const handleEmptyZoneKeyDown = React.useCallback(
@@ -511,7 +616,7 @@ export function VoiceChangerSourceDropzone({
         const file = new File([recordedBlob], `voice-sample-${Date.now()}.${extension}`, {
           type: recordedMimeType,
         });
-        handleSourceSelection(createSourceFromFile(file));
+        handleSourceSelection(createVoiceChangerSourceFromFile(file));
       };
 
       recordingStartedAtRef.current = Date.now();
@@ -670,9 +775,7 @@ export function VoiceChangerSourceDropzone({
                     }`}
                     aria-live="polite"
                   >
-                    {recordingError
-                      ? "Recorder unavailable"
-                      : `Recording ${formatRecordingDuration(recordingElapsedMs)}`}
+                    {recordingError ?? `Recording ${formatRecordingDuration(recordingElapsedMs)}`}
                   </p>
                 ) : (
                   <span className="voices-properties-voice-changer-record-idle-cue">

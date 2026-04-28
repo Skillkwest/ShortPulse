@@ -15,6 +15,11 @@ import type {
 } from "./agentOrchestration/types";
 import { resolvePulseRuntimeState } from "../logic/pulseSessionState";
 import { buildPendingPulseWorkflowSessionForUserInput } from "../logic/pulseWorkflowSession";
+import {
+  hasPulseImageContext,
+  isPulseImageIntakeStep,
+  PULSE_IMAGE_INTAKE_REQUIRED_NOTICE,
+} from "../logic/pulseImageIntake";
 
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
@@ -83,6 +88,11 @@ export const useAiStudioAgentOrchestration = ({
     setUiNotice("Select a Pulse to start.");
     trackAgentUiEvent("studio_agent_send_blocked_no_active_pulse_session");
   }, [setUiNotice, trackAgentUiEvent]);
+  const notifyPulseImageRequired = useCallback(() => {
+    setUiNotice(PULSE_IMAGE_INTAKE_REQUIRED_NOTICE);
+    setAgentAttachmentError(PULSE_IMAGE_INTAKE_REQUIRED_NOTICE);
+    trackAgentUiEvent("studio_agent_send_blocked_pulse_image_required");
+  }, [setAgentAttachmentError, setUiNotice, trackAgentUiEvent]);
   const { hasActivePulseSession } = resolvePulseRuntimeState({
     expertCreateMode,
     activePulsePresetId,
@@ -121,6 +131,24 @@ export const useAiStudioAgentOrchestration = ({
         trimmed || droppedPromptText || (allowImageOnlySend ? "" : prompt.trim());
       if (!outboundText && !allowImageOnlySend) return;
       const outboundAttachments = cloneMessageAttachments(agentAttachments);
+      const selectedOverride =
+        options?.selectedOverride === undefined && expertCreateMode !== "pulse"
+          ? null
+          : options?.selectedOverride;
+      const baseContext = getAgentContext({
+        lastAssistantMessage,
+        selectedOverride,
+        includeActiveOutput: expertCreateMode === "pulse",
+        modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
+      });
+      if (
+        isPulseImageIntakeStep(baseContext.pulse) &&
+        !hasImageAttachment &&
+        !hasPulseImageContext(baseContext)
+      ) {
+        notifyPulseImageRequired();
+        return;
+      }
       trackAgentUiEvent("studio_agent_send_requested", {
         mode_hint: options?.modeHint ?? "chat",
         has_attachments: outboundAttachments.length > 0,
@@ -244,11 +272,6 @@ export const useAiStudioAgentOrchestration = ({
           updateOptimisticAttachmentDelivery(imageAttachmentIds, "ready", null);
         }
 
-        const baseContext = getAgentContext({
-          lastAssistantMessage,
-          selectedOverride: options?.selectedOverride,
-          modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
-        });
         const shouldInjectLatestAgentPrompt = Boolean(latestAgentPrompt) && outboundText.length > 0;
         if (shouldInjectLatestAgentPrompt) {
           baseContext.activePrompt = latestAgentPrompt;
@@ -349,7 +372,9 @@ export const useAiStudioAgentOrchestration = ({
       setAgentAttachments,
       setPulseWorkflowSession,
       ensurePulseSessionReady,
+      expertCreateMode,
       notifyBootstrapPending,
+      notifyPulseImageRequired,
       trackAgentUiEvent,
     ]
   );
@@ -367,6 +392,8 @@ export const useAiStudioAgentOrchestration = ({
     try {
       const context = getAgentContext({
         lastAssistantMessage,
+        selectedOverride: expertCreateMode === "pulse" ? undefined : null,
+        includeActiveOutput: expertCreateMode === "pulse",
         modeHint: "text",
       });
       const { response, actions, workflowSession, discarded } = await sendToAgent({
@@ -408,6 +435,7 @@ export const useAiStudioAgentOrchestration = ({
     setPromptOrigin,
     setSharedPrompt,
     ensurePulseSessionReady,
+    expertCreateMode,
     notifyBootstrapPending,
   ]);
 
@@ -482,6 +510,8 @@ export const useAiStudioAgentOrchestration = ({
     try {
       const context = getAgentContext({
         lastAssistantMessage,
+        selectedOverride: expertCreateMode === "pulse" ? undefined : null,
+        includeActiveOutput: expertCreateMode === "pulse",
         modeHint: "text",
       });
       const { response, actions, workflowSession, discarded } = await sendToAgent({
@@ -527,6 +557,7 @@ export const useAiStudioAgentOrchestration = ({
     setVideoReferenceText,
     videoReferenceText,
     ensurePulseSessionReady,
+    expertCreateMode,
     notifyBootstrapPending,
   ]);
 

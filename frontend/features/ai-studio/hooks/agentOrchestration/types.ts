@@ -66,6 +66,7 @@ export type UseAiStudioAgentOrchestrationParams = {
     lastAssistantMessage: string | null;
     selectedOverride?: StudioOutput | null;
     modeHint?: AgentModeHint;
+    includeActiveOutput?: boolean;
   }) => AgentContext;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
   addAgentPromptReference: (promptText: string, title?: string) => void;

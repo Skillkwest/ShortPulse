@@ -20,6 +20,11 @@ import { setAiStudioOutputStoreSnapshot } from "./aiStudioOutputStore";
 
 type OutputCollectionState = StudioOutputCollectionState;
 
+type OutputCollectionAuthorityState = {
+  active: OutputCollectionState;
+  archived: OutputCollectionState;
+};
+
 type UseAiStudioOutputCollectionStateResult = {
   activeOutputState: OutputCollectionState;
   setActiveOutputState: Dispatch<SetStateAction<OutputCollectionState>>;
@@ -33,15 +38,11 @@ type UseAiStudioOutputCollectionStateResult = {
   activeOutputById: Record<string, StudioOutput>;
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
   setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
-};
-
-const publishEmptyOutputStoreSnapshot = () => {
-  setAiStudioOutputStoreSnapshot({
-    outputOrder: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.order,
-    outputById: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.byId,
-    archivedOutputOrder: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.order,
-    archivedOutputById: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.byId,
-  });
+  setOutputCollectionsForAuthority: (
+    authorityKey: string,
+    activeOutputs: StudioOutput[],
+    archivedOutputs: StudioOutput[]
+  ) => void;
 };
 
 export const useAiStudioOutputCollectionState = ({
@@ -66,6 +67,12 @@ export const useAiStudioOutputCollectionState = ({
   const outputStorePublisherUnmountedRef = useRef(false);
   const outputStorePublishEpochRef = useRef(0);
   const activeAuthorityKeyRef = useRef<string>(authorityKey);
+  const stateByAuthorityKeyRef = useRef<Record<string, OutputCollectionAuthorityState>>({
+    [authorityKey]: {
+      active: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE,
+      archived: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE,
+    },
+  });
 
   const outputs = useMemo(
     () => denormalizeStudioOutputCollection(activeOutputState),
@@ -81,6 +88,10 @@ export const useAiStudioOutputCollectionState = ({
     (nextActiveState: OutputCollectionState, nextArchivedState: OutputCollectionState) => {
       activeOutputStateRef.current = nextActiveState;
       archivedOutputStateRef.current = nextArchivedState;
+      stateByAuthorityKeyRef.current[activeAuthorityKeyRef.current] = {
+        active: nextActiveState,
+        archived: nextArchivedState,
+      };
       if (outputStorePublishQueuedRef.current) return;
       outputStorePublishQueuedRef.current = true;
       const publishEpoch = outputStorePublishEpochRef.current;
@@ -133,6 +144,31 @@ export const useAiStudioOutputCollectionState = ({
     });
   }, []);
 
+  const setOutputCollectionsForAuthority = useCallback(
+    (targetAuthorityKey: string, activeRows: StudioOutput[], archivedRows: StudioOutput[]) => {
+      const nextActiveState = normalizeStudioOutputCollection(activeRows);
+      const nextArchivedState = normalizeStudioOutputCollection(archivedRows);
+      stateByAuthorityKeyRef.current[targetAuthorityKey] = {
+        active: nextActiveState,
+        archived: nextArchivedState,
+      };
+      if (activeAuthorityKeyRef.current !== targetAuthorityKey) return;
+
+      activeOutputStateRef.current = nextActiveState;
+      archivedOutputStateRef.current = nextArchivedState;
+      activeOutputByIdRef.current = nextActiveState.byId;
+      setActiveOutputState(nextActiveState);
+      setArchivedOutputState(nextArchivedState);
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: nextActiveState.order,
+        outputById: nextActiveState.byId,
+        archivedOutputOrder: nextArchivedState.order,
+        archivedOutputById: nextArchivedState.byId,
+      });
+    },
+    []
+  );
+
   useEffect(() => {
     activeOutputByIdRef.current = activeOutputById;
   }, [activeOutputById]);
@@ -161,15 +197,31 @@ export const useAiStudioOutputCollectionState = ({
 
   useEffect(() => {
     if (activeAuthorityKeyRef.current === authorityKey) return;
+    stateByAuthorityKeyRef.current[activeAuthorityKeyRef.current] = {
+      active: activeOutputStateRef.current,
+      archived: archivedOutputStateRef.current,
+    };
     activeAuthorityKeyRef.current = authorityKey;
     outputStorePublishQueuedRef.current = false;
     outputStorePublishEpochRef.current += 1;
-    activeOutputStateRef.current = EMPTY_STUDIO_OUTPUT_COLLECTION_STATE;
-    archivedOutputStateRef.current = EMPTY_STUDIO_OUTPUT_COLLECTION_STATE;
-    activeOutputByIdRef.current = EMPTY_STUDIO_OUTPUT_COLLECTION_STATE.byId;
-    setActiveOutputState(EMPTY_STUDIO_OUTPUT_COLLECTION_STATE);
-    setArchivedOutputState(EMPTY_STUDIO_OUTPUT_COLLECTION_STATE);
-    publishEmptyOutputStoreSnapshot();
+    const restoredState = stateByAuthorityKeyRef.current[authorityKey] ?? {
+      active: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE,
+      archived: EMPTY_STUDIO_OUTPUT_COLLECTION_STATE,
+    };
+    stateByAuthorityKeyRef.current[authorityKey] = restoredState;
+    activeOutputStateRef.current = restoredState.active;
+    archivedOutputStateRef.current = restoredState.archived;
+    activeOutputByIdRef.current = restoredState.active.byId;
+    /* eslint-disable react-hooks/set-state-in-effect -- authority switches must restore the selected collection immediately after React commits the new key. */
+    setActiveOutputState(restoredState.active);
+    setArchivedOutputState(restoredState.archived);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    setAiStudioOutputStoreSnapshot({
+      outputOrder: restoredState.active.order,
+      outputById: restoredState.active.byId,
+      archivedOutputOrder: restoredState.archived.order,
+      archivedOutputById: restoredState.archived.byId,
+    });
   }, [authorityKey]);
 
   return {
@@ -185,5 +237,6 @@ export const useAiStudioOutputCollectionState = ({
     activeOutputById,
     setOutputsState,
     setArchivedOutputs,
+    setOutputCollectionsForAuthority,
   };
 };

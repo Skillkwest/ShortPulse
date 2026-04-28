@@ -60,7 +60,6 @@ type UseAiStudioStateRuntimeControllersParams = {
   selectedStylePrompt: string | null;
   selectedTool: ToolId | null;
   sessionHydrationSigningRevisionRef: MutableRefObject<number>;
-  setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   setActivePulsePresetId: Dispatch<SetStateAction<string | null>>;
   setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setAspect: Dispatch<SetStateAction<string>>;
@@ -81,13 +80,25 @@ type UseAiStudioStateRuntimeControllersParams = {
   setMode: Dispatch<SetStateAction<StudioMode>>;
   setModel: (value: string | null) => void;
   setMotionReferenceVideoUrl: Dispatch<SetStateAction<string | null>>;
+  setOutputCollectionsForCreateMode: (
+    createMode: "standard" | "pulse",
+    activeRows: StudioOutput[],
+    archivedRows: StudioOutput[]
+  ) => void;
   setOutputs: (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => void;
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
   setPanelGenerating: (panel: "create" | "edit" | "video", isGenerating: boolean) => void;
   setPulseCreatePrompt: (value: string) => void;
   setPulseSessionInstanceId: Dispatch<SetStateAction<string | null>>;
   setReferenceImageUrl: (value: string | null) => void;
-  setReferenceProjectionState: Dispatch<SetStateAction<ReferenceProjectionState>>;
+  setRuntimeUiStateForCreateMode: (
+    createMode: "standard" | "pulse",
+    nextState: {
+      activeOutputId: string | null;
+      referenceProjectionState: ReferenceProjectionState;
+      saved: boolean;
+    }
+  ) => void;
   setSaved: Dispatch<SetStateAction<boolean>>;
   setSeedance2InputMode: Dispatch<
     SetStateAction<"text" | "first-frame" | "first-last" | "multimodal">
@@ -169,7 +180,6 @@ export const useAiStudioStateRuntimeControllers = ({
   selectedStylePrompt,
   selectedTool,
   sessionHydrationSigningRevisionRef,
-  setActiveOutputId,
   setActivePulsePresetId,
   setArchivedOutputs,
   setAspect,
@@ -188,13 +198,14 @@ export const useAiStudioStateRuntimeControllers = ({
   setMode,
   setModel,
   setMotionReferenceVideoUrl,
+  setOutputCollectionsForCreateMode,
   setOutputs,
   setOutputsState,
   setPanelGenerating,
   setPulseCreatePrompt,
   setPulseSessionInstanceId,
   setReferenceImageUrl,
-  setReferenceProjectionState,
+  setRuntimeUiStateForCreateMode,
   setSaved,
   setSeedance2InputMode,
   setSeedance2ReferenceAudioUrls,
@@ -397,11 +408,10 @@ export const useAiStudioStateRuntimeControllers = ({
       setKlingMultiPrompts,
       setKlingElements,
       setMotionReferenceVideoUrl,
+      setOutputCollectionsForCreateMode,
       setOutputsState,
       setArchivedOutputs,
-      setReferenceProjectionState,
-      setActiveOutputId,
-      setSaved,
+      setRuntimeUiStateForCreateMode,
     }
   );
 

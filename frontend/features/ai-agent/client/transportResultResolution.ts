@@ -148,5 +148,6 @@ export const resolveStudioAgentTransportSuccess = (response: AgentResponse) => {
     workflowSession: resolveWorkflowSession(response),
     canonicalPrompt,
     assistantContent: applyPromptText || messageText,
+    assistantOutputPrompt: applyPromptText || null,
   };
 };

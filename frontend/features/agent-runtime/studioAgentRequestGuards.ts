@@ -1,4 +1,9 @@
-import type { AgentContext, AgentMessage, AgentPulseWorkflowSession } from "../../prefabs/agent";
+import type {
+  AgentContext,
+  AgentMessage,
+  AgentPulseWorkflowSession,
+  AgentRuntimeMode,
+} from "../../prefabs/agent";
 import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
 
 const MAX_MESSAGES = 24;
@@ -217,7 +222,13 @@ const sanitizeStudioAgentPulseContext = (
   };
 };
 
-export const sanitizeStudioAgentContext = (context?: AgentContext): AgentContext => {
+const shouldKeepStandardMediaContext = (context: AgentContext): boolean =>
+  context.modeHint === "reference" || context.modeHint === "describe";
+
+export const sanitizeStudioAgentContext = (
+  context?: AgentContext,
+  runtimeMode?: AgentRuntimeMode | null
+): AgentContext => {
   if (!context) return {};
   const media =
     context.media
@@ -228,7 +239,7 @@ export const sanitizeStudioAgentContext = (context?: AgentContext): AgentContext
       })
       .slice(0, STUDIO_AGENT_MAX_MEDIA) ?? [];
 
-  return {
+  const sanitized: AgentContext = {
     activePrompt: sanitizeGenerationPromptText(context.activePrompt ?? null),
     modelId: context.modelId ?? null,
     mode: context.mode,
@@ -249,5 +260,16 @@ export const sanitizeStudioAgentContext = (context?: AgentContext): AgentContext
     lastAssistantMessage: sanitizeGenerationPromptText(context.lastAssistantMessage ?? null),
     modeHint: context.modeHint ?? undefined,
     pulse: sanitizeStudioAgentPulseContext(context.pulse) ?? null,
+  };
+  if (runtimeMode !== "standard") return sanitized;
+  const keepMedia = shouldKeepStandardMediaContext(sanitized);
+  return {
+    ...sanitized,
+    references: keepMedia ? sanitized.references : [],
+    media: keepMedia ? sanitized.media : [],
+    selectedReferenceIds: keepMedia ? sanitized.selectedReferenceIds : [],
+    focusedSource: keepMedia && sanitized.focusedSource === "image" ? "image" : "agent-output",
+    focusedReferenceId: keepMedia ? sanitized.focusedReferenceId : null,
+    pulse: null,
   };
 };

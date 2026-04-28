@@ -187,6 +187,7 @@ describe("useAiAgent", () => {
       expect.objectContaining({
         role: "assistant",
         content: "I cannot describe this.",
+        canUseAsPrompt: false,
       })
     );
   });
@@ -254,8 +255,31 @@ describe("useAiAgent", () => {
     const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
     const body = JSON.parse(String(requestInit?.body ?? "{}")) as {
       directOpenAiBypass?: boolean;
+      runtimeMode?: string;
     };
     expect(body.directOpenAiBypass).toBe(true);
+    expect(body.runtimeMode).toBe("standard");
+  });
+
+  it("includes pulse runtimeMode when configured for Pulse mode", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "ok" }),
+    } as Response);
+    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "continue pulse",
+        payloadText: "continue pulse",
+      });
+    });
+
+    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
+    const body = JSON.parse(String(requestInit?.body ?? "{}")) as {
+      runtimeMode?: string;
+    };
+    expect(body.runtimeMode).toBe("pulse");
   });
 
   it("preserves finalArtifactSource from workflow-session responses", async () => {
@@ -571,6 +595,7 @@ describe("useAiAgent", () => {
       expect.objectContaining({
         role: "assistant",
         content: "I cannot describe this.",
+        canUseAsPrompt: false,
       })
     );
   });
@@ -581,6 +606,8 @@ describe("useAiAgent", () => {
         JSON.stringify({
           message: "I can't process that request right now. Please try again.",
           actions: undefined,
+          outcome_class: "fallback_infra",
+          reason_code: "INFRA_FALLBACK_TRANSIENT",
         }),
         {
           status: 200,
@@ -602,6 +629,8 @@ describe("useAiAgent", () => {
       expect.objectContaining({
         role: "assistant",
         content: "I can't process that request right now. Please try again.",
+        canUseAsPrompt: false,
+        outcomeClass: "fallback_infra",
       })
     );
   });
@@ -686,6 +715,8 @@ describe("useAiAgent", () => {
       expect.objectContaining({
         role: "assistant",
         content: "temporary upstream saturation",
+        canUseAsPrompt: false,
+        outcomeClass: "fallback_infra",
       })
     );
   });

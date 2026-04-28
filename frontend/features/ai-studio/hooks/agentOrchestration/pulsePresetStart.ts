@@ -8,6 +8,10 @@ import { randomId } from "../../logic/ids";
 import { normalizePulseSessionInstanceId } from "../../logic/pulseSessionState";
 import { shouldApplyAgentPromptToSharedPrompt } from "../../logic/promptTargeting";
 import { buildPendingPulseWorkflowSessionForStart } from "../../logic/pulseWorkflowSession";
+import {
+  buildImageSatisfiedPulseWorkflowSession,
+  hasPulseImageContext,
+} from "../../logic/pulseImageIntake";
 import type { UseAiStudioAgentOrchestrationParams } from "./types";
 
 type StartPulsePresetParams = {
@@ -87,23 +91,32 @@ export const startPulsePreset = async ({
     normalizePulseSessionInstanceId(options?.pulseSessionInstanceId) ||
     normalizePulseSessionInstanceId(pulseSessionInstanceId) ||
     randomId();
+  const baseContext = getAgentContext({
+    lastAssistantMessage,
+    includeActiveOutput: true,
+    modeHint: "chat",
+  });
+  const pulseRuntimeContext = {
+    presetId: preset.presetId,
+    label: preset.label,
+    description: preset.description,
+    instructions: preset.systemInstructions,
+    runtimeMode: preset.runtimeMode,
+    activationMode: preset.activationMode,
+    starterAssistantMessage: preset.starterAssistantMessage,
+    workflowStageHints: preset.workflowStageHints,
+    outputMode: preset.outputMode,
+    memoryPolicy: preset.memoryPolicy,
+    source: preset.isBuiltIn ? ("builtin" as const) : ("custom" as const),
+  };
+  const imageSatisfiedWorkflowSession = hasPulseImageContext(baseContext)
+    ? buildImageSatisfiedPulseWorkflowSession(pulseRuntimeContext)
+    : null;
   const pulseContext = {
-    ...getAgentContext({
-      lastAssistantMessage,
-      modeHint: "chat",
-    }),
+    ...baseContext,
     pulse: {
-      presetId: preset.presetId,
-      label: preset.label,
-      description: preset.description,
-      instructions: preset.systemInstructions,
-      runtimeMode: preset.runtimeMode,
-      activationMode: preset.activationMode,
-      starterAssistantMessage: preset.starterAssistantMessage,
-      workflowStageHints: preset.workflowStageHints,
-      outputMode: preset.outputMode,
-      memoryPolicy: preset.memoryPolicy,
-      source: preset.isBuiltIn ? ("builtin" as const) : ("custom" as const),
+      ...pulseRuntimeContext,
+      ...(imageSatisfiedWorkflowSession ? { workflowSession: imageSatisfiedWorkflowSession } : {}),
     },
   };
   const activationSeed = buildStudioAgentPulseActivationSeed(pulseContext.pulse);
@@ -129,9 +142,11 @@ export const startPulsePreset = async ({
   setAgentAttachmentError(null);
   agentUiBusyRef.current = true;
   setAgentUiBusy(true);
-  const pendingWorkflowSession = buildPendingPulseWorkflowSessionForStart({
-    preset: pulseContext.pulse,
-  });
+  const pendingWorkflowSession =
+    imageSatisfiedWorkflowSession ??
+    buildPendingPulseWorkflowSessionForStart({
+      preset: pulseContext.pulse,
+    });
   if (pendingWorkflowSession) {
     setPulseWorkflowSession(pendingWorkflowSession);
   }

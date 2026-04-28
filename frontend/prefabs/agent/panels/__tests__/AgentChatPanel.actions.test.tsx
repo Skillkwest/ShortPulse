@@ -136,6 +136,34 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.queryByText("Assistant output one.")).toBeInTheDocument();
   });
 
+  it("does not expose generate controls for non-prompt assistant messages", () => {
+    const onGenerateOutputPrompt = vi.fn();
+
+    render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "fallback-1",
+            role: "assistant",
+            content: "I can't process that request right now. Please try again.",
+            canUseAsPrompt: false,
+            outcomeClass: "fallback_infra",
+          },
+        ]}
+        input=""
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+        onGenerateOutputPrompt={onGenerateOutputPrompt}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
+    expect(
+      screen.getByText("I can't process that request right now. Please try again.")
+    ).toBeInTheDocument();
+    expect(onGenerateOutputPrompt).not.toHaveBeenCalled();
+  });
+
   it("renders pulse-guided assistant replies without redundant step labels", () => {
     render(
       <AgentChatPanel
@@ -367,6 +395,111 @@ describe("AgentChatPanel prompt actions", () => {
     );
 
     expect(messagesEl.scrollTop).toBe(1200);
+    expect(screen.getByTestId("footer-two")).toBeInTheDocument();
+  });
+
+  it("stops following history as soon as the user wheels upward during updates", () => {
+    let scrollHeightPx = 1000;
+    const sharedProps = {
+      messages: [{ id: "a-1", role: "assistant" as const, content: "Assistant output one." }],
+      input: "",
+      showInput: false,
+      onInputChange: vi.fn(),
+      onSend: vi.fn(),
+    };
+    const { container, rerender } = render(
+      <AgentChatPanel
+        {...sharedProps}
+        historyFooterContent={<div data-testid="footer-one">Loading</div>}
+      />
+    );
+    const messagesEl = container.querySelector(".agent-messages") as HTMLDivElement;
+    Object.defineProperty(messagesEl, "clientHeight", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(messagesEl, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeightPx,
+    });
+    Object.defineProperty(messagesEl, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 600,
+    });
+
+    fireEvent.wheel(messagesEl, { deltaY: -80 });
+    scrollHeightPx = 1200;
+    rerender(
+      <AgentChatPanel
+        {...sharedProps}
+        messages={[
+          { id: "a-1", role: "assistant" as const, content: "Assistant output one." },
+          { id: "a-2", role: "assistant" as const, content: "Assistant output two." },
+        ]}
+        historyFooterContent={<div data-testid="footer-two">Loading</div>}
+      />
+    );
+
+    expect(messagesEl.scrollTop).toBe(600);
+    expect(screen.getByTestId("footer-two")).toBeInTheDocument();
+  });
+
+  it("stops following history when the user starts dragging the scrollbar gutter", () => {
+    let scrollHeightPx = 1000;
+    const sharedProps = {
+      messages: [{ id: "a-1", role: "assistant" as const, content: "Assistant output one." }],
+      input: "",
+      showInput: false,
+      onInputChange: vi.fn(),
+      onSend: vi.fn(),
+    };
+    const { container, rerender } = render(
+      <AgentChatPanel
+        {...sharedProps}
+        historyFooterContent={<div data-testid="footer-one">Loading</div>}
+      />
+    );
+    const messagesEl = container.querySelector(".agent-messages") as HTMLDivElement;
+    Object.defineProperty(messagesEl, "clientHeight", {
+      configurable: true,
+      value: 400,
+    });
+    Object.defineProperty(messagesEl, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeightPx,
+    });
+    Object.defineProperty(messagesEl, "scrollTop", {
+      configurable: true,
+      writable: true,
+      value: 600,
+    });
+    vi.spyOn(messagesEl, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 400,
+      top: 0,
+      right: 640,
+      bottom: 400,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(messagesEl, { clientX: 634 });
+    scrollHeightPx = 1200;
+    rerender(
+      <AgentChatPanel
+        {...sharedProps}
+        messages={[
+          { id: "a-1", role: "assistant" as const, content: "Assistant output one." },
+          { id: "a-2", role: "assistant" as const, content: "Assistant output two." },
+        ]}
+        historyFooterContent={<div data-testid="footer-two">Loading</div>}
+      />
+    );
+
+    expect(messagesEl.scrollTop).toBe(600);
     expect(screen.getByTestId("footer-two")).toBeInTheDocument();
   });
 

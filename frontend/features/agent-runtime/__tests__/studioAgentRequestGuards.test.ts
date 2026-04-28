@@ -120,6 +120,76 @@ describe("studioAgentRequestGuards", () => {
     });
   });
 
+  it("strips Pulse and passive media context from Standard runtime requests", () => {
+    const context = sanitizeStudioAgentContext(
+      {
+        mode: "image",
+        modeHint: "chat",
+        focusedSource: "image",
+        focusedReferenceId: "leaked-pulse-image",
+        selectedReferenceIds: ["leaked-pulse-image"],
+        references: [
+          {
+            id: "leaked-pulse-image",
+            kind: "image",
+            promptSnippet: "Leaked Pulse image prompt",
+          },
+        ],
+        media: [
+          {
+            id: "leaked-pulse-image",
+            kind: "image",
+            url: "https://example.com/leaked-pulse-image.png",
+          },
+        ],
+        pulse: {
+          presetId: " pulse_story ",
+          label: " Story Builder ",
+          instructions: " Keep the structure easy to follow. ",
+        },
+      },
+      "standard"
+    );
+
+    expect(context.pulse).toBeNull();
+    expect(context.references).toEqual([]);
+    expect(context.media).toEqual([]);
+    expect(context.selectedReferenceIds).toEqual([]);
+    expect(context.focusedSource).toBe("agent-output");
+    expect(context.focusedReferenceId).toBeNull();
+  });
+
+  it("keeps explicitly referenced Standard media context", () => {
+    const context = sanitizeStudioAgentContext(
+      {
+        mode: "image",
+        modeHint: "reference",
+        focusedSource: "image",
+        focusedReferenceId: "attached-image",
+        selectedReferenceIds: ["attached-image"],
+        media: [
+          {
+            id: "attached-image",
+            kind: "image",
+            url: "https://example.com/attached-image.png",
+          },
+        ],
+      },
+      "standard"
+    );
+
+    expect(context.media).toEqual([
+      {
+        id: "attached-image",
+        kind: "image",
+        url: "https://example.com/attached-image.png",
+      },
+    ]);
+    expect(context.selectedReferenceIds).toEqual(["attached-image"]);
+    expect(context.focusedSource).toBe("image");
+    expect(context.focusedReferenceId).toBe("attached-image");
+  });
+
   it("resolves request byte limits by payload shape", () => {
     expect(resolveStudioAgentMaxRequestBytes({ context: { media: [] } })).toBe(
       STUDIO_AGENT_MAX_TEXT_REQUEST_BYTES

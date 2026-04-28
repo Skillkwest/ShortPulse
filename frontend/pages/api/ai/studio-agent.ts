@@ -112,6 +112,25 @@ Reply with:
 Reply with one option or type your own.`;
 const DIRECT_OPENAI_IMAGE_FALLBACK_TEXT =
   "Describe this image as a detailed production-ready prompt for image generation.";
+const DIRECT_OPENAI_WORKFLOW_IMAGE_RETRY_SYSTEM_PROMPT =
+  "The required image was attached to this workflow turn, but the vision provider could not read the image URL. Continue from workflow_session_state and ask the next required workflow question. Do not repeat the upload request.";
+
+const DIRECT_OPENAI_IMAGE_RETRY_DETAIL_PATTERNS: RegExp[] = [
+  /\bimage(?:_|\s)*url\b/i,
+  /\bimage\b/i,
+  /\bdownload\b/i,
+  /\bfetch\b/i,
+  /\baccess\b/i,
+  /\bunsupported\b/i,
+  /\binvalid\s+(?:url|image)\b/i,
+];
+const DIRECT_OPENAI_IMAGE_RETRY_BLOCKED_DETAIL_PATTERNS: RegExp[] = [
+  /\bcontent\s*policy\b/i,
+  /\bsafety\b/i,
+  /\bviolat(?:e|ion|ed|ing)?\b/i,
+  /\bblocked\b/i,
+  /\bdisallowed\b/i,
+];
 
 const resolveDirectOpenAiBypassEnabled = (env: NodeJS.ProcessEnv): boolean =>
   env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED === "true";
@@ -122,22 +141,31 @@ const resolveDirectOpenAiModel = (env: NodeJS.ProcessEnv): string =>
 const buildDirectOpenAiMessages = ({
   messages,
   context,
+  omitMedia = false,
+  supplementalSystemMessage,
 }: {
   messages: AgentMessage[];
   context: AgentContext;
+  omitMedia?: boolean;
+  supplementalSystemMessage?: string | null;
 }): OpenAiChatMessage[] => {
   const pulseSystemMessage = buildStudioAgentPulseSystemMessage(context.pulse);
   const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
-  const imageParts =
-    context.media
-      ?.filter((item) => item.kind === "image" && typeof item.url === "string" && item.url.length)
-      .map((item) => ({
-        type: "image_url" as const,
-        image_url: {
-          url: item.url as string,
-          detail: "high" as const,
-        },
-      })) ?? [];
+  const imageParts = omitMedia
+    ? []
+    : (context.media
+        ?.filter((item) => item.kind === "image" && typeof item.url === "string" && item.url.length)
+        .map((item) => ({
+          type: "image_url" as const,
+          image_url: {
+            url: item.url as string,
+            detail: "high" as const,
+          },
+        })) ?? []);
+  const supplementalSystemContent =
+    typeof supplementalSystemMessage === "string" && supplementalSystemMessage.trim().length > 0
+      ? supplementalSystemMessage.trim()
+      : null;
   const latestUserIndex = messages.reduce(
     (latestIndex, message, index) => (message.role === "user" ? index : latestIndex),
     -1
@@ -151,6 +179,9 @@ const buildDirectOpenAiMessages = ({
         : DIRECT_OPENAI_SYSTEM_PROMPT,
     },
     ...(pulseSystemMessage ? [{ role: "system" as const, content: pulseSystemMessage }] : []),
+    ...(supplementalSystemContent
+      ? [{ role: "system" as const, content: supplementalSystemContent }]
+      : []),
     ...messages.map((message, index): OpenAiChatMessage => {
       const role = message.role === "assistant" ? "assistant" : "user";
       if (index !== latestUserIndex || !imageParts.length || role !== "user") {
@@ -183,15 +214,20 @@ const extractDirectOpenAiResponse = ({
   const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
   const raw = choices?.[0]?.message?.content;
   if (isStudioAgentWorkflowPulse(pulse)) {
-    if (!hasStructuredJsonCandidates(raw)) {
-      return null;
-    }
-    const parsed = parseStudioAgentJsonWithStatus(raw);
+    const parsed = hasStructuredJsonCandidates(raw) ? parseStudioAgentJsonWithStatus(raw) : null;
     if (parsed?.response.message?.trim()) {
       return {
         message: parsed.response.message.trim(),
         actions: parsed.response.actions,
         semanticStatus: parsed.status ?? null,
+      };
+    }
+    const directMessage = sanitizeGenerationPromptText(extractStudioAgentCompletionText(raw));
+    if (directMessage?.trim().length) {
+      return {
+        message: directMessage.trim(),
+        actions: undefined,
+        semanticStatus: "needs_input",
       };
     }
     return null;
@@ -206,6 +242,36 @@ const extractDirectOpenAiResponse = ({
       applyPrompt: directMessage.trim(),
     },
   };
+};
+
+const hasDirectOpenAiImageMedia = (context: AgentContext): boolean =>
+  context.media?.some(
+    (item) => item.kind === "image" && typeof item.url === "string" && item.url.length > 0
+  ) ?? false;
+
+const shouldRetryDirectWorkflowWithoutMedia = ({
+  context,
+  detail,
+  status,
+}: {
+  context: AgentContext;
+  detail: string;
+  status: number;
+}): boolean => {
+  if (!isStudioAgentWorkflowPulse(context.pulse)) return false;
+  if (!hasDirectOpenAiImageMedia(context)) return false;
+  if (status === 429 || status >= 500) return false;
+  const normalizedDetail = detail.trim();
+  if (
+    DIRECT_OPENAI_IMAGE_RETRY_BLOCKED_DETAIL_PATTERNS.some((pattern) =>
+      pattern.test(normalizedDetail)
+    )
+  ) {
+    return false;
+  }
+  return DIRECT_OPENAI_IMAGE_RETRY_DETAIL_PATTERNS.some((pattern) =>
+    pattern.test(normalizedDetail)
+  );
 };
 
 const resolveDirectOpenAiBypassFlow = (
@@ -282,6 +348,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let context = requestEnvelope.value.context;
   const incomingCanonical = requestEnvelope.value.incomingCanonical;
   const directOpenAiBypassRequested = requestEnvelope.value.directOpenAiBypass;
+  const runtimeMode = requestEnvelope.value.runtimeMode;
 
   const directOpenAiBypassEnabled = resolveDirectOpenAiBypassEnabled(process.env);
   const safetyInputPrecheckEnabled =
@@ -302,8 +369,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
   const { openAiUrl, turnTimeoutMs } = openAiConfig;
   const directOpenAiModel = resolveDirectOpenAiModel(process.env);
+  const standardDirectOpenAiRequired = runtimeMode === "standard";
 
-  if (directOpenAiBypassEnabled && directOpenAiBypassRequested) {
+  if (standardDirectOpenAiRequired && !directOpenAiBypassEnabled) {
+    return sendStudioAgentError(res, 503, {
+      code: "AGENT_DISABLED",
+      message: "Standard mode requires the direct OpenAI route, but it is not enabled.",
+      traceId,
+    });
+  }
+
+  if (directOpenAiBypassEnabled && (directOpenAiBypassRequested || standardDirectOpenAiRequired)) {
     const directBypassFlow = resolveDirectOpenAiBypassFlow(context);
     const directSafetyModality = resolveSafetyModality({
       route: "studio-agent",
@@ -371,12 +447,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     effectiveCanonical = precheckResult.canonicalPrompt;
 
     const directOpenAiRoundTripStartedAt = Date.now();
+    let directRetryUsed = false;
     try {
       const directMessages = buildDirectOpenAiMessages({
         messages,
         context,
       });
-      const directResponse = await fetchStudioAgentChatCompletion({
+      let directResponse = await fetchStudioAgentChatCompletion({
         apiKey,
         openAiUrl,
         model: directOpenAiModel,
@@ -385,14 +462,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       markStage("direct_openai_roundtrip", directOpenAiRoundTripStartedAt);
 
+      let directFailureDetail: string | null = null;
+      let directFailureStatus: number | null = null;
       if (!directResponse.ok) {
         const detail = await directResponse.text();
+        directFailureDetail = detail;
+        directFailureStatus = directResponse.status;
+        if (
+          shouldRetryDirectWorkflowWithoutMedia({
+            context,
+            detail,
+            status: directResponse.status,
+          })
+        ) {
+          const textOnlyRetryStartedAt = Date.now();
+          const textOnlyRetryMessages = buildDirectOpenAiMessages({
+            messages,
+            context,
+            omitMedia: true,
+            supplementalSystemMessage: DIRECT_OPENAI_WORKFLOW_IMAGE_RETRY_SYSTEM_PROMPT,
+          });
+          const textOnlyRetryResponse = await fetchStudioAgentChatCompletion({
+            apiKey,
+            openAiUrl,
+            model: directOpenAiModel,
+            messages: textOnlyRetryMessages,
+            timeoutMs: turnTimeoutMs,
+          });
+          markStage("direct_openai_text_only_retry", textOnlyRetryStartedAt);
+          directRetryUsed = true;
+          if (textOnlyRetryResponse.ok) {
+            directResponse = textOnlyRetryResponse;
+          } else {
+            directFailureDetail = await textOnlyRetryResponse.text();
+            directFailureStatus = textOnlyRetryResponse.status;
+          }
+        }
+      }
+
+      if (!directResponse.ok) {
+        const detail = directFailureDetail ?? "";
+        const status = directFailureStatus ?? directResponse.status;
         const reasonCode = resolveInfraFallbackReasonCode({
-          status: directResponse.status,
+          status,
           detail,
         });
         const fallbackReason = resolveStudioAgentFallbackReasonLabel({
-          status: directResponse.status,
+          status,
           detail,
         });
         emitStudioAgentTurnTelemetry({
@@ -401,7 +517,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status: "success",
           model: directOpenAiModel,
           outcomeClass: "fallback_infra",
-          retryUsed: false,
+          retryUsed: directRetryUsed,
           reasonCode,
           totalLatencyMs: Date.now() - requestStartedAt,
           stageLatencyMs,
@@ -437,7 +553,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           status: "success",
           model: directOpenAiModel,
           outcomeClass: "fallback_infra",
-          retryUsed: false,
+          retryUsed: directRetryUsed,
           reasonCode: "INFRA_FALLBACK_OUTPUT_CONTRACT",
           totalLatencyMs: Date.now() - requestStartedAt,
           stageLatencyMs,
@@ -476,7 +592,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         status: "success",
         model: directOpenAiModel,
         outcomeClass: directOutcomeClass,
-        retryUsed: false,
+        retryUsed: directRetryUsed,
         reasonCode: directReasonCode,
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,

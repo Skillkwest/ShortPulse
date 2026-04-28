@@ -33,6 +33,19 @@ export const buildStudioAgentPulseActivationSeed = (
     pulse.starterAssistantMessage.trim().length > 0
       ? pulse.starterAssistantMessage.trim()
       : null;
+  const workflowSession = pulse.workflowSession ?? null;
+  const shouldContinueFromExistingWorkflow =
+    workflowSession?.status !== "completed" &&
+    typeof workflowSession?.currentStepIndex === "number" &&
+    workflowSession.currentStepIndex > 1;
+  if (shouldContinueFromExistingWorkflow) {
+    return [
+      `Pulse "${presetLabel}" was just activated.`,
+      "A required intake asset is already attached to this activation turn.",
+      "Continue from the active workflow_session_state and ask the next required workflow question.",
+      "Do not repeat the starter upload message.",
+    ].join("\n\n");
+  }
   return [
     `Pulse "${presetLabel}" was just activated.`,
     "Start the workflow now.",
@@ -301,6 +314,7 @@ export const buildStudioAgentPulseSystemMessage = (
     "If the latest user answer is non-empty and addresses the current step, do not repeat the same step verbatim.",
     "Accept the answer and continue, or ask one narrow clarification only if the answer is unusable.",
     "Continue from the active workflow_session_state.",
+    "If workflow_session_state.currentStepIndex is greater than 1, treat the starter/upload step as already satisfied.",
     "Do not restart from the first step, substitute a different workflow, or invent a new intake step unless the user explicitly asks to restart.",
     `preset_id: ${presetId}`,
     `preset_label: ${label}`,

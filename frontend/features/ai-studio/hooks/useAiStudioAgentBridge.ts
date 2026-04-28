@@ -184,6 +184,11 @@ const areAgentMessagesEqual = (left: AgentMessage[], right: AgentMessage[]): boo
       message.id === other?.id &&
       message.role === other?.role &&
       message.content === other?.content &&
+      (message.outputPrompt ?? null) === (other?.outputPrompt ?? null) &&
+      (message.canUseAsPrompt ?? null) === (other?.canUseAsPrompt ?? null) &&
+      (message.outcomeClass ?? null) === (other?.outcomeClass ?? null) &&
+      (message.reasonCode ?? null) === (other?.reasonCode ?? null) &&
+      (message.decision ?? null) === (other?.decision ?? null) &&
       areAgentAttachmentsEqual(message.attachments, other?.attachments)
     );
   });
@@ -299,6 +304,7 @@ export const useAiStudioAgentBridge = ({
   } = useAiAgent({
     enabled: agentEnabled,
     sessionNamespace: `ai-studio:${agentBridgeSessionKey}`,
+    runtimeMode: isPulseCreateMode ? "pulse" : "standard",
     directOpenAiBypassEnabled:
       chatModeEnabled &&
       directOpenAiBypassEnabled &&
@@ -311,6 +317,11 @@ export const useAiStudioAgentBridge = ({
   const [agentBridgeRuntimeStateBySessionKey, setAgentBridgeRuntimeStateBySessionKey] = useState<
     Record<string, AgentBridgeRuntimeState>
   >({});
+  const [agentBridgeHydrationRevision, setAgentBridgeHydrationRevision] = useState(0);
+  const agentBridgeRuntimeStateBySessionKeyRef = useRef(agentBridgeRuntimeStateBySessionKey);
+  useEffect(() => {
+    agentBridgeRuntimeStateBySessionKeyRef.current = agentBridgeRuntimeStateBySessionKey;
+  }, [agentBridgeRuntimeStateBySessionKey]);
   const createDefaultRuntimeState = useCallback(
     (options?: { forceChatModeEnabled?: boolean }) =>
       createDefaultAgentBridgeRuntimeState(
@@ -482,7 +493,7 @@ export const useAiStudioAgentBridge = ({
 
   useEffect(() => {
     const activeRuntimeState =
-      agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ??
+      agentBridgeRuntimeStateBySessionKeyRef.current[agentBridgeSessionKey] ??
       createDefaultRuntimeState({ forceChatModeEnabled: isPulseCreateMode ? true : undefined });
     agentUiBusyRef.current = false;
     setAgentUiBusy(false);
@@ -504,8 +515,8 @@ export const useAiStudioAgentBridge = ({
     }
     setIsAgentChatOpen(activeRuntimeState.isAgentChatOpen);
   }, [
-    agentBridgeRuntimeStateBySessionKey,
     agentBridgeSessionKey,
+    agentBridgeHydrationRevision,
     createDefaultRuntimeState,
     replaceMessages,
     setAgentAttachmentError,
@@ -704,21 +715,47 @@ export const useAiStudioAgentBridge = ({
     pulseSessionInstanceId,
   });
 
-  const { handleExpandChat, handleAgentAddToGrid, handleClearAgentChat, handleCloseAgentChat } =
-    useAiStudioAgentInteractions({
-      expertCreateMode,
-      setLatestAgentPrompt,
-      setPromptOrigin,
-      trackAgentUiEvent,
-      addAgentPromptReference,
-      setIsAgentChatOpen,
-      agentSessionEnabled,
-      setAgentSessionEnabled,
-      latestAgentPrompt: effectiveLatestAgentPrompt,
-      resetAgentChat,
-      resetAgentComposer,
-      clearPulseRuntime,
+  const {
+    handleExpandChat,
+    handleAgentAddToGrid,
+    handleClearAgentChat: clearAgentChatInteraction,
+    handleCloseAgentChat,
+  } = useAiStudioAgentInteractions({
+    expertCreateMode,
+    setLatestAgentPrompt,
+    setPromptOrigin,
+    trackAgentUiEvent,
+    addAgentPromptReference,
+    setIsAgentChatOpen,
+    agentSessionEnabled,
+    setAgentSessionEnabled,
+    latestAgentPrompt: effectiveLatestAgentPrompt,
+    resetAgentChat,
+    resetAgentComposer,
+    clearPulseRuntime,
+  });
+
+  const handleClearAgentChat = useCallback(() => {
+    clearAgentChatInteraction();
+    setAgentBridgeRuntimeStateBySessionKey((current) => {
+      const nextRuntimeState = createDefaultRuntimeState({
+        forceChatModeEnabled: isPulseCreateMode ? true : undefined,
+      });
+      const existingState = current[agentBridgeSessionKey] ?? createDefaultRuntimeState();
+      if (isAgentBridgeRuntimeStateEqual(existingState, nextRuntimeState)) {
+        return current;
+      }
+      return {
+        ...current,
+        [agentBridgeSessionKey]: nextRuntimeState,
+      };
     });
+  }, [
+    agentBridgeSessionKey,
+    clearAgentChatInteraction,
+    createDefaultRuntimeState,
+    isPulseCreateMode,
+  ]);
 
   const handlePulsePresetRestart = useCallback(
     async (preset: CreatePulseResolvedPreset) => {
@@ -787,9 +824,25 @@ export const useAiStudioAgentBridge = ({
       if (!commitContent) return false;
 
       const didUpdate = updateMessageById(messageId, (message) =>
-        message.role === "assistant" ? { ...message, content: commitContent } : message
+        message.role === "assistant"
+          ? {
+              ...message,
+              content: commitContent,
+              ...(message.canUseAsPrompt !== false ? { outputPrompt: commitContent } : {}),
+            }
+          : message
       );
       if (didUpdate) {
+        const latestEditableAssistantId = [...agentMessages]
+          .reverse()
+          .find((message) => message.role === "assistant" && message.canUseAsPrompt !== false)?.id;
+        if (latestEditableAssistantId === messageId) {
+          setLatestAgentPrompt(commitContent);
+          setPromptOrigin("agent");
+          if (!isPulseCreateMode && (selectedTool === "create" || selectedTool === "text")) {
+            setSharedPrompt(commitContent);
+          }
+        }
         trackAgentUiEvent("studio_agent_message_edit_committed", {
           message_id: messageId,
           content_length: commitContent.length,
@@ -797,7 +850,16 @@ export const useAiStudioAgentBridge = ({
       }
       return didUpdate;
     },
-    [agentMessages, trackAgentUiEvent, updateMessageById]
+    [
+      agentMessages,
+      isPulseCreateMode,
+      selectedTool,
+      setLatestAgentPrompt,
+      setPromptOrigin,
+      setSharedPrompt,
+      trackAgentUiEvent,
+      updateMessageById,
+    ]
   );
 
   const hydrateFromSessionAgentSnapshot = useCallback(
@@ -835,6 +897,7 @@ export const useAiStudioAgentBridge = ({
           ...nextStateBySessionKey,
         };
       });
+      setAgentBridgeHydrationRevision((current) => current + 1);
       setPulseWorkflowSession(
         pulsePresetId && restoredPulseSessionInstanceId
           ? (agentRuntimes.pulse.pulseWorkflowSession ?? agent.pulseWorkflowSession ?? null)

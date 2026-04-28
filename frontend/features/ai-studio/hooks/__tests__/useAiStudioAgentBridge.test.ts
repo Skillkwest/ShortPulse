@@ -448,7 +448,7 @@ describe("useAiStudioAgentBridge", () => {
     const { result } = renderHook(() => useAiStudioAgentBridge(createBridgeParams()));
 
     expect(useAiAgentMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ directOpenAiBypassEnabled: true })
+      expect.objectContaining({ directOpenAiBypassEnabled: true, runtimeMode: "standard" })
     );
     expect(result.current.directOpenAiBypassEnabled).toBe(true);
   });
@@ -511,7 +511,7 @@ describe("useAiStudioAgentBridge", () => {
     );
 
     expect(useAiAgentMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ directOpenAiBypassEnabled: false })
+      expect.objectContaining({ directOpenAiBypassEnabled: false, runtimeMode: "pulse" })
     );
     expect(result.current.directOpenAiBypassEnabled).toBe(false);
   });
@@ -801,9 +801,7 @@ describe("useAiStudioAgentBridge", () => {
     currentMessages = [{ id: "user-1", role: "user", content: "Make it cinematic." }];
     rerender();
 
-    await waitFor(() => {
-      expect(replaceMessages).toHaveBeenLastCalledWith(currentMessages);
-    });
+    expect(replaceMessages).not.toHaveBeenCalled();
 
     replaceMessages.mockClear();
     currentMessages = [
@@ -816,10 +814,7 @@ describe("useAiStudioAgentBridge", () => {
       setIsAgentChatOpenFromInteractions?.(true);
     });
 
-    await waitFor(() => {
-      expect(replaceMessages).toHaveBeenCalled();
-      expect(replaceMessages).toHaveBeenLastCalledWith(currentMessages);
-    });
+    expect(replaceMessages).not.toHaveBeenCalled();
   });
 
   it("preserves newly arrived assistant history when UI-state setters run before runtime sync catches up", async () => {

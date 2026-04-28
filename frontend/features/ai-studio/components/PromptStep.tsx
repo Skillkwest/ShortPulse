@@ -146,14 +146,6 @@ export function PromptStep({
     onAgentEnhanceSend();
   };
 
-  const handleAgentInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey || agentIsSending || !chatModeEnabled) return;
-    event.preventDefault();
-    onAgentSend?.();
-    // Keep focus in the composer so the user can immediately type the next message.
-    requestAnimationFrame(() => agentInputRef.current?.focus());
-  };
-
   const canExpandInlineChat = agentMessages.length > 0;
   const canUsePromptSurface = agentEnabled || enhanceOnly;
   const isChatMode = !promptOnly && !enhanceOnly && (chatOnly || promptMode === "chat");
@@ -167,9 +159,16 @@ export function PromptStep({
   );
   const visibleSubtitle = beginnerMode ? beginnerSubtitle : subtitle;
   const canPinAgentInput = effectiveComposerInput.trim().length > 0;
-  const shouldDisableChatPin = chatPromptSaveButtonUnstyled
-    ? false
-    : shouldDisableSave || !canPinAgentInput;
+  const shouldDisableChatPin = shouldDisableSave || !canPinAgentInput;
+  const canSendAgentInput =
+    chatModeEnabled && (effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0);
+  const handleAgentInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter" || event.shiftKey || agentIsSending || !canSendAgentInput) return;
+    event.preventDefault();
+    onAgentSend?.();
+    // Keep focus in the composer so the user can immediately type the next message.
+    requestAnimationFrame(() => agentInputRef.current?.focus());
+  };
   const showBeginnerChatPinTip = Boolean(beginnerMode && chatOnly && beginnerPinHelperText);
   const dropToInputComposer = agentAttachmentDropTarget === "input";
   const imageAttachmentCounts = React.useMemo(() => {
@@ -192,7 +191,7 @@ export function PromptStep({
     };
   }, [stagedAttachments]);
   const handleAgentSendClick = () => {
-    if (!chatModeEnabled) return;
+    if (!canSendAgentInput) return;
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());
   };

@@ -652,7 +652,7 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    expect(screen.getByText("Starting Story Builder")).toBeInTheDocument();
+    expect(screen.getByText("Generating...")).toBeInTheDocument();
     expect(screen.queryByText("Preparing your guided workflow...")).not.toBeInTheDocument();
     expect(screen.queryByText("Upload Characters")).not.toBeInTheDocument();
     expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
@@ -670,7 +670,7 @@ describe("CreatePropertiesPanel", () => {
       activePulsePresetId: "image",
       pulseLoadingState: {
         phase: "generating_step",
-        title: "Generating next step...",
+        title: "Generating...",
         message: "Building the next instruction for Camera Motion.",
         presetLabel: "Video Prompt Magic",
         stepLabel: "Camera Motion",
@@ -692,7 +692,7 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    expect(screen.getByText("Generating next step...")).toBeInTheDocument();
+    expect(screen.getByText("Generating...")).toBeInTheDocument();
     expect(
       screen.queryByText("Building the next instruction for Camera Motion.")
     ).not.toBeInTheDocument();
@@ -874,7 +874,7 @@ describe("CreatePropertiesPanel", () => {
       activePulsePresetId: "image",
       pulseLoadingState: {
         phase: "starting_pulse",
-        title: "Starting Video Prompt Magic",
+        title: "Generating...",
         message: "Preparing your guided workflow...",
         presetLabel: "Video Prompt Magic",
         stepLabel: "Image Gate",

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildStudioAgentPulseActivationSeed,
   buildStudioAgentPulseSystemMessage,
   buildStudioAgentWorkflowSessionUpdate,
   resolveLatestStudioAgentUserInput,
@@ -117,7 +118,34 @@ describe("studioAgentPulseRuntime", () => {
     );
     expect(systemMessage).toContain("Continue from the active workflow_session_state.");
     expect(systemMessage).toContain(
+      "If workflow_session_state.currentStepIndex is greater than 1, treat the starter/upload step as already satisfied."
+    );
+    expect(systemMessage).toContain(
       "Do not restart from the first step, substitute a different workflow, or invent a new intake step unless the user explicitly asks to restart."
     );
+  });
+
+  it("does not force the starter upload reply when activation already has an image-satisfied workflow session", () => {
+    const activationSeed = buildStudioAgentPulseActivationSeed({
+      presetId: "image",
+      label: "Video Prompt Magic",
+      instructions: "Follow the guided video workflow.",
+      starterAssistantMessage: "Upload your image to get the process started :)",
+      workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection"],
+      workflowSession: {
+        presetId: "image",
+        status: "running",
+        currentStepIndex: 2,
+        currentStepLabel: "Camera Motion",
+        currentStepPrompt: null,
+        collectedInputs: ["Uploaded image attached"],
+        lastArtifact: null,
+        finalArtifactSource: null,
+      },
+    });
+
+    expect(activationSeed).toContain("Continue from the active workflow_session_state");
+    expect(activationSeed).toContain("Do not repeat the starter upload message.");
+    expect(activationSeed).not.toContain("Your first assistant reply must be exactly this");
   });
 });

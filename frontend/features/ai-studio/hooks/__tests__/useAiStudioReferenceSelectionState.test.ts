@@ -39,6 +39,53 @@ describe("useAiStudioReferenceSelectionState", () => {
     );
   });
 
+  it("keeps reference inputs isolated by authority key", () => {
+    const { result, rerender } = renderHook(
+      ({ authorityKey }: { authorityKey: string }) =>
+        useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
+      {
+        initialProps: { authorityKey: "session:test::create-mode:standard" },
+      }
+    );
+
+    act(() => {
+      result.current.setReferenceImageUrl("https://example.com/standard-ref.png");
+      result.current.setExtraImageUrl(0, "https://example.com/standard-extra.png");
+      result.current.setSelectedTool("video");
+    });
+
+    rerender({ authorityKey: "session:test::create-mode:pulse" });
+
+    expect(result.current.selectedTool).toBe("create");
+    expect(result.current.referenceImageUrl).toBeNull();
+    expect(result.current.extraImageUrls).toEqual([null, null, null]);
+
+    act(() => {
+      result.current.setReferenceImageUrl("https://example.com/pulse-ref.png");
+      result.current.setExtraImageUrl(1, "https://example.com/pulse-extra.png");
+    });
+
+    rerender({ authorityKey: "session:test::create-mode:standard" });
+
+    expect(result.current.selectedTool).toBe("video");
+    expect(result.current.referenceImageUrl).toBeNull();
+    expect(result.current.extraImageUrls).toEqual([null, null, null]);
+    expect(result.current.resolveReferenceInputsForTool("edit")).toEqual({
+      referenceImageUrl: "https://example.com/standard-ref.png",
+      extraImageUrls: ["https://example.com/standard-extra.png", null, null],
+    });
+
+    rerender({ authorityKey: "session:test::create-mode:pulse" });
+
+    expect(result.current.selectedTool).toBe("create");
+    expect(result.current.referenceImageUrl).toBe("https://example.com/pulse-ref.png");
+    expect(result.current.extraImageUrls).toEqual([
+      null,
+      "https://example.com/pulse-extra.png",
+      null,
+    ]);
+  });
+
   it("only toggles reference indicator when there is an active preview", () => {
     const { result, rerender } = renderHook(
       ({ preview }: { preview: string | null }) =>

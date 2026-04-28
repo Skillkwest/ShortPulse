@@ -16,6 +16,7 @@ import type { LibraryMediaFileType } from "../reference-ingestion/types";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 
 type UseAiStudioReferenceIngestionActionsArgs = {
+  activeOutput?: StudioOutput | null;
   mode: StudioMode;
   aspect: string;
   model: string | null;
@@ -69,11 +70,13 @@ type UseAiStudioReferenceIngestionActionsResult = {
   getAgentContext: (options?: {
     lastAssistantMessage?: string | null;
     selectedOverride?: StudioOutput | null;
+    includeActiveOutput?: boolean;
     modeHint?: "chat" | "text" | "describe" | "reference";
   }) => AgentContext;
 };
 
 export const useAiStudioReferenceIngestionActions = ({
+  activeOutput = null,
   mode,
   aspect,
   model,
@@ -316,17 +319,22 @@ export const useAiStudioReferenceIngestionActions = ({
     (options?: {
       lastAssistantMessage?: string | null;
       selectedOverride?: StudioOutput | null;
+      includeActiveOutput?: boolean;
       modeHint?: "chat" | "text" | "describe" | "reference";
     }): AgentContext => {
+      const selected =
+        options?.selectedOverride === null
+          ? null
+          : (options?.selectedOverride ?? (options?.includeActiveOutput ? activeOutput : null));
       return buildAiStudioAgentContext({
-        selected: options?.selectedOverride ?? null,
+        selected,
         model,
         mode,
         lastAssistantMessage: options?.lastAssistantMessage ?? null,
         modeHint: options?.modeHint,
       });
     },
-    [model, mode]
+    [activeOutput, model, mode]
   );
 
   return {

@@ -18,10 +18,23 @@ export const appendUiMessage = (messages: AgentMessage[], message: AgentMessage)
  */
 export const appendAssistantMessage = (
   messages: AgentMessage[],
-  message: { id: string; content: string }
+  message: Pick<AgentMessage, "id" | "content"> &
+    Pick<
+      AgentMessage,
+      "outputPrompt" | "canUseAsPrompt" | "outcomeClass" | "reasonCode" | "decision"
+    >
 ): AgentMessage[] => [
   ...messages.slice(-(MAX_UI_MESSAGES - 1)),
-  { id: message.id, role: "assistant", content: message.content },
+  {
+    id: message.id,
+    role: "assistant",
+    content: message.content,
+    ...(message.outputPrompt !== undefined ? { outputPrompt: message.outputPrompt } : {}),
+    ...(message.canUseAsPrompt !== undefined ? { canUseAsPrompt: message.canUseAsPrompt } : {}),
+    ...(message.outcomeClass !== undefined ? { outcomeClass: message.outcomeClass } : {}),
+    ...(message.reasonCode !== undefined ? { reasonCode: message.reasonCode } : {}),
+    ...(message.decision !== undefined ? { decision: message.decision } : {}),
+  },
 ];
 
 /**
@@ -68,6 +81,9 @@ export const buildApiMessagesForTurn = ({
   const normalizedHistory = baseHistory.reduce<AgentApiMessage[]>((acc, message) => {
     const normalizedContent = message.content.trim();
     if (!normalizedContent) {
+      return acc;
+    }
+    if (message.role === "assistant" && message.canUseAsPrompt === false) {
       return acc;
     }
     if (message.role === "user" || message.role === "assistant") {

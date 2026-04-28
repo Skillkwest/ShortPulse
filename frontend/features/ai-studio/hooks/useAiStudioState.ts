@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import { StudioOutput } from "../types";
 import { listVisibleGeneratedOutputs } from "../logic/generatedMediaAuthority";
@@ -31,6 +38,12 @@ import {
   createEmptyReferenceProjectionState,
   type ReferenceProjectionState,
 } from "../reference-projections";
+
+type AiStudioRuntimeUiState = {
+  activeOutputId: string | null;
+  referenceProjectionState: ReferenceProjectionState;
+  saved: boolean;
+};
 
 const isPlainSessionGeneratedOutputHydrationEnabled = (): boolean =>
   process.env.NEXT_PUBLIC_AI_STUDIO_PLAIN_SESSION_GENERATED_OUTPUT_HYDRATION_ENABLED === "true";
@@ -139,7 +152,7 @@ export const useAiStudioState = ({
     projectRouteRequested,
   });
 
-  const runtimeAuthorityKey =
+  const baseRuntimeAuthorityKey =
     projectRouteRequested && !projectId
       ? "project:pending"
       : projectId
@@ -147,6 +160,7 @@ export const useAiStudioState = ({
         : sessionId
           ? `session:${sessionId}`
           : "session:pending";
+  const runtimeAuthorityKey = `${baseRuntimeAuthorityKey}::create-mode:${expertCreateMode}`;
 
   const {
     activeOutputState,
@@ -159,6 +173,7 @@ export const useAiStudioState = ({
     activeOutputById,
     setOutputsState,
     setArchivedOutputs,
+    setOutputCollectionsForAuthority,
   } = useAiStudioOutputCollectionState({
     authorityKey: runtimeAuthorityKey,
   });
@@ -173,19 +188,77 @@ export const useAiStudioState = ({
   const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
   const sessionHydrationSigningRevisionRef = useRef(0);
   const canonicalGeneratedHydrationStartedRef = useRef(false);
+  const activeBaseRuntimeAuthorityKeyRef = useRef(baseRuntimeAuthorityKey);
   const activeRuntimeAuthorityKeyRef = useRef(runtimeAuthorityKey);
+  const runtimeUiStateByAuthorityKeyRef = useRef<Record<string, AiStudioRuntimeUiState>>({});
+
+  const getRuntimeAuthorityKeyForCreateMode = useCallback(
+    (createMode: "standard" | "pulse") => `${baseRuntimeAuthorityKey}::create-mode:${createMode}`,
+    [baseRuntimeAuthorityKey]
+  );
+
+  const setRuntimeUiStateForCreateMode = useCallback(
+    (createMode: "standard" | "pulse", nextState: AiStudioRuntimeUiState) => {
+      const targetAuthorityKey = getRuntimeAuthorityKeyForCreateMode(createMode);
+      runtimeUiStateByAuthorityKeyRef.current[targetAuthorityKey] = nextState;
+      if (activeRuntimeAuthorityKeyRef.current !== targetAuthorityKey) return;
+      setActiveOutputId(nextState.activeOutputId);
+      setReferenceProjectionState(nextState.referenceProjectionState);
+      setSaved(nextState.saved);
+    },
+    [getRuntimeAuthorityKeyForCreateMode]
+  );
+
+  const setOutputCollectionsForCreateMode = useCallback(
+    (
+      createMode: "standard" | "pulse",
+      activeRows: StudioOutput[],
+      archivedRows: StudioOutput[]
+    ) => {
+      setOutputCollectionsForAuthority(
+        getRuntimeAuthorityKeyForCreateMode(createMode),
+        activeRows,
+        archivedRows
+      );
+    },
+    [getRuntimeAuthorityKeyForCreateMode, setOutputCollectionsForAuthority]
+  );
 
   useEffect(() => {
     if (activeRuntimeAuthorityKeyRef.current === runtimeAuthorityKey) return;
+    const previousRuntimeAuthorityKey = activeRuntimeAuthorityKeyRef.current;
+    runtimeUiStateByAuthorityKeyRef.current[previousRuntimeAuthorityKey] = {
+      activeOutputId,
+      referenceProjectionState,
+      saved,
+    };
+    const baseAuthorityChanged =
+      activeBaseRuntimeAuthorityKeyRef.current !== baseRuntimeAuthorityKey;
+    if (baseAuthorityChanged) {
+      activeBaseRuntimeAuthorityKeyRef.current = baseRuntimeAuthorityKey;
+      canonicalGeneratedHydrationStartedRef.current = false;
+    }
     activeRuntimeAuthorityKeyRef.current = runtimeAuthorityKey;
-    setActiveOutputId(null);
-    setReferenceProjectionState(createEmptyReferenceProjectionState());
+    const restoredState = baseAuthorityChanged
+      ? null
+      : (runtimeUiStateByAuthorityKeyRef.current[runtimeAuthorityKey] ?? null);
+    /* eslint-disable react-hooks/set-state-in-effect -- mode authority switches intentionally restore active selection and quick-slot state for the target lane. */
+    setActiveOutputId(restoredState?.activeOutputId ?? null);
+    setReferenceProjectionState(
+      restoredState?.referenceProjectionState ?? createEmptyReferenceProjectionState()
+    );
     pendingAutoSavesRef.current = {};
     pendingFinalizeRemovalIdsRef.current = new Set();
     sessionHydrationSigningRevisionRef.current += 1;
-    canonicalGeneratedHydrationStartedRef.current = false;
-    setSaved(false);
-  }, [runtimeAuthorityKey]);
+    setSaved(restoredState?.saved ?? false);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [
+    activeOutputId,
+    baseRuntimeAuthorityKey,
+    referenceProjectionState,
+    runtimeAuthorityKey,
+    saved,
+  ]);
 
   const {
     activeOutput,
@@ -198,6 +271,11 @@ export const useAiStudioState = ({
     outputs,
     archivedOutputs,
   });
+  const singleImageContextOutput = (() => {
+    if (activeOutput) return activeOutput;
+    const imageOutputs = outputs.filter((output) => output.mode === "image" && output.previewUrl);
+    return imageOutputs.length === 1 ? (imageOutputs[0] ?? null) : null;
+  })();
   const {
     selectedTool,
     setSelectedTool,
@@ -233,6 +311,7 @@ export const useAiStudioState = ({
     closeModelModal,
   } = useAiStudioReferenceSelectionState({
     activeOutputPreviewUrl,
+    authorityKey: runtimeAuthorityKey,
   });
 
   const { detailOutput, currentModelLabel, isPrimaryEditStageGenerating } =
@@ -445,7 +524,6 @@ export const useAiStudioState = ({
     handleReferenceOutputMediaLoaded,
     hydrateFromSessionSnapshot,
     insertOptimisticGenerationPlaceholder,
-    pulseWorkspaceState,
     regenerateOutput,
     removeOptimisticGenerationPlaceholder,
     rerollOutputFromReplay,
@@ -493,7 +571,6 @@ export const useAiStudioState = ({
     selectedStylePrompt,
     selectedTool,
     sessionHydrationSigningRevisionRef,
-    setActiveOutputId,
     setActivePulsePresetId: setActivePulsePresetId ?? (() => undefined),
     setArchivedOutputs,
     setAspect,
@@ -512,13 +589,14 @@ export const useAiStudioState = ({
     setMode,
     setModel: setModelState,
     setMotionReferenceVideoUrl,
+    setOutputCollectionsForCreateMode,
     setOutputs,
     setOutputsState,
     setPanelGenerating,
     setPulseCreatePrompt,
     setPulseSessionInstanceId: setPulseSessionInstanceId ?? (() => undefined),
     setReferenceImageUrl,
-    setReferenceProjectionState,
+    setRuntimeUiStateForCreateMode,
     setSaved,
     setSeedance2InputMode,
     setSeedance2ReferenceAudioUrls,
@@ -568,6 +646,7 @@ export const useAiStudioState = ({
     selectOutputById,
     subscribeOutputs,
   } = useAiStudioStateSupportControllers({
+    activeOutput: singleImageContextOutput,
     archivedOutputs,
     aspect,
     mode,

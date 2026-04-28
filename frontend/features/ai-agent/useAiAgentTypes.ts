@@ -7,6 +7,7 @@ import type {
   AgentMessage,
   AgentPulseWorkflowSession,
   AgentResponse,
+  AgentRuntimeMode,
 } from "../../prefabs/agent";
 
 export type UseAiAgentOptions = {
@@ -15,6 +16,7 @@ export type UseAiAgentOptions = {
   conversationId?: string;
   sessionNamespace?: string;
   directOpenAiBypassEnabled?: boolean;
+  runtimeMode?: AgentRuntimeMode;
 };
 
 export type SendParams = {

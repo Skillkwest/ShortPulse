@@ -188,6 +188,8 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
       allowSharedPromptFallback: true,
     })
   );
+  const canSendAgentInput =
+    chatModeEnabled && (agentInput.trim().length > 0 || stagedAttachments.length > 0);
   const hasInsideInputSendButton = embedSendButtonInInput && chatModeEnabled;
   const hasInlineGenerateAction = !chatModeEnabled && Boolean(chatModeInlineGenerate?.onGenerate);
   const inlineGenerateDisabled =
@@ -223,15 +225,16 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     [onAgentInputVisualRowCountChange]
   );
 
+  const pulseLoadingTitle = "Generating...";
   const pulseLoadingContent = pulseLoadingState ? (
     <div
       className={`create-expert-pulse-loading-card is-${pulseLoadingState.phase.replace("_", "-")}`}
       role="status"
       aria-live="polite"
-      aria-label={pulseLoadingState.title}
+      aria-label={pulseLoadingTitle}
     >
       <span className="create-expert-pulse-loading-spinner" aria-hidden="true" />
-      <p className="create-expert-pulse-loading-card-title">{pulseLoadingState.title}</p>
+      <p className="create-expert-pulse-loading-card-title">{pulseLoadingTitle}</p>
     </div>
   ) : null;
 
@@ -274,7 +277,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
         disableOutputGenerate={disableOutputGenerate}
         outputGenerateCostCredits={outputGenerateCostCredits}
         outputGenerateGuardrailReason={outputGenerateGuardrailReason}
-        hideOutputGenerateControls={hideOutputGenerateControls}
+        hideOutputGenerateControls={hideOutputGenerateControls || !chatModeEnabled}
       />
     </div>
   ) : null;
@@ -364,7 +367,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
       {hasInsideInputSendButton ? (
         <AgentSendButton
           onClick={handleAgentSendClick}
-          disabled={agentBootstrapPending || !chatModeEnabled || agentIsSending}
+          disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending}
           loading={agentIsSending}
           ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
           icon="arrow-up"
@@ -398,7 +401,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     !embedSendButtonInInput && chatModeEnabled ? (
       <AgentSendButton
         onClick={handleAgentSendClick}
-        disabled={agentBootstrapPending || !chatModeEnabled || agentIsSending}
+        disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending}
         loading={agentIsSending}
         ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
         label="Send"

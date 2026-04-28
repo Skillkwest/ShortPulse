@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
-import type { AgentContext, AgentMessage } from "../../prefabs/agent";
+import type { AgentContext, AgentMessage, AgentRuntimeMode } from "../../prefabs/agent";
 import type {
   AgentMachineOutcomeFields,
   AgentReasonCode,
@@ -44,6 +44,7 @@ type StudioAgentRequestEnvelopeSuccess = {
     context: AgentContext;
     incomingCanonical: string | null;
     directOpenAiBypass: boolean;
+    runtimeMode: AgentRuntimeMode | null;
   };
 };
 
@@ -198,15 +199,34 @@ export const parseStudioAgentRequestEnvelope = ({
     typeof req.body?.canonicalPrompt === "string" && req.body.canonicalPrompt.trim().length
       ? (sanitizeGenerationPromptText(req.body.canonicalPrompt.trim()) ?? null)
       : null;
+  const rawRuntimeMode = req.body?.runtimeMode;
+  const runtimeMode =
+    rawRuntimeMode === "standard" || rawRuntimeMode === "pulse" ? rawRuntimeMode : null;
+  if (rawRuntimeMode !== undefined && runtimeMode === null) {
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        code: "INVALID_REQUEST",
+        message: "runtimeMode must be either standard or pulse",
+        details: {
+          runtimeMode: rawRuntimeMode,
+          allowedModes: ["standard", "pulse"],
+        },
+        traceId,
+      },
+    };
+  }
 
   return {
     ok: true,
     value: {
       clientSessionKey: parsedSessionKey.sessionKey,
       messages: parsedMessages.messages,
-      context: sanitizeStudioAgentContext(req.body?.context),
+      context: sanitizeStudioAgentContext(req.body?.context, runtimeMode),
       incomingCanonical,
       directOpenAiBypass: req.body?.directOpenAiBypass === true,
+      runtimeMode,
     },
   };
 };

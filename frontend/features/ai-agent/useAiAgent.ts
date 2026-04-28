@@ -8,9 +8,8 @@ import type {
   AgentApiRequest,
   AgentAttachment,
   AgentMessage,
-  AgentPulseWorkflowSession,
 } from "../../prefabs/agent";
-import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
+import { removeAspectRatioLanguage } from "../agent-core/promptText";
 import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
   runStudioAgentSafetyInputPrecheck,
@@ -46,12 +45,47 @@ import {
 const createAgentMessageId = (role: "user" | "assistant") => `agent-${role}-${randomId()}`;
 const cloneAgentAttachments = (attachments: AgentAttachment[] = []): AgentAttachment[] =>
   attachments.map((attachment) => ({ ...attachment }));
+const areAgentMessagesEqual = (left: AgentMessage[], right: AgentMessage[]): boolean => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  return left.every((message, index) => {
+    const other = right[index];
+    if (!other) return false;
+    const leftAttachments = message.attachments ?? [];
+    const rightAttachments = other.attachments ?? [];
+    return (
+      message.id === other.id &&
+      message.role === other.role &&
+      message.content === other.content &&
+      (message.outputPrompt ?? null) === (other.outputPrompt ?? null) &&
+      (message.canUseAsPrompt ?? null) === (other.canUseAsPrompt ?? null) &&
+      (message.outcomeClass ?? null) === (other.outcomeClass ?? null) &&
+      (message.reasonCode ?? null) === (other.reasonCode ?? null) &&
+      (message.decision ?? null) === (other.decision ?? null) &&
+      leftAttachments.length === rightAttachments.length &&
+      leftAttachments.every((attachment, attachmentIndex) => {
+        const otherAttachment = rightAttachments[attachmentIndex];
+        return (
+          attachment.id === otherAttachment?.id &&
+          attachment.kind === otherAttachment?.kind &&
+          (attachment.referenceId ?? null) === (otherAttachment?.referenceId ?? null) &&
+          (attachment.text ?? null) === (otherAttachment?.text ?? null) &&
+          (attachment.imageUrl ?? null) === (otherAttachment?.imageUrl ?? null) &&
+          (attachment.aspect ?? null) === (otherAttachment?.aspect ?? null) &&
+          (attachment.deliveryStatus ?? null) === (otherAttachment?.deliveryStatus ?? null) &&
+          (attachment.deliveryError ?? null) === (otherAttachment?.deliveryError ?? null)
+        );
+      })
+    );
+  });
+};
 export const useAiAgent = ({
   initialMessages = EMPTY_MESSAGES,
   enabled = true,
   conversationId,
   sessionNamespace = "ai-studio-default",
   directOpenAiBypassEnabled = false,
+  runtimeMode = "standard",
 }: UseAiAgentOptions = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>(initialMessages);
   const [isSending, setIsSending] = useState(false);
@@ -190,6 +224,10 @@ export const useAiAgent = ({
           const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
             id: createAgentMessageId("assistant"),
             content: SAFETY_REFUSAL_MESSAGE,
+            canUseAsPrompt: false,
+            outcomeClass: "refusal_safety",
+            reasonCode: "SAFETY_INPUT_REFUSAL",
+            decision: "refuse",
           });
           setMessages(nextAssistantMessages);
           messagesRef.current = nextAssistantMessages;
@@ -219,6 +257,7 @@ export const useAiAgent = ({
           traceId: `agent-${randomId()}`,
           canonicalPrompt: inputPrecheckResult.canonicalPrompt,
           directOpenAiBypass: directOpenAiBypassEnabled,
+          runtimeMode,
         };
         const transportResult = await sendStudioAgentTurn(body);
         if (isStaleRequest()) {
@@ -230,6 +269,10 @@ export const useAiAgent = ({
             const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
               id: createAgentMessageId("assistant"),
               content: failureResolution.assistantMessage,
+              canUseAsPrompt: false,
+              outcomeClass: failureResolution.response?.outcome_class ?? null,
+              reasonCode: failureResolution.response?.reason_code ?? null,
+              decision: failureResolution.response?.decision ?? null,
             });
             setMessages(nextAssistantMessages);
             messagesRef.current = nextAssistantMessages;
@@ -250,8 +293,13 @@ export const useAiAgent = ({
         }
 
         const data = transportResult.data;
-        const { actions, workflowSession, canonicalPrompt, assistantContent } =
-          resolveStudioAgentTransportSuccess(data);
+        const {
+          actions,
+          workflowSession,
+          canonicalPrompt,
+          assistantContent,
+          assistantOutputPrompt,
+        } = resolveStudioAgentTransportSuccess(data);
         if (canonicalPrompt) {
           canonicalPromptBySessionIdentityRef.current.set(requestSessionIdentity, canonicalPrompt);
         }
@@ -260,6 +308,16 @@ export const useAiAgent = ({
           const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
             id: createAgentMessageId("assistant"),
             content: assistantContent,
+            outputPrompt: assistantOutputPrompt,
+            canUseAsPrompt:
+              data.outcome_class === "fallback_infra" || data.outcome_class === "refusal_safety"
+                ? false
+                : assistantOutputPrompt
+                  ? true
+                  : undefined,
+            outcomeClass: data.outcome_class ?? null,
+            reasonCode: data.reason_code ?? null,
+            decision: data.decision ?? null,
           });
           setMessages(nextAssistantMessages);
           messagesRef.current = nextAssistantMessages;
@@ -289,7 +347,7 @@ export const useAiAgent = ({
         setIsSending(false);
       }
     },
-    [conversationId, directOpenAiBypassEnabled, enabled, sessionNamespace]
+    [conversationId, directOpenAiBypassEnabled, enabled, runtimeMode, sessionNamespace]
   );
 
   const state = useMemo(
@@ -324,6 +382,10 @@ export const useAiAgent = ({
   );
 
   const replaceMessages = useCallback((nextMessages: AgentMessage[]) => {
+    if (areAgentMessagesEqual(messagesRef.current, nextMessages)) {
+      setError(null);
+      return;
+    }
     setMessages(nextMessages);
     messagesRef.current = nextMessages;
     setError(null);

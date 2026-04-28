@@ -25,6 +25,7 @@ const PROMPT_DRAG_GHOST_MAX_WIDTH_PX = 360;
 const PROMPT_DRAG_GHOST_MAX_HEIGHT_PX = 220;
 const STAGED_AGENT_OUTPUT_MESSAGE_ID = "staged-agent-output";
 const CHAT_HISTORY_FOLLOW_THRESHOLD_PX = 24;
+const CHAT_HISTORY_SCROLLBAR_INTENT_GUTTER_PX = 24;
 const promptDragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 
 const clearPromptDragGhost = (source: HTMLElement) => {
@@ -190,6 +191,38 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
       messagesEl.scrollHeight - messagesEl.clientHeight - messagesEl.scrollTop;
     shouldFollowHistoryRef.current = scrollBottomGap <= CHAT_HISTORY_FOLLOW_THRESHOLD_PX;
   }, []);
+
+  const stopFollowingHistory = useCallback(() => {
+    shouldFollowHistoryRef.current = false;
+  }, []);
+
+  const handleMessagesScroll = useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      syncHistoryFollowState(event.currentTarget);
+    },
+    [syncHistoryFollowState]
+  );
+
+  const handleMessagesWheelCapture = useCallback(
+    (event: React.WheelEvent<HTMLDivElement>) => {
+      if (event.deltaY < 0) {
+        stopFollowingHistory();
+      }
+    },
+    [stopFollowingHistory]
+  );
+
+  const handleMessagesPointerDownCapture = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const messagesEl = event.currentTarget;
+      if (messagesEl.scrollHeight <= messagesEl.clientHeight) return;
+      const rect = messagesEl.getBoundingClientRect();
+      if (event.clientX >= rect.right - CHAT_HISTORY_SCROLLBAR_INTENT_GUTTER_PX) {
+        stopFollowingHistory();
+      }
+    },
+    [stopFollowingHistory]
+  );
 
   useEffect(() => {
     const messagesEl = messagesRef.current;
@@ -524,7 +557,9 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
               className="agent-messages"
               aria-live="polite"
               ref={messagesRef}
-              onScroll={(event) => syncHistoryFollowState(event.currentTarget)}
+              onPointerDownCapture={handleMessagesPointerDownCapture}
+              onScroll={handleMessagesScroll}
+              onWheelCapture={handleMessagesWheelCapture}
             >
               {introMessage ? (
                 <div className="agent-message agent-assistant agent-intro">
@@ -581,13 +616,17 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 const resolvedMessageId = message.id?.trim() || `history-agent-output-${index}`;
                 const isEditingMessage =
                   Boolean(editingMessageId) && editingMessageId === resolvedMessageId;
+                const canUseMessageAsPrompt = message.canUseAsPrompt !== false;
                 const isDraggable =
                   (message.role === "assistant" || message.role === "user") &&
                   Boolean(message.content.trim()) &&
+                  (message.role !== "assistant" || canUseMessageAsPrompt) &&
                   !isEditingMessage;
                 const bubbleMedia = resolveBubbleMediaState(resolvedMessageId);
                 const showOutputGenerateButton =
-                  message.role === "assistant" && !hideOutputGenerateControls;
+                  message.role === "assistant" &&
+                  !hideOutputGenerateControls &&
+                  canUseMessageAsPrompt;
                 const showOutputBubbleControls =
                   Boolean(bubbleMedia && bubbleMedia.state !== "idle") || showOutputGenerateButton;
                 const isLatestAssistantMessage =
@@ -703,7 +742,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                             onClick={() =>
                               handleOutputGenerateClick({
                                 messageId: resolvedMessageId,
-                                prompt: message.content,
+                                prompt: message.outputPrompt ?? message.content,
                                 source: "history",
                               })
                             }

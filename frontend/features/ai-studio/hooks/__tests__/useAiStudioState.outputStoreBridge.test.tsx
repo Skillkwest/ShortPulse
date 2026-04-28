@@ -266,6 +266,104 @@ describe("useAiStudioState output store bridge", () => {
     expect(result.current.pulsePrompt).toBe("Pulse final artifact");
   });
 
+  it("keeps Standard and Pulse output/reference context isolated across mode toggles", async () => {
+    const { result } = renderHook(
+      () => {
+        const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">(
+          "standard"
+        );
+        const studio = useAiStudioState({
+          expertCreateMode,
+          setExpertCreateMode,
+        });
+
+        return {
+          ...studio,
+          setExpertCreateMode,
+        };
+      },
+      { wrapper: strictWrapper }
+    );
+
+    act(() => {
+      result.current.setPrompt("Standard draft");
+      result.current.setOutputs([
+        makeOutput("standard-out", { previewUrl: "https://example.com/standard.png" }),
+      ]);
+      result.current.setActiveOutputId("standard-out");
+      result.current.addCuratedReference("standard-out");
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs.map((item) => item.id)).toEqual(["standard-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["standard-out"]);
+    });
+    expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
+      "https://example.com/standard.png"
+    );
+
+    act(() => {
+      result.current.setExpertCreateMode("pulse");
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs).toEqual([]);
+      expect(result.current.activeOutputId).toBeNull();
+      expect(result.current.curatedReferenceIds).toEqual([]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual([]);
+    });
+    expect(result.current.prompt).toBe("");
+    expect(result.current.getAgentContext().media).toEqual([]);
+
+    act(() => {
+      result.current.setPrompt("Pulse artifact");
+      result.current.setOutputs([
+        makeOutput("pulse-out", { previewUrl: "https://example.com/pulse.png" }),
+      ]);
+      result.current.setActiveOutputId("pulse-out");
+      result.current.addCuratedReference("pulse-out");
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out"]);
+      expect(result.current.curatedReferenceIds).toEqual(["pulse-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out"]);
+    });
+    expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
+      "https://example.com/pulse.png"
+    );
+
+    act(() => {
+      result.current.setExpertCreateMode("standard");
+    });
+
+    await waitFor(() => {
+      expect(result.current.prompt).toBe("Standard draft");
+      expect(result.current.outputs.map((item) => item.id)).toEqual(["standard-out"]);
+      expect(result.current.activeOutputId).toBe("standard-out");
+      expect(result.current.curatedReferenceIds).toEqual(["standard-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["standard-out"]);
+    });
+    expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
+      "https://example.com/standard.png"
+    );
+
+    act(() => {
+      result.current.setExpertCreateMode("pulse");
+    });
+
+    await waitFor(() => {
+      expect(result.current.prompt).toBe("Pulse artifact");
+      expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out"]);
+      expect(result.current.activeOutputId).toBe("pulse-out");
+      expect(result.current.curatedReferenceIds).toEqual(["pulse-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out"]);
+    });
+    expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
+      "https://example.com/pulse.png"
+    );
+  });
+
   it("restores separate Standard and Pulse prompts across snapshot hydration and mode toggles", async () => {
     const source = renderHook(
       () => {
@@ -297,6 +395,13 @@ describe("useAiStudioState output store bridge", () => {
 
     act(() => {
       source.result.current.setPrompt("Pulse restored artifact");
+      source.result.current.setOutputs([
+        makeOutput("pulse-restored-out", {
+          previewUrl: "https://example.com/pulse-restored.png",
+        }),
+      ]);
+      source.result.current.setActiveOutputId("pulse-restored-out");
+      source.result.current.addCuratedReference("pulse-restored-out");
     });
 
     const snapshot = source.result.current.buildSessionSnapshot({
@@ -339,6 +444,10 @@ describe("useAiStudioState output store bridge", () => {
       expect(restored.result.current.prompt).toBe("Pulse restored artifact");
       expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
       expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
+      expect(restored.result.current.outputs.map((item) => item.id)).toEqual([
+        "pulse-restored-out",
+      ]);
+      expect(restored.result.current.activeOutputId).toBe("pulse-restored-out");
     });
 
     act(() => {
@@ -348,6 +457,8 @@ describe("useAiStudioState output store bridge", () => {
     expect(restored.result.current.prompt).toBe("Standard restore draft");
     expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
     expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
+    expect(restored.result.current.outputs).toEqual([]);
+    expect(restored.result.current.activeOutputId).toBeNull();
 
     act(() => {
       restored.result.current.setExpertCreateMode("pulse");
@@ -356,6 +467,8 @@ describe("useAiStudioState output store bridge", () => {
     expect(restored.result.current.prompt).toBe("Pulse restored artifact");
     expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
     expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
+    expect(restored.result.current.outputs.map((item) => item.id)).toEqual(["pulse-restored-out"]);
+    expect(restored.result.current.activeOutputId).toBe("pulse-restored-out");
   });
 
   it("clears outputs, active selection, and quick slots when runtime authority changes to a pending project route", async () => {

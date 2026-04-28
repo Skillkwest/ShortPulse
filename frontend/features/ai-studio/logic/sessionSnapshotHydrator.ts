@@ -136,6 +136,26 @@ const asAgentRole = (value: unknown): AgentMessageRole | null => {
   return null;
 };
 
+const asAgentOutcomeClass = (value: unknown): AgentMessage["outcomeClass"] => {
+  if (
+    value === "success_prompt" ||
+    value === "success_message" ||
+    value === "fallback_infra" ||
+    value === "refusal_safety" ||
+    value === "refusal_model" ||
+    value === "route_error" ||
+    value === "upstream_error"
+  ) {
+    return value;
+  }
+  return null;
+};
+
+const asAgentDecision = (value: unknown): AgentMessage["decision"] => {
+  if (value === "allow" || value === "refuse" || value === "error") return value;
+  return null;
+};
+
 const asAgentAttachmentKind = (value: unknown): AgentAttachment["kind"] | null => {
   return value === "image" || value === "prompt" ? value : null;
 };
@@ -445,11 +465,22 @@ const normalizeAgentMessages = (value: unknown): AgentMessage[] => {
       resolvedId = nextId;
     }
     seenIds.add(resolvedId);
+    const outputPrompt = asNullableString(message.outputPrompt);
+    const outcomeClass = asAgentOutcomeClass(message.outcomeClass);
+    const reasonCode = asNullableString(message.reasonCode) as AgentMessage["reasonCode"];
+    const decision = asAgentDecision(message.decision);
     normalized.push({
       id: resolvedId,
       role,
       content,
-      attachments: attachments.length > 0 ? attachments : undefined,
+      ...(outputPrompt ? { outputPrompt } : {}),
+      ...(typeof message.canUseAsPrompt === "boolean"
+        ? { canUseAsPrompt: message.canUseAsPrompt }
+        : {}),
+      ...(outcomeClass ? { outcomeClass } : {}),
+      ...(reasonCode ? { reasonCode } : {}),
+      ...(decision ? { decision } : {}),
+      ...(attachments.length > 0 ? { attachments } : {}),
     });
   });
   return normalized;

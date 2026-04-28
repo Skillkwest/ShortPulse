@@ -107,11 +107,21 @@ type UseAiStudioSessionSnapshotControllerParams = {
   >;
   setKlingElements: Dispatch<SetStateAction<AiStudioKlingElement[]>>;
   setMotionReferenceVideoUrl: Dispatch<SetStateAction<string | null>>;
+  setOutputCollectionsForCreateMode: (
+    createMode: "standard" | "pulse",
+    activeRows: StudioOutput[],
+    archivedRows: StudioOutput[]
+  ) => void;
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
   setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
-  setReferenceProjectionState: Dispatch<SetStateAction<ReferenceProjectionState>>;
-  setActiveOutputId: Dispatch<SetStateAction<string | null>>;
-  setSaved: Dispatch<SetStateAction<boolean>>;
+  setRuntimeUiStateForCreateMode: (
+    createMode: "standard" | "pulse",
+    nextState: {
+      activeOutputId: string | null;
+      referenceProjectionState: ReferenceProjectionState;
+      saved: boolean;
+    }
+  ) => void;
 };
 
 /**
@@ -192,11 +202,10 @@ export const useAiStudioSessionSnapshotController = ({
   setKlingMultiPrompts,
   setKlingElements,
   setMotionReferenceVideoUrl,
+  setOutputCollectionsForCreateMode,
   setOutputsState,
   setArchivedOutputs,
-  setReferenceProjectionState,
-  setActiveOutputId,
-  setSaved,
+  setRuntimeUiStateForCreateMode,
 }: UseAiStudioSessionSnapshotControllerParams) => {
   const hydrateFromSessionSnapshot = useCallback(
     (snapshot: AiStudioSessionSnapshot): AiStudioSessionHydrationPayload => {
@@ -241,14 +250,20 @@ export const useAiStudioSessionSnapshotController = ({
       setKlingElements(workspace.klingElements);
       setMotionReferenceVideoUrl(workspace.motionReferenceVideoUrl);
 
-      setOutputsState(outputPayload.active);
-      setArchivedOutputs(outputPayload.archived);
-      setReferenceProjectionState({
+      const restoredReferenceProjectionState = {
         quickSlotIds: outputPayload.curatedReferenceIds,
         removedFromAllRefsIds: outputPayload.removedFromAllRefsIds,
+      };
+      setOutputCollectionsForCreateMode(
+        workspace.expertCreateMode,
+        outputPayload.active,
+        outputPayload.archived
+      );
+      setRuntimeUiStateForCreateMode(workspace.expertCreateMode, {
+        activeOutputId: outputPayload.activeOutputId,
+        referenceProjectionState: restoredReferenceProjectionState,
+        saved: false,
       });
-      setActiveOutputId(outputPayload.activeOutputId);
-      setSaved(false);
 
       const signingRevision = sessionHydrationSigningRevisionRef.current + 1;
       sessionHydrationSigningRevisionRef.current = signingRevision;
@@ -288,7 +303,6 @@ export const useAiStudioSessionSnapshotController = ({
     },
     [
       sessionHydrationSigningRevisionRef,
-      setActiveOutputId,
       setActivePulsePresetId,
       setArchivedOutputs,
       setAspect,
@@ -312,11 +326,11 @@ export const useAiStudioSessionSnapshotController = ({
       setMode,
       setModel,
       setMotionReferenceVideoUrl,
+      setOutputCollectionsForCreateMode,
       setOutputsState,
       setPulseSessionInstanceId,
       setReferenceImageUrl,
-      setReferenceProjectionState,
-      setSaved,
+      setRuntimeUiStateForCreateMode,
       setSelectedTool,
       setPulseCreatePrompt,
       setStandardCreatePrompt,

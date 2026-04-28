@@ -330,7 +330,7 @@ describe("useAiStudioPanelProps", () => {
 
     expect(result.current.propertiesCreate.pulseLoadingState).toEqual({
       phase: "starting_pulse",
-      title: "Starting Story Builder",
+      title: "Generating...",
       message: "Preparing your guided workflow...",
       presetLabel: "Story Builder",
       stepLabel: "Upload Characters",
@@ -375,7 +375,7 @@ describe("useAiStudioPanelProps", () => {
 
     expect(result.current.propertiesCreate.pulseLoadingState).toEqual({
       phase: "generating_step",
-      title: "Generating next step...",
+      title: "Generating...",
       message: "Building the next instruction for Camera Motion.",
       presetLabel: "Video Prompt Magic",
       stepLabel: "Camera Motion",

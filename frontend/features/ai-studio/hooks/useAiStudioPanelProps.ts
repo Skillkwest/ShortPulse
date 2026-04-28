@@ -33,6 +33,8 @@ import type { PromptStepPulseLoadingState } from "../components/promptStep/types
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
 
+const PULSE_LOADING_TITLE = "Generating...";
+
 export type UseAiStudioPanelPropsParams = {
   mode: StudioMode;
   aspect: string;
@@ -437,7 +439,7 @@ export const useAiStudioPanelProps = ({
     if (agentUiBusy || hasPendingStartupStep) {
       return {
         phase: "starting_pulse",
-        title: `Starting ${presetLabel}`,
+        title: PULSE_LOADING_TITLE,
         message: "Preparing your guided workflow...",
         presetLabel,
         stepLabel,
@@ -446,7 +448,7 @@ export const useAiStudioPanelProps = ({
     if (agentIsSending && assistantMessageCount > 0) {
       return {
         phase: "generating_step",
-        title: "Generating next step...",
+        title: PULSE_LOADING_TITLE,
         message: stepLabel
           ? `Building the next instruction for ${stepLabel}.`
           : "Building the next instruction for your workflow.",

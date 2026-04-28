@@ -6,6 +6,7 @@ import type { AgentDecision, AgentOutcomeClass, AgentReasonCode } from "./outcom
 
 export type AgentMessageRole = "user" | "assistant" | "system" | "observation";
 export type AgentApiMessageRole = "user" | "assistant";
+export type AgentRuntimeMode = "standard" | "pulse";
 
 export type AgentAttachmentDeliveryStatus = "pending" | "preparing" | "ready" | "failed";
 
@@ -37,6 +38,11 @@ export type AgentMessage = {
   role: AgentMessageRole;
   content: string;
   attachments?: AgentMessageAttachment[];
+  outputPrompt?: string | null;
+  canUseAsPrompt?: boolean;
+  outcomeClass?: AgentOutcomeClass | null;
+  reasonCode?: AgentReasonCode | null;
+  decision?: AgentDecision | null;
 };
 
 export type AgentAttachment = {
@@ -157,6 +163,7 @@ export type AgentApiRequest = {
   messages: AgentApiMessage[];
   context?: AgentApiContext;
   clientSessionKey: string;
+  runtimeMode?: AgentRuntimeMode;
   traceId?: string;
   directOpenAiBypass?: boolean;
   /**

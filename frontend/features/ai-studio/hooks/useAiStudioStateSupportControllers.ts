@@ -5,6 +5,7 @@ import { useAiStudioOutputStoreSelectors } from "./useAiStudioOutputStoreSelecto
 import { useAiStudioReferenceIngestionActions } from "./useAiStudioReferenceIngestionActions";
 
 type UseAiStudioStateSupportControllersParams = {
+  activeOutput: StudioOutput | null;
   archivedOutputs: StudioOutput[];
   aspect: string;
   mode: StudioOutput["mode"];
@@ -17,6 +18,7 @@ type UseAiStudioStateSupportControllersParams = {
 };
 
 export const useAiStudioStateSupportControllers = ({
+  activeOutput,
   archivedOutputs,
   aspect,
   mode,
@@ -28,6 +30,7 @@ export const useAiStudioStateSupportControllers = ({
   updateOutputById,
 }: UseAiStudioStateSupportControllersParams) => {
   const referenceIngestion = useAiStudioReferenceIngestionActions({
+    activeOutput,
     mode,
     aspect,
     model,

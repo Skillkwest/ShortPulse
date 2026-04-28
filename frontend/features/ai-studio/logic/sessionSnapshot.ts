@@ -79,6 +79,11 @@ export type AiStudioSessionAgentMessageV1 = {
   id: string | null;
   role: AgentMessageRole;
   content: string;
+  outputPrompt?: string | null;
+  canUseAsPrompt?: boolean;
+  outcomeClass?: AgentMessage["outcomeClass"];
+  reasonCode?: AgentMessage["reasonCode"];
+  decision?: AgentMessage["decision"];
   attachments?: {
     id: string;
     kind: AgentAttachment["kind"];
@@ -446,6 +451,15 @@ const sanitizeAgentRuntimeMessage = (
   id: typeof message.id === "string" ? message.id : null,
   role: message.role,
   content: message.content,
+  ...(typeof message.outputPrompt === "string" || message.outputPrompt === null
+    ? { outputPrompt: message.outputPrompt }
+    : {}),
+  ...(typeof message.canUseAsPrompt === "boolean"
+    ? { canUseAsPrompt: message.canUseAsPrompt }
+    : {}),
+  ...(message.outcomeClass ? { outcomeClass: message.outcomeClass } : {}),
+  ...(message.reasonCode ? { reasonCode: message.reasonCode } : {}),
+  ...(message.decision ? { decision: message.decision } : {}),
   attachments: sanitizeAgentAttachments(message.attachments as AgentMessage["attachments"]),
 });
 
@@ -703,13 +717,17 @@ export const createAiStudioProjectWorkspaceSnapshot = (
 ): AiStudioSessionSnapshot => {
   const emptyAgentRuntime = createEmptyAiStudioSessionAgentState();
   if (snapshot.schemaVersion >= 2) {
-    const {
-      meta: _meta,
-      agentRuntimes: _agentRuntimes,
-      ...baseSnapshot
-    } = snapshot as AiStudioSessionSnapshotV2 & {
-      agentRuntimes?: AiStudioSessionAgentRuntimesV2;
+    const baseSnapshot = {
+      ...(snapshot as AiStudioSessionSnapshotV2 & {
+        agentRuntimes?: AiStudioSessionAgentRuntimesV2;
+      }),
     };
+    delete (baseSnapshot as Partial<AiStudioSessionSnapshotV2>).meta;
+    delete (
+      baseSnapshot as Partial<AiStudioSessionSnapshotV2> & {
+        agentRuntimes?: AiStudioSessionAgentRuntimesV2;
+      }
+    ).agentRuntimes;
     const normalizedSnapshot = {
       ...baseSnapshot,
       workspace: {

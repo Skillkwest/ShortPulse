@@ -49,6 +49,7 @@ describe("studioAgentRouteEnvelope", () => {
           clientSessionKey: "session-123",
           messages: [{ role: "user", content: "hello" }],
           directOpenAiBypass: true,
+          runtimeMode: "standard",
         },
       } as never,
       userId: "user-1",
@@ -58,6 +59,31 @@ describe("studioAgentRouteEnvelope", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.directOpenAiBypass).toBe(true);
+    expect(result.value.runtimeMode).toBe("standard");
+  });
+
+  it("rejects invalid runtimeMode values", () => {
+    const result = parseStudioAgentRequestEnvelope({
+      req: {
+        body: {
+          clientSessionKey: "session-123",
+          messages: [{ role: "user", content: "hello" }],
+          runtimeMode: "legacy",
+        },
+      } as never,
+      userId: "user-1",
+      traceId: "trace-1",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.status).toBe(400);
+    expect(result.payload.code).toBe("INVALID_REQUEST");
+    expect(result.payload.details).toEqual(
+      expect.objectContaining({
+        allowedModes: ["standard", "pulse"],
+      })
+    );
   });
 
   it("sanitizes pulse runtime metadata from the request context", () => {

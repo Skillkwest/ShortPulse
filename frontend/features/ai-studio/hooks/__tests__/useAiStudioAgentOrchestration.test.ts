@@ -310,6 +310,13 @@ describe("useAiStudioAgentOrchestration", () => {
         activePrompt: "Which camera motion should I use?",
         lastAssistantMessage: "Upload your image to get the process started :)",
         focusedSource: "agent-output" as const,
+        media: [
+          {
+            id: "selected-image",
+            kind: "image" as const,
+            url: "https://cdn.test/selected-image.png",
+          },
+        ],
         pulse: {
           presetId: "image",
           label: "Video Prompt Magic",
@@ -342,6 +349,140 @@ describe("useAiStudioAgentOrchestration", () => {
         }),
       })
     );
+  });
+
+  it("blocks text-only sends while a workflow Pulse is still waiting for an image", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
+    const appendUserMessage = vi.fn(() => "msg-1");
+    const setPulseWorkflowSession = vi.fn();
+    const setUiNotice = vi.fn();
+    const setAgentAttachmentError = vi.fn();
+    const trackAgentUiEvent = vi.fn();
+    const params = createParams({
+      agentInput: "truck left",
+      sendToAgent,
+      appendUserMessage,
+      setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      setAgentAttachmentError: asDispatch<string | null>(setAgentAttachmentError),
+      trackAgentUiEvent,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseSessionInstanceId: "pulse-session-1",
+      getAgentContext: vi.fn(() => ({
+        activePrompt: "Upload your image to get the process started :)",
+        lastAssistantMessage: "Upload your image to get the process started :)",
+        pulse: {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          instructions: "Run the guided single-shot workflow.",
+          runtimeMode: "workflow_gpt" as const,
+          activationMode: "activate_and_start" as const,
+          starterAssistantMessage: "Upload your image to get the process started :)",
+          workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection"],
+          outputMode: "chat_reply" as const,
+          memoryPolicy: "session" as const,
+          source: "builtin" as const,
+          workflowSession: {
+            presetId: "image",
+            status: "awaiting_input" as const,
+            currentStepIndex: 1,
+            currentStepLabel: "Image Gate",
+            currentStepPrompt: "Upload your image to get the process started :)",
+            collectedInputs: [],
+            lastArtifact: null,
+          },
+        },
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(appendUserMessage).not.toHaveBeenCalled();
+    expect(setPulseWorkflowSession).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("Attach or drop an image to continue this Pulse.");
+    expect(setAgentAttachmentError).toHaveBeenCalledWith(
+      "Attach or drop an image to continue this Pulse."
+    );
+    expect(trackAgentUiEvent).toHaveBeenCalledWith(
+      "studio_agent_send_blocked_pulse_image_required"
+    );
+  });
+
+  it("allows image-gated Pulse sends when selected image media is present in context", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
+    const appendUserMessage = vi.fn(() => "msg-1");
+    const setUiNotice = vi.fn();
+    const params = createParams({
+      agentInput: "truck left",
+      sendToAgent,
+      appendUserMessage,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseSessionInstanceId: "pulse-session-1",
+      getAgentContext: vi.fn(() => ({
+        media: [
+          {
+            id: "selected-image",
+            kind: "image" as const,
+            url: "https://cdn.test/selected-image.png",
+          },
+        ],
+        pulse: {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          instructions: "Run the guided single-shot workflow.",
+          runtimeMode: "workflow_gpt" as const,
+          activationMode: "activate_and_start" as const,
+          starterAssistantMessage: "Upload your image to get the process started :)",
+          workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection"],
+          outputMode: "chat_reply" as const,
+          memoryPolicy: "session" as const,
+          source: "builtin" as const,
+          workflowSession: {
+            presetId: "image",
+            status: "awaiting_input" as const,
+            currentStepIndex: 1,
+            currentStepLabel: "Image Gate",
+            currentStepPrompt: "Upload your image to get the process started :)",
+            collectedInputs: [],
+            lastArtifact: null,
+          },
+        },
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "truck left",
+        context: expect.objectContaining({
+          media: [
+            {
+              id: "selected-image",
+              kind: "image",
+              url: "https://cdn.test/selected-image.png",
+            },
+          ],
+          pulse: expect.objectContaining({
+            workflowSession: expect.objectContaining({
+              collectedInputs: ["truck left"],
+            }),
+          }),
+        }),
+      })
+    );
+    expect(appendUserMessage).toHaveBeenCalledWith("truck left", []);
+    expect(setUiNotice).not.toHaveBeenCalledWith("Attach or drop an image to continue this Pulse.");
   });
 
   it("uses prompt focus for prompt references when no canonical context exists", async () => {
@@ -647,6 +788,98 @@ describe("useAiStudioAgentOrchestration", () => {
         presetId: "story_builder",
         status: "awaiting_input",
         currentStepLabel: "Upload Characters",
+      })
+    );
+  });
+
+  it("starts an image-gated Pulse at the next step when selected image media already exists", async () => {
+    const setPulseWorkflowSession = vi.fn();
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "Which camera motion should I use?" },
+      actions: undefined,
+      workflowSession: {
+        presetId: "image",
+        status: "awaiting_input" as const,
+        currentStepIndex: 2,
+        currentStepLabel: "Camera Motion",
+        currentStepPrompt: "Which camera motion should I use?",
+        collectedInputs: ["Uploaded image attached"],
+        lastArtifact: null,
+      },
+    }));
+    const params = createParams({
+      sendToAgent,
+      setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+      getAgentContext: vi.fn(() => ({
+        focusedSource: "image" as const,
+        focusedReferenceId: "selected-image",
+        selectedReferenceIds: ["selected-image"],
+        media: [
+          {
+            id: "selected-image",
+            kind: "image" as const,
+            url: "https://cdn.test/selected-image.png",
+          },
+        ],
+      })),
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseSessionInstanceId: "pulse-session-1",
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    const preset: CreatePulseResolvedPreset = {
+      presetId: "image",
+      label: "Video Prompt Magic",
+      description: "Video workflow",
+      systemInstructions: "workflow instructions",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      starterAssistantMessage: "Upload your image to get the process started :)",
+      workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection"],
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      isCustom: false,
+      isBuiltIn: true,
+      isEditable: true,
+      hasUserOverride: false,
+    };
+
+    await act(async () => {
+      await result.current.handlePulsePresetStart(preset, {
+        pulseSessionInstanceId: "pulse-session-1",
+      });
+    });
+
+    expect(setPulseWorkflowSession).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        presetId: "image",
+        status: "running",
+        currentStepIndex: 2,
+        currentStepLabel: "Camera Motion",
+        collectedInputs: ["Uploaded image attached"],
+      })
+    );
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payloadText: expect.not.stringContaining("Your first assistant reply must be exactly this"),
+        context: expect.objectContaining({
+          media: [
+            {
+              id: "selected-image",
+              kind: "image",
+              url: "https://cdn.test/selected-image.png",
+            },
+          ],
+          pulse: expect.objectContaining({
+            workflowSession: expect.objectContaining({
+              currentStepIndex: 2,
+              currentStepLabel: "Camera Motion",
+              collectedInputs: ["Uploaded image attached"],
+            }),
+          }),
+        }),
       })
     );
   });

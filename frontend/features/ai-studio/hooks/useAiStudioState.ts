@@ -464,11 +464,12 @@ export const useAiStudioState = ({
   });
 
   useEffect(() => {
+    const shouldHydrateProjectGeneratedOutputs = Boolean(projectId) && !hasPendingWorkflowRestore;
+    const shouldHydratePlainSessionGeneratedOutputs =
+      !projectRouteRequested && !projectId && isPlainSessionGeneratedOutputHydrationEnabled();
     if (
-      projectRouteRequested ||
-      projectId ||
       canonicalGeneratedHydrationStartedRef.current ||
-      !isPlainSessionGeneratedOutputHydrationEnabled()
+      (!shouldHydrateProjectGeneratedOutputs && !shouldHydratePlainSessionGeneratedOutputs)
     ) {
       return;
     }
@@ -476,7 +477,9 @@ export const useAiStudioState = ({
     let cancelled = false;
 
     void (async () => {
-      const hydratedOutputs = await listVisibleGeneratedOutputs();
+      const hydratedOutputs = await listVisibleGeneratedOutputs({
+        projectId: projectId ?? null,
+      });
       if (cancelled || hydratedOutputs.length === 0) return;
       setOutputsState((currentOutputs) =>
         mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)
@@ -486,7 +489,7 @@ export const useAiStudioState = ({
     return () => {
       cancelled = true;
     };
-  }, [projectId, projectRouteRequested, setOutputsState]);
+  }, [hasPendingWorkflowRestore, projectId, projectRouteRequested, setOutputsState]);
 
   const {
     deleteOutput,

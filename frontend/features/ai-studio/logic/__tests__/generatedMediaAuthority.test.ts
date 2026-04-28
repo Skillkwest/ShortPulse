@@ -17,6 +17,7 @@ vi.mock("../../../../lib/supabaseClient", () => ({
 const createAwaitableSelectBuilder = (result: { data: unknown; error: unknown }) => {
   const builder: {
     eq: ReturnType<typeof vi.fn>;
+    in: ReturnType<typeof vi.fn>;
     order: ReturnType<typeof vi.fn>;
     limit: ReturnType<typeof vi.fn>;
     maybeSingle: ReturnType<typeof vi.fn>;
@@ -25,6 +26,7 @@ const createAwaitableSelectBuilder = (result: { data: unknown; error: unknown })
     finally: Promise<{ data: unknown; error: unknown }>["finally"];
   } = {
     eq: vi.fn(),
+    in: vi.fn(),
     order: vi.fn(),
     limit: vi.fn(),
     maybeSingle: vi.fn(async () => result),
@@ -33,6 +35,7 @@ const createAwaitableSelectBuilder = (result: { data: unknown; error: unknown })
     finally: (...args) => Promise.resolve(result).finally(...args),
   };
   builder.eq.mockReturnValue(builder);
+  builder.in.mockReturnValue(builder);
   builder.order.mockReturnValue(builder);
   builder.limit.mockReturnValue(builder);
   return builder;
@@ -341,6 +344,80 @@ describe("generatedMediaAuthority", () => {
         aspect: "9:16",
       }),
     ]);
+  });
+
+  it("lists only project-associated visible generated outputs when project scoped", async () => {
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-visible-1",
+          updated_at: "2026-04-18T16:11:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-project-visible-1",
+          request_id: "req-project-visible-1",
+          source_ref: "source-project-visible-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "A recovered project output",
+          preview_url: "https://fal.test/project-visible-preview.png",
+          result_urls: ["https://fal.test/project-visible-full.png"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {
+            aspect: "1:1",
+          },
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:12:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs({ projectId: "project-1" })).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-project-visible-1",
+        generationId: "gen-project-visible-1",
+        taskId: "req-project-visible-1",
+        sourceRef: "source-project-visible-1",
+        mode: "image",
+        mediaSource: "generated",
+        resultUrls: ["https://fal.test/project-visible-full.png"],
+        previewUrl: "https://fal.test/project-visible-preview.png",
+        taskState: "success",
+        queueState: "dispatched",
+      }),
+    ]);
+    expect(projectGenerationBuilder.eq).toHaveBeenCalledWith("project_id", "project-1");
+    expect(projectionBuilder.in).toHaveBeenCalledWith("generation_id", ["gen-project-visible-1"]);
   });
 
   it("requires project generation association before reconciling project-route outputs", async () => {

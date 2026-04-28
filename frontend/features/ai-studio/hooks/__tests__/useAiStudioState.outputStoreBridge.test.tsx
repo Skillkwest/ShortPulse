@@ -15,7 +15,10 @@ const mockFindOutputById = vi.fn(() => null);
 const mockDeleteOutputFromLifecycle = vi.fn();
 const mockNotifyGenerationFailure = vi.fn();
 const mockUpdateOutputPrompt = vi.fn();
-const listVisibleGeneratedOutputsMock = vi.fn(async () => []);
+const listVisibleGeneratedOutputsMock = vi.fn(async (options?: unknown) => {
+  void options;
+  return [];
+});
 const generationPromptComposerArgsMock = vi.fn();
 const EDIT_REFERENCE_INPUTS = {
   referenceImageUrl: "https://example.com/edit-primary.png",
@@ -91,7 +94,7 @@ vi.mock("../useAiStudioWorkflowSettings", () => ({
 }));
 
 vi.mock("../../logic/generatedMediaAuthority", () => ({
-  listVisibleGeneratedOutputs: () => listVisibleGeneratedOutputsMock(),
+  listVisibleGeneratedOutputs: (options?: unknown) => listVisibleGeneratedOutputsMock(options),
 }));
 
 vi.mock("../useAiStudioStateEffects", () => ({
@@ -203,12 +206,12 @@ describe("useAiStudioState output store bridge", () => {
     });
   });
 
-  it("skips user-global generated-output hydration when a project id is active", async () => {
+  it("hydrates project-scoped generated outputs when a project id is active", async () => {
     renderHook(() => useAiStudioState({ projectId: "project-1" }), { wrapper: strictWrapper });
 
-    await act(async () => {});
-
-    expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({ projectId: "project-1" });
+    });
   });
 
   it("skips user-global generated-output hydration while a project route is still pending", async () => {
@@ -515,6 +518,7 @@ describe("useAiStudioState output store bridge", () => {
 
     await waitFor(() => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledTimes(1);
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({ projectId: null });
     });
   });
 

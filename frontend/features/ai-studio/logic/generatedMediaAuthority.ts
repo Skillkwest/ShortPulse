@@ -787,15 +787,39 @@ export const resolveVisibleGenerationReconcile = async ({
 
 export const listVisibleGeneratedOutputs = async ({
   limit = 48,
+  projectId = null,
 }: {
   limit?: number;
+  projectId?: string | null;
 } = {}): Promise<StudioOutput[]> => {
   try {
     const supabase = ensureSupabaseQueryClient();
     const userId = await readSupabaseUserId();
     if (!userId) return [];
+    const normalizedProjectId = resolveProjectId(projectId);
+    const boundedLimit = Math.max(1, Math.min(limit, 100));
 
-    const { data, error } = await supabase
+    let projectGenerationIds: string[] | null = null;
+    if (normalizedProjectId) {
+      const { data: projectGenerationData, error: projectGenerationError } = await supabase
+        .from("project_generation_items")
+        .select("generation_id, updated_at")
+        .eq("user_id", userId)
+        .eq("project_id", normalizedProjectId)
+        .order("updated_at", { ascending: false })
+        .limit(boundedLimit);
+      if (projectGenerationError || !Array.isArray(projectGenerationData)) return [];
+      projectGenerationIds = projectGenerationData
+        .map((row) =>
+          row && typeof row === "object" && !Array.isArray(row)
+            ? asTrimmedString((row as Record<string, unknown>).generation_id)
+            : null
+        )
+        .filter((generationId): generationId is string => Boolean(generationId));
+      if (!projectGenerationIds.length) return [];
+    }
+
+    let projectionQuery = supabase
       .from("generation_projection")
       .select(
         [
@@ -823,7 +847,11 @@ export const listVisibleGeneratedOutputs = async ({
       )
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
-      .limit(Math.max(1, Math.min(limit, 100)));
+      .limit(boundedLimit);
+    if (projectGenerationIds) {
+      projectionQuery = projectionQuery.in("generation_id", projectGenerationIds);
+    }
+    const { data, error } = await projectionQuery;
     if (error || !Array.isArray(data)) return [];
 
     return data

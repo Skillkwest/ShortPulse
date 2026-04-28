@@ -370,6 +370,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { openAiUrl, turnTimeoutMs } = openAiConfig;
   const directOpenAiModel = resolveDirectOpenAiModel(process.env);
   const standardDirectOpenAiRequired = runtimeMode === "standard";
+  const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
 
   if (standardDirectOpenAiRequired && !directOpenAiBypassEnabled) {
     return sendStudioAgentError(res, 503, {
@@ -707,7 +708,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     "OPENAI_PROMPT_IMAGE_DESCRIBE",
     process.env.OPENAI_PROMPT_IMAGE_DESCRIBE
   );
-  const systemPrompt = isStudioAgentWorkflowPulse(context.pulse)
+  const systemPrompt = workflowPulseActive
     ? (workflowSystemPrompt ?? promptEditorSystemPrompt)
     : promptEditorSystemPrompt;
   if (!systemPrompt) {
@@ -735,11 +736,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     openAiVisionModel,
     openAiThinkerModel,
     openAiFormatterModel,
+    openAiPulseModel,
     visionTimeoutMs,
+    pulseTurnTimeoutMs,
     upstreamRetryMaxAttempts,
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,
   } = openAiConfig;
+  const coordinatorOpenAiModel = workflowPulseActive ? openAiPulseModel : openAiModel;
+  const coordinatorTurnTimeoutMs = workflowPulseActive ? pulseTurnTimeoutMs : turnTimeoutMs;
 
   const storedCanonical = await readStudioAgentCanonicalPrompt({
     req,
@@ -904,12 +909,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     apiKey,
     openAiUrl,
     systemPrompt,
-    openAiModel,
+    openAiModel: coordinatorOpenAiModel,
     openAiThinkerModel,
     openAiFormatterModel,
     thinkerPrompt,
     formatterPrompt,
-    turnTimeoutMs,
+    turnTimeoutMs: coordinatorTurnTimeoutMs,
     upstreamRetryMaxAttempts,
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,

@@ -465,8 +465,9 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
 
   it("returns success_message for workflow pulse non-bypass turns without applyPrompt", async () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
-    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Response(
+    process.env.STUDIO_AGENT_PULSE_MODEL = "gpt-pulse";
+    (fetch as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      return new Response(
         JSON.stringify({
           choices: [
             {
@@ -481,8 +482,8 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
           ],
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
-      )
-    );
+      );
+    });
 
     const req = {
       method: "POST",
@@ -530,6 +531,28 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     await studioAgentHandler(req as never, res as never);
 
     expect(fetch).toHaveBeenCalledTimes(1);
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const openAiPayload = requestInit?.body
+      ? (JSON.parse(requestInit.body) as {
+          model?: string;
+          response_format?: {
+            type?: string;
+            json_schema?: { name?: string; strict?: boolean };
+          };
+        })
+      : null;
+    expect(openAiPayload?.model).toBe("gpt-pulse");
+    expect(openAiPayload?.response_format).toEqual(
+      expect.objectContaining({
+        type: "json_schema",
+        json_schema: expect.objectContaining({
+          name: "studio_agent_workflow_response",
+          strict: true,
+        }),
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -551,6 +574,76 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       })
     );
     expect(extractTelemetryPaths(infoSpy)).not.toContain("direct_openai_bypass");
+    infoSpy.mockRestore();
+  });
+
+  it("does not promote plain-text workflow pulse non-bypass output into a final prompt", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    (fetch as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: "Which camera motion should I use? Reply with one option.",
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-workflow-pulse-plain-text-rejected",
+        messages: [
+          {
+            role: "user",
+            content: 'Pulse "Video Prompt Magic" was just activated.',
+          },
+        ],
+        context: {
+          pulse: {
+            presetId: "image",
+            label: "Video Prompt Magic",
+            instructions: "Run the guided single-shot workflow.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your image to get the process started :)",
+            workflowStageHints: ["Image Gate", "Camera Motion", "Final Prompt"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "I can't process that request right now. Please try again.",
+        actions: undefined,
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+        fallback_reason: "parse_repair_failed",
+      })
+    );
+    const telemetryPayload = extractTelemetryPayloads(infoSpy).find(
+      (payload) => payload.path === "single_stage"
+    );
+    expect(telemetryPayload).toEqual(
+      expect.objectContaining({
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+      })
+    );
     infoSpy.mockRestore();
   });
 

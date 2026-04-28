@@ -20,6 +20,7 @@ type OpenAiCompatRequest = {
   openAiUrl?: string;
   openAiApiBase?: string;
   env?: NodeJS.ProcessEnv;
+  responseFormat?: OpenAiChatResponseFormat;
 };
 
 type OpenAiResponsesRequest = {
@@ -34,6 +35,20 @@ type ResponsesInputMessage = {
   role: "system" | "assistant" | "user";
   content: Record<string, unknown>[];
 };
+
+export type OpenAiChatResponseFormat =
+  | {
+      type: "json_object";
+    }
+  | {
+      type: "json_schema";
+      json_schema: {
+        name: string;
+        description?: string;
+        schema: Record<string, unknown>;
+        strict?: boolean;
+      };
+    };
 
 const DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1";
 const DEFAULT_CHAT_COMPLETIONS_URL = `${DEFAULT_OPENAI_API_BASE}/chat/completions`;
@@ -133,6 +148,22 @@ const toResponsesInput = (messages: OpenAiChatMessage[]): ResponsesInputMessage[
     .filter((entry): entry is ResponsesInputMessage => Boolean(entry));
 };
 
+const toResponsesTextFormat = (
+  responseFormat: OpenAiChatResponseFormat | undefined
+): Record<string, unknown> | undefined => {
+  if (!responseFormat) return undefined;
+  if (responseFormat.type === "json_object") {
+    return { type: "json_object" };
+  }
+  return {
+    type: "json_schema",
+    name: responseFormat.json_schema.name,
+    description: responseFormat.json_schema.description,
+    schema: responseFormat.json_schema.schema,
+    strict: responseFormat.json_schema.strict,
+  };
+};
+
 const collectResponseOutputText = (payload: Record<string, unknown>): string => {
   const directOutputText = asString(payload.output_text);
   if (directOutputText) return directOutputText;
@@ -212,6 +243,7 @@ export const fetchOpenAiCompatibleChatCompletion = async ({
   openAiUrl,
   openAiApiBase,
   env = process.env,
+  responseFormat,
 }: OpenAiCompatRequest): Promise<Response> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -225,12 +257,17 @@ export const fetchOpenAiCompatibleChatCompletion = async ({
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ model, messages }),
+      body: JSON.stringify({
+        model,
+        messages,
+        ...(responseFormat ? { response_format: responseFormat } : {}),
+      }),
       signal: controller.signal,
     });
   };
 
   const postResponses = async (): Promise<Response> => {
+    const textFormat = toResponsesTextFormat(responseFormat);
     return await fetch(`${apiBase}/responses`, {
       method: "POST",
       headers: {
@@ -240,6 +277,7 @@ export const fetchOpenAiCompatibleChatCompletion = async ({
       body: JSON.stringify({
         model,
         input: toResponsesInput(messages),
+        ...(textFormat ? { text: { format: textFormat } } : {}),
       }),
       signal: controller.signal,
     });

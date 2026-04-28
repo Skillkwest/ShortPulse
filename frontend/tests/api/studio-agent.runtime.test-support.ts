@@ -112,11 +112,13 @@ export const resetStudioAgentRuntimeTestState = () => {
   process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "true";
   delete process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED;
   delete process.env.STUDIO_AGENT_DIRECT_OPENAI_MODEL;
+  delete process.env.STUDIO_AGENT_PULSE_MODEL;
   process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
   process.env.STUDIO_AGENT_SAFETY_DEBUG = "false";
   process.env.STUDIO_AGENT_TIMEOUT_MS = String(20000);
   delete process.env.STUDIO_AGENT_VISION_TIMEOUT_MS;
   delete process.env.STUDIO_AGENT_TURN_TIMEOUT_MS;
+  delete process.env.STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS;
   process.env.NEXT_PUBLIC_AGENT_V2 = "false";
   delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
   delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;

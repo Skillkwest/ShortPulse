@@ -1,4 +1,5 @@
 import type { AgentContext, AgentMessage, AgentResponse } from "../../prefabs/agent";
+import type { OpenAiChatResponseFormat } from "../../lib/server/api/openAiCompat";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
 import {
   fetchStudioAgentChatCompletion,
@@ -37,6 +38,44 @@ type StudioAgentFastPathSuccess = {
 };
 
 export type StudioAgentFastPathTurnResult = StudioAgentFastPathFailure | StudioAgentFastPathSuccess;
+
+const STUDIO_AGENT_WORKFLOW_RESPONSE_FORMAT: OpenAiChatResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    name: "studio_agent_workflow_response",
+    description: "Workflow Pulse turn response.",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        status: {
+          type: "string",
+          enum: ["needs_input", "ready", "refuse"],
+        },
+        message: {
+          type: "string",
+        },
+        actions: {
+          anyOf: [
+            {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                applyPrompt: {
+                  anyOf: [{ type: "string" }, { type: "null" }],
+                },
+              },
+              required: ["applyPrompt"],
+            },
+            { type: "null" },
+          ],
+        },
+      },
+      required: ["status", "message", "actions"],
+    },
+  },
+};
 
 const resolveFastPathFailureStatus = (error: unknown): number => {
   if (error instanceof DOMException && error.name === "AbortError") {
@@ -159,6 +198,7 @@ export const executeStudioAgentFastPathTurn = async ({
   markStage: StageMarker;
 }): Promise<StudioAgentFastPathTurnResult> => {
   const fastPathStartedAt = Date.now();
+  const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
   let response: Response;
   try {
     response = await fetchStudioAgentChatCompletion({
@@ -167,6 +207,7 @@ export const executeStudioAgentFastPathTurn = async ({
       model,
       messages: openAiMessages,
       timeoutMs,
+      responseFormat: workflowPulseActive ? STUDIO_AGENT_WORKFLOW_RESPONSE_FORMAT : undefined,
     });
   } catch (error) {
     markStage("fast_path_turn", fastPathStartedAt);
@@ -198,9 +239,7 @@ export const executeStudioAgentFastPathTurn = async ({
     };
   }
   const contentText = extractStudioAgentCompletionText(extractFirstChoiceMessageContent(data));
-  const semanticParsed = isStudioAgentWorkflowPulse(context.pulse)
-    ? null
-    : parseStudioAgentSemanticOutput(contentText);
+  const semanticParsed = workflowPulseActive ? null : parseStudioAgentSemanticOutput(contentText);
   let parsedWithStatus = semanticParsed
     ? (() => {
         const semanticResponse = buildStudioAgentSemanticResponse({
@@ -211,7 +250,9 @@ export const executeStudioAgentFastPathTurn = async ({
           status: semanticResponse.status,
         };
       })()
-    : parseStudioAgentJsonWithStatus(contentText);
+    : parseStudioAgentJsonWithStatus(contentText, {
+        allowUnstructured: !workflowPulseActive,
+      });
   let repairUsed = false;
   if (!hasUsableFastPathPayload(parsedWithStatus?.response ?? null)) {
     const latestUserInput = resolveLatestUserInput(messages);
@@ -232,6 +273,7 @@ export const executeStudioAgentFastPathTurn = async ({
               : null,
         }),
         timeoutMs,
+        responseFormat: workflowPulseActive ? STUDIO_AGENT_WORKFLOW_RESPONSE_FORMAT : undefined,
       });
     } catch (error) {
       markStage("fast_path_repair_turn", repairStartedAt);
@@ -262,7 +304,7 @@ export const executeStudioAgentFastPathTurn = async ({
     const repairedText = extractStudioAgentCompletionText(
       extractFirstChoiceMessageContent(repairData)
     );
-    const repairedSemantic = isStudioAgentWorkflowPulse(context.pulse)
+    const repairedSemantic = workflowPulseActive
       ? null
       : parseStudioAgentSemanticOutput(repairedText);
     parsedWithStatus = repairedSemantic
@@ -275,7 +317,9 @@ export const executeStudioAgentFastPathTurn = async ({
             status: semanticResponse.status,
           };
         })()
-      : parseStudioAgentJsonWithStatus(repairedText);
+      : parseStudioAgentJsonWithStatus(repairedText, {
+          allowUnstructured: !workflowPulseActive,
+        });
     repairUsed = hasUsableFastPathPayload(parsedWithStatus?.response ?? null);
     if (!repairUsed) {
       return {

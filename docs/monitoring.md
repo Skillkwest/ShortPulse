@@ -85,6 +85,9 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - resilience: `retry_used`, `retry_count`, `repair_used`, `repair_count`, `fallback_reason`
   - latency: `latency_ms_total`, `latency_ms_stage`
   - safety: `safety_outcome`, `safety_source`, `safety_fallback`, `policy_version`, `policy_schema_version`, `prompt_template_version`, `runtime_scope_key`, `profile_id`, `modality`, `category`, `decision_action`, `decision_source`, `provider_blocked`, `hard_floor_violation`, `rollback_triggered`
+- Guided Pulse model/runtime knobs are separate from generic agent turns:
+  - `STUDIO_AGENT_PULSE_MODEL` inherits `OPENAI_MODEL` when unset.
+  - `STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS` inherits `STUDIO_AGENT_TURN_TIMEOUT_MS` when unset.
 - Pulse-specific interpretation:
   - `outcome_class=success_message` is the expected success class for guided `workflow_gpt` turns that ask the next question or return a final chat artifact.
   - `outcome_class=success_prompt` should be treated as a backward-compatibility artifact path, not the normal Pulse runtime contract.

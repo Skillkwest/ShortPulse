@@ -1,4 +1,7 @@
-import { fetchOpenAiCompatibleChatCompletion } from "../../lib/server/api/openAiCompat";
+import {
+  fetchOpenAiCompatibleChatCompletion,
+  type OpenAiChatResponseFormat,
+} from "../../lib/server/api/openAiCompat";
 
 const DEFAULT_OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = "gpt-5-nano";
@@ -60,9 +63,11 @@ export const resolveStudioAgentOpenAiConfig = (
   openAiVisionModel: string;
   openAiThinkerModel: string;
   openAiFormatterModel: string;
+  openAiPulseModel: string;
   requestTimeoutMs: number;
   visionTimeoutMs: number;
   turnTimeoutMs: number;
+  pulseTurnTimeoutMs: number;
   upstreamRetryMaxAttempts: number;
   upstreamRetryBaseDelayMs: number;
   upstreamRetryMaxDelayMs: number;
@@ -75,6 +80,7 @@ export const resolveStudioAgentOpenAiConfig = (
     env.STUDIO_AGENT_FORMATTER_MODEL,
     openAiThinkerModel
   );
+  const openAiPulseModel = resolveModelEnv(env.STUDIO_AGENT_PULSE_MODEL, openAiModel);
   const requestTimeoutMs = parseStudioAgentTimeoutMs(env.STUDIO_AGENT_TIMEOUT_MS);
   const visionTimeoutMs = parseStudioAgentTimeoutMs(
     env.STUDIO_AGENT_VISION_TIMEOUT_MS,
@@ -83,6 +89,10 @@ export const resolveStudioAgentOpenAiConfig = (
   const turnTimeoutMs = parseStudioAgentTimeoutMs(
     env.STUDIO_AGENT_TURN_TIMEOUT_MS,
     requestTimeoutMs
+  );
+  const pulseTurnTimeoutMs = parseStudioAgentTimeoutMs(
+    env.STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS,
+    turnTimeoutMs
   );
   const upstreamRetryMaxAttempts = parseBoundedInt({
     value: env.STUDIO_AGENT_UPSTREAM_MAX_ATTEMPTS,
@@ -109,9 +119,11 @@ export const resolveStudioAgentOpenAiConfig = (
     openAiVisionModel,
     openAiThinkerModel,
     openAiFormatterModel,
+    openAiPulseModel,
     requestTimeoutMs,
     visionTimeoutMs,
     turnTimeoutMs,
+    pulseTurnTimeoutMs,
     upstreamRetryMaxAttempts,
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,
@@ -124,12 +136,14 @@ export const fetchStudioAgentChatCompletion = async ({
   model,
   messages,
   timeoutMs,
+  responseFormat,
 }: {
   apiKey: string;
   openAiUrl: string;
   model: string;
   messages: unknown[];
   timeoutMs: number;
+  responseFormat?: OpenAiChatResponseFormat;
 }) => {
   return await fetchOpenAiCompatibleChatCompletion({
     apiKey,
@@ -137,6 +151,7 @@ export const fetchStudioAgentChatCompletion = async ({
     model,
     messages: messages as Parameters<typeof fetchOpenAiCompatibleChatCompletion>[0]["messages"],
     timeoutMs,
+    responseFormat,
   });
 };
 

@@ -101,6 +101,11 @@ Built-in Pulses may carry richer workflow metadata internally, but the user-faci
 ## Runtime and state ownership
 Pulse Mode currently spans several implementation seams. These are the key source-of-truth files for the shipped behavior:
 
+Guided Pulse model/runtime config:
+- `STUDIO_AGENT_PULSE_MODEL` pins workflow Pulse turns independently of generic `OPENAI_MODEL`.
+- `STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS` pins the workflow Pulse turn timeout independently of generic `STUDIO_AGENT_TURN_TIMEOUT_MS`.
+- Workflow Pulse turns should request structured JSON output with `status`, `message`, and `actions.applyPrompt` so message-only intake steps do not get promoted into final prompt artifacts by accident.
+
 - Mode/runtime controller:
   - `frontend/features/ai-studio/hooks/useAiStudioCreateModeRuntime.ts`
 - Create panel surface:

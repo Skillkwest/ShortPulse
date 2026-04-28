@@ -178,7 +178,11 @@ const parseStudioAgentUnstructuredText = (raw: unknown): ParsedAgentJson | null 
   };
 };
 
-export const parseStudioAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | null => {
+export const parseStudioAgentJsonWithStatus = (
+  raw: unknown,
+  options: { allowUnstructured?: boolean } = {}
+): ParsedAgentJson | null => {
+  const allowUnstructured = options.allowUnstructured ?? true;
   const candidates = collectJsonCandidates(raw);
 
   for (const candidate of candidates) {
@@ -224,6 +228,9 @@ export const parseStudioAgentJsonWithStatus = (raw: unknown): ParsedAgentJson | 
     }
   }
   if (hasStructuredJsonCandidates(raw)) {
+    return null;
+  }
+  if (!allowUnstructured) {
     return null;
   }
   return parseStudioAgentUnstructuredText(raw);

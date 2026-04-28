@@ -19,9 +19,11 @@ describe("studioAgentOpenAiGateway", () => {
       openAiVisionModel: "gpt-5-nano",
       openAiThinkerModel: "gpt-5-nano",
       openAiFormatterModel: "gpt-5-nano",
+      openAiPulseModel: "gpt-5-nano",
       requestTimeoutMs: 20000,
       visionTimeoutMs: 20000,
       turnTimeoutMs: 20000,
+      pulseTurnTimeoutMs: 20000,
       upstreamRetryMaxAttempts: 2,
       upstreamRetryBaseDelayMs: 150,
       upstreamRetryMaxDelayMs: 1200,
@@ -36,6 +38,7 @@ describe("studioAgentOpenAiGateway", () => {
     expect(config.openAiModel).toBe("gpt-5-nano");
     expect(config.openAiThinkerModel).toBe("gpt-5-nano");
     expect(config.openAiFormatterModel).toBe("gpt-5-nano");
+    expect(config.openAiPulseModel).toBe("gpt-5-nano");
   });
 
   it("clamps timeout/retry config and applies thinker/formatter fallback chain", () => {
@@ -61,6 +64,7 @@ describe("studioAgentOpenAiGateway", () => {
     expect(lowTimeout.requestTimeoutMs).toBe(1000);
     expect(lowTimeout.visionTimeoutMs).toBe(1000);
     expect(lowTimeout.turnTimeoutMs).toBe(1000);
+    expect(lowTimeout.pulseTurnTimeoutMs).toBe(1000);
     expect(lowTimeout.upstreamRetryMaxAttempts).toBe(1);
     expect(lowTimeout.upstreamRetryBaseDelayMs).toBe(0);
     expect(lowTimeout.upstreamRetryMaxDelayMs).toBe(10000);
@@ -69,6 +73,7 @@ describe("studioAgentOpenAiGateway", () => {
     expect(highTimeout.requestTimeoutMs).toBe(120000);
     expect(highTimeout.visionTimeoutMs).toBe(120000);
     expect(highTimeout.turnTimeoutMs).toBe(120000);
+    expect(highTimeout.pulseTurnTimeoutMs).toBe(120000);
     expect(highTimeout.upstreamRetryMaxAttempts).toBe(5);
     expect(highTimeout.upstreamRetryBaseDelayMs).toBe(5000);
     expect(highTimeout.upstreamRetryMaxDelayMs).toBe(0);
@@ -81,11 +86,31 @@ describe("studioAgentOpenAiGateway", () => {
       STUDIO_AGENT_TIMEOUT_MS: "18000",
       STUDIO_AGENT_VISION_TIMEOUT_MS: "250",
       STUDIO_AGENT_TURN_TIMEOUT_MS: "130000",
+      STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS: "45000",
     } as unknown as NodeJS.ProcessEnv);
 
     expect(config.requestTimeoutMs).toBe(18000);
     expect(config.visionTimeoutMs).toBe(1000);
     expect(config.turnTimeoutMs).toBe(120000);
+    expect(config.pulseTurnTimeoutMs).toBe(45000);
+  });
+
+  it("supports Pulse-specific model fallback and timeout budgets", () => {
+    const defaultPulse = resolveStudioAgentOpenAiConfig({
+      OPENAI_MODEL: "gpt-base",
+      STUDIO_AGENT_TURN_TIMEOUT_MS: "30000",
+    } as unknown as NodeJS.ProcessEnv);
+    const customPulse = resolveStudioAgentOpenAiConfig({
+      OPENAI_MODEL: "gpt-base",
+      STUDIO_AGENT_PULSE_MODEL: "gpt-pulse",
+      STUDIO_AGENT_TURN_TIMEOUT_MS: "30000",
+      STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS: "45000",
+    } as unknown as NodeJS.ProcessEnv);
+
+    expect(defaultPulse.openAiPulseModel).toBe("gpt-base");
+    expect(defaultPulse.pulseTurnTimeoutMs).toBe(30000);
+    expect(customPulse.openAiPulseModel).toBe("gpt-pulse");
+    expect(customPulse.pulseTurnTimeoutMs).toBe(45000);
   });
 
   it("ignores direct bypass enablement flags when resolving agent defaults", () => {
@@ -97,6 +122,7 @@ describe("studioAgentOpenAiGateway", () => {
     expect(config.openAiModel).toBe("gpt-5-nano");
     expect(config.openAiThinkerModel).toBe("gpt-5-nano");
     expect(config.openAiFormatterModel).toBe("gpt-5-nano");
+    expect(config.openAiPulseModel).toBe("gpt-5-nano");
   });
 
   it("formats timeout errors deterministically", () => {
@@ -117,6 +143,19 @@ describe("studioAgentOpenAiGateway", () => {
       model: "gpt-test",
       messages: [{ role: "user", content: "hello" }],
       timeoutMs: 20000,
+      responseFormat: {
+        type: "json_schema",
+        json_schema: {
+          name: "test_response",
+          schema: {
+            type: "object",
+            properties: { message: { type: "string" } },
+            required: ["message"],
+            additionalProperties: false,
+          },
+          strict: true,
+        },
+      },
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -127,6 +166,23 @@ describe("studioAgentOpenAiGateway", () => {
         headers: expect.objectContaining({
           "Content-Type": "application/json",
           Authorization: "Bearer test-key",
+        }),
+        body: JSON.stringify({
+          model: "gpt-test",
+          messages: [{ role: "user", content: "hello" }],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "test_response",
+              schema: {
+                type: "object",
+                properties: { message: { type: "string" } },
+                required: ["message"],
+                additionalProperties: false,
+              },
+              strict: true,
+            },
+          },
         }),
       })
     );

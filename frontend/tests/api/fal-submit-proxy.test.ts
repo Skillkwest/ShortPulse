@@ -9,6 +9,7 @@ const upsertGenerationProjectionMock = vi.fn();
 const requireApiUserMock = vi.fn();
 const dispatchProviderSubmitMock = vi.fn();
 const applyAcceptedRunningGenerationTransitionMock = vi.fn();
+const associateGenerationWithProjectForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -42,6 +43,11 @@ vi.mock("../../lib/server/providerIntegration/submitProviderDispatcher", () => (
 vi.mock("../../lib/server/api/generationAcceptedTransitionService", () => ({
   applyAcceptedRunningGenerationTransition: (...args: unknown[]) =>
     applyAcceptedRunningGenerationTransitionMock(...args),
+}));
+
+vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
+  associateGenerationWithProjectForUser: (...args: unknown[]) =>
+    associateGenerationWithProjectForUserMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -96,6 +102,7 @@ describe("createFalSubmitHandler", () => {
       providerDiagnostics: null,
     });
     applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({ ok: true });
+    associateGenerationWithProjectForUserMock.mockResolvedValue(true);
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "off",
@@ -141,7 +148,13 @@ describe("createFalSubmitHandler", () => {
 
     const req = {
       method: "POST",
-      body: { prompt: "portrait" },
+      body: {
+        prompt: "portrait",
+        shortpulse_context: {
+          project_id: "project-1",
+          project_id_present: true,
+        },
+      },
       headers: {
         host: "shortpulse-git-working-development-kirk-artmans-projects.vercel.app",
         "x-forwarded-proto": "https",
@@ -181,6 +194,11 @@ describe("createFalSubmitHandler", () => {
         queueState: "dispatched",
       })
     );
+    expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: expect.any(String),
+    });
     expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
@@ -361,7 +379,7 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
-  it("still returns the provider request id when direct submit transition recording fails after acceptance", async () => {
+  it("repairs accepted direct-submit tracking before returning a durable generation id", async () => {
     applyAcceptedRunningGenerationTransitionMock
       .mockResolvedValueOnce({
         ok: false,
@@ -390,7 +408,13 @@ describe("createFalSubmitHandler", () => {
 
     expect(dispatchProviderSubmitMock).toHaveBeenCalled();
     expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalledTimes(2);
-    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        requestId: "req-direct-1",
+        taskState: "running",
+      })
+    );
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.api.fal_submit.direct_transition_failed",
@@ -398,7 +422,48 @@ describe("createFalSubmitHandler", () => {
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ request_id: "req-direct-1" });
+    expect(res.json).toHaveBeenCalledWith({
+      request_id: "req-direct-1",
+      generationId: expect.any(String),
+    });
+  });
+
+  it("returns non-ok when accepted direct-submit tracking cannot be repaired", async () => {
+    applyAcceptedRunningGenerationTransitionMock
+      .mockResolvedValueOnce({
+        ok: false,
+        stage: "running",
+        error: "transition_failed",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        stage: "running",
+        error: "repair_failed",
+      });
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalledTimes(2);
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Provider accepted the generation, but tracking could not be repaired.",
+      request_id: "req-direct-1",
+    });
   });
 
   it("refunds and returns 500 when provider acceptance cannot be linked to local tracking", async () => {

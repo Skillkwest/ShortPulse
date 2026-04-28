@@ -41,6 +41,7 @@ import { normalizeVideoSubmitIngressPayload } from "./videoSubmitContracts";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { applyAcceptedRunningGenerationTransition } from "./generationAcceptedTransitionService";
 import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransitions";
+import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
 
 type FalSubmitConfig = {
   modelId: string;
@@ -169,6 +170,9 @@ const asJsonObject = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+
+const readProjectIdFromShortpulseContext = (context: Record<string, unknown>): string | null =>
+  asProviderString(context.project_id);
 
 const resolveInlineSubmitTargets = ({
   submitTargets,
@@ -788,7 +792,12 @@ export const createFalSubmitHandler = ({
                 tracking_repair_error: trackingRepairResult.ok ? null : trackingRepairResult.error,
               },
             });
-            return res.status(200).json({ request_id: providerRequestId });
+            if (!trackingRepairResult.ok) {
+              return res.status(502).json({
+                error: "Provider accepted the generation, but tracking could not be repaired.",
+                request_id: providerRequestId,
+              });
+            }
           }
 
           try {
@@ -831,6 +840,36 @@ export const createFalSubmitHandler = ({
                     : String(projectionError),
               },
             }).catch(() => undefined);
+          }
+
+          const projectId = readProjectIdFromShortpulseContext(shortpulseContext);
+          if (projectId) {
+            try {
+              await associateGenerationWithProjectForUser({
+                userId: charge.userId,
+                projectId,
+                generationId,
+              });
+            } catch (projectAssociationError) {
+              await logGenerationFailure({
+                req,
+                routeLabel,
+                source: "telemetry.api.fal_submit.project_association_failed",
+                message: "Direct submit project association failed.",
+                statusCode: 200,
+                userId: charge.userId,
+                metadata: {
+                  generation_id: generationId,
+                  project_id: projectId,
+                  source_ref: charge.sourceRef,
+                  provider_request_id: providerRequestId,
+                  association_error:
+                    projectAssociationError instanceof Error
+                      ? projectAssociationError.message
+                      : String(projectAssociationError),
+                },
+              }).catch(() => undefined);
+            }
           }
 
           await logGenerationFailure({

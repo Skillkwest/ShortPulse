@@ -571,6 +571,7 @@ export const useAiStudioTaskSubmission = ({
           selected_tool: effectiveTool,
           mode: outputMode,
           source_ref: sourceRef,
+          project_id: projectId ?? null,
           project_id_present: Boolean(projectId),
           is_character_mode: Boolean(options?.characterContextOverride?.applied),
           selected_character_id: options?.characterContextOverride?.characterId ?? null,

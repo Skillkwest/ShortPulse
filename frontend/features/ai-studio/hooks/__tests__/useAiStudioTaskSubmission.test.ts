@@ -139,6 +139,7 @@ describe("useAiStudioTaskSubmission", () => {
         updateOutputById,
         startPollingTask,
         ensureGenerationRecord,
+        projectId: "project-1",
       })
     );
 
@@ -158,6 +159,14 @@ describe("useAiStudioTaskSubmission", () => {
     });
     expect(outputs[0]?.taskId).toBe("image-req-1");
     expect(outputs[0]?.generationId).toBe("gen-immediate-1");
+    expect(handleImageModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shortpulseContext: expect.objectContaining({
+          project_id: "project-1",
+          project_id_present: true,
+        }),
+      })
+    );
   });
 
   it("backfills generation id from ensureGenerationRecord after non-queued dispatch", async () => {

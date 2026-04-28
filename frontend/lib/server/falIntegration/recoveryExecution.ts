@@ -46,6 +46,7 @@ import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
 import { applyRecoveryTransition } from "./recoveryTransitionService";
+import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
 
 type JsonObject = Record<string, unknown>;
 
@@ -307,6 +308,12 @@ const syncRecoveredGenerationProjection = async ({
       (row) => typeof row.mediaFileId === "string" && row.mediaFileId.trim().length > 0
     );
   const generationMetadata = asObject(generation.metadata);
+  const shortpulseContext = readMetadataObject(
+    generationMetadata,
+    "shortpulse_context",
+    "shortpulseContext"
+  );
+  const projectId = asOptionalString(shortpulseContext.project_id);
   const abandonment = await readGenerationAbandonmentContext({
     userId: generation.user_id,
     generationId: generation.id,
@@ -383,6 +390,32 @@ const syncRecoveredGenerationProjection = async ({
     startedAt: generation.created_at,
     completedAt: nowIso,
   });
+
+  if (projectId) {
+    try {
+      await associateGenerationWithProjectForUser({
+        userId: generation.user_id,
+        projectId,
+        generationId: generation.id,
+      });
+    } catch (error) {
+      await writeAppErrorLog({
+        source: "telemetry.generation.recovery.project_association_failed",
+        message: "Recovered generation project association failed.",
+        requestId: generation.request_id,
+        userId: generation.user_id,
+        statusCode: 200,
+        metadata: {
+          generation_id: generation.id,
+          project_id: projectId,
+          provider: generation.provider,
+          model_id: generation.model_id,
+          recovery_actor: actor,
+          association_error: error instanceof Error ? error.message : String(error),
+        },
+      }).catch(() => undefined);
+    }
+  }
 };
 
 const syncFailedGenerationProjection = async ({

@@ -13,6 +13,7 @@ const readPersistedGenerationOutputsMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
 const probeGenerationProviderResultMock = vi.fn();
+const associateGenerationWithProjectForUserMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -57,6 +58,11 @@ vi.mock("../recoveryMediaPersistence", () => ({
 
 vi.mock("../../providerIntegration/recoveryProviderDispatcher", () => ({
   probeGenerationProviderResult: (...args: unknown[]) => probeGenerationProviderResultMock(...args),
+}));
+
+vi.mock("../../projectGenerationAssociationsService", () => ({
+  associateGenerationWithProjectForUser: (...args: unknown[]) =>
+    associateGenerationWithProjectForUserMock(...args),
 }));
 
 const asObject = (value: unknown): Record<string, unknown> =>
@@ -190,6 +196,7 @@ describe("executeGenerationRecovery", () => {
     ]);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
+    associateGenerationWithProjectForUserMock.mockResolvedValue(true);
     probeGenerationProviderResultMock.mockResolvedValue({
       state: "running",
       payload: null,
@@ -311,6 +318,102 @@ describe("executeGenerationRecovery", () => {
           used_observation_payload: true,
           used_observation_media_urls: true,
         }),
+      })
+    );
+  });
+
+  it("associates recovered project-scoped generations with their project", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        metadata: {
+          source_ref: "source-ref-1",
+          shortpulse_context: {
+            project_id: "project-1",
+            project_id_present: true,
+          },
+        },
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: "media-1",
+      },
+    ]);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: {
+          data: {
+            images: [{ url: "https://cdn.shortpulse.test/generated-a.png" }],
+          },
+        },
+        mediaUrls: ["https://cdn.shortpulse.test/generated-a.png"],
+      },
+    });
+
+    expect(result.state).toBe("recovered");
+    expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "gen-1",
+    });
+  });
+
+  it("keeps recovered generations successful when project association telemetry fails", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        metadata: {
+          source_ref: "source-ref-1",
+          shortpulse_context: {
+            project_id: "project-1",
+          },
+        },
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: "media-1",
+      },
+    ]);
+    associateGenerationWithProjectForUserMock.mockRejectedValueOnce(
+      new Error("project write failed")
+    );
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: {
+          data: {
+            images: [{ url: "https://cdn.shortpulse.test/generated-a.png" }],
+          },
+        },
+        mediaUrls: ["https://cdn.shortpulse.test/generated-a.png"],
+      },
+    });
+
+    expect(result.state).toBe("recovered");
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.generation.recovery.project_association_failed",
+        requestId: "req-1",
+        userId: "user-1",
       })
     );
   });

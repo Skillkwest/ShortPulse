@@ -1,10 +1,10 @@
 # Fal.ai Veo 3.1 First/Last Frame API Reference
 
-Use this guide to submit and poll Veo 3.1 first/last frame jobs via the Fal queue. ShortPulse proxies the requests through Next.js API routes to keep `FAL_KEY` server-side.
+Provider reference for Veo 3.1 first/last frame jobs via the Fal queue. ShortPulse no longer exposes a Fal proxy route for this model; active ShortPulse Veo generation uses the Kie Veo 3.1 Fast lane.
 
 ## Authentication
 - Set `FAL_KEY` in the runtime and send `Authorization: Key $FAL_KEY` on every request.
-- Keep keys server-side; ShortPulse proxies through `/api/fal/veo-first-last-frame-submit` and `/api/fal/veo-status`.
+- Keep keys server-side. ShortPulse keeps this page as provider-reference material only.
 
 ## Submit (First/Last Frame → Video)
 `POST https://queue.fal.run/fal-ai/veo3.1/first-last-frame-to-video`
@@ -41,7 +41,7 @@ curl --request POST \
 ## Status
 - Poll: `GET https://queue.fal.run/fal-ai/veo3.1/requests/<request_id>/status`
 - Result: `GET https://queue.fal.run/fal-ai/veo3.1/requests/<request_id>`
-- Proxies: `/api/fal/veo-status` handles status + result fetch when complete.
+- ShortPulse active route: use `POST /api/fal/kie-veo-submit` and `POST /api/fal/kie-veo-status` for active Veo generation.
 
 **Typical result**
 ```json
@@ -58,7 +58,7 @@ curl --request POST \
 - Resolution: 720p.
 - Audio: `generate_audio: true`.
 - Pricing: `veo-3-per-second` ($0.20/sec audio off, $0.40/sec audio on for 720p/1080p; 4K $0.40/$0.60).
-- Proxy route: `/api/fal/veo-first-last-frame-submit`.
+- ShortPulse route status: retired from the active Fal route surface.
 
 ## Notes
 - Input images must be ≤ 8MB each; prefer hosted URLs or Base64 data URIs.

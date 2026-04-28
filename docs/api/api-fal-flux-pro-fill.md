@@ -10,11 +10,7 @@ ShortPulse catalog model id: `fal-ai/flux-pro/v1/fill`.
 ## Submit (Inpaint)
 ### Proxy endpoint
 Active client path:
-- `POST /api/fal/image-submit` with `modelId: "fal-ai/flux-pro/v1/fill"`
-
-Legacy dedicated submit route:
 - `POST /api/fal/flux-pro-fill-submit`
-- retained for direct proxy coverage/tests, but not the primary client submit path.
 
 ### Fal queue
 `POST https://queue.fal.run/fal-ai/flux-pro/v1/fill`
@@ -42,8 +38,6 @@ Example payload:
 
 ## Status and result
 - Active client polling path:
-  - `POST /api/fal/image-status` with `{ "modelId": "fal-ai/flux-pro/v1/fill", "requestId": "..." }`
-- Legacy dedicated status route:
   - `POST /api/fal/flux-pro-fill-status`
 - Proxy checks configured status base URLs and fetches result on completion.
 - Catalog fallback bases include both:

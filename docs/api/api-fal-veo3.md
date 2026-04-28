@@ -1,10 +1,10 @@
 # Fal.ai Veo 3.1 Text-to-Video API Reference
 
-Use this guide to submit and poll Veo 3.1 text-to-video jobs via the Fal queue (`fal-ai/veo3.1`). This keeps `FAL_KEY` server-side and aligns with AI Studio defaults and pricing.
+Provider reference for Veo 3.1 text-to-video jobs via the Fal queue (`fal-ai/veo3.1`). ShortPulse no longer exposes a Fal proxy route for this model; active ShortPulse Veo generation uses the Kie Veo 3.1 Fast lane.
 
 ## Authentication
 - Set `FAL_KEY` in the runtime and send `Authorization: Key $FAL_KEY` on every request.
-- Keep keys server-side; ShortPulse proxies through `/api/fal/veo-submit` and `/api/fal/veo-status`.
+- Keep keys server-side. ShortPulse keeps this page as provider-reference material only.
 
 ## Submit (Text → Video)
 `POST https://queue.fal.run/fal-ai/veo3.1`
@@ -38,7 +38,7 @@ curl --request POST \
 ## Status
 - Poll: `GET https://queue.fal.run/fal-ai/veo3.1/requests/<request_id>/status`
 - Result: `GET https://queue.fal.run/fal-ai/veo3.1/requests/<request_id>`
-- Proxies: `/api/fal/veo-status` handles status + result fetch when complete.
+- ShortPulse active route: use `POST /api/fal/kie-veo-submit` and `POST /api/fal/kie-veo-status` for active Veo generation.
 
 **Typical result**
 ```json
@@ -54,7 +54,7 @@ curl --request POST \
 - Aspect: `16:9` (allowed: `16:9`, `9:16`, `1:1` fallback handled to default).
 - Duration: 8s requested; pricing uses the existing `veo-3-per-second` strategy (unchanged).
 - Resolution: `1080p`; audio on; `auto_fix: true`.
-- Proxy routes: `/api/fal/veo-submit` for submit; `/api/fal/veo-status` for status/result.
+- ShortPulse route status: retired from the active Fal route surface.
 
 ## Notes
 - Keep prompts safe for public URLs; avoid PII.

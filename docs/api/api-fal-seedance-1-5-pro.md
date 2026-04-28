@@ -1,10 +1,10 @@
 # Fal.ai Seedance 1.5 Pro Text-to-Video API Reference
 
-Use this guide to submit and poll Seedance 1.5 Pro text-to-video jobs via the Fal queue (`fal-ai/bytedance/seedance/v1.5/pro/text-to-video`). This keeps `FAL_KEY` server-side and matches AI Studio defaults.
+Provider reference for Seedance 1.5 Pro text-to-video jobs via the Fal queue (`fal-ai/bytedance/seedance/v1.5/pro/text-to-video`). ShortPulse no longer exposes a Fal proxy route for this model; active ShortPulse Seedance generation uses the Kie Seedance lanes.
 
 ## Authentication
 - Set `FAL_KEY` in the runtime and send `Authorization: Key $FAL_KEY` on every request.
-- Keep keys server-side; ShortPulse proxies through `/api/fal/seedance-submit` and `/api/fal/seedance-status`.
+- Keep keys server-side. ShortPulse keeps this page as provider-reference material only.
 
 ## Submit (Text → Video)
 `POST https://queue.fal.run/fal-ai/bytedance/seedance/v1.5/pro/text-to-video`
@@ -36,7 +36,7 @@ curl --request POST \
 
 ## Status
 - Provider queue URLs may resolve through multiple base paths (`/fal-ai/bytedance/requests`, `/fal-ai/bytedance/seedance/requests`, or model-specific paths).
-- ShortPulse proxy `/api/fal/seedance-status` automatically retries across supported Seedance queue URL patterns and returns normalized status/result.
+- ShortPulse active routes: use `POST /api/fal/kie-seedance-submit`, `POST /api/fal/kie-seedance-status`, or the Kie Seedance 2 routes for active Seedance generation.
 
 **Typical result**
 ```json
@@ -53,7 +53,7 @@ curl --request POST \
 - Duration: 10s; audio on; resolution tier equivalent to 1080p (used for pricing).
 - Safety: `enable_safety_checker: false` (minimum filtering).
 - Pricing: `seedance-1.5-per-second` (token-based; audio on).
-- Proxy routes: `/api/fal/seedance-submit` and `/api/fal/seedance-status`.
+- ShortPulse route status: retired from the active Fal route surface.
 
 ## Notes
 - Keep prompts safe for public URLs; avoid PII/sensitive content.

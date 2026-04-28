@@ -42,6 +42,16 @@ const PROVIDER_SOURCE_HOST_ALLOWLIST = {
   openai: ["platform.openai.com", "openai.com"],
 };
 
+const RETIRED_FAL_SUBMIT_ROUTE_MODEL_IDS = new Set([
+  "fal-ai/kling-video/v3/pro/text-to-video",
+  "fal-ai/kling-video/v3/pro/image-to-video",
+  "fal-ai/veo3.1",
+  "fal-ai/veo3.1/image-to-video",
+  "fal-ai/veo3.1/first-last-frame-to-video",
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+]);
+
 const MODEL_DOC_MAP = {
   "fal-ai/flux-2/klein/9b": "api-fal-flux-2-klein-9b.md",
   "fal-ai/flux-pro/v1/fill": "api-fal-flux-pro-fill.md",
@@ -193,14 +203,12 @@ function listFalSubmitRouteDefinitions() {
     const helperValidatorMatch = content.match(
       /validatePayload\s*:\s*validateFalPayloadForModel\("([^"]+)"\)/
     );
-    const usesGenericImageSubmitResolver = /resolveFalImageSubmitHandler\s*\(/.test(content);
 
     return {
       fileName,
       modelId: modelIdMatch ? modelIdMatch[1] : null,
       hasValidatePayload: Boolean(validatePayloadMatch),
       helperValidatorModelId: helperValidatorMatch ? helperValidatorMatch[1] : null,
-      usesGenericImageSubmitResolver,
     };
   });
 }
@@ -381,7 +389,12 @@ function run() {
   }
 
   const falCatalogModelIds = entries
-    .filter((entry) => entry.provider === "fal" && String(entry.falSubmitUrl || "").trim().length > 0)
+    .filter(
+      (entry) =>
+        entry.provider === "fal" &&
+        String(entry.falSubmitUrl || "").trim().length > 0 &&
+        !RETIRED_FAL_SUBMIT_ROUTE_MODEL_IDS.has(String(entry.modelId || ""))
+    )
     .map((entry) => entry.modelId);
 
   for (const modelId of falCatalogModelIds) {
@@ -444,9 +457,6 @@ function run() {
 
   for (const route of falSubmitRouteDefinitions) {
     const routeLabel = `frontend/pages/api/fal/${route.fileName}`;
-    if (route.usesGenericImageSubmitResolver) {
-      continue;
-    }
     if (!route.modelId) {
       errors.push(`${routeLabel} missing modelId in createFalSubmitHandler config.`);
       continue;

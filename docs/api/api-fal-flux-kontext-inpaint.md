@@ -10,9 +10,6 @@ ShortPulse catalog model id: `fal-ai/flux-kontext-lora/inpaint`.
 ## Submit (Reference Inpaint)
 ### Proxy endpoint
 Active client path:
-- `POST /api/fal/image-submit` with `modelId: "fal-ai/flux-kontext-lora/inpaint"`
-
-Dedicated proxy route:
 - `POST /api/fal/flux-kontext-inpaint-submit`
 
 ### Fal queue
@@ -44,8 +41,6 @@ Example payload:
 
 ## Status and result
 - Active client polling path:
-  - `POST /api/fal/image-status` with `{ "modelId": "fal-ai/flux-kontext-lora/inpaint", "requestId": "..." }`
-- Dedicated proxy status route:
   - `POST /api/fal/flux-kontext-inpaint-status`
 - Catalog fallback base:
   - `https://queue.fal.run/fal-ai/flux-kontext-lora/inpaint/requests`

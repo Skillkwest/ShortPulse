@@ -1,19 +1,16 @@
 # Fal.ai Kling 3.0 Pro Text-to-Video API Reference
 
-Use this guide to submit and poll Kling 3.0 Pro text-to-video jobs via the Fal queue (`fal-ai/kling-video/v3/pro/text-to-video`). ShortPulse proxies these requests through Next API routes to keep `FAL_KEY` server-side.
+Provider reference for Kling 3.0 Pro text-to-video jobs via the Fal queue (`fal-ai/kling-video/v3/pro/text-to-video`). ShortPulse no longer exposes a Fal proxy route for this model; active ShortPulse Kling generation uses the Kie Kling 3.0 lane.
 
 ## Authentication
 
 - **API key**: Set `FAL_KEY` in your runtime environment and pass it via `Authorization: Key $FAL_KEY`.
-- **Security**: Never expose `FAL_KEY` in client-side code; use the ShortPulse proxy endpoints below.
+- **Security**: Never expose `FAL_KEY` in client-side code. ShortPulse keeps this page as provider-reference material only.
 
-## Queue workflow
+## ShortPulse routing status
 
-1. **Submit** the job via the ShortPulse proxy:
-   - `POST /api/fal/kling-v3-text-submit`
-2. **Poll** for status:
-   - `POST /api/fal/kling-status` with `{ "requestId": "..." }`
-3. **Fetch result**: the status proxy automatically fetches the result once the queue reports completion.
+- Retired in the ShortPulse generation pipeline.
+- Use `POST /api/fal/kie-kling-submit` and `POST /api/fal/kie-kling-status` for active Kling generation.
 
 ## Fal queue endpoints (for reference)
 
@@ -73,7 +70,7 @@ Credits are derived from provider USD with markup and 5-credit quantization:
 
 Example: a 5s clip with audio on and voice control costs `$0.98` -> `rawCredits = 101` -> `105` credits billed.
 
-## Example request (proxy)
+## Example request (provider reference)
 
 ```json
 {

@@ -1,10 +1,10 @@
 # Fal.ai Seedance 1.5 Pro Image-to-Video API Reference
 
-Use this guide to submit and poll Seedance 1.5 Pro image-to-video jobs via the Fal queue (`fal-ai/bytedance/seedance/v1.5/pro/image-to-video`). This keeps `FAL_KEY` server-side and matches AI Studio defaults.
+Provider reference for Seedance 1.5 Pro image-to-video jobs via the Fal queue (`fal-ai/bytedance/seedance/v1.5/pro/image-to-video`). ShortPulse no longer exposes a Fal proxy route for this model; active ShortPulse Seedance generation uses the Kie Seedance lanes.
 
 ## Authentication
 - Set `FAL_KEY` in the runtime and send `Authorization: Key $FAL_KEY` on every request.
-- Keep keys server-side; ShortPulse proxies through `/api/fal/seedance-i2v-submit` and `/api/fal/seedance-i2v-status`.
+- Keep keys server-side. ShortPulse keeps this page as provider-reference material only.
 
 ## Submit (Image to Video)
 `POST https://queue.fal.run/fal-ai/bytedance/seedance/v1.5/pro/image-to-video`
@@ -41,7 +41,7 @@ curl --request POST \
 
 ## Status
 - Provider queue URLs may resolve through multiple base paths (`/fal-ai/bytedance/requests`, `/fal-ai/bytedance/seedance/requests`, or model-specific paths).
-- ShortPulse proxy `/api/fal/seedance-i2v-status` automatically retries across supported Seedance queue URL patterns and returns normalized status/result.
+- ShortPulse active routes: use `POST /api/fal/kie-seedance-submit`, `POST /api/fal/kie-seedance-status`, or the Kie Seedance 2 routes for active Seedance generation.
 
 **Typical result**
 ```json
@@ -59,7 +59,7 @@ curl --request POST \
 - Duration: 5s; audio on; resolution: 720p.
 - Safety: `enable_safety_checker: false` (minimum filtering).
 - Pricing: `seedance-1.5-per-second` (token-based; audio on).
-- Proxy routes: `/api/fal/seedance-i2v-submit` and `/api/fal/seedance-i2v-status`.
+- ShortPulse route status: retired from the active Fal route surface.
 
 ## Pricing
 - 720p 5-second video with audio: ~$0.26

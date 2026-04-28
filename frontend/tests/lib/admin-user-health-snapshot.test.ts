@@ -105,6 +105,9 @@ describe("loadAdminHealthSnapshot", () => {
             error: null,
           });
         }
+        if (table === "project_generation_items") {
+          return buildQuery({ data: [], error: null });
+        }
         throw new Error(`unexpected table ${table}`);
       },
     });

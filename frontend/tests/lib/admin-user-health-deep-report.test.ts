@@ -284,4 +284,108 @@ describe("buildAdminHealthResponse", () => {
       ])
     );
   });
+
+  it("surfaces generation output, project association, and terminal hold invariants", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user-1",
+      lookupMode: "user_id",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,request_id,metadata",
+      reservationsSupported: true,
+      queueSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: {
+        user_id: "user-1",
+        balance_cents: 500,
+        updated_at: "2026-03-17T11:55:00.000Z",
+      },
+      generations: [
+        {
+          id: "gen-success-no-output",
+          status: "success",
+          recovery_state: null,
+          provider: "fal",
+          model_id: "fal-ai/nano-banana",
+          request_id: "req-success-no-output",
+          created_at: "2026-03-17T11:00:00.000Z",
+          completed_at: "2026-03-17T11:01:00.000Z",
+          failure_reason_code: null,
+          next_recovery_at: null,
+          metadata: {
+            shortpulse_context: {
+              project_id: "project-1",
+            },
+          },
+        },
+        {
+          id: "gen-associated",
+          status: "success",
+          recovery_state: null,
+          provider: "elevenlabs",
+          model_id: "music_v1",
+          request_id: "req-associated",
+          created_at: "2026-03-17T11:05:00.000Z",
+          completed_at: "2026-03-17T11:06:00.000Z",
+          failure_reason_code: null,
+          next_recovery_at: null,
+          metadata: {
+            project_id: "project-2",
+          },
+        },
+      ],
+      attempts: [],
+      outputs: [
+        {
+          id: "output-1",
+          generation_id: "gen-associated",
+          media_file_id: "media-1",
+          created_at: "2026-03-17T11:06:00.000Z",
+        },
+      ],
+      projectGenerationItems: [
+        {
+          project_id: "project-2",
+          generation_id: "gen-associated",
+          user_id: "user-1",
+        },
+      ],
+      reservations: [
+        {
+          id: "res-terminal",
+          status: "reserved",
+          source_ref: "src-terminal",
+          provider_request_id: "req-associated",
+          model_id: "music_v1",
+          amount_cents: 50,
+          metadata: null,
+          created_at: "2026-03-17T11:05:00.000Z",
+          released_at: null,
+          captured_at: null,
+        },
+      ],
+      queueRows: [],
+      ledger: [],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.findings.map((finding) => finding.code)).toEqual(
+      expect.arrayContaining([
+        "SUCCESS_WITHOUT_OUTPUTS",
+        "PROJECT_GENERATION_ASSOCIATION_DRIFT",
+        "RESERVED_HOLD_LINKED_TERMINAL_GENERATION",
+      ])
+    );
+    expect(result.generations).toEqual(
+      expect.objectContaining({
+        successWithoutOutputCount: 1,
+        projectScopedSuccessMissingAssociationCount: 1,
+      })
+    );
+    expect(result.reservations.reservedLinkedTerminalGenerationCount).toBe(1);
+  });
 });

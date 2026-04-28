@@ -17,6 +17,7 @@ import {
   type GenerationRow,
   type NormalizedLedgerRow,
   type OutputRow,
+  type ProjectGenerationItemRow,
   type QueueRow,
   type ReservationRow,
 } from "./deepReport";
@@ -117,7 +118,8 @@ export const loadAdminHealthSnapshot = async ({
         .limit(1),
       (async () => {
         const generationSelectFallbacks = [
-          "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,failure_reason_code,next_recovery_at",
+          "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,failure_reason_code,next_recovery_at,metadata",
+          "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,next_recovery_at,metadata",
           "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,next_recovery_at",
           "id,status,provider,model_id,request_id,created_at,completed_at",
         ];
@@ -369,6 +371,47 @@ export const loadAdminHealthSnapshot = async ({
     }
   }
 
+  const projectGenerationItemsResult = generationIds.length
+    ? await (async () => {
+        const rows: ProjectGenerationItemRow[] = [];
+        for (const generationIdChunk of chunkArray(generationIds, DB_IN_CLAUSE_BATCH_SIZE)) {
+          const batchResult = await fetchAllRowsForSelect<ProjectGenerationItemRow>(
+            async (from, to) => {
+              const query = supabaseAdmin
+                .from("project_generation_items")
+                .select("project_id,generation_id,user_id")
+                .eq("user_id", userId)
+                .in("generation_id", generationIdChunk)
+                .range(from, to);
+              const { data, error } = await query;
+              return {
+                data: (data as ProjectGenerationItemRow[] | null) ?? null,
+                error: normalizeQueryError(error),
+              };
+            }
+          );
+          if (batchResult.error) {
+            return batchResult;
+          }
+          rows.push(...batchResult.rows);
+        }
+        return { rows, error: null as QueryError | null };
+      })()
+    : { rows: [] as ProjectGenerationItemRow[], error: null };
+
+  const projectGenerationItemsError = normalizeQueryError(projectGenerationItemsResult.error);
+  if (projectGenerationItemsError) {
+    if (isSchemaCompatibilityError(projectGenerationItemsError)) {
+      compatibilityWarnings.push(
+        "project_generation_items is unavailable in this environment; project-association diagnostics are partial."
+      );
+    } else {
+      throw new Error(
+        projectGenerationItemsError.message || "Failed to load project_generation_items."
+      );
+    }
+  }
+
   return buildAdminHealthResponse({
     lookup,
     lookupMode,
@@ -383,6 +426,9 @@ export const loadAdminHealthSnapshot = async ({
     generations: generationsResult.rows,
     attempts: attemptsResult.error ? [] : attemptsResult.rows,
     outputs: outputsResult.error ? [] : outputsResult.rows,
+    projectGenerationItems: projectGenerationItemsResult.error
+      ? []
+      : projectGenerationItemsResult.rows,
     reservations: reservationsResult.rows,
     queueRows: queueResult.rows,
     ledger: ledgerResult.rows,

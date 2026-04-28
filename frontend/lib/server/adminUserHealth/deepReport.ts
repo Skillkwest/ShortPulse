@@ -39,6 +39,7 @@ export type GenerationRow = {
   completed_at: string | null;
   failure_reason_code?: string | null;
   next_recovery_at?: string | null;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type AttemptRow = {
@@ -54,6 +55,12 @@ export type OutputRow = {
   generation_id: string | null;
   media_file_id: string | null;
   created_at: string | null;
+};
+
+export type ProjectGenerationItemRow = {
+  project_id: string | null;
+  generation_id: string | null;
+  user_id?: string | null;
 };
 
 export type ReservationRow = {
@@ -196,12 +203,28 @@ export type AdminHealthResponse = {
       ageHours: number | null;
       nextRecoveryAt: string | null;
     }>;
+    successWithoutOutputCount: number;
+    successWithoutOutputSample: Array<{
+      id: string;
+      requestId: string | null;
+      modelId: string | null;
+      completedAt: string | null;
+    }>;
+    projectScopedSuccessMissingAssociationCount: number;
+    projectScopedSuccessMissingAssociationSample: Array<{
+      id: string;
+      projectId: string;
+      requestId: string | null;
+      modelId: string | null;
+      completedAt: string | null;
+    }>;
   };
   reservations: {
     total: number;
     byStatus: Record<string, number>;
     reservedWithProviderOver1hCount: number;
     reservedWithoutProviderOver15mCount: number;
+    reservedLinkedTerminalGenerationCount: number;
     topCapturedModels: Array<{ modelId: string; cents: number }>;
   };
   queue: {
@@ -247,6 +270,7 @@ export type BuildAdminHealthResponseArgs = {
   generations: GenerationRow[];
   attempts: AttemptRow[];
   outputs: OutputRow[];
+  projectGenerationItems?: ProjectGenerationItemRow[];
   reservations: ReservationRow[];
   queueRows: QueueRow[];
   ledger: NormalizedLedgerRow[];
@@ -266,6 +290,28 @@ const buildWindowGenerationSummary = (rows: GenerationRow[]) => {
   };
 };
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const asTrimmedString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const readGenerationProjectId = (row: GenerationRow): string | null => {
+  const metadata = asRecord(row.metadata);
+  const shortpulseContext = asRecord(metadata.shortpulse_context ?? metadata.shortpulseContext);
+  return (
+    asTrimmedString(metadata.project_id) ??
+    asTrimmedString(metadata.projectId) ??
+    asTrimmedString(shortpulseContext.project_id) ??
+    asTrimmedString(shortpulseContext.projectId)
+  );
+};
+
 export const buildAdminHealthResponse = ({
   lookup,
   lookupMode,
@@ -280,6 +326,7 @@ export const buildAdminHealthResponse = ({
   generations,
   attempts,
   outputs,
+  projectGenerationItems = [],
   reservations,
   queueRows,
   ledger,
@@ -328,6 +375,14 @@ export const buildAdminHealthResponse = ({
       row.generation_id,
       (outputCountByGenerationId.get(row.generation_id) ?? 0) + 1
     );
+  });
+
+  const projectGenerationAssociationKeys = new Set<string>();
+  projectGenerationItems.forEach((row) => {
+    const projectId = asTrimmedString(row.project_id);
+    const generationId = asTrimmedString(row.generation_id);
+    if (!projectId || !generationId) return;
+    projectGenerationAssociationKeys.add(`${projectId}:${generationId}`);
   });
 
   const reservationBySourceRef = new Map<string, ReservationRow>();
@@ -590,6 +645,22 @@ export const buildAdminHealthResponse = ({
     return nowMs - createdAtMs >= PRE_SUBMIT_RESERVED_HOLD_WARNING_MS;
   });
 
+  const generationForProviderRequestId = (
+    providerRequestId: string | null
+  ): GenerationRow | null => {
+    if (!providerRequestId) return null;
+    return (
+      generationByRequestId.get(providerRequestId) ??
+      generationByAttemptProviderRequestId.get(providerRequestId) ??
+      null
+    );
+  };
+  const reservedLinkedTerminalGeneration = reservations.filter((row) => {
+    if (row.status !== "reserved" || !row.provider_request_id) return false;
+    const generation = generationForProviderRequestId(row.provider_request_id);
+    return generation?.status === "success" || generation?.status === "fail";
+  });
+
   const capturedByModelMap = new Map<string, number>();
   reservations.forEach((row) => {
     if (row.status !== "captured") return;
@@ -634,6 +705,16 @@ export const buildAdminHealthResponse = ({
     return (generationChargeCountBySourceRef.get(row.source_ref) ?? 0) > 0;
   }).length;
 
+  const successWithoutOutputs = generations.filter(
+    (row) => row.status === "success" && (outputCountByGenerationId.get(row.id) ?? 0) === 0
+  );
+  const projectScopedSuccessMissingAssociation = generations.filter((row) => {
+    if (row.status !== "success") return false;
+    const projectId = readGenerationProjectId(row);
+    if (!projectId) return false;
+    return !projectGenerationAssociationKeys.has(`${projectId}:${row.id}`);
+  });
+
   const findings: HealthFinding[] = [];
   const addFinding = (
     severity: FindingSeverity,
@@ -673,6 +754,21 @@ export const buildAdminHealthResponse = ({
     );
   }
 
+  if (reservedLinkedTerminalGeneration.length > 0) {
+    addFinding(
+      "critical",
+      "high",
+      "RESERVED_HOLD_LINKED_TERMINAL_GENERATION",
+      "Reserved holds are linked to terminal generations.",
+      `${reservedLinkedTerminalGeneration.length} reserved hold(s) have provider request ids that already map to success/fail generation rows.`,
+      [
+        "Run /api/internal/generation-recovery/run to settle terminal linked holds.",
+        "Inspect affected source_ref/request_id pairs in /admin/generation-trace.",
+        "Do not manually release until generation and ledger state agree.",
+      ]
+    );
+  }
+
   if (stuckOver1h.length > 0) {
     addFinding(
       "critical",
@@ -697,6 +793,36 @@ export const buildAdminHealthResponse = ({
         "Run /api/internal/generation-recovery/run and verify rows converge.",
         "Inspect one affected row in /admin/generation-trace.",
         "If the same rows recur, audit scheduler health before changing cleanup thresholds.",
+      ]
+    );
+  }
+
+  if (successWithoutOutputs.length > 0) {
+    addFinding(
+      "critical",
+      "high",
+      "SUCCESS_WITHOUT_OUTPUTS",
+      "Successful generations are missing canonical output rows.",
+      `${successWithoutOutputs.length} success generation row(s) have no ai_generation_outputs rows, so they cannot reliably hydrate the reference grid.`,
+      [
+        "Open /admin/generation-trace for the affected generation ids.",
+        "Run targeted generation recovery/replay where provider media is still available.",
+        "Audit provider persistence before marking additional rows successful.",
+      ]
+    );
+  }
+
+  if (projectScopedSuccessMissingAssociation.length > 0) {
+    addFinding(
+      "critical",
+      "high",
+      "PROJECT_GENERATION_ASSOCIATION_DRIFT",
+      "Project-scoped successful generations are missing project associations.",
+      `${projectScopedSuccessMissingAssociation.length} project-scoped success row(s) have no matching project_generation_items association.`,
+      [
+        "Backfill project_generation_items for the listed project/generation pairs.",
+        "Verify each active generation lane writes project associations server-side.",
+        "Reload the affected project workspace after the association exists.",
       ]
     );
   }
@@ -874,12 +1000,30 @@ export const buildAdminHealthResponse = ({
           nextRecoveryAt: row.next_recovery_at ?? null,
         };
       }),
+      successWithoutOutputCount: successWithoutOutputs.length,
+      successWithoutOutputSample: successWithoutOutputs.slice(0, 20).map((row) => ({
+        id: row.id,
+        requestId: row.request_id ?? null,
+        modelId: row.model_id ?? null,
+        completedAt: row.completed_at ?? null,
+      })),
+      projectScopedSuccessMissingAssociationCount: projectScopedSuccessMissingAssociation.length,
+      projectScopedSuccessMissingAssociationSample: projectScopedSuccessMissingAssociation
+        .slice(0, 20)
+        .map((row) => ({
+          id: row.id,
+          projectId: readGenerationProjectId(row) ?? "",
+          requestId: row.request_id ?? null,
+          modelId: row.model_id ?? null,
+          completedAt: row.completed_at ?? null,
+        })),
     },
     reservations: {
       total: reservations.length,
       byStatus: reservationsByStatus,
       reservedWithProviderOver1hCount: reservedWithProviderOver1h.length,
       reservedWithoutProviderOver15mCount: reservedWithoutProviderOver15m.length,
+      reservedLinkedTerminalGenerationCount: reservedLinkedTerminalGeneration.length,
       topCapturedModels,
     },
     queue: {

@@ -44,7 +44,13 @@ describe("AgentChatPanel prompt actions", () => {
     render(
       <AgentChatPanel
         messages={[
-          { id: "a-1", role: "assistant", content: "Assistant output one." },
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
           { id: "u-1", role: "user", content: "User input one." },
         ]}
         input=""
@@ -85,7 +91,15 @@ describe("AgentChatPanel prompt actions", () => {
   it("disables small generate pills when output generate is disabled", () => {
     render(
       <AgentChatPanel
-        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
         input=""
         stagedPrompt="Assistant staged prompt."
         disableOutputGenerate
@@ -106,7 +120,15 @@ describe("AgentChatPanel prompt actions", () => {
 
     render(
       <AgentChatPanel
-        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
         input=""
         stagedPrompt="Assistant staged prompt."
         disableOutputGenerate
@@ -161,6 +183,35 @@ describe("AgentChatPanel prompt actions", () => {
     expect(
       screen.getByText("I can't process that request right now. Please try again.")
     ).toBeInTheDocument();
+    expect(onGenerateOutputPrompt).not.toHaveBeenCalled();
+  });
+
+  it("does not treat omitted assistant promptability as prompt output", () => {
+    const onGenerateOutputPrompt = vi.fn();
+
+    render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "legacy-1",
+            role: "assistant",
+            content: "Legacy assistant message without prompt metadata.",
+          },
+        ]}
+        input=""
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+        onGenerateOutputPrompt={onGenerateOutputPrompt}
+      />
+    );
+
+    const message = screen.getByText("Legacy assistant message without prompt metadata.");
+    const messageBubble = message.closest(".agent-message") as HTMLElement;
+    expect(messageBubble).toBeTruthy();
+    expect(messageBubble).not.toHaveClass("agent-message--with-output-generate");
+    expect(messageBubble).not.toHaveClass("is-draggable");
+    expect(messageBubble.getAttribute("draggable")).toBe("false");
+    expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
     expect(onGenerateOutputPrompt).not.toHaveBeenCalled();
   });
 
@@ -507,9 +558,27 @@ describe("AgentChatPanel prompt actions", () => {
     render(
       <AgentChatPanel
         messages={[
-          { id: "a-ready", role: "assistant", content: "Ready output." },
-          { id: "a-pending", role: "assistant", content: "Pending output." },
-          { id: "a-failed", role: "assistant", content: "Failed output." },
+          {
+            id: "a-ready",
+            role: "assistant",
+            content: "Ready output.",
+            outputPrompt: "Ready output.",
+            canUseAsPrompt: true,
+          },
+          {
+            id: "a-pending",
+            role: "assistant",
+            content: "Pending output.",
+            outputPrompt: "Pending output.",
+            canUseAsPrompt: true,
+          },
+          {
+            id: "a-failed",
+            role: "assistant",
+            content: "Failed output.",
+            outputPrompt: "Failed output.",
+            canUseAsPrompt: true,
+          },
         ]}
         input=""
         assistantBubbleMedia={{
@@ -547,7 +616,13 @@ describe("AgentChatPanel prompt actions", () => {
     render(
       <AgentChatPanel
         messages={[
-          { id: "a-1", role: "assistant", content: "Assistant output one." },
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant prompt payload.",
+            canUseAsPrompt: true,
+          },
           { id: "u-1", role: "user", content: "User input one." },
         ]}
         input=""
@@ -584,7 +659,15 @@ describe("AgentChatPanel prompt actions", () => {
     const onAssistantMessageEdit = vi.fn(() => false);
     render(
       <AgentChatPanel
-        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
         input=""
         showInput={false}
         onInputChange={vi.fn()}
@@ -608,7 +691,15 @@ describe("AgentChatPanel prompt actions", () => {
   it("does not enter edit mode when assistant edit callback is not provided", () => {
     render(
       <AgentChatPanel
-        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
         input=""
         showInput={false}
         onInputChange={vi.fn()}
@@ -623,7 +714,15 @@ describe("AgentChatPanel prompt actions", () => {
   it("mirrors rendered assistant text styling and fixed dimensions in edit mode", () => {
     render(
       <AgentChatPanel
-        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
         input=""
         showInput={false}
         onInputChange={vi.fn()}
@@ -683,7 +782,13 @@ describe("AgentChatPanel prompt actions", () => {
     render(
       <AgentChatPanel
         messages={[
-          { id: "a-1", role: "assistant", content: "Assistant output one." },
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant prompt payload.",
+            canUseAsPrompt: true,
+          },
           { id: "u-1", role: "user", content: "User input one." },
         ]}
         input=""
@@ -706,8 +811,8 @@ describe("AgentChatPanel prompt actions", () => {
     } as unknown as DataTransfer;
 
     fireEvent.dragStart(draggableMessage, { dataTransfer });
-    expect(setData).toHaveBeenCalledWith("text/plain", "Assistant output one.");
-    expect(setData).toHaveBeenCalledWith("text/prompt", "Assistant output one.");
+    expect(setData).toHaveBeenCalledWith("text/plain", "Assistant prompt payload.");
+    expect(setData).toHaveBeenCalledWith("text/prompt", "Assistant prompt payload.");
     expect(setDragImage).toHaveBeenCalledTimes(1);
     expect(document.querySelectorAll(".agent-message-drag-ghost")).toHaveLength(1);
     expect(draggableMessage.classList.contains("is-dragging")).toBe(true);
@@ -720,7 +825,15 @@ describe("AgentChatPanel prompt actions", () => {
   it("keeps assistant bubble draggable from text area when output preview media exists", () => {
     render(
       <AgentChatPanel
-        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
         input=""
         assistantBubbleMedia={{
           "a-1": {
@@ -757,7 +870,15 @@ describe("AgentChatPanel prompt actions", () => {
   it("blocks drag start from inline output preview media", () => {
     render(
       <AgentChatPanel
-        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
         input=""
         assistantBubbleMedia={{
           "a-1": {
@@ -794,7 +915,15 @@ describe("AgentChatPanel prompt actions", () => {
   it("omits inline output preview controls from drag ghosts", () => {
     render(
       <AgentChatPanel
-        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
         input=""
         assistantBubbleMedia={{
           "a-1": {

@@ -36,6 +36,13 @@ describe("CreatePropertiesPanel", () => {
   const renderPanel = (
     overrides: Partial<React.ComponentProps<typeof CreatePropertiesPanel>> = {}
   ) => render(<CreatePropertiesPanel {...baseProps} {...overrides} />);
+  const promptOutputMessage = (content = "Here is a revised prompt.") => ({
+    id: "assistant-1",
+    role: "assistant" as const,
+    content,
+    outputPrompt: content,
+    canUseAsPrompt: true,
+  });
 
   it("caps the expert create composer before it can push the control lane too low", () => {
     const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
@@ -2176,13 +2183,7 @@ describe("CreatePropertiesPanel", () => {
       agentEnabled: true,
       characterModeEnabled: true,
       selectedCharacterId: "",
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
@@ -2197,13 +2198,7 @@ describe("CreatePropertiesPanel", () => {
       selectedCharacterId: "char-1",
       modelId: null,
       modelLabel: "Choose Model",
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
@@ -2216,13 +2211,7 @@ describe("CreatePropertiesPanel", () => {
       characterModeEnabled: false,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       isGenerateDisabled: true,
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
@@ -2236,13 +2225,7 @@ describe("CreatePropertiesPanel", () => {
       characterModeEnabled: false,
       modelId: null,
       modelLabel: "Choose Model",
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
@@ -2256,13 +2239,7 @@ describe("CreatePropertiesPanel", () => {
       characterModeEnabled: false,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       hasSufficientCreditsForOutputGenerate: false,
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
@@ -2276,13 +2253,7 @@ describe("CreatePropertiesPanel", () => {
       characterModeEnabled: false,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       isGenerateDisabled: true,
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeDisabled();
@@ -2296,13 +2267,7 @@ describe("CreatePropertiesPanel", () => {
       characterModeEnabled: false,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       isPromptGenerating: true,
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeEnabled();
@@ -2320,13 +2285,7 @@ describe("CreatePropertiesPanel", () => {
       agentEnabled: true,
       characterModeEnabled: false,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     expect(screen.getByRole("button", { name: "Generate from this agent output" })).toBeEnabled();
@@ -2340,13 +2299,7 @@ describe("CreatePropertiesPanel", () => {
       characterModeEnabled: false,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       outputGenerateCostCredits: 1234,
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     expect(screen.getByText("1,234")).toBeInTheDocument();
@@ -2361,13 +2314,7 @@ describe("CreatePropertiesPanel", () => {
       characterModeEnabled: false,
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       onGenerateFromAgentOutputPrompt,
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "Here is a revised prompt.",
-        },
-      ],
+      agentMessages: [promptOutputMessage()],
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Generate from this agent output" }));

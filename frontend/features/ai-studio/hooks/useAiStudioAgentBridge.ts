@@ -92,6 +92,12 @@ type PendingRuntimeHydration = {
 
 type AgentBridgeHydrationRuntime = AiStudioSessionHydrationPayload["agent"];
 
+const canUseAssistantMessageAsPrompt = (message: AgentMessage): boolean =>
+  message.role === "assistant" &&
+  message.canUseAsPrompt === true &&
+  typeof message.outputPrompt === "string" &&
+  message.outputPrompt.trim().length > 0;
+
 const createDefaultAgentBridgeRuntimeState = (
   defaultChatModeEnabled: boolean
 ): AgentBridgeRuntimeState => ({
@@ -823,19 +829,20 @@ export const useAiStudioAgentBridge = ({
       });
       if (!commitContent) return false;
 
+      const canCommitAsPrompt = canUseAssistantMessageAsPrompt(targetMessage);
       const didUpdate = updateMessageById(messageId, (message) =>
         message.role === "assistant"
           ? {
               ...message,
               content: commitContent,
-              ...(message.canUseAsPrompt !== false ? { outputPrompt: commitContent } : {}),
+              ...(canCommitAsPrompt ? { outputPrompt: commitContent } : {}),
             }
           : message
       );
       if (didUpdate) {
         const latestEditableAssistantId = [...agentMessages]
           .reverse()
-          .find((message) => message.role === "assistant" && message.canUseAsPrompt !== false)?.id;
+          .find((message) => canUseAssistantMessageAsPrompt(message))?.id;
         if (latestEditableAssistantId === messageId) {
           setLatestAgentPrompt(commitContent);
           setPromptOrigin("agent");

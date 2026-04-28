@@ -5,6 +5,7 @@ import { useAiStudioAgentBridge } from "../useAiStudioAgentBridge";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import type { StudioMode, ToolId, StudioOutput } from "../../types";
 import { readChatModeFromStorage } from "../../logic/chatModePreference";
+import type { AgentMessage } from "../../../../prefabs/agent";
 
 const useAiAgentMock = vi.fn();
 const useAiStudioAgentComposerMock = vi.fn();
@@ -84,6 +85,69 @@ const createBridgeParams = (
 };
 
 describe("useAiStudioAgentBridge", () => {
+  const mockBridgeForAssistantEdit = (message: AgentMessage, setSharedPrompt = vi.fn()) => {
+    let updatedMessage: AgentMessage | null = null;
+    const updateMessageById = vi.fn(
+      (messageId: string, updater: (message: AgentMessage) => AgentMessage) => {
+        if (messageId !== message.id) return false;
+        updatedMessage = updater(message);
+        return true;
+      }
+    );
+
+    useAiAgentMock.mockReturnValue({
+      messages: [message],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById,
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    return {
+      getUpdatedMessage: () => updatedMessage,
+      setSharedPrompt,
+      updateMessageById,
+    };
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
@@ -153,6 +217,70 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(result.current.agentMessages[0]?.content).toBe("Existing assistant reply");
     });
+  });
+
+  it("does not promote edited legacy assistant messages without prompt metadata", () => {
+    const legacyMessage = {
+      id: "legacy-assistant",
+      role: "assistant" as const,
+      content: "Legacy assistant answer",
+    };
+    const setSharedPrompt = vi.fn();
+    const { getUpdatedMessage } = mockBridgeForAssistantEdit(legacyMessage, setSharedPrompt);
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(createBridgeParams({ setSharedPrompt }))
+    );
+
+    let didCommit = false;
+    act(() => {
+      didCommit = result.current.handleAssistantMessageEdit({
+        messageId: legacyMessage.id,
+        content: "Edited legacy answer",
+      });
+    });
+
+    expect(didCommit).toBe(true);
+    expect(getUpdatedMessage()).toEqual({
+      ...legacyMessage,
+      content: "Edited legacy answer",
+    });
+    expect(getUpdatedMessage()).not.toHaveProperty("outputPrompt");
+    expect(result.current.latestAgentPrompt).toBeNull();
+    expect(setSharedPrompt).not.toHaveBeenCalled();
+  });
+
+  it("promotes edited assistant messages only when they are explicit prompt output", () => {
+    const promptMessage = {
+      id: "prompt-assistant",
+      role: "assistant" as const,
+      content: "Original prompt answer",
+      outputPrompt: "Original prompt answer",
+      canUseAsPrompt: true,
+    };
+    const setSharedPrompt = vi.fn();
+    const { getUpdatedMessage } = mockBridgeForAssistantEdit(promptMessage, setSharedPrompt);
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(createBridgeParams({ setSharedPrompt }))
+    );
+
+    let didCommit = false;
+    act(() => {
+      didCommit = result.current.handleAssistantMessageEdit({
+        messageId: promptMessage.id,
+        content: "Edited prompt output",
+      });
+    });
+
+    expect(didCommit).toBe(true);
+    expect(getUpdatedMessage()).toEqual({
+      ...promptMessage,
+      content: "Edited prompt output",
+      outputPrompt: "Edited prompt output",
+    });
+    expect(result.current.latestAgentPrompt).toBe("Edited prompt output");
+    expect(setSharedPrompt).toHaveBeenCalledWith("Edited prompt output");
   });
 
   it("clears staged attachments when session context changes", async () => {

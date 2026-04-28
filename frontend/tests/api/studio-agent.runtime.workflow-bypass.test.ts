@@ -86,7 +86,17 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
-        choices: [{ message: { content: "Hello. How can I help?" } }],
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "message",
+                message: "Hello. How can I help?",
+                actions: { applyPrompt: null },
+              }),
+            },
+          },
+        ],
       }),
     });
 
@@ -132,15 +142,82 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     const payload = requestInit?.body
       ? (JSON.parse(requestInit.body) as {
           messages?: Array<{ role: string; content: unknown }>;
+          response_format?: {
+            type?: string;
+            json_schema?: { name?: string; strict?: boolean };
+          };
         })
       : null;
     expect(JSON.stringify(payload?.messages)).not.toContain("image_url");
     expect(JSON.stringify(payload?.messages)).not.toContain("ACTIVE PULSE PROFILE");
+    expect(payload?.response_format).toEqual(
+      expect.objectContaining({
+        type: "json_schema",
+        json_schema: expect.objectContaining({
+          name: "studio_agent_standard_direct_response",
+          strict: true,
+        }),
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         message: "Hello. How can I help?",
+        actions: undefined,
+        outcome_class: "success_message",
+        reason_code: "SUCCESS_MESSAGE",
+      })
+    );
+  });
+
+  it("keeps Standard direct prompt rewrites applyable when the model marks them as prompts", async () => {
+    process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "prompt",
+                message: "Cinematic portrait of a woman in golden-hour forest light.",
+                actions: {
+                  applyPrompt: "Cinematic portrait of a woman in golden-hour forest light.",
+                },
+              }),
+            },
+          },
+        ],
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-standard-direct-prompt",
+        runtimeMode: "standard",
+        messages: [{ role: "user", content: "make a portrait prompt" }],
+        context: {
+          modeHint: "chat",
+        },
+        directOpenAiBypass: false,
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Cinematic portrait of a woman in golden-hour forest light.",
+        actions: expect.objectContaining({
+          applyPrompt: "Cinematic portrait of a woman in golden-hour forest light.",
+        }),
         outcome_class: "success_prompt",
+        reason_code: "SUCCESS_PROMPT",
       })
     );
   });

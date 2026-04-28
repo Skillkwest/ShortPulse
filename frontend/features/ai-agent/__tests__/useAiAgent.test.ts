@@ -635,6 +635,80 @@ describe("useAiAgent", () => {
     );
   });
 
+  it("marks Standard message-only successes as non-prompt assistant responses", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "Hello. How can I help?",
+          actions: undefined,
+          outcome_class: "success_message",
+          reason_code: "SUCCESS_MESSAGE",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "standard" }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "hello",
+        payloadText: "hello",
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Hello. How can I help?",
+        outputPrompt: null,
+        canUseAsPrompt: false,
+        outcomeClass: "success_message",
+      })
+    );
+  });
+
+  it("keeps Standard prompt successes usable as output prompts", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message: "Cinematic portrait of a woman in golden-hour forest light.",
+          actions: {
+            applyPrompt: "Cinematic portrait of a woman in golden-hour forest light.",
+          },
+          outcome_class: "success_prompt",
+          reason_code: "SUCCESS_PROMPT",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "standard" }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "make a portrait prompt",
+        payloadText: "make a portrait prompt",
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Cinematic portrait of a woman in golden-hour forest light.",
+        outputPrompt: "Cinematic portrait of a woman in golden-hour forest light.",
+        canUseAsPrompt: true,
+        outcomeClass: "success_prompt",
+      })
+    );
+  });
+
   it("prioritizes machine refusal fields over legacy string heuristics", async () => {
     fetchWithAuthMock.mockResolvedValue(
       new Response(

@@ -64,7 +64,10 @@ import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationS
 import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
 import { emitStudioAgentTurnTelemetry } from "../../../features/agent-runtime/studioAgentRouteOutcomes";
 import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
-import type { OpenAiChatMessage } from "../../../lib/server/api/openAiCompat";
+import type {
+  OpenAiChatMessage,
+  OpenAiChatResponseFormat,
+} from "../../../lib/server/api/openAiCompat";
 import {
   extractStudioAgentCompletionText,
   hasStructuredJsonCandidates,
@@ -85,6 +88,47 @@ If the user asks you to describe an image or convert it into a prompt, base your
 If the user's message appears to be an image-generation prompt or a request to create one, rewrite it into a strong production-ready prompt with clear subject, composition, lighting, style, and quality details.
 When rewriting a prompt, return only the final prompt unless the user explicitly asks for explanation.
 Do not add markdown, labels, or extra commentary unless the user asks for it.`;
+const DIRECT_OPENAI_STANDARD_RESPONSE_FORMAT: OpenAiChatResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    name: "studio_agent_standard_direct_response",
+    description: "Standard mode direct agent response.",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        status: {
+          type: "string",
+          enum: ["message", "prompt", "refuse"],
+        },
+        message: {
+          type: "string",
+        },
+        actions: {
+          anyOf: [
+            {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                applyPrompt: {
+                  anyOf: [{ type: "string" }, { type: "null" }],
+                },
+              },
+              required: ["applyPrompt"],
+            },
+            { type: "null" },
+          ],
+        },
+      },
+      required: ["status", "message", "actions"],
+    },
+  },
+};
+const DIRECT_OPENAI_STANDARD_RESPONSE_CONTRACT_PROMPT = `Return only JSON matching the provided schema.
+Use status="message" and actions.applyPrompt=null for ordinary chat, help, clarification, or questions.
+Use status="prompt" and actions.applyPrompt=<generation-ready prompt> only when the user asks you to create, rewrite, improve, describe, or convert something into a generation prompt.
+Use status="refuse" and actions.applyPrompt=null only for disallowed or unsafe requests.`;
 const DIRECT_OPENAI_WORKFLOW_SYSTEM_PROMPT = `You are the ShortPulse workflow pulse runtime.
 Behave like a guided custom GPT workflow.
 Follow the ACTIVE PULSE PROFILE system message exactly.
@@ -143,11 +187,13 @@ const buildDirectOpenAiMessages = ({
   context,
   omitMedia = false,
   supplementalSystemMessage,
+  standardResponseContract = false,
 }: {
   messages: AgentMessage[];
   context: AgentContext;
   omitMedia?: boolean;
   supplementalSystemMessage?: string | null;
+  standardResponseContract?: boolean;
 }): OpenAiChatMessage[] => {
   const pulseSystemMessage = buildStudioAgentPulseSystemMessage(context.pulse);
   const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
@@ -178,6 +224,9 @@ const buildDirectOpenAiMessages = ({
         ? DIRECT_OPENAI_WORKFLOW_SYSTEM_PROMPT
         : DIRECT_OPENAI_SYSTEM_PROMPT,
     },
+    ...(standardResponseContract
+      ? [{ role: "system" as const, content: DIRECT_OPENAI_STANDARD_RESPONSE_CONTRACT_PROMPT }]
+      : []),
     ...(pulseSystemMessage ? [{ role: "system" as const, content: pulseSystemMessage }] : []),
     ...(supplementalSystemContent
       ? [{ role: "system" as const, content: supplementalSystemContent }]
@@ -202,9 +251,11 @@ const buildDirectOpenAiMessages = ({
 const extractDirectOpenAiResponse = ({
   payload,
   pulse,
+  runtimeMode,
 }: {
   payload: unknown;
   pulse?: AgentContext["pulse"] | null;
+  runtimeMode?: "standard" | "pulse" | null;
 }): {
   message: string;
   actions?: { applyPrompt?: string | null };
@@ -228,6 +279,18 @@ const extractDirectOpenAiResponse = ({
         message: directMessage.trim(),
         actions: undefined,
         semanticStatus: "needs_input",
+      };
+    }
+    return null;
+  }
+  if (runtimeMode === "standard") {
+    const parsed = parseStudioAgentJsonWithStatus(raw, { allowUnstructured: false });
+    if (parsed?.response.message?.trim() || parsed?.response.actions?.applyPrompt?.trim()) {
+      return {
+        message:
+          parsed.response.message?.trim() || parsed.response.actions?.applyPrompt?.trim() || "",
+        actions: parsed.response.actions,
+        semanticStatus: parsed.status ?? null,
       };
     }
     return null;
@@ -453,6 +516,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const directMessages = buildDirectOpenAiMessages({
         messages,
         context,
+        standardResponseContract: standardDirectOpenAiRequired,
       });
       let directResponse = await fetchStudioAgentChatCompletion({
         apiKey,
@@ -460,6 +524,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         model: directOpenAiModel,
         messages: directMessages,
         timeoutMs: turnTimeoutMs,
+        responseFormat: standardDirectOpenAiRequired
+          ? DIRECT_OPENAI_STANDARD_RESPONSE_FORMAT
+          : undefined,
       });
       markStage("direct_openai_roundtrip", directOpenAiRoundTripStartedAt);
 
@@ -482,6 +549,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             context,
             omitMedia: true,
             supplementalSystemMessage: DIRECT_OPENAI_WORKFLOW_IMAGE_RETRY_SYSTEM_PROMPT,
+            standardResponseContract: standardDirectOpenAiRequired,
           });
           const textOnlyRetryResponse = await fetchStudioAgentChatCompletion({
             apiKey,
@@ -489,6 +557,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             model: directOpenAiModel,
             messages: textOnlyRetryMessages,
             timeoutMs: turnTimeoutMs,
+            responseFormat: standardDirectOpenAiRequired
+              ? DIRECT_OPENAI_STANDARD_RESPONSE_FORMAT
+              : undefined,
           });
           markStage("direct_openai_text_only_retry", textOnlyRetryStartedAt);
           directRetryUsed = true;
@@ -546,6 +617,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const directResult = extractDirectOpenAiResponse({
         payload: directPayload,
         pulse: context.pulse,
+        runtimeMode,
       });
       if (!directResult) {
         emitStudioAgentTurnTelemetry({

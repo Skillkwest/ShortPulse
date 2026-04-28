@@ -305,16 +305,17 @@ export const useAiAgent = ({
         }
 
         if (assistantContent) {
+          const canUseAssistantMessageAsPrompt =
+            Boolean(assistantOutputPrompt) &&
+            data.decision !== "refuse" &&
+            data.outcome_class !== "fallback_infra" &&
+            data.outcome_class !== "refusal_safety" &&
+            data.outcome_class !== "refusal_model";
           const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
             id: createAgentMessageId("assistant"),
             content: assistantContent,
             outputPrompt: assistantOutputPrompt,
-            canUseAsPrompt:
-              data.outcome_class === "fallback_infra" || data.outcome_class === "refusal_safety"
-                ? false
-                : assistantOutputPrompt
-                  ? true
-                  : undefined,
+            canUseAsPrompt: canUseAssistantMessageAsPrompt,
             outcomeClass: data.outcome_class ?? null,
             reasonCode: data.reason_code ?? null,
             decision: data.decision ?? null,

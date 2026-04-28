@@ -89,6 +89,38 @@ describe("generationQueue/service.claimGenerationSubmitQueueBatch", () => {
     ]);
   });
 
+  it("drops malformed claimed items that do not carry an explicit submit route", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: vi.fn(async () => ({
+        data: [
+          {
+            queue_id: "queue-1",
+            generation_id: "gen-1",
+            user_id: "user-1",
+            model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+            source_ref: "src-1",
+            submit_route: null,
+            submit_payload: { prompt: "hello" },
+            timeout_ms: 20000,
+            attempts: 0,
+            status: "dispatching",
+            next_attempt_at: null,
+            lease_until: "2026-02-26T15:00:00.000Z",
+            created_at: "2026-02-26T14:59:00.000Z",
+          },
+        ],
+        error: null,
+      })),
+    });
+
+    await expect(
+      claimGenerationSubmitQueueBatch({
+        limit: 1,
+        leaseSeconds: 30,
+      })
+    ).resolves.toEqual([]);
+  });
+
   it("retries once when the claim RPC hits a dispatching-user unique collision", async () => {
     vi.useFakeTimers();
     vi.spyOn(Math, "random").mockReturnValue(0.5);

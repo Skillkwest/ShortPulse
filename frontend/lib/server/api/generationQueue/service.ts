@@ -421,9 +421,9 @@ const parseClaimedQueueItem = (value: unknown): ClaimedGenerationQueueItem | nul
   const userId = asString(row.user_id);
   const modelId = asString(row.model_id);
   const sourceRef = asString(row.source_ref);
-  const submitRoute = asString(row.submit_route) ?? "/api/fal/submit";
+  const submitRoute = asString(row.submit_route);
   const status = parseQueueStatus(row.status);
-  if (!queueId || !generationId || !userId || !modelId || !sourceRef || !status) {
+  if (!queueId || !generationId || !userId || !modelId || !sourceRef || !submitRoute || !status) {
     return null;
   }
   return {

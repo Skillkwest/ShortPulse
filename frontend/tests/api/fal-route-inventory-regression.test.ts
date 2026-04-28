@@ -1,6 +1,7 @@
 /**
  * Fal route inventory regression gate.
- * Prevents accidental route removals/renames while Phase 11 refactors internals.
+ * Prevents accidental route removals/renames while the generation pipeline is refactored.
+ * Generic legacy routes are intentionally excluded; routes must declare the provider/model surface.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -58,8 +59,6 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "seedream-v5-lite-edit-submit.ts",
   "seedream-v5-lite-status.ts",
   "seedream-v5-lite-submit.ts",
-  "status.ts",
-  "submit.ts",
   "veo-first-last-frame-submit.ts",
   "veo-image-to-video-status.ts",
   "veo-image-to-video-submit.ts",

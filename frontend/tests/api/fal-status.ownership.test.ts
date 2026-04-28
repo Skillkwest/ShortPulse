@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import handler from "../../pages/api/fal/status";
+import handler from "../../pages/api/fal/seedream-status";
 
 const requireApiUserMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
@@ -30,7 +30,7 @@ const mockFetchResponse = ({
   text: async () => JSON.stringify(body),
 });
 
-describe("POST /api/fal/status ownership", () => {
+describe("POST /api/fal/seedream-status ownership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-key";

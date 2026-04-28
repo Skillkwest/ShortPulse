@@ -2,7 +2,7 @@
  * Verifies Fal status polling ownership checks with token-first auth.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import handler from "../../pages/api/fal/status";
+import handler from "../../pages/api/fal/seedream-status";
 
 const resolveProviderRequestOwnershipMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
@@ -34,7 +34,7 @@ const mockFetchResponse = ({
   text: async () => JSON.stringify(body),
 });
 
-describe("POST /api/fal/status middleware auth-context ownership", () => {
+describe("POST /api/fal/seedream-status middleware auth-context ownership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-key";
@@ -56,7 +56,7 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
 
     const req = {
       method: "POST",
-      url: "/api/fal/status",
+      url: "/api/fal/seedream-status",
       headers: {
         authorization: "Bearer valid-token",
         "x-shortpulse-authenticated": "1",
@@ -115,7 +115,7 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
 
     const req = {
       method: "POST",
-      url: "/api/fal/status",
+      url: "/api/fal/seedream-status",
       headers: {
         authorization: "Bearer valid-token",
         "x-shortpulse-authenticated": "1",
@@ -183,7 +183,7 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
 
     const req = {
       method: "POST",
-      url: "/api/fal/status",
+      url: "/api/fal/seedream-status",
       headers: {
         authorization: "Bearer valid-token",
         "x-shortpulse-authenticated": "1",

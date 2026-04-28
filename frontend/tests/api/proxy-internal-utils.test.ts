@@ -10,7 +10,7 @@ describe("API proxy protections", () => {
   });
 
   it("keeps auth enforcement for protected API prefixes", async () => {
-    const request = new NextRequest("http://localhost:3000/api/fal/status");
+    const request = new NextRequest("http://localhost:3000/api/fal/seedream-status");
     const response = await proxy(request);
     expect(response.status).toBe(401);
   });

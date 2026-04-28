@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { readPersistedGenerationOutputs } from "./generationOutputs";
 
 type JsonObject = Record<string, unknown>;
 
@@ -664,10 +665,62 @@ export const repairStaleTerminalGenerationProjections = async ({
     if (
       !generation ||
       generation.userId !== projection.userId ||
-      generation.status !== "fail" ||
+      (generation.status !== "fail" && generation.status !== "success") ||
       !generation.completedAt
     ) {
       skipped += 1;
+      continue;
+    }
+
+    if (generation.status === "success") {
+      const outputRows = await readPersistedGenerationOutputs({
+        generationId: projection.generationId,
+        userId: projection.userId,
+        supabaseAdmin: adminClient,
+      });
+      if (!outputRows.length) {
+        skipped += 1;
+        continue;
+      }
+
+      const resultUrls = outputRows.map((row) => row.resultUrl);
+      const savedMediaIds = outputRows
+        .map((row) => asString(row.mediaFileId))
+        .filter((mediaFileId): mediaFileId is string => Boolean(mediaFileId));
+      const allOutputsOwned =
+        outputRows.length > 0 &&
+        outputRows.every((row) => typeof row.mediaFileId === "string" && row.mediaFileId);
+
+      await upsertGenerationProjection({
+        supabaseAdmin: adminClient,
+        generationId: projection.generationId,
+        userId: projection.userId,
+        sourceRef: projection.sourceRef,
+        requestId: projection.requestId ?? generation.requestId,
+        provider: projection.provider ?? generation.provider,
+        providerRequestId: projection.providerRequestId ?? generation.requestId,
+        latestAttemptId: projection.latestAttemptId,
+        status: "ready",
+        taskState: "success",
+        displayPrompt: projection.displayPrompt ?? generation.promptText,
+        modelId: projection.modelId ?? generation.modelId,
+        previewUrl: resultUrls[0] ?? null,
+        errorMessage: null,
+        errorMessageShort: null,
+        errorDetail: null,
+        saveState: "idle",
+        hiddenInReferenceGrid: projection.hiddenInReferenceGrid,
+        referenceGridVisible: projection.referenceGridVisible ?? !projection.hiddenInReferenceGrid,
+        publicationState: allOutputsOwned ? "published" : "suppressed",
+        resultUrls,
+        savedMediaIds: allOutputsOwned ? savedMediaIds : [],
+        generationReplay: projection.generationReplay,
+        characterContext: projection.characterContext,
+        styleContext: projection.styleContext,
+        startedAt: projection.startedAt,
+        completedAt: generation.completedAt,
+      });
+      repaired += 1;
       continue;
     }
 

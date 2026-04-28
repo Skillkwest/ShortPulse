@@ -251,54 +251,6 @@ export const settleDirectGenerationSuccess = async ({
     mediaAutosaveEnabled,
   });
 
-  const transition = await applyGenerationLifecycleTransition({
-    intent: "provider_completed_observed",
-    applyGenerationMutation: async () => {
-      try {
-        await updateGenerationRow({
-          generationId: generation.id,
-          userId: generation.user_id,
-          updates: {
-            status: "success",
-            completed_at: nowIso,
-            failure_reason_code: null,
-            error_message: null,
-            recovery_state: "recovered",
-            last_recovery_at: nowIso,
-            next_recovery_at: null,
-            last_media_detected_at: nowIso,
-            metadata: mergedMetadata,
-          },
-        });
-        return { ok: true };
-      } catch (error) {
-        return {
-          ok: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    },
-    attemptMutation: {
-      kind: "state_update",
-      input: {
-        providerRequestId: generation.request_id,
-        userId: generation.user_id,
-        status: "succeeded",
-        observedAt: nowIso,
-        completedAt: nowIso,
-        metadata: {
-          direct_terminal_settlement: true,
-          direct_terminal_settlement_outcome: "success",
-          direct_terminal_provider_state: providerState,
-        },
-      },
-      allowMissingAttempt: true,
-    },
-  });
-  if (!transition.ok) {
-    return { ok: false, error: transition.error };
-  }
-
   const mediaFileIds = autosavePolicyDecision.allowed
     ? await persistRecoveryMediaFilesForGeneration({
         generation: {
@@ -427,6 +379,54 @@ export const settleDirectGenerationSuccess = async ({
     startedAt: generation.created_at,
     completedAt: nowIso,
   });
+
+  const transition = await applyGenerationLifecycleTransition({
+    intent: "provider_completed_observed",
+    applyGenerationMutation: async () => {
+      try {
+        await updateGenerationRow({
+          generationId: generation.id,
+          userId: generation.user_id,
+          updates: {
+            status: "success",
+            completed_at: nowIso,
+            failure_reason_code: null,
+            error_message: null,
+            recovery_state: "recovered",
+            last_recovery_at: nowIso,
+            next_recovery_at: null,
+            last_media_detected_at: nowIso,
+            metadata: mergedMetadata,
+          },
+        });
+        return { ok: true };
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    },
+    attemptMutation: {
+      kind: "state_update",
+      input: {
+        providerRequestId: generation.request_id,
+        userId: generation.user_id,
+        status: "succeeded",
+        observedAt: nowIso,
+        completedAt: nowIso,
+        metadata: {
+          direct_terminal_settlement: true,
+          direct_terminal_settlement_outcome: "success",
+          direct_terminal_provider_state: providerState,
+        },
+      },
+      allowMissingAttempt: true,
+    },
+  });
+  if (!transition.ok) {
+    return { ok: false, error: transition.error };
+  }
 
   await settleGenerationOutcome({
     userId: generation.user_id,

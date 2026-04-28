@@ -7,9 +7,11 @@ import {
 const createSupabaseAdmin = ({
   projectionRows,
   generationRows,
+  outputRows = [],
 }: {
   projectionRows: Record<string, unknown>[];
   generationRows: Record<string, unknown>[];
+  outputRows?: Record<string, unknown>[];
 }) => {
   const upsert = vi.fn(async (payload: Record<string, unknown>) => ({
     data: payload,
@@ -42,6 +44,23 @@ const createSupabaseAdmin = ({
             limit: async () => ({
               data: generationRows,
               error: null,
+            }),
+          }),
+        }),
+      };
+    }
+
+    if (table === "ai_generation_outputs") {
+      return {
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              order: () => ({
+                limit: async () => ({
+                  data: outputRows,
+                  error: null,
+                }),
+              }),
             }),
           }),
         }),
@@ -159,6 +178,80 @@ describe("repairStaleTerminalGenerationProjections", () => {
       skipped: 1,
     });
     expect(supabaseAdmin.upsert).not.toHaveBeenCalled();
+  });
+
+  it("repairs stale running projections when terminal success outputs already exist", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [
+        {
+          generation_id: "gen-3",
+          user_id: "user-3",
+          source_ref: "source-3",
+          request_id: "req-3",
+          provider: "fal",
+          provider_request_id: "req-3",
+          latest_attempt_id: "attempt-3",
+          display_prompt: "prompt-3",
+          model_id: "nano-banana",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: { input: "value" },
+          character_context: { characterId: "char-3" },
+          style_context: { styleId: "style-3" },
+          started_at: "2026-04-10T23:00:00.000Z",
+        },
+      ],
+      generationRows: [
+        {
+          id: "gen-3",
+          user_id: "user-3",
+          request_id: "req-3",
+          provider: "fal",
+          model_id: "nano-banana",
+          prompt_text: "prompt-3",
+          status: "success",
+          failure_reason_code: null,
+          completed_at: "2026-04-10T23:20:00.000Z",
+        },
+      ],
+      outputRows: [
+        {
+          id: "output-1",
+          output_index: 0,
+          result_url: "https://cdn.shortpulse.test/generated.png",
+          media_file_id: "media-1",
+        },
+      ],
+    });
+
+    const result = await repairStaleTerminalGenerationProjections({
+      supabaseAdmin: supabaseAdmin as never,
+      limit: 10,
+      minAgeSeconds: 60,
+      now: new Date("2026-04-10T23:30:00.000Z"),
+    });
+
+    expect(result).toEqual({
+      scanned: 1,
+      repaired: 1,
+      skipped: 0,
+    });
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-3",
+        user_id: "user-3",
+        status: "ready",
+        task_state: "success",
+        publication_state: "published",
+        preview_url: "https://cdn.shortpulse.test/generated.png",
+        result_urls: ["https://cdn.shortpulse.test/generated.png"],
+        saved_media_ids: ["media-1"],
+        completed_at: "2026-04-10T23:20:00.000Z",
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
   });
 });
 

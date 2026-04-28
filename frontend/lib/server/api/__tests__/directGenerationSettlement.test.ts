@@ -251,6 +251,28 @@ describe("directGenerationSettlement", () => {
         outcome: "success",
       })
     );
+    expect(persistGenerationOutputRecordsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("does not mark direct terminal success until canonical output persistence succeeds", async () => {
+    persistGenerationOutputRecordsMock.mockRejectedValueOnce(new Error("output upsert failed"));
+
+    await expect(
+      settleDirectGenerationSuccess({
+        generationId: "gen-1",
+        requestId: "req-1",
+        userId: "user-1",
+        routeLabel: "test/direct-success",
+        providerState: "COMPLETED",
+        resultUrls: ["https://provider.example/out-1.png"],
+      })
+    ).rejects.toThrow("output upsert failed");
+
+    expect(applyGenerationLifecycleTransitionMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
   });
 
   it("keeps direct terminal success transient when autosave is disabled", async () => {

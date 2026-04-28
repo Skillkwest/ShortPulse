@@ -9,6 +9,7 @@ const requireApiUserMock = vi.fn();
 const dispatchProviderSubmitMock = vi.fn();
 const applyAcceptedRunningGenerationTransitionMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
+const requestGenerationControlPlaneWakeMock = vi.fn();
 
 const { TestProviderSubmitValidationError } = vi.hoisted(() => {
   class TestProviderSubmitValidationError extends Error {
@@ -73,6 +74,11 @@ vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
     associateGenerationWithProjectForUserMock(...args),
 }));
 
+vi.mock("../../lib/server/generationControlPlane/controlPlaneWake", () => ({
+  requestGenerationControlPlaneWake: (...args: unknown[]) =>
+    requestGenerationControlPlaneWakeMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
@@ -117,6 +123,7 @@ describe("createFalSubmitHandler", () => {
     });
     applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({ ok: true });
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
+    requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "off",
@@ -290,6 +297,10 @@ describe("createFalSubmitHandler", () => {
       })
     );
     expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalled();
+    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      reason: "direct_submit_accepted",
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

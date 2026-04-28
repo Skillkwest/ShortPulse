@@ -45,6 +45,7 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 import { applyAcceptedRunningGenerationTransition } from "./generationAcceptedTransitionService";
 import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransitions";
 import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
+import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 
 type FalSubmitConfig = {
   modelId: string;
@@ -890,6 +891,11 @@ export const createFalSubmitHandler = ({
               upstream_target_url: submitResult.targetUrl,
               upstream_target_index: submitResult.targetIndex,
             },
+          });
+
+          void requestGenerationControlPlaneWake({
+            routeLabel,
+            reason: "direct_submit_accepted",
           });
 
           return res.status(200).json({

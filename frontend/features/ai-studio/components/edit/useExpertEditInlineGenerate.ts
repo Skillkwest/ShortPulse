@@ -60,7 +60,6 @@ type UseExpertEditInlineGenerateParams = {
   resolveStageFlattenSnapshot?: () => StageFlattenSnapshot;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
-  isGenerateBusy?: boolean;
 };
 
 const LAYER_IMAGE_LOAD_FAILURE_PREFIX = "Failed to load layer image:";
@@ -98,10 +97,8 @@ export const useExpertEditInlineGenerate = ({
   resolveStageFlattenSnapshot,
   insertOptimisticGenerationPlaceholder,
   removeOptimisticGenerationPlaceholder,
-  isGenerateBusy = false,
 }: UseExpertEditInlineGenerateParams) => {
-  const inlineGeneratePendingRef = React.useRef(false);
-  const [isInlineGeneratePending, setIsInlineGeneratePending] = React.useState(false);
+  const [inlineGeneratePendingCount, setInlineGeneratePendingCount] = React.useState(0);
   const inpaintPromptReferencePolicy = React.useMemo(
     () =>
       editSubmitIntent === "inpaint"
@@ -113,7 +110,6 @@ export const useExpertEditInlineGenerate = ({
     [editSubmitIntent, extraImageUrls, promptText]
   );
   const handleInlineGenerate = React.useCallback(() => {
-    if (inlineGeneratePendingRef.current || isGenerateBusy) return;
     const run = async () => {
       const allowSecondaryReferenceTokens =
         editSubmitIntent === "inpaint"
@@ -138,8 +134,7 @@ export const useExpertEditInlineGenerate = ({
         return;
       }
 
-      inlineGeneratePendingRef.current = true;
-      setIsInlineGeneratePending(true);
+      setInlineGeneratePendingCount((currentCount) => currentCount + 1);
       let optimisticOutputId = insertOptimisticGenerationPlaceholder?.(promptText) ?? null;
       const objectUrls = {
         flattenedUrl: null,
@@ -230,8 +225,7 @@ export const useExpertEditInlineGenerate = ({
         });
         showStatusToast(resolveFlattenFailureToastMessage(error));
       } finally {
-        inlineGeneratePendingRef.current = false;
-        setIsInlineGeneratePending(false);
+        setInlineGeneratePendingCount((currentCount) => Math.max(0, currentCount - 1));
         cleanupExpertEditSubmissionObjectUrls({
           objectUrls,
           hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
@@ -262,11 +256,10 @@ export const useExpertEditInlineGenerate = ({
     resolveStageFlattenSnapshot,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
-    isGenerateBusy,
   ]);
 
   return {
     handleInlineGenerate,
-    isInlineGeneratePending,
+    isInlineGeneratePending: inlineGeneratePendingCount > 0,
   };
 };

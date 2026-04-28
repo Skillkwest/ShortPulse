@@ -1433,7 +1433,7 @@ describe("VoicesPropertiesPanel", () => {
     );
   });
 
-  it("disables generate while a voice generation is already in flight", async () => {
+  it("keeps generate available while a voice generation is already in flight", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -1464,11 +1464,11 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     const generateButton = screen.getByRole("button", { name: "Generate" });
-    expect(generateButton).toBeDisabled();
-    expect(screen.getByText("Generating…")).toBeInTheDocument();
+    expect(generateButton).toBeEnabled();
+    expect(generateButton).toHaveTextContent("Generate");
 
     fireEvent.click(generateButton);
-    expect(onGenerate).not.toHaveBeenCalled();
+    expect(onGenerate).toHaveBeenCalledTimes(1);
   });
 
   it("plays and stops a live voice sample from the chip play button", async () => {

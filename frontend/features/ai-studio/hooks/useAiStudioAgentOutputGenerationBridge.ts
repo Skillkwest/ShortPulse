@@ -27,7 +27,6 @@ type UseAiStudioAgentOutputGenerationBridgeParams = {
   mode: StudioMode;
   selectedTool: ToolId | null;
   isGenerateDisabled: boolean;
-  isGenerateClickLocked: boolean;
   hasSufficientCreditsForOutputGenerate: boolean;
   model: string | null;
   characterModeEnabled: boolean;
@@ -52,7 +51,6 @@ export const useAiStudioAgentOutputGenerationBridge = ({
   mode,
   selectedTool,
   isGenerateDisabled,
-  isGenerateClickLocked,
   hasSufficientCreditsForOutputGenerate,
   model,
   characterModeEnabled,
@@ -131,7 +129,6 @@ export const useAiStudioAgentOutputGenerationBridge = ({
         mode,
         selectedTool,
         isGenerateDisabled,
-        isGenerateClickLocked,
         hasSufficientCreditsForOutputGenerate,
         modelId: model,
         characterModeEnabled,
@@ -140,7 +137,6 @@ export const useAiStudioAgentOutputGenerationBridge = ({
     [
       characterModeEnabled,
       hasSufficientCreditsForOutputGenerate,
-      isGenerateClickLocked,
       isGenerateDisabled,
       mode,
       model,

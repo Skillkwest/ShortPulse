@@ -17,6 +17,8 @@ export function AgentGenerateButton({
   isBusy = false,
   cost,
 }: AgentGenerateButtonProps) {
+  void isBusy;
+
   return (
     <button
       type="button"
@@ -25,7 +27,7 @@ export function AgentGenerateButton({
       disabled={disabled}
       aria-label="Generate"
     >
-      <span className="agent-generate-label">{isBusy ? "Generating…" : "Generate"}</span>
+      <span className="agent-generate-label">Generate</span>
       <span className="model-chip-pill generate-pill">
         <span aria-hidden="true" className="model-chip-icon">
           ✦

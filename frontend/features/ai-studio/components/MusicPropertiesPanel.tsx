@@ -123,7 +123,6 @@ function MusicSlider({ label, helper, value, displayValue, onChange }: MusicSlid
 
 export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   balanceCredits = null,
-  isGenerating = false,
   onGenerate,
   pricingPolicy = null,
 }: MusicPropertiesPanelProps) {
@@ -159,11 +158,11 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const isInsufficientCredits =
     balanceCredits != null && estimatedCredits != null ? balanceCredits < estimatedCredits : false;
   const isGenerateEnabled =
-    Boolean(onGenerate) && prompt.trim().length > 0 && !isGenerating && !isInsufficientCredits;
+    Boolean(onGenerate) && prompt.trim().length > 0 && !isInsufficientCredits;
 
   const handleGenerate = React.useCallback(async () => {
     const text = prompt.trim();
-    if (!onGenerate || !text || isGenerating) return;
+    if (!onGenerate || !text) return;
     await onGenerate({
       text,
       durationSeconds,
@@ -178,7 +177,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     bpm,
     durationSeconds,
     energyPercent,
-    isGenerating,
     onGenerate,
     prompt,
     selectedFormat,
@@ -249,9 +247,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     void handleGenerate();
                   }}
                 >
-                  <span className="music-properties-generate-label">
-                    {isGenerating ? "Generating..." : "Generate"}
-                  </span>
+                  <span className="music-properties-generate-label">Generate</span>
                   <span className="music-properties-generate-pill" aria-hidden="true">
                     <span className="music-properties-generate-cost-icon">✦</span>
                     <span className="music-properties-generate-cost-value">

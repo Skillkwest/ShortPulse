@@ -204,10 +204,14 @@ describe("SoundEffectsPropertiesPanel", () => {
     });
   });
 
-  it("shows the loading label while generation is running", () => {
+  it("keeps generate available while generation is running", () => {
     render(<SoundEffectsPropertiesPanel isGenerating onGenerate={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
-    expect(screen.getByText("Generating…")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Sound effect prompt" }), {
+      target: { value: "Layered whoosh with a clean sparkle tail." },
+    });
+
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generate");
   });
 });

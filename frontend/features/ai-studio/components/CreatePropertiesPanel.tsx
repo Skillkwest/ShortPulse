@@ -1063,7 +1063,7 @@ export function ComposeSendCard({
       <div className="create-controls single-control">
         <AgentGenerateButton
           onClick={onGenerate}
-          disabled={isGenerateDisabled || isPromptGenerating}
+          disabled={isGenerateDisabled}
           isBusy={isPromptGenerating}
           cost={costValue}
         />

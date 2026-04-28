@@ -94,8 +94,6 @@ export type UseAiStudioPanelPropsParams = {
   promptReferenceGenerateCostCredits: number | null;
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
-  isCreateGenerateClickLocked: boolean;
-  isEditGenerateClickLocked: boolean;
   generationGuardrail: string | null;
   handleExpandChat: () => void;
   handleClearAgentChat: () => void;
@@ -281,8 +279,6 @@ export const useAiStudioPanelProps = ({
   promptReferenceGenerateCostCredits,
   hasSufficientCreditsForPromptReferenceGenerate,
   isGenerateDisabled,
-  isCreateGenerateClickLocked,
-  isEditGenerateClickLocked,
   generationGuardrail,
   handleExpandChat,
   handleClearAgentChat,
@@ -510,9 +506,8 @@ export const useAiStudioPanelProps = ({
       costCredits: createGenerateCostCredits,
       outputGenerateCostCredits: promptReferenceGenerateCostCredits,
       hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
-      isGenerateDisabled: isGenerateDisabled || isCreateGenerateClickLocked,
-      isChatOffInlineGenerateDisabled:
-        isGenerateDisabled || isPromptRefining || describeInFlightCount > 0,
+      isGenerateDisabled,
+      isChatOffInlineGenerateDisabled: isGenerateDisabled,
       guardrailReason: generationGuardrail,
       onExpandChat: handleExpandChat,
       onClearAgentChat: handleClearAgentChat,
@@ -595,7 +590,6 @@ export const useAiStudioPanelProps = ({
       isAgentDropActive,
       isCharacterModeEnabled,
       isCharacterOptionsLoading,
-      isCreateGenerateClickLocked,
       isGenerateDisabled,
       isModelModalOpen,
       isPromptRefining,
@@ -652,7 +646,7 @@ export const useAiStudioPanelProps = ({
     onEditSubmitIntentChange,
     addSessionMediaReference,
     currentCostCredits,
-    isGenerateDisabled: isGenerateDisabled || isEditGenerateClickLocked,
+    isGenerateDisabled,
     isGenerateBusy: editIsGenerating,
     generationGuardrail,
     isPrimaryStageGenerating: isPrimaryEditStageGenerating,

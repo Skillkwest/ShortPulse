@@ -666,7 +666,6 @@ export function ExpertEditPanelView({
     resolveStageFlattenSnapshot,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
-    isGenerateBusy,
   });
   const resolvedInlineGenerateBusy = isGenerateBusy || isInlineGeneratePending;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;

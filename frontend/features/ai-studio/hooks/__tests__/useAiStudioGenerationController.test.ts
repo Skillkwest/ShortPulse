@@ -19,7 +19,6 @@ const createParams = (
     isCharacterModeEnabled: false,
     prompt: "",
     agentInput: "",
-    chatModeEnabled: true,
     usesAgentLane: true,
     currentCostCredits: 3,
     resolveCostCreditsForModel: vi.fn(() => null),
@@ -104,7 +103,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "shared fallback",
       agentInput: "raw composer prompt",
-      chatModeEnabled: false,
       usesAgentLane: false,
       handleAgentSend,
       generateOutput,
@@ -142,7 +140,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "  shared fallback prompt  ",
       agentInput: "   ",
-      chatModeEnabled: false,
       usesAgentLane: false,
       handleAgentSend,
       generateOutput,
@@ -180,7 +177,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "shared fallback prompt",
       agentInput: "  raw inline prompt  ",
-      chatModeEnabled: false,
       usesAgentLane: false,
       handleAgentSend,
       generateOutput,
@@ -218,7 +214,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "shared fallback prompt",
       agentInput: "   ",
-      chatModeEnabled: false,
       usesAgentLane: false,
       handleAgentSend,
       generateOutput,
@@ -251,7 +246,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "shared fallback",
       agentInput: "raw prompt",
-      chatModeEnabled: false,
       usesAgentLane: false,
       currentCostCredits: 3,
       setOptimisticDebitEntries:
@@ -276,7 +270,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "shared fallback",
       agentInput: "raw prompt",
-      chatModeEnabled: false,
       usesAgentLane: false,
       currentCostCredits: 3,
       setOptimisticDebitEntries:
@@ -302,7 +295,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "   ",
       agentInput: "   ",
-      chatModeEnabled: false,
       usesAgentLane: false,
       setUiError: asDispatch<string | null>(setUiError),
       generateOutput,
@@ -332,7 +324,6 @@ describe("useAiStudioGenerationController", () => {
       mode: "text",
       selectedTool: "create",
       prompt: "pulse draft",
-      chatModeEnabled: false,
       usesAgentLane: true,
       handleAgentSend,
       addAgentPromptReference,
@@ -354,14 +345,8 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).not.toHaveBeenCalled();
   });
 
-  it("blocks overlapping generate submissions while a prior submit is still in flight", async () => {
-    let releasePreflight: (() => void) | null = null;
-    const refreshCharacterModeInjectionBundleForSubmission = vi.fn(
-      async () =>
-        await new Promise<null>((resolve) => {
-          releasePreflight = () => resolve(null);
-        })
-    );
+  it("allows repeated create generate submissions without client-side locking", async () => {
+    const refreshCharacterModeInjectionBundleForSubmission = vi.fn(async () => null);
     const generateOutput = vi.fn();
     const params = createParams({
       generateOutput,
@@ -369,31 +354,16 @@ describe("useAiStudioGenerationController", () => {
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
-    let firstResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
-    let secondResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
-
-    let firstSubmission: Promise<void> | null = null;
     await act(async () => {
-      firstSubmission = (async () => {
-        firstResult = await result.current.handleGenerate("prompt");
-      })();
-      await Promise.resolve();
+      await result.current.handleGenerate("prompt");
     });
 
     await act(async () => {
-      secondResult = await result.current.handleGenerate("prompt");
+      await result.current.handleGenerate("prompt");
     });
 
-    expect(secondResult).toEqual({ accepted: false, optimisticOutputId: null });
-    expect(generateOutput).not.toHaveBeenCalled();
-
-    await act(async () => {
-      releasePreflight?.();
-    });
-    await firstSubmission;
-
-    expect(firstResult).toEqual({ accepted: true, optimisticOutputId: null });
-    expect(generateOutput).toHaveBeenCalledTimes(1);
+    expect(generateOutput).toHaveBeenCalledTimes(2);
+    expect(refreshCharacterModeInjectionBundleForSubmission).toHaveBeenCalledTimes(2);
   });
 
   it("allows repeated edit regenerates without locking the edit lane", async () => {

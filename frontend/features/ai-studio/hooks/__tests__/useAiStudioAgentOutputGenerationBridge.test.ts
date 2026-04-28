@@ -27,7 +27,6 @@ const createParams = (
   mode: "image",
   selectedTool: "create",
   isGenerateDisabled: false,
-  isGenerateClickLocked: false,
   hasSufficientCreditsForOutputGenerate: true,
   model: "seedream-4.5",
   characterModeEnabled: false,

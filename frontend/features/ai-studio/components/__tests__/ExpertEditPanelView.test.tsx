@@ -433,7 +433,7 @@ describe("ExpertEditPanelView", () => {
     uploadPrimaryFile(container, "busy-button.png");
 
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
-    expect(screen.getByText("Generating…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generate");
   });
 
   const renderControlledPromptPanel = ({

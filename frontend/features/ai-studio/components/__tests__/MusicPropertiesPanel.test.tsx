@@ -90,6 +90,17 @@ describe("MusicPropertiesPanel", () => {
     });
   });
 
+  it("keeps generate available while generation is running", () => {
+    render(<MusicPropertiesPanel isGenerating onGenerate={vi.fn()} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: { value: "Minimal synth bed with a bright branded tag." },
+    });
+
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generate");
+  });
+
   it("updates the energy readout locally", () => {
     render(<MusicPropertiesPanel />);
 

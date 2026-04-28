@@ -129,6 +129,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Generated placeholders without a provider task id now fail fast using submit-start timeout semantics instead of persisting spinner-only cards.
 - Pre-submit reference preparation now emits breadcrumb diagnostics (`generation_preflight_prepare_stage`) with stage/status/source/elapsed timing to speed timeout triage.
 - Generate is disabled when required inputs are missing (e.g., model not chosen) or the credit balance is lower than the computed cost, so the banner can remind users to top up before retrying.
+- Generate CTA disabled state is validation-only. In-flight generation, prompt refinement, or local preflight/export work must not relabel the CTA or block valid repeat clicks; progress belongs on output cards, stage overlays, banners, or other status surfaces.
 
 ## Model usage
 

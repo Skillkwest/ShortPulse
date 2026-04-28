@@ -47,7 +47,6 @@ const formatCreditValue = (value: number): string => {
 
 export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPropertiesPanel({
   balanceCredits = null,
-  isGenerating = false,
   onGenerate,
   pricingPolicy = null,
 }: SoundEffectsPropertiesPanelProps) {
@@ -70,7 +69,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   const isInsufficientCredits =
     balanceCredits != null && generateCost != null ? balanceCredits < generateCost : false;
   const isGenerateEnabled =
-    Boolean(onGenerate) && prompt.trim().length > 0 && !isGenerating && !isInsufficientCredits;
+    Boolean(onGenerate) && prompt.trim().length > 0 && !isInsufficientCredits;
   const isLibraryVisible = topPanePercent > 0;
   const minTopPanePercent = 0;
 
@@ -108,7 +107,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
 
   const handleGenerate = React.useCallback(async () => {
     const text = prompt.trim();
-    if (!onGenerate || !text || isGenerating) return;
+    if (!onGenerate || !text) return;
     await onGenerate({
       text,
       durationSeconds,
@@ -116,7 +115,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       outputFormat: selectedFormat,
       modelId: hardcodedSoundEffectsModelId,
     });
-  }, [durationSeconds, isGenerating, loopEnabled, onGenerate, prompt, selectedFormat]);
+  }, [durationSeconds, loopEnabled, onGenerate, prompt, selectedFormat]);
 
   const updateTopPaneFromClientY = React.useCallback(
     (clientY: number) => {
@@ -261,9 +260,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                   }}
                   aria-label="Generate"
                 >
-                  <span className="sound-effects-properties-generate-label">
-                    {isGenerating ? "Generating…" : "Generate"}
-                  </span>
+                  <span className="sound-effects-properties-generate-label">Generate</span>
                   <span className="sound-effects-properties-generate-pill" aria-hidden="true">
                     <span className="sound-effects-properties-generate-cost-icon">✦</span>
                     <span className="sound-effects-properties-generate-cost-value">

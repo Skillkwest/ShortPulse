@@ -67,8 +67,6 @@ const createParams = (
     promptReferenceGenerateCostCredits: 25,
     hasSufficientCreditsForPromptReferenceGenerate: true,
     isGenerateDisabled: false,
-    isCreateGenerateClickLocked: false,
-    isEditGenerateClickLocked: false,
     generationGuardrail: null,
     handleExpandChat: vi.fn(),
     handleClearAgentChat: vi.fn(),
@@ -150,14 +148,13 @@ describe("useAiStudioPanelProps", () => {
       useAiStudioPanelProps(
         createParams({
           isPromptRefining: true,
-          isCreateGenerateClickLocked: true,
         })
       )
     );
 
     expect(result.current.propertiesCreate.isPromptGenerating).toBe(true);
-    expect(result.current.propertiesCreate.isGenerateDisabled).toBe(true);
-    expect(result.current.propertiesCreate.isChatOffInlineGenerateDisabled).toBe(true);
+    expect(result.current.propertiesCreate.isGenerateDisabled).toBe(false);
+    expect(result.current.propertiesCreate.isChatOffInlineGenerateDisabled).toBe(false);
     expect(result.current.propertiesCreate.outputGenerateCostCredits).toBe(25);
     expect(result.current.propertiesCreate.hasSufficientCreditsForOutputGenerate).toBe(true);
     expect(result.current.propertiesEditExpert.expertEditEligible).toBe(false);
@@ -287,8 +284,6 @@ describe("useAiStudioPanelProps", () => {
           agentBusy: true,
           agentIsSending: true,
           isGenerateDisabled: false,
-          isCreateGenerateClickLocked: false,
-          isEditGenerateClickLocked: false,
           createIsGenerating: false,
           editIsGenerating: false,
           isPromptRefining: false,
@@ -427,8 +422,6 @@ describe("useAiStudioPanelProps", () => {
         createParams({
           isGenerateDisabled: true,
           generationGuardrail: "Select a model before generating.",
-          isCreateGenerateClickLocked: false,
-          isEditGenerateClickLocked: false,
           createIsGenerating: false,
           editIsGenerating: false,
           isPromptRefining: false,

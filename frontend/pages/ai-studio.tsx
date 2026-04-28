@@ -1127,8 +1127,6 @@ export default function AiStudioPage() {
   }, [isMediaLibraryPanelEnabled, selectedTool, setSelectedToolWithEditIntentReset]);
 
   const {
-    isCreateGenerateClickLocked,
-    isEditGenerateClickLocked,
     handleGenerate,
     handlePrimarySubmit,
     handleChatOffInlineGenerate,
@@ -1146,7 +1144,6 @@ export default function AiStudioPage() {
     prompt,
     selectedStyleContext,
     agentInput,
-    chatModeEnabled,
     usesAgentLane: expertCreateMode === "pulse" || chatModeEnabled,
     currentCostCredits,
     resolveCostCreditsForModel: resolveModelPickerCredits,
@@ -1182,7 +1179,6 @@ export default function AiStudioPage() {
       mode,
       selectedTool,
       isGenerateDisabled: effectiveIsGenerateDisabled,
-      isGenerateClickLocked: isCreateGenerateClickLocked,
       hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
       model,
       characterModeEnabled: isCreateCharacterModeEnabled,
@@ -1255,8 +1251,6 @@ export default function AiStudioPage() {
     promptReferenceGenerateCostCredits,
     hasSufficientCreditsForPromptReferenceGenerate,
     isGenerateDisabled: effectiveIsGenerateDisabled,
-    isCreateGenerateClickLocked,
-    isEditGenerateClickLocked,
     generationGuardrail: effectiveGenerationGuardrail,
     handleExpandChat,
     handleClearAgentChat,

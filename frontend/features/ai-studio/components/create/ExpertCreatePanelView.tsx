@@ -317,7 +317,7 @@ export function ExpertCreatePanelView({
           <div className="create-expert-inline-generate">
             <AgentGenerateButton
               onClick={onGenerate}
-              disabled={isGenerateDisabled || isPromptGenerating}
+              disabled={isGenerateDisabled}
               isBusy={isPromptGenerating}
               cost={costValue}
             />

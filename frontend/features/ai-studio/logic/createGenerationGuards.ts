@@ -20,7 +20,6 @@ type AgentOutputDisableParams = CreateSelectionParams & {
   mode: StudioMode;
   selectedTool: ToolId | null;
   isGenerateDisabled: boolean;
-  isGenerateClickLocked: boolean;
   hasSufficientCreditsForOutputGenerate: boolean;
 };
 
@@ -85,7 +84,6 @@ export const shouldDisableAgentOutputGenerate = ({
   mode,
   selectedTool,
   isGenerateDisabled,
-  isGenerateClickLocked,
   hasSufficientCreditsForOutputGenerate,
   modelId,
   characterModeEnabled,
@@ -100,12 +98,7 @@ export const shouldDisableAgentOutputGenerate = ({
       })
     : false;
   void mode;
-  return (
-    isGenerateDisabled ||
-    isGenerateClickLocked ||
-    missingGenerationTarget ||
-    !hasSufficientCreditsForOutputGenerate
-  );
+  return isGenerateDisabled || missingGenerationTarget || !hasSufficientCreditsForOutputGenerate;
 };
 
 /**

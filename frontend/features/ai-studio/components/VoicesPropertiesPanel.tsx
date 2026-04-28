@@ -453,7 +453,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   balanceCredits = null,
   pricingPolicy = null,
   selectedTool = null,
-  isGenerating = false,
   onGenerate,
   onActiveVoiceChangerSourceVideoChange,
 }: VoicesPropertiesPanelProps) {
@@ -555,7 +554,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     (surfaceMode === "create"
       ? voiceScript.trim().length > 0
       : voiceChangerSource?.status === "ready") &&
-    !isGenerating &&
     !isInsufficientCredits;
   const isCreateVoiceEnabled =
     voiceName.trim().length > 0 &&
@@ -1639,9 +1637,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   aria-label="Generate"
                   onClick={handleGenerate}
                 >
-                  <span className="voices-properties-generate-label">
-                    {isGenerating ? "Generating…" : "Generate"}
-                  </span>
+                  <span className="voices-properties-generate-label">Generate</span>
                   <span className="voices-properties-generate-pill" aria-hidden="true">
                     <span className="voices-properties-generate-cost-icon">✦</span>
                     <span className="voices-properties-generate-cost-value">

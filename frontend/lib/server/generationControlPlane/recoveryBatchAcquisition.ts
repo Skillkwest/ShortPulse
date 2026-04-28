@@ -200,6 +200,94 @@ const claimImmediateNoMediaRows = async ({
   return claimed;
 };
 
+const claimAttemptBudgetRows = async ({
+  supabaseAdmin,
+  batchSize,
+  maxAttempts,
+  minAgeSeconds,
+  leaseSeconds,
+}: {
+  supabaseAdmin: SupabaseAdminClient;
+  batchSize: number;
+  maxAttempts: number;
+  minAgeSeconds: number;
+  leaseSeconds: number;
+}): Promise<ClaimedGeneration[]> => {
+  if (batchSize <= 0) return [];
+
+  const oldestCreatedAtIso = new Date(Date.now() - minAgeSeconds * 1000).toISOString();
+  const nowIso = new Date().toISOString();
+  const leaseUntilIso = new Date(Date.now() + leaseSeconds * 1000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("ai_generations")
+    .select(
+      [
+        "id",
+        "user_id",
+        "request_id",
+        "provider",
+        "model_id",
+        "status",
+        "recovery_state",
+        "recovery_attempts",
+      ].join(", ")
+    )
+    .in("status", ["running", "pending"])
+    .in("recovery_state", ["queued", "recovering"])
+    .lte("created_at", oldestCreatedAtIso)
+    .or(`next_recovery_at.is.null,next_recovery_at.lte.${nowIso}`)
+    .gte("recovery_attempts", maxAttempts)
+    .order("next_recovery_at", { ascending: true, nullsFirst: true })
+    .order("created_at", { ascending: true })
+    .limit(batchSize);
+
+  if (error || !Array.isArray(data)) return [];
+
+  const claimed: ClaimedGeneration[] = [];
+  for (const raw of data) {
+    const row = parseClaimedGeneration(raw);
+    if (!row) continue;
+    if (!resolveSupportedRecoveryProviderFamily(row.provider)) continue;
+
+    let claimQuery = supabaseAdmin
+      .from("ai_generations")
+      .update({
+        recovery_state: "recovering",
+        last_recovery_at: nowIso,
+        next_recovery_at: leaseUntilIso,
+      })
+      .eq("id", row.id)
+      .eq("user_id", row.user_id)
+      .eq("status", row.status)
+      .eq("recovery_state", row.recovery_state ?? "queued")
+      .gte("recovery_attempts", maxAttempts);
+
+    claimQuery =
+      row.recovery_attempts === null
+        ? claimQuery.is("recovery_attempts", null)
+        : claimQuery.eq("recovery_attempts", row.recovery_attempts);
+
+    const { data: claimedRows, error: claimError } = await claimQuery.select("id, request_id");
+    if (claimError) continue;
+    const claimedRow =
+      Array.isArray(claimedRows) &&
+      claimedRows.length === 1 &&
+      claimedRows[0] &&
+      typeof claimedRows[0] === "object"
+        ? (claimedRows[0] as JsonObject)
+        : null;
+    if (!claimedRow) continue;
+
+    claimed.push({
+      ...row,
+      request_id: asString(claimedRow.request_id) ?? row.request_id,
+      recovery_state: "recovering",
+    });
+  }
+
+  return claimed;
+};
+
 export const claimGenerationRecoveryBatch = async ({
   supabaseAdmin,
   batchSize,
@@ -224,14 +312,24 @@ export const claimGenerationRecoveryBatch = async ({
   const claimImmediateRows = async (claimedRows: ClaimedGeneration[]) => {
     const remaining = Math.max(0, batchSize - claimedRows.length);
     if (remaining === 0) return claimedRows;
-    const immediateRows = await claimImmediateNoMediaRows({
+    const attemptBudgetRows = await claimAttemptBudgetRows({
       supabaseAdmin: client,
       batchSize: remaining,
       maxAttempts,
+      minAgeSeconds,
       leaseSeconds,
     });
-    if (!immediateRows.length) return claimedRows;
-    return [...claimedRows, ...immediateRows];
+    const remainingAfterBudgetRows = Math.max(0, remaining - attemptBudgetRows.length);
+    const rowsWithBudgetClaims = [...claimedRows, ...attemptBudgetRows];
+    if (remainingAfterBudgetRows === 0) return rowsWithBudgetClaims;
+    const immediateRows = await claimImmediateNoMediaRows({
+      supabaseAdmin: client,
+      batchSize: remainingAfterBudgetRows,
+      maxAttempts,
+      leaseSeconds,
+    });
+    if (!immediateRows.length) return rowsWithBudgetClaims;
+    return [...rowsWithBudgetClaims, ...immediateRows];
   };
 
   if (!claimResponse.error && Array.isArray(claimResponse.data)) {

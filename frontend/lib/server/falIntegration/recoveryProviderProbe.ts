@@ -56,6 +56,11 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const payloadHasProviderError = (payload: JsonObject | null): boolean => {
+  if (!payload) return false;
+  return Boolean(asString(payload.error) || asString(payload.detail));
+};
+
 const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
   const text = await response.text();
   if (!text) return { ok: response.ok, status: response.status, json: {} };
@@ -229,6 +234,16 @@ export const probeProviderResult = async ({
           mediaUrls: extractRecoveryMediaUrls(payload, { provider: providerKey, modelId }),
         };
       }
+    }
+    const bestStatusPayload =
+      bestStatus && payloadByStatusIndex.has(bestStatus.index)
+        ? (payloadByStatusIndex.get(bestStatus.index) ?? null)
+        : null;
+    if (
+      bestStatus?.isFailed ||
+      (bestStatus?.isTerminal && payloadHasProviderError(bestStatusPayload))
+    ) {
+      return { state: "failed", payload: bestStatusPayload, mediaUrls: [] };
     }
     const responseProbe = await probeResponseUrlsForMedia({
       provider: providerKey,

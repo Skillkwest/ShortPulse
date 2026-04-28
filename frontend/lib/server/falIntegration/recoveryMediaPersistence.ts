@@ -344,6 +344,11 @@ export const persistRecoveryMediaFilesForGeneration = async ({
           return;
         }
       }
+      try {
+        await supabaseAdmin.storage.from(MEDIA_BUCKET).remove([storagePath]);
+      } catch {
+        // best-effort cleanup for uploaded bytes without a durable media row
+      }
       throw new Error(`media_files insert failed: ${insertError.message}`);
     }
     const mediaFileId = asString(asObject(data).id);

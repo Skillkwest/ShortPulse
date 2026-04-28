@@ -26,8 +26,10 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
     const immediateBuilder = {
       in: vi.fn(),
       eq: vi.fn(),
+      lte: vi.fn(),
       or: vi.fn(),
       lt: vi.fn(),
+      gte: vi.fn(),
       order: vi.fn(),
       limit: vi.fn(async () => ({
         data: [],
@@ -37,8 +39,10 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
     };
     immediateBuilder.in.mockReturnValue(immediateBuilder);
     immediateBuilder.eq.mockReturnValue(immediateBuilder);
+    immediateBuilder.lte.mockReturnValue(immediateBuilder);
     immediateBuilder.or.mockReturnValue(immediateBuilder);
     immediateBuilder.lt.mockReturnValue(immediateBuilder);
+    immediateBuilder.gte.mockReturnValue(immediateBuilder);
     immediateBuilder.order.mockReturnValue(immediateBuilder);
     immediateBuilder.not.mockReturnValue(immediateBuilder);
     const supabaseAdmin = {
@@ -96,6 +100,7 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
       lte: vi.fn(),
       or: vi.fn(),
       lt: vi.fn(),
+      gte: vi.fn(),
       order: vi.fn(),
       limit: vi
         .fn()
@@ -125,6 +130,7 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
     selectBuilder.lte.mockReturnValue(selectBuilder);
     selectBuilder.or.mockReturnValue(selectBuilder);
     selectBuilder.lt.mockReturnValue(selectBuilder);
+    selectBuilder.gte.mockReturnValue(selectBuilder);
     selectBuilder.order.mockReturnValue(selectBuilder);
     selectBuilder.not.mockReturnValue(selectBuilder);
 
@@ -172,6 +178,7 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
       lte: vi.fn(),
       or: vi.fn(),
       lt: vi.fn(),
+      gte: vi.fn(),
       order: vi.fn(),
       limit: vi.fn(async () => ({
         data: [
@@ -195,6 +202,7 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
     selectBuilder.lte.mockReturnValue(selectBuilder);
     selectBuilder.or.mockReturnValue(selectBuilder);
     selectBuilder.lt.mockReturnValue(selectBuilder);
+    selectBuilder.gte.mockReturnValue(selectBuilder);
     selectBuilder.order.mockReturnValue(selectBuilder);
     selectBuilder.not.mockReturnValue(selectBuilder);
 
@@ -224,30 +232,40 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
     const selectBuilder = {
       in: vi.fn(),
       eq: vi.fn(),
+      lte: vi.fn(),
       or: vi.fn(),
       lt: vi.fn(),
+      gte: vi.fn(),
       order: vi.fn(),
-      limit: vi.fn(async () => ({
-        data: [
-          {
-            id: "gen-fast",
-            user_id: "user-1",
-            request_id: "req-fast",
-            provider: "fal",
-            model_id: "model-1",
-            status: "running",
-            recovery_state: "queued",
-            recovery_attempts: 1,
-          },
-        ],
-        error: null,
-      })),
+      limit: vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: [],
+          error: null,
+        })
+        .mockResolvedValue({
+          data: [
+            {
+              id: "gen-fast",
+              user_id: "user-1",
+              request_id: "req-fast",
+              provider: "fal",
+              model_id: "model-1",
+              status: "running",
+              recovery_state: "queued",
+              recovery_attempts: 1,
+            },
+          ],
+          error: null,
+        }),
       not: vi.fn(),
     };
     selectBuilder.in.mockReturnValue(selectBuilder);
     selectBuilder.eq.mockReturnValue(selectBuilder);
+    selectBuilder.lte.mockReturnValue(selectBuilder);
     selectBuilder.or.mockReturnValue(selectBuilder);
     selectBuilder.lt.mockReturnValue(selectBuilder);
+    selectBuilder.gte.mockReturnValue(selectBuilder);
     selectBuilder.order.mockReturnValue(selectBuilder);
     selectBuilder.not.mockReturnValue(selectBuilder);
 
@@ -263,7 +281,7 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
 
     const result = await claimGenerationRecoveryBatch({
       supabaseAdmin: supabaseAdmin as never,
-      batchSize: 10,
+      batchSize: 1,
       maxAttempts: 5,
       minAgeSeconds: 120,
       leaseSeconds: 120,
@@ -293,5 +311,83 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
         bypassMinAge: true,
       })
     );
+  });
+
+  it("claims stale rows at the recovery attempt budget for terminal exhaustion", async () => {
+    const selectBuilder = {
+      in: vi.fn(),
+      eq: vi.fn(),
+      lte: vi.fn(),
+      or: vi.fn(),
+      gte: vi.fn(),
+      order: vi.fn(),
+      limit: vi.fn(async () => ({
+        data: [
+          {
+            id: "gen-stale",
+            user_id: "user-1",
+            request_id: "req-stale",
+            provider: "fal",
+            model_id: "model-1",
+            status: "running",
+            recovery_state: "queued",
+            recovery_attempts: 5,
+          },
+        ],
+        error: null,
+      })),
+    };
+    selectBuilder.in.mockReturnValue(selectBuilder);
+    selectBuilder.eq.mockReturnValue(selectBuilder);
+    selectBuilder.lte.mockReturnValue(selectBuilder);
+    selectBuilder.or.mockReturnValue(selectBuilder);
+    selectBuilder.gte.mockReturnValue(selectBuilder);
+    selectBuilder.order.mockReturnValue(selectBuilder);
+
+    const updateBuilder = {
+      eq: vi.fn(),
+      gte: vi.fn(),
+      or: vi.fn(),
+      select: vi.fn(async () => ({
+        data: [{ id: "gen-stale", request_id: "req-stale" }],
+        error: null,
+      })),
+    };
+    updateBuilder.eq.mockReturnValue(updateBuilder);
+    updateBuilder.gte.mockReturnValue(updateBuilder);
+    updateBuilder.or.mockReturnValue(updateBuilder);
+
+    const supabaseAdmin = {
+      rpc: vi.fn(async () => ({
+        data: [],
+        error: null,
+      })),
+      from: vi.fn(() => ({
+        select: vi.fn(() => selectBuilder),
+        update: vi.fn(() => updateBuilder),
+      })),
+    };
+
+    const result = await claimGenerationRecoveryBatch({
+      supabaseAdmin: supabaseAdmin as never,
+      batchSize: 1,
+      maxAttempts: 5,
+      minAgeSeconds: 120,
+      leaseSeconds: 120,
+    });
+
+    expect(result.rows).toEqual([
+      {
+        id: "gen-stale",
+        user_id: "user-1",
+        request_id: "req-stale",
+        provider: "fal",
+        model_id: "model-1",
+        status: "running",
+        recovery_state: "recovering",
+        recovery_attempts: 5,
+      },
+    ]);
+    expect(tryClaimRecoveryCandidateMock).not.toHaveBeenCalled();
   });
 });

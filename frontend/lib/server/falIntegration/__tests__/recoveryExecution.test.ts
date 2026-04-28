@@ -438,6 +438,81 @@ describe("executeGenerationRecovery", () => {
     );
   });
 
+  it("settles deterministic media persistence owner failures instead of requeueing", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+        recovery_attempts: 5,
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockRejectedValue(
+      new Error(
+        'media_files insert failed: insert or update on table "media_files" violates foreign key constraint "media_files_user_id_fkey"'
+      )
+    );
+    upsertGenerationProjectionMock.mockRejectedValueOnce({
+      code: "23503",
+      message:
+        'insert or update on table "generation_projection" violates foreign key constraint "generation_projection_user_id_fkey"',
+    });
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      maxAttempts: 5,
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "exhausted",
+        processed: true,
+        note: "media_persistence_failed",
+        mediaFileIds: [],
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "fail",
+        reason:
+          "Generated media could not be saved because the generation owner is no longer active.",
+      })
+    );
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        userId: "user-1",
+        status: "failed",
+        failureReasonCode: "media_persistence_failed",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        taskState: "fail",
+        publicationState: "suppressed",
+        resultUrls: [],
+      })
+    );
+    expect(scenario.updatePayloads.at(-1)).toEqual(
+      expect.objectContaining({
+        status: "fail",
+        recovery_state: "exhausted",
+        failure_reason_code: "media_persistence_failed",
+        next_recovery_at: null,
+      })
+    );
+  });
+
   it("marks provider-running generations as exhausted when running hard-timeout is reached", async () => {
     readFalRuntimeFlagsMock.mockReturnValue({
       reconcilerMaxAttempts: 3,
@@ -1153,7 +1228,7 @@ describe("executeGenerationRecovery", () => {
       routeLabel: "test/recovery",
       observation: {
         state: "failed",
-        payload: null,
+        payload: { error: "User defined request timeout exceeded: Pre-start" },
         mediaUrls: [],
       },
     });
@@ -1168,6 +1243,7 @@ describe("executeGenerationRecovery", () => {
     expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "fail",
+        reason: "User defined request timeout exceeded: Pre-start",
       })
     );
     expect(scenario.updatePayloads).toHaveLength(1);
@@ -1186,7 +1262,7 @@ describe("executeGenerationRecovery", () => {
         status: "ready",
         taskState: "fail",
         errorMessageShort: "Generation failed",
-        errorDetail: "Provider reported failed state during recovery execution.",
+        errorDetail: "User defined request timeout exceeded: Pre-start",
         publicationState: "suppressed",
         resultUrls: [],
         savedMediaIds: [],

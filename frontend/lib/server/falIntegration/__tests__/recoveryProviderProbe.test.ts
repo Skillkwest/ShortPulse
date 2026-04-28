@@ -124,6 +124,42 @@ describe("recoveryProviderProbe trusted base policy", () => {
     });
   });
 
+  it("treats terminal fal status payloads with provider errors as failed", async () => {
+    process.env.SHORTPULSE_FAL_TRUSTED_HOSTS = "queue.fal.run";
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+            request_id: "req-1",
+            error: "User defined request timeout exceeded: Pre-start",
+            error_type: "startup_timeout",
+          }),
+          { status: 200 }
+        )
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const observation = await probeProviderResult({
+      requestId: "req-1",
+      modelId: "fal-ai/nano-banana-2/edit",
+      apiKey: "test-fal-key",
+    });
+
+    expect(observation).toEqual({
+      state: "failed",
+      payload: {
+        status: "COMPLETED",
+        request_id: "req-1",
+        error: "User defined request timeout exceeded: Pre-start",
+        error_type: "startup_timeout",
+      },
+      mediaUrls: [],
+    });
+  });
+
   it("probes response and result endpoints before settling completed without media", async () => {
     process.env.SHORTPULSE_FAL_TRUSTED_HOSTS = "queue.fal.run";
 

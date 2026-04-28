@@ -7,6 +7,7 @@ const dispatchGenerationSubmitQueueBatchMock = vi.fn();
 const processPendingGenerationObservationsMock = vi.fn();
 const repairGenerationRequestIdsFromReservationsMock = vi.fn();
 const repairStaleTerminalGenerationProjectionsMock = vi.fn();
+const retireStalePreProviderGenerationsMock = vi.fn();
 const claimGenerationRecoveryBatchMock = vi.fn();
 const executeClaimedRecoveryBatchMock = vi.fn();
 
@@ -26,6 +27,11 @@ vi.mock("../../api/generationQueue/dispatch", () => ({
 vi.mock("../observationBatchExecution", () => ({
   processPendingGenerationObservations: (...args: unknown[]) =>
     processPendingGenerationObservationsMock(...args),
+}));
+
+vi.mock("../preProviderRetirement", () => ({
+  retireStalePreProviderGenerations: (...args: unknown[]) =>
+    retireStalePreProviderGenerationsMock(...args),
 }));
 
 vi.mock("../../api/generationQueue/requestIdRepair", () => ({
@@ -108,6 +114,13 @@ describe("runGenerationControlPlaneCycle", () => {
       repaired: 0,
       skipped: 0,
     });
+    retireStalePreProviderGenerationsMock.mockResolvedValue({
+      scanned: 0,
+      queueExhausted: 0,
+      generationsExhausted: 0,
+      reservationsReleased: 0,
+      errors: 0,
+    });
     claimGenerationRecoveryBatchMock.mockResolvedValue({
       rows: [],
       claimSource: "rpc",
@@ -144,6 +157,10 @@ describe("runGenerationControlPlaneCycle", () => {
       leaseSeconds: expect.any(Number),
       routeLabel: "worker/generation-control-plane",
     });
+    expect(retireStalePreProviderGenerationsMock).toHaveBeenCalledWith({
+      limit: 200,
+      maxAgeSeconds: 1200,
+    });
     expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
       supabaseAdmin: expect.any(Object),
       batchSize: 10,
@@ -176,7 +193,15 @@ describe("runGenerationControlPlaneCycle", () => {
         queueSubmitted: 0,
         reservationCleanupScanned: 2,
         reservationCleanupReleased: 1,
+        preProviderRetirementScanned: 0,
+        preProviderQueueExhausted: 0,
+        preProviderGenerationsExhausted: 0,
+        preProviderReservationsReleased: 0,
+        preProviderRetirementErrors: 0,
         stageTimings: expect.objectContaining({
+          preProviderRetirement: expect.objectContaining({
+            durationMs: expect.any(Number),
+          }),
           queueDispatch: expect.objectContaining({
             durationMs: expect.any(Number),
           }),

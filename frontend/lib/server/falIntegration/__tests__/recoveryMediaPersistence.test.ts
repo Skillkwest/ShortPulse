@@ -35,7 +35,6 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
   const insertResponses = [...(scenario.insertResponses ?? [])];
   const duplicateLookupResponses = [...(scenario.duplicateLookupResponses ?? [])];
   const uploadResponses = [...(scenario.uploadResponses ?? [])];
-  const generationOutputListResponses = [...(scenario.generationOutputListResponses ?? [])];
   const generationOutputInsertResponses = [...(scenario.generationOutputInsertResponses ?? [])];
   const generationOutputUpdateResponses = [...(scenario.generationOutputUpdateResponses ?? [])];
 
@@ -657,6 +656,55 @@ describe("recoveryMediaPersistence", () => {
     ).resolves.toEqual(["media-new-1"]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes uploaded recovery media when media_files insert fails", async () => {
+    const scenario = createSupabaseScenario({
+      generationOutputListResponses: [{ data: [], error: null }],
+      listResponses: [{ data: [], error: null }],
+      insertResponses: [
+        {
+          data: null,
+          error: {
+            code: "23503",
+            message:
+              'insert or update on table "media_files" violates foreign key constraint "media_files_user_id_fkey"',
+          },
+        },
+      ],
+      uploadResponses: [{ error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(Uint8Array.from([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/png" },
+        })
+      )
+    );
+
+    await expect(
+      persistRecoveryMediaFilesForGeneration({
+        generation: {
+          id: "gen-1",
+          user_id: "user-1",
+          request_id: "req-1",
+          model_id: "fal-ai/nano-banana-pro",
+          provider: "fal",
+          prompt_text: "cinematic portrait",
+          metadata: {},
+        },
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      })
+    ).rejects.toThrow("media_files insert failed");
+
+    expect(scenario.upload).toHaveBeenCalledTimes(1);
+    expect(scenario.remove).toHaveBeenCalledWith([
+      expect.stringMatching(new RegExp("^user-1/generations/images/.+\\.png$")),
+    ]);
   });
 
   it("accepts fal media-host recovery media urls by default", async () => {

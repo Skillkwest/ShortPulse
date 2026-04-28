@@ -123,6 +123,15 @@ const resolveGenerationAgeSeconds = (createdAtIso: string, now: Date): number =>
   return Math.max(0, Math.floor(diffMs / 1000));
 };
 
+const isTerminalMediaPersistenceError = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("media_files insert failed") &&
+    normalized.includes("media_files_user_id_fkey")
+  );
+};
+
 const readMediaAutosaveEnabledForUser = async (userId: string): Promise<boolean> => {
   try {
     const { data, error } = await getSupabaseAdmin()
@@ -1054,10 +1063,67 @@ export const executeGenerationRecovery = async ({
     };
   }
 
-  const mediaFileIds = await persistRecoveryMediaFilesForGeneration({
-    generation,
-    mediaUrls: recoveredUrls,
-  });
+  let mediaFileIds: string[];
+  try {
+    mediaFileIds = await persistRecoveryMediaFilesForGeneration({
+      generation,
+      mediaUrls: recoveredUrls,
+    });
+  } catch (error) {
+    if (!isTerminalMediaPersistenceError(error)) {
+      throw error;
+    }
+    const failureMessage =
+      "Generated media could not be saved because the generation owner is no longer active.";
+    await applyRecoveryTransition({
+      generation,
+      attemptTransition: {
+        status: "failed",
+        observedAt: nowIso,
+        completedAt: nowIso,
+        failureReasonCode: "media_persistence_failed",
+        errorMessage: failureMessage,
+        metadata: {
+          recovery_actor: actor,
+          recovery_outcome: "media_persistence_failed",
+        },
+      },
+    });
+    await settleRecoveryOutcome({
+      outcome: "fail",
+      reason: failureMessage,
+      detail: {
+        actor,
+        generation_id: generation.id,
+        persistence_error_class: "invalid_generation_owner",
+      },
+    }).catch(() => undefined);
+    await syncFailedGenerationProjection({
+      completedAt: nowIso,
+      errorDetail: failureMessage,
+      errorMessage: "Generation failed.",
+      errorMessageShort: "Generation failed",
+      generation,
+    }).catch(() => undefined);
+    await applyRecoveryTransition({
+      generation,
+      generationUpdates: buildProviderFailedUpdate(nowIso, "media_persistence_failed"),
+    });
+    void requestGenerationControlPlaneWake({
+      routeLabel,
+      reason: "media_persistence_failed",
+    });
+    return {
+      ok: true,
+      state: "exhausted",
+      generationId: generation.id,
+      requestId: generation.request_id,
+      mediaFileIds: [],
+      mediaUrls: recoveredUrls,
+      processed: true,
+      note: "media_persistence_failed",
+    };
+  }
   await applyRecoveryTransition({
     generation,
     attemptTransition: {

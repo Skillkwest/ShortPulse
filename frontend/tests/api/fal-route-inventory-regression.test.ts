@@ -8,6 +8,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 const FAL_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "fal");
+const FAL_CLIENT_PATH = path.join(process.cwd(), "lib", "falClient.ts");
 
 const EXPECTED_FAL_ROUTE_FILES = [
   "bria-background-remove-status.ts",
@@ -18,8 +19,6 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "flux-pro-fill-submit.ts",
   "flux2klein-status.ts",
   "flux2klein-submit.ts",
-  "image-status.ts",
-  "image-submit.ts",
   "kie-kling-status.ts",
   "kie-kling-submit.ts",
   "kie-seedance-2-fast-status.ts",
@@ -30,10 +29,6 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "kie-seedance-submit.ts",
   "kie-veo-status.ts",
   "kie-veo-submit.ts",
-  "kling-status.ts",
-  "kling-v3-image-to-video-status.ts",
-  "kling-v3-image-to-video-submit.ts",
-  "kling-v3-text-submit.ts",
   "nano-banana-2-edit-status.ts",
   "nano-banana-2-edit-submit.ts",
   "nano-banana-2-status.ts",
@@ -46,10 +41,6 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "nano-banana-pro-submit.ts",
   "nano-banana-status.ts",
   "nano-banana-submit.ts",
-  "seedance-i2v-status.ts",
-  "seedance-i2v-submit.ts",
-  "seedance-status.ts",
-  "seedance-submit.ts",
   "seedream-edit-status.ts",
   "seedream-edit-submit.ts",
   "seedream-status.ts",
@@ -58,11 +49,6 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "seedream-v5-lite-edit-submit.ts",
   "seedream-v5-lite-status.ts",
   "seedream-v5-lite-submit.ts",
-  "veo-first-last-frame-submit.ts",
-  "veo-image-to-video-status.ts",
-  "veo-image-to-video-submit.ts",
-  "veo-status.ts",
-  "veo-submit.ts",
   "webhook.ts",
 ] as const;
 
@@ -83,5 +69,20 @@ describe("fal route inventory regression", () => {
       const source = fs.readFileSync(routePath, "utf8");
       expect(source).toMatch(/\bexport\s+default\b/);
     }
+  });
+
+  it("keeps the client off retired generic Fal routes and compatibility fallbacks", () => {
+    const source = fs.readFileSync(FAL_CLIENT_PATH, "utf8");
+    expect(source).not.toContain("`${FAL_API_BASE}/submit`");
+    expect(source).not.toContain("`${FAL_API_BASE}/status`");
+    expect(source).not.toContain("`${FAL_API_BASE}/image-submit`");
+    expect(source).not.toContain("`${FAL_API_BASE}/image-status`");
+    expect(source).not.toContain("`${FAL_API_BASE}/kling-v3-text-submit`");
+    expect(source).not.toContain("`${FAL_API_BASE}/veo-submit`");
+    expect(source).not.toContain("`${FAL_API_BASE}/veo-image-to-video-submit`");
+    expect(source).not.toContain("`${FAL_API_BASE}/veo-first-last-frame-submit`");
+    expect(source).not.toContain("`${FAL_API_BASE}/seedance-submit`");
+    expect(source).not.toContain("`${FAL_API_BASE}/seedance-i2v-submit`");
+    expect(source).not.toContain("fallbackGetOn405");
   });
 });

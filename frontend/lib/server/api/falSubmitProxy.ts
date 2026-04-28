@@ -26,7 +26,10 @@ import {
   readGenerationDurationSeconds,
 } from "./generationQueue/metadata";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
-import { dispatchProviderSubmit } from "../providerIntegration/submitProviderDispatcher";
+import {
+  dispatchProviderSubmit,
+  ProviderSubmitValidationError,
+} from "../providerIntegration/submitProviderDispatcher";
 import { readProviderContentPolicyMessage } from "../providerIntegration/statusProviderPayload";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
 import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
@@ -895,6 +898,32 @@ export const createFalSubmitHandler = ({
           });
         } catch (error) {
           const detail = error instanceof Error ? error.message : String(error);
+          if (error instanceof ProviderSubmitValidationError) {
+            await charge.refund("Auto-release: direct provider submit validation failed.", {
+              reason: "direct_submit_validation_failed",
+              code: error.code,
+              detail: error.detail,
+            });
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "api.fal_submit.direct_submit_validation_failed",
+              message: error.message,
+              statusCode: error.statusCode,
+              userId: charge.userId,
+              metadata: {
+                model_id: modelId,
+                source_ref: charge.sourceRef,
+                validation_code: error.code,
+                validation_detail: error.detail,
+              },
+            });
+            return res.status(error.statusCode).json({
+              error: error.message,
+              code: error.code,
+              detail: error.detail,
+            });
+          }
           await charge.refund(
             "Auto-release: direct provider submit threw before request tracking completed.",
             {

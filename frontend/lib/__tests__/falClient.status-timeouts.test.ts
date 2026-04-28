@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  fetchFalSeedreamStatus,
-  submitFalNanoBananaProEdit,
-  fetchFalVeoImageToVideoStatus,
-  fetchFalVeoStatus,
-} from "../falClient";
+import { fetchFalSeedreamStatus, submitFalNanoBananaProEdit } from "../falClient";
 import { fetchWithAuth } from "../authenticatedFetch";
 
 vi.mock("../authenticatedFetch", () => ({
@@ -38,33 +33,18 @@ describe("falClient status timeout budgets", () => {
     expect((init as RequestInit | undefined)?.method).toBe("POST");
   });
 
-  it("uses 105s timeout budget for Veo status endpoints", async () => {
-    fetchWithAuthMock.mockResolvedValueOnce(createJsonResponse({ status: "pending" }));
+  it("does not retry status requests through compatibility GET paths", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse({ error: "Method not allowed" }, 405)
+    );
 
-    await fetchFalVeoStatus("req-veo-timeout");
+    await expect(fetchFalSeedreamStatus("req-status-405")).rejects.toThrow("Method not allowed");
 
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchWithAuthMock.mock.calls[0] ?? [];
-    expect((init as { timeoutMs?: number } | undefined)?.timeoutMs).toBe(105_000);
-    expect((init as RequestInit | undefined)?.method).toBe("POST");
-  });
-
-  it("applies the same timeout budget to fallback GET on 405", async () => {
-    fetchWithAuthMock
-      .mockResolvedValueOnce(createJsonResponse({ error: "Method not allowed" }, 405))
-      .mockResolvedValueOnce(createJsonResponse({ status: "pending" }));
-
-    await fetchFalVeoImageToVideoStatus("req-veo-fallback");
-
-    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
 
     const [, firstInit] = fetchWithAuthMock.mock.calls[0] ?? [];
-    expect((firstInit as { timeoutMs?: number } | undefined)?.timeoutMs).toBe(105_000);
+    expect((firstInit as { timeoutMs?: number } | undefined)?.timeoutMs).toBe(75_000);
     expect((firstInit as RequestInit | undefined)?.method).toBe("POST");
-
-    const [, secondInit] = fetchWithAuthMock.mock.calls[1] ?? [];
-    expect((secondInit as { timeoutMs?: number } | undefined)?.timeoutMs).toBe(105_000);
-    expect((secondInit as RequestInit | undefined)?.method).toBe("GET");
   });
 
   it("normalizes abort-like transport failures into endpoint-specific timeout errors", async () => {

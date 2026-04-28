@@ -10,6 +10,33 @@ const dispatchProviderSubmitMock = vi.fn();
 const applyAcceptedRunningGenerationTransitionMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
 
+const { TestProviderSubmitValidationError } = vi.hoisted(() => {
+  class TestProviderSubmitValidationError extends Error {
+    code: string;
+    detail: unknown;
+    statusCode: number;
+
+    constructor({
+      message,
+      code,
+      detail,
+      statusCode = 400,
+    }: {
+      message: string;
+      code: string;
+      detail?: unknown;
+      statusCode?: number;
+    }) {
+      super(message);
+      this.name = "ProviderSubmitValidationError";
+      this.code = code;
+      this.detail = detail ?? null;
+      this.statusCode = statusCode;
+    }
+  }
+  return { TestProviderSubmitValidationError };
+});
+
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
 }));
@@ -33,6 +60,7 @@ vi.mock("../../lib/server/api/generationProjection", () => ({
 
 vi.mock("../../lib/server/providerIntegration/submitProviderDispatcher", () => ({
   dispatchProviderSubmit: (...args: unknown[]) => dispatchProviderSubmitMock(...args),
+  ProviderSubmitValidationError: TestProviderSubmitValidationError,
 }));
 
 vi.mock("../../lib/server/api/generationAcceptedTransitionService", () => ({
@@ -208,7 +236,7 @@ describe("createFalSubmitHandler", () => {
         host: "localhost:3000",
         "x-forwarded-proto": "http",
       },
-      url: "/api/fal/image-submit",
+      url: "/api/fal/nano-banana-submit",
     };
     const res = createMockResponse();
 
@@ -293,6 +321,54 @@ describe("createFalSubmitHandler", () => {
         "Direct provider submit is unavailable for this route in the current runtime. Please retry or use a supported generation route.",
       code: "GENERATION_DIRECT_SUBMIT_UNAVAILABLE",
       retryAfterSeconds: 20,
+    });
+  });
+
+  it("returns provider validation errors as client-fixable submit failures", async () => {
+    dispatchProviderSubmitMock.mockRejectedValueOnce(
+      new TestProviderSubmitValidationError({
+        message: "Kie Kling requires a reachable public image or video URL.",
+        code: "KIE_MEDIA_INPUT_INVALID",
+        detail: { field: "image_urls" },
+        statusCode: 400,
+      })
+    );
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/kling-3.0",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      routeLabel: "Kie Kling 3.0",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "product reveal", image_urls: ["https://example.test/missing.png"] },
+      headers: {},
+      url: "/api/fal/kie-kling-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: direct provider submit validation failed.",
+      expect.objectContaining({
+        reason: "direct_submit_validation_failed",
+        code: "KIE_MEDIA_INPUT_INVALID",
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.direct_submit_validation_failed",
+        statusCode: 400,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Kie Kling requires a reachable public image or video URL.",
+      code: "KIE_MEDIA_INPUT_INVALID",
+      detail: { field: "image_urls" },
     });
   });
 
@@ -528,7 +604,7 @@ describe("createFalSubmitHandler", () => {
       method: "POST",
       body: { prompt: "portrait" },
       headers: {},
-      url: "/api/fal/image-submit",
+      url: "/api/fal/nano-banana-submit",
     };
     const res = createMockResponse();
 

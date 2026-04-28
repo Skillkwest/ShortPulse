@@ -24,11 +24,6 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitKieSeedance2Video: vi.fn(),
   submitKieSeedanceVideo: vi.fn(),
   submitKieVeoImageToVideo: vi.fn(),
-  submitFalSeedance: vi.fn(),
-  submitFalSeedanceI2V: vi.fn(),
-  submitFalVeo: vi.fn(),
-  submitFalVeoFirstLast: vi.fn(),
-  submitFalVeoImageToVideo: vi.fn(),
 }));
 
 vi.mock("../../../../../lib/authenticatedFetch", () => ({

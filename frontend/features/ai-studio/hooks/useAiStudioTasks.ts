@@ -13,8 +13,6 @@ import {
   fetchFalFluxKontextInpaintStatus,
   fetchFalFluxProFillStatus,
   fetchFalFlux2KleinStatus,
-  fetchFalKlingStatus,
-  fetchFalKlingV3ImageToVideoStatus,
   fetchFalNanoBananaStatus,
   fetchFalNanoBananaEditStatus,
   fetchFalNanoBanana2Status,
@@ -22,14 +20,10 @@ import {
   fetchFalNanoBananaProStatus,
   fetchFalNanoBananaProEditStatus,
   fetchFalStatus,
-  fetchFalSeedanceStatus,
-  fetchFalSeedanceI2VStatus,
   fetchFalSeedreamStatus,
   fetchFalSeedreamEditStatus,
   fetchFalSeedreamV5LiteStatus,
   fetchFalSeedreamV5LiteEditStatus,
-  fetchFalVeoStatus,
-  fetchFalVeoImageToVideoStatus,
 } from "../../../lib/falClient";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
@@ -205,14 +199,6 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalFluxKontextInpaintStatus(taskId);
     case "fal-bria-background-remove":
       return fetchFalBriaBackgroundRemoveStatus(taskId);
-    case "fal-kling":
-      return fetchFalKlingStatus(taskId);
-    case "fal-kling-3":
-      return fetchFalKlingV3ImageToVideoStatus(taskId);
-    case "fal-seedance":
-      return fetchFalSeedanceStatus(taskId);
-    case "fal-seedance-i2v":
-      return fetchFalSeedanceI2VStatus(taskId);
     case "fal-seedream":
       return fetchFalSeedreamStatus(taskId);
     case "fal-seedream-edit":
@@ -221,10 +207,6 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalSeedreamV5LiteStatus(taskId);
     case "fal-seedream-v5-lite-edit":
       return fetchFalSeedreamV5LiteEditStatus(taskId);
-    case "fal-veo":
-      return fetchFalVeoStatus(taskId);
-    case "fal-veo-i2v":
-      return fetchFalVeoImageToVideoStatus(taskId);
     case "fal-nano-banana":
       return fetchFalNanoBananaStatus(taskId);
     case "fal-nano-banana-edit":

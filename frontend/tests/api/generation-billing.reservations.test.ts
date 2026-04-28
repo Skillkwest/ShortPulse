@@ -710,7 +710,7 @@ describe("generationBilling reservation RPC handling", () => {
 
     const req = {
       headers: { "x-shortpulse-request-id": "req-atomic-limit" },
-      url: "/api/fal/veo-submit",
+      url: "/api/fal/kie-veo-submit",
     };
     const res = createMockResponse();
 

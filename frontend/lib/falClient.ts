@@ -476,10 +476,6 @@ const handleJson = async <T>(response: Response) => {
 };
 
 const submitEndpointRegistry = {
-  flux: {
-    route: `${FAL_API_BASE}/submit`,
-    missingRequestIdMessage: "Fal did not return a request_id",
-  },
   flux2Klein: {
     route: `${FAL_API_BASE}/flux2klein-submit`,
     missingRequestIdMessage: "Fal FLUX 2 Klein did not return a request_id",
@@ -487,6 +483,10 @@ const submitEndpointRegistry = {
   fluxProFill: {
     route: `${FAL_API_BASE}/flux-pro-fill-submit`,
     missingRequestIdMessage: "Fal FLUX Pro Fill did not return a request_id",
+  },
+  fluxKontextInpaint: {
+    route: `${FAL_API_BASE}/flux-kontext-inpaint-submit`,
+    missingRequestIdMessage: "Fal FLUX Kontext Inpaint did not return a request_id",
   },
   briaBackgroundRemove: {
     route: `${FAL_API_BASE}/bria-background-remove-submit`,
@@ -516,22 +516,6 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/nano-banana-pro-edit-submit`,
     missingRequestIdMessage: "Fal Nano Banana Pro Edit did not return a request_id",
   },
-  klingV3Text: {
-    route: `${FAL_API_BASE}/kling-v3-text-submit`,
-    missingRequestIdMessage: "Fal Kling v3 text-to-video did not return a request_id",
-  },
-  veo: {
-    route: `${FAL_API_BASE}/veo-submit`,
-    missingRequestIdMessage: "Fal Veo did not return a request_id",
-  },
-  veoImageToVideo: {
-    route: `${FAL_API_BASE}/veo-image-to-video-submit`,
-    missingRequestIdMessage: "Fal Veo image-to-video did not return a request_id",
-  },
-  veoFirstLast: {
-    route: `${FAL_API_BASE}/veo-first-last-frame-submit`,
-    missingRequestIdMessage: "Fal Veo first/last frame did not return a request_id",
-  },
   seedream: {
     route: `${FAL_API_BASE}/seedream-submit`,
     missingRequestIdMessage: "Fal Seedream did not return a request_id",
@@ -547,18 +531,6 @@ const submitEndpointRegistry = {
   seedreamV5LiteEdit: {
     route: `${FAL_API_BASE}/seedream-v5-lite-edit-submit`,
     missingRequestIdMessage: "Fal Seedream 5 Lite Edit did not return a request_id",
-  },
-  seedance: {
-    route: `${FAL_API_BASE}/seedance-submit`,
-    missingRequestIdMessage: "Fal Seedance did not return a request_id",
-  },
-  seedanceI2V: {
-    route: `${FAL_API_BASE}/seedance-i2v-submit`,
-    missingRequestIdMessage: "Fal Seedance I2V did not return a request_id",
-  },
-  klingV3ImageToVideo: {
-    route: `${FAL_API_BASE}/kling-v3-image-to-video-submit`,
-    missingRequestIdMessage: "Fal Kling 3.0 image-to-video did not return a request_id",
   },
   kieVeoImageToVideo: {
     route: `${FAL_API_BASE}/kie-veo-submit`,
@@ -585,20 +557,21 @@ const submitEndpointRegistry = {
 type StatusEndpointConfig = {
   route: string;
   statusTimeoutMs: number;
-  fallbackGetOn405?: boolean;
 };
 
 const STATUS_TIMEOUT_STANDARD_MS = 75_000;
-const STATUS_TIMEOUT_VEO_MS = 105_000;
 
 const statusEndpointRegistry = {
-  flux: { route: `${FAL_API_BASE}/status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
   flux2Klein: {
     route: `${FAL_API_BASE}/flux2klein-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
   fluxProFill: {
     route: `${FAL_API_BASE}/flux-pro-fill-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  fluxKontextInpaint: {
+    route: `${FAL_API_BASE}/flux-kontext-inpaint-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
   briaBackgroundRemove: {
@@ -629,13 +602,6 @@ const statusEndpointRegistry = {
     route: `${FAL_API_BASE}/nano-banana-pro-edit-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
-  kling: { route: `${FAL_API_BASE}/kling-status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
-  veo: { route: `${FAL_API_BASE}/veo-status`, statusTimeoutMs: STATUS_TIMEOUT_VEO_MS },
-  veoImageToVideo: {
-    route: `${FAL_API_BASE}/veo-image-to-video-status`,
-    statusTimeoutMs: STATUS_TIMEOUT_VEO_MS,
-    fallbackGetOn405: true,
-  },
   seedream: {
     route: `${FAL_API_BASE}/seedream-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
@@ -650,18 +616,6 @@ const statusEndpointRegistry = {
   },
   seedreamV5LiteEdit: {
     route: `${FAL_API_BASE}/seedream-v5-lite-edit-status`,
-    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
-  },
-  seedance: {
-    route: `${FAL_API_BASE}/seedance-status`,
-    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
-  },
-  seedanceI2V: {
-    route: `${FAL_API_BASE}/seedance-i2v-status`,
-    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
-  },
-  klingV3ImageToVideo: {
-    route: `${FAL_API_BASE}/kling-v3-image-to-video-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
   kieVeoImageToVideo: {
@@ -707,25 +661,6 @@ const isTimeoutLikeError = (error: unknown): boolean => {
 const createStatusTimeoutError = (endpoint: StatusEndpointKey, timeoutMs: number): Error =>
   new Error(`[fal-status:${endpoint}] timed out after ${timeoutMs}ms`);
 
-const submitFalImageViaGenericRoute = async <TPayload extends Record<string, unknown>>(
-  modelId: string,
-  payload: TPayload
-): Promise<FalSubmitResponse> => {
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/image-submit`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ modelId, ...payload }),
-    shortpulseAuthTimeoutMs: SUBMIT_AUTH_TIMEOUT_MS,
-  });
-  const data = await handleJson<Record<string, unknown>>(response);
-  const requestId = readRequestId(data as { request_id?: string; requestId?: string });
-  if (!requestId) {
-    throw new Error(`Fal image submit did not return a request_id for ${modelId}`);
-  }
-  const generationId = asNonEmptyString((data as { generationId?: unknown }).generationId);
-  return generationId ? { request_id: requestId, generationId } : { request_id: requestId };
-};
-
 const submitFalEndpoint = async <TPayload>(
   endpoint: SubmitEndpointKey,
   payload: TPayload
@@ -766,208 +701,85 @@ const fetchFalStatusEndpoint = async <TStatus>(
     }
     throw error;
   }
-  const fallbackGetOn405 = "fallbackGetOn405" in config && config.fallbackGetOn405 === true;
-  if (response.status === 405 && fallbackGetOn405) {
-    let fallback: Response;
-    try {
-      fallback = await fetchWithTimeout(
-        `${config.route}?requestId=${encodeURIComponent(requestId)}`,
-        {
-          method: "GET",
-          timeoutMs: statusTimeoutMs,
-        }
-      );
-    } catch (error) {
-      if (isTimeoutLikeError(error)) {
-        throw createStatusTimeoutError(endpoint, statusTimeoutMs);
-      }
-      throw error;
-    }
-    return handleJson<TStatus>(fallback);
-  }
   return handleJson<TStatus>(response);
 };
 
-const fetchFalImageStatusViaGenericRoute = async <TStatus>(
-  modelId: string,
-  requestId: string,
-  timeoutLabel: string
-): Promise<TStatus> => {
-  const timeoutMs = STATUS_TIMEOUT_STANDARD_MS;
-  let response: Response;
-  try {
-    response = await fetchWithTimeout(`${FAL_API_BASE}/image-status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ modelId, requestId }),
-      timeoutMs,
-    });
-  } catch (error) {
-    if (isTimeoutLikeError(error)) {
-      throw new Error(`[fal-status:${timeoutLabel}] timed out after ${timeoutMs}ms`);
-    }
-    throw error;
-  }
-  return handleJson<TStatus>(response);
+export const submitFalFlux = async (payload: FalSubmitRequest): Promise<FalSubmitResponse> => {
+  void payload;
+  throw new Error("Generic Fal submit is retired. Use a model-specific Fal image submit client.");
 };
-
-export const submitFalFlux = (payload: FalSubmitRequest) => submitFalEndpoint("flux", payload);
-export const fetchFalStatus = (requestId: string) =>
-  fetchFalStatusEndpoint<FalStatusResponse>("flux", requestId);
+export const fetchFalStatus = async (requestId: string): Promise<FalStatusResponse> => {
+  void requestId;
+  throw new Error("Generic Fal status polling is retired. Use a model-specific Fal status client.");
+};
 
 export const submitFalFlux2Klein = (payload: FalSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/flux-2/klein/9b", payload);
+  submitFalEndpoint("flux2Klein", payload);
 export const fetchFalFlux2KleinStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/flux-2/klein/9b",
-    requestId,
-    "flux2Klein"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("flux2Klein", requestId);
 
 export const submitFalFluxProFill = (payload: FalSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/flux-pro/v1/fill", payload);
+  submitFalEndpoint("fluxProFill", payload);
 export const fetchFalFluxProFillStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/flux-pro/v1/fill",
-    requestId,
-    "fluxProFill"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("fluxProFill", requestId);
 export const submitFalFluxKontextInpaint = (payload: FalSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/flux-kontext-lora/inpaint", payload);
+  submitFalEndpoint("fluxKontextInpaint", payload);
 export const fetchFalFluxKontextInpaintStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/flux-kontext-lora/inpaint",
-    requestId,
-    "fluxKontextInpaint"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("fluxKontextInpaint", requestId);
 
 export const submitFalBriaBackgroundRemove = (payload: FalBriaBackgroundRemoveSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/bria/background/remove", payload);
+  submitFalEndpoint("briaBackgroundRemove", payload);
 export const fetchFalBriaBackgroundRemoveStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/bria/background/remove",
-    requestId,
-    "briaBackgroundRemove"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("briaBackgroundRemove", requestId);
 
 export const submitFalNanoBanana = (payload: FalNanoBananaSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/nano-banana", payload);
+  submitFalEndpoint("nanoBanana", payload);
 export const fetchFalNanoBananaStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/nano-banana",
-    requestId,
-    "nanoBanana"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBanana", requestId);
 
 export const submitFalNanoBananaEdit = (payload: FalNanoBananaEditSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/nano-banana/edit", payload);
+  submitFalEndpoint("nanoBananaEdit", payload);
 export const fetchFalNanoBananaEditStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/nano-banana/edit",
-    requestId,
-    "nanoBananaEdit"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBananaEdit", requestId);
 
 export const submitFalNanoBanana2 = (payload: FalNanoBanana2SubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/nano-banana-2", payload);
+  submitFalEndpoint("nanoBanana2", payload);
 export const fetchFalNanoBanana2Status = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/nano-banana-2",
-    requestId,
-    "nanoBanana2"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBanana2", requestId);
 
 export const submitFalNanoBanana2Edit = (
   payload: FalNanoBanana2SubmitRequest & { image_urls: string[] }
-) => submitFalImageViaGenericRoute("fal-ai/nano-banana-2/edit", payload);
+) => submitFalEndpoint("nanoBanana2Edit", payload);
 export const fetchFalNanoBanana2EditStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/nano-banana-2/edit",
-    requestId,
-    "nanoBanana2Edit"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBanana2Edit", requestId);
 
 export const submitFalNanoBananaPro = (payload: FalNanoBananaProSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/nano-banana-pro", payload);
+  submitFalEndpoint("nanoBananaPro", payload);
 export const fetchFalNanoBananaProStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/nano-banana-pro",
-    requestId,
-    "nanoBananaPro"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBananaPro", requestId);
 
 export const submitFalNanoBananaProEdit = (
   payload: FalNanoBananaProSubmitRequest & { image_urls: string[] }
-) => submitFalImageViaGenericRoute("fal-ai/nano-banana-pro/edit", payload);
+) => submitFalEndpoint("nanoBananaProEdit", payload);
 export const fetchFalNanoBananaProEditStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/nano-banana-pro/edit",
-    requestId,
-    "nanoBananaProEdit"
-  );
-
-export const submitFalKlingV3Text = (payload: FalKlingV3TextSubmitRequest) =>
-  submitFalEndpoint("klingV3Text", payload);
-export const fetchFalKlingStatus = (requestId: string) =>
-  fetchFalStatusEndpoint<FalKlingStatusResponse>("kling", requestId);
-
-export const submitFalVeo = (payload: FalVeoSubmitRequest) => submitFalEndpoint("veo", payload);
-export const submitFalVeoImageToVideo = (payload: FalVeoImageToVideoSubmitRequest) =>
-  submitFalEndpoint("veoImageToVideo", payload);
-export const submitFalVeoFirstLast = (payload: FalVeoFirstLastSubmitRequest) =>
-  submitFalEndpoint("veoFirstLast", payload);
-export const fetchFalVeoStatus = (requestId: string) =>
-  fetchFalStatusEndpoint<FalStatusResponse>("veo", requestId);
-export const fetchFalVeoImageToVideoStatus = (requestId: string) =>
-  fetchFalStatusEndpoint<FalStatusResponse>("veoImageToVideo", requestId);
+  fetchFalStatusEndpoint<FalStatusResponse>("nanoBananaProEdit", requestId);
 
 export const submitFalSeedream = (payload: FalSeedreamSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/bytedance/seedream/v4.5/text-to-image", payload);
+  submitFalEndpoint("seedream", payload);
 export const submitFalSeedreamEdit = (payload: FalSeedreamEditSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/bytedance/seedream/v4.5/edit", payload);
+  submitFalEndpoint("seedreamEdit", payload);
 export const submitFalSeedreamV5Lite = (payload: FalSeedreamSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/bytedance/seedream/v5/lite/text-to-image", payload);
+  submitFalEndpoint("seedreamV5Lite", payload);
 export const submitFalSeedreamV5LiteEdit = (payload: FalSeedreamEditSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal-ai/bytedance/seedream/v5/lite/edit", payload);
+  submitFalEndpoint("seedreamV5LiteEdit", payload);
 export const fetchFalSeedreamStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/bytedance/seedream/v4.5/text-to-image",
-    requestId,
-    "seedream"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("seedream", requestId);
 export const fetchFalSeedreamEditStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/bytedance/seedream/v4.5/edit",
-    requestId,
-    "seedreamEdit"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("seedreamEdit", requestId);
 export const fetchFalSeedreamV5LiteStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-    requestId,
-    "seedreamV5Lite"
-  );
+  fetchFalStatusEndpoint<FalStatusResponse>("seedreamV5Lite", requestId);
 export const fetchFalSeedreamV5LiteEditStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal-ai/bytedance/seedream/v5/lite/edit",
-    requestId,
-    "seedreamV5LiteEdit"
-  );
-
-export const submitFalSeedance = (payload: FalSeedanceSubmitRequest) =>
-  submitFalEndpoint("seedance", payload);
-export const fetchFalSeedanceStatus = (requestId: string) =>
-  fetchFalStatusEndpoint<FalStatusResponse>("seedance", requestId);
-
-export const submitFalSeedanceI2V = (payload: FalSeedanceI2VSubmitRequest) =>
-  submitFalEndpoint("seedanceI2V", payload);
-export const fetchFalSeedanceI2VStatus = (requestId: string) =>
-  fetchFalStatusEndpoint<FalStatusResponse>("seedanceI2V", requestId);
-
-export const submitFalKlingV3ImageToVideo = (payload: FalKlingV3ImageToVideoSubmitRequest) =>
-  submitFalEndpoint("klingV3ImageToVideo", payload);
-export const fetchFalKlingV3ImageToVideoStatus = (requestId: string) =>
-  fetchFalStatusEndpoint<FalStatusResponse>("klingV3ImageToVideo", requestId);
+  fetchFalStatusEndpoint<FalStatusResponse>("seedreamV5LiteEdit", requestId);
 
 export const submitKieVeoImageToVideo = (payload: KieSubmitRequest) =>
   submitFalEndpoint("kieVeoImageToVideo", payload);

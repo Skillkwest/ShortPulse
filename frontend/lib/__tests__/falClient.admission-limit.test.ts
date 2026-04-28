@@ -111,7 +111,7 @@ describe("falClient generation admission error handling", () => {
     );
 
     await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
-      "Fal image submit did not return a request_id for fal-ai/nano-banana"
+      "Fal Nano Banana did not return a request_id"
     );
   });
 

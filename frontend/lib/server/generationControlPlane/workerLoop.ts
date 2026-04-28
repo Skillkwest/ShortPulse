@@ -126,7 +126,7 @@ export const runGenerationControlPlaneWorkerOnce = async ({
     });
 
     logger.info(
-      `[generation-worker] ok duration_ms=${Date.now() - startedAt} claimed=${result.claimed} queueClaimed=${result.queueClaimed} queueSubmitted=${result.queueSubmitted} errors=${result.errors} queueDispatchErrors=${result.queueDispatchErrors} stageTimings=${JSON.stringify(result.stageTimings)}`
+      `[generation-worker] ok duration_ms=${Date.now() - startedAt} claimed=${result.claimed} errors=${result.errors} stageTimings=${JSON.stringify(result.stageTimings)}`
     );
 
     return { ok: true, result };

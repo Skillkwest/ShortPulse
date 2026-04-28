@@ -3,7 +3,6 @@ import { runGenerationControlPlaneCycle } from "../runCycle";
 
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
-const dispatchGenerationSubmitQueueBatchMock = vi.fn();
 const processPendingGenerationObservationsMock = vi.fn();
 const repairGenerationRequestIdsFromReservationsMock = vi.fn();
 const repairStaleTerminalGenerationProjectionsMock = vi.fn();
@@ -17,11 +16,6 @@ vi.mock("../../api/supabaseAdmin", () => ({
 
 vi.mock("../../api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
-}));
-
-vi.mock("../../api/generationQueue/dispatch", () => ({
-  dispatchGenerationSubmitQueueBatch: (...args: unknown[]) =>
-    dispatchGenerationSubmitQueueBatchMock(...args),
 }));
 
 vi.mock("../observationBatchExecution", () => ({
@@ -86,17 +80,6 @@ describe("runGenerationControlPlaneCycle", () => {
     process.env.SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS = "0";
     process.env.SHORTPULSE_FAL_INTEGRATION_MODE = "on";
     process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST = "*";
-    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
-    process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE = "25";
-    dispatchGenerationSubmitQueueBatchMock.mockResolvedValue({
-      claimed: 1,
-      submitted: 1,
-      retried: 0,
-      requeuedNoCapacity: 0,
-      exhausted: 0,
-      skipped: 0,
-      errors: 0,
-    });
     processPendingGenerationObservationsMock.mockResolvedValue({
       claimed: 2,
       processed: 1,
@@ -150,7 +133,6 @@ describe("runGenerationControlPlaneCycle", () => {
       },
     });
 
-    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,
@@ -189,8 +171,6 @@ describe("runGenerationControlPlaneCycle", () => {
         observationFailed: 0,
         observationErrors: 0,
         claimed: 0,
-        queueClaimed: 0,
-        queueSubmitted: 0,
         reservationCleanupScanned: 2,
         reservationCleanupReleased: 1,
         preProviderRetirementScanned: 0,
@@ -200,9 +180,6 @@ describe("runGenerationControlPlaneCycle", () => {
         preProviderRetirementErrors: 0,
         stageTimings: expect.objectContaining({
           preProviderRetirement: expect.objectContaining({
-            durationMs: expect.any(Number),
-          }),
-          queueDispatch: expect.objectContaining({
             durationMs: expect.any(Number),
           }),
           reservationCleanup: expect.objectContaining({
@@ -223,7 +200,7 @@ describe("runGenerationControlPlaneCycle", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("skips queue dispatch and does not run request-id repair in rescue mode", async () => {
+  it("does not run request-id repair in rescue mode", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,
@@ -237,7 +214,6 @@ describe("runGenerationControlPlaneCycle", () => {
       mode: "rescue",
     });
 
-    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 5,
@@ -266,7 +242,6 @@ describe("runGenerationControlPlaneCycle", () => {
       },
     });
 
-    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,
@@ -300,7 +275,6 @@ describe("runGenerationControlPlaneCycle", () => {
       mode: "primary",
     });
 
-    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
   });
 });

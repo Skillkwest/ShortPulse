@@ -46,7 +46,6 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "nano-banana-pro-submit.ts",
   "nano-banana-status.ts",
   "nano-banana-submit.ts",
-  "queue-status.ts",
   "seedance-i2v-status.ts",
   "seedance-i2v-submit.ts",
   "seedance-status.ts",

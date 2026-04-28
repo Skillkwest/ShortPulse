@@ -2855,7 +2855,7 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
-  it("fails fast when a legacy queued submit response is returned", async () => {
+  it("fails fast when a provider handler does not return a request id", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -2873,13 +2873,7 @@ describe("useAiStudioTaskSubmission", () => {
     vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
     vi.mocked(handleImageModelSubmission).mockImplementationOnce(
       async ({ startPollingWithGeneration }) => {
-        startPollingWithGeneration(undefined, "fal-seedream", undefined, {
-          status: "queued",
-          code: "GENERATION_QUEUED",
-          sourceRef: "src-queued-legacy-1",
-          generationId: "gen-queued-legacy-1",
-          pollAfterMs: 500,
-        });
+        startPollingWithGeneration(undefined, "fal-seedream");
         return true;
       }
     );

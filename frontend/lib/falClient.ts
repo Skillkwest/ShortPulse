@@ -55,72 +55,7 @@ export type FalImmediateSubmitResponse = {
   generationId?: string;
 };
 
-export type FalQueuedSubmitResponse = {
-  status: "queued";
-  code: "GENERATION_QUEUED";
-  sourceRef: string;
-  generationId: string;
-  pollAfterMs: number;
-};
-
-export type FalSubmitResponse = FalImmediateSubmitResponse | FalQueuedSubmitResponse;
-
-export type FalQueueStatusResponse =
-  | {
-      status: "queued";
-      generationId: string;
-      sourceRef: string | null;
-      retryAfterMs: number;
-      shortpulseLifecycle?: {
-        taskState: "pending";
-        queueState: "queued";
-        isTerminal: false;
-        statusLabel?: string;
-      };
-    }
-  | {
-      status: "dispatching";
-      generationId: string;
-      sourceRef: string | null;
-      retryAfterMs: number;
-      shortpulseLifecycle?: {
-        taskState: "running";
-        queueState: "dispatching";
-        isTerminal: false;
-        statusLabel?: string;
-      };
-    }
-  | {
-      status: "dispatched";
-      generationId: string;
-      sourceRef: string | null;
-      requestId: string;
-      provider: string;
-      modelId?: string | null;
-      pollingProvider?: string | null;
-      shortpulseLifecycle?: {
-        taskState: "running";
-        queueState: "dispatched";
-        isTerminal: false;
-        statusLabel?: string;
-      };
-    }
-  | {
-      status: "failed";
-      generationId: string;
-      sourceRef: string | null;
-      message: string;
-      shortpulseLifecycle?: {
-        taskState: "fail";
-        queueState: "failed";
-        isTerminal: true;
-        errorMessage: string;
-        statusLabel?: string | null;
-      };
-    }
-  | {
-      status: "not_found";
-    };
+export type FalSubmitResponse = FalImmediateSubmitResponse;
 
 export type FalStatusResponse = {
   status?: string;
@@ -510,25 +445,6 @@ const extractErrorTextCandidate = (value: unknown, depth = 0): string | null => 
   );
 };
 
-const readQueuedSubmitResponse = (payload: unknown): FalQueuedSubmitResponse | null => {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
-  const data = payload as Record<string, unknown>;
-  const status = asNonEmptyString(data.status);
-  const code = asNonEmptyString(data.code);
-  if (status !== "queued" || code !== "GENERATION_QUEUED") return null;
-  const sourceRef = asNonEmptyString(data.sourceRef);
-  const generationId = asNonEmptyString(data.generationId);
-  if (!sourceRef || !generationId) return null;
-  const parsedPollAfterMs = parsePositiveInteger(data.pollAfterMs);
-  return {
-    status: "queued",
-    code: "GENERATION_QUEUED",
-    sourceRef,
-    generationId,
-    pollAfterMs: parsedPollAfterMs ?? 2000,
-  };
-};
-
 const handleJson = async <T>(response: Response) => {
   const text = await response.text();
   let data: unknown = {};
@@ -802,10 +718,6 @@ const submitFalImageViaGenericRoute = async <TPayload extends Record<string, unk
     shortpulseAuthTimeoutMs: SUBMIT_AUTH_TIMEOUT_MS,
   });
   const data = await handleJson<Record<string, unknown>>(response);
-  const queued = readQueuedSubmitResponse(data);
-  if (queued) {
-    return queued;
-  }
   const requestId = readRequestId(data as { request_id?: string; requestId?: string });
   if (!requestId) {
     throw new Error(`Fal image submit did not return a request_id for ${modelId}`);
@@ -826,39 +738,12 @@ const submitFalEndpoint = async <TPayload>(
     shortpulseAuthTimeoutMs: SUBMIT_AUTH_TIMEOUT_MS,
   });
   const data = await handleJson<Record<string, unknown>>(response);
-  const queued = readQueuedSubmitResponse(data);
-  if (queued) {
-    return queued;
-  }
   const requestId = readRequestId(data as { request_id?: string; requestId?: string });
   if (!requestId) {
     throw new Error(config.missingRequestIdMessage);
   }
   const generationId = asNonEmptyString((data as { generationId?: unknown }).generationId);
   return generationId ? { request_id: requestId, generationId } : { request_id: requestId };
-};
-
-export const fetchFalQueueStatus = async ({
-  sourceRef,
-  generationId,
-}: {
-  sourceRef?: string | null;
-  generationId?: string | null;
-}): Promise<FalQueueStatusResponse> => {
-  const params = new URLSearchParams();
-  if (typeof sourceRef === "string" && sourceRef.trim().length > 0) {
-    params.set("sourceRef", sourceRef.trim());
-  }
-  if (typeof generationId === "string" && generationId.trim().length > 0) {
-    params.set("generationId", generationId.trim());
-  }
-  if (!params.size) {
-    throw new Error("Queue status request requires sourceRef or generationId.");
-  }
-  const response = await fetchWithTimeout(`${FAL_API_BASE}/queue-status?${params.toString()}`, {
-    method: "GET",
-  });
-  return handleJson<FalQueueStatusResponse>(response);
 };
 
 const fetchFalStatusEndpoint = async <TStatus>(

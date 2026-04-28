@@ -11,7 +11,6 @@ export type GenerationControlPlaneStageTiming = {
 
 export type GenerationControlPlaneStageTimings = {
   preProviderRetirement: GenerationControlPlaneStageTiming;
-  queueDispatch: GenerationControlPlaneStageTiming;
   reservationCleanup: GenerationControlPlaneStageTiming;
   providerAttachedReservationCleanup: GenerationControlPlaneStageTiming;
   observationInboxProcessing: GenerationControlPlaneStageTiming;
@@ -43,12 +42,5 @@ export type GenerationControlPlaneCycleResult = {
   preProviderGenerationsExhausted: number;
   preProviderReservationsReleased: number;
   preProviderRetirementErrors: number;
-  queueClaimed: number;
-  queueSubmitted: number;
-  queueRetried: number;
-  queueRequeuedNoCapacity: number;
-  queueExhausted: number;
-  queueSkipped: number;
-  queueDispatchErrors: number;
   stageTimings: GenerationControlPlaneStageTimings;
 };

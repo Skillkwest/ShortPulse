@@ -1,6 +1,6 @@
 /**
  * Shared output lifecycle patch helpers for task submission.
- * Keeps queue/dispatched/failure patch logic consistent across submit paths.
+ * Keeps dispatched/failure patch logic consistent across submit paths.
  */
 import type { SubmissionPatch } from "./types";
 import type { Provider } from "../../logic/stateParsers";
@@ -31,37 +31,6 @@ export const applySubmissionFailureToOutputs = (
         }
       : item
   );
-
-type QueuedSubmissionPatchInput = {
-  item: StudioOutput;
-  patch: SubmissionPatch;
-  provider: Provider;
-  generationId: string;
-  sourceRef?: string | null;
-  queueEnqueuedAtMs: number;
-};
-
-/**
- * Applies the queued placeholder patch while waiting for dispatch.
- */
-export const applyQueuedSubmissionPatch = ({
-  item,
-  patch,
-  provider,
-  generationId,
-  sourceRef,
-  queueEnqueuedAtMs,
-}: QueuedSubmissionPatchInput): StudioOutput => ({
-  ...item,
-  ...patch,
-  generationId: patch.generationId ?? generationId,
-  sourceRef: patch.sourceRef ?? item.sourceRef ?? sourceRef ?? undefined,
-  taskState: "pending",
-  timestamp: "Submitting...",
-  provider: item.provider ?? provider,
-  queueState: "queued",
-  queueEnqueuedAtMs: item.queueEnqueuedAtMs ?? queueEnqueuedAtMs,
-});
 
 type DispatchedSubmissionPatchInput = {
   item: StudioOutput;

@@ -3,20 +3,13 @@
  * Owns generation polling lifecycle, status retry handling, and task-submission wiring.
  */
 import { useCallback, useEffect, useRef } from "react";
-import { fetchFalQueueStatus } from "../../../lib/falClient";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { resolveVisibleGenerationReconcile } from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
-import { normalizeProviderForPolling, type Provider } from "../logic/stateParsers";
+import type { Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
-import {
-  markQueuedStatusRecoveryPending,
-  resolveDispatchedPollingProvider,
-  syncQueuedStatusLifecycle,
-} from "./taskSubmission/queueStatusPolling";
-import { shouldEscalateQueuedNotFoundRecovery } from "./taskSubmission/queueStatusNotFoundPolicy";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
-import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "./useAiStudioTasks";
+import { useAiStudioTasks } from "./useAiStudioTasks";
 
 type TaskSubmissionConfig = Omit<
   Parameters<typeof useAiStudioTaskSubmission>[0],
@@ -31,9 +24,6 @@ type UseAiStudioTaskOrchestrationParams = {
   projectId?: string | null;
 };
 
-const QUEUE_RESUME_SCAN_INTERVAL_MS = 20_000;
-const QUEUE_RESUME_MIN_RECHECK_MS = 12_000;
-const QUEUE_RESUME_MAX_CONCURRENT = 3;
 const VISIBLE_GENERATION_SCAN_INTERVAL_MS = 4_000;
 const VISIBLE_GENERATION_MIN_RECHECK_MS = 2_500;
 const VISIBLE_GENERATION_MAX_CONCURRENT = 3;
@@ -43,9 +33,6 @@ const isDocumentVisible = (): boolean =>
 
 const hasSettledOutputLifecycle = (output: StudioOutput): boolean =>
   output.taskState === "success" || output.taskState === "fail";
-
-const hasTerminalQueueResumeLifecycle = (output: StudioOutput): boolean =>
-  output.taskState === "success";
 
 const isOutputLifecycleInFlight = (output: StudioOutput): boolean =>
   output.taskState === "pending" || output.taskState === "running";
@@ -76,29 +63,6 @@ const isVisibleGenerationWatchdogEligible = (output: StudioOutput): boolean => {
   return generationId.length > 0 || taskId.length > 0;
 };
 
-const isQueueResumeEligible = (output: StudioOutput): boolean => {
-  const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
-  const sourceRef = typeof output.sourceRef === "string" ? output.sourceRef.trim() : "";
-  if (!generationId && !sourceRef) return false;
-  // Resume should still run when queue metadata was dropped or partially persisted
-  // (for example queueState=dispatched without a taskId after restore).
-  if (
-    output.queueState &&
-    output.queueState !== "queued" &&
-    output.queueState !== "dispatching" &&
-    output.queueState !== "dispatched"
-  ) {
-    return false;
-  }
-  if (typeof output.taskId === "string" && output.taskId.trim().length > 0) return false;
-  if (hasTerminalQueueResumeLifecycle(output)) return false;
-  return (
-    isOutputLifecycleInFlight(output) ||
-    output.taskState === "fail" ||
-    !hasSettledOutputPayload(output)
-  );
-};
-
 /**
  * Returns task submission and polling handlers used by AI Studio state orchestration.
  */
@@ -111,11 +75,6 @@ export const useAiStudioTaskOrchestration = ({
 }: UseAiStudioTaskOrchestrationParams) => {
   const { updateOutputById, notifyGenerationFailure, setUiNotice, setOutputs } =
     taskSubmissionConfig;
-  const queueResumeCandidatesRef = useRef<StudioOutput[]>([]);
-  const queueResumeInFlightRef = useRef<Record<string, boolean>>({});
-  const queueResumeLastCheckedAtRef = useRef<Record<string, number>>({});
-  const queueResumeNotFoundRetriesRef = useRef<Record<string, number>>({});
-  const queueResumeSignatureRef = useRef<string>("");
   const visibleGenerationCandidatesRef = useRef<StudioOutput[]>([]);
   const visibleGenerationInFlightRef = useRef<Record<string, boolean>>({});
   const visibleGenerationLastCheckedAtRef = useRef<Record<string, number>>({});
@@ -123,7 +82,6 @@ export const useAiStudioTaskOrchestration = ({
   const abandonedOutputIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    queueResumeCandidatesRef.current = outputs.filter((output) => isQueueResumeEligible(output));
     visibleGenerationCandidatesRef.current = outputs.filter((output) =>
       isVisibleGenerationWatchdogEligible(output)
     );
@@ -302,9 +260,6 @@ export const useAiStudioTaskOrchestration = ({
       abandonedOutputIdsRef.current.add(normalizedOutputId);
       delete visibleGenerationInFlightRef.current[normalizedOutputId];
       delete visibleGenerationLastCheckedAtRef.current[normalizedOutputId];
-      delete queueResumeInFlightRef.current[normalizedOutputId];
-      delete queueResumeLastCheckedAtRef.current[normalizedOutputId];
-      delete queueResumeNotFoundRetriesRef.current[normalizedOutputId];
       clearPollTimer(normalizedOutputId);
     },
     [clearPollTimer]
@@ -339,159 +294,6 @@ export const useAiStudioTaskOrchestration = ({
     },
     [clearPollTimer, findOutputById, setUiNotice, startPollingTask, updateOutputById]
   );
-
-  const runQueuedOutputResumeWatchdog = useCallback(() => {
-    if (!isDocumentVisible()) return;
-    const now = Date.now();
-    const activeResumeIds = new Set<string>();
-    const outputsSnapshot = queueResumeCandidatesRef.current;
-
-    let inFlightCount = Object.values(queueResumeInFlightRef.current).filter(Boolean).length;
-    outputsSnapshot.forEach((output) => {
-      const lastCheckedAt = queueResumeLastCheckedAtRef.current[output.id] ?? 0;
-      if (now - lastCheckedAt < QUEUE_RESUME_MIN_RECHECK_MS) return;
-      if (!isQueueResumeEligible(output)) return;
-      activeResumeIds.add(output.id);
-      if (inFlightCount >= QUEUE_RESUME_MAX_CONCURRENT) return;
-      if (queueResumeInFlightRef.current[output.id]) return;
-      const generationId = output.generationId?.trim() ?? "";
-      const sourceRef = output.sourceRef?.trim() ?? "";
-      if (!generationId && !sourceRef) return;
-
-      queueResumeInFlightRef.current[output.id] = true;
-      queueResumeLastCheckedAtRef.current[output.id] = now;
-      inFlightCount += 1;
-
-      void (async () => {
-        try {
-          const queueStatus = await fetchFalQueueStatus({
-            generationId: generationId || undefined,
-            sourceRef: sourceRef || undefined,
-          });
-          if (abandonedOutputIdsRef.current.has(output.id)) return;
-          if (!findOutputById(output.id)) return;
-          if (queueStatus.status === "dispatched") {
-            delete queueResumeNotFoundRetriesRef.current[output.id];
-            const lifecycle = queueStatus.shortpulseLifecycle;
-            const requestId = queueStatus.requestId.trim();
-            const outputProvider = (output.provider as Provider | undefined) ?? "fal";
-            const resumeProviderHint =
-              typeof output.modelId === "string" && output.modelId.trim().length > 0
-                ? normalizeProviderForPolling(output.modelId, outputProvider)
-                : outputProvider;
-            const provider = resolveDispatchedPollingProvider({
-              pollingProvider: queueStatus.pollingProvider,
-              queueStatusProvider: queueStatus.provider,
-              queueStatusModelId: queueStatus.modelId ?? output.modelId ?? null,
-              submitProvider: resumeProviderHint,
-            });
-            clearPollTimer(output.id);
-            updateOutputById(output.id, (item) => {
-              if (item.taskId && item.generationId) return item;
-              return {
-                ...item,
-                provider: item.provider ?? provider,
-                sourceRef:
-                  item.sourceRef ??
-                  (typeof queueStatus.sourceRef === "string" &&
-                  queueStatus.sourceRef.trim().length > 0
-                    ? queueStatus.sourceRef.trim()
-                    : item.sourceRef),
-                generationId:
-                  item.generationId ??
-                  (typeof queueStatus.generationId === "string" &&
-                  queueStatus.generationId.trim().length > 0
-                    ? queueStatus.generationId.trim()
-                    : item.generationId),
-                taskId: requestId,
-                generationTraceId: requestId,
-                queueState: undefined,
-                taskState: lifecycle?.taskState ?? "running",
-                status: "ready",
-                timestamp: lifecycle?.statusLabel ?? "Submitted",
-                errorMessage: null,
-                errorMessageShort: null,
-                errorDetail: null,
-              };
-            });
-            startPollingTask(requestId, output.id, 0, provider, Date.now(), 0, undefined, {
-              initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
-            });
-            return;
-          }
-          if (queueStatus.status === "queued" || queueStatus.status === "dispatching") {
-            delete queueResumeNotFoundRetriesRef.current[output.id];
-            syncQueuedStatusLifecycle({
-              outputId: output.id,
-              queueStatus,
-              updateOutputById,
-            });
-            return;
-          }
-          if (queueStatus.status === "failed") {
-            delete queueResumeNotFoundRetriesRef.current[output.id];
-            markQueuedStatusRecoveryPending({
-              outputId: output.id,
-              updateOutputById,
-            });
-            return;
-          }
-          if (queueStatus.status === "not_found") {
-            const notFoundRetries = (queueResumeNotFoundRetriesRef.current[output.id] ?? 0) + 1;
-            queueResumeNotFoundRetriesRef.current[output.id] = notFoundRetries;
-            if (
-              shouldEscalateQueuedNotFoundRecovery({
-                notFoundRetries,
-                queueEnqueuedAtMs: output.queueEnqueuedAtMs,
-                nowMs: Date.now(),
-              })
-            ) {
-              markQueuedStatusRecoveryPending({
-                outputId: output.id,
-                updateOutputById,
-              });
-            }
-            return;
-          }
-        } catch {
-          // Keep resume watchdog best-effort; regular queue and recovery paths remain authoritative.
-        } finally {
-          delete queueResumeInFlightRef.current[output.id];
-        }
-      })();
-    });
-
-    Object.keys(queueResumeLastCheckedAtRef.current).forEach((outputId) => {
-      if (!activeResumeIds.has(outputId) && !queueResumeInFlightRef.current[outputId]) {
-        delete queueResumeLastCheckedAtRef.current[outputId];
-        delete queueResumeNotFoundRetriesRef.current[outputId];
-      }
-    });
-  }, [clearPollTimer, findOutputById, startPollingTask, updateOutputById]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    runQueuedOutputResumeWatchdog();
-    const intervalId = window.setInterval(
-      runQueuedOutputResumeWatchdog,
-      QUEUE_RESUME_SCAN_INTERVAL_MS
-    );
-    return () => window.clearInterval(intervalId);
-  }, [runQueuedOutputResumeWatchdog]);
-
-  useEffect(() => {
-    const queueResumeSignature = queueResumeCandidatesRef.current
-      .map(
-        (output) =>
-          `${output.id}:${output.generationId ?? ""}:${output.sourceRef ?? ""}:${output.taskId ?? ""}`
-      )
-      .sort()
-      .join("|");
-    if (queueResumeSignatureRef.current === queueResumeSignature) return;
-    queueResumeSignatureRef.current = queueResumeSignature;
-    if (!queueResumeSignature) return;
-    runQueuedOutputResumeWatchdog();
-  }, [outputs, runQueuedOutputResumeWatchdog]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

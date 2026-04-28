@@ -457,14 +457,7 @@ const handoffSubmitResponse = ({
   patch?: Parameters<VideoSubmissionArgs["startPollingWithGeneration"]>[2];
   startPollingWithGeneration: VideoSubmissionArgs["startPollingWithGeneration"];
 }) => {
-  if ("status" in response && response.status === "queued") {
-    startPollingWithGeneration(undefined, pollingProvider, patch, response);
-    return;
-  }
-  const requestId =
-    "request_id" in response && typeof response.request_id === "string"
-      ? response.request_id
-      : undefined;
+  const requestId = typeof response.request_id === "string" ? response.request_id : undefined;
   startPollingWithGeneration(requestId, pollingProvider, patch, response);
 };
 

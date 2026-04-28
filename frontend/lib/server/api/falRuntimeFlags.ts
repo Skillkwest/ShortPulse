@@ -36,12 +36,6 @@ export type FalRuntimeFlags = {
   providerAttachedReservationCleanupMinAgeSeconds: number;
   providerAttachedReservationOrphanMinAgeSeconds: number;
   admissionAtomicEnabled: boolean;
-  queueEnabled: boolean;
-  workerOwnedSubmitEnabled: boolean;
-  queueMaxPerUser: number;
-  queueDispatchBatchSize: number;
-  queueLeaseSeconds: number;
-  queueMaxAttempts: number;
   queueBaseBackoffSeconds: number;
   queueMaxWaitSeconds: number;
   recoveryProbeTimeoutMs: number;
@@ -195,14 +189,6 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     0
   ),
   admissionAtomicEnabled: parseBoolean(process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED, false),
-  // Pre-provider ShortPulse queueing is retired for standard Fal/Kie generation.
-  // Keep the shape for compatibility while making the heavy lane non-operative.
-  queueEnabled: false,
-  workerOwnedSubmitEnabled: false,
-  queueMaxPerUser: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER, 20, 1),
-  queueDispatchBatchSize: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE, 25, 1),
-  queueLeaseSeconds: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS, 30, 1),
-  queueMaxAttempts: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS, 5, 1),
   queueBaseBackoffSeconds: parseInteger(
     process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS,
     3,

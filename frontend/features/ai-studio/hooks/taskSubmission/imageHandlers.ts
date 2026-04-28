@@ -43,14 +43,7 @@ const handoffSubmitResponse = ({
     | "fal-bria-background-remove";
   startPollingWithGeneration: ImageSubmissionArgs["startPollingWithGeneration"];
 }) => {
-  if ("status" in response && response.status === "queued") {
-    startPollingWithGeneration(undefined, pollingProvider, undefined, response);
-    return;
-  }
-  const requestId =
-    "request_id" in response && typeof response.request_id === "string"
-      ? response.request_id
-      : undefined;
+  const requestId = typeof response.request_id === "string" ? response.request_id : undefined;
   startPollingWithGeneration(requestId, pollingProvider, undefined, response);
 };
 

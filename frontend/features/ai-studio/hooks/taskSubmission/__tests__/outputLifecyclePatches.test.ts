@@ -4,7 +4,6 @@
 import { describe, expect, it } from "vitest";
 import {
   applyDispatchedSubmissionPatch,
-  applyQueuedSubmissionPatch,
   applySubmissionFailureToOutputs,
 } from "../outputLifecyclePatches";
 import type { StudioOutput } from "../../../types";
@@ -37,25 +36,8 @@ describe("outputLifecyclePatches", () => {
     expect(next[1]?.id).toBe("out-2");
   });
 
-  it("applies queued output patch while preserving existing queue timestamp", () => {
-    const now = Date.now();
-    const item = makeOutput({ queueEnqueuedAtMs: now });
-
-    const next = applyQueuedSubmissionPatch({
-      item,
-      patch: {},
-      provider: "fal",
-      generationId: "gen-1",
-      queueEnqueuedAtMs: now + 100,
-    });
-
-    expect(next.generationId).toBe("gen-1");
-    expect(next.queueState).toBe("queued");
-    expect(next.queueEnqueuedAtMs).toBe(now);
-  });
-
-  it("applies dispatched patch and marks queued entries as dispatched", () => {
-    const item = makeOutput({ queueState: "queued", queueEnqueuedAtMs: 123 });
+  it("applies dispatched patch after provider handoff", () => {
+    const item = makeOutput();
 
     const next = applyDispatchedSubmissionPatch({
       item,
@@ -68,6 +50,5 @@ describe("outputLifecyclePatches", () => {
     expect(next.generationTraceId).toBe("req-1");
     expect(next.taskState).toBe("running");
     expect(next.queueState).toBe("dispatched");
-    expect(next.queueEnqueuedAtMs).toBe(123);
   });
 });

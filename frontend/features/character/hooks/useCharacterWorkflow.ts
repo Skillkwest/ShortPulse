@@ -4,7 +4,6 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  fetchFalQueueStatus,
   fetchFalSeedreamEditStatus,
   fetchFalSeedreamStatus,
   submitFalSeedream,
@@ -250,41 +249,11 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
               }
             );
 
-        const waitForDispatchedRequestId = async (): Promise<string> => {
-          if (!("status" in submitResponse) || submitResponse.status !== "queued") {
-            const requestId =
-              "request_id" in submitResponse && typeof submitResponse.request_id === "string"
-                ? submitResponse.request_id
-                : null;
-            if (!requestId) {
-              throw new Error("Provider did not return a request id.");
-            }
-            return requestId;
-          }
-
-          const maxAttempts = 180;
-          const initialDelayMs = Math.max(500, Math.min(10000, submitResponse.pollAfterMs));
-          for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-            const queueStatus = await fetchFalQueueStatus({
-              sourceRef: submitResponse.sourceRef,
-              generationId: submitResponse.generationId,
-            });
-            if (queueStatus.status === "dispatched") {
-              return queueStatus.requestId;
-            }
-            if (queueStatus.status === "failed") {
-              throw new Error(queueStatus.message);
-            }
-            const retryAfterMs =
-              queueStatus.status === "queued" || queueStatus.status === "dispatching"
-                ? Math.max(500, Math.min(10000, queueStatus.retryAfterMs))
-                : initialDelayMs;
-            await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
-          }
-          throw new Error("Queued generation timed out before dispatch.");
-        };
-
-        const request_id = await waitForDispatchedRequestId();
+        const request_id =
+          typeof submitResponse.request_id === "string" ? submitResponse.request_id : null;
+        if (!request_id) {
+          throw new Error("Provider did not return a request id.");
+        }
 
         const pollStatus = async (attempt = 0): Promise<string[]> => {
           const status = await poll(request_id);

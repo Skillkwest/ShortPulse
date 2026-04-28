@@ -1,7 +1,6 @@
 import { logApiRouteException } from "../api/appErrorLogs";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { repairStaleTerminalGenerationProjections } from "../api/generationProjection";
-import { dispatchGenerationSubmitQueueBatch } from "../api/generationQueue/dispatch";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { processPendingGenerationObservations } from "./observationBatchExecution";
 import { retireStalePreProviderGenerations } from "./preProviderRetirement";
@@ -82,7 +81,6 @@ export const runGenerationControlPlaneCycle = async ({
     : flags.reconcilerBatchSize;
   const stageTimings: GenerationControlPlaneStageTimings = {
     preProviderRetirement: { durationMs: 0 },
-    queueDispatch: { durationMs: 0 },
     reservationCleanup: { durationMs: 0 },
     providerAttachedReservationCleanup: { durationMs: 0 },
     observationInboxProcessing: { durationMs: 0 },
@@ -109,13 +107,6 @@ export const runGenerationControlPlaneCycle = async ({
   let preProviderGenerationsExhausted = 0;
   let preProviderReservationsReleased = 0;
   let preProviderRetirementErrors = 0;
-  let queueClaimed = 0;
-  let queueSubmitted = 0;
-  let queueRetried = 0;
-  let queueRequeuedNoCapacity = 0;
-  let queueExhausted = 0;
-  let queueSkipped = 0;
-  let queueDispatchErrors = 0;
   let observationClaimed = 0;
   let observationProcessed = 0;
   let observationIgnored = 0;
@@ -144,34 +135,6 @@ export const runGenerationControlPlaneCycle = async ({
       });
     }
   });
-
-  if (!rescueMode && flags.queueEnabled) {
-    await measureStage("queueDispatch", async () => {
-      try {
-        const queueMetrics = await dispatchGenerationSubmitQueueBatch({
-          req: context.req,
-          routeLabel: context.routeLabel,
-          limit: flags.queueDispatchBatchSize,
-        });
-        queueClaimed = queueMetrics.claimed;
-        queueSubmitted = queueMetrics.submitted;
-        queueRetried = queueMetrics.retried;
-        queueRequeuedNoCapacity = queueMetrics.requeuedNoCapacity;
-        queueExhausted = queueMetrics.exhausted;
-        queueSkipped = queueMetrics.skipped;
-        queueDispatchErrors = queueMetrics.errors;
-      } catch (error) {
-        queueDispatchErrors += 1;
-        await logControlPlaneException({
-          context,
-          error,
-          metadata: {
-            stage: "queue_dispatch",
-          },
-        });
-      }
-    });
-  }
 
   if (flags.reservationCleanupEnabled) {
     await measureStage("reservationCleanup", async () => {
@@ -324,13 +287,6 @@ export const runGenerationControlPlaneCycle = async ({
     preProviderGenerationsExhausted,
     preProviderReservationsReleased,
     preProviderRetirementErrors,
-    queueClaimed,
-    queueSubmitted,
-    queueRetried,
-    queueRequeuedNoCapacity,
-    queueExhausted,
-    queueSkipped,
-    queueDispatchErrors,
     stageTimings,
   };
 };

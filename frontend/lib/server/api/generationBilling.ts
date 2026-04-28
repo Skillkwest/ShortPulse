@@ -191,7 +191,7 @@ export const chargeGenerationRequest = async ({
         admission_tier: admissionTier,
       },
       admission: {
-        atomicEnabled: runtimeFlags.admissionAtomicEnabled && !runtimeFlags.queueEnabled,
+        atomicEnabled: runtimeFlags.admissionAtomicEnabled,
         mode: runtimeFlags.admission.mode,
         globalMax: runtimeFlags.admission.globalMax,
         tier: admissionTier,

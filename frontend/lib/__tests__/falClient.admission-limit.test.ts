@@ -96,7 +96,7 @@ describe("falClient generation admission error handling", () => {
     );
   });
 
-  it("returns queued submit payloads without throwing", async () => {
+  it("rejects retired queued submit envelopes that do not carry provider request ids", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(
       createJsonResponse(
         {
@@ -110,13 +110,9 @@ describe("falClient generation admission error handling", () => {
       )
     );
 
-    await expect(submitFalNanoBanana({ prompt: "portrait" })).resolves.toEqual({
-      status: "queued",
-      code: "GENERATION_QUEUED",
-      sourceRef: "src-1",
-      generationId: "gen-1",
-      pollAfterMs: 1200,
-    });
+    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
+      "Fal image submit did not return a request_id for fal-ai/nano-banana"
+    );
   });
 
   it("surfaces provider msg fields for non-admission submit failures", async () => {

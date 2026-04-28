@@ -4,7 +4,6 @@ import { createFalSubmitHandler } from "../../lib/server/api/falSubmitProxy";
 const chargeGenerationRequestMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const evaluateScopedGenerationAdmissionMock = vi.fn();
-const enqueueGenerationSubmitMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const requireApiUserMock = vi.fn();
 const dispatchProviderSubmitMock = vi.fn();
@@ -26,10 +25,6 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 vi.mock("../../lib/server/api/generationAdmission/generationAdmissionService", () => ({
   evaluateScopedGenerationAdmission: (...args: unknown[]) =>
     evaluateScopedGenerationAdmissionMock(...args),
-}));
-
-vi.mock("../../lib/server/api/generationQueue/service", () => ({
-  enqueueGenerationSubmit: (...args: unknown[]) => enqueueGenerationSubmitMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationProjection", () => ({
@@ -65,9 +60,7 @@ describe("createFalSubmitHandler", () => {
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT;
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
-    delete process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED;
     process.env.SHORTPULSE_FAL_INTEGRATION_MODE = "on";
-    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
 
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
@@ -81,13 +74,6 @@ describe("createFalSubmitHandler", () => {
         code: null,
       }),
       refund: vi.fn().mockResolvedValue(undefined),
-    });
-    enqueueGenerationSubmitMock.mockResolvedValue({
-      status: "queued",
-      generationId: "gen-queued-1",
-      sourceRef: "source-ref-1",
-      queueStatus: "queued",
-      message: null,
     });
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     dispatchProviderSubmitMock.mockResolvedValue({
@@ -199,7 +185,6 @@ describe("createFalSubmitHandler", () => {
       projectId: "project-1",
       generationId: expect.any(String),
     });
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -234,7 +219,6 @@ describe("createFalSubmitHandler", () => {
         modelId: "fal-ai/nano-banana-2/edit",
       })
     );
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -278,7 +262,6 @@ describe("createFalSubmitHandler", () => {
       })
     );
     expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalled();
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -289,9 +272,6 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("fails closed when no direct submit path is available for a non-inline route", async () => {
-    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
-    process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED = "true";
-
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/kling-video/v2/master/image-to-video",
       routeLabel: "Fal Kling",
@@ -307,7 +287,6 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith({
       error:
@@ -318,8 +297,6 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("still submits active Fal image routes directly when the durable queue is disabled", async () => {
-    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
-
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
       submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
@@ -336,7 +313,6 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(dispatchProviderSubmitMock).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
@@ -346,8 +322,6 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("still submits active Kie video routes directly when the durable queue is disabled", async () => {
-    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
-
     const handler = createFalSubmitHandler({
       modelId: "kie-ai/veo-3.1-fast-i2v",
       provider: "kie",
@@ -365,7 +339,6 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: "kie",
@@ -563,7 +536,6 @@ describe("createFalSubmitHandler", () => {
 
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(charge.refund).toHaveBeenCalledWith(
       "Auto-release: direct submit admission limit reached.",
       expect.objectContaining({
@@ -616,7 +588,6 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(charge.refund).toHaveBeenCalledWith(
       "Auto-release: direct submit admission limit reached.",
       expect.objectContaining({
@@ -627,7 +598,6 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("returns 429 instead of queue_required when a direct-capable Kie submit is admission-limited and queue is disabled", async () => {
-    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "enforce",
@@ -672,7 +642,6 @@ describe("createFalSubmitHandler", () => {
 
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(charge.refund).toHaveBeenCalledWith(
       "Auto-release: direct submit admission limit reached.",
       expect.objectContaining({
@@ -705,7 +674,6 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

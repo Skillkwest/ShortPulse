@@ -20,15 +20,7 @@ describe("generationControlPlane/workerLoop", () => {
       reservationCleanupScanned: 1,
       reservationCleanupReleased: 0,
       reservationCleanupErrors: 0,
-      queueClaimed: 1,
-      queueSubmitted: 1,
-      queueRetried: 0,
-      queueRequeuedNoCapacity: 0,
-      queueExhausted: 0,
-      queueSkipped: 0,
-      queueDispatchErrors: 0,
       stageTimings: {
-        queueDispatch: { durationMs: 12 },
         reservationCleanup: { durationMs: 3 },
         providerAttachedReservationCleanup: { durationMs: 0 },
         observationInboxProcessing: { durationMs: 5 },
@@ -77,7 +69,7 @@ describe("generationControlPlane/workerLoop", () => {
     });
     expect(logger.error).not.toHaveBeenCalled();
     expect(logger.info).toHaveBeenCalledWith(
-      expect.stringContaining('stageTimings={"queueDispatch":{"durationMs":12}')
+      expect.stringContaining('stageTimings={"reservationCleanup":{"durationMs":3}')
     );
   });
 
@@ -95,15 +87,7 @@ describe("generationControlPlane/workerLoop", () => {
       reservationCleanupScanned: 0,
       reservationCleanupReleased: 0,
       reservationCleanupErrors: 0,
-      queueClaimed: 0,
-      queueSubmitted: 0,
-      queueRetried: 0,
-      queueRequeuedNoCapacity: 0,
-      queueExhausted: 0,
-      queueSkipped: 0,
-      queueDispatchErrors: 0,
       stageTimings: {
-        queueDispatch: { durationMs: 0 },
         reservationCleanup: { durationMs: 0 },
         providerAttachedReservationCleanup: { durationMs: 0 },
         observationInboxProcessing: { durationMs: 0 },
@@ -235,15 +219,7 @@ describe("generationControlPlane/workerLoop", () => {
         observationIgnored: 0,
         observationFailed: 0,
         observationErrors: 0,
-        queueClaimed: 0,
-        queueSubmitted: 0,
-        queueRetried: 0,
-        queueRequeuedNoCapacity: 0,
-        queueExhausted: 0,
-        queueSkipped: 0,
-        queueDispatchErrors: 0,
         stageTimings: {
-          queueDispatch: { durationMs: 0 },
           reservationCleanup: { durationMs: 0 },
           providerAttachedReservationCleanup: { durationMs: 0 },
           observationInboxProcessing: { durationMs: 0 },
@@ -270,15 +246,7 @@ describe("generationControlPlane/workerLoop", () => {
         observationIgnored: 0,
         observationFailed: 0,
         observationErrors: 0,
-        queueClaimed: 0,
-        queueSubmitted: 0,
-        queueRetried: 0,
-        queueRequeuedNoCapacity: 0,
-        queueExhausted: 0,
-        queueSkipped: 0,
-        queueDispatchErrors: 0,
         stageTimings: {
-          queueDispatch: { durationMs: 0 },
           reservationCleanup: { durationMs: 0 },
           providerAttachedReservationCleanup: { durationMs: 0 },
           observationInboxProcessing: { durationMs: 0 },

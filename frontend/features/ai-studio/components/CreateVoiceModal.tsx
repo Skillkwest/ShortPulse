@@ -23,7 +23,6 @@ type CreateVoiceModalProps = {
   voiceDescriptionPlaceholder: string;
   isCreateVoiceEnabled: boolean;
   isSaveVoiceEnabled: boolean;
-  isDesigningVoice: boolean;
   isSavingDesignedVoice: boolean;
   voiceDesignPreviewText: string | null;
   voiceDesignPreviews: CreateVoiceModalPreview[];
@@ -59,7 +58,6 @@ export function CreateVoiceModal({
   voiceDescriptionPlaceholder,
   isCreateVoiceEnabled,
   isSaveVoiceEnabled,
-  isDesigningVoice,
   isSavingDesignedVoice,
   voiceDesignPreviews,
   selectedVoiceDesignPreviewId,
@@ -145,11 +143,7 @@ export function CreateVoiceModal({
                   aria-label="Generate voice previews"
                   onClick={onGenerateVoicePreviews}
                 >
-                  {isDesigningVoice
-                    ? "Generating…"
-                    : hasPreviewOptions
-                      ? "Regenerate previews"
-                      : "Generate previews"}
+                  {hasPreviewOptions ? "Regenerate previews" : "Generate previews"}
                 </button>
               </div>
             </div>

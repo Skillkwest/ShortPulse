@@ -558,7 +558,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const isCreateVoiceEnabled =
     voiceName.trim().length > 0 &&
     normalizedVoicePromptLength >= minVoicePromptCharacters &&
-    !isDesigningVoice &&
     !isSavingDesignedVoice;
   const isSaveVoiceEnabled =
     voiceName.trim().length > 0 &&
@@ -1866,7 +1865,6 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             voiceDescriptionPlaceholder={voiceDescriptionPlaceholder}
             isCreateVoiceEnabled={isCreateVoiceEnabled}
             isSaveVoiceEnabled={isSaveVoiceEnabled}
-            isDesigningVoice={isDesigningVoice}
             isSavingDesignedVoice={isSavingDesignedVoice}
             voiceDesignPreviewText={voiceDesignPreviewText}
             voiceDesignPreviews={voiceDesignPreviews}

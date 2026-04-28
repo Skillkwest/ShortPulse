@@ -1184,6 +1184,37 @@ describe("VoicesPropertiesPanel", () => {
     );
   });
 
+  it("keeps generate previews available while preview generation is running", async () => {
+    fetchWithAuthMock.mockImplementation(
+      () =>
+        new Promise(() => {
+          // Keep the request pending so the modal remains in its active generation state.
+        })
+    );
+
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
+      target: { value: "Lantern" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice description" }), {
+      target: { value: "Measured documentary narrator with a warm, grounded cadence." },
+    });
+
+    const createVoiceButton = screen.getByRole("button", { name: "Generate voice previews" });
+    fireEvent.click(createVoiceButton);
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    });
+    expect(createVoiceButton).toBeEnabled();
+    expect(createVoiceButton).toHaveTextContent("Generate previews");
+
+    fireEvent.click(createVoiceButton);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+  });
+
   it("overwrites the prompt text when dropping a prompt into the create-side prompt box", () => {
     render(<VoicesPropertiesPanel />);
 

@@ -6,6 +6,10 @@ const createExpertOutputGenerateCssPath = path.resolve(
   process.cwd(),
   "styles/ai-studio-create-expert-output-generate.css"
 );
+const createExpertChatCssPath = path.resolve(
+  process.cwd(),
+  "styles/ai-studio-create-expert-chat.css"
+);
 
 const extractRuleBlock = (css: string, selector: string) => {
   const escapedSelector = selector
@@ -31,5 +35,17 @@ describe("create expert output generate layout contract", () => {
     expect(controls).toContain("align-self: stretch;");
     expect(controls).toContain("justify-content: flex-end;");
     expect(controls).toContain("min-height: 100%;");
+  });
+
+  it("keeps non-generate Standard assistant replies on the same transparent shell", () => {
+    const css = fs.readFileSync(createExpertChatCssPath, "utf8");
+
+    expect(css).toContain(
+      ".agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not("
+    );
+    expect(css).toContain(".agent-message--with-output-generate");
+    expect(css).toContain("border-radius: 0;");
+    expect(css).toContain("background: transparent;");
+    expect(css).toContain("box-shadow: none;");
   });
 });

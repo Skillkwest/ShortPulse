@@ -588,6 +588,89 @@
 
 .create-expert-panel
   .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-intro):not(.agent-thinking-message):not(
+    .agent-message--pulse-guided
+  ) {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided)
+  .agent-message-body {
+  width: 100%;
+  min-width: 0;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided)
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided)
+  .tiny,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided)
+  .agent-message-edit-input {
+  margin: 0;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  box-shadow: none;
+  transition: border-color 140ms ease;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided):hover
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided):hover
+  .tiny,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided):focus-within
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided):hover
+  .agent-message-edit-input,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant:not(.agent-message--with-output-generate):not(.agent-intro):not(
+    .agent-thinking-message
+  ):not(.agent-message--pulse-guided):focus-within
+  .agent-message-edit-input {
+  border-color: rgba(94, 216, 252, 0.18);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided {
   max-width: min(760px, 88%);
   padding: 2px 18px 6px;

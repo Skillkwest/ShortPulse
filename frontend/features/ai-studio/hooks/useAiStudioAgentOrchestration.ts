@@ -6,6 +6,7 @@ import { useCreateAgentOrchestrationRuntime } from "./agentOrchestration/useCrea
 import { usePulseCreateAgentSend } from "./agentOrchestration/usePulseCreateAgentSend";
 import { usePulsePresetStartRuntime } from "./agentOrchestration/usePulsePresetStartRuntime";
 import { useStandardCreateAgentSend } from "./agentOrchestration/useStandardCreateAgentSend";
+import { useStandardCreatePromptEnhance } from "./agentOrchestration/useStandardCreatePromptEnhance";
 
 const extractAgentResponseMessage = (response: unknown): string | null => {
   if (!response || typeof response !== "object") return null;
@@ -52,7 +53,6 @@ export const useAiStudioAgentOrchestration = ({
   runtimePolicy,
   resolvePulseSessionNamespace,
 }: UseAiStudioAgentOrchestrationParams) => {
-  const [isPromptRefining, setIsPromptRefining] = useState(false);
   const [isReferencePromptEnhancing, setIsReferencePromptEnhancing] = useState(false);
   const [describeInFlightCount, setDescribeInFlightCount] = useState(0);
   const preparedImageUrlCacheRef = useRef(
@@ -149,62 +149,19 @@ export const useAiStudioAgentOrchestration = ({
   });
   const handleAgentSend =
     runtimePolicy.kind === "standard" ? handleStandardAgentSend : handlePulseAgentSend;
-
-  const handleAgentEnhanceSend = useCallback(async () => {
-    if (!agentBootstrapReady) {
-      notifyBootstrapPending();
-      return;
-    }
-    if (!orchestrationRuntime.ensureSessionReady()) {
-      return;
-    }
-    if (!prompt.trim()) return;
-    setIsPromptRefining(true);
-    try {
-      const context = getAgentContext({
-        lastAssistantMessage,
-        selectedOverride: orchestrationRuntime.resolveSelectedOverride(undefined),
-        includeActiveOutput: orchestrationRuntime.includeActiveOutput,
-        modeHint: "text",
-      });
-      const { response, actions, workflowSession, discarded } = await sendToAgent({
-        text: prompt,
-        payloadText: prompt,
-        previousPrompt: latestAgentPrompt ?? null,
-        context,
-        isolateHistory: true,
-        skipUserEcho: true,
-      });
-      if (discarded) {
-        return;
-      }
-      const refinedPrompt = normalizePromptText(
-        actions?.applyPrompt ?? extractAgentResponseMessage(response)
-      );
-      if (refinedPrompt) {
-        setSharedPrompt(refinedPrompt);
-        setLatestAgentPrompt(refinedPrompt);
-        addAgentPromptReference(refinedPrompt, "Refined prompt");
-        setPromptOrigin("agent");
-      }
-      await orchestrationRuntime.captureWorkflowSession(workflowSession);
-    } finally {
-      setIsPromptRefining(false);
-    }
-  }, [
-    addAgentPromptReference,
+  const { isPromptRefining, handleAgentEnhanceSend } = useStandardCreatePromptEnhance({
     agentBootstrapReady,
-    getAgentContext,
-    lastAssistantMessage,
-    latestAgentPrompt,
     prompt,
-    sendToAgent,
+    latestAgentPrompt,
     setLatestAgentPrompt,
-    setPromptOrigin,
     setSharedPrompt,
-    orchestrationRuntime,
+    setPromptOrigin,
+    sendToAgent,
+    getAgentContext,
+    addAgentPromptReference,
+    lastAssistantMessage,
     notifyBootstrapPending,
-  ]);
+  });
 
   const handleReferencePromptEnhance = useCallback(async () => {
     if (!agentBootstrapReady) {

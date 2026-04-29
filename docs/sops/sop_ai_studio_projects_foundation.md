@@ -38,10 +38,10 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 | `frontend/lib/server/projectsService.ts` | Canonical server helper for project create/list/read/update access and input normalization. |
 | `frontend/pages/api/projects/index.ts` | Authenticated collection route used by the dashboard saved-project surface. |
 | `frontend/pages/api/projects/create.ts` | Authenticated create route used by the dashboard handoff. |
-| `frontend/pages/api/projects/[projectId].ts` | Authenticated single-project item route for ownership checks, title updates, and permanent delete. |
-| `frontend/pages/api/projects/[projectId]/workspace.ts` | Authenticated workspace route used by project-aware AI Studio restore/write against the sanitized project snapshot projection. |
-| `frontend/pages/api/projects/[projectId]/media/folders/*.ts` | Authenticated project Media Library folder CRUD and membership routes. |
-| `frontend/pages/api/projects/[projectId]/media/folders/[folderId]/canvas.ts` | Authenticated project Media Library folder canvas route. |
+| `frontend/pages/api/projects/[...projectPath].ts` | Sole dynamic project API dispatcher that keeps `/api/projects/:projectId*` reachable in Next dev/Turbopack while delegating to non-routable project handlers. |
+| `frontend/lib/server/projectApiRoutes/item.ts` | Authenticated single-project handler for ownership checks, title updates, and permanent delete. |
+| `frontend/lib/server/projectApiRoutes/workspace.ts` | Authenticated workspace handler used by project-aware AI Studio restore/write against the sanitized project snapshot projection. |
+| `frontend/lib/server/projectApiRoutes/mediaFolders/*.ts` | Authenticated project Media Library folder CRUD, membership, and folder-canvas handlers. |
 | `frontend/pages/dashboard.tsx` | `New Project` UI entry plus an `Open Projects` action card that opens the shared saved-project modal and routes selection into AI Studio with `projectId`. |
 | `frontend/pages/ai-studio.tsx` | Current AI Studio page entry where `projectId` coexists with legacy `sid`, gates restore on project resolution, routes visible title edits through project authority, and switches project routes onto project-owned workspace persistence. |
 | `frontend/features/ai-studio/components/ProjectsModal.tsx` | Saved-project picker modal used by the AI Studio left rail to reopen owned projects without leaving AI Studio. |

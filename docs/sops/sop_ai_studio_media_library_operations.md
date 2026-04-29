@@ -43,7 +43,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - `frontend/pages/api/media/prompts/list.ts`
   - `frontend/pages/api/ai/media-folder-canvas/[folderId].ts`
   - `frontend/pages/api/ai/media-folder-canvas/save.ts`
-  - `frontend/pages/api/projects/[projectId]/media/folders/[folderId]/canvas.ts`
+  - `frontend/lib/server/projectApiRoutes/mediaFolders/canvas.ts`
 - Membership service: `frontend/lib/server/mediaFoldersService.ts`
 - Folder canvas persistence service: `frontend/lib/server/mediaFolderCanvasService.ts`
 - Project folder canvas persistence service: `frontend/lib/server/projectMediaFolderCanvasService.ts`

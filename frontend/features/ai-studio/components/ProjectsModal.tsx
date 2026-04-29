@@ -36,6 +36,15 @@ type ProjectsLoadState =
 
 const PROJECT_LIST_ALL_QUERY = "all";
 
+const removeProjectFromLoadState = (
+  current: ProjectsLoadState,
+  projectId: string
+): ProjectsLoadState => ({
+  status: "ready",
+  projects: current.projects.filter((project) => project.id !== projectId),
+  error: null,
+});
+
 const resolveProjectsLoadErrorMessage = (
   status: number,
   payload: ProjectsModalPayload | null
@@ -76,6 +85,7 @@ export function ProjectsModal({
     null
   );
   const [deletePendingProjectId, setDeletePendingProjectId] = React.useState<string | null>(null);
+  const deleteInFlightProjectIdRef = React.useRef<string | null>(null);
   useAiStudioModalActivity("projects-modal", isOpen);
 
   React.useEffect(() => {
@@ -84,6 +94,7 @@ export function ProjectsModal({
       setPendingProjectId(null);
       setDeleteConfirmProject(null);
       setDeletePendingProjectId(null);
+      deleteInFlightProjectIdRef.current = null;
       return;
     }
 
@@ -174,8 +185,10 @@ export function ProjectsModal({
 
   const handleDeleteConfirm = React.useCallback(async () => {
     if (!deleteConfirmProject) return;
+    if (deleteInFlightProjectIdRef.current) return;
 
     setActionError(null);
+    deleteInFlightProjectIdRef.current = deleteConfirmProject.id;
     setDeletePendingProjectId(deleteConfirmProject.id);
     try {
       const response = await fetchWithAuth(`/api/projects/${deleteConfirmProject.id}`, {
@@ -184,18 +197,20 @@ export function ProjectsModal({
       });
       const payload = (await response.json().catch(() => ({}))) as ProjectsModalPayload;
       if (!response.ok) {
+        if (response.status === 404) {
+          setLoadState((current) => removeProjectFromLoadState(current, deleteConfirmProject.id));
+          setDeleteConfirmProject(null);
+          return;
+        }
         throw new Error(resolveProjectDeleteErrorMessage(response.status, payload));
       }
 
-      setLoadState((current) => ({
-        status: "ready",
-        projects: current.projects.filter((project) => project.id !== deleteConfirmProject.id),
-        error: null,
-      }));
+      setLoadState((current) => removeProjectFromLoadState(current, deleteConfirmProject.id));
       setDeleteConfirmProject(null);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Failed to delete project.");
     } finally {
+      deleteInFlightProjectIdRef.current = null;
       setDeletePendingProjectId(null);
     }
   }, [deleteConfirmProject]);

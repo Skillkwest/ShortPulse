@@ -1,17 +1,17 @@
 /**
- * Renames a project-owned custom media folder for the authenticated caller.
+ * Creates a project-owned custom media folder for the authenticated caller.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../../../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../../../../lib/server/api/appErrorLogs";
+import { requireApiUser } from "../../api/auth";
+import { logApiRouteException } from "../../api/appErrorLogs";
 import {
-  renameProjectMediaFolderForUser,
+  createProjectMediaFolderForUser,
   sanitizeMediaFolderName,
-} from "../../../../../../lib/server/projectMediaFoldersService";
-import { getProjectForUser, parseProjectId } from "../../../../../../lib/server/projectsService";
-import { isCustomMediaFolderId } from "../../../../../../lib/server/mediaFoldersService";
+} from "../../projectMediaFoldersService";
+import { getProjectForUser, parseProjectId } from "../../projectsService";
+import { sanitizeMediaFolderParentId } from "../../mediaFoldersService";
 
-type RenameFolderSuccessResponse = {
+type CreateFolderSuccessResponse = {
   folder: {
     id: string;
     name: string;
@@ -22,7 +22,7 @@ type RenameFolderSuccessResponse = {
   };
 };
 
-type RenameFolderErrorResponse = {
+type CreateFolderErrorResponse = {
   error: string;
   details?: string;
 };
@@ -45,11 +45,9 @@ const toRequestBody = (value: unknown): Record<string, unknown> => {
   return {};
 };
 
-const asString = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
-
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<RenameFolderSuccessResponse | RenameFolderErrorResponse>
+  res: NextApiResponse<CreateFolderSuccessResponse | CreateFolderErrorResponse>
 ) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -69,27 +67,24 @@ export default async function handler(
       return res.status(404).json({ error: "Project not found" });
     }
     const body = toRequestBody(req.body);
-    const folderId = asString(body.folderId);
     const name = sanitizeMediaFolderName(body.name);
-    if (!isCustomMediaFolderId(folderId)) {
-      return res.status(400).json({ error: "Invalid folder id" });
-    }
+    const parentFolderId = sanitizeMediaFolderParentId(body.parentFolderId);
     if (!name) {
       return res.status(400).json({
         error: "Invalid folder name",
         details: "Folder names must be 1-64 non-whitespace characters.",
       });
     }
+    if (parentFolderId === undefined) {
+      return res.status(400).json({ error: "Invalid parent folder id" });
+    }
 
-    const folder = await renameProjectMediaFolderForUser({
+    const folder = await createProjectMediaFolderForUser({
       userId: user.id,
       projectId,
-      folderId,
       name,
+      parentFolderId,
     });
-    if (!folder) {
-      return res.status(404).json({ error: "Folder not found" });
-    }
 
     return res.status(200).json({
       folder: {
@@ -105,14 +100,17 @@ export default async function handler(
     if (error instanceof Error && error.message === "Folder name already exists") {
       return res.status(409).json({ error: "Folder name already exists" });
     }
+    if (error instanceof Error && error.message === "Parent folder not found") {
+      return res.status(404).json({ error: "Parent folder not found" });
+    }
     await logApiRouteException({
       req,
       error,
-      routeLabel: "projects-media-folders-rename",
+      routeLabel: "projects-media-folders-create",
       user,
     });
     return res.status(500).json({
-      error: "Failed to rename project folder",
+      error: "Failed to create project folder",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }

@@ -2,14 +2,14 @@
  * Reads one user-owned project for the authenticated caller.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { requireApiUser } from "../api/auth";
+import { logApiRouteException } from "../api/appErrorLogs";
 import {
   deleteProjectForUser,
   getProjectForUser,
   parseProjectId,
   updateProjectTitleForUser,
-} from "../../../lib/server/projectsService";
+} from "../projectsService";
 
 type ProjectResponse = {
   project: {

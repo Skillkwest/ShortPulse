@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addBreadcrumb } from "../../../../lib/clientBreadcrumbs";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
-import { saveAiStudioProjectWorkspaceSnapshotViaApi } from "../projectWorkspaceApiClient";
+import {
+  getAiStudioProjectWorkspaceSnapshotViaApi,
+  saveAiStudioProjectWorkspaceSnapshotViaApi,
+} from "../projectWorkspaceApiClient";
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
@@ -88,5 +91,22 @@ describe("projectWorkspaceApiClient", () => {
     );
 
     expect(addBreadcrumbMock).not.toHaveBeenCalled();
+  });
+
+  it("includes status and content type when project workspace load fails with a non-json response", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response("<!doctype html><title>Not found</title>", {
+        status: 404,
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+        },
+      })
+    );
+
+    await expect(
+      getAiStudioProjectWorkspaceSnapshotViaApi({
+        projectId: "project-1",
+      })
+    ).rejects.toThrow("Failed to load project workspace snapshot: HTTP 404 text/html");
   });
 });

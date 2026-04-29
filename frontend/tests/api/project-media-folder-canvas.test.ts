@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import handler from "../../pages/api/projects/[projectId]/media/folders/[folderId]/canvas";
+import handler from "../../lib/server/projectApiRoutes/mediaFolders/canvas";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();

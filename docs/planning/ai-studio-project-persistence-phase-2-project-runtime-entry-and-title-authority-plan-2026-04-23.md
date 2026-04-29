@@ -19,7 +19,7 @@ Without fixing boot order and title authority, later restore phases would still 
 2. `frontend/features/ai-studio/hooks/useAiStudioSessionIdentity.ts`
 3. `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
 4. `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
-5. `frontend/pages/api/projects/[projectId].ts`
+5. `frontend/lib/server/projectApiRoutes/item.ts`
 6. any project update route introduced in Phase 1
 
 ## Scope

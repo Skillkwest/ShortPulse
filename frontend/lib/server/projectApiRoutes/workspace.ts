@@ -2,14 +2,14 @@
  * Reads and writes one user-owned project workspace snapshot for the authenticated caller.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
-import { getProjectForUser, parseProjectId } from "../../../../lib/server/projectsService";
+import { requireApiUser } from "../api/auth";
+import { logApiRouteException } from "../api/appErrorLogs";
+import { getProjectForUser, parseProjectId } from "../projectsService";
 import {
   getProjectWorkspaceStateForUser,
   InvalidProjectWorkspaceSnapshotError,
   upsertProjectWorkspaceStateForUser,
-} from "../../../../lib/server/projectWorkspaceStatesService";
+} from "../projectWorkspaceStatesService";
 
 type ProjectWorkspaceSuccessResponse = {
   workspace: {

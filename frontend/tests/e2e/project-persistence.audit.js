@@ -211,9 +211,11 @@ async function apiRequest({ token, method, path: requestPath, body }) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
+  const contentType = response.headers.get("content-type") || "";
+  const text = await response.text();
   let payload = null;
   try {
-    payload = await response.json();
+    payload = text ? JSON.parse(text) : null;
   } catch {
     payload = null;
   }
@@ -221,8 +223,24 @@ async function apiRequest({ token, method, path: requestPath, body }) {
   return {
     status: response.status,
     ok: response.ok,
+    contentType,
+    text,
     payload,
   };
+}
+
+function summarizeApiResult(result) {
+  const body = result.payload ? JSON.stringify(result.payload) : result.text.slice(0, 180);
+  return `${result.status} ${result.contentType}: ${body}`;
+}
+
+function assertJsonApiResult(label, result, expectedStatus) {
+  if (!result.contentType.toLowerCase().includes("application/json")) {
+    throw new Error(`${label} returned non-JSON response: ${summarizeApiResult(result)}`);
+  }
+  if (typeof expectedStatus === "number" && result.status !== expectedStatus) {
+    throw new Error(`${label} returned unexpected status: ${summarizeApiResult(result)}`);
+  }
 }
 
 function buildLegacyOrphanSnapshot() {
@@ -354,11 +372,145 @@ async function main() {
       },
     });
     if (!createResult.ok || !createResult.payload?.project?.id) {
+      throw new Error(`Project create failed: ${summarizeApiResult(createResult)}`);
+    }
+    assertJsonApiResult("Project create", createResult, 200);
+    projectId = createResult.payload.project.id;
+
+    const listResult = await apiRequest({
+      token,
+      method: "GET",
+      path: "/api/projects?limit=all",
+    });
+    assertJsonApiResult("Project list", listResult, 200);
+    const listedProjects = Array.isArray(listResult.payload?.projects)
+      ? listResult.payload.projects
+      : [];
+    if (!listResult.ok || !listedProjects.some((project) => project?.id === projectId)) {
       throw new Error(
-        `Project create failed (${createResult.status}): ${JSON.stringify(createResult.payload)}`
+        `Project list did not include created project: ${summarizeApiResult(listResult)}`
       );
     }
-    projectId = createResult.payload.project.id;
+
+    const readProjectResult = await apiRequest({
+      token,
+      method: "GET",
+      path: `/api/projects/${encodeURIComponent(projectId)}`,
+    });
+    assertJsonApiResult("Project read", readProjectResult, 200);
+    if (!readProjectResult.ok || readProjectResult.payload?.project?.id !== projectId) {
+      throw new Error(`Project read failed: ${summarizeApiResult(readProjectResult)}`);
+    }
+
+    const invalidProjectResult = await apiRequest({
+      token,
+      method: "GET",
+      path: "/api/projects/not-a-uuid",
+    });
+    assertJsonApiResult("Invalid project id", invalidProjectResult, 400);
+
+    const unknownDynamicRouteResult = await apiRequest({
+      token,
+      method: "GET",
+      path: `/api/projects/${encodeURIComponent(projectId)}/unknown`,
+    });
+    assertJsonApiResult("Unknown dynamic project route", unknownDynamicRouteResult, 404);
+
+    const wrongMethodResult = await apiRequest({
+      token,
+      method: "PUT",
+      path: `/api/projects/${encodeURIComponent(projectId)}`,
+      body: { title: "Wrong method" },
+    });
+    assertJsonApiResult("Project wrong method", wrongMethodResult, 405);
+
+    const folderListResult = await apiRequest({
+      token,
+      method: "GET",
+      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/list`,
+    });
+    assertJsonApiResult("Project media folder list", folderListResult, 200);
+    if (!folderListResult.ok || !Array.isArray(folderListResult.payload?.folders)) {
+      throw new Error(`Project media folder list failed: ${summarizeApiResult(folderListResult)}`);
+    }
+
+    const folderCreateResult = await apiRequest({
+      token,
+      method: "POST",
+      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/create`,
+      body: {
+        name: `Audit Folder ${Date.now()}`,
+        parentFolderId: null,
+      },
+    });
+    assertJsonApiResult("Project media folder create", folderCreateResult, 200);
+    const folderId = folderCreateResult.payload?.folder?.id;
+    if (!folderId) {
+      throw new Error(
+        `Project media folder create failed: ${summarizeApiResult(folderCreateResult)}`
+      );
+    }
+
+    const folderRenameResult = await apiRequest({
+      token,
+      method: "POST",
+      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/rename`,
+      body: {
+        folderId,
+        name: `Renamed Audit Folder ${Date.now()}`,
+      },
+    });
+    assertJsonApiResult("Project media folder rename", folderRenameResult, 200);
+
+    const folderMoveResult = await apiRequest({
+      token,
+      method: "POST",
+      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/move`,
+      body: {
+        folderId,
+        parentFolderId: null,
+      },
+    });
+    assertJsonApiResult("Project media folder move", folderMoveResult, 200);
+
+    const invalidMembershipBatchResult = await apiRequest({
+      token,
+      method: "POST",
+      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/membership-batch`,
+      body: {},
+    });
+    assertJsonApiResult(
+      "Project media folder membership validation",
+      invalidMembershipBatchResult,
+      400
+    );
+
+    const canvasSnapshot = {
+      schemaVersion: 1,
+      camera: { x: 0, y: 0, zoom: 1 },
+      items: [],
+    };
+    const folderCanvasSaveResult = await apiRequest({
+      token,
+      method: "PUT",
+      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/${encodeURIComponent(
+        folderId
+      )}/canvas`,
+      body: {
+        schemaVersion: 1,
+        snapshot: canvasSnapshot,
+      },
+    });
+    assertJsonApiResult("Project media folder canvas save", folderCanvasSaveResult, 200);
+
+    const folderCanvasReadResult = await apiRequest({
+      token,
+      method: "GET",
+      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/${encodeURIComponent(
+        folderId
+      )}/canvas`,
+    });
+    assertJsonApiResult("Project media folder canvas read", folderCanvasReadResult, 200);
 
     const legacySnapshot = buildLegacyOrphanSnapshot();
     const saveResult = await apiRequest({
@@ -370,10 +522,9 @@ async function main() {
         snapshot: legacySnapshot,
       },
     });
+    assertJsonApiResult("Project workspace save", saveResult, 200);
     if (!saveResult.ok || !saveResult.payload?.workspace?.snapshot) {
-      throw new Error(
-        `Project workspace save failed (${saveResult.status}): ${JSON.stringify(saveResult.payload)}`
-      );
+      throw new Error(`Project workspace save failed: ${summarizeApiResult(saveResult)}`);
     }
 
     const readResult = await apiRequest({
@@ -381,11 +532,20 @@ async function main() {
       method: "GET",
       path: `/api/projects/${encodeURIComponent(projectId)}/workspace`,
     });
+    assertJsonApiResult("Project workspace read", readResult, 200);
     if (!readResult.ok || !readResult.payload?.workspace?.snapshot) {
-      throw new Error(
-        `Project workspace read failed (${readResult.status}): ${JSON.stringify(readResult.payload)}`
-      );
+      throw new Error(`Project workspace read failed: ${summarizeApiResult(readResult)}`);
     }
+
+    const folderDeleteResult = await apiRequest({
+      token,
+      method: "POST",
+      path: `/api/projects/${encodeURIComponent(projectId)}/media/folders/delete`,
+      body: {
+        folderId,
+      },
+    });
+    assertJsonApiResult("Project media folder delete", folderDeleteResult, 200);
 
     const persistedSnapshot = readResult.payload.workspace.snapshot;
     const persistedOutputs = persistedSnapshot?.outputs ?? {};

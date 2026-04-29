@@ -2,10 +2,10 @@
  * Lists project-owned custom media folders for the authenticated caller.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../../../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../../../../lib/server/api/appErrorLogs";
-import { listProjectMediaFoldersForUser } from "../../../../../../lib/server/projectMediaFoldersService";
-import { getProjectForUser, parseProjectId } from "../../../../../../lib/server/projectsService";
+import { requireApiUser } from "../../api/auth";
+import { logApiRouteException } from "../../api/appErrorLogs";
+import { listProjectMediaFoldersForUser } from "../../projectMediaFoldersService";
+import { getProjectForUser, parseProjectId } from "../../projectsService";
 
 type ListFoldersSuccessResponse = {
   folders: Array<{

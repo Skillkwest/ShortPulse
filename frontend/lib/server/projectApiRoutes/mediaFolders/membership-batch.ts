@@ -2,14 +2,11 @@
  * Applies project-owned media folder membership operations for media and prompts.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../../../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../../../../lib/server/api/appErrorLogs";
-import { applyProjectFolderMembershipBatch } from "../../../../../../lib/server/projectMediaFoldersService";
-import { getProjectForUser, parseProjectId } from "../../../../../../lib/server/projectsService";
-import {
-  isCustomMediaFolderId,
-  type FolderMembershipBatchAction,
-} from "../../../../../../lib/server/mediaFoldersService";
+import { requireApiUser } from "../../api/auth";
+import { logApiRouteException } from "../../api/appErrorLogs";
+import { applyProjectFolderMembershipBatch } from "../../projectMediaFoldersService";
+import { getProjectForUser, parseProjectId } from "../../projectsService";
+import { isCustomMediaFolderId, type FolderMembershipBatchAction } from "../../mediaFoldersService";
 
 type MembershipBatchSuccessResponse = {
   action: FolderMembershipBatchAction;

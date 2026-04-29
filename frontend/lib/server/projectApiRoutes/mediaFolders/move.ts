@@ -2,14 +2,11 @@
  * Moves a project-owned custom media folder for the authenticated caller.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../../../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../../../../lib/server/api/appErrorLogs";
-import { moveProjectMediaFolderForUser } from "../../../../../../lib/server/projectMediaFoldersService";
-import { getProjectForUser, parseProjectId } from "../../../../../../lib/server/projectsService";
-import {
-  isCustomMediaFolderId,
-  sanitizeMediaFolderParentId,
-} from "../../../../../../lib/server/mediaFoldersService";
+import { requireApiUser } from "../../api/auth";
+import { logApiRouteException } from "../../api/appErrorLogs";
+import { moveProjectMediaFolderForUser } from "../../projectMediaFoldersService";
+import { getProjectForUser, parseProjectId } from "../../projectsService";
+import { isCustomMediaFolderId, sanitizeMediaFolderParentId } from "../../mediaFoldersService";
 
 type MoveFolderSuccessResponse = {
   folder: {

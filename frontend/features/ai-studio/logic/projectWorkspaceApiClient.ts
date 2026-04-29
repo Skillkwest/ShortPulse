@@ -22,6 +22,17 @@ type AiStudioProjectWorkspaceApiPayload = {
 
 const INVALID_PROJECT_WORKSPACE_SNAPSHOT_PATTERN = /invalid project workspace snapshot/i;
 
+const resolveProjectWorkspaceApiErrorMessage = (
+  response: Response,
+  payload: AiStudioProjectWorkspaceApiPayload | null
+): string => {
+  const payloadMessage = payload?.error?.trim() || payload?.details?.trim();
+  if (payloadMessage) return payloadMessage;
+
+  const contentType = response.headers.get("content-type")?.split(";")[0]?.trim();
+  return `HTTP ${response.status}${contentType ? ` ${contentType}` : ""}`;
+};
+
 const maybeLogInvalidProjectWorkspaceSnapshotResponse = ({
   projectId,
   status,
@@ -66,7 +77,7 @@ export const getAiStudioProjectWorkspaceSnapshotViaApi = async ({
   }
 
   if (!response.ok) {
-    const message = payload?.error?.trim() || payload?.details?.trim() || "Request failed";
+    const message = resolveProjectWorkspaceApiErrorMessage(response, payload);
     throw new Error(`Failed to load project workspace snapshot: ${message}`);
   }
 
@@ -108,7 +119,7 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
       status: response.status,
       payload,
     });
-    const message = payload?.error?.trim() || payload?.details?.trim() || "Request failed";
+    const message = resolveProjectWorkspaceApiErrorMessage(response, payload);
     throw new Error(`Failed to save project workspace snapshot: ${message}`);
   }
 

@@ -2,15 +2,15 @@
  * Reads and writes one project-owned Media Library folder canvas snapshot.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { requireApiUser } from "../../../../../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../../../../../lib/server/api/appErrorLogs";
-import { parseMediaFolderCanvasSnapshot } from "../../../../../../../lib/server/mediaFolderCanvasService";
-import { isCustomMediaFolderId } from "../../../../../../../lib/server/mediaFoldersService";
+import { requireApiUser } from "../../api/auth";
+import { logApiRouteException } from "../../api/appErrorLogs";
+import { parseMediaFolderCanvasSnapshot } from "../../mediaFolderCanvasService";
+import { isCustomMediaFolderId } from "../../mediaFoldersService";
 import {
   getProjectMediaFolderCanvasStateForUser,
   saveProjectMediaFolderCanvasStateForUser,
-} from "../../../../../../../lib/server/projectMediaFolderCanvasService";
-import { getProjectForUser, parseProjectId } from "../../../../../../../lib/server/projectsService";
+} from "../../projectMediaFolderCanvasService";
+import { getProjectForUser, parseProjectId } from "../../projectsService";
 
 type ProjectFolderCanvasResponse =
   | {

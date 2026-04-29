@@ -146,6 +146,78 @@ describe("ProjectsModal", () => {
     expect(screen.getByText("1 saved")).toBeInTheDocument();
   });
 
+  it("removes a stale project card when delete returns not found", async () => {
+    mockedFetchWithAuth
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          projects: [
+            {
+              id: "project-1",
+              title: "Campaign Alpha",
+              createdAt: "2026-04-24T17:00:00.000Z",
+              updatedAt: "2026-04-24T18:00:00.000Z",
+              previewImageUrls: [],
+            },
+          ],
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: "Project not found" }),
+      } as Response);
+
+    render(<ProjectsModal isOpen onClose={vi.fn()} onSelectProject={vi.fn()} />);
+
+    expect(await screen.findByText("Campaign Alpha")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete project Campaign Alpha" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Campaign Alpha")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText("Project no longer exists.")).not.toBeInTheDocument();
+    expect(screen.getByText("0 saved")).toBeInTheDocument();
+  });
+
+  it("guards against duplicate delete confirms before React disables the button", async () => {
+    mockedFetchWithAuth
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          projects: [
+            {
+              id: "project-1",
+              title: "Campaign Alpha",
+              createdAt: "2026-04-24T17:00:00.000Z",
+              updatedAt: "2026-04-24T18:00:00.000Z",
+              previewImageUrls: [],
+            },
+          ],
+        }),
+      } as Response)
+      .mockReturnValueOnce(new Promise(() => {}) as Promise<Response>);
+
+    render(<ProjectsModal isOpen onClose={vi.fn()} onSelectProject={vi.fn()} />);
+
+    expect(await screen.findByText("Campaign Alpha")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete project Campaign Alpha" }));
+    const deleteButton = screen.getByRole("button", { name: "Delete" });
+    fireEvent.click(deleteButton);
+    fireEvent.click(deleteButton);
+
+    await waitFor(() => {
+      expect(mockedFetchWithAuth).toHaveBeenCalledTimes(2);
+    });
+    expect(mockedFetchWithAuth).toHaveBeenLastCalledWith("/api/projects/project-1", {
+      method: "DELETE",
+      shortpulseAuthTimeoutMs: 5000,
+    });
+  });
+
   it("shows a retryable error state when project loading fails", async () => {
     mockedFetchWithAuth.mockResolvedValueOnce({
       ok: false,

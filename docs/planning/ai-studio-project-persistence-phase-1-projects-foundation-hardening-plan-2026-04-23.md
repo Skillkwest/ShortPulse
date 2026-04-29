@@ -19,7 +19,7 @@ If this foundation remains muddy, later phases will build project restore on top
 2. `sql/migrations/rollback/089_add_projects_foundation_rollback.sql`
 3. `frontend/lib/server/projectsService.ts`
 4. `frontend/pages/api/projects/create.ts`
-5. `frontend/pages/api/projects/[projectId].ts`
+5. `frontend/lib/server/projectApiRoutes/item.ts`
 6. `frontend/lib/server/api/protectedApiPaths.ts`
 7. `frontend/pages/dashboard.tsx`
 8. any new project list/update routes introduced in this phase

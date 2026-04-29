@@ -1212,7 +1212,7 @@ export default function AiStudioPage() {
     selectedTool,
     chatModeEnabled,
     agentInput,
-    prompt,
+    prompt: standardPrompt,
     currentCostCredits,
     promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
     handleAgentSend,
@@ -1223,7 +1223,7 @@ export default function AiStudioPage() {
   });
   const handleChatOffInlineGenerate = useStandardCreateInlineGenerate({
     agentInput,
-    prompt,
+    prompt: standardPrompt,
     currentCostCredits,
     promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
     handleGenerate,

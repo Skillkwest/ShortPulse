@@ -2,11 +2,24 @@
  * AgentChatPanel regression tests.
  * Ensures staged attachments and generate controls behave correctly.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { PulseCreateChatPanel } from "../../../../features/ai-studio/components/promptStep/PulseCreateChatPanel";
 import { AgentChatPanel } from "../AgentChatPanel";
 
 describe("AgentChatPanel prompt actions", () => {
+  it("keeps Pulse presentation out of the shared chat prefab source", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "prefabs/agent/panels/AgentChatPanel.tsx"),
+      "utf8"
+    );
+
+    expect(source).not.toContain("PulseGuidedMessageBody");
+    expect(source).not.toContain("pulse_guided");
+  });
+
   it("renders staged attachments as chat-side reference cards without metadata text", () => {
     render(
       <AgentChatPanel
@@ -217,7 +230,7 @@ describe("AgentChatPanel prompt actions", () => {
 
   it("renders pulse-guided assistant replies without redundant step labels", () => {
     render(
-      <AgentChatPanel
+      <PulseCreateChatPanel
         messages={[
           {
             id: "a-1",
@@ -228,7 +241,6 @@ describe("AgentChatPanel prompt actions", () => {
         ]}
         input=""
         showInput={false}
-        assistantMessagePresentation="pulse_guided"
         onInputChange={vi.fn()}
         onSend={vi.fn()}
       />
@@ -250,7 +262,7 @@ describe("AgentChatPanel prompt actions", () => {
 
   it("renders richer pulse-guided layouts with headings, reply chips, separators, and option cards", () => {
     const { container } = render(
-      <AgentChatPanel
+      <PulseCreateChatPanel
         messages={[
           {
             id: "a-1",
@@ -261,7 +273,6 @@ describe("AgentChatPanel prompt actions", () => {
         ]}
         input=""
         showInput={false}
-        assistantMessagePresentation="pulse_guided"
         onInputChange={vi.fn()}
         onSend={vi.fn()}
       />
@@ -289,7 +300,7 @@ describe("AgentChatPanel prompt actions", () => {
 
   it("removes title-case step headings from pulse-guided assistant replies", () => {
     render(
-      <AgentChatPanel
+      <PulseCreateChatPanel
         messages={[
           {
             id: "a-1",
@@ -300,7 +311,6 @@ describe("AgentChatPanel prompt actions", () => {
         ]}
         input=""
         showInput={false}
-        assistantMessagePresentation="pulse_guided"
         onInputChange={vi.fn()}
         onSend={vi.fn()}
       />
@@ -317,7 +327,7 @@ describe("AgentChatPanel prompt actions", () => {
 
   it("removes fused current-step labels from pulse-guided assistant replies", () => {
     render(
-      <AgentChatPanel
+      <PulseCreateChatPanel
         messages={[
           {
             id: "a-1",
@@ -328,7 +338,6 @@ describe("AgentChatPanel prompt actions", () => {
         ]}
         input=""
         showInput={false}
-        assistantMessagePresentation="pulse_guided"
         onInputChange={vi.fn()}
         onSend={vi.fn()}
       />

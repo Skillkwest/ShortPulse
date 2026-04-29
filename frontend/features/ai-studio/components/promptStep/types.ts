@@ -3,6 +3,7 @@
  * Keeps the main component and split subcomponents aligned on one contract.
  */
 import type {
+  AgentChatPanelProps,
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
@@ -97,7 +98,8 @@ export type PromptStepProps = {
   forceRenderAgentChatPanel?: boolean;
   emptyAgentChatSpacerClassName?: string;
   highlightLatestAssistantOnly?: boolean;
-  assistantMessagePresentation?: "default" | "pulse_guided";
+  CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
+  useFlowComposerLayout?: boolean;
   composerMiddleContent?: React.ReactNode;
   composerLeadingContent?: React.ReactNode;
   chatComposerOverlayEnabled?: boolean;

@@ -6,6 +6,7 @@ import React from "react";
 import { ArrowsOutSimple, Trash } from "phosphor-react";
 import {
   AgentChatPanel,
+  type AgentChatPanelProps,
   AgentInputBar,
   AgentResponseInlineGenerateButton,
   AgentSaveButton,
@@ -70,7 +71,8 @@ type PromptStepChatSurfaceProps = {
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
   useAgentResponseInlineGeneratePrefab?: boolean;
   highlightLatestAssistantOnly: boolean;
-  assistantMessagePresentation?: "default" | "pulse_guided";
+  CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
+  useFlowComposerLayout?: boolean;
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;
   outputGenerateGuardrailReason?: string | null;
@@ -145,7 +147,8 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   chatModeInlineGenerate,
   useAgentResponseInlineGeneratePrefab = false,
   highlightLatestAssistantOnly,
-  assistantMessagePresentation = "default",
+  CreateChatPanel = AgentChatPanel,
+  useFlowComposerLayout = false,
   disableOutputGenerate,
   outputGenerateCostCredits,
   outputGenerateGuardrailReason,
@@ -210,12 +213,11 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     forceRenderAgentChatPanel;
   const shouldRenderAgentChatPanel = hasAgentChatContent || !hideEmptyAgentChatState;
   const shouldRenderAgentChatSpacer = !shouldRenderAgentChatPanel;
-  const shouldUsePulseFlowComposer = assistantMessagePresentation === "pulse_guided";
   const shouldUseComposerOverlay =
     chatComposerOverlayEnabled &&
     shouldRenderAgentChatPanel &&
     !shouldRenderAgentChatSpacer &&
-    !shouldUsePulseFlowComposer;
+    !useFlowComposerLayout;
   const shouldBlurComposerUnderlay = isAgentInputExpanded && agentInputVisualRowCount >= 8;
   const handleAgentInputVisualRowCountChange = React.useCallback(
     (rowCount: number) => {
@@ -243,7 +245,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
       className="agent-chat-wrapper agent-chat-wrapper--inline"
       aria-busy={isPulseLoading ? true : undefined}
     >
-      <AgentChatPanel
+      <CreateChatPanel
         messages={agentMessages}
         introMessage={hideAgentIntroMessage ? null : introMessage}
         input=""
@@ -273,7 +275,6 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
         onGenerateOutputPrompt={onGenerateOutputPrompt}
         onAssistantMessageEdit={onAssistantMessageEdit}
         highlightLatestAssistantOnly={highlightLatestAssistantOnly}
-        assistantMessagePresentation={assistantMessagePresentation}
         disableOutputGenerate={disableOutputGenerate}
         outputGenerateCostCredits={outputGenerateCostCredits}
         outputGenerateGuardrailReason={outputGenerateGuardrailReason}

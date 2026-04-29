@@ -11,7 +11,6 @@ import {
   resolveAssistantInlineEditStyle,
   type AssistantInlineEditPresentation,
 } from "./assistantInlineEditPresentation";
-import { PulseGuidedMessageBody } from "./PulseGuidedMessageBody";
 import type {
   AgentAssistantMessageEditRequest,
   AgentAttachment,
@@ -76,7 +75,13 @@ const createPromptDragGhost = (source: HTMLElement) => {
   };
 };
 
-type AgentChatPanelProps = {
+export type AgentAssistantMessageContentProps = {
+  message: AgentMessage;
+  messageId: string;
+  textRef: (node: HTMLElement | null) => void;
+};
+
+export type AgentChatPanelProps = {
   messages: AgentMessage[];
   input: string;
   sendLabel?: string;
@@ -95,7 +100,8 @@ type AgentChatPanelProps = {
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   isDropActive?: boolean;
   showClearAttachmentsButton?: boolean;
-  assistantMessagePresentation?: "default" | "pulse_guided";
+  assistantMessageClassName?: string;
+  AssistantMessageContent?: React.ComponentType<AgentAssistantMessageContentProps>;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onMessageClick?: (message: AgentMessage) => void;
@@ -134,7 +140,8 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   assistantBubbleMedia,
   isDropActive = false,
   showClearAttachmentsButton = false,
-  assistantMessagePresentation = "default",
+  assistantMessageClassName,
+  AssistantMessageContent,
   onInputChange,
   onSend,
   onMessageClick,
@@ -651,14 +658,16 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 const messageAttachments = message.attachments ?? [];
                 const hasMessageAttachments = messageAttachments.length > 0;
                 const hasMessageContent = Boolean(message.content.trim());
-                const usePulseGuidedPresentation =
-                  assistantMessagePresentation === "pulse_guided" && message.role === "assistant";
+                const resolvedAssistantMessageClassName =
+                  message.role === "assistant" && assistantMessageClassName
+                    ? ` ${assistantMessageClassName}`
+                    : "";
                 const key =
                   message.id || `${message.role}-${index}-${message.content.slice(0, 12)}`;
                 return (
                   <div
                     key={key}
-                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${hasMessageAttachments ? " agent-message--with-attachments" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}${usePulseGuidedPresentation ? " agent-message--pulse-guided" : ""}`}
+                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${hasMessageAttachments ? " agent-message--with-attachments" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}${resolvedAssistantMessageClassName}`}
                     onClick={
                       isClickable && !isEditingMessage
                         ? () => handleMessageClick(message)
@@ -724,10 +733,13 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                           </div>
                         ) : null}
                         {hasMessageContent ? (
-                          usePulseGuidedPresentation ? (
-                            <PulseGuidedMessageBody
-                              ref={(node) => setAssistantMessageTextRef(resolvedMessageId, node)}
-                              content={message.content}
+                          message.role === "assistant" && AssistantMessageContent ? (
+                            <AssistantMessageContent
+                              message={message}
+                              messageId={resolvedMessageId}
+                              textRef={(node) =>
+                                setAssistantMessageTextRef(resolvedMessageId, node)
+                              }
                             />
                           ) : (
                             <p

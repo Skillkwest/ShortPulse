@@ -79,7 +79,8 @@ export function PromptStep({
   forceRenderAgentChatPanel = false,
   emptyAgentChatSpacerClassName = "",
   highlightLatestAssistantOnly = false,
-  assistantMessagePresentation = "default",
+  CreateChatPanel,
+  useFlowComposerLayout = false,
   composerMiddleContent = null,
   composerLeadingContent = null,
   chatComposerOverlayEnabled = false,
@@ -320,7 +321,8 @@ export function PromptStep({
                 chatModeInlineGenerate={chatModeInlineGenerate}
                 useAgentResponseInlineGeneratePrefab={useAgentResponseInlineGeneratePrefab}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
-                assistantMessagePresentation={assistantMessagePresentation}
+                CreateChatPanel={CreateChatPanel}
+                useFlowComposerLayout={useFlowComposerLayout}
                 disableOutputGenerate={disableOutputGenerate}
                 outputGenerateCostCredits={outputGenerateCostCredits}
                 outputGenerateGuardrailReason={outputGenerateGuardrailReason}

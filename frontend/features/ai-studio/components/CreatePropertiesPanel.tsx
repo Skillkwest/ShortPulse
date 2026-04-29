@@ -19,6 +19,8 @@ import type {
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
+import { PulseCreateChatPanel } from "./promptStep/PulseCreateChatPanel";
+import { StandardCreateChatPanel } from "./promptStep/StandardCreateChatPanel";
 import { StylesControl } from "./StylesControl";
 import { deriveCreateSelectorViewState } from "../logic/createSelectorState";
 import { getModelConfig } from "../logic/modelRegistry";
@@ -910,7 +912,8 @@ export function CreatePropertiesPanel({
     hideInputDropHint: true,
     useAgentResponseInlineGeneratePrefab: true,
     highlightLatestAssistantOnly: true,
-    assistantMessagePresentation: isPulseCreateMode ? "pulse_guided" : "default",
+    CreateChatPanel: isPulseCreateMode ? PulseCreateChatPanel : StandardCreateChatPanel,
+    useFlowComposerLayout: isPulseCreateMode,
     chatComposerOverlayEnabled: true,
     stackTrailingComposerControls: true,
     agentInputMaxHeightPx: isPulseCreateMode

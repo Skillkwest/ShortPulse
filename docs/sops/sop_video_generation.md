@@ -165,50 +165,17 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Kie Kling submit preflight also rejects media URLs that fail remote fetch preflight (`non-2xx`) or return incompatible content types, reducing opaque upstream `422 file format not support` failures.
 - Generate is disabled when required inputs are missing (e.g., model or reference image for reference-required models) or when the credit balance is below the computed cost.
 
-## Contract boundary + queue compatibility
+## Contract Boundary
 
 - Video submit routes now enforce a canonical ingress contract before billing/provider submit:
   - alias normalization at ingress (`camelCase` -> canonical `snake_case` where supported),
   - strict unknown top-level field rejection (fail-closed),
   - deterministic alias-collision rejection when both alias and canonical keys are present with different values.
-- Queue payloads for video submissions are stored with a versioned envelope (`video_submit_payload` v2). Dispatch normalizes both:
-  - v2 envelope payloads (authoritative path), and
-  - legacy raw queued payloads (compatibility path) when `SHORTPULSE_VIDEO_QUEUE_COMPAT_NORMALIZATION_ENABLED=true`.
+- Queue payloads for video submissions are stored with the versioned `video_submit_payload` v2 envelope.
+- Queue dispatch requires that canonical envelope and rejects raw video payloads deterministically.
 - Character-scoped media is blocked for video submissions:
   - payloads containing character metadata/path fields or media URLs with `/characters/` are rejected pre-submit and pre-dispatch.
-- Runtime rollout knobs:
-  - `SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE=off|shadow|on` (default `on`),
-  - `SHORTPULSE_VIDEO_QUEUE_COMPAT_NORMALIZATION_ENABLED=true|false` (default `true`).
-
-### Phased rollout execution checklist
-
-1. Phase 0 (`shadow`, internal only)
-- Set `SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE=shadow`.
-- Keep `SHORTPULSE_VIDEO_QUEUE_COMPAT_NORMALIZATION_ENABLED=true`.
-- Verify no elevated `api.fal_submit.video_contract_violation` telemetry for valid user flows.
-- Track normalization telemetry baselines:
-  - `telemetry.api.fal_submit.video_alias_normalized`
-  - `telemetry.queue.dispatch.video_payload_normalized`
-- Capture baseline metrics with `sql/check_video_contract_rollout_metrics.sql`.
-
-2. Phase 1 (strict cohort)
-- Set `SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE=on` for a limited cohort/environment.
-- Keep queue compatibility normalization enabled.
-- Stop/go checks:
-  - no unexpected rise in `VIDEO_ALIAS_COLLISION` or `VIDEO_CHARACTER_MEDIA_BLOCKED`,
-  - no increase in queue exhaustions caused by `VIDEO_QUEUE_PAYLOAD_INVALID`.
-- Re-run `sql/check_video_contract_rollout_metrics.sql` and keep evidence snapshots for each cohort window.
-
-3. Phase 2 (default strict)
-- Keep `SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE=on` as default.
-- Keep compatibility normalization enabled until legacy queue backlog is clear.
-- Confirm billing parity remains stable (estimate vs debit dimensions) for duration/resolution/audio/voice controls per model family.
-
-4. Phase 3 (legacy cleanup)
-- Disable queue legacy compatibility only when backlog is confirmed v2-only:
-  - set `SHORTPULSE_VIDEO_QUEUE_COMPAT_NORMALIZATION_ENABLED=false`.
-- Any remaining raw legacy queue rows should exhaust deterministically with `VIDEO_QUEUE_COMPAT_DISABLED`.
-- Remove obsolete legacy alias adapters only after telemetry remains clean through at least one release cycle.
+- There are no runtime rollout knobs for video submit canonicalization. Canonical mode is the only supported mode.
 
 ## Model usage
 

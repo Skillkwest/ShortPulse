@@ -1223,6 +1223,7 @@ export default function AiStudioPage() {
     handleRegenerateWithDebit,
     handleImageRegenerateWithDebit,
   } = useAiStudioGenerationController({
+    expertCreateMode,
     mode,
     selectedTool,
     model,
@@ -1264,6 +1265,7 @@ export default function AiStudioPage() {
   });
   const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt, disableAgentOutputGenerate } =
     useAiStudioAgentOutputGenerationBridge({
+      expertCreateMode,
       outputs,
       referenceGridReadyOutputIds,
       mode,

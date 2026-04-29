@@ -12,6 +12,7 @@ const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioGenerationController>[0]> = {}
 ): Parameters<typeof useAiStudioGenerationController>[0] => {
   const baseParams: Parameters<typeof useAiStudioGenerationController>[0] = {
+    expertCreateMode: "standard",
     mode: "image",
     selectedTool: "create",
     model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
@@ -312,7 +313,7 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).not.toHaveBeenCalled();
   });
 
-  it("keeps Pulse create submit on the agent lane even when the Standard toggle is off", async () => {
+  it("keeps Pulse create submit in the Pulse agent lane without writing Standard prompt references", async () => {
     const handleAgentSend = vi.fn(async () => ({
       prompt: "pulse bootstrap prompt",
       referenceTitle: "Pulse",
@@ -321,6 +322,7 @@ describe("useAiStudioGenerationController", () => {
     const setPromptOrigin = vi.fn();
     const generateOutput = vi.fn();
     const params = createParams({
+      expertCreateMode: "pulse",
       mode: "text",
       selectedTool: "create",
       prompt: "pulse draft",
@@ -340,8 +342,8 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(handleAgentSend).toHaveBeenCalledWith("pulse draft", { captureResult: true });
-    expect(addAgentPromptReference).toHaveBeenCalledWith("pulse bootstrap prompt", "Pulse");
-    expect(setPromptOrigin).toHaveBeenCalledWith("agent");
+    expect(addAgentPromptReference).not.toHaveBeenCalled();
+    expect(setPromptOrigin).not.toHaveBeenCalled();
     expect(generateOutput).not.toHaveBeenCalled();
   });
 

@@ -63,6 +63,7 @@ const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
+  expertCreateMode?: "standard" | "pulse";
   mode: StudioMode;
   selectedTool: ToolId | null;
   model: string | null;
@@ -171,6 +172,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
  * Returns stable generation action handlers and click-lock state for AI Studio orchestration.
  */
 export const useAiStudioGenerationController = <TBundle, TFallbackCode extends string>({
+  expertCreateMode = "standard",
   mode,
   selectedTool,
   model,
@@ -496,6 +498,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
       if (usesAgentLane) {
         handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
+          if (expertCreateMode === "pulse") return;
           const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
           if (agentRes?.prompt) {
             addAgentPromptReference(agentRes.prompt, agentRes.referenceTitle);
@@ -524,6 +527,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     addAgentPromptReference,
     agentInput,
     currentCostCredits,
+    expertCreateMode,
     handleAgentSend,
     handleGenerate,
     mode,

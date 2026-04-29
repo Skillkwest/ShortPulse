@@ -288,11 +288,6 @@ export function PresetsLibraryPanel({
               <h3 className="presets-library-edit-title">
                 {pendingPresetEdit.mode === "create" ? "Create New Preset" : "Edit Preset"}
               </h3>
-              <p className="tiny subdued presets-library-edit-copy">
-                {pendingPresetEdit.mode === "create"
-                  ? "Set the preset name and prompt text."
-                  : "Update preset name and prompt text."}
-              </p>
               <label className="presets-library-edit-label" htmlFor="preset-library-name-input">
                 Preset Name
               </label>

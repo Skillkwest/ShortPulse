@@ -115,7 +115,7 @@
   background: transparent;
   color: var(--create-expert-preset-muted-text, #c9cdd685);
   display: inline-flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 6px;
   font-size: 13px;
   font-weight: 500;
@@ -136,6 +136,8 @@
 
 .create-expert-presets-btn-label {
   min-width: 0;
+  display: block;
+  align-self: center;
   overflow-wrap: anywhere;
 }
 
@@ -546,27 +548,6 @@
 .create-expert-presets-custom-editor-textarea {
   min-height: 110px;
   resize: vertical;
-}
-
-.create-expert-presets-workflow-checklist {
-  border: 1px solid rgba(112, 187, 245, 0.22);
-  background: rgba(24, 36, 54, 0.72);
-  border-radius: 8px;
-  padding: 8px 10px;
-}
-
-.create-expert-presets-workflow-builder {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid rgba(201, 205, 214, 0.16);
-  border-radius: 8px;
-  background: rgba(15, 21, 32, 0.76);
-}
-
-.create-expert-presets-custom-editor-textarea--compact {
-  min-height: 84px;
 }
 
 .create-expert-presets-custom-editor-error {

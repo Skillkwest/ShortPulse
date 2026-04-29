@@ -27,7 +27,9 @@ export type UnifiedPresetsLibraryPanelProps = {
   ) => Promise<boolean> | boolean;
   promptSaveError?: string | null;
   savedPulsePresets?: readonly CreatePulseSavedPreset[];
-  onSavedPulsePresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
+  onSavedPulsePresetsChange?: (
+    presets: CreatePulseSavedPreset[]
+  ) => Promise<boolean> | boolean | void;
 };
 
 const FILTER_OPTIONS: ReadonlyArray<{
@@ -62,15 +64,14 @@ export function UnifiedPresetsLibraryPanel({
       <header className="merged-presets-library-header">
         <p className="eyebrow">Presets Library</p>
       </header>
-      <div className="merged-presets-library-filter-row" role="tablist" aria-label="Presets views">
+      <div className="merged-presets-library-filter-row" role="group" aria-label="Presets views">
         {FILTER_OPTIONS.map((option) => {
           const isActive = viewFilter === option.id;
           return (
             <button
               key={option.id}
               type="button"
-              role="tab"
-              aria-selected={isActive}
+              aria-pressed={isActive}
               className={`merged-presets-library-filter-chip ${isActive ? "is-active" : ""}`.trim()}
               onClick={() => setViewFilter(option.id)}
             >

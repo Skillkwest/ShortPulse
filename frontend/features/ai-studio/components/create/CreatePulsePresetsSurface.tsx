@@ -4,20 +4,7 @@
  */
 import React from "react";
 import { PencilSimpleLine } from "phosphor-react";
-import type {
-  CreatePulseActivationMode,
-  CreatePulsePresetId,
-  CreatePulseResolvedPreset,
-  CreatePulseRuntimeMode,
-  CreatePulseWorkflowBuilderDraft,
-} from "./createPulsePresets";
-import {
-  CREATE_PULSE_AUTHORING_TEMPLATE_DEFINITIONS,
-  CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
-  CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
-  composeCreatePulseWorkflowInstructions,
-  createCreatePulseWorkflowBuilderDraft,
-} from "./createPulsePresets";
+import type { CreatePulsePresetId, CreatePulseResolvedPreset } from "./createPulsePresets";
 
 export type CreatePulsePresetsSurfaceProps = {
   id: string;
@@ -40,37 +27,21 @@ export type CreatePulsePresetsSurfaceProps = {
     presetId: CreatePulsePresetId,
     draft: {
       label: string;
-      description: string;
       systemInstructions: string;
-      runtimeMode: CreatePulseRuntimeMode;
-      starterAssistantMessage: string;
-      workflowStageHintsText: string;
     }
-  ) => void;
+  ) => Promise<boolean> | boolean | void;
   isDropActive?: boolean;
   isActivationBusy?: boolean;
 };
 
 type EditorDraft = {
   label: string;
-  description: string;
   systemInstructions: string;
-  runtimeMode: CreatePulseRuntimeMode;
-  activationMode: CreatePulseActivationMode;
-  starterAssistantMessage: string;
-  workflowStageHintsText: string;
-  workflowBuilderDraft: CreatePulseWorkflowBuilderDraft;
 };
 
 const EMPTY_EDITOR_DRAFT: EditorDraft = {
   label: "",
-  description: "",
   systemInstructions: "",
-  runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
-  activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
-  starterAssistantMessage: "",
-  workflowStageHintsText: "",
-  workflowBuilderDraft: createCreatePulseWorkflowBuilderDraft(),
 };
 
 /**
@@ -100,15 +71,14 @@ export const CreatePulsePresetsSurface = ({
   const [editingPresetId, setEditingPresetId] = React.useState<CreatePulsePresetId | null>(null);
   const [editorDraft, setEditorDraft] = React.useState<EditorDraft>(EMPTY_EDITOR_DRAFT);
   const [editorError, setEditorError] = React.useState<string | null>(null);
-  const [showAdvancedSettings, setShowAdvancedSettings] = React.useState(false);
-  const isWorkflowDraft = editorDraft.runtimeMode === "workflow_gpt";
+  const [editorSubmitting, setEditorSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     if (!isOpen) {
       setEditingPresetId(null);
       setEditorDraft(EMPTY_EDITOR_DRAFT);
       setEditorError(null);
-      setShowAdvancedSettings(false);
+      setEditorSubmitting(false);
       return;
     }
     surfaceRef.current?.focus();
@@ -120,74 +90,50 @@ export const CreatePulsePresetsSurface = ({
   }, [editingPresetId]);
 
   const closeEditor = React.useCallback(() => {
+    if (editorSubmitting) return;
     setEditingPresetId(null);
     setEditorDraft(EMPTY_EDITOR_DRAFT);
     setEditorError(null);
-    setShowAdvancedSettings(false);
-  }, []);
+  }, [editorSubmitting]);
 
   const openEditor = React.useCallback((preset: CreatePulseResolvedPreset) => {
     if (!preset.isEditable) return;
     setEditingPresetId(preset.presetId);
     setEditorDraft({
       label: preset.label,
-      description: preset.description ?? "",
       systemInstructions: preset.systemInstructions,
-      runtimeMode: preset.runtimeMode,
-      activationMode: preset.activationMode,
-      starterAssistantMessage: preset.starterAssistantMessage ?? "",
-      workflowStageHintsText: (preset.workflowStageHints ?? []).join("\n"),
-      workflowBuilderDraft: createCreatePulseWorkflowBuilderDraft(
-        preset.description ?? preset.label
-      ),
     });
     setEditorError(null);
-    setShowAdvancedSettings(false);
   }, []);
 
-  const saveEditor = React.useCallback(() => {
-    if (!editingPresetId) return;
+  const saveEditor = React.useCallback(async () => {
+    if (!editingPresetId || editorSubmitting) return;
     const nextLabel = editorDraft.label.trim();
     const nextSystemInstructions = editorDraft.systemInstructions.trim();
     if (!nextLabel || !nextSystemInstructions) {
       setEditorError("Name and system instructions are required.");
       return;
     }
-    onCustomPresetSave?.(editingPresetId, {
-      label: nextLabel,
-      description: editorDraft.description.trim(),
-      systemInstructions: nextSystemInstructions,
-      runtimeMode: editorDraft.runtimeMode,
-      starterAssistantMessage: editorDraft.starterAssistantMessage.trim(),
-      workflowStageHintsText: editorDraft.workflowStageHintsText,
-    });
-    closeEditor();
-  }, [closeEditor, editingPresetId, editorDraft, onCustomPresetSave]);
-
-  const applyWorkflowTemplate = React.useCallback((templateId: string) => {
-    const template = CREATE_PULSE_AUTHORING_TEMPLATE_DEFINITIONS.find(
-      (entry) => entry.templateId === templateId
-    );
-    if (!template) return;
-    setEditorDraft((previous) => ({
-      ...previous,
-      runtimeMode: template.runtimeMode,
-      activationMode: template.activationMode,
-      description:
-        previous.description.trim().length > 0 ? previous.description : template.description,
-      systemInstructions: template.systemInstructions,
-      starterAssistantMessage: template.starterAssistantMessage,
-      workflowStageHintsText:
-        previous.workflowStageHintsText.trim().length > 0
-          ? previous.workflowStageHintsText
-          : (template.workflowStageHints ?? []).join("\n"),
-      workflowBuilderDraft:
-        previous.workflowBuilderDraft.roleGoal.trim().length > 0
-          ? previous.workflowBuilderDraft
-          : createCreatePulseWorkflowBuilderDraft(template.description),
-    }));
+    setEditorSubmitting(true);
     setEditorError(null);
-  }, []);
+    try {
+      const saved = await onCustomPresetSave?.(editingPresetId, {
+        label: nextLabel,
+        systemInstructions: nextSystemInstructions,
+      });
+      if (saved === false) {
+        setEditorError("Unable to save this Pulse right now.");
+        return;
+      }
+      setEditingPresetId(null);
+      setEditorDraft(EMPTY_EDITOR_DRAFT);
+      setEditorError(null);
+    } catch {
+      setEditorError("Unable to save this Pulse right now.");
+    } finally {
+      setEditorSubmitting(false);
+    }
+  }, [editingPresetId, editorDraft, editorSubmitting, onCustomPresetSave]);
 
   const shouldUseMutedCustomLabel = React.useCallback((preset: CreatePulseResolvedPreset) => {
     if (!preset.isCustom) return false;
@@ -400,252 +346,6 @@ export const CreatePulsePresetsSurface = ({
                   }
                 }}
               />
-              <button
-                type="button"
-                className="create-expert-presets-custom-editor-btn"
-                aria-expanded={showAdvancedSettings}
-                onClick={() => setShowAdvancedSettings((previous) => !previous)}
-              >
-                {showAdvancedSettings ? "Hide advanced settings" : "Show advanced settings"}
-              </button>
-              {showAdvancedSettings ? (
-                <div className="create-expert-presets-workflow-builder">
-                  <label
-                    className="create-expert-presets-custom-editor-label"
-                    htmlFor="create-pulse-preset-description-input"
-                  >
-                    Description
-                  </label>
-                  <input
-                    id="create-pulse-preset-description-input"
-                    type="text"
-                    className="create-expert-presets-custom-editor-input"
-                    value={editorDraft.description}
-                    maxLength={140}
-                    onChange={(event) => {
-                      setEditorDraft((previous) => ({
-                        ...previous,
-                        description: event.target.value,
-                      }));
-                      if (editorError) {
-                        setEditorError(null);
-                      }
-                    }}
-                  />
-                  <p className="tiny subdued helper-text">
-                    Pulses run as guided GPT-style chat profiles. Use the fields below to shape the
-                    first reply, step flow, and final artifact.
-                  </p>
-                  <div className="create-expert-presets-custom-editor-actions">
-                    {CREATE_PULSE_AUTHORING_TEMPLATE_DEFINITIONS.map((template) => (
-                      <button
-                        key={template.templateId}
-                        type="button"
-                        className="create-expert-presets-custom-editor-btn"
-                        onClick={() => applyWorkflowTemplate(template.templateId)}
-                      >
-                        {template.label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="tiny subdued helper-text">
-                    Templates preload a starter contract. Every Pulse still starts immediately when
-                    clicked in Create.
-                  </p>
-                  {isWorkflowDraft ? (
-                    <div
-                      className="create-expert-presets-workflow-checklist"
-                      aria-label="Workflow authoring checklist"
-                    >
-                      <p className="tiny subdued helper-text">
-                        Workflow checklist: define the exact first assistant message, keep the step
-                        flow one question at a time, and describe the final output shape explicitly.
-                      </p>
-                    </div>
-                  ) : null}
-                  {isWorkflowDraft ? (
-                    <>
-                      <label
-                        className="create-expert-presets-custom-editor-label"
-                        htmlFor="create-pulse-preset-workflow-role-goal-input"
-                      >
-                        Role & Goal
-                      </label>
-                      <textarea
-                        id="create-pulse-preset-workflow-role-goal-input"
-                        className="create-expert-presets-custom-editor-textarea create-expert-presets-custom-editor-textarea--compact"
-                        value={editorDraft.workflowBuilderDraft.roleGoal}
-                        rows={3}
-                        placeholder="What is this workflow Pulse responsible for producing?"
-                        onChange={(event) => {
-                          setEditorDraft((previous) => ({
-                            ...previous,
-                            workflowBuilderDraft: {
-                              ...previous.workflowBuilderDraft,
-                              roleGoal: event.target.value,
-                            },
-                          }));
-                          if (editorError) {
-                            setEditorError(null);
-                          }
-                        }}
-                      />
-                      <label
-                        className="create-expert-presets-custom-editor-label"
-                        htmlFor="create-pulse-preset-workflow-step-flow-input"
-                      >
-                        Step Flow
-                      </label>
-                      <textarea
-                        id="create-pulse-preset-workflow-step-flow-input"
-                        className="create-expert-presets-custom-editor-textarea create-expert-presets-custom-editor-textarea--compact"
-                        value={editorDraft.workflowBuilderDraft.stepFlow}
-                        rows={4}
-                        placeholder="List the exact step-by-step questions or phases the workflow should follow."
-                        onChange={(event) => {
-                          setEditorDraft((previous) => ({
-                            ...previous,
-                            workflowBuilderDraft: {
-                              ...previous.workflowBuilderDraft,
-                              stepFlow: event.target.value,
-                            },
-                          }));
-                          if (editorError) {
-                            setEditorError(null);
-                          }
-                        }}
-                      />
-                      <label
-                        className="create-expert-presets-custom-editor-label"
-                        htmlFor="create-pulse-preset-workflow-output-shape-input"
-                      >
-                        Final Output Shape
-                      </label>
-                      <textarea
-                        id="create-pulse-preset-workflow-output-shape-input"
-                        className="create-expert-presets-custom-editor-textarea create-expert-presets-custom-editor-textarea--compact"
-                        value={editorDraft.workflowBuilderDraft.outputShape}
-                        rows={3}
-                        placeholder="Describe the exact final artifact format the Pulse should return."
-                        onChange={(event) => {
-                          setEditorDraft((previous) => ({
-                            ...previous,
-                            workflowBuilderDraft: {
-                              ...previous.workflowBuilderDraft,
-                              outputShape: event.target.value,
-                            },
-                          }));
-                          if (editorError) {
-                            setEditorError(null);
-                          }
-                        }}
-                      />
-                      <label
-                        className="create-expert-presets-custom-editor-label"
-                        htmlFor="create-pulse-preset-workflow-guardrails-input"
-                      >
-                        Additional Rules
-                      </label>
-                      <textarea
-                        id="create-pulse-preset-workflow-guardrails-input"
-                        className="create-expert-presets-custom-editor-textarea create-expert-presets-custom-editor-textarea--compact"
-                        value={editorDraft.workflowBuilderDraft.guardrails}
-                        rows={4}
-                        placeholder="Add any continuity, safety, or formatting rules that should always apply."
-                        onChange={(event) => {
-                          setEditorDraft((previous) => ({
-                            ...previous,
-                            workflowBuilderDraft: {
-                              ...previous.workflowBuilderDraft,
-                              guardrails: event.target.value,
-                            },
-                          }));
-                          if (editorError) {
-                            setEditorError(null);
-                          }
-                        }}
-                      />
-                      <div className="create-expert-presets-custom-editor-actions">
-                        <button
-                          type="button"
-                          className="create-expert-presets-custom-editor-btn"
-                          onClick={() => {
-                            setEditorDraft((previous) => ({
-                              ...previous,
-                              systemInstructions: composeCreatePulseWorkflowInstructions(
-                                previous.workflowBuilderDraft
-                              ),
-                            }));
-                            if (editorError) {
-                              setEditorError(null);
-                            }
-                          }}
-                        >
-                          Compose Workflow Instructions
-                        </button>
-                      </div>
-                    </>
-                  ) : null}
-                  <label
-                    className="create-expert-presets-custom-editor-label"
-                    htmlFor="create-pulse-preset-starter-message-input"
-                  >
-                    Starter assistant message
-                  </label>
-                  <textarea
-                    id="create-pulse-preset-starter-message-input"
-                    className="create-expert-presets-custom-editor-textarea"
-                    value={editorDraft.starterAssistantMessage}
-                    rows={3}
-                    placeholder="Optional. Use this when the first assistant reply should start with a specific message."
-                    onChange={(event) => {
-                      setEditorDraft((previous) => ({
-                        ...previous,
-                        starterAssistantMessage: event.target.value,
-                      }));
-                      if (editorError) {
-                        setEditorError(null);
-                      }
-                    }}
-                  />
-                  <p className="tiny subdued helper-text">
-                    Optional. Pulse clicks always start immediately. Use this only when the first
-                    assistant reply should begin with a specific message.
-                  </p>
-                  {isWorkflowDraft ? (
-                    <>
-                      <label
-                        className="create-expert-presets-custom-editor-label"
-                        htmlFor="create-pulse-preset-stage-hints-input"
-                      >
-                        Workflow Stage Labels
-                      </label>
-                      <textarea
-                        id="create-pulse-preset-stage-hints-input"
-                        className="create-expert-presets-custom-editor-textarea create-expert-presets-custom-editor-textarea--compact"
-                        value={editorDraft.workflowStageHintsText}
-                        rows={4}
-                        placeholder={
-                          "Image Gate\nCamera Motion\nAction Selection\nDialogue\nFinal Output"
-                        }
-                        onChange={(event) => {
-                          setEditorDraft((previous) => ({
-                            ...previous,
-                            workflowStageHintsText: event.target.value,
-                          }));
-                          if (editorError) {
-                            setEditorError(null);
-                          }
-                        }}
-                      />
-                      <p className="tiny subdued helper-text">
-                        Optional. One stage label per line. Used by the Create chat banner when
-                        workflow replies do not include explicit Step N formatting.
-                      </p>
-                    </>
-                  ) : null}
-                </div>
-              ) : null}
               {editorError ? (
                 <p className="create-expert-presets-custom-editor-error">{editorError}</p>
               ) : null}
@@ -655,15 +355,19 @@ export const CreatePulsePresetsSurface = ({
                 type="button"
                 className="create-expert-presets-custom-editor-btn"
                 onClick={closeEditor}
+                disabled={editorSubmitting}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 className="create-expert-presets-custom-editor-btn is-primary"
-                onClick={saveEditor}
+                onClick={() => {
+                  void saveEditor();
+                }}
+                disabled={editorSubmitting}
               >
-                Save
+                {editorSubmitting ? "Saving..." : "Save"}
               </button>
             </div>
           </div>

@@ -27,9 +27,11 @@ type CreateExpertPresetPanelProps = {
     preset: CreatePulseResolvedPreset
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   selectedPresetIds?: readonly CreatePulsePresetId[];
-  onSelectedPresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
+  onSelectedPresetIdsChange?: (
+    presetIds: CreatePulsePresetId[]
+  ) => Promise<boolean> | boolean | void;
   savedPresets?: readonly CreatePulseSavedPreset[];
-  onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
+  onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => Promise<boolean> | boolean | void;
   onOpenPresetsLibrary?: () => void;
   isActivationBusy?: boolean;
 };
@@ -78,7 +80,7 @@ export function CreateExpertPresetPanel({
 
   const handlePulseLibrarySavedPresetsChange = React.useCallback(
     (nextSavedPresets: CreatePulseSavedPreset[]) => {
-      updateSavedPresets(() => nextSavedPresets);
+      return updateSavedPresets(() => nextSavedPresets);
     },
     [updateSavedPresets]
   );

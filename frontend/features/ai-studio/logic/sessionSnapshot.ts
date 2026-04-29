@@ -430,9 +430,7 @@ const sanitizePulseWorkflowSession = (
       ? session.lastArtifact.trim()
       : null;
   const finalArtifactSource =
-    session.finalArtifactSource === "apply_prompt" || session.finalArtifactSource === "chat_reply"
-      ? session.finalArtifactSource
-      : null;
+    session.finalArtifactSource === "chat_reply" ? session.finalArtifactSource : null;
   return {
     presetId,
     status: sanitizePulseWorkflowStatus(session.status),

@@ -352,27 +352,6 @@
   resize: vertical;
 }
 
-.pulse-presets-library-workflow-checklist {
-  border: 1px solid rgba(109, 190, 255, 0.2);
-  background: rgba(19, 33, 49, 0.78);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.pulse-presets-library-workflow-builder {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid rgba(201, 205, 214, 0.16);
-  border-radius: 10px;
-  background: rgba(16, 18, 21, 0.72);
-}
-
-.pulse-presets-library-edit-textarea--compact {
-  min-height: 112px;
-}
-
 .pulse-presets-library-edit-error {
   margin: 0;
   font-size: 14px;

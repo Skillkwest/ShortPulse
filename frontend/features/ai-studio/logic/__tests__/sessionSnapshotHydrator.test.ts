@@ -113,13 +113,13 @@ describe("sessionSnapshotHydrator", () => {
         workspace: {
           ...createSnapshot().workspace,
           expertCreateMode: "pulse",
-          activePulsePresetId: "single_shot",
+          activePulsePresetId: "multi_shot",
         },
       })
     );
 
     expect(payload.workspace.expertCreateMode).toBe("pulse");
-    expect(payload.workspace.activePulsePresetId).toBe("single_shot");
+    expect(payload.workspace.activePulsePresetId).toBe("multi_shot");
     expect(payload.workspace.pulseSessionInstanceId).toMatch(/^pulse_restore_/);
     expect(payload.workspace.standardPrompt).toBe("");
     expect(payload.workspace.pulsePrompt).toBe("prompt");
@@ -150,7 +150,7 @@ describe("sessionSnapshotHydrator", () => {
           standardPrompt: "Standard draft prompt",
           pulsePrompt: "Pulse artifact prompt",
           expertCreateMode: "pulse",
-          activePulsePresetId: "single_shot",
+          activePulsePresetId: "multi_shot",
         },
       })
     );

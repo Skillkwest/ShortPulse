@@ -105,7 +105,7 @@ describe("sessionSnapshot", () => {
       model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       aspect: "9:16",
       expertCreateMode: "pulse",
-      activePulsePresetId: "single_shot",
+      activePulsePresetId: "multi_shot",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",
@@ -136,7 +136,7 @@ describe("sessionSnapshot", () => {
       promptOrigin: "agent",
       chatModeEnabled: true,
       pulseWorkflowSession: {
-        presetId: "single_shot",
+        presetId: "multi_shot",
         status: "awaiting_input",
         currentStepIndex: 2,
         currentStepLabel: "Action",
@@ -155,7 +155,7 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.pulsePrompt).toBe("A cinematic portrait");
     expect(snapshot.workspace.klingWorkflowMode).toBe("multi");
     expect(snapshot.workspace.expertCreateMode).toBe("pulse");
-    expect(snapshot.workspace.activePulsePresetId).toBe("single_shot");
+    expect(snapshot.workspace.activePulsePresetId).toBe("multi_shot");
     expect(snapshot.outputs.active[0]?.id).toBe("out-1");
     expect(snapshot.agent.messages).toEqual([]);
     expect(snapshot.agentRuntimes).toEqual({
@@ -167,7 +167,7 @@ describe("sessionSnapshot", () => {
         chatModeEnabled: true,
         pulseWorkflowSession: null,
       },
-      pulsePresetId: "single_shot",
+      pulsePresetId: "multi_shot",
       pulse: {
         messages: [{ id: "a-1", role: "assistant", content: "Here is your prompt." }],
         input: "",
@@ -175,7 +175,7 @@ describe("sessionSnapshot", () => {
         promptOrigin: "agent",
         chatModeEnabled: true,
         pulseWorkflowSession: {
-          presetId: "single_shot",
+          presetId: "multi_shot",
           status: "awaiting_input",
           currentStepIndex: 2,
           currentStepLabel: "Action",
@@ -205,7 +205,7 @@ describe("sessionSnapshot", () => {
       model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       aspect: "9:16",
       expertCreateMode: "pulse",
-      activePulsePresetId: "single_shot",
+      activePulsePresetId: "multi_shot",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",
@@ -323,7 +323,7 @@ describe("sessionSnapshot", () => {
       model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       aspect: "9:16",
       expertCreateMode: "pulse",
-      activePulsePresetId: "single_shot",
+      activePulsePresetId: "multi_shot",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",
@@ -354,7 +354,7 @@ describe("sessionSnapshot", () => {
       promptOrigin: "agent",
       chatModeEnabled: false,
       pulseWorkflowSession: {
-        presetId: "single_shot",
+        presetId: "multi_shot",
         status: "awaiting_input",
         currentStepIndex: 2,
         currentStepLabel: "Action",

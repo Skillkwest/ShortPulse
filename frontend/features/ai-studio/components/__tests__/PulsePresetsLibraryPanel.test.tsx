@@ -2,7 +2,7 @@
  * PulsePresetsLibraryPanel tests.
  * Verifies the shared Pulse panel supports custom create/edit/delete flows.
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PulsePresetsLibraryPanel } from "../PulsePresetsLibraryPanel";
 
@@ -16,7 +16,7 @@ describe("PulsePresetsLibraryPanel", () => {
         /Manage the shared Pulse catalog here\. Activate Pulses from the Create Pulse rail or More Pulses\./
       )
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create new pulse preset" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create new pulse" })).toBeInTheDocument();
   });
 
   it("shows custom ownership without built-in pills in the library tiles", () => {
@@ -44,14 +44,15 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(screen.queryByText("Built-in")).not.toBeInTheDocument();
   });
 
-  it("creates a new shared custom pulse preset", () => {
+  it("creates a new shared custom pulse preset", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
       <PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create new pulse" }));
+    expect(screen.getByRole("heading", { name: "Create New Pulse" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Preset Name"), {
       target: { value: "Storyboard" },
     });
@@ -60,119 +61,38 @@ describe("PulsePresetsLibraryPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
-    expect(onSavedPresetsChange).toHaveBeenCalledTimes(1);
-    expect(onSavedPresetsChange.mock.calls[0]?.[0]).toEqual([
-      expect.objectContaining({
-        label: "Storyboard",
-        systemInstructions: "Build a storyboard-ready pulse sequence.",
-        runtimeMode: "workflow_gpt",
-        activationMode: "activate_and_start",
-        outputMode: "chat_reply",
-      }),
-    ]);
+    await waitFor(() => {
+      expect(onSavedPresetsChange).toHaveBeenCalledTimes(1);
+      expect(onSavedPresetsChange.mock.calls[0]?.[0]).toEqual([
+        expect.objectContaining({
+          label: "Storyboard",
+          systemInstructions: "Build a storyboard-ready pulse sequence.",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+        }),
+      ]);
+    });
   });
 
-  it("applies a workflow template when creating a new pulse preset", () => {
-    const onSavedPresetsChange = vi.fn();
-
-    render(
-      <PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
-    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
-    fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Workflow" }));
-    fireEvent.change(screen.getByLabelText("Preset Name"), {
-      target: { value: "My Multi Sequence Pulse" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Create" }));
-
-    expect(onSavedPresetsChange).toHaveBeenCalledTimes(1);
-    expect(onSavedPresetsChange.mock.calls[0]?.[0]).toEqual([
-      expect.objectContaining({
-        label: "My Multi Sequence Pulse",
-        runtimeMode: "workflow_gpt",
-        activationMode: "activate_and_start",
-        starterAssistantMessage:
-          "Step 1 - Upload: Please upload the image you want to base the scene on.",
-        workflowStageHints: [
-          "Image Intake",
-          "Action Arc",
-          "Dialog",
-          "Storyboard Build",
-          "Final Prompt",
-        ],
-        outputMode: "chat_reply",
-      }),
-    ]);
-  });
-
-  it("saves workflow stage labels for custom workflow pulses", () => {
-    const onSavedPresetsChange = vi.fn();
-
-    render(
-      <PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
-    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
-    fireEvent.change(screen.getByLabelText("Preset Name"), {
-      target: { value: "Guided Video Pulse" },
-    });
-    fireEvent.change(screen.getByLabelText("System Instructions"), {
-      target: { value: "Guide the user through a short video workflow." },
-    });
-    fireEvent.change(screen.getByLabelText("Workflow Stage Labels"), {
-      target: { value: "Image Gate\nCamera Motion\nAction\nFinal Prompt" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Create" }));
-
-    expect(onSavedPresetsChange).toHaveBeenCalledWith([
-      expect.objectContaining({
-        label: "Guided Video Pulse",
-        workflowStageHints: ["Image Gate", "Camera Motion", "Action", "Final Prompt"],
-      }),
-    ]);
-  });
-
-  it("keeps advanced workflow controls hidden until requested", () => {
+  it("keeps pulse authoring limited to name and system instructions", () => {
     render(<PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
-    expect(
-      screen.queryByText("Pulses run as guided GPT-style chat profiles.")
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create new pulse" }));
 
     expect(screen.getByLabelText("System Instructions")).toBeInTheDocument();
-    expect(screen.getByLabelText("Starter Assistant Message")).toBeInTheDocument();
-    expect(screen.getByLabelText("Workflow authoring checklist")).toBeInTheDocument();
-    expect(screen.getByText(/Pulses run as guided GPT-style chat profiles\./)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Activate it later from the Create Pulse rail or More Pulses/)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Show advanced settings" })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Starter Assistant Message")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Workflow Stage Labels")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Role & Goal")).not.toBeInTheDocument();
   });
 
-  it("composes workflow instructions from structured workflow builder fields", () => {
-    render(<PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
-    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
-    fireEvent.change(screen.getByLabelText("Role & Goal"), {
-      target: { value: "Turn one uploaded image into a guided ad-video workflow." },
-    });
-    fireEvent.change(screen.getByLabelText("Step Flow"), {
-      target: { value: "1. Ask for the image.\n2. Ask for the hook.\n3. Ask for the CTA." },
-    });
-    fireEvent.change(screen.getByLabelText("Final Output Shape"), {
-      target: { value: "Return one final prompt block with hook, sequence, and CTA." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Compose Workflow Instructions" }));
-
-    const instructionsField = screen.getByLabelText("System Instructions") as HTMLTextAreaElement;
-    expect(instructionsField.value).toContain("ROLE & GOAL");
-    expect(instructionsField.value).toContain("FINAL OUTPUT SHAPE");
-  });
-
-  it("clicking a built-in pulse preset opens edit and saves a personal override", () => {
+  it("clicking a built-in pulse preset opens edit and saves a personal override", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -190,17 +110,82 @@ describe("PulsePresetsLibraryPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(onSavedPresetsChange).toHaveBeenCalledWith([
-      expect.objectContaining({
-        presetId: "image",
-        label: "Image Director",
-        systemInstructions:
-          "Lead with a single polished hero image and one unmistakable visual hook.",
-      }),
-    ]);
+    await waitFor(() => {
+      expect(onSavedPresetsChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          presetId: "image",
+          label: "Image Director",
+          systemInstructions:
+            "Lead with a single polished hero image and one unmistakable visual hook.",
+        }),
+      ]);
+    });
   });
 
-  it("deletes a shared custom pulse preset", () => {
+  it("clears hidden custom pulse metadata when saving from the simple editor", async () => {
+    const onSavedPresetsChange = vi.fn();
+
+    render(
+      <PulsePresetsLibraryPanel
+        savedPresets={[
+          {
+            presetId: "pulse_storyboard",
+            label: "Storyboard",
+            description: "Old hidden description.",
+            systemInstructions: "Old instructions.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Old hidden starter.",
+            workflowStageHints: ["Old", "Hidden", "Hints"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            createdAt: null,
+          },
+        ]}
+        onSavedPresetsChange={onSavedPresetsChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Inspect pulse preset tile: Storyboard" }));
+    fireEvent.change(screen.getByLabelText("System Instructions"), {
+      target: { value: "Use only these visible instructions." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSavedPresetsChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          presetId: "pulse_storyboard",
+          description: null,
+          systemInstructions: "Use only these visible instructions.",
+          starterAssistantMessage: null,
+          workflowStageHints: null,
+        }),
+      ]);
+    });
+  });
+
+  it("keeps the editor open and shows an error when Pulse save fails", async () => {
+    const onSavedPresetsChange = vi.fn().mockResolvedValue(false);
+
+    render(
+      <PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Create new pulse" }));
+    fireEvent.change(screen.getByLabelText("Preset Name"), {
+      target: { value: "Storyboard" },
+    });
+    fireEvent.change(screen.getByLabelText("System Instructions"), {
+      target: { value: "Build a storyboard-ready pulse sequence." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    expect(await screen.findByText("Unable to save this Pulse right now.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Create New Pulse" })).toBeInTheDocument();
+  });
+
+  it("deletes a shared custom pulse preset", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -226,6 +211,8 @@ describe("PulsePresetsLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete pulse preset: Storyboard" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(onSavedPresetsChange).toHaveBeenCalledWith([]);
+    await waitFor(() => {
+      expect(onSavedPresetsChange).toHaveBeenCalledWith([]);
+    });
   });
 });

@@ -31,10 +31,10 @@ type UseCreatePulsePresetRuntimeParams = {
   activePresetId: CreatePulsePresetId | null;
   updateSelectedPresetIds: (
     updater: (previous: CreatePulsePresetId[]) => CreatePulsePresetId[]
-  ) => void;
+  ) => Promise<boolean> | boolean;
   updateSavedPresets: (
     updater: (previous: CreatePulseSavedPreset[]) => CreatePulseSavedPreset[]
-  ) => void;
+  ) => Promise<boolean> | boolean;
   setActivePresetId: (presetId: CreatePulsePresetId | null) => string | null | void;
   onPresetStart?: (
     preset: CreatePulseResolvedPreset,
@@ -78,9 +78,9 @@ export const useCreatePulsePresetRuntime = ({
   }, []);
 
   const addPresetToPanel = React.useCallback(
-    (presetId: CreatePulsePresetId | null | undefined) => {
-      if (!presetId) return;
-      updateSelectedPresetIds((previous) => {
+    async (presetId: CreatePulsePresetId | null | undefined) => {
+      if (!presetId) return true;
+      const saved = await updateSelectedPresetIds((previous) => {
         if (previous.includes(presetId)) return previous;
         if (previous.length >= CREATE_PULSE_PANEL_MAX) {
           showStatusToast(CREATE_PULSE_PRESET_PANEL_LIMIT_TOAST, "warning");
@@ -88,23 +88,33 @@ export const useCreatePulsePresetRuntime = ({
         }
         return sortCreatePulsePresetIdsByCanonicalOrder([...previous, presetId], savedPresets);
       });
+      if (!saved) {
+        showPersistentStatus("Unable to save the Pulse rail right now.", "warning");
+      }
+      return saved;
     },
-    [savedPresets, showStatusToast, updateSelectedPresetIds]
+    [savedPresets, showPersistentStatus, showStatusToast, updateSelectedPresetIds]
   );
 
   const removePresetFromPanel = React.useCallback(
-    (presetId: CreatePulsePresetId | null | undefined) => {
-      if (!presetId) return;
-      if (activePresetId === presetId) {
-        setActivePresetId(null);
-      }
-      updateSelectedPresetIds((previous) =>
+    async (presetId: CreatePulsePresetId | null | undefined) => {
+      if (!presetId) return true;
+      const wasActivePreset = activePresetId === presetId;
+      const saved = await updateSelectedPresetIds((previous) =>
         previous.includes(presetId)
           ? previous.filter((candidatePresetId) => candidatePresetId !== presetId)
           : previous
       );
+      if (!saved) {
+        showPersistentStatus("Unable to save the Pulse rail right now.", "warning");
+        return false;
+      }
+      if (wasActivePreset) {
+        setActivePresetId(null);
+      }
+      return saved;
     },
-    [activePresetId, setActivePresetId, updateSelectedPresetIds]
+    [activePresetId, setActivePresetId, showPersistentStatus, updateSelectedPresetIds]
   );
 
   const handlePanelPresetApply = React.useCallback(
@@ -122,9 +132,6 @@ export const useCreatePulsePresetRuntime = ({
       }
       clearStatusMessage();
       const pulseSessionInstanceId = setActivePresetId(presetId) ?? null;
-      if (previousActivePresetId === presetId && !pulseSessionInstanceId) {
-        return { status: "started" } satisfies CreatePulsePresetStartResult;
-      }
       let startResult: CreatePulsePresetStartResult = { status: "started" };
       if (resolvedPreset) {
         startResult = (await onPresetStart?.(resolvedPreset, {
@@ -163,46 +170,51 @@ export const useCreatePulsePresetRuntime = ({
 
   const handleSurfacePresetSelect = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
-      addPresetToPanel(presetId);
+      const saved = await addPresetToPanel(presetId);
+      if (!saved) {
+        return {
+          status: "failed",
+          reason: "preference_save_failed",
+          message: "Unable to save this Pulse to the rail right now.",
+        } satisfies CreatePulsePresetStartResult;
+      }
       return handlePanelPresetApply(presetId);
     },
     [addPresetToPanel, handlePanelPresetApply]
   );
 
   const handleCustomPresetSave = React.useCallback(
-    (
+    async (
       presetId: CreatePulsePresetId,
       draft: {
         label: string;
-        description: string;
         systemInstructions: string;
-        runtimeMode: "prompt_editor" | "workflow_gpt";
-        starterAssistantMessage: string;
-        workflowStageHintsText: string;
       }
     ) => {
-      const workflowStageHints = draft.workflowStageHintsText
-        .split(/\r?\n/)
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0);
-      updateSavedPresets((previous) => {
+      const saved = await updateSavedPresets((previous) => {
         const existingPreset = previous.find((preset) => preset.presetId === presetId);
         return upsertCreatePulseSavedPreset(previous, {
           presetId,
           label: draft.label,
-          description: draft.description || null,
+          description: null,
           systemInstructions: draft.systemInstructions,
           runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
           activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
-          starterAssistantMessage: draft.starterAssistantMessage || null,
-          workflowStageHints: workflowStageHints.length > 0 ? workflowStageHints : null,
+          starterAssistantMessage: null,
+          workflowStageHints: null,
           outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
           memoryPolicy: "session",
           createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
         });
       });
+      if (saved === false) {
+        showPersistentStatus("Unable to save this Pulse right now.", "warning");
+        return false;
+      }
+      clearStatusMessage();
+      return true;
     },
-    [updateSavedPresets]
+    [clearStatusMessage, showPersistentStatus, updateSavedPresets]
   );
 
   const beginPresetDragSession = React.useCallback(
@@ -292,7 +304,7 @@ export const useCreatePulsePresetRuntime = ({
       event.preventDefault();
       event.stopPropagation();
       setIsPresetPanelDropActive(false);
-      addPresetToPanel(payload.presetId);
+      void addPresetToPanel(payload.presetId);
     },
     [addPresetToPanel]
   );
@@ -323,7 +335,7 @@ export const useCreatePulsePresetRuntime = ({
       event.preventDefault();
       event.stopPropagation();
       setIsPresetsSurfaceDropActive(false);
-      removePresetFromPanel(payload.presetId);
+      void removePresetFromPanel(payload.presetId);
     },
     [removePresetFromPanel]
   );

@@ -46,10 +46,10 @@ describe("CreateExpertPresetPanel", () => {
     const onActivePresetIdChange = vi.fn();
     render(<CreateExpertPresetPanel onActivePresetIdChange={onActivePresetIdChange} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Single-shot preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("single_shot");
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("multi_shot");
     });
   });
 
@@ -94,9 +94,8 @@ describe("CreateExpertPresetPanel", () => {
     });
   });
 
-  it("starts custom pulses immediately even when the saved activation mode is activate only", async () => {
+  it("drops retired built-in saved overrides from the catalog", () => {
     const onActivePresetIdChange = vi.fn();
-    const onPresetStart = vi.fn().mockResolvedValue(undefined);
 
     render(
       <CreateExpertPresetPanel
@@ -104,7 +103,7 @@ describe("CreateExpertPresetPanel", () => {
           {
             presetId: "single_shot",
             label: "Single-shot",
-            description: "Single-shot pulse override.",
+            description: "Retired pulse override.",
             systemInstructions: "Guide the user through story beats and camera planning.",
             runtimeMode: "workflow_gpt",
             activationMode: "activate_and_start",
@@ -116,22 +115,10 @@ describe("CreateExpertPresetPanel", () => {
         ]}
         onSavedPresetsChange={vi.fn()}
         onActivePresetIdChange={onActivePresetIdChange}
-        onPresetStart={onPresetStart}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Single-shot preset" }));
-
-    await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("single_shot");
-      expect(onPresetStart).toHaveBeenCalledWith(
-        expect.objectContaining({
-          presetId: "single_shot",
-          activationMode: "activate_and_start",
-        }),
-        expect.objectContaining({ pulseSessionInstanceId: null })
-      );
-    });
+    expect(screen.queryByRole("button", { name: "Single-shot preset" })).not.toBeInTheDocument();
   });
 
   it("starts the built-in story builder workflow immediately on click", async () => {
@@ -145,7 +132,7 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
     await waitFor(() => {
       expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder");
@@ -175,7 +162,7 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
     await waitFor(() => {
       expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder");
@@ -201,20 +188,47 @@ describe("CreateExpertPresetPanel", () => {
 
     render(
       <CreateExpertPresetPanel
-        activePresetId="single_shot"
+        activePresetId="image"
         onActivePresetIdChange={onActivePresetIdChange}
         onPresetStart={onPresetStart}
         isActivationBusy
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
     expect(onActivePresetIdChange).not.toHaveBeenCalled();
     expect(onPresetStart).not.toHaveBeenCalled();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Wait for the current Pulse step to finish before switching."
     );
+  });
+
+  it("retries kickoff when the active pulse preset is clicked again", async () => {
+    const onActivePresetIdChange = vi.fn(() => null);
+    const onPresetStart = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CreateExpertPresetPanel
+        activePresetId="image"
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
+
+    await waitFor(() => {
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("image");
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presetId: "image",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+        }),
+        expect.objectContaining({ pulseSessionInstanceId: null })
+      );
+    });
   });
 
   it("opens the Pulses surface and saves a custom preset override", async () => {
@@ -226,12 +240,13 @@ describe("CreateExpertPresetPanel", () => {
           {
             presetId: "pulse_storyboard",
             label: "Storyboard",
-            description: null,
+            description: "Old hidden description.",
             systemInstructions:
               "Map the concept as a visual storyboard with scene intent for each beat.",
             runtimeMode: "workflow_gpt",
             activationMode: "activate_and_start",
-            starterAssistantMessage: null,
+            starterAssistantMessage: "Old hidden starter.",
+            workflowStageHints: ["Old", "Hidden", "Hints"],
             outputMode: "chat_reply",
             memoryPolicy: "session",
             createdAt: null,
@@ -274,13 +289,18 @@ describe("CreateExpertPresetPanel", () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
-      <CreateExpertPresetPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
+      <CreateExpertPresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={vi.fn()}
+        savedPresets={[]}
+        onSavedPresetsChange={onSavedPresetsChange}
+      />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit Ad Hook preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit DFY Story Builder preset" }));
     fireEvent.change(screen.getByLabelText("Preset name"), {
-      target: { value: "Ad Director" },
+      target: { value: "DFY Story Director" },
     });
     fireEvent.change(screen.getByLabelText("System instructions"), {
       target: { value: "Open with a fast paid-social visual hook and a clean benefit reveal." },
@@ -290,9 +310,9 @@ describe("CreateExpertPresetPanel", () => {
     await waitFor(() => {
       expect(onSavedPresetsChange).toHaveBeenCalledWith([
         {
-          presetId: "ad_hook",
-          label: "Ad Director",
-          description: "Hook-first ad creative prompt shaper.",
+          presetId: "story_builder",
+          label: "DFY Story Director",
+          description: null,
           systemInstructions:
             "Open with a fast paid-social visual hook and a clean benefit reveal.",
           runtimeMode: "workflow_gpt",
@@ -305,6 +325,29 @@ describe("CreateExpertPresetPanel", () => {
         },
       ]);
     });
+  });
+
+  it("keeps the More Pulses editor open when saving fails", async () => {
+    const onSavedPresetsChange = vi.fn().mockResolvedValue(false);
+
+    render(
+      <CreateExpertPresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={vi.fn()}
+        savedPresets={[]}
+        onSavedPresetsChange={onSavedPresetsChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Video Prompt Magic preset" }));
+    fireEvent.change(screen.getByLabelText("System instructions"), {
+      target: { value: "Use only these visible instructions." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Unable to save this Pulse right now.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Edit pulse preset" })).toBeInTheDocument();
   });
 
   it("opens the Pulse Library modal from the More Pulses surface", () => {
@@ -348,26 +391,26 @@ describe("CreateExpertPresetPanel", () => {
     expect(within(pulsesSurface).getByText("Custom")).toBeInTheDocument();
   });
 
-  it("composes workflow instructions from structured fields in the Pulses editor", () => {
-    render(<CreateExpertPresetPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
+  it("keeps the More Pulses editor limited to name and system instructions", () => {
+    render(
+      <CreateExpertPresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={vi.fn()}
+        savedPresets={[]}
+        onSavedPresetsChange={vi.fn()}
+      />
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit Ad Hook preset" }));
-    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
-    fireEvent.change(screen.getByLabelText("Role & Goal"), {
-      target: { value: "Guide one image into a short ad-video prompt workflow." },
-    });
-    fireEvent.change(screen.getByLabelText("Step Flow"), {
-      target: { value: "1. Ask for the image.\n2. Ask for movement.\n3. Ask for dialogue." },
-    });
-    fireEvent.change(screen.getByLabelText("Final Output Shape"), {
-      target: { value: "Return one final copy-paste prompt block." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Compose Workflow Instructions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Video Prompt Magic preset" }));
 
-    const instructionsField = screen.getByLabelText("System instructions") as HTMLTextAreaElement;
-    expect(instructionsField.value).toContain("STEP FLOW");
-    expect(instructionsField.value).toContain("ADDITIONAL RULES");
+    expect(screen.getByLabelText("System instructions")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Show advanced settings" })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Starter assistant message")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Workflow Stage Labels")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Role & Goal")).not.toBeInTheDocument();
   });
 
   it("pins a preset from the Pulses surface into the panel via drag and drop", async () => {
@@ -382,7 +425,7 @@ describe("CreateExpertPresetPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    const surfaceChip = screen.getByRole("button", { name: "Ad Hook" });
+    const surfaceChip = screen.getByRole("button", { name: "Multi Sequence Video Prompt" });
     const panelDropzone = screen.getByLabelText("Pulse preset panel list");
 
     fireEvent.dragStart(surfaceChip, { dataTransfer: transfer });
@@ -390,7 +433,7 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.drop(panelDropzone, { dataTransfer: transfer });
 
     await waitFor(() => {
-      expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["ad_hook"]);
+      expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["multi_shot"]);
     });
   });
 
@@ -409,14 +452,14 @@ describe("CreateExpertPresetPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    fireEvent.click(screen.getByRole("button", { name: "Ad Hook" }));
+    fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt" }));
 
     await waitFor(() => {
-      expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["ad_hook"]);
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("ad_hook");
+      expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["multi_shot"]);
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("multi_shot");
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
-          presetId: "ad_hook",
+          presetId: "multi_shot",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
         }),
@@ -425,5 +468,27 @@ describe("CreateExpertPresetPanel", () => {
     });
 
     expect(screen.queryByRole("region", { name: "Pulses" })).not.toBeInTheDocument();
+  });
+
+  it("surfaces Pulse rail save failures when pinning from the More Pulses surface", async () => {
+    const onSelectedPresetIdsChange = vi.fn().mockResolvedValue(false);
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn();
+
+    render(
+      <CreateExpertPresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={onSelectedPresetIdsChange}
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt" }));
+
+    expect(await screen.findByText("Unable to save the Pulse rail right now.")).toBeInTheDocument();
+    expect(onActivePresetIdChange).not.toHaveBeenCalled();
+    expect(onPresetStart).not.toHaveBeenCalled();
   });
 });

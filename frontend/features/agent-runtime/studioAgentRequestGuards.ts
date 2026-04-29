@@ -153,7 +153,10 @@ const sanitizeStudioAgentPulseContext = (
     typeof pulse.description === "string" && pulse.description.trim().length > 0
       ? pulse.description.trim()
       : null;
-  const instructions = sanitizeGenerationPromptText(pulse.instructions ?? null) ?? null;
+  const instructions =
+    typeof pulse.instructions === "string" && pulse.instructions.trim().length > 0
+      ? pulse.instructions.trim()
+      : null;
   const starterAssistantMessage =
     typeof pulse.starterAssistantMessage === "string" &&
     pulse.starterAssistantMessage.trim().length > 0

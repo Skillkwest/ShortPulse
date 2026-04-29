@@ -241,6 +241,57 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(result.result.repairUsed).toBe(false);
   });
 
+  it("preserves unstructured workflow Pulse text as a visible chat reply", async () => {
+    fetchStudioAgentChatCompletionMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: "What product should anchor the first shot?",
+            },
+          },
+        ],
+      }),
+    });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: 'Pulse "Custom Pulse" was just activated.' }],
+      timeoutMs: 20000,
+      effectiveCanonical: null,
+      context: {
+        pulse: {
+          presetId: "pulse_custom",
+          label: "Custom Pulse",
+          instructions: "Ask one setup question before generating.",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          source: "custom",
+        },
+      },
+      messages: [{ role: "user", content: 'Pulse "Custom Pulse" was just activated.' }],
+      markStage,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(1);
+    expect(result.result.parsed).toEqual(
+      expect.objectContaining({
+        message: "What product should anchor the first shot?",
+        actions: undefined,
+      })
+    );
+    expect(result.result.semanticStatus).toBe("needs_input");
+    expect(result.result.repairUsed).toBe(false);
+  });
+
   it("repairs malformed fast-path output with one bounded repair turn", async () => {
     fetchStudioAgentChatCompletionMock
       .mockResolvedValueOnce({

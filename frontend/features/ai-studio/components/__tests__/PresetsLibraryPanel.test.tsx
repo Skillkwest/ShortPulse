@@ -129,6 +129,7 @@ describe("PresetsLibraryPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Create new preset" }));
     expect(screen.getByRole("dialog", { name: "Create Custom 4 preset" })).toBeInTheDocument();
+    expect(screen.queryByText("Set the preset name and prompt text.")).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Preset Name"), {
       target: { value: "Action Detail" },

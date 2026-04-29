@@ -43,7 +43,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
           model: "model-1",
           aspect: "9:16",
           expertCreateMode: "pulse",
-          activePulsePresetId: "single_shot",
+          activePulsePresetId: "multi_shot",
           referenceImageUrl: null,
           extraImageUrls: [null, null, null],
           editReferenceText: "",
@@ -78,7 +78,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
           promptOrigin: "agent",
           chatModeEnabled: false,
           pulseWorkflowSession: {
-            presetId: "single_shot",
+            presetId: "multi_shot",
             status: "awaiting_input",
             currentStepIndex: 1,
             currentStepLabel: "Action",
@@ -97,7 +97,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
             chatModeEnabled: true,
             pulseWorkflowSession: null,
           },
-          pulsePresetId: "single_shot",
+          pulsePresetId: "multi_shot",
           pulse: {
             messages: [{ id: "msg-1", role: "assistant", content: "Old chat" }],
             input: "draft",
@@ -105,7 +105,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
             promptOrigin: "agent",
             chatModeEnabled: false,
             pulseWorkflowSession: {
-              presetId: "single_shot",
+              presetId: "multi_shot",
               status: "awaiting_input",
               currentStepIndex: 1,
               currentStepLabel: "Action",

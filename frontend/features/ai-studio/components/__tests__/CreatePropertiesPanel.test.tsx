@@ -2,6 +2,8 @@
  * CreatePropertiesPanel rendering tests.
  * Verifies Create workflow controls that should stay visible in Character Mode.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -17,6 +19,23 @@ vi.mock("next/image", () => ({
 }));
 
 describe("CreatePropertiesPanel", () => {
+  it("keeps Standard and Pulse expert panel modules from importing each other's owned surfaces", () => {
+    const standardSource = readFileSync(
+      path.join(process.cwd(), "features/ai-studio/components/create/StandardCreatePanelView.tsx"),
+      "utf8"
+    );
+    const pulseSource = readFileSync(
+      path.join(process.cwd(), "features/ai-studio/components/create/PulseCreatePanelView.tsx"),
+      "utf8"
+    );
+
+    expect(standardSource).not.toContain("CreateExpertPresetPanel");
+    expect(standardSource).not.toContain("createPulsePresets");
+    expect(standardSource).not.toContain("AgentPulseWorkflowSession");
+    expect(pulseSource).not.toContain("AspectDropdown");
+    expect(pulseSource).not.toContain("ResolutionDropdown");
+  });
+
   const baseProps: React.ComponentProps<typeof CreatePropertiesPanel> = {
     mode: "image",
     aspect: "9:16",
@@ -649,9 +668,9 @@ describe("CreatePropertiesPanel", () => {
       agentIsSending: true,
       pulseLoadingState: {
         phase: "starting_pulse",
-        title: "Starting Story Builder",
+        title: "Starting DFY Story Builder",
         message: "Preparing your guided workflow...",
-        presetLabel: "Story Builder",
+        presetLabel: "DFY Story Builder",
         stepLabel: "Upload Characters",
       },
       agentMessages: [],
@@ -1137,17 +1156,19 @@ describe("CreatePropertiesPanel", () => {
 
     fireEvent.click(pulseTab);
 
-    expect(standardTab).toHaveAttribute("aria-selected", "false");
-    expect(pulseTab).toHaveAttribute("aria-selected", "true");
+    const updatedStandardTab = screen.getByRole("tab", { name: "Standard" });
+    const updatedPulseTab = screen.getByRole("tab", { name: "Pulse" });
+    expect(updatedStandardTab).toHaveAttribute("aria-selected", "false");
+    expect(updatedPulseTab).toHaveAttribute("aria-selected", "true");
     await waitFor(() => {
       expect(container.querySelector(".create-expert-left-panel")).toBeTruthy();
       expect(screen.getByText("Pulses")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Video Prompt Magic preset" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Single-shot preset" })).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: "Multi Sequence Video Prompt preset" })
       ).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Story Builder preset" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "DFY Story Builder preset" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Single-shot preset" })).not.toBeInTheDocument();
     });
   });
 
@@ -1225,17 +1246,17 @@ describe("CreatePropertiesPanel", () => {
     render(<PulseHarness />);
 
     fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
-    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
     await waitFor(() => {
       expect(onPulsePresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "story_builder",
-          label: "Story Builder",
+          label: "DFY Story Builder",
         }),
         { pulseSessionInstanceId: "pulse-session-harness" }
       );
-      expect(screen.getByRole("button", { name: "Story Builder preset" })).toHaveAttribute(
+      expect(screen.getByRole("button", { name: "DFY Story Builder preset" })).toHaveAttribute(
         "aria-pressed",
         "true"
       );
@@ -1261,7 +1282,7 @@ describe("CreatePropertiesPanel", () => {
       }),
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toHaveTextContent("Agent request failed (500)");
@@ -1604,7 +1625,7 @@ describe("CreatePropertiesPanel", () => {
       expertCreateUiEligible: true,
       agentEnabled: true,
       expertCreateMode: "pulse",
-      activePulsePresetId: "single_shot",
+      activePulsePresetId: "multi_shot",
       agentMessages: [
         {
           id: "assistant-1",

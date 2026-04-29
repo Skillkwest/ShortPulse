@@ -327,7 +327,7 @@ describe("useAiStudioPanelProps", () => {
       phase: "starting_pulse",
       title: "Generating...",
       message: "Preparing your guided workflow...",
-      presetLabel: "Story Builder",
+      presetLabel: "DFY Story Builder",
       stepLabel: "Upload Characters",
     });
   });

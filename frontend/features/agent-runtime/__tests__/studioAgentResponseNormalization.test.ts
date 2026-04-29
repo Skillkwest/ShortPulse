@@ -89,6 +89,23 @@ describe("studioAgentResponseNormalization", () => {
     });
   });
 
+  it("preserves structured message text for workflow chat display", () => {
+    const parsed = parseStudioAgentJsonWithStatus(
+      JSON.stringify({
+        status: "needs_input",
+        message:
+          "This prompt now includes a sharper product angle. What product should anchor the first shot?",
+        actions: null,
+      }),
+      { allowUnstructured: false }
+    );
+
+    expect(parsed?.response.message).toBe(
+      "This prompt now includes a sharper product angle. What product should anchor the first shot?"
+    );
+    expect(parsed?.response.actions).toBeUndefined();
+  });
+
   it("falls back to unstructured text when no JSON payload exists", () => {
     const parsed = parseStudioAgentJsonWithStatus(
       "Final prompt: dramatic portrait in moody neon lighting, low-angle composition"
@@ -103,12 +120,19 @@ describe("studioAgentResponseNormalization", () => {
     });
   });
 
-  it("does not coerce JSON-shaped non-contract payloads into unstructured fallback", () => {
+  it("accepts structured message-only payloads without fabricating prompt actions", () => {
     const parsed = parseStudioAgentJsonWithStatus(
       '{"message":"Summary: transformed the prompt","actions":{"apply_prompt":"The prompt now includes stronger detail."}}'
     );
 
-    expect(parsed).toBeNull();
+    expect(parsed).toEqual({
+      status: null,
+      response: {
+        message: "Summary: transformed the prompt",
+        actions: undefined,
+        usage: undefined,
+      },
+    });
   });
 
   it("emits applyPrompt-only actions for ready contract", () => {

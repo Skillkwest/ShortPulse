@@ -2,7 +2,7 @@ import type { AgentMessage, AgentPulseWorkflowSession } from "../../../prefabs/a
 
 type PulseWorkflowPreset = {
   presetId: string;
-  runtimeMode?: "prompt_editor" | "workflow_gpt";
+  runtimeMode?: "workflow_gpt";
   starterAssistantMessage?: string | null;
   workflowStageHints?: readonly string[] | null;
 };

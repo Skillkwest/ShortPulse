@@ -148,4 +148,36 @@ describe("studioAgentPulseRuntime", () => {
     expect(activationSeed).toContain("Do not repeat the starter upload message.");
     expect(activationSeed).not.toContain("Your first assistant reply must be exactly this");
   });
+
+  it("starts custom pulses without requiring hidden starter metadata", () => {
+    const activationSeed = buildStudioAgentPulseActivationSeed({
+      presetId: "custom",
+      label: "Custom Pulse",
+      instructions: "Ask one focused setup question before producing the final result.",
+      starterAssistantMessage: null,
+      workflowStageHints: null,
+      outputMode: "chat_reply",
+      source: "custom",
+    });
+    const systemMessage = buildStudioAgentPulseSystemMessage({
+      presetId: "custom",
+      label: "Custom Pulse",
+      instructions: "Ask one focused setup question before producing the final result.",
+      starterAssistantMessage: null,
+      workflowStageHints: null,
+      outputMode: "chat_reply",
+      source: "custom",
+    });
+
+    expect(activationSeed).toContain("Start the workflow now.");
+    expect(activationSeed).toContain(
+      "Reply with only the first required assistant step or question."
+    );
+    expect(systemMessage).toContain("preset_source: custom");
+    expect(systemMessage).toContain(
+      "Ask one focused setup question before producing the final result."
+    );
+    expect(systemMessage).not.toContain("starter_assistant_message:");
+    expect(systemMessage).not.toContain("workflow_stage_hints:");
+  });
 });

@@ -38,9 +38,10 @@ export const resolveStudioAgentTurnResponse = ({
       actions: undefined,
     };
   } else if (isStudioAgentWorkflowPulse(context.pulse)) {
+    const displayMessage = typeof parsed.message === "string" ? parsed.message.trim() : "";
     parsed.message =
-      sanitizeGenerationPromptText(parsed.message ?? null) ??
-      sanitizeGenerationPromptText(nextCanonical ?? effectiveCanonical ?? null) ??
+      displayMessage ||
+      sanitizeGenerationPromptText(nextCanonical ?? effectiveCanonical ?? null) ||
       "";
   } else {
     const fallbackPrompt =

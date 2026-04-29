@@ -25,7 +25,8 @@ import { StylesControl } from "./StylesControl";
 import { deriveCreateSelectorViewState } from "../logic/createSelectorState";
 import { getModelConfig } from "../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
-import { ExpertCreatePanelView } from "./create/ExpertCreatePanelView";
+import { PulseCreatePanelView } from "./create/PulseCreatePanelView";
+import { StandardCreatePanelView } from "./create/StandardCreatePanelView";
 import type {
   CreatePulsePresetId,
   CreatePulsePresetStartResult,
@@ -135,9 +136,13 @@ export type CreatePropertiesPanelProps = {
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
-  onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
+  onSelectedPulsePresetIdsChange?: (
+    presetIds: CreatePulsePresetId[]
+  ) => Promise<boolean> | boolean | void;
   savedPulsePresets?: readonly CreatePulseSavedPreset[];
-  onSavedPulsePresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
+  onSavedPulsePresetsChange?: (
+    presets: CreatePulseSavedPreset[]
+  ) => Promise<boolean> | boolean | void;
   onOpenPresetsLibrary?: () => void;
 };
 
@@ -688,7 +693,17 @@ export function CreatePropertiesPanel({
   guardrailReason,
 }: CreatePropertiesPanelProps) {
   const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
-  const isPulseCreateMode = showExpertView && expertCreateMode === "pulse";
+  const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] =
+    React.useState<ExpertCreateMode>("standard");
+  const resolvedExpertCreateMode = expertCreateMode ?? uncontrolledExpertCreateMode;
+  const isPulseCreateMode = showExpertView && resolvedExpertCreateMode === "pulse";
+  const handleExpertCreateModeChange = React.useCallback(
+    (value: ExpertCreateMode) => {
+      setUncontrolledExpertCreateMode(value);
+      onExpertCreateModeChange?.(value);
+    },
+    [onExpertCreateModeChange]
+  );
   const effectiveChatModeEnabled = isPulseCreateMode ? true : chatModeEnabled;
   const promptStepNumber = beginnerMode ? "2" : "1";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
@@ -934,55 +949,68 @@ export function CreatePropertiesPanel({
   return (
     <>
       {showExpertView ? (
-        <ExpertCreatePanelView
-          promptStepProps={expertPromptStepProps}
-          onGenerate={onGenerate}
-          costCredits={costCredits}
-          isPromptGenerating={isPromptGenerating}
-          isGenerateDisabled={isGenerateDisabled}
-          guardrailReason={guardrailReason}
-          characterModeEnabled={characterModeEnabled}
-          onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
-          onCharacterPickerOpen={openCharacterPicker}
-          characterSelectDisabled={characterSelectDisabled}
-          isCharacterSelectionEmpty={isCharacterSelectionEmpty}
-          selectedCharacterName={selectedCharacterName}
-          selectedCharacterDisplayName={selectedCharacterDisplayName}
-          selectedCharacterProfileImageUrl={selectedCharacterAvatarUrl}
-          selectedCharacterInitials={selectedCharacterInitials}
-          onSelectedCharacterAvatarError={handleSelectedCharacterAvatarError}
-          onSelectedCharacterAvatarLoad={handleSelectedCharacterAvatarLoad}
-          isCharacterPickerOpen={isCharacterPickerOpen}
-          isCreateModelPickerOpen={isCreateModelPickerOpen}
-          isModelSelectionEmpty={isModelSelectionEmpty}
-          onCreateModelOpen={handleCreateModelOpen}
-          effectiveModelLogoSrc={effectiveModelLogoSrc}
-          useUnoptimizedModelLogo={useUnoptimizedModelLogo}
-          effectiveModelLabel={effectiveModelLabel}
-          aspect={aspect}
-          aspectOptionsForModel={aspectOptionsForModel}
-          onAspectChange={onAspectChange}
-          shouldShowImageResolutionCard={shouldShowImageResolutionCard}
-          imageResolutionValue={imageResolutionValue}
-          imageResolutionOptions={imageResolutionOptions}
-          onImageResolutionChange={(value) => {
-            onImageResolutionChange?.(value);
-            onStepActionClick?.("imageSettings");
-          }}
-          expertCreateMode={expertCreateMode}
-          onExpertCreateModeChange={onExpertCreateModeChange}
-          activePulsePresetId={activePulsePresetId}
-          hasActivePulseSession={hasActivePulseSession}
-          pulseWorkflowSession={pulseWorkflowSession}
-          onActivePulsePresetIdChange={onActivePulsePresetIdChange}
-          onPulsePresetStart={onPulsePresetStart}
-          isPulseActivationBusy={agentIsSending}
-          selectedPulsePresetIds={selectedPulsePresetIds}
-          onSelectedPulsePresetIdsChange={onSelectedPulsePresetIdsChange}
-          savedPulsePresets={savedPulsePresets}
-          onSavedPulsePresetsChange={onSavedPulsePresetsChange}
-          onOpenPresetsLibrary={onOpenPresetsLibrary}
-        />
+        isPulseCreateMode ? (
+          <PulseCreatePanelView
+            promptStepProps={expertPromptStepProps}
+            onGenerate={onGenerate}
+            costCredits={costCredits}
+            isPromptGenerating={isPromptGenerating}
+            isGenerateDisabled={isGenerateDisabled}
+            guardrailReason={guardrailReason}
+            expertCreateMode={resolvedExpertCreateMode}
+            onExpertCreateModeChange={handleExpertCreateModeChange}
+            activePulsePresetId={activePulsePresetId}
+            hasActivePulseSession={hasActivePulseSession}
+            pulseWorkflowSession={pulseWorkflowSession}
+            onActivePulsePresetIdChange={onActivePulsePresetIdChange}
+            onPulsePresetStart={onPulsePresetStart}
+            isPulseActivationBusy={agentIsSending}
+            selectedPulsePresetIds={selectedPulsePresetIds}
+            onSelectedPulsePresetIdsChange={onSelectedPulsePresetIdsChange}
+            savedPulsePresets={savedPulsePresets}
+            onSavedPulsePresetsChange={onSavedPulsePresetsChange}
+            onOpenPresetsLibrary={onOpenPresetsLibrary}
+          />
+        ) : (
+          <StandardCreatePanelView
+            promptStepProps={expertPromptStepProps}
+            onGenerate={onGenerate}
+            costCredits={costCredits}
+            isPromptGenerating={isPromptGenerating}
+            isGenerateDisabled={isGenerateDisabled}
+            guardrailReason={guardrailReason}
+            characterModeEnabled={characterModeEnabled}
+            onCharacterModeEnabledToggle={handleCharacterModeEnabledToggle}
+            onCharacterPickerOpen={openCharacterPicker}
+            characterSelectDisabled={characterSelectDisabled}
+            isCharacterSelectionEmpty={isCharacterSelectionEmpty}
+            selectedCharacterName={selectedCharacterName}
+            selectedCharacterDisplayName={selectedCharacterDisplayName}
+            selectedCharacterProfileImageUrl={selectedCharacterAvatarUrl}
+            selectedCharacterInitials={selectedCharacterInitials}
+            onSelectedCharacterAvatarError={handleSelectedCharacterAvatarError}
+            onSelectedCharacterAvatarLoad={handleSelectedCharacterAvatarLoad}
+            isCharacterPickerOpen={isCharacterPickerOpen}
+            isCreateModelPickerOpen={isCreateModelPickerOpen}
+            isModelSelectionEmpty={isModelSelectionEmpty}
+            onCreateModelOpen={handleCreateModelOpen}
+            effectiveModelLogoSrc={effectiveModelLogoSrc}
+            useUnoptimizedModelLogo={useUnoptimizedModelLogo}
+            effectiveModelLabel={effectiveModelLabel}
+            aspect={aspect}
+            aspectOptionsForModel={aspectOptionsForModel}
+            onAspectChange={onAspectChange}
+            shouldShowImageResolutionCard={shouldShowImageResolutionCard}
+            imageResolutionValue={imageResolutionValue}
+            imageResolutionOptions={imageResolutionOptions}
+            onImageResolutionChange={(value) => {
+              onImageResolutionChange?.(value);
+              onStepActionClick?.("imageSettings");
+            }}
+            expertCreateMode={resolvedExpertCreateMode}
+            onExpertCreateModeChange={handleExpertCreateModeChange}
+          />
+        )
       ) : (
         <BeginnerCreatePanelView
           beginnerMode={beginnerMode}

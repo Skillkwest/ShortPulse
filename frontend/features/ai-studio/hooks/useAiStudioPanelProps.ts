@@ -128,7 +128,9 @@ export type UseAiStudioPanelPropsParams = {
   selectedCreatePulsePresetIds?: readonly CreatePulsePresetId[];
   onSelectedCreatePulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedCreatePulsePresets?: readonly CreatePulseSavedPreset[];
-  onSavedCreatePulsePresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
+  onSavedCreatePulsePresetsChange?: (
+    presets: CreatePulseSavedPreset[]
+  ) => Promise<boolean> | boolean | void;
   expertCreateMode?: "standard" | "pulse";
   onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
   activeCreatePulsePresetId?: CreatePulsePresetId | null;

@@ -672,9 +672,9 @@ describe("useAiStudioAgentOrchestration", () => {
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
       getAgentContext: vi.fn(() => ({
         pulse: {
-          presetId: "ad_hook",
-          label: "Ad Hook",
-          instructions: "Lead with a crisp paid-social hook.",
+          presetId: "multi_shot",
+          label: "Multi Sequence Video Prompt",
+          instructions: "Build a multi-shot video sequence.",
           runtimeMode: "workflow_gpt" as const,
           activationMode: "activate_and_start" as const,
           starterAssistantMessage: null,
@@ -750,7 +750,7 @@ describe("useAiStudioAgentOrchestration", () => {
 
     const preset: CreatePulseResolvedPreset = {
       presetId: "story_builder",
-      label: "Story Builder",
+      label: "DFY Story Builder",
       description: "Story workflow",
       systemInstructions: "workflow instructions",
       runtimeMode: "workflow_gpt",
@@ -900,7 +900,7 @@ describe("useAiStudioAgentOrchestration", () => {
 
     const preset: CreatePulseResolvedPreset = {
       presetId: "story_builder",
-      label: "Story Builder",
+      label: "DFY Story Builder",
       description: "Story workflow",
       systemInstructions: "workflow instructions",
       runtimeMode: "workflow_gpt",
@@ -952,7 +952,7 @@ describe("useAiStudioAgentOrchestration", () => {
     await act(async () => {
       startResult = await result.current.handlePulsePresetStart({
         presetId: "story_builder",
-        label: "Story Builder",
+        label: "DFY Story Builder",
         description: "Story workflow",
         systemInstructions: "workflow instructions",
         runtimeMode: "workflow_gpt",
@@ -999,7 +999,7 @@ describe("useAiStudioAgentOrchestration", () => {
     await act(async () => {
       startResult = await result.current.handlePulsePresetStart({
         presetId: "story_builder",
-        label: "Story Builder",
+        label: "DFY Story Builder",
         description: "Story workflow",
         systemInstructions: "workflow instructions",
         runtimeMode: "workflow_gpt",
@@ -1044,7 +1044,7 @@ describe("useAiStudioAgentOrchestration", () => {
       await result.current.handlePulsePresetStart(
         {
           presetId: "story_builder",
-          label: "Story Builder",
+          label: "DFY Story Builder",
           description: "Story workflow",
           systemInstructions: "workflow instructions",
           runtimeMode: "workflow_gpt",
@@ -1086,7 +1086,7 @@ describe("useAiStudioAgentOrchestration", () => {
       getAgentContext: vi.fn(() => ({
         pulse: {
           presetId: "story_builder",
-          label: "Story Builder",
+          label: "DFY Story Builder",
           instructions: "workflow instructions",
           runtimeMode: "workflow_gpt" as const,
           activationMode: "activate_and_start" as const,

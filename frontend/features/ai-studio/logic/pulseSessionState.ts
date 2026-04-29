@@ -14,8 +14,24 @@ export type PulseRuntimeState = PulseWorkspaceState & {
   hasActivePulseSession: boolean;
 };
 
-export const normalizePulsePresetId = (value: unknown): string | null =>
-  typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+const RETIRED_PULSE_PRESET_IDS = new Set([
+  "custom_1",
+  "custom_2",
+  "custom_3",
+  "single_shot",
+  "ad_hook",
+  "product_hero",
+  "ugc_style",
+  "before_after",
+  "lifestyle_scene",
+]);
+
+export const normalizePulsePresetId = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (!normalized || RETIRED_PULSE_PRESET_IDS.has(normalized)) return null;
+  return normalized;
+};
 
 export const normalizePulseSessionInstanceId = (value: unknown): string | null =>
   typeof value === "string" && value.trim().length > 0 ? value.trim() : null;

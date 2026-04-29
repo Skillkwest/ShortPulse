@@ -190,10 +190,7 @@ export const parseStudioAgentJsonWithStatus = (
       const parsed = JSON.parse(candidate);
       if (!parsed || typeof parsed !== "object") continue;
       const parsedRecord = parsed as Record<string, unknown>;
-      const message =
-        typeof parsedRecord.message === "string"
-          ? (sanitizeGenerationPromptText(parsedRecord.message) ?? "")
-          : "";
+      const message = typeof parsedRecord.message === "string" ? parsedRecord.message.trim() : "";
       const actions = normalizeAgentActions(parsedRecord.actions);
       if (!message.length && !actions?.applyPrompt) {
         continue;

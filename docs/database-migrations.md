@@ -3,6 +3,7 @@
 Purpose: define a consistent migration workflow for Supabase schema changes.
 
 For operator run order, diagnostics loops, and common SQL error playbooks, use:
+
 - `docs/sops/sop_sql_migration_operations.md`
 
 ## Supabase tooling policy
@@ -48,6 +49,7 @@ npm run db:migrate
 ```
 
 Current guardrail policy:
+
 - `npm run db:migrate` is intentionally blocked for hosted promotion.
 - Reason: canonical migration authority is `sql/migrations/`, while default Supabase CLI push posture targets `supabase/migrations/`.
 - For hosted staging/production promotion, use environment-pinned SQL apply paths (for example, `psql "$SUPABASE_DB_URL" -f sql/migrations/<NNN_file>.sql`) and the existing environment-gated GitHub workflows.
@@ -63,6 +65,7 @@ Current guardrail policy:
 5. Run post-deploy smoke checks.
 
 Safety posture:
+
 - Keep the local default Supabase link on staging.
 - Do not rely on implicit linked-project targeting for production operations.
 
@@ -211,15 +214,18 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 97. `sql/migrations/097_retire_model_pricing_rounding_exceptions.sql`
 98. `sql/migrations/098_add_billing_plan_creation_metadata.sql`
 99. `sql/migrations/099_add_admin_global_stats_rpcs.sql`
-100. `sql/migrations/100_add_admin_global_stats_v1_rpc.sql`
-101. `sql/migrations/101_fix_admin_stats_and_pricing_rpc_lint.sql`
-102. `sql/migrations/102_add_admin_growth_stats_v1.sql`
-103. `sql/migrations/103_sanitize_project_workspace_conversational_runtime.sql`
-104. `sql/migrations/104_add_user_media_compliance_acceptances.sql`
-105. `sql/migrations/105_enforce_spendable_balance_for_direct_generation_charges.sql`
-106. `sql/migrations/106_add_annual_billing_intervals_and_credit_allocation_cursors.sql`
-107. `sql/migrations/107_add_generation_abandonments.sql`
-108. Rollback files:
+100.  `sql/migrations/100_add_admin_global_stats_v1_rpc.sql`
+101.  `sql/migrations/101_fix_admin_stats_and_pricing_rpc_lint.sql`
+102.  `sql/migrations/102_add_admin_growth_stats_v1.sql`
+103.  `sql/migrations/103_sanitize_project_workspace_conversational_runtime.sql`
+104.  `sql/migrations/104_add_user_media_compliance_acceptances.sql`
+105.  `sql/migrations/105_enforce_spendable_balance_for_direct_generation_charges.sql`
+106.  `sql/migrations/106_add_annual_billing_intervals_and_credit_allocation_cursors.sql`
+107.  `sql/migrations/107_add_generation_abandonments.sql`
+108.  `sql/migrations/108_retire_legacy_ai_studio_pulses.sql`
+109.  Rollback files:
+
+
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -247,8 +253,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/082_add_user_preferences_ai_studio_saved_voices_rollback.sql`
     - `sql/migrations/rollback/085_add_billing_plan_offers_and_subscription_contracts_rollback.sql`
     - `sql/migrations/rollback/086_add_internal_comp_billing_contract_support_rollback.sql`
-    - `sql/migrations/rollback/107_add_generation_abandonments_rollback.sql`
     - `sql/migrations/rollback/087_add_storage_entitlements_and_recurring_storage_addons_rollback.sql`
+    - `sql/migrations/rollback/107_add_generation_abandonments_rollback.sql`
     - `sql/migrations/rollback/060_add_media_folders_and_membership_rollback.sql`
     - `sql/migrations/rollback/061_backfill_media_image_dimensions_metadata_rollback.sql`
     - `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql`
@@ -283,13 +289,16 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/099_add_admin_global_stats_rpcs_rollback.sql`
     - `sql/migrations/rollback/103_sanitize_project_workspace_conversational_runtime_rollback.sql`
     - `sql/migrations/rollback/104_add_user_media_compliance_acceptances_rollback.sql`
+    - `sql/migrations/rollback/108_retire_legacy_ai_studio_pulses_rollback.sql`
 
 Hosted SQL lint note:
+
 - Apply `sql/migrations/101_fix_admin_stats_and_pricing_rpc_lint.sql` when linked-hosted lint surfaces the legacy admin stats `model_id` ambiguity or the `rollback_model_pricing_policy()` `%rowtype` warning.
 - Apply `sql/migrations/102_add_admin_growth_stats_v1.sql` to provision `growth_attribution_identities` and `get_admin_growth_stats_v1()` before expecting `/admin/stats` Marketing/Sales lenses to load beyond safe fallback values.
 - Apply `sql/migrations/104_add_user_media_compliance_acceptances.sql` before enforcing the protected-route media agreement gate so acceptance records can be stored and replayed by version.
 
 Billing safety note:
+
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
   `column reference "source_ref" is ambiguous` failures in reservation-mode Fal submit paths.
 - Migration `014_harden_generation_reservation_rpc_security.sql` is required to enforce
@@ -377,5 +386,6 @@ After applying migration `012_add_character_sheet_aliases_and_compat.sql`:
 3. If any mismatch remains, re-run migration `012` and validate trigger health before promoting to production.
 
 Deprecation note:
+
 - Legacy aliases (`active_reference_pack_id`, `reference_pack_id`, `reference_pack_assignments`) remain intentionally supported during rollout.
 - Do not remove legacy aliases until drift checks stay at zero through at least one full release cycle across all environments.

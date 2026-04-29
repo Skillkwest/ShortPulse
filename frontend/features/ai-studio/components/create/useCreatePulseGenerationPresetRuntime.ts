@@ -16,9 +16,13 @@ import {
 
 type UseCreatePulseGenerationPresetRuntimeParams = {
   controlledPresetIds?: readonly CreatePulsePresetId[] | null;
-  onSelectedPresetIdsChange?: ((value: CreatePulsePresetId[]) => void) | null;
+  onSelectedPresetIdsChange?:
+    | ((value: CreatePulsePresetId[]) => Promise<boolean> | boolean | void)
+    | null;
   controlledSavedPresets?: readonly CreatePulseSavedPreset[] | null;
-  onSavedPresetsChange?: ((value: CreatePulseSavedPreset[]) => void) | null;
+  onSavedPresetsChange?:
+    | ((value: CreatePulseSavedPreset[]) => Promise<boolean> | boolean | void)
+    | null;
 };
 
 /**
@@ -68,16 +72,17 @@ export const useCreatePulseGenerationPresetRuntime = ({
   }, [isPresetPanelControlled, savedPresets]);
 
   const updateSelectedPresetIds = React.useCallback(
-    (updater: (previous: CreatePulsePresetId[]) => CreatePulsePresetId[]) => {
+    async (updater: (previous: CreatePulsePresetId[]) => CreatePulsePresetId[]) => {
       if (isPresetPanelControlled) {
-        controlledPresetChangeHandler(
+        const saved = await controlledPresetChangeHandler(
           normalizeCreatePulsePanelPresetIds(updater(normalizedControlledPresetIds), savedPresets)
         );
-        return;
+        return saved !== false;
       }
       setInternalSelectedPresetIds((previous) =>
         normalizeCreatePulsePanelPresetIds(updater(previous), savedPresets)
       );
+      return true;
     },
     [
       controlledPresetChangeHandler,
@@ -88,12 +93,15 @@ export const useCreatePulseGenerationPresetRuntime = ({
   );
 
   const updateSavedPresets = React.useCallback(
-    (updater: (previous: CreatePulseSavedPreset[]) => CreatePulseSavedPreset[]) => {
+    async (updater: (previous: CreatePulseSavedPreset[]) => CreatePulseSavedPreset[]) => {
       if (isSavedPresetsControlled) {
-        onSavedPresetsChange(normalizeCreatePulseSavedPresets(updater(savedPresets)));
-        return;
+        const saved = await onSavedPresetsChange(
+          normalizeCreatePulseSavedPresets(updater(savedPresets))
+        );
+        return saved !== false;
       }
       setInternalSavedPresets((previous) => normalizeCreatePulseSavedPresets(updater(previous)));
+      return true;
     },
     [isSavedPresetsControlled, onSavedPresetsChange, savedPresets]
   );

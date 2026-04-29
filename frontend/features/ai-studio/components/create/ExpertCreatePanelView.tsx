@@ -62,9 +62,13 @@ type ExpertCreatePanelViewProps = {
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   isPulseActivationBusy?: boolean;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
-  onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
+  onSelectedPulsePresetIdsChange?: (
+    presetIds: CreatePulsePresetId[]
+  ) => Promise<boolean> | boolean | void;
   savedPulsePresets?: readonly CreatePulseSavedPreset[];
-  onSavedPulsePresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
+  onSavedPulsePresetsChange?: (
+    presets: CreatePulseSavedPreset[]
+  ) => Promise<boolean> | boolean | void;
   onOpenPresetsLibrary?: () => void;
 };
 

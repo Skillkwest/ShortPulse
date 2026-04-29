@@ -582,9 +582,7 @@ const asPulseWorkflowSession = (value: unknown): AgentPulseWorkflowSession | nul
   const currentStepPrompt = asNullableString(row.currentStepPrompt)?.trim() ?? null;
   const lastArtifact = asNullableString(row.lastArtifact)?.trim() ?? null;
   const finalArtifactSource =
-    row.finalArtifactSource === "apply_prompt" || row.finalArtifactSource === "chat_reply"
-      ? row.finalArtifactSource
-      : null;
+    row.finalArtifactSource === "chat_reply" ? row.finalArtifactSource : null;
   const collectedInputs = asStringArray(row.collectedInputs)
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);

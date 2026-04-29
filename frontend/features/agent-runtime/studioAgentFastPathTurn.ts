@@ -10,6 +10,7 @@ import {
   extractStudioAgentCompletionText,
   parseStudioAgentSemanticOutput,
   parseStudioAgentJsonWithStatus,
+  hasStructuredJsonCandidates,
 } from "./studioAgentResponseNormalization";
 import { isStudioAgentWorkflowPulse } from "./studioAgentPulseRuntime";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
@@ -253,6 +254,18 @@ export const executeStudioAgentFastPathTurn = async ({
     : parseStudioAgentJsonWithStatus(contentText, {
         allowUnstructured: !workflowPulseActive,
       });
+  if (workflowPulseActive && !parsedWithStatus && !hasStructuredJsonCandidates(contentText)) {
+    const workflowMessage = contentText.trim();
+    if (workflowMessage.length > 0) {
+      parsedWithStatus = {
+        response: {
+          message: workflowMessage,
+          actions: undefined,
+        },
+        status: "needs_input",
+      };
+    }
+  }
   let repairUsed = false;
   if (!hasUsableFastPathPayload(parsedWithStatus?.response ?? null)) {
     const latestUserInput = resolveLatestUserInput(messages);

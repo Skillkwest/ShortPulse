@@ -67,7 +67,39 @@ describe("resolveStudioAgentTurnResponse", () => {
     });
 
     expect(result.refusal).toBe(false);
+    expect(result.parsed.message).toBe("Step 1 — Upload your image to get the process started :)");
     expect(result.parsed.actions).toBeUndefined();
     expect(result.resolvedCanonical).toBe("existing canonical");
+  });
+
+  it("does not strip prompt-like wording from workflow pulse chat replies", () => {
+    const result = resolveStudioAgentTurnResponse({
+      parsed: {
+        message:
+          "This prompt now includes a sharper product angle. What product should anchor the first shot?",
+        actions: undefined,
+      },
+      semanticStatus: "needs_input",
+      nextCanonical: "fallback prompt",
+      effectiveCanonical: "existing canonical",
+      context: {
+        pulse: {
+          presetId: "pulse_custom",
+          label: "Custom Pulse",
+          instructions: "Ask one guided question at a time.",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          source: "custom",
+        },
+      },
+      messages: [{ role: "user", content: "" }],
+    });
+
+    expect(result.parsed.message).toBe(
+      "This prompt now includes a sharper product angle. What product should anchor the first shot?"
+    );
+    expect(result.parsed.actions).toBeUndefined();
   });
 });

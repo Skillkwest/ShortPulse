@@ -120,6 +120,26 @@ describe("studioAgentRequestGuards", () => {
     });
   });
 
+  it("preserves custom Pulse system instructions that look like prompt meta text", () => {
+    const context = sanitizeStudioAgentContext({
+      mode: "text",
+      pulse: {
+        presetId: "pulse_custom",
+        label: "Custom Pulse",
+        instructions:
+          "This prompt should ask one product question first, then build the final ad concept.",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        outputMode: "chat_reply",
+        source: "custom",
+      },
+    });
+
+    expect(context.pulse?.instructions).toBe(
+      "This prompt should ask one product question first, then build the final ad concept."
+    );
+  });
+
   it("strips Pulse and passive media context from Standard runtime requests", () => {
     const context = sanitizeStudioAgentContext(
       {

@@ -18,7 +18,6 @@ import {
   type NormalizedLedgerRow,
   type OutputRow,
   type ProjectGenerationItemRow,
-  type QueueRow,
   type ReservationRow,
 } from "./deepReport";
 import { resolveAdminHealthAuthUser } from "./targetLookup";
@@ -131,180 +130,149 @@ export const loadAdminHealthSnapshot = async ({
 
   const userId = authUser.id;
 
-  const [balanceResult, generationsResult, reservationsResult, queueResult, ledgerResult] =
-    await Promise.all([
-      supabaseAdmin
-        .from("ai_credit_balance")
-        .select("user_id, balance_cents, updated_at")
-        .eq("user_id", userId)
-        .limit(1),
-      (async () => {
-        const generationSelectFallbacks = [
-          "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,failure_reason_code,next_recovery_at,metadata",
-          "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,next_recovery_at,metadata",
-          "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,next_recovery_at",
-          "id,status,provider,model_id,request_id,created_at,completed_at",
-        ];
-        for (const selectExpression of generationSelectFallbacks) {
-          const rowsResult = await fetchAllRowsForSelect<GenerationRow>(async (from, to) => {
-            const query = supabaseAdmin
-              .from("ai_generations")
-              .select(selectExpression)
-              .eq("user_id", userId)
-              .order("created_at", { ascending: false })
-              .range(from, to);
-            const { data, error } = await query;
-            return {
-              data: (data as GenerationRow[] | null) ?? null,
-              error: normalizeQueryError(error),
-            };
-          });
-          if (!rowsResult.error) {
-            return {
-              supported: true,
-              selectUsed: selectExpression,
-              rows: rowsResult.rows,
-            };
-          }
-          if (!isSchemaCompatibilityError(rowsResult.error)) {
-            throw new Error(rowsResult.error.message || "Failed to load ai_generations.");
-          }
+  const [balanceResult, generationsResult, reservationsResult, ledgerResult] = await Promise.all([
+    supabaseAdmin
+      .from("ai_credit_balance")
+      .select("user_id, balance_cents, updated_at")
+      .eq("user_id", userId)
+      .limit(1),
+    (async () => {
+      const generationSelectFallbacks = [
+        "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,failure_reason_code,next_recovery_at,metadata",
+        "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,next_recovery_at,metadata",
+        "id,status,recovery_state,provider,model_id,request_id,created_at,completed_at,next_recovery_at",
+        "id,status,provider,model_id,request_id,created_at,completed_at",
+      ];
+      for (const selectExpression of generationSelectFallbacks) {
+        const rowsResult = await fetchAllRowsForSelect<GenerationRow>(async (from, to) => {
+          const query = supabaseAdmin
+            .from("ai_generations")
+            .select(selectExpression)
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .range(from, to);
+          const { data, error } = await query;
+          return {
+            data: (data as GenerationRow[] | null) ?? null,
+            error: normalizeQueryError(error),
+          };
+        });
+        if (!rowsResult.error) {
+          return {
+            supported: true,
+            selectUsed: selectExpression,
+            rows: rowsResult.rows,
+          };
         }
+        if (!isSchemaCompatibilityError(rowsResult.error)) {
+          throw new Error(rowsResult.error.message || "Failed to load ai_generations.");
+        }
+      }
+      return {
+        supported: false,
+        selectUsed: "",
+        rows: [] as GenerationRow[],
+      };
+    })(),
+    (async () => {
+      const selectExpression =
+        "id,status,source_ref,provider_request_id,model_id,amount_cents,metadata,created_at,released_at,captured_at";
+      const rowsResult = await fetchAllRowsForSelect<ReservationRow>(async (from, to) => {
+        const query = supabaseAdmin
+          .from("ai_credit_reservations")
+          .select(selectExpression)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .range(from, to);
+        const { data, error } = await query;
+        return {
+          data: (data as ReservationRow[] | null) ?? null,
+          error: normalizeQueryError(error),
+        };
+      });
+      if (!rowsResult.error) {
+        return {
+          supported: true,
+          rows: rowsResult.rows,
+        };
+      }
+      if (isSchemaCompatibilityError(rowsResult.error)) {
+        compatibilityWarnings.push(
+          "ai_credit_reservations is unavailable or legacy in this environment; hold diagnostics are partial."
+        );
         return {
           supported: false,
-          selectUsed: "",
-          rows: [] as GenerationRow[],
+          rows: [] as ReservationRow[],
         };
-      })(),
-      (async () => {
-        const selectExpression =
-          "id,status,source_ref,provider_request_id,model_id,amount_cents,metadata,created_at,released_at,captured_at";
-        const rowsResult = await fetchAllRowsForSelect<ReservationRow>(async (from, to) => {
-          const query = supabaseAdmin
-            .from("ai_credit_reservations")
-            .select(selectExpression)
-            .eq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .range(from, to);
-          const { data, error } = await query;
-          return {
-            data: (data as ReservationRow[] | null) ?? null,
-            error: normalizeQueryError(error),
-          };
-        });
-        if (!rowsResult.error) {
-          return {
-            supported: true,
-            rows: rowsResult.rows,
-          };
-        }
-        if (isSchemaCompatibilityError(rowsResult.error)) {
-          compatibilityWarnings.push(
-            "ai_credit_reservations is unavailable or legacy in this environment; hold diagnostics are partial."
-          );
-          return {
-            supported: false,
-            rows: [] as ReservationRow[],
-          };
-        }
-        throw new Error(rowsResult.error.message || "Failed to load ai_credit_reservations.");
-      })(),
-      (async () => {
-        const selectExpression =
-          "id,generation_id,status,model_id,source_ref,attempts,created_at,updated_at,last_error_code";
-        const rowsResult = await fetchAllRowsForSelect<QueueRow>(async (from, to) => {
-          const query = supabaseAdmin
-            .from("ai_generation_submit_queue")
-            .select(selectExpression)
-            .eq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .range(from, to);
-          const { data, error } = await query;
-          return { data: (data as QueueRow[] | null) ?? null, error: normalizeQueryError(error) };
-        });
-        if (!rowsResult.error) {
-          return {
-            supported: true,
-            rows: rowsResult.rows,
-          };
-        }
-        if (isSchemaCompatibilityError(rowsResult.error)) {
-          compatibilityWarnings.push(
-            "ai_generation_submit_queue is unavailable in this environment; queue diagnostics are partial."
-          );
-          return {
-            supported: false,
-            rows: [] as QueueRow[],
-          };
-        }
-        throw new Error(rowsResult.error.message || "Failed to load ai_generation_submit_queue.");
-      })(),
-      (async () => {
-        const richSelect = "id,user_id,change_cents,reason,source,source_ref,metadata,created_at";
-        const richRows = await fetchAllRowsForSelect<RichLedgerRow>(async (from, to) => {
-          const query = supabaseAdmin
-            .from("ai_credit_ledger")
-            .select(richSelect)
-            .eq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .range(from, to);
-          const { data, error } = await query;
-          return {
-            data: (data as RichLedgerRow[] | null) ?? null,
-            error: normalizeQueryError(error),
-          };
-        });
-        if (!richRows.error) {
-          const normalizedRows: NormalizedLedgerRow[] = richRows.rows.map((row) => ({
-            id: String(row.id),
-            user_id: String(row.user_id),
-            change_cents: Number(row.change_cents ?? 0),
-            reason: row.reason ?? "",
-            source: row.source ?? "system",
-            source_ref: row.source_ref ?? null,
-            metadata: row.metadata ?? null,
-            created_at: row.created_at ?? null,
-          }));
-          return { legacySchema: false, rows: normalizedRows };
-        }
-
-        if (!isSchemaCompatibilityError(richRows.error)) {
-          throw new Error(richRows.error.message || "Failed to load ai_credit_ledger.");
-        }
-
-        const legacySelect = "id,user_id,change_cents,reason,ref_id,created_at";
-        const legacyRows = await fetchAllRowsForSelect<LegacyLedgerRow>(async (from, to) => {
-          const query = supabaseAdmin
-            .from("ai_credit_ledger")
-            .select(legacySelect)
-            .eq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .range(from, to);
-          const { data, error } = await query;
-          return {
-            data: (data as LegacyLedgerRow[] | null) ?? null,
-            error: normalizeQueryError(error),
-          };
-        });
-        if (legacyRows.error) {
-          throw new Error(legacyRows.error.message || "Failed to load ai_credit_ledger.");
-        }
-        compatibilityWarnings.push(
-          "ai_credit_ledger is using a legacy schema (ref_id fallback); some attribution is reduced."
-        );
-        const normalizedRows: NormalizedLedgerRow[] = legacyRows.rows.map((row) => ({
+      }
+      throw new Error(rowsResult.error.message || "Failed to load ai_credit_reservations.");
+    })(),
+    (async () => {
+      const richSelect = "id,user_id,change_cents,reason,source,source_ref,metadata,created_at";
+      const richRows = await fetchAllRowsForSelect<RichLedgerRow>(async (from, to) => {
+        const query = supabaseAdmin
+          .from("ai_credit_ledger")
+          .select(richSelect)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .range(from, to);
+        const { data, error } = await query;
+        return {
+          data: (data as RichLedgerRow[] | null) ?? null,
+          error: normalizeQueryError(error),
+        };
+      });
+      if (!richRows.error) {
+        const normalizedRows: NormalizedLedgerRow[] = richRows.rows.map((row) => ({
           id: String(row.id),
           user_id: String(row.user_id),
           change_cents: Number(row.change_cents ?? 0),
           reason: row.reason ?? "",
-          source: "legacy",
-          source_ref: row.ref_id ?? null,
-          metadata: null,
+          source: row.source ?? "system",
+          source_ref: row.source_ref ?? null,
+          metadata: row.metadata ?? null,
           created_at: row.created_at ?? null,
         }));
-        return { legacySchema: true, rows: normalizedRows };
-      })(),
-    ]);
+        return { legacySchema: false, rows: normalizedRows };
+      }
+
+      if (!isSchemaCompatibilityError(richRows.error)) {
+        throw new Error(richRows.error.message || "Failed to load ai_credit_ledger.");
+      }
+
+      const legacySelect = "id,user_id,change_cents,reason,ref_id,created_at";
+      const legacyRows = await fetchAllRowsForSelect<LegacyLedgerRow>(async (from, to) => {
+        const query = supabaseAdmin
+          .from("ai_credit_ledger")
+          .select(legacySelect)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .range(from, to);
+        const { data, error } = await query;
+        return {
+          data: (data as LegacyLedgerRow[] | null) ?? null,
+          error: normalizeQueryError(error),
+        };
+      });
+      if (legacyRows.error) {
+        throw new Error(legacyRows.error.message || "Failed to load ai_credit_ledger.");
+      }
+      compatibilityWarnings.push(
+        "ai_credit_ledger is using a legacy schema (ref_id fallback); some attribution is reduced."
+      );
+      const normalizedRows: NormalizedLedgerRow[] = legacyRows.rows.map((row) => ({
+        id: String(row.id),
+        user_id: String(row.user_id),
+        change_cents: Number(row.change_cents ?? 0),
+        reason: row.reason ?? "",
+        source: "legacy",
+        source_ref: row.ref_id ?? null,
+        metadata: null,
+        created_at: row.created_at ?? null,
+      }));
+      return { legacySchema: true, rows: normalizedRows };
+    })(),
+  ]);
 
   if (!generationsResult.supported) {
     compatibilityWarnings.push(
@@ -479,7 +447,6 @@ export const loadAdminHealthSnapshot = async ({
     authUser,
     generationsSelectUsed: generationsResult.selectUsed,
     reservationsSupported: reservationsResult.supported,
-    queueSupported: queueResult.supported,
     ledgerLegacySchema: ledgerResult.legacySchema,
     compatibilityWarnings,
     balance: balanceRows[0] ?? null,
@@ -491,7 +458,6 @@ export const loadAdminHealthSnapshot = async ({
       : projectGenerationItemsResult.rows,
     activeProjectIds: activeProjectIdsResult.error ? undefined : activeProjectIdsResult.rows,
     reservations: reservationsResult.rows,
-    queueRows: queueResult.rows,
     ledger: ledgerResult.rows,
     nowMs,
   });

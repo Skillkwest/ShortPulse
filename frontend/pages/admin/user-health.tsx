@@ -287,8 +287,8 @@ export default function AdminUserHealthPage() {
                 <span>Generation status mix</span>
                 <span>{topStatusEntries(result.generations.byStatus)}</span>
                 <span>
-                  Queue states: {topStatusEntries(result.queue.byStatus)} · Exhausted{" "}
-                  {result.queue.exhaustedCount}
+                  Stuck over 1h {result.generations.stuckOver1hCount} · Success without outputs{" "}
+                  {result.generations.successWithoutOutputCount}
                 </span>
               </div>
             </div>
@@ -338,7 +338,7 @@ export default function AdminUserHealthPage() {
                   costWithoutSuccessBreakdown: result.drainage.costWithoutSuccessfulGeneration,
                   topFailReasonsLookback: result.generations.topFailReasonsLookback,
                   topCapturedModels: result.reservations.topCapturedModels,
-                  recentExhaustedQueue: result.queue.recentExhaustedSample,
+                  successWithoutOutputSample: result.generations.successWithoutOutputSample,
                   compatibilityWarnings: result.compatibility.warnings,
                   nextSteps: result.nextSteps,
                 },

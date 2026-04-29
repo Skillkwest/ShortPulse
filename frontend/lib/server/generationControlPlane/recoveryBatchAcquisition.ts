@@ -19,7 +19,6 @@ export type ClaimedGeneration = {
 
 export type RecoveryBatchAcquisitionResult = {
   rows: ClaimedGeneration[];
-  claimSource: "rpc" | "fallback";
   rpcError: unknown | null;
 };
 
@@ -58,70 +57,6 @@ const parseClaimedGeneration = (value: unknown): ClaimedGeneration | null => {
     recovery_state: asString(row.recovery_state),
     recovery_attempts: asNumber(row.recovery_attempts),
   };
-};
-
-const claimFallback = async ({
-  supabaseAdmin,
-  batchSize,
-  maxAttempts,
-  minAgeSeconds,
-  leaseSeconds,
-}: {
-  supabaseAdmin: SupabaseAdminClient;
-  batchSize: number;
-  maxAttempts: number;
-  minAgeSeconds: number;
-  leaseSeconds: number;
-}): Promise<ClaimedGeneration[]> => {
-  const oldestCreatedAtIso = new Date(Date.now() - minAgeSeconds * 1000).toISOString();
-  const nowIso = new Date().toISOString();
-  const leaseUntilIso = new Date(Date.now() + leaseSeconds * 1000).toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("ai_generations")
-    .select(
-      "id, user_id, request_id, provider, model_id, status, recovery_state, recovery_attempts"
-    )
-    .in("recovery_state", ["queued", "recovering"])
-    .lte("created_at", oldestCreatedAtIso)
-    .or(`next_recovery_at.is.null,next_recovery_at.lte.${nowIso}`)
-    .lt("recovery_attempts", maxAttempts)
-    .order("next_recovery_at", { ascending: true, nullsFirst: true })
-    .order("created_at", { ascending: true })
-    .limit(batchSize);
-  if (error || !Array.isArray(data)) return [];
-
-  const claimed: ClaimedGeneration[] = [];
-  for (const raw of data) {
-    const row = parseClaimedGeneration(raw);
-    if (!row) continue;
-    if (!resolveSupportedRecoveryProviderFamily(row.provider)) continue;
-    const claimResult = await tryClaimRecoveryCandidate({
-      candidate: {
-        id: row.id,
-        userId: row.user_id,
-        requestId: row.request_id,
-        provider: row.provider,
-        status: row.status,
-        recoveryState: row.recovery_state,
-        recoveryAttempts: row.recovery_attempts,
-      },
-      maxAttempts,
-      oldestAllowedIso: oldestCreatedAtIso,
-      nowIso,
-      leaseUntilIso,
-      supabaseAdmin,
-    });
-    if (claimResult.claimed) {
-      claimed.push({
-        ...row,
-        request_id: claimResult.requestId,
-        recovery_attempts: (row.recovery_attempts ?? 0) + 1,
-        recovery_state: "recovering",
-      });
-    }
-  }
-
-  return claimed;
 };
 
 const claimImmediateNoMediaRows = async ({
@@ -338,21 +273,12 @@ export const claimGenerationRecoveryBatch = async ({
       .filter((row): row is ClaimedGeneration => Boolean(row));
     return {
       rows: await claimImmediateRows(parsedRows),
-      claimSource: "rpc",
       rpcError: null,
     };
   }
 
-  const fallbackRows = await claimFallback({
-    supabaseAdmin: client,
-    batchSize,
-    maxAttempts,
-    minAgeSeconds,
-    leaseSeconds,
-  });
   return {
-    rows: await claimImmediateRows(fallbackRows),
-    claimSource: "fallback",
+    rows: [],
     rpcError: claimResponse.error,
   };
 };

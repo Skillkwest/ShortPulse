@@ -211,7 +211,7 @@ Recommended operator sequence:
   - `status='reserved'`
   - `provider_request_id is null`
   - row older than `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS` (default `900`).
-- Cleanup excludes reservations with active queue rows (`ai_generation_submit_queue.status in ('queued','dispatching')`).
+- Cleanup is owned by the accepted-generation control plane and should be verified against canonical generation, attempt, reservation, and ledger state.
 - Batch size is controlled by `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE` (default `200`).
 
 ## User-facing balance snapshot

@@ -76,18 +76,6 @@ export type ReservationRow = {
   captured_at: string | null;
 };
 
-export type QueueRow = {
-  id: string;
-  generation_id: string | null;
-  status: string | null;
-  model_id: string | null;
-  source_ref: string | null;
-  attempts: number | null;
-  created_at: string | null;
-  updated_at: string | null;
-  last_error_code: string | null;
-};
-
 export type NormalizedLedgerRow = {
   id: string;
   user_id: string;
@@ -132,7 +120,6 @@ export type AdminHealthResponse = {
     attemptsSupported: boolean;
     outputsSupported: boolean;
     reservationsSupported: boolean;
-    queueSupported: boolean;
     ledgerLegacySchema: boolean;
     warnings: string[];
   };
@@ -227,24 +214,6 @@ export type AdminHealthResponse = {
     reservedLinkedTerminalGenerationCount: number;
     topCapturedModels: Array<{ modelId: string; cents: number }>;
   };
-  queue: {
-    total: number;
-    byStatus: Record<string, number>;
-    exhaustedCount: number;
-    exhaustedWithReleasedReservationCount: number;
-    exhaustedWithChargeCount: number;
-    oldestCreatedAt: string | null;
-    recentExhaustedSample: Array<{
-      queueId: string;
-      sourceRef: string | null;
-      modelId: string | null;
-      errorCode: string | null;
-      generationStatus: string | null;
-      reservationStatus: string | null;
-      chargeCount: number;
-      createdAt: string | null;
-    }>;
-  };
   findings: HealthFinding[];
   nextSteps: string[];
 };
@@ -263,7 +232,6 @@ export type BuildAdminHealthResponseArgs = {
   authUser: AdminHealthAuthUser;
   generationsSelectUsed: string;
   reservationsSupported: boolean;
-  queueSupported: boolean;
   ledgerLegacySchema: boolean;
   compatibilityWarnings: string[];
   balance: BalanceRow | null;
@@ -273,7 +241,6 @@ export type BuildAdminHealthResponseArgs = {
   projectGenerationItems?: ProjectGenerationItemRow[];
   activeProjectIds?: string[];
   reservations: ReservationRow[];
-  queueRows: QueueRow[];
   ledger: NormalizedLedgerRow[];
   nowMs?: number;
 };
@@ -320,7 +287,6 @@ export const buildAdminHealthResponse = ({
   authUser,
   generationsSelectUsed,
   reservationsSupported,
-  queueSupported,
   ledgerLegacySchema,
   compatibilityWarnings,
   balance,
@@ -330,7 +296,6 @@ export const buildAdminHealthResponse = ({
   projectGenerationItems = [],
   activeProjectIds,
   reservations,
-  queueRows,
   ledger,
   nowMs = Date.now(),
 }: BuildAdminHealthResponseArgs): AdminHealthResponse => {
@@ -393,15 +358,6 @@ export const buildAdminHealthResponse = ({
     if (!reservationBySourceRef.has(row.source_ref)) {
       reservationBySourceRef.set(row.source_ref, row);
     }
-  });
-
-  const generationChargeCountBySourceRef = new Map<string, number>();
-  ledger.forEach((row) => {
-    if (row.source !== "generation_charge" || !row.source_ref) return;
-    generationChargeCountBySourceRef.set(
-      row.source_ref,
-      (generationChargeCountBySourceRef.get(row.source_ref) ?? 0) + 1
-    );
   });
 
   const lookbackMs = lookbackDays * DAY_MS;
@@ -675,38 +631,6 @@ export const buildAdminHealthResponse = ({
     .slice(0, 10)
     .map(([modelId, cents]) => ({ modelId, cents }));
 
-  const queueByStatus = computeStatusCounts(queueRows);
-  const exhaustedQueueRows = queueRows.filter((row) => row.status === "exhausted");
-  const exhaustedQueueSample = exhaustedQueueRows.slice(0, 20).map((row) => {
-    const reservation = row.source_ref ? reservationBySourceRef.get(row.source_ref) : undefined;
-    const generation = row.generation_id
-      ? generations.find((generationRow) => generationRow.id === row.generation_id)
-      : undefined;
-    const chargeCount = row.source_ref
-      ? (generationChargeCountBySourceRef.get(row.source_ref) ?? 0)
-      : 0;
-    return {
-      queueId: row.id,
-      sourceRef: row.source_ref ?? null,
-      modelId: row.model_id ?? null,
-      errorCode: row.last_error_code ?? null,
-      generationStatus: generation?.status ?? null,
-      reservationStatus: reservation?.status ?? null,
-      chargeCount,
-      createdAt: row.created_at ?? null,
-    };
-  });
-
-  const exhaustedWithReleasedReservationCount = exhaustedQueueRows.filter((row) => {
-    if (!row.source_ref) return false;
-    const reservation = reservationBySourceRef.get(row.source_ref);
-    return reservation?.status === "released";
-  }).length;
-  const exhaustedWithChargeCount = exhaustedQueueRows.filter((row) => {
-    if (!row.source_ref) return false;
-    return (generationChargeCountBySourceRef.get(row.source_ref) ?? 0) > 0;
-  }).length;
-
   const successWithoutOutputs = generations.filter(
     (row) => row.status === "success" && (outputCountByGenerationId.get(row.id) ?? 0) === 0
   );
@@ -745,7 +669,7 @@ export const buildAdminHealthResponse = ({
       [
         "Run /api/internal/generation-recovery/run and re-check reservation counts.",
         "Use /admin/generation-trace on affected source_ref/request_id values.",
-        "Only after confirmation, use guarded remediation from sql/check_generation_queue_blockers.sql.",
+        "Only after confirmation, use the guarded reservation tools tied to generation-trace evidence.",
       ]
     );
   } else if (reservedCents > 0) {
@@ -896,23 +820,6 @@ export const buildAdminHealthResponse = ({
     );
   }
 
-  if (exhaustedQueueRows.length > 0) {
-    const exhaustedSeverity: FindingSeverity = exhaustedQueueRows.length >= 25 ? "warning" : "info";
-    const exhaustedConfidence: FindingConfidence =
-      exhaustedWithChargeCount > 0 ? "high" : exhaustedSeverity === "warning" ? "medium" : "low";
-    addFinding(
-      exhaustedSeverity,
-      exhaustedConfidence,
-      "EXHAUSTED_QUEUE_ROWS",
-      "Exhausted queue rows present for this user.",
-      `${exhaustedQueueRows.length} exhausted queue rows found; ${exhaustedWithReleasedReservationCount} already released reservations and ${exhaustedWithChargeCount} with charges.`,
-      [
-        "Confirm exhausted rows are expected historical artifacts vs current incident.",
-        "If fresh/excessive, inspect queue dispatch limits and provider availability.",
-      ]
-    );
-  }
-
   compatibilityWarnings.forEach((warningText, index) => {
     addFinding(
       "info",
@@ -965,7 +872,6 @@ export const buildAdminHealthResponse = ({
         outputs.length > 0 ||
         compatibilityWarnings.every((warning) => !warning.includes("ai_generation_outputs")),
       reservationsSupported,
-      queueSupported,
       ledgerLegacySchema,
       warnings: compatibilityWarnings,
     },
@@ -1045,21 +951,6 @@ export const buildAdminHealthResponse = ({
       reservedWithoutProviderOver15mCount: reservedWithoutProviderOver15m.length,
       reservedLinkedTerminalGenerationCount: reservedLinkedTerminalGeneration.length,
       topCapturedModels,
-    },
-    queue: {
-      total: queueRows.length,
-      byStatus: queueByStatus,
-      exhaustedCount: exhaustedQueueRows.length,
-      exhaustedWithReleasedReservationCount,
-      exhaustedWithChargeCount,
-      oldestCreatedAt: queueRows.length
-        ? queueRows.reduce<string | null>((oldest, row) => {
-            if (!row.created_at) return oldest;
-            if (!oldest) return row.created_at;
-            return row.created_at < oldest ? row.created_at : oldest;
-          }, null)
-        : null,
-      recentExhaustedSample: exhaustedQueueSample,
     },
     findings,
     nextSteps,

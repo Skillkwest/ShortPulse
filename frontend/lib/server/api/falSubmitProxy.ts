@@ -24,7 +24,7 @@ import {
   resolveGenerationPromptFromPayload,
   resolveGenerationResolutionFromPayload,
   readGenerationDurationSeconds,
-} from "./generationQueue/metadata";
+} from "./generationPayloadMetadata";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import {
   dispatchProviderSubmit,

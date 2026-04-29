@@ -72,9 +72,6 @@ describe("loadAdminHealthSnapshot", () => {
         if (table === "ai_credit_reservations") {
           return buildQuery({ data: [], error: null });
         }
-        if (table === "ai_generation_submit_queue") {
-          return buildQuery({ data: [], error: null });
-        }
         if (table === "ai_credit_ledger") {
           return buildQuery({ data: [], error: null });
         }

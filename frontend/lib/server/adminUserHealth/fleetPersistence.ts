@@ -251,7 +251,6 @@ export const persistFleetSnapshotBatch = async ({
     fail_count_24h: draft.failCount24h,
     total_count_24h: draft.totalCount24h,
     stuck_generations_count: draft.stuckGenerationsCount,
-    exhausted_queue_count: draft.exhaustedQueueCount,
     cost_without_success_cents: draft.costWithoutSuccessCents,
     cost_without_success_linked_cents: draft.costWithoutSuccessLinkedCents,
     cost_without_success_missing_linkage_cents: draft.costWithoutSuccessMissingLinkageCents,

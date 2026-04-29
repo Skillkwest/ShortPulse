@@ -18,7 +18,6 @@ describe("buildAdminHealthResponse", () => {
       },
       generationsSelectUsed: "id,status",
       reservationsSupported: true,
-      queueSupported: true,
       ledgerLegacySchema: false,
       compatibilityWarnings: [],
       balance: {
@@ -30,7 +29,6 @@ describe("buildAdminHealthResponse", () => {
       attempts: [],
       outputs: [],
       reservations: [],
-      queueRows: [],
       ledger: [],
       nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
     });
@@ -60,9 +58,8 @@ describe("buildAdminHealthResponse", () => {
       },
       generationsSelectUsed: "id,status,recovery_state,request_id",
       reservationsSupported: true,
-      queueSupported: true,
       ledgerLegacySchema: false,
-      compatibilityWarnings: ["legacy queue projection in use"],
+      compatibilityWarnings: [],
       balance: {
         user_id: "user-1",
         balance_cents: 1000,
@@ -98,19 +95,6 @@ describe("buildAdminHealthResponse", () => {
           captured_at: null,
         },
       ],
-      queueRows: [
-        {
-          id: "queue-1",
-          generation_id: "gen-1",
-          status: "exhausted",
-          model_id: "model-1",
-          source_ref: "src-1",
-          attempts: 3,
-          created_at: "2026-03-17T09:01:00.000Z",
-          updated_at: "2026-03-17T09:10:00.000Z",
-          last_error_code: "PROVIDER_TIMEOUT",
-        },
-      ],
       ledger: [
         {
           id: "ledger-1",
@@ -132,8 +116,6 @@ describe("buildAdminHealthResponse", () => {
         "STUCK_GENERATIONS",
         "HIGH_FAIL_RATE_24H",
         "CHARGED_LINKED_NON_SUCCESS_GENERATION",
-        "EXHAUSTED_QUEUE_ROWS",
-        "COMPATIBILITY_1",
       ])
     );
     expect(result.drainage.costWithoutSuccessfulGeneration.linkedNonSuccessGeneration).toEqual(
@@ -165,7 +147,6 @@ describe("buildAdminHealthResponse", () => {
       },
       generationsSelectUsed: "id,status,recovery_state,request_id",
       reservationsSupported: true,
-      queueSupported: true,
       ledgerLegacySchema: false,
       compatibilityWarnings: [],
       balance: null,
@@ -186,7 +167,6 @@ describe("buildAdminHealthResponse", () => {
       attempts: [],
       outputs: [],
       reservations: [],
-      queueRows: [],
       ledger: [],
       nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
     });
@@ -210,7 +190,6 @@ describe("buildAdminHealthResponse", () => {
       },
       generationsSelectUsed: "id,status,recovery_state,request_id",
       reservationsSupported: true,
-      queueSupported: true,
       ledgerLegacySchema: false,
       compatibilityWarnings: [],
       balance: null,
@@ -259,7 +238,6 @@ describe("buildAdminHealthResponse", () => {
           captured_at: null,
         },
       ],
-      queueRows: [],
       ledger: [
         {
           id: "ledger-1",
@@ -296,7 +274,6 @@ describe("buildAdminHealthResponse", () => {
       },
       generationsSelectUsed: "id,status,request_id,metadata",
       reservationsSupported: true,
-      queueSupported: true,
       ledgerLegacySchema: false,
       compatibilityWarnings: [],
       balance: {
@@ -368,7 +345,6 @@ describe("buildAdminHealthResponse", () => {
           captured_at: null,
         },
       ],
-      queueRows: [],
       ledger: [],
       nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
     });
@@ -400,7 +376,6 @@ describe("buildAdminHealthResponse", () => {
       },
       generationsSelectUsed: "id,status,metadata",
       reservationsSupported: true,
-      queueSupported: true,
       ledgerLegacySchema: false,
       compatibilityWarnings: [],
       balance: {
@@ -439,7 +414,6 @@ describe("buildAdminHealthResponse", () => {
       projectGenerationItems: [],
       activeProjectIds: ["active-project"],
       reservations: [],
-      queueRows: [],
       ledger: [],
       nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
     });

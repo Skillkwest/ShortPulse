@@ -682,7 +682,6 @@ export type AdminUserHealthResponse = {
   compatibility: {
     generationsSelectUsed: string;
     reservationsSupported: boolean;
-    queueSupported: boolean;
     ledgerLegacySchema: boolean;
     warnings: string[];
   };
@@ -753,31 +752,29 @@ export type AdminUserHealthResponse = {
       ageHours: number | null;
       nextRecoveryAt: string | null;
     }>;
+    successWithoutOutputCount: number;
+    successWithoutOutputSample: Array<{
+      id: string;
+      requestId: string | null;
+      modelId: string | null;
+      completedAt: string | null;
+    }>;
+    projectScopedSuccessMissingAssociationCount: number;
+    projectScopedSuccessMissingAssociationSample: Array<{
+      id: string;
+      projectId: string;
+      requestId: string | null;
+      modelId: string | null;
+      completedAt: string | null;
+    }>;
   };
   reservations: {
     total: number;
     byStatus: Record<string, number>;
     reservedWithProviderOver1hCount: number;
     reservedWithoutProviderOver15mCount: number;
+    reservedLinkedTerminalGenerationCount: number;
     topCapturedModels: Array<{ modelId: string; cents: number }>;
-  };
-  queue: {
-    total: number;
-    byStatus: Record<string, number>;
-    exhaustedCount: number;
-    exhaustedWithReleasedReservationCount: number;
-    exhaustedWithChargeCount: number;
-    oldestCreatedAt: string | null;
-    recentExhaustedSample: Array<{
-      queueId: string;
-      sourceRef: string | null;
-      modelId: string | null;
-      errorCode: string | null;
-      generationStatus: string | null;
-      reservationStatus: string | null;
-      chargeCount: number;
-      createdAt: string | null;
-    }>;
   };
   findings: AdminHealthFinding[];
   nextSteps: string[];
@@ -829,7 +826,6 @@ export type AdminUserHealthFleetSnapshot = {
   failCount24h: number;
   totalCount24h: number;
   stuckGenerationsCount: number;
-  exhaustedQueueCount: number;
   costWithoutSuccessCents: number;
   costWithoutSuccessLinkedCents: number;
   costWithoutSuccessMissingLinkageCents: number;
@@ -847,7 +843,6 @@ export type AdminUserHealthFleetSummary = {
   lowRiskCount: number;
   totalCostWithoutSuccessCents: number;
   totalStuckGenerations: number;
-  totalExhaustedQueueRows: number;
 };
 
 export type AdminUserHealthFleetResponse = {

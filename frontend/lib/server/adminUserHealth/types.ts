@@ -26,7 +26,6 @@ export type FleetUserMetricInput = {
   failCount24h: number;
   totalCount24h: number;
   stuckGenerationsCount: number;
-  exhaustedQueueCount: number;
   reservedWithProviderOver1hCount: number;
   reservedWithoutProviderOver15mCount: number;
   costWithoutSuccessCents: number;
@@ -62,7 +61,6 @@ export type FleetSnapshotDraft = {
   failCount24h: number;
   totalCount24h: number;
   stuckGenerationsCount: number;
-  exhaustedQueueCount: number;
   costWithoutSuccessCents: number;
   costWithoutSuccessLinkedCents: number;
   costWithoutSuccessMissingLinkageCents: number;
@@ -118,7 +116,6 @@ export type FleetSummary = {
   lowRiskCount: number;
   totalCostWithoutSuccessCents: number;
   totalStuckGenerations: number;
-  totalExhaustedQueueRows: number;
 };
 
 export type FleetSnapshotRecord = {
@@ -135,7 +132,6 @@ export type FleetSnapshotRecord = {
   failCount24h: number;
   totalCount24h: number;
   stuckGenerationsCount: number;
-  exhaustedQueueCount: number;
   costWithoutSuccessCents: number;
   costWithoutSuccessLinkedCents: number;
   costWithoutSuccessMissingLinkageCents: number;

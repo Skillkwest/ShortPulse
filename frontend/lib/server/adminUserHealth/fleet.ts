@@ -51,11 +51,6 @@ type GenerationRow = {
   created_at: string | null;
 };
 
-type QueueRow = {
-  user_id: string;
-  status: string | null;
-};
-
 type RichLedgerRow = {
   user_id: string;
   change_cents: number | string | null;
@@ -177,93 +172,85 @@ const loadChunkMetrics = async ({
   const userIdSet = new Set(userIds);
   const compatibilityWarnings = new Set<string>();
 
-  const [
-    balanceResult,
-    reservationResult,
-    generationResult,
-    stuckGenerationResult,
-    queueResult,
-    ledgerResult,
-  ] = await Promise.all([
-    supabaseAdmin.from("ai_credit_balance").select("user_id,balance_cents").in("user_id", userIds),
-    supabaseAdmin
-      .from("ai_credit_reservations")
-      .select("user_id,status,source_ref,provider_request_id,amount_cents,created_at")
-      .in("user_id", userIds)
-      .order("created_at", { ascending: false }),
-    supabaseAdmin
-      .from("ai_generations")
-      .select("user_id,status,recovery_state,request_id,created_at")
-      .in("user_id", userIds)
-      .gte("created_at", lookbackStartIso)
-      .order("created_at", { ascending: false }),
-    supabaseAdmin
-      .from("ai_generations")
-      .select("user_id,status,recovery_state,request_id,created_at")
-      .in("user_id", userIds)
-      .in("status", ["pending", "submitted", "running", "fail"])
-      .in("recovery_state", ["queued", "recovering"])
-      .lte("created_at", new Date(nowMs - STUCK_GENERATION_CRITICAL_MS).toISOString()),
-    supabaseAdmin
-      .from("ai_generation_submit_queue")
-      .select("user_id,status")
-      .in("user_id", userIds)
-      .gte("created_at", lookbackStartIso),
-    (async () => {
-      const rich = await supabaseAdmin
-        .from("ai_credit_ledger")
-        .select("user_id,change_cents,source,source_ref,reason,created_at")
+  const [balanceResult, reservationResult, generationResult, stuckGenerationResult, ledgerResult] =
+    await Promise.all([
+      supabaseAdmin
+        .from("ai_credit_balance")
+        .select("user_id,balance_cents")
+        .in("user_id", userIds),
+      supabaseAdmin
+        .from("ai_credit_reservations")
+        .select("user_id,status,source_ref,provider_request_id,amount_cents,created_at")
         .in("user_id", userIds)
-        .lt("change_cents", 0)
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("ai_generations")
+        .select("user_id,status,recovery_state,request_id,created_at")
+        .in("user_id", userIds)
         .gte("created_at", lookbackStartIso)
-        .order("created_at", { ascending: false });
-      if (!rich.error) {
-        const rows = Array.isArray(rich.data)
-          ? rich.data.map((row) => ({
-              user_id: String((row as RichLedgerRow).user_id),
-              change_cents: toNumber((row as RichLedgerRow).change_cents),
-              source: (row as RichLedgerRow).source ?? "system",
-              source_ref: (row as RichLedgerRow).source_ref ?? null,
-              reason: (row as RichLedgerRow).reason ?? "",
-              created_at: (row as RichLedgerRow).created_at ?? null,
+        .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("ai_generations")
+        .select("user_id,status,recovery_state,request_id,created_at")
+        .in("user_id", userIds)
+        .in("status", ["pending", "submitted", "running", "fail"])
+        .in("recovery_state", ["queued", "recovering"])
+        .lte("created_at", new Date(nowMs - STUCK_GENERATION_CRITICAL_MS).toISOString()),
+      (async () => {
+        const rich = await supabaseAdmin
+          .from("ai_credit_ledger")
+          .select("user_id,change_cents,source,source_ref,reason,created_at")
+          .in("user_id", userIds)
+          .lt("change_cents", 0)
+          .gte("created_at", lookbackStartIso)
+          .order("created_at", { ascending: false });
+        if (!rich.error) {
+          const rows = Array.isArray(rich.data)
+            ? rich.data.map((row) => ({
+                user_id: String((row as RichLedgerRow).user_id),
+                change_cents: toNumber((row as RichLedgerRow).change_cents),
+                source: (row as RichLedgerRow).source ?? "system",
+                source_ref: (row as RichLedgerRow).source_ref ?? null,
+                reason: (row as RichLedgerRow).reason ?? "",
+                created_at: (row as RichLedgerRow).created_at ?? null,
+              }))
+            : [];
+          return { rows, warning: null };
+        }
+
+        const richError = normalizeQueryError(rich.error);
+        if (!isSchemaCompatibilityError(richError)) {
+          throw new Error(richError?.message || "Failed to load ai_credit_ledger.");
+        }
+
+        const legacy = await supabaseAdmin
+          .from("ai_credit_ledger")
+          .select("user_id,change_cents,ref_id,reason,created_at")
+          .in("user_id", userIds)
+          .lt("change_cents", 0)
+          .gte("created_at", lookbackStartIso)
+          .order("created_at", { ascending: false });
+        if (legacy.error) {
+          throw new Error(legacy.error.message || "Failed to load ai_credit_ledger.");
+        }
+        const rows = Array.isArray(legacy.data)
+          ? legacy.data.map((row) => ({
+              user_id: String((row as LegacyLedgerRow).user_id),
+              change_cents: toNumber((row as LegacyLedgerRow).change_cents),
+              source: "legacy",
+              source_ref: (row as LegacyLedgerRow).ref_id ?? null,
+              reason: (row as LegacyLedgerRow).reason ?? "",
+              created_at: (row as LegacyLedgerRow).created_at ?? null,
             }))
           : [];
-        return { rows, warning: null };
-      }
 
-      const richError = normalizeQueryError(rich.error);
-      if (!isSchemaCompatibilityError(richError)) {
-        throw new Error(richError?.message || "Failed to load ai_credit_ledger.");
-      }
-
-      const legacy = await supabaseAdmin
-        .from("ai_credit_ledger")
-        .select("user_id,change_cents,ref_id,reason,created_at")
-        .in("user_id", userIds)
-        .lt("change_cents", 0)
-        .gte("created_at", lookbackStartIso)
-        .order("created_at", { ascending: false });
-      if (legacy.error) {
-        throw new Error(legacy.error.message || "Failed to load ai_credit_ledger.");
-      }
-      const rows = Array.isArray(legacy.data)
-        ? legacy.data.map((row) => ({
-            user_id: String((row as LegacyLedgerRow).user_id),
-            change_cents: toNumber((row as LegacyLedgerRow).change_cents),
-            source: "legacy",
-            source_ref: (row as LegacyLedgerRow).ref_id ?? null,
-            reason: (row as LegacyLedgerRow).reason ?? "",
-            created_at: (row as LegacyLedgerRow).created_at ?? null,
-          }))
-        : [];
-
-      return {
-        rows,
-        warning:
-          "ai_credit_ledger is using a legacy schema in this environment; cost-without-success detection may be partial.",
-      };
-    })(),
-  ]);
+        return {
+          rows,
+          warning:
+            "ai_credit_ledger is using a legacy schema in this environment; cost-without-success detection may be partial.",
+        };
+      })(),
+    ]);
 
   const balanceError = normalizeQueryError(balanceResult.error);
   if (balanceError) {
@@ -310,20 +297,6 @@ const loadChunkMetrics = async ({
     }
   } else if (Array.isArray(stuckGenerationResult.data)) {
     stuckGenerationRows.push(...(stuckGenerationResult.data as GenerationRow[]));
-  }
-
-  const queueError = normalizeQueryError(queueResult.error);
-  const queueRows: QueueRow[] = [];
-  if (queueError) {
-    if (isSchemaCompatibilityError(queueError)) {
-      compatibilityWarnings.add(
-        "ai_generation_submit_queue is unavailable in this environment; queue diagnostics are partial."
-      );
-    } else {
-      throw new Error(queueError.message || "Failed to load ai_generation_submit_queue.");
-    }
-  } else if (Array.isArray(queueResult.data)) {
-    queueRows.push(...(queueResult.data as QueueRow[]));
   }
 
   if (ledgerResult.warning) {
@@ -402,15 +375,6 @@ const loadChunkMetrics = async ({
     stuckCountByUser.set(userId, (stuckCountByUser.get(userId) ?? 0) + 1);
   }
 
-  const exhaustedQueueCountByUser = new Map<string, number>();
-  for (const row of queueRows) {
-    const userId = String(row.user_id);
-    if (!userIdSet.has(userId)) continue;
-    if (row.status === "exhausted") {
-      exhaustedQueueCountByUser.set(userId, (exhaustedQueueCountByUser.get(userId) ?? 0) + 1);
-    }
-  }
-
   const ledgerRows = ledgerResult.rows;
   const drafts: FleetSnapshotDraft[] = targets.map((target) => {
     const availableCents = balanceByUser.get(target.userId) ?? 0;
@@ -439,7 +403,6 @@ const loadChunkMetrics = async ({
       failCount24h,
       totalCount24h,
       stuckGenerationsCount: stuckCountByUser.get(target.userId) ?? 0,
-      exhaustedQueueCount: exhaustedQueueCountByUser.get(target.userId) ?? 0,
       reservedWithProviderOver1hCount: reservedWithProviderOver1hByUser.get(target.userId) ?? 0,
       reservedWithoutProviderOver15mCount:
         reservedWithoutProviderOver15mByUser.get(target.userId) ?? 0,
@@ -463,7 +426,6 @@ const loadChunkMetrics = async ({
       failCount24h,
       totalCount24h,
       stuckGenerationsCount: metricInput.stuckGenerationsCount,
-      exhaustedQueueCount: metricInput.exhaustedQueueCount,
       costWithoutSuccessCents: metricInput.costWithoutSuccessCents,
       costWithoutSuccessLinkedCents: metricInput.costWithoutSuccessLinkedCents,
       costWithoutSuccessMissingLinkageCents: metricInput.costWithoutSuccessMissingLinkageCents,
@@ -527,7 +489,6 @@ const maybeEscalateIncidents = async ({
         finding_codes: draft.findings.map((finding) => finding.code).slice(0, 10),
         cost_without_success_cents: draft.costWithoutSuccessCents,
         stuck_generations_count: draft.stuckGenerationsCount,
-        exhausted_queue_count: draft.exhaustedQueueCount,
       },
     });
   }

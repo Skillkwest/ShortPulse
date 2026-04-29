@@ -65,7 +65,6 @@ const emptySummary = (): FleetSummary => ({
   lowRiskCount: 0,
   totalCostWithoutSuccessCents: 0,
   totalStuckGenerations: 0,
-  totalExhaustedQueueRows: 0,
 });
 
 const emptyReport = (filters: FleetReadFilters): FleetReadReport => ({
@@ -133,7 +132,6 @@ const parseSnapshotRecord = ({
     failCount24h: Math.max(0, Math.trunc(toNumber(row.fail_count_24h))),
     totalCount24h: Math.max(0, Math.trunc(toNumber(row.total_count_24h))),
     stuckGenerationsCount: Math.max(0, Math.trunc(toNumber(row.stuck_generations_count))),
-    exhaustedQueueCount: Math.max(0, Math.trunc(toNumber(row.exhausted_queue_count))),
     costWithoutSuccessCents: Math.max(0, Math.trunc(toNumber(row.cost_without_success_cents))),
     costWithoutSuccessLinkedCents: Math.max(
       0,
@@ -162,10 +160,6 @@ const buildSummary = (snapshots: FleetSnapshotRecord[]): FleetSummary => ({
   ),
   totalStuckGenerations: snapshots.reduce(
     (sum, snapshot) => sum + snapshot.stuckGenerationsCount,
-    0
-  ),
-  totalExhaustedQueueRows: snapshots.reduce(
-    (sum, snapshot) => sum + snapshot.exhaustedQueueCount,
     0
   ),
 });

@@ -8,7 +8,7 @@ import {
 const readActiveProviderCapacitySnapshotMock = vi.fn();
 const readRecoveryBackpressureDecisionMock = vi.fn();
 
-vi.mock("../../generationQueue/activeProviderCapacity", () => ({
+vi.mock("../activeProviderCapacity", () => ({
   readActiveProviderCapacitySnapshot: (...args: unknown[]) =>
     readActiveProviderCapacitySnapshotMock(...args),
 }));

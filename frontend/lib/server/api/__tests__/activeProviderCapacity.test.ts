@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { readActiveProviderCapacitySnapshot } from "../generationQueue/activeProviderCapacity";
+import { readActiveProviderCapacitySnapshot } from "../generationAdmission/activeProviderCapacity";
 
 const getSupabaseAdminMock = vi.fn();
 

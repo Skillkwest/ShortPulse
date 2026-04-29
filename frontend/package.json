@@ -125,8 +125,6 @@
       "features/ai-studio/hooks/useMediaLibraryPanelFolderCanvasController.ts",
       "features/ai-studio/logic/mediaFolderCanvasSnapshot.ts",
       "lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts",
-      "lib/server/api/generationQueue/statusRecoveryKick.ts",
-      "lib/server/api/generationQueue/requestIdRepair.ts",
       "lib/server/generationControlPlane/workerOps.ts",
       "lib/server/generationControlPlane/workerLoop.ts",
       "scripts/ai-studio-perf-release-check.mjs",

@@ -186,21 +186,6 @@ export const evaluateFleetUserHealth = (metrics: FleetUserMetricInput): FleetUse
     );
   }
 
-  if (metrics.exhaustedQueueCount > 0) {
-    addFinding(
-      findings,
-      metrics.exhaustedQueueCount >= 25 ? "warning" : "info",
-      metrics.exhaustedQueueCount >= 25 ? "medium" : "low",
-      "EXHAUSTED_QUEUE_ROWS",
-      "Exhausted queue rows present.",
-      `${metrics.exhaustedQueueCount} exhausted queue rows were observed in the lookback window.`,
-      [
-        "Confirm exhausted rows are expected historical artifacts.",
-        "If fresh/excessive, inspect queue dispatch limits and provider availability.",
-      ]
-    );
-  }
-
   for (const warning of metrics.compatibilityWarnings) {
     addFinding(
       findings,

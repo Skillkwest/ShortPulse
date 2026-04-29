@@ -6,7 +6,7 @@ import {
   buildProviderFailedUpdate,
   buildProviderRunningUpdate,
   buildRecoveredSuccessUpdate,
-  buildRecoveryQueuePlan,
+  buildRecoveryRetryPlan,
 } from "../recoveryLifecycleTransitions";
 
 describe("recoveryLifecycleTransitions", () => {
@@ -17,12 +17,12 @@ describe("recoveryLifecycleTransitions", () => {
   it("builds queued vs exhausted recovery queue plans", () => {
     vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
 
-    const queuedPlan = buildRecoveryQueuePlan({
+    const queuedPlan = buildRecoveryRetryPlan({
       attempts: 1,
       effectiveMaxAttempts: 3,
       nextDelaySeconds: 120,
     });
-    const exhaustedPlan = buildRecoveryQueuePlan({
+    const exhaustedPlan = buildRecoveryRetryPlan({
       attempts: 3,
       effectiveMaxAttempts: 3,
       nextDelaySeconds: 120,
@@ -45,7 +45,7 @@ describe("recoveryLifecycleTransitions", () => {
   it("defers exhaustion when min-age policy is active and row is too young", () => {
     vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
 
-    const deferredPlan = buildRecoveryQueuePlan({
+    const deferredPlan = buildRecoveryRetryPlan({
       attempts: 3,
       effectiveMaxAttempts: 3,
       nextDelaySeconds: 120,
@@ -64,13 +64,13 @@ describe("recoveryLifecycleTransitions", () => {
 
   it("builds transition update payloads without changing field semantics", () => {
     const nowIso = "2026-02-23T12:00:00.000Z";
-    const queuePlan = {
+    const retryPlan = {
       isExhausted: false,
       exhaustionDeferredByMinAge: false,
       recoveryState: "queued" as const,
       nextRecoveryAt: "2026-02-23T12:02:00.000Z",
     };
-    const exhaustedQueuePlan = {
+    const exhaustedRetryPlan = {
       isExhausted: true,
       exhaustionDeferredByMinAge: false,
       recoveryState: "exhausted" as const,
@@ -103,7 +103,7 @@ describe("recoveryLifecycleTransitions", () => {
       buildProviderRunningUpdate({
         nowIso,
         attempts: 1,
-        queuePlan,
+        retryPlan,
       })
     ).toEqual({
       recovery_state: "queued",
@@ -117,7 +117,7 @@ describe("recoveryLifecycleTransitions", () => {
       buildProviderRunningUpdate({
         nowIso,
         attempts: 3,
-        queuePlan: exhaustedQueuePlan,
+        retryPlan: exhaustedRetryPlan,
       })
     ).toEqual({
       status: "fail",
@@ -132,7 +132,7 @@ describe("recoveryLifecycleTransitions", () => {
       buildProviderRunningUpdate({
         nowIso,
         attempts: 3,
-        queuePlan: {
+        retryPlan: {
           isExhausted: false,
           exhaustionDeferredByMinAge: true,
           recoveryState: "queued",
@@ -168,7 +168,7 @@ describe("recoveryLifecycleTransitions", () => {
     expect(
       buildNoMediaUpdate({
         nowIso,
-        queuePlan,
+        retryPlan,
       })
     ).toEqual({
       failure_reason_code: "terminal_success_no_media",

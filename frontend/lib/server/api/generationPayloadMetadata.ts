@@ -1,4 +1,4 @@
-import { getModelConfig } from "../../../model-runtime/pricing";
+import { getModelConfig } from "../../model-runtime/pricing";
 
 type JsonObject = Record<string, unknown>;
 

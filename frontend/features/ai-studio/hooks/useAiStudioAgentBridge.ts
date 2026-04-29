@@ -852,7 +852,7 @@ export const useAiStudioAgentBridge = ({
         };
       });
       setAgentBridgeHydrationRevision((current) => current + 1);
-      setPulseWorkflowSession(restoredPulseWorkflowSession);
+      setPulseWorkflowSession(restoredPulseWorkflowSession ?? null);
       setAgentAttachmentError(null);
       setAgentAttachments([]);
     },

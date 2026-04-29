@@ -1,18 +1,18 @@
 /**
  * Recovery lifecycle transition helpers.
- * Keeps update payload shaping and queue/exhaustion policy centralized.
+ * Keeps update payload shaping and retry/exhaustion policy centralized.
  */
 
 type JsonObject = Record<string, unknown>;
 
-export type RecoveryQueuePlan = {
+export type RecoveryRetryPlan = {
   isExhausted: boolean;
   exhaustionDeferredByMinAge: boolean;
   recoveryState: "queued" | "exhausted";
   nextRecoveryAt: string | null;
 };
 
-export const buildRecoveryQueuePlan = ({
+export const buildRecoveryRetryPlan = ({
   attempts,
   effectiveMaxAttempts,
   nextDelaySeconds,
@@ -26,7 +26,7 @@ export const buildRecoveryQueuePlan = ({
   generationAgeSeconds?: number;
   exhaustMinAgeSeconds?: number;
   enforceMinAgeForExhaustion?: boolean;
-}): RecoveryQueuePlan => {
+}): RecoveryRetryPlan => {
   const reachedAttemptBudget = attempts >= effectiveMaxAttempts;
   const reachedExhaustAge = generationAgeSeconds >= Math.max(exhaustMinAgeSeconds, 0);
   const exhaustionDeferredByMinAge =
@@ -68,13 +68,13 @@ export const buildAlreadyPersistedSuccessUpdate = ({
 export const buildProviderRunningUpdate = ({
   nowIso,
   attempts,
-  queuePlan,
+  retryPlan,
 }: {
   nowIso: string;
   attempts: number;
-  queuePlan: RecoveryQueuePlan;
+  retryPlan: RecoveryRetryPlan;
 }): Record<string, unknown> => {
-  if (queuePlan.isExhausted) {
+  if (retryPlan.isExhausted) {
     return {
       status: "fail",
       completed_at: nowIso,
@@ -89,8 +89,8 @@ export const buildProviderRunningUpdate = ({
     recovery_state: "queued",
     failure_reason_code: null,
     last_recovery_at: nowIso,
-    next_recovery_at: queuePlan.nextRecoveryAt,
-    recovery_attempts: queuePlan.exhaustionDeferredByMinAge ? Math.max(attempts - 1, 0) : attempts,
+    next_recovery_at: retryPlan.nextRecoveryAt,
+    recovery_attempts: retryPlan.exhaustionDeferredByMinAge ? Math.max(attempts - 1, 0) : attempts,
   };
 };
 
@@ -109,31 +109,31 @@ export const buildProviderFailedUpdate = (
 export const buildNoMediaUpdate = ({
   nowIso,
   attempts,
-  queuePlan,
+  retryPlan,
 }: {
   nowIso: string;
   attempts?: number;
-  queuePlan: RecoveryQueuePlan;
+  retryPlan: RecoveryRetryPlan;
 }): Record<string, unknown> => {
-  if (queuePlan.isExhausted) {
+  if (retryPlan.isExhausted) {
     return {
       status: "fail",
       completed_at: nowIso,
       failure_reason_code: "terminal_success_no_media",
-      recovery_state: queuePlan.recoveryState,
+      recovery_state: retryPlan.recoveryState,
       last_recovery_at: nowIso,
-      next_recovery_at: queuePlan.nextRecoveryAt,
+      next_recovery_at: retryPlan.nextRecoveryAt,
     };
   }
 
   const update: Record<string, unknown> = {
     failure_reason_code: "terminal_success_no_media",
-    recovery_state: queuePlan.recoveryState,
+    recovery_state: retryPlan.recoveryState,
     last_recovery_at: nowIso,
-    next_recovery_at: queuePlan.nextRecoveryAt,
+    next_recovery_at: retryPlan.nextRecoveryAt,
   };
   if (typeof attempts === "number") {
-    update.recovery_attempts = queuePlan.exhaustionDeferredByMinAge
+    update.recovery_attempts = retryPlan.exhaustionDeferredByMinAge
       ? Math.max(attempts - 1, 0)
       : attempts;
   }

@@ -3,7 +3,6 @@ import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { repairStaleTerminalGenerationProjections } from "../api/generationProjection";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { processPendingGenerationObservations } from "./observationBatchExecution";
-import { retireStalePreProviderGenerations } from "./preProviderRetirement";
 import { claimGenerationRecoveryBatch } from "./recoveryBatchAcquisition";
 import { executeClaimedRecoveryBatch } from "./recoveryBatchExecution";
 import type {
@@ -80,11 +79,9 @@ export const runGenerationControlPlaneCycle = async ({
     ? Math.min(flags.reconcilerBatchSize, 5)
     : flags.reconcilerBatchSize;
   const stageTimings: GenerationControlPlaneStageTimings = {
-    preProviderRetirement: { durationMs: 0 },
     reservationCleanup: { durationMs: 0 },
     providerAttachedReservationCleanup: { durationMs: 0 },
     observationInboxProcessing: { durationMs: 0 },
-    requestIdRepair: { durationMs: 0 },
     recoveryClaim: { durationMs: 0 },
     recoveryExecution: { durationMs: 0 },
   };
@@ -102,39 +99,11 @@ export const runGenerationControlPlaneCycle = async ({
   let reservationCleanupScanned = 0;
   let reservationCleanupReleased = 0;
   let reservationCleanupErrors = 0;
-  let preProviderRetirementScanned = 0;
-  let preProviderQueueExhausted = 0;
-  let preProviderGenerationsExhausted = 0;
-  let preProviderReservationsReleased = 0;
-  let preProviderRetirementErrors = 0;
   let observationClaimed = 0;
   let observationProcessed = 0;
   let observationIgnored = 0;
   let observationFailed = 0;
   let observationErrors = 0;
-
-  await measureStage("preProviderRetirement", async () => {
-    try {
-      const retirementMetrics = await retireStalePreProviderGenerations({
-        limit: flags.reservationCleanupBatchSize,
-        maxAgeSeconds: flags.queueMaxWaitSeconds,
-      });
-      preProviderRetirementScanned = retirementMetrics.scanned;
-      preProviderQueueExhausted = retirementMetrics.queueExhausted;
-      preProviderGenerationsExhausted = retirementMetrics.generationsExhausted;
-      preProviderReservationsReleased = retirementMetrics.reservationsReleased;
-      preProviderRetirementErrors = retirementMetrics.errors;
-    } catch (error) {
-      preProviderRetirementErrors += 1;
-      await logControlPlaneException({
-        context,
-        error,
-        metadata: {
-          stage: "pre_provider_retirement",
-        },
-      });
-    }
-  });
 
   if (flags.reservationCleanupEnabled) {
     await measureStage("reservationCleanup", async () => {
@@ -282,11 +251,6 @@ export const runGenerationControlPlaneCycle = async ({
     reservationCleanupScanned,
     reservationCleanupReleased,
     reservationCleanupErrors,
-    preProviderRetirementScanned,
-    preProviderQueueExhausted,
-    preProviderGenerationsExhausted,
-    preProviderReservationsReleased,
-    preProviderRetirementErrors,
     stageTimings,
   };
 };

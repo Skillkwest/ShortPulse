@@ -76,7 +76,6 @@ describe("GET /api/admin/user-health-fleet", () => {
         lowRiskCount: 2,
         totalCostWithoutSuccessCents: 300,
         totalStuckGenerations: 2,
-        totalExhaustedQueueRows: 1,
       },
       snapshots: [],
       pagination: {

@@ -4,9 +4,7 @@ import { runGenerationControlPlaneCycle } from "../runCycle";
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const processPendingGenerationObservationsMock = vi.fn();
-const repairGenerationRequestIdsFromReservationsMock = vi.fn();
 const repairStaleTerminalGenerationProjectionsMock = vi.fn();
-const retireStalePreProviderGenerationsMock = vi.fn();
 const claimGenerationRecoveryBatchMock = vi.fn();
 const executeClaimedRecoveryBatchMock = vi.fn();
 
@@ -21,16 +19,6 @@ vi.mock("../../api/appErrorLogs", () => ({
 vi.mock("../observationBatchExecution", () => ({
   processPendingGenerationObservations: (...args: unknown[]) =>
     processPendingGenerationObservationsMock(...args),
-}));
-
-vi.mock("../preProviderRetirement", () => ({
-  retireStalePreProviderGenerations: (...args: unknown[]) =>
-    retireStalePreProviderGenerationsMock(...args),
-}));
-
-vi.mock("../../api/generationQueue/requestIdRepair", () => ({
-  repairGenerationRequestIdsFromReservations: (...args: unknown[]) =>
-    repairGenerationRequestIdsFromReservationsMock(...args),
 }));
 
 vi.mock("../../api/generationProjection", () => ({
@@ -86,26 +74,13 @@ describe("runGenerationControlPlaneCycle", () => {
       failed: 0,
       errors: 0,
     });
-    repairGenerationRequestIdsFromReservationsMock.mockResolvedValue({
-      scanned: 0,
-      repaired: 0,
-      errors: 0,
-    });
     repairStaleTerminalGenerationProjectionsMock.mockResolvedValue({
       scanned: 0,
       repaired: 0,
       skipped: 0,
     });
-    retireStalePreProviderGenerationsMock.mockResolvedValue({
-      scanned: 0,
-      queueExhausted: 0,
-      generationsExhausted: 0,
-      reservationsReleased: 0,
-      errors: 0,
-    });
     claimGenerationRecoveryBatchMock.mockResolvedValue({
       rows: [],
-      claimSource: "rpc",
       rpcError: null,
     });
     executeClaimedRecoveryBatchMock.mockResolvedValue({
@@ -132,15 +107,10 @@ describe("runGenerationControlPlaneCycle", () => {
       },
     });
 
-    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,
       leaseSeconds: expect.any(Number),
       routeLabel: "worker/generation-control-plane",
-    });
-    expect(retireStalePreProviderGenerationsMock).toHaveBeenCalledWith({
-      limit: 200,
-      maxAgeSeconds: 1200,
     });
     expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
       supabaseAdmin: expect.any(Object),
@@ -172,15 +142,7 @@ describe("runGenerationControlPlaneCycle", () => {
         claimed: 0,
         reservationCleanupScanned: 2,
         reservationCleanupReleased: 1,
-        preProviderRetirementScanned: 0,
-        preProviderQueueExhausted: 0,
-        preProviderGenerationsExhausted: 0,
-        preProviderReservationsReleased: 0,
-        preProviderRetirementErrors: 0,
         stageTimings: expect.objectContaining({
-          preProviderRetirement: expect.objectContaining({
-            durationMs: expect.any(Number),
-          }),
           reservationCleanup: expect.objectContaining({
             durationMs: expect.any(Number),
           }),
@@ -213,7 +175,6 @@ describe("runGenerationControlPlaneCycle", () => {
       mode: "rescue",
     });
 
-    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 5,
       leaseSeconds: expect.any(Number),
@@ -228,7 +189,7 @@ describe("runGenerationControlPlaneCycle", () => {
     });
   });
 
-  it("skips request-id repair in primary mode", async () => {
+  it("repairs stale terminal projections in primary mode", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,
@@ -241,7 +202,6 @@ describe("runGenerationControlPlaneCycle", () => {
       },
     });
 
-    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,
       leaseSeconds: expect.any(Number),
@@ -260,7 +220,7 @@ describe("runGenerationControlPlaneCycle", () => {
     });
   });
 
-  it("skips request-id repair in primary mode even during rescue-oriented compatibility conditions", async () => {
+  it("keeps the primary cycle on accepted-generation recovery", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,
@@ -274,6 +234,12 @@ describe("runGenerationControlPlaneCycle", () => {
       mode: "primary",
     });
 
-    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
+    expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
+      supabaseAdmin: expect.any(Object),
+      batchSize: 10,
+      maxAttempts: 5,
+      minAgeSeconds: 0,
+      leaseSeconds: expect.any(Number),
+    });
   });
 });

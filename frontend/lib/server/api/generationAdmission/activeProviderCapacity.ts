@@ -1,6 +1,6 @@
 /**
- * Shared provider-attached capacity snapshot helper used by admission and queue dispatch.
- * Classifies stale reservations so non-active holds do not block new dispatch capacity forever.
+ * Shared provider-attached capacity snapshot helper used by generation admission.
+ * Classifies stale reservations so non-active holds do not block new submit capacity forever.
  */
 import {
   resolveGenerationAdmissionTier,

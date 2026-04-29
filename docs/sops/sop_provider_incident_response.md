@@ -58,28 +58,14 @@ order by newest desc
 limit 100;
 ```
 
-```sql
-select status, count(*) as jobs, min(created_at) as oldest, max(created_at) as newest
-from ai_generation_submit_queue
-group by status
-order by status;
-```
-
 Mitigation guidance:
 1. Confirm submit path rejects are auto-refunded by checking reservation state transitions (`reserved` -> `released`).
 2. Confirm completed runs capture (`reserved` -> `captured`) and create a ledger debit.
 3. If one model endpoint is degraded, temporarily remove that model from UI selection until provider recovers.
-4. For historical queued rows still visible through compatibility paths:
-   - Confirm exhausted historical queue rows are not part of the active submit path and inspect queue `last_error` if present.
-5. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
+4. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
    - canonical reservation RPC health (`admit_and_reserve_generation_credits`),
    - `SHORTPULSE_FAL_ADMISSION_MODE` (`enforce` fail-closes without reservation mode by design).
-6. If historical queue depth is pinned near `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`, run controlled compatibility backlog drain:
-   - ensure reconciler route scheduler is active,
-   - trigger `/api/internal/generation-recovery/run` repeatedly (1-minute cadence) until old provider-attached reservations clear,
-   - verify queue depth drops before resuming stress submits.
-   - use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical disconnect/queue/recovery runbook (including `sql/check_generation_queue_blockers.sql` guarded cleanup flow) if backlog remains stuck.
-7. For Kie Veo status incidents, validate record-info normalization before classifying provider failures:
+5. For Kie Veo status incidents, validate record-info normalization before classifying provider failures:
    - lifecycle precedence must honor `data.successFlag` (`0=running`, `1=completed`, `2/3=failed`),
    - response-nested media (`data.response.resultUrls`) must be recognized as terminal-success media,
    - terminal-success/no-media outcomes should map to recoverable `terminal_success_no_media` lifecycle semantics.
@@ -104,8 +90,6 @@ limit 20;
 ```
 
 Correlate scheduler health with recovery pressure:
-- `queueDispatchErrors` from `/api/internal/generation-recovery/run` responses should stay low and typically remain `0` in the lean standard path.
-- `ai_generation_submit_queue` depth should trend downward only when historical queued rows are still present.
 - stale `reserved` holds with `provider_request_id` should decline after repeated passes.
 
 Fal reliability controls:
@@ -125,9 +109,9 @@ Fal reliability controls:
    - confirm webhook registration is enabled on the active Fal submit targets,
    - keep allowlists empty for full cohort only after canary windows are green.
 
-### Historical queue backlog triage and guarded cleanup
-When accepted-job recovery is healthy but users still hit repeated `429` due stale provider-attached holds or historical queued-row residue, follow `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical workflow.
-1. Run `sql/check_generation_queue_blockers.sql` diagnostics.
+### Capacity backlog triage and guarded cleanup
+When accepted-job recovery is healthy but users still hit repeated `429` due stale provider-attached holds, follow `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical workflow.
+1. Run generation admission, recovery visibility, convergence, settlement, and scheduler diagnostics.
 2. Run repeated scheduler/recovery drain passes (`/api/internal/generation-recovery/run`) and re-check counts.
 3. Only after stable stale confirmation, run guarded manual remediation using strict age/state filters.
 4. Re-run settlement/security diagnostics before closing incident response.
@@ -254,7 +238,6 @@ Mitigation guidance:
    - Route: `POST /api/internal/generation-recovery/run`
    - Auth: `x-shortpulse-cron-secret` or `Authorization: Bearer <secret>` (`SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` manual/fallback).
    - Note: reconciler claims are lease-based; validate `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS` to avoid duplicate concurrent execution.
-   - Queue dispatch also runs in this route; inspect `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, and `queueDispatchErrors`.
    - Optional reservation cleanup controls:
      - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
      - `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS`
@@ -277,11 +260,9 @@ Use this after production reliability patches are enabled and scheduler health i
    - `node scripts/run_generation_drain_cycle.mjs --base-url https://<deployment-domain> --secret <SHORTPULSE_FAL_RECONCILER_CRON_SECRET> --interval-ms 60000 --max-runs 120 --converged-runs 3 --max-consecutive-errors 3`
    - If the deployment is Vercel-protected, authenticate first (`vercel curl` or protection-bypass token flow) so recovery-route `401` responses are not misclassified as runtime failures.
 2. Confirm convergence from script output:
-   - no sustained `claimed`/`requeued`/`queueClaimed` work,
-   - `queueDispatchErrors=0`,
+   - no sustained `claimed`/`requeued` work,
    - `errors=0` across convergence window.
 3. Run SQL diagnostics:
-   - `sql/check_generation_queue_blockers.sql`
    - `sql/check_generation_settlement_integrity.sql`
 4. Replay only residual outliers:
    - `POST /api/admin/generation-recovery/replay` with explicit `generationId` or `requestId`.

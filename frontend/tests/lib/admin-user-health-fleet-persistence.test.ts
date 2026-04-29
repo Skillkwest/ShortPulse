@@ -176,7 +176,6 @@ describe("admin user health fleet persistence", () => {
           failCount24h: 3,
           totalCount24h: 25,
           stuckGenerationsCount: 1,
-          exhaustedQueueCount: 2,
           costWithoutSuccessCents: 250,
           costWithoutSuccessLinkedCents: 100,
           costWithoutSuccessMissingLinkageCents: 150,

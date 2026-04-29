@@ -1,10 +1,9 @@
 # SOP: Generation Recovery Diagnostics
 
-Purpose: canonical operator runbook for accepted-job recovery, settlement integrity, and historical queued-row compatibility when generation clients disconnect (browser close/crash), provider/webhook paths degrade, or stale blockers accumulate.
+Purpose: canonical operator runbook for accepted-job recovery, settlement integrity, and persisted-output visibility when generation clients disconnect (browser close/crash), provider/webhook paths degrade, or stale blockers accumulate.
 
 ## Scope
 - Accepted Fal/Kie submit recovery execution behavior.
-- Historical queued-row compatibility diagnostics where legacy queue rows still exist.
 - Reservation/ledger settlement integrity across success/fail/recovery convergence.
 - Read-only diagnostics first; guarded remediation only after explicit stale confirmation.
 - Current staged control-plane ownership:
@@ -15,7 +14,6 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
 
 ## Prerequisites
 - DB read access for:
-  - `public.ai_generation_submit_queue`
   - `public.ai_generations`
   - `public.generation_attempts`
   - `public.ai_generation_outputs`
@@ -23,9 +21,7 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
   - `public.ai_credit_reservations`
   - `public.ai_credit_ledger`
 - SQL diagnostics/scripts:
-  - `sql/check_generation_queue_blockers.sql`
   - `sql/check_generation_admission_metrics.sql`
-  - `sql/check_generation_queue_dispatch_latency.sql`
   - `sql/check_generation_recovery_media_visible_latency.sql`
   - `sql/check_generation_convergence_defect_classes.sql`
   - `sql/check_generation_settlement_integrity.sql`
@@ -51,7 +47,7 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
 | `media_autosave_enabled = false` | preference persisted in `user_preferences` | recovery still settles generation success/fail and credits correctly | success can converge with autosave skipped (no background media insert) |
 
 ## Server-Authoritative Guarantees
-1. Queue and generation lifecycle are DB-durable (`ai_generation_submit_queue`, `ai_generations`) and do not depend on browser session continuity.
+1. Generation lifecycle is DB-durable (`ai_generations`, `generation_attempts`, `ai_generation_outputs`) and does not depend on browser session continuity.
 2. Client polling of provider status routes is UX convenience only; it is not the execution authority.
 3. Recovery execution is server-authoritative and can be driven by:
    - scheduler/reconciler (`/api/internal/generation-recovery/run`)
@@ -80,33 +76,26 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
 | Reservation cleanup min age | `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS` | `900s` |
 | Provider-attached cleanup min age | `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS` | `7200s` |
 | Provider-attached orphan min age | `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS` | `86400s` |
-| Queue max wait before exhaust (historical queued rows only) | `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS` | `1200s` |
 | Running recovery min age for attempt-budget exhaustion | `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS` | `7200s` |
 | Running hard-timeout failover | `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS` | `0s` (disabled) |
-| Client queue polling max wait (historical queued rows only) | `QUEUE_STATUS_MAX_WAIT_MS` | `1800000ms` (30m) |
-| Guarded manual stale threshold | `sql/check_generation_queue_blockers.sql` | `>= 2h` |
 
 ## Operator Playbooks
 ### 1) Read-only diagnostics first
 1. Run control-plane diagnostics:
    - `sql/check_control_plane_scheduler_health.sql`
    - `sql/check_pg_net_failure_taxonomy.sql`
-2. Run `sql/check_generation_queue_blockers.sql`.
-3. Run `sql/check_generation_queue_dispatch_latency.sql`.
-4. Run `sql/check_generation_recovery_media_visible_latency.sql`.
-5. Run `sql/check_generation_convergence_defect_classes.sql`.
-6. Capture:
+2. Run `sql/check_generation_admission_metrics.sql`.
+3. Run `sql/check_generation_recovery_media_visible_latency.sql`.
+4. Run `sql/check_generation_convergence_defect_classes.sql`.
+5. Capture:
    - admission-limited events by scope (`per_user` vs `shared_provider`) from `sql/check_generation_admission_metrics.sql`
-   - queue dispatch latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_queue_dispatch_latency.sql` only when historical queued rows are still present
    - provider-terminal-to-media-visible latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_recovery_media_visible_latency.sql`
    - convergence defect-class counts and worst-case rows from `sql/check_generation_convergence_defect_classes.sql`
    - provider-attached reserved holds by age bucket
-   - queue depth by status (`queued`, `dispatching`, `exhausted`)
-   - queue hotspots by user/model/status
    - recovery backlog by `recovery_state/status`
    - stale candidates (`>= 2h`) with request id + recovery state filters.
 
-### 1A) Hosted diagnostics fallback (GitHub Actions)
+### 1A) Hosted diagnostics path (GitHub Actions)
 Use this path when local `SUPABASE_DB_URL` is unavailable.
 
 1. Dispatch workflow:
@@ -135,24 +124,20 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
    - Use explicit `{"runMode":"rescue"}` only for bounded/manual recovery-only passes.
 2. Monitor response metrics per pass:
    - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
-   - cleanup (aggregated pre-submit + provider-attached): `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
-   - stage timings: `stageTimings.queueDispatch.durationMs`, `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.requestIdRepair.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`.
+   - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
+   - stage timings: `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`.
 3. Treat the control-plane stage ownership as:
    - `runCycle.ts` decides stage order,
-   - `recoveryBatchAcquisition.ts` owns RPC-first vs fallback claim semantics,
+   - `recoveryBatchAcquisition.ts` owns RPC claim semantics,
    - `recoveryBatchExecution.ts` owns claimed-row iteration, allowlist deferral, and error requeue,
    - `executeGenerationRecovery(...)` owns shared recovery business logic.
-4. Re-run blocker diagnostics after each pass until counts stabilize and trend down.
+4. Re-run recovery, settlement, and admission diagnostics after each pass until counts stabilize and trend down.
 5. Treat control-plane enforce diagnostics as the contract check for hosted scheduler drift:
    - `check_control_plane_enforce_gate.sql` now fails when the live scheduler functions are missing either the Vault read for `shortpulse_vercel_protection_bypass_token` or the `x-vercel-protection-bypass` header send.
    - This specifically catches stale hosted `invoke_generation_recovery_scheduler()` bodies that can leave `pg_cron` green while `pg_net` still returns Vercel `401 Authentication Required`.
-6. During latency validation, treat `telemetry.queue.dispatch.submitted` as a historical queued-row advancement signal:
-   - expect events to appear for the validation run,
-   - inspect `p95_queue_latency_ms` only if historical queued rows are still being drained,
-   - use the worst-case rows to distinguish real provider/admission pressure from stale compatibility backlog.
-7. Treat `telemetry.generation.recovery.media_visible` as the recovery-visibility authority:
+6. Treat `telemetry.generation.recovery.media_visible` as the recovery-visibility authority:
    - expect events to appear for recovered-success validation runs,
-   - inspect `p95_provider_terminal_to_media_visible_ms` before changing queue internals again,
+   - inspect `p95_provider_terminal_to_media_visible_ms` before changing recovery internals again,
    - use the bucketed rows to identify whether lag is clustering by `model_id`, `provider`, or `recovery_actor`.
 
 ### 2A) Bounded convergence backlog replay
@@ -184,13 +169,13 @@ Use this path when `sql/check_generation_convergence_defect_classes.sql` shows `
 5. Do not use this helper against staging or production. It is a dev-lane operator tool and defaults to dry-run.
 
 ### 3) Guarded manual remediation (only for confirmed stale blockers)
-1. Use the commented remediation transaction in `sql/check_generation_queue_blockers.sql`.
+1. Use `/admin/generation-trace` to collect generation, attempt, reservation, output, ledger, and error evidence for each candidate.
 2. Keep strict filters unchanged:
    - provider-family scope (`fal%`/`kie%`)
-   - request id required
+   - request id or attempt provider request id required
    - status + recovery-state constraints
-   - age threshold (`>= 2h`).
-3. Execute inside transaction; inspect `RETURNING` rows before commit.
+   - age threshold from current recovery policy.
+3. Execute targeted remediation only after generation and ledger state agree.
 4. If needed, run reservation release helper only for confirmed stale candidates.
 
 ### 4) Post-remediation integrity + security checks
@@ -205,25 +190,19 @@ Use this path when `sql/check_generation_convergence_defect_classes.sql` shows `
 ## Failure Mode Map
 | Signal / state | Primary interpretation | Required action |
 | --- | --- | --- |
-| queue status `exhausted` growth on historical rows | legacy queue retries/waits are hitting terminal limits | inspect queue error codes, verify provider health, confirm reservation release on exhausted rows |
-| queue-status reports `dispatching` for long periods on historical rows | legacy queue claim/lease succeeded but provider handoff is not converging | inspect queue lease age, dispatch retries, and provider submit telemetry before replaying jobs |
-| `telemetry.queue.dispatch.submitted` p95 stays high while drain metrics are healthy | historical queued rows are still waiting too long before dispatch despite no obvious recovery/blocker churn | inspect compatibility backlog hotspots and provider/admission saturation before changing recovery policy |
-| `telemetry.generation.recovery.media_visible` p95 stays high while queue dispatch looks healthy | provider-terminal recovery/media persistence is still slow after upstream completion | inspect bucketed latency rows for model/provider/actor concentration before touching queue or admission controls |
-| queue-status remains `queued` with no `request_id` while queue row is exhausted | stale client perception caused by nondeterministic queue-status resolution | verify queue-status path returns `failed` for exhausted rows and inspect `last_error` / `last_error_code` |
+| `telemetry.generation.recovery.media_visible` p95 stays high while recovery metrics are healthy | provider-terminal recovery/media persistence is still slow after upstream completion | inspect bucketed latency rows for model/provider/actor concentration before touching recovery or admission controls |
 | `terminal_success_no_media` or `no_media` retry loops | provider terminal payload missing media URLs | continue bounded recovery retries; replay residual outliers; verify provider payload adapters |
 | provider `running` beyond age windows | long-running or stranded provider job | enforce age/attempt policy, then exhaust + release when thresholds are reached |
-| queue transition guard errors (`QUEUE_*`, `GENERATION_MARK_RUNNING_*`, `RESERVATION_SUBMIT_*`) | transition safety check prevented unsafe mutation | treat as high risk for duplicate/partial transitions; replay with evidence, do not manual bulk requeue |
-| `GENERATION_PAYLOAD_CONTRACT_VIOLATION` on submit | emitted request body drifted outside the shared payload contract before queue/provider side effects | verify route/model payload shaping and allowlist ownership before replaying or re-enabling traffic |
-| `QUEUE_PAYLOAD_CONTRACT_VIOLATION` on dispatch | queued payload no longer satisfies the shared submit/dispatch contract | inspect queued payload, model allowlist, and route shaping; do not blind requeue until payload drift is corrected |
-| `QUEUE_IDENTITY_MISMATCH` | queue row, generation metadata, and reservation submission no longer agree on `source_ref` ownership | treat as fail-closed integrity event; inspect queue row, generation metadata, reservation row, and replay only after source identity is corrected |
+| generation transition guard errors (`GENERATION_MARK_RUNNING_*`, `RESERVATION_SUBMIT_*`) | transition safety check prevented unsafe mutation | treat as high risk for duplicate/partial transitions; replay with evidence, do not manual bulk requeue |
+| `GENERATION_PAYLOAD_CONTRACT_VIOLATION` on submit | emitted request body drifted outside the shared payload contract before provider side effects | verify route/model payload shaping and allowlist ownership before replaying or re-enabling traffic |
 | settlement drift (`missing_charge` / duplicate charge keys) | reservation/ledger convergence invariant broken | stop manual cleanup, escalate to billing/runtime owners, preserve evidence for reconciliation |
 
 ## Test Matrix (Crash/Recovery Validation)
 1. SQL precedence regression:
-   - run blocker diagnostics before/after SQL predicate hardening; confirm stale candidate set is not over-inclusive.
-2. Crash after queued submit:
-   - submit returns `202`; close browser immediately; verify queue->dispatch->settlement converges server-side.
-3. Crash after dispatch:
+   - run recovery and settlement diagnostics before/after SQL predicate hardening; confirm stale candidate set is not over-inclusive.
+2. Crash after accepted submit:
+   - submit returns accepted provider identity; close browser immediately; verify provider status/recovery/settlement converges server-side.
+3. Crash after provider request attaches:
    - generation has `request_id`; close browser; verify webhook/reconciler completes status + settlement.
 4. Webhook-off resilience:
    - with webhook disabled and reconciler enabled, verify scheduled recovery converges with correct capture/release behavior.
@@ -256,9 +235,6 @@ Use this path when `sql/check_generation_convergence_defect_classes.sql` shows `
 ## External Best-Practice Anchors
 - Supabase Cron: https://supabase.com/docs/guides/cron
 - Supabase `pg_net`: https://supabase.com/docs/guides/database/extensions/pg_net
-- Supabase Queues overview: https://supabase.com/docs/guides/queues
-- Supabase Queues quickstart (PGMQ): https://supabase.com/docs/guides/queues/quickstart
-- Supabase queue consumption with Edge Functions: https://supabase.com/docs/guides/queues/consuming-messages-with-edge-functions
 - Supabase Database Webhooks: https://supabase.com/docs/guides/database/webhooks
 - PostgreSQL `FOR UPDATE SKIP LOCKED`: https://www.postgresql.org/docs/current/sql-select.html
 - Supabase Realtime channel cleanup: https://supabase.com/docs/reference/javascript/removechannel

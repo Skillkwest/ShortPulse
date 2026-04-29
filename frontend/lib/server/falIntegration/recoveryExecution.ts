@@ -33,7 +33,7 @@ import {
   buildProviderFailedUpdate,
   buildProviderRunningUpdate,
   buildRecoveredSuccessUpdate,
-  buildRecoveryQueuePlan,
+  buildRecoveryRetryPlan,
 } from "./recoveryLifecycleTransitions";
 import {
   persistRecoveryMediaFilesForGeneration,
@@ -766,7 +766,7 @@ export const executeGenerationRecovery = async ({
     }
 
     const nextDelaySeconds = resolveRetryDelaySeconds(Math.max(attempts, 1), "running");
-    const queuePlanBase = buildRecoveryQueuePlan({
+    const retryPlanBase = buildRecoveryRetryPlan({
       attempts,
       effectiveMaxAttempts,
       nextDelaySeconds,
@@ -779,33 +779,33 @@ export const executeGenerationRecovery = async ({
       runningHardTimeoutSeconds > 0 && Number.isFinite(generationCreatedAtMs)
         ? new Date(generationCreatedAtMs + runningHardTimeoutSeconds * 1000).toISOString()
         : null;
-    const queuePlan = {
-      ...queuePlanBase,
+    const retryPlan = {
+      ...retryPlanBase,
       nextRecoveryAt:
-        queuePlanBase.nextRecoveryAt && runningDeadlineAtIso
-          ? new Date(queuePlanBase.nextRecoveryAt).getTime() >
+        retryPlanBase.nextRecoveryAt && runningDeadlineAtIso
+          ? new Date(retryPlanBase.nextRecoveryAt).getTime() >
             new Date(runningDeadlineAtIso).getTime()
             ? runningDeadlineAtIso
-            : queuePlanBase.nextRecoveryAt
-          : queuePlanBase.nextRecoveryAt,
+            : retryPlanBase.nextRecoveryAt
+          : retryPlanBase.nextRecoveryAt,
     };
     await applyRecoveryTransition({
       generation,
       attemptTransition: {
-        status: queuePlan.isExhausted ? "timed_out" : "running",
+        status: retryPlan.isExhausted ? "timed_out" : "running",
         observedAt: nowIso,
-        completedAt: queuePlan.isExhausted ? nowIso : null,
-        failureReasonCode: queuePlan.isExhausted ? "recovery_exhausted" : null,
-        errorMessage: queuePlan.isExhausted
+        completedAt: retryPlan.isExhausted ? nowIso : null,
+        failureReasonCode: retryPlan.isExhausted ? "recovery_exhausted" : null,
+        errorMessage: retryPlan.isExhausted
           ? "Provider remained running after recovery attempts were exhausted."
           : null,
         metadata: {
           recovery_actor: actor,
-          recovery_outcome: queuePlan.isExhausted ? "running_exhausted" : "provider_running",
+          recovery_outcome: retryPlan.isExhausted ? "running_exhausted" : "provider_running",
         },
       },
     });
-    if (queuePlan.isExhausted) {
+    if (retryPlan.isExhausted) {
       await settleRecoveryOutcome({
         outcome: "fail",
         reason: "Provider remained running after recovery attempts were exhausted.",
@@ -819,11 +819,11 @@ export const executeGenerationRecovery = async ({
     }
     await applyRecoveryTransition({
       generation,
-      generationUpdates: buildProviderRunningUpdate({ nowIso, attempts, queuePlan }),
+      generationUpdates: buildProviderRunningUpdate({ nowIso, attempts, retryPlan }),
     });
     return {
       ok: true,
-      state: queuePlan.isExhausted ? "exhausted" : "provider_running",
+      state: retryPlan.isExhausted ? "exhausted" : "provider_running",
       generationId: generation.id,
       requestId: generation.request_id,
       mediaFileIds: [],
@@ -924,7 +924,7 @@ export const executeGenerationRecovery = async ({
       Math.max(attempts, 1),
       "terminal_success_no_media"
     );
-    const queuePlan = buildRecoveryQueuePlan({
+    const retryPlan = buildRecoveryRetryPlan({
       attempts,
       effectiveMaxAttempts,
       nextDelaySeconds,
@@ -946,7 +946,7 @@ export const executeGenerationRecovery = async ({
         },
       },
     });
-    if (queuePlan.isExhausted) {
+    if (retryPlan.isExhausted) {
       await settleRecoveryOutcome({
         outcome: "fail",
         reason: "Provider terminal success without media payload.",
@@ -965,15 +965,15 @@ export const executeGenerationRecovery = async ({
     }
     await applyRecoveryTransition({
       generation,
-      generationUpdates: buildNoMediaUpdate({ nowIso, attempts, queuePlan }),
+      generationUpdates: buildNoMediaUpdate({ nowIso, attempts, retryPlan }),
     });
     void requestGenerationControlPlaneWake({
       routeLabel,
-      reason: queuePlan.isExhausted ? "no_media_exhausted" : "no_media_requeue",
+      reason: retryPlan.isExhausted ? "no_media_exhausted" : "no_media_requeue",
     });
     return {
       ok: true,
-      state: queuePlan.isExhausted ? "exhausted" : "no_media",
+      state: retryPlan.isExhausted ? "exhausted" : "no_media",
       generationId: generation.id,
       requestId: generation.request_id,
       mediaFileIds: [],

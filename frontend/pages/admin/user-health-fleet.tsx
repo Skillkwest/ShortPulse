@@ -240,8 +240,7 @@ export default function AdminUserHealthFleetPage() {
               {formatNumber(report.summary.totalCostWithoutSuccessCents)}
             </p>
             <p className={styles.adminSubtext}>
-              stuck {formatNumber(report.summary.totalStuckGenerations)} · exhausted{" "}
-              {formatNumber(report.summary.totalExhaustedQueueRows)}
+              stuck {formatNumber(report.summary.totalStuckGenerations)}
             </p>
           </div>
           <div className={styles.adminCard}>
@@ -295,7 +294,7 @@ export default function AdminUserHealthFleetPage() {
             <span>Severity</span>
             <span>Risk</span>
             <span>24h fail</span>
-            <span>Stuck/Queue</span>
+            <span>Stuck</span>
             <span>Cost leakage</span>
             <span>Findings</span>
             <span>Actions</span>
@@ -330,10 +329,7 @@ export default function AdminUserHealthFleetPage() {
                     {snapshot.failRate24hPercent.toFixed(2)}% ({snapshot.failCount24h}/
                     {snapshot.totalCount24h})
                   </span>
-                  <span>
-                    stuck {snapshot.stuckGenerationsCount} · exhausted{" "}
-                    {snapshot.exhaustedQueueCount}
-                  </span>
+                  <span>stuck {snapshot.stuckGenerationsCount}</span>
                   <span>
                     total {formatNumber(snapshot.costWithoutSuccessCents)}
                     <br />

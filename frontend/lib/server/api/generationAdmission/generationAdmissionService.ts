@@ -18,7 +18,7 @@ import {
 import {
   readActiveProviderCapacitySnapshot,
   type ActiveProviderCapacitySnapshot,
-} from "../generationQueue/activeProviderCapacity";
+} from "./activeProviderCapacity";
 import { resolveProviderFromModelId } from "../../providerIntegration/providerRuntimeConfig";
 import {
   readRecoveryBackpressureDecision,

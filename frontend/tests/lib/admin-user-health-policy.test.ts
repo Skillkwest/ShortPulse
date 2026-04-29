@@ -14,7 +14,6 @@ const baseMetrics = {
   failCount24h: 0,
   totalCount24h: 0,
   stuckGenerationsCount: 0,
-  exhaustedQueueCount: 0,
   reservedWithProviderOver1hCount: 0,
   reservedWithoutProviderOver15mCount: 0,
   costWithoutSuccessCents: 0,

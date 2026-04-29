@@ -87,133 +87,19 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
           recovery_attempts: 2,
         },
       ],
-      claimSource: "rpc",
       rpcError: null,
     });
     expect(tryClaimRecoveryCandidateMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to row query and claim policy when the rpc path errors", async () => {
-    const selectBuilder = {
-      in: vi.fn(),
-      eq: vi.fn(),
-      lte: vi.fn(),
-      or: vi.fn(),
-      lt: vi.fn(),
-      gte: vi.fn(),
-      order: vi.fn(),
-      limit: vi
-        .fn()
-        .mockResolvedValueOnce({
-          data: [
-            {
-              id: "gen-1",
-              user_id: "user-1",
-              request_id: "req-legacy",
-              provider: "fal",
-              model_id: "model-1",
-              status: "running",
-              recovery_state: "queued",
-              recovery_attempts: 1,
-            },
-          ],
-          error: null,
-        })
-        .mockResolvedValue({
-          data: [],
-          error: null,
-        }),
-      not: vi.fn(),
-    };
-    selectBuilder.in.mockReturnValue(selectBuilder);
-    selectBuilder.eq.mockReturnValue(selectBuilder);
-    selectBuilder.lte.mockReturnValue(selectBuilder);
-    selectBuilder.or.mockReturnValue(selectBuilder);
-    selectBuilder.lt.mockReturnValue(selectBuilder);
-    selectBuilder.gte.mockReturnValue(selectBuilder);
-    selectBuilder.order.mockReturnValue(selectBuilder);
-    selectBuilder.not.mockReturnValue(selectBuilder);
-
+  it("fails closed when the recovery claim rpc errors", async () => {
+    const rpcError = new Error("rpc unavailable");
     const supabaseAdmin = {
       rpc: vi.fn(async () => ({
         data: null,
-        error: new Error("rpc unavailable"),
+        error: rpcError,
       })),
-      from: vi.fn(() => ({
-        select: vi.fn(() => selectBuilder),
-      })),
-    };
-
-    const result = await claimGenerationRecoveryBatch({
-      supabaseAdmin: supabaseAdmin as never,
-      batchSize: 10,
-      maxAttempts: 5,
-      minAgeSeconds: 60,
-      leaseSeconds: 120,
-    });
-
-    expect(result.claimSource).toBe("fallback");
-    expect(result.rows).toEqual([
-      {
-        id: "gen-1",
-        user_id: "user-1",
-        request_id: "req-1",
-        provider: "fal",
-        model_id: "model-1",
-        status: "running",
-        recovery_state: "recovering",
-        recovery_attempts: 2,
-      },
-    ]);
-    expect(result.rpcError).toBeInstanceOf(Error);
-    expect(tryClaimRecoveryCandidateMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("skips unsupported providers on the fallback path", async () => {
-    resolveSupportedRecoveryProviderFamilyMock.mockReturnValue(null);
-
-    const selectBuilder = {
-      in: vi.fn(),
-      eq: vi.fn(),
-      lte: vi.fn(),
-      or: vi.fn(),
-      lt: vi.fn(),
-      gte: vi.fn(),
-      order: vi.fn(),
-      limit: vi.fn(async () => ({
-        data: [
-          {
-            id: "gen-1",
-            user_id: "user-1",
-            request_id: "req-1",
-            provider: "other",
-            model_id: "model-1",
-            status: "running",
-            recovery_state: "queued",
-            recovery_attempts: 1,
-          },
-        ],
-        error: null,
-      })),
-      not: vi.fn(),
-    };
-    selectBuilder.in.mockReturnValue(selectBuilder);
-    selectBuilder.eq.mockReturnValue(selectBuilder);
-    selectBuilder.lte.mockReturnValue(selectBuilder);
-    selectBuilder.or.mockReturnValue(selectBuilder);
-    selectBuilder.lt.mockReturnValue(selectBuilder);
-    selectBuilder.gte.mockReturnValue(selectBuilder);
-    selectBuilder.order.mockReturnValue(selectBuilder);
-    selectBuilder.not.mockReturnValue(selectBuilder);
-
-    const supabaseAdmin = {
-      rpc: vi.fn(async () => ({
-        data: null,
-        error: new Error("rpc unavailable"),
-      })),
-      from: vi.fn(() => ({
-        select: vi.fn(() => selectBuilder),
-      })),
+      from: vi.fn(),
     };
 
     const result = await claimGenerationRecoveryBatch({
@@ -225,6 +111,8 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
     });
 
     expect(result.rows).toEqual([]);
+    expect(result.rpcError).toBe(rpcError);
+    expect(supabaseAdmin.from).not.toHaveBeenCalled();
     expect(tryClaimRecoveryCandidateMock).not.toHaveBeenCalled();
   });
 
@@ -300,7 +188,6 @@ describe("generationControlPlane/recoveryBatchAcquisition", () => {
           recovery_attempts: 2,
         },
       ],
-      claimSource: "rpc",
       rpcError: null,
     });
     expect(tryClaimRecoveryCandidateMock).toHaveBeenCalledWith(

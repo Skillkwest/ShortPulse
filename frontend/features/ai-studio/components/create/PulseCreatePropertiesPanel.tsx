@@ -30,8 +30,6 @@ export type PulseCreatePropertiesPanelProps = {
   agentBootstrapPending?: boolean;
   agentMessages?: AgentMessage[];
   agentInput?: string;
-  chatModeEnabled?: boolean;
-  directOpenAiBypassEnabled?: boolean;
   agentIsSending?: boolean;
   agentTransportSending?: boolean;
   agentUiBusy?: boolean;
@@ -86,7 +84,6 @@ export function PulseCreatePropertiesPanel({
   agentBootstrapPending = false,
   agentMessages = [],
   agentInput = "",
-  directOpenAiBypassEnabled = false,
   agentIsSending = false,
   agentTransportSending = false,
   agentUiBusy = false,
@@ -176,9 +173,6 @@ export function PulseCreatePropertiesPanel({
     stagedAttachments,
     agentDropActive,
     onAgentInputChange,
-    chatModeEnabled: true,
-    onChatModeEnabledChange: undefined,
-    directOpenAiBypassEnabled,
     onAgentSend,
     onAgentEnhanceSend,
     onAgentAttachmentDrop,
@@ -218,7 +212,6 @@ export function PulseCreatePropertiesPanel({
     stackTrailingComposerControls: true,
     agentInputMaxHeightPx: EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX,
     agentInputCollapseOnBlur: true,
-    hideChatModeToggle: true,
     composerLeadingContent: null,
   };
 

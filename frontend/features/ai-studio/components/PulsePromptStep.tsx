@@ -26,16 +26,12 @@ export type PulsePromptStepProps = {
   agentBootstrapPending?: boolean;
   agentMessages?: AgentMessage[];
   agentInput?: string;
-  chatModeEnabled?: boolean;
-  directOpenAiBypassEnabled?: boolean;
   agentIsSending?: boolean;
   agentError?: string;
   stagedPrompt?: string | null;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
   onAgentInputChange?: (value: string) => void;
-  onChatModeEnabledChange?: (value: boolean) => void;
-  hideChatModeToggle?: boolean;
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -110,16 +106,12 @@ export function PulsePromptStep({
   agentBootstrapPending = false,
   agentMessages = [],
   agentInput = "",
-  chatModeEnabled = true,
-  directOpenAiBypassEnabled = false,
   agentIsSending = false,
   agentError,
   stagedPrompt = null,
   stagedAttachments = [],
   agentDropActive = false,
   onAgentInputChange,
-  onChatModeEnabledChange,
-  hideChatModeToggle = false,
   onAgentSend,
   onAgentEnhanceSend,
   onAgentAttachmentDrop,
@@ -230,8 +222,8 @@ export function PulsePromptStep({
 
   const canUsePromptSurface = agentEnabled || enhanceOnly;
   const isChatMode = !promptOnly && !enhanceOnly && (chatOnly || promptMode === "chat");
-  const effectiveComposerInput = chatModeEnabled ? agentInput : prompt;
-  const effectiveAgentInputChange = chatModeEnabled ? onAgentInputChange : onPromptChange;
+  const effectiveComposerInput = agentInput;
+  const effectiveAgentInputChange = onAgentInputChange;
   const showInlineChat = isChatMode;
   const promptThinking = Boolean(agentIsSending || isGenerating);
   const chatThinking = Boolean(
@@ -241,7 +233,7 @@ export function PulsePromptStep({
   const canPinAgentInput = effectiveComposerInput.trim().length > 0;
   const shouldDisableChatPin = shouldDisableSave || !canPinAgentInput;
   const canSendAgentInput =
-    chatModeEnabled && (effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0);
+    effectiveComposerInput.trim().length > 0 || stagedAttachments.length > 0;
   const markAgentInputFocusForRestore = React.useCallback(() => {
     shouldRestoreAgentInputFocusRef.current = true;
   }, []);
@@ -427,10 +419,6 @@ export function PulsePromptStep({
                 onRemoveAgentAttachment={onRemoveAgentAttachment}
                 onClearAgentAttachments={onClearAgentAttachments}
                 onAgentInputChange={effectiveAgentInputChange}
-                chatModeEnabled={chatModeEnabled}
-                onChatModeEnabledChange={onChatModeEnabledChange}
-                hideChatModeToggle={hideChatModeToggle}
-                directOpenAiBypassEnabled={directOpenAiBypassEnabled}
                 agentBootstrapPending={agentBootstrapPending}
                 onAgentSend={onAgentSend}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}

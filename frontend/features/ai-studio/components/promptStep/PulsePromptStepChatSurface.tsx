@@ -53,10 +53,6 @@ type PulsePromptStepChatSurfaceProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAgentInputChange?: (value: string) => void;
-  chatModeEnabled: boolean;
-  onChatModeEnabledChange?: (value: boolean) => void;
-  hideChatModeToggle?: boolean;
-  directOpenAiBypassEnabled?: boolean;
   agentBootstrapPending: boolean;
   onAgentSend?: () => void;
   highlightLatestAssistantOnly: boolean;
@@ -117,10 +113,6 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAgentInputChange,
-  chatModeEnabled,
-  onChatModeEnabledChange,
-  hideChatModeToggle = false,
-  directOpenAiBypassEnabled = false,
   agentBootstrapPending,
   onAgentSend,
   highlightLatestAssistantOnly,
@@ -154,9 +146,8 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const isPulseLoading = pulseLoadingState != null;
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
-  const canSendAgentInput =
-    chatModeEnabled && (agentInput.trim().length > 0 || stagedAttachments.length > 0);
-  const hasInsideInputSendButton = embedSendButtonInInput && chatModeEnabled;
+  const canSendAgentInput = agentInput.trim().length > 0 || stagedAttachments.length > 0;
+  const hasInsideInputSendButton = embedSendButtonInInput;
   const hasAuxComposerControls = Boolean(composerMiddleContent) || Boolean(composerLeadingContent);
   const shouldStackTrailingComposerControls =
     stackTrailingComposerControls && hasAuxComposerControls;
@@ -303,11 +294,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
             ? pulseLoadingState.phase === "starting_pulse"
               ? "Pulse is starting..."
               : "Pulse is generating the next step..."
-            : chatModeEnabled
-              ? directOpenAiBypassEnabled
-                ? "Ask ShortPulse or write your prompt"
-                : "Message the agent..."
-              : "Write your prompt..."
+            : "Message the agent..."
         }
         onKeyDown={handleAgentInputKeyDown}
         className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
@@ -320,7 +307,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
           onClick={handleAgentSendClick}
           disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending}
           loading={agentIsSending}
-          ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
+          ariaLabel="Send to agent"
           icon="arrow-up"
           className="agent-send-prefab--inside-input"
         />
@@ -328,41 +315,19 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
     </div>
   );
 
-  const chatModeToggleContent = hideChatModeToggle ? null : (
-    <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
-      <div className="agent-chat-mode-toggle-copy">
-        <span className="agent-chat-mode-label">Chat Mode</span>
-      </div>
-      <button
-        type="button"
-        className={`audio-toggle ai-chat-mode-toggle agent-chat-mode-toggle ${chatModeEnabled ? "is-active" : ""}`}
-        aria-pressed={chatModeEnabled}
-        aria-label={chatModeEnabled ? "Disable chat mode" : "Enable chat mode"}
-        disabled={!onChatModeEnabledChange}
-        onClick={() => onChatModeEnabledChange?.(!chatModeEnabled)}
-      >
-        <span className="audio-toggle-track" aria-hidden="true">
-          <span className="audio-toggle-dot" />
-        </span>
-      </button>
-    </div>
-  );
-
-  const chatSendButtonContent =
-    !embedSendButtonInInput && chatModeEnabled ? (
-      <AgentSendButton
-        onClick={handleAgentSendClick}
-        disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending}
-        loading={agentIsSending}
-        ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
-        label="Send"
-        className="agent-send-prefab--labeled"
-      />
-    ) : null;
+  const chatSendButtonContent = !embedSendButtonInInput ? (
+    <AgentSendButton
+      onClick={handleAgentSendClick}
+      disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending}
+      loading={agentIsSending}
+      ariaLabel="Send to agent"
+      label="Send"
+      className="agent-send-prefab--labeled"
+    />
+  ) : null;
 
   const chatModeActionsContent = (
     <div className="agent-inline-actions">
-      {chatModeToggleContent}
       {!showBeginnerChatPinTip && onSavePrompt ? (
         <AgentSaveButton
           onClick={() => onSavePrompt(agentInput)}
@@ -492,7 +457,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
           />
         </div>
       ) : null}
-      {!beginnerMode && chatModeEnabled ? (
+      {!beginnerMode ? (
         <p className="tiny helper-text agent-composer-hint">
           Enter to send. Shift+Enter for a new line.
         </p>

@@ -40,10 +40,6 @@ import {
   resolvePulseAgentSessionNamespace,
   resolvePulseWorkflowArtifactPrompt,
 } from "./agentBridgeRuntime/pulseBridgeRuntimeState";
-import {
-  restartCreatePulsePreset,
-  type RestartCreatePulsePresetParams,
-} from "./agentBridgeRuntime/pulsePresetRestart";
 
 type UseAiStudioAgentBridgeParams = {
   sessionId: string | null;
@@ -456,7 +452,6 @@ export const useAiStudioAgentBridge = ({
         : storedRuntimeState;
     agentUiBusyRef.current = false;
     setAgentUiBusy(false);
-    // eslint-disable-next-line react-hooks/immutability -- The hydration echo sentinel lives in a ref specifically so scope rehydration metadata does not trigger extra renders.
     pendingRuntimeHydrationRef.current = shouldPreserveLiveRuntimeState
       ? null
       : {
@@ -642,7 +637,6 @@ export const useAiStudioAgentBridge = ({
         liveRuntimeState
       );
       if (isHydratedEcho) {
-        // eslint-disable-next-line react-hooks/immutability -- Clearing the hydration echo sentinel is ref-only bookkeeping and intentionally does not participate in render state.
         pendingRuntimeHydrationRef.current = null;
         return;
       }
@@ -762,7 +756,8 @@ export const useAiStudioAgentBridge = ({
   ]);
 
   const handlePulsePresetRestart = useCallback(
-    async (preset: RestartCreatePulsePresetParams["preset"]) => {
+    async (preset: Parameters<typeof handlePulsePresetStart>[0]) => {
+      const { restartCreatePulsePreset } = await import("./agentBridgeRuntime/pulsePresetRestart");
       await restartCreatePulsePreset({
         preset,
         restartPulse,

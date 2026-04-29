@@ -95,19 +95,44 @@ describe("model catalog route coverage", () => {
     expect(filesWithQueueLiterals).toEqual([]);
   });
 
-  it("pins Seedream status polling to the shared Bytedance queue root", () => {
-    const seedreamModelIds = [
-      "fal-ai/bytedance/seedream/v4.5/text-to-image",
-      "fal-ai/bytedance/seedream/v4.5/edit",
-      "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-      "fal-ai/bytedance/seedream/v5/lite/edit",
-    ];
+  it("uses one canonical Fal status route per active model", () => {
+    const mismatches: string[] = [];
 
-    for (const modelId of seedreamModelIds) {
-      expect(getModelCatalogEntry(modelId)?.falStatusBaseUrls).toEqual([
-        "https://queue.fal.run/fal-ai/bytedance/requests",
-      ]);
+    for (const filePath of listFalStatusRouteFiles()) {
+      const contents = fs.readFileSync(filePath, "utf8");
+      const modelId = resolveModelId(contents, providerModelIds);
+      if (!modelId) continue;
+      const entry = getModelCatalogEntry(modelId);
+      if (!entry?.falSubmitUrl) continue;
+      const expectedStatusBase = `${entry.falSubmitUrl}/requests`;
+      if (
+        entry.falStatusBaseUrls?.length !== 1 ||
+        entry.falStatusBaseUrls[0] !== expectedStatusBase
+      ) {
+        mismatches.push(
+          `${path.basename(filePath)}: expected ${expectedStatusBase}, got ${JSON.stringify(
+            entry.falStatusBaseUrls ?? []
+          )}`
+        );
+      }
     }
+
+    expect(mismatches).toEqual([]);
+  });
+
+  it("pins Seedream status polling to each model's canonical queue route", () => {
+    expect(
+      getModelCatalogEntry("fal-ai/bytedance/seedream/v4.5/text-to-image")?.falStatusBaseUrls
+    ).toEqual(["https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests"]);
+    expect(getModelCatalogEntry("fal-ai/bytedance/seedream/v4.5/edit")?.falStatusBaseUrls).toEqual([
+      "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit/requests",
+    ]);
+    expect(
+      getModelCatalogEntry("fal-ai/bytedance/seedream/v5/lite/text-to-image")?.falStatusBaseUrls
+    ).toEqual(["https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/text-to-image/requests"]);
+    expect(
+      getModelCatalogEntry("fal-ai/bytedance/seedream/v5/lite/edit")?.falStatusBaseUrls
+    ).toEqual(["https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/edit/requests"]);
   });
 
   it("keeps retired Fal video models out of executable provider routes", () => {

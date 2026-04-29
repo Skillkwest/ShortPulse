@@ -112,10 +112,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "model_default",
     allowedResolutions: ["model_default"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/flux-2/klein/9b",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/flux-2/requests",
-      "https://queue.fal.run/fal-ai/flux-2/klein/9b/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/flux-2/klein/9b/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -137,10 +134,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "model_default",
     allowedResolutions: ["model_default"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/flux-pro/v1/fill",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/flux-pro/requests",
-      "https://queue.fal.run/fal-ai/flux-pro/v1/fill/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/flux-pro/v1/fill/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt", "image_url", "mask_url"],
@@ -185,10 +179,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "model_default",
     allowedResolutions: ["model_default"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bria/background/remove",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/bria/requests",
-      "https://queue.fal.run/fal-ai/bria/background/remove/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bria/background/remove/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["image_url"],
@@ -262,10 +253,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "model_default",
     allowedResolutions: ["model_default"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/nano-banana/edit",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/nano-banana/requests",
-      "https://queue.fal.run/fal-ai/nano-banana/edit/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/nano-banana/edit/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -369,10 +357,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "1K",
     allowedResolutions: ["0.5K", "1K", "2K", "4K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/nano-banana-2/edit",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/nano-banana-2/requests",
-      "https://queue.fal.run/fal-ai/nano-banana-2/edit/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/nano-banana-2/edit/requests"],
     falTimeoutMs: 60000,
     pricingParamAliases: {
       webSearch: ["enable_web_search", "web_search", "enable_google_search"],
@@ -461,10 +446,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "1K",
     allowedResolutions: ["1K", "2K", "4K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/edit",
-    falStatusBaseUrls: [
-      "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
-      "https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests",
-    ],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests"],
     falTimeoutMs: 60000,
     pricingParamAliases: {
       webSearch: ["enable_web_search", "web_search", "enable_google_search"],
@@ -509,7 +491,9 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "auto_2K",
     allowedResolutions: ["auto_2K", "auto_4K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image",
-    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/requests"],
+    falStatusBaseUrls: [
+      "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
+    ],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -531,7 +515,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "auto_2K",
     allowedResolutions: ["auto_2K", "auto_4K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit",
-    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/requests"],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/edit/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -551,7 +535,9 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "auto_2K",
     allowedResolutions: ["auto_2K", "auto_3K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/text-to-image",
-    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/requests"],
+    falStatusBaseUrls: [
+      "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/text-to-image/requests",
+    ],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -570,7 +556,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "auto_2K",
     allowedResolutions: ["auto_2K", "auto_3K"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/edit",
-    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/requests"],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/bytedance/seedream/v5/lite/edit/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],

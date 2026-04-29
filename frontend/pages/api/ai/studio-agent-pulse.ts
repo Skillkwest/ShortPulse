@@ -1,9 +1,9 @@
 /**
  * Pulse AI Studio agent route.
- * Enforces the Pulse lane boundary before delegating to the shared execution handler.
+ * Enforces the Pulse lane boundary before running the Pulse runtime.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import studioAgentHandler from "./studio-agent";
+import { runPulseStudioAgentRuntime } from "../../../features/agent-runtime/pulseStudioAgentRuntime/runtime";
 
 const hasPulseContext = (value: unknown): boolean =>
   Boolean(
@@ -31,7 +31,7 @@ export default async function pulseStudioAgentHandler(req: NextApiRequest, res: 
       runtimeMode: "pulse",
     };
   }
-  return studioAgentHandler(req, res);
+  return runPulseStudioAgentRuntime(req, res);
 }
 
 export const config = {

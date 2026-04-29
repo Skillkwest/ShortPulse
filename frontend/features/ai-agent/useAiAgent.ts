@@ -35,7 +35,7 @@ import {
   resolveStudioAgentTransportSuccess,
 } from "./client/transportResultResolution";
 import { ensureSessionKey, persistSessionKey, randomId } from "./client/sessionController";
-import { sendStudioAgentTurn } from "./client/studioAgentTransport";
+import { sendStudioAgentTurn as sendStudioAgentTurnWithRuntimeMode } from "./client/studioAgentTransport";
 import {
   EMPTY_MESSAGES,
   type SendParams,
@@ -86,6 +86,8 @@ export const useAiAgent = ({
   sessionNamespace = "ai-studio-default",
   directOpenAiBypassEnabled = false,
   runtimeMode = "standard",
+  sendAgentTurn = sendStudioAgentTurnWithRuntimeMode,
+  resolveTransportSuccess = resolveStudioAgentTransportSuccess,
 }: UseAiAgentOptions = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>(initialMessages);
   const [isSending, setIsSending] = useState(false);
@@ -275,7 +277,7 @@ export const useAiAgent = ({
           directOpenAiBypass: directOpenAiBypassEnabled,
           runtimeMode,
         };
-        const transportResult = await sendStudioAgentTurn(body);
+        const transportResult = await sendAgentTurn(body);
         if (isStaleRequest()) {
           return discardedResult;
         }
@@ -315,7 +317,7 @@ export const useAiAgent = ({
           canonicalPrompt,
           assistantContent,
           assistantOutputPrompt,
-        } = resolveStudioAgentTransportSuccess(data);
+        } = resolveTransportSuccess(data);
         if (canonicalPrompt) {
           canonicalPromptBySessionIdentityRef.current.set(requestSessionIdentity, canonicalPrompt);
         }
@@ -364,7 +366,15 @@ export const useAiAgent = ({
         setIsSending(false);
       }
     },
-    [conversationId, directOpenAiBypassEnabled, enabled, runtimeMode, sessionNamespace]
+    [
+      conversationId,
+      directOpenAiBypassEnabled,
+      enabled,
+      resolveTransportSuccess,
+      runtimeMode,
+      sendAgentTurn,
+      sessionNamespace,
+    ]
   );
 
   const state = useMemo(

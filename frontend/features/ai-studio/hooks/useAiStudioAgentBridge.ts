@@ -12,7 +12,8 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { useAiAgent } from "../../ai-agent/useAiAgent";
+import { usePulseCreateAgent } from "../../ai-agent/usePulseCreateAgent";
+import { useStandardCreateAgent } from "../../ai-agent/useStandardCreateAgent";
 import type {
   AgentAttachment,
   AgentAssistantMessageEditRequest,
@@ -300,20 +301,17 @@ export const useAiStudioAgentBridge = ({
 
   const standardAgentSessionNamespace = `ai-studio:${sessionId ?? "none"}::standard`;
   const pulseAgentSessionNamespace = `ai-studio:${sessionId ?? "none"}::${pulseRuntimeScopeKey}`;
-  const standardAgent = useAiAgent({
+  const standardAgent = useStandardCreateAgent({
     enabled: agentEnabled,
     sessionNamespace: standardAgentSessionNamespace,
-    runtimeMode: "standard",
     directOpenAiBypassEnabled:
       chatModeEnabled &&
       directOpenAiBypassEnabled &&
       (selectedTool === "create" || selectedTool === "text"),
   });
-  const pulseAgent = useAiAgent({
+  const pulseAgent = usePulseCreateAgent({
     enabled: agentEnabled,
     sessionNamespace: pulseAgentSessionNamespace,
-    runtimeMode: "pulse",
-    directOpenAiBypassEnabled: false,
   });
   const activeAgent = isPulseCreateMode ? pulseAgent : standardAgent;
   const {

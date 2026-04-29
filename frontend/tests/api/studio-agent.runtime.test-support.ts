@@ -1,5 +1,22 @@
 import { vi } from "vitest";
-import studioAgentHandler from "../../pages/api/ai/studio-agent";
+import pulseStudioAgentHandler from "../../pages/api/ai/studio-agent-pulse";
+import standardStudioAgentHandler from "../../pages/api/ai/studio-agent-standard";
+
+const hasPulseContext = (value: unknown): boolean =>
+  Boolean(
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    "pulse" in value &&
+    (value as { pulse?: unknown }).pulse != null
+  );
+
+const studioAgentHandler = async (req: never, res: never) => {
+  const request = req as { body?: { context?: unknown } };
+  return hasPulseContext(request.body?.context)
+    ? pulseStudioAgentHandler(req, res)
+    : standardStudioAgentHandler(req, res);
+};
 
 export default studioAgentHandler;
 

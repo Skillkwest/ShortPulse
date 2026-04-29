@@ -3,12 +3,14 @@
  */
 import type {
   AgentActions,
+  AgentApiRequest,
   AgentContext,
   AgentMessage,
   AgentPulseWorkflowSession,
   AgentResponse,
   AgentRuntimeMode,
 } from "../../prefabs/agent";
+import type { StudioAgentTransportResult } from "./client/studioAgentTransport";
 
 export type UseAiAgentOptions = {
   initialMessages?: AgentMessage[];
@@ -17,6 +19,14 @@ export type UseAiAgentOptions = {
   sessionNamespace?: string;
   directOpenAiBypassEnabled?: boolean;
   runtimeMode?: AgentRuntimeMode;
+  sendAgentTurn?: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
+  resolveTransportSuccess?: (response: AgentResponse) => {
+    actions: AgentActions | undefined;
+    workflowSession: AgentPulseWorkflowSession | null;
+    canonicalPrompt: string | null;
+    assistantContent: string;
+    assistantOutputPrompt: string | null;
+  };
 };
 
 export type SendParams = {

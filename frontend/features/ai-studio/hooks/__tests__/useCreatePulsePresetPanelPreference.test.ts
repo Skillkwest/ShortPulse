@@ -42,19 +42,52 @@ describe("useCreatePulsePresetPanelPreference", () => {
     window.localStorage.clear();
   });
 
-  it("migrates legacy local custom-slot overrides into saved pulses", async () => {
+  it("does not load custom Pulse preferences while disabled", async () => {
+    window.localStorage.setItem(
+      "shortpulse.ai_studio.saved_pulses",
+      JSON.stringify([
+        {
+          presetId: "pulse_custom",
+          label: "Private Pulse",
+          systemInstructions: "Custom hidden instructions.",
+          createdAt: null,
+        },
+      ])
+    );
+
+    const { result } = renderHook(() => useCreatePulsePresetPanelPreference({ enabled: false }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.savedPresets).toEqual([]);
+    expect(result.current.syncState).toBe("ready");
+    expect(ensureSupabaseQueryClient).not.toHaveBeenCalled();
+    expect(readSupabaseUserId).not.toHaveBeenCalled();
+  });
+
+  it("drops retired local pulse ids without legacy custom-slot migration", async () => {
     window.localStorage.setItem(
       "shortpulse.ai_studio.create_pulse_preset_panel_ids",
-      JSON.stringify(["single_shot", "custom_1"])
+      JSON.stringify(["single_shot", "pulse_custom"])
     );
     window.localStorage.setItem(
-      "shortpulse.ai_studio.create_pulse_custom_presets",
-      JSON.stringify({
-        custom_1: {
+      "shortpulse.ai_studio.saved_pulses",
+      JSON.stringify([
+        {
+          presetId: "pulse_custom",
           label: "Storyboard",
-          prompt: "Build a storyboard-ready pulse sequence.",
+          systemInstructions: "Build a storyboard-ready pulse sequence.",
+          createdAt: null,
         },
-      })
+        {
+          presetId: "ad_hook",
+          label: "Ad Hook",
+          systemInstructions: "Retired.",
+          createdAt: null,
+        },
+      ])
     );
 
     vi.mocked(readSupabaseUserId).mockResolvedValue(null);
@@ -66,10 +99,10 @@ describe("useCreatePulsePresetPanelPreference", () => {
       expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current.presetPanelIds).toEqual(["single_shot", "custom_1"]);
+    expect(result.current.presetPanelIds).toEqual(["pulse_custom"]);
     expect(result.current.savedPresets).toEqual([
       buildExpectedSavedPulse({
-        presetId: "custom_1",
+        presetId: "pulse_custom",
         label: "Storyboard",
         systemInstructions: "Build a storyboard-ready pulse sequence.",
         createdAt: null,
@@ -145,16 +178,19 @@ describe("useCreatePulsePresetPanelPreference", () => {
   it("keeps local Pulse values when the remote preference row is empty", async () => {
     window.localStorage.setItem(
       "shortpulse.ai_studio.create_pulse_preset_panel_ids",
-      JSON.stringify(["image", "custom_2"])
+      JSON.stringify(["image", "pulse_product"])
     );
     window.localStorage.setItem(
-      "shortpulse.ai_studio.create_pulse_custom_presets",
-      JSON.stringify({
-        custom_2: {
+      "shortpulse.ai_studio.saved_pulses",
+      JSON.stringify([
+        {
+          presetId: "pulse_product",
           label: "Product Director",
-          prompt: "Treat the product like a premium hero with one decisive benefit frame.",
+          systemInstructions:
+            "Treat the product like a premium hero with one decisive benefit frame.",
+          createdAt: null,
         },
-      })
+      ])
     );
 
     const upsert = vi.fn().mockResolvedValue({ error: null });
@@ -182,10 +218,10 @@ describe("useCreatePulsePresetPanelPreference", () => {
       expect(result.current.syncState).toBe("ready");
     });
 
-    expect(result.current.presetPanelIds).toEqual(["image", "custom_2"]);
+    expect(result.current.presetPanelIds).toEqual(["image", "pulse_product"]);
     expect(result.current.savedPresets).toEqual([
       buildExpectedSavedPulse({
-        presetId: "custom_2",
+        presetId: "pulse_product",
         label: "Product Director",
         systemInstructions:
           "Treat the product like a premium hero with one decisive benefit frame.",
@@ -221,8 +257,8 @@ describe("useCreatePulsePresetPanelPreference", () => {
       expect(result.current.syncState).toBe("ready");
     });
 
-    act(() => {
-      result.current.setSavedPresets([
+    await act(async () => {
+      await result.current.setSavedPresets([
         buildExpectedSavedPulse({
           presetId: "pulse_custom",
           label: "Hook Builder",
@@ -244,7 +280,7 @@ describe("useCreatePulsePresetPanelPreference", () => {
               createdAt: null,
             }),
           ],
-          ai_studio_create_pulse_panel_ids: ["image", "single_shot", "multi_shot", "story_builder"],
+          ai_studio_create_pulse_panel_ids: ["image", "multi_shot", "story_builder"],
         }),
         { onConflict: "user_id" }
       );

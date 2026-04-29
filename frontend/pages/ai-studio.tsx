@@ -131,12 +131,13 @@ export default function AiStudioPage() {
     setPresetPanelIds: setSelectedExpertEditPresetIds,
     setCustomPresetOverrides: setExpertEditCustomPresetOverrides,
   } = useExpertEditPresetPanelPreference();
+  const [createPulsePreferenceEnabled, setCreatePulsePreferenceEnabled] = useState(false);
   const {
     presetPanelIds: selectedCreatePulsePresetIds,
     savedPresets: savedCreatePulsePresets,
     setPresetPanelIds: setSelectedCreatePulsePresetIds,
     setSavedPresets: setSavedCreatePulsePresets,
-  } = useCreatePulsePresetPanelPreference();
+  } = useCreatePulsePresetPanelPreference({ enabled: createPulsePreferenceEnabled });
   const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
   const {
     modelPricingPolicy,
@@ -203,6 +204,9 @@ export default function AiStudioPage() {
     selectedCreatePulsePresetIds,
     savedCreatePulsePresets,
   });
+  useEffect(() => {
+    setCreatePulsePreferenceEnabled(expertCreateMode === "pulse");
+  }, [expertCreateMode]);
 
   // Character workflow state (shared with Character tool workflows and error surfaces)
   const {

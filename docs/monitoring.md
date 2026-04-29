@@ -77,7 +77,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Growth telemetry remains telemetry-only in `app_error_events`; it does not create grouped incidents in `app_error_logs`.
 
 ## AI Studio Pulse runtime monitoring
-- Pulse does not emit a separate `telemetry.pulse.*` event family. Pulse runtime quality is monitored through the existing studio-agent route telemetry plus authoritative `pulseWorkflowSession` state.
+- Pulse runtime quality is monitored through Pulse-owned studio-agent route telemetry plus authoritative `pulseWorkflowSession` state. Standard and Pulse use separate route/runtime labels; do not aggregate custom Pulse state into Standard telemetry.
 - Route-level studio-agent telemetry is emitted by `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts` as `[studio-agent][telemetry]` and is the primary signal for Pulse request outcomes.
 - Treat these telemetry fields as the Pulse runtime outcome contract:
   - routing: `flow`, `path`, `model`

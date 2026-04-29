@@ -1,9 +1,9 @@
 /**
  * Standard AI Studio agent route.
- * Enforces the Standard lane boundary before delegating to the shared execution handler.
+ * Enforces the Standard lane boundary before running the Standard runtime.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import studioAgentHandler from "./studio-agent";
+import { runStandardStudioAgentRuntime } from "../../../features/agent-runtime/standardStudioAgentRuntime/runtime";
 
 const hasPulseContext = (value: unknown): boolean =>
   Boolean(
@@ -33,7 +33,7 @@ export default async function standardStudioAgentHandler(
       runtimeMode: "standard",
     };
   }
-  return studioAgentHandler(req, res);
+  return runStandardStudioAgentRuntime(req, res);
 }
 
 export const config = {

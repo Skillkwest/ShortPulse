@@ -136,18 +136,38 @@ export const resolveStudioAgentTransportFailure = (
   };
 };
 
-export const resolveStudioAgentTransportSuccess = (response: AgentResponse) => {
+const resolveBaseTransportSuccess = (response: AgentResponse) => {
   const actions = normalizeActions(response.actions);
   const canonicalPrompt = sanitizeGenerationPromptText(
     response.canonicalPrompt ?? actions?.applyPrompt ?? null
   );
   const applyPromptText = sanitizeGenerationPromptText(actions?.applyPrompt ?? null) ?? "";
-  const messageText = sanitizeGenerationPromptText(response.message ?? null) ?? "";
+  const messageText = typeof response.message === "string" ? response.message.trim() : "";
   return {
     actions,
-    workflowSession: resolveWorkflowSession(response),
     canonicalPrompt,
     assistantContent: applyPromptText || messageText,
     assistantOutputPrompt: applyPromptText || null,
   };
 };
+
+/**
+ * Resolves a Standard Create agent response. Standard does not expose workflow sessions.
+ */
+export const resolveStandardCreateAgentTransportSuccess = (response: AgentResponse) => ({
+  ...resolveBaseTransportSuccess(response),
+  workflowSession: null,
+});
+
+/**
+ * Resolves a Pulse Create agent response and owns workflow-session parsing.
+ */
+export const resolvePulseCreateAgentTransportSuccess = (response: AgentResponse) => ({
+  ...resolveBaseTransportSuccess(response),
+  workflowSession: resolveWorkflowSession(response),
+});
+
+/**
+ * Compatibility success resolver for non-Create callers.
+ */
+export const resolveStudioAgentTransportSuccess = resolvePulseCreateAgentTransportSuccess;

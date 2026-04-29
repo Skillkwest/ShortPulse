@@ -101,16 +101,14 @@ const resolveTransportErrorDetail = ({
   return trimmedBody.length ? trimmedBody : "Agent request failed";
 };
 
-const resolveStudioAgentEndpoint = (body: AgentApiRequest): string =>
-  body.runtimeMode === "pulse" ? "/api/ai/studio-agent-pulse" : "/api/ai/studio-agent-standard";
-
 /**
- * Send a turn request to the runtime-specific studio-agent endpoint.
+ * Send a turn request to a concrete studio-agent endpoint.
  */
-export const sendStudioAgentTurn = async (
+export const sendStudioAgentTurnToEndpoint = async (
+  endpoint: "/api/ai/studio-agent-standard" | "/api/ai/studio-agent-pulse",
   body: AgentApiRequest
 ): Promise<StudioAgentTransportResult> => {
-  const response = await fetchWithAuth(resolveStudioAgentEndpoint(body), {
+  const response = await fetchWithAuth(endpoint, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -138,3 +136,14 @@ export const sendStudioAgentTurn = async (
     data: (await response.json()) as AgentResponse,
   };
 };
+
+/**
+ * Compatibility transport for non-Create callers that still pass a runtimeMode.
+ */
+export const sendStudioAgentTurn = async (
+  body: AgentApiRequest
+): Promise<StudioAgentTransportResult> =>
+  sendStudioAgentTurnToEndpoint(
+    body.runtimeMode === "pulse" ? "/api/ai/studio-agent-pulse" : "/api/ai/studio-agent-standard",
+    body
+  );

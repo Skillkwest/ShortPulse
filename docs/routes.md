@@ -80,7 +80,7 @@ Auth required legend:
 | `/api/projects/[projectId]/media/folders/delete` | Yes | Authenticated project Media Library folder delete route | `POST` JSON only. Deletes one caller-owned custom folder scoped to the active project. |
 | `/api/projects/[projectId]/media/folders/membership-batch` | Yes | Authenticated project Media Library membership route | `POST` JSON only. Assigns, unassigns, or moves saved media/prompt memberships between caller-owned folders within the active project. |
 | `/api/projects/[projectId]/media/folders/[folderId]/canvas` | Yes | Authenticated project Media Library folder canvas route | `GET|PUT`. Loads or saves one caller-owned project folder canvas snapshot. Project routes use this surface instead of the legacy user-scoped folder canvas endpoints. |
-| `/api/ai/studio-agent-standard` | Yes | Standard AI Studio agent route | `POST` JSON only. Accepts Standard-mode agent payloads, rejects Pulse runtime context, and delegates to the shared studio-agent execution handler. |
-| `/api/ai/studio-agent-pulse` | Yes | Pulse AI Studio agent route | `POST` JSON only. Requires Pulse runtime context, rejects Standard-mode payloads, disables direct-bypass requests, and delegates to the shared studio-agent execution handler. |
+| `/api/ai/studio-agent-standard` | Yes | Standard AI Studio agent route | `POST` JSON only. Accepts Standard-mode agent payloads, rejects Pulse runtime context, and runs the Standard-owned Create agent runtime. Standard responses do not include Pulse workflow fields. |
+| `/api/ai/studio-agent-pulse` | Yes | Pulse AI Studio agent route | `POST` JSON only. Requires Pulse runtime context, rejects Standard-mode payloads, disables direct-bypass requests, and runs the Pulse-owned guided Create agent runtime. |
 
 Keep this table updated when adding routes and reflect protection rules in `frontend/lib/authGuard.ts` for frontend pages and `frontend/lib/server/api/protectedApiPaths.ts` for API routes.

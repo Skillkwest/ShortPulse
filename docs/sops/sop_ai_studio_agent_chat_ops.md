@@ -9,13 +9,13 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 ## UI entry points
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
 - Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps the chat send/respond path active. OFF disables send affordances and routes Create `mode=text` raw composer/shared text into the normal file-generation path. This toggle is Standard Create only. In Expert Create `Pulse` mode, the toggle is hidden because Pulse always uses the agent/chat lane and does not read or write the Standard toggle state.
-- Direct OpenAI bypass (backend-gated): when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Create chat lane defaults to raw user/assistant turns through `/api/ai/studio-agent` with `directOpenAiBypass=true`. There is no separate inline toggle; the flag itself is the control. The bypass lane can also attach staged image media as multimodal input so users can ask for image descriptions or prompt rewrites directly from dropped images.
+- Direct OpenAI bypass (backend-gated): when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Standard Create chat lane defaults to raw user/assistant turns through `/api/ai/studio-agent-standard` with `directOpenAiBypass=true`. There is no separate inline toggle; the flag itself is the control. The bypass lane can also attach staged image media as multimodal input so users can ask for image descriptions or prompt rewrites directly from dropped images.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
 - Prompt save: Save buttons persist the current prompt (including agent-applied text) to the reference grid.
 - Reference Grid prompt cards: no per-card Generate CTA; cards are for selection/drag/save/remove while generation runs from primary Generate controls.
-- Describe & Text actions: “Describe” on a reference and “Refine prompt” both use the same `/api/ai/studio-agent` transport as normal chat. Those actions run as isolated-history sends so the UI behavior stays specialized without a separate backend lane.
+- Describe & Text actions: “Describe” on a reference and “Refine prompt” use the runtime-specific studio-agent transport. Standard uses `/api/ai/studio-agent-standard`; Pulse uses `/api/ai/studio-agent-pulse`.
 
 ## System prerequisites & gates
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (studio-agent default `gpt-5-nano`), optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `STUDIO_AGENT_PULSE_MODEL` (guided Pulse workflow model; inherits `OPENAI_MODEL` when unset), optional `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (server bypass gate), optional `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (Create-panel toggle visibility), optional `STUDIO_AGENT_DIRECT_OPENAI_MODEL` (direct bypass model; defaults to `gpt-5.4`), optional `OPENAI_API_BASE`.
@@ -37,10 +37,10 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
    - `selectedReferenceIds` are merged, `focusedSource` is set based on staged kind, and `modeHint` defaults to `"reference"` when attachments are present.
 5) `contextBuilder` + API `safeContext` filter to safe media/refs and enforce caps before provider calls.
 6) `useAiAgent` runs client pre-send safety precheck over outbound messages/context/canonical prompt. Refusal short-circuits locally with canonical refusal text; rewrite mutates payload before transport.
-7) `/api/ai/studio-agent` validates message roles (`user|assistant`), requires `clientSessionKey`, classifies turn into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED`, and stores canonical prompt continuity in Supabase (`ai_agent_conversation_state`) by `user_id + clientSessionKey`.
+7) The runtime-specific studio-agent route validates message roles (`user|assistant`) and requires `clientSessionKey`. Standard uses the Standard-owned direct Create runtime and never returns Pulse workflow fields. Pulse uses the Pulse-owned guided runtime, classifies turns into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED`, and owns workflow-session updates.
 8) Route runs server-authoritative pre-provider safety precheck before any vision/coordinator/provider call. Refusal returns `200` with canonical refusal and empty actions; rewrite mutates in-memory payload before orchestration.
 9) Mixed/image turns use the vision timeout budget for summary calls and preserve the full turn timeout budget for generation.
-10) Responses include `traceId` and `Agent-Contract-Version: 1` for correlation and contract governance.
+10) Responses include `traceId` and `Agent-Contract-Version: 1` for correlation and contract governance; Standard responses must not include `workflowSession`.
 11) Canonical runtime response is normalized by active Pulse/runtime mode:
 - prompt-editor turns still resolve to `message` plus `actions.applyPrompt`,
 - workflow Pulse turns may return message-only step prompts until they intentionally emit a final prompt artifact,
@@ -56,7 +56,7 @@ Prompt ownership rule:
   - Send → agent returns an updated single prompt; prompt state updates; “Generate” uses it.
   - Message click → adds a prompt card to Reference Grid and closes chat.
 - **Refine prompt path (Prompt tab):**
-  - Uses `/api/ai/studio-agent` with isolated history and `modeHint="text"`.
+  - Uses `/api/ai/studio-agent-standard` with isolated history and `modeHint="text"`.
   - Captures `applyPrompt` and saves a “Refined prompt” card.
 - **Create raw mode (Chat Mode OFF, Create `mode=text`):**
   - Primary and only path: resolve the raw composer/shared prompt and submit it into Create/Image generation.
@@ -64,19 +64,19 @@ Prompt ownership rule:
 - **Expert Create Pulse mode:**
   - Always uses the chat lane, even if Standard mode was previously set to chat-off raw mode.
   - Hides the inline chat-mode toggle while Pulse is active, then restores the prior Standard-mode chat preference when the user switches back.
-  - Clicking a pinned Pulse activates hidden Pulse runtime metadata on `/api/ai/studio-agent` without mutating the visible Create composer.
+  - Clicking a pinned Pulse activates hidden Pulse runtime metadata on `/api/ai/studio-agent-pulse` without mutating the visible Create composer.
   - Active Pulse behavior is normalized to the guided contract: `workflow_gpt`, `activate_and_start`, and `chat_reply`.
-  - Pulse bootstrap sends use isolated history/canonical continuity so Standard transcript or canonical state does not bleed into the first hidden Pulse turn.
-  - Legacy `prompt_editor` / `activate_only` / `apply_prompt` metadata may still be accepted from older saved state, but it is compatibility input only and is normalized before runtime execution.
+  - Pulse bootstrap sends use the Pulse hook and route so Standard transcript or canonical state does not bleed into the first hidden Pulse turn.
+  - Retired `prompt_editor` / `activate_only` / `apply_prompt` Pulse metadata is discarded from saved state; active Pulse runtime uses only `workflow_gpt`, `activate_and_start`, and `chat_reply`.
   - Guided Pulses auto-start on click and may ask structured follow-up questions before emitting a final artifact.
-  - Temporarily switching back to `Standard` preserves the hidden Pulse runtime for the current live session; explicit restart/deactivate and switching to a different Pulse clear that runtime and start fresh.
+  - Switching back to `Standard` clears the active hidden Pulse runtime. Returning to `Pulse` starts with no active Pulse until the user starts one.
 - **Direct OpenAI chat mode (Chat Mode ON + bypass flag enabled):**
-  - Client still posts `/api/ai/studio-agent`, but always sets `directOpenAiBypass=true` for the Create/Text chat lane.
+  - Client posts `/api/ai/studio-agent-standard` and sets `directOpenAiBypass=true` for the Create/Text chat lane.
   - When the server gate is enabled, the route skips studio-agent orchestration and sends the raw message list directly to OpenAI with model `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.
   - If the active send includes staged images, the latest user turn is sent as multimodal input (`text + image_url`) so the direct lane can describe the image and turn it into a generation-ready prompt.
   - The response still returns the standard `message` + `actions.applyPrompt` envelope so the UI can reuse its normal apply/save/generate flow.
 - **Describe a reference:**
-  - Uses `/api/ai/studio-agent` with isolated history, focused image context, and `modeHint="describe"`.
+  - Uses `/api/ai/studio-agent-standard` with isolated history, focused image context, and `modeHint="describe"`.
   - Result becomes prompt + prompt card.
 - **Expanded Agent Chat column:**
   - Shows the same history and attachment behavior as inline chat.
@@ -84,7 +84,7 @@ Prompt ownership rule:
 
 ## Safeguards & drift control
 - Canonical prompt store: API persists canonical prompt state in Supabase (`ai_agent_conversation_state`) keyed by `user_id + clientSessionKey`, with service-role-only execute posture, DB-enforced TTL/cap clamps, deterministic pruning, and daily stale-row cleanup support.
-- Pre-provider safety gate: `/api/ai/studio-agent` evaluates provider-bound input text before execution and can deterministically rewrite or refuse without calling OpenAI.
+- Pre-provider safety gate: the studio-agent runtime routes evaluate provider-bound input text before execution and can deterministically rewrite or refuse without calling OpenAI.
 - Client pre-send gate mirrors the same logic for fast UX, but server remains authoritative.
 - Canonical read order: DB canonical → request canonical prompt → `context.lastAssistantMessage`.
 - Canonical write policy: upsert only on successful non-refusal turns.
@@ -101,8 +101,8 @@ Prompt ownership rule:
 ## Operational checklist (per release or after prompt/model updates)
 - ✅ Agent on/off: flip `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` false → chat hides; API still guarded by `STUDIO_AGENT_ENABLED`.
 - ✅ Happy path: send chat → prompt updates → generate succeeds (image + video).
-- ✅ Refine action: run Refine prompt and confirm `/api/ai/studio-agent` returns an applied prompt and saved card.
-- ✅ Describe action: run Describe on an image and confirm `/api/ai/studio-agent` returns a usable description and saved card.
+- ✅ Refine action: run Refine prompt and confirm `/api/ai/studio-agent-standard` returns an applied prompt and saved card.
+- ✅ Describe action: run Describe on an image and confirm `/api/ai/studio-agent-standard` returns a usable description and saved card.
 - ✅ Oversize media: drop a >350 KB image → request should omit media and return a text-only refinement.
 - ✅ Drift guard: send canonical prompt “sunset bike” then “make it a car” and ensure preserved details unless explicitly changed.
 - ✅ Refusal path: refusal returns `I cannot describe this.` with empty actions and does not overwrite canonical prompt.
@@ -112,7 +112,7 @@ Prompt ownership rule:
 - No transcript persistence beyond session memory; only `clientSessionKey` persists for canonical continuity.
 - No streaming UI; large responses wait for full completion.
 - Video references are ignored for vision; only prompt text from video cards is used.
-- Server vision runs in `/api/ai/studio-agent` for both chat attachment turns and manual describe actions.
+- Server vision runs in the runtime-specific studio-agent routes for both chat attachment turns and manual describe actions.
 
 ## Adversarial Corpus Lifecycle (Staging Scope)
 Use this lifecycle when maintaining the prompt-compiler adversarial regression corpus for the remediation stream.
@@ -129,7 +129,8 @@ Candidate intake rules:
    - `outcome_class=fallback_infra`
    - `runtime_scope_key` changed with unexpected behavior delta
 2. Include only canonical remediation routes:
-   - `/api/ai/studio-agent`
+   - `/api/ai/studio-agent-standard`
+   - `/api/ai/studio-agent-pulse`
 3. Exclude non-remediation routes and non-deterministic UI-only artifacts.
 
 Normalization and dedupe:

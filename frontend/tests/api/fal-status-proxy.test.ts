@@ -1274,6 +1274,126 @@ describe("createFalStatusHandler", () => {
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/alt-base-success.png");
   });
 
+  it("probes result payloads after a retryable status alias miss", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-status-alias-result-1",
+        request_id: "req-status-alias-result",
+        status: "running",
+        metadata: {},
+      },
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: "Not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            images: [{ url: "https://cdn.shortpulse.test/status-alias-result.png" }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-2/requests",
+      routeLabel: "Fal Nano Banana 2",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-status-alias-result" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        state: "completed",
+        request_id: "req-status-alias-result",
+        generationId: "gen-status-alias-result-1",
+        data: expect.objectContaining({
+          images: [{ url: "https://cdn.shortpulse.test/status-alias-result.png" }],
+        }),
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.shortpulse.test/status-alias-result.png"],
+        }),
+      })
+    );
+    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: "req-status-alias-result",
+        resultUrls: ["https://cdn.shortpulse.test/status-alias-result.png"],
+      })
+    );
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps polling when a status alias miss has no completed result media yet", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: "Not found" }), {
+          status: 404,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "IN_PROGRESS" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-2/requests",
+      routeLabel: "Fal Nano Banana 2",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-status-alias-running" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "IN_PROGRESS",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          providerState: "in_progress",
+          recoveryPending: true,
+        }),
+      })
+    );
+    expect(settleDirectGenerationSuccessMock).not.toHaveBeenCalled();
+    expect(settleDirectGenerationFailureMock).not.toHaveBeenCalled();
+    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
   it("uses the selected status base for terminal result fetches", async () => {
     const fetchMock = vi
       .fn()

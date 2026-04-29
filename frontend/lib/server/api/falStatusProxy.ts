@@ -639,6 +639,7 @@ export const createFalStatusHandler = ({
       let statusResp: Response | null = null;
       let statusData: JsonReadResult | null = null;
       let resolvedQueueBaseUrl: string | null = null;
+      let selectedStatusProbe: StatusProbeCandidate | null = null;
       const statusCandidates: Array<{
         probe: StatusProbeCandidate;
         response: Response;
@@ -727,6 +728,7 @@ export const createFalStatusHandler = ({
           statusResp = bestStatusCandidate.response;
           statusData = bestStatusCandidate.data;
           resolvedQueueBaseUrl = bestStatusCandidate.probe.baseUrl;
+          selectedStatusProbe = bestStatusCandidate.probe;
         }
       }
 
@@ -735,6 +737,7 @@ export const createFalStatusHandler = ({
         statusResp = fallbackCandidate.response;
         statusData = fallbackCandidate.data;
         resolvedQueueBaseUrl = fallbackCandidate.probe.baseUrl;
+        selectedStatusProbe = fallbackCandidate.probe;
       }
 
       if (!statusResp || !statusData) {
@@ -780,6 +783,7 @@ export const createFalStatusHandler = ({
       const orderedResultBases = [resolvedQueueBaseUrl].filter((baseUrl): baseUrl is string =>
         Boolean(baseUrl)
       );
+      const selectedStatusIsRetryableAlias = selectedStatusProbe?.isRetryableAlias === true;
 
       if (!statusData.isJson) {
         if (statusTransientFailuresEnabled) {
@@ -839,7 +843,7 @@ export const createFalStatusHandler = ({
         });
       }
 
-      if (!statusResp.ok) {
+      if (!statusResp.ok && !selectedStatusIsRetryableAlias) {
         if (
           isProviderRetryableUpstreamResponse({
             provider: providerKey,
@@ -890,7 +894,7 @@ export const createFalStatusHandler = ({
           status: normalizedStatus,
         })
       );
-      if (!isComplete) {
+      if (!isComplete && !selectedStatusIsRetryableAlias) {
         return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
           attachGenerationId(
             attachShortPulseLifecycle({
@@ -1121,6 +1125,13 @@ export const createFalStatusHandler = ({
       const explicitResultFailure =
         resultStatus === "error" || resultStatus === "failed" || Boolean(resultErrorMessage);
       const resultHasMedia = payloadHasMedia(resultData.json);
+      const resultIsComplete = Boolean(
+        resultStatus &&
+        isProviderCompletedStatus({
+          provider: providerKey,
+          status: resultStatus,
+        })
+      );
 
       if (explicitResultFailure) {
         return await settleCanonicalFailedPayload({
@@ -1129,6 +1140,20 @@ export const createFalStatusHandler = ({
           fallbackDetail: resultData.json,
           failureReasonCode: "provider_error",
         });
+      }
+
+      if (!resultHasMedia && selectedStatusIsRetryableAlias && !resultIsComplete) {
+        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
+          attachGenerationId(
+            attachShortPulseLifecycle({
+              payload: resultData.json,
+              lifecycle: buildNonterminalLifecycleHint({
+                normalizedStatus: resultStatus ?? normalizedStatus,
+                recoveryPending: true,
+              }),
+            })
+          )
+        );
       }
 
       if (!resultHasMedia) {

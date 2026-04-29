@@ -590,6 +590,24 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
   });
 
+  it("does not require custom shot prompts for stale Seedance 2 custom mode", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "text",
+        klingWorkflowMode: "custom",
+        klingMultiPrompts: [],
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.referenceImageWarning).toBeNull();
+  });
+
   it("blocks Seedance 2.0 Fast multimodal mode when frame images are mixed with multimodal references", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

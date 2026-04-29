@@ -422,14 +422,6 @@ export const useAiStudioViewModel = ({
     ) {
       return "Add at least one custom Kling shot prompt before generating.";
     }
-    if (
-      isVideoTool &&
-      isSeedance2Model &&
-      klingWorkflowMode === "custom" &&
-      !klingMultiPrompts.some((shot) => shot.prompt.trim().length > 0)
-    ) {
-      return "Add at least one custom Seedance shot prompt before generating.";
-    }
     if (isVideoTool && isSeedance2Model) {
       if (
         hasSeedance2LinkedAssetReferences &&

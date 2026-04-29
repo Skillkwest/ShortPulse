@@ -1012,7 +1012,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     mediaType: "image-to-video",
     pricingStrategy: "seedance-2-per-second",
     minDurationSeconds: 5,
-    maxDurationSeconds: 10,
+    maxDurationSeconds: 15,
     defaultAudio: true,
     supportsImageToVideo: true,
   },

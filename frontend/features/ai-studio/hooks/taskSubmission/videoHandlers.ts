@@ -315,36 +315,13 @@ const rewritePromptWithSeedanceEntityContext = (
 
 const buildSeedancePromptPayload = ({
   cleanedPrompt,
-  klingWorkflowMode,
-  klingMultiPrompts,
   preparedKlingElements,
 }: {
   cleanedPrompt: string;
-  klingWorkflowMode: VideoSubmissionArgs["klingWorkflowMode"];
-  klingMultiPrompts: VideoSubmissionArgs["klingMultiPrompts"];
   preparedKlingElements: AiStudioKlingElement[];
 }): { prompt: string } | { error: string } => {
-  const normalizedMode = klingWorkflowMode === "custom" ? "custom" : "single";
-  const basePrompt = rewritePromptWithSeedanceEntityContext(cleanedPrompt, preparedKlingElements);
-
-  if (normalizedMode !== "custom") {
-    return { prompt: basePrompt };
-  }
-
-  const activeShots = klingMultiPrompts
-    .map((shot, index) => {
-      const prompt = rewritePromptWithSeedanceEntityContext(shot.prompt, preparedKlingElements);
-      if (!prompt.trim()) return null;
-      return `Shot ${index + 1} (${Math.max(1, Math.round(shot.duration))}s): ${prompt}`;
-    })
-    .filter((shot): shot is string => Boolean(shot));
-
-  if (!activeShots.length) {
-    return { error: "Custom Seedance shot mode requires at least one shot prompt." };
-  }
-
   return {
-    prompt: [basePrompt, "Storyboard:", activeShots.join("\n")].filter(Boolean).join("\n\n"),
+    prompt: rewritePromptWithSeedanceEntityContext(cleanedPrompt, preparedKlingElements),
   };
 };
 
@@ -625,8 +602,6 @@ export const handleVideoModelSubmission = async ({
             : "text";
     const promptPayload = buildSeedancePromptPayload({
       cleanedPrompt,
-      klingWorkflowMode,
-      klingMultiPrompts,
       preparedKlingElements: preparedSeedanceLinkedElements,
     });
     if ("error" in promptPayload) {

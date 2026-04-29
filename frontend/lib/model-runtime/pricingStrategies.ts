@@ -553,7 +553,7 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
   });
 };
 
-const resolveSeedanceDuration = (value?: number) => {
+const resolveSeedance15Duration = (value?: number) => {
   if (typeof value !== "number" || !Number.isFinite(value)) return 10;
   if (value <= 4) return 4;
   if (value <= 5) return 5;
@@ -566,9 +566,16 @@ const resolveSeedanceDuration = (value?: number) => {
   return 12;
 };
 
+const resolveSeedance2Duration = (value?: number) => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 10;
+  if (value <= 5) return 5;
+  if (value <= 10) return 10;
+  return 15;
+};
+
 const computeSeedancePerSecondCost: StrategyFn = (params) => {
   if (params.modelId === KIE_SEEDANCE_15_PRO_MODEL_ID) {
-    const duration = resolveSeedanceDuration(params.durationSeconds);
+    const duration = resolveSeedance15Duration(params.durationSeconds);
     const res = resolveDefaultResolution(params, "720p").toLowerCase();
     const resolutionKey = res.includes("1080") ? "1080p" : res.includes("480") ? "480p" : "720p";
     const hasAudio = resolveDefaultAudio(params, false);
@@ -590,7 +597,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
     });
   }
 
-  const duration = resolveSeedanceDuration(params.durationSeconds);
+  const duration = resolveSeedance2Duration(params.durationSeconds);
   const res = resolveDefaultResolution(params, "1080p").toLowerCase();
   const resolutionKey = res.includes("1080")
     ? "1080p"

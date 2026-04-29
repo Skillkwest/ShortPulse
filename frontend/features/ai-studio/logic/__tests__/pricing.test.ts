@@ -3,9 +3,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { computeCostForModel, falImageSizeMap } from "../pricing";
+import { computeCostForModel, falImageSizeMap, getModelConfig } from "../pricing";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 
@@ -216,6 +218,30 @@ describe("computeCostForModel (Kie Seedance 1.5)", () => {
     expect(cost?.usdRaw).toBeCloseTo(0.9, 6);
     expect(cost?.rawCredits).toBe(93);
     expect(cost?.credits).toBe(95);
+  });
+});
+
+describe("computeCostForModel (Kie Seedance 2)", () => {
+  it("prices 15s Seedance 2 generations at the full submitted duration", () => {
+    const tenSecondCost = computeCostForModel(KIE_SEEDANCE_2_MODEL_ID, {
+      durationSeconds: 10,
+      resolution: "1080p",
+      audio: true,
+    });
+    const fifteenSecondCost = computeCostForModel(KIE_SEEDANCE_2_MODEL_ID, {
+      durationSeconds: 15,
+      resolution: "1080p",
+      audio: true,
+    });
+
+    expect(tenSecondCost).not.toBeNull();
+    expect(fifteenSecondCost).not.toBeNull();
+    expect(fifteenSecondCost?.usdRaw).toBeCloseTo((tenSecondCost?.usdRaw ?? 0) * 1.5, 6);
+  });
+
+  it("advertises 15s as the max for both Seedance 2 pricing configs", () => {
+    expect(getModelConfig(KIE_SEEDANCE_2_MODEL_ID)?.maxDurationSeconds).toBe(15);
+    expect(getModelConfig(KIE_SEEDANCE_2_FAST_MODEL_ID)?.maxDurationSeconds).toBe(15);
   });
 });
 

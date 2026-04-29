@@ -633,7 +633,7 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
     );
   });
 
-  it("compiles Seedance custom multi-shot prompts and linked assets into a multimodal Kie payload", async () => {
+  it("keeps Seedance 2 on the single-shot Kie payload when stale custom prompts exist", async () => {
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_2_MODEL_ID,
       modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
@@ -680,11 +680,12 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
       web_search: false,
     });
     expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toContain(
-      "Shot 1 (5s): Follow Red Lantern past the crowd"
-    );
-    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toContain(
       "Linked reference subjects: Red Lantern: Warm lacquered lantern."
     );
+    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).not.toContain(
+      "Storyboard:"
+    );
+    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).not.toContain("Shot 1");
   });
 
   it("fails closed when Seedance linked assets are mixed with first/last frame mode", async () => {

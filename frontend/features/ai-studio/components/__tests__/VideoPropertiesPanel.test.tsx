@@ -574,7 +574,7 @@ describe("VideoPropertiesPanel", () => {
     );
   });
 
-  it("renders the Seedance 2.x advanced settings card", () => {
+  it("does not render the redundant Seedance 2.x advanced settings card", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
@@ -583,9 +583,29 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    expect(screen.getByTestId("reference-seedance-advanced-steps")).toHaveTextContent(
-      "Seedance 2.0 Fast Settings"
+    expect(screen.queryByTestId("reference-seedance-advanced-steps")).toBeNull();
+    expect(screen.queryByTestId("reference-kling-advanced-steps")).toBeNull();
+    expect(screen.getByRole("tab", { name: "Single shot" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Multi-shot" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Custom multi-shot" })).toBeNull();
+  });
+
+  it("maps stale Seedance 2 custom mode to the single-pipeline Multi tab", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId="kie-ai/seedance-2"
+        modelLabel="Seedance 2.0 (Kie)"
+        klingWorkflowMode="custom"
+      />
     );
+
+    expect(screen.getByRole("tab", { name: "Multi-shot" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.queryByRole("tab", { name: "Custom multi-shot" })).toBeNull();
+    expect(screen.queryByText("Shot 2")).toBeNull();
   });
 
   it("opens the elements picker and attaches a saved element to a Kling slot", async () => {
@@ -717,10 +737,7 @@ describe("VideoPropertiesPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add element to slot 2" }));
 
-    await waitFor(() => {
-      expect(container.querySelector(".ai-character-list-avatar-image")).toBeInTheDocument();
-    });
-    const elementsList = screen.getByRole("list", { name: "Elements options" });
+    const elementsList = await screen.findByRole("list", { name: "Elements options" });
     const redLanternCard = within(elementsList)
       .getByRole("button", { name: /red lantern/i })
       .closest("article");

@@ -98,26 +98,4 @@ describe("ReferenceKlingAdvancedSteps", () => {
     expect(baseProps.onInsertKlingElementToken).toHaveBeenCalledWith("redlantern");
     expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
   });
-
-  it("renders the Seedance 2 variant with linked-entity helper copy and without Kling-only controls", () => {
-    render(
-      <ReferenceKlingAdvancedSteps
-        {...baseProps}
-        workflowLabel="Seedance 2.0"
-        supportsVoiceControls={false}
-        supportsNegativePrompt={false}
-        supportsCfgScale={false}
-        assetsHelperText="Linked Characters and Elements are sent as Seedance 2.0 multimodal reference assets."
-        guidanceHelperText="Seedance 2.0 guidance here is prompt-driven."
-      />
-    );
-
-    expect(screen.getByRole("button", { name: "Toggle Seedance 2.0 shots" })).toBeInTheDocument();
-    expect(
-      screen.getByText(/Linked Characters and Elements are sent as Seedance 2\.0/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Seedance 2\.0 guidance here is prompt-driven/i)).toBeInTheDocument();
-    expect(screen.queryByText("Voice IDs (optional)")).toBeNull();
-    expect(screen.queryByText("Negative prompt")).toBeNull();
-  });
 });

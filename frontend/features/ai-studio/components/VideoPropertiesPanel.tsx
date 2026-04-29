@@ -159,23 +159,11 @@ export function VideoPropertiesPanel({
   videoGenerateAudio,
   videoCameraFixed = false,
   videoAutoFix = false,
-  seedance2InputMode = "text",
-  seedance2ReferenceImageUrls = [],
-  seedance2ReferenceVideoUrls = [],
-  seedance2ReferenceAudioUrls = [],
-  seedance2ReturnLastFrame = false,
-  seedance2WebSearch = false,
   onVideoDurationChange,
   onVideoResolutionChange,
   onVideoGenerateAudioChange,
   onVideoCameraFixedChange,
   onVideoAutoFixChange,
-  onSeedance2InputModeChange,
-  onSeedance2ReferenceImageUrlsChange,
-  onSeedance2ReferenceVideoUrlsChange,
-  onSeedance2ReferenceAudioUrlsChange,
-  onSeedance2ReturnLastFrameChange,
-  onSeedance2WebSearchChange,
   aspectOptions,
   isModelModalOpen,
   modelModalAnchor,
@@ -496,7 +484,6 @@ export function VideoPropertiesPanel({
     isMotionMode,
     isStandardMode,
     isSeedanceModel,
-    isSeedance2FamilyModel,
     isVeoModel,
     referenceStepTitle,
     referenceStepSubtitle,
@@ -592,8 +579,13 @@ export function VideoPropertiesPanel({
     [videoModeIndex]
   );
   const klingMode = klingWorkflowMode;
-  const isMultiShotEnabled = isKlingPatternModelSelected && klingMode === "custom";
-  const isCustomKlingWorkflow = isKlingPatternModelSelected && klingMode === "custom";
+  const isMultiShotEnabled =
+    isKlingPatternModelSelected && !isSeedance2FamilyModelSelected && klingMode === "custom";
+  const isCustomKlingWorkflow =
+    isKlingPatternModelSelected && !isSeedance2FamilyModelSelected && klingMode === "custom";
+  const visibleShotMode =
+    isSeedance2FamilyModelSelected && klingMode === "custom" ? "multi" : klingMode;
+  const shotModeTabCount = isSeedance2FamilyModelSelected ? 2 : 3;
   const customKlingPrompts = React.useMemo(
     () => (isCustomKlingWorkflow ? klingMultiPrompts : []),
     [isCustomKlingWorkflow, klingMultiPrompts]
@@ -604,9 +596,9 @@ export function VideoPropertiesPanel({
   const videoModeSummaryLabel = visibleVideoMode === "motion" ? "Motion Control" : "Standard";
   const shotModeSummaryLabel = !isKlingPatternModelSelected
     ? "Single"
-    : klingMode === "multi"
+    : visibleShotMode === "multi"
       ? "Multi"
-      : klingMode === "custom"
+      : visibleShotMode === "custom"
         ? "Custom"
         : "Single";
   const createInitialMultiShot = React.useCallback(() => {
@@ -625,15 +617,8 @@ export function VideoPropertiesPanel({
   const showShotModeSelector = activeVideoMode === "standard";
   const shouldShowShotModeSelector = showShotModeSelector && isKlingPatternModelSelected;
   const shouldShowSeedanceAdvancedPanel =
-    isAnySeedanceModelSelected && activeVideoMode === "standard" && !isMotionMode;
-  const displayedSeedance2InputMode =
-    seedance2InputMode === "multimodal"
-      ? "multimodal"
-      : resolvedVideoLane === "first-last"
-        ? "first-last"
-        : resolvedVideoLane === "single-image"
-          ? "first-frame"
-          : "text";
+    isSeedance15ModelSelected && activeVideoMode === "standard" && !isMotionMode;
+  const shouldShowKlingAdvancedSteps = isKlingPatternMode && !isSeedance2FamilyModelSelected;
   const textareaResizeFrameMapRef = React.useRef(new WeakMap<HTMLTextAreaElement, number>());
 
   const resizeTextareaToViewport = React.useCallback((textarea: HTMLTextAreaElement | null) => {
@@ -1219,7 +1204,6 @@ export function VideoPropertiesPanel({
       promptTokenPickerState.selectedSlotIndex,
       promptTokenPickerState.target,
       resolvePromptTokenPickerDisplayToken,
-      resolvePromptTokenPickerToken,
       selectedKlingElements,
     ]
   );
@@ -1332,7 +1316,7 @@ export function VideoPropertiesPanel({
                         resolutionOptions={resolutionOptions}
                         videoGenerateAudioValue={videoGenerateAudioValue}
                         isSeedanceModel={isSeedanceModel}
-                        showSeedanceCameraFixedControl={!shouldShowSeedanceAdvancedPanel}
+                        showSeedanceCameraFixedControl={!isAnySeedanceModelSelected}
                         videoCameraFixed={videoCameraFixed}
                         isVeoModel={isVeoModel}
                         videoAutoFix={videoAutoFix}
@@ -1370,9 +1354,13 @@ export function VideoPropertiesPanel({
                                 aria-label="Shot structure mode"
                                 style={
                                   {
-                                    "--video-shot-mode-slots": 3,
+                                    "--video-shot-mode-slots": shotModeTabCount,
                                     "--video-shot-mode-index":
-                                      klingMode === "multi" ? 1 : klingMode === "custom" ? 2 : 0,
+                                      visibleShotMode === "multi"
+                                        ? 1
+                                        : visibleShotMode === "custom"
+                                          ? 2
+                                          : 0,
                                   } as React.CSSProperties
                                 }
                               >
@@ -1380,9 +1368,9 @@ export function VideoPropertiesPanel({
                                 <button
                                   type="button"
                                   role="tab"
-                                  aria-selected={klingMode === "single"}
+                                  aria-selected={visibleShotMode === "single"}
                                   aria-label="Single shot"
-                                  className={`video-shot-mode-tab ${klingMode === "single" ? "is-active" : ""}`}
+                                  className={`video-shot-mode-tab ${visibleShotMode === "single" ? "is-active" : ""}`}
                                   onClick={() => handleSetKlingWorkflowMode("single")}
                                 >
                                   Single
@@ -1390,23 +1378,25 @@ export function VideoPropertiesPanel({
                                 <button
                                   type="button"
                                   role="tab"
-                                  aria-selected={klingMode === "multi"}
+                                  aria-selected={visibleShotMode === "multi"}
                                   aria-label="Multi-shot"
-                                  className={`video-shot-mode-tab ${klingMode === "multi" ? "is-active" : ""}`}
+                                  className={`video-shot-mode-tab ${visibleShotMode === "multi" ? "is-active" : ""}`}
                                   onClick={() => handleSetKlingWorkflowMode("multi")}
                                 >
                                   Multi
                                 </button>
-                                <button
-                                  type="button"
-                                  role="tab"
-                                  aria-selected={klingMode === "custom"}
-                                  aria-label="Custom multi-shot"
-                                  className={`video-shot-mode-tab ${klingMode === "custom" ? "is-active" : ""}`}
-                                  onClick={() => handleSetKlingWorkflowMode("custom")}
-                                >
-                                  Custom
-                                </button>
+                                {!isSeedance2FamilyModelSelected ? (
+                                  <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={visibleShotMode === "custom"}
+                                    aria-label="Custom multi-shot"
+                                    className={`video-shot-mode-tab ${visibleShotMode === "custom" ? "is-active" : ""}`}
+                                    onClick={() => handleSetKlingWorkflowMode("custom")}
+                                  >
+                                    Custom
+                                  </button>
+                                ) : null}
                               </div>
                             </div>
                           ) : null}
@@ -1524,30 +1514,10 @@ export function VideoPropertiesPanel({
                     {shouldShowSeedanceAdvancedPanel ? (
                       <div className="video-setup-seedance-slot">
                         <ReferenceSeedanceAdvancedSteps
-                          title={
-                            isSeedance15ModelSelected
-                              ? "Seedance 1.5 Settings"
-                              : isSeedance2FastModelSelected
-                                ? "Seedance 2.0 Fast Settings"
-                                : "Seedance 2.0 Settings"
-                          }
+                          title="Seedance 1.5 Settings"
                           isSeedance15Model={isSeedance15ModelSelected}
-                          isSeedance2FamilyModel={isSeedance2FamilyModelSelected}
-                          displayInputMode={displayedSeedance2InputMode}
                           videoCameraFixed={videoCameraFixed}
                           onVideoCameraFixedChange={onVideoCameraFixedChange}
-                          seedance2InputMode={seedance2InputMode}
-                          seedance2ReferenceImageUrls={seedance2ReferenceImageUrls}
-                          seedance2ReferenceVideoUrls={seedance2ReferenceVideoUrls}
-                          seedance2ReferenceAudioUrls={seedance2ReferenceAudioUrls}
-                          seedance2ReturnLastFrame={seedance2ReturnLastFrame}
-                          seedance2WebSearch={seedance2WebSearch}
-                          onSeedance2InputModeChange={onSeedance2InputModeChange}
-                          onSeedance2ReferenceImageUrlsChange={onSeedance2ReferenceImageUrlsChange}
-                          onSeedance2ReferenceVideoUrlsChange={onSeedance2ReferenceVideoUrlsChange}
-                          onSeedance2ReferenceAudioUrlsChange={onSeedance2ReferenceAudioUrlsChange}
-                          onSeedance2ReturnLastFrameChange={onSeedance2ReturnLastFrameChange}
-                          onSeedance2WebSearchChange={onSeedance2WebSearchChange}
                         />
                       </div>
                     ) : null}
@@ -1751,62 +1721,54 @@ export function VideoPropertiesPanel({
               </div>
             </div>
           </div>
-          <ReferenceKlingAdvancedSteps
-            isKling3Mode={isKlingPatternMode}
-            isKieKlingModel={isKieKlingWorkspace}
-            workflowLabel={isSeedance2FamilyModel ? "Seedance 2.0" : "Kling 3.0"}
-            assetReferenceNoun={isSeedance2FamilyModel ? "linked entity" : "element"}
-            supportsVoiceControls={!isSeedance2FamilyModel && !isKieKlingWorkspace}
-            supportsNegativePrompt={!isSeedance2FamilyModel && !isKieKlingWorkspace}
-            supportsCfgScale={!isSeedance2FamilyModel}
-            assetsHelperText={
-              isSeedance2FamilyModel
-                ? "Linked Characters and Elements are sent as Seedance 2.0 multimodal reference assets when frame-only modes are not active."
-                : undefined
-            }
-            guidanceHelperText={
-              isSeedance2FamilyModel
-                ? "Seedance 2.0 guidance here is prompt-driven. Storyboard prompts, linked assets, and multimodal reference settings work together in the main video panel."
-                : undefined
-            }
-            beginnerMode={beginnerMode}
-            klingAdvancedOrder={klingAdvancedOrder}
-            klingAdvancedBadge={klingAdvancedBadge}
-            klingAssetsOrder={klingAssetsOrder}
-            klingAssetsBadge={klingAssetsBadge}
-            klingGuidanceOrder={klingGuidanceOrder}
-            klingGuidanceBadge={klingGuidanceBadge}
-            collapsedKlingAdvanced={collapsedSteps.klingAdvanced}
-            collapsedKlingAssets={collapsedSteps.klingAssets}
-            collapsedKlingGuidance={collapsedSteps.klingGuidance}
-            klingShotSummary={klingShotSummary}
-            klingAssetsSummary={klingAssetsSummary}
-            klingGuidanceSummary={klingGuidanceSummary}
-            klingShotType={klingShotType}
-            klingMultiPrompts={klingMultiPrompts}
-            klingElements={klingElements}
-            klingVoiceIds={klingVoiceIds}
-            klingCfgScale={klingCfgScale}
-            klingNegativePrompt={klingNegativePrompt}
-            onExpandKlingAdvanced={() => expandIfCollapsed("klingAdvanced")}
-            onExpandKlingAssets={() => expandIfCollapsed("klingAssets")}
-            onExpandKlingGuidance={() => expandIfCollapsed("klingGuidance")}
-            onToggleKlingAdvanced={() => toggleStep("klingAdvanced")}
-            onToggleKlingAssets={() => toggleStep("klingAssets")}
-            onToggleKlingGuidance={() => toggleStep("klingGuidance")}
-            onKlingShotTypeChange={onKlingShotTypeChange}
-            onKlingVoiceIdChange={onKlingVoiceIdChange}
-            onKlingCfgScaleChange={onKlingCfgScaleChange}
-            onKlingNegativePromptChange={onKlingNegativePromptChange}
-            onInsertKlingElementToken={insertKlingElementToken}
-            onOpenKlingElementPicker={openElementPicker}
-            addKlingShot={addKlingShot}
-            removeKlingShot={removeKlingShot}
-            updateKlingMultiPrompt={updateKlingMultiPrompt}
-            addKlingElement={addKlingElement}
-            removeKlingElement={removeKlingElement}
-            updateKlingElement={updateKlingElement}
-          />
+          {shouldShowKlingAdvancedSteps ? (
+            <ReferenceKlingAdvancedSteps
+              isKling3Mode={isKlingPatternMode}
+              isKieKlingModel={isKieKlingWorkspace}
+              workflowLabel="Kling 3.0"
+              assetReferenceNoun="element"
+              supportsVoiceControls={!isKieKlingWorkspace}
+              supportsNegativePrompt={!isKieKlingWorkspace}
+              supportsCfgScale
+              beginnerMode={beginnerMode}
+              klingAdvancedOrder={klingAdvancedOrder}
+              klingAdvancedBadge={klingAdvancedBadge}
+              klingAssetsOrder={klingAssetsOrder}
+              klingAssetsBadge={klingAssetsBadge}
+              klingGuidanceOrder={klingGuidanceOrder}
+              klingGuidanceBadge={klingGuidanceBadge}
+              collapsedKlingAdvanced={collapsedSteps.klingAdvanced}
+              collapsedKlingAssets={collapsedSteps.klingAssets}
+              collapsedKlingGuidance={collapsedSteps.klingGuidance}
+              klingShotSummary={klingShotSummary}
+              klingAssetsSummary={klingAssetsSummary}
+              klingGuidanceSummary={klingGuidanceSummary}
+              klingShotType={klingShotType}
+              klingMultiPrompts={klingMultiPrompts}
+              klingElements={klingElements}
+              klingVoiceIds={klingVoiceIds}
+              klingCfgScale={klingCfgScale}
+              klingNegativePrompt={klingNegativePrompt}
+              onExpandKlingAdvanced={() => expandIfCollapsed("klingAdvanced")}
+              onExpandKlingAssets={() => expandIfCollapsed("klingAssets")}
+              onExpandKlingGuidance={() => expandIfCollapsed("klingGuidance")}
+              onToggleKlingAdvanced={() => toggleStep("klingAdvanced")}
+              onToggleKlingAssets={() => toggleStep("klingAssets")}
+              onToggleKlingGuidance={() => toggleStep("klingGuidance")}
+              onKlingShotTypeChange={onKlingShotTypeChange}
+              onKlingVoiceIdChange={onKlingVoiceIdChange}
+              onKlingCfgScaleChange={onKlingCfgScaleChange}
+              onKlingNegativePromptChange={onKlingNegativePromptChange}
+              onInsertKlingElementToken={insertKlingElementToken}
+              onOpenKlingElementPicker={openElementPicker}
+              addKlingShot={addKlingShot}
+              removeKlingShot={removeKlingShot}
+              updateKlingMultiPrompt={updateKlingMultiPrompt}
+              addKlingElement={addKlingElement}
+              removeKlingElement={removeKlingElement}
+              updateKlingElement={updateKlingElement}
+            />
+          ) : null}
         </div>
       </div>
       <ElementPickerModal

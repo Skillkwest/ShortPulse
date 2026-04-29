@@ -16,6 +16,20 @@ vi.mock("../../../ai-agent/useAiAgent", () => ({
   useAiAgent: (...args: unknown[]) => useAiAgentMock(...args),
 }));
 
+vi.mock("../../../ai-agent/useStandardCreateAgent", () => ({
+  useStandardCreateAgent: (options: Record<string, unknown> = {}) =>
+    useAiAgentMock({ ...options, runtimeMode: "standard" }),
+}));
+
+vi.mock("../../../ai-agent/usePulseCreateAgent", () => ({
+  usePulseCreateAgent: (options: Record<string, unknown> = {}) =>
+    useAiAgentMock({
+      ...options,
+      directOpenAiBypassEnabled: false,
+      runtimeMode: "pulse",
+    }),
+}));
+
 vi.mock("../useAiStudioAgentComposer", () => ({
   useAiStudioAgentComposer: (...args: unknown[]) => useAiStudioAgentComposerMock(...args),
 }));

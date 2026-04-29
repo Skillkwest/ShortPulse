@@ -2,18 +2,21 @@
  * Standard Create agent hook.
  * Binds the reusable agent state engine to Standard-only transport and parsing.
  */
-import { resolveStandardCreateAgentTransportSuccess } from "./client/transportResultResolution";
+import { resolveStandardCreateAgentTransportSuccess } from "./client/standardTransportResultResolution";
 import { sendStandardCreateAgentTurn } from "./client/standardStudioAgentTransport";
-import { useAiAgent } from "./useAiAgent";
+import { useCreateAgentStateCore } from "./useCreateAgentStateCore";
 import type { UseAiAgentOptions } from "./useAiAgentTypes";
 
 /**
  * Creates an isolated Standard Create agent runtime.
  */
 export const useStandardCreateAgent = (options: Omit<UseAiAgentOptions, "runtimeMode"> = {}) =>
-  useAiAgent({
+  useCreateAgentStateCore({
     ...options,
-    runtimeMode: "standard",
+    requestRuntimeMode: "standard",
+    allowSessionNamespaceOverride: false,
+    sessionNamespaceOverrideErrorText:
+      "Standard agent cannot send to an override session namespace.",
     sendAgentTurn: sendStandardCreateAgentTurn,
     resolveTransportSuccess: resolveStandardCreateAgentTransportSuccess,
   });

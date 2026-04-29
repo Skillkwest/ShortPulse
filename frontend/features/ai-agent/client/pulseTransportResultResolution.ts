@@ -1,7 +1,22 @@
-import type { AgentPulseWorkflowSession, AgentResponse } from "../../../prefabs/agent";
+/**
+ * Pulse Create response parser.
+ * Owns workflow-session parsing for guided Pulse turns.
+ */
+import type {
+  AgentActions,
+  AgentPulseWorkflowSession,
+  AgentResponse,
+} from "../../../prefabs/agent";
 import { sanitizeGenerationPromptText } from "../../agent-core/promptText";
 import { normalizeActions } from "./actionNormalizer";
-export { resolveStudioAgentTransportFailure } from "./transportFailureResolution";
+
+export type PulseCreateAgentTransportSuccess = {
+  actions: AgentActions | undefined;
+  workflowSession: AgentPulseWorkflowSession | null;
+  canonicalPrompt: string | null;
+  assistantContent: string;
+  assistantOutputPrompt: string | null;
+};
 
 const resolveWorkflowSession = (
   response: AgentResponse | null | undefined
@@ -51,7 +66,9 @@ const resolveWorkflowSession = (
   };
 };
 
-const resolveBaseTransportSuccess = (response: AgentResponse) => {
+export const resolvePulseCreateAgentTransportSuccess = (
+  response: AgentResponse
+): PulseCreateAgentTransportSuccess => {
   const actions = normalizeActions(response.actions);
   const canonicalPrompt = sanitizeGenerationPromptText(
     response.canonicalPrompt ?? actions?.applyPrompt ?? null
@@ -60,29 +77,9 @@ const resolveBaseTransportSuccess = (response: AgentResponse) => {
   const messageText = typeof response.message === "string" ? response.message.trim() : "";
   return {
     actions,
+    workflowSession: resolveWorkflowSession(response),
     canonicalPrompt,
     assistantContent: applyPromptText || messageText,
     assistantOutputPrompt: applyPromptText || null,
   };
 };
-
-/**
- * Resolves a Standard Create agent response. Standard does not expose workflow sessions.
- */
-export const resolveStandardCreateAgentTransportSuccess = (response: AgentResponse) => ({
-  ...resolveBaseTransportSuccess(response),
-  workflowSession: null,
-});
-
-/**
- * Resolves a Pulse Create agent response and owns workflow-session parsing.
- */
-export const resolvePulseCreateAgentTransportSuccess = (response: AgentResponse) => ({
-  ...resolveBaseTransportSuccess(response),
-  workflowSession: resolveWorkflowSession(response),
-});
-
-/**
- * Compatibility success resolver for non-Create callers.
- */
-export const resolveStudioAgentTransportSuccess = resolvePulseCreateAgentTransportSuccess;

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiAgent } from "../useAiAgent";
@@ -17,6 +19,22 @@ describe("useAiAgent", () => {
     delete process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;
     delete process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_PROFILE_ACTIVE;
     delete process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED;
+  });
+
+  it("keeps Standard Create hook out of Pulse response parsing modules", () => {
+    const standardHookSource = readFileSync(
+      path.join(process.cwd(), "features/ai-agent/useStandardCreateAgent.ts"),
+      "utf8"
+    );
+    const standardParserSource = readFileSync(
+      path.join(process.cwd(), "features/ai-agent/client/standardTransportResultResolution.ts"),
+      "utf8"
+    );
+
+    expect(standardHookSource).not.toContain("transportResultResolution");
+    expect(standardHookSource).not.toContain("pulseTransportResultResolution");
+    expect(standardParserSource).not.toContain("resolveWorkflowSession");
+    expect(standardParserSource).not.toContain("AgentPulseWorkflowSession");
   });
 
   it("allows image-context-only turns without injecting describe text", async () => {

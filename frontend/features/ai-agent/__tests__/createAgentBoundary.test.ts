@@ -122,6 +122,14 @@ describe("Create agent mode boundaries", () => {
     expect(panelPropSource).not.toContain("selectedPulsePresetIds");
   });
 
+  it("keeps Pulse workflow implementation helpers out of page-root static imports", () => {
+    const pageSource = readFrontendFile("pages/ai-studio.tsx");
+
+    expect(pageSource).not.toContain("isCreatePulseBuiltInPresetId");
+    expect(pageSource).not.toContain('from "../features/ai-studio/logic/pulseWorkflowSession"');
+    expect(pageSource).toContain('import("../features/ai-studio/logic/pulseWorkflowSession")');
+  });
+
   it("keeps the active Create composers mode-owned below the top-level switch", () => {
     const switchSource = readFrontendFile(
       "features/ai-studio/components/CreatePropertiesPanel.tsx"

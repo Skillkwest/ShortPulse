@@ -22,10 +22,7 @@ import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/useExpertEditPresetPanelPreference";
-import {
-  isCreatePulseBuiltInPresetId,
-  type CreatePulseResolvedPreset,
-} from "../features/ai-studio/components/create/createPulsePresets";
+import type { CreatePulseResolvedPreset } from "../features/ai-studio/components/create/createPulsePresets";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
@@ -90,11 +87,6 @@ import {
   patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotWorkspace,
 } from "../features/ai-studio/logic/sessionSnapshot";
-import {
-  arePulseWorkflowSessionsEqual,
-  derivePulseWorkflowSession,
-  reconcilePulseWorkflowSession,
-} from "../features/ai-studio/logic/pulseWorkflowSession";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
 import type { AgentContext } from "../prefabs/agent";
@@ -411,9 +403,7 @@ export default function AiStudioPage() {
           workflowStageHints: resolvedPulsePreset.workflowStageHints,
           outputMode: resolvedPulsePreset.outputMode,
           memoryPolicy: resolvedPulsePreset.memoryPolicy,
-          source: isCreatePulseBuiltInPresetId(activeCreatePulsePresetId)
-            ? ("builtin" as const)
-            : ("custom" as const),
+          source: resolvedPulsePreset.isBuiltIn ? ("builtin" as const) : ("custom" as const),
           workflowSession: pulseWorkflowSession,
         },
       };
@@ -926,56 +916,60 @@ export default function AiStudioPage() {
     [handlePulsePresetStart]
   );
 
-  const activeWorkflowPulsePreset = useMemo(() => {
-    if (!hasActivePulseSession || !activeCreatePulsePresetId) {
-      return null;
-    }
-    const resolvedPreset =
-      activeCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId
-        ? activeCreatePulsePresetSnapshot
-        : null;
-    if (!resolvedPreset || resolvedPreset.runtimeMode !== "workflow_gpt") return null;
-    return resolvedPreset;
-  }, [activeCreatePulsePresetId, activeCreatePulsePresetSnapshot, hasActivePulseSession]);
-
-  const derivedPulseWorkflowSession = useMemo(
-    () =>
-      derivePulseWorkflowSession({
-        preset: activeWorkflowPulsePreset
-          ? {
-              presetId: activeWorkflowPulsePreset.presetId,
-              runtimeMode: activeWorkflowPulsePreset.runtimeMode,
-              starterAssistantMessage: activeWorkflowPulsePreset.starterAssistantMessage,
-              workflowStageHints: activeWorkflowPulsePreset.workflowStageHints,
-            }
-          : null,
-        agentMessages,
-        isSending: agentBusy,
-      }),
-    [activeWorkflowPulsePreset, agentBusy, agentMessages]
-  );
-
-  const reconciledPulseWorkflowSession = useMemo(
-    () =>
-      reconcilePulseWorkflowSession({
-        authoritative: pulseWorkflowSession,
-        derived: derivedPulseWorkflowSession,
-        isSending: agentBusy,
-      }),
-    [agentBusy, derivedPulseWorkflowSession, pulseWorkflowSession]
-  );
-
   useEffect(() => {
     if (!hasActivePulseSession) {
       setPulseWorkflowSession(null);
       return;
     }
-    setPulseWorkflowSession((current) =>
-      arePulseWorkflowSessionsEqual(current, reconciledPulseWorkflowSession)
-        ? current
-        : reconciledPulseWorkflowSession
+    const activeWorkflowPulsePreset =
+      activeCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId &&
+      activeCreatePulsePresetSnapshot.runtimeMode === "workflow_gpt"
+        ? activeCreatePulsePresetSnapshot
+        : null;
+    let cancelled = false;
+    void import("../features/ai-studio/logic/pulseWorkflowSession").then(
+      ({
+        arePulseWorkflowSessionsEqual,
+        derivePulseWorkflowSession,
+        reconcilePulseWorkflowSession,
+      }) => {
+        if (cancelled) return;
+        const derivedPulseWorkflowSession = derivePulseWorkflowSession({
+          preset: activeWorkflowPulsePreset
+            ? {
+                presetId: activeWorkflowPulsePreset.presetId,
+                runtimeMode: activeWorkflowPulsePreset.runtimeMode,
+                starterAssistantMessage: activeWorkflowPulsePreset.starterAssistantMessage,
+                workflowStageHints: activeWorkflowPulsePreset.workflowStageHints,
+              }
+            : null,
+          agentMessages,
+          isSending: agentBusy,
+        });
+        const reconciledPulseWorkflowSession = reconcilePulseWorkflowSession({
+          authoritative: pulseWorkflowSession,
+          derived: derivedPulseWorkflowSession,
+          isSending: agentBusy,
+        });
+        setPulseWorkflowSession((current) =>
+          arePulseWorkflowSessionsEqual(current, reconciledPulseWorkflowSession)
+            ? current
+            : reconciledPulseWorkflowSession
+        );
+      }
     );
-  }, [hasActivePulseSession, reconciledPulseWorkflowSession, setPulseWorkflowSession]);
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeCreatePulsePresetId,
+    activeCreatePulsePresetSnapshot,
+    agentBusy,
+    agentMessages,
+    hasActivePulseSession,
+    pulseWorkflowSession,
+    setPulseWorkflowSession,
+  ]);
 
   const buildProjectAwareSessionSnapshot = useCallback(
     (args: Parameters<typeof buildSessionSnapshot>[0]) =>

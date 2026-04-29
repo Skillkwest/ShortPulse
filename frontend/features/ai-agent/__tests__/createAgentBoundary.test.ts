@@ -211,8 +211,9 @@ describe("Create agent mode boundaries", () => {
       "import { buildPendingPulseWorkflowSessionForUserInput"
     );
     expect(orchestrationSource).not.toContain('from "../logic/pulseImageIntake"');
-    expect(orchestrationSource).toContain("../logic/pulseImageIntake");
-    expect(orchestrationSource).toContain("../logic/pulseWorkflowSession");
+    expect(orchestrationSource).not.toContain("../logic/pulseImageIntake");
+    expect(orchestrationSource).not.toContain("../logic/pulseWorkflowSession");
+    expect(orchestrationSource).toContain("./agentOrchestration/pulseSendRuntime");
     expect(orchestrationSource).toContain("./agentOrchestration/pulsePresetStart");
   });
 });

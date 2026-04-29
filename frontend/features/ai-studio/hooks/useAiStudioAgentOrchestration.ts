@@ -119,15 +119,15 @@ export const useAiStudioAgentOrchestration = ({
         modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
       });
       if (runtimePolicy.kind === "pulse") {
-        const { PULSE_IMAGE_INTAKE_REQUIRED_NOTICE, hasPulseImageContext, isPulseImageIntakeStep } =
-          await import("../logic/pulseImageIntake");
-        if (
-          isPulseImageIntakeStep(baseContext.pulse) &&
-          !hasImageAttachment &&
-          !hasPulseImageContext(baseContext)
-        ) {
-          setUiNotice(PULSE_IMAGE_INTAKE_REQUIRED_NOTICE);
-          setAgentAttachmentError(PULSE_IMAGE_INTAKE_REQUIRED_NOTICE);
+        const { resolvePulseImageIntakeBlock } =
+          await import("./agentOrchestration/pulseSendRuntime");
+        const pulseImageIntakeBlock = resolvePulseImageIntakeBlock({
+          context: baseContext,
+          hasImageAttachment,
+        });
+        if (pulseImageIntakeBlock) {
+          setUiNotice(pulseImageIntakeBlock);
+          setAgentAttachmentError(pulseImageIntakeBlock);
           trackAgentUiEvent("studio_agent_send_blocked_pulse_image_required");
           return;
         }
@@ -267,32 +267,16 @@ export const useAiStudioAgentOrchestration = ({
         let requestContext = mediaPatchedContext;
         if (runtimePolicy.kind === "pulse") {
           const workflowPulse = runtimePolicy.resolveWorkflowPulse(mediaPatchedContext);
-          const { buildPendingPulseWorkflowSessionForUserInput } =
-            await import("../logic/pulseWorkflowSession");
-          const pendingWorkflowSession = buildPendingPulseWorkflowSessionForUserInput({
-            preset: workflowPulse
-              ? {
-                  presetId: workflowPulse.presetId,
-                  runtimeMode: "workflow_gpt",
-                  starterAssistantMessage: workflowPulse.starterAssistantMessage,
-                  workflowStageHints: workflowPulse.workflowStageHints,
-                }
-              : null,
-            existingSession: workflowPulse?.workflowSession ?? null,
+          const { buildPulseRequestContextForUserInput } =
+            await import("./agentOrchestration/pulseSendRuntime");
+          const pulseRequest = buildPulseRequestContextForUserInput({
+            context: mediaPatchedContext,
+            workflowPulse,
             userInput: userMessageText,
           });
-          requestContext =
-            pendingWorkflowSession && mediaPatchedContext.pulse
-              ? {
-                  ...mediaPatchedContext,
-                  pulse: {
-                    ...mediaPatchedContext.pulse,
-                    workflowSession: pendingWorkflowSession,
-                  },
-                }
-              : mediaPatchedContext;
-          if (pendingWorkflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
-            setPulseWorkflowSession(pendingWorkflowSession);
+          requestContext = pulseRequest.requestContext;
+          if (pulseRequest.pendingWorkflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
+            setPulseWorkflowSession(pulseRequest.pendingWorkflowSession);
           }
         }
 

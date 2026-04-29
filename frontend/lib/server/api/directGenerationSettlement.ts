@@ -79,6 +79,11 @@ const readMetadataBoolean = (
   return null;
 };
 
+const readProjectIdFromMetadata = (metadata: JsonObject): string | null => {
+  const shortpulseContext = readMetadataObject(metadata, "shortpulse_context", "shortpulseContext");
+  return asString(shortpulseContext.project_id) ?? asString(shortpulseContext.projectId);
+};
+
 const refreshProjectGenerationAssociationFromMetadata = async ({
   generationId,
   metadata,
@@ -96,8 +101,7 @@ const refreshProjectGenerationAssociationFromMetadata = async ({
   routeLabel: string;
   userId: string;
 }): Promise<void> => {
-  const shortpulseContext = readMetadataObject(metadata, "shortpulse_context", "shortpulseContext");
-  const projectId = asString(shortpulseContext.project_id);
+  const projectId = readProjectIdFromMetadata(metadata);
   if (!projectId) return;
 
   try {
@@ -398,6 +402,7 @@ export const settleDirectGenerationSuccess = async ({
       false);
   const publicationState =
     hasCanonicalStorageAuthority && !isAbandoned ? "published" : "suppressed";
+  const projectId = readProjectIdFromMetadata(generationMetadata);
 
   await Promise.all(
     persistedOutputRows.map((row) => {
@@ -440,6 +445,7 @@ export const settleDirectGenerationSuccess = async ({
   await upsertGenerationProjection({
     generationId: generation.id,
     userId: generation.user_id,
+    projectId,
     sourceRef: asString(generationMetadata.source_ref),
     requestId: generation.request_id,
     provider: generation.provider,
@@ -672,6 +678,7 @@ export const settleDirectGenerationFailure = async ({
   await upsertGenerationProjection({
     generationId: generation.id,
     userId: generation.user_id,
+    projectId: readProjectIdFromMetadata(generationMetadata),
     sourceRef: asString(generationMetadata.source_ref),
     requestId: generation.request_id,
     provider: generation.provider,

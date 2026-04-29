@@ -37,6 +37,7 @@ type GenerationPublicationRow = {
 
 type GenerationProjectionDeliveryRow = {
   generation_id?: unknown;
+  project_id?: unknown;
   request_id?: unknown;
   source_ref?: unknown;
   provider?: unknown;
@@ -57,6 +58,30 @@ type GenerationProjectionDeliveryRow = {
   style_context?: unknown;
   updated_at?: unknown;
 };
+
+const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
+  "generation_id",
+  "project_id",
+  "request_id",
+  "source_ref",
+  "provider",
+  "model_id",
+  "display_prompt",
+  "preview_url",
+  "result_urls",
+  "preview_storage_path",
+  "full_storage_path",
+  "task_state",
+  "queue_state",
+  "error_message_short",
+  "error_detail",
+  "hidden_in_reference_grid",
+  "reference_grid_visible",
+  "generation_replay",
+  "character_context",
+  "style_context",
+  "updated_at",
+].join(", ");
 
 export type GeneratedMediaFileRecord = {
   storagePath: string;
@@ -459,8 +484,23 @@ const resolveProjectAssociatedGenerationId = async ({
     .eq("generation_id", normalizedGenerationId)
     .limit(1)
     .maybeSingle();
-  if (error) return null;
-  return asTrimmedString((data as Record<string, unknown> | null)?.generation_id);
+  const associatedGenerationId = error
+    ? null
+    : asTrimmedString((data as Record<string, unknown> | null)?.generation_id);
+  if (associatedGenerationId) return associatedGenerationId;
+
+  const { data: projectionData, error: projectionError } = await supabase
+    .from("generation_projection")
+    .select("generation_id, project_id")
+    .eq("user_id", userId)
+    .eq("project_id", normalizedProjectId)
+    .eq("generation_id", normalizedGenerationId)
+    .limit(1)
+    .maybeSingle();
+  if (projectionError) return null;
+  const projectionRow = projectionData as Record<string, unknown> | null;
+  if (asTrimmedString(projectionRow?.project_id) !== normalizedProjectId) return null;
+  return asTrimmedString(projectionRow?.generation_id);
 };
 
 export const resolveGenerationIdForRequestId = async ({
@@ -1003,18 +1043,12 @@ export const resolveVisibleGenerationReconcile = async ({
 
   let resolvedGenerationId: string | null = candidateGenerationId;
   if (normalizedProjectId) {
-    const { data: projectGenerationData, error: projectGenerationError } = await supabase
-      .from("project_generation_items")
-      .select("generation_id")
-      .eq("user_id", userId)
-      .eq("project_id", normalizedProjectId)
-      .eq("generation_id", candidateGenerationId)
-      .limit(1)
-      .maybeSingle();
-    if (projectGenerationError) return null;
-    resolvedGenerationId = asTrimmedString(
-      (projectGenerationData as Record<string, unknown> | null)?.generation_id
-    );
+    resolvedGenerationId = await resolveProjectAssociatedGenerationId({
+      supabase,
+      userId,
+      projectId: normalizedProjectId,
+      generationId: candidateGenerationId,
+    });
   }
   if (!resolvedGenerationId) return null;
 
@@ -1078,7 +1112,7 @@ export const listVisibleGeneratedOutputs = async ({
     const normalizedProjectId = resolveProjectId(projectId);
     const boundedLimit = Math.max(1, Math.min(limit, 100));
 
-    let projectGenerationIds: string[] | null = null;
+    let data: unknown[] = [];
     if (normalizedProjectId) {
       const { data: projectGenerationData, error: projectGenerationError } = await supabase
         .from("project_generation_items")
@@ -1087,51 +1121,77 @@ export const listVisibleGeneratedOutputs = async ({
         .eq("project_id", normalizedProjectId)
         .order("updated_at", { ascending: false })
         .limit(boundedLimit);
-      if (projectGenerationError || !Array.isArray(projectGenerationData)) return [];
-      projectGenerationIds = projectGenerationData
-        .map((row) =>
+      const projectGenerationIds =
+        projectGenerationError || !Array.isArray(projectGenerationData)
+          ? []
+          : projectGenerationData
+              .map((row) =>
+                row && typeof row === "object" && !Array.isArray(row)
+                  ? asTrimmedString((row as Record<string, unknown>).generation_id)
+                  : null
+              )
+              .filter((generationId): generationId is string => Boolean(generationId));
+
+      const directProjectQuery = supabase
+        .from("generation_projection")
+        .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
+        .eq("user_id", userId)
+        .eq("project_id", normalizedProjectId)
+        .order("updated_at", { ascending: false })
+        .limit(boundedLimit);
+      const [{ data: directProjectData, error: directProjectError }, associatedProjectionResult] =
+        await Promise.all([
+          directProjectQuery,
+          projectGenerationIds.length
+            ? supabase
+                .from("generation_projection")
+                .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
+                .eq("user_id", userId)
+                .in("generation_id", projectGenerationIds)
+                .order("updated_at", { ascending: false })
+                .limit(boundedLimit)
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+      if (directProjectError && associatedProjectionResult.error) return [];
+
+      const rowsByGenerationId = new Map<string, unknown>();
+      [
+        ...(Array.isArray(directProjectData) ? directProjectData : []),
+        ...(Array.isArray(associatedProjectionResult.data) ? associatedProjectionResult.data : []),
+      ].forEach((row) => {
+        const generationId =
           row && typeof row === "object" && !Array.isArray(row)
             ? asTrimmedString((row as Record<string, unknown>).generation_id)
-            : null
-        )
-        .filter((generationId): generationId is string => Boolean(generationId));
-      if (!projectGenerationIds.length) return [];
+            : null;
+        if (generationId && !rowsByGenerationId.has(generationId)) {
+          rowsByGenerationId.set(generationId, row);
+        }
+      });
+      data = [...rowsByGenerationId.values()]
+        .sort((a, b) => {
+          const aUpdatedAt = Date.parse(
+            asTrimmedString((a as Record<string, unknown>).updated_at) ?? ""
+          );
+          const bUpdatedAt = Date.parse(
+            asTrimmedString((b as Record<string, unknown>).updated_at) ?? ""
+          );
+          return (
+            (Number.isFinite(bUpdatedAt) ? bUpdatedAt : 0) -
+            (Number.isFinite(aUpdatedAt) ? aUpdatedAt : 0)
+          );
+        })
+        .slice(0, boundedLimit);
+    } else {
+      const projectionQuery = supabase
+        .from("generation_projection")
+        .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false })
+        .limit(boundedLimit);
+      const projectionResult = await projectionQuery;
+      if (projectionResult.error || !Array.isArray(projectionResult.data)) return [];
+      data = projectionResult.data;
     }
-
-    let projectionQuery = supabase
-      .from("generation_projection")
-      .select(
-        [
-          "generation_id",
-          "request_id",
-          "source_ref",
-          "provider",
-          "model_id",
-          "display_prompt",
-          "preview_url",
-          "result_urls",
-          "preview_storage_path",
-          "full_storage_path",
-          "task_state",
-          "queue_state",
-          "error_message_short",
-          "error_detail",
-          "hidden_in_reference_grid",
-          "reference_grid_visible",
-          "generation_replay",
-          "character_context",
-          "style_context",
-          "updated_at",
-        ].join(", ")
-      )
-      .eq("user_id", userId)
-      .order("updated_at", { ascending: false })
-      .limit(boundedLimit);
-    if (projectGenerationIds) {
-      projectionQuery = projectionQuery.in("generation_id", projectGenerationIds);
-    }
-    const { data, error } = await projectionQuery;
-    if (error || !Array.isArray(data)) return [];
 
     const outputs = data
       .map((row) => toHydratedGeneratedOutput(row as GenerationProjectionDeliveryRow))

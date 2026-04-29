@@ -313,7 +313,8 @@ const syncRecoveredGenerationProjection = async ({
     "shortpulse_context",
     "shortpulseContext"
   );
-  const projectId = asOptionalString(shortpulseContext.project_id);
+  const projectId =
+    asOptionalString(shortpulseContext.project_id) ?? asOptionalString(shortpulseContext.projectId);
   const abandonment = await readGenerationAbandonmentContext({
     userId: generation.user_id,
     generationId: generation.id,
@@ -358,6 +359,7 @@ const syncRecoveredGenerationProjection = async ({
   await upsertGenerationProjection({
     generationId: generation.id,
     userId: generation.user_id,
+    projectId,
     sourceRef: asOptionalString(generationMetadata?.source_ref),
     requestId: generation.request_id,
     provider: generation.provider,
@@ -441,6 +443,13 @@ const syncFailedGenerationProjection = async ({
   };
 }): Promise<void> => {
   const generationMetadata = asObject(generation.metadata);
+  const shortpulseContext = readMetadataObject(
+    generationMetadata,
+    "shortpulse_context",
+    "shortpulseContext"
+  );
+  const projectId =
+    asOptionalString(shortpulseContext.project_id) ?? asOptionalString(shortpulseContext.projectId);
   const abandonment = await readGenerationAbandonmentContext({
     userId: generation.user_id,
     generationId: generation.id,
@@ -456,6 +465,7 @@ const syncFailedGenerationProjection = async ({
   await upsertGenerationProjection({
     generationId: generation.id,
     userId: generation.user_id,
+    projectId,
     sourceRef: asOptionalString(generationMetadata?.source_ref),
     requestId: generation.request_id,
     provider: generation.provider,

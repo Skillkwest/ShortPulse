@@ -461,6 +461,7 @@ export const persistGeneratedImageAsset = async ({
   await upsertGenerationProjection({
     generationId,
     userId,
+    projectId: resolvedProjectId,
     sourceRef: resolvedRequestId,
     requestId: resolvedRequestId,
     provider: "openai",

@@ -8,6 +8,7 @@ export type UpsertGenerationProjectionInput = {
   generationId: string;
   userId: string;
   supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
+  projectId?: string | null;
   sourceRef?: string | null;
   requestId?: string | null;
   provider?: string | null;
@@ -218,6 +219,7 @@ export const upsertGenerationProjection = async ({
   generationId,
   userId,
   supabaseAdmin,
+  projectId,
   sourceRef,
   requestId,
   provider,
@@ -258,6 +260,7 @@ export const upsertGenerationProjection = async ({
   };
 
   const stringFields: Record<string, string | null | undefined> = {
+    project_id: projectId,
     source_ref: sourceRef,
     request_id: requestId,
     provider,

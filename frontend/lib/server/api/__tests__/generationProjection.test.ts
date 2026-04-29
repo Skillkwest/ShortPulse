@@ -296,4 +296,31 @@ describe("upsertGenerationProjection", () => {
       })
     );
   });
+
+  it("writes project scope onto projection rows", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+    });
+
+    await upsertGenerationProjection({
+      generationId: "gen-project-scope",
+      userId: "user-project-scope",
+      projectId: "project-scope-1",
+      status: "ready",
+      taskState: "running",
+      supabaseAdmin: supabaseAdmin as never,
+    });
+
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-project-scope",
+        user_id: "user-project-scope",
+        project_id: "project-scope-1",
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
+  });
 });

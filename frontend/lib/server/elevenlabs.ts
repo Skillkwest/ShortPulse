@@ -922,6 +922,7 @@ export const persistGeneratedAudioAsset = async ({
   await upsertGenerationProjection({
     generationId,
     userId,
+    projectId: resolvedProjectId,
     sourceRef: resolvedRequestId,
     requestId: resolvedRequestId,
     provider,
@@ -1168,6 +1169,7 @@ export const persistGeneratedVideoAsset = async ({
   await upsertGenerationProjection({
     generationId,
     userId,
+    projectId: resolvedProjectId,
     sourceRef: resolvedRequestId,
     requestId: resolvedRequestId,
     provider,

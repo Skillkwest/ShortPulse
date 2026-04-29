@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from "./api/supabaseAdmin";
 
 const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "generation_id",
+  "project_id",
   "request_id",
   "source_ref",
   "provider",
@@ -34,6 +35,7 @@ type SnapshotRecord = Record<string, unknown>;
 
 type ProjectGenerationProjectionRow = {
   generation_id?: unknown;
+  project_id?: unknown;
   request_id?: unknown;
   source_ref?: unknown;
   provider?: unknown;
@@ -161,11 +163,28 @@ const readProjectAssociatedGenerationIds = async ({
     throw new Error(error.message || "Failed to resolve project-associated generations");
   }
 
-  return new Set(
+  const associatedGenerationIds = new Set(
     (Array.isArray(data) ? data : [])
       .map((row) => asTrimmedString(asRecord(row).generation_id))
       .filter((generationId): generationId is string => Boolean(generationId))
   );
+  const { data: projectionData, error: projectionError } = await supabaseAdmin
+    .from("generation_projection")
+    .select("generation_id")
+    .eq("user_id", userId)
+    .eq("project_id", projectId)
+    .in("generation_id", generationIds);
+
+  if (projectionError) {
+    throw new Error(projectionError.message || "Failed to resolve project-scoped projections");
+  }
+
+  (Array.isArray(projectionData) ? projectionData : [])
+    .map((row) => asTrimmedString(asRecord(row).generation_id))
+    .filter((generationId): generationId is string => Boolean(generationId))
+    .forEach((generationId) => associatedGenerationIds.add(generationId));
+
+  return associatedGenerationIds;
 };
 
 const readRecentProjectAssociatedGenerationIds = async ({
@@ -191,9 +210,40 @@ const readRecentProjectAssociatedGenerationIds = async ({
     throw new Error(error.message || "Failed to load project-associated generation ids");
   }
 
-  return (Array.isArray(data) ? data : [])
-    .map((row) => asTrimmedString(asRecord(row).generation_id))
-    .filter((generationId): generationId is string => Boolean(generationId));
+  const { data: projectionData, error: projectionError } = await supabaseAdmin
+    .from("generation_projection")
+    .select("generation_id, updated_at")
+    .eq("user_id", userId)
+    .eq("project_id", projectId)
+    .order("updated_at", { ascending: false })
+    .limit(boundedLimit);
+
+  if (projectionError) {
+    throw new Error(projectionError.message || "Failed to load project-scoped projection ids");
+  }
+
+  const generationIdsByUpdatedAt = new Map<string, string | null>();
+  [...(Array.isArray(data) ? data : []), ...(Array.isArray(projectionData) ? projectionData : [])]
+    .map((row) => {
+      const record = asRecord(row);
+      return {
+        generationId: asTrimmedString(record.generation_id),
+        updatedAt: asTrimmedString(record.updated_at),
+      };
+    })
+    .forEach(({ generationId, updatedAt }) => {
+      if (!generationId || generationIdsByUpdatedAt.has(generationId)) return;
+      generationIdsByUpdatedAt.set(generationId, updatedAt);
+    });
+
+  return [...generationIdsByUpdatedAt.entries()]
+    .sort(([, aUpdatedAt], [, bUpdatedAt]) => {
+      const aMs = Date.parse(aUpdatedAt ?? "");
+      const bMs = Date.parse(bUpdatedAt ?? "");
+      return (Number.isFinite(bMs) ? bMs : 0) - (Number.isFinite(aMs) ? aMs : 0);
+    })
+    .slice(0, boundedLimit)
+    .map(([generationId]) => generationId);
 };
 
 const normalizeProjectionTaskState = (value: unknown): string | null => {

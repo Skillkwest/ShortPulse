@@ -784,10 +784,13 @@ export const createFalSubmitHandler = ({
             }
           }
 
+          const projectId = readProjectIdFromShortpulseContext(shortpulseContext);
+
           try {
             await upsertGenerationProjection({
               generationId,
               userId: charge.userId,
+              projectId,
               sourceRef: charge.sourceRef,
               requestId: providerRequestId,
               provider: providerKey,
@@ -826,7 +829,6 @@ export const createFalSubmitHandler = ({
             }).catch(() => undefined);
           }
 
-          const projectId = readProjectIdFromShortpulseContext(shortpulseContext);
           if (projectId) {
             try {
               await associateGenerationWithProjectForUser({

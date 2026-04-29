@@ -49,7 +49,9 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("multi_shot");
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("multi_shot", {
+        forceNewSession: true,
+      });
     });
   });
 
@@ -82,7 +84,9 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("image");
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("image", {
+        forceNewSession: true,
+      });
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "image",
@@ -135,7 +139,9 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder");
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder", {
+        forceNewSession: true,
+      });
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "story_builder",
@@ -165,7 +171,9 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder");
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder", {
+        forceNewSession: true,
+      });
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "story_builder",
@@ -219,7 +227,9 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("image");
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("image", {
+        forceNewSession: true,
+      });
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "image",
@@ -456,7 +466,9 @@ describe("CreateExpertPresetPanel", () => {
 
     await waitFor(() => {
       expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["multi_shot"]);
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("multi_shot");
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("multi_shot", {
+        forceNewSession: true,
+      });
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "multi_shot",

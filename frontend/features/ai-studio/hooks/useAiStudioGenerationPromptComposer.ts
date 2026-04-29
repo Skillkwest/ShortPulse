@@ -29,6 +29,7 @@ export type AiStudioGenerateSubmissionOverrides = {
   modelIdOverride?: string | null;
   inpaintOverride?: InpaintSubmissionOverride | null;
   hideOutputFromReferenceGrid?: boolean;
+  suppressStyle?: boolean;
 };
 
 type GenerateOutputOptions = {
@@ -149,15 +150,18 @@ export const useAiStudioGenerationPromptComposer = ({
           ? options.submissionPromptOverride
           : displayPromptToSubmit;
       const effectiveModelId = options?.modelIdOverride ?? model;
+      const styleSuppressed = options?.suppressStyle === true;
       const compiledSubmissionPrompt = appendStylePromptToSubmission({
         tool: effectiveTool,
         submissionPrompt: submissionPromptToSubmit,
-        selectedStylePrompt,
+        selectedStylePrompt: styleSuppressed ? null : selectedStylePrompt,
         modelId: effectiveModelId,
         adapterEnabled: stylePromptFamilyAdapterEnabled,
       });
       const styleContextOverrideCandidate =
-        options?.styleContextOverride ?? selectedStyleContext ?? undefined;
+        options?.styleContextOverride ??
+        (styleSuppressed ? undefined : selectedStyleContext) ??
+        undefined;
       const styleContextOverrideToSubmit = shouldAttachStyleContextForTool(effectiveTool)
         ? styleContextOverrideCandidate
         : undefined;
@@ -232,15 +236,18 @@ export const useAiStudioGenerationPromptComposer = ({
           ? options.submissionPromptOverride.trim()
           : displayPromptToUse;
       const effectiveModelId = options?.modelIdOverride ?? model;
+      const styleSuppressed = options?.suppressStyle === true;
       const compiledSubmissionPrompt = appendStylePromptToSubmission({
         tool: effectiveTool,
         submissionPrompt: submissionPromptToUse,
-        selectedStylePrompt,
+        selectedStylePrompt: styleSuppressed ? null : selectedStylePrompt,
         modelId: effectiveModelId,
         adapterEnabled: stylePromptFamilyAdapterEnabled,
       });
       const styleContextOverrideCandidate =
-        options?.styleContextOverride ?? selectedStyleContext ?? undefined;
+        options?.styleContextOverride ??
+        (styleSuppressed ? undefined : selectedStyleContext) ??
+        undefined;
       const styleContextOverrideToSubmit = shouldAttachStyleContextForTool(effectiveTool)
         ? styleContextOverrideCandidate
         : undefined;

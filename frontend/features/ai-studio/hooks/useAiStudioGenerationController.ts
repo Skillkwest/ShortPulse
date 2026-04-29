@@ -38,6 +38,7 @@ type GenerateOptions = {
   modeOverride?: StudioMode;
   toolOverride?: ToolId | null;
   costOverrideCredits?: number | null;
+  suppressStyle?: boolean;
 };
 
 type GenerateResult = {
@@ -56,6 +57,7 @@ type RegenerateWithDebitOptions = {
   displayPromptOverride?: string | null;
   submissionPromptOverride?: string | null;
   styleContextOverride?: StudioOutput["styleContext"];
+  suppressStyle?: boolean;
 };
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
@@ -139,6 +141,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
       modelIdOverride?: string | null;
       inpaintOverride?: InpaintSubmissionOverride | null;
       hideOutputFromReferenceGrid?: boolean;
+      suppressStyle?: boolean;
     }
   ) => void;
   regenerateOutput: (options?: {
@@ -153,6 +156,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     modelIdOverride?: string | null;
     inpaintOverride?: InpaintSubmissionOverride | null;
     hideOutputFromReferenceGrid?: boolean;
+    suppressStyle?: boolean;
   }) => void;
   activeOutputId?: string | null;
 };
@@ -291,8 +295,8 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         projectIdPresent: Boolean(projectId),
         isCharacterMode: isCharacterModeEnabledForTool,
         selectedCharacterId: resolveSelectedCharacterIdForTool?.(effectiveTool) ?? null,
-        hasStyle: Boolean(selectedStyleContext?.applied),
-        styleId: selectedStyleContext?.styleId ?? null,
+        hasStyle: Boolean(!options?.suppressStyle && selectedStyleContext?.applied),
+        styleId: !options?.suppressStyle ? (selectedStyleContext?.styleId ?? null) : null,
         referenceCount: resolveUserReferenceInputsForTool(effectiveTool).length,
       });
 
@@ -434,6 +438,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
         displayPromptOverride: characterModeOverrides?.displayPromptOverride,
         referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
+        suppressStyle: options?.suppressStyle,
         ...(optimisticOutputId ? { outputIdOverride: optimisticOutputId } : {}),
         ...(characterModeOverrides?.characterContextOverride
           ? { characterContextOverride: characterModeOverrides.characterContextOverride }
@@ -732,6 +737,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           characterModeOverrides?.referenceInputsOverride ?? options?.referenceInputsOverride,
         inpaintOverride: options?.inpaintOverride,
         hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
+        suppressStyle: options?.suppressStyle,
         ...(options?.referenceInputsMode
           ? { referenceInputsMode: options.referenceInputsMode }
           : {}),

@@ -422,6 +422,40 @@ describe("useAiStudioGenerationPromptComposer", () => {
     );
   });
 
+  it("can suppress selected style state for mode-owned artifact generation", () => {
+    const submitTask = vi.fn();
+    const params = createParams({
+      selectedTool: "create",
+      selectedStylePrompt: "cinematic editorial photography style, moody lighting",
+      selectedStyleContext: {
+        applied: true,
+        styleId: "style-1",
+        styleName: "Editorial",
+        stylePrompt: "cinematic editorial photography style, moody lighting",
+      },
+      submitTask,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput("Pulse artifact prompt", {
+        suppressStyle: true,
+      });
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "Pulse artifact prompt",
+      [
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+        "https://example.com/extra-2.png",
+      ],
+      expect.not.objectContaining({
+        styleContextOverride: expect.anything(),
+      })
+    );
+  });
+
   it("uses Nano Banana family style phrasing when effective model is Nano Banana", () => {
     const submitTask = vi.fn();
     const params = createParams({

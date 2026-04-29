@@ -135,7 +135,7 @@ export const useCreatePulsePresetRuntime = ({
         } satisfies CreatePulsePresetStartResult;
       }
       clearStatusMessage();
-      const pulseSessionInstanceId = setActivePresetId(presetId) ?? null;
+      const pulseSessionInstanceId = setActivePresetId(presetId, { forceNewSession: true }) ?? null;
       let startResult: CreatePulsePresetStartResult = { status: "started" };
       if (resolvedPreset) {
         startResult = (await onPresetStart?.(resolvedPreset, {

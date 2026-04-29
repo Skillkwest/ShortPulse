@@ -45,6 +45,7 @@ describe("usePulseCreatePrimarySubmit", () => {
       modeOverride: "image",
       toolOverride: "create",
       costOverrideCredits: 12,
+      suppressStyle: true,
     });
     expect(handleProviderPrimarySubmit).not.toHaveBeenCalled();
     expect(setUiNotice).not.toHaveBeenCalled();

@@ -329,6 +329,7 @@ describe("Create agent mode boundaries", () => {
     expect(pulsePrimarySubmitSource).not.toContain("agentInput");
     expect(pulsePrimarySubmitSource).not.toContain("agentInput || prompt");
     expect(pulsePrimarySubmitSource).toContain("pulseCompletedArtifactPrompt");
+    expect(pulsePrimarySubmitSource).toContain("suppressStyle: true");
   });
 
   it("keeps Pulse workflow helpers out of shared orchestration static imports", () => {

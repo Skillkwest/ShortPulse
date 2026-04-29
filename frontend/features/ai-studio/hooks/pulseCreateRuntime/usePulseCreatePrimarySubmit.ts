@@ -8,6 +8,7 @@ type GeneratePulseArtifact = (
     modeOverride?: StudioMode;
     toolOverride?: ToolId | null;
     costOverrideCredits?: number | null;
+    suppressStyle?: boolean;
   }
 ) => void | Promise<unknown>;
 
@@ -67,6 +68,7 @@ export const usePulseCreatePrimarySubmit = ({
         modeOverride: "image",
         toolOverride: "create",
         costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+        suppressStyle: true,
       });
       return;
     }

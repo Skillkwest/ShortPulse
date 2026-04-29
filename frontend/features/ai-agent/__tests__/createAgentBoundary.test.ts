@@ -109,6 +109,7 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("standardStudioAgentTransport");
     expect(bridgeSource).not.toContain("standardTransportResultResolution");
     expect(bridgeSource).not.toContain("standardContextBuilder");
+    expect(bridgeSource).not.toContain("createPulsePresets");
     expect(bridgeSource).toContain("./agentBridgeRuntime/pulseCreateAgentRuntimeBinding");
     expect(bridgeSource).toContain("./agentBridgeRuntime/standardCreateAgentRuntimeBinding");
     expect(bridgeSource).toContain("./agentBridgeRuntime/pulsePresetRestart");

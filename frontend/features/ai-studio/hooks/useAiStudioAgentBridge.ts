@@ -32,14 +32,16 @@ import { useAiStudioAgentInteractions } from "./useAiStudioAgentInteractions";
 import { useAiStudioAgentOrchestration } from "./useAiStudioAgentOrchestration";
 import type { AgentModeHint } from "./agentOrchestration/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
-import type { CreatePulseResolvedPreset } from "../components/create/createPulsePresets";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
 import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatModePreference";
 import { resolveCreateAgentBridgeRuntime } from "./agentBridgeRuntime/createAgentBridgeRuntime";
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "./agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { CreateAgentRuntimeBinding } from "./agentBridgeRuntime/createAgentRuntimeBinding";
-import { restartCreatePulsePreset } from "./agentBridgeRuntime/pulsePresetRestart";
+import {
+  restartCreatePulsePreset,
+  type RestartCreatePulsePresetParams,
+} from "./agentBridgeRuntime/pulsePresetRestart";
 
 type UseAiStudioAgentBridgeParams = {
   projectId?: string | null;
@@ -832,7 +834,7 @@ export const useAiStudioAgentBridge = ({
   ]);
 
   const handlePulsePresetRestart = useCallback(
-    async (preset: CreatePulseResolvedPreset) => {
+    async (preset: RestartCreatePulsePresetParams["preset"]) => {
       await restartCreatePulsePreset({
         preset,
         restartPulse,

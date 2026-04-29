@@ -7,7 +7,7 @@ import { useCreateAgentStateCore } from "../../../ai-agent/useCreateAgentStateCo
 import type { AgentApiRequest, AgentContext, AgentResponse } from "../../../../prefabs/agent";
 import type { ToolId } from "../../types";
 import type { CreateAgentBridgeRuntime } from "./createAgentBridgeRuntime";
-import { loadCreateAgentRuntimeBinding } from "./createAgentRuntimeBindingLoader";
+import { standardCreateAgentRuntimeBinding } from "./standardCreateAgentRuntimeBinding";
 
 type UseCreateAgentBridgeActiveAgentParams = {
   bridgeRuntime: CreateAgentBridgeRuntime;
@@ -16,6 +16,9 @@ type UseCreateAgentBridgeActiveAgentParams = {
   directOpenAiBypassEnabled: boolean;
   selectedTool: ToolId | null;
 };
+
+const loadPulseCreateAgentRuntimeBinding = async () =>
+  (await import("./pulseCreateAgentRuntimeBinding")).pulseCreateAgentRuntimeBinding;
 
 /**
  * Returns the active mode-owned Create agent state engine for the bridge.
@@ -28,14 +31,17 @@ export const useCreateAgentBridgeActiveAgent = ({
   selectedTool,
 }: UseCreateAgentBridgeActiveAgentParams) => {
   const activeAgentRuntimeBinding = useMemo(() => {
-    const runtimeKind = bridgeRuntime.kind;
+    if (bridgeRuntime.kind === "standard") {
+      return standardCreateAgentRuntimeBinding;
+    }
+
     return {
       buildAgentContext: async (context: AgentContext) =>
-        (await loadCreateAgentRuntimeBinding(runtimeKind)).buildAgentContext(context),
+        (await loadPulseCreateAgentRuntimeBinding()).buildAgentContext(context),
       sendAgentTurn: async (body: AgentApiRequest) =>
-        (await loadCreateAgentRuntimeBinding(runtimeKind)).sendAgentTurn(body),
+        (await loadPulseCreateAgentRuntimeBinding()).sendAgentTurn(body),
       resolveTransportSuccess: async (response: AgentResponse) =>
-        (await loadCreateAgentRuntimeBinding(runtimeKind)).resolveTransportSuccess(response),
+        (await loadPulseCreateAgentRuntimeBinding()).resolveTransportSuccess(response),
     };
   }, [bridgeRuntime.kind]);
 

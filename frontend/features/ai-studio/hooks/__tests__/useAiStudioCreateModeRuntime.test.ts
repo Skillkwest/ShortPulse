@@ -101,4 +101,26 @@ describe("useAiStudioCreateModeRuntime", () => {
     expect(result.current.activeCreatePulsePresetId).toBe(ACTIVE_PULSE_ID);
     expect(result.current.pulseWorkflowSession).toEqual(workflowSession);
   });
+
+  it("can force a fresh session for the same Pulse during activation rollback", () => {
+    const workflowSession = buildWorkflowSession(ACTIVE_PULSE_ID);
+    const { result } = renderHook(() =>
+      useAiStudioCreateModeRuntime({
+        initialExpertCreateMode: "pulse",
+        initialActiveCreatePulsePresetId: ACTIVE_PULSE_ID,
+        initialPulseSessionInstanceId: TEST_PULSE_SESSION_ID,
+        initialPulseWorkflowSession: workflowSession,
+      })
+    );
+
+    act(() => {
+      result.current.handleActiveCreatePulsePresetIdChange(ACTIVE_PULSE_ID, {
+        forceNewSession: true,
+      });
+    });
+
+    expect(result.current.activeCreatePulsePresetId).toBe(ACTIVE_PULSE_ID);
+    expect(result.current.pulseSessionInstanceId).not.toBe(TEST_PULSE_SESSION_ID);
+    expect(result.current.pulseWorkflowSession).toBeNull();
+  });
 });

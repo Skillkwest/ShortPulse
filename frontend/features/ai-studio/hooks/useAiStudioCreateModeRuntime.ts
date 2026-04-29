@@ -10,6 +10,9 @@ import { createPulseSessionInstanceId } from "../logic/pulseSessionIdentity";
 import { normalizePulseSessionInstanceId } from "../logic/pulseSessionState";
 
 export type AiStudioExpertCreateMode = "standard" | "pulse";
+export type AiStudioPulsePresetChangeOptions = {
+  forceNewSession?: boolean;
+};
 
 type UseAiStudioCreateModeRuntimeParams = {
   initialExpertCreateMode?: AiStudioExpertCreateMode;
@@ -118,12 +121,13 @@ export const useAiStudioCreateModeRuntime = ({
   );
 
   const handleActiveCreatePulsePresetIdChange = useCallback(
-    (nextPresetId: CreatePulsePresetId | null) => {
+    (nextPresetId: CreatePulsePresetId | null, options?: AiStudioPulsePresetChangeOptions) => {
       if (!nextPresetId) {
         deactivatePulse();
         return null;
       }
       if (
+        !options?.forceNewSession &&
         activeCreatePulsePresetIdState === nextPresetId &&
         normalizePulseSessionInstanceId(pulseSessionInstanceIdState)
       ) {

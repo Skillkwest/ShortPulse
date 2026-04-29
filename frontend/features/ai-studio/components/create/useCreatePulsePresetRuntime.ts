@@ -23,6 +23,7 @@ import {
   setOpaqueCreatePulsePresetDragImage,
   writeCreatePulsePresetDragTransfer,
 } from "./createPulsePresetUtilities";
+import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 
 export const CREATE_PULSE_PRESET_PANEL_LIMIT_TOAST = "Pulse preset panel is full (max 10).";
 
@@ -35,7 +36,10 @@ type UseCreatePulsePresetRuntimeParams = {
   updateSavedPresets: (
     updater: (previous: CreatePulseSavedPreset[]) => CreatePulseSavedPreset[]
   ) => Promise<boolean> | boolean;
-  setActivePresetId: (presetId: CreatePulsePresetId | null) => string | null | void;
+  setActivePresetId: (
+    presetId: CreatePulsePresetId | null,
+    options?: AiStudioPulsePresetChangeOptions
+  ) => string | null | void;
   onPresetStart?: (
     preset: CreatePulseResolvedPreset,
     options?: {
@@ -139,12 +143,12 @@ export const useCreatePulsePresetRuntime = ({
         })) ?? { status: "started" };
       }
       if (startResult.status === "blocked_busy") {
-        setActivePresetId(previousActivePresetId ?? null);
+        setActivePresetId(previousActivePresetId ?? null, { forceNewSession: true });
         showPersistentStatus(startResult.message, "warning");
         return startResult;
       }
       if (startResult.status === "failed") {
-        setActivePresetId(previousActivePresetId ?? null);
+        setActivePresetId(previousActivePresetId ?? null, { forceNewSession: true });
         showPersistentStatus(startResult.message, "warning");
         return startResult;
       }

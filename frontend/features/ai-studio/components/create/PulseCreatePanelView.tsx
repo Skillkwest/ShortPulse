@@ -2,6 +2,7 @@ import React from "react";
 import { Power, Trash } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
+import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulsePromptStep } from "../PulsePromptStep";
 import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
 import { CreateExpertModeToggle } from "./CreateExpertModeToggle";
@@ -28,7 +29,10 @@ type PulseCreatePanelViewProps = {
   activePulsePresetId?: CreatePulsePresetId | null;
   hasActivePulseSession?: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
-  onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => string | null | void;
+  onActivePulsePresetIdChange?: (
+    presetId: CreatePulsePresetId | null,
+    options?: AiStudioPulsePresetChangeOptions
+  ) => string | null | void;
   onPulsePresetStart?: (
     preset: CreatePulseResolvedPreset,
     options?: {

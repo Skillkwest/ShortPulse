@@ -170,12 +170,17 @@ describe("Create agent mode boundaries", () => {
 
   it("keeps Standard page context handoff on the neutral context resolver", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const pulsePageRuntimeSource = readFrontendFile(
+      "features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime.ts"
+    );
 
     expect(pageSource).toContain("useCreatePulsePresetPageRuntime");
     expect(pageSource).toContain("getAgentContext: createModeAgentContextResolver");
     expect(pageSource).not.toContain("getAgentContext: getPulseAwareAgentContext");
     expect(pageSource).not.toContain("const getPulseAwareAgentContext");
     expect(pageSource).not.toContain("CreatePulseResolvedPreset");
+    expect(pulsePageRuntimeSource).toContain("clearPulseRuntimeForPage();");
+    expect(pulsePageRuntimeSource).toContain("activeCreatePulsePresetSnapshot");
   });
 
   it("keeps the active Create composers mode-owned below the top-level switch", () => {
@@ -280,6 +285,8 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
     expect(pageSource).not.toContain("const pulsePrompt = resolveChatOffCreatePrompt");
     expect(pageSource).not.toContain("handleAgentSend(pulsePrompt");
+    expect(pageSource).toContain("pulseCompletedArtifactPrompt");
+    expect(pageSource).not.toContain("pulseArtifactPrompt ?? prompt.trim()");
     expect(pageSource).not.toContain(
       'expertCreateMode === "pulse" ? undefined : handleStandardAgentCaptureResult'
     );

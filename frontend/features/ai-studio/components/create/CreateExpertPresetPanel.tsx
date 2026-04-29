@@ -6,6 +6,7 @@ import React from "react";
 import { GearSix, Sliders, X } from "phosphor-react";
 import { PulsePresetsLibraryPanel } from "../PulsePresetsLibraryPanel";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
+import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { CreatePulsePresetsSurface } from "./CreatePulsePresetsSurface";
 import {
   CREATE_PULSE_MORE_LABEL,
@@ -22,7 +23,10 @@ const STATUS_TOAST_FADE_MS = 220;
 
 type CreateExpertPresetPanelProps = {
   activePresetId?: CreatePulsePresetId | null;
-  onActivePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
+  onActivePresetIdChange?: (
+    presetId: CreatePulsePresetId | null,
+    options?: AiStudioPulsePresetChangeOptions
+  ) => string | null | void;
   onPresetStart?: (
     preset: CreatePulseResolvedPreset
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;

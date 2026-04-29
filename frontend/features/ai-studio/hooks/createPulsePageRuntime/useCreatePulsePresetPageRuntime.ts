@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { AgentContext, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { CreatePulseResolvedPreset } from "../../components/create/createPulsePresets";
 import type { StudioOutput, ToolId } from "../../types";
+import type { AiStudioPulsePresetChangeOptions } from "../useAiStudioCreateModeRuntime";
 
 type AgentModeHint = "chat" | "text" | "describe" | "reference";
 
@@ -21,7 +22,10 @@ type UseCreatePulsePresetPageRuntimeParams = {
   clearPulseRuntime: () => void;
   clearPulsePrompt: () => void;
   handleExpertCreateModeChange: (nextMode: "standard" | "pulse") => void;
-  handleActiveCreatePulsePresetIdChange: (nextPresetId: string | null) => void;
+  handleActiveCreatePulsePresetIdChange: (
+    nextPresetId: string | null,
+    options?: AiStudioPulsePresetChangeOptions
+  ) => string | null | void;
 };
 
 export const useCreatePulsePresetPageRuntime = ({
@@ -57,12 +61,12 @@ export const useCreatePulsePresetPageRuntime = ({
   );
 
   const handleActiveCreatePulsePresetIdChangeForPage = useCallback(
-    (nextPresetId: string | null) => {
+    (nextPresetId: string | null, options?: AiStudioPulsePresetChangeOptions) => {
       if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
         setActiveCreatePulsePresetSnapshot(null);
         clearPulsePrompt();
       }
-      return handleActiveCreatePulsePresetIdChange(nextPresetId);
+      return handleActiveCreatePulsePresetIdChange(nextPresetId, options);
     },
     [activeCreatePulsePresetId, clearPulsePrompt, handleActiveCreatePulsePresetIdChange]
   );
@@ -77,6 +81,11 @@ export const useCreatePulsePresetPageRuntime = ({
     activeCreatePulsePresetSnapshotState?.presetId === activeCreatePulsePresetId
       ? activeCreatePulsePresetSnapshotState
       : null;
+  useEffect(() => {
+    if (!hasActivePulseSession || activeCreatePulsePresetSnapshot) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Restored Pulse runtimes without a preset snapshot must fail closed before they can build context.
+    clearPulseRuntimeForPage();
+  }, [activeCreatePulsePresetSnapshot, clearPulseRuntimeForPage, hasActivePulseSession]);
 
   const getPulseAwareAgentContext = useCallback<GetAgentContext>(
     (params) => {

@@ -15,6 +15,7 @@ import type { ModelModalContext } from "../ModelModal";
 import { PulseCreateChatPanel } from "../promptStep/PulseCreateChatPanel";
 import type { PromptStepPulseLoadingState } from "../promptStep/types";
 import type { StudioMode } from "../../types";
+import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulseCreatePanelView } from "./PulseCreatePanelView";
 import type { ExpertCreateMode } from "./createModeTypes";
 import type {
@@ -82,7 +83,10 @@ export type PulseCreatePropertiesPanelProps = {
   activePulsePresetLabel?: string | null;
   hasActivePulseSession?: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
-  onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => string | null | void;
+  onActivePulsePresetIdChange?: (
+    presetId: CreatePulsePresetId | null,
+    options?: AiStudioPulsePresetChangeOptions
+  ) => string | null | void;
   onPulsePresetStart?: (
     preset: CreatePulseResolvedPreset,
     options?: {

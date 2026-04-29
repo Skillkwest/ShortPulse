@@ -1223,22 +1223,28 @@ export default function AiStudioPage() {
     selectedTool,
   ]);
   const pulseWorkflowLastArtifact = pulseWorkflowSession?.lastArtifact ?? null;
+  const pulseCompletedArtifactPrompt = useMemo(() => {
+    if (!hasActivePulseSession || pulseWorkflowSession?.status !== "completed") return null;
+    if (typeof pulseWorkflowLastArtifact !== "string") return null;
+    const artifact = pulseWorkflowLastArtifact.trim();
+    return artifact.length > 0 ? artifact : null;
+  }, [hasActivePulseSession, pulseWorkflowLastArtifact, pulseWorkflowSession?.status]);
+  const pulseArtifactGenerateGuardrail = pulseCompletedArtifactPrompt
+    ? effectiveGenerationGuardrail
+    : "Complete the active Pulse before generating.";
+  const pulseArtifactGenerateDisabled =
+    Boolean(effectiveGenerationGuardrail) || !pulseCompletedArtifactPrompt;
   const handlePulseCreatePrimarySubmit = useCallback(() => {
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
-      const pulseArtifactPrompt =
-        hasActivePulseSession &&
-        typeof pulseWorkflowLastArtifact === "string" &&
-        pulseWorkflowLastArtifact.trim().length > 0
-          ? pulseWorkflowLastArtifact.trim()
-          : null;
-      const pulseGenerationPrompt = pulseArtifactPrompt ?? prompt.trim();
-      if (pulseGenerationPrompt) {
-        void handleGenerate(pulseGenerationPrompt, {
-          modeOverride: "image",
-          toolOverride: "create",
-          costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
-        });
+      if (!pulseCompletedArtifactPrompt) {
+        setUiNotice("Complete the active Pulse before generating.");
+        return;
       }
+      void handleGenerate(pulseCompletedArtifactPrompt, {
+        modeOverride: "image",
+        toolOverride: "create",
+        costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+      });
       return;
     }
     handleProviderPrimarySubmit();
@@ -1246,12 +1252,11 @@ export default function AiStudioPage() {
     currentCostCredits,
     handleGenerate,
     handleProviderPrimarySubmit,
-    hasActivePulseSession,
     mode,
-    prompt,
+    pulseCompletedArtifactPrompt,
     promptReferenceGenerateCostCredits,
-    pulseWorkflowLastArtifact,
     selectedTool,
+    setUiNotice,
   ]);
   const handlePrimarySubmit =
     expertCreateMode === "pulse"
@@ -1443,6 +1448,8 @@ export default function AiStudioPage() {
       ...panelProps.propertiesCreate.pulse,
       expertCreateMode,
       hasActivePulseSession,
+      isGenerateDisabled: pulseArtifactGenerateDisabled,
+      guardrailReason: pulseArtifactGenerateGuardrail,
       onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
       pulseWorkflowSession,
       activePulsePresetId: activeCreatePulsePresetId,
@@ -1468,6 +1475,8 @@ export default function AiStudioPage() {
     handleExpertCreateModeChangeForPage,
     hasActivePulseSession,
     panelProps,
+    pulseArtifactGenerateDisabled,
+    pulseArtifactGenerateGuardrail,
     pulseWorkflowSession,
   ]);
   const referenceGridHookProps = useAiStudioReferenceGridProps({

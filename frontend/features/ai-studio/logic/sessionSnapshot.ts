@@ -525,7 +525,7 @@ export const buildAiStudioSessionSnapshot = (
   const resolvedStandardCreatePrompt =
     input.standardCreatePrompt ?? (resolvedExpertCreateMode === "pulse" ? "" : input.prompt);
   const resolvedPulseCreatePrompt =
-    input.pulseCreatePrompt ?? (resolvedExpertCreateMode === "pulse" ? input.prompt : "");
+    resolvedExpertCreateMode === "pulse" ? (input.pulseCreatePrompt ?? input.prompt) : "";
   const {
     activePulsePresetId: resolvedActivePulsePresetId,
     pulseSessionInstanceId: resolvedPulseSessionInstanceId,

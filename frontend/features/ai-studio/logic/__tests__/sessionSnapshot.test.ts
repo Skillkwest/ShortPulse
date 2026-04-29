@@ -370,6 +370,7 @@ describe("sessionSnapshot", () => {
     });
 
     expect(snapshot.workspace.expertCreateMode).toBe("standard");
+    expect(snapshot.workspace.pulsePrompt).toBe("");
     expect(snapshot.agentRuntimes?.pulsePresetId).toBeNull();
     expect(snapshot.agentRuntimes?.pulse).toEqual({
       messages: [],

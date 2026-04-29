@@ -70,6 +70,10 @@ describe("CreatePropertiesPanel", () => {
       ),
       "utf8"
     );
+    const pulsePromptStep = readFileSync(
+      path.join(process.cwd(), "features/ai-studio/components/PulsePromptStep.tsx"),
+      "utf8"
+    );
 
     expect(standardChatSurface).not.toContain("PromptStepPulseLoadingState");
     expect(standardChatSurface).not.toContain("pulseLoadingState");
@@ -81,6 +85,10 @@ describe("CreatePropertiesPanel", () => {
     expect(pulseChatSurface).not.toContain("resolveChatOffCreatePrompt");
     expect(pulseChatSurface).not.toContain("chatModeInlineGenerate");
     expect(pulseChatSurface).not.toContain("onGenerateOutputPrompt");
+    expect(pulsePromptStep).not.toContain("PromptStepProps &");
+    expect(pulsePromptStep).not.toContain("import type { PromptStepProps");
+    expect(pulsePromptStep).not.toContain("chatModeInlineGenerate");
+    expect(pulsePromptStep).not.toContain("onGenerateOutputPrompt");
   });
 
   const baseProps: TestCreatePanelProps = {

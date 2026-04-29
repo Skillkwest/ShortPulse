@@ -3,17 +3,103 @@
  * Handles Pulse chat composer and guided workflow presentation.
  */
 import React from "react";
-import type { AgentMessage } from "../../../prefabs/agent";
+import type {
+  AgentAssistantMessageEditRequest,
+  AgentAttachment,
+  AgentChatPanelProps,
+  AgentMessage,
+  AgentOutputBubbleMediaState,
+} from "../../../prefabs/agent";
+import type { PromptTokenHighlightSegment } from "../logic/promptTokenHighlight";
 import { extractDragDropPayload } from "../utils/dragDrop";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
 import { PulsePromptStepChatSurface } from "./promptStep/PulsePromptStepChatSurface";
-import type { PromptStepProps, PromptStepPulseLoadingState } from "./promptStep/types";
-export type { PromptStepProps } from "./promptStep/types";
+import type { PromptStepPulseLoadingState } from "./promptStep/types";
 
-export type PulsePromptStepProps = PromptStepProps & {
+export type PulsePromptStepProps = {
+  stepNumber: string | number;
+  title?: string;
+  subtitle?: string;
+  prompt: string;
+  onPromptChange: (value: string) => void;
+  agentEnabled?: boolean;
+  agentBootstrapPending?: boolean;
+  agentMessages?: AgentMessage[];
+  agentInput?: string;
+  chatModeEnabled?: boolean;
+  directOpenAiBypassEnabled?: boolean;
+  agentIsSending?: boolean;
+  agentError?: string;
+  stagedPrompt?: string | null;
+  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
+  stagedAttachments?: AgentAttachment[];
+  agentDropActive?: boolean;
+  onAgentInputChange?: (value: string) => void;
+  onChatModeEnabledChange?: (value: boolean) => void;
+  hideChatModeToggle?: boolean;
+  onAgentSend?: () => void;
+  onAgentEnhanceSend?: () => void;
+  onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onAgentAttachmentDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void;
+  onRemoveAgentAttachment?: (id: string) => void;
+  onClearAgentAttachments?: () => void;
+  onClearAgentChat?: () => void;
+  onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
+  onSavePrompt?: (customPrompt?: string) => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  isGenerating?: boolean;
+  showGenerationThinkingInChat?: boolean;
+  shouldDisableSave?: boolean;
+  onDrop?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
+  onDragOver?: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
+  className?: string;
+  beginnerMode?: boolean;
+  chatOnly?: boolean;
+  promptOnly?: boolean;
+  enhanceOnly?: boolean;
+  hideEnhanceButton?: boolean;
+  promptPlaceholder?: string;
+  beginnerSubtitle?: string;
+  beginnerTitle?: string;
+  promptSaveButtonClassName?: string;
+  promptSaveButtonUnstyled?: boolean;
+  beginnerPinHelperText?: string;
+  promptInlineAction?: React.ReactNode;
+  promptInlineActionClassName?: string;
+  chatPromptSaveButtonClassName?: string;
+  chatPromptSaveButtonUnstyled?: boolean;
+  embedSendButtonInInput?: boolean;
+  hideAgentIntroMessage?: boolean;
+  agentAttachmentDropTarget?: "history" | "input";
+  hideInputDropHint?: boolean;
+  hideEmptyAgentChatState?: boolean;
+  forceRenderAgentChatPanel?: boolean;
+  emptyAgentChatSpacerClassName?: string;
+  highlightLatestAssistantOnly?: boolean;
+  CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
   useFlowComposerLayout?: boolean;
+  composerMiddleContent?: React.ReactNode;
+  composerLeadingContent?: React.ReactNode;
+  chatComposerOverlayEnabled?: boolean;
+  stackTrailingComposerControls?: boolean;
+  agentInputMaxHeightPx?: number;
+  agentInputCollapseOnBlur?: boolean;
+  onAgentInputVisualRowCountChange?: (rowCount: number) => void;
   pulseLoadingState?: PromptStepPulseLoadingState | null;
+  chatHeaderExtraContent?: React.ReactNode;
+  hideHeader?: boolean;
+  autoResize?: boolean;
+  autoResizeLayoutKey?: string | number;
+  promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  promptHighlightSegments?: PromptTokenHighlightSegment[];
+  onPromptFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPromptBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPromptSelect?: (event: React.SyntheticEvent<HTMLTextAreaElement>) => void;
+  onPromptKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 };
 
 export function PulsePromptStep({

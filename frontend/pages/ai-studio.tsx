@@ -1264,7 +1264,6 @@ export default function AiStudioPage() {
       : handleStandardCreatePrimarySubmit;
   const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt } =
     useAiStudioAgentOutputGenerationBridge({
-      expertCreateMode,
       outputs,
       referenceGridReadyOutputIds,
       mode,

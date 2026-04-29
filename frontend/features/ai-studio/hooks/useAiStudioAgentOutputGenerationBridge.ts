@@ -22,7 +22,6 @@ type HandleGenerateResult = {
 };
 
 type UseAiStudioAgentOutputGenerationBridgeParams = {
-  expertCreateMode?: "standard" | "pulse";
   outputs: StudioOutput[];
   referenceGridReadyOutputIds?: ReadonlySet<string>;
   mode: StudioMode;
@@ -47,7 +46,6 @@ type UseAiStudioAgentOutputGenerationBridgeParams = {
  * Returns the page-facing agent-output generate handler, bubble media state, and disable guard.
  */
 export const useAiStudioAgentOutputGenerationBridge = ({
-  expertCreateMode = "standard",
   outputs,
   referenceGridReadyOutputIds = new Set<string>(),
   mode,
@@ -74,7 +72,6 @@ export const useAiStudioAgentOutputGenerationBridge = ({
 
   const handleGenerateFromAgentOutputPrompt = useCallback(
     (input: AgentOutputGenerateInput) => {
-      if (expertCreateMode === "pulse") return;
       const request = normalizeAgentOutputGenerateRequest(input);
       if (!request) return;
       const isVideoWorkflow = selectedTool === "video" || selectedTool === "kling";
@@ -113,7 +110,6 @@ export const useAiStudioAgentOutputGenerationBridge = ({
     },
     [
       currentCostCredits,
-      expertCreateMode,
       handleGenerate,
       promptReferenceGenerateCostCredits,
       registerOutputLink,

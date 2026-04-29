@@ -274,9 +274,13 @@ describe("Create agent mode boundaries", () => {
     const generationControllerSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioGenerationController.ts"
     );
+    const outputGenerationBridgeSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge.ts"
+    );
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
 
     expect(generationControllerSource).not.toContain("expertCreateMode");
+    expect(outputGenerationBridgeSource).not.toContain("expertCreateMode");
     expect(generationControllerSource).not.toContain("onAgentCaptureResult");
     expect(generationControllerSource).not.toContain("usesAgentLane");
     expect(generationControllerSource).not.toContain("handleAgentSend");

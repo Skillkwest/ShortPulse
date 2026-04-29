@@ -23,7 +23,6 @@ vi.mock("../agentOrchestration/useAgentOutputBubbleLinking", () => ({
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioAgentOutputGenerationBridge>[0]> = {}
 ): Parameters<typeof useAiStudioAgentOutputGenerationBridge>[0] => ({
-  expertCreateMode: "standard",
   outputs: [] as StudioOutput[],
   mode: "image",
   selectedTool: "create",
@@ -142,30 +141,6 @@ describe("useAiStudioAgentOutputGenerationBridge", () => {
 
     expect(params.handleGenerate).not.toHaveBeenCalled();
     expect(result.current.assistantBubbleMedia).toBe(assistantBubbleMediaMock);
-  });
-
-  it("does not let Pulse mode route assistant output prompts through Standard generation", async () => {
-    const params = createParams({
-      expertCreateMode: "pulse",
-      selectedTool: "styles",
-    });
-    const { result } = renderHook(() => useAiStudioAgentOutputGenerationBridge(params));
-
-    await act(async () => {
-      result.current.handleGenerateFromAgentOutputPrompt({
-        messageId: "msg-pulse",
-        prompt: "pulse artifact prompt",
-        source: "history",
-      });
-      await Promise.resolve();
-    });
-
-    expect(params.setSharedPrompt).not.toHaveBeenCalled();
-    expect(params.setSelectedToolWithEditIntentReset).not.toHaveBeenCalled();
-    expect(params.setMode).not.toHaveBeenCalled();
-    expect(params.setPromptOrigin).not.toHaveBeenCalled();
-    expect(params.handleGenerate).not.toHaveBeenCalled();
-    expect(registerOutputLinkMock).not.toHaveBeenCalled();
   });
 
   it("computes the disable guard for agent-output generation", () => {

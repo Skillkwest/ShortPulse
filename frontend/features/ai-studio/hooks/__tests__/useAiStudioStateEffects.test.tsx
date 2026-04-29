@@ -116,13 +116,13 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
-  it("migrates legacy Fal Kling image selections onto Kie Kling when a frame image is present", async () => {
+  it("uses the Kie Veo lane default for unsupported image-to-video selections", async () => {
     const setModel = vi.fn();
     renderHook(() =>
       useAiStudioStateEffects(
         createArgs({
           selectedTool: "video",
-          model: "fal-ai/kling-video/v3/pro/image-to-video",
+          model: "unsupported/provider-image-to-video",
           referenceImageUrl: "https://example.com/first.png",
           extraImageUrls: [null, null, null],
           allowedModelValues: [KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID],
@@ -132,17 +132,17 @@ describe("useAiStudioStateEffects", () => {
     );
 
     await waitFor(() => {
-      expect(setModel).toHaveBeenCalledWith(KIE_KLING_30_MODEL_ID);
+      expect(setModel).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
     });
   });
 
-  it("migrates legacy Fal Kling text selections onto Kie Veo when no frame images are present", async () => {
+  it("uses the Kie Veo lane default for unsupported text-to-video selections", async () => {
     const setModel = vi.fn();
     renderHook(() =>
       useAiStudioStateEffects(
         createArgs({
           selectedTool: "video",
-          model: "fal-ai/kling-video/v3/pro/text-to-video",
+          model: "unsupported/provider-text-to-video",
           referenceImageUrl: null,
           extraImageUrls: [null, null, null],
           allowedModelValues: [KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID],
@@ -182,7 +182,7 @@ describe("useAiStudioStateEffects", () => {
       useAiStudioStateEffects(
         createArgs({
           selectedTool: "video",
-          model: "fal-ai/veo3.1/image-to-video",
+          model: "unsupported/provider-image-to-video",
           videoReferenceMode: "motion",
           setModel,
         })
@@ -194,39 +194,13 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
-  it("migrates legacy Fal Veo keyframe selections onto Kie Veo", async () => {
-    const setVideoReferenceMode = vi.fn();
+  it("switches unsupported video models to Kie Veo text lane when no frame images are present", async () => {
     const setModel = vi.fn();
     renderHook(() =>
       useAiStudioStateEffects(
         createArgs({
           selectedTool: "video",
-          model: "fal-ai/veo3.1/first-last-frame-to-video",
-          videoReferenceMode: "standard",
-          allowedModelValues: [
-            "fal-ai/veo3.1/first-last-frame-to-video",
-            "fal-ai/veo3.1/image-to-video",
-            KIE_VEO_31_FAST_I2V_MODEL_ID,
-          ],
-          setVideoReferenceMode,
-          setModel,
-        })
-      )
-    );
-
-    await waitFor(() => {
-      expect(setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
-      expect(setModel).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
-    });
-  });
-
-  it("switches Google-family video models to Kie Veo text lane when no frame images are present", async () => {
-    const setModel = vi.fn();
-    renderHook(() =>
-      useAiStudioStateEffects(
-        createArgs({
-          selectedTool: "video",
-          model: "fal-ai/veo3.1/image-to-video",
+          model: "unsupported/provider-image-to-video",
           referenceImageUrl: null,
           extraImageUrls: [null, null, null],
           allowedModelValues: [KIE_VEO_31_FAST_I2V_MODEL_ID],
@@ -240,14 +214,14 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
-  it("switches Google-family video models to Kie Veo when both frame images are present", async () => {
+  it("switches unsupported video models to Kie Veo when both frame images are present", async () => {
     const setModel = vi.fn();
     const setVideoReferenceMode = vi.fn();
     renderHook(() =>
       useAiStudioStateEffects(
         createArgs({
           selectedTool: "video",
-          model: "fal-ai/veo3.1",
+          model: "unsupported/provider-text-to-video",
           referenceImageUrl: "https://example.com/first.png",
           extraImageUrls: ["https://example.com/last.png", null, null],
           allowedModelValues: [KIE_VEO_31_FAST_I2V_MODEL_ID],

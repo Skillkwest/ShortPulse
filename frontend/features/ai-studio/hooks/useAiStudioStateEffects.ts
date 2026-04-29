@@ -24,21 +24,7 @@ import {
 import type { StudioMode, ToolId } from "../types";
 import { useAiStudioAllowedModelOptions } from "./useAiStudioAllowedModelOptions";
 
-const KEYFRAME_COMPATIBLE_MODELS = new Set([
-  "fal-ai/veo3.1/first-last-frame-to-video",
-  KIE_VEO_31_FAST_I2V_MODEL_ID,
-]);
-const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
-const FAL_VEO_IMAGE_MODEL_ID = "fal-ai/veo3.1/image-to-video";
-const FAL_VEO_TEXT_MODEL_ID = "fal-ai/veo3.1";
-const FAL_KLING_TEXT_MODEL_ID = "fal-ai/kling-video/v3/pro/text-to-video";
-const FAL_KLING_IMAGE_MODEL_ID = "fal-ai/kling-video/v3/pro/image-to-video";
-const isBlockedFalVeoVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === FAL_VEO_TEXT_MODEL_ID ||
-  modelId === FAL_VEO_IMAGE_MODEL_ID ||
-  modelId === FAL_VEO_FIRST_LAST_MODEL_ID;
-const isBlockedFalKlingVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === FAL_KLING_TEXT_MODEL_ID || modelId === FAL_KLING_IMAGE_MODEL_ID;
+const KEYFRAME_COMPATIBLE_MODELS = new Set([KIE_VEO_31_FAST_I2V_MODEL_ID]);
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -301,11 +287,6 @@ export const useAiStudioStateEffects = ({
       return;
     }
 
-    if (model === FAL_VEO_FIRST_LAST_MODEL_ID && videoReferenceMode !== "keyframes") {
-      setVideoReferenceModeIfChanged("keyframes");
-      return;
-    }
-
     if (videoReferenceMode === "keyframes") {
       if (model && !KEYFRAME_COMPATIBLE_MODELS.has(model)) {
         lastNonKeyframesVideoModelRef.current = model;
@@ -325,12 +306,6 @@ export const useAiStudioStateEffects = ({
       }
       return;
     }
-
-    if (model === FAL_VEO_FIRST_LAST_MODEL_ID && videoReferenceMode === "standard") {
-      const fallback = lastNonKeyframesVideoModelRef.current ?? KIE_VEO_31_FAST_I2V_MODEL_ID;
-      setModelIfChanged(fallback);
-      return;
-    }
   }, [
     lastNonKeyframesVideoModelRef,
     lastNonKling3VideoModelRef,
@@ -346,66 +321,12 @@ export const useAiStudioStateEffects = ({
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
-    if (!isVideoWorkflow(selectedTool)) return;
-    if (!isBlockedFalVeoVideoModel(model)) return;
-    setModelIfChanged(KIE_VEO_31_FAST_I2V_MODEL_ID);
-  }, [hasPendingWorkflowRestore, model, selectedTool, setModelIfChanged]);
-
-  useEffect(() => {
-    if (hasPendingWorkflowRestore) return;
-    if (!isVideoWorkflow(selectedTool)) return;
-    if (!isBlockedFalKlingVideoModel(model)) return;
-
-    if (videoReferenceMode === "motion" || videoReferenceMode === "kling3") {
-      setModelIfChanged(KIE_KLING_30_MODEL_ID);
-      return;
-    }
-
-    const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({
-      primary: referenceImageUrl,
-      extras: extraImageUrls,
-      referenceMode: videoReferenceMode,
-    });
-
-    const nextModel = resolveAutoVideoModelForLane({
-      currentModel: model,
-      lane: resolvedVideoLane,
-    });
-    setModelIfChanged(nextModel);
-  }, [
-    extraImageUrls,
-    hasPendingWorkflowRestore,
-    model,
-    referenceImageUrl,
-    selectedTool,
-    setModelIfChanged,
-    videoReferenceMode,
-  ]);
-
-  useEffect(() => {
-    if (hasPendingWorkflowRestore) return;
     if (resolveWorkflowId(selectedTool) !== "video" || selectedTool === "kling") return;
     if (videoReferenceMode === "keyframes" || videoReferenceMode === "motion") return;
     if (videoReferenceMode === "kling3") {
       setVideoReferenceModeIfChanged("standard");
     }
-    if (model === FAL_KLING_IMAGE_MODEL_ID) {
-      const fallback = lastNonKling3VideoModelRef.current;
-      if (fallback && fallback !== FAL_KLING_IMAGE_MODEL_ID) {
-        setModelIfChanged(fallback);
-      } else {
-        setModelIfChanged(null);
-      }
-    }
-  }, [
-    lastNonKling3VideoModelRef,
-    model,
-    selectedTool,
-    setModelIfChanged,
-    setVideoReferenceModeIfChanged,
-    videoReferenceMode,
-    hasPendingWorkflowRestore,
-  ]);
+  }, [selectedTool, setVideoReferenceModeIfChanged, videoReferenceMode, hasPendingWorkflowRestore]);
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;

@@ -38,7 +38,7 @@ const makeCostParamsForModel =
 
 const baseInput = {
   mode: "video" as const,
-  model: "fal-ai/kling-video/v3/pro/image-to-video",
+  model: KIE_KLING_30_MODEL_ID,
   aspect: "16:9",
   prompt: "Animate this character",
   activeOutput: null,
@@ -58,7 +58,7 @@ const baseInput = {
   seedance2ReferenceVideoUrls: [] as string[],
   seedance2ReferenceAudioUrls: [] as string[],
   balanceCredits: null,
-  costParamsForModel: makeCostParamsForModel("fal-ai/kling-video/v3/pro/image-to-video"),
+  costParamsForModel: makeCostParamsForModel(KIE_KLING_30_MODEL_ID),
 };
 
 beforeEach(() => {
@@ -71,7 +71,7 @@ afterEach(() => {
 
 describe("useAiStudioViewModel motion guardrails", () => {
   it("uses active video settings for prompt-reference generate cost", () => {
-    const modelId = "fal-ai/kling-video/v3/pro/image-to-video";
+    const modelId = KIE_KLING_30_MODEL_ID;
     const costParamsForModel = (
       targetModelId: string,
       overrides?: Omit<PricingParams, "modelId">
@@ -339,9 +339,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
+        model: KIE_VEO_31_FAST_I2V_MODEL_ID,
         videoReferenceMode: "standard",
         referenceImageUrl: null,
         motionReferenceVideoUrl: null,
+        costParamsForModel: makeCostParamsForModel(KIE_VEO_31_FAST_I2V_MODEL_ID),
       })
     );
 
@@ -439,11 +441,11 @@ describe("useAiStudioViewModel motion guardrails", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
-        model: "fal-ai/veo3.1",
+        model: KIE_VEO_31_FAST_I2V_MODEL_ID,
         videoReferenceMode: "standard",
         referenceImageUrl: null,
         motionReferenceVideoUrl: null,
-        costParamsForModel: makeCostParamsForModel("fal-ai/veo3.1"),
+        costParamsForModel: makeCostParamsForModel(KIE_VEO_31_FAST_I2V_MODEL_ID),
       })
     );
 

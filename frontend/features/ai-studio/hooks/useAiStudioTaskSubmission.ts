@@ -65,7 +65,6 @@ const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
-const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
 
 const preflightStageLevel = (
   status: PrepareImageStageEvent["status"]
@@ -284,12 +283,8 @@ export const useAiStudioTaskSubmission = ({
         markOutputSubmissionActive?.(id);
         const modelLabel = resolveModelLabel(finalModel);
 
-        const isDedicatedVeoFirstLastFrameModel = finalModel === FAL_VEO_FIRST_LAST_MODEL_ID;
-        const isVeoFirstLastFrameModel =
-          isDedicatedVeoFirstLastFrameModel || finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
-        const isVeoImageToVideoModel =
-          finalModel === "fal-ai/veo3.1/image-to-video" ||
-          finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
+        const isVeoFirstLastFrameModel = finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
+        const isVeoImageToVideoModel = finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
         const modelConfig = finalModelConfig;
         const isImageToVideoModel = modelConfig?.mediaType === "image-to-video";
         const requiresMotionReferenceImage =
@@ -586,10 +581,7 @@ export const useAiStudioTaskSubmission = ({
           : ({} as Record<string, never>);
 
         const requiresStandardVideoReference =
-          normalizedTool === "video" &&
-          resolvedVideoLane === "single-image" &&
-          isImageToVideoModel &&
-          !isDedicatedVeoFirstLastFrameModel;
+          normalizedTool === "video" && resolvedVideoLane === "single-image" && isImageToVideoModel;
         if (requiresStandardVideoReference && preparedImageInputs.length < 1) {
           applySubmissionFailure(id, {
             timestamp: "Missing image",
@@ -605,8 +597,7 @@ export const useAiStudioTaskSubmission = ({
             (resolvedVideoLane === "single-image" || resolvedVideoLane === "first-last")) ||
           requiresMotionReferenceImage;
         const isKeyframeFirstLastRun =
-          (resolvedVideoLane === "first-last" && isVeoFirstLastFrameModel) ||
-          isDedicatedVeoFirstLastFrameModel;
+          resolvedVideoLane === "first-last" && isVeoFirstLastFrameModel;
         if (requiresImageReference && !isKeyframeFirstLastRun && preparedImageInputs.length === 0) {
           applySubmissionFailure(id, {
             timestamp: "Missing image",

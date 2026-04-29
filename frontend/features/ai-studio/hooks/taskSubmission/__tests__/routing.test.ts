@@ -3,10 +3,28 @@ import { resolveSubmissionHandlerRoute } from "../routing";
 
 describe("resolveSubmissionHandlerRoute", () => {
   it("routes known video models to video handler", () => {
-    expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1")).toBe("video");
-    expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/image-to-video")).toBe("video");
     expect(resolveSubmissionHandlerRoute("kie-ai/seedance-2")).toBe("video");
     expect(resolveSubmissionHandlerRoute("kie-ai/seedance-2-fast")).toBe("video");
+  });
+
+  it("does not route retired Fal video models to the video handler", () => {
+    expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1")).toBe("default");
+    expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1/image-to-video")).toBe("default");
+    expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1/first-last-frame-to-video")).toBe(
+      "default"
+    );
+    expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/text-to-video")).toBe(
+      "default"
+    );
+    expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/image-to-video")).toBe(
+      "default"
+    );
+    expect(resolveSubmissionHandlerRoute("fal-ai/bytedance/seedance/v1.5/pro/text-to-video")).toBe(
+      "default"
+    );
+    expect(resolveSubmissionHandlerRoute("fal-ai/bytedance/seedance/v1.5/pro/image-to-video")).toBe(
+      "default"
+    );
   });
 
   it("routes known image/edit models to image handler", () => {

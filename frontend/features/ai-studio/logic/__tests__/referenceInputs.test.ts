@@ -182,64 +182,58 @@ describe("resolveAutoVideoModelForLane", () => {
     }
   });
 
-  it("maps incompatible Google-family lanes onto the Kie Veo default", () => {
+  it("maps incompatible video-family lanes onto the Kie Veo default", () => {
     expect(
       resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/veo3.1/image-to-video",
+        currentModel: "unsupported/google-image-to-video",
         lane: "text",
       })
     ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(
       resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/veo3.1",
+        currentModel: "unsupported/google-text-to-video",
         lane: "single-image",
       })
     ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(
       resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/veo3.1",
+        currentModel: "unsupported/google-text-to-video",
         lane: "first-last",
       })
     ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
   });
 
-  it("migrates legacy Fal Kling selections onto Kie-only compatible lanes", () => {
+  it("uses lane defaults for unsupported video model selections", () => {
     expect(
       resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/kling-video/v3/pro/text-to-video",
+        currentModel: "unsupported/provider-text-video",
         lane: "text",
       })
     ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(
       resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/kling-video/v3/pro/image-to-video",
+        currentModel: "unsupported/provider-image-to-video",
         lane: "single-image",
       })
-    ).toBe(KIE_KLING_30_MODEL_ID);
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(
       resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/kling-video/v3/pro/image-to-video",
+        currentModel: "unsupported/provider-first-last-video",
         lane: "first-last",
       })
-    ).toBe(KIE_KLING_30_MODEL_ID);
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(
       resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/kling-video/v3/pro/image-to-video",
+        currentModel: "unsupported/provider-motion-video",
         lane: "motion",
       })
     ).toBe(KIE_KLING_30_MODEL_ID);
   });
 
-  it("migrates legacy non-Kie Fal video selections onto Kie-only compatible lanes", () => {
+  it("does not special-case retired Fal Kling selections", () => {
     expect(
       resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-        lane: "text",
-      })
-    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
-    expect(
-      resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+        currentModel: "fal-ai/kling-video/v3/pro/image-to-video",
         lane: "single-image",
       })
     ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);

@@ -11,13 +11,6 @@ import {
 } from "../../../../lib/model-runtime/providerModelIds";
 
 const VIDEO_MODELS = new Set([
-  "fal-ai/kling-video/v3/pro/image-to-video",
-  "fal-ai/veo3.1/image-to-video",
-  "fal-ai/kling-video/v3/pro/text-to-video",
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-  "fal-ai/veo3.1/first-last-frame-to-video",
-  "fal-ai/veo3.1",
   KIE_VEO_31_FAST_I2V_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,

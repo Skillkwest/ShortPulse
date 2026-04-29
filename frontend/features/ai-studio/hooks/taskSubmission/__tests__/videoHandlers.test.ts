@@ -1186,7 +1186,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
   });
 });
 
-describe("handleVideoModelSubmission (disabled Fal Kling routes)", () => {
+describe("handleVideoModelSubmission (retired Fal video routes)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -1196,150 +1196,29 @@ describe("handleVideoModelSubmission (disabled Fal Kling routes)", () => {
     vi.restoreAllMocks();
   });
 
-  it("fails closed for legacy Fal Kling image-to-video submits", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/kling-video/v3/pro/image-to-video",
-      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/image-to-video"),
-      videoReferenceMode: "standard",
-      preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
-    });
+  it("does not own retired Fal video model ids", async () => {
+    const retiredModelIds = [
+      "fal-ai/kling-video/v3/pro/image-to-video",
+      "fal-ai/kling-video/v3/pro/text-to-video",
+      "fal-ai/veo3.1/image-to-video",
+      "fal-ai/veo3.1/first-last-frame-to-video",
+      "fal-ai/veo3.1",
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+    ];
 
-    const handled = await handleVideoModelSubmission(args);
+    for (const finalModel of retiredModelIds) {
+      const args = makeArgs({
+        finalModel,
+        modelConfig: getModelConfig(finalModel),
+        videoReferenceMode: "standard",
+        preparedImageInputs: [],
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+      });
 
-    expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Fal Kling 3.0 is disabled. Use Kie Kling 3.0 instead."
-    );
-  });
-
-  it("fails closed for legacy Fal Kling text-to-video submits", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/kling-video/v3/pro/text-to-video",
-      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/text-to-video"),
-      videoReferenceMode: "standard",
-      preparedImageInputs: [],
-      videoReferenceImageUrl: null,
-      motionReferenceVideoUrl: null,
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Fal Kling 3.0 is disabled. Use Kie Kling 3.0 instead."
-    );
-  });
-});
-
-describe("handleVideoModelSubmission (disabled Fal Veo routes)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("fails closed for legacy Fal Veo image-to-video submits", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/veo3.1/image-to-video",
-      modelConfig: getModelConfig("fal-ai/veo3.1/image-to-video"),
-      preparedImageInputs: ["https://example.com/reference.png"],
-      videoReferenceMode: "standard",
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 instead."
-    );
-  });
-
-  it("fails closed for legacy Fal Veo first-last submits", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/veo3.1/first-last-frame-to-video",
-      modelConfig: getModelConfig("fal-ai/veo3.1/first-last-frame-to-video"),
-      preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
-      videoReferenceMode: "standard",
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 instead."
-    );
-  });
-
-  it("fails closed for legacy Fal Veo text submits", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/veo3.1",
-      modelConfig: getModelConfig("fal-ai/veo3.1"),
-      preparedImageInputs: [],
-      videoReferenceImageUrl: null,
-      motionReferenceVideoUrl: null,
-      videoReferenceMode: "standard",
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 instead."
-    );
-  });
-});
-
-describe("handleVideoModelSubmission (Fal Seedance text-to-video)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("fails closed for legacy Fal Seedance text-to-video submits", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedance/v1.5/pro/text-to-video"),
-      aspect: "21:9",
-      requestedDurationSeconds: 12,
-      requestedResolution: "720p",
-      requestedAudio: true,
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Fal-hosted video generation is disabled. Use Kie Veo 3.1, Kie Kling 3.0, or Kie Seedance 1.5 instead."
-    );
-  });
-
-  it("fails closed for legacy Fal Seedance image-to-video submits", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedance/v1.5/pro/image-to-video"),
-      preparedImageInputs: ["https://example.com/reference.png"],
-      videoReferenceMode: "standard",
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Fal-hosted video generation is disabled. Use Kie Veo 3.1, Kie Kling 3.0, or Kie Seedance 1.5 instead."
-    );
+      await expect(handleVideoModelSubmission(args)).resolves.toBe(false);
+      expect(args.notifyGenerationFailure).not.toHaveBeenCalled();
+    }
   });
 });

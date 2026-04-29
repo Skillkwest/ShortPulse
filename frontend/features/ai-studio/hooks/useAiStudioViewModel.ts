@@ -25,7 +25,6 @@ import {
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
-const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
 const TEXT_PROMPT_MODEL_ID = "gpt-5-nano";
 
 type ViewModelInput = {
@@ -382,13 +381,11 @@ export const useAiStudioViewModel = ({
       if (!referenceImageUrl) return "Add a reference image before generating.";
     }
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
-    const isDedicatedVeoFirstLastModel = model === FAL_VEO_FIRST_LAST_MODEL_ID;
-    const isKeyframeCapableVeoModel =
-      isDedicatedVeoFirstLastModel || model === KIE_VEO_31_FAST_I2V_MODEL_ID;
+    const isKeyframeCapableVeoModel = model === KIE_VEO_31_FAST_I2V_MODEL_ID;
     const hasBothVeoFrames = Boolean(referenceImageUrl && extraImageUrls[0]);
     if (
       isVideoTool &&
-      (resolvedVideoLane === "first-last" || isDedicatedVeoFirstLastModel) &&
+      resolvedVideoLane === "first-last" &&
       isKeyframeCapableVeoModel &&
       !hasBothVeoFrames
     ) {

@@ -1,11 +1,12 @@
 import { useCallback, useRef, useState } from "react";
 import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { describeReferenceOutput } from "./agentOrchestration/describeReference";
-import type { UseAiStudioAgentOrchestrationParams } from "./agentOrchestration/types";
+import type {
+  AgentSendOptions,
+  UseAiStudioAgentOrchestrationParams,
+} from "./agentOrchestration/types";
 import { useCreateAgentOrchestrationRuntime } from "./agentOrchestration/useCreateAgentOrchestrationRuntime";
-import { usePulseCreateAgentSend } from "./agentOrchestration/usePulseCreateAgentSend";
-import { usePulsePresetStartRuntime } from "./agentOrchestration/usePulsePresetStartRuntime";
-import { useStandardCreateAgentSend } from "./agentOrchestration/useStandardCreateAgentSend";
+import type { PulsePresetStartHandler } from "./agentOrchestration/runPulsePresetStartRuntime";
 import { useStandardCreatePromptEnhance } from "./agentOrchestration/useStandardCreatePromptEnhance";
 
 const extractAgentResponseMessage = (response: unknown): string | null => {
@@ -69,86 +70,159 @@ export const useAiStudioAgentOrchestration = ({
     setAgentAttachmentError,
     trackAgentUiEvent,
   });
-  const handlePulsePresetStart = usePulsePresetStartRuntime({
-    runtimePolicy,
-    agentBootstrapReady,
-    agentIsSending,
-    agentSessionEnabled,
-    agentUiBusyRef,
-    selectedTool,
-    getAgentContext,
-    sendToAgent,
-    resolvePulseSessionNamespace,
-    setAgentSessionEnabled,
-    setAgentUiBusy,
-    setLatestAgentPrompt,
-    setPulseWorkflowSession,
-    setSharedPrompt,
-    setPromptOrigin,
-    setUiNotice,
-    setAgentAttachmentError,
-    trackAgentUiEvent,
-  });
-  const handleStandardAgentSend = useStandardCreateAgentSend({
-    agentIsSending,
-    agentBootstrapReady,
-    agentUiBusyRef,
-    setAgentUiBusy,
-    agentSessionEnabled,
-    setAgentSessionEnabled,
-    agentInput,
-    setAgentInput,
-    agentAttachments,
-    setAgentAttachments,
-    setAgentAttachmentError,
-    prompt,
-    latestAgentPrompt,
-    setLatestAgentPrompt,
-    selectedTool,
-    setSharedPrompt,
-    setPromptOrigin,
-    sendToAgent,
-    appendUserMessage,
-    updateMessageById,
-    getAgentContext,
-    trackAgentUiEvent,
-    lastAssistantMessage,
-    notifyBootstrapPending,
-    preparedImageUrlCacheRef,
-  });
+  const handlePulsePresetStart = useCallback<PulsePresetStartHandler>(
+    async (preset, options) => {
+      const { runPulsePresetStartRuntime } =
+        await import("./agentOrchestration/runPulsePresetStartRuntime");
+      return runPulsePresetStartRuntime({
+        runtimePolicy,
+        agentBootstrapReady,
+        agentIsSending,
+        agentSessionEnabled,
+        agentUiBusyRef,
+        selectedTool,
+        getAgentContext,
+        sendToAgent,
+        resolvePulseSessionNamespace,
+        setAgentSessionEnabled,
+        setAgentUiBusy,
+        setLatestAgentPrompt,
+        setPulseWorkflowSession,
+        setSharedPrompt,
+        setPromptOrigin,
+        setAgentAttachmentError,
+        trackAgentUiEvent,
+        preset,
+        options,
+        notifyBootstrapPending,
+      });
+    },
+    [
+      agentBootstrapReady,
+      agentIsSending,
+      agentSessionEnabled,
+      agentUiBusyRef,
+      getAgentContext,
+      notifyBootstrapPending,
+      resolvePulseSessionNamespace,
+      runtimePolicy,
+      selectedTool,
+      sendToAgent,
+      setAgentAttachmentError,
+      setAgentSessionEnabled,
+      setAgentUiBusy,
+      setLatestAgentPrompt,
+      setPromptOrigin,
+      setPulseWorkflowSession,
+      setSharedPrompt,
+      trackAgentUiEvent,
+    ]
+  );
+  const handleAgentSend = useCallback(
+    async (
+      textOverride?: string,
+      options?: AgentSendOptions
+    ): Promise<{ prompt: string; referenceTitle?: string | null } | void> => {
+      if (runtimePolicy.kind === "standard") {
+        const { runStandardCreateAgentSend } =
+          await import("./agentOrchestration/runStandardCreateAgentSend");
+        return runStandardCreateAgentSend({
+          agentIsSending,
+          agentBootstrapReady,
+          agentUiBusyRef,
+          setAgentUiBusy,
+          agentSessionEnabled,
+          setAgentSessionEnabled,
+          agentInput,
+          setAgentInput,
+          agentAttachments,
+          setAgentAttachments,
+          setAgentAttachmentError,
+          prompt,
+          latestAgentPrompt,
+          setLatestAgentPrompt,
+          selectedTool,
+          setSharedPrompt,
+          setPromptOrigin,
+          sendToAgent,
+          appendUserMessage,
+          updateMessageById,
+          getAgentContext,
+          trackAgentUiEvent,
+          lastAssistantMessage,
+          notifyBootstrapPending,
+          preparedImageUrlCacheRef,
+          textOverride,
+          options,
+        });
+      }
 
-  const handlePulseAgentSend = usePulseCreateAgentSend({
-    agentIsSending,
-    agentBootstrapReady,
-    agentUiBusyRef,
-    setAgentUiBusy,
-    agentSessionEnabled,
-    setAgentSessionEnabled,
-    agentInput,
-    setAgentInput,
-    agentAttachments,
-    setAgentAttachments,
-    setAgentAttachmentError,
-    prompt,
-    latestAgentPrompt,
-    setLatestAgentPrompt,
-    setPulseWorkflowSession,
-    selectedTool,
-    setSharedPrompt,
-    setPromptOrigin,
-    sendToAgent,
-    appendUserMessage,
-    updateMessageById,
-    getAgentContext,
-    trackAgentUiEvent,
-    lastAssistantMessage,
-    setUiNotice,
-    runtimePolicy,
-    notifyBootstrapPending,
-    preparedImageUrlCacheRef,
-  });
-  const handleAgentSend =
-    runtimePolicy.kind === "standard" ? handleStandardAgentSend : handlePulseAgentSend;
+      const { runPulseCreateAgentSend } =
+        await import("./agentOrchestration/runPulseCreateAgentSend");
+      return runPulseCreateAgentSend({
+        agentIsSending,
+        agentBootstrapReady,
+        agentUiBusyRef,
+        setAgentUiBusy,
+        agentSessionEnabled,
+        setAgentSessionEnabled,
+        agentInput,
+        setAgentInput,
+        agentAttachments,
+        setAgentAttachments,
+        setAgentAttachmentError,
+        prompt,
+        latestAgentPrompt,
+        setLatestAgentPrompt,
+        setPulseWorkflowSession,
+        selectedTool,
+        setSharedPrompt,
+        setPromptOrigin,
+        sendToAgent,
+        appendUserMessage,
+        updateMessageById,
+        getAgentContext,
+        trackAgentUiEvent,
+        lastAssistantMessage,
+        setUiNotice,
+        runtimePolicy,
+        notifyBootstrapPending,
+        preparedImageUrlCacheRef,
+        textOverride,
+        options,
+      });
+    },
+    [
+      agentAttachments,
+      agentBootstrapReady,
+      agentInput,
+      agentIsSending,
+      agentSessionEnabled,
+      agentUiBusyRef,
+      appendUserMessage,
+      getAgentContext,
+      lastAssistantMessage,
+      latestAgentPrompt,
+      notifyBootstrapPending,
+      preparedImageUrlCacheRef,
+      prompt,
+      runtimePolicy,
+      selectedTool,
+      sendToAgent,
+      setAgentAttachmentError,
+      setAgentAttachments,
+      setAgentInput,
+      setAgentSessionEnabled,
+      setAgentUiBusy,
+      setLatestAgentPrompt,
+      setPromptOrigin,
+      setPulseWorkflowSession,
+      setSharedPrompt,
+      setUiNotice,
+      trackAgentUiEvent,
+      updateMessageById,
+    ]
+  );
   const { isPromptRefining, handleAgentEnhanceSend } = useStandardCreatePromptEnhance({
     agentBootstrapReady,
     prompt,

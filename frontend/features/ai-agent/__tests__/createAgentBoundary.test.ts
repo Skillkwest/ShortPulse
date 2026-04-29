@@ -337,7 +337,7 @@ describe("Create agent mode boundaries", () => {
       "features/ai-studio/hooks/useAiStudioAgentOrchestration.ts"
     );
     const standardSendSource = readFrontendFile(
-      "features/ai-studio/hooks/agentOrchestration/useStandardCreateAgentSend.ts"
+      "features/ai-studio/hooks/agentOrchestration/runStandardCreateAgentSend.ts"
     );
     const standardPromptEnhanceSource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/useStandardCreatePromptEnhance.ts"
@@ -346,7 +346,7 @@ describe("Create agent mode boundaries", () => {
       "features/ai-studio/hooks/agentOrchestration/useCreateAgentOrchestrationRuntime.ts"
     );
     const pulsePresetStartRuntimeSource = readFrontendFile(
-      "features/ai-studio/hooks/agentOrchestration/usePulsePresetStartRuntime.ts"
+      "features/ai-studio/hooks/agentOrchestration/runPulsePresetStartRuntime.ts"
     );
 
     expect(orchestrationSource).not.toContain("import { startPulsePreset");
@@ -360,8 +360,20 @@ describe("Create agent mode boundaries", () => {
     expect(orchestrationSource).toContain(
       "./agentOrchestration/useCreateAgentOrchestrationRuntime"
     );
-    expect(orchestrationSource).toContain("./agentOrchestration/usePulsePresetStartRuntime");
-    expect(orchestrationSource).toContain("./agentOrchestration/useStandardCreateAgentSend");
+    expect(orchestrationSource).toContain("./agentOrchestration/runPulsePresetStartRuntime");
+    expect(orchestrationSource).toContain("./agentOrchestration/runStandardCreateAgentSend");
+    expect(orchestrationSource).toContain("./agentOrchestration/runPulseCreateAgentSend");
+    expect(orchestrationSource).not.toContain("import { usePulsePresetStartRuntime");
+    expect(orchestrationSource).not.toContain("usePulsePresetStartRuntime({");
+    expect(orchestrationSource).toContain("runPulsePresetStartRuntime");
+    expect(orchestrationSource).not.toContain("import { useStandardCreateAgentSend");
+    expect(orchestrationSource).not.toContain("import { usePulseCreateAgentSend");
+    expect(orchestrationSource).not.toContain("useStandardCreateAgentSend({");
+    expect(orchestrationSource).not.toContain("usePulseCreateAgentSend({");
+    expect(orchestrationSource).not.toContain("const handleStandardAgentSend");
+    expect(orchestrationSource).not.toContain("const handlePulseAgentSend");
+    expect(orchestrationSource).toContain("runStandardCreateAgentSend");
+    expect(orchestrationSource).toContain("runPulseCreateAgentSend");
     expect(orchestrationSource).toContain("./agentOrchestration/useStandardCreatePromptEnhance");
     expect(orchestrationSource).toContain('runtimePolicy.kind === "standard"');
     expect(orchestrationSource).not.toContain("./agentOrchestration/pulsePresetStart");

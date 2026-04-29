@@ -41,7 +41,6 @@ type UseAiStudioStateRuntimeControllersParams = {
   projectId: string | null;
   pulsePrompt: string;
   pulseSessionInstanceId: string | null;
-  prompt: string;
   referenceImageUrl: string | null;
   removedFromAllRefsIds: string[];
   resolveReferenceInputsForTool: (tool: ToolId | null) => {
@@ -163,7 +162,6 @@ export const useAiStudioStateRuntimeControllers = ({
   projectId,
   pulsePrompt,
   pulseSessionInstanceId,
-  prompt,
   referenceImageUrl,
   removedFromAllRefsIds,
   resolveReferenceInputsForTool,
@@ -242,6 +240,7 @@ export const useAiStudioStateRuntimeControllers = ({
     activePulsePresetId,
     pulseSessionInstanceId,
   });
+  const activeCreatePrompt = expertCreateMode === "pulse" ? pulsePrompt : standardPrompt;
 
   const { submitTask, onReferenceOutputMediaLoaded, retryOutputStatus, abandonTaskOutput } =
     useAiStudioTaskOrchestration({
@@ -250,7 +249,7 @@ export const useAiStudioStateRuntimeControllers = ({
         mode,
         projectId,
         model,
-        prompt,
+        prompt: activeCreatePrompt,
         selectedTool,
         imageResolution,
         videoDurationSeconds,
@@ -300,7 +299,7 @@ export const useAiStudioStateRuntimeControllers = ({
 
   const { generateOutput, regenerateOutput } = useAiStudioGenerationPromptComposer({
     model,
-    prompt,
+    prompt: activeCreatePrompt,
     editReferenceText,
     videoReferenceText,
     selectedStylePrompt,
@@ -333,7 +332,7 @@ export const useAiStudioStateRuntimeControllers = ({
     {
       mode,
       selectedTool,
-      prompt,
+      prompt: activeCreatePrompt,
       standardCreatePrompt: standardPrompt,
       pulseCreatePrompt: pulsePrompt,
       model,

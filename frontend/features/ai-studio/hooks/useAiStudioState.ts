@@ -726,7 +726,6 @@ export const useAiStudioState = ({
     projectId,
     pulsePrompt,
     pulseSessionInstanceId,
-    prompt,
     referenceImageUrl,
     removedFromAllRefsIds,
     resolveReferenceInputsForTool,

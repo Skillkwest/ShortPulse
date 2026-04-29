@@ -7,7 +7,6 @@ import type {
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
-  AgentOutputBubbleMediaState,
   AgentPulseWorkflowSession,
 } from "../../../../prefabs/agent";
 import { PulsePromptStep } from "../PulsePromptStep";
@@ -45,7 +44,6 @@ export type PulseCreatePropertiesPanelProps = {
   agentUiBusy?: boolean;
   agentError?: string;
   stagedPrompt?: string | null;
-  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
   isModelModalOpen: boolean;
@@ -110,7 +108,6 @@ export function PulseCreatePropertiesPanel({
   agentUiBusy = false,
   agentError,
   stagedPrompt = null,
-  assistantBubbleMedia,
   stagedAttachments = [],
   agentDropActive = false,
   onAgentInputChange,
@@ -203,7 +200,6 @@ export function PulseCreatePropertiesPanel({
     agentIsSending,
     agentError,
     stagedPrompt,
-    assistantBubbleMedia,
     stagedAttachments,
     agentDropActive,
     onAgentInputChange,

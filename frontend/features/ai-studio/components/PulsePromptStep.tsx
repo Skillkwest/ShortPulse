@@ -8,7 +8,6 @@ import type {
   AgentAttachment,
   AgentChatPanelProps,
   AgentMessage,
-  AgentOutputBubbleMediaState,
 } from "../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../logic/promptTokenHighlight";
 import { extractDragDropPayload } from "../utils/dragDrop";
@@ -32,7 +31,6 @@ export type PulsePromptStepProps = {
   agentIsSending?: boolean;
   agentError?: string;
   stagedPrompt?: string | null;
-  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
   onAgentInputChange?: (value: string) => void;
@@ -117,7 +115,6 @@ export function PulsePromptStep({
   agentIsSending = false,
   agentError,
   stagedPrompt = null,
-  assistantBubbleMedia,
   stagedAttachments = [],
   agentDropActive = false,
   onAgentInputChange,
@@ -420,7 +417,6 @@ export function PulsePromptStep({
                 agentMessages={agentMessages}
                 introMessage={introMessage}
                 stagedPrompt={stagedPrompt}
-                assistantBubbleMedia={assistantBubbleMedia}
                 stagedAttachments={stagedAttachments}
                 dropToInputComposer={dropToInputComposer}
                 hideInputDropHint={hideInputDropHint}

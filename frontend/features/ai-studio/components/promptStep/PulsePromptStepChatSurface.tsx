@@ -15,7 +15,6 @@ import type {
   AgentAssistantMessageEditRequest,
   AgentAttachment,
   AgentMessage,
-  AgentOutputBubbleMediaState,
 } from "../../../../prefabs/agent";
 import type { PromptStepPulseLoadingState } from "./types";
 
@@ -35,7 +34,6 @@ type PulsePromptStepChatSurfaceProps = {
   agentMessages: AgentMessage[];
   introMessage: AgentMessage;
   stagedPrompt: string | null;
-  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments: AgentAttachment[];
   dropToInputComposer: boolean;
   hideInputDropHint: boolean;
@@ -110,7 +108,6 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   agentMessages,
   introMessage,
   stagedPrompt,
-  assistantBubbleMedia,
   stagedAttachments,
   dropToInputComposer,
   hideInputDropHint,
@@ -213,7 +210,6 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
         thinkingIndicatorPlacement="history"
         historyFooterContent={pulseLoadingContent}
         stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
-        assistantBubbleMedia={assistantBubbleMedia}
         stagedAttachments={dropToInputComposer ? [] : stagedAttachments}
         isDropActive={!dropToInputComposer && agentDropActive}
         showInput={false}

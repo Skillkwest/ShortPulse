@@ -308,6 +308,9 @@ describe("Create agent mode boundaries", () => {
     const orchestrationRuntimeSource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/useCreateAgentOrchestrationRuntime.ts"
     );
+    const pulsePresetStartRuntimeSource = readFrontendFile(
+      "features/ai-studio/hooks/agentOrchestration/usePulsePresetStartRuntime.ts"
+    );
 
     expect(orchestrationSource).not.toContain("import { startPulsePreset");
     expect(orchestrationSource).not.toContain(
@@ -320,9 +323,11 @@ describe("Create agent mode boundaries", () => {
     expect(orchestrationSource).toContain(
       "./agentOrchestration/useCreateAgentOrchestrationRuntime"
     );
+    expect(orchestrationSource).toContain("./agentOrchestration/usePulsePresetStartRuntime");
     expect(orchestrationSource).not.toContain("./agentOrchestration/pulsePresetStart");
     expect(orchestrationRuntimeSource).toContain("./pulseSendRuntime");
-    expect(orchestrationRuntimeSource).toContain("./pulsePresetStart");
+    expect(orchestrationRuntimeSource).not.toContain("./pulsePresetStart");
+    expect(pulsePresetStartRuntimeSource).toContain("./pulsePresetStart");
   });
 
   it("keeps generic agent interactions free of mode branches", () => {

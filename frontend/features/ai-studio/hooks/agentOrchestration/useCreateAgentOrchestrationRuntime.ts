@@ -1,41 +1,10 @@
-import {
-  useCallback,
-  useMemo,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-} from "react";
+import { useCallback, useMemo, type Dispatch, type SetStateAction } from "react";
 import type { AgentContext, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
-import type {
-  CreatePulsePresetStartResult,
-  CreatePulseResolvedPreset,
-} from "../../components/create/createPulsePresets";
-import type { PromptOrigin } from "../../logic/agentPromptOwnership";
-import type { StudioOutput, ToolId } from "../../types";
 import type { CreateAgentOrchestrationRuntimePolicy } from "./createAgentOrchestrationRuntimePolicy";
-import type { AgentModeHint, AgentSendToAgent } from "./types";
 
 type UseCreateAgentOrchestrationRuntimeParams = {
   runtimePolicy: CreateAgentOrchestrationRuntimePolicy;
-  agentBootstrapReady: boolean;
-  agentIsSending: boolean;
-  agentSessionEnabled: boolean;
-  agentUiBusyRef: MutableRefObject<boolean>;
-  selectedTool: ToolId | null;
-  getAgentContext: (params: {
-    lastAssistantMessage: string | null;
-    selectedOverride?: StudioOutput | null;
-    modeHint?: AgentModeHint;
-    includeActiveOutput?: boolean;
-  }) => AgentContext;
-  sendToAgent: AgentSendToAgent;
-  resolvePulseSessionNamespace?: (presetId: string, pulseSessionInstanceId?: string) => string;
-  setAgentSessionEnabled: Dispatch<SetStateAction<boolean>>;
-  setAgentUiBusy: Dispatch<SetStateAction<boolean>>;
-  setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
   setPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
-  setSharedPrompt: (value: string) => void;
-  setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   setAgentAttachmentError: Dispatch<SetStateAction<string | null>>;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
@@ -47,29 +16,11 @@ type UseCreateAgentOrchestrationRuntimeParams = {
  */
 export const useCreateAgentOrchestrationRuntime = ({
   runtimePolicy,
-  agentBootstrapReady,
-  agentIsSending,
-  agentSessionEnabled,
-  agentUiBusyRef,
-  selectedTool,
-  getAgentContext,
-  sendToAgent,
-  resolvePulseSessionNamespace,
-  setAgentSessionEnabled,
-  setAgentUiBusy,
-  setLatestAgentPrompt,
   setPulseWorkflowSession,
-  setSharedPrompt,
-  setPromptOrigin,
   setUiNotice,
   setAgentAttachmentError,
   trackAgentUiEvent,
 }: UseCreateAgentOrchestrationRuntimeParams) => {
-  const notifyBootstrapPending = useCallback(() => {
-    setUiNotice("Preparing chat. Try again in a moment.");
-    trackAgentUiEvent("studio_agent_send_blocked_bootstrap_pending");
-  }, [setUiNotice, trackAgentUiEvent]);
-
   const notifyPulseSelectionRequired = useCallback(() => {
     setUiNotice("Select a Pulse to start.");
     trackAgentUiEvent("studio_agent_send_blocked_no_active_pulse_session");
@@ -146,61 +97,6 @@ export const useCreateAgentOrchestrationRuntime = ({
     [runtimePolicy, setUiNotice, trackAgentUiEvent]
   );
 
-  const handlePulsePresetStart = useCallback(
-    async (
-      preset: CreatePulseResolvedPreset,
-      options?: {
-        pulseSessionInstanceId?: string | null;
-      }
-    ): Promise<CreatePulsePresetStartResult> => {
-      const { startPulsePreset } = await import("./pulsePresetStart");
-      return startPulsePreset({
-        preset,
-        options,
-        agentBootstrapReady,
-        agentIsSending,
-        agentSessionEnabled,
-        agentUiBusyRef,
-        latestAgentPrompt: null,
-        lastAssistantMessage: null,
-        selectedTool,
-        pulseSessionInstanceId: runtimePolicy.pulseSessionInstanceId,
-        resolvePulseSessionNamespace,
-        getAgentContext,
-        notifyBootstrapPending,
-        sendToAgent,
-        trackAgentUiEvent,
-        setAgentSessionEnabled,
-        setAgentAttachmentError,
-        setAgentUiBusy,
-        setPulseWorkflowSession,
-        setLatestAgentPrompt,
-        setSharedPrompt,
-        setPromptOrigin,
-      });
-    },
-    [
-      agentBootstrapReady,
-      agentIsSending,
-      agentSessionEnabled,
-      agentUiBusyRef,
-      getAgentContext,
-      notifyBootstrapPending,
-      resolvePulseSessionNamespace,
-      runtimePolicy,
-      selectedTool,
-      sendToAgent,
-      setAgentAttachmentError,
-      setAgentSessionEnabled,
-      setAgentUiBusy,
-      setLatestAgentPrompt,
-      setPromptOrigin,
-      setPulseWorkflowSession,
-      setSharedPrompt,
-      trackAgentUiEvent,
-    ]
-  );
-
   return useMemo(
     () => ({
       includeActiveOutput: runtimePolicy.includeActiveOutput,
@@ -212,14 +108,12 @@ export const useCreateAgentOrchestrationRuntime = ({
       hasRequiredRequestContext,
       prepareUserInputRequestContext,
       captureWorkflowSession,
-      handlePulsePresetStart,
     }),
     [
       blockInvalidUserInput,
       captureWorkflowSession,
       ensureSessionReady,
       hasRequiredRequestContext,
-      handlePulsePresetStart,
       prepareUserInputRequestContext,
       runtimePolicy,
     ]

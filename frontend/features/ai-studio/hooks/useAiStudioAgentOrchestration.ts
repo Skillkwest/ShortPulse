@@ -9,6 +9,7 @@ import type {
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
 import { useCreateAgentOrchestrationRuntime } from "./agentOrchestration/useCreateAgentOrchestrationRuntime";
+import { usePulsePresetStartRuntime } from "./agentOrchestration/usePulsePresetStartRuntime";
 
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
@@ -72,6 +73,13 @@ export const useAiStudioAgentOrchestration = ({
     trackAgentUiEvent("studio_agent_send_blocked_bootstrap_pending");
   }, [setUiNotice, trackAgentUiEvent]);
   const orchestrationRuntime = useCreateAgentOrchestrationRuntime({
+    runtimePolicy,
+    setPulseWorkflowSession,
+    setUiNotice,
+    setAgentAttachmentError,
+    trackAgentUiEvent,
+  });
+  const handlePulsePresetStart = usePulsePresetStartRuntime({
     runtimePolicy,
     agentBootstrapReady,
     agentIsSending,
@@ -513,7 +521,7 @@ export const useAiStudioAgentOrchestration = ({
     isReferencePromptEnhancing,
     describeInFlightCount,
     handleAgentSend,
-    handlePulsePresetStart: orchestrationRuntime.handlePulsePresetStart,
+    handlePulsePresetStart,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     handleDescribeReference,

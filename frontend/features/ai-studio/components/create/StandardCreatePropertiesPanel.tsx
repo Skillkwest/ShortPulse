@@ -24,7 +24,6 @@ import { deriveCreateSelectorViewState } from "../../logic/createSelectorState";
 import { getModelConfig } from "../../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./BeginnerCreatePanelView";
 import { StandardCreatePanelView } from "./StandardCreatePanelView";
-import type { ExpertCreateMode } from "./createModeTypes";
 import {
   getCreateCharacterInitials,
   type CreateCharacterOption,
@@ -111,8 +110,7 @@ export type StandardCreatePropertiesPanelProps = {
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
-  expertCreateMode?: ExpertCreateMode;
-  onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
+  createModeToggle?: React.ReactNode;
   onOpenPresetsLibrary?: () => void;
 };
 
@@ -642,23 +640,12 @@ export function StandardCreatePropertiesPanel({
   onStylesPanelToggle,
   selectedStyleId = null,
   stylesCatalog,
-  expertCreateMode,
-  onExpertCreateModeChange,
+  createModeToggle = null,
   onGenerate,
   onChatOffInlineGenerate,
   guardrailReason,
 }: StandardCreatePropertiesPanelProps) {
   const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
-  const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] =
-    React.useState<ExpertCreateMode>("standard");
-  const resolvedExpertCreateMode = expertCreateMode ?? uncontrolledExpertCreateMode;
-  const handleExpertCreateModeChange = React.useCallback(
-    (value: ExpertCreateMode) => {
-      setUncontrolledExpertCreateMode(value);
-      onExpertCreateModeChange?.(value);
-    },
-    [onExpertCreateModeChange]
-  );
   const promptStepNumber = beginnerMode ? "2" : "1";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const effectiveModelLabel = modelLabel;
@@ -932,8 +919,7 @@ export function StandardCreatePropertiesPanel({
             onImageResolutionChange?.(value);
             onStepActionClick?.("imageSettings");
           }}
-          expertCreateMode={resolvedExpertCreateMode}
-          onExpertCreateModeChange={handleExpertCreateModeChange}
+          createModeToggle={createModeToggle}
         />
       ) : (
         <BeginnerCreatePanelView

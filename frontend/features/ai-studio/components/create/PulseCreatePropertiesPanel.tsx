@@ -14,7 +14,6 @@ import { PulseCreateChatPanel } from "../promptStep/PulseCreateChatPanel";
 import type { PromptStepPulseLoadingState } from "../promptStep/types";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulseCreatePanelView } from "./PulseCreatePanelView";
-import type { ExpertCreateMode } from "./createModeTypes";
 import type {
   CreatePulsePresetId,
   CreatePulsePresetStartResult,
@@ -61,8 +60,7 @@ export type PulseCreatePropertiesPanelProps = {
   onClearAgentChat?: () => void;
   beginnerMode?: boolean;
   expertCreateUiEligible?: boolean;
-  expertCreateMode?: ExpertCreateMode;
-  onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
+  createModeToggle?: React.ReactNode;
   activePulsePresetId?: CreatePulsePresetId | null;
   activePulsePresetLabel?: string | null;
   hasActivePulseSession?: boolean;
@@ -111,8 +109,7 @@ export function PulseCreatePropertiesPanel({
   isPromptGenerating = false,
   isGenerateDisabled = false,
   onClearAgentChat,
-  expertCreateMode,
-  onExpertCreateModeChange,
+  createModeToggle = null,
   activePulsePresetId,
   activePulsePresetLabel = null,
   hasActivePulseSession = Boolean(activePulsePresetId),
@@ -123,16 +120,6 @@ export function PulseCreatePropertiesPanel({
   onGenerate,
   guardrailReason,
 }: PulseCreatePropertiesPanelProps) {
-  const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] =
-    React.useState<ExpertCreateMode>("pulse");
-  const resolvedExpertCreateMode = expertCreateMode ?? uncontrolledExpertCreateMode;
-  const handleExpertCreateModeChange = React.useCallback(
-    (value: ExpertCreateMode) => {
-      setUncontrolledExpertCreateMode(value);
-      onExpertCreateModeChange?.(value);
-    },
-    [onExpertCreateModeChange]
-  );
   const pulseLoadingState = React.useMemo<PromptStepPulseLoadingState | null>(() => {
     if (!activePulsePresetId) {
       return null;
@@ -243,8 +230,7 @@ export function PulseCreatePropertiesPanel({
       isPromptGenerating={isPromptGenerating}
       isGenerateDisabled={isGenerateDisabled}
       guardrailReason={guardrailReason}
-      expertCreateMode={resolvedExpertCreateMode}
-      onExpertCreateModeChange={handleExpertCreateModeChange}
+      createModeToggle={createModeToggle}
       activePulsePresetId={activePulsePresetId}
       hasActivePulseSession={hasActivePulseSession}
       pulseWorkflowSession={pulseWorkflowSession}

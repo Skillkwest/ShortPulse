@@ -5,12 +5,10 @@ import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulsePromptStep } from "../PulsePromptStep";
 import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
-import { CreateExpertModeToggle } from "./CreateExpertModeToggle";
 import {
   CreatePulsePreferenceProvider,
   useCreatePulsePreferenceRuntime,
 } from "./CreatePulsePreferenceProvider";
-import type { ExpertCreateMode } from "./createModeTypes";
 import type {
   CreatePulsePresetId,
   CreatePulsePresetStartResult,
@@ -24,8 +22,7 @@ type PulseCreatePanelViewProps = {
   isPromptGenerating: boolean;
   isGenerateDisabled: boolean;
   guardrailReason?: string | null;
-  expertCreateMode?: ExpertCreateMode;
-  onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
+  createModeToggle?: React.ReactNode;
   activePulsePresetId?: CreatePulsePresetId | null;
   hasActivePulseSession?: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
@@ -50,8 +47,7 @@ const PulseCreatePanelViewContent = ({
   isPromptGenerating,
   isGenerateDisabled,
   guardrailReason,
-  expertCreateMode,
-  onExpertCreateModeChange,
+  createModeToggle = null,
   activePulsePresetId,
   hasActivePulseSession = Boolean(activePulsePresetId),
   onActivePulsePresetIdChange,
@@ -66,21 +62,11 @@ const PulseCreatePanelViewContent = ({
     setSavedPresets: onSavedPulsePresetsChange,
   } = useCreatePulsePreferenceRuntime();
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
-  const [uncontrolledCreateMode, setUncontrolledCreateMode] =
-    React.useState<ExpertCreateMode>("pulse");
-  const createMode = expertCreateMode ?? uncontrolledCreateMode;
-  const isActivePulseSession = createMode === "pulse" && hasActivePulseSession;
+  const isActivePulseSession = hasActivePulseSession;
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
   const hasPulseLoadingSurface = promptStepProps.pulseLoadingState != null;
   const shouldShowPersistentEmptyShell = !hasVisibleAgentMessages && !hasPulseLoadingSurface;
   const costValue = costCredits != null ? costCredits : "—";
-  const handleCreateModeChange = React.useCallback(
-    (value: ExpertCreateMode) => {
-      setUncontrolledCreateMode(value);
-      onExpertCreateModeChange?.(value);
-    },
-    [onExpertCreateModeChange]
-  );
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
   const promptStepLayoutProps: React.ComponentProps<typeof PulsePromptStep> = {
     ...promptStepProps,
@@ -94,10 +80,6 @@ const PulseCreatePanelViewContent = ({
     composerLeadingContent: null,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
-
-  const createModeToggle = (
-    <CreateExpertModeToggle value={createMode} onChange={handleCreateModeChange} />
-  );
 
   const promptAndControls = (
     <>

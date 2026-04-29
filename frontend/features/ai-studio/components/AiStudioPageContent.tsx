@@ -17,6 +17,7 @@ import {
   StandardCreatePropertiesPanel,
 } from "./create/StandardCreatePropertiesPanel";
 import type { PulseCreatePropertiesPanelProps } from "./create/PulseCreatePropertiesPanel";
+import { CreateExpertModeToggle } from "./create/CreateExpertModeToggle";
 import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
@@ -1154,6 +1155,12 @@ export function AiStudioPageContent({
       visibleStylesCatalog,
     ]
   );
+  const createModeToggle = React.useMemo(
+    () => (
+      <CreateExpertModeToggle value={expertCreateMode} onChange={handleExpertCreateModeChange} />
+    ),
+    [expertCreateMode, handleExpertCreateModeChange]
+  );
   const resolvedStandardCreatePropertiesWithStyles = React.useMemo(
     () =>
       resolvedStandardCreateProperties
@@ -1164,13 +1171,11 @@ export function AiStudioPageContent({
             onOpenPresetsLibrary: () => handleToolSelection("presets"),
             selectedStyleId,
             stylesCatalog: visibleStylesCatalog,
-            expertCreateMode,
-            onExpertCreateModeChange: handleExpertCreateModeChange,
+            createModeToggle,
           }
         : null,
     [
-      expertCreateMode,
-      handleExpertCreateModeChange,
+      createModeToggle,
       handleToolSelection,
       handleStylesPanelToggle,
       isStylesPanelOpen,
@@ -1185,16 +1190,10 @@ export function AiStudioPageContent({
         ? {
             ...resolvedPulseCreateProperties,
             onOpenPresetsLibrary: () => handleToolSelection("presets"),
-            expertCreateMode,
-            onExpertCreateModeChange: handleExpertCreateModeChange,
+            createModeToggle,
           }
         : null,
-    [
-      expertCreateMode,
-      handleExpertCreateModeChange,
-      handleToolSelection,
-      resolvedPulseCreateProperties,
-    ]
+    [createModeToggle, handleToolSelection, resolvedPulseCreateProperties]
   );
   const resolvedReferenceGridPropsWithStylesPanel = React.useMemo(
     () => ({

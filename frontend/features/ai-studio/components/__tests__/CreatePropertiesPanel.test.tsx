@@ -16,6 +16,7 @@ import {
   PulseCreatePropertiesPanel,
   type PulseCreatePropertiesPanelProps,
 } from "../create/PulseCreatePropertiesPanel";
+import { CreateExpertModeToggle } from "../create/CreateExpertModeToggle";
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
@@ -27,14 +28,31 @@ vi.mock("next/image", () => ({
 }));
 
 type TestCreatePanelProps = StandardCreatePropertiesPanelProps &
-  Partial<PulseCreatePropertiesPanelProps>;
+  Partial<PulseCreatePropertiesPanelProps> & {
+    expertCreateMode?: "standard" | "pulse";
+    onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
+  };
 
 function RenderModeOwnedCreatePanel(props: TestCreatePanelProps) {
-  if (props.expertCreateMode === "pulse") {
-    return <PulseCreatePropertiesPanel {...(props as PulseCreatePropertiesPanelProps)} />;
+  const {
+    expertCreateMode = "standard",
+    onExpertCreateModeChange = () => {},
+    ...panelProps
+  } = props;
+  const createModeToggle = (
+    <CreateExpertModeToggle value={expertCreateMode} onChange={onExpertCreateModeChange} />
+  );
+
+  if (expertCreateMode === "pulse") {
+    return (
+      <PulseCreatePropertiesPanel
+        {...(panelProps as PulseCreatePropertiesPanelProps)}
+        createModeToggle={createModeToggle}
+      />
+    );
   }
 
-  return <StandardCreatePropertiesPanel {...props} />;
+  return <StandardCreatePropertiesPanel {...panelProps} createModeToggle={createModeToggle} />;
 }
 
 describe("CreatePropertiesPanel", () => {
@@ -53,6 +71,8 @@ describe("CreatePropertiesPanel", () => {
     expect(standardSource).not.toContain("AgentPulseWorkflowSession");
     expect(pulseSource).not.toContain("AspectDropdown");
     expect(pulseSource).not.toContain("ResolutionDropdown");
+    expect(standardSource).not.toContain("CreateExpertModeToggle");
+    expect(pulseSource).not.toContain("CreateExpertModeToggle");
   });
 
   it("keeps Standard chat surface out of Pulse workflow presentation", () => {

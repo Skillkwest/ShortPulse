@@ -5,8 +5,6 @@ import { AgentGenerateButton } from "../../../../prefabs/agent";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
-import { CreateExpertModeToggle } from "./CreateExpertModeToggle";
-import type { ExpertCreateMode } from "./createModeTypes";
 import type { AspectOption } from "../../types";
 
 type StandardCreatePanelViewProps = {
@@ -41,8 +39,7 @@ type StandardCreatePanelViewProps = {
   imageResolutionValue: string;
   imageResolutionOptions: Array<{ value: string; label: string }>;
   onImageResolutionChange?: (value: string) => void;
-  expertCreateMode?: ExpertCreateMode;
-  onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
+  createModeToggle?: React.ReactNode;
 };
 
 export function StandardCreatePanelView({
@@ -77,27 +74,16 @@ export function StandardCreatePanelView({
   imageResolutionValue,
   imageResolutionOptions,
   onImageResolutionChange,
-  expertCreateMode,
-  onExpertCreateModeChange,
+  createModeToggle = null,
 }: StandardCreatePanelViewProps) {
   const resolvedSelectedCharacterDisplayName =
     selectedCharacterDisplayName ?? selectedCharacterName;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
-  const [uncontrolledCreateMode, setUncontrolledCreateMode] =
-    React.useState<ExpertCreateMode>("standard");
-  const createMode = expertCreateMode ?? uncontrolledCreateMode;
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
   const shouldShowPersistentEmptyShell = !hasVisibleAgentMessages;
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
-  const handleCreateModeChange = React.useCallback(
-    (value: ExpertCreateMode) => {
-      setUncontrolledCreateMode(value);
-      onExpertCreateModeChange?.(value);
-    },
-    [onExpertCreateModeChange]
-  );
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
@@ -111,10 +97,6 @@ export function StandardCreatePanelView({
     composerLeadingContent: promptStepProps.composerLeadingContent,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
-
-  const createModeToggle = (
-    <CreateExpertModeToggle value={createMode} onChange={handleCreateModeChange} />
-  );
 
   const promptAndControls = (
     <>

@@ -51,8 +51,7 @@ vi.mock("../create/StandardCreatePropertiesPanel", () => ({
     selectedStyleId?: string | null;
     onStylesPanelToggle?: () => void;
     chatModeEnabled?: boolean;
-    expertCreateMode?: "standard" | "pulse";
-    onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
+    createModeToggle?: React.ReactNode;
     onOpenPresetsLibrary?: () => void;
   }) => {
     createPropertiesPanelRenderSpy();
@@ -61,19 +60,14 @@ vi.mock("../create/StandardCreatePropertiesPanel", () => ({
         <button type="button" aria-label="Styles" onClick={() => props.onStylesPanelToggle?.()}>
           Styles
         </button>
-        <button type="button" onClick={() => props.onExpertCreateModeChange?.("standard")}>
-          Standard
-        </button>
-        <button type="button" onClick={() => props.onExpertCreateModeChange?.("pulse")}>
-          Pulse
-        </button>
+        {props.createModeToggle}
         <button type="button" onClick={() => props.onOpenPresetsLibrary?.()}>
           Open create presets library
         </button>
         <div data-testid="create-styles-open">{props.isStylesPanelOpen ? "open" : "closed"}</div>
         <div data-testid="create-selected-style">{props.selectedStyleId ?? ""}</div>
         <div data-testid="create-chat-mode">{props.chatModeEnabled ? "on" : "off"}</div>
-        <div data-testid="create-expert-mode">{props.expertCreateMode ?? "standard"}</div>
+        <div data-testid="create-expert-mode">standard</div>
       </div>
     );
   },
@@ -83,18 +77,12 @@ vi.mock("../create/StandardCreatePropertiesPanel", () => ({
 vi.mock("../create/PulseCreatePropertiesPanel", () => ({
   PulseCreatePropertiesPanel: (props: {
     chatModeEnabled?: boolean;
-    expertCreateMode?: "standard" | "pulse";
-    onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
+    createModeToggle?: React.ReactNode;
   }) => (
     <div data-testid="text-properties">
-      <button type="button" onClick={() => props.onExpertCreateModeChange?.("standard")}>
-        Standard
-      </button>
-      <button type="button" onClick={() => props.onExpertCreateModeChange?.("pulse")}>
-        Pulse
-      </button>
+      {props.createModeToggle}
       <div data-testid="create-chat-mode">{props.chatModeEnabled ? "on" : "off"}</div>
-      <div data-testid="create-expert-mode">{props.expertCreateMode ?? "pulse"}</div>
+      <div data-testid="create-expert-mode">pulse</div>
     </div>
   ),
 }));
@@ -860,12 +848,12 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.click(screen.getByRole("button", { name: "Styles" }));
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
 
-    fireEvent.click(screen.getByRole("button", { name: "Pulse" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
     expect(await screen.findByTestId("create-chat-mode")).toHaveTextContent("off");
     expect(screen.getByTestId("create-expert-mode")).toHaveTextContent("pulse");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
 
-    fireEvent.click(screen.getByRole("button", { name: "Standard" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Standard" }));
     expect(screen.getByTestId("create-chat-mode")).toHaveTextContent("off");
     expect(screen.getByTestId("create-expert-mode")).toHaveTextContent("standard");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");

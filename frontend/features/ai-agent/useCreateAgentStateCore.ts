@@ -19,7 +19,6 @@ import {
   runStudioAgentSafetyInputPrecheck,
 } from "../agent-runtime/studioAgentSafetyInputPrecheck";
 import { resolveSafetyEnvironment } from "../agent-runtime/safetyPolicy/decisionEngine";
-import { buildAgentContext } from "./logic/contextBuilder";
 import { normalizeErrorText } from "../../lib/errorText";
 import {
   SAFETY_REFUSAL_MESSAGE,
@@ -48,6 +47,7 @@ type UseCreateAgentStateCoreOptions = {
   requestRuntimeMode: AgentRuntimeMode;
   allowSessionNamespaceOverride: boolean;
   sessionNamespaceOverrideErrorText?: string;
+  buildAgentContext: (context: NonNullable<SendParams["context"]>) => AgentApiContext;
   sendAgentTurn: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
   resolveTransportSuccess: (response: AgentResponse) => {
     actions: AgentActions | undefined;
@@ -103,6 +103,7 @@ export const useCreateAgentStateCore = ({
   requestRuntimeMode,
   allowSessionNamespaceOverride,
   sessionNamespaceOverrideErrorText = "Agent cannot send to an override session namespace.",
+  buildAgentContext,
   sendAgentTurn,
   resolveTransportSuccess,
 }: UseCreateAgentStateCoreOptions) => {
@@ -388,6 +389,7 @@ export const useCreateAgentStateCore = ({
       directOpenAiBypassEnabled,
       enabled,
       allowSessionNamespaceOverride,
+      buildAgentContext,
       requestRuntimeMode,
       resolveTransportSuccess,
       sendAgentTurn,

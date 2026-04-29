@@ -33,6 +33,7 @@ describe("useAiAgent", () => {
 
     expect(standardHookSource).not.toContain("transportResultResolution");
     expect(standardHookSource).not.toContain("pulseTransportResultResolution");
+    expect(standardHookSource).not.toContain("logic/contextBuilder");
     expect(standardParserSource).not.toContain("resolveWorkflowSession");
     expect(standardParserSource).not.toContain("AgentPulseWorkflowSession");
   });

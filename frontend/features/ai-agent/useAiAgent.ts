@@ -4,6 +4,7 @@
  */
 import { resolveStudioAgentTransportSuccess } from "./client/transportResultResolution";
 import { sendStudioAgentTurn as sendStudioAgentTurnWithRuntimeMode } from "./client/studioAgentTransport";
+import { buildAgentContext } from "./logic/contextBuilder";
 import { useCreateAgentStateCore } from "./useCreateAgentStateCore";
 import type { UseAiAgentOptions } from "./useAiAgentTypes";
 
@@ -21,6 +22,7 @@ export const useAiAgent = ({
       runtimeMode === "standard"
         ? "Standard agent cannot send to an override session namespace."
         : undefined,
+    buildAgentContext,
     sendAgentTurn,
     resolveTransportSuccess,
   });

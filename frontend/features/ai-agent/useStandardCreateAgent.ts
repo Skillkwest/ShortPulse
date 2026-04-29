@@ -4,6 +4,7 @@
  */
 import { resolveStandardCreateAgentTransportSuccess } from "./client/standardTransportResultResolution";
 import { sendStandardCreateAgentTurn } from "./client/standardStudioAgentTransport";
+import { buildStandardCreateAgentContext } from "./logic/standardContextBuilder";
 import { useCreateAgentStateCore } from "./useCreateAgentStateCore";
 import type { UseAiAgentOptions } from "./useAiAgentTypes";
 
@@ -17,6 +18,7 @@ export const useStandardCreateAgent = (options: Omit<UseAiAgentOptions, "runtime
     allowSessionNamespaceOverride: false,
     sessionNamespaceOverrideErrorText:
       "Standard agent cannot send to an override session namespace.",
+    buildAgentContext: buildStandardCreateAgentContext,
     sendAgentTurn: sendStandardCreateAgentTurn,
     resolveTransportSuccess: resolveStandardCreateAgentTransportSuccess,
   });

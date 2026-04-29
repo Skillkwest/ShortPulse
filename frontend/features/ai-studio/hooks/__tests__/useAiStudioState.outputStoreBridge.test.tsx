@@ -21,6 +21,16 @@ const listVisibleGeneratedOutputsMock = vi.fn(
     return [];
   }
 );
+const resolveVisibleGenerationReconcileMock = vi.fn(
+  async (): Promise<{
+    generationId: string;
+    previewUrl: string | null;
+    previewPosterUrl?: string | null;
+    previewStoragePath: string | null;
+    fullStoragePath: string | null;
+    resultUrls: string[];
+  } | null> => null
+);
 const generationPromptComposerArgsMock = vi.fn();
 const EDIT_REFERENCE_INPUTS = {
   referenceImageUrl: "https://example.com/edit-primary.png",
@@ -97,6 +107,8 @@ vi.mock("../useAiStudioWorkflowSettings", () => ({
 
 vi.mock("../../logic/generatedMediaAuthority", () => ({
   listVisibleGeneratedOutputs: (options?: unknown) => listVisibleGeneratedOutputsMock(options),
+  resolveVisibleGenerationReconcile: (options?: unknown) =>
+    resolveVisibleGenerationReconcileMock(options),
 }));
 
 vi.mock("../useAiStudioStateEffects", () => ({
@@ -165,6 +177,8 @@ describe("useAiStudioState output store bridge", () => {
     vi.unstubAllEnvs();
     resetAiStudioOutputStore();
     listVisibleGeneratedOutputsMock.mockClear();
+    resolveVisibleGenerationReconcileMock.mockClear();
+    resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
     mockUpdateOutputById.mockClear();
     mockUpdateOutputById.mockImplementation(
       (id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -284,6 +298,50 @@ describe("useAiStudioState output store bridge", () => {
     await act(async () => {});
 
     expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
+  });
+
+  it("repairs posterless restored generated videos without global plain-session hydration", async () => {
+    resolveVisibleGenerationReconcileMock.mockResolvedValue({
+      generationId: "gen-video-1",
+      previewUrl: "https://cdn.test/video.mp4",
+      previewPosterUrl: "https://cdn.test/poster_720.jpg",
+      previewStoragePath: "user-1/variants/videos/gen-video-1/poster_720.jpg",
+      fullStoragePath: "user-1/generations/videos/gen-video-1.mp4",
+      resultUrls: ["https://cdn.test/video.mp4"],
+    });
+
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([
+        makeOutput("generated-video-1", {
+          mode: "video",
+          generationId: "gen-video-1",
+          taskId: "req-video-1",
+          mediaSource: "generated",
+          previewUrl: "https://cdn.test/video.mp4",
+          previewStoragePath: "user-1/generations/videos/gen-video-1.mp4",
+          fullStoragePath: "user-1/generations/videos/gen-video-1.mp4",
+          resultUrls: ["https://cdn.test/video.mp4"],
+        }),
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs[0]).toEqual(
+        expect.objectContaining({
+          previewPosterUrl: "https://cdn.test/poster_720.jpg",
+          previewStoragePath: "user-1/variants/videos/gen-video-1/poster_720.jpg",
+          fullStoragePath: "user-1/generations/videos/gen-video-1.mp4",
+        })
+      );
+    });
+    expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
+    expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+      generationId: "gen-video-1",
+      requestId: "req-video-1",
+      projectId: null,
+    });
   });
 
   it("keeps Standard and Pulse create prompts isolated across mode toggles", () => {

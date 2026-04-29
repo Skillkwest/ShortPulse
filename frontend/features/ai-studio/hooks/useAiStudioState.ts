@@ -8,7 +8,10 @@ import {
 } from "react";
 import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import { StudioOutput } from "../types";
-import { listVisibleGeneratedOutputs } from "../logic/generatedMediaAuthority";
+import {
+  listVisibleGeneratedOutputs,
+  resolveVisibleGenerationReconcile,
+} from "../logic/generatedMediaAuthority";
 import { mergeCanonicalGeneratedOutputs } from "../logic/generatedOutputHydration";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
 import { abandonGenerationOutput } from "../logic/generationAbandonment";
@@ -51,6 +54,7 @@ const isPlainSessionGeneratedOutputHydrationEnabled = (): boolean =>
 
 const CANONICAL_GENERATED_OUTPUT_SYNC_INTERVAL_MS = 5_000;
 const CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS = 120_000;
+const GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE = 4;
 
 const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean => {
   const hasGenerationIdentity = Boolean(output.generationId || output.taskId);
@@ -58,6 +62,25 @@ const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean 
   if (output.taskState === "success" || output.taskState === "fail") return false;
   return hasGenerationIdentity || Boolean(output.sourceRef);
 };
+
+const isGeneratedVideoPosterRepairCandidate = (output: StudioOutput): boolean => {
+  if (output.mode !== "video") return false;
+  if (output.taskState !== "success") return false;
+  if (output.previewPosterUrl?.trim()) return false;
+  if (output.mediaSource !== "generated" && !output.generationId && !output.taskId) return false;
+  return Boolean(output.generationId || output.taskId);
+};
+
+const buildGeneratedVideoPosterRepairKey = (output: StudioOutput): string =>
+  [
+    output.id,
+    output.generationId ?? "",
+    output.taskId ?? "",
+    output.previewUrl ?? "",
+    output.previewStoragePath ?? "",
+    output.fullStoragePath ?? "",
+    output.resultUrls?.join("|") ?? "",
+  ].join("::");
 
 export const useAiStudioState = ({
   projectId = null,
@@ -202,6 +225,7 @@ export const useAiStudioState = ({
   const canonicalGeneratedHydrationStartedRef = useRef(false);
   const canonicalGeneratedOutputSyncInFlightRef = useRef(false);
   const canonicalGeneratedOutputSyncLastActiveAtRef = useRef<number | null>(null);
+  const generatedVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
   const activeBaseRuntimeAuthorityKeyRef = useRef(baseRuntimeAuthorityKey);
   const activeRuntimeAuthorityKeyRef = useRef(runtimeAuthorityKey);
   const runtimeUiStateByAuthorityKeyRef = useRef<Record<string, AiStudioRuntimeUiState>>({});
@@ -251,6 +275,7 @@ export const useAiStudioState = ({
     if (baseAuthorityChanged) {
       activeBaseRuntimeAuthorityKeyRef.current = baseRuntimeAuthorityKey;
       canonicalGeneratedHydrationStartedRef.current = false;
+      generatedVideoPosterRepairKeySetRef.current.clear();
     }
     activeRuntimeAuthorityKeyRef.current = runtimeAuthorityKey;
     const restoredState = baseAuthorityChanged
@@ -550,6 +575,85 @@ export const useAiStudioState = ({
       globalThis.clearInterval(intervalId);
     };
   }, [hasPendingWorkflowRestore, projectId, setOutputsState]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
+    const repairCandidates = outputs
+      .filter(isGeneratedVideoPosterRepairCandidate)
+      .map((output) => ({
+        output,
+        repairKey: buildGeneratedVideoPosterRepairKey(output),
+      }))
+      .filter(({ repairKey }) => !generatedVideoPosterRepairKeySetRef.current.has(repairKey))
+      .slice(0, GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE);
+    if (!repairCandidates.length) return;
+
+    repairCandidates.forEach(({ repairKey }) => {
+      generatedVideoPosterRepairKeySetRef.current.add(repairKey);
+    });
+
+    let cancelled = false;
+    void (async () => {
+      const repairs = await Promise.all(
+        repairCandidates.map(async ({ output, repairKey }) => {
+          const reconcile = await resolveVisibleGenerationReconcile({
+            generationId: output.generationId ?? null,
+            requestId: output.taskId ?? null,
+            projectId: projectId ?? null,
+          });
+          return {
+            outputId: output.id,
+            generationId: output.generationId ?? null,
+            taskId: output.taskId ?? null,
+            repairKey,
+            reconcile,
+          };
+        })
+      );
+      if (cancelled) return;
+
+      const repairByOutputId = new Map(
+        repairs
+          .filter((repair) => repair.reconcile?.previewPosterUrl)
+          .map((repair) => [repair.outputId, repair])
+      );
+      if (repairByOutputId.size === 0) return;
+
+      setOutputsState((currentOutputs) => {
+        let changed = false;
+        const patchedOutputs = currentOutputs.map((output) => {
+          const repair = repairByOutputId.get(output.id);
+          if (!repair?.reconcile?.previewPosterUrl) return output;
+          if (output.previewPosterUrl?.trim()) return output;
+          if (repair.generationId && output.generationId !== repair.generationId) return output;
+          if (!repair.generationId && repair.taskId && output.taskId !== repair.taskId)
+            return output;
+          changed = true;
+          return {
+            ...output,
+            previewPosterUrl: repair.reconcile.previewPosterUrl,
+            previewStoragePath:
+              repair.reconcile.previewStoragePath ?? output.previewStoragePath ?? null,
+            fullStoragePath: repair.reconcile.fullStoragePath ?? output.fullStoragePath ?? null,
+            previewUrl: repair.reconcile.previewUrl ?? output.previewUrl,
+            resultUrls:
+              repair.reconcile.resultUrls.length > 0
+                ? repair.reconcile.resultUrls
+                : output.resultUrls,
+          };
+        });
+        return changed ? patchedOutputs : currentOutputs;
+      });
+    })().catch(() => {
+      repairCandidates.forEach(({ repairKey }) => {
+        generatedVideoPosterRepairKeySetRef.current.delete(repairKey);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasPendingWorkflowRestore, outputs, projectId, setOutputsState]);
 
   const {
     deleteOutput,

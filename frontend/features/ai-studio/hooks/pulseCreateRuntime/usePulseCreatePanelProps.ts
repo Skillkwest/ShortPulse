@@ -7,7 +7,7 @@ import type {
 import type { PulseCreatePropertiesPanelProps } from "../../components/create/PulseCreatePropertiesPanel";
 
 type UsePulseCreatePanelPropsParams = {
-  prompt: string;
+  pulsePrompt: string;
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
   agentMessages: AgentMessage[];
@@ -29,7 +29,7 @@ type UsePulseCreatePanelPropsParams = {
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  handleManualPromptChange: (value: string) => void;
+  handlePulsePromptChange: (value: string) => void;
   createIsGenerating: boolean;
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
@@ -45,7 +45,7 @@ type UsePulseCreatePanelPropsParams = {
  * Keeps guided workflow composer controls out of the shared page prop builder.
  */
 export const usePulseCreatePanelProps = ({
-  prompt,
+  pulsePrompt,
   agentEnabled,
   agentBootstrapReady,
   agentMessages,
@@ -67,7 +67,7 @@ export const usePulseCreatePanelProps = ({
   handleRemoveAgentAttachment,
   handleClearAgentAttachments,
   handleAssistantMessageEdit,
-  handleManualPromptChange,
+  handlePulsePromptChange,
   createIsGenerating,
   currentCostCredits,
   isGenerateDisabled,
@@ -79,7 +79,7 @@ export const usePulseCreatePanelProps = ({
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps =>
   useMemo(
     () => ({
-      prompt,
+      pulsePrompt,
       agentEnabled,
       agentBootstrapPending: !agentBootstrapReady,
       agentMessages,
@@ -100,7 +100,7 @@ export const usePulseCreatePanelProps = ({
       onRemoveAgentAttachment: handleRemoveAgentAttachment,
       onClearAgentAttachments: handleClearAgentAttachments,
       onAssistantMessageEdit: handleAssistantMessageEdit,
-      onPromptChange: handleManualPromptChange,
+      onPulsePromptChange: handlePulsePromptChange,
       isPromptGenerating: createIsGenerating,
       costCredits: currentCostCredits,
       isGenerateDisabled,
@@ -135,12 +135,12 @@ export const usePulseCreatePanelProps = ({
       handleAssistantMessageEdit,
       handleClearAgentAttachments,
       handleClearAgentChat,
-      handleManualPromptChange,
+      handlePulsePromptChange,
       handlePrimarySubmit,
       handleRemoveAgentAttachment,
       isAgentDropActive,
       isGenerateDisabled,
-      prompt,
+      pulsePrompt,
       savePromptReference,
       stagedAgentPrompt,
       expertCreateUiEligible,

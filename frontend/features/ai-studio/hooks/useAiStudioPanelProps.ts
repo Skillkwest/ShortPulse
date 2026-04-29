@@ -444,7 +444,7 @@ export const useAiStudioPanelProps = ({
     expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
   });
   const pulseCreateProperties = usePulseCreatePanelProps({
-    prompt,
+    pulsePrompt: prompt,
     agentEnabled,
     agentBootstrapReady,
     agentMessages,
@@ -466,7 +466,7 @@ export const useAiStudioPanelProps = ({
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
     handleAssistantMessageEdit,
-    handleManualPromptChange,
+    handlePulsePromptChange: handleManualPromptChange,
     createIsGenerating,
     currentCostCredits,
     isGenerateDisabled,

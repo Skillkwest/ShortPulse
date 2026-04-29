@@ -291,6 +291,12 @@ describe("Create agent mode boundaries", () => {
     expect(pulseCreatePanelPropsSource).toContain("onGeneratePulseArtifact: handlePrimarySubmit");
     expect(pulseComposerSource).not.toContain("onGenerate: () => void");
     expect(pulseComposerSource).toContain("onGeneratePulseArtifact: () => void");
+    expect(pulseComposerSource).not.toContain("prompt: string;");
+    expect(pulseComposerSource).not.toContain("onPromptChange: (value: string) => void;");
+    expect(pulseComposerSource).toContain("pulsePrompt: string;");
+    expect(pulseComposerSource).toContain("onPulsePromptChange: (value: string) => void;");
+    expect(pulseCreatePanelPropsSource).toContain("pulsePrompt");
+    expect(pulseCreatePanelPropsSource).toContain("handlePulsePromptChange");
     expect(pageContractSource).toContain('expertCreateMode: "standard"');
     expect(pageContractSource).toContain("pulse?: never");
     expect(pageContractSource).toContain('expertCreateMode: "pulse"');

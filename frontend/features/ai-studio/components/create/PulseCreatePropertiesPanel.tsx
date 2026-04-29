@@ -25,7 +25,7 @@ const EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX = 280;
 const PULSE_LOADING_TITLE = "Generating...";
 
 export type PulseCreatePropertiesPanelProps = {
-  prompt: string;
+  pulsePrompt: string;
   agentEnabled?: boolean;
   agentBootstrapPending?: boolean;
   agentMessages?: AgentMessage[];
@@ -37,7 +37,7 @@ export type PulseCreatePropertiesPanelProps = {
   stagedPrompt?: string | null;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
-  onPromptChange: (value: string) => void;
+  onPulsePromptChange: (value: string) => void;
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
@@ -76,8 +76,8 @@ export type PulseCreatePropertiesPanelProps = {
 };
 
 export function PulseCreatePropertiesPanel({
-  prompt,
-  onPromptChange,
+  pulsePrompt,
+  onPulsePromptChange,
   costCredits = null,
   agentEnabled = false,
   agentBootstrapPending = false,
@@ -159,8 +159,8 @@ export function PulseCreatePropertiesPanel({
   ]);
 
   const promptStepProps: React.ComponentProps<typeof PulsePromptStep> = {
-    prompt,
-    onPromptChange,
+    prompt: pulsePrompt,
+    onPromptChange: onPulsePromptChange,
     agentEnabled,
     agentBootstrapPending,
     agentMessages,

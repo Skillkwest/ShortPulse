@@ -1,10 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../logic/promptTargeting";
-import type {
-  CreatePulsePresetStartResult,
-  CreatePulseResolvedPreset,
-} from "../components/create/createPulsePresets";
 import { mergeAttachmentContext } from "./agentOrchestration/attachmentContext";
 import { prepareAgentImageAttachments } from "./agentOrchestration/attachmentPreparation";
 import { describeReferenceOutput } from "./agentOrchestration/describeReference";
@@ -77,7 +73,20 @@ export const useAiStudioAgentOrchestration = ({
   }, [setUiNotice, trackAgentUiEvent]);
   const orchestrationRuntime = useCreateAgentOrchestrationRuntime({
     runtimePolicy,
+    agentBootstrapReady,
+    agentIsSending,
+    agentSessionEnabled,
+    agentUiBusyRef,
+    selectedTool,
+    getAgentContext,
+    sendToAgent,
+    resolvePulseSessionNamespace,
+    setAgentSessionEnabled,
+    setAgentUiBusy,
+    setLatestAgentPrompt,
     setPulseWorkflowSession,
+    setSharedPrompt,
+    setPromptOrigin,
     setUiNotice,
     setAgentAttachmentError,
     trackAgentUiEvent,
@@ -393,61 +402,6 @@ export const useAiStudioAgentOrchestration = ({
     notifyBootstrapPending,
   ]);
 
-  const handlePulsePresetStart = useCallback(
-    async (
-      preset: CreatePulseResolvedPreset,
-      options?: {
-        pulseSessionInstanceId?: string | null;
-      }
-    ): Promise<CreatePulsePresetStartResult> => {
-      const { startPulsePreset } = await import("./agentOrchestration/pulsePresetStart");
-      return startPulsePreset({
-        preset,
-        options,
-        agentBootstrapReady,
-        agentIsSending,
-        agentSessionEnabled,
-        agentUiBusyRef,
-        latestAgentPrompt: null,
-        lastAssistantMessage: null,
-        selectedTool,
-        pulseSessionInstanceId: orchestrationRuntime.pulseSessionInstanceId,
-        resolvePulseSessionNamespace,
-        getAgentContext,
-        notifyBootstrapPending,
-        sendToAgent,
-        trackAgentUiEvent,
-        setAgentSessionEnabled,
-        setAgentAttachmentError,
-        setAgentUiBusy,
-        setPulseWorkflowSession,
-        setLatestAgentPrompt,
-        setSharedPrompt,
-        setPromptOrigin,
-      });
-    },
-    [
-      agentBootstrapReady,
-      agentIsSending,
-      agentSessionEnabled,
-      agentUiBusyRef,
-      getAgentContext,
-      selectedTool,
-      sendToAgent,
-      setAgentAttachmentError,
-      setAgentSessionEnabled,
-      setAgentUiBusy,
-      setLatestAgentPrompt,
-      setPulseWorkflowSession,
-      setPromptOrigin,
-      setSharedPrompt,
-      notifyBootstrapPending,
-      orchestrationRuntime,
-      resolvePulseSessionNamespace,
-      trackAgentUiEvent,
-    ]
-  );
-
   const handleReferencePromptEnhance = useCallback(async () => {
     if (!agentBootstrapReady) {
       notifyBootstrapPending();
@@ -556,7 +510,7 @@ export const useAiStudioAgentOrchestration = ({
     isReferencePromptEnhancing,
     describeInFlightCount,
     handleAgentSend,
-    handlePulsePresetStart,
+    handlePulsePresetStart: orchestrationRuntime.handlePulsePresetStart,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     handleDescribeReference,

@@ -281,8 +281,9 @@ describe("Create agent mode boundaries", () => {
     expect(orchestrationSource).toContain(
       "./agentOrchestration/useCreateAgentOrchestrationRuntime"
     );
-    expect(orchestrationSource).toContain("./agentOrchestration/pulsePresetStart");
+    expect(orchestrationSource).not.toContain("./agentOrchestration/pulsePresetStart");
     expect(orchestrationRuntimeSource).toContain("./pulseSendRuntime");
+    expect(orchestrationRuntimeSource).toContain("./pulsePresetStart");
   });
 
   it("keeps generic agent interactions free of mode branches", () => {

@@ -61,7 +61,10 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
         return { eq: vi.fn(() => ({ eq: secondEq })) };
       }
 
-      if (fields === "id, storage_path") {
+      if (
+        fields === "id, storage_path" ||
+        fields === "id, storage_path, file_type, poster_variant_path, preview_variant_path"
+      ) {
         const limit = vi.fn(async () => ({
           data: mediaStorageRows
             .map((row) => {
@@ -69,11 +72,29 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
               return {
                 id: typeof row.id === "string" ? row.id : null,
                 storage_path: typeof row.storage_path === "string" ? row.storage_path : null,
+                file_type: typeof rowRecord.file_type === "string" ? rowRecord.file_type : "image",
+                poster_variant_path:
+                  typeof rowRecord.poster_variant_path === "string"
+                    ? rowRecord.poster_variant_path
+                    : null,
+                preview_variant_path:
+                  typeof rowRecord.preview_variant_path === "string"
+                    ? rowRecord.preview_variant_path
+                    : null,
                 user_id: typeof rowRecord.user_id === "string" ? rowRecord.user_id : null,
               };
             })
-            .filter((row): row is { id: string; storage_path: string; user_id: string | null } =>
-              Boolean(row.id && row.storage_path)
+            .filter(
+              (
+                row
+              ): row is {
+                id: string;
+                storage_path: string;
+                file_type: string;
+                poster_variant_path: string | null;
+                preview_variant_path: string | null;
+                user_id: string | null;
+              } => Boolean(row.id && row.storage_path)
             ),
           error: null,
         }));
@@ -345,6 +366,67 @@ describe("recoveryMediaPersistence", () => {
         result_urls: ["https://cdn.shortpulse.test/a.png", "https://cdn.shortpulse.test/b.png"],
       })
     );
+  });
+
+  it("fills missing output indexes instead of returning early for incomplete existing media coverage", async () => {
+    const scenario = createSupabaseScenario({
+      storageLookupRows: [
+        {
+          id: "media-existing-0",
+          storage_path: "user-1/generations/images/media-existing-0.png",
+        },
+      ],
+      generationOutputListResponses: [{ data: [], error: null }],
+      listResponses: [
+        {
+          data: [
+            { id: "media-existing-0", metadata: { generation_output_index: 0 } },
+            { id: "legacy-unindexed", metadata: {} },
+          ],
+          error: null,
+        },
+      ],
+      insertResponses: [{ data: { id: "media-new-1" }, error: null }],
+      uploadResponses: [{ error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(Uint8Array.from([4, 5, 6]), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const ids = await persistRecoveryMediaFilesForGeneration({
+      generation: {
+        id: "gen-1",
+        user_id: "user-1",
+        request_id: "req-1",
+        model_id: "fal-ai/nano-banana-pro",
+        provider: "fal",
+        prompt_text: "cinematic portrait",
+        metadata: {},
+      },
+      mediaUrls: ["https://cdn.shortpulse.test/a.png", "https://cdn.shortpulse.test/b.png"],
+    });
+
+    expect(ids).toEqual(["media-existing-0", "media-new-1"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(scenario.upload).toHaveBeenCalledTimes(1);
+    expect(scenario.mediaFileInsertPayloads).toHaveLength(1);
+    expect(scenario.generationOutputInsertPayloads).toEqual([
+      expect.objectContaining({
+        output_index: 0,
+        result_url: "https://cdn.shortpulse.test/a.png",
+        media_file_id: "media-existing-0",
+      }),
+      expect.objectContaining({
+        output_index: 1,
+        result_url: "https://cdn.shortpulse.test/b.png",
+        media_file_id: "media-new-1",
+      }),
+    ]);
   });
 
   it("persists recovery media and updates canonical output rows during insert and duplicate fallback", async () => {

@@ -214,7 +214,19 @@ describe("directGenerationSettlement", () => {
       }),
       mediaUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
     });
-    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+    expect(persistGenerationOutputRecordsMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        generationAttemptId: "attempt-1",
+        providerRequestId: "req-1",
+        resultUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
+        mediaFileIds: [],
+      })
+    );
+    expect(persistGenerationOutputRecordsMock).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({
         generationId: "gen-1",
         userId: "user-1",
@@ -265,6 +277,9 @@ describe("directGenerationSettlement", () => {
       })
     );
     expect(persistGenerationOutputRecordsMock.mock.invocationCallOrder[0]).toBeLessThan(
+      persistRecoveryMediaFilesForGenerationMock.mock.invocationCallOrder[0]
+    );
+    expect(persistGenerationOutputRecordsMock.mock.invocationCallOrder[1]).toBeLessThan(
       applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]
     );
   });
@@ -389,8 +404,82 @@ describe("directGenerationSettlement", () => {
     ).rejects.toThrow("output upsert failed");
 
     expect(applyGenerationLifecycleTransitionMock).not.toHaveBeenCalled();
+    expect(persistRecoveryMediaFilesForGenerationMock).not.toHaveBeenCalled();
     expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps direct terminal success when media autosave fails after provider URLs persist", async () => {
+    persistRecoveryMediaFilesForGenerationMock.mockRejectedValueOnce(
+      new Error("Fetch failed (403)")
+    );
+    persistGenerationOutputRecordsMock.mockResolvedValueOnce([
+      {
+        id: "output-1",
+        resultUrl: "https://provider.example/out-1.png",
+        mediaFileId: null,
+      },
+    ]);
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-autosave-fail",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/out-1.png"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-1",
+      requestId: "req-1",
+    });
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledTimes(1);
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resultUrls: ["https://provider.example/out-1.png"],
+        mediaFileIds: [],
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.direct_generation_settlement.media_autosave_failed",
+        requestId: "req-1",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-1",
+          autosave_error: "Fetch failed (403)",
+        }),
+      })
+    );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicationState: "suppressed",
+        ownedMediaFileId: null,
+        previewUrl: "https://provider.example/out-1.png",
+        fullUrl: "https://provider.example/out-1.png",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskState: "success",
+        publicationState: "suppressed",
+        resultUrls: ["https://provider.example/out-1.png"],
+        savedMediaIds: [],
+        previewStoragePath: null,
+        fullStoragePath: null,
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+        detail: expect.objectContaining({
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: "Fetch failed (403)",
+        }),
+      })
+    );
   });
 
   it("keeps direct terminal success transient when autosave is disabled", async () => {

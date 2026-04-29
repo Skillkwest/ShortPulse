@@ -212,26 +212,28 @@ export const persistRecoveryMediaFilesForGeneration = async ({
   }
   const hasFullIndexedCoverage =
     mediaUrls.length > 0 && mediaUrls.every((_, index) => existingByIndex.has(index));
-  if (existingRows.length && existingRows.length >= mediaUrls.length) {
-    if (hasFullIndexedCoverage) {
-      for (const [index, mediaUrl] of mediaUrls.entries()) {
-        const existingMediaFileId = existingByIndex.get(index);
-        if (!existingMediaFileId) continue;
-        await reconcileOwnedGenerationOutputSlot({
-          generationId: generation.id,
-          userId: generation.user_id,
-          outputIndex: index,
-          mediaFileId: existingMediaFileId,
-          resultUrl: mediaUrl,
-          providerRequestId: generation.request_id,
-          metadata: {
-            recovery_execution: true,
-          },
-          supabaseAdmin,
-        });
-      }
+  const reconcileExistingIndexedMedia = async (): Promise<void> => {
+    for (const [index, mediaUrl] of mediaUrls.entries()) {
+      const existingMediaFileId = existingByIndex.get(index);
+      if (!existingMediaFileId) continue;
+      await reconcileOwnedGenerationOutputSlot({
+        generationId: generation.id,
+        userId: generation.user_id,
+        outputIndex: index,
+        mediaFileId: existingMediaFileId,
+        resultUrl: mediaUrl,
+        providerRequestId: generation.request_id,
+        metadata: {
+          recovery_execution: true,
+        },
+        supabaseAdmin,
+      });
     }
-    return existingRows.map((row) => row.id);
+  };
+
+  if (hasFullIndexedCoverage) {
+    await reconcileExistingIndexedMedia();
+    return mediaUrls.map((_, index) => existingByIndex.get(index) as string);
   }
 
   const mediaFileIdsByIndex = new Array<string | null>(mediaUrls.length).fill(null);
@@ -246,6 +248,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
       mediaFileIdsByIndex[index] = existingId;
     }
   }
+  await reconcileExistingIndexedMedia();
 
   const persistMediaAtIndex = async ({
     index,

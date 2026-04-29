@@ -299,8 +299,36 @@ export const settleDirectGenerationSuccess = async ({
     mediaAutosaveEnabled,
   });
 
-  const mediaFileIds = autosavePolicyDecision.allowed
-    ? await persistRecoveryMediaFilesForGeneration({
+  let mediaFileIds: string[] = [];
+  let autosaveDecision: "auto_persisted" | "autosave_skipped" = autosavePolicyDecision.allowed
+    ? "auto_persisted"
+    : "autosave_skipped";
+  let autosaveDecisionReason: string = autosavePolicyDecision.reason;
+
+  let persistedOutputRows = await persistGenerationOutputRecords({
+    generationId: generation.id,
+    userId: generation.user_id,
+    generationAttemptId: attempt?.id,
+    providerRequestId: generation.request_id,
+    resultUrls: normalizedResultUrls,
+    mediaFileIds: [],
+    metadata: {
+      direct_terminal_settlement: true,
+      direct_terminal_settlement_outcome: "success",
+      direct_terminal_provider_state: providerState,
+      autosave_enabled: mediaAutosaveEnabled,
+      autosave_decision: autosavePolicyDecision.allowed
+        ? "provider_urls_persisted"
+        : "autosave_skipped",
+      autosave_decision_reason: autosavePolicyDecision.allowed
+        ? "canonical_outputs_before_media_autosave"
+        : autosavePolicyDecision.reason,
+    },
+  });
+
+  if (autosavePolicyDecision.allowed) {
+    try {
+      mediaFileIds = await persistRecoveryMediaFilesForGeneration({
         generation: {
           id: generation.id,
           user_id: generation.user_id,
@@ -311,25 +339,43 @@ export const settleDirectGenerationSuccess = async ({
           metadata: generationMetadata,
         },
         mediaUrls: normalizedResultUrls,
-      })
-    : [];
-
-  const persistedOutputRows = await persistGenerationOutputRecords({
-    generationId: generation.id,
-    userId: generation.user_id,
-    generationAttemptId: attempt?.id,
-    providerRequestId: generation.request_id,
-    resultUrls: normalizedResultUrls,
-    mediaFileIds,
-    metadata: {
-      direct_terminal_settlement: true,
-      direct_terminal_settlement_outcome: "success",
-      direct_terminal_provider_state: providerState,
-      autosave_enabled: mediaAutosaveEnabled,
-      autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
-      autosave_decision_reason: autosavePolicyDecision.reason,
-    },
-  });
+      });
+      persistedOutputRows = await persistGenerationOutputRecords({
+        generationId: generation.id,
+        userId: generation.user_id,
+        generationAttemptId: attempt?.id,
+        providerRequestId: generation.request_id,
+        resultUrls: normalizedResultUrls,
+        mediaFileIds,
+        metadata: {
+          direct_terminal_settlement: true,
+          direct_terminal_settlement_outcome: "success",
+          direct_terminal_provider_state: providerState,
+          autosave_enabled: mediaAutosaveEnabled,
+          autosave_decision: "auto_persisted",
+          autosave_decision_reason: autosavePolicyDecision.reason,
+        },
+      });
+    } catch (error) {
+      autosaveDecision = "autosave_skipped";
+      autosaveDecisionReason = error instanceof Error ? error.message : "media_autosave_failed";
+      await writeAppErrorLog({
+        source: "telemetry.direct_generation_settlement.media_autosave_failed",
+        message:
+          "Direct generation settlement kept provider result URLs after media autosave failed.",
+        requestId: generation.request_id,
+        userId: generation.user_id,
+        statusCode: 200,
+        metadata: {
+          generation_id: generation.id,
+          provider: generation.provider,
+          model_id: generation.model_id,
+          route_label: routeLabel,
+          autosave_error: autosaveDecisionReason,
+        },
+      }).catch(() => undefined);
+    }
+  }
   const storagePathByMediaId = await readMediaStoragePathsById({
     mediaFileIds: persistedOutputRows
       .map((row) => row.mediaFileId)
@@ -377,8 +423,8 @@ export const settleDirectGenerationSuccess = async ({
           direct_terminal_provider_state: providerState,
           user_abandoned: isAbandoned,
           autosave_enabled: mediaAutosaveEnabled,
-          autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
-          autosave_decision_reason: autosavePolicyDecision.reason,
+          autosave_decision: autosaveDecision,
+          autosave_decision_reason: autosaveDecisionReason,
         },
       });
     })
@@ -498,6 +544,8 @@ export const settleDirectGenerationSuccess = async ({
       direct_terminal_settlement: true,
       provider_state: providerState,
       user_abandoned: isAbandoned,
+      autosave_decision: autosaveDecision,
+      autosave_decision_reason: autosaveDecisionReason,
     },
   });
 

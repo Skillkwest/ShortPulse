@@ -6,12 +6,14 @@ import { persistGenerationOutputRecords } from "./generationOutputs";
 import { applyGenerationLifecycleTransition } from "./generationLifecycleTransitionService";
 import { upsertGenerationProjection } from "./generationProjection";
 import { upsertGenerationPublication } from "./generationPublications";
+import { writeAppErrorLog } from "./appErrorLogs";
 import {
   readGenerationAbandonmentContext,
   isGenerationAbandonedMetadata,
 } from "./generationAbandonment";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
+import { associateGenerationWithProjectForUser } from "../projectGenerationAssociationsService";
 
 type JsonObject = Record<string, unknown>;
 
@@ -75,6 +77,52 @@ const readMetadataBoolean = (
     return metadata[camelCaseKey] as boolean;
   }
   return null;
+};
+
+const refreshProjectGenerationAssociationFromMetadata = async ({
+  generationId,
+  metadata,
+  modelId,
+  provider,
+  requestId,
+  routeLabel,
+  userId,
+}: {
+  generationId: string;
+  metadata: JsonObject;
+  modelId: string | null;
+  provider: string | null;
+  requestId: string;
+  routeLabel: string;
+  userId: string;
+}): Promise<void> => {
+  const shortpulseContext = readMetadataObject(metadata, "shortpulse_context", "shortpulseContext");
+  const projectId = asString(shortpulseContext.project_id);
+  if (!projectId) return;
+
+  try {
+    await associateGenerationWithProjectForUser({
+      userId,
+      projectId,
+      generationId,
+    });
+  } catch (error) {
+    await writeAppErrorLog({
+      source: "telemetry.direct_generation_settlement.project_association_failed",
+      message: "Direct generation settlement project association refresh failed.",
+      requestId,
+      userId,
+      statusCode: 200,
+      metadata: {
+        generation_id: generationId,
+        project_id: projectId,
+        provider,
+        model_id: modelId,
+        route_label: routeLabel,
+        association_error: error instanceof Error ? error.message : String(error),
+      },
+    }).catch(() => undefined);
+  }
 };
 
 const stringifyDetail = (value: unknown, fallback: string): string => {
@@ -378,6 +426,16 @@ export const settleDirectGenerationSuccess = async ({
     styleContext: readMetadataObject(generationMetadata, "style_context", "styleContext"),
     startedAt: generation.created_at,
     completedAt: nowIso,
+  });
+
+  await refreshProjectGenerationAssociationFromMetadata({
+    generationId: generation.id,
+    metadata: generationMetadata,
+    modelId: generation.model_id,
+    provider: generation.provider,
+    requestId: generation.request_id,
+    routeLabel,
+    userId: generation.user_id,
   });
 
   const transition = await applyGenerationLifecycleTransition({

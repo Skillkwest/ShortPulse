@@ -734,15 +734,13 @@ export function useAiStudioTasks({
             delete outputLookupMissingSinceRef.current[outputId];
             delete outputLookupHardStopNotifiedRef.current[outputId];
 
-            if (attempt > 0 || noMediaAttempt > 0) {
-              const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
-                outputId,
-                taskId,
-                provider,
-              });
-              if (visibleGenerationSettled) {
-                return;
-              }
+            const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
+              outputId,
+              taskId,
+              provider,
+            });
+            if (visibleGenerationSettled) {
+              return;
             }
 
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;

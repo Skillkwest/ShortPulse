@@ -450,6 +450,62 @@ describe("useAiStudioTasks", () => {
     expect(output.resultUrls).toEqual(["https://cdn.test/projection-full.png"]);
   });
 
+  it("checks canonical delivery before the first provider status request", async () => {
+    fetchKieVeoImageToVideoStatusMock.mockResolvedValue(
+      asKieVeoStatusResponse({
+        status: "RUNNING",
+      })
+    );
+    resolveVisibleGenerationReconcileMock.mockResolvedValue({
+      generationId: "gen-first-poll-projection",
+      previewUrl: "https://cdn.test/first-poll-preview.mp4",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: ["https://cdn.test/first-poll-full.mp4"],
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("kie-task-first-poll", "out-1", 0, "kie-veo");
+    });
+
+    await vi.advanceTimersByTimeAsync(1_250);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchKieVeoImageToVideoStatusMock).not.toHaveBeenCalled();
+    expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+      generationId: null,
+      requestId: "kie-task-first-poll",
+    });
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "kie-task-first-poll",
+        provider: "kie-veo",
+        resultUrls: ["https://cdn.test/first-poll-full.mp4"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.generationId).toBe("gen-first-poll-projection");
+    expect(output.previewUrl).toBe("https://cdn.test/first-poll-preview.mp4");
+    expect(output.resultUrls).toEqual(["https://cdn.test/first-poll-full.mp4"]);
+  });
+
   it("passes projectId to reconcile only on project routes", async () => {
     fetchFalSeedreamStatusMock.mockResolvedValue({
       status: "processing",

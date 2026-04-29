@@ -9,6 +9,8 @@ const applyGenerationLifecycleTransitionMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
 const readGenerationAbandonmentContextMock = vi.fn();
+const associateGenerationWithProjectForUserMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const updateGenerationEqMock = vi.fn();
 const updateGenerationUpdateMock = vi.fn();
 const mediaFilesInMock = vi.fn();
@@ -57,6 +59,15 @@ vi.mock("../generationAbandonment", () => ({
     readGenerationAbandonmentContextMock(...args),
   isGenerationAbandonedMetadata: (metadata: unknown) =>
     Boolean((metadata as Record<string, unknown> | null)?.user_abandoned),
+}));
+
+vi.mock("../appErrorLogs", () => ({
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
+}));
+
+vi.mock("../../projectGenerationAssociationsService", () => ({
+  associateGenerationWithProjectForUser: (...args: unknown[]) =>
+    associateGenerationWithProjectForUserMock(...args),
 }));
 
 vi.mock("../supabaseAdmin", () => ({
@@ -166,6 +177,8 @@ describe("directGenerationSettlement", () => {
     ]);
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
+    associateGenerationWithProjectForUserMock.mockResolvedValue(true);
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
     settleGenerationOutcomeMock.mockResolvedValue(undefined);
     readGenerationAbandonmentContextMock.mockResolvedValue({
       abandoned: false,
@@ -253,6 +266,111 @@ describe("directGenerationSettlement", () => {
     );
     expect(persistGenerationOutputRecordsMock.mock.invocationCallOrder[0]).toBeLessThan(
       applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("refreshes project association at direct terminal success time", async () => {
+    readRecoveryGenerationRowMock.mockResolvedValueOnce({
+      id: "gen-project",
+      user_id: "user-1",
+      request_id: "req-project",
+      provider: "kie",
+      model_id: "kie-ai/veo-3.1-fast-i2v",
+      prompt_text: "project video",
+      created_at: "2026-04-26T00:00:00.000Z",
+      metadata: {
+        source_ref: "source-ref-project",
+        shortpulse_context: {
+          project_id: "project-1",
+        },
+      },
+    });
+    persistGenerationOutputRecordsMock.mockResolvedValueOnce([
+      {
+        id: "output-project",
+        resultUrl: "https://provider.example/project-video.mp4",
+        mediaFileId: "media-1",
+      },
+    ]);
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-project",
+      requestId: "req-project",
+      userId: "user-1",
+      routeLabel: "test/direct-success-project",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/project-video.mp4"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-project",
+      requestId: "req-project",
+    });
+    expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      generationId: "gen-project",
+    });
+    expect(associateGenerationWithProjectForUserMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      upsertGenerationProjectionMock.mock.invocationCallOrder[0]
+    );
+    expect(associateGenerationWithProjectForUserMock.mock.invocationCallOrder[0]).toBeLessThan(
+      applyGenerationLifecycleTransitionMock.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("does not fail direct terminal success when project association refresh fails", async () => {
+    readRecoveryGenerationRowMock.mockResolvedValueOnce({
+      id: "gen-project",
+      user_id: "user-1",
+      request_id: "req-project",
+      provider: "kie",
+      model_id: "kie-ai/seedance-2-fast",
+      prompt_text: "project video",
+      created_at: "2026-04-26T00:00:00.000Z",
+      metadata: {
+        source_ref: "source-ref-project",
+        shortpulse_context: {
+          project_id: "project-1",
+        },
+      },
+    });
+    associateGenerationWithProjectForUserMock.mockRejectedValueOnce(
+      new Error("association failed")
+    );
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-project",
+      requestId: "req-project",
+      userId: "user-1",
+      routeLabel: "test/direct-success-project",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/project-video.mp4"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-project",
+      requestId: "req-project",
+    });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.direct_generation_settlement.project_association_failed",
+        requestId: "req-project",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-project",
+          project_id: "project-1",
+          association_error: "association failed",
+        }),
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-project",
+        outcome: "success",
+      })
     );
   });
 

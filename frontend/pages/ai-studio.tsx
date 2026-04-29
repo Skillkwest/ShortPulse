@@ -62,7 +62,6 @@ import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/compo
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import { usePulseWorkflowSessionReconciliation } from "../features/ai-studio/hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
-import { resolveChatOffCreatePrompt } from "../features/ai-studio/logic/promptAdjacency";
 import type {
   CanvasDropResolution,
   PrepareCanvasMediaLibraryDrop,
@@ -1223,18 +1222,37 @@ export default function AiStudioPage() {
     prompt,
     selectedTool,
   ]);
+  const pulseWorkflowLastArtifact = pulseWorkflowSession?.lastArtifact ?? null;
   const handlePulseCreatePrimarySubmit = useCallback(() => {
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
-      const pulsePrompt = resolveChatOffCreatePrompt({
-        agentInput,
-        sharedPrompt: prompt,
-        allowSharedPromptFallback: true,
-      });
-      void handleAgentSend(pulsePrompt ?? "", { captureResult: true });
+      const pulseArtifactPrompt =
+        hasActivePulseSession &&
+        typeof pulseWorkflowLastArtifact === "string" &&
+        pulseWorkflowLastArtifact.trim().length > 0
+          ? pulseWorkflowLastArtifact.trim()
+          : null;
+      const pulseGenerationPrompt = pulseArtifactPrompt ?? prompt.trim();
+      if (pulseGenerationPrompt) {
+        void handleGenerate(pulseGenerationPrompt, {
+          modeOverride: "image",
+          toolOverride: "create",
+          costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+        });
+      }
       return;
     }
     handleProviderPrimarySubmit();
-  }, [agentInput, handleAgentSend, handleProviderPrimarySubmit, mode, prompt, selectedTool]);
+  }, [
+    currentCostCredits,
+    handleGenerate,
+    handleProviderPrimarySubmit,
+    hasActivePulseSession,
+    mode,
+    prompt,
+    promptReferenceGenerateCostCredits,
+    pulseWorkflowLastArtifact,
+    selectedTool,
+  ]);
   const handlePrimarySubmit =
     expertCreateMode === "pulse"
       ? handlePulseCreatePrimarySubmit

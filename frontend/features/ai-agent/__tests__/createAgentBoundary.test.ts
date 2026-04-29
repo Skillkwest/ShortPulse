@@ -274,6 +274,8 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
+    expect(pageSource).not.toContain("const pulsePrompt = resolveChatOffCreatePrompt");
+    expect(pageSource).not.toContain("handleAgentSend(pulsePrompt");
     expect(pageSource).not.toContain(
       'expertCreateMode === "pulse" ? undefined : handleStandardAgentCaptureResult'
     );

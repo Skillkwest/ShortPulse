@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from "react";
-import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../logic/promptTargeting";
 import type {
@@ -13,6 +12,7 @@ import type {
   AgentSendOptions,
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
+import { useCreateAgentOrchestrationRuntime } from "./agentOrchestration/useCreateAgentOrchestrationRuntime";
 
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
@@ -75,16 +75,13 @@ export const useAiStudioAgentOrchestration = ({
     setUiNotice("Preparing chat. Try again in a moment.");
     trackAgentUiEvent("studio_agent_send_blocked_bootstrap_pending");
   }, [setUiNotice, trackAgentUiEvent]);
-  const notifyPulseSelectionRequired = useCallback(() => {
-    setUiNotice("Select a Pulse to start.");
-    trackAgentUiEvent("studio_agent_send_blocked_no_active_pulse_session");
-  }, [setUiNotice, trackAgentUiEvent]);
-  const ensurePulseSessionReady = useCallback(() => {
-    if (runtimePolicy.kind !== "pulse") return true;
-    if (runtimePolicy.hasActivePulseSession) return true;
-    notifyPulseSelectionRequired();
-    return false;
-  }, [notifyPulseSelectionRequired, runtimePolicy]);
+  const orchestrationRuntime = useCreateAgentOrchestrationRuntime({
+    runtimePolicy,
+    setPulseWorkflowSession,
+    setUiNotice,
+    setAgentAttachmentError,
+    trackAgentUiEvent,
+  });
 
   const handleAgentSend = useCallback(
     async (
@@ -95,7 +92,7 @@ export const useAiStudioAgentOrchestration = ({
         notifyBootstrapPending();
         return;
       }
-      if (!ensurePulseSessionReady()) {
+      if (!orchestrationRuntime.ensureSessionReady()) {
         return;
       }
       if (agentIsSending || agentUiBusyRef.current) return;
@@ -112,26 +109,22 @@ export const useAiStudioAgentOrchestration = ({
         trimmed || droppedPromptText || (allowImageOnlySend ? "" : prompt.trim());
       if (!outboundText && !allowImageOnlySend) return;
       const outboundAttachments = cloneMessageAttachments(agentAttachments);
-      const selectedOverride = runtimePolicy.resolveSelectedOverride(options?.selectedOverride);
+      const selectedOverride = orchestrationRuntime.resolveSelectedOverride(
+        options?.selectedOverride
+      );
       const baseContext = getAgentContext({
         lastAssistantMessage,
         selectedOverride,
-        includeActiveOutput: runtimePolicy.includeActiveOutput,
+        includeActiveOutput: orchestrationRuntime.includeActiveOutput,
         modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
       });
-      if (runtimePolicy.kind === "pulse") {
-        const { resolvePulseImageIntakeBlock } =
-          await import("./agentOrchestration/pulseSendRuntime");
-        const pulseImageIntakeBlock = resolvePulseImageIntakeBlock({
+      if (
+        await orchestrationRuntime.blockInvalidUserInput({
           context: baseContext,
           hasImageAttachment,
-        });
-        if (pulseImageIntakeBlock) {
-          setUiNotice(pulseImageIntakeBlock);
-          setAgentAttachmentError(pulseImageIntakeBlock);
-          trackAgentUiEvent("studio_agent_send_blocked_pulse_image_required");
-          return;
-        }
+        })
+      ) {
+        return;
       }
       trackAgentUiEvent("studio_agent_send_requested", {
         mode_hint: options?.modeHint ?? "chat",
@@ -265,24 +258,10 @@ export const useAiStudioAgentOrchestration = ({
           attachments: outboundAttachments,
           preparedImageUrls,
         });
-        let requestContext = mediaPatchedContext;
-        let captureWorkflowSession: (
-          workflowSession?: AgentPulseWorkflowSession | null
-        ) => void = () => {};
-        if (runtimePolicy.kind === "pulse") {
-          const workflowPulse = runtimePolicy.resolveWorkflowPulse(mediaPatchedContext);
-          const { buildPulseRequestContextForUserInput, capturePulseWorkflowSession } =
-            await import("./agentOrchestration/pulseSendRuntime");
-          captureWorkflowSession = (workflowSession) =>
-            capturePulseWorkflowSession({ workflowSession, setPulseWorkflowSession });
-          const pulseRequest = buildPulseRequestContextForUserInput({
-            context: mediaPatchedContext,
-            workflowPulse,
-            userInput: userMessageText,
-          });
-          requestContext = pulseRequest.requestContext;
-          captureWorkflowSession(pulseRequest.pendingWorkflowSession);
-        }
+        const requestContext = await orchestrationRuntime.prepareUserInputRequestContext({
+          context: mediaPatchedContext,
+          userInput: userMessageText,
+        });
 
         const { response, actions, workflowSession, discarded } = await sendToAgent({
           text: outboundText,
@@ -310,7 +289,7 @@ export const useAiStudioAgentOrchestration = ({
           has_apply_prompt: Boolean(appliedPrompt),
         });
 
-        const hasActivePulse = runtimePolicy.hasPromptApplyPulseContext(requestContext);
+        const hasActivePulse = orchestrationRuntime.hasPromptApplyPulseContext(requestContext);
         if (appliedPrompt) {
           setLatestAgentPrompt(appliedPrompt);
           if (shouldApplyAgentPromptToSharedPrompt(selectedTool, { hasActivePulse })) {
@@ -319,7 +298,7 @@ export const useAiStudioAgentOrchestration = ({
           }
         }
 
-        captureWorkflowSession(workflowSession);
+        await orchestrationRuntime.captureWorkflowSession(workflowSession);
 
         if (options?.captureResult && appliedPrompt) {
           return { prompt: appliedPrompt, referenceTitle: DEFAULT_AGENT_PROMPT_REFERENCE_TITLE };
@@ -352,11 +331,8 @@ export const useAiStudioAgentOrchestration = ({
       setPromptOrigin,
       setSharedPrompt,
       setAgentAttachments,
-      setPulseWorkflowSession,
-      setUiNotice,
-      ensurePulseSessionReady,
+      orchestrationRuntime,
       notifyBootstrapPending,
-      runtimePolicy,
       trackAgentUiEvent,
     ]
   );
@@ -366,7 +342,7 @@ export const useAiStudioAgentOrchestration = ({
       notifyBootstrapPending();
       return;
     }
-    if (!ensurePulseSessionReady()) {
+    if (!orchestrationRuntime.ensureSessionReady()) {
       return;
     }
     if (!prompt.trim()) return;
@@ -374,8 +350,8 @@ export const useAiStudioAgentOrchestration = ({
     try {
       const context = getAgentContext({
         lastAssistantMessage,
-        selectedOverride: runtimePolicy.resolveSelectedOverride(undefined),
-        includeActiveOutput: runtimePolicy.includeActiveOutput,
+        selectedOverride: orchestrationRuntime.resolveSelectedOverride(undefined),
+        includeActiveOutput: orchestrationRuntime.includeActiveOutput,
         modeHint: "text",
       });
       const { response, actions, workflowSession, discarded } = await sendToAgent({
@@ -398,11 +374,7 @@ export const useAiStudioAgentOrchestration = ({
         addAgentPromptReference(refinedPrompt, "Refined prompt");
         setPromptOrigin("agent");
       }
-      if (runtimePolicy.kind === "pulse") {
-        const { capturePulseWorkflowSession } =
-          await import("./agentOrchestration/pulseSendRuntime");
-        capturePulseWorkflowSession({ workflowSession, setPulseWorkflowSession });
-      }
+      await orchestrationRuntime.captureWorkflowSession(workflowSession);
     } finally {
       setIsPromptRefining(false);
     }
@@ -415,12 +387,10 @@ export const useAiStudioAgentOrchestration = ({
     prompt,
     sendToAgent,
     setLatestAgentPrompt,
-    setPulseWorkflowSession,
     setPromptOrigin,
     setSharedPrompt,
-    ensurePulseSessionReady,
+    orchestrationRuntime,
     notifyBootstrapPending,
-    runtimePolicy,
   ]);
 
   const handlePulsePresetStart = useCallback(
@@ -441,7 +411,7 @@ export const useAiStudioAgentOrchestration = ({
         latestAgentPrompt: null,
         lastAssistantMessage: null,
         selectedTool,
-        pulseSessionInstanceId: runtimePolicy.pulseSessionInstanceId,
+        pulseSessionInstanceId: orchestrationRuntime.pulseSessionInstanceId,
         resolvePulseSessionNamespace,
         getAgentContext,
         notifyBootstrapPending,
@@ -472,7 +442,7 @@ export const useAiStudioAgentOrchestration = ({
       setPromptOrigin,
       setSharedPrompt,
       notifyBootstrapPending,
-      runtimePolicy,
+      orchestrationRuntime,
       resolvePulseSessionNamespace,
       trackAgentUiEvent,
     ]
@@ -483,7 +453,7 @@ export const useAiStudioAgentOrchestration = ({
       notifyBootstrapPending();
       return;
     }
-    if (!ensurePulseSessionReady()) {
+    if (!orchestrationRuntime.ensureSessionReady()) {
       return;
     }
     const isVideoPromptTool = selectedTool === "video" || selectedTool === "kling";
@@ -494,8 +464,8 @@ export const useAiStudioAgentOrchestration = ({
     try {
       const context = getAgentContext({
         lastAssistantMessage,
-        selectedOverride: runtimePolicy.resolveSelectedOverride(undefined),
-        includeActiveOutput: runtimePolicy.includeActiveOutput,
+        selectedOverride: orchestrationRuntime.resolveSelectedOverride(undefined),
+        includeActiveOutput: orchestrationRuntime.includeActiveOutput,
         modeHint: "text",
       });
       const { response, actions, workflowSession, discarded } = await sendToAgent({
@@ -520,11 +490,7 @@ export const useAiStudioAgentOrchestration = ({
         }
         setPromptOrigin("manual");
       }
-      if (runtimePolicy.kind === "pulse") {
-        const { capturePulseWorkflowSession } =
-          await import("./agentOrchestration/pulseSendRuntime");
-        capturePulseWorkflowSession({ workflowSession, setPulseWorkflowSession });
-      }
+      await orchestrationRuntime.captureWorkflowSession(workflowSession);
     } finally {
       setIsReferencePromptEnhancing(false);
     }
@@ -538,13 +504,11 @@ export const useAiStudioAgentOrchestration = ({
     selectedTool,
     sendToAgent,
     setEditReferenceText,
-    setPulseWorkflowSession,
     setPromptOrigin,
     setVideoReferenceText,
     videoReferenceText,
-    ensurePulseSessionReady,
+    orchestrationRuntime,
     notifyBootstrapPending,
-    runtimePolicy,
   ]);
 
   const handleDescribeReference = useCallback(
@@ -557,7 +521,7 @@ export const useAiStudioAgentOrchestration = ({
         latestAgentPrompt,
         lastAssistantMessage,
         notifyBootstrapPending,
-        ensurePulseSessionReady,
+        ensurePulseSessionReady: orchestrationRuntime.ensureSessionReady,
         getOutputById,
         getAgentContext,
         sendToAgent,
@@ -582,7 +546,7 @@ export const useAiStudioAgentOrchestration = ({
       setOutputs,
       setPromptOrigin,
       setSharedPrompt,
-      ensurePulseSessionReady,
+      orchestrationRuntime.ensureSessionReady,
       notifyBootstrapPending,
     ]
   );

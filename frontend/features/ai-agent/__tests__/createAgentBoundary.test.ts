@@ -279,6 +279,11 @@ describe("Create agent mode boundaries", () => {
     expect(panelPropBuilderSource).not.toContain("activeCreatePulsePreset");
     expect(panelPropBuilderSource).not.toContain("onCreatePulsePresetStart");
     expect(panelPropBuilderSource).not.toContain("createModeRuntimeProps");
+    expect(panelPropBuilderSource).not.toContain("\n  prompt: string;\n");
+    expect(panelPropBuilderSource).toContain("standardPrompt: string;");
+    expect(panelPropBuilderSource).toContain("pulsePrompt: string;");
+    expect(panelPropBuilderSource).toContain("prompt: standardPrompt");
+    expect(panelPropBuilderSource).toContain("pulsePrompt");
     expect(panelPropBuilderSource).toContain("useStandardCreatePanelProps");
     expect(panelPropBuilderSource).toContain("usePulseCreatePanelProps");
     expect(standardCreatePanelPropsSource).not.toContain("Pulse");

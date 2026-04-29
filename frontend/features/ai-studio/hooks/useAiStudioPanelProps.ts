@@ -30,7 +30,8 @@ export type UseAiStudioPanelPropsParams = {
   aspect: string;
   model: string | null;
   currentModelLabel: string;
-  prompt: string;
+  standardPrompt: string;
+  pulsePrompt: string;
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
   agentMessages: AgentMessage[];
@@ -205,7 +206,8 @@ export const useAiStudioPanelProps = ({
   aspect,
   model,
   currentModelLabel,
-  prompt,
+  standardPrompt,
+  pulsePrompt,
   agentEnabled,
   agentBootstrapReady,
   agentMessages,
@@ -380,7 +382,7 @@ export const useAiStudioPanelProps = ({
     aspect,
     model,
     currentModelLabel,
-    prompt,
+    prompt: standardPrompt,
     agentEnabled,
     agentBootstrapReady,
     agentMessages,
@@ -444,7 +446,7 @@ export const useAiStudioPanelProps = ({
     expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
   });
   const pulseCreateProperties = usePulseCreatePanelProps({
-    pulsePrompt: prompt,
+    pulsePrompt,
     agentEnabled,
     agentBootstrapReady,
     agentMessages,

@@ -302,20 +302,22 @@ describe("useAiStudioPanelProps", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({
-          expertCreateMode: "pulse",
-          hasActivePulseSession: true,
-          activeCreatePulsePresetId: "story_builder",
-          agentMessages: [],
-          pulseWorkflowSession: {
-            presetId: "story_builder",
-            status: "running",
-            currentStepIndex: 1,
-            currentStepLabel: "Upload Characters",
-            currentStepPrompt: "Upload your characters.",
-            collectedInputs: [],
-            lastArtifact: null,
-            finalArtifactSource: null,
+          createModeRuntimeProps: {
+            expertCreateMode: "pulse",
+            hasActivePulseSession: true,
+            activePulsePresetId: "story_builder",
+            pulseWorkflowSession: {
+              presetId: "story_builder",
+              status: "running",
+              currentStepIndex: 1,
+              currentStepLabel: "Upload Characters",
+              currentStepPrompt: "Upload your characters.",
+              collectedInputs: [],
+              lastArtifact: null,
+              finalArtifactSource: null,
+            },
           },
+          agentMessages: [],
           agentBusy: true,
           agentIsSending: true,
           agentUiBusy: false,

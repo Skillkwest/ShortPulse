@@ -158,6 +158,11 @@ describe("Create agent mode boundaries", () => {
     expect(panelPropBuilderSource).not.toContain("PromptStepPulseLoadingState");
     expect(panelPropBuilderSource).not.toContain("resolveCreatePulsePresetLabelById");
     expect(panelPropBuilderSource).not.toContain("pulseLoadingState");
+    expect(panelPropBuilderSource).not.toContain("AgentPulseWorkflowSession");
+    expect(panelPropBuilderSource).not.toContain("CreatePulsePresetId");
+    expect(panelPropBuilderSource).not.toContain("CreatePulseResolvedPreset");
+    expect(panelPropBuilderSource).not.toContain("activeCreatePulsePreset");
+    expect(panelPropBuilderSource).not.toContain("onCreatePulsePresetStart");
     expect(pulseComposerSource).toContain("PromptStepPulseLoadingState");
     expect(pulseComposerSource).toContain("resolveCreatePulsePresetLabelById");
     expect(pulseComposerSource).toContain("pulseLoadingState");

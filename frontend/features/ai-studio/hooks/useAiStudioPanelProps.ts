@@ -10,7 +10,6 @@ import type {
   AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../ai-agent/types";
-import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import type { StudioMode } from "../types";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../logic/editSubmitIntent";
@@ -21,11 +20,6 @@ import type {
   ExpertEditCustomPresetOverrides,
   ExpertEditPresetId,
 } from "../components/edit/expertEditPresets";
-import type {
-  CreatePulsePresetId,
-  CreatePulsePresetStartResult,
-  CreatePulseResolvedPreset,
-} from "../components/create/createPulsePresets";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
@@ -39,8 +33,7 @@ export type UseAiStudioPanelPropsParams = {
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
   agentMessages: AgentMessage[];
-  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
-  hasActivePulseSession?: boolean;
+  createModeRuntimeProps?: Partial<AiStudioPanelContracts["propertiesCreate"]>;
   agentInput: string;
   chatModeEnabled: boolean;
   directOpenAiBypassEnabled: boolean;
@@ -120,19 +113,6 @@ export type UseAiStudioPanelPropsParams = {
   onSelectedExpertEditPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
   expertEditCustomPresetOverrides?: ExpertEditCustomPresetOverrides;
   onExpertEditCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
-  expertCreateMode?: "standard" | "pulse";
-  onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
-  activeCreatePulsePresetId?: CreatePulsePresetId | null;
-  activeCreatePulsePresetLabel?: string | null;
-  onActiveCreatePulsePresetIdChange?: (
-    presetId: CreatePulsePresetId | null
-  ) => string | null | void;
-  onCreatePulsePresetStart?: (
-    preset: CreatePulseResolvedPreset,
-    options?: {
-      pulseSessionInstanceId?: string | null;
-    }
-  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
   expertEditSessionState?: ExpertEditSessionState | null;
   onExpertEditSessionStateChange?: (state: ExpertEditSessionState) => void;
   videoDurationSeconds: number;
@@ -231,8 +211,7 @@ export const useAiStudioPanelProps = ({
   agentEnabled,
   agentBootstrapReady,
   agentMessages,
-  pulseWorkflowSession = null,
-  hasActivePulseSession = false,
+  createModeRuntimeProps,
   agentInput,
   chatModeEnabled,
   directOpenAiBypassEnabled,
@@ -298,12 +277,6 @@ export const useAiStudioPanelProps = ({
   onSelectedExpertEditPresetIdsChange,
   expertEditCustomPresetOverrides,
   onExpertEditCustomPresetOverridesChange,
-  expertCreateMode,
-  onExpertCreateModeChange,
-  activeCreatePulsePresetId,
-  activeCreatePulsePresetLabel,
-  onActiveCreatePulsePresetIdChange,
-  onCreatePulsePresetStart,
   expertEditSessionState,
   onExpertEditSessionStateChange,
   videoDurationSeconds,
@@ -417,7 +390,6 @@ export const useAiStudioPanelProps = ({
       agentEnabled,
       agentBootstrapPending: !agentBootstrapReady,
       agentMessages,
-      pulseWorkflowSession,
       agentInput,
       chatModeEnabled,
       directOpenAiBypassEnabled,
@@ -474,13 +446,7 @@ export const useAiStudioPanelProps = ({
       resolveCharacterAvatarUrlById,
       imageResolution,
       onImageResolutionChange: setImageResolution,
-      expertCreateMode,
-      hasActivePulseSession,
-      onExpertCreateModeChange,
-      activePulsePresetId: activeCreatePulsePresetId,
-      activePulsePresetLabel: activeCreatePulsePresetLabel,
-      onActivePulsePresetIdChange: onActiveCreatePulsePresetIdChange,
-      onPulsePresetStart: onCreatePulsePresetStart,
+      ...createModeRuntimeProps,
       beginnerMode: beginnerPolicy.create.beginnerMode,
       expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
     }),
@@ -497,7 +463,6 @@ export const useAiStudioPanelProps = ({
       agentMessages,
       agentIsSending,
       agentUiBusy,
-      pulseWorkflowSession,
       assistantBubbleMedia,
       aspect,
       characterOptions,
@@ -505,8 +470,6 @@ export const useAiStudioPanelProps = ({
       createIsGenerating,
       currentModelLabel,
       describeInFlightCount,
-      expertCreateMode,
-      activeCreatePulsePresetLabel,
       generationGuardrail,
       handleAgentAttachmentDragEnter,
       handleAgentAttachmentDragLeave,
@@ -525,10 +488,8 @@ export const useAiStudioPanelProps = ({
       handleChatOffInlineGenerate,
       handlePrimarySubmit,
       handleRemoveAgentAttachment,
-      hasActivePulseSession,
       hasSufficientCreditsForPromptReferenceGenerate,
       imageResolution,
-      activeCreatePulsePresetId,
       isAgentChatOpen,
       isAgentDropActive,
       isCharacterModeEnabled,
@@ -548,9 +509,7 @@ export const useAiStudioPanelProps = ({
       onOpenCharacterLibrary,
       setAspect,
       setChatModeEnabled,
-      onExpertCreateModeChange,
-      onActiveCreatePulsePresetIdChange,
-      onCreatePulsePresetStart,
+      createModeRuntimeProps,
       setImageResolution,
       setIsCharacterModeEnabled,
       setSelectedCharacterId,

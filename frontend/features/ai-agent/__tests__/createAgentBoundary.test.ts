@@ -91,6 +91,9 @@ describe("Create agent mode boundaries", () => {
     const bridgeRuntimeSource = readFrontendFile(
       "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgeRuntime.ts"
     );
+    const bridgeActiveAgentSource = readFrontendFile(
+      "features/ai-studio/hooks/agentBridgeRuntime/useCreateAgentBridgeActiveAgent.ts"
+    );
     const bridgeRuntimeBindingLoaderSource = readFrontendFile(
       "features/ai-studio/hooks/agentBridgeRuntime/createAgentRuntimeBindingLoader.ts"
     );
@@ -119,7 +122,14 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("createPulsePresets");
     expect(bridgeSource).not.toContain("pulseCreateAgentRuntimeBinding");
     expect(bridgeSource).not.toContain("standardCreateAgentRuntimeBinding");
-    expect(bridgeSource).toContain("./agentBridgeRuntime/createAgentRuntimeBindingLoader");
+    expect(bridgeSource).not.toContain("useCreateAgentStateCore");
+    expect(bridgeSource).not.toContain("loadCreateAgentRuntimeBinding");
+    expect(bridgeSource).not.toContain("requestRuntimeMode:");
+    expect(bridgeSource).not.toContain("allowSessionNamespaceOverride:");
+    expect(bridgeSource).not.toContain("sessionNamespace:");
+    expect(bridgeSource).toContain("./agentBridgeRuntime/useCreateAgentBridgeActiveAgent");
+    expect(bridgeActiveAgentSource).toContain("./createAgentRuntimeBindingLoader");
+    expect(bridgeActiveAgentSource).toContain("useCreateAgentStateCore");
     expect(bridgeRuntimeBindingLoaderSource).toContain("./pulseCreateAgentRuntimeBinding");
     expect(bridgeRuntimeBindingLoaderSource).toContain("./standardCreateAgentRuntimeBinding");
     expect(bridgeSource).toContain("./agentBridgeRuntime/pulsePresetRestart");

@@ -10,6 +10,7 @@ export type CreateAgentBridgeRuntimeKind = "standard" | "pulse";
 export type CreateAgentBridgeRuntime = {
   kind: CreateAgentBridgeRuntimeKind;
   isPulseCreateMode: boolean;
+  requestRuntimeMode: CreateAgentBridgeRuntimeKind;
   resolvedStoredPulsePresetId: string | null;
   resolvedStoredPulseSessionInstanceId: string | null;
   hasStoredPulseSession: boolean;
@@ -19,6 +20,9 @@ export type CreateAgentBridgeRuntime = {
   agentBridgeSessionKey: string;
   standardAgentSessionNamespace: string;
   pulseAgentSessionNamespace: string;
+  activeAgentSessionNamespace: string;
+  allowAgentSessionNamespaceOverride: boolean;
+  sessionNamespaceOverrideErrorText?: string;
   defaultRuntimeStateOptions?: { forceChatModeEnabled: true };
   effectiveChatMode: (standardChatModeEnabled: boolean) => boolean;
   shouldHydrateStandardChatMode: boolean;
@@ -53,10 +57,13 @@ export const resolveCreateAgentBridgeRuntime = ({
     : "pulse:inactive";
   const agentRuntimeScopeKey = isPulseCreateMode ? pulseRuntimeScopeKey : "standard";
   const sessionKeyPrefix = sessionId ?? "none";
+  const standardAgentSessionNamespace = `ai-studio:${sessionKeyPrefix}::standard`;
+  const pulseAgentSessionNamespace = `ai-studio:${sessionKeyPrefix}::${pulseRuntimeScopeKey}`;
 
   return {
     kind: isPulseCreateMode ? "pulse" : "standard",
     isPulseCreateMode,
+    requestRuntimeMode: isPulseCreateMode ? "pulse" : "standard",
     resolvedStoredPulsePresetId,
     resolvedStoredPulseSessionInstanceId,
     hasStoredPulseSession,
@@ -64,8 +71,15 @@ export const resolveCreateAgentBridgeRuntime = ({
     pulseRuntimeScopeKey,
     agentRuntimeScopeKey,
     agentBridgeSessionKey: `${sessionKeyPrefix}::${agentRuntimeScopeKey}`,
-    standardAgentSessionNamespace: `ai-studio:${sessionKeyPrefix}::standard`,
-    pulseAgentSessionNamespace: `ai-studio:${sessionKeyPrefix}::${pulseRuntimeScopeKey}`,
+    standardAgentSessionNamespace,
+    pulseAgentSessionNamespace,
+    activeAgentSessionNamespace: isPulseCreateMode
+      ? pulseAgentSessionNamespace
+      : standardAgentSessionNamespace,
+    allowAgentSessionNamespaceOverride: isPulseCreateMode,
+    sessionNamespaceOverrideErrorText: isPulseCreateMode
+      ? undefined
+      : "Standard agent cannot send to an override session namespace.",
     defaultRuntimeStateOptions: isPulseCreateMode ? { forceChatModeEnabled: true } : undefined,
     effectiveChatMode: (standardChatModeEnabled) =>
       isPulseCreateMode ? true : standardChatModeEnabled,

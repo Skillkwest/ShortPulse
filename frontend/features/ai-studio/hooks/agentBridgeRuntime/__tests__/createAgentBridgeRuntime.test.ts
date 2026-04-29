@@ -11,8 +11,12 @@ describe("resolveCreateAgentBridgeRuntime", () => {
     });
 
     expect(runtime.kind).toBe("standard");
+    expect(runtime.requestRuntimeMode).toBe("standard");
     expect(runtime.agentBridgeSessionKey).toBe("session-1::standard");
     expect(runtime.standardAgentSessionNamespace).toBe("ai-studio:session-1::standard");
+    expect(runtime.activeAgentSessionNamespace).toBe("ai-studio:session-1::standard");
+    expect(runtime.allowAgentSessionNamespaceOverride).toBe(false);
+    expect(runtime.sessionNamespaceOverrideErrorText).toContain("Standard agent");
     expect(runtime.hasVisiblePulseSession).toBe(false);
     expect(runtime.defaultRuntimeStateOptions).toBeUndefined();
     expect(runtime.effectiveChatMode(false)).toBe(false);
@@ -29,10 +33,16 @@ describe("resolveCreateAgentBridgeRuntime", () => {
     });
 
     expect(runtime.kind).toBe("pulse");
+    expect(runtime.requestRuntimeMode).toBe("pulse");
     expect(runtime.agentBridgeSessionKey).toBe("session-1::pulse:story_builder:pulse-session-1");
     expect(runtime.pulseAgentSessionNamespace).toBe(
       "ai-studio:session-1::pulse:story_builder:pulse-session-1"
     );
+    expect(runtime.activeAgentSessionNamespace).toBe(
+      "ai-studio:session-1::pulse:story_builder:pulse-session-1"
+    );
+    expect(runtime.allowAgentSessionNamespaceOverride).toBe(true);
+    expect(runtime.sessionNamespaceOverrideErrorText).toBeUndefined();
     expect(runtime.hasStoredPulseSession).toBe(true);
     expect(runtime.hasVisiblePulseSession).toBe(true);
     expect(runtime.defaultRuntimeStateOptions).toEqual({ forceChatModeEnabled: true });

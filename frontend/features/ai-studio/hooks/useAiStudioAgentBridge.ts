@@ -12,14 +12,11 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
 import type {
-  AgentApiRequest,
   AgentAttachment,
   AgentAssistantMessageEditRequest,
   AgentContext,
   AgentMessage,
-  AgentResponse,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
@@ -37,7 +34,7 @@ import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatMo
 import { resolveCreateAgentBridgeRuntime } from "./agentBridgeRuntime/createAgentBridgeRuntime";
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "./agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
-import { loadCreateAgentRuntimeBinding } from "./agentBridgeRuntime/createAgentRuntimeBindingLoader";
+import { useCreateAgentBridgeActiveAgent } from "./agentBridgeRuntime/useCreateAgentBridgeActiveAgent";
 import {
   restartCreatePulsePreset,
   type RestartCreatePulsePresetParams,
@@ -274,8 +271,6 @@ export const useAiStudioAgentBridge = ({
     hasVisiblePulseSession,
     pulseRuntimeScopeKey,
     agentBridgeSessionKey,
-    standardAgentSessionNamespace,
-    pulseAgentSessionNamespace,
     resolvedStoredPulsePresetId,
   } = bridgeRuntime;
   const agentFlag =
@@ -315,35 +310,12 @@ export const useAiStudioAgentBridge = ({
     key: string;
     state: AgentBridgeRuntimeState;
   } | null>(null);
-  const activeAgentRuntimeBinding = useMemo(() => {
-    const runtimeKind = bridgeRuntime.kind;
-    return {
-      buildAgentContext: async (context: AgentContext) =>
-        (await loadCreateAgentRuntimeBinding(runtimeKind)).buildAgentContext(context),
-      sendAgentTurn: async (body: AgentApiRequest) =>
-        (await loadCreateAgentRuntimeBinding(runtimeKind)).sendAgentTurn(body),
-      resolveTransportSuccess: async (response: AgentResponse) =>
-        (await loadCreateAgentRuntimeBinding(runtimeKind)).resolveTransportSuccess(response),
-    };
-  }, [bridgeRuntime.kind]);
-
-  const activeAgent = useCreateAgentStateCore({
-    enabled: agentEnabled,
-    sessionNamespace: isPulseCreateMode
-      ? pulseAgentSessionNamespace
-      : standardAgentSessionNamespace,
-    directOpenAiBypassEnabled:
-      !isPulseCreateMode &&
-      chatModeEnabled &&
-      directOpenAiBypassEnabled &&
-      bridgeRuntime.shouldMirrorAssistantPromptToSharedPrompt(selectedTool),
-    requestRuntimeMode: isPulseCreateMode ? "pulse" : "standard",
-    allowSessionNamespaceOverride: isPulseCreateMode,
-    sessionNamespaceOverrideErrorText:
-      "Standard agent cannot send to an override session namespace.",
-    buildAgentContext: activeAgentRuntimeBinding.buildAgentContext,
-    sendAgentTurn: activeAgentRuntimeBinding.sendAgentTurn,
-    resolveTransportSuccess: activeAgentRuntimeBinding.resolveTransportSuccess,
+  const activeAgent = useCreateAgentBridgeActiveAgent({
+    bridgeRuntime,
+    agentEnabled,
+    chatModeEnabled,
+    directOpenAiBypassEnabled,
+    selectedTool,
   });
   const {
     messages: agentMessages,

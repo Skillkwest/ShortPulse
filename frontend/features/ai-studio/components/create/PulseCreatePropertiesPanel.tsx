@@ -51,7 +51,7 @@ export type PulseCreatePropertiesPanelProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onGenerate: () => void;
+  onGeneratePulseArtifact: () => void;
   onSavePrompt: (customPrompt?: string) => void;
   shouldDisableSave?: boolean;
   onClearAgentChat?: () => void;
@@ -112,7 +112,7 @@ export function PulseCreatePropertiesPanel({
   onActivePulsePresetIdChange,
   onPulsePresetStart,
   onOpenPresetsLibrary,
-  onGenerate,
+  onGeneratePulseArtifact,
   guardrailReason,
 }: PulseCreatePropertiesPanelProps) {
   const pulseLoadingState = React.useMemo<PromptStepPulseLoadingState | null>(() => {
@@ -215,7 +215,7 @@ export function PulseCreatePropertiesPanel({
   return (
     <PulseCreatePanelView
       promptStepProps={promptStepProps}
-      onGenerate={onGenerate}
+      onGeneratePulseArtifact={onGeneratePulseArtifact}
       costCredits={costCredits}
       isPromptGenerating={isPromptGenerating}
       isGenerateDisabled={isGenerateDisabled}

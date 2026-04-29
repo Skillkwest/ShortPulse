@@ -287,6 +287,10 @@ describe("Create agent mode boundaries", () => {
     expect(pulseCreatePanelPropsSource).not.toContain("onAgentEnhanceSend");
     expect(pulseCreatePanelPropsSource).not.toContain("onChatModeEnabledChange");
     expect(pulseCreatePanelPropsSource).not.toContain("onChatOffInlineGenerate");
+    expect(pulseCreatePanelPropsSource).not.toContain("onGenerate: handlePrimarySubmit");
+    expect(pulseCreatePanelPropsSource).toContain("onGeneratePulseArtifact: handlePrimarySubmit");
+    expect(pulseComposerSource).not.toContain("onGenerate: () => void");
+    expect(pulseComposerSource).toContain("onGeneratePulseArtifact: () => void");
     expect(pageContractSource).toContain('expertCreateMode: "standard"');
     expect(pageContractSource).toContain("pulse?: never");
     expect(pageContractSource).toContain('expertCreateMode: "pulse"');

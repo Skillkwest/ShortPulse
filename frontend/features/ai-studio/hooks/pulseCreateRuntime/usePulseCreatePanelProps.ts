@@ -107,7 +107,7 @@ export const usePulseCreatePanelProps = ({
       guardrailReason: generationGuardrail,
       onClearAgentChat: handleClearAgentChat,
       shouldDisableSave: false,
-      onGenerate: handlePrimarySubmit,
+      onGeneratePulseArtifact: handlePrimarySubmit,
       onSavePrompt: savePromptReference,
       beginnerMode: false,
       expertCreateUiEligible,

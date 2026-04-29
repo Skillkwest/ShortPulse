@@ -17,7 +17,7 @@ import type {
 
 type PulseCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PulsePromptStep>;
-  onGenerate: () => void;
+  onGeneratePulseArtifact: () => void;
   costCredits?: number | null;
   isPromptGenerating: boolean;
   isGenerateDisabled: boolean;
@@ -42,7 +42,7 @@ type PulseCreatePanelViewProps = {
 
 const PulseCreatePanelViewContent = ({
   promptStepProps,
-  onGenerate,
+  onGeneratePulseArtifact,
   costCredits,
   isPromptGenerating,
   isGenerateDisabled,
@@ -101,7 +101,7 @@ const PulseCreatePanelViewContent = ({
         <div className="create-expert-secondary-row create-expert-generate-row">
           <div className="create-expert-inline-generate">
             <AgentGenerateButton
-              onClick={onGenerate}
+              onClick={onGeneratePulseArtifact}
               disabled={isGenerateDisabled}
               isBusy={isPromptGenerating}
               cost={costValue}

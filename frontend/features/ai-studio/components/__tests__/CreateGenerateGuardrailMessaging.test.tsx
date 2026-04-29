@@ -87,11 +87,10 @@ describe("Create generate guardrail messaging", () => {
     render(
       <PulseCreatePanelView
         promptStepProps={{} as PromptStepProps}
-        onGenerate={vi.fn()}
+        onGeneratePulseArtifact={vi.fn()}
         costCredits={15}
         isPromptGenerating={false}
         isGenerateDisabled={false}
-        expertCreateMode="pulse"
         activePulsePresetId="story_builder"
       />
     );

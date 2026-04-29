@@ -416,6 +416,8 @@ export default function AiStudioPage() {
       pulseWorkflowSession,
     ]
   );
+  const createModeAgentContextResolver =
+    expertCreateMode === "pulse" ? getPulseAwareAgentContext : getAgentContext;
 
   const handleQuickSlotLibraryMediaDrop = useCallback(
     async (
@@ -876,7 +878,7 @@ export default function AiStudioPage() {
     pulseWorkflowSession,
     prompt,
     setSharedPrompt,
-    getAgentContext: getPulseAwareAgentContext,
+    getAgentContext: createModeAgentContextResolver,
     addAgentPromptReference,
     editReferenceText,
     setEditReferenceText,

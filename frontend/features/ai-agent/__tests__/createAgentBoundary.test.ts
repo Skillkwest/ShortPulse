@@ -152,6 +152,16 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain('import("../features/ai-studio/logic/pulseWorkflowSession")');
   });
 
+  it("keeps Standard page context handoff on the neutral context resolver", () => {
+    const pageSource = readFrontendFile("pages/ai-studio.tsx");
+
+    expect(pageSource).toContain(
+      'expertCreateMode === "pulse" ? getPulseAwareAgentContext : getAgentContext'
+    );
+    expect(pageSource).toContain("getAgentContext: createModeAgentContextResolver");
+    expect(pageSource).not.toContain("getAgentContext: getPulseAwareAgentContext");
+  });
+
   it("keeps the active Create composers mode-owned below the top-level switch", () => {
     const switchSource = readFrontendFile(
       "features/ai-studio/components/CreatePropertiesPanel.tsx"

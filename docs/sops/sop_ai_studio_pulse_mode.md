@@ -137,10 +137,12 @@ Guided Pulse model/runtime config:
 - Page orchestration:
   - `frontend/pages/ai-studio.tsx`
   - `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts`
+  - `frontend/features/ai-studio/components/create/CreatePulsePreferenceRuntime.tsx`
 - Agent bridge/orchestration:
   - `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts`
   - `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts`
-  - `frontend/features/ai-agent/useAiAgent.ts`
+  - `frontend/features/ai-agent/useStandardCreateAgent.ts`
+  - `frontend/features/ai-agent/usePulseCreateAgent.ts`
 - Server/runtime contract:
   - `frontend/pages/api/ai/studio-agent-standard.ts`
   - `frontend/features/agent-runtime/standardStudioAgentRuntime/runtime.ts`
@@ -172,6 +174,7 @@ Guided Pulse model/runtime config:
   - draft Pulse agent input,
   - Pulse workflow session state,
   - Standard chat-mode preference from Pulse state.
+- Custom Pulse preference loading is mounted only while Pulse mode is active. Standard mode must not carry saved custom Pulse definitions in the active page runtime.
 
 ### Project-route restore boundary
 

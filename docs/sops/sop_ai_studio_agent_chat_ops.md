@@ -36,7 +36,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
    - image attachments become both `context.references` + `context.media` (up to 3),
    - `selectedReferenceIds` are merged, `focusedSource` is set based on staged kind, and `modeHint` defaults to `"reference"` when attachments are present.
 5) `contextBuilder` + API `safeContext` filter to safe media/refs and enforce caps before provider calls.
-6) `useAiAgent` runs client pre-send safety precheck over outbound messages/context/canonical prompt. Refusal short-circuits locally with canonical refusal text; rewrite mutates payload before transport.
+6) The mode-owned Create agent hooks (`useStandardCreateAgent` or `usePulseCreateAgent`) run client pre-send safety precheck over outbound messages/context/canonical prompt. Refusal short-circuits locally with canonical refusal text; rewrite mutates payload before transport.
 7) The runtime-specific studio-agent route validates message roles (`user|assistant`) and requires `clientSessionKey`. Standard uses the Standard-owned direct Create runtime and never returns Pulse workflow fields. Pulse uses the Pulse-owned guided runtime, classifies turns into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED`, and owns workflow-session updates.
 8) Route runs server-authoritative pre-provider safety precheck before any vision/coordinator/provider call. Refusal returns `200` with canonical refusal and empty actions; rewrite mutates in-memory payload before orchestration.
 9) Mixed/image turns use the vision timeout budget for summary calls and preserve the full turn timeout budget for generation.
@@ -94,7 +94,7 @@ Prompt ownership rule:
 - Fallbacks: safety refusals and runtime/provider failures now return normal assistant responses (`200`) so prompt-step UI stays in chat lane with no transport-style error banner.
 - Fast-path thrown transport errors are normalized into the same classified retry/fallback lane, reducing route-level exception fallbacks.
 - Parse/body-read failures in fast-path and thinker/formatter stages are normalized into classified stage failures, keeping malformed upstream payloads out of `route_exception` fallback paths.
-- Explicit errors remain for auth/config/invalid-request lanes (feature disabled, missing key, malformed payload, auth denial), and `useAiAgent` surfaces those error strings.
+- Explicit errors remain for auth/config/invalid-request lanes (feature disabled, missing key, malformed payload, auth denial), and the mode-owned Create agent hook surfaces those error strings.
 - Agent disable path: when feature flag is off, chat is hidden/disabled in UI and API returns 503; users continue through non-agent prompt generation paths.
 - No-question policy: questions are removed from prompt contracts, action parsing, and UI chips.
 

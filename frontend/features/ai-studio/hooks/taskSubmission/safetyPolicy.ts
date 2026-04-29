@@ -67,6 +67,3 @@ const buildSafetyPayload = (modelId: string): SubmissionSafetyPayload => {
 
 export const resolveImageSubmissionSafetyPayload = (modelId: string): SubmissionSafetyPayload =>
   buildSafetyPayload(modelId);
-
-export const resolveVideoSubmissionSafetyPayload = (modelId: string): SubmissionSafetyPayload =>
-  buildSafetyPayload(modelId);

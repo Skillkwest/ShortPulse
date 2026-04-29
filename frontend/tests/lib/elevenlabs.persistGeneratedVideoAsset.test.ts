@@ -206,4 +206,82 @@ describe("persistGeneratedVideoAsset", () => {
       outputRowId: "output-1",
     });
   });
+
+  it("keeps video output records when media autosave insert fails", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
+    mediaFilesInsertMock.mockImplementation(() =>
+      resolveInsertSingle({ error: { message: "media_files insert failed" } })
+    );
+
+    const result = await persistGeneratedVideoAsset({
+      userId: "user-1",
+      promptText: "Cinematic skyline reveal",
+      provider: "elevenlabs",
+      modelId: "video_v1",
+      projectId: "project-1",
+      sourceMode: "voice-changer",
+      outputBuffer: Buffer.from("video"),
+      outputContentType: "video/mp4",
+      generationReplay: { source: "reroll-1" },
+      extraMetadata: { remuxed_from: "source-video-1" },
+    });
+
+    expect(mediaFilesInsertMock).toHaveBeenCalledTimes(1);
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledTimes(1);
+    expect(persistGenerationOutputRecordsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        userId: "user-1",
+        resultUrls: ["https://signed.example/video.mp4"],
+        mediaFileIds: [],
+        metadata: expect.objectContaining({
+          media_kind: "video",
+          autosave_enabled: true,
+          autosave_decision: "provider_urls_persisted",
+          autosave_decision_reason: "canonical_outputs_before_media_autosave",
+        }),
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        saveState: "idle",
+        resultUrls: ["https://signed.example/video.mp4"],
+        savedMediaIds: [],
+      })
+    );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "generation-1",
+        ownedMediaFileId: null,
+        metadata: expect.objectContaining({
+          autosave_decision: "autosave_skipped",
+          autosave_decision_reason: "media_files insert failed",
+        }),
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.elevenlabs.media_autosave_failed",
+        message: "ElevenLabs video generation kept result URL after media autosave failed.",
+        requestId: "request-1",
+        userId: "user-1",
+        statusCode: 200,
+        metadata: expect.objectContaining({
+          generation_id: "generation-1",
+          media_kind: "video",
+          autosave_error: "media_files insert failed",
+        }),
+      })
+    );
+    expect(result).toMatchObject({
+      generationId: "generation-1",
+      mediaFileId: null,
+      outputRowId: "output-1",
+      signedUrl: "https://signed.example/video.mp4",
+    });
+  });
 });

@@ -281,8 +281,6 @@ export const useAiStudioAudioGeneration = ({
                 formData.append("sourceOrigin", request.source.origin);
                 if (request.source.storagePath) {
                   formData.append("sourceStoragePath", request.source.storagePath);
-                } else if (request.source.file) {
-                  formData.append("file", request.source.file, request.source.file.name);
                 } else if (request.source.sourceUrl) {
                   formData.append("sourceUrl", request.source.sourceUrl);
                 }

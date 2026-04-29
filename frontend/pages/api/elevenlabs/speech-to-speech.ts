@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
-import { promises as fs } from "fs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
@@ -128,7 +127,7 @@ export default async function handler(
   let charge: Awaited<ReturnType<typeof chargeGenerationRequest>> = null;
 
   try {
-    const { fields, files } = await parseMultipart(req);
+    const { fields } = await parseMultipart(req);
     const voiceId = readFieldString(fields.voiceId);
     const voiceName = readFieldString(fields.voiceName);
     const outputFormat = readFieldString(fields.outputFormat);
@@ -156,9 +155,6 @@ export default async function handler(
       });
     }
 
-    const sourceFileInput = files.file;
-    const sourceFile = Array.isArray(sourceFileInput) ? sourceFileInput[0] : sourceFileInput;
-
     let sourceBuffer: Buffer | null = null;
     let sourceMimeType: string | null = null;
     let sourceFilename: string | null = null;
@@ -166,14 +162,7 @@ export default async function handler(
     let remuxVideoMimeType: string | null = null;
     let remuxVideoFilename: string | null = null;
 
-    if (sourceFile?.filepath) {
-      sourceBuffer = await fs.readFile(sourceFile.filepath);
-      sourceMimeType = normalizeRequiredString(sourceFile.mimetype) ?? null;
-      sourceFilename =
-        normalizeRequiredString(sourceFile.originalFilename) ??
-        sourceFile.filepath.split("/").filter(Boolean).pop() ??
-        "source";
-    } else if (sourceStoragePath) {
+    if (sourceStoragePath) {
       const trustedStoragePath = assertUserScopedMediaStoragePath({
         path: sourceStoragePath,
         userId: user.id,
@@ -200,7 +189,7 @@ export default async function handler(
     if (!sourceBuffer || !sourceFilename) {
       return res.status(400).json({
         error: "Invalid request",
-        details: "A local file upload, sourceStoragePath, or sourceUrl is required.",
+        details: "sourceStoragePath or sourceUrl is required.",
       });
     }
 

@@ -111,6 +111,8 @@ export type RemuxedVoiceChangerVideoResult = {
   contentType: "video/mp4" | "video/webm";
 };
 
+type AutosaveDecision = "auto_persisted" | "autosave_skipped";
+
 const normalizeOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -788,7 +790,9 @@ export const persistGeneratedAudioAsset = async ({
         voice_id: voiceId,
         voice_name: voiceName,
         autosave_enabled: mediaAutosaveEnabled,
-        autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
+        autosave_decision: autosavePolicyDecision.allowed
+          ? "autosave_requested"
+          : "autosave_skipped",
         autosave_decision_reason: autosavePolicyDecision.reason,
         output_format: outputFormat,
         mime_type: outputContentType,
@@ -803,57 +807,102 @@ export const persistGeneratedAudioAsset = async ({
   }
 
   let mediaFileId: string | null = null;
+  let autosaveDecision: AutosaveDecision = autosavePolicyDecision.allowed
+    ? "auto_persisted"
+    : "autosave_skipped";
+  let autosaveDecisionReason: string = autosavePolicyDecision.reason;
+  let outputRows = await persistGenerationOutputRecords({
+    generationId,
+    providerRequestId: resolvedProviderRequestId,
+    userId,
+    resultUrls: [signedResult.data.signedUrl],
+    mediaFileIds: [],
+    metadata: {
+      media_kind: "audio",
+      provider_request_id: resolvedProviderRequestId,
+      autosave_enabled: mediaAutosaveEnabled,
+      autosave_decision: autosavePolicyDecision.allowed
+        ? "provider_urls_persisted"
+        : "autosave_skipped",
+      autosave_decision_reason: autosavePolicyDecision.allowed
+        ? "canonical_outputs_before_media_autosave"
+        : autosavePolicyDecision.reason,
+      project_id: resolvedProjectId,
+      ...extraMetadata,
+    },
+  });
+
   if (autosavePolicyDecision.allowed) {
-    const mediaInsert = await supabaseAdmin
-      .from("media_files")
-      .insert({
-        filename,
-        storage_path: storagePath,
-        file_type: "audio",
-        file_size: outputBuffer.length,
-        source: "ai_studio",
-        source_ref: generationId,
+    try {
+      const mediaInsert = await supabaseAdmin
+        .from("media_files")
+        .insert({
+          filename,
+          storage_path: storagePath,
+          file_type: "audio",
+          file_size: outputBuffer.length,
+          source: "ai_studio",
+          source_ref: generationId,
+          metadata: {
+            provider,
+            model_id: modelId,
+            provider_request_id: resolvedProviderRequestId,
+            source_mode: sourceMode,
+            mime_type: outputContentType,
+            output_format: outputFormat,
+            voice_id: voiceId,
+            voice_name: voiceName,
+            autosave_enabled: mediaAutosaveEnabled,
+            autosave_decision: "auto_persisted",
+            autosave_decision_reason: autosavePolicyDecision.reason,
+            project_id: resolvedProjectId,
+            ...extraMetadata,
+          },
+          user_id: userId,
+        })
+        .select("id")
+        .single();
+      if (mediaInsert.error || !mediaInsert.data?.id) {
+        throw new Error(mediaInsert.error?.message || "Unable to record generated audio media.");
+      }
+      mediaFileId = mediaInsert.data.id as string;
+      outputRows = await persistGenerationOutputRecords({
+        generationId,
+        providerRequestId: resolvedProviderRequestId,
+        userId,
+        resultUrls: [signedResult.data.signedUrl],
+        mediaFileIds: [mediaFileId],
         metadata: {
-          provider,
-          model_id: modelId,
+          media_kind: "audio",
           provider_request_id: resolvedProviderRequestId,
-          source_mode: sourceMode,
-          mime_type: outputContentType,
-          output_format: outputFormat,
-          voice_id: voiceId,
-          voice_name: voiceName,
           autosave_enabled: mediaAutosaveEnabled,
           autosave_decision: "auto_persisted",
           autosave_decision_reason: autosavePolicyDecision.reason,
           project_id: resolvedProjectId,
           ...extraMetadata,
         },
-        user_id: userId,
-      })
-      .select("id")
-      .single();
-    if (mediaInsert.error || !mediaInsert.data?.id) {
-      throw new Error(mediaInsert.error?.message || "Unable to record generated audio media.");
+      });
+    } catch (error) {
+      autosaveDecision = "autosave_skipped";
+      autosaveDecisionReason = error instanceof Error ? error.message : "media_autosave_failed";
+      await writeAppErrorLog({
+        source: "telemetry.elevenlabs.media_autosave_failed",
+        message: "ElevenLabs audio generation kept result URL after media autosave failed.",
+        requestId: resolvedRequestId,
+        userId,
+        statusCode: 200,
+        metadata: {
+          generation_id: generationId,
+          provider,
+          provider_request_id: resolvedProviderRequestId,
+          model_id: modelId,
+          media_kind: "audio",
+          source_mode: sourceMode,
+          autosave_error: autosaveDecisionReason,
+        },
+      }).catch(() => undefined);
     }
-    mediaFileId = mediaInsert.data.id as string;
   }
-
-  const outputRows = await persistGenerationOutputRecords({
-    generationId,
-    providerRequestId: resolvedProviderRequestId,
-    userId,
-    resultUrls: [signedResult.data.signedUrl],
-    mediaFileIds: mediaFileId ? [mediaFileId] : [],
-    metadata: {
-      media_kind: "audio",
-      provider_request_id: resolvedProviderRequestId,
-      autosave_enabled: mediaAutosaveEnabled,
-      autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
-      autosave_decision_reason: autosavePolicyDecision.reason,
-      project_id: resolvedProjectId,
-      ...extraMetadata,
-    },
-  });
   const outputRowId = outputRows[0]?.id ?? null;
 
   if (outputRowId) {
@@ -872,8 +921,8 @@ export const persistGeneratedAudioAsset = async ({
         media_kind: "audio",
         provider_request_id: resolvedProviderRequestId,
         autosave_enabled: mediaAutosaveEnabled,
-        autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
-        autosave_decision_reason: autosavePolicyDecision.reason,
+        autosave_decision: autosaveDecision,
+        autosave_decision_reason: autosaveDecisionReason,
         project_id: resolvedProjectId,
         ...extraMetadata,
       },
@@ -991,7 +1040,9 @@ export const persistGeneratedVideoAsset = async ({
         provider_request_id: resolvedProviderRequestId,
         source_mode: sourceMode,
         autosave_enabled: mediaAutosaveEnabled,
-        autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
+        autosave_decision: autosavePolicyDecision.allowed
+          ? "autosave_requested"
+          : "autosave_skipped",
         autosave_decision_reason: autosavePolicyDecision.reason,
         mime_type: outputContentType,
         project_id: resolvedProjectId,
@@ -1005,54 +1056,99 @@ export const persistGeneratedVideoAsset = async ({
   }
 
   let mediaFileId: string | null = null;
+  let autosaveDecision: AutosaveDecision = autosavePolicyDecision.allowed
+    ? "auto_persisted"
+    : "autosave_skipped";
+  let autosaveDecisionReason: string = autosavePolicyDecision.reason;
+  let outputRows = await persistGenerationOutputRecords({
+    generationId,
+    providerRequestId: resolvedProviderRequestId,
+    userId,
+    resultUrls: [signedResult.data.signedUrl],
+    mediaFileIds: [],
+    metadata: {
+      media_kind: "video",
+      provider_request_id: resolvedProviderRequestId,
+      autosave_enabled: mediaAutosaveEnabled,
+      autosave_decision: autosavePolicyDecision.allowed
+        ? "provider_urls_persisted"
+        : "autosave_skipped",
+      autosave_decision_reason: autosavePolicyDecision.allowed
+        ? "canonical_outputs_before_media_autosave"
+        : autosavePolicyDecision.reason,
+      project_id: resolvedProjectId,
+      ...extraMetadata,
+    },
+  });
+
   if (autosavePolicyDecision.allowed) {
-    const mediaInsert = await supabaseAdmin
-      .from("media_files")
-      .insert({
-        filename,
-        storage_path: storagePath,
-        file_type: "video",
-        file_size: outputBuffer.length,
-        source: "ai_studio",
-        source_ref: generationId,
+    try {
+      const mediaInsert = await supabaseAdmin
+        .from("media_files")
+        .insert({
+          filename,
+          storage_path: storagePath,
+          file_type: "video",
+          file_size: outputBuffer.length,
+          source: "ai_studio",
+          source_ref: generationId,
+          metadata: {
+            provider,
+            model_id: modelId,
+            provider_request_id: resolvedProviderRequestId,
+            source_mode: sourceMode,
+            mime_type: outputContentType,
+            autosave_enabled: mediaAutosaveEnabled,
+            autosave_decision: "auto_persisted",
+            autosave_decision_reason: autosavePolicyDecision.reason,
+            project_id: resolvedProjectId,
+            ...extraMetadata,
+          },
+          user_id: userId,
+        })
+        .select("id")
+        .single();
+      if (mediaInsert.error || !mediaInsert.data?.id) {
+        throw new Error(mediaInsert.error?.message || "Unable to record generated video media.");
+      }
+      mediaFileId = mediaInsert.data.id as string;
+      outputRows = await persistGenerationOutputRecords({
+        generationId,
+        providerRequestId: resolvedProviderRequestId,
+        userId,
+        resultUrls: [signedResult.data.signedUrl],
+        mediaFileIds: [mediaFileId],
         metadata: {
-          provider,
-          model_id: modelId,
+          media_kind: "video",
           provider_request_id: resolvedProviderRequestId,
-          source_mode: sourceMode,
-          mime_type: outputContentType,
           autosave_enabled: mediaAutosaveEnabled,
           autosave_decision: "auto_persisted",
           autosave_decision_reason: autosavePolicyDecision.reason,
           project_id: resolvedProjectId,
           ...extraMetadata,
         },
-        user_id: userId,
-      })
-      .select("id")
-      .single();
-    if (mediaInsert.error || !mediaInsert.data?.id) {
-      throw new Error(mediaInsert.error?.message || "Unable to record generated video media.");
+      });
+    } catch (error) {
+      autosaveDecision = "autosave_skipped";
+      autosaveDecisionReason = error instanceof Error ? error.message : "media_autosave_failed";
+      await writeAppErrorLog({
+        source: "telemetry.elevenlabs.media_autosave_failed",
+        message: "ElevenLabs video generation kept result URL after media autosave failed.",
+        requestId: resolvedRequestId,
+        userId,
+        statusCode: 200,
+        metadata: {
+          generation_id: generationId,
+          provider,
+          provider_request_id: resolvedProviderRequestId,
+          model_id: modelId,
+          media_kind: "video",
+          source_mode: sourceMode,
+          autosave_error: autosaveDecisionReason,
+        },
+      }).catch(() => undefined);
     }
-    mediaFileId = mediaInsert.data.id as string;
   }
-
-  const outputRows = await persistGenerationOutputRecords({
-    generationId,
-    providerRequestId: resolvedProviderRequestId,
-    userId,
-    resultUrls: [signedResult.data.signedUrl],
-    mediaFileIds: mediaFileId ? [mediaFileId] : [],
-    metadata: {
-      media_kind: "video",
-      provider_request_id: resolvedProviderRequestId,
-      autosave_enabled: mediaAutosaveEnabled,
-      autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
-      autosave_decision_reason: autosavePolicyDecision.reason,
-      project_id: resolvedProjectId,
-      ...extraMetadata,
-    },
-  });
   const outputRowId = outputRows[0]?.id ?? null;
 
   if (outputRowId) {
@@ -1071,8 +1167,8 @@ export const persistGeneratedVideoAsset = async ({
         media_kind: "video",
         provider_request_id: resolvedProviderRequestId,
         autosave_enabled: mediaAutosaveEnabled,
-        autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
-        autosave_decision_reason: autosavePolicyDecision.reason,
+        autosave_decision: autosaveDecision,
+        autosave_decision_reason: autosaveDecisionReason,
         project_id: resolvedProjectId,
         ...extraMetadata,
       },

@@ -35,8 +35,9 @@ Adopt one canonical Voice Changer intake path:
    voice back onto the original video and publishes that remuxed clip as a sibling generated video
    output in AI Studio.
 
-Compatibility local multipart uploads remain accepted on `/api/elevenlabs/speech-to-speech` only as
-fallback coverage for legacy callers, not as the primary product path.
+Direct local multipart media uploads are not accepted on `/api/elevenlabs/speech-to-speech`.
+Local audio/video must stage first and then submit a storage path or trusted URL to final
+generation.
 
 ## Consequences
 

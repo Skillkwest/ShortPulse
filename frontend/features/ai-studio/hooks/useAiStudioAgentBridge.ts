@@ -19,6 +19,7 @@ import type {
   AgentAssistantMessageEditRequest,
   AgentContext,
   AgentMessage,
+  AgentResponse,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
@@ -38,6 +39,7 @@ import { resolveCreateAgentBridgeRuntime } from "./agentBridgeRuntime/createAgen
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "./agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { CreateAgentRuntimeBinding } from "./agentBridgeRuntime/createAgentRuntimeBinding";
+import { restartCreatePulsePreset } from "./agentBridgeRuntime/pulsePresetRestart";
 
 type UseAiStudioAgentBridgeParams = {
   projectId?: string | null;
@@ -831,28 +833,17 @@ export const useAiStudioAgentBridge = ({
 
   const handlePulsePresetRestart = useCallback(
     async (preset: CreatePulseResolvedPreset) => {
-      trackAgentUiEvent("studio_agent_pulse_restart_requested", {
-        preset_id: preset.presetId,
-        runtime_mode: preset.runtimeMode,
-        activation_mode: preset.activationMode,
-      });
-      resetAgentChat();
-      resetAgentComposer({ preserveAttachments: false });
-      setLatestAgentPrompt(null);
-      setPromptOrigin("manual");
-      setPulseWorkflowSession(null);
-      const restartedPulse = restartPulse?.() ?? null;
-      const pulseSessionInstanceId =
-        restartedPulse?.presetId === preset.presetId ? restartedPulse.sessionInstanceId : null;
-      if (!pulseSessionInstanceId) {
-        setUiNotice("Pulse restart could not create a fresh session. Start the Pulse again.");
-        trackAgentUiEvent("studio_agent_pulse_restart_blocked_missing_session", {
-          preset_id: preset.presetId,
-        });
-        return;
-      }
-      await handlePulsePresetStart(preset, {
-        pulseSessionInstanceId,
+      await restartCreatePulsePreset({
+        preset,
+        restartPulse,
+        resetAgentChat,
+        resetAgentComposer,
+        setLatestAgentPrompt,
+        setPromptOrigin,
+        setPulseWorkflowSession,
+        setUiNotice,
+        trackAgentUiEvent,
+        startPulsePreset: handlePulsePresetStart,
       });
     },
     [

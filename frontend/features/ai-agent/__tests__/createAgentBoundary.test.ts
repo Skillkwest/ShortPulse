@@ -111,6 +111,9 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("standardContextBuilder");
     expect(bridgeSource).toContain("./agentBridgeRuntime/pulseCreateAgentRuntimeBinding");
     expect(bridgeSource).toContain("./agentBridgeRuntime/standardCreateAgentRuntimeBinding");
+    expect(bridgeSource).toContain("./agentBridgeRuntime/pulsePresetRestart");
+    expect(bridgeSource).not.toContain("studio_agent_pulse_restart_requested");
+    expect(bridgeSource).not.toContain("studio_agent_pulse_restart_blocked_missing_session");
     expect(bridgeRuntimeSource).not.toContain("pulseSessionState");
     expect(orchestrationPolicySource).not.toContain("pulseSessionState");
   });

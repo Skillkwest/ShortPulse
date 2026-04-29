@@ -108,6 +108,18 @@ describe("CreatePropertiesPanel", () => {
     expect(pulsePanel).not.toContain("onModelPickerOpen");
   });
 
+  it("keeps the right rail from mounting a shared Create agent chat bypass", () => {
+    const shellFrameSource = readFileSync(
+      path.join(process.cwd(), "features/ai-studio/components/AiStudioShellFrame.tsx"),
+      "utf8"
+    );
+    const pageSource = readFileSync(path.join(process.cwd(), "pages/ai-studio.tsx"), "utf8");
+
+    expect(shellFrameSource).not.toContain("AgentChatPanel");
+    expect(shellFrameSource).not.toContain("agentChat");
+    expect(pageSource).not.toContain("agentChat");
+  });
+
   const baseProps: TestCreatePanelProps = {
     mode: "image",
     aspect: "9:16",

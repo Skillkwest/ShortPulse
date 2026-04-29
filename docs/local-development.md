@@ -93,7 +93,7 @@ npm install
 npm run dev
 ```
 
-Do not run a local generation queue worker for standard AI Studio generation. Standard Fal/Kie submits now go directly to the provider; local recovery concerns are limited to accepted-job polling/webhook/reconciler behavior.
+`npm run dev` starts Next.js and the local generation control-plane worker together. Standard Fal/Kie submits still go directly to the provider; the worker only drains provider-accepted jobs through the same recovery/reconciler path used in hosted environments so completed provider results are persisted even when browser polling is interrupted.
 
 ## Supabase tooling policy
 

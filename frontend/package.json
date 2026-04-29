@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node ./scripts/run_dev_with_generation_worker.mjs",
+    "dev:next": "next dev",
     "dev:generation-worker": "node ./scripts/run_generation_control_plane_worker.mjs",
     "build": "next build",
     "start": "next start",

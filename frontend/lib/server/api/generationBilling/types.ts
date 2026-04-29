@@ -39,13 +39,6 @@ export type ChargeSubmitLinkResult = {
   code?: string | null;
 };
 
-export type LedgerChargeRow = {
-  id: string;
-  source_ref: string | null;
-  change_cents: number;
-  metadata: JsonObject | null;
-};
-
 export type GenerationSettlementOutcome = "success" | "fail";
 
 export type GenerationSettlementOptions = {

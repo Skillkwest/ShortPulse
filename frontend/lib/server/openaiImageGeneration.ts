@@ -14,10 +14,14 @@ import { canAutoPersistRecoveryMedia } from "../mediaAutosavePolicy";
 import { withCanonicalImageDimensions } from "../mediaDimensionMetadata";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { extractImageDimensionsFromBuffer } from "./imageDimensions";
-import { persistGenerationOutputRecords } from "./api/generationOutputs";
+import {
+  attachMediaFileToGenerationOutput,
+  persistGenerationOutputRecords,
+} from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
 import { readGenerationAbandonmentContext } from "./api/generationAbandonment";
+import { writeAppErrorLog } from "./api/appErrorLogs";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { associateGenerationWithProjectForUser } from "./projectGenerationAssociationsService";
 
@@ -362,37 +366,80 @@ export const persistGeneratedImageAsset = async ({
     throw new Error(generationInsert.error.message || "Unable to record image generation.");
   }
 
+  let autosaveDecision: string = autosavePolicyDecision.allowed
+    ? "auto_persisted"
+    : "autosave_skipped";
+  let autosaveDecisionReason: string = autosavePolicyDecision.reason;
   let mediaFileId: string | null = null;
-  if (autosavePolicyDecision.allowed) {
-    const mediaInsert = await supabaseAdmin
-      .from("media_files")
-      .insert({
-        filename,
-        storage_path: storagePath,
-        file_type: "image",
-        file_size: outputBuffer.length,
-        source: "ai_studio",
-        source_ref: generationId,
-        metadata: generationMetadata,
-        user_id: userId,
-      })
-      .select("id")
-      .single();
-    if (mediaInsert.error || !mediaInsert.data?.id) {
-      throw new Error(mediaInsert.error?.message || "Unable to record generated image media.");
-    }
-    mediaFileId = mediaInsert.data.id as string;
-  }
-
-  const outputRows = await persistGenerationOutputRecords({
+  let outputRows = await persistGenerationOutputRecords({
     generationId,
     providerRequestId: resolvedProviderRequestId,
     userId,
     resultUrls: [signedResult.data.signedUrl],
-    mediaFileIds: mediaFileId ? [mediaFileId] : [],
     metadata: generationMetadata,
   });
+
+  if (autosavePolicyDecision.allowed) {
+    try {
+      const mediaInsert = await supabaseAdmin
+        .from("media_files")
+        .insert({
+          filename,
+          storage_path: storagePath,
+          file_type: "image",
+          file_size: outputBuffer.length,
+          source: "ai_studio",
+          source_ref: generationId,
+          metadata: generationMetadata,
+          user_id: userId,
+        })
+        .select("id")
+        .single();
+      if (mediaInsert.error || !mediaInsert.data?.id) {
+        throw new Error(mediaInsert.error?.message || "Unable to record generated image media.");
+      }
+      mediaFileId = mediaInsert.data.id as string;
+      await attachMediaFileToGenerationOutput({
+        generationId,
+        userId,
+        outputIndex: 0,
+        mediaFileId,
+        resultUrl: signedResult.data.signedUrl,
+        providerRequestId: resolvedProviderRequestId,
+        metadata: generationMetadata,
+      });
+      outputRows = await persistGenerationOutputRecords({
+        generationId,
+        providerRequestId: resolvedProviderRequestId,
+        userId,
+        resultUrls: [signedResult.data.signedUrl],
+        mediaFileIds: [mediaFileId],
+        metadata: generationMetadata,
+      });
+    } catch (error) {
+      autosaveDecision = "autosave_skipped";
+      autosaveDecisionReason = error instanceof Error ? error.message : "media_autosave_failed";
+      await writeAppErrorLog({
+        source: "telemetry.openai_image.media_autosave_failed",
+        message: "OpenAI image generation kept result URL after media autosave failed.",
+        requestId: resolvedRequestId,
+        userId,
+        statusCode: 200,
+        metadata: {
+          generation_id: generationId,
+          provider_request_id: resolvedProviderRequestId,
+          model_id: modelId,
+          autosave_error: autosaveDecisionReason,
+        },
+      }).catch(() => undefined);
+    }
+  }
   const outputRowId = outputRows[0]?.id ?? null;
+  const publicationMetadata = {
+    ...generationMetadata,
+    autosave_decision: autosaveDecision,
+    autosave_decision_reason: autosaveDecisionReason,
+  };
 
   if (outputRowId) {
     await upsertGenerationPublication({
@@ -407,7 +454,7 @@ export const persistGeneratedImageAsset = async ({
       fullStoragePath: storagePath,
       publishedAt: createdAtIso,
       visibleInReferenceGrid: !effectiveHiddenInReferenceGrid,
-      metadata: generationMetadata,
+      metadata: publicationMetadata,
     });
   }
 

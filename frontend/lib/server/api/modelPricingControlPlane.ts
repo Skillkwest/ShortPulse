@@ -4,7 +4,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   compactModelPricingPolicyDocument,
-  getDefaultModelPricingPolicyDocument,
   type ModelPricingPolicyDocument,
 } from "../../model-runtime/pricingPolicy";
 import { getSupabaseAdmin } from "./supabaseAdmin";
@@ -38,7 +37,7 @@ export type RuntimeModelPricingPolicyResolution = {
   policy: ModelPricingPolicyDocument;
   activePolicyVersion: number | null;
   activePolicyVersionId: number | null;
-  source: "control_plane" | "fallback";
+  source: "control_plane";
   updatedAt: string | null;
   updatedByEmail: string | null;
 };
@@ -160,14 +159,7 @@ export const resolveRuntimeModelPricingPolicy = async ({
     typeof process.env.SUPABASE_SERVICE_ROLE_KEY === "string" &&
     process.env.SUPABASE_SERVICE_ROLE_KEY.trim().length > 0;
   if (!hasAdminConfig) {
-    return {
-      policy: getDefaultModelPricingPolicyDocument(),
-      activePolicyVersion: null,
-      activePolicyVersionId: null,
-      source: "fallback",
-      updatedAt: null,
-      updatedByEmail: null,
-    };
+    throw new Error("Model pricing control plane is not configured.");
   }
 
   const nowMs = Date.now();
@@ -185,36 +177,21 @@ export const resolveRuntimeModelPricingPolicy = async ({
     }
   }
 
-  try {
-    const activePolicy = await fetchActiveModelPricingPolicy();
-    runtimePolicyCache = {
-      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      value: activePolicy,
-    };
-    if (activePolicy) {
-      return {
-        policy: activePolicy.activePolicy,
-        activePolicyVersion: activePolicy.activePolicyVersion,
-        activePolicyVersionId: activePolicy.activePolicyVersionId,
-        source: "control_plane",
-        updatedAt: activePolicy.updatedAt,
-        updatedByEmail: activePolicy.updatedByEmail,
-      };
-    }
-  } catch {
-    runtimePolicyCache = {
-      expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
-      value: null,
-    };
+  const activePolicy = await fetchActiveModelPricingPolicy();
+  runtimePolicyCache = {
+    expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
+    value: activePolicy,
+  };
+  if (!activePolicy) {
+    throw new Error("No active model pricing policy is configured.");
   }
-
   return {
-    policy: getDefaultModelPricingPolicyDocument(),
-    activePolicyVersion: null,
-    activePolicyVersionId: null,
-    source: "fallback",
-    updatedAt: null,
-    updatedByEmail: null,
+    policy: activePolicy.activePolicy,
+    activePolicyVersion: activePolicy.activePolicyVersion,
+    activePolicyVersionId: activePolicy.activePolicyVersionId,
+    source: "control_plane",
+    updatedAt: activePolicy.updatedAt,
+    updatedByEmail: activePolicy.updatedByEmail,
   };
 };
 

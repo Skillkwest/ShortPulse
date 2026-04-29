@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { readPersistedGenerationOutputs } from "./generationOutputs";
+import { upsertGenerationPublication } from "./generationPublications";
 
 type JsonObject = Record<string, unknown>;
 
@@ -720,6 +721,31 @@ export const repairStaleTerminalGenerationProjections = async ({
         startedAt: projection.startedAt,
         completedAt: generation.completedAt,
       });
+      const publicationState = allOutputsOwned ? "published" : "suppressed";
+      await Promise.all(
+        outputRows.map(async (row) => {
+          if (!row.id) return;
+          await upsertGenerationPublication({
+            generationId: projection.generationId,
+            generationOutputId: row.id,
+            userId: projection.userId,
+            supabaseAdmin: adminClient,
+            generationAttemptId: projection.latestAttemptId,
+            publicationState,
+            ownedMediaFileId: row.mediaFileId,
+            previewUrl: row.outputIndex === 0 ? row.resultUrl : null,
+            fullUrl: row.resultUrl,
+            publishedAt: generation.completedAt,
+            visibleInReferenceGrid:
+              publicationState === "published" &&
+              (projection.referenceGridVisible ?? !projection.hiddenInReferenceGrid),
+            metadata: {
+              projection_repair: true,
+              provider_request_id: projection.providerRequestId ?? generation.requestId,
+            },
+          });
+        })
+      );
       repaired += 1;
       continue;
     }

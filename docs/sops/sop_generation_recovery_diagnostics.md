@@ -36,7 +36,6 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
 - Runtime endpoints:
   - `/api/internal/generation-recovery/run`
   - `/api/internal/admin-user-health-fleet/run`
-  - `/api/fal/queue-status`
   - `/api/fal/webhook` (if enabled)
   - `npx tsx scripts/replay_generation_convergence_backlog.ts` (bounded operator replay for `outputs_without_publications` backlog rows)
   - `/api/admin/user-health` (operator diagnostics for per-user generation + drainage health posture)
@@ -45,7 +44,6 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
 ## What Happens If Browser Closes Or Crashes
 | Client-visible state at disconnect | Server-side durable state | What continues without client | Expected final outcome |
 | --- | --- | --- | --- |
-| legacy `queued` accepted (`202 GENERATION_QUEUED`) | `ai_generation_submit_queue` row exists; `ai_generations` pending row exists; reservation remains held | Compatibility queue-status + reconciler paths can still converge historical rows | `dispatched` then provider terminal settlement, or queue timeout/exhausted fail with reservation release |
 | `dispatched` (`request_id` attached) | reservation linked to provider request id; generation row running/recoverable | Webhook or reconciler probes provider result and executes settlement + transition | `success` (capture) or `fail` (release), independent of client polling |
 | provider terminal success while client offline | provider payload reachable; generation may still be `running/recovering` briefly | recovery execution persists media (if allowed), updates generation status, captures reservation | generation converges to `success`; ledger contains one `generation_charge` for source ref |
 | provider terminal fail while client offline | provider failure visible during probe/webhook | recovery execution marks fail + settlement release | generation converges to `fail`; reservation released (or already released) |
@@ -54,7 +52,7 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
 
 ## Server-Authoritative Guarantees
 1. Queue and generation lifecycle are DB-durable (`ai_generation_submit_queue`, `ai_generations`) and do not depend on browser session continuity.
-2. Client polling (`/api/fal/queue-status`) is UX convenience only; it is not the execution authority.
+2. Client polling of provider status routes is UX convenience only; it is not the execution authority.
 3. Recovery execution is server-authoritative and can be driven by:
    - scheduler/reconciler (`/api/internal/generation-recovery/run`)
    - webhook ingestion (`/api/fal/webhook`) when enabled, now via the explicit ingress boundary in `frontend/lib/server/falIntegration/falWebhookIngress.ts`.

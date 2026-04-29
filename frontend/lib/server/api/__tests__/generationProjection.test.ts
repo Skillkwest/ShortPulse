@@ -67,6 +67,12 @@ const createSupabaseAdmin = ({
       };
     }
 
+    if (table === "generation_publications") {
+      return {
+        upsert,
+      };
+    }
+
     throw new Error(`unexpected table: ${table}`);
   });
 

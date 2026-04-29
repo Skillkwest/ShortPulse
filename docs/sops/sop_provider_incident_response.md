@@ -70,7 +70,7 @@ Mitigation guidance:
 2. Confirm completed runs capture (`reserved` -> `captured`) and create a ledger debit.
 3. If one model endpoint is degraded, temporarily remove that model from UI selection until provider recovers.
 4. For historical queued rows still visible through compatibility paths:
-   - Confirm exhausted queue rows resolve as `failed` in `/api/fal/queue-status` (not persistent `queued`) and inspect queue `last_error` if present.
+   - Confirm exhausted historical queue rows are not part of the active submit path and inspect queue `last_error` if present.
 5. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
    - canonical reservation RPC health (`admit_and_reserve_generation_credits`),
    - `SHORTPULSE_FAL_ADMISSION_MODE` (`enforce` fail-closes without reservation mode by design).

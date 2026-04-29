@@ -179,7 +179,7 @@ describe("directGenerationSettlement", () => {
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
-    settleGenerationOutcomeMock.mockResolvedValue(undefined);
+    settleGenerationOutcomeMock.mockResolvedValue({ settled: true, note: "captured" });
     readGenerationAbandonmentContextMock.mockResolvedValue({
       abandoned: false,
       noRefund: false,
@@ -571,6 +571,27 @@ describe("directGenerationSettlement", () => {
         outcome: "success",
       })
     );
+  });
+
+  it("reports direct terminal success as failed when billing capture does not settle", async () => {
+    settleGenerationOutcomeMock.mockResolvedValueOnce({
+      settled: false,
+      note: "reservation_capture_failed",
+    });
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/out-1.png"],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Generation billing settlement did not complete: reservation_capture_failed",
+    });
   });
 
   it("suppresses publications and projection output on direct terminal failure", async () => {

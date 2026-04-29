@@ -173,7 +173,7 @@ describe("executeGenerationRecovery", () => {
       runningExhaustMinAgeSeconds: 7200,
       runningHardTimeoutSeconds: 0,
     });
-    settleGenerationOutcomeMock.mockResolvedValue(undefined);
+    settleGenerationOutcomeMock.mockResolvedValue({ settled: true, note: "captured" });
     updateGenerationAttemptStateMock.mockResolvedValue({ ok: true });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
     readExistingRecoveryMediaRowsMock.mockResolvedValue([]);

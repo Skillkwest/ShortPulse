@@ -4,12 +4,9 @@ import {
   readGenerationProjectionLinkByProviderRequestId,
   readGenerationProjectionLinkByRequestId,
 } from "../generationProjection";
-import { getSupabaseAdmin } from "../supabaseAdmin";
 import {
   isMissingGenerationAttemptSchemaError,
-  isMissingLedgerSchemaError,
   isRecoverableReservationFailure,
-  readErrorCode,
 } from "./errorGuards";
 import {
   markGenerationReservationSubmitted,
@@ -18,127 +15,12 @@ import {
 } from "./reservationRpcAdapter";
 import { resolveCaptureSettlementPolicy } from "./settlementPolicy";
 import type {
-  ChargeSubmitLinkResult,
   FailedGenerationSettlementOptions,
   FailedGenerationSettlementResult,
   GenerationSettlementOptions,
   GenerationSettlementResult,
   JsonObject,
-  LedgerChargeRow,
 } from "./types";
-import { asString, readJsonObject, readObject } from "./utils";
-
-const parseLedgerChargeRow = (data: unknown): LedgerChargeRow | null => {
-  if (!data) return null;
-  const row = readObject(data);
-  const id = row.id;
-  if (id === undefined || id === null) return null;
-  return {
-    id: String(id),
-    source_ref: asString(row.source_ref) ?? null,
-    change_cents: Number(row.change_cents ?? 0),
-    metadata: readJsonObject(row.metadata),
-  };
-};
-
-const lookupChargeBySourceRef = async (
-  userId: string,
-  sourceRef: string
-): Promise<LedgerChargeRow | null> => {
-  try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await supabaseAdmin
-      .from("ai_credit_ledger")
-      .select("id, source_ref, change_cents, metadata")
-      .eq("user_id", userId)
-      .eq("source", "generation_charge")
-      .eq("source_ref", sourceRef)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      if (!isMissingLedgerSchemaError(readErrorCode(error), error.message)) {
-        console.error("[generationBilling] lookupChargeBySourceRef failed", error.message);
-      }
-      return null;
-    }
-    return parseLedgerChargeRow(data);
-  } catch (error) {
-    console.error("[generationBilling] lookupChargeBySourceRef threw", String(error));
-    return null;
-  }
-};
-
-export const attachProviderRequestToCharge = async ({
-  userId,
-  sourceRef,
-  providerRequestId,
-  metadataExtra = {},
-}: {
-  userId: string;
-  sourceRef: string;
-  providerRequestId: string;
-  metadataExtra?: JsonObject;
-}): Promise<ChargeSubmitLinkResult> => {
-  if (!providerRequestId) {
-    return {
-      ok: false,
-      status: "missing_provider_request_id",
-      sourceRef,
-      message: "provider_request_id is required",
-      code: null,
-    };
-  }
-  const existing = await lookupChargeBySourceRef(userId, sourceRef);
-  if (!existing) {
-    return {
-      ok: false,
-      status: "charge_not_found",
-      sourceRef,
-      message: "charge_not_found",
-      code: null,
-    };
-  }
-
-  const nextMetadata = {
-    ...readJsonObject(existing.metadata),
-    provider_request_id: providerRequestId,
-    ...metadataExtra,
-  };
-  try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { error } = await supabaseAdmin
-      .from("ai_credit_ledger")
-      .update({ metadata: nextMetadata })
-      .eq("id", existing.id);
-    if (error && !isMissingLedgerSchemaError(readErrorCode(error), error.message)) {
-      console.error("[generationBilling] attachProviderRequestToCharge failed", error.message);
-      return {
-        ok: false,
-        status: "charge_update_failed",
-        sourceRef: existing.source_ref ?? sourceRef,
-        message: error.message ?? "charge_update_failed",
-        code: readErrorCode(error),
-      };
-    }
-    return {
-      ok: true,
-      status: "attached",
-      sourceRef: existing.source_ref ?? sourceRef,
-      message: null,
-      code: null,
-    };
-  } catch (error) {
-    console.error("[generationBilling] attachProviderRequestToCharge threw", String(error));
-    return {
-      ok: false,
-      status: "charge_update_failed",
-      sourceRef: existing.source_ref ?? sourceRef,
-      message: String(error),
-      code: null,
-    };
-  }
-};
 
 const lookupGenerationSourceRefByProviderRequest = async ({
   userId,

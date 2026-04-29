@@ -3,7 +3,6 @@ import { readGenerationProjectionOwnershipByProviderRequestId } from "../generat
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import {
   isMissingGenerationAttemptSchemaError,
-  isMissingLedgerSchemaError,
   isMissingReservationSchemaError,
   readErrorCode,
 } from "./errorGuards";
@@ -37,36 +36,6 @@ const lookupReservationOwnerByProviderRequestId = async (
       "[generationBilling] lookupReservationOwnerByProviderRequestId threw",
       String(error)
     );
-    return null;
-  }
-};
-
-const lookupLedgerOwnerByProviderRequestId = async (
-  providerRequestId: string
-): Promise<string | null> => {
-  try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await supabaseAdmin
-      .from("ai_credit_ledger")
-      .select("user_id")
-      .eq("source", "generation_charge")
-      .contains("metadata", { provider_request_id: providerRequestId })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      if (!isMissingLedgerSchemaError(readErrorCode(error), error.message)) {
-        console.error("[generationBilling] lookupLedgerOwnerByProviderRequestId failed", {
-          providerRequestId,
-          message: error.message,
-        });
-      }
-      return null;
-    }
-    const ownerUserId = (data as { user_id?: unknown } | null)?.user_id;
-    return typeof ownerUserId === "string" && ownerUserId.trim().length ? ownerUserId : null;
-  } catch (error) {
-    console.error("[generationBilling] lookupLedgerOwnerByProviderRequestId threw", String(error));
     return null;
   }
 };
@@ -114,7 +83,7 @@ const lookupProjectionOwnersByProviderRequestId = async (
 
 /**
  * Resolves whether a provider request id is owned by the current user.
- * "unknown" means ownership could not be proven from persisted reservation/ledger records.
+ * "unknown" means ownership could not be proven from canonical reservation/generation records.
  */
 export const resolveProviderRequestOwnership = async ({
   userId,
@@ -139,11 +108,6 @@ export const resolveProviderRequestOwnership = async ({
   const projectionOwners = await lookupProjectionOwnersByProviderRequestId(normalized);
   if (projectionOwners.length) {
     return projectionOwners.includes(userId) ? "owned" : "forbidden";
-  }
-
-  const ledgerOwner = await lookupLedgerOwnerByProviderRequestId(normalized);
-  if (ledgerOwner) {
-    return ledgerOwner === userId ? "owned" : "forbidden";
   }
 
   return "unknown";

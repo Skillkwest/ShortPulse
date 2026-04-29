@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computeCostForModel } from "../../lib/model-runtime/pricing";
+import { getDefaultModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
 import {
   KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -12,6 +13,7 @@ const requireApiUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const insertCreditLedgerEntryMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
+const resolveRuntimeModelPricingPolicyMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -29,6 +31,11 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
 }));
 
+vi.mock("../../lib/server/api/modelPricingControlPlane", () => ({
+  resolveRuntimeModelPricingPolicy: (...args: unknown[]) =>
+    resolveRuntimeModelPricingPolicyMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
@@ -42,6 +49,14 @@ describe("generationBilling reservation RPC handling", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
     logGenerationFailureMock.mockResolvedValue(undefined);
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValue({
+      policy: getDefaultModelPricingPolicyDocument(),
+      activePolicyVersion: null,
+      activePolicyVersionId: null,
+      source: "control_plane",
+      updatedAt: "2026-04-29T00:00:00.000Z",
+      updatedByEmail: "pricing@example.com",
+    });
   });
 
   it("returns a no-op charge context when skipBilling is explicitly enabled", async () => {
@@ -81,6 +96,40 @@ describe("generationBilling reservation RPC handling", () => {
     expect(getSupabaseAdminMock).not.toHaveBeenCalled();
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when runtime pricing policy is unavailable", async () => {
+    resolveRuntimeModelPricingPolicyMock.mockRejectedValueOnce(
+      new Error("Model pricing control plane is not configured.")
+    );
+    const rpcMock = vi.fn();
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+    const req = {
+      headers: { "x-shortpulse-request-id": "req-pricing-unavailable" },
+      url: "/api/fal/seedream-submit",
+      body: {},
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      payload: {},
+      reason: "Seedream image generation",
+    });
+
+    expect(charge).toBeNull();
+    expect(rpcMock).not.toHaveBeenCalled();
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: "Model pricing policy is unavailable." });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.generation_billing_pricing_policy_unavailable",
+        statusCode: 500,
+      })
+    );
   });
 
   it("fails closed without direct debit when the reservation RPC has a recoverable failure", async () => {
@@ -216,7 +265,7 @@ describe("generationBilling reservation RPC handling", () => {
             billed_credits: expectedEstimate?.credits,
             billed_usd: expectedEstimate?.usd,
             pricing_policy_version: null,
-            pricing_policy_source: "fallback",
+            pricing_policy_source: "control_plane",
           },
         }),
       })
@@ -585,7 +634,7 @@ describe("generationBilling reservation RPC handling", () => {
         billed_credits: estimated?.credits,
         billed_usd: estimated?.usd,
         pricing_policy_version: null,
-        pricing_policy_source: "fallback",
+        pricing_policy_source: "control_plane",
       });
     }
   });

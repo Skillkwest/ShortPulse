@@ -1,8 +1,8 @@
 /**
  * Server-authoritative credit charging for generation requests.
- * Computes model cost from request payload, debits before provider submit,
+ * Computes model cost from request payload, reserves before provider submit,
  * tracks provider request ids for reconciliation, and exposes idempotent
- * refund helpers for failed submits and failed status outcomes.
+ * release helpers for failed submits and failed status outcomes.
  */
 import { randomUUID } from "crypto";
 import { computeCostForModel } from "../../model-runtime/pricing";
@@ -50,7 +50,7 @@ const resolveSourceRef = (req: ChargeOptions["req"]): string => {
 };
 
 /**
- * Debits credits for a model call before provider submission.
+ * Reserves credits for a model call before provider submission.
  */
 export const chargeGenerationRequest = async ({
   req,
@@ -94,7 +94,26 @@ export const chargeGenerationRequest = async ({
   }
 
   const pricingParams = buildPricingParams(modelId, payload);
-  const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy();
+  const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy().catch(async (error) => {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.generation_billing_pricing_policy_unavailable",
+      message: error instanceof Error ? error.message : "Model pricing policy is unavailable.",
+      statusCode: 500,
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        model_id: modelId,
+        source_ref: sourceRef,
+      },
+    });
+    return null;
+  });
+  if (!runtimePricingPolicy) {
+    res.status(500).json({ error: "Model pricing policy is unavailable." });
+    return null;
+  }
   const breakdown = computeCostForModel(modelId, pricingParams, runtimePricingPolicy.policy);
   if (!breakdown?.credits || breakdown.credits <= 0) {
     await logGenerationFailure({

@@ -103,7 +103,7 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual([]);
   });
 
-  it("ignores legacy success rows without projection context", async () => {
+  it("ignores legacy success urls without projection context while preserving generation identity", async () => {
     persistedGenerationRows = [
       {
         id: "gen-success-1",
@@ -120,12 +120,12 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-1",
       })
     ).resolves.toEqual({
-      generationId: null,
+      generationId: "gen-success-1",
       resultUrls: [],
     });
   });
 
-  it("does not read older legacy success rows without projection context", async () => {
+  it("does not read older legacy success urls without projection context", async () => {
     persistedGenerationRows = [
       {
         id: "gen-processing-1",
@@ -147,7 +147,7 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-1",
       })
     ).resolves.toEqual({
-      generationId: null,
+      generationId: "gen-processing-1",
       resultUrls: [],
     });
   });
@@ -452,7 +452,7 @@ describe("falStatusPersistedResults", () => {
     });
   });
 
-  it("ignores legacy failed rows without projection context", async () => {
+  it("ignores legacy failed rows without projection context while preserving generation identity", async () => {
     persistedGenerationRows = [
       {
         id: "gen-failed-1",
@@ -468,12 +468,12 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-failed-1",
       })
     ).resolves.toEqual({
-      generationId: null,
+      generationId: "gen-failed-1",
       resultUrls: [],
     });
   });
 
-  it("does not read older legacy failed rows without projection context", async () => {
+  it("does not read older legacy failed state without projection context", async () => {
     persistedGenerationRows = [
       {
         id: "gen-processing-1",
@@ -494,7 +494,7 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-failed-1",
       })
     ).resolves.toEqual({
-      generationId: null,
+      generationId: "gen-processing-1",
       resultUrls: [],
     });
   });

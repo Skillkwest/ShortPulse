@@ -529,12 +529,12 @@ export const executeGenerationRecovery = async ({
     sourceRef: asOptionalString(generationMetadata.source_ref),
     metadata: generationMetadata,
   });
-  const settleRecoveryOutcome = (input: {
+  const settleRecoveryOutcome = async (input: {
     outcome: "success" | "fail";
     reason: string;
     detail: JsonObject;
-  }) =>
-    settleGenerationOutcome({
+  }) => {
+    const settlement = await settleGenerationOutcome({
       userId: generation.user_id,
       providerRequestId: generation.request_id ?? "",
       outcome: input.outcome,
@@ -546,6 +546,10 @@ export const executeGenerationRecovery = async ({
       },
       abandonedNoRefund: input.outcome === "fail" && abandonment.abandoned && abandonment.noRefund,
     });
+    if (!settlement.settled) {
+      throw new Error(`Generation billing settlement did not complete: ${settlement.note}`);
+    }
+  };
 
   if (generation.status.toLowerCase() === "success") {
     const existingRows = await readExistingRecoveryMediaRows(generation.id);

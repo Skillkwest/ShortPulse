@@ -138,6 +138,9 @@ const stringifyDetail = (value: unknown, fallback: string): string => {
   }
 };
 
+const buildUnsettledBillingError = (note: string): string =>
+  `Generation billing settlement did not complete: ${note}`;
+
 const mergeSettlementMetadata = ({
   metadata,
   nowIso,
@@ -532,7 +535,7 @@ export const settleDirectGenerationSuccess = async ({
     return { ok: false, error: transition.error };
   }
 
-  await settleGenerationOutcome({
+  const billingSettlement = await settleGenerationOutcome({
     userId: generation.user_id,
     providerRequestId: generation.request_id,
     outcome: "success",
@@ -548,6 +551,12 @@ export const settleDirectGenerationSuccess = async ({
       autosave_decision_reason: autosaveDecisionReason,
     },
   });
+  if (!billingSettlement.settled) {
+    return {
+      ok: false,
+      error: buildUnsettledBillingError(billingSettlement.note),
+    };
+  }
 
   return {
     ok: true,
@@ -697,7 +706,7 @@ export const settleDirectGenerationFailure = async ({
     completedAt: nowIso,
   });
 
-  await settleGenerationOutcome({
+  const billingSettlement = await settleGenerationOutcome({
     userId: generation.user_id,
     providerRequestId: generation.request_id,
     outcome: "fail",
@@ -713,6 +722,12 @@ export const settleDirectGenerationFailure = async ({
     },
     abandonedNoRefund: isAbandoned && abandonment.noRefund,
   });
+  if (!billingSettlement.settled) {
+    return {
+      ok: false,
+      error: buildUnsettledBillingError(billingSettlement.note),
+    };
+  }
 
   return {
     ok: true,

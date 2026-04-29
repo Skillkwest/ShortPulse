@@ -231,12 +231,15 @@ export const recordGenerationAbandonment = async ({
         reason,
         noRefund,
       });
-      await adminClient
+      const generationUpdate = await adminClient
         .from("ai_generations")
         .update({ metadata: nextMetadata })
         .eq("id", id)
         .eq("user_id", userId);
-      await adminClient
+      if (generationUpdate.error) {
+        throw new Error(generationUpdate.error.message || "Failed to mark generation abandoned.");
+      }
+      const projectionUpdate = await adminClient
         .from("generation_projection")
         .update({
           hidden_in_reference_grid: true,
@@ -246,7 +249,12 @@ export const recordGenerationAbandonment = async ({
         })
         .eq("generation_id", id)
         .eq("user_id", userId);
-      await adminClient
+      if (projectionUpdate.error) {
+        throw new Error(
+          projectionUpdate.error.message || "Failed to suppress generation projection."
+        );
+      }
+      const publicationUpdate = await adminClient
         .from("generation_publications")
         .update({
           publication_state: "suppressed",
@@ -255,6 +263,11 @@ export const recordGenerationAbandonment = async ({
         })
         .eq("generation_id", id)
         .eq("user_id", userId);
+      if (publicationUpdate.error) {
+        throw new Error(
+          publicationUpdate.error.message || "Failed to suppress generation publication."
+        );
+      }
     })
   );
 

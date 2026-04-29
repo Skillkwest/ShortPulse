@@ -118,7 +118,7 @@ describe("resolveProviderRequestOwnership", () => {
     expect(result).toBe("forbidden");
   });
 
-  it("returns owned when ledger proves ownership after canonical lineage misses", async () => {
+  it("returns unknown when only legacy ledger metadata matches after canonical lineage misses", async () => {
     const admin = createMockSupabase({
       reservationData: null,
       ledgerData: { user_id: "user-1" },
@@ -130,7 +130,7 @@ describe("resolveProviderRequestOwnership", () => {
       providerRequestId: "req-4",
     });
 
-    expect(result).toBe("owned");
+    expect(result).toBe("unknown");
   });
 
   it("returns unknown when no ownership source can prove request ownership", async () => {

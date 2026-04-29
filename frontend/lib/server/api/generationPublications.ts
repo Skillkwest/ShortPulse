@@ -6,6 +6,7 @@ export type UpsertGenerationPublicationInput = {
   generationId: string;
   generationOutputId: string;
   userId: string;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
   generationAttemptId?: string | null;
   publicationState?: "pending" | "published" | "archived" | "suppressed";
   reusable?: boolean;
@@ -32,6 +33,7 @@ export const upsertGenerationPublication = async ({
   generationId,
   generationOutputId,
   userId,
+  supabaseAdmin,
   generationAttemptId,
   publicationState = "pending",
   reusable = true,
@@ -78,7 +80,8 @@ export const upsertGenerationPublication = async ({
   const normalizedArchiveReason = asString(archiveReason);
   if (normalizedArchiveReason) payload.archive_reason = normalizedArchiveReason;
 
-  const { error } = await getSupabaseAdmin().from("generation_publications").upsert(payload, {
+  const adminClient = supabaseAdmin ?? getSupabaseAdmin();
+  const { error } = await adminClient.from("generation_publications").upsert(payload, {
     onConflict: "generation_output_id",
   });
   if (error) throw error;

@@ -65,7 +65,7 @@ describe("resolveProviderRequestOwnership", () => {
     mockOwnershipTables({});
   });
 
-  it("uses generation attempts as canonical ownership before projection and ledger fallbacks", async () => {
+  it("uses generation attempts as canonical ownership before projection", async () => {
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
       data: {
         userId: "user-1",

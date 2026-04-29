@@ -90,6 +90,35 @@ export const buildPersistedCompletedPayload = ({
 const areAllOutputsOwned = (rows: Array<{ mediaFileId: string | null }>): boolean =>
   rows.length > 0 && rows.every((row) => typeof row.mediaFileId === "string" && row.mediaFileId);
 
+const asString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const readGenerationIdByRequestId = async ({
+  userId,
+  requestId,
+  supabaseAdmin,
+}: {
+  userId: string;
+  requestId: string;
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+}): Promise<string | null> => {
+  const { data, error } = await supabaseAdmin
+    .from("ai_generations")
+    .select("id, created_at")
+    .eq("user_id", userId)
+    .eq("request_id", requestId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error || !Array.isArray(data) || !data.length) return null;
+
+  const row = data[0];
+  if (!row || typeof row !== "object" || Array.isArray(row)) return null;
+  return asString((row as Record<string, unknown>).id);
+};
+
 export const buildPersistedFailedPayload = ({
   requestId,
   generationId,
@@ -215,6 +244,49 @@ export const readPersistedGenerationStatusContext = async ({
         queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
+      };
+    }
+    if (projectionContext?.generationId) {
+      return {
+        generationId: projectionContext.generationId,
+        resultUrls: [],
+        status: projectionContext.status,
+        taskState: projectionContext.taskState,
+        queueState: normalizePersistedQueueState(projectionContext.queueState),
+        errorMessageShort: projectionContext.errorMessageShort,
+        errorDetail: projectionContext.errorDetail,
+      };
+    }
+
+    const generationId = await readGenerationIdByRequestId({
+      userId,
+      requestId,
+      supabaseAdmin: adminClient,
+    }).catch(() => null);
+    if (generationId) {
+      const outputRows = await readPersistedGenerationOutputs({
+        generationId,
+        userId,
+        supabaseAdmin: adminClient,
+      }).catch(() => []);
+      if (outputRows.length) {
+        const deliveryState = areAllOutputsOwned(outputRows)
+          ? "canonical_owned"
+          : "transient_provider";
+        return {
+          generationId,
+          resultUrls: outputRows.map((row) => row.resultUrl),
+          status: "success",
+          taskState: "success",
+          deliveryState,
+          recoveryPending: false,
+          completionState: null,
+          queueState: "dispatched",
+        };
+      }
+      return {
+        generationId,
+        resultUrls: [],
       };
     }
 

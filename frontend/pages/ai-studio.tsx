@@ -1440,16 +1440,12 @@ export default function AiStudioPage() {
   const panelPropsWithCreateModeRuntime = useMemo(() => {
     const standardCreateProperties = {
       ...panelProps.propertiesCreate.standard,
-      expertCreateMode,
-      onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
     };
     const pulseCreateProperties = {
       ...panelProps.propertiesCreate.pulse,
-      expertCreateMode,
       hasActivePulseSession,
       isGenerateDisabled: pulseArtifactGenerateDisabled,
       guardrailReason: pulseArtifactGenerateGuardrail,
-      onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
       pulseWorkflowSession,
       activePulsePresetId: activeCreatePulsePresetId,
       activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,

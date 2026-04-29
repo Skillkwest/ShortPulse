@@ -393,6 +393,15 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("...panelProps.propertiesCreate,");
     expect(pageSource).toContain("...panelProps.propertiesCreate.standard");
     expect(pageSource).toContain("...panelProps.propertiesCreate.pulse");
+    expect(pageSource).not.toContain(
+      "...panelProps.propertiesCreate.standard,\n      expertCreateMode"
+    );
+    expect(pageSource).not.toContain(
+      "...panelProps.propertiesCreate.pulse,\n      expertCreateMode"
+    );
+    expect(pageSource).not.toContain(
+      "...panelProps.propertiesCreate.pulse,\n      onExpertCreateModeChange"
+    );
     expect(panelPropBuilderSource).toContain("standard: standardCreateProperties");
     expect(panelPropBuilderSource).toContain("pulse: pulseCreateProperties");
   });

@@ -75,13 +75,10 @@ vi.mock("../create/StandardCreatePropertiesPanel", () => ({
 }));
 
 vi.mock("../create/PulseCreatePropertiesPanel", () => ({
-  PulseCreatePropertiesPanel: (props: {
-    chatModeEnabled?: boolean;
-    createModeToggle?: React.ReactNode;
-  }) => (
+  PulseCreatePropertiesPanel: (props: { createModeToggle?: React.ReactNode }) => (
     <div data-testid="text-properties">
       {props.createModeToggle}
-      <div data-testid="create-chat-mode">{props.chatModeEnabled ? "on" : "off"}</div>
+      <div data-testid="create-chat-mode">not-provided</div>
       <div data-testid="create-expert-mode">pulse</div>
     </div>
   ),
@@ -107,8 +104,7 @@ const createCreateProperties = (
       onExpertCreateModeChange,
       pulse: {
         ...shared,
-        chatModeEnabled: shared.chatModeEnabled ?? true,
-      } as TestPulseCreateProps,
+      } as unknown as TestPulseCreateProps,
     };
   }
   return {
@@ -849,7 +845,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
 
     fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
-    expect(await screen.findByTestId("create-chat-mode")).toHaveTextContent("off");
+    expect(await screen.findByTestId("create-chat-mode")).toHaveTextContent("not-provided");
     expect(screen.getByTestId("create-expert-mode")).toHaveTextContent("pulse");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
 

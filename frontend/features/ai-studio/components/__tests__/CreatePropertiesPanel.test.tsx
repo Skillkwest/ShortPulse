@@ -7,14 +7,15 @@ import path from "node:path";
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ComposeSendCard, CreatePropertiesPanel } from "../CreatePropertiesPanel";
-
-vi.mock("next/dynamic", async () => {
-  const pulseModule = await import("../create/PulseCreatePropertiesPanel");
-  return {
-    default: () => pulseModule.PulseCreatePropertiesPanel,
-  };
-});
+import {
+  ComposeSendCard,
+  StandardCreatePropertiesPanel,
+  type StandardCreatePropertiesPanelProps,
+} from "../create/StandardCreatePropertiesPanel";
+import {
+  PulseCreatePropertiesPanel,
+  type PulseCreatePropertiesPanelProps,
+} from "../create/PulseCreatePropertiesPanel";
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
@@ -24,6 +25,17 @@ vi.mock("next/image", () => ({
     return <img {...imageProps} alt={props.alt ?? ""} />;
   },
 }));
+
+type TestCreatePanelProps = StandardCreatePropertiesPanelProps &
+  Partial<PulseCreatePropertiesPanelProps>;
+
+function RenderModeOwnedCreatePanel(props: TestCreatePanelProps) {
+  if (props.expertCreateMode === "pulse") {
+    return <PulseCreatePropertiesPanel {...(props as PulseCreatePropertiesPanelProps)} />;
+  }
+
+  return <StandardCreatePropertiesPanel {...props} />;
+}
 
 describe("CreatePropertiesPanel", () => {
   it("keeps Standard and Pulse expert panel modules from importing each other's owned surfaces", () => {
@@ -67,7 +79,7 @@ describe("CreatePropertiesPanel", () => {
     expect(pulseChatSurface).toContain("useFlowComposerLayout");
   });
 
-  const baseProps: React.ComponentProps<typeof CreatePropertiesPanel> = {
+  const baseProps: TestCreatePanelProps = {
     mode: "image",
     aspect: "9:16",
     modelId: "fal-ai/bytedance/seedream/v4.5/edit",
@@ -83,9 +95,8 @@ describe("CreatePropertiesPanel", () => {
     onSavePrompt: vi.fn(),
   };
 
-  const renderPanel = (
-    overrides: Partial<React.ComponentProps<typeof CreatePropertiesPanel>> = {}
-  ) => render(<CreatePropertiesPanel {...baseProps} {...overrides} />);
+  const renderPanel = (overrides: Partial<TestCreatePanelProps> = {}) =>
+    render(<RenderModeOwnedCreatePanel {...baseProps} {...overrides} />);
   const promptOutputMessage = (content = "Here is a revised prompt.") => ({
     id: "assistant-1",
     role: "assistant" as const,
@@ -532,7 +543,7 @@ describe("CreatePropertiesPanel", () => {
     });
     expect(screen.getByRole("group", { name: "Expert create composer" })).toBeInTheDocument();
 
-    rerender(<CreatePropertiesPanel {...baseProps} beginnerMode expertCreateUiEligible />);
+    rerender(<RenderModeOwnedCreatePanel {...baseProps} beginnerMode expertCreateUiEligible />);
     expect(screen.queryByRole("group", { name: "Expert create composer" })).not.toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Character mode section" })).toBeInTheDocument();
   });
@@ -547,7 +558,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByText("What do you want to make?")).toBeInTheDocument();
 
     rerender(
-      <CreatePropertiesPanel
+      <RenderModeOwnedCreatePanel
         {...baseProps}
         beginnerMode={false}
         expertCreateUiEligible
@@ -607,7 +618,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByText("Make this a polished ad concept.")).toBeInTheDocument();
 
     rerender(
-      <CreatePropertiesPanel
+      <RenderModeOwnedCreatePanel
         {...baseProps}
         beginnerMode={false}
         expertCreateUiEligible
@@ -836,7 +847,7 @@ describe("CreatePropertiesPanel", () => {
 
       scrollHeightPx = 204;
       rerender(
-        <CreatePropertiesPanel
+        <RenderModeOwnedCreatePanel
           {...baseProps}
           beginnerMode={false}
           expertCreateUiEligible
@@ -856,7 +867,7 @@ describe("CreatePropertiesPanel", () => {
 
       scrollHeightPx = 180;
       rerender(
-        <CreatePropertiesPanel
+        <RenderModeOwnedCreatePanel
           {...baseProps}
           beginnerMode={false}
           expertCreateUiEligible
@@ -1058,7 +1069,7 @@ describe("CreatePropertiesPanel", () => {
 
       scrollHeightPx = 204;
       rerender(
-        <CreatePropertiesPanel
+        <RenderModeOwnedCreatePanel
           {...baseProps}
           beginnerMode={false}
           expertCreateUiEligible
@@ -1164,11 +1175,12 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.queryByText("Prompt Presets")).not.toBeInTheDocument();
   });
 
-  it("shows the left pulse rail only after toggling to pulse", async () => {
+  it("shows the left pulse rail in the Pulse-owned panel", () => {
     const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
       agentEnabled: true,
+      expertCreateMode: "pulse",
       onAgentInputChange: vi.fn(),
       onAgentSend: vi.fn(),
       onClearAgentChat: vi.fn(),
@@ -1188,28 +1200,18 @@ describe("CreatePropertiesPanel", () => {
     expect(rightPanelTopbar?.contains(screen.getByRole("button", { name: "Clear chat" }))).toBe(
       true
     );
-    expect(container.querySelector(".create-expert-left-panel")).toBeFalsy();
     const standardTab = screen.getByRole("tab", { name: "Standard" });
     const pulseTab = screen.getByRole("tab", { name: "Pulse" });
-    expect(standardTab).toHaveAttribute("aria-selected", "true");
-    expect(pulseTab).toHaveAttribute("aria-selected", "false");
-
-    fireEvent.click(pulseTab);
-
-    const updatedStandardTab = screen.getByRole("tab", { name: "Standard" });
-    const updatedPulseTab = screen.getByRole("tab", { name: "Pulse" });
-    expect(updatedStandardTab).toHaveAttribute("aria-selected", "false");
-    expect(updatedPulseTab).toHaveAttribute("aria-selected", "true");
-    await waitFor(() => {
-      expect(container.querySelector(".create-expert-left-panel")).toBeTruthy();
-      expect(screen.getByText("Pulses")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Video Prompt Magic preset" })).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: "Multi Sequence Video Prompt preset" })
-      ).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "DFY Story Builder preset" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Single-shot preset" })).not.toBeInTheDocument();
-    });
+    expect(standardTab).toHaveAttribute("aria-selected", "false");
+    expect(pulseTab).toHaveAttribute("aria-selected", "true");
+    expect(container.querySelector(".create-expert-left-panel")).toBeTruthy();
+    expect(screen.getByText("Pulses")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Video Prompt Magic preset" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Multi Sequence Video Prompt preset" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "DFY Story Builder preset" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Single-shot preset" })).not.toBeInTheDocument();
   });
 
   it("starts a clicked pulse chip and renders the guided session state", async () => {
@@ -1225,15 +1227,13 @@ describe("CreatePropertiesPanel", () => {
       );
       const [activePulsePresetId, setActivePulsePresetId] = React.useState<string | null>(null);
       const [pulseWorkflowSession, setPulseWorkflowSession] =
-        React.useState<React.ComponentProps<typeof CreatePropertiesPanel>["pulseWorkflowSession"]>(
-          null
-        );
+        React.useState<TestCreatePanelProps["pulseWorkflowSession"]>(null);
       const [agentMessages, setAgentMessages] = React.useState<
-        NonNullable<React.ComponentProps<typeof CreatePropertiesPanel>["agentMessages"]>
+        NonNullable<TestCreatePanelProps["agentMessages"]>
       >([]);
 
       return (
-        <CreatePropertiesPanel
+        <RenderModeOwnedCreatePanel
           {...baseProps}
           beginnerMode={false}
           expertCreateUiEligible
@@ -1369,7 +1369,7 @@ describe("CreatePropertiesPanel", () => {
     expect(onStylesPanelToggle).toHaveBeenCalledTimes(1);
 
     rerender(
-      <CreatePropertiesPanel
+      <RenderModeOwnedCreatePanel
         {...baseProps}
         beginnerMode={false}
         expertCreateUiEligible
@@ -1820,12 +1820,10 @@ describe("CreatePropertiesPanel", () => {
 
   it("routes both expert generate buttons to the same handler and mirrors disabled state", () => {
     const onGenerate = vi.fn();
-    const renderExpertWithComposeCard = (
-      overrides: Partial<React.ComponentProps<typeof CreatePropertiesPanel>> = {}
-    ) =>
+    const renderExpertWithComposeCard = (overrides: Partial<TestCreatePanelProps> = {}) =>
       render(
         <>
-          <CreatePropertiesPanel
+          <RenderModeOwnedCreatePanel
             {...baseProps}
             beginnerMode={false}
             expertCreateUiEligible
@@ -1854,7 +1852,7 @@ describe("CreatePropertiesPanel", () => {
 
     rerender(
       <>
-        <CreatePropertiesPanel
+        <RenderModeOwnedCreatePanel
           {...baseProps}
           beginnerMode={false}
           expertCreateUiEligible
@@ -2172,7 +2170,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
 
     rerender(
-      <CreatePropertiesPanel
+      <RenderModeOwnedCreatePanel
         {...baseProps}
         beginnerMode={false}
         expertCreateUiEligible
@@ -2184,7 +2182,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.queryByRole("dialog", { name: "Choose character" })).not.toBeInTheDocument();
 
     rerender(
-      <CreatePropertiesPanel
+      <RenderModeOwnedCreatePanel
         {...baseProps}
         beginnerMode={false}
         expertCreateUiEligible

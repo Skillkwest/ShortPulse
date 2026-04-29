@@ -179,6 +179,9 @@ describe("Create agent mode boundaries", () => {
   });
 
   it("keeps the active Create composers mode-owned below the top-level switch", () => {
+    const componentSourceFiles = collectSourceFiles(
+      path.join(process.cwd(), "features", "ai-studio", "components")
+    );
     const pageContentSource = readFrontendFile(
       "features/ai-studio/components/AiStudioPageContent.tsx"
     );
@@ -207,6 +210,11 @@ describe("Create agent mode boundaries", () => {
     expect(pageContentSource).toContain('import("./create/PulseCreatePropertiesPanel")');
     expect(pageContentSource).not.toContain('from "./CreatePropertiesPanel"');
     expect(contractSource).not.toContain('from "../../components/CreatePropertiesPanel"');
+    expect(
+      componentSourceFiles.some((filePath) =>
+        filePath.endsWith(`${path.sep}CreatePropertiesPanel.tsx`)
+      )
+    ).toBe(false);
 
     expect(standardComposerSource).not.toContain("PulseCreatePanelView");
     expect(standardComposerSource).not.toContain("PulseCreateChatPanel");

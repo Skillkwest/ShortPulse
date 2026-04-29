@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ComposeSendCard } from "../CreatePropertiesPanel";
+import { ComposeSendCard } from "../create/StandardCreatePropertiesPanel";
 import { PulseCreatePanelView } from "../create/PulseCreatePanelView";
 import { StandardCreatePanelView } from "../create/StandardCreatePanelView";
 import type { PromptStepProps } from "../PromptStep";

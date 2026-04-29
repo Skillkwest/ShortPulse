@@ -24,7 +24,11 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "generation_replay",
   "character_context",
   "style_context",
+  "hidden_in_reference_grid",
+  "reference_grid_visible",
 ].join(", ");
+
+const PROJECT_SNAPSHOT_GENERATED_OUTPUT_APPEND_LIMIT = 100;
 
 type SnapshotRecord = Record<string, unknown>;
 
@@ -47,6 +51,8 @@ type ProjectGenerationProjectionRow = {
   generation_replay?: unknown;
   character_context?: unknown;
   style_context?: unknown;
+  hidden_in_reference_grid?: unknown;
+  reference_grid_visible?: unknown;
 };
 
 const asRecord = (value: unknown): SnapshotRecord =>
@@ -64,6 +70,8 @@ const asTrimmedStringArray = (value: unknown): string[] => {
     .map((entry) => asTrimmedString(entry))
     .filter((entry): entry is string => Boolean(entry));
 };
+
+const asBoolean = (value: unknown): boolean | null => (typeof value === "boolean" ? value : null);
 
 const hasSettledSnapshotOutputPayload = (row: SnapshotRecord): boolean => {
   if (
@@ -158,6 +166,34 @@ const readProjectAssociatedGenerationIds = async ({
       .map((row) => asTrimmedString(asRecord(row).generation_id))
       .filter((generationId): generationId is string => Boolean(generationId))
   );
+};
+
+const readRecentProjectAssociatedGenerationIds = async ({
+  userId,
+  projectId,
+  limit = PROJECT_SNAPSHOT_GENERATED_OUTPUT_APPEND_LIMIT,
+}: {
+  userId: string;
+  projectId: string;
+  limit?: number;
+}): Promise<string[]> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const boundedLimit = Math.max(1, Math.min(limit, PROJECT_SNAPSHOT_GENERATED_OUTPUT_APPEND_LIMIT));
+  const { data, error } = await supabaseAdmin
+    .from("project_generation_items")
+    .select("generation_id, updated_at")
+    .eq("user_id", userId)
+    .eq("project_id", projectId)
+    .order("updated_at", { ascending: false })
+    .limit(boundedLimit);
+
+  if (error) {
+    throw new Error(error.message || "Failed to load project-associated generation ids");
+  }
+
+  return (Array.isArray(data) ? data : [])
+    .map((row) => asTrimmedString(asRecord(row).generation_id))
+    .filter((generationId): generationId is string => Boolean(generationId));
 };
 
 const normalizeProjectionTaskState = (value: unknown): string | null => {
@@ -327,6 +363,62 @@ const patchSnapshotOutputRow = ({
   };
 };
 
+const resolveSnapshotOutputMode = (projection: ProjectGenerationProjectionRow): string => {
+  const modelId = asTrimmedString(projection.model_id)?.toLowerCase() ?? "";
+  const provider = asTrimmedString(projection.provider)?.toLowerCase() ?? "";
+  if (provider.includes("eleven") || modelId.includes("eleven")) return "audio";
+  if (
+    modelId.includes("video") ||
+    modelId.includes("kling") ||
+    modelId.includes("veo") ||
+    modelId.includes("seedance")
+  ) {
+    return "video";
+  }
+  return "image";
+};
+
+const shouldAppendProjectionToSnapshot = (projection: ProjectGenerationProjectionRow): boolean => {
+  if (asBoolean(projection.hidden_in_reference_grid) === true) return false;
+  if (asBoolean(projection.reference_grid_visible) === false) return false;
+  return Boolean(asTrimmedString(projection.generation_id));
+};
+
+const createSnapshotOutputRowFromProjection = (
+  projection: ProjectGenerationProjectionRow
+): SnapshotRecord | null => {
+  const generationId = asTrimmedString(projection.generation_id);
+  if (!generationId || !shouldAppendProjectionToSnapshot(projection)) return null;
+  const mode = resolveSnapshotOutputMode(projection);
+  const requestId = asTrimmedString(projection.request_id);
+  const modelId = asTrimmedString(projection.model_id);
+
+  return patchSnapshotOutputRow({
+    row: {
+      id: `generated:${generationId}`,
+      mode,
+      model: modelId ?? "Generated media",
+      modelId: modelId ?? undefined,
+      prompt: asTrimmedString(projection.display_prompt) ?? "",
+      status: "ready",
+      timestamp: "Just now",
+      generationId,
+      taskId: requestId ?? undefined,
+      generationTraceId: requestId ?? undefined,
+      sourceRef: asTrimmedString(projection.source_ref) ?? undefined,
+      provider: asTrimmedString(projection.provider) ?? undefined,
+      mediaSource: "generated",
+      previewTier: mode === "video" ? "preview_loop" : "full",
+      archivedAt: null,
+      archiveReason: null,
+      saveState: "idle",
+      saveError: null,
+      hiddenInReferenceGrid: asBoolean(projection.hidden_in_reference_grid) ?? false,
+    },
+    projection,
+  });
+};
+
 /**
  * Associates the generated outputs referenced by a project workspace snapshot with that project.
  */
@@ -378,20 +470,29 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
 }): Promise<SnapshotRecord> => {
   const outputsRecord = asRecord(snapshot.outputs);
   const snapshotGenerationIds = collectSnapshotGenerationIds(snapshot);
-  if (snapshotGenerationIds.length === 0) return snapshot;
-
-  const associatedGenerationIds = await readProjectAssociatedGenerationIds({
-    userId,
-    projectId,
-    generationIds: snapshotGenerationIds,
-  });
+  const [associatedSnapshotGenerationIds, recentAssociatedGenerationIds] = await Promise.all([
+    snapshotGenerationIds.length > 0
+      ? readProjectAssociatedGenerationIds({
+          userId,
+          projectId,
+          generationIds: snapshotGenerationIds,
+        })
+      : Promise.resolve(new Set<string>()),
+    readRecentProjectAssociatedGenerationIds({
+      userId,
+      projectId,
+    }),
+  ]);
 
   let changed = false;
+  const projectionGenerationIds = [
+    ...new Set([...associatedSnapshotGenerationIds, ...recentAssociatedGenerationIds]),
+  ];
   const projectionByGenerationId =
-    associatedGenerationIds.size > 0
+    projectionGenerationIds.length > 0
       ? await buildProjectionByGenerationId({
           userId,
-          generationIds: [...associatedGenerationIds],
+          generationIds: projectionGenerationIds,
         })
       : new Map<string, ProjectGenerationProjectionRow>();
   const patchRows = (value: unknown): unknown => {
@@ -400,7 +501,7 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
       .map((row) => {
         const normalizedRow = asRecord(row);
         const generationId = asTrimmedString(normalizedRow.generationId);
-        if (generationId && !associatedGenerationIds.has(generationId)) {
+        if (generationId && !associatedSnapshotGenerationIds.has(generationId)) {
           changed = true;
           return null;
         }
@@ -431,10 +532,32 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
       .filter((row): row is SnapshotRecord => Boolean(row));
   };
 
+  const activeRows = patchRows(outputsRecord.active);
+  const archivedRows = patchRows(outputsRecord.archived);
+  const existingGenerationIds = new Set(
+    [
+      ...(Array.isArray(activeRows) ? activeRows : []),
+      ...(Array.isArray(archivedRows) ? archivedRows : []),
+    ]
+      .map((row) => asTrimmedString(asRecord(row).generationId))
+      .filter((generationId): generationId is string => Boolean(generationId))
+  );
+  const appendedActiveRows = recentAssociatedGenerationIds
+    .filter((generationId) => !existingGenerationIds.has(generationId))
+    .map((generationId) => {
+      const projection = projectionByGenerationId.get(generationId);
+      return projection ? createSnapshotOutputRowFromProjection(projection) : null;
+    })
+    .filter((row): row is SnapshotRecord => Boolean(row));
+
+  if (appendedActiveRows.length > 0) {
+    changed = true;
+  }
+
   const nextOutputs = {
     ...outputsRecord,
-    active: patchRows(outputsRecord.active),
-    archived: patchRows(outputsRecord.archived),
+    active: [...appendedActiveRows, ...(Array.isArray(activeRows) ? activeRows : [])],
+    archived: Array.isArray(archivedRows) ? archivedRows : [],
   };
 
   return changed

@@ -48,6 +48,17 @@ type AiStudioRuntimeUiState = {
 
 const isPlainSessionGeneratedOutputHydrationEnabled = (): boolean =>
   process.env.NEXT_PUBLIC_AI_STUDIO_PLAIN_SESSION_GENERATED_OUTPUT_HYDRATION_ENABLED === "true";
+
+const CANONICAL_GENERATED_OUTPUT_SYNC_INTERVAL_MS = 5_000;
+const CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS = 120_000;
+
+const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean => {
+  const hasGenerationIdentity = Boolean(output.generationId || output.taskId);
+  if (output.mediaSource !== "generated" && !hasGenerationIdentity) return false;
+  if (output.taskState === "success" || output.taskState === "fail") return false;
+  return hasGenerationIdentity || Boolean(output.sourceRef);
+};
+
 export const useAiStudioState = ({
   projectId = null,
   projectRouteRequested = false,
@@ -189,6 +200,8 @@ export const useAiStudioState = ({
   const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
   const sessionHydrationSigningRevisionRef = useRef(0);
   const canonicalGeneratedHydrationStartedRef = useRef(false);
+  const canonicalGeneratedOutputSyncInFlightRef = useRef(false);
+  const canonicalGeneratedOutputSyncLastActiveAtRef = useRef<number | null>(null);
   const activeBaseRuntimeAuthorityKeyRef = useRef(baseRuntimeAuthorityKey);
   const activeRuntimeAuthorityKeyRef = useRef(runtimeAuthorityKey);
   const runtimeUiStateByAuthorityKeyRef = useRef<Record<string, AiStudioRuntimeUiState>>({});
@@ -243,7 +256,7 @@ export const useAiStudioState = ({
     const restoredState = baseAuthorityChanged
       ? null
       : (runtimeUiStateByAuthorityKeyRef.current[runtimeAuthorityKey] ?? null);
-    /* eslint-disable react-hooks/set-state-in-effect -- mode authority switches intentionally restore active selection and quick-slot state for the target lane. */
+
     setActiveOutputId(restoredState?.activeOutputId ?? null);
     setReferenceProjectionState(
       restoredState?.referenceProjectionState ?? createEmptyReferenceProjectionState()
@@ -252,7 +265,6 @@ export const useAiStudioState = ({
     pendingFinalizeRemovalIdsRef.current = new Set();
     sessionHydrationSigningRevisionRef.current += 1;
     setSaved(restoredState?.saved ?? false);
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [
     activeOutputId,
     baseRuntimeAuthorityKey,
@@ -490,6 +502,54 @@ export const useAiStudioState = ({
       cancelled = true;
     };
   }, [hasPendingWorkflowRestore, projectId, projectRouteRequested, setOutputsState]);
+
+  useEffect(() => {
+    if (!projectId || hasPendingWorkflowRestore) {
+      canonicalGeneratedOutputSyncLastActiveAtRef.current = null;
+      return;
+    }
+
+    const hasActiveGeneratedOutput = outputs.some(isCanonicalGeneratedOutputSyncCandidate);
+    if (hasActiveGeneratedOutput) {
+      canonicalGeneratedOutputSyncLastActiveAtRef.current = Date.now();
+    }
+  }, [hasPendingWorkflowRestore, outputs, projectId]);
+
+  useEffect(() => {
+    if (!projectId || hasPendingWorkflowRestore) return;
+    let cancelled = false;
+
+    const syncCanonicalGeneratedOutputs = async () => {
+      if (cancelled || canonicalGeneratedOutputSyncInFlightRef.current) return;
+      const lastActiveAt = canonicalGeneratedOutputSyncLastActiveAtRef.current;
+      const withinIdleGrace =
+        lastActiveAt != null &&
+        Date.now() - lastActiveAt <= CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS;
+      if (!withinIdleGrace) return;
+
+      canonicalGeneratedOutputSyncInFlightRef.current = true;
+      try {
+        const hydratedOutputs = await listVisibleGeneratedOutputs({ projectId });
+        if (cancelled || hydratedOutputs.length === 0) return;
+        setOutputsState((currentOutputs) =>
+          mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)
+        );
+      } finally {
+        canonicalGeneratedOutputSyncInFlightRef.current = false;
+      }
+    };
+
+    const intervalId = globalThis.setInterval(
+      syncCanonicalGeneratedOutputs,
+      CANONICAL_GENERATED_OUTPUT_SYNC_INTERVAL_MS
+    );
+    void syncCanonicalGeneratedOutputs();
+
+    return () => {
+      cancelled = true;
+      globalThis.clearInterval(intervalId);
+    };
+  }, [hasPendingWorkflowRestore, projectId, setOutputsState]);
 
   const {
     deleteOutput,

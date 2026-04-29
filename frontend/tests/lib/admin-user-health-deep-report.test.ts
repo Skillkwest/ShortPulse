@@ -388,4 +388,65 @@ describe("buildAdminHealthResponse", () => {
     );
     expect(result.reservations.reservedLinkedTerminalGenerationCount).toBe(1);
   });
+
+  it("ignores project association drift for metadata that points at deleted projects", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user@example.com",
+      lookupMode: "email",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,metadata",
+      reservationsSupported: true,
+      queueSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: {
+        user_id: "user-1",
+        balance_cents: 500,
+        updated_at: "2026-03-17T11:55:00.000Z",
+      },
+      generations: [
+        {
+          id: "gen-deleted-project",
+          status: "success",
+          recovery_state: null,
+          provider: "fal",
+          model_id: "fal-ai/nano-banana",
+          request_id: "req-deleted-project",
+          created_at: "2026-03-17T11:00:00.000Z",
+          completed_at: "2026-03-17T11:01:00.000Z",
+          failure_reason_code: null,
+          next_recovery_at: null,
+          metadata: {
+            shortpulse_context: {
+              project_id: "deleted-project",
+            },
+          },
+        },
+      ],
+      attempts: [],
+      outputs: [
+        {
+          id: "output-1",
+          generation_id: "gen-deleted-project",
+          media_file_id: "media-1",
+          created_at: "2026-03-17T11:06:00.000Z",
+        },
+      ],
+      projectGenerationItems: [],
+      activeProjectIds: ["active-project"],
+      reservations: [],
+      queueRows: [],
+      ledger: [],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.findings.map((finding) => finding.code)).not.toContain(
+      "PROJECT_GENERATION_ASSOCIATION_DRIFT"
+    );
+    expect(result.generations.projectScopedSuccessMissingAssociationCount).toBe(0);
+  });
 });

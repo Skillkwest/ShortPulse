@@ -52,6 +52,28 @@ type LegacyLedgerRow = {
   created_at: string | null;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const asTrimmedString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const readGenerationProjectId = (row: GenerationRow): string | null => {
+  const metadata = asRecord(row.metadata);
+  const shortpulseContext = asRecord(metadata.shortpulse_context ?? metadata.shortpulseContext);
+  return (
+    asTrimmedString(metadata.project_id) ??
+    asTrimmedString(metadata.projectId) ??
+    asTrimmedString(shortpulseContext.project_id) ??
+    asTrimmedString(shortpulseContext.projectId)
+  );
+};
+
 type FetchPageResult<TRow> = Promise<{ data: TRow[] | null; error: QueryError | null }>;
 
 const fetchAllRowsForSelect = async <TRow>(
@@ -412,6 +434,44 @@ export const loadAdminHealthSnapshot = async ({
     }
   }
 
+  const generationProjectIds = Array.from(
+    new Set(
+      generationsResult.rows.map(readGenerationProjectId).filter((id): id is string => Boolean(id))
+    )
+  );
+  const activeProjectIdsResult = generationProjectIds.length
+    ? await (async () => {
+        const rows: string[] = [];
+        for (const projectIdChunk of chunkArray(generationProjectIds, DB_IN_CLAUSE_BATCH_SIZE)) {
+          const { data, error } = await supabaseAdmin
+            .from("projects")
+            .select("id")
+            .eq("user_id", userId)
+            .in("id", projectIdChunk);
+          const normalizedError = normalizeQueryError(error);
+          if (normalizedError) {
+            return { rows: [], error: normalizedError };
+          }
+          rows.push(
+            ...((data as Array<{ id?: unknown }> | null) ?? [])
+              .map((row) => asTrimmedString(row.id))
+              .filter((id): id is string => Boolean(id))
+          );
+        }
+        return { rows, error: null as QueryError | null };
+      })()
+    : { rows: [] as string[], error: null };
+
+  if (activeProjectIdsResult.error) {
+    if (isSchemaCompatibilityError(activeProjectIdsResult.error)) {
+      compatibilityWarnings.push(
+        "projects is unavailable in this environment; project-association diagnostics may include deleted project metadata."
+      );
+    } else {
+      throw new Error(activeProjectIdsResult.error.message || "Failed to load projects.");
+    }
+  }
+
   return buildAdminHealthResponse({
     lookup,
     lookupMode,
@@ -429,6 +489,7 @@ export const loadAdminHealthSnapshot = async ({
     projectGenerationItems: projectGenerationItemsResult.error
       ? []
       : projectGenerationItemsResult.rows,
+    activeProjectIds: activeProjectIdsResult.error ? undefined : activeProjectIdsResult.rows,
     reservations: reservationsResult.rows,
     queueRows: queueResult.rows,
     ledger: ledgerResult.rows,

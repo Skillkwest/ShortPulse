@@ -422,12 +422,13 @@ const canonicalizeProjectWorkspaceSnapshot = async ({
     projectId,
     snapshot: sanitizedOutputsSnapshot,
   });
+  const hydratedGenerationIds = collectSnapshotGenerationIds(hydratedSnapshot);
 
   return sanitizeProjectWorkspaceOutputs({
     snapshot: hydratedSnapshot,
     ownedMediaFileIds,
     ownedPromptIds,
-    ownedGenerationIds,
+    ownedGenerationIds: [...new Set([...ownedGenerationIds, ...hydratedGenerationIds])],
   });
 };
 

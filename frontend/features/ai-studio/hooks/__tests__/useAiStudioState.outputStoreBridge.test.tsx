@@ -15,10 +15,12 @@ const mockFindOutputById = vi.fn(() => null);
 const mockDeleteOutputFromLifecycle = vi.fn();
 const mockNotifyGenerationFailure = vi.fn();
 const mockUpdateOutputPrompt = vi.fn();
-const listVisibleGeneratedOutputsMock = vi.fn(async (options?: unknown) => {
-  void options;
-  return [];
-});
+const listVisibleGeneratedOutputsMock = vi.fn(
+  async (options?: unknown): Promise<StudioOutput[]> => {
+    void options;
+    return [];
+  }
+);
 const generationPromptComposerArgsMock = vi.fn();
 const EDIT_REFERENCE_INPUTS = {
   referenceImageUrl: "https://example.com/edit-primary.png",
@@ -212,6 +214,58 @@ describe("useAiStudioState output store bridge", () => {
     await waitFor(() => {
       expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledWith({ projectId: "project-1" });
     });
+  });
+
+  it("keeps project generated outputs synced from canonical projection while work is in flight", async () => {
+    vi.useFakeTimers();
+    const hydratedOutput = makeOutput("generated:gen-1", {
+      generationId: "gen-1",
+      taskId: "req-1",
+      taskState: "success",
+      mediaSource: "generated",
+      previewUrl: "https://cdn.test/generated.png",
+      resultUrls: ["https://cdn.test/generated.png"],
+    });
+    listVisibleGeneratedOutputsMock.mockImplementation(
+      async (): Promise<StudioOutput[]> =>
+        listVisibleGeneratedOutputsMock.mock.calls.length > 1 ? [hydratedOutput] : []
+    );
+
+    const { result, unmount } = renderHook(() => useAiStudioState({ projectId: "project-1" }), {
+      wrapper: strictWrapper,
+    });
+
+    try {
+      act(() => {
+        result.current.setOutputs([
+          makeOutput("local-output", {
+            generationId: "gen-1",
+            taskId: "req-1",
+            taskState: "running",
+            mediaSource: "generated",
+            previewUrl: undefined,
+            resultUrls: [],
+          }),
+        ]);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+
+      expect(result.current.outputs[0]).toEqual(
+        expect.objectContaining({
+          id: "local-output",
+          generationId: "gen-1",
+          taskState: "success",
+          previewUrl: "https://cdn.test/generated.png",
+          resultUrls: ["https://cdn.test/generated.png"],
+        })
+      );
+    } finally {
+      unmount();
+      vi.useRealTimers();
+    }
   });
 
   it("skips user-global generated-output hydration while a project route is still pending", async () => {

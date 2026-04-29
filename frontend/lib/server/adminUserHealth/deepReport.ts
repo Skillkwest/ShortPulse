@@ -271,6 +271,7 @@ export type BuildAdminHealthResponseArgs = {
   attempts: AttemptRow[];
   outputs: OutputRow[];
   projectGenerationItems?: ProjectGenerationItemRow[];
+  activeProjectIds?: string[];
   reservations: ReservationRow[];
   queueRows: QueueRow[];
   ledger: NormalizedLedgerRow[];
@@ -327,6 +328,7 @@ export const buildAdminHealthResponse = ({
   attempts,
   outputs,
   projectGenerationItems = [],
+  activeProjectIds,
   reservations,
   queueRows,
   ledger,
@@ -708,10 +710,16 @@ export const buildAdminHealthResponse = ({
   const successWithoutOutputs = generations.filter(
     (row) => row.status === "success" && (outputCountByGenerationId.get(row.id) ?? 0) === 0
   );
+  const successWithoutOutputsInLookback = successWithoutOutputs.filter((row) => {
+    const terminalAtMs = parseTimestamp(row.completed_at) ?? parseTimestamp(row.created_at);
+    return terminalAtMs !== null && nowMs - terminalAtMs <= lookbackMs;
+  });
+  const activeProjectIdSet = activeProjectIds ? new Set(activeProjectIds) : null;
   const projectScopedSuccessMissingAssociation = generations.filter((row) => {
     if (row.status !== "success") return false;
     const projectId = readGenerationProjectId(row);
     if (!projectId) return false;
+    if (activeProjectIdSet && !activeProjectIdSet.has(projectId)) return false;
     return !projectGenerationAssociationKeys.has(`${projectId}:${row.id}`);
   });
 
@@ -797,17 +805,29 @@ export const buildAdminHealthResponse = ({
     );
   }
 
-  if (successWithoutOutputs.length > 0) {
+  if (successWithoutOutputsInLookback.length > 0) {
     addFinding(
       "critical",
       "high",
       "SUCCESS_WITHOUT_OUTPUTS",
       "Successful generations are missing canonical output rows.",
-      `${successWithoutOutputs.length} success generation row(s) have no ai_generation_outputs rows, so they cannot reliably hydrate the reference grid.`,
+      `${successWithoutOutputsInLookback.length} success generation row(s) in the lookback window have no ai_generation_outputs rows, so they cannot reliably hydrate the reference grid. Total historical count: ${successWithoutOutputs.length}.`,
       [
         "Open /admin/generation-trace for the affected generation ids.",
         "Run targeted generation recovery/replay where provider media is still available.",
         "Audit provider persistence before marking additional rows successful.",
+      ]
+    );
+  } else if (successWithoutOutputs.length > 0) {
+    addFinding(
+      "info",
+      "medium",
+      "HISTORICAL_SUCCESS_WITHOUT_OUTPUTS",
+      "Historical successful generations are missing canonical output rows.",
+      `${successWithoutOutputs.length} historical success generation row(s) have no ai_generation_outputs rows, but none are in the current lookback window.`,
+      [
+        "Treat these rows as historical restoration debt unless a user reports a specific missing artifact.",
+        "Use targeted replay only for rows whose provider media is still available.",
       ]
     );
   }

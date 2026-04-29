@@ -11,7 +11,41 @@ vi.mock("../api/supabaseAdmin", () => ({
 
 const getSupabaseAdminMock = vi.mocked(getSupabaseAdmin);
 
-const createSupabaseMock = () => {
+type SupabaseMockOptions = {
+  workspaceSnapshot?: Record<string, unknown>;
+  recentGenerationIds?: string[];
+  projectionRows?: Array<Record<string, unknown>>;
+};
+
+const createSupabaseMock = ({
+  workspaceSnapshot,
+  recentGenerationIds = ["generation-1"],
+  projectionRows = [
+    {
+      generation_id: "generation-1",
+      request_id: "task-1",
+      preview_url: "https://cdn.example.com/project-output.png",
+      result_urls: ["https://cdn.example.com/project-output.png"],
+      preview_storage_path: "user-1/generated/project-output-preview.png",
+      full_storage_path: "user-1/generated/project-output-full.png",
+      task_state: "success",
+      queue_state: "dispatched",
+      display_prompt: "Server prompt",
+      provider: "fal",
+      model_id: "fal-ai/seedream",
+      hidden_in_reference_grid: false,
+      reference_grid_visible: true,
+    },
+  ],
+}: SupabaseMockOptions = {}) => {
+  const projectionRowsById = new Map<string, Record<string, unknown>>(
+    projectionRows
+      .filter(
+        (row): row is Record<string, unknown> & { generation_id: string } =>
+          typeof row.generation_id === "string" && row.generation_id.length > 0
+      )
+      .map((row) => [row.generation_id, row])
+  );
   const mediaSelect = vi.fn(() => ({
     eq: vi.fn(() => ({
       in: vi.fn(async (_column: string, ids: string[]) => ({
@@ -39,12 +73,19 @@ const createSupabaseMock = () => {
   const mediaAssociationUpsert = vi.fn(async () => ({ error: null }));
   const promptAssociationUpsert = vi.fn(async () => ({ error: null }));
   const generationAssociationUpsert = vi.fn(async () => ({ error: null }));
+  const generationAssociationRecentLimit = vi.fn(async () => ({
+    data: recentGenerationIds.map((generationId) => ({ generation_id: generationId })),
+    error: null,
+  }));
   const generationAssociationSelect = vi.fn(() => ({
     eq: vi.fn(() => ({
       eq: vi.fn(() => ({
         in: vi.fn(async (_column: string, ids: string[]) => ({
           data: ids.filter((id) => id === "generation-1").map((id) => ({ generation_id: id })),
           error: null,
+        })),
+        order: vi.fn(() => ({
+          limit: generationAssociationRecentLimit,
         })),
       })),
     })),
@@ -53,18 +94,8 @@ const createSupabaseMock = () => {
     eq: vi.fn(() => ({
       in: vi.fn(async (_column: string, ids: string[]) => ({
         data: ids
-          .filter((id) => id === "generation-1")
-          .map((id) => ({
-            generation_id: id,
-            request_id: "task-1",
-            preview_url: "https://cdn.example.com/project-output.png",
-            result_urls: ["https://cdn.example.com/project-output.png"],
-            preview_storage_path: "user-1/generated/project-output-preview.png",
-            full_storage_path: "user-1/generated/project-output-full.png",
-            task_state: "success",
-            queue_state: "dispatched",
-            display_prompt: "Server prompt",
-          })),
+          .map((id) => projectionRowsById.get(id))
+          .filter((row): row is Record<string, unknown> => Boolean(row)),
         error: null,
       })),
     })),
@@ -74,7 +105,7 @@ const createSupabaseMock = () => {
       project_id: "project-1",
       user_id: "user-1",
       schema_version: 2,
-      snapshot: {
+      snapshot: workspaceSnapshot ?? {
         schemaVersion: 2,
         sessionId: "session-1",
         updatedAt: "2026-04-23T01:00:00.000Z",
@@ -480,5 +511,76 @@ describe("projectWorkspaceStatesService", () => {
       updatedAt: "2026-04-23T01:00:00.000Z",
     });
     expect("agentRuntimes" in (result?.snapshot ?? {})).toBe(false);
+  });
+
+  it("appends project-associated generated outputs that are absent from the workspace snapshot", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:empty",
+        },
+        outputs: {
+          active: [],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+      },
+      recentGenerationIds: ["generation-2"],
+      projectionRows: [
+        {
+          generation_id: "generation-2",
+          request_id: "task-2",
+          preview_url: "https://cdn.example.com/generated-video.mp4",
+          result_urls: ["https://cdn.example.com/generated-video.mp4"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: "Recovered video",
+          provider: "kie",
+          model_id: "kie-ai/seedance-2-fast",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [
+        {
+          id: "generated:generation-2",
+          generationId: "generation-2",
+          taskId: "task-2",
+          taskState: "success",
+          queueState: "dispatched",
+          mode: "video",
+          modelId: "kie-ai/seedance-2-fast",
+          mediaSource: "generated",
+          previewTier: "preview_loop",
+          previewUrl: "https://cdn.example.com/generated-video.mp4",
+          resultUrls: ["https://cdn.example.com/generated-video.mp4"],
+        },
+      ],
+      archived: [],
+    });
   });
 });

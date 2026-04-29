@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import retiredStudioAgentHandler from "../../pages/api/ai/studio-agent";
@@ -339,5 +339,30 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(pulseRuntime).toContain("canonicalDbEnabled: false");
     expect(pulseRuntime).toContain("ai/studio-agent-pulse");
     expect(pulseRuntime).toContain("studio-agent-pulse");
+  });
+
+  it("keeps the coordinator owned by the Pulse runtime tree", () => {
+    const repoRoot = path.resolve(__dirname, "../..");
+    const sharedCoordinatorPath = path.join(
+      repoRoot,
+      "features/agent-runtime/studioAgentCoordinator.ts"
+    );
+    const pulseCoordinatorPath = path.join(
+      repoRoot,
+      "features/agent-runtime/pulseStudioAgentRuntime/coordinator.ts"
+    );
+    const standardRuntime = readFileSync(
+      path.join(repoRoot, "features/agent-runtime/standardStudioAgentRuntime/runtime.ts"),
+      "utf8"
+    );
+    const pulseRuntime = readFileSync(
+      path.join(repoRoot, "features/agent-runtime/pulseStudioAgentRuntime/runtime.ts"),
+      "utf8"
+    );
+
+    expect(existsSync(sharedCoordinatorPath)).toBe(false);
+    expect(existsSync(pulseCoordinatorPath)).toBe(true);
+    expect(standardRuntime).not.toContain("coordinator");
+    expect(pulseRuntime).toContain("./coordinator");
   });
 });

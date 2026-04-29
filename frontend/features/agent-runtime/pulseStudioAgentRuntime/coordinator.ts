@@ -1,37 +1,37 @@
 import type { NextApiRequest } from "next";
-import type { AgentContext, AgentMessage, AgentResponse } from "../../prefabs/agent";
-import type { StudioAgentOrchestration } from "../ai-agent/logic/studioAgentOrchestration";
-import type { ThinkerSelectedReference } from "../ai-agent/logic/studioAgentReferenceSelection";
-import { logApiRouteException } from "../../lib/server/api/appErrorLogs";
+import type { AgentContext, AgentMessage, AgentResponse } from "../../../prefabs/agent";
+import type { StudioAgentOrchestration } from "../../ai-agent/logic/studioAgentOrchestration";
+import type { ThinkerSelectedReference } from "../../ai-agent/logic/studioAgentReferenceSelection";
+import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
   shouldCommitStudioAgentCanonicalPrompt,
   writeStudioAgentCanonicalPrompt,
-} from "./studioAgentCanonicalPersistence";
-import { formatStudioAgentErrorMessage } from "./studioAgentOpenAiGateway";
-import { executeStudioAgentFastPathTurn } from "./studioAgentFastPathTurn";
+} from "../studioAgentCanonicalPersistence";
+import { formatStudioAgentErrorMessage } from "../studioAgentOpenAiGateway";
+import { executeStudioAgentFastPathTurn } from "../studioAgentFastPathTurn";
 import {
   computeStudioAgentRetryDelayMs,
   shouldRetryStudioAgentFailure,
   type StudioAgentFailureClass,
   waitForStudioAgentRetry,
-} from "./studioAgentFailurePolicy";
+} from "../studioAgentFailurePolicy";
 import {
   resolveProviderErrorHandling,
   type ProviderErrorNormalizationMode,
-} from "./safetyPolicy/providerErrorPolicy";
+} from "../safetyPolicy/providerErrorPolicy";
 import {
   postProcessStudioAgentSafetyText,
   type StudioAgentSafetyDecisionMeta,
   type StudioAgentSafetyPostProcessOutcome,
   type StudioAgentSafetyRoute,
-} from "./studioAgentSafetyPostProcess";
-import { maybeTriggerSafetyIncidentAutoRollback } from "./safetyPolicy/incidentAutoRollback";
-import { resolveSafetyModality } from "./safetyPolicy/decisionEngine";
+} from "../studioAgentSafetyPostProcess";
+import { maybeTriggerSafetyIncidentAutoRollback } from "../safetyPolicy/incidentAutoRollback";
+import { resolveSafetyModality } from "../safetyPolicy/decisionEngine";
 import type {
   SafetyEnvironment,
   SafetyPolicyDocumentV2,
   SafetyPostprocessMode,
-} from "./safetyPolicy/types";
+} from "../safetyPolicy/types";
 import {
   buildStudioAgentInfraFallbackPayload,
   resolvePolicyVersionFromProfileId,
@@ -41,17 +41,17 @@ import {
   emitStudioAgentTurnTelemetry,
   isStudioAgentSafetyRefusalUpstreamError,
   STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
-} from "./studioAgentRouteOutcomes";
-import { buildAgentMachineOutcome, resolveInfraFallbackReasonCode } from "./agentMachineOutcome";
-import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReason";
-import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
-import { executeStudioAgentV2Turn } from "./studioAgentV2Turn";
+} from "../studioAgentRouteOutcomes";
+import { buildAgentMachineOutcome, resolveInfraFallbackReasonCode } from "../agentMachineOutcome";
+import { resolveStudioAgentFallbackReasonLabel } from "../studioAgentFallbackReason";
+import { resolveStudioAgentTurnResponse } from "../studioAgentTurnResponse";
+import { executeStudioAgentV2Turn } from "../studioAgentV2Turn";
 import {
   buildStudioAgentWorkflowSessionUpdate,
   buildStudioAgentPulseSystemMessage,
   isStudioAgentWorkflowPulse,
   resolveLatestStudioAgentUserInput,
-} from "./studioAgentPulseRuntime";
+} from "../studioAgentPulseRuntime";
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }

@@ -8,7 +8,7 @@ import { sanitizeGenerationPromptText } from "../../agent-core/promptText";
 import { pickSelectedReferencesForThinker } from "../../ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../ai-agent/logic/studioAgentOrchestration";
 import { resolveStudioAgentOpenAiConfig } from "../studioAgentOpenAiGateway";
-import { executeStudioAgentCoordinator } from "../studioAgentCoordinator";
+import { executeStudioAgentCoordinator } from "./coordinator";
 import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
   runStudioAgentSafetyInputPrecheck,

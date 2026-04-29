@@ -2,7 +2,7 @@
  * Tests Pulse-aware system message injection for the single-stage coordinator path.
  */
 import { describe, expect, it } from "vitest";
-import { buildStudioAgentOpenAiMessages } from "../studioAgentCoordinator";
+import { buildStudioAgentOpenAiMessages } from "../pulseStudioAgentRuntime/coordinator";
 
 describe("buildStudioAgentOpenAiMessages", () => {
   it("injects a hidden Pulse system message when pulse runtime context is active", () => {

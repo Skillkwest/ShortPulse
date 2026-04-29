@@ -1,24 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { settleGenerationOutcome } from "../generationBilling/settlementService";
 
-const insertCreditLedgerEntryMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
-const readFalRuntimeFlagsMock = vi.fn();
 const captureGenerationReservationByProviderRequestMock = vi.fn();
 const releaseGenerationReservationByProviderRequestMock = vi.fn();
 const markGenerationReservationSubmittedMock = vi.fn();
 const lookupGenerationAttemptByProviderRequestMock = vi.fn();
 
-vi.mock("../creditLedger", () => ({
-  insertCreditLedgerEntry: (...args: unknown[]) => insertCreditLedgerEntryMock(...args),
-}));
-
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
-}));
-
-vi.mock("../falRuntimeFlags", () => ({
-  readFalRuntimeFlags: (...args: unknown[]) => readFalRuntimeFlagsMock(...args),
 }));
 
 vi.mock("../generationBilling/reservationRpcAdapter", () => ({
@@ -38,18 +28,10 @@ vi.mock("../generationAttempts", () => ({
 const mockGenerationLookup = ({
   projectionRow = null,
   projectionRows = null,
-  generationRow = null,
 }: {
   projectionRow?: Record<string, unknown> | null;
   projectionRows?: Record<string, unknown>[] | null;
-  generationRow?: Record<string, unknown> | null;
 }) => {
-  const generationQuery = {
-    eq: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn().mockResolvedValue({ data: generationRow, error: null }),
-  };
   const projectionMaybeSingleQuery = {
     eq: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -70,11 +52,6 @@ const mockGenerationLookup = ({
           ),
         };
       }
-      if (table === "ai_generations") {
-        return {
-          select: vi.fn().mockReturnValue(generationQuery),
-        };
-      }
       throw new Error(`Unexpected table: ${table}`);
     }),
   });
@@ -83,14 +60,10 @@ const mockGenerationLookup = ({
 describe("settleGenerationOutcome linkage repair", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
-    readFalRuntimeFlagsMock.mockReturnValue({
-      directDebitFallbackEnabled: false,
-    });
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({ data: null, error: null });
   });
 
-  it("repairs reservation linkage from generation_attempts before falling back to legacy request lookup", async () => {
+  it("repairs reservation linkage from generation_attempts before projection request lookup", async () => {
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
       data: {
         generationId: "gen-attempt-1",
@@ -150,13 +123,13 @@ describe("settleGenerationOutcome linkage repair", () => {
         sourceRef: "source-ref-attempt-1",
         metadata: expect.objectContaining({
           generation_id: "gen-attempt-1",
-          repair_source: "settlement_fallback",
+          repair_source: "settlement_repair",
         }),
       })
     );
   });
 
-  it("repairs reservation linkage from provider_request_id projection before legacy generation lookup", async () => {
+  it("repairs reservation linkage from provider_request_id projection before request_id projection lookup", async () => {
     mockGenerationLookup({
       projectionRows: [
         {
@@ -208,7 +181,7 @@ describe("settleGenerationOutcome linkage repair", () => {
         providerRequestId: "req-provider-1",
         metadata: expect.objectContaining({
           generation_id: "gen-provider-1",
-          repair_source: "settlement_fallback",
+          repair_source: "settlement_repair",
         }),
       })
     );
@@ -266,7 +239,7 @@ describe("settleGenerationOutcome linkage repair", () => {
         sourceRef: "source-ref-1",
         providerRequestId: "req-1",
         metadata: expect.objectContaining({
-          repair_source: "settlement_fallback",
+          repair_source: "settlement_repair",
           generation_id: "gen-1",
         }),
       })
@@ -274,7 +247,7 @@ describe("settleGenerationOutcome linkage repair", () => {
     expect(captureGenerationReservationByProviderRequestMock).toHaveBeenCalledTimes(2);
   });
 
-  it("falls back to ai_generations metadata when projection does not resolve source_ref", async () => {
+  it("does not repair reservation linkage from legacy ai_generations metadata", async () => {
     mockGenerationLookup({
       projectionRows: [
         {
@@ -283,26 +256,13 @@ describe("settleGenerationOutcome linkage repair", () => {
           request_id: "req-2",
         },
       ],
-      generationRow: {
-        id: "gen-2",
-        metadata: {
-          source_ref: "source-ref-2",
-        },
-      },
     });
-    releaseGenerationReservationByProviderRequestMock
-      .mockResolvedValueOnce({
-        status: "not_found",
-        sourceRef: null,
-        message: null,
-        code: null,
-      })
-      .mockResolvedValueOnce({
-        status: "released",
-        sourceRef: "source-ref-2",
-        message: null,
-        code: null,
-      });
+    releaseGenerationReservationByProviderRequestMock.mockResolvedValueOnce({
+      status: "not_found",
+      sourceRef: null,
+      message: null,
+      code: null,
+    });
     markGenerationReservationSubmittedMock.mockResolvedValue({
       status: "reserved",
       sourceRef: "source-ref-2",
@@ -322,17 +282,11 @@ describe("settleGenerationOutcome linkage repair", () => {
     });
 
     expect(result).toEqual({
-      settled: true,
-      sourceRef: "source-ref-2",
-      note: "released",
+      settled: false,
+      sourceRef: null,
+      note: "not_found",
     });
-    expect(markGenerationReservationSubmittedMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-1",
-        sourceRef: "source-ref-2",
-        providerRequestId: "req-2",
-      })
-    );
-    expect(releaseGenerationReservationByProviderRequestMock).toHaveBeenCalledTimes(2);
+    expect(markGenerationReservationSubmittedMock).not.toHaveBeenCalled();
+    expect(releaseGenerationReservationByProviderRequestMock).toHaveBeenCalledTimes(1);
   });
 });

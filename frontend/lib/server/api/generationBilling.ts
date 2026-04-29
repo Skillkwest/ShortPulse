@@ -223,35 +223,19 @@ export const chargeGenerationRequest = async ({
           reservation_code: reserveResult.code ?? null,
         });
       }
-      if (!runtimeFlags.directDebitFallbackEnabled) {
-        console.error(
-          "[generationBilling] reservation RPC unavailable; direct debit fallback off",
-          {
-            modelId,
-            route: req.url ?? null,
-            sourceRef,
-            code: reserveResult.code ?? null,
-            message: reserveResult.message ?? null,
-          }
-        );
-        return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
-          reservation_mode: true,
-          reservation_status: reserveResult.status,
-          reservation_message: reserveResult.message ?? null,
-          reservation_code: reserveResult.code ?? null,
-          fallback_enabled: false,
-        });
-      }
-      console.warn(
-        "[generationBilling] reservation RPC unavailable; direct debit fallback enabled",
-        {
-          modelId,
-          route: req.url ?? null,
-          sourceRef,
-          code: reserveResult.code ?? null,
-          message: reserveResult.message ?? null,
-        }
-      );
+      console.error("[generationBilling] reservation RPC unavailable", {
+        modelId,
+        route: req.url ?? null,
+        sourceRef,
+        code: reserveResult.code ?? null,
+        message: reserveResult.message ?? null,
+      });
+      return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
+        reservation_mode: true,
+        reservation_status: reserveResult.status,
+        reservation_message: reserveResult.message ?? null,
+        reservation_code: reserveResult.code ?? null,
+      });
     } else if (reserveResult.status === "admission_limited") {
       const retryAfterSeconds =
         reserveResult.admission?.retryAfterSeconds ?? runtimeFlags.admission.retryAfterSeconds;

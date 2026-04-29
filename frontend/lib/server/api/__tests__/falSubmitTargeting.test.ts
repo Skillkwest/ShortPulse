@@ -17,7 +17,6 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   circuitBreakerEnabled: false,
   circuitBreakerThreshold15m: 20,
   publicApiBaseUrl: "https://shortpulse.test",
-  directDebitFallbackEnabled: false,
   admission: {
     mode: "off",
     globalMax: 4,

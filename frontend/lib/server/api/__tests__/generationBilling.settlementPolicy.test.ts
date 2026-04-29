@@ -8,34 +8,34 @@ describe("resolveCaptureSettlementPolicy", () => {
   it("treats captured states as settled without fallback", () => {
     expect(resolveCaptureSettlementPolicy("captured")).toEqual({
       settled: true,
-      allowLegacyFallback: false,
+      allowLinkRepair: false,
       note: "captured",
     });
     expect(resolveCaptureSettlementPolicy("already_captured")).toEqual({
       settled: true,
-      allowLegacyFallback: false,
+      allowLinkRepair: false,
       note: "already_captured",
     });
   });
 
-  it("treats already_released as non-settled with no legacy fallback", () => {
+  it("treats already_released as non-settled with no link repair", () => {
     expect(resolveCaptureSettlementPolicy("already_released")).toEqual({
       settled: false,
-      allowLegacyFallback: false,
+      allowLinkRepair: false,
       note: "already_released",
     });
   });
 
-  it("allows legacy fallback for failed/not_found states", () => {
-    expect(resolveCaptureSettlementPolicy("failed")).toEqual({
-      settled: false,
-      allowLegacyFallback: true,
-      note: "failed",
-    });
+  it("allows reservation link repair only for missing reservation states", () => {
     expect(resolveCaptureSettlementPolicy("not_found")).toEqual({
       settled: false,
-      allowLegacyFallback: true,
+      allowLinkRepair: true,
       note: "not_found",
+    });
+    expect(resolveCaptureSettlementPolicy("failed")).toEqual({
+      settled: false,
+      allowLinkRepair: false,
+      note: "failed",
     });
   });
 });

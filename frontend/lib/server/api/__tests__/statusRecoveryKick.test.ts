@@ -29,7 +29,6 @@ const createDefaultFlags = () => ({
   circuitBreakerEnabled: false,
   circuitBreakerThreshold15m: 20,
   publicApiBaseUrl: "https://example.com",
-  directDebitFallbackEnabled: false,
   admission: {
     mode: "off",
     globalMax: 30,

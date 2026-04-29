@@ -38,7 +38,6 @@ const createMockResponse = () => ({
 describe("generationBilling reservation RPC handling", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED = "false";
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
     delete process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED;
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
@@ -85,8 +84,7 @@ describe("generationBilling reservation RPC handling", () => {
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to direct debit only when the emergency fallback flag is enabled", async () => {
-    process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED = "true";
+  it("fails closed without direct debit when the reservation RPC has a recoverable failure", async () => {
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: null,
       error: { code: "42702", message: 'column reference "source_ref" is ambiguous' },
@@ -114,39 +112,14 @@ describe("generationBilling reservation RPC handling", () => {
       reason: "Fal Seedream edit generation",
     });
 
-    expect(result).not.toBeNull();
-    expect(result?.billingMode).toBe("direct_debit");
+    expect(result).toBeNull();
     expect(rpcMock).toHaveBeenCalledTimes(1);
     expect(rpcMock).toHaveBeenCalledWith("reserve_generation_credits", expect.any(Object));
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
-    const debitPayload = insertCreditLedgerEntryMock.mock.calls[0]?.[0] as {
-      changeCents: number;
-      source: string;
-      sourceRef: string;
-      metadata: {
-        pricing_breakdown?: {
-          usd_raw: number;
-          raw_credits: number;
-          billed_credits: number;
-          billed_usd: number;
-          pricing_policy_version: string | null;
-          pricing_policy_source: string | null;
-        };
-      };
-    };
-    expect(typeof debitPayload.changeCents).toBe("number");
-    expect(debitPayload.changeCents).toBeLessThan(0);
-    expect(debitPayload.source).toBe("generation_charge");
-    expect(debitPayload.sourceRef).toBe("req-ambiguous");
-    expect(debitPayload.metadata.pricing_breakdown).toEqual({
-      usd_raw: 0.04,
-      raw_credits: 5,
-      billed_credits: 5,
-      billed_usd: 0.05,
-      pricing_policy_version: null,
-      pricing_policy_source: "fallback",
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to process generation credits. Please retry.",
     });
-    expect(res.status).not.toHaveBeenCalled();
   });
 
   it("returns 500 with a safe error when reservation RPC fails with an unexpected SQL error", async () => {

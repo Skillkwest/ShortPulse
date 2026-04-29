@@ -1,5 +1,3 @@
-import { insertCreditLedgerEntry } from "../creditLedger";
-import { readFalRuntimeFlags } from "../falRuntimeFlags";
 import { lookupGenerationAttemptByProviderRequest } from "../generationAttempts";
 import {
   readGenerationProjectionLinkByGenerationId,
@@ -8,7 +6,6 @@ import {
 } from "../generationProjection";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import {
-  isDuplicateError,
   isMissingGenerationAttemptSchemaError,
   isMissingLedgerSchemaError,
   isRecoverableReservationFailure,
@@ -26,7 +23,6 @@ import type {
   FailedGenerationSettlementResult,
   GenerationSettlementOptions,
   GenerationSettlementResult,
-  GenerationSettlementOutcome,
   JsonObject,
   LedgerChargeRow,
 } from "./types";
@@ -69,34 +65,6 @@ const lookupChargeBySourceRef = async (
     return parseLedgerChargeRow(data);
   } catch (error) {
     console.error("[generationBilling] lookupChargeBySourceRef threw", String(error));
-    return null;
-  }
-};
-
-const lookupLegacyChargeByProviderRequestId = async (
-  userId: string,
-  providerRequestId: string
-): Promise<LedgerChargeRow | null> => {
-  try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await supabaseAdmin
-      .from("ai_credit_ledger")
-      .select("id, source_ref, change_cents, metadata")
-      .eq("user_id", userId)
-      .eq("source", "generation_charge")
-      .contains("metadata", { provider_request_id: providerRequestId })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      if (!isMissingLedgerSchemaError(readErrorCode(error), error.message)) {
-        console.error("[generationBilling] lookupChargeByProviderRequestId failed", error.message);
-      }
-      return null;
-    }
-    return parseLedgerChargeRow(data);
-  } catch (error) {
-    console.error("[generationBilling] lookupChargeByProviderRequestId threw", String(error));
     return null;
   }
 };
@@ -242,28 +210,7 @@ const lookupGenerationSourceRefByProviderRequest = async ({
       };
     }
 
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await supabaseAdmin
-      .from("ai_generations")
-      .select("id, metadata")
-      .eq("user_id", userId)
-      .eq("request_id", providerRequestId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      console.error(
-        "[generationBilling] lookupGenerationSourceRefByProviderRequest failed",
-        error.message
-      );
-      return { generationId: null, sourceRef: null };
-    }
-    const row = readObject(data);
-    const metadata = readJsonObject(row.metadata);
-    return {
-      generationId: asString(row.id) ?? null,
-      sourceRef: asString(metadata.source_ref) ?? null,
-    };
+    return { generationId: null, sourceRef: null };
   } catch (error) {
     console.error(
       "[generationBilling] lookupGenerationSourceRefByProviderRequest threw",
@@ -298,7 +245,7 @@ const maybeRepairReservationLinkage = async ({
       route: routeLabel,
       provider_request_id: providerRequestId,
       repaired_at: new Date().toISOString(),
-      repair_source: "settlement_fallback",
+      repair_source: "settlement_repair",
       generation_id: generationLink.generationId,
       ...detail,
     },
@@ -316,86 +263,6 @@ const maybeRepairReservationLinkage = async ({
     message: repaired.message ?? null,
   });
   return false;
-};
-
-const refundChargeRow = async ({
-  userId,
-  charge,
-  reason,
-  metadata,
-}: {
-  userId: string;
-  charge: LedgerChargeRow;
-  reason: string;
-  metadata: JsonObject;
-}): Promise<FailedGenerationSettlementResult> => {
-  if (!charge.source_ref) {
-    return { settled: false, sourceRef: null, note: "charge_missing_source_ref" };
-  }
-  const refundCents = Math.abs(Math.trunc(Number(charge.change_cents ?? 0)));
-  if (!refundCents) {
-    return { settled: false, sourceRef: charge.source_ref, note: "charge_missing_amount" };
-  }
-  const { error } = await insertCreditLedgerEntry({
-    userId,
-    changeCents: refundCents,
-    reason,
-    source: "generation_refund",
-    sourceRef: charge.source_ref,
-    metadata,
-    createdBy: userId,
-  });
-  if (!error) {
-    return { settled: true, sourceRef: charge.source_ref, note: "refund_inserted" };
-  }
-  if (isDuplicateError(readErrorCode(error), error.message)) {
-    return { settled: true, sourceRef: charge.source_ref, note: "refund_already_exists" };
-  }
-  return { settled: false, sourceRef: charge.source_ref, note: error.message ?? "refund_failed" };
-};
-
-const settleLegacyDirectDebitOutcome = async ({
-  userId,
-  providerRequestId,
-  outcome,
-  reason,
-  routeLabel,
-  detail,
-}: {
-  userId: string;
-  providerRequestId: string;
-  outcome: GenerationSettlementOutcome;
-  reason: string;
-  routeLabel: string;
-  detail: JsonObject;
-}): Promise<GenerationSettlementResult> => {
-  const flags = readFalRuntimeFlags();
-  if (!flags.directDebitFallbackEnabled) {
-    return { settled: false, note: "charge_not_found" };
-  }
-
-  const charge = await lookupLegacyChargeByProviderRequestId(userId, providerRequestId);
-  if (!charge) return { settled: false, note: "charge_not_found" };
-
-  if (outcome === "success") {
-    return {
-      settled: true,
-      sourceRef: charge.source_ref ?? null,
-      note: "legacy_charge_exists",
-    };
-  }
-
-  return refundChargeRow({
-    userId,
-    charge,
-    reason,
-    metadata: {
-      provider_request_id: providerRequestId,
-      route: routeLabel,
-      settled_at: new Date().toISOString(),
-      ...detail,
-    },
-  });
 };
 
 const settleAbandonedNoRefundOutcome = async ({
@@ -449,19 +316,11 @@ const settleAbandonedNoRefundOutcome = async ({
       note: `abandoned_no_refund_${capturePolicy.note}`,
     };
   }
-  if (!capturePolicy.allowLegacyFallback) {
+  if (!capturePolicy.allowLinkRepair) {
     return {
       settled: false,
       sourceRef: captureResult.sourceRef ?? null,
       note: capturePolicy.note,
-    };
-  }
-  const legacyCharge = await lookupLegacyChargeByProviderRequestId(userId, providerRequestId);
-  if (legacyCharge) {
-    return {
-      settled: true,
-      sourceRef: legacyCharge.source_ref ?? null,
-      note: "abandoned_direct_debit_no_refund",
     };
   }
   return {
@@ -500,7 +359,7 @@ export const settleGenerationOutcome = async ({
     let capturePolicy = resolveCaptureSettlementPolicy(captureResult.status);
     if (
       !capturePolicy.settled &&
-      capturePolicy.allowLegacyFallback &&
+      capturePolicy.allowLinkRepair &&
       captureResult.status === "not_found"
     ) {
       const repaired = await maybeRepairReservationLinkage({
@@ -526,7 +385,7 @@ export const settleGenerationOutcome = async ({
         note: capturePolicy.note,
       };
     }
-    if (!capturePolicy.allowLegacyFallback) {
+    if (!capturePolicy.allowLinkRepair) {
       return {
         settled: false,
         sourceRef: captureResult.sourceRef ?? null,
@@ -540,14 +399,11 @@ export const settleGenerationOutcome = async ({
         note: captureResult.message ?? "reservation_capture_failed",
       };
     }
-    return settleLegacyDirectDebitOutcome({
-      userId,
-      providerRequestId,
-      outcome,
-      reason,
-      routeLabel,
-      detail,
-    });
+    return {
+      settled: false,
+      sourceRef: captureResult.sourceRef ?? null,
+      note: captureResult.message ?? capturePolicy.note,
+    };
   }
 
   const metadata = {
@@ -608,14 +464,11 @@ export const settleGenerationOutcome = async ({
       note: releaseResult.message ?? "reservation_release_failed",
     };
   }
-  return settleLegacyDirectDebitOutcome({
-    userId,
-    providerRequestId,
-    outcome,
-    reason,
-    routeLabel,
-    detail,
-  });
+  return {
+    settled: false,
+    sourceRef: releaseResult.sourceRef ?? null,
+    note: releaseResult.message ?? releaseResult.status,
+  };
 };
 
 /**

@@ -22,7 +22,6 @@ export type FalRuntimeFlags = {
   circuitBreakerEnabled: boolean;
   circuitBreakerThreshold15m: number;
   publicApiBaseUrl: string | null;
-  directDebitFallbackEnabled: boolean;
   admission: GenerationAdmissionConfig;
   reservationCleanupEnabled: boolean;
   reservationCleanupMinAgeSeconds: number;
@@ -108,10 +107,6 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
   ),
   publicApiBaseUrl: normalizeBaseUrl(
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL ?? process.env.APP_BASE_URL
-  ),
-  directDebitFallbackEnabled: parseBoolean(
-    process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED,
-    false
   ),
   admission: {
     mode: parseGenerationAdmissionMode(process.env.SHORTPULSE_FAL_ADMISSION_MODE),

@@ -6,13 +6,13 @@ import type { ReservationRpcState } from "./types";
 
 export type CaptureSettlementPolicyDecision = {
   settled: boolean;
-  allowLegacyFallback: boolean;
+  allowLinkRepair: boolean;
   note: string;
 };
 
 /**
  * Resolves capture-result policy into settlement behavior without DB side effects.
- * This keeps recapture/fallback decisions explicit and testable.
+ * This keeps recapture and reservation-link repair decisions explicit and testable.
  */
 export const resolveCaptureSettlementPolicy = (
   status: ReservationRpcState
@@ -22,26 +22,26 @@ export const resolveCaptureSettlementPolicy = (
     case "already_captured":
       return {
         settled: true,
-        allowLegacyFallback: false,
+        allowLinkRepair: false,
         note: status,
       };
     case "already_released":
       return {
         settled: false,
-        allowLegacyFallback: false,
+        allowLinkRepair: false,
         note: "already_released",
       };
-    case "failed":
     case "not_found":
       return {
         settled: false,
-        allowLegacyFallback: true,
+        allowLinkRepair: true,
         note: status,
       };
+    case "failed":
     default:
       return {
         settled: false,
-        allowLegacyFallback: true,
+        allowLinkRepair: false,
         note: status,
       };
   }

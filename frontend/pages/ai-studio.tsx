@@ -64,6 +64,7 @@ import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/cre
 import { usePulseWorkflowSessionReconciliation } from "../features/ai-studio/hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
 import { usePulseCreatePrimarySubmit } from "../features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit";
 import { useStandardCreateChatMode } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateChatMode";
+import { useStandardCreateInlineGenerate } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateInlineGenerate";
 import { useStandardCreatePrimarySubmit } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit";
 import type {
   CanvasDropResolution,
@@ -1167,7 +1168,6 @@ export default function AiStudioPage() {
   const {
     handleGenerate,
     handlePrimarySubmit: handleProviderPrimarySubmit,
-    handleChatOffInlineGenerate,
     handleRegenerateWithDebit,
     handleImageRegenerateWithDebit,
   } = useAiStudioGenerationController({
@@ -1179,9 +1179,7 @@ export default function AiStudioPage() {
     isCharacterModeEnabled: resolveIsCharacterModeEnabledForTool(selectedTool),
     resolveIsCharacterModeEnabledForTool,
     resolveSelectedCharacterIdForTool,
-    prompt,
     selectedStyleContext,
-    agentInput,
     currentCostCredits,
     resolveCostCreditsForModel: resolveModelPickerCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
@@ -1192,7 +1190,6 @@ export default function AiStudioPage() {
     optimisticUncoveredDebitTotal: optimisticUncoveredDebitCredits,
     setUiError,
     setUiNotice,
-    setPromptOrigin,
     setOptimisticDebitEntries,
     refreshBalance,
     resolveDefaultPromptForTool,
@@ -1213,9 +1210,21 @@ export default function AiStudioPage() {
     chatModeEnabled,
     agentInput,
     prompt,
+    currentCostCredits,
+    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
     handleAgentSend,
+    handleGenerate,
     handleProviderPrimarySubmit,
     handleStandardAgentCaptureResult,
+    setPromptOrigin,
+  });
+  const handleChatOffInlineGenerate = useStandardCreateInlineGenerate({
+    agentInput,
+    prompt,
+    currentCostCredits,
+    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
+    handleGenerate,
+    setPromptOrigin,
   });
   const {
     pulseArtifactGenerateGuardrail,

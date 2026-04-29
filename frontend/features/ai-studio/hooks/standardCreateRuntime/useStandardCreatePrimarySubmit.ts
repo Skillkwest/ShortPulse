@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
 import type { StudioMode, ToolId } from "../../types";
 
 type StandardAgentSendResult = {
@@ -6,18 +7,31 @@ type StandardAgentSendResult = {
   referenceTitle?: string | null;
 } | void;
 
+type GenerateStandardCreateOutput = (
+  promptOverride?: string | null,
+  options?: {
+    modeOverride?: StudioMode;
+    toolOverride?: ToolId | null;
+    costOverrideCredits?: number | null;
+  }
+) => void | Promise<unknown>;
+
 type UseStandardCreatePrimarySubmitParams = {
   mode: StudioMode;
   selectedTool: ToolId | null;
   chatModeEnabled: boolean;
   agentInput: string;
   prompt: string;
+  currentCostCredits: number | null;
+  promptReferenceGenerateCostCredits: number | null;
   handleAgentSend: (
     message?: string,
     options?: { captureResult?: boolean }
   ) => Promise<StandardAgentSendResult>;
+  handleGenerate: GenerateStandardCreateOutput;
   handleProviderPrimarySubmit: () => void;
   handleStandardAgentCaptureResult: (promptText: string, referenceTitle?: string | null) => void;
+  setPromptOrigin: Dispatch<SetStateAction<"manual" | "agent" | "reference">>;
 };
 
 const isStandardCreateTextTool = (tool: ToolId | null): boolean =>
@@ -33,9 +47,13 @@ export const useStandardCreatePrimarySubmit = ({
   chatModeEnabled,
   agentInput,
   prompt,
+  currentCostCredits,
+  promptReferenceGenerateCostCredits,
   handleAgentSend,
+  handleGenerate,
   handleProviderPrimarySubmit,
   handleStandardAgentCaptureResult,
+  setPromptOrigin,
 }: UseStandardCreatePrimarySubmitParams) =>
   useCallback(() => {
     if (isStandardCreateTextTool(selectedTool) && mode === "text") {
@@ -47,17 +65,33 @@ export const useStandardCreatePrimarySubmit = ({
         });
         return;
       }
-      handleProviderPrimarySubmit();
+      const rawPrompt = resolveChatOffCreatePrompt({
+        agentInput,
+        sharedPrompt: prompt,
+        allowSharedPromptFallback: true,
+      });
+      if (rawPrompt) {
+        setPromptOrigin("manual");
+      }
+      void handleGenerate(rawPrompt ?? "", {
+        modeOverride: "image",
+        toolOverride: "create",
+        costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+      });
       return;
     }
     handleProviderPrimarySubmit();
   }, [
     agentInput,
     chatModeEnabled,
+    currentCostCredits,
     handleAgentSend,
+    handleGenerate,
     handleProviderPrimarySubmit,
     handleStandardAgentCaptureResult,
     mode,
     prompt,
+    promptReferenceGenerateCostCredits,
     selectedTool,
+    setPromptOrigin,
   ]);

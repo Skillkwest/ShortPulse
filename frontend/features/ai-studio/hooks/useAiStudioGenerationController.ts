@@ -10,7 +10,6 @@ import {
 } from "../logic/generationStartPolicy";
 import { trackAiStudioGenerateClicked } from "../logic/generationUsageTelemetry";
 import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
-import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
 import { buildImageReferenceInputs } from "../logic/referenceInputs";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
@@ -73,11 +72,8 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   isCharacterModeEnabled: boolean;
   resolveIsCharacterModeEnabledForTool?: (tool: ToolId | null) => boolean;
   resolveSelectedCharacterIdForTool?: (tool: ToolId | null) => string | null;
-  prompt: string;
   selectedStyleContext?: StudioOutput["styleContext"] | null;
-  agentInput: string;
   currentCostCredits: number | null;
-  promptReferenceGenerateCostCredits?: number | null;
   resolveCostCreditsForModel?: (modelId: string) => number | null;
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
@@ -87,7 +83,6 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   optimisticUncoveredDebitTotal: number;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
-  setPromptOrigin: Dispatch<SetStateAction<"manual" | "agent" | "reference">>;
   setOptimisticDebitEntries: Dispatch<
     SetStateAction<{ credits: number; outputId: string | null; createdAtMs?: number }[]>
   >;
@@ -173,11 +168,8 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   isCharacterModeEnabled,
   resolveIsCharacterModeEnabledForTool,
   resolveSelectedCharacterIdForTool,
-  prompt,
   selectedStyleContext = null,
-  agentInput,
   currentCostCredits,
-  promptReferenceGenerateCostCredits = null,
   resolveCostCreditsForModel,
   isGenerateDisabled,
   isCreditGuardrail,
@@ -187,7 +179,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   optimisticUncoveredDebitTotal,
   setUiError,
   setUiNotice,
-  setPromptOrigin,
   setOptimisticDebitEntries,
   refreshBalance,
   resolveDefaultPromptForTool,
@@ -485,54 +476,8 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   );
 
   const handlePrimarySubmit = useCallback(() => {
-    if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
-      const rawPrompt = resolveChatOffCreatePrompt({
-        agentInput,
-        sharedPrompt: prompt,
-        allowSharedPromptFallback: true,
-      });
-      if (rawPrompt) {
-        setPromptOrigin("manual");
-      }
-      void handleGenerate(rawPrompt ?? "", {
-        modeOverride: "image",
-        toolOverride: "create",
-        costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
-      });
-      return;
-    }
     void handleGenerate();
-  }, [
-    agentInput,
-    currentCostCredits,
-    handleGenerate,
-    mode,
-    prompt,
-    promptReferenceGenerateCostCredits,
-    selectedTool,
-    setPromptOrigin,
-  ]);
-
-  const handleChatOffInlineGenerate = useCallback(() => {
-    const rawPrompt = resolveChatOffCreatePrompt({
-      agentInput,
-      sharedPrompt: prompt,
-      allowSharedPromptFallback: true,
-    });
-    if (rawPrompt) setPromptOrigin("manual");
-    void handleGenerate(rawPrompt ?? "", {
-      modeOverride: "image",
-      toolOverride: "create",
-      costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
-    });
-  }, [
-    agentInput,
-    currentCostCredits,
-    handleGenerate,
-    prompt,
-    promptReferenceGenerateCostCredits,
-    setPromptOrigin,
-  ]);
+  }, [handleGenerate]);
 
   const runRegenerateWithDebit = useCallback(
     async (tool: ToolId | null, options?: RegenerateWithDebitOptions) => {
@@ -798,7 +743,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   return {
     handleGenerate,
     handlePrimarySubmit,
-    handleChatOffInlineGenerate,
     handleRegenerateWithDebit,
     handleImageRegenerateWithDebit,
   };

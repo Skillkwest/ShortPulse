@@ -18,9 +18,13 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: true,
         agentInput: "standard draft",
         prompt: "fallback prompt",
+        currentCostCredits: 3,
+        promptReferenceGenerateCostCredits: null,
         handleAgentSend,
+        handleGenerate: vi.fn(),
         handleProviderPrimarySubmit,
         handleStandardAgentCaptureResult,
+        setPromptOrigin: vi.fn(),
       })
     );
 
@@ -46,9 +50,13 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: true,
         agentInput: "",
         prompt: "standard prompt fallback",
+        currentCostCredits: 3,
+        promptReferenceGenerateCostCredits: null,
         handleAgentSend,
+        handleGenerate: vi.fn(),
         handleProviderPrimarySubmit: vi.fn(),
         handleStandardAgentCaptureResult: vi.fn(),
+        setPromptOrigin: vi.fn(),
       })
     );
 
@@ -64,6 +72,8 @@ describe("useStandardCreatePrimarySubmit", () => {
   it("submits directly to generation when Standard chat mode is off", () => {
     const handleAgentSend = vi.fn().mockResolvedValue(undefined);
     const handleProviderPrimarySubmit = vi.fn();
+    const handleGenerate = vi.fn();
+    const setPromptOrigin = vi.fn();
 
     const { result } = renderHook(() =>
       useStandardCreatePrimarySubmit({
@@ -72,9 +82,13 @@ describe("useStandardCreatePrimarySubmit", () => {
         chatModeEnabled: false,
         agentInput: "standard draft",
         prompt: "standard prompt",
+        currentCostCredits: 3,
+        promptReferenceGenerateCostCredits: null,
         handleAgentSend,
+        handleGenerate,
         handleProviderPrimarySubmit,
         handleStandardAgentCaptureResult: vi.fn(),
+        setPromptOrigin,
       })
     );
 
@@ -83,6 +97,14 @@ describe("useStandardCreatePrimarySubmit", () => {
     });
 
     expect(handleAgentSend).not.toHaveBeenCalled();
-    expect(handleProviderPrimarySubmit).toHaveBeenCalledTimes(1);
+    expect(handleProviderPrimarySubmit).not.toHaveBeenCalled();
+    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
+    expect(handleGenerate).toHaveBeenCalledWith(
+      "standard draft",
+      expect.objectContaining({
+        modeOverride: "image",
+        toolOverride: "create",
+      })
+    );
   });
 });

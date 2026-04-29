@@ -17,8 +17,6 @@ const createParams = (
     model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
     setModel: vi.fn(),
     isCharacterModeEnabled: false,
-    prompt: "",
-    agentInput: "",
     currentCostCredits: 3,
     resolveCostCreditsForModel: vi.fn(() => null),
     isGenerateDisabled: false,
@@ -29,7 +27,6 @@ const createParams = (
     optimisticUncoveredDebitTotal: 0,
     setUiError: asDispatch<string | null>(vi.fn()),
     setUiNotice: asDispatch<string | null>(vi.fn()),
-    setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(vi.fn()),
     setOptimisticDebitEntries: asDispatch<{ credits: number; outputId: string | null }[]>(vi.fn()),
     refreshBalance: vi.fn(async () => 100),
     resolveDefaultPromptForTool: vi.fn(() => "default prompt"),
@@ -55,15 +52,11 @@ describe("useAiStudioGenerationController", () => {
     vi.clearAllMocks();
   });
 
-  it("routes primary text create submit into provider generation", async () => {
+  it("routes primary submit into provider generation", async () => {
     const generateOutput = vi.fn();
-    const setPromptOrigin = vi.fn();
     const params = createParams({
-      mode: "text",
       selectedTool: "create",
-      prompt: "draft prompt",
       generateOutput,
-      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
@@ -74,204 +67,13 @@ describe("useAiStudioGenerationController", () => {
       await Promise.resolve();
     });
 
-    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
     expect(generateOutput).toHaveBeenCalledWith(
-      "draft prompt",
+      "default prompt",
       expect.objectContaining({
         modeOverride: "image",
         selectedToolOverride: "create",
       })
     );
-  });
-
-  it("routes chat-off primary text create submit into create image generation", async () => {
-    const generateOutput = vi.fn();
-    const setPromptOrigin = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "shared fallback",
-      agentInput: "raw composer prompt",
-      generateOutput,
-      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handlePrimarySubmit();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(generateOutput).toHaveBeenCalledWith(
-      "raw composer prompt",
-      expect.objectContaining({
-        modeOverride: "image",
-        selectedToolOverride: "create",
-      })
-    );
-  });
-
-  it("falls back to shared prompt for chat-off primary submit when composer input is empty", async () => {
-    const generateOutput = vi.fn();
-    const setPromptOrigin = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "  shared fallback prompt  ",
-      agentInput: "   ",
-      generateOutput,
-      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handlePrimarySubmit();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(generateOutput).toHaveBeenCalledWith(
-      "shared fallback prompt",
-      expect.objectContaining({
-        modeOverride: "image",
-        selectedToolOverride: "create",
-      })
-    );
-  });
-
-  it("uses chat-off inline generate to submit trimmed raw input to create image generation", async () => {
-    const generateOutput = vi.fn();
-    const setPromptOrigin = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "shared fallback prompt",
-      agentInput: "  raw inline prompt  ",
-      generateOutput,
-      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handleChatOffInlineGenerate();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(generateOutput).toHaveBeenCalledWith(
-      "raw inline prompt",
-      expect.objectContaining({
-        modeOverride: "image",
-        selectedToolOverride: "create",
-      })
-    );
-  });
-
-  it("falls back to shared prompt for chat-off inline generate when input is empty", async () => {
-    const generateOutput = vi.fn();
-    const setPromptOrigin = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "shared fallback prompt",
-      agentInput: "   ",
-      generateOutput,
-      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handleChatOffInlineGenerate();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(generateOutput).toHaveBeenCalledWith(
-      "shared fallback prompt",
-      expect.objectContaining({
-        modeOverride: "image",
-        selectedToolOverride: "create",
-      })
-    );
-  });
-
-  it("creates optimistic debits for chat-off primary submit because it routes into generation", async () => {
-    const setOptimisticDebitEntries = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "shared fallback",
-      agentInput: "raw prompt",
-      currentCostCredits: 3,
-      setOptimisticDebitEntries:
-        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handlePrimarySubmit();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setOptimisticDebitEntries).toHaveBeenCalledTimes(1);
-  });
-
-  it("creates optimistic debits for chat-off inline generate because it routes into generation", async () => {
-    const setOptimisticDebitEntries = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "shared fallback",
-      agentInput: "raw prompt",
-      currentCostCredits: 3,
-      setOptimisticDebitEntries:
-        asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handleChatOffInlineGenerate();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setOptimisticDebitEntries).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows explicit error when chat-off inline generate has no prompt input", async () => {
-    const setUiError = vi.fn();
-    const generateOutput = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "   ",
-      agentInput: "   ",
-      setUiError: asDispatch<string | null>(setUiError),
-      generateOutput,
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handleChatOffInlineGenerate();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(setUiError).toHaveBeenCalledWith("Add a prompt to start a generation.");
-    expect(generateOutput).not.toHaveBeenCalled();
   });
 
   it("allows repeated create generate submissions without client-side locking", async () => {

@@ -306,6 +306,9 @@ describe("Create agent mode boundaries", () => {
     const standardPrimarySubmitSource = readFrontendFile(
       "features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit.ts"
     );
+    const standardInlineGenerateSource = readFrontendFile(
+      "features/ai-studio/hooks/standardCreateRuntime/useStandardCreateInlineGenerate.ts"
+    );
     const pulsePrimarySubmitSource = readFrontendFile(
       "features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit.ts"
     );
@@ -316,6 +319,8 @@ describe("Create agent mode boundaries", () => {
     expect(generationControllerSource).not.toContain("onAgentCaptureResult");
     expect(generationControllerSource).not.toContain("usesAgentLane");
     expect(generationControllerSource).not.toContain("handleAgentSend");
+    expect(generationControllerSource).not.toContain("agentInput");
+    expect(generationControllerSource).not.toContain("resolveChatOffCreatePrompt");
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
@@ -331,6 +336,9 @@ describe("Create agent mode boundaries", () => {
     expect(standardPrimarySubmitSource).not.toContain("Pulse");
     expect(standardPrimarySubmitSource).not.toContain("pulseWorkflowSession");
     expect(standardPrimarySubmitSource).not.toContain("pulseCompletedArtifactPrompt");
+    expect(standardPrimarySubmitSource).toContain("resolveChatOffCreatePrompt");
+    expect(standardInlineGenerateSource).toContain("resolveChatOffCreatePrompt");
+    expect(standardInlineGenerateSource).not.toContain("Pulse");
     expect(pulsePrimarySubmitSource).not.toContain("agentInput");
     expect(pulsePrimarySubmitSource).not.toContain("agentInput || prompt");
     expect(pulsePrimarySubmitSource).toContain("pulseCompletedArtifactPrompt");

@@ -8,7 +8,7 @@ import type {
   SubmitTarget,
   SubmitTargetAttemptDiagnostic,
 } from "../falIntegration/contracts";
-import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
+import { submitSingleTargetWithRetry } from "../falIntegration/submitEngine";
 import { readCanonicalProviderRequestId } from "./canonicalProviderPayload";
 import { KIE_KLING_30_MODEL_ID } from "./kieModelIds";
 import { normalizeKieSubmitPayloadForModel } from "./kieModelContracts";
@@ -122,6 +122,23 @@ const isRetryableKieSubmitFailure = ({
   return upstreamCode === "rate_limit" || upstreamCode === "overloaded";
 };
 
+const readSingleSubmitTarget = ({
+  targets,
+  provider,
+  modelId,
+}: {
+  targets: SubmitTarget[];
+  provider: string;
+  modelId: string;
+}): SubmitTarget => {
+  if (targets.length !== 1) {
+    throw new Error(
+      `${provider} submit requires exactly one canonical submit target for model ${modelId}; received ${targets.length}.`
+    );
+  }
+  return targets[0];
+};
+
 const submitKieTarget = async ({
   target,
   targetIndex,
@@ -180,7 +197,6 @@ const submitKieTarget = async ({
         targetIndex,
         diagnostics: {
           attemptsTried: attempt,
-          fallbackCount: targetIndex,
           targetCount: 1,
           totalDurationMs: Math.max(0, Date.now() - startedAt),
           targetAttempts: [
@@ -205,15 +221,15 @@ const submitKieTarget = async ({
   throw new Error("Kie submit attempts exhausted unexpectedly.");
 };
 
-const submitKieWithFallbackTargets = async ({
-  targets,
+const submitKieSingleTargetWithRetry = async ({
+  target,
   payload,
   apiKey,
   signal,
   requestStartTimeoutSeconds = 30,
   maxAttemptsPerTarget = 2,
 }: {
-  targets: SubmitTarget[];
+  target: SubmitTarget;
   payload: SubmitPayload;
   apiKey: string;
   signal: AbortSignal;
@@ -226,62 +242,17 @@ const submitKieWithFallbackTargets = async ({
   targetIndex: number;
   diagnostics: Record<string, unknown>;
 }> => {
-  if (!targets.length) {
-    throw new Error("Kie submit requires at least one trusted submit target.");
-  }
   const timeoutSeconds = Math.max(1, Math.trunc(requestStartTimeoutSeconds));
   const attempts = Math.max(1, Math.min(3, Math.trunc(maxAttemptsPerTarget)));
-  const targetAttempts: SubmitTargetAttemptDiagnostic[] = [];
-
-  let fallbackFailure: {
-    response: Response;
-    data: Record<string, unknown>;
-    targetUrl: string;
-    targetIndex: number;
-    diagnostics: Record<string, unknown>;
-  } | null = null;
-
-  for (const [index, target] of targets.entries()) {
-    const result = await submitKieTarget({
-      target,
-      targetIndex: index,
-      payload,
-      apiKey,
-      signal,
-      requestStartTimeoutSeconds: timeoutSeconds,
-      maxAttemptsPerTarget: attempts,
-    });
-    if (Array.isArray(result.diagnostics.targetAttempts)) {
-      targetAttempts.push(
-        ...(result.diagnostics.targetAttempts as SubmitTargetAttemptDiagnostic[])
-      );
-    }
-    if (result.response.ok) {
-      return {
-        ...result,
-        diagnostics: {
-          ...result.diagnostics,
-          fallbackCount: index,
-          targetCount: targets.length,
-          targetAttempts,
-        },
-      };
-    }
-    fallbackFailure = result;
-  }
-
-  if (fallbackFailure) {
-    return {
-      ...fallbackFailure,
-      diagnostics: {
-        ...fallbackFailure.diagnostics,
-        fallbackCount: fallbackFailure.targetIndex,
-        targetCount: targets.length,
-        targetAttempts,
-      },
-    };
-  }
-  throw new Error("Kie submit fallback exhausted without a response.");
+  return submitKieTarget({
+    target,
+    targetIndex: 0,
+    payload,
+    apiKey,
+    signal,
+    requestStartTimeoutSeconds: timeoutSeconds,
+    maxAttemptsPerTarget: attempts,
+  });
 };
 
 /**
@@ -307,8 +278,8 @@ export const dispatchProviderSubmit = async ({
   maxAttemptsPerTarget?: number;
 }): Promise<ProviderSubmitResult> => {
   if (isFalProviderKey(provider)) {
-    const result = await submitWithFallbackTargets({
-      targets,
+    const result = await submitSingleTargetWithRetry({
+      target: readSingleSubmitTarget({ targets, provider: "Fal", modelId }),
       payload,
       apiKey,
       signal,
@@ -343,11 +314,8 @@ export const dispatchProviderSubmit = async ({
     const trustedTargets = configuredTargets.filter((target) =>
       isTrustedKieProviderUrl(target.submitUrl, kieFlags)
     );
-    if (!trustedTargets.length) {
-      throw new Error(`No trusted Kie submit target configured for model: ${modelId}`);
-    }
-    const result = await submitKieWithFallbackTargets({
-      targets: trustedTargets,
+    const result = await submitKieSingleTargetWithRetry({
+      target: readSingleSubmitTarget({ targets: trustedTargets, provider: "Kie", modelId }),
       payload: normalizedPayload,
       apiKey,
       signal,

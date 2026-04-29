@@ -377,12 +377,30 @@ describe("generatedMediaAuthority", () => {
       ],
       error: null,
     });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "generation_projection") {
           return {
             select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -507,6 +525,121 @@ describe("generatedMediaAuthority", () => {
       expect.objectContaining({
         bucket: "media_library",
         storagePaths: ["user-1/variants/videos/gen-video-poster-1/poster_720.jpg"],
+        surface: "reference-grid",
+      })
+    );
+  });
+
+  it("hydrates completed generated videos from canonical output media when publication is missing", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/videos/gen-video-canonical-1/poster_720.jpg",
+          "https://signed.test/gen-video-canonical-1/poster_720.jpg",
+        ],
+      ])
+    );
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-video-canonical-1",
+          request_id: "req-video-canonical-1",
+          source_ref: "source-video-canonical-1",
+          provider: "fal",
+          model_id: "fal-ai/veo3.1",
+          display_prompt: "A canonical media video",
+          preview_url: "https://fal.test/video-preview.mp4",
+          result_urls: ["https://fal.test/video-full.mp4"],
+          preview_storage_path: "user-1/generations/videos/gen-video-canonical-1.mp4",
+          full_storage_path: "user-1/generations/videos/gen-video-canonical-1.mp4",
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {
+            aspect: "16:9",
+          },
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const canonicalOutputBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-video-canonical-1",
+          media_file_id: "media-video-canonical-1",
+          output_index: 0,
+          created_at: "2026-04-18T16:11:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-video-canonical-1",
+          storage_path: "user-1/generations/videos/gen-video-canonical-1.mp4",
+          file_type: "video/mp4",
+          poster_variant_path: "user-1/variants/videos/gen-video-canonical-1/poster_720.jpg",
+          preview_variant_path:
+            "user-1/variants/videos/gen-video-canonical-1/preview_loop_360p.mp4",
+          filename: "video.mp4",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => canonicalOutputBuilder),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-video-canonical-1",
+        mode: "video",
+        previewPosterUrl: "https://signed.test/gen-video-canonical-1/poster_720.jpg",
+        previewStoragePath: "user-1/variants/videos/gen-video-canonical-1/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/gen-video-canonical-1.mp4",
+      }),
+    ]);
+    expect(canonicalOutputBuilder.in).toHaveBeenCalledWith("generation_id", [
+      "gen-video-canonical-1",
+    ]);
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePaths: ["user-1/variants/videos/gen-video-canonical-1/poster_720.jpg"],
         surface: "reference-grid",
       })
     );

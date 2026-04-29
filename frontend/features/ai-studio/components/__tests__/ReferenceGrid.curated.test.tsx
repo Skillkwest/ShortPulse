@@ -469,6 +469,44 @@ describe("ReferenceGrid curated split", () => {
     expect(onOpenDetails).toHaveBeenCalledWith(generatedVideo.id);
   });
 
+  it("renders generated video poster thumbnails even without a playable hover URL", () => {
+    const generatedVideo: StudioOutput = {
+      id: "generated-video-poster-only-1",
+      prompt: "Generated video poster only",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      taskState: "success",
+      mediaSource: "generated",
+      previewPosterUrl: "https://signed.test/generated-video-poster.jpg",
+      previewStoragePath: "user-1/variants/videos/generated-video-poster-only-1/poster_720.jpg",
+      fullStoragePath: "user-1/generations/videos/generated-video-poster-only-1.mp4",
+      resultUrls: [],
+    };
+
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedVideo],
+          activeOutputId: generatedVideo.id,
+        })}
+      />
+    );
+
+    const card = container.querySelector(".reference-card") as HTMLDivElement | null;
+    const posterImage = container.querySelector(
+      ".reference-card-image--poster"
+    ) as HTMLImageElement | null;
+    const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
+
+    expect(card).toHaveClass("has-preview", "has-video", "has-video-poster");
+    expect(posterImage).not.toBeNull();
+    expect(posterImage?.getAttribute("src")).toBe("https://signed.test/generated-video-poster.jpg");
+    expect(videoNode).toBeNull();
+  });
+
   it("keeps dormant video cards off the loading path until selected or autoplayed", () => {
     const activeVideo: StudioOutput = {
       id: "imported-autoplay-video-1",

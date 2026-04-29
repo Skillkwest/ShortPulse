@@ -174,29 +174,26 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     hoverVideoUrl?.trim() ||
     (isVideoPreview && cardPreviewUrl && isVideoUrl(cardPreviewUrl) ? cardPreviewUrl : "") ||
     null;
-  const hasPosterBackedVideoPreview = Boolean(
-    item.mode === "video" && resolvedVideoPosterUrl && resolvedHoverVideoUrl
-  );
+  const hasVideoPosterPreview = Boolean(item.mode === "video" && resolvedVideoPosterUrl);
+  const hasPosterBackedVideoPreview = Boolean(hasVideoPosterPreview && resolvedHoverVideoUrl);
   const shouldShowGeneratedVideoSurfaceByDefault = Boolean(
     item.mode === "video" &&
     item.mediaSource === "generated" &&
-    !hasPosterBackedVideoPreview &&
+    !hasVideoPosterPreview &&
     resolvedHoverVideoUrl
   );
   const shouldRenderVideoElement = Boolean(
     (isVideoPreview && resolvedHoverVideoUrl) || hasPosterBackedVideoPreview
   );
   const shouldRenderImageElement = Boolean(
-    (isImagePreview && cardPreviewUrl) || hasPosterBackedVideoPreview
+    (isImagePreview && cardPreviewUrl) || hasVideoPosterPreview
   );
   const audioPreviewUrl = isAudioPreview ? (cardPreviewUrl?.trim() ?? "") : "";
   const shouldRenderAudioElement = Boolean(audioPreviewUrl);
-  const primaryImageSrc = hasPosterBackedVideoPreview
-    ? (resolvedVideoPosterUrl ?? undefined)
-    : imageSrc;
-  const primaryImageDataSrc = hasPosterBackedVideoPreview ? resolvedVideoPosterUrl : cardPreviewUrl;
+  const primaryImageSrc = hasVideoPosterPreview ? (resolvedVideoPosterUrl ?? undefined) : imageSrc;
+  const primaryImageDataSrc = hasVideoPosterPreview ? resolvedVideoPosterUrl : cardPreviewUrl;
   const dragImageSrc =
-    dragPreviewKind === "image" || hasPosterBackedVideoPreview
+    dragPreviewKind === "image" || hasVideoPosterPreview
       ? (primaryImageSrc ?? primaryImageDataSrc ?? undefined)
       : undefined;
   const saveIcon =
@@ -232,7 +229,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
 
   return (
     <div
-      className={`reference-card ${cardPreviewUrl || resolvedVideoPosterUrl ? "has-preview" : ""} ${isVideoPreview || hasPosterBackedVideoPreview ? "has-video" : ""} ${isAudioPreview ? "has-audio" : ""} ${hasPosterBackedVideoPreview ? "has-video-poster" : ""} ${item.previewText ? "has-text" : ""} ${isSelected ? "is-active" : ""} ${isLoading ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
+      className={`reference-card ${cardPreviewUrl || resolvedVideoPosterUrl ? "has-preview" : ""} ${isVideoPreview || hasVideoPosterPreview ? "has-video" : ""} ${isAudioPreview ? "has-audio" : ""} ${hasVideoPosterPreview ? "has-video-poster" : ""} ${item.previewText ? "has-text" : ""} ${isSelected ? "is-active" : ""} ${isLoading ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
       role="button"
       aria-busy={isLoading}
       data-loading={isLoading ? "true" : "false"}
@@ -321,7 +318,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             src={primaryImageSrc}
             data-src={primaryImageDataSrc ?? undefined}
             alt=""
-            className={`reference-card-image reference-card-image--cover ${hasPosterBackedVideoPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
+            className={`reference-card-image reference-card-image--cover ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
             loading={imageLoading}
             decoding="async"
             {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
@@ -334,7 +331,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             data-src={primaryImageDataSrc ?? undefined}
             alt=""
             aria-hidden="true"
-            className={`reference-card-image reference-card-image--contain ${hasPosterBackedVideoPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
+            className={`reference-card-image reference-card-image--contain ${hasVideoPosterPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
             loading={imageLoading}
             decoding="async"
             {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}

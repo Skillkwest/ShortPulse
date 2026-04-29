@@ -266,6 +266,38 @@ describe("ReferenceGridCard", () => {
     expect(posterImage?.classList.contains("is-hidden")).toBe(false);
   });
 
+  it("renders a video poster even when hover playback is unavailable", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            mode: "video",
+            previewPosterUrl: "https://signed.test/poster_720.jpg",
+            mediaSource: "generated",
+          }),
+          videoPosterUrl: "https://signed.test/poster_720.jpg",
+          hoverVideoUrl: null,
+          isVideoPreview: false,
+          isImagePreview: false,
+          cardPreviewUrl: null,
+          canAutoplayVideo: false,
+          videoPreload: "none",
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+    const posterImage = document.querySelector(
+      ".reference-card-image--poster"
+    ) as HTMLImageElement | null;
+    const videoNode = document.querySelector(".reference-card-video") as HTMLVideoElement | null;
+
+    expect(card).toHaveClass("has-preview", "has-video", "has-video-poster");
+    expect(posterImage).not.toBeNull();
+    expect(posterImage?.getAttribute("src")).toBe("https://signed.test/poster_720.jpg");
+    expect(videoNode).toBeNull();
+  });
+
   it("renders a compact audio preview with timing and waveform", async () => {
     render(
       <ReferenceGridCard

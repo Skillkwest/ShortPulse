@@ -19,7 +19,10 @@ type MediaFileRow = {
 
 type GenerationOutputRow = {
   id?: unknown;
+  generation_id?: unknown;
   media_file_id?: unknown;
+  output_index?: unknown;
+  created_at?: unknown;
 };
 
 type GenerationPublicationRow = {
@@ -647,16 +650,42 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
       .in("generation_id", normalizedGenerationIds)
       .order("created_at", { ascending: false })
       .limit(Math.max(normalizedGenerationIds.length * 3, normalizedGenerationIds.length));
-    if (publicationError || !Array.isArray(publicationData)) return new Map();
 
     const mediaIdByGenerationId = new Map<string, string>();
-    for (const rawRow of publicationData) {
-      const row = rawRow as GenerationPublicationRow;
-      const generationId = asTrimmedString(row.generation_id);
-      const mediaFileId = asTrimmedString(row.owned_media_file_id);
-      if (!generationId || !mediaFileId || mediaIdByGenerationId.has(generationId)) continue;
-      mediaIdByGenerationId.set(generationId, mediaFileId);
+    if (!publicationError && Array.isArray(publicationData)) {
+      for (const rawRow of publicationData) {
+        const row = rawRow as GenerationPublicationRow;
+        const generationId = asTrimmedString(row.generation_id);
+        const mediaFileId = asTrimmedString(row.owned_media_file_id);
+        if (!generationId || !mediaFileId || mediaIdByGenerationId.has(generationId)) continue;
+        mediaIdByGenerationId.set(generationId, mediaFileId);
+      }
     }
+
+    const missingGenerationIds = normalizedGenerationIds.filter(
+      (generationId) => !mediaIdByGenerationId.has(generationId)
+    );
+    if (missingGenerationIds.length) {
+      const { data: canonicalOutputData, error: canonicalOutputError } = await supabase
+        .from("ai_generation_outputs")
+        .select("generation_id, media_file_id, output_index, created_at")
+        .eq("user_id", userId)
+        .in("generation_id", missingGenerationIds)
+        .order("output_index", { ascending: true })
+        .order("created_at", { ascending: false })
+        .limit(Math.max(missingGenerationIds.length * 3, missingGenerationIds.length));
+
+      if (!canonicalOutputError && Array.isArray(canonicalOutputData)) {
+        for (const rawRow of canonicalOutputData) {
+          const row = rawRow as GenerationOutputRow;
+          const generationId = asTrimmedString(row.generation_id);
+          const mediaFileId = asTrimmedString(row.media_file_id);
+          if (!generationId || !mediaFileId || mediaIdByGenerationId.has(generationId)) continue;
+          mediaIdByGenerationId.set(generationId, mediaFileId);
+        }
+      }
+    }
+
     const mediaFileIds = Array.from(new Set(mediaIdByGenerationId.values()));
     if (!mediaFileIds.length) return new Map();
 

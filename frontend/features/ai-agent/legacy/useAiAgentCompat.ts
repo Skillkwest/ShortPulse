@@ -10,6 +10,11 @@ import { buildPulseCreateAgentContext } from "../logic/pulseCreateAgentContextBu
 import { buildStandardCreateAgentContext } from "../logic/standardContextBuilder";
 import { useCreateAgentStateCore } from "../useCreateAgentStateCore";
 import type { UseAiAgentOptions } from "../useAiAgentTypes";
+import type { AgentRuntimeMode } from "../../../prefabs/agent";
+
+type UseAiAgentCompatOptions = UseAiAgentOptions & {
+  runtimeMode?: AgentRuntimeMode;
+};
 
 /**
  * Runs the pre-split mode-switching agent hook for compatibility-only callers.
@@ -19,7 +24,7 @@ export const useAiAgentCompat = ({
   sendAgentTurn,
   resolveTransportSuccess,
   ...options
-}: UseAiAgentOptions = {}) => {
+}: UseAiAgentCompatOptions = {}) => {
   const isPulseRuntime = runtimeMode === "pulse";
   const resolvedSendAgentTurn =
     sendAgentTurn ?? (isPulseRuntime ? sendPulseCreateAgentTurn : sendStandardCreateAgentTurn);

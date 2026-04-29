@@ -8,7 +8,6 @@ import type {
   AgentMessage,
   AgentPulseWorkflowSession,
   AgentResponse,
-  AgentRuntimeMode,
 } from "../../prefabs/agent";
 import type { StudioAgentTransportResult } from "./client/studioAgentTransport";
 
@@ -18,7 +17,6 @@ export type UseAiAgentOptions = {
   conversationId?: string;
   sessionNamespace?: string;
   directOpenAiBypassEnabled?: boolean;
-  runtimeMode?: AgentRuntimeMode;
   sendAgentTurn?: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
   resolveTransportSuccess?: (response: AgentResponse) => {
     actions: AgentActions | undefined;

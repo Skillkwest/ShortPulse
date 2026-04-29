@@ -26,6 +26,8 @@ const collectSourceFiles = (dir: string): string[] => {
 describe("Create agent mode boundaries", () => {
   it("keeps the public useAiAgent compatibility wrapper Standard-only", () => {
     const source = readFrontendFile("features/ai-agent/useAiAgent.ts");
+    const typesSource = readFrontendFile("features/ai-agent/useAiAgentTypes.ts");
+    const legacyCompatSource = readFrontendFile("features/ai-agent/legacy/useAiAgentCompat.ts");
 
     expect(source).not.toContain("pulseTransportResultResolution");
     expect(source).not.toContain("pulseStudioAgentTransport");
@@ -33,6 +35,8 @@ describe("Create agent mode boundaries", () => {
     expect(source).not.toContain("logic/contextBuilder");
     expect(source).toContain('Omit<UseAiAgentOptions, "runtimeMode">');
     expect(source).toContain('requestRuntimeMode: "standard"');
+    expect(typesSource).not.toContain("runtimeMode?:");
+    expect(legacyCompatSource).toContain("runtimeMode?: AgentRuntimeMode");
   });
 
   it("keeps Pulse context serialization behind a Pulse-owned module name", () => {

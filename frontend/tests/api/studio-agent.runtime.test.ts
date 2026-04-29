@@ -325,4 +325,19 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(standardRoute).not.toContain("./studio-agent");
     expect(pulseRoute).not.toContain("./studio-agent");
   });
+
+  it("keeps Pulse runtime out of generic canonical prompt persistence", () => {
+    const repoRoot = path.resolve(__dirname, "../..");
+    const pulseRuntime = readFileSync(
+      path.join(repoRoot, "features/agent-runtime/pulseStudioAgentRuntime/runtime.ts"),
+      "utf8"
+    );
+
+    expect(pulseRuntime).not.toContain("readStudioAgentCanonicalPrompt");
+    expect(pulseRuntime).not.toContain("STUDIO_AGENT_SYSTEM");
+    expect(pulseRuntime).toContain("STUDIO_AGENT_WORKFLOW_SYSTEM prompt missing");
+    expect(pulseRuntime).toContain("canonicalDbEnabled: false");
+    expect(pulseRuntime).toContain("ai/studio-agent-pulse");
+    expect(pulseRuntime).toContain("studio-agent-pulse");
+  });
 });

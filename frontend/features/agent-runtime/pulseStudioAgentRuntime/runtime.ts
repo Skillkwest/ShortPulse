@@ -7,11 +7,7 @@ import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
 import { sanitizeGenerationPromptText } from "../../agent-core/promptText";
 import { pickSelectedReferencesForThinker } from "../../ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../ai-agent/logic/studioAgentOrchestration";
-import { readStudioAgentCanonicalPrompt } from "../studioAgentCanonicalPersistence";
-import {
-  formatStudioAgentErrorMessage,
-  resolveStudioAgentOpenAiConfig,
-} from "../studioAgentOpenAiGateway";
+import { resolveStudioAgentOpenAiConfig } from "../studioAgentOpenAiGateway";
 import { executeStudioAgentCoordinator } from "../studioAgentCoordinator";
 import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
@@ -47,6 +43,10 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationState";
 import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
+
+const PULSE_ROUTE_LABEL = "ai/studio-agent-pulse";
+const PULSE_PROMPT_CACHE_ROUTE = "studio-agent-pulse";
+const PULSE_RUNTIME_SCOPE_FALLBACK = "studio-agent-pulse";
 
 export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === "POST") {
@@ -139,7 +139,6 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const { openAiUrl, turnTimeoutMs } = openAiConfig;
   const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
 
-  const canonicalDbEnabled = process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED !== "false";
   const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
   const singleStageEnabled = process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED !== "false";
   const legacyV2FallbackEnabled = process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED === "true";
@@ -159,10 +158,6 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
   );
   const safetyAutoRollbackEnabled = process.env.STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED === "true";
-  const promptEditorSystemPrompt = loadAgentPrompt(
-    "STUDIO_AGENT_SYSTEM",
-    process.env.STUDIO_AGENT_SYSTEM
-  );
   const workflowSystemPrompt = loadAgentPrompt(
     "STUDIO_AGENT_WORKFLOW_SYSTEM",
     process.env.STUDIO_AGENT_WORKFLOW_SYSTEM
@@ -176,25 +171,23 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     "OPENAI_PROMPT_IMAGE_DESCRIBE",
     process.env.OPENAI_PROMPT_IMAGE_DESCRIBE
   );
-  const systemPrompt = workflowPulseActive
-    ? (workflowSystemPrompt ?? promptEditorSystemPrompt)
-    : promptEditorSystemPrompt;
-  if (!systemPrompt) {
+  if (!workflowSystemPrompt) {
     return res.status(500).json({
       ...buildStudioAgentRouteFailurePayload({
         traceId,
-        detail: "STUDIO_AGENT_SYSTEM prompt missing",
+        detail: "STUDIO_AGENT_WORKFLOW_SYSTEM prompt missing",
         reasonCode: "CONFIG_MISSING",
       }),
-      error: "STUDIO_AGENT_SYSTEM prompt missing",
+      error: "STUDIO_AGENT_WORKFLOW_SYSTEM prompt missing",
     });
   }
+  const systemPrompt = workflowSystemPrompt;
   const promptTemplateVersion = resolvePromptTemplateVersion({
-    route: "studio-agent",
+    route: PULSE_PROMPT_CACHE_ROUTE,
     prompts: [systemPrompt, thinkerPrompt ?? "", formatterPrompt ?? "", imageDescribePrompt ?? ""],
   });
   const runtimeScopeKey = buildPromptCompilerCacheScopeKey({
-    route: "studio-agent",
+    route: PULSE_PROMPT_CACHE_ROUTE,
     promptTemplateVersion,
     policySchemaVersion: safetyPolicySchemaVersion,
     controlPlanePolicyVersion: safetyProfile.policyVersion,
@@ -214,20 +207,8 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const coordinatorOpenAiModel = workflowPulseActive ? openAiPulseModel : openAiModel;
   const coordinatorTurnTimeoutMs = workflowPulseActive ? pulseTurnTimeoutMs : turnTimeoutMs;
 
-  const storedCanonical = await readStudioAgentCanonicalPrompt({
-    req,
-    userId: user.id,
-    conversationId: normalizedConversationId,
-    canonicalDbEnabled,
-    markStage,
-    formatErrorMessage: formatStudioAgentErrorMessage,
-  });
-
   const canonicalPrompt =
-    sanitizeGenerationPromptText(storedCanonical) ??
-    incomingCanonical ??
-    sanitizeGenerationPromptText(context.lastAssistantMessage) ??
-    null;
+    incomingCanonical ?? sanitizeGenerationPromptText(context.lastAssistantMessage) ?? null;
   let effectiveCanonical = clampCanonicalPrompt(canonicalPrompt);
 
   const selectedReferencesBeforePrecheck = pickSelectedReferencesForThinker(context);
@@ -243,7 +224,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     context,
     canonicalPrompt: effectiveCanonical,
     modality: resolveSafetyModality({
-      route: "studio-agent",
+      route: PULSE_PROMPT_CACHE_ROUTE,
       flow: orchestrationBeforePrecheck.flow,
     }),
     profileId: safetyProfileId,
@@ -349,7 +330,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
       await logApiRouteException({
         req,
         error,
-        routeLabel: "ai/studio-agent",
+        routeLabel: PULSE_ROUTE_LABEL,
         metadata: {
           user_id: user.id,
           conversation_id: normalizedConversationId,
@@ -398,7 +379,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     normalizedConversationId,
     userId: user.id,
     userEmail: user.email ?? null,
-    canonicalDbEnabled,
+    canonicalDbEnabled: false,
     safetyPostProcessMode,
     safetyDebugEnabled,
     safetyProfileId,
@@ -406,11 +387,13 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     safetyPolicyVersion: safetyProfile.policyVersion,
     safetyPolicySchemaVersion,
     safetyPromptTemplateVersion: promptTemplateVersion,
-    runtimeScopeKey,
+    runtimeScopeKey: runtimeScopeKey || PULSE_RUNTIME_SCOPE_FALLBACK,
     safetyEnvironment,
     safetyDevAbsoluteZeroEnabled,
     safetyProviderErrorMode,
     safetyAutoRollbackEnabled,
+    routeLabel: PULSE_ROUTE_LABEL,
+    safetyRoute: PULSE_PROMPT_CACHE_ROUTE,
   });
 
   return res.status(coordinatorResult.status).json(coordinatorResult.payload);

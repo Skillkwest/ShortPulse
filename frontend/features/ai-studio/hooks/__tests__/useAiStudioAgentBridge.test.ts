@@ -1248,6 +1248,10 @@ describe("useAiStudioAgentBridge", () => {
     const resetAgentComposer = vi.fn();
     const setPulseWorkflowSession = vi.fn();
     const handlePulsePresetStart = vi.fn().mockResolvedValue(undefined);
+    const restartPulse = vi.fn(() => ({
+      presetId: "story_builder",
+      sessionInstanceId: "pulse-session-restart",
+    }));
     let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
     let setPromptOriginFromInteractions:
       | Dispatch<SetStateAction<"manual" | "agent" | "reference">>
@@ -1309,6 +1313,7 @@ describe("useAiStudioAgentBridge", () => {
           expertCreateMode: "pulse",
           activePulsePresetId: "story_builder",
           setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+          restartPulse,
         })
       )
     );
@@ -1347,8 +1352,12 @@ describe("useAiStudioAgentBridge", () => {
     expect(resetAgentChat).toHaveBeenCalledTimes(1);
     expect(resetAgentComposer).toHaveBeenCalledWith({ preserveAttachments: false });
     expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
+    expect(restartPulse).toHaveBeenCalledTimes(1);
     expect(handlePulsePresetStart).toHaveBeenCalledWith(
-      expect.objectContaining({ presetId: "story_builder" })
+      expect.objectContaining({ presetId: "story_builder" }),
+      {
+        pulseSessionInstanceId: "pulse-session-restart",
+      }
     );
     expect(result.current.latestAgentPrompt).toBeNull();
     expect(result.current.promptOrigin).toBe("manual");

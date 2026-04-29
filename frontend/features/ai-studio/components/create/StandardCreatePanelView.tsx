@@ -5,7 +5,8 @@ import { AgentGenerateButton } from "../../../../prefabs/agent";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
-import type { ExpertCreateMode } from "../CreatePropertiesPanel";
+import { CreateExpertModeToggle } from "./CreateExpertModeToggle";
+import type { ExpertCreateMode } from "./createModeTypes";
 import type { AspectOption } from "../../types";
 
 type StandardCreatePanelViewProps = {
@@ -90,12 +91,12 @@ export function StandardCreatePanelView({
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
-  const createModeTabsStyle = React.useMemo(
-    () =>
-      ({
-        ["--create-expert-mode-index" as string]: createMode === "pulse" ? 1 : 0,
-      }) as React.CSSProperties,
-    [createMode]
+  const handleCreateModeChange = React.useCallback(
+    (value: ExpertCreateMode) => {
+      setUncontrolledCreateMode(value);
+      onExpertCreateModeChange?.(value);
+    },
+    [onExpertCreateModeChange]
   );
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
@@ -112,40 +113,7 @@ export function StandardCreatePanelView({
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
 
   const createModeToggle = (
-    <div className="create-expert-mode-shell">
-      <div
-        className="create-expert-mode-tabs"
-        role="tablist"
-        aria-label="Create mode"
-        style={createModeTabsStyle}
-      >
-        <span className="create-expert-mode-indicator" aria-hidden="true" />
-        <button
-          type="button"
-          role="tab"
-          aria-selected={createMode === "standard"}
-          className={`create-expert-mode-tab ${createMode === "standard" ? "is-active" : ""}`}
-          onClick={() => {
-            setUncontrolledCreateMode("standard");
-            onExpertCreateModeChange?.("standard");
-          }}
-        >
-          Standard
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={createMode === "pulse"}
-          className={`create-expert-mode-tab ${createMode === "pulse" ? "is-active" : ""}`}
-          onClick={() => {
-            setUncontrolledCreateMode("pulse");
-            onExpertCreateModeChange?.("pulse");
-          }}
-        >
-          Pulse
-        </button>
-      </div>
-    </div>
+    <CreateExpertModeToggle value={createMode} onChange={handleCreateModeChange} />
   );
 
   const promptAndControls = (

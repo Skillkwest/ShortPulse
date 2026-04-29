@@ -5,7 +5,7 @@
  */
 import { createHash } from "node:crypto";
 
-export type PromptCompilerRoute = "studio-agent" | "extract-style";
+export type PromptCompilerRoute = "studio-agent" | "studio-agent-pulse" | "extract-style";
 
 const normalizePromptSegment = (value: string): string =>
   value.trim().replace(/\s+/g, " ").toLowerCase();

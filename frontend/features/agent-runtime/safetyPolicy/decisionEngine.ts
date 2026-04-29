@@ -18,10 +18,9 @@ export const resolveSafetyEnvironment = (nodeEnv?: string | null): SafetyEnviron
   nodeEnv === "production" ? "production" : "development";
 
 export const resolveSafetyModality = ({
-  route,
   flow,
 }: {
-  route: "studio-agent";
+  route: "studio-agent" | "studio-agent-pulse";
   flow?: string;
 }): SafetyModality => {
   if (flow === "IMAGE_ONLY" || flow === "MIXED") return "image";

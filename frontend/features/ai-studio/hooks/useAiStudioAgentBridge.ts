@@ -69,6 +69,7 @@ type UseAiStudioAgentBridgeParams = {
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   setPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
   clearPulseRuntime?: () => void;
+  restartPulse?: () => { presetId: string; sessionInstanceId: string } | null;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
 };
 
@@ -240,6 +241,7 @@ export const useAiStudioAgentBridge = ({
   setUiNotice,
   setPulseWorkflowSession,
   clearPulseRuntime,
+  restartPulse,
   trackAgentUiEvent,
 }: UseAiStudioAgentBridgeParams) => {
   const bridgeRuntime = useMemo(
@@ -805,10 +807,16 @@ export const useAiStudioAgentBridge = ({
       setLatestAgentPrompt(null);
       setPromptOrigin("manual");
       setPulseWorkflowSession(null);
-      await handlePulsePresetStart(preset);
+      const restartedPulse = restartPulse?.();
+      const pulseSessionInstanceId =
+        restartedPulse?.presetId === preset.presetId ? restartedPulse.sessionInstanceId : null;
+      await handlePulsePresetStart(preset, {
+        pulseSessionInstanceId,
+      });
     },
     [
       handlePulsePresetStart,
+      restartPulse,
       resetAgentChat,
       resetAgentComposer,
       setLatestAgentPrompt,

@@ -76,6 +76,9 @@ describe("useCreatePulsePresetPanelPreference", () => {
     );
 
     expect(pageSource).not.toContain("useCreatePulsePresetPanelPreference");
+    expect(pageSource).not.toContain(
+      'from "../features/ai-studio/components/create/CreatePulsePreferenceRuntime"'
+    );
     expect(pulseRuntimeSource).toContain("useCreatePulsePresetPanelPreference");
   });
 

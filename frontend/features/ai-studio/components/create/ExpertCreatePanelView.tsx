@@ -6,7 +6,7 @@ import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
 import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
-import type { ExpertCreateMode } from "../CreatePropertiesPanel";
+import type { ExpertCreateMode } from "./createModeTypes";
 import type { AspectOption } from "../../types";
 import type {
   CreatePulsePresetId,

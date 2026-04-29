@@ -17,6 +17,7 @@ export type { StudioAgentSafetyDecisionMeta } from "./safetyPolicy/textSafetyEva
 
 export type StudioAgentSafetyPostProcessOutcome = "pass" | "rewritten" | "refusal";
 export type StudioAgentSafetyPostProcessSource = "model_output";
+export type StudioAgentSafetyRoute = "studio-agent" | "studio-agent-pulse";
 
 export type StudioAgentSafetyPostProcessResult = {
   outcome: StudioAgentSafetyPostProcessOutcome;
@@ -54,13 +55,13 @@ const maybeExternalRewrite = async ({
   timeoutMs,
 }: {
   text: string;
-  route: "studio-agent";
+  route: StudioAgentSafetyRoute;
   flow: string;
   source: StudioAgentSafetyPostProcessSource;
   traceId?: string;
   rewrite?: (args: {
     text: string;
-    route: "studio-agent";
+    route: StudioAgentSafetyRoute;
     flow: string;
     source: StudioAgentSafetyPostProcessSource;
     traceId?: string;
@@ -98,7 +99,7 @@ export const postProcessStudioAgentSafetyText = async ({
   policyDocument,
 }: {
   text: string | null | undefined;
-  route: "studio-agent";
+  route: StudioAgentSafetyRoute;
   flow?: string;
   source: StudioAgentSafetyPostProcessSource;
   mode: SafetyPostprocessMode;
@@ -106,7 +107,7 @@ export const postProcessStudioAgentSafetyText = async ({
   traceId?: string;
   rewrite?: (args: {
     text: string;
-    route: "studio-agent";
+    route: StudioAgentSafetyRoute;
     flow: string;
     source: StudioAgentSafetyPostProcessSource;
     traceId?: string;

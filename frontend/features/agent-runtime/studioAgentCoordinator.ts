@@ -23,6 +23,7 @@ import {
   postProcessStudioAgentSafetyText,
   type StudioAgentSafetyDecisionMeta,
   type StudioAgentSafetyPostProcessOutcome,
+  type StudioAgentSafetyRoute,
 } from "./studioAgentSafetyPostProcess";
 import { maybeTriggerSafetyIncidentAutoRollback } from "./safetyPolicy/incidentAutoRollback";
 import { resolveSafetyModality } from "./safetyPolicy/decisionEngine";
@@ -169,6 +170,8 @@ export const executeStudioAgentCoordinator = async ({
   safetyDevAbsoluteZeroEnabled,
   safetyProviderErrorMode,
   safetyAutoRollbackEnabled,
+  routeLabel = "ai/studio-agent",
+  safetyRoute = "studio-agent",
 }: {
   req: NextApiRequest;
   traceId: string;
@@ -212,6 +215,8 @@ export const executeStudioAgentCoordinator = async ({
   safetyDevAbsoluteZeroEnabled: boolean;
   safetyProviderErrorMode: ProviderErrorNormalizationMode;
   safetyAutoRollbackEnabled: boolean;
+  routeLabel?: string;
+  safetyRoute?: StudioAgentSafetyRoute;
 }): Promise<{ status: number; payload: Record<string, unknown> }> => {
   const openAiMessages = buildStudioAgentOpenAiMessages({
     messages,
@@ -238,7 +243,7 @@ export const executeStudioAgentCoordinator = async ({
       ? safetyPolicyVersion
       : resolvePolicyVersionFromProfileId(safetyProfileId);
   const safetyModality = resolveSafetyModality({
-    route: "studio-agent",
+    route: safetyRoute,
     flow: orchestration.flow,
   });
   const safetyTelemetryProfileId =
@@ -542,7 +547,7 @@ export const executeStudioAgentCoordinator = async ({
       if (applyPromptValue) {
         const applyPromptSafety = await postProcessStudioAgentSafetyText({
           text: applyPromptValue,
-          route: "studio-agent",
+          route: safetyRoute,
           flow: orchestration.flow,
           source: "model_output",
           mode: safetyPostProcessMode,
@@ -574,7 +579,7 @@ export const executeStudioAgentCoordinator = async ({
       if (!finalRefusal) {
         const messageSafety = await postProcessStudioAgentSafetyText({
           text: finalParsed.message,
-          route: "studio-agent",
+          route: safetyRoute,
           flow: orchestration.flow,
           source: "model_output",
           mode: safetyPostProcessMode,
@@ -632,7 +637,7 @@ export const executeStudioAgentCoordinator = async ({
         await logApiRouteException({
           req,
           error,
-          routeLabel: "ai/studio-agent",
+          routeLabel,
           metadata: {
             user_id: userId,
             conversation_id: normalizedConversationId,
@@ -978,7 +983,7 @@ export const executeStudioAgentCoordinator = async ({
     await logApiRouteException({
       req,
       error,
-      routeLabel: "ai/studio-agent",
+      routeLabel,
       metadata: {
         user_id: userId,
         conversation_id: normalizedConversationId,

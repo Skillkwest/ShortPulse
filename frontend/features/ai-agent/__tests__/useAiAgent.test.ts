@@ -71,7 +71,7 @@ describe("useAiAgent", () => {
   });
 
   it("still returns early for empty text with no media context", async () => {
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
 
     await act(async () => {
       await result.current.send({
@@ -90,7 +90,7 @@ describe("useAiAgent", () => {
       ok: true,
       json: async () => ({ message: "Pulse activated." }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
 
     await act(async () => {
       await result.current.send({
@@ -252,7 +252,7 @@ describe("useAiAgent", () => {
   });
 
   it("refuses explicit input in client precheck without transport call", async () => {
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
 
     await act(async () => {
       await result.current.send({
@@ -381,7 +381,7 @@ describe("useAiAgent", () => {
         },
       }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
 
     let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
     await act(async () => {

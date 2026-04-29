@@ -1,18 +1,6 @@
 import { useEffect } from "react";
 import { useCreatePulsePresetPanelPreference } from "../../hooks/useCreatePulsePresetPanelPreference";
-import type { CreatePulsePresetId, CreatePulseSavedPreset } from "./createPulsePresets";
-
-export type CreatePulsePreferenceRuntimeValue = {
-  presetPanelIds: CreatePulsePresetId[];
-  savedPresets: CreatePulseSavedPreset[];
-  setPresetPanelIds: (presetIds: readonly CreatePulsePresetId[]) => Promise<boolean>;
-  setSavedPresets: (presets: readonly CreatePulseSavedPreset[]) => Promise<boolean>;
-};
-
-type CreatePulsePreferenceRuntimeProps = {
-  onPreferenceChange: (value: CreatePulsePreferenceRuntimeValue) => void;
-  onPreferenceReset: () => void;
-};
+import type { CreatePulsePreferenceRuntimeProps } from "./createPulsePreferenceRuntimeTypes";
 
 /**
  * Mounts custom Pulse preference loading only while Pulse mode is active.

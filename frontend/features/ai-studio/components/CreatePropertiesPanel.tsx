@@ -27,6 +27,7 @@ import { getModelConfig } from "../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
 import { PulseCreatePanelView } from "./create/PulseCreatePanelView";
 import { StandardCreatePanelView } from "./create/StandardCreatePanelView";
+import type { ExpertCreateMode } from "./create/createModeTypes";
 import type {
   CreatePulsePresetId,
   CreatePulsePresetStartResult,
@@ -44,7 +45,7 @@ import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
-export type ExpertCreateMode = "standard" | "pulse";
+export type { ExpertCreateMode } from "./create/createModeTypes";
 
 export type CreatePropertiesPanelProps = {
   mode: StudioMode;

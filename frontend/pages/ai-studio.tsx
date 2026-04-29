@@ -3,6 +3,7 @@
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
 import Head from "next/head";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
@@ -29,10 +30,10 @@ import {
   resolveCreatePulsePresetById,
   type CreatePulseResolvedPreset,
 } from "../features/ai-studio/components/create/createPulsePresets";
-import {
-  CreatePulsePreferenceRuntime,
-  type CreatePulsePreferenceRuntimeValue,
-} from "../features/ai-studio/components/create/CreatePulsePreferenceRuntime";
+import type {
+  CreatePulsePreferenceRuntimeProps,
+  CreatePulsePreferenceRuntimeValue,
+} from "../features/ai-studio/components/create/createPulsePreferenceRuntimeTypes";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
@@ -132,6 +133,14 @@ const createInactivePulsePreferenceRuntime = (): CreatePulsePreferenceRuntimeVal
   setSavedPresets: async () => false,
 });
 
+const CreatePulsePreferenceRuntime = dynamic<CreatePulsePreferenceRuntimeProps>(
+  () =>
+    import("../features/ai-studio/components/create/CreatePulsePreferenceRuntime").then(
+      (module) => module.CreatePulsePreferenceRuntime
+    ),
+  { ssr: false }
+);
+
 export default function AiStudioPage() {
   const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
@@ -221,6 +230,7 @@ export default function AiStudioPage() {
     setPulseSessionInstanceId,
     setPulseWorkflowSession,
     clearPulseRuntime,
+    restartPulse,
     handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange,
   } = useAiStudioCreateModeRuntime({
@@ -908,6 +918,7 @@ export default function AiStudioPage() {
     setUiNotice,
     setPulseWorkflowSession,
     clearPulseRuntime,
+    restartPulse,
     trackAgentUiEvent: trackUiEvent,
   });
 

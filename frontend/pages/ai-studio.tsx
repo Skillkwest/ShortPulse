@@ -61,6 +61,7 @@ import { useAiStudioAudioGeneration } from "../features/ai-studio/hooks/useAiStu
 import { useAiStudioCreateCharacterLookState } from "../features/ai-studio/hooks/useAiStudioCreateCharacterLookState";
 import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
+import { resolveCreateAgentGenerationHandoff } from "../features/ai-studio/hooks/agentGeneration/createAgentGenerationHandoff";
 import type {
   CanvasDropResolution,
   PrepareCanvasMediaLibraryDrop,
@@ -1241,8 +1242,15 @@ export default function AiStudioPage() {
     },
     [addAgentPromptReference, setPromptOrigin]
   );
-  const handleCreateAgentCaptureResult =
-    expertCreateMode === "pulse" ? undefined : handleStandardAgentCaptureResult;
+  const createAgentGenerationHandoff = useMemo(
+    () =>
+      resolveCreateAgentGenerationHandoff({
+        expertCreateMode,
+        chatModeEnabled,
+        onStandardAgentCaptureResult: handleStandardAgentCaptureResult,
+      }),
+    [chatModeEnabled, expertCreateMode, handleStandardAgentCaptureResult]
+  );
 
   const {
     handleGenerate,
@@ -1262,7 +1270,7 @@ export default function AiStudioPage() {
     prompt,
     selectedStyleContext,
     agentInput,
-    usesAgentLane: expertCreateMode === "pulse" || chatModeEnabled,
+    usesAgentLane: createAgentGenerationHandoff.usesAgentLane,
     currentCostCredits,
     resolveCostCreditsForModel: resolveModelPickerCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
@@ -1277,7 +1285,7 @@ export default function AiStudioPage() {
     setOptimisticDebitEntries,
     refreshBalance,
     handleAgentSend,
-    onAgentCaptureResult: handleCreateAgentCaptureResult,
+    onAgentCaptureResult: createAgentGenerationHandoff.onAgentCaptureResult,
     resolveDefaultPromptForTool,
     refreshCharacterModeInjectionBundleForSubmission,
     resolveCharacterModeSubmissionOverrides,

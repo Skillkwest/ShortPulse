@@ -251,9 +251,15 @@ describe("Create agent mode boundaries", () => {
     const generationControllerSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioGenerationController.ts"
     );
+    const pageSource = readFrontendFile("pages/ai-studio.tsx");
 
     expect(generationControllerSource).not.toContain("expertCreateMode");
     expect(generationControllerSource).toContain("onAgentCaptureResult");
+    expect(pageSource).toContain("resolveCreateAgentGenerationHandoff");
+    expect(pageSource).not.toContain(
+      'expertCreateMode === "pulse" ? undefined : handleStandardAgentCaptureResult'
+    );
+    expect(pageSource).not.toContain('usesAgentLane: expertCreateMode === "pulse"');
   });
 
   it("keeps Pulse workflow helpers out of shared orchestration static imports", () => {

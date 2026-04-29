@@ -960,7 +960,7 @@ export default function AiStudioPage() {
     sessionTitleOverride: sessionPersistenceTitleOverride,
     buildSessionSnapshot: buildProjectAwareSessionSnapshot,
     agentRuntime: sessionAgentRuntime,
-    agentRuntimes: sessionAgentRuntimes,
+    agentRuntimes: expertCreateMode === "pulse" ? sessionAgentRuntimes : undefined,
     expertEditSessionState,
     hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
     hydrateFromSessionAgentSnapshot,

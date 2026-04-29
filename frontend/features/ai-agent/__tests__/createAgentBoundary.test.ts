@@ -467,6 +467,7 @@ describe("Create agent mode boundaries", () => {
   });
 
   it("keeps page persistence from accepting loose active agent fields", () => {
+    const pageSource = readFrontendFile("pages/ai-studio.tsx");
     const pagePersistenceSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioPageSessionPersistence.ts"
     );
@@ -476,6 +477,9 @@ describe("Create agent mode boundaries", () => {
     expect(pagePersistenceSource).not.toContain("agentInput: string");
     expect(pagePersistenceSource).not.toContain("latestAgentPrompt: string | null");
     expect(pagePersistenceSource).not.toContain("pulseWorkflowSession?: AgentPulseWorkflowSession");
+    expect(pageSource).toContain(
+      'agentRuntimes: expertCreateMode === "pulse" ? sessionAgentRuntimes : undefined'
+    );
   });
 
   it("keeps Pulse hydration from using runtime metadata as workspace authority", () => {

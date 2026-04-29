@@ -410,6 +410,14 @@ describe("generatedMediaAuthority", () => {
   });
 
   it("hydrates completed generated videos with published poster storage paths", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/videos/gen-video-poster-1/poster_720.jpg",
+          "https://signed.test/gen-video-poster-1/poster_720.jpg",
+        ],
+      ])
+    );
     const projectionBuilder = createAwaitableSelectBuilder({
       data: [
         {
@@ -490,10 +498,18 @@ describe("generatedMediaAuthority", () => {
         mode: "video",
         resultUrls: ["https://fal.test/video-full.mp4"],
         previewUrl: "https://fal.test/video-preview.mp4",
+        previewPosterUrl: "https://signed.test/gen-video-poster-1/poster_720.jpg",
         previewStoragePath: "user-1/variants/videos/gen-video-poster-1/poster_720.jpg",
         fullStoragePath: "user-1/generations/videos/gen-video-poster-1.mp4",
       }),
     ]);
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePaths: ["user-1/variants/videos/gen-video-poster-1/poster_720.jpg"],
+        surface: "reference-grid",
+      })
+    );
   });
 
   it("lists only project-associated visible generated outputs when project scoped", async () => {

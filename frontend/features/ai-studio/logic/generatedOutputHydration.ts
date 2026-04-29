@@ -54,6 +54,7 @@ const mergeHydratedGeneratedOutput = (
   errorDetail: hydrated.errorDetail ?? existing.errorDetail ?? null,
   resultUrls: (hydrated.resultUrls?.length ?? 0) > 0 ? hydrated.resultUrls : existing.resultUrls,
   previewUrl: hydrated.previewUrl ?? existing.previewUrl,
+  previewPosterUrl: hydrated.previewPosterUrl ?? existing.previewPosterUrl ?? null,
   previewStoragePath: hydrated.previewStoragePath ?? existing.previewStoragePath ?? null,
   fullStoragePath: hydrated.fullStoragePath ?? existing.fullStoragePath ?? null,
   mediaSource: "generated",

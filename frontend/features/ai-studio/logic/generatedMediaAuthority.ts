@@ -118,8 +118,9 @@ const resolveVideoDeliveryPosterStoragePath = ({
 }): string | null => {
   if (mode !== "video") return null;
   if (!previewStoragePath) return null;
+  if (previewStoragePath.includes("/variants/")) return previewStoragePath;
   if (fullStoragePath && previewStoragePath === fullStoragePath) return null;
-  return previewStoragePath;
+  return fullStoragePath ? previewStoragePath : null;
 };
 
 const signReferenceGridStoragePath = async (storagePath: string | null): Promise<string | null> => {
@@ -709,6 +710,47 @@ const applyPublishedVideoPosterStoragePaths = (
     };
   });
 
+const applySignedVideoPosterUrls = async (outputs: StudioOutput[]): Promise<StudioOutput[]> => {
+  const posterPathByOutputId = new Map<string, string>();
+  const storagePaths = new Set<string>();
+  for (const output of outputs) {
+    if (output.mode !== "video") continue;
+    if (asTrimmedString(output.previewPosterUrl)) continue;
+    const posterStoragePath = resolveVideoDeliveryPosterStoragePath({
+      mode: output.mode,
+      previewStoragePath: asCanonicalStoragePath(output.previewStoragePath),
+      fullStoragePath: asCanonicalStoragePath(output.fullStoragePath),
+    });
+    if (!posterStoragePath) continue;
+    posterPathByOutputId.set(output.id, posterStoragePath);
+    storagePaths.add(posterStoragePath);
+  }
+
+  if (storagePaths.size === 0) return outputs;
+  const signedByPath = await getSignedMediaUrlsBatch({
+    bucket: "media_library",
+    storagePaths: Array.from(storagePaths),
+    surface: "reference-grid",
+    queryMode: "default",
+  }).catch(() => null);
+  if (!signedByPath) return outputs;
+
+  let changed = false;
+  const patched = outputs.map((output) => {
+    const posterStoragePath = posterPathByOutputId.get(output.id);
+    if (!posterStoragePath) return output;
+    const signedPosterUrl = signedByPath.get(posterStoragePath) ?? null;
+    if (!signedPosterUrl || output.previewPosterUrl === signedPosterUrl) return output;
+    changed = true;
+    return {
+      ...output,
+      previewPosterUrl: signedPosterUrl,
+    };
+  });
+
+  return changed ? patched : outputs;
+};
+
 export const resolveLatestPublishedGenerationMediaFile = async ({
   supabase,
   generationId,
@@ -1056,8 +1098,11 @@ export const listVisibleGeneratedOutputs = async ({
       generationIds: videoGenerationIds,
       userId,
     });
-    if (mediaByGenerationId.size === 0) return outputs;
-    return applyPublishedVideoPosterStoragePaths(outputs, mediaByGenerationId);
+    const outputsWithPosterStoragePaths =
+      mediaByGenerationId.size === 0
+        ? outputs
+        : applyPublishedVideoPosterStoragePaths(outputs, mediaByGenerationId);
+    return await applySignedVideoPosterUrls(outputsWithPosterStoragePaths);
   } catch {
     return [];
   }

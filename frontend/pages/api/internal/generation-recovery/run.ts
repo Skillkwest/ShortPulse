@@ -48,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const flags = readFalRuntimeFlags();
-  if (!flags.reconcilerEnabled || flags.integrationMode === "legacy") {
+  if (!flags.reconcilerEnabled) {
     return res.status(404).json({ error: "Not found" });
   }
 

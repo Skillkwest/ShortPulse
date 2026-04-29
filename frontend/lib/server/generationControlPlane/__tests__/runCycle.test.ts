@@ -78,7 +78,6 @@ describe("runGenerationControlPlaneCycle", () => {
     process.env.SHORTPULSE_FAL_RECONCILER_BATCH_SIZE = "10";
     process.env.SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS = "5";
     process.env.SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS = "0";
-    process.env.SHORTPULSE_FAL_INTEGRATION_MODE = "on";
     process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST = "*";
     processPendingGenerationObservationsMock.mockResolvedValue({
       claimed: 2,

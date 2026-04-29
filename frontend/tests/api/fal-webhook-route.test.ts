@@ -36,7 +36,6 @@ const createMockResponse = () => ({
 describe("POST /api/fal/webhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.SHORTPULSE_FAL_INTEGRATION_MODE = "on";
     readFalWebhookHeadersMock.mockReturnValue({
       requestId: "req-1",
       userId: "fal-user-1",

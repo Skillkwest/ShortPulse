@@ -7,7 +7,6 @@ import {
 } from "../falSubmitTargeting";
 
 const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags => ({
-  integrationMode: "on",
   modelAllowlist: new Set(["*"]),
   reconcilerEnabled: true,
   reconcilerCronSecret: "secret",
@@ -57,15 +56,6 @@ describe("falSubmitTargeting webhook callback", () => {
   it("returns callback URL when integration is active and a public base URL exists", () => {
     const callback = resolveWebhookCallbackUrl(createFlags());
     expect(callback).toBe("https://shortpulse.test/api/fal/webhook");
-  });
-
-  it("returns null when integration is legacy", () => {
-    const callback = resolveWebhookCallbackUrl(
-      createFlags({
-        integrationMode: "legacy",
-      })
-    );
-    expect(callback).toBeNull();
   });
 
   it("uses the public API base URL when request host is unavailable", () => {

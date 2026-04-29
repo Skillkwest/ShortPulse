@@ -107,7 +107,7 @@ export const resolveWebhookCallbackUrl = (
     requestHostname && !isLoopbackHostname(requestHostname)
       ? requestBaseUrl
       : flags.publicApiBaseUrl;
-  if (flags.integrationMode === "legacy" || !baseUrl) return null;
+  if (!baseUrl) return null;
   try {
     return new URL("/api/fal/webhook", baseUrl).toString();
   } catch {

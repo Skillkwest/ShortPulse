@@ -56,14 +56,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const flags = readFalRuntimeFlags();
-  if (flags.integrationMode === "legacy") {
-    return res.status(404).json({ error: "Not found" });
-  }
-
   const webhookHeaders = readFalWebhookHeaders(req);
 
   try {
+    const flags = readFalRuntimeFlags();
     const rawBody = await readRawBody(req, { maxBytes: FAL_WEBHOOK_MAX_BODY_BYTES });
     const verification = await verifyFalWebhookSignature({
       rawBody,

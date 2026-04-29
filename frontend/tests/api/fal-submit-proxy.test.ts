@@ -94,7 +94,6 @@ describe("createFalSubmitHandler", () => {
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT;
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
-    process.env.SHORTPULSE_FAL_INTEGRATION_MODE = "on";
 
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",

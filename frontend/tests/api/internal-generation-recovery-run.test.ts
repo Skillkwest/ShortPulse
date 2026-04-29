@@ -23,7 +23,6 @@ describe("POST /api/internal/generation-recovery/run", () => {
     vi.clearAllMocks();
     process.env.SHORTPULSE_FAL_RECONCILER_ENABLED = "true";
     process.env.SHORTPULSE_FAL_RECONCILER_CRON_SECRET = "cron-secret";
-    process.env.SHORTPULSE_FAL_INTEGRATION_MODE = "on";
     delete process.env.CRON_SECRET;
     runGenerationControlPlaneCycleMock.mockResolvedValue({
       ok: true,

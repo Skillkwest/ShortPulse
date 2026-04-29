@@ -10,10 +10,7 @@ import {
 } from "./generationAdmission/generationAdmissionPolicy";
 import type { GenerationAdmissionConfig } from "./generationAdmission/types";
 
-export type FalIntegrationMode = "legacy" | "shadow" | "on";
-
 export type FalRuntimeFlags = {
-  integrationMode: FalIntegrationMode;
   videoSubmitCanonicalMode: "off" | "shadow" | "on";
   videoQueueCompatNormalizationEnabled: boolean;
   modelAllowlist: Set<string>;
@@ -59,14 +56,6 @@ const parseInteger = (value: string | undefined, fallback: number, min: number):
   return Math.max(min, parsed);
 };
 
-const parseMode = (value: string | undefined): FalIntegrationMode => {
-  const normalized = value?.trim().toLowerCase();
-  if (normalized === "legacy" || normalized === "shadow" || normalized === "on") {
-    return normalized;
-  }
-  return "legacy";
-};
-
 const parseVideoSubmitCanonicalMode = (value: string | undefined): "off" | "shadow" | "on" => {
   const normalized = value?.trim().toLowerCase();
   if (normalized === "off" || normalized === "shadow" || normalized === "on") {
@@ -106,7 +95,6 @@ const matchAllowlistEntry = (modelId: string, entry: string): boolean => {
 };
 
 export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
-  integrationMode: parseMode(process.env.SHORTPULSE_FAL_INTEGRATION_MODE),
   videoSubmitCanonicalMode: parseVideoSubmitCanonicalMode(
     process.env.SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE
   ),
@@ -221,7 +209,6 @@ export const isFalRuntimeEnabledForModel = (
   modelId: string,
   flags: FalRuntimeFlags = readFalRuntimeFlags()
 ): boolean => {
-  if (flags.integrationMode === "legacy") return false;
   if (!flags.modelAllowlist.size) return true;
   for (const entry of flags.modelAllowlist) {
     if (matchAllowlistEntry(modelId, entry)) return true;

@@ -170,7 +170,7 @@ const claimDueQueueStatusRecoveryInternal = async ({
   }
 
   const flags = readFalRuntimeFlags();
-  if (!flags.reconcilerEnabled || flags.integrationMode === "legacy") {
+  if (!flags.reconcilerEnabled) {
     return {
       claimed: false,
       generationId: null,

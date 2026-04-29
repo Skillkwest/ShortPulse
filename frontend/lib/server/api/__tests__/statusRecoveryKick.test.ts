@@ -19,7 +19,6 @@ vi.mock("../generationQueue/requestIdRepair", () => ({
 }));
 
 const createDefaultFlags = () => ({
-  integrationMode: "on",
   modelAllowlist: new Set<string>(),
   reconcilerEnabled: true,
   reconcilerCronSecret: "secret",

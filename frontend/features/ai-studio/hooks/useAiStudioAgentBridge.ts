@@ -511,6 +511,28 @@ export const useAiStudioAgentBridge = ({
   const visibleAgentAttachments = isComposerHydratedForActiveScope
     ? agentAttachments
     : activeAgentBridgeSessionUiState.attachments;
+  const handleVisibleAgentInputChange = useCallback(
+    (value: string) => {
+      if (isComposerHydratedForActiveScope) {
+        handleAgentInputChange(value);
+        return;
+      }
+      setAgentAttachmentError(null);
+      updateAgentBridgeSessionUiState((current) => {
+        if (current.input === value) return current;
+        return {
+          ...current,
+          input: value,
+        };
+      });
+    },
+    [
+      handleAgentInputChange,
+      isComposerHydratedForActiveScope,
+      setAgentAttachmentError,
+      updateAgentBridgeSessionUiState,
+    ]
+  );
   const visibleLinkedPromptReferenceIds = useMemo(
     () =>
       Array.from(
@@ -910,7 +932,7 @@ export const useAiStudioAgentBridge = ({
     isPromptRefining,
     isReferencePromptEnhancing,
     describeInFlightCount,
-    handleAgentInputChange,
+    handleAgentInputChange: handleVisibleAgentInputChange,
     handleAgentSend,
     handlePulsePresetStart,
     handlePulsePresetRestart,

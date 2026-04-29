@@ -6,6 +6,7 @@ import {
   resolveEffectiveAspectForModel,
   listModelApiContracts,
 } from "../modelApiContracts";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import { resolveSubmissionHandlerRoute } from "../../hooks/taskSubmission/routing";
 
 describe("model API contracts", () => {
@@ -25,7 +26,9 @@ describe("model API contracts", () => {
   });
 
   it("clamps unsupported aspects to model defaults", () => {
-    expect(resolveEffectiveAspectForModel("fal-ai/veo3.1", "1:1", "16:9")).toBe("16:9");
+    expect(resolveEffectiveAspectForModel(KIE_VEO_31_FAST_I2V_MODEL_ID, "1:1", "16:9")).toBe(
+      "16:9"
+    );
   });
 
   it("keeps supported aspects unchanged", () => {

@@ -69,7 +69,7 @@ describe("videoSubmitContracts", () => {
 
   it("rejects character-scoped media URLs", () => {
     const result = normalizeVideoSubmitIngressPayload({
-      modelId: "fal-ai/veo3.1/image-to-video",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
       payload: {
         prompt: "clip",
         image_urls: [

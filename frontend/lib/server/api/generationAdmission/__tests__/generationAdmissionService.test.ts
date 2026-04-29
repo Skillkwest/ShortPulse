@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../model-runtime/providerModelIds";
 import {
   evaluateScopedGenerationAdmission,
   evaluateUserGenerationAdmission,
@@ -44,8 +45,8 @@ describe("generationAdmissionService", () => {
   it("short-circuits in off mode without reading provider capacity", async () => {
     const result = await evaluateScopedGenerationAdmission({
       scopeUserId: "user-1",
-      provider: "fal",
-      modelId: "fal-ai/veo3.1",
+      provider: "kie",
+      modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
       config: {
         mode: "off",
         globalMax: 4,
@@ -81,8 +82,8 @@ describe("generationAdmissionService", () => {
 
     const result = await evaluateScopedGenerationAdmission({
       scopeUserId: "user-1",
-      provider: "fal",
-      modelId: "fal-ai/veo3.1/image-to-video",
+      provider: "kie",
+      modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
       config: {
         mode: "enforce",
         globalMax: 4,
@@ -103,8 +104,8 @@ describe("generationAdmissionService", () => {
 
     expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledWith({
       userId: "user-1",
-      provider: "fal",
-      modelId: "fal-ai/veo3.1/image-to-video",
+      provider: "kie",
+      modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
       staleIgnoreMinAgeSeconds: 900,
       activeGenerationStaleIgnoreMinAgeSeconds: 900,
       orphanGraceSeconds: 60,

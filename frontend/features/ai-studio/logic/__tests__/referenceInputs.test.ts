@@ -233,7 +233,7 @@ describe("resolveAutoVideoModelForLane", () => {
   it("does not special-case retired Fal Kling selections", () => {
     expect(
       resolveAutoVideoModelForLane({
-        currentModel: "fal-ai/kling-video/v3/pro/image-to-video",
+        currentModel: "retired-provider/kling-image-to-video",
         lane: "single-image",
       })
     ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
@@ -250,7 +250,7 @@ describe("buildRegenerateReferencePool", () => {
         referenceUrl: "https://example.com/first.png",
         extraUrls: ["https://example.com/last.png", null, null],
         videoReferenceMode: "keyframes",
-        videoModelId: "fal-ai/veo3.1/first-last-frame-to-video",
+        videoModelId: "retired-provider/first-last-video",
       })
     ).toEqual(["https://example.com/first.png", "https://example.com/last.png"]);
   });

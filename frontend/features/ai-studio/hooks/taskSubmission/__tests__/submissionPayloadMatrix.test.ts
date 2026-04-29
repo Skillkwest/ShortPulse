@@ -238,22 +238,8 @@ describe("task submission payload matrix", () => {
   });
 
   it("keeps matrix coverage in sync with every non-text model in model registry", () => {
-    const blockedMatrixModelIds = new Set([
-      "fal-ai/kling-video/v3/pro/text-to-video",
-      "fal-ai/kling-video/v3/pro/image-to-video",
-      "fal-ai/veo3.1",
-      "fal-ai/veo3.1/image-to-video",
-      "fal-ai/veo3.1/first-last-frame-to-video",
-      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-    ]);
     const generationModelIds = listModelConfigs()
-      .filter(
-        (config) =>
-          config.mediaType !== "text" &&
-          config.provider === "fal" &&
-          !blockedMatrixModelIds.has(config.id)
-      )
+      .filter((config) => config.mediaType !== "text" && config.provider === "fal")
       .map((config) => config.id)
       .sort();
     expect(Object.keys(CASES).sort()).toEqual(generationModelIds);

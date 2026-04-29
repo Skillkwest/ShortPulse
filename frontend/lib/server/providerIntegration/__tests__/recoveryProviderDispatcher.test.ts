@@ -46,7 +46,7 @@ describe("recoveryProviderDispatcher", () => {
     await probeGenerationProviderResult({
       provider: "fal_legacy_alias",
       requestId: "req-2",
-      modelId: "fal-ai/veo3.1/image-to-video",
+      modelId: "fal-ai/nano-banana-pro",
       apiKey: "test-key",
     });
 

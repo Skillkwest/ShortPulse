@@ -4,6 +4,10 @@
 
 import { describe, expect, it } from "vitest";
 import { computeCostForModel, falImageSizeMap } from "../pricing";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 
 describe("computeCostForModel (economy image lane)", () => {
   const modelId = "fal-ai/flux-2/klein/9b";
@@ -95,32 +99,8 @@ describe("computeCostForModel (GPT-5 Nano helper lane)", () => {
 });
 
 describe("computeCostForModel (Veo 3.1)", () => {
-  const modelId = "fal-ai/veo3.1";
-
-  it("defaults to 8s with audio at 1080p", () => {
-    const cost = computeCostForModel(modelId, {
-      durationSeconds: 8,
-      resolution: "1080p",
-      audio: true,
-    });
-    expect(cost?.usdRaw).toBeCloseTo(3.2, 6);
-    expect(cost?.rawCredits).toBe(330);
-    expect(cost?.credits).toBe(330);
-  });
-
-  it("charges 0.60/sec for 4K with audio", () => {
-    const cost = computeCostForModel(modelId, {
-      durationSeconds: 5,
-      resolution: "4k",
-      audio: true,
-    });
-    expect(cost?.usdRaw).toBeCloseTo(3, 6);
-    expect(cost?.rawCredits).toBe(309);
-    expect(cost?.credits).toBe(310);
-  });
-
   it("uses fixed per-video pricing for kie-ai/veo-3.1-fast-i2v", () => {
-    const cost = computeCostForModel("kie-ai/veo-3.1-fast-i2v", {
+    const cost = computeCostForModel(KIE_VEO_31_FAST_I2V_MODEL_ID, {
       durationSeconds: 5,
       resolution: "720p",
       audio: true,
@@ -140,7 +120,7 @@ describe("computeCostForModel (Veo 3.1)", () => {
     ] as const;
 
     for (const params of cases) {
-      const cost = computeCostForModel("kie-ai/veo-3.1-fast-i2v", params);
+      const cost = computeCostForModel(KIE_VEO_31_FAST_I2V_MODEL_ID, params);
       expect(cost).not.toBeNull();
       expect(cost?.usdRaw).toBeCloseTo(0.4, 6);
       expect(cost?.rawCredits).toBe(42);
@@ -150,35 +130,8 @@ describe("computeCostForModel (Veo 3.1)", () => {
 });
 
 describe("computeCostForModel (Kling 3.0)", () => {
-  const falModelId = "fal-ai/kling-video/v3/pro/image-to-video";
-
-  it("charges $0.112/sec with audio off", () => {
-    const cost = computeCostForModel(falModelId, { durationSeconds: 5, audio: false });
-    expect(cost?.usdRaw).toBeCloseTo(0.56, 6);
-    expect(cost?.rawCredits).toBe(58);
-    expect(cost?.credits).toBe(60);
-  });
-
-  it("charges $0.168/sec with audio on", () => {
-    const cost = computeCostForModel(falModelId, { durationSeconds: 5, audio: true });
-    expect(cost?.usdRaw).toBeCloseTo(0.84, 6);
-    expect(cost?.rawCredits).toBe(87);
-    expect(cost?.credits).toBe(90);
-  });
-
-  it("charges $0.196/sec when voice control is used with audio", () => {
-    const cost = computeCostForModel(falModelId, {
-      durationSeconds: 5,
-      audio: true,
-      voiceControl: true,
-    });
-    expect(cost?.usdRaw).toBeCloseTo(0.98, 6);
-    expect(cost?.rawCredits).toBe(101);
-    expect(cost?.credits).toBe(105);
-  });
-
   it("uses kie-ai/kling-3.0 pro-mode per-second rates with markup", () => {
-    const cost = computeCostForModel("kie-ai/kling-3.0", {
+    const cost = computeCostForModel(KIE_KLING_30_MODEL_ID, {
       durationSeconds: 4,
       resolution: "1080p",
       mode: "pro",
@@ -191,7 +144,7 @@ describe("computeCostForModel (Kling 3.0)", () => {
   });
 
   it("uses kie-ai/kling-3.0 std-mode per-second rates with markup", () => {
-    const cost = computeCostForModel("kie-ai/kling-3.0", {
+    const cost = computeCostForModel(KIE_KLING_30_MODEL_ID, {
       durationSeconds: 4,
       resolution: "720p",
       mode: "std",
@@ -204,7 +157,7 @@ describe("computeCostForModel (Kling 3.0)", () => {
   });
 
   it("falls back to resolution-derived mode when explicit mode is absent", () => {
-    const cost = computeCostForModel("kie-ai/kling-3.0", {
+    const cost = computeCostForModel(KIE_KLING_30_MODEL_ID, {
       durationSeconds: 3,
       resolution: "720p",
       audio: false,

@@ -30,17 +30,6 @@ export type ModelSelectionVideoReferenceMode =
   | "kling3"
   | "motion";
 
-const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
-const BLOCKED_VIDEO_SELECTOR_MODEL_IDS = new Set([
-  "fal-ai/veo3.1",
-  "fal-ai/veo3.1/image-to-video",
-  FAL_VEO_FIRST_LAST_MODEL_ID,
-  "fal-ai/kling-video/v3/pro/text-to-video",
-  "fal-ai/kling-video/v3/pro/image-to-video",
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-]);
-
 type ModelConfigLike = {
   supportsImageToImage?: boolean;
   supportsTextToImage?: boolean;
@@ -101,9 +90,7 @@ export const resolveAiStudioAllowedModelOptions = ({
 
   if (selectedTool === "video" || selectedTool === "kling") {
     const selectorVideoOptions = selectableOptions.filter(
-      (option) =>
-        !BLOCKED_VIDEO_SELECTOR_MODEL_IDS.has(option.value) &&
-        (isSeedance2UiEnabled() || !isSeedance2ModelId(option.value))
+      (option) => isSeedance2UiEnabled() || !isSeedance2ModelId(option.value)
     );
     if (videoReferenceMode === "keyframes") {
       return selectorVideoOptions.filter((option) => option.value === KIE_VEO_31_FAST_I2V_MODEL_ID);

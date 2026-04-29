@@ -230,44 +230,18 @@ describe("video contract parity", () => {
     );
   });
 
-  it("keeps Fal Kling image-to-video advanced fields aligned with strict top-level allowlist", () => {
-    const normalized = assertNormalizedVideoPayload("fal-ai/kling-video/v3/pro/image-to-video", {
-      prompt: "cinematic close-up",
-      start_image_url: "https://cdn.shortpulse.test/start.png",
-      end_image_url: "https://cdn.shortpulse.test/end.png",
-      duration: 8,
-      aspect_ratio: "16:9",
-      resolution: "1080p",
-      negative_prompt: "blur",
-      cfg_scale: 0.5,
-      generate_audio: true,
-      voice_ids: ["voice-1"],
-      multi_prompt: [{ prompt: "shot", duration: 8 }],
-      shot_type: "customize",
-      elements: [{ video_url: "https://cdn.shortpulse.test/element.mp4" }],
-    });
-
-    const contractResult = evaluateFalPayloadContractForModel(
-      "fal-ai/kling-video/v3/pro/image-to-video",
-      {
-        enforceAllowedTopLevelFields: true,
-        projectAllowedTopLevelFields: true,
-      }
-    )(normalized.payload);
-    expect(contractResult.valid).toBe(true);
-  });
-
   it("rejects unknown top-level video fields after canonical ingress normalization", () => {
-    const normalized = assertNormalizedVideoPayload("fal-ai/veo3.1/image-to-video", {
+    const normalized = assertNormalizedVideoPayload("kie-ai/veo-3.1-fast-i2v", {
       prompt: "city flyover",
       image_url: "https://cdn.shortpulse.test/frame.png",
-      duration: "8s",
+      generation_type: "FIRST_FRAME_2_VIDEO",
+      duration: 8,
       resolution: "720p",
       generate_audio: true,
       rogue_field: true,
     });
 
-    const contractResult = evaluateFalPayloadContractForModel("fal-ai/veo3.1/image-to-video", {
+    const contractResult = evaluateFalPayloadContractForModel("kie-ai/veo-3.1-fast-i2v", {
       enforceAllowedTopLevelFields: true,
       projectAllowedTopLevelFields: true,
     })(normalized.payload);

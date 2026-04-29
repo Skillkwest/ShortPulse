@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getAdminPricingStrategyLabel } from "../modelPricingStrategyLabel";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../providerModelIds";
 
 describe("getAdminPricingStrategyLabel", () => {
   it("treats bria background removal as per-image billing", () => {
@@ -28,7 +29,7 @@ describe("getAdminPricingStrategyLabel", () => {
   });
 
   it("describes time-based video billing plainly", () => {
-    expect(getAdminPricingStrategyLabel("fal-ai/veo3.1", "veo-3-per-second")).toBe(
+    expect(getAdminPricingStrategyLabel(KIE_VEO_31_FAST_I2V_MODEL_ID, "veo-3-per-second")).toBe(
       "Per output second"
     );
   });

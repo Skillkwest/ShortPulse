@@ -26,7 +26,7 @@ describe("statusProviderPolling", () => {
   it("uses explicit timeout override when provided", () => {
     const session = startProviderPollingSession({
       provider: "fal",
-      modelId: "fal-ai/veo3.1/image-to-video",
+      modelId: "fal-ai/nano-banana-pro",
       timeoutMs: 1234,
     });
 

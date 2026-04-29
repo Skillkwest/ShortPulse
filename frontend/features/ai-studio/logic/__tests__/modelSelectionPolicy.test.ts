@@ -50,41 +50,6 @@ const createImageOptions: ModelOption[] = [
 
 const videoReferenceOptions: ModelOption[] = [
   {
-    value: "fal-ai/kling-video/v3/pro/text-to-video",
-    label: "Kling 3.0",
-    mediaType: "video",
-  },
-  {
-    value: "fal-ai/veo3.1/first-last-frame-to-video",
-    label: "Google Veo 3.1 (First/Last Frame)",
-    mediaType: "image-to-video",
-  },
-  {
-    value: "fal-ai/veo3.1/image-to-video",
-    label: "Google Veo 3.1",
-    mediaType: "image-to-video",
-  },
-  {
-    value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-    label: "Seedance 1.5 Pro",
-    mediaType: "image-to-video",
-  },
-  {
-    value: "fal-ai/kling-video/v3/pro/image-to-video",
-    label: "Kling 3.0",
-    mediaType: "image-to-video",
-  },
-  {
-    value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-    label: "Seedance 1.5 Pro",
-    mediaType: "video",
-  },
-  {
-    value: "fal-ai/veo3.1",
-    label: "Google Veo 3.1",
-    mediaType: "video",
-  },
-  {
     value: KIE_VEO_31_FAST_I2V_MODEL_ID,
     label: "Veo 3.1 Fast I2V (Kie)",
     mediaType: "image-to-video",

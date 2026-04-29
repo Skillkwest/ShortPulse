@@ -52,7 +52,8 @@ type UseAiStudioAgentBridgeParams = {
   standardChatModeEnabled?: boolean;
   defaultStandardChatModeEnabled?: boolean;
   setStandardChatModeEnabled?: Dispatch<SetStateAction<boolean>>;
-  prompt: string;
+  standardPrompt: string;
+  pulsePrompt: string;
   setSharedPrompt: (value: string) => void;
   getAgentContext: (params: {
     lastAssistantMessage: string | null;
@@ -172,7 +173,8 @@ export const useAiStudioAgentBridge = ({
   standardChatModeEnabled = true,
   defaultStandardChatModeEnabled = standardChatModeEnabled,
   setStandardChatModeEnabled,
-  prompt,
+  standardPrompt,
+  pulsePrompt,
   setSharedPrompt,
   getAgentContext,
   addAgentPromptReference,
@@ -230,6 +232,7 @@ export const useAiStudioAgentBridge = ({
     directOpenAiBypassEnabledByConfig && bridgeRuntime.kind === "standard";
   const agentBootstrapReady = Boolean(sessionId);
   const chatModeEnabled = bridgeRuntime.effectiveChatMode(standardChatModeEnabled);
+  const activeCreatePrompt = isPulseCreateMode ? pulsePrompt : standardPrompt;
 
   const setChatModeEnabled = useCallback(
     (value: boolean) => {
@@ -688,7 +691,7 @@ export const useAiStudioAgentBridge = ({
     agentAttachments: visibleAgentAttachments,
     setAgentAttachments,
     setAgentAttachmentError,
-    prompt,
+    prompt: activeCreatePrompt,
     latestAgentPrompt,
     setLatestAgentPrompt,
     setPulseWorkflowSession,

@@ -830,7 +830,8 @@ export default function AiStudioPage() {
     standardChatModeEnabled,
     defaultStandardChatModeEnabled,
     setStandardChatModeEnabled,
-    prompt,
+    standardPrompt,
+    pulsePrompt,
     setSharedPrompt,
     getAgentContext:
       expertCreateMode === "pulse"

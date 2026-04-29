@@ -128,6 +128,13 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("allowSessionNamespaceOverride:");
     expect(bridgeSource).not.toContain("sessionNamespace:");
     expect(bridgeSource).not.toContain("workspace.expertCreateMode");
+    expect(bridgeSource).not.toContain("\n  prompt: string;\n");
+    expect(bridgeSource).toContain("standardPrompt: string;");
+    expect(bridgeSource).toContain("pulsePrompt: string;");
+    expect(bridgeSource).toContain(
+      "const activeCreatePrompt = isPulseCreateMode ? pulsePrompt : standardPrompt"
+    );
+    expect(bridgeSource).toContain("prompt: activeCreatePrompt");
     expect(bridgeSource).toContain("./agentBridgeRuntime/useCreateAgentBridgeActiveAgent");
     expect(bridgeSource).toContain("./agentBridgeRuntime/createAgentBridgePersistenceRuntime");
     expect(bridgeActiveAgentSource).not.toContain("./createAgentRuntimeBindingLoader");

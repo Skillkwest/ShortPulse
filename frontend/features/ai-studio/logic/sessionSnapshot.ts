@@ -61,6 +61,8 @@ export type AiStudioSessionOutputV1 = {
   errorMessageShort?: string | null;
   resultUrls?: string[];
   previewUrl?: string;
+  previewPosterUrl?: string | null;
+  previewPosterStoragePath?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewTier?: StudioOutputPreviewTier;
@@ -347,6 +349,7 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
 
 const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
   const previewUrl = sanitizeMediaUrl(output.previewUrl);
+  const previewPosterUrl = sanitizeMediaUrl(output.previewPosterUrl);
   const resultUrls = (output.resultUrls ?? [])
     .map((url) => sanitizeMediaUrl(url))
     .filter((url): url is string => Boolean(url));
@@ -376,6 +379,8 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     errorMessageShort: output.errorMessageShort ?? null,
     resultUrls: resultUrls.length > 0 ? resultUrls : undefined,
     previewUrl,
+    previewPosterUrl,
+    previewPosterStoragePath: output.previewPosterStoragePath ?? null,
     previewStoragePath: output.previewStoragePath ?? null,
     fullStoragePath: output.fullStoragePath ?? null,
     previewTier: output.previewTier,

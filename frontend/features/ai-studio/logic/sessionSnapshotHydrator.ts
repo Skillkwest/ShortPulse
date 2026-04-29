@@ -369,6 +369,8 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput =>
     errorMessageShort: output.errorMessageShort ?? null,
     resultUrls: output.resultUrls,
     previewUrl: output.previewUrl,
+    previewPosterUrl: output.previewPosterUrl ?? null,
+    previewPosterStoragePath: output.previewPosterStoragePath ?? null,
     previewStoragePath: output.previewStoragePath ?? null,
     fullStoragePath: output.fullStoragePath ?? null,
     previewTier: output.previewTier,

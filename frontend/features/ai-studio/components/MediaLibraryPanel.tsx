@@ -89,6 +89,8 @@ type MediaLibraryPanelProps = {
     previewStoragePath?: string | null;
     fullStoragePath?: string | null;
     previewUrl?: string | null;
+    previewPosterUrl?: string | null;
+    previewPosterStoragePath?: string | null;
     fullUrl?: string | null;
   }) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;

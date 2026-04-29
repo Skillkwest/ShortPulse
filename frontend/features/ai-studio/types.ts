@@ -88,6 +88,7 @@ export type StudioOutput = {
   resultUrls?: string[];
   previewUrl?: string;
   previewPosterUrl?: string | null;
+  previewPosterStoragePath?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewTier?: StudioOutputPreviewTier;

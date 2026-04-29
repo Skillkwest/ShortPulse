@@ -85,6 +85,7 @@ export type VisibleGenerationReconcile = {
   generationId: string;
   previewUrl: string | null;
   previewPosterUrl?: string | null;
+  previewPosterStoragePath?: string | null;
   previewStoragePath: string | null;
   fullStoragePath: string | null;
   resultUrls: string[];
@@ -275,6 +276,11 @@ const toHydratedGeneratedOutput = (
   });
   const previewPosterUrl =
     mode === "video" && previewUrl && !isVideoUrl(previewUrl) ? previewUrl : null;
+  const previewPosterStoragePath = resolveVideoDeliveryPosterStoragePath({
+    mode,
+    previewStoragePath,
+    fullStoragePath,
+  });
   const generationReplay = (asObject(row.generation_replay) ?? undefined) as
     | StudioOutput["generationReplay"]
     | undefined;
@@ -309,6 +315,7 @@ const toHydratedGeneratedOutput = (
     resultUrls,
     previewUrl,
     previewPosterUrl,
+    previewPosterStoragePath,
     previewStoragePath,
     fullStoragePath,
     mediaSource: "generated",
@@ -730,11 +737,18 @@ const applyPublishedVideoPosterStoragePaths = (
     if (!mediaRow || mediaRow.fileType !== "video") return output;
     const posterStoragePath =
       asCanonicalStoragePath(mediaRow.posterVariantPath) ??
+      asCanonicalStoragePath(output.previewPosterStoragePath) ??
       asCanonicalStoragePath(output.previewStoragePath);
     if (!posterStoragePath) return output;
-    if (output.previewStoragePath === posterStoragePath) return output;
+    if (
+      output.previewPosterStoragePath === posterStoragePath &&
+      output.previewStoragePath === posterStoragePath
+    ) {
+      return output;
+    }
     return {
       ...output,
+      previewPosterStoragePath: posterStoragePath,
       previewStoragePath: posterStoragePath,
     };
   });
@@ -745,11 +759,13 @@ const applySignedVideoPosterUrls = async (outputs: StudioOutput[]): Promise<Stud
   for (const output of outputs) {
     if (output.mode !== "video") continue;
     if (asTrimmedString(output.previewPosterUrl)) continue;
-    const posterStoragePath = resolveVideoDeliveryPosterStoragePath({
-      mode: output.mode,
-      previewStoragePath: asCanonicalStoragePath(output.previewStoragePath),
-      fullStoragePath: asCanonicalStoragePath(output.fullStoragePath),
-    });
+    const posterStoragePath =
+      asCanonicalStoragePath(output.previewPosterStoragePath) ??
+      resolveVideoDeliveryPosterStoragePath({
+        mode: output.mode,
+        previewStoragePath: asCanonicalStoragePath(output.previewStoragePath),
+        fullStoragePath: asCanonicalStoragePath(output.fullStoragePath),
+      });
     if (!posterStoragePath) continue;
     posterPathByOutputId.set(output.id, posterStoragePath);
     storagePaths.add(posterStoragePath);
@@ -774,6 +790,7 @@ const applySignedVideoPosterUrls = async (outputs: StudioOutput[]): Promise<Stud
     return {
       ...output,
       previewPosterUrl: signedPosterUrl,
+      previewPosterStoragePath: posterStoragePath,
     };
   });
 
@@ -1040,6 +1057,7 @@ export const resolveVisibleGenerationReconcile = async ({
     generationId: resolvedGenerationId,
     previewUrl: delivery.previewUrl,
     previewPosterUrl,
+    previewPosterStoragePath,
     previewStoragePath: delivery.previewStoragePath,
     fullStoragePath: delivery.fullStoragePath,
     resultUrls,

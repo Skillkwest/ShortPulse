@@ -34,8 +34,10 @@ type UseAiStudioPersistenceActionsArgs = {
 
 export type PersistedMediaDelivery = {
   previewStoragePath: string | null;
+  previewPosterStoragePath?: string | null;
   fullStoragePath: string | null;
   previewUrl: string | null;
+  previewPosterUrl?: string | null;
   fullUrl: string | null;
 };
 
@@ -266,6 +268,14 @@ export const mergeOutputWithPersistedDelivery = (
   const nextPreviewStoragePath = delivery.previewStoragePath ?? output.previewStoragePath ?? null;
   const nextFullStoragePath =
     delivery.fullStoragePath ?? output.fullStoragePath ?? nextPreviewStoragePath ?? null;
+  const nextPreviewPosterStoragePath =
+    delivery.previewPosterStoragePath ?? output.previewPosterStoragePath ?? null;
+  const nextPreviewPosterUrl =
+    output.mode === "video"
+      ? (normalizeOptionalUrl(delivery.previewPosterUrl) ??
+        normalizeOptionalUrl(output.previewPosterUrl) ??
+        null)
+      : null;
   const nextPreviewUrl =
     normalizeOptionalUrl(delivery.previewUrl) ??
     normalizeOptionalUrl(delivery.fullUrl) ??
@@ -274,8 +284,10 @@ export const mergeOutputWithPersistedDelivery = (
   return {
     ...output,
     previewStoragePath: nextPreviewStoragePath,
+    previewPosterStoragePath: nextPreviewPosterStoragePath,
     fullStoragePath: nextFullStoragePath,
     previewUrl: nextPreviewUrl,
+    previewPosterUrl: nextPreviewPosterUrl,
   };
 };
 
@@ -577,8 +589,10 @@ export const useAiStudioPersistenceActions = ({
               promptId: output.promptId ?? null,
               delivery: {
                 previewStoragePath: output.previewStoragePath ?? null,
+                previewPosterStoragePath: output.previewPosterStoragePath ?? null,
                 fullStoragePath: output.fullStoragePath ?? null,
                 previewUrl: output.previewUrl ?? null,
+                previewPosterUrl: output.previewPosterUrl ?? null,
                 fullUrl:
                   output.resultUrls?.[resolveRequestedImageIndex(options?.imageIndex)] ??
                   output.resultUrls?.[0] ??

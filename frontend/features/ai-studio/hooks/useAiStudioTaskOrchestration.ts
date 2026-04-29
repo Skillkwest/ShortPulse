@@ -199,6 +199,8 @@ export const useAiStudioTaskOrchestration = ({
               resultUrls: nextResultUrls,
               previewUrl: visibleGeneration.previewUrl ?? item.previewUrl,
               previewPosterUrl: visibleGeneration.previewPosterUrl ?? item.previewPosterUrl ?? null,
+              previewPosterStoragePath:
+                visibleGeneration.previewPosterStoragePath ?? item.previewPosterStoragePath ?? null,
               previewStoragePath: nextDelivery.previewStoragePath,
               fullStoragePath: nextDelivery.fullStoragePath,
               mediaSource: item.mediaSource ?? "generated",

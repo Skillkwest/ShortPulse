@@ -22,6 +22,7 @@ import type {
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
+import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
 
 export type UseAiStudioPanelPropsParams = {
   mode: StudioMode;

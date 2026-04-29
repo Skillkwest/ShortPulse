@@ -37,6 +37,8 @@ type LibraryMediaReferencePayload = {
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewUrl?: string | null;
+  previewPosterUrl?: string | null;
+  previewPosterStoragePath?: string | null;
   fullUrl?: string | null;
 };
 
@@ -162,6 +164,8 @@ export const useAiStudioReferenceIngestionActions = ({
           timestamp: refreshedOutput.timestamp,
           resultUrls: refreshedOutput.resultUrls,
           previewUrl: refreshedOutput.previewUrl,
+          previewPosterUrl: refreshedOutput.previewPosterUrl,
+          previewPosterStoragePath: refreshedOutput.previewPosterStoragePath,
           previewStoragePath: refreshedOutput.previewStoragePath,
           fullStoragePath: refreshedOutput.fullStoragePath,
           mediaSource: refreshedOutput.mediaSource,

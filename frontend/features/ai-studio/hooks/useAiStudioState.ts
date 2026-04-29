@@ -77,6 +77,7 @@ const buildGeneratedVideoPosterRepairKey = (output: StudioOutput): string =>
     output.generationId ?? "",
     output.taskId ?? "",
     output.previewUrl ?? "",
+    output.previewPosterStoragePath ?? "",
     output.previewStoragePath ?? "",
     output.fullStoragePath ?? "",
     output.resultUrls?.join("|") ?? "",
@@ -632,6 +633,8 @@ export const useAiStudioState = ({
           return {
             ...output,
             previewPosterUrl: repair.reconcile.previewPosterUrl,
+            previewPosterStoragePath:
+              repair.reconcile.previewPosterStoragePath ?? output.previewPosterStoragePath ?? null,
             previewStoragePath:
               repair.reconcile.previewStoragePath ?? output.previewStoragePath ?? null,
             fullStoragePath: repair.reconcile.fullStoragePath ?? output.fullStoragePath ?? null,

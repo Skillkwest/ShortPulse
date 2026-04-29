@@ -22,14 +22,20 @@ const listVisibleGeneratedOutputsMock = vi.fn(
   }
 );
 const resolveVisibleGenerationReconcileMock = vi.fn(
-  async (): Promise<{
+  async (
+    options?: unknown
+  ): Promise<{
     generationId: string;
     previewUrl: string | null;
     previewPosterUrl?: string | null;
+    previewPosterStoragePath?: string | null;
     previewStoragePath: string | null;
     fullStoragePath: string | null;
     resultUrls: string[];
-  } | null> => null
+  } | null> => {
+    void options;
+    return null;
+  }
 );
 const generationPromptComposerArgsMock = vi.fn();
 const EDIT_REFERENCE_INPUTS = {

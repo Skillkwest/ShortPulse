@@ -293,8 +293,10 @@ export type SaveMediaUrlResult = {
   fileSize: number;
   delivery: {
     previewStoragePath: string | null;
+    previewPosterStoragePath: string | null;
     fullStoragePath: string | null;
     previewUrl: string | null;
+    previewPosterUrl: string | null;
     fullUrl: string | null;
   };
 };
@@ -420,8 +422,10 @@ const parseServerCopyResult = (value: unknown): SaveMediaUrlResult | null => {
     fileSize: Number.isFinite(Number(row.fileSize)) ? Number(row.fileSize) : 0,
     delivery: {
       previewStoragePath: asOptionalString(deliveryRecord.previewStoragePath),
+      previewPosterStoragePath: asOptionalString(deliveryRecord.previewPosterStoragePath),
       fullStoragePath: asOptionalString(deliveryRecord.fullStoragePath),
       previewUrl: asOptionalString(deliveryRecord.previewUrl),
+      previewPosterUrl: asOptionalString(deliveryRecord.previewPosterUrl),
       fullUrl: asOptionalString(deliveryRecord.fullUrl),
     },
   };
@@ -910,10 +914,11 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       } catch {
         // best-effort canonical output linkage only
       }
+      let durablePosterStoragePath = existingRow.posterVariantPath;
       const posterSourceUrl = normalizePosterSourceUrl(existingRow.fileType, input.posterUrlHint);
       if (existingRow.id && posterSourceUrl && !existingRow.posterVariantPath) {
         try {
-          await upsertVideoPosterVariant({
+          durablePosterStoragePath = await upsertVideoPosterVariant({
             supabase,
             userId,
             mediaFileId: existingRow.id,
@@ -942,8 +947,10 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       }
       const delivery = {
         previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
+        previewPosterStoragePath: durablePosterStoragePath,
         fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
         previewUrl: input.previewUrlHint ?? null,
+        previewPosterUrl: input.posterUrlHint ?? null,
         fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
       };
       return {
@@ -1063,6 +1070,20 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         } catch {
           // best-effort canonical output linkage only
         }
+        let durablePosterStoragePath = existingRow.posterVariantPath;
+        const posterSourceUrl = normalizePosterSourceUrl(existingRow.fileType, input.posterUrlHint);
+        if (existingRow.id && posterSourceUrl && !existingRow.posterVariantPath) {
+          try {
+            durablePosterStoragePath = await upsertVideoPosterVariant({
+              supabase,
+              userId,
+              mediaFileId: existingRow.id,
+              posterSourceUrl,
+            });
+          } catch {
+            // best-effort durable poster hydration only
+          }
+        }
         const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
           fileType: existingRow.fileType,
           previewStoragePath: input.previewStoragePathHint,
@@ -1082,8 +1103,10 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         }
         const delivery = {
           previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
+          previewPosterStoragePath: durablePosterStoragePath,
           fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
           previewUrl: input.previewUrlHint ?? null,
+          previewPosterUrl: input.posterUrlHint ?? null,
           fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
         };
         return {
@@ -1100,8 +1123,10 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
 
   const delivery = {
     previewStoragePath: input.previewStoragePathHint ?? storagePath,
+    previewPosterStoragePath: null as string | null,
     fullStoragePath: input.fullStoragePathHint ?? storagePath,
     previewUrl: input.previewUrlHint ?? null,
+    previewPosterUrl: input.posterUrlHint ?? null,
     fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
   };
 
@@ -1133,7 +1158,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   const posterSourceUrl = normalizePosterSourceUrl(fileType, input.posterUrlHint);
   if (mediaFileId && posterSourceUrl) {
     try {
-      await upsertVideoPosterVariant({
+      delivery.previewPosterStoragePath = await upsertVideoPosterVariant({
         supabase,
         userId,
         mediaFileId,

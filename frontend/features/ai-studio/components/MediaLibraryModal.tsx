@@ -52,6 +52,8 @@ type MediaLibraryModalProps = {
     previewStoragePath?: string | null;
     fullStoragePath?: string | null;
     previewUrl?: string | null;
+    previewPosterUrl?: string | null;
+    previewPosterStoragePath?: string | null;
     fullUrl?: string | null;
   }) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
@@ -310,6 +312,13 @@ export function MediaLibraryModal({
         file.signedUrl;
       if (!nextUrl) return;
       const previewStoragePath = file.preview_storage_path ?? file.storage_path;
+      const isVideo = isVideoFile(file.file_type);
+      const previewPosterStoragePath = isVideo
+        ? (file.poster_variant_path ?? file.thumb_variant_path ?? null)
+        : null;
+      const previewPosterUrl = previewPosterStoragePath
+        ? await signStoragePath(previewPosterStoragePath, { forceRefresh: true })
+        : null;
       const fullStoragePath = file.storage_path;
       const previewUrl = file.signedUrl ?? nextUrl;
       const fullUrl = nextUrl;
@@ -321,17 +330,15 @@ export function MediaLibraryModal({
       onSelectMedia({
         id: file.id,
         url: nextUrl,
-        fileType: isAudioFile(file.file_type)
-          ? "audio"
-          : isVideoFile(file.file_type)
-            ? "video"
-            : "image",
+        fileType: isAudioFile(file.file_type) ? "audio" : isVideo ? "video" : "image",
         filename: file.filename,
         promptText: resolveMediaMetadataPromptText(file.metadata),
         source: file.source ?? "upload",
         previewStoragePath,
+        previewPosterStoragePath,
         fullStoragePath,
         previewUrl,
+        previewPosterUrl,
         fullUrl,
       });
     },

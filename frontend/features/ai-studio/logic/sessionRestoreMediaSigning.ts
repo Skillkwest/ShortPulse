@@ -9,6 +9,7 @@ import type { StudioOutput } from "../types";
 export type SessionOutputSigningFingerprint = {
   previewUrl: string | null;
   previewPosterUrl: string | null;
+  previewPosterStoragePath: string | null;
   previewStoragePath: string | null;
   fullStoragePath: string | null;
 };
@@ -31,6 +32,7 @@ const toCanonicalStoragePath = (value: string | null | undefined): string | null
 const resolveFingerprintForOutput = (output: StudioOutput): SessionOutputSigningFingerprint => ({
   previewUrl: toNormalizedNullableString(output.previewUrl),
   previewPosterUrl: toNormalizedNullableString(output.previewPosterUrl),
+  previewPosterStoragePath: toCanonicalStoragePath(output.previewPosterStoragePath),
   previewStoragePath: toCanonicalStoragePath(output.previewStoragePath),
   fullStoragePath: toCanonicalStoragePath(output.fullStoragePath),
 });
@@ -43,6 +45,7 @@ const isFingerprintEqual = (
   return (
     left.previewUrl === right.previewUrl &&
     left.previewPosterUrl === right.previewPosterUrl &&
+    left.previewPosterStoragePath === right.previewPosterStoragePath &&
     left.previewStoragePath === right.previewStoragePath &&
     left.fullStoragePath === right.fullStoragePath
   );
@@ -69,9 +72,13 @@ export const collectSessionRestoreSigningPaths = (outputs: StudioOutput[]): stri
   const pathSet = new Set<string>();
   outputs.forEach((output) => {
     const previewStoragePath = toCanonicalStoragePath(output.previewStoragePath);
+    const previewPosterStoragePath = toCanonicalStoragePath(output.previewPosterStoragePath);
     const fullStoragePath = toCanonicalStoragePath(output.fullStoragePath);
     if (previewStoragePath) {
       pathSet.add(previewStoragePath);
+    }
+    if (previewPosterStoragePath) {
+      pathSet.add(previewPosterStoragePath);
     }
     if (fullStoragePath) {
       pathSet.add(fullStoragePath);
@@ -113,20 +120,24 @@ export const applySessionRestoreSignedUrls = (
     }
 
     const previewStoragePath = currentFingerprint.previewStoragePath;
+    const previewPosterStoragePath = currentFingerprint.previewPosterStoragePath;
     const fullStoragePath = currentFingerprint.fullStoragePath;
     const signedPreviewUrl =
       (previewStoragePath ? signedByPath.get(previewStoragePath) : null) ??
       (fullStoragePath ? signedByPath.get(fullStoragePath) : null) ??
       null;
-    if (!signedPreviewUrl) return output;
     const signedPreviewPosterUrl =
-      output.mode === "video" && previewStoragePath && previewStoragePath !== fullStoragePath
-        ? signedPreviewUrl
-        : currentFingerprint.previewPosterUrl;
+      output.mode === "video" && previewPosterStoragePath
+        ? (signedByPath.get(previewPosterStoragePath) ?? currentFingerprint.previewPosterUrl)
+        : output.mode === "video" && previewStoragePath && previewStoragePath !== fullStoragePath
+          ? signedPreviewUrl
+          : currentFingerprint.previewPosterUrl;
+    if (!signedPreviewUrl && !signedPreviewPosterUrl) return output;
 
     if (
       currentFingerprint.previewUrl === signedPreviewUrl &&
       currentFingerprint.previewPosterUrl === signedPreviewPosterUrl &&
+      currentFingerprint.previewPosterStoragePath === previewPosterStoragePath &&
       currentFingerprint.previewStoragePath === previewStoragePath &&
       currentFingerprint.fullStoragePath === fullStoragePath
     ) {
@@ -136,8 +147,9 @@ export const applySessionRestoreSignedUrls = (
     changed = true;
     return {
       ...output,
-      previewUrl: signedPreviewUrl,
+      previewUrl: signedPreviewUrl ?? output.previewUrl,
       previewPosterUrl: signedPreviewPosterUrl,
+      previewPosterStoragePath,
       previewStoragePath,
       fullStoragePath,
     };

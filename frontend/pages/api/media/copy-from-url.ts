@@ -127,8 +127,10 @@ type CopyFromUrlResponse =
       fileSize: number;
       delivery: {
         previewStoragePath: string | null;
+        previewPosterStoragePath: string | null;
         fullStoragePath: string | null;
         previewUrl: string | null;
+        previewPosterUrl: string | null;
         fullUrl: string | null;
       };
     }
@@ -832,17 +834,26 @@ const resolveDelivery = async ({
     asCanonicalStoragePath(previewStoragePathHint) ??
     authoritativeStoragePath ??
     null;
+  const previewPosterStoragePath =
+    row?.file_type === "video"
+      ? (asCanonicalStoragePath(row.poster_variant_path) ??
+        asCanonicalStoragePath(row.thumb_variant_path))
+      : null;
   const fullStoragePath = authoritativeStoragePath ?? previewStoragePath ?? null;
-  const [signedPreviewUrl, signedFullUrl] = await Promise.all([
+  const [signedPreviewUrl, signedPreviewPosterUrl, signedFullUrl] = await Promise.all([
     signStoragePath(previewStoragePath),
+    signStoragePath(previewPosterStoragePath),
     signStoragePath(fullStoragePath),
   ]);
   const previewUrl = signedPreviewUrl ?? previewUrlHint ?? fullUrlHint ?? null;
+  const previewPosterUrl = signedPreviewPosterUrl ?? null;
   const fullUrl = signedFullUrl ?? fullUrlHint ?? previewUrl ?? null;
   return {
     previewStoragePath,
+    previewPosterStoragePath,
     fullStoragePath,
     previewUrl,
+    previewPosterUrl,
     fullUrl,
   };
 };
@@ -905,9 +916,10 @@ export default async function handler(
         index,
       });
       if (existing) {
+        let durablePosterStoragePath = existing.posterVariantPath;
         if (posterUrlHint && !existing.posterVariantPath) {
           try {
-            await persistVideoPosterVariant({
+            durablePosterStoragePath = await persistVideoPosterVariant({
               userId: user.id,
               mediaFileId: existing.id,
               posterSourceUrl: posterUrlHint,
@@ -954,7 +966,7 @@ export default async function handler(
             file_type: existing.fileType,
             metadata: existing.metadata,
             thumb_variant_path: existing.thumbVariantPath,
-            poster_variant_path: existing.posterVariantPath,
+            poster_variant_path: durablePosterStoragePath,
             preview_variant_path: existing.previewVariantPath,
           },
           storagePath: existing.storagePath,
@@ -1091,6 +1103,19 @@ export default async function handler(
           } catch {
             // best-effort canonical output-slot convergence only
           }
+          let durablePosterStoragePath = existing.posterVariantPath;
+          if (posterUrlHint && !existing.posterVariantPath) {
+            try {
+              durablePosterStoragePath = await persistVideoPosterVariant({
+                userId: user.id,
+                mediaFileId: existing.id,
+                posterSourceUrl: posterUrlHint,
+                req,
+              });
+            } catch {
+              // best-effort durable poster hydration only
+            }
+          }
           const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
             fileType: existing.fileType,
             previewStoragePath: previewStoragePathHint,
@@ -1113,7 +1138,7 @@ export default async function handler(
               file_type: existing.fileType,
               metadata: existing.metadata,
               thumb_variant_path: existing.thumbVariantPath,
-              poster_variant_path: existing.posterVariantPath,
+              poster_variant_path: durablePosterStoragePath,
               preview_variant_path: existing.previewVariantPath,
             },
             storagePath: existing.storagePath,
@@ -1137,22 +1162,6 @@ export default async function handler(
       });
     }
 
-    const delivery = await resolveDelivery({
-      row: {
-        storage_path: asOptionalString(data?.storage_path),
-        file_type: asOptionalString(data?.file_type),
-        metadata: asObjectMetadata(data?.metadata),
-        thumb_variant_path: asOptionalString(data?.thumb_variant_path),
-        poster_variant_path: asOptionalString(data?.poster_variant_path),
-        preview_variant_path: asOptionalString(data?.preview_variant_path),
-      },
-      storagePath,
-      previewStoragePathHint,
-      fullStoragePathHint,
-      previewUrlHint,
-      fullUrlHint,
-    });
-
     const insertedMediaFileId = asOptionalString(data?.id);
     const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
       fileType,
@@ -1170,9 +1179,10 @@ export default async function handler(
         // best-effort durable preview hydration only
       }
     }
+    let durablePosterStoragePath = asOptionalString(data?.poster_variant_path);
     if (insertedMediaFileId && posterUrlHint) {
       try {
-        await persistVideoPosterVariant({
+        durablePosterStoragePath = await persistVideoPosterVariant({
           userId: user.id,
           mediaFileId: insertedMediaFileId,
           posterSourceUrl: posterUrlHint,
@@ -1182,6 +1192,21 @@ export default async function handler(
         // best-effort durable poster hydration only
       }
     }
+    const delivery = await resolveDelivery({
+      row: {
+        storage_path: asOptionalString(data?.storage_path),
+        file_type: asOptionalString(data?.file_type),
+        metadata: asObjectMetadata(data?.metadata),
+        thumb_variant_path: asOptionalString(data?.thumb_variant_path),
+        poster_variant_path: durablePosterStoragePath,
+        preview_variant_path: asOptionalString(data?.preview_variant_path),
+      },
+      storagePath,
+      previewStoragePathHint,
+      fullStoragePathHint,
+      previewUrlHint,
+      fullUrlHint,
+    });
     if (source === "ai_studio" && generationId && insertedMediaFileId) {
       try {
         await reconcileOwnedGenerationOutputSlot({

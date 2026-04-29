@@ -11,6 +11,8 @@ export type ReferenceGridMediaOutput = Pick<
   | "mediaSource"
   | "previewText"
   | "previewUrl"
+  | "previewPosterUrl"
+  | "previewPosterStoragePath"
   | "localObjectUrl"
   | "previewStoragePath"
   | "fullStoragePath"
@@ -46,7 +48,9 @@ export const projectReferenceGridMediaOutput = (output: StudioOutput): Reference
   const isPlaceholderOnly =
     !hasPromptOnlyPreview &&
     !output.previewUrl &&
+    !output.previewPosterUrl &&
     !output.localObjectUrl &&
+    !output.previewPosterStoragePath &&
     !output.previewStoragePath &&
     !output.fullStoragePath &&
     !hasResultMedia(output);
@@ -57,6 +61,8 @@ export const projectReferenceGridMediaOutput = (output: StudioOutput): Reference
     mediaSource: output.mediaSource,
     previewText: output.previewText,
     previewUrl: output.previewUrl,
+    previewPosterUrl: output.previewPosterUrl,
+    previewPosterStoragePath: output.previewPosterStoragePath,
     localObjectUrl: output.localObjectUrl,
     previewStoragePath: output.previewStoragePath,
     fullStoragePath: output.fullStoragePath,
@@ -83,6 +89,8 @@ export const areReferenceGridMediaOutputsEqual = (
       lhs.mediaSource !== rhs.mediaSource ||
       lhs.previewText !== rhs.previewText ||
       lhs.previewUrl !== rhs.previewUrl ||
+      lhs.previewPosterUrl !== rhs.previewPosterUrl ||
+      lhs.previewPosterStoragePath !== rhs.previewPosterStoragePath ||
       lhs.localObjectUrl !== rhs.localObjectUrl ||
       lhs.previewStoragePath !== rhs.previewStoragePath ||
       lhs.fullStoragePath !== rhs.fullStoragePath ||

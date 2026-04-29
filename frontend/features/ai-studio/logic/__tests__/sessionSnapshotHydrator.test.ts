@@ -107,6 +107,39 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.expertEdit).toBeNull();
   });
 
+  it("hydrates video poster delivery fields from snapshots", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-video",
+              prompt: "video",
+              mode: "video",
+              aspect: "9:16",
+              model: "fal:video",
+              status: "ready",
+              timestamp: "t1",
+              previewUrl: "https://signed.test/video.mp4",
+              previewPosterUrl: "https://signed.test/poster.jpg",
+              previewPosterStoragePath: "user-1/variants/videos/out-video/poster_720.jpg",
+              previewStoragePath: "user-1/videos/out-video.mp4",
+              fullStoragePath: "user-1/videos/out-video.mp4",
+            },
+          ],
+          activeOutputId: "out-video",
+          curatedReferenceIds: ["out-video"],
+        },
+      })
+    );
+
+    expect(payload.outputs.active[0]?.previewPosterUrl).toBe("https://signed.test/poster.jpg");
+    expect(payload.outputs.active[0]?.previewPosterStoragePath).toBe(
+      "user-1/variants/videos/out-video/poster_720.jpg"
+    );
+  });
+
   it("hydrates pulse runtime workspace fields", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

@@ -404,6 +404,12 @@ export function useAiStudioTasks({
             item.previewPosterUrl === visibleGeneration.previewPosterUrl
               ? item.previewPosterUrl
               : (visibleGeneration.previewPosterUrl ?? item.previewPosterUrl ?? null),
+          previewPosterStoragePath:
+            item.previewPosterStoragePath === visibleGeneration.previewPosterStoragePath
+              ? item.previewPosterStoragePath
+              : (visibleGeneration.previewPosterStoragePath ??
+                item.previewPosterStoragePath ??
+                null),
           previewStoragePath:
             item.previewStoragePath === nextDelivery.previewStoragePath
               ? item.previewStoragePath

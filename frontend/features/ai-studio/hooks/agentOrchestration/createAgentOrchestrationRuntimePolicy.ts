@@ -1,6 +1,6 @@
 import type { AgentContext } from "../../../../prefabs/agent";
-import { resolvePulseRuntimeState } from "../../logic/pulseSessionState";
 import type { StudioOutput } from "../../types";
+import { resolveCreateAgentModeRuntimeState } from "../agentBridgeRuntime/createAgentModeRuntimeIdentity";
 
 type WorkflowPulseContext = NonNullable<AgentContext["pulse"]> & {
   runtimeMode: "workflow_gpt";
@@ -44,7 +44,7 @@ export const resolveCreateAgentOrchestrationRuntimePolicy = ({
     isPulseCreateMode,
     hasActivePulseSession,
     pulseSessionInstanceId: resolvedPulseSessionInstanceId,
-  } = resolvePulseRuntimeState({
+  } = resolveCreateAgentModeRuntimeState({
     expertCreateMode,
     activePulsePresetId,
     pulseSessionInstanceId,

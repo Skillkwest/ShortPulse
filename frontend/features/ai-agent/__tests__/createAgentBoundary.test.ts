@@ -84,6 +84,12 @@ describe("Create agent mode boundaries", () => {
 
   it("keeps the Create bridge from instantiating both mode-owned agent hooks", () => {
     const bridgeSource = readFrontendFile("features/ai-studio/hooks/useAiStudioAgentBridge.ts");
+    const bridgeRuntimeSource = readFrontendFile(
+      "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgeRuntime.ts"
+    );
+    const orchestrationPolicySource = readFrontendFile(
+      "features/ai-studio/hooks/agentOrchestration/createAgentOrchestrationRuntimePolicy.ts"
+    );
 
     expect(bridgeSource).not.toContain("useStandardCreateAgent");
     expect(bridgeSource).not.toContain("usePulseCreateAgent");
@@ -105,6 +111,8 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("standardContextBuilder");
     expect(bridgeSource).toContain("./agentBridgeRuntime/pulseCreateAgentRuntimeBinding");
     expect(bridgeSource).toContain("./agentBridgeRuntime/standardCreateAgentRuntimeBinding");
+    expect(bridgeRuntimeSource).not.toContain("pulseSessionState");
+    expect(orchestrationPolicySource).not.toContain("pulseSessionState");
   });
 
   it("keeps custom Pulse preference loading out of page-root Create state", () => {

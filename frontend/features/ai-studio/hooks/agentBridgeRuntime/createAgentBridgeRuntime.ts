@@ -1,9 +1,9 @@
 import type { ToolId } from "../../types";
 import {
-  normalizePulsePresetId,
-  normalizePulseSessionInstanceId,
-  resolvePulseRuntimeState,
-} from "../../logic/pulseSessionState";
+  normalizeCreateAgentPulsePresetId,
+  normalizeCreateAgentPulseSessionInstanceId,
+  resolveCreateAgentModeRuntimeState,
+} from "./createAgentModeRuntimeIdentity";
 
 export type CreateAgentBridgeRuntimeKind = "standard" | "pulse";
 
@@ -36,14 +36,14 @@ export const resolveCreateAgentBridgeRuntime = ({
   activePulsePresetId: string | null;
   pulseSessionInstanceId: string | null;
 }): CreateAgentBridgeRuntime => {
-  const { isPulseCreateMode } = resolvePulseRuntimeState({
+  const { isPulseCreateMode } = resolveCreateAgentModeRuntimeState({
     expertCreateMode,
     activePulsePresetId,
     pulseSessionInstanceId,
   });
-  const resolvedStoredPulsePresetId = normalizePulsePresetId(activePulsePresetId);
+  const resolvedStoredPulsePresetId = normalizeCreateAgentPulsePresetId(activePulsePresetId);
   const resolvedStoredPulseSessionInstanceId = resolvedStoredPulsePresetId
-    ? normalizePulseSessionInstanceId(pulseSessionInstanceId)
+    ? normalizeCreateAgentPulseSessionInstanceId(pulseSessionInstanceId)
     : null;
   const hasStoredPulseSession =
     resolvedStoredPulsePresetId !== null && resolvedStoredPulseSessionInstanceId !== null;

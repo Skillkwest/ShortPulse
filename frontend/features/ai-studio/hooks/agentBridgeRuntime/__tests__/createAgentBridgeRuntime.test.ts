@@ -55,4 +55,18 @@ describe("resolveCreateAgentBridgeRuntime", () => {
     expect(runtime.hasStoredPulseSession).toBe(false);
     expect(runtime.hasVisiblePulseSession).toBe(false);
   });
+
+  it("does not restore retired built-in Pulse presets into active bridge scope", () => {
+    const runtime = resolveCreateAgentBridgeRuntime({
+      sessionId: "session-1",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "product_hero",
+      pulseSessionInstanceId: "pulse-session-1",
+    });
+
+    expect(runtime.kind).toBe("pulse");
+    expect(runtime.pulseRuntimeScopeKey).toBe("pulse:inactive");
+    expect(runtime.hasStoredPulseSession).toBe(false);
+    expect(runtime.hasVisiblePulseSession).toBe(false);
+  });
 });

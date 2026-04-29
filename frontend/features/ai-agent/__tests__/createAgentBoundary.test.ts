@@ -156,20 +156,24 @@ describe("Create agent mode boundaries", () => {
 
   it("keeps Pulse workflow implementation helpers out of page-root static imports", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const pulseReconciliationSource = readFrontendFile(
+      "features/ai-studio/hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation.ts"
+    );
 
     expect(pageSource).not.toContain("isCreatePulseBuiltInPresetId");
     expect(pageSource).not.toContain('from "../features/ai-studio/logic/pulseWorkflowSession"');
-    expect(pageSource).toContain('import("../features/ai-studio/logic/pulseWorkflowSession")');
+    expect(pageSource).not.toContain('import("../features/ai-studio/logic/pulseWorkflowSession")');
+    expect(pulseReconciliationSource).toContain('import("../../logic/pulseWorkflowSession")');
   });
 
   it("keeps Standard page context handoff on the neutral context resolver", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
 
-    expect(pageSource).toContain(
-      'expertCreateMode === "pulse" ? getPulseAwareAgentContext : getAgentContext'
-    );
+    expect(pageSource).toContain("useCreatePulsePresetPageRuntime");
     expect(pageSource).toContain("getAgentContext: createModeAgentContextResolver");
     expect(pageSource).not.toContain("getAgentContext: getPulseAwareAgentContext");
+    expect(pageSource).not.toContain("const getPulseAwareAgentContext");
+    expect(pageSource).not.toContain("CreatePulseResolvedPreset");
   });
 
   it("keeps the active Create composers mode-owned below the top-level switch", () => {

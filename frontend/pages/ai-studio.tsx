@@ -22,7 +22,6 @@ import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/useExpertEditPresetPanelPreference";
-import type { CreatePulseResolvedPreset } from "../features/ai-studio/components/create/createPulsePresets";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
@@ -61,6 +60,8 @@ import { useAiStudioAudioGeneration } from "../features/ai-studio/hooks/useAiStu
 import { useAiStudioCreateCharacterLookState } from "../features/ai-studio/hooks/useAiStudioCreateCharacterLookState";
 import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
+import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
+import { usePulseWorkflowSessionReconciliation } from "../features/ai-studio/hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
 import { resolveCreateAgentGenerationHandoff } from "../features/ai-studio/hooks/agentGeneration/createAgentGenerationHandoff";
 import type {
   CanvasDropResolution,
@@ -90,7 +91,6 @@ import {
 } from "../features/ai-studio/logic/sessionSnapshot";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
-import type { AgentContext } from "../prefabs/agent";
 import type { StudioOutput, ToolId } from "../features/ai-studio/types";
 import {
   PERF_FLAG_AUDIT_RUNTIME,
@@ -185,30 +185,6 @@ export default function AiStudioPage() {
     handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange,
   } = useAiStudioCreateModeRuntime();
-  const [activeCreatePulsePresetSnapshotState, setActiveCreatePulsePresetSnapshot] =
-    useState<CreatePulseResolvedPreset | null>(null);
-  const clearPulseRuntimeForPage = useCallback(() => {
-    setActiveCreatePulsePresetSnapshot(null);
-    clearPulseRuntime();
-  }, [clearPulseRuntime]);
-  const handleExpertCreateModeChangeForPage = useCallback(
-    (nextMode: "standard" | "pulse") => {
-      if (nextMode === "standard") {
-        setActiveCreatePulsePresetSnapshot(null);
-      }
-      handleExpertCreateModeChange(nextMode);
-    },
-    [handleExpertCreateModeChange]
-  );
-  const handleActiveCreatePulsePresetIdChangeForPage = useCallback(
-    (nextPresetId: Parameters<typeof handleActiveCreatePulsePresetIdChange>[0]) => {
-      if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
-        setActiveCreatePulsePresetSnapshot(null);
-      }
-      return handleActiveCreatePulsePresetIdChange(nextPresetId);
-    },
-    [activeCreatePulsePresetId, handleActiveCreatePulsePresetIdChange]
-  );
   // Character workflow state (shared with Character tool workflows and error surfaces)
   const {
     error: characterError,
@@ -364,61 +340,25 @@ export default function AiStudioPage() {
     setPulseSessionInstanceId,
   });
 
-  const hasActivePulseSession =
-    selectedTool === "create" &&
-    expertCreateMode === "pulse" &&
-    Boolean(activeCreatePulsePresetId) &&
-    Boolean(pulseSessionInstanceId);
-  const activeCreatePulsePresetSnapshot =
-    hasActivePulseSession &&
-    activeCreatePulsePresetSnapshotState?.presetId === activeCreatePulsePresetId
-      ? activeCreatePulsePresetSnapshotState
-      : null;
-
-  const getPulseAwareAgentContext = useCallback(
-    (params: {
-      lastAssistantMessage: string | null;
-      selectedOverride?: StudioOutput | null;
-      modeHint?: "chat" | "text" | "describe" | "reference";
-    }): AgentContext => {
-      const baseContext = getAgentContext(params);
-      if (!hasActivePulseSession || !activeCreatePulsePresetId) {
-        return baseContext;
-      }
-      const resolvedPulsePreset =
-        activeCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId
-          ? activeCreatePulsePresetSnapshot
-          : null;
-      const instructions = resolvedPulsePreset?.systemInstructions?.trim() ?? "";
-      if (!resolvedPulsePreset || !instructions) return baseContext;
-      return {
-        ...baseContext,
-        pulse: {
-          presetId: activeCreatePulsePresetId,
-          label: resolvedPulsePreset.label,
-          description: resolvedPulsePreset.description,
-          instructions,
-          runtimeMode: resolvedPulsePreset.runtimeMode,
-          activationMode: resolvedPulsePreset.activationMode,
-          starterAssistantMessage: resolvedPulsePreset.starterAssistantMessage,
-          workflowStageHints: resolvedPulsePreset.workflowStageHints,
-          outputMode: resolvedPulsePreset.outputMode,
-          memoryPolicy: resolvedPulsePreset.memoryPolicy,
-          source: resolvedPulsePreset.isBuiltIn ? ("builtin" as const) : ("custom" as const),
-          workflowSession: pulseWorkflowSession,
-        },
-      };
-    },
-    [
-      activeCreatePulsePresetId,
-      activeCreatePulsePresetSnapshot,
-      getAgentContext,
-      hasActivePulseSession,
-      pulseWorkflowSession,
-    ]
-  );
-  const createModeAgentContextResolver =
-    expertCreateMode === "pulse" ? getPulseAwareAgentContext : getAgentContext;
+  const {
+    activeCreatePulsePresetSnapshot,
+    setActiveCreatePulsePresetSnapshot,
+    clearPulseRuntimeForPage,
+    handleExpertCreateModeChangeForPage,
+    handleActiveCreatePulsePresetIdChangeForPage,
+    hasActivePulseSession,
+    createModeAgentContextResolver,
+  } = useCreatePulsePresetPageRuntime({
+    selectedTool,
+    expertCreateMode,
+    activeCreatePulsePresetId,
+    pulseSessionInstanceId,
+    pulseWorkflowSession,
+    getAgentContext,
+    clearPulseRuntime,
+    handleExpertCreateModeChange,
+    handleActiveCreatePulsePresetIdChange,
+  });
 
   const handleQuickSlotLibraryMediaDrop = useCallback(
     async (
@@ -900,10 +840,8 @@ export default function AiStudioPage() {
 
   const handleCreatePulsePresetStart = useCallback(
     async (
-      preset: CreatePulseResolvedPreset,
-      options?: {
-        pulseSessionInstanceId?: string | null;
-      }
+      preset: Parameters<typeof handlePulsePresetStart>[0],
+      options?: Parameters<typeof handlePulsePresetStart>[1]
     ) => {
       setActiveCreatePulsePresetSnapshot(preset);
       const result = await handlePulsePresetStart(preset, {
@@ -916,63 +854,18 @@ export default function AiStudioPage() {
       }
       return result;
     },
-    [handlePulsePresetStart]
+    [handlePulsePresetStart, setActiveCreatePulsePresetSnapshot]
   );
 
-  useEffect(() => {
-    if (!hasActivePulseSession) {
-      setPulseWorkflowSession(null);
-      return;
-    }
-    const activeWorkflowPulsePreset =
-      activeCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId &&
-      activeCreatePulsePresetSnapshot.runtimeMode === "workflow_gpt"
-        ? activeCreatePulsePresetSnapshot
-        : null;
-    let cancelled = false;
-    void import("../features/ai-studio/logic/pulseWorkflowSession").then(
-      ({
-        arePulseWorkflowSessionsEqual,
-        derivePulseWorkflowSession,
-        reconcilePulseWorkflowSession,
-      }) => {
-        if (cancelled) return;
-        const derivedPulseWorkflowSession = derivePulseWorkflowSession({
-          preset: activeWorkflowPulsePreset
-            ? {
-                presetId: activeWorkflowPulsePreset.presetId,
-                runtimeMode: activeWorkflowPulsePreset.runtimeMode,
-                starterAssistantMessage: activeWorkflowPulsePreset.starterAssistantMessage,
-                workflowStageHints: activeWorkflowPulsePreset.workflowStageHints,
-              }
-            : null,
-          agentMessages,
-          isSending: agentBusy,
-        });
-        const reconciledPulseWorkflowSession = reconcilePulseWorkflowSession({
-          authoritative: pulseWorkflowSession,
-          derived: derivedPulseWorkflowSession,
-          isSending: agentBusy,
-        });
-        setPulseWorkflowSession((current) =>
-          arePulseWorkflowSessionsEqual(current, reconciledPulseWorkflowSession)
-            ? current
-            : reconciledPulseWorkflowSession
-        );
-      }
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [
+  usePulseWorkflowSessionReconciliation({
+    hasActivePulseSession,
     activeCreatePulsePresetId,
     activeCreatePulsePresetSnapshot,
     agentBusy,
     agentMessages,
-    hasActivePulseSession,
     pulseWorkflowSession,
     setPulseWorkflowSession,
-  ]);
+  });
 
   const buildProjectAwareSessionSnapshot = useCallback(
     (args: Parameters<typeof buildSessionSnapshot>[0]) =>

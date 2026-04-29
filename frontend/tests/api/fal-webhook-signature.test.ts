@@ -8,8 +8,6 @@ import {
 describe("verifyFalWebhookSignature", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
-    delete process.env.SHORTPULSE_FAL_WEBHOOK_SECRET;
-    delete process.env.FAL_WEBHOOK_SECRET;
   });
 
   it("accepts valid Fal Ed25519 signatures via JWKS", async () => {
@@ -59,7 +57,6 @@ describe("verifyFalWebhookSignature", () => {
       },
       config: {
         jwksUrl: "https://example.test/jwks",
-        allowLegacyHmacFallback: false,
       },
     });
 
@@ -95,7 +92,6 @@ describe("verifyFalWebhookSignature", () => {
       },
       config: {
         jwksUrl: "https://example.test/jwks",
-        allowLegacyHmacFallback: false,
       },
     });
 
@@ -103,7 +99,7 @@ describe("verifyFalWebhookSignature", () => {
     expect(result.method).toBeNull();
   });
 
-  it("accepts legacy HMAC signatures in dual mode when Fal verification fails", async () => {
+  it("rejects HMAC-style signatures when Fal verification fails", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -112,7 +108,6 @@ describe("verifyFalWebhookSignature", () => {
         json: async () => ({}),
       }))
     );
-    process.env.SHORTPULSE_FAL_WEBHOOK_SECRET = "legacy-secret";
 
     const rawBody = JSON.stringify({ status: "OK" });
     const timestamp = String(Math.floor(Date.now() / 1000));
@@ -132,8 +127,9 @@ describe("verifyFalWebhookSignature", () => {
       },
     });
 
-    expect(result.ok).toBe(true);
-    expect(result.method).toBe("hmac");
+    expect(result.ok).toBe(false);
+    expect(result.method).toBeNull();
+    expect(result.reason).toBe("missing_required_fal_headers");
   });
 
   it("rejects signatures outside timestamp tolerance", async () => {
@@ -176,7 +172,6 @@ describe("verifyFalWebhookSignature", () => {
       config: {
         jwksUrl: "https://example.test/jwks",
         toleranceSeconds: 60,
-        allowLegacyHmacFallback: false,
       },
     });
 

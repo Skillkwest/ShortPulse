@@ -4,11 +4,6 @@ import { readRawRequestBody } from "./requestBody";
 
 type JsonObject = Record<string, unknown>;
 
-type ParsedLegacySignatureHeader = {
-  timestamp: string | null;
-  signatures: string[];
-};
-
 export type FalWebhookHeaders = {
   requestId: string | null;
   userId: string | null;
@@ -19,7 +14,7 @@ export type FalWebhookHeaders = {
 
 export type FalWebhookVerifyResult = {
   ok: boolean;
-  method: "fal" | "hmac" | null;
+  method: "fal" | null;
   reason?: string;
   payloadHash?: string;
 };
@@ -48,14 +43,6 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
-const secureCompareText = (left: string, right: string): boolean => {
-  try {
-    return crypto.timingSafeEqual(Buffer.from(left), Buffer.from(right));
-  } catch {
-    return false;
-  }
-};
-
 const secureCompareBytes = (left: Buffer, right: Buffer): boolean => {
   try {
     return crypto.timingSafeEqual(left, right);
@@ -74,25 +61,6 @@ const parseTimestampSeconds = (timestamp: string | null): number | null => {
 const isTimestampFresh = (timestampSeconds: number, toleranceSeconds: number): boolean => {
   const nowSeconds = Math.floor(Date.now() / 1000);
   return Math.abs(nowSeconds - timestampSeconds) <= toleranceSeconds;
-};
-
-const parseLegacySignatureHeader = (signatureHeader: string): ParsedLegacySignatureHeader => {
-  const trimmed = signatureHeader.trim();
-  if (!trimmed) return { timestamp: null, signatures: [] };
-  if (!trimmed.includes(",")) {
-    return { timestamp: null, signatures: [trimmed] };
-  }
-
-  const tokens = trimmed.split(",").map((token) => token.trim());
-  const signatures: string[] = [];
-  let timestamp: string | null = null;
-  for (const token of tokens) {
-    const [key, value] = token.split("=");
-    if (!key || !value) continue;
-    if (key === "t") timestamp = value;
-    if (key === "v1") signatures.push(value);
-  }
-  return { timestamp, signatures };
 };
 
 const parseFalSignatureCandidates = (headerValue: string): Buffer[] => {
@@ -257,40 +225,6 @@ const verifyWithFalJwks = async ({
   return { ok: false, method: null, reason: "fal_signature_verification_failed", payloadHash };
 };
 
-const verifyWithLegacyHmac = ({
-  rawBody,
-  signatureHeader,
-  timestampHeader,
-  toleranceSeconds,
-}: {
-  rawBody: string;
-  signatureHeader: string | null;
-  timestampHeader?: string | null;
-  toleranceSeconds: number;
-}): FalWebhookVerifyResult => {
-  const secret = getFalWebhookSecret();
-  if (!secret || !signatureHeader) {
-    return { ok: false, method: null, reason: "missing_legacy_signature_inputs" };
-  }
-  const parsed = parseLegacySignatureHeader(signatureHeader);
-  if (!parsed.signatures.length) {
-    return { ok: false, method: null, reason: "invalid_legacy_signature_header" };
-  }
-  const timestampValue = timestampHeader ?? parsed.timestamp;
-  const timestampSeconds = parseTimestampSeconds(timestampValue);
-  if (timestampSeconds !== null && !isTimestampFresh(timestampSeconds, toleranceSeconds)) {
-    return { ok: false, method: null, reason: "timestamp_out_of_window" };
-  }
-
-  const signedPayload = timestampSeconds !== null ? `${timestampSeconds}.${rawBody}` : rawBody;
-  const expected = crypto.createHmac("sha256", secret).update(signedPayload, "utf8").digest("hex");
-  const matched = parsed.signatures.some((candidate) => secureCompareText(expected, candidate));
-  if (!matched) {
-    return { ok: false, method: null, reason: "legacy_hmac_verification_failed" };
-  }
-  return { ok: true, method: "hmac" };
-};
-
 const readHeader = (req: NextApiRequest, name: string): string | null => {
   const value = req.headers[name.toLowerCase()];
   if (Array.isArray(value)) return asString(value[0]);
@@ -316,11 +250,6 @@ export const readRawBody = async (
     maxBytes: options?.maxBytes ?? 512 * 1024,
   });
 
-export const getFalWebhookSecret = (): string | null =>
-  process.env.SHORTPULSE_FAL_WEBHOOK_SECRET?.trim() ||
-  process.env.FAL_WEBHOOK_SECRET?.trim() ||
-  null;
-
 export const verifyFalWebhookSignature = async ({
   rawBody,
   headers,
@@ -331,39 +260,15 @@ export const verifyFalWebhookSignature = async ({
   config?: {
     jwksUrl?: string;
     toleranceSeconds?: number;
-    allowLegacyHmacFallback?: boolean;
   };
 }): Promise<FalWebhookVerifyResult> => {
   const toleranceSeconds = config?.toleranceSeconds ?? FAL_WEBHOOK_TOLERANCE_SECONDS;
-  const falResult = await verifyWithFalJwks({
+  return await verifyWithFalJwks({
     rawBody,
     headers,
     jwksUrl: config?.jwksUrl ?? FAL_WEBHOOK_JWKS_URL,
     toleranceSeconds,
   });
-  if (falResult.ok) {
-    return falResult;
-  }
-
-  if (config?.allowLegacyHmacFallback === false) {
-    return falResult;
-  }
-
-  const legacyResult = verifyWithLegacyHmac({
-    rawBody,
-    signatureHeader: headers.signature,
-    timestampHeader: headers.timestamp,
-    toleranceSeconds,
-  });
-  if (legacyResult.ok) return legacyResult;
-
-  const reason = falResult.reason || legacyResult.reason || "signature_verification_failed";
-  return {
-    ok: false,
-    method: null,
-    reason,
-    payloadHash: falResult.payloadHash,
-  };
 };
 
 export const verifyFalWebhookBodyHash = ({

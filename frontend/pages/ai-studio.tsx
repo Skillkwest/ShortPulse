@@ -959,6 +959,7 @@ export default function AiStudioPage() {
     projectId,
     projectRouteRequested,
     sessionId: activeSessionPersistenceSessionId,
+    expertCreateMode,
     sessionTitleOverride: sessionPersistenceTitleOverride,
     buildSessionSnapshot: buildProjectAwareSessionSnapshot,
     agentRuntime: sessionAgentRuntime,

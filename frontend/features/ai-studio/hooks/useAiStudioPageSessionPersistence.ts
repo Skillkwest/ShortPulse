@@ -25,6 +25,7 @@ type UseAiStudioPageSessionPersistenceParams = {
   projectId?: string | null;
   projectRouteRequested?: boolean;
   sessionId: string | null;
+  expertCreateMode: "standard" | "pulse";
   sessionTitleOverride?: string | null;
   buildSessionSnapshot: (args: BuildPageSessionSnapshotArgs) => AiStudioSessionSnapshot;
   agentRuntime: AiStudioSessionAgentV1;
@@ -52,6 +53,7 @@ export const useAiStudioPageSessionPersistence = ({
   projectId = null,
   projectRouteRequested = false,
   sessionId,
+  expertCreateMode,
   sessionTitleOverride,
   buildSessionSnapshot,
   agentRuntime,
@@ -65,15 +67,16 @@ export const useAiStudioPageSessionPersistence = ({
   resetProjectAgentConversation,
   setUiNotice,
 }: UseAiStudioPageSessionPersistenceParams) => {
+  const activeAgentRuntimes = expertCreateMode === "pulse" ? agentRuntimes : undefined;
   const buildSessionSnapshotForSessionId = useCallback(
     (activeSessionId: string) =>
       buildSessionSnapshot({
         sessionId: activeSessionId,
         agentRuntime,
-        agentRuntimes,
+        ...(activeAgentRuntimes ? { agentRuntimes: activeAgentRuntimes } : {}),
         expertEditSessionState,
       }),
-    [agentRuntime, buildSessionSnapshot, expertEditSessionState, agentRuntimes]
+    [agentRuntime, buildSessionSnapshot, expertEditSessionState, activeAgentRuntimes]
   );
 
   const handleSessionPersistenceWarning = useCallback(

@@ -142,6 +142,7 @@ describe("useAiStudioPageSessionPersistence", () => {
     renderHook(() =>
       useAiStudioPageSessionPersistence({
         sessionId: "session-1",
+        expertCreateMode: "standard",
         buildSessionSnapshot,
         agentRuntime: createAgentRuntime({
           input: "plan next shot",
@@ -175,14 +176,6 @@ describe("useAiStudioPageSessionPersistence", () => {
         input: "plan next shot",
         latestAgentPrompt: "latest",
       }),
-      agentRuntimes: {
-        standard: createAgentRuntime({
-          input: "plan next shot",
-          latestAgentPrompt: "latest",
-        }),
-        pulsePresetId: null,
-        pulse: createAgentRuntime(),
-      },
       expertEditSessionState,
     });
 
@@ -257,6 +250,7 @@ describe("useAiStudioPageSessionPersistence", () => {
     renderHook(() =>
       useAiStudioPageSessionPersistence({
         sessionId: "session-1",
+        expertCreateMode: "pulse",
         buildSessionSnapshot,
         agentRuntime: createAgentRuntime({
           messages: [
@@ -384,6 +378,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       useAiStudioPageSessionPersistence({
         projectId: "project-1",
         sessionId: "session-1",
+        expertCreateMode: "standard",
         buildSessionSnapshot,
         agentRuntime: createAgentRuntime(),
         hydrateFromSessionSnapshot,
@@ -463,6 +458,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       useAiStudioPageSessionPersistence({
         projectRouteRequested: true,
         sessionId: "session-1",
+        expertCreateMode: "standard",
         buildSessionSnapshot,
         agentRuntime: createAgentRuntime(),
         hydrateFromSessionSnapshot,

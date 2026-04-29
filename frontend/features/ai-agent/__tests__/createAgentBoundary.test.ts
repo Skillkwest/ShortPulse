@@ -492,6 +492,10 @@ describe("Create agent mode boundaries", () => {
     expect(pagePersistenceSource).not.toContain("agentInput: string");
     expect(pagePersistenceSource).not.toContain("latestAgentPrompt: string | null");
     expect(pagePersistenceSource).not.toContain("pulseWorkflowSession?: AgentPulseWorkflowSession");
+    expect(pagePersistenceSource).toContain('expertCreateMode: "standard" | "pulse"');
+    expect(pagePersistenceSource).toContain(
+      'const activeAgentRuntimes = expertCreateMode === "pulse" ? agentRuntimes : undefined'
+    );
     expect(pageSource).toContain(
       'agentRuntimes: expertCreateMode === "pulse" ? sessionAgentRuntimes : undefined'
     );

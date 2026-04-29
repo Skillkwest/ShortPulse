@@ -354,4 +354,17 @@ describe("Create agent mode boundaries", () => {
     expect(pagePersistenceSource).not.toContain("latestAgentPrompt: string | null");
     expect(pagePersistenceSource).not.toContain("pulseWorkflowSession?: AgentPulseWorkflowSession");
   });
+
+  it("keeps Standard and Pulse Create props from cloning one shared prop bag", () => {
+    const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const panelPropBuilderSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioPanelProps.ts"
+    );
+
+    expect(pageSource).not.toContain("...panelProps.propertiesCreate,");
+    expect(pageSource).toContain("...panelProps.propertiesCreate.standard");
+    expect(pageSource).toContain("...panelProps.propertiesCreate.pulse");
+    expect(panelPropBuilderSource).toContain("standard: standardCreateProperties");
+    expect(panelPropBuilderSource).toContain("pulse: pulseCreateProperties");
+  });
 });

@@ -20,6 +20,8 @@ import type {
   ExpertEditPresetId,
 } from "../components/edit/expertEditPresets";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import type { PulseCreatePropertiesPanelProps } from "../components/create/PulseCreatePropertiesPanel";
+import type { StandardCreatePropertiesPanelProps } from "../components/create/StandardCreatePropertiesPanel";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
 
@@ -373,7 +375,7 @@ export const useAiStudioPanelProps = ({
       ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
       : currentCostCredits;
 
-  const propertiesCreate = useMemo(
+  const standardCreateProperties = useMemo<StandardCreatePropertiesPanelProps>(
     () => ({
       mode,
       aspect,
@@ -508,6 +510,114 @@ export const useAiStudioPanelProps = ({
       beginnerPolicy.create.beginnerMode,
       beginnerPolicy.create.expertCreateEligible,
     ]
+  );
+  const pulseCreateProperties = useMemo<PulseCreatePropertiesPanelProps>(
+    () => ({
+      mode,
+      aspect,
+      modelId: model,
+      modelLabel: currentModelLabel,
+      prompt,
+      agentEnabled,
+      agentBootstrapPending: !agentBootstrapReady,
+      agentMessages,
+      agentInput,
+      directOpenAiBypassEnabled,
+      agentIsSending: agentBusy,
+      agentTransportSending: agentIsSending,
+      agentUiBusy,
+      agentError: agentAttachmentError ?? agentError ?? undefined,
+      stagedPrompt: stagedAgentPrompt,
+      assistantBubbleMedia,
+      stagedAttachments: agentAttachments,
+      agentDropActive: isAgentDropActive,
+      onAgentInputChange: handleAgentInputChange,
+      onAgentSend: handleAgentSend,
+      onAgentEnhanceSend: handleAgentEnhanceSend,
+      onAgentAttachmentDrop: handleAgentAttachmentDrop,
+      onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
+      onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
+      onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
+      onRemoveAgentAttachment: handleRemoveAgentAttachment,
+      onClearAgentAttachments: handleClearAgentAttachments,
+      onAssistantMessageEdit: handleAssistantMessageEdit,
+      onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
+      isModelModalOpen,
+      modelModalAnchor,
+      onAspectChange: setAspect,
+      onModelPickerOpen: handleOpenModelModal,
+      onPromptChange: handleManualPromptChange,
+      isPromptGenerating: createIsGenerating || isPromptRefining || describeInFlightCount > 0,
+      costCredits: currentCostCredits,
+      outputGenerateCostCredits: promptReferenceGenerateCostCredits,
+      isGenerateDisabled,
+      isChatOffInlineGenerateDisabled: isGenerateDisabled,
+      guardrailReason: generationGuardrail,
+      onClearAgentChat: handleClearAgentChat,
+      shouldDisableSave: useReferenceImageIndicator && mode === "text",
+      onGenerate: handlePrimarySubmit,
+      onChatOffInlineGenerate: handleChatOffInlineGenerate,
+      onSavePrompt: savePromptReference,
+      beginnerMode: false,
+      expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
+    }),
+    [
+      agentAttachmentError,
+      agentAttachments,
+      agentBusy,
+      directOpenAiBypassEnabled,
+      agentEnabled,
+      agentBootstrapReady,
+      agentError,
+      agentInput,
+      agentMessages,
+      agentIsSending,
+      agentUiBusy,
+      assistantBubbleMedia,
+      aspect,
+      createIsGenerating,
+      currentCostCredits,
+      currentModelLabel,
+      describeInFlightCount,
+      generationGuardrail,
+      handleAgentAttachmentDragEnter,
+      handleAgentAttachmentDragLeave,
+      handleAgentAttachmentDragOver,
+      handleAgentAttachmentDrop,
+      handleAgentEnhanceSend,
+      handleAgentInputChange,
+      handleAssistantMessageEdit,
+      handleAgentSend,
+      handleClearAgentAttachments,
+      handleClearAgentChat,
+      handleGenerateFromAgentOutputPrompt,
+      handleManualPromptChange,
+      handleOpenModelModal,
+      handleChatOffInlineGenerate,
+      handlePrimarySubmit,
+      handleRemoveAgentAttachment,
+      isAgentDropActive,
+      isGenerateDisabled,
+      isModelModalOpen,
+      isPromptRefining,
+      mode,
+      model,
+      modelModalAnchor,
+      prompt,
+      promptReferenceGenerateCostCredits,
+      savePromptReference,
+      setAspect,
+      stagedAgentPrompt,
+      useReferenceImageIndicator,
+      beginnerPolicy.create.expertCreateEligible,
+    ]
+  );
+  const propertiesCreate = useMemo(
+    () => ({
+      standard: standardCreateProperties,
+      pulse: pulseCreateProperties,
+    }),
+    [pulseCreateProperties, standardCreateProperties]
   );
 
   const propertiesEditExpert = useAiStudioEditExpertPanelProps({

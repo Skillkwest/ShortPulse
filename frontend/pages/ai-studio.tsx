@@ -1417,12 +1417,12 @@ export default function AiStudioPage() {
   });
   const panelPropsWithCreateModeRuntime = useMemo(() => {
     const standardCreateProperties = {
-      ...panelProps.propertiesCreate,
+      ...panelProps.propertiesCreate.standard,
       expertCreateMode,
       onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
     };
     const pulseCreateProperties = {
-      ...panelProps.propertiesCreate,
+      ...panelProps.propertiesCreate.pulse,
       expertCreateMode,
       hasActivePulseSession,
       onExpertCreateModeChange: handleExpertCreateModeChangeForPage,

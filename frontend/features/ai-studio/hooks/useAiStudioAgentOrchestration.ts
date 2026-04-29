@@ -53,6 +53,7 @@ export const useAiStudioAgentOrchestration = ({
   setSharedPrompt,
   setPromptOrigin,
   sendToAgent,
+  sendPulseActivationToAgent,
   appendUserMessage,
   updateMessageById,
   getAgentContext,
@@ -281,9 +282,20 @@ export const useAiStudioAgentOrchestration = ({
           attachments: outboundAttachments,
           preparedImageUrls,
         });
+        const workflowPulse =
+          mediaPatchedContext.pulse?.runtimeMode === "workflow_gpt"
+            ? mediaPatchedContext.pulse
+            : null;
         const pendingWorkflowSession = buildPendingPulseWorkflowSessionForUserInput({
-          preset: mediaPatchedContext.pulse,
-          existingSession: mediaPatchedContext.pulse?.workflowSession ?? null,
+          preset: workflowPulse
+            ? {
+                presetId: workflowPulse.presetId,
+                runtimeMode: "workflow_gpt",
+                starterAssistantMessage: workflowPulse.starterAssistantMessage,
+                workflowStageHints: workflowPulse.workflowStageHints,
+              }
+            : null,
+          existingSession: workflowPulse?.workflowSession ?? null,
           userInput: userMessageText,
         });
         const requestContext =
@@ -453,14 +465,14 @@ export const useAiStudioAgentOrchestration = ({
         agentIsSending,
         agentSessionEnabled,
         agentUiBusyRef,
-        latestAgentPrompt,
-        lastAssistantMessage,
+        latestAgentPrompt: null,
+        lastAssistantMessage: null,
         selectedTool,
         pulseSessionInstanceId,
         resolvePulseSessionNamespace,
         getAgentContext,
         notifyBootstrapPending,
-        sendToAgent,
+        sendToAgent: sendPulseActivationToAgent ?? sendToAgent,
         trackAgentUiEvent,
         setAgentSessionEnabled,
         setAgentAttachmentError,
@@ -476,9 +488,8 @@ export const useAiStudioAgentOrchestration = ({
       agentSessionEnabled,
       agentUiBusyRef,
       getAgentContext,
-      lastAssistantMessage,
-      latestAgentPrompt,
       selectedTool,
+      sendPulseActivationToAgent,
       sendToAgent,
       setAgentAttachmentError,
       setAgentSessionEnabled,

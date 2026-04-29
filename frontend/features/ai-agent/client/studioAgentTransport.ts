@@ -101,13 +101,16 @@ const resolveTransportErrorDetail = ({
   return trimmedBody.length ? trimmedBody : "Agent request failed";
 };
 
+const resolveStudioAgentEndpoint = (body: AgentApiRequest): string =>
+  body.runtimeMode === "pulse" ? "/api/ai/studio-agent-pulse" : "/api/ai/studio-agent-standard";
+
 /**
- * Send a turn request to the canonical studio-agent endpoint.
+ * Send a turn request to the runtime-specific studio-agent endpoint.
  */
 export const sendStudioAgentTurn = async (
   body: AgentApiRequest
 ): Promise<StudioAgentTransportResult> => {
-  const response = await fetchWithAuth("/api/ai/studio-agent", {
+  const response = await fetchWithAuth(resolveStudioAgentEndpoint(body), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

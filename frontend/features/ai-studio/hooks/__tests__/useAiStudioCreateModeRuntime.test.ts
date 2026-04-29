@@ -5,7 +5,7 @@ import { useAiStudioCreateModeRuntime } from "../useAiStudioCreateModeRuntime";
 import type { CreatePulseSavedPreset } from "../../components/create/createPulsePresets";
 
 const ACTIVE_PULSE_ID = "story_builder";
-const NEXT_PULSE_ID = "single_shot";
+const NEXT_PULSE_ID = "multi_shot";
 const TEST_PULSE_SESSION_ID = "pulse-session-story-builder";
 const CUSTOM_PULSE_ID = "custom-story";
 
@@ -14,10 +14,10 @@ const buildSavedPreset = (presetId: string): CreatePulseSavedPreset => ({
   label: `Pulse ${presetId}`,
   description: null,
   systemInstructions: "Follow the hidden Pulse contract.",
-  runtimeMode: "prompt_editor",
-  activationMode: "activate_only",
+  runtimeMode: "workflow_gpt",
+  activationMode: "activate_and_start",
   starterAssistantMessage: null,
-  outputMode: "apply_prompt",
+  outputMode: "chat_reply",
   memoryPolicy: "session",
   workflowStageHints: null,
   createdAt: null,
@@ -35,7 +35,7 @@ const buildWorkflowSession = (presetId: string): AgentPulseWorkflowSession => ({
 });
 
 describe("useAiStudioCreateModeRuntime", () => {
-  it("preserves Pulse runtime when switching back to standard mode through the UI handler", () => {
+  it("clears Pulse runtime when switching back to standard mode through the UI handler", () => {
     const workflowSession = buildWorkflowSession(ACTIVE_PULSE_ID);
     const { result } = renderHook(() =>
       useAiStudioCreateModeRuntime({
@@ -53,12 +53,12 @@ describe("useAiStudioCreateModeRuntime", () => {
     });
 
     expect(result.current.expertCreateMode).toBe("standard");
-    expect(result.current.activeCreatePulsePresetId).toBe(ACTIVE_PULSE_ID);
-    expect(result.current.pulseSessionInstanceId).toBe(TEST_PULSE_SESSION_ID);
-    expect(result.current.pulseWorkflowSession).toEqual(workflowSession);
+    expect(result.current.activeCreatePulsePresetId).toBeNull();
+    expect(result.current.pulseSessionInstanceId).toBeNull();
+    expect(result.current.pulseWorkflowSession).toBeNull();
   });
 
-  it("re-enters Pulse mode with the preserved hidden runtime when toggling back from standard mode", () => {
+  it("re-enters Pulse mode without restoring the prior hidden runtime after Standard", () => {
     const workflowSession = buildWorkflowSession(ACTIVE_PULSE_ID);
     const { result } = renderHook(() =>
       useAiStudioCreateModeRuntime({
@@ -80,9 +80,9 @@ describe("useAiStudioCreateModeRuntime", () => {
     });
 
     expect(result.current.expertCreateMode).toBe("pulse");
-    expect(result.current.activeCreatePulsePresetId).toBe(ACTIVE_PULSE_ID);
-    expect(result.current.pulseSessionInstanceId).toBe(TEST_PULSE_SESSION_ID);
-    expect(result.current.pulseWorkflowSession).toEqual(workflowSession);
+    expect(result.current.activeCreatePulsePresetId).toBeNull();
+    expect(result.current.pulseSessionInstanceId).toBeNull();
+    expect(result.current.pulseWorkflowSession).toBeNull();
   });
 
   it("clears stale workflow state when the active Pulse changes through the UI handler", () => {

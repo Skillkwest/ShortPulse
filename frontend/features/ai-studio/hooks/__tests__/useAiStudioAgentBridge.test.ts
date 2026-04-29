@@ -219,6 +219,80 @@ describe("useAiStudioAgentBridge", () => {
     });
   });
 
+  it("does not hydrate an empty Pulse snapshot over a fresh kickoff reply", async () => {
+    const replaceMessages = vi.fn();
+    const pulseMessages: AgentMessage[] = [
+      {
+        id: "assistant-pulse-1",
+        role: "assistant",
+        content:
+          "This prompt now includes a sharper product angle. What product should anchor the first shot?",
+      },
+    ];
+
+    useAiAgentMock.mockReturnValue({
+      messages: pulseMessages,
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages,
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(
+        createBridgeParams({
+          expertCreateMode: "pulse",
+          activePulsePresetId: "pulse_custom",
+          pulseSessionInstanceId: "pulse-session-fast",
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(replaceMessages).toHaveBeenCalledWith(pulseMessages);
+    });
+    expect(replaceMessages).not.toHaveBeenCalledWith([]);
+    expect(result.current.agentMessages).toEqual(pulseMessages);
+  });
+
   it("does not promote edited legacy assistant messages without prompt metadata", () => {
     const legacyMessage = {
       id: "legacy-assistant",
@@ -370,7 +444,7 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(1);
     });
-    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+    expect(useAiAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionNamespace: "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
       })
@@ -404,7 +478,7 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(2);
     });
-    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+    expect(useAiAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
       })
@@ -427,7 +501,7 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(3);
     });
-    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+    expect(useAiAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
       })
@@ -444,7 +518,7 @@ describe("useAiStudioAgentBridge", () => {
     await waitFor(() => {
       expect(resetAgentComposer).toHaveBeenCalledTimes(4);
     });
-    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+    expect(useAiAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
       })
@@ -575,7 +649,7 @@ describe("useAiStudioAgentBridge", () => {
 
     const { result } = renderHook(() => useAiStudioAgentBridge(createBridgeParams()));
 
-    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+    expect(useAiAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({ directOpenAiBypassEnabled: true, runtimeMode: "standard" })
     );
     expect(result.current.directOpenAiBypassEnabled).toBe(true);
@@ -1240,7 +1314,7 @@ describe("useAiStudioAgentBridge", () => {
     await act(async () => {
       await result.current.handlePulsePresetRestart?.({
         presetId: "story_builder",
-        label: "Story Builder",
+        label: "DFY Story Builder",
         description: "Guided story workflow.",
         systemInstructions: "Guide the user through story setup.",
         runtimeMode: "workflow_gpt",

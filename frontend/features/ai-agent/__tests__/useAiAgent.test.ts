@@ -24,7 +24,7 @@ describe("useAiAgent", () => {
       ok: true,
       json: async () => ({ message: "Image context received." }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
 
     await act(async () => {
       await result.current.send({
@@ -117,7 +117,7 @@ describe("useAiAgent", () => {
 
     const { result, rerender } = renderHook(
       ({ sessionNamespace }: { sessionNamespace: string }) =>
-        useAiAgent({ enabled: true, sessionNamespace }),
+        useAiAgent({ enabled: true, sessionNamespace, runtimeMode: "pulse" }),
       {
         initialProps: {
           sessionNamespace: "ai-studio:seed:none::pulse:none",
@@ -163,6 +163,67 @@ describe("useAiAgent", () => {
 
     const sendResult = await sendResultPromise;
     expect(sendResult.discarded).not.toBe(true);
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Pulse activated.",
+      })
+    );
+  });
+
+  it("keeps a pulse activation reply when the override response resolves before the namespace rerender", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "Pulse activated." }),
+    } as Response);
+
+    const { result, rerender } = renderHook(
+      ({ sessionNamespace }: { sessionNamespace: string }) =>
+        useAiAgent({ enabled: true, sessionNamespace, runtimeMode: "pulse" }),
+      {
+        initialProps: {
+          sessionNamespace: "ai-studio:seed:none::pulse:none",
+        },
+      }
+    );
+
+    let sendResult!: SendResult;
+    await act(async () => {
+      sendResult = await result.current.send({
+        text: "",
+        payloadText: "pulse_activation_seed:custom",
+        sessionNamespaceOverride: "ai-studio:seed:none::pulse:custom",
+        isolateHistory: true,
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "custom",
+            label: "Custom Pulse",
+            instructions: "Ask one focused setup question before generating.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: null,
+            workflowStageHints: null,
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "custom",
+          },
+        },
+      });
+    });
+
+    expect(sendResult.discarded).not.toBe(true);
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Pulse activated.",
+      })
+    );
+
+    await act(async () => {
+      rerender({ sessionNamespace: "ai-studio:seed:none::pulse:custom" });
+    });
+
     expect(result.current.messages.at(-1)).toEqual(
       expect.objectContaining({
         role: "assistant",
@@ -259,6 +320,7 @@ describe("useAiAgent", () => {
     };
     expect(body.directOpenAiBypass).toBe(true);
     expect(body.runtimeMode).toBe("standard");
+    expect(fetchWithAuthMock.mock.calls[0]?.[0]).toBe("/api/ai/studio-agent-standard");
   });
 
   it("includes pulse runtimeMode when configured for Pulse mode", async () => {
@@ -280,6 +342,7 @@ describe("useAiAgent", () => {
       runtimeMode?: string;
     };
     expect(body.runtimeMode).toBe("pulse");
+    expect(fetchWithAuthMock.mock.calls[0]?.[0]).toBe("/api/ai/studio-agent-pulse");
   });
 
   it("preserves finalArtifactSource from workflow-session responses", async () => {
@@ -467,7 +530,62 @@ describe("useAiAgent", () => {
     expect(secondBody.canonicalPrompt ?? null).toBeNull();
   });
 
-  it("isolates canonical prompt continuity for override-targeted Pulse bootstrap sends", async () => {
+  it("keeps Standard override sends blocked from Pulse bootstrap namespaces", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        message: "standard reply",
+        canonicalPrompt: "standard canonical prompt",
+      }),
+    } as Response);
+
+    const hook = renderHook(() =>
+      useAiAgent({ enabled: true, sessionNamespace: "ai-studio:session-a::standard" })
+    );
+
+    await act(async () => {
+      await hook.result.current.send({
+        text: "standard turn",
+        payloadText: "standard turn",
+      });
+    });
+
+    let pulseSendResult: SendResult | null = null;
+    await act(async () => {
+      pulseSendResult = await hook.result.current.send({
+        text: "",
+        payloadText: "pulse_activation_seed:story_builder",
+        sessionNamespaceOverride: "ai-studio:session-a::pulse:story_builder",
+        isolateHistory: true,
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "story_builder",
+            label: "Story Builder",
+            instructions: "Guide the user through story setup.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your characters first.",
+            workflowStageHints: ["Upload Characters"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(pulseSendResult).toEqual(
+      expect.objectContaining({
+        response: null,
+        failureKind: "transport_error",
+      })
+    );
+    expect(hook.result.current.error).toContain("Standard agent cannot send");
+  });
+
+  it("isolates canonical prompt continuity across separate Standard and Pulse hooks", async () => {
     fetchWithAuthMock
       .mockResolvedValueOnce({
         ok: true,
@@ -481,22 +599,29 @@ describe("useAiAgent", () => {
         json: async () => ({ message: "pulse activated" }),
       } as Response);
 
-    const hook = renderHook(() =>
+    const standardHook = renderHook(() =>
       useAiAgent({ enabled: true, sessionNamespace: "ai-studio:session-a::standard" })
     );
 
     await act(async () => {
-      await hook.result.current.send({
+      await standardHook.result.current.send({
         text: "standard turn",
         payloadText: "standard turn",
       });
     });
 
+    const pulseHook = renderHook(() =>
+      useAiAgent({
+        enabled: true,
+        sessionNamespace: "ai-studio:session-a::pulse:story_builder",
+        runtimeMode: "pulse",
+      })
+    );
+
     await act(async () => {
-      await hook.result.current.send({
+      await pulseHook.result.current.send({
         text: "",
         payloadText: "pulse_activation_seed:story_builder",
-        sessionNamespaceOverride: "ai-studio:session-a::pulse:story_builder",
         isolateHistory: true,
         skipUserEcho: true,
         context: {
@@ -667,6 +792,52 @@ describe("useAiAgent", () => {
         outputPrompt: null,
         canUseAsPrompt: false,
         outcomeClass: "success_message",
+      })
+    );
+  });
+
+  it("preserves Pulse chat replies that look like prompt metadata", async () => {
+    fetchWithAuthMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          message:
+            "This prompt now includes a sharper product angle. What product should anchor the first shot?",
+          actions: undefined,
+          workflowSession: {
+            presetId: "pulse_custom",
+            status: "awaiting_input",
+            currentStepIndex: 1,
+            currentStepLabel: null,
+            currentStepPrompt:
+              "This prompt now includes a sharper product angle. What product should anchor the first shot?",
+            collectedInputs: [],
+            lastArtifact: null,
+            finalArtifactSource: null,
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "",
+        payloadText: 'Pulse "Custom Pulse" was just activated.\n\nStart the workflow now.',
+        skipUserEcho: true,
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content:
+          "This prompt now includes a sharper product angle. What product should anchor the first shot?",
+        canUseAsPrompt: false,
       })
     );
   });

@@ -2,7 +2,7 @@
  * Client session-key helpers for the AI agent hook.
  * Responsible for stable session identity across reloads and namespace changes.
  */
-const AGENT_SESSION_STORAGE_KEY_PREFIX = "shortpulse.agent.clientSession.v1.";
+const AGENT_SESSION_STORAGE_KEY_PREFIX = "shortpulse.agent.clientSession.v2.";
 
 /**
  * Create a random identifier for client trace/session usage.

@@ -21,6 +21,24 @@ export type AgentSendOptions = {
   modeHint?: AgentModeHint;
 };
 
+export type AgentSendToAgent = (params: {
+  text: string;
+  payloadText?: string;
+  previousPrompt?: string | null;
+  context?: AgentContext;
+  sessionNamespaceOverride?: string;
+  isolateHistory?: boolean;
+  skipUserEcho?: boolean;
+  optimisticUserMessageId?: string | null;
+}) => Promise<{
+  response: unknown;
+  actions: AgentActions | undefined;
+  workflowSession?: AgentPulseWorkflowSession | null;
+  discarded?: boolean;
+  errorText?: string | null;
+  failureKind?: "transport_error";
+}>;
+
 export type UseAiStudioAgentOrchestrationParams = {
   agentIsSending: boolean;
   agentBootstrapReady: boolean;
@@ -40,23 +58,8 @@ export type UseAiStudioAgentOrchestrationParams = {
   selectedTool: ToolId | null;
   setSharedPrompt: (value: string) => void;
   setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
-  sendToAgent: (params: {
-    text: string;
-    payloadText?: string;
-    previousPrompt?: string | null;
-    context?: AgentContext;
-    sessionNamespaceOverride?: string;
-    isolateHistory?: boolean;
-    skipUserEcho?: boolean;
-    optimisticUserMessageId?: string | null;
-  }) => Promise<{
-    response: unknown;
-    actions: AgentActions | undefined;
-    workflowSession?: AgentPulseWorkflowSession | null;
-    discarded?: boolean;
-    errorText?: string | null;
-    failureKind?: "transport_error";
-  }>;
+  sendToAgent: AgentSendToAgent;
+  sendPulseActivationToAgent?: AgentSendToAgent;
   appendUserMessage: (text: string, attachments?: AgentAttachment[]) => string | null;
   updateMessageById: (
     messageId: string,

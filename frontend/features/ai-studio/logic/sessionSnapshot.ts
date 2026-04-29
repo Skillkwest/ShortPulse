@@ -608,7 +608,7 @@ export const buildAiStudioSessionSnapshot = (
       curatedReferenceIds: input.curatedReferenceIds,
       removedFromAllRefsIds: input.removedFromAllRefsIds,
     },
-    agent: activeAgentRuntime,
+    agent: emptyAgentRuntime,
     agentRuntimes,
     ...(canvas ? { canvas } : {}),
     ...(expertEdit ? { expertEdit } : {}),

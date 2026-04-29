@@ -298,6 +298,24 @@ export const useAiStudioAgentBridge = ({
     state: AgentBridgeRuntimeState;
   } | null>(null);
 
+  const standardAgentSessionNamespace = `ai-studio:${sessionId ?? "none"}::standard`;
+  const pulseAgentSessionNamespace = `ai-studio:${sessionId ?? "none"}::${pulseRuntimeScopeKey}`;
+  const standardAgent = useAiAgent({
+    enabled: agentEnabled,
+    sessionNamespace: standardAgentSessionNamespace,
+    runtimeMode: "standard",
+    directOpenAiBypassEnabled:
+      chatModeEnabled &&
+      directOpenAiBypassEnabled &&
+      (selectedTool === "create" || selectedTool === "text"),
+  });
+  const pulseAgent = useAiAgent({
+    enabled: agentEnabled,
+    sessionNamespace: pulseAgentSessionNamespace,
+    runtimeMode: "pulse",
+    directOpenAiBypassEnabled: false,
+  });
+  const activeAgent = isPulseCreateMode ? pulseAgent : standardAgent;
   const {
     messages: agentMessages,
     isSending: agentIsSending,
@@ -307,15 +325,9 @@ export const useAiStudioAgentBridge = ({
     updateMessageById,
     replaceMessages,
     reset: resetAgentChat,
-  } = useAiAgent({
-    enabled: agentEnabled,
-    sessionNamespace: `ai-studio:${agentBridgeSessionKey}`,
-    runtimeMode: isPulseCreateMode ? "pulse" : "standard",
-    directOpenAiBypassEnabled:
-      chatModeEnabled &&
-      directOpenAiBypassEnabled &&
-      (selectedTool === "create" || selectedTool === "text"),
-  });
+  } = activeAgent;
+  const resetStandardAgentChat = standardAgent.reset;
+  const resetPulseAgentChat = pulseAgent.reset;
 
   const [agentUiBusy, setAgentUiBusy] = useState(false);
   const agentUiBusyRef = useRef(false);
@@ -498,17 +510,31 @@ export const useAiStudioAgentBridge = ({
   }, [hasStoredPulseSession, pulseRuntimeScopeKey, sessionId]);
 
   useEffect(() => {
-    const activeRuntimeState =
+    const storedRuntimeState =
       agentBridgeRuntimeStateBySessionKeyRef.current[agentBridgeSessionKey] ??
       createDefaultRuntimeState({ forceChatModeEnabled: isPulseCreateMode ? true : undefined });
+    const liveRuntimeStateForActiveScope =
+      activeLiveRuntimeStateRef.current?.key === agentBridgeSessionKey
+        ? activeLiveRuntimeStateRef.current.state
+        : null;
+    const shouldPreserveLiveRuntimeState =
+      liveRuntimeStateForActiveScope != null &&
+      storedRuntimeState.messages.length === 0 &&
+      liveRuntimeStateForActiveScope.messages.length > 0;
+    const activeRuntimeState =
+      shouldPreserveLiveRuntimeState && liveRuntimeStateForActiveScope
+        ? liveRuntimeStateForActiveScope
+        : storedRuntimeState;
     agentUiBusyRef.current = false;
     setAgentUiBusy(false);
     // eslint-disable-next-line react-hooks/immutability -- The hydration echo sentinel lives in a ref specifically so scope rehydration metadata does not trigger extra renders.
-    pendingRuntimeHydrationRef.current = {
-      key: agentBridgeSessionKey,
-      state: activeRuntimeState,
-      previousKey: committedLiveRuntimeStateRef.current?.key ?? null,
-    };
+    pendingRuntimeHydrationRef.current = shouldPreserveLiveRuntimeState
+      ? null
+      : {
+          key: agentBridgeSessionKey,
+          state: activeRuntimeState,
+          previousKey: committedLiveRuntimeStateRef.current?.key ?? null,
+        };
     replaceMessages(activeRuntimeState.messages);
     setAgentInput(activeRuntimeState.input);
     setAgentAttachmentError(null);
@@ -699,6 +725,7 @@ export const useAiStudioAgentBridge = ({
     setSharedPrompt,
     setPromptOrigin,
     sendToAgent,
+    sendPulseActivationToAgent: pulseAgent.send,
     appendUserMessage,
     updateMessageById,
     getAgentContext,
@@ -790,7 +817,8 @@ export const useAiStudioAgentBridge = ({
 
   const resetProjectAgentConversation = useCallback(() => {
     const sessionKeyPrefix = `${sessionId ?? "none"}::`;
-    resetAgentChat();
+    resetStandardAgentChat();
+    resetPulseAgentChat();
     resetAgentComposer({ preserveInput: false, preserveAttachments: false });
     setAgentBridgeRuntimeStateBySessionKey((current) => {
       const nextEntries = Object.entries(current).filter(
@@ -804,8 +832,9 @@ export const useAiStudioAgentBridge = ({
     setAgentAttachmentError(null);
     setAgentAttachments([]);
   }, [
-    resetAgentChat,
+    resetPulseAgentChat,
     resetAgentComposer,
+    resetStandardAgentChat,
     sessionId,
     setAgentAttachmentError,
     setAgentAttachments,
@@ -872,7 +901,6 @@ export const useAiStudioAgentBridge = ({
   const hydrateFromSessionAgentSnapshot = useCallback(
     ({
       workspace,
-      agent,
       agentRuntimes,
     }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
       const sessionKeyPrefix = `${sessionId ?? "none"}::`;
@@ -907,7 +935,7 @@ export const useAiStudioAgentBridge = ({
       setAgentBridgeHydrationRevision((current) => current + 1);
       setPulseWorkflowSession(
         pulsePresetId && restoredPulseSessionInstanceId
-          ? (agentRuntimes.pulse.pulseWorkflowSession ?? agent.pulseWorkflowSession ?? null)
+          ? (agentRuntimes.pulse.pulseWorkflowSession ?? null)
           : null
       );
       setAgentAttachmentError(null);

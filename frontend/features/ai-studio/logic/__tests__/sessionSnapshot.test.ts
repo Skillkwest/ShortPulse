@@ -157,7 +157,7 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.expertCreateMode).toBe("pulse");
     expect(snapshot.workspace.activePulsePresetId).toBe("single_shot");
     expect(snapshot.outputs.active[0]?.id).toBe("out-1");
-    expect(snapshot.agent.messages[0]?.role).toBe("assistant");
+    expect(snapshot.agent.messages).toEqual([]);
     expect(snapshot.agentRuntimes).toEqual({
       standard: {
         messages: [],
@@ -186,16 +186,7 @@ describe("sessionSnapshot", () => {
         },
       },
     });
-    expect(snapshot.agent.pulseWorkflowSession).toEqual({
-      presetId: "single_shot",
-      status: "awaiting_input",
-      currentStepIndex: 2,
-      currentStepLabel: "Action",
-      currentStepPrompt: "Step 2 — Action: What should happen next?",
-      collectedInputs: ["Upload your image"],
-      lastArtifact: null,
-      finalArtifactSource: null,
-    });
+    expect(snapshot.agent.pulseWorkflowSession).toBeNull();
     expect(snapshot.canvas?.viewports.main.zoom).toBe(1);
     expect(snapshot.expertEdit?.state.markup.strokes).toHaveLength(1);
     expect(snapshot.expertEdit?.state.layers.layers[1]?.imageUrl).toBeNull();
@@ -314,8 +305,8 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.prompt).toBe("Pulse draft prompt");
     expect(snapshot.workspace.standardPrompt).toBe("Standard draft prompt");
     expect(snapshot.workspace.pulsePrompt).toBe("Pulse draft prompt");
-    expect(snapshot.agent.latestAgentPrompt).toBe("Completed artifact prompt");
-    expect(snapshot.agent.pulseWorkflowSession?.lastArtifact).toBe("Completed artifact prompt");
+    expect(snapshot.agent.latestAgentPrompt).toBeNull();
+    expect(snapshot.agent.pulseWorkflowSession).toBeNull();
     expect(snapshot.agentRuntimes?.pulse.latestAgentPrompt).toBe("Completed artifact prompt");
     expect(snapshot.agentRuntimes?.pulse.pulseWorkflowSession?.lastArtifact).toBe(
       "Completed artifact prompt"

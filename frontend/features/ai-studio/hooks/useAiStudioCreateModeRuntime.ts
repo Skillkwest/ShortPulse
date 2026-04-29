@@ -117,9 +117,15 @@ export const useAiStudioCreateModeRuntime = ({
     };
   }, [activeCreatePulsePresetIdState]);
 
-  const handleExpertCreateModeChange = useCallback((nextMode: AiStudioExpertCreateMode) => {
-    setExpertCreateModeState((current) => (current === nextMode ? current : nextMode));
-  }, []);
+  const handleExpertCreateModeChange = useCallback(
+    (nextMode: AiStudioExpertCreateMode) => {
+      setExpertCreateModeState((current) => (current === nextMode ? current : nextMode));
+      if (nextMode === "standard") {
+        clearPulseRuntime();
+      }
+    },
+    [clearPulseRuntime]
+  );
 
   const handleActiveCreatePulsePresetIdChange = useCallback(
     (nextPresetId: CreatePulsePresetId | null) => {

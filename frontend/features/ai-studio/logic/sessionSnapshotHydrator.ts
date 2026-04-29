@@ -629,7 +629,6 @@ export const buildAiStudioSessionHydrationPayload = (
 ): AiStudioSessionHydrationPayload => {
   const workspace = snapshot.workspace ?? ({} as AiStudioSessionSnapshotV1["workspace"]);
   const outputs = snapshot.outputs ?? ({} as AiStudioSessionSnapshotV1["outputs"]);
-  const agent = snapshot.agent ?? ({} as AiStudioSessionSnapshotV1["agent"]);
   const agentRuntimes =
     snapshot.schemaVersion >= 2
       ? (((snapshot as Record<string, unknown>).agentRuntimes as Record<string, unknown> | null) ??
@@ -686,30 +685,21 @@ export const buildAiStudioSessionHydrationPayload = (
   const workspaceActivePulsePresetId = normalizedWorkspacePulseState.activePulsePresetId;
   const workspacePulseSessionInstanceId = normalizedWorkspacePulseState.pulseSessionInstanceId;
   const defaultAgentRuntime = buildHydratedAgentRuntime(null);
-  const legacyAgentRuntime = buildHydratedAgentRuntime(agent);
-  const legacyPulseRuntime = coerceHydratedRuntimeChatMode(legacyAgentRuntime, {
-    forceChatModeEnabled: true,
-  });
   const hydratedAgentRuntimes = {
     standard: agentRuntimes?.standard
       ? buildHydratedAgentRuntime(agentRuntimes.standard)
-      : workspaceExpertCreateMode === "pulse"
-        ? defaultAgentRuntime
-        : legacyAgentRuntime,
+      : defaultAgentRuntime,
     pulsePresetId:
       workspaceExpertCreateMode === "pulse"
         ? normalizePulsePresetId(agentRuntimes?.pulsePresetId) ||
           workspaceActivePulsePresetId ||
-          legacyAgentRuntime.pulseWorkflowSession?.presetId ||
           null
         : null,
     pulse: agentRuntimes?.pulse
       ? coerceHydratedRuntimeChatMode(buildHydratedAgentRuntime(agentRuntimes.pulse), {
           forceChatModeEnabled: true,
         })
-      : workspaceExpertCreateMode === "pulse"
-        ? legacyPulseRuntime
-        : defaultAgentRuntime,
+      : defaultAgentRuntime,
   };
   const resolvedWorkspacePulseState = resolveHydratedPulseRuntimeState({
     expertCreateMode: workspaceExpertCreateMode,

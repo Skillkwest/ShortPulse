@@ -146,7 +146,23 @@ export const useAiAgent = ({
     }: SendParams): Promise<SendResult> => {
       const requestSessionNamespace = sessionNamespaceOverride ?? sessionNamespace;
       const requestSessionIdentity = `${requestSessionNamespace}::${conversationId?.trim() ?? ""}`;
+      const isNamespaceOverrideSend =
+        typeof sessionNamespaceOverride === "string" &&
+        sessionNamespaceOverride !== sessionNamespace;
+      if (runtimeMode === "standard" && isNamespaceOverrideSend) {
+        const errorText = "Standard agent cannot send to an override session namespace.";
+        setError(errorText);
+        return {
+          response: null,
+          actions: undefined,
+          workflowSession: null,
+          errorText,
+          failureKind: "transport_error",
+        };
+      }
       if (!sessionIdentityRef.current) {
+        sessionIdentityRef.current = requestSessionIdentity;
+      } else if (isNamespaceOverrideSend) {
         sessionIdentityRef.current = requestSessionIdentity;
       }
       const isStaleRequest = () => sessionIdentityRef.current !== requestSessionIdentity;

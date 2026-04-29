@@ -282,13 +282,8 @@ describe("sessionSnapshotHydrator", () => {
 
     expect(payload.workspace.activePulsePresetId).toBeNull();
     expect(payload.workspace.pulseSessionInstanceId).toBeNull();
-    expect(payload.agent.messages).toEqual([
-      {
-        id: "assistant-1",
-        role: "assistant",
-        content: "Standard agent reply",
-      },
-    ]);
+    expect(payload.agent.messages).toEqual([]);
+    expect(payload.agentRuntimes.standard.messages).toEqual([]);
     expect(payload.agentRuntimes.pulse.messages).toEqual([]);
     expect(payload.agentRuntimes.pulse.input).toBe("");
     expect(payload.agentRuntimes.pulse.latestAgentPrompt).toBeNull();
@@ -307,7 +302,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.selectedCharacterId).toBe("char-1");
   });
 
-  it("hydrates pulse workflow session state", () => {
+  it("ignores legacy generic-agent pulse workflow session state", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
         workspace: {
@@ -330,29 +325,11 @@ describe("sessionSnapshotHydrator", () => {
       })
     );
 
-    expect(payload.agent.pulseWorkflowSession).toEqual({
-      presetId: "story_builder",
-      status: "awaiting_input",
-      currentStepIndex: 4,
-      currentStepLabel: "Scene Review",
-      currentStepPrompt: "Step 4 — Review scenes. What would you like to change?",
-      collectedInputs: ["grimdark", "A knight enters a cursed forest", "5 min"],
-      lastArtifact: null,
-      finalArtifactSource: null,
-    });
-    expect(payload.agentRuntimes.pulse.pulseWorkflowSession).toEqual({
-      presetId: "story_builder",
-      status: "awaiting_input",
-      currentStepIndex: 4,
-      currentStepLabel: "Scene Review",
-      currentStepPrompt: "Step 4 — Review scenes. What would you like to change?",
-      collectedInputs: ["grimdark", "A knight enters a cursed forest", "5 min"],
-      lastArtifact: null,
-      finalArtifactSource: null,
-    });
+    expect(payload.agent.pulseWorkflowSession).toBeNull();
+    expect(payload.agentRuntimes.pulse.pulseWorkflowSession).toBeNull();
   });
 
-  it("hydrates completed pulse workflow artifacts with their completion source", () => {
+  it("ignores legacy generic-agent completed pulse workflow artifacts", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
         agent: {
@@ -372,17 +349,8 @@ describe("sessionSnapshotHydrator", () => {
       })
     );
 
-    expect(payload.agent.pulseWorkflowSession).toEqual({
-      presetId: "story_builder",
-      status: "completed",
-      currentStepIndex: 6,
-      currentStepLabel: "Dialogue Story",
-      currentStepPrompt: null,
-      collectedInputs: ["grimdark", "A knight enters a cursed forest", "5 min"],
-      lastArtifact:
-        "Scene 1: A grimdark knight stands at the cursed forest edge beneath cold moonlight.",
-      finalArtifactSource: "chat_reply",
-    });
+    expect(payload.agent.pulseWorkflowSession).toBeNull();
+    expect(payload.agentRuntimes.pulse.pulseWorkflowSession).toBeNull();
   });
 
   it("round-trips a completed pulse workflow session artifact through snapshot build and hydrate", () => {
@@ -994,13 +962,9 @@ describe("sessionSnapshotHydrator", () => {
       })
     );
 
-    expect(payload.agent.messages).toEqual([
-      { id: "fixed-id", role: "assistant", content: "A" },
-      { id: "fixed-id-1", role: "assistant", content: "B" },
-      { id: "agent-user-restored-2", role: "user", content: "user message" },
-    ]);
-    expect(payload.agent.input).toBe("draft");
-    expect(payload.agent.latestAgentPrompt).toBe("latest");
+    expect(payload.agent.messages).toEqual([]);
+    expect(payload.agent.input).toBe("");
+    expect(payload.agent.latestAgentPrompt).toBeNull();
     expect(payload.agent.promptOrigin).toBe("manual");
     expect(payload.agent.chatModeEnabled).toBe(true);
   });

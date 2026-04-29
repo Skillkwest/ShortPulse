@@ -14,17 +14,13 @@ import {
 } from "react";
 import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
 import type {
-  AgentActions,
-  AgentApiContext,
   AgentApiRequest,
   AgentAttachment,
   AgentAssistantMessageEditRequest,
   AgentContext,
   AgentMessage,
-  AgentResponse,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
-import type { StudioAgentTransportResult } from "../../ai-agent/client/studioAgentTransport";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import type {
   AiStudioSessionAgentMessageV1,
@@ -41,6 +37,7 @@ import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatMo
 import { resolveCreateAgentBridgeRuntime } from "./agentBridgeRuntime/createAgentBridgeRuntime";
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "./agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
+import type { CreateAgentRuntimeBinding } from "./agentBridgeRuntime/createAgentRuntimeBinding";
 
 type UseAiStudioAgentBridgeParams = {
   projectId?: string | null;
@@ -95,47 +92,21 @@ type PendingRuntimeHydration = {
 
 type AgentBridgeHydrationRuntime = AiStudioSessionHydrationPayload["agent"];
 
-type CreateAgentRuntimeBinding = {
-  buildAgentContext: (context: AgentContext) => AgentApiContext;
-  sendAgentTurn: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
-  resolveTransportSuccess: (response: AgentResponse) => {
-    actions: AgentActions | undefined;
-    workflowSession?: AgentPulseWorkflowSession | null;
-    canonicalPrompt: string | null;
-    assistantContent: string;
-    assistantOutputPrompt: string | null;
-  };
-};
-
 let standardRuntimeBindingPromise: Promise<CreateAgentRuntimeBinding> | null = null;
 let pulseRuntimeBindingPromise: Promise<CreateAgentRuntimeBinding> | null = null;
 
 const loadStandardCreateAgentRuntimeBinding = () => {
-  standardRuntimeBindingPromise ??= Promise.all([
-    import("../../ai-agent/logic/standardContextBuilder"),
-    import("../../ai-agent/client/standardStudioAgentTransport"),
-    import("../../ai-agent/client/standardTransportResultResolution"),
-  ]).then(([contextModule, transportModule, parserModule]) => ({
-    buildAgentContext: contextModule.buildStandardCreateAgentContext,
-    sendAgentTurn: transportModule.sendStandardCreateAgentTurn,
-    resolveTransportSuccess: (response: AgentResponse) => ({
-      ...parserModule.resolveStandardCreateAgentTransportSuccess(response),
-      workflowSession: null,
-    }),
-  }));
+  standardRuntimeBindingPromise ??=
+    import("./agentBridgeRuntime/standardCreateAgentRuntimeBinding").then(
+      (module) => module.standardCreateAgentRuntimeBinding
+    );
   return standardRuntimeBindingPromise;
 };
 
 const loadPulseCreateAgentRuntimeBinding = () => {
-  pulseRuntimeBindingPromise ??= Promise.all([
-    import("../../ai-agent/logic/pulseCreateAgentContextBuilder"),
-    import("../../ai-agent/client/pulseStudioAgentTransport"),
-    import("../../ai-agent/client/pulseTransportResultResolution"),
-  ]).then(([contextModule, transportModule, parserModule]) => ({
-    buildAgentContext: contextModule.buildPulseCreateAgentContext,
-    sendAgentTurn: transportModule.sendPulseCreateAgentTurn,
-    resolveTransportSuccess: parserModule.resolvePulseCreateAgentTransportSuccess,
-  }));
+  pulseRuntimeBindingPromise ??= import("./agentBridgeRuntime/pulseCreateAgentRuntimeBinding").then(
+    (module) => module.pulseCreateAgentRuntimeBinding
+  );
   return pulseRuntimeBindingPromise;
 };
 

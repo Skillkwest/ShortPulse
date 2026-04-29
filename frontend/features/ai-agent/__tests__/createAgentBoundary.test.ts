@@ -97,6 +97,14 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("import { sendStandardCreateAgentTurn");
     expect(bridgeSource).not.toContain("import { resolveStandardCreateAgentTransportSuccess");
     expect(bridgeSource).not.toContain("import { buildStandardCreateAgentContext");
+    expect(bridgeSource).not.toContain("pulseStudioAgentTransport");
+    expect(bridgeSource).not.toContain("pulseTransportResultResolution");
+    expect(bridgeSource).not.toContain("pulseCreateAgentContextBuilder");
+    expect(bridgeSource).not.toContain("standardStudioAgentTransport");
+    expect(bridgeSource).not.toContain("standardTransportResultResolution");
+    expect(bridgeSource).not.toContain("standardContextBuilder");
+    expect(bridgeSource).toContain("./agentBridgeRuntime/pulseCreateAgentRuntimeBinding");
+    expect(bridgeSource).toContain("./agentBridgeRuntime/standardCreateAgentRuntimeBinding");
   });
 
   it("keeps custom Pulse preference loading out of page-root Create state", () => {

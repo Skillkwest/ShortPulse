@@ -1329,16 +1329,6 @@ export default function AiStudioPage() {
     agentEnabled,
     agentBootstrapReady,
     agentMessages,
-    createModeRuntimeProps: {
-      expertCreateMode,
-      hasActivePulseSession,
-      onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
-      pulseWorkflowSession,
-      activePulsePresetId: activeCreatePulsePresetId,
-      activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
-      onActivePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
-      onPulsePresetStart: handleCreatePulsePresetStart,
-    },
     agentInput,
     chatModeEnabled,
     directOpenAiBypassEnabled,
@@ -1478,6 +1468,33 @@ export default function AiStudioPage() {
     onCreateCharacter: handleOpenCharacterCreate,
     onCreateElement: handleOpenElementCreate,
   });
+  const panelPropsWithCreateModeRuntime = useMemo(
+    () => ({
+      ...panelProps,
+      propertiesCreate: {
+        ...panelProps.propertiesCreate,
+        expertCreateMode,
+        hasActivePulseSession,
+        onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
+        pulseWorkflowSession,
+        activePulsePresetId: activeCreatePulsePresetId,
+        activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
+        onActivePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
+        onPulsePresetStart: handleCreatePulsePresetStart,
+      },
+    }),
+    [
+      activeCreatePulsePresetId,
+      activeCreatePulsePresetSnapshot?.label,
+      expertCreateMode,
+      handleActiveCreatePulsePresetIdChangeForPage,
+      handleCreatePulsePresetStart,
+      handleExpertCreateModeChangeForPage,
+      hasActivePulseSession,
+      panelProps,
+      pulseWorkflowSession,
+    ]
+  );
   const referenceGridHookProps = useAiStudioReferenceGridProps({
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
@@ -1550,7 +1567,7 @@ export default function AiStudioPage() {
     onDetailSaveReference,
     onDetailSavePrompt,
   } = mapHookContractsToPageContentProps({
-    panelProps,
+    panelProps: panelPropsWithCreateModeRuntime,
     referenceGridProps: referenceGridPageProps,
     previewDetailProps,
   });

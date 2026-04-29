@@ -15,7 +15,6 @@ import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../logic/editSubmitIntent";
 import { createWorkflowBeginnerModePolicy } from "../logic/beginnerWorkflowPolicy";
 import type { AiStudioKlingElement } from "../logic/klingElements";
-import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
 import type {
   ExpertEditCustomPresetOverrides,
   ExpertEditPresetId,
@@ -33,7 +32,6 @@ export type UseAiStudioPanelPropsParams = {
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
   agentMessages: AgentMessage[];
-  createModeRuntimeProps?: Partial<AiStudioPanelContracts["propertiesCreate"]>;
   agentInput: string;
   chatModeEnabled: boolean;
   directOpenAiBypassEnabled: boolean;
@@ -211,7 +209,6 @@ export const useAiStudioPanelProps = ({
   agentEnabled,
   agentBootstrapReady,
   agentMessages,
-  createModeRuntimeProps,
   agentInput,
   chatModeEnabled,
   directOpenAiBypassEnabled,
@@ -446,7 +443,6 @@ export const useAiStudioPanelProps = ({
       resolveCharacterAvatarUrlById,
       imageResolution,
       onImageResolutionChange: setImageResolution,
-      ...createModeRuntimeProps,
       beginnerMode: beginnerPolicy.create.beginnerMode,
       expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
     }),
@@ -509,7 +505,6 @@ export const useAiStudioPanelProps = ({
       onOpenCharacterLibrary,
       setAspect,
       setChatModeEnabled,
-      createModeRuntimeProps,
       setImageResolution,
       setIsCharacterModeEnabled,
       setSelectedCharacterId,

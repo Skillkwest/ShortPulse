@@ -298,42 +298,6 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
   });
 
-  it("forwards Pulse runtime facts without deriving Pulse presentation state", () => {
-    const { result } = renderHook(() =>
-      useAiStudioPanelProps(
-        createParams({
-          createModeRuntimeProps: {
-            expertCreateMode: "pulse",
-            hasActivePulseSession: true,
-            activePulsePresetId: "story_builder",
-            pulseWorkflowSession: {
-              presetId: "story_builder",
-              status: "running",
-              currentStepIndex: 1,
-              currentStepLabel: "Upload Characters",
-              currentStepPrompt: "Upload your characters.",
-              collectedInputs: [],
-              lastArtifact: null,
-              finalArtifactSource: null,
-            },
-          },
-          agentMessages: [],
-          agentBusy: true,
-          agentIsSending: true,
-          agentUiBusy: false,
-        })
-      )
-    );
-
-    expect("pulseLoadingState" in result.current.propertiesCreate).toBe(false);
-    expect(result.current.propertiesCreate.activePulsePresetId).toBe("story_builder");
-    expect(result.current.propertiesCreate.agentTransportSending).toBe(true);
-    expect(result.current.propertiesCreate.agentUiBusy).toBe(false);
-    expect(result.current.propertiesCreate.pulseWorkflowSession?.currentStepLabel).toBe(
-      "Upload Characters"
-    );
-  });
-
   it("keeps edit generate available while edit submits are in flight but still locks video", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(

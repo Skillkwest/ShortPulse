@@ -51,7 +51,7 @@ type UseCreateAgentStateCoreOptions = {
   sendAgentTurn: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
   resolveTransportSuccess: (response: AgentResponse) => {
     actions: AgentActions | undefined;
-    workflowSession: SendResult["workflowSession"];
+    workflowSession?: SendResult["workflowSession"];
     canonicalPrompt: string | null;
     assistantContent: string;
     assistantOutputPrompt: string | null;
@@ -331,7 +331,7 @@ export const useCreateAgentStateCore = ({
         const data = transportResult.data;
         const {
           actions,
-          workflowSession,
+          workflowSession = null,
           canonicalPrompt,
           assistantContent,
           assistantOutputPrompt,

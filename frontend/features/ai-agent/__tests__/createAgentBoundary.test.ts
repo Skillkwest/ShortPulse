@@ -255,6 +255,12 @@ describe("Create agent mode boundaries", () => {
     const panelPropBuilderSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioPanelProps.ts"
     );
+    const standardCreatePanelPropsSource = readFrontendFile(
+      "features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePanelProps.ts"
+    );
+    const pulseCreatePanelPropsSource = readFrontendFile(
+      "features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePanelProps.ts"
+    );
     const pulseComposerSource = readFrontendFile(
       "features/ai-studio/components/create/PulseCreatePropertiesPanel.tsx"
     );
@@ -268,6 +274,14 @@ describe("Create agent mode boundaries", () => {
     expect(panelPropBuilderSource).not.toContain("activeCreatePulsePreset");
     expect(panelPropBuilderSource).not.toContain("onCreatePulsePresetStart");
     expect(panelPropBuilderSource).not.toContain("createModeRuntimeProps");
+    expect(panelPropBuilderSource).toContain("useStandardCreatePanelProps");
+    expect(panelPropBuilderSource).toContain("usePulseCreatePanelProps");
+    expect(standardCreatePanelPropsSource).not.toContain("Pulse");
+    expect(standardCreatePanelPropsSource).not.toContain("pulseWorkflowSession");
+    expect(pulseCreatePanelPropsSource).not.toContain("Standard");
+    expect(pulseCreatePanelPropsSource).not.toContain("onAgentEnhanceSend");
+    expect(pulseCreatePanelPropsSource).not.toContain("onChatModeEnabledChange");
+    expect(pulseCreatePanelPropsSource).not.toContain("onChatOffInlineGenerate");
     expect(pageContractSource).toContain('expertCreateMode: "standard"');
     expect(pageContractSource).toContain("pulse?: never");
     expect(pageContractSource).toContain('expertCreateMode: "pulse"');

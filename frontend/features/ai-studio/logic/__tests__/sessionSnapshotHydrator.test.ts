@@ -334,6 +334,9 @@ describe("sessionSnapshotHydrator", () => {
       },
       workspace: {
         ...createSnapshot().workspace,
+        prompt: "Standard prompt",
+        standardPrompt: "Standard prompt",
+        pulsePrompt: "Stale Pulse artifact prompt",
         expertCreateMode: "standard",
         activePulsePresetId: null,
       },
@@ -382,6 +385,9 @@ describe("sessionSnapshotHydrator", () => {
     } as AiStudioSessionSnapshot);
 
     expect(payload.workspace.expertCreateMode).toBe("standard");
+    expect(payload.workspace.prompt).toBe("Standard prompt");
+    expect(payload.workspace.standardPrompt).toBe("Standard prompt");
+    expect(payload.workspace.pulsePrompt).toBe("");
     expect(payload.agentRuntimes.pulsePresetId).toBeNull();
     expect(payload.agentRuntimes.pulse.messages).toEqual([]);
     expect(payload.agentRuntimes.pulse.input).toBe("");

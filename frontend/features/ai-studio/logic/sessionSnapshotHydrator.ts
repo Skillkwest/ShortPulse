@@ -668,10 +668,10 @@ export const buildAiStudioSessionHydrationPayload = (
     (workspace as { standardPrompt?: unknown }).standardPrompt,
     workspaceExpertCreateMode === "pulse" ? "" : legacyWorkspacePrompt
   );
-  const workspacePulsePrompt = asString(
-    (workspace as { pulsePrompt?: unknown }).pulsePrompt,
-    workspaceExpertCreateMode === "pulse" ? legacyWorkspacePrompt : ""
-  );
+  const workspacePulsePrompt =
+    workspaceExpertCreateMode === "pulse"
+      ? asString((workspace as { pulsePrompt?: unknown }).pulsePrompt, legacyWorkspacePrompt)
+      : "";
   const normalizedWorkspacePulseState = resolvePulseRuntimeState({
     expertCreateMode: workspaceExpertCreateMode,
     activePulsePresetId: (workspace as { activePulsePresetId?: unknown }).activePulsePresetId,

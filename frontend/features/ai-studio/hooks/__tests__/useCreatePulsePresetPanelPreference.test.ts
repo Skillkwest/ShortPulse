@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { useCreatePulsePresetPanelPreference } from "../useCreatePulsePresetPanelPreference";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 
@@ -65,6 +66,17 @@ describe("useCreatePulsePresetPanelPreference", () => {
     expect(result.current.syncState).toBe("ready");
     expect(ensureSupabaseQueryClient).not.toHaveBeenCalled();
     expect(readSupabaseUserId).not.toHaveBeenCalled();
+  });
+
+  it("keeps custom Pulse preference loading out of the AI Studio page root", () => {
+    const pageSource = readFileSync(`${process.cwd()}/pages/ai-studio.tsx`, "utf8");
+    const pulseRuntimeSource = readFileSync(
+      `${process.cwd()}/features/ai-studio/components/create/CreatePulsePreferenceRuntime.tsx`,
+      "utf8"
+    );
+
+    expect(pageSource).not.toContain("useCreatePulsePresetPanelPreference");
+    expect(pulseRuntimeSource).toContain("useCreatePulsePresetPanelPreference");
   });
 
   it("drops retired local pulse ids without legacy custom-slot migration", async () => {

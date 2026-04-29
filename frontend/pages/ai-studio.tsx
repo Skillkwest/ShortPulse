@@ -22,12 +22,17 @@ import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/useExpertEditPresetPanelPreference";
-import { useCreatePulsePresetPanelPreference } from "../features/ai-studio/hooks/useCreatePulsePresetPanelPreference";
 import {
+  CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS,
   isCreatePulseBuiltInPresetId,
+  normalizeCreatePulsePanelPresetIds,
   resolveCreatePulsePresetById,
   type CreatePulseResolvedPreset,
 } from "../features/ai-studio/components/create/createPulsePresets";
+import {
+  CreatePulsePreferenceRuntime,
+  type CreatePulsePreferenceRuntimeValue,
+} from "../features/ai-studio/components/create/CreatePulsePreferenceRuntime";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
@@ -116,6 +121,17 @@ const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
+const DEFAULT_CREATE_PULSE_PANEL_IDS = normalizeCreatePulsePanelPresetIds(
+  CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS
+);
+
+const createInactivePulsePreferenceRuntime = (): CreatePulsePreferenceRuntimeValue => ({
+  presetPanelIds: DEFAULT_CREATE_PULSE_PANEL_IDS,
+  savedPresets: [],
+  setPresetPanelIds: async () => false,
+  setSavedPresets: async () => false,
+});
+
 export default function AiStudioPage() {
   const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
@@ -131,13 +147,21 @@ export default function AiStudioPage() {
     setPresetPanelIds: setSelectedExpertEditPresetIds,
     setCustomPresetOverrides: setExpertEditCustomPresetOverrides,
   } = useExpertEditPresetPanelPreference();
-  const [createPulsePreferenceEnabled, setCreatePulsePreferenceEnabled] = useState(false);
-  const {
-    presetPanelIds: selectedCreatePulsePresetIds,
-    savedPresets: savedCreatePulsePresets,
-    setPresetPanelIds: setSelectedCreatePulsePresetIds,
-    setSavedPresets: setSavedCreatePulsePresets,
-  } = useCreatePulsePresetPanelPreference({ enabled: createPulsePreferenceEnabled });
+  const [createPulsePreferenceRuntime, setCreatePulsePreferenceRuntime] =
+    useState<CreatePulsePreferenceRuntimeValue>(() => createInactivePulsePreferenceRuntime());
+  const selectedCreatePulsePresetIds = createPulsePreferenceRuntime.presetPanelIds;
+  const savedCreatePulsePresets = createPulsePreferenceRuntime.savedPresets;
+  const setSelectedCreatePulsePresetIds = createPulsePreferenceRuntime.setPresetPanelIds;
+  const setSavedCreatePulsePresets = createPulsePreferenceRuntime.setSavedPresets;
+  const resetCreatePulsePreferenceRuntime = useCallback(() => {
+    setCreatePulsePreferenceRuntime(createInactivePulsePreferenceRuntime());
+  }, []);
+  const handleCreatePulsePreferenceChange = useCallback(
+    (value: CreatePulsePreferenceRuntimeValue) => {
+      setCreatePulsePreferenceRuntime(value);
+    },
+    []
+  );
   const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
   const {
     modelPricingPolicy,
@@ -204,10 +228,6 @@ export default function AiStudioPage() {
     selectedCreatePulsePresetIds,
     savedCreatePulsePresets,
   });
-  useEffect(() => {
-    setCreatePulsePreferenceEnabled(expertCreateMode === "pulse");
-  }, [expertCreateMode]);
-
   // Character workflow state (shared with Character tool workflows and error surfaces)
   const {
     error: characterError,
@@ -1670,6 +1690,12 @@ export default function AiStudioPage() {
 
   return (
     <AiStudioModalActivityProvider>
+      {expertCreateMode === "pulse" ? (
+        <CreatePulsePreferenceRuntime
+          onPreferenceChange={handleCreatePulsePreferenceChange}
+          onPreferenceReset={resetCreatePulsePreferenceRuntime}
+        />
+      ) : null}
       <Head>
         <title>ShortPulse · AI Studio</title>
         <meta name="description" content="AI Studio — prompt, generate, preview, save." />

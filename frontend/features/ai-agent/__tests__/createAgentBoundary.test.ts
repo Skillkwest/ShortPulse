@@ -232,6 +232,7 @@ describe("Create agent mode boundaries", () => {
     expect(pulseComposerSource).not.toContain("ResolutionDropdown");
     expect(pulseComposerSource).not.toContain("onChatOffInlineGenerate");
     expect(pulseComposerSource).not.toContain("onGenerateFromAgentOutputPrompt");
+    expect(pulseComposerSource).not.toContain("onAgentEnhanceSend");
     expect(pulseComposerSource).not.toContain("chatModeInlineGenerate:");
     expect(pulseComposerSource).not.toContain("outputGenerateCostCredits?:");
 
@@ -244,6 +245,7 @@ describe("Create agent mode boundaries", () => {
     expect(standardChatSurfaceSource).not.toContain("pulseLoadingState");
     expect(standardChatSurfaceSource).not.toContain("useFlowComposerLayout");
     expect(pulsePromptStepSource).toContain("PulsePromptStepChatSurface");
+    expect(pulsePromptStepSource).not.toContain("onAgentEnhanceSend");
   });
 
   it("keeps Pulse loading presentation out of the shared panel prop builder", () => {

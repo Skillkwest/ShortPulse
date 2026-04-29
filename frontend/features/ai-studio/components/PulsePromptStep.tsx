@@ -33,7 +33,6 @@ export type PulsePromptStepProps = {
   agentDropActive?: boolean;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
-  onAgentEnhanceSend?: () => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -113,7 +112,6 @@ export function PulsePromptStep({
   agentDropActive = false,
   onAgentInputChange,
   onAgentSend,
-  onAgentEnhanceSend,
   onAgentAttachmentDrop,
   onAgentAttachmentDragOver,
   onAgentAttachmentDragEnter,
@@ -201,23 +199,6 @@ export function PulsePromptStep({
 
   const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     onPromptKeyDown?.(event);
-    if (event.defaultPrevented) {
-      return;
-    }
-    if (
-      event.key !== "Enter" ||
-      event.shiftKey ||
-      event.metaKey ||
-      event.ctrlKey ||
-      event.altKey ||
-      agentIsSending ||
-      hideEnhanceButton ||
-      !onAgentEnhanceSend
-    ) {
-      return;
-    }
-    event.preventDefault();
-    onAgentEnhanceSend();
   };
 
   const canUsePromptSurface = agentEnabled || enhanceOnly;
@@ -458,7 +439,6 @@ export function PulsePromptStep({
                 beginnerPinHelperText={beginnerPinHelperText}
                 hideEnhanceButton={hideEnhanceButton}
                 enhanceOnly={enhanceOnly}
-                onAgentEnhanceSend={onAgentEnhanceSend}
                 onAgentSend={onAgentSend}
                 agentIsSending={agentIsSending}
                 agentBootstrapPending={agentBootstrapPending}

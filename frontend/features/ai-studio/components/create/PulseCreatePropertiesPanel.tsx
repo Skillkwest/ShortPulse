@@ -44,7 +44,6 @@ export type PulseCreatePropertiesPanelProps = {
   guardrailReason?: string | null;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
-  onAgentEnhanceSend?: () => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -93,7 +92,6 @@ export function PulseCreatePropertiesPanel({
   agentDropActive = false,
   onAgentInputChange,
   onAgentSend,
-  onAgentEnhanceSend,
   onAgentAttachmentDrop,
   onAgentAttachmentDragOver,
   onAgentAttachmentDragEnter,
@@ -174,7 +172,6 @@ export function PulseCreatePropertiesPanel({
     agentDropActive,
     onAgentInputChange,
     onAgentSend,
-    onAgentEnhanceSend,
     onAgentAttachmentDrop,
     onAgentAttachmentDragOver,
     onAgentAttachmentDragEnter,

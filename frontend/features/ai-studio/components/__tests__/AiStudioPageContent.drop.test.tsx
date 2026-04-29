@@ -8,6 +8,14 @@ import type { ReferenceGridProps } from "../../reference-grid/referenceGridTypes
 import type { StudioOutput } from "../../types";
 
 const createPropertiesPanelRenderSpy = vi.fn();
+type TestStandardCreateProps = Extract<
+  AiStudioPageContentProps["propertiesCreate"],
+  { expertCreateMode: "standard" }
+>["standard"];
+type TestPulseCreateProps = Extract<
+  AiStudioPageContentProps["propertiesCreate"],
+  { expertCreateMode: "pulse" }
+>["pulse"];
 type StudioPreviewMockProps = {
   activeOutput: StudioOutput | null;
   referenceImageUrl: string | null;
@@ -102,16 +110,25 @@ const createCreateProperties = (
     ...overrides,
     expertCreateMode,
   } as Record<string, unknown>;
+  const onExpertCreateModeChange = shared.onExpertCreateModeChange as
+    | ((value: "standard" | "pulse") => void)
+    | undefined;
+  if (expertCreateMode === "pulse") {
+    return {
+      expertCreateMode,
+      onExpertCreateModeChange,
+      pulse: {
+        ...shared,
+        chatModeEnabled: shared.chatModeEnabled ?? true,
+      } as TestPulseCreateProps,
+    };
+  }
   return {
     expertCreateMode,
-    onExpertCreateModeChange: shared.onExpertCreateModeChange as
-      | ((value: "standard" | "pulse") => void)
-      | undefined,
-    standard: shared as AiStudioPageContentProps["propertiesCreate"]["standard"],
-    pulse: {
+    onExpertCreateModeChange,
+    standard: {
       ...shared,
-      chatModeEnabled: shared.chatModeEnabled ?? true,
-    } as AiStudioPageContentProps["propertiesCreate"]["pulse"],
+    } as TestStandardCreateProps,
   };
 };
 

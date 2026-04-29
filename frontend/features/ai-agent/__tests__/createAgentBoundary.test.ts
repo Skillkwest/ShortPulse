@@ -249,6 +249,9 @@ describe("Create agent mode boundaries", () => {
   });
 
   it("keeps Pulse loading presentation out of the shared panel prop builder", () => {
+    const pageContractSource = readFrontendFile(
+      "features/ai-studio/hooks/contracts/pageContentContracts.ts"
+    );
     const panelPropBuilderSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioPanelProps.ts"
     );
@@ -265,6 +268,10 @@ describe("Create agent mode boundaries", () => {
     expect(panelPropBuilderSource).not.toContain("activeCreatePulsePreset");
     expect(panelPropBuilderSource).not.toContain("onCreatePulsePresetStart");
     expect(panelPropBuilderSource).not.toContain("createModeRuntimeProps");
+    expect(pageContractSource).toContain('expertCreateMode: "standard"');
+    expect(pageContractSource).toContain("pulse?: never");
+    expect(pageContractSource).toContain('expertCreateMode: "pulse"');
+    expect(pageContractSource).toContain("standard?: never");
     expect(pulseComposerSource).toContain("PromptStepPulseLoadingState");
     expect(pulseComposerSource).toContain("resolveCreatePulsePresetLabelById");
     expect(pulseComposerSource).toContain("pulseLoadingState");

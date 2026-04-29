@@ -614,8 +614,16 @@ export function AiStudioPageContent({
 }: AiStudioPageContentProps) {
   const resolvedReferenceGridFileInputRef = referenceGridFileInputRef;
   const resolvedCreateProperties = propertiesCreate;
-  const resolvedStandardCreateProperties = resolvedCreateProperties.standard;
-  const resolvedPulseCreateProperties = resolvedCreateProperties.pulse;
+  const resolvedStandardCreateProperties =
+    resolvedCreateProperties.expertCreateMode === "standard"
+      ? resolvedCreateProperties.standard
+      : null;
+  const resolvedPulseCreateProperties =
+    resolvedCreateProperties.expertCreateMode === "pulse" ? resolvedCreateProperties.pulse : null;
+  const activeCreateProperties =
+    resolvedCreateProperties.expertCreateMode === "pulse"
+      ? resolvedPulseCreateProperties
+      : resolvedStandardCreateProperties;
   const resolvedReferenceGridProps = referenceGridProps;
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
@@ -626,8 +634,8 @@ export function AiStudioPageContent({
   const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
   const showExpertCreatePanel = Boolean(
     propertiesPanelKind === "create" &&
-    resolvedStandardCreateProperties.expertCreateUiEligible &&
-    !resolvedStandardCreateProperties.beginnerMode
+    activeCreateProperties?.expertCreateUiEligible &&
+    !activeCreateProperties.beginnerMode
   );
   const showExpertEditPanel = propertiesPanelKind === "edit";
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
@@ -1147,16 +1155,19 @@ export function AiStudioPageContent({
     ]
   );
   const resolvedStandardCreatePropertiesWithStyles = React.useMemo(
-    () => ({
-      ...resolvedStandardCreateProperties,
-      isStylesPanelOpen,
-      onStylesPanelToggle: handleStylesPanelToggle,
-      onOpenPresetsLibrary: () => handleToolSelection("presets"),
-      selectedStyleId,
-      stylesCatalog: visibleStylesCatalog,
-      expertCreateMode,
-      onExpertCreateModeChange: handleExpertCreateModeChange,
-    }),
+    () =>
+      resolvedStandardCreateProperties
+        ? {
+            ...resolvedStandardCreateProperties,
+            isStylesPanelOpen,
+            onStylesPanelToggle: handleStylesPanelToggle,
+            onOpenPresetsLibrary: () => handleToolSelection("presets"),
+            selectedStyleId,
+            stylesCatalog: visibleStylesCatalog,
+            expertCreateMode,
+            onExpertCreateModeChange: handleExpertCreateModeChange,
+          }
+        : null,
     [
       expertCreateMode,
       handleExpertCreateModeChange,
@@ -1169,12 +1180,15 @@ export function AiStudioPageContent({
     ]
   );
   const resolvedPulseCreatePropertiesWithRuntime = React.useMemo(
-    () => ({
-      ...resolvedPulseCreateProperties,
-      onOpenPresetsLibrary: () => handleToolSelection("presets"),
-      expertCreateMode,
-      onExpertCreateModeChange: handleExpertCreateModeChange,
-    }),
+    () =>
+      resolvedPulseCreateProperties
+        ? {
+            ...resolvedPulseCreateProperties,
+            onOpenPresetsLibrary: () => handleToolSelection("presets"),
+            expertCreateMode,
+            onExpertCreateModeChange: handleExpertCreateModeChange,
+          }
+        : null,
     [
       expertCreateMode,
       handleExpertCreateModeChange,
@@ -1273,9 +1287,12 @@ export function AiStudioPageContent({
   });
 
   const createPropertiesPanelContent = React.useMemo(() => {
-    if (showExpertCreatePanel && expertCreateMode === "pulse") {
+    // eslint-disable-next-line react-hooks/refs -- Mode-owned panel props are pass-through render inputs; any nested refs are owned by the child panel.
+    if (showExpertCreatePanel && resolvedPulseCreatePropertiesWithRuntime) {
       return <PulseCreatePropertiesPanel {...resolvedPulseCreatePropertiesWithRuntime} />;
     }
+    // eslint-disable-next-line react-hooks/refs -- Mode-owned panel props are pass-through render inputs; any nested refs are owned by the child panel.
+    if (!resolvedStandardCreatePropertiesWithStyles) return null;
     return (
       <>
         <StandardCreatePropertiesPanel {...resolvedStandardCreatePropertiesWithStyles} />
@@ -1288,7 +1305,6 @@ export function AiStudioPageContent({
       </>
     );
   }, [
-    expertCreateMode,
     resolvedPulseCreatePropertiesWithRuntime,
     resolvedStandardCreatePropertiesWithStyles,
     showExpertCreatePanel,

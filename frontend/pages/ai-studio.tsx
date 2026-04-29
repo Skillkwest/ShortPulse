@@ -1458,12 +1458,18 @@ export default function AiStudioPage() {
     };
     return {
       ...panelProps,
-      propertiesCreate: {
-        expertCreateMode,
-        onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
-        standard: standardCreateProperties,
-        pulse: pulseCreateProperties,
-      },
+      propertiesCreate:
+        expertCreateMode === "pulse"
+          ? {
+              expertCreateMode,
+              onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
+              pulse: pulseCreateProperties,
+            }
+          : {
+              expertCreateMode,
+              onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
+              standard: standardCreateProperties,
+            },
     };
   }, [
     activeCreatePulsePresetId,

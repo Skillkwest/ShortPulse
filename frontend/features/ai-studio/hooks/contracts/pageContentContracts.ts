@@ -12,12 +12,22 @@ import { StudioPreview } from "../../components/StudioPreview";
 import type { VideoPropertiesPanelProps } from "../../components/VideoPropertiesPanel";
 import type { StudioOutput } from "../../types";
 
-export type AiStudioCreatePanelContract = {
+type AiStudioCreatePanelBaseContract = {
   expertCreateMode: ExpertCreateMode;
   onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
-  standard: StandardCreatePropertiesPanelProps;
-  pulse: PulseCreatePropertiesPanelProps;
 };
+
+export type AiStudioCreatePanelContract =
+  | (AiStudioCreatePanelBaseContract & {
+      expertCreateMode: "standard";
+      standard: StandardCreatePropertiesPanelProps;
+      pulse?: never;
+    })
+  | (AiStudioCreatePanelBaseContract & {
+      expertCreateMode: "pulse";
+      pulse: PulseCreatePropertiesPanelProps;
+      standard?: never;
+    });
 export type AiStudioEditExpertPanelContract = ExpertEditPanelViewProps;
 export type AiStudioVideoPanelContract = VideoPropertiesPanelProps;
 

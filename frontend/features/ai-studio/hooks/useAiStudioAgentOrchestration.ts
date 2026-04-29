@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../logic/promptTargeting";
 import type {
@@ -265,19 +266,22 @@ export const useAiStudioAgentOrchestration = ({
           preparedImageUrls,
         });
         let requestContext = mediaPatchedContext;
+        let captureWorkflowSession: (
+          workflowSession?: AgentPulseWorkflowSession | null
+        ) => void = () => {};
         if (runtimePolicy.kind === "pulse") {
           const workflowPulse = runtimePolicy.resolveWorkflowPulse(mediaPatchedContext);
-          const { buildPulseRequestContextForUserInput } =
+          const { buildPulseRequestContextForUserInput, capturePulseWorkflowSession } =
             await import("./agentOrchestration/pulseSendRuntime");
+          captureWorkflowSession = (workflowSession) =>
+            capturePulseWorkflowSession({ workflowSession, setPulseWorkflowSession });
           const pulseRequest = buildPulseRequestContextForUserInput({
             context: mediaPatchedContext,
             workflowPulse,
             userInput: userMessageText,
           });
           requestContext = pulseRequest.requestContext;
-          if (pulseRequest.pendingWorkflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
-            setPulseWorkflowSession(pulseRequest.pendingWorkflowSession);
-          }
+          captureWorkflowSession(pulseRequest.pendingWorkflowSession);
         }
 
         const { response, actions, workflowSession, discarded } = await sendToAgent({
@@ -315,9 +319,7 @@ export const useAiStudioAgentOrchestration = ({
           }
         }
 
-        if (workflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
-          setPulseWorkflowSession(workflowSession);
-        }
+        captureWorkflowSession(workflowSession);
 
         if (options?.captureResult && appliedPrompt) {
           return { prompt: appliedPrompt, referenceTitle: DEFAULT_AGENT_PROMPT_REFERENCE_TITLE };
@@ -396,8 +398,10 @@ export const useAiStudioAgentOrchestration = ({
         addAgentPromptReference(refinedPrompt, "Refined prompt");
         setPromptOrigin("agent");
       }
-      if (workflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
-        setPulseWorkflowSession(workflowSession);
+      if (runtimePolicy.kind === "pulse") {
+        const { capturePulseWorkflowSession } =
+          await import("./agentOrchestration/pulseSendRuntime");
+        capturePulseWorkflowSession({ workflowSession, setPulseWorkflowSession });
       }
     } finally {
       setIsPromptRefining(false);
@@ -516,8 +520,10 @@ export const useAiStudioAgentOrchestration = ({
         }
         setPromptOrigin("manual");
       }
-      if (workflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
-        setPulseWorkflowSession(workflowSession);
+      if (runtimePolicy.kind === "pulse") {
+        const { capturePulseWorkflowSession } =
+          await import("./agentOrchestration/pulseSendRuntime");
+        capturePulseWorkflowSession({ workflowSession, setPulseWorkflowSession });
       }
     } finally {
       setIsReferencePromptEnhancing(false);

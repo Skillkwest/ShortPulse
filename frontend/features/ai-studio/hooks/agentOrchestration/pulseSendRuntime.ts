@@ -1,4 +1,5 @@
 import type { AgentContext, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
+import type { Dispatch, SetStateAction } from "react";
 import {
   PULSE_IMAGE_INTAKE_REQUIRED_NOTICE,
   hasPulseImageContext,
@@ -13,6 +14,9 @@ type PulseWorkflowPresetContext = {
   workflowSession?: AgentPulseWorkflowSession | null;
 };
 
+/**
+ * Returns the Pulse-only image intake block notice for workflow steps that require an image.
+ */
 export const resolvePulseImageIntakeBlock = ({
   context,
   hasImageAttachment,
@@ -30,6 +34,9 @@ export const resolvePulseImageIntakeBlock = ({
   return null;
 };
 
+/**
+ * Builds the Pulse-owned request context and optimistic workflow session for a user reply.
+ */
 export const buildPulseRequestContextForUserInput = ({
   context,
   workflowPulse,
@@ -67,4 +74,19 @@ export const buildPulseRequestContextForUserInput = ({
         : context,
     pendingWorkflowSession,
   };
+};
+
+/**
+ * Captures Pulse workflow-session updates inside the Pulse orchestration runtime boundary.
+ */
+export const capturePulseWorkflowSession = ({
+  workflowSession,
+  setPulseWorkflowSession,
+}: {
+  workflowSession?: AgentPulseWorkflowSession | null;
+  setPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
+}) => {
+  if (workflowSession) {
+    setPulseWorkflowSession(workflowSession);
+  }
 };

@@ -16,7 +16,6 @@ export type CreateAgentOrchestrationRuntimePolicy = {
   ) => StudioOutput | null | undefined;
   resolveWorkflowPulse: (context: AgentContext) => WorkflowPulseContext | null;
   hasPromptApplyPulseContext: (context: AgentContext) => boolean;
-  shouldCaptureWorkflowSession: boolean;
 };
 
 const STANDARD_CREATE_AGENT_ORCHESTRATION_RUNTIME_POLICY: CreateAgentOrchestrationRuntimePolicy = {
@@ -28,7 +27,6 @@ const STANDARD_CREATE_AGENT_ORCHESTRATION_RUNTIME_POLICY: CreateAgentOrchestrati
     selectedOverride === undefined ? null : selectedOverride,
   resolveWorkflowPulse: () => null,
   hasPromptApplyPulseContext: () => false,
-  shouldCaptureWorkflowSession: false,
 };
 
 export const resolveCreateAgentOrchestrationRuntimePolicy = ({
@@ -65,6 +63,5 @@ export const resolveCreateAgentOrchestrationRuntimePolicy = ({
         ? (context.pulse as WorkflowPulseContext)
         : null,
     hasPromptApplyPulseContext: (context) => Boolean(context.pulse),
-    shouldCaptureWorkflowSession: true,
   };
 };

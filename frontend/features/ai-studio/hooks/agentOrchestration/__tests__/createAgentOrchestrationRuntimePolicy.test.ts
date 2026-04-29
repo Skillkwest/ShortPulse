@@ -27,7 +27,6 @@ describe("resolveCreateAgentOrchestrationRuntimePolicy", () => {
     expect(policy.resolveSelectedOverride(undefined)).toBeNull();
     expect(policy.resolveWorkflowPulse(context)).toBeNull();
     expect(policy.hasPromptApplyPulseContext(context)).toBe(false);
-    expect(policy.shouldCaptureWorkflowSession).toBe(false);
   });
 
   it("opens Pulse orchestration only when an active Pulse session exists", () => {
@@ -55,6 +54,5 @@ describe("resolveCreateAgentOrchestrationRuntimePolicy", () => {
     expect(policy.resolveSelectedOverride(undefined)).toBeUndefined();
     expect(policy.resolveWorkflowPulse(context)?.presetId).toBe("story_builder");
     expect(policy.hasPromptApplyPulseContext(context)).toBe(true);
-    expect(policy.shouldCaptureWorkflowSession).toBe(true);
   });
 });

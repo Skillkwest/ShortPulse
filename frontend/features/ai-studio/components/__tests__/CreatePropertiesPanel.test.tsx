@@ -47,7 +47,7 @@ describe("CreatePropertiesPanel", () => {
     const standardChatSurface = readFileSync(
       path.join(
         process.cwd(),
-        "features/ai-studio/components/promptStep/PromptStepChatSurface.tsx"
+        "features/ai-studio/components/promptStep/StandardPromptStepChatSurface.tsx"
       ),
       "utf8"
     );

@@ -143,6 +143,9 @@ describe("Create agent mode boundaries", () => {
     const standardPromptStepSource = readFrontendFile(
       "features/ai-studio/components/PromptStep.tsx"
     );
+    const standardChatSurfaceSource = readFrontendFile(
+      "features/ai-studio/components/promptStep/StandardPromptStepChatSurface.tsx"
+    );
     const pulsePromptStepSource = readFrontendFile(
       "features/ai-studio/components/PulsePromptStep.tsx"
     );
@@ -166,8 +169,13 @@ describe("Create agent mode boundaries", () => {
     expect(pulseComposerSource).not.toContain("ResolutionDropdown");
 
     expect(standardPromptStepSource).not.toContain("PulsePromptStepChatSurface");
+    expect(standardPromptStepSource).toContain("StandardPromptStepChatSurface");
     expect(standardPromptStepSource).not.toContain("pulseLoadingState");
     expect(standardPromptStepSource).not.toContain("useFlowComposerLayout");
+    expect(standardChatSurfaceSource).toContain("Standard PromptStep chat-mode surface");
+    expect(standardChatSurfaceSource).not.toContain("PromptStepPulseLoadingState");
+    expect(standardChatSurfaceSource).not.toContain("pulseLoadingState");
+    expect(standardChatSurfaceSource).not.toContain("useFlowComposerLayout");
     expect(pulsePromptStepSource).toContain("PulsePromptStepChatSurface");
   });
 

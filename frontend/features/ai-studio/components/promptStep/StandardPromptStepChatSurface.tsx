@@ -22,7 +22,7 @@ import type {
 import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
 import type { PromptStepInlineGenerateConfig } from "./types";
 
-type PromptStepChatSurfaceProps = {
+type StandardPromptStepChatSurfaceProps = {
   beginnerMode: boolean;
   chatOnly: boolean;
   promptOnly: boolean;
@@ -106,7 +106,7 @@ type PromptStepChatSurfaceProps = {
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
 };
 
-export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
+export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfaceProps> = ({
   beginnerMode,
   chatOnly,
   promptOnly,

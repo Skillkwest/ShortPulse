@@ -5,9 +5,9 @@
 import React from "react";
 import type { AgentMessage } from "../../../prefabs/agent";
 import { extractDragDropPayload } from "../utils/dragDrop";
-import { PromptStepChatSurface } from "./promptStep/PromptStepChatSurface";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
+import { StandardPromptStepChatSurface } from "./promptStep/StandardPromptStepChatSurface";
 import type { PromptStepProps } from "./promptStep/types";
 export type { PromptStepProps } from "./promptStep/types";
 
@@ -323,7 +323,7 @@ export function PromptStep({
         canUsePromptSurface ? (
           <>
             {showInlineChat ? (
-              <PromptStepChatSurface
+              <StandardPromptStepChatSurface
                 beginnerMode={beginnerMode}
                 chatOnly={chatOnly}
                 promptOnly={promptOnly}

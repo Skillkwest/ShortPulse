@@ -10,10 +10,8 @@ import type {
   AgentPulseWorkflowSession,
 } from "../../../../prefabs/agent";
 import { PulsePromptStep } from "../PulsePromptStep";
-import type { ModelModalContext } from "../ModelModal";
 import { PulseCreateChatPanel } from "../promptStep/PulseCreateChatPanel";
 import type { PromptStepPulseLoadingState } from "../promptStep/types";
-import type { StudioMode } from "../../types";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulseCreatePanelView } from "./PulseCreatePanelView";
 import type { ExpertCreateMode } from "./createModeTypes";
@@ -28,10 +26,6 @@ const EXPERT_CREATE_PULSE_AGENT_INPUT_MAX_HEIGHT_PX = 280;
 const PULSE_LOADING_TITLE = "Generating...";
 
 export type PulseCreatePropertiesPanelProps = {
-  mode: StudioMode;
-  aspect: string;
-  modelId: string | null;
-  modelLabel: string;
   prompt: string;
   agentEnabled?: boolean;
   agentBootstrapPending?: boolean;
@@ -46,14 +40,6 @@ export type PulseCreatePropertiesPanelProps = {
   stagedPrompt?: string | null;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
-  isModelModalOpen: boolean;
-  modelModalAnchor: string | null;
-  onAspectChange: (value: string) => void;
-  onModelPickerOpen: (
-    anchorId: string,
-    target: HTMLElement,
-    context?: ModelModalContext | null
-  ) => void;
   onPromptChange: (value: string) => void;
   costCredits?: number | null;
   isPromptGenerating?: boolean;

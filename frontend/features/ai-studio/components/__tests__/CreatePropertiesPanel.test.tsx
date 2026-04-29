@@ -99,6 +99,13 @@ describe("CreatePropertiesPanel", () => {
     expect(pulsePromptStep).not.toContain("onGenerateOutputPrompt");
     expect(pulsePromptStep).not.toContain("assistantBubbleMedia");
     expect(pulsePanel).not.toContain("assistantBubbleMedia");
+    expect(pulsePanel).not.toContain("ModelModalContext");
+    expect(pulsePanel).not.toContain("modelId");
+    expect(pulsePanel).not.toContain("modelLabel");
+    expect(pulsePanel).not.toContain("isModelModalOpen");
+    expect(pulsePanel).not.toContain("modelModalAnchor");
+    expect(pulsePanel).not.toContain("onAspectChange");
+    expect(pulsePanel).not.toContain("onModelPickerOpen");
   });
 
   const baseProps: TestCreatePanelProps = {

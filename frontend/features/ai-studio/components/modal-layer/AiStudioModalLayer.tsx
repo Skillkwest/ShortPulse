@@ -1,12 +1,14 @@
 /**
  * Shared AI Studio modal layer primitives.
- * Provides portal mounting and modal-open activity tracking for background-work coordination.
+ * Provides global portal mounting and modal-open activity tracking for background-work coordination.
  */
 import React from "react";
 import { createPortal } from "react-dom";
 import { PERF_FLAG_MODAL_STABILITY_V1 } from "../../logic/perfProfileFlags";
 
 const AI_STUDIO_MODAL_LAYER_ROOT_ID = "ai-studio-modal-layer-root";
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
 
 type AiStudioModalActivityContextValue = {
   setModalOpen: (modalId: string, isOpen: boolean) => void;
@@ -82,14 +84,9 @@ export const useAiStudioAnyModalOpen = (): boolean => {
 export const AiStudioModalLayer = ({ children }: { children: React.ReactNode }) => {
   const [layerRoot, setLayerRoot] = React.useState<HTMLElement | null>(null);
 
-  React.useEffect(() => {
-    if (!PERF_FLAG_MODAL_STABILITY_V1) return;
+  useIsomorphicLayoutEffect(() => {
     setLayerRoot(ensureModalLayerRoot());
   }, []);
-
-  if (!PERF_FLAG_MODAL_STABILITY_V1) {
-    return <>{children}</>;
-  }
 
   if (!layerRoot) {
     return null;

@@ -5,6 +5,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ElementsPanel } from "../ElementsPanel";
+import { ElementsManagerShell } from "../../../elements-manager/components/ElementsManagerShell";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../utils/dragDrop";
 import { deriveElementAliasFromName } from "../../../elements-manager/logic/elementAlias";
 import {
@@ -390,6 +391,23 @@ describe("ElementsPanel layout", () => {
     expect(container.querySelector(".elements-editor-column-panel")).toBeTruthy();
   });
 
+  it("hides the description editor when the embedded media library is maximized", async () => {
+    render(<ElementsManagerShell isEmbeddedMediaLibraryMaximized />);
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Edit element: Red Lantern",
+      })
+    );
+    const dialog = await waitForElementEditor();
+
+    expect(within(dialog).getByDisplayValue("Red Lantern")).toBeInTheDocument();
+    expect(within(dialog).getByText("References")).toBeInTheDocument();
+    expect(within(dialog).queryByText("Description:")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Description:")).not.toBeInTheDocument();
+    expect(dialog.querySelector(".elements-description-text-container")).toBeNull();
+  });
+
   it("opens the element editor when the visible chip surface is clicked", async () => {
     render(<ElementsPanel />);
 
@@ -583,7 +601,7 @@ describe("ElementsPanel layout", () => {
     );
     await waitForElementEditor();
 
-    const portraitLikeZone = screen.getByText("Secondary Angle").closest("article");
+    const portraitLikeZone = screen.getByText("Secondary").closest("article");
     if (!portraitLikeZone) {
       throw new Error("Expected secondary-angle drop zone to exist.");
     }
@@ -600,7 +618,7 @@ describe("ElementsPanel layout", () => {
     fireEvent.drop(portraitLikeZone, { dataTransfer: internalDrag });
 
     await waitFor(() => {
-      expect(screen.getByAltText("Secondary Angle reference")).toBeInTheDocument();
+      expect(screen.getByAltText("Secondary reference")).toBeInTheDocument();
     });
   });
 
@@ -625,7 +643,7 @@ describe("ElementsPanel layout", () => {
     );
     await waitForElementEditor();
 
-    const supportAngleZone = screen.getByText("Secondary Angle").closest("article");
+    const supportAngleZone = screen.getByText("Secondary").closest("article");
     if (!supportAngleZone) {
       throw new Error("Expected secondary-angle drop zone to exist.");
     }
@@ -640,7 +658,7 @@ describe("ElementsPanel layout", () => {
     fireEvent.drop(supportAngleZone, { dataTransfer: fileDrag });
 
     await waitFor(() => {
-      expect(screen.getByAltText("Secondary Angle reference")).toHaveAttribute(
+      expect(screen.getByAltText("Secondary reference")).toHaveAttribute(
         "src",
         "https://example.com/uploaded/internal-drop.png"
       );
@@ -658,7 +676,7 @@ describe("ElementsPanel layout", () => {
     );
     await waitForElementEditor();
 
-    const supportAngleZone = screen.getByText("Secondary Angle").closest("article");
+    const supportAngleZone = screen.getByText("Secondary").closest("article");
     if (!supportAngleZone) {
       throw new Error("Expected secondary-angle drop zone to exist.");
     }
@@ -674,7 +692,7 @@ describe("ElementsPanel layout", () => {
     fireEvent.drop(supportAngleZone, { dataTransfer: libraryDrag });
 
     await waitFor(() => {
-      expect(screen.getByAltText("Secondary Angle reference")).toHaveAttribute(
+      expect(screen.getByAltText("Secondary reference")).toHaveAttribute(
         "src",
         "https://example.com/library-drop.png"
       );

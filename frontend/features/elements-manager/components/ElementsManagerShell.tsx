@@ -19,9 +19,10 @@ import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referen
 type ElementsManagerShellProps = {
   resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
   externalCreateRequestKey?: number;
+  isEmbeddedMediaLibraryMaximized?: boolean;
 };
 
-const IMAGE_REFERENCE_SLOT_LABELS = ["Primary Look", "Secondary Angle", "Detail Shot"] as const;
+const IMAGE_REFERENCE_SLOT_LABELS = ["Primary Look", "Secondary", "Detail Shot"] as const;
 const ELEMENT_DESCRIPTION_MAX_LENGTH = 150;
 
 const buildElementInitials = (name: string): string => {
@@ -33,6 +34,7 @@ const buildElementInitials = (name: string): string => {
 export function ElementsManagerShell({
   resolveProfileImageDropSource,
   externalCreateRequestKey = 0,
+  isEmbeddedMediaLibraryMaximized = false,
 }: ElementsManagerShellProps) {
   const {
     elements,
@@ -345,19 +347,26 @@ export function ElementsManagerShell({
           )}
         </div>
 
-        <ElementsDescriptionEditorCard
-          description={draft.description}
-          maxLength={ELEMENT_DESCRIPTION_MAX_LENGTH}
-          rows={6}
-          disabled={false}
-          onChangeDescription={(value) => updateDraftField("description", value)}
-        />
+        {isEmbeddedMediaLibraryMaximized ? null : (
+          <ElementsDescriptionEditorCard
+            description={draft.description}
+            maxLength={ELEMENT_DESCRIPTION_MAX_LENGTH}
+            rows={6}
+            disabled={false}
+            onChangeDescription={(value) => updateDraftField("description", value)}
+          />
+        )}
       </div>
     </>
   );
 
   return (
-    <div className="elements-manager-shell elements-manager-shell--panel" data-surface="panel">
+    <div
+      className={`elements-manager-shell elements-manager-shell--panel ${
+        isEmbeddedMediaLibraryMaximized ? "is-embedded-media-library-maximized" : ""
+      }`.trim()}
+      data-surface="panel"
+    >
       {error ? <p className="tiny elements-manager-feedback">{error}</p> : null}
 
       <div className="elements-library-workspace">

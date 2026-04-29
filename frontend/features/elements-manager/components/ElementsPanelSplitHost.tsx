@@ -16,7 +16,7 @@ type ElementsPanelSplitHostProps = {
 };
 
 const ELEMENTS_PANEL_DEFAULT_TOP_RATIO = 0.54;
-const ELEMENTS_PANEL_MIN_TOP_HEIGHT_PX = 244;
+const ELEMENTS_PANEL_MIN_TOP_HEIGHT_PX = 232;
 const ELEMENTS_PANEL_MIN_BOTTOM_HEIGHT_PX = 248;
 
 export function ElementsPanelSplitHost({
@@ -41,6 +41,7 @@ export function ElementsPanelSplitHost({
       <div className="elements-panel-top-section" style={split.topSectionStyle}>
         <ElementsManagerShell
           externalCreateRequestKey={externalCreateRequestKey}
+          isEmbeddedMediaLibraryMaximized={split.isAllRefsExpanded}
           resolveProfileImageDropSource={resolveProfileImageDropSource}
         />
       </div>

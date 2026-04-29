@@ -62,6 +62,7 @@ import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/compo
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import { usePulseWorkflowSessionReconciliation } from "../features/ai-studio/hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
+import { useStandardCreateChatMode } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateChatMode";
 import type {
   CanvasDropResolution,
   PrepareCanvasMediaLibraryDrop,
@@ -170,6 +171,11 @@ export default function AiStudioPage() {
     refreshProject,
     updateProjectTitle,
   } = useAiStudioProjectIdentity();
+  const { standardChatModeEnabled, defaultStandardChatModeEnabled, setStandardChatModeEnabled } =
+    useStandardCreateChatMode({
+      projectId,
+      projectRouteRequested,
+    });
   const shouldGateSessionPersistence = Boolean(projectId) && projectStatus !== "ready";
   const activeSessionPersistenceSessionId = shouldGateSessionPersistence ? null : sessionId;
   const sessionPersistenceTitleOverride = project?.title ?? localSessionTitleOverride;
@@ -808,8 +814,6 @@ export default function AiStudioPage() {
     resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
   } = useAiStudioAgentBridge({
-    projectId,
-    projectRouteRequested,
     sessionId,
     mode,
     selectedTool,
@@ -817,6 +821,9 @@ export default function AiStudioPage() {
     activePulsePresetId: activeCreatePulsePresetId,
     pulseSessionInstanceId,
     pulseWorkflowSession,
+    standardChatModeEnabled,
+    defaultStandardChatModeEnabled,
+    setStandardChatModeEnabled,
     prompt,
     setSharedPrompt,
     getAgentContext: createModeAgentContextResolver,

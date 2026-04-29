@@ -372,6 +372,22 @@ describe("Create agent mode boundaries", () => {
     }
   });
 
+  it("keeps Standard chat-mode preference ownership out of the shared bridge", () => {
+    const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const bridgeSource = readFrontendFile("features/ai-studio/hooks/useAiStudioAgentBridge.ts");
+    const standardChatModeSource = readFrontendFile(
+      "features/ai-studio/hooks/standardCreateRuntime/useStandardCreateChatMode.ts"
+    );
+
+    expect(pageSource).toContain("useStandardCreateChatMode");
+    expect(pageSource).toContain("standardChatModeEnabled");
+    expect(pageSource).toContain("setStandardChatModeEnabled");
+    expect(bridgeSource).not.toContain("readChatModeFromStorage");
+    expect(bridgeSource).not.toContain("writeChatModeToStorage");
+    expect(standardChatModeSource).toContain("readChatModeFromStorage");
+    expect(standardChatModeSource).toContain("writeChatModeToStorage");
+  });
+
   it("keeps page persistence from accepting loose active agent fields", () => {
     const pagePersistenceSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioPageSessionPersistence.ts"

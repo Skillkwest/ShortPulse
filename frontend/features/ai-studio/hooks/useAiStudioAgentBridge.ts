@@ -26,7 +26,6 @@ import { useAiStudioAgentOrchestration } from "./useAiStudioAgentOrchestration";
 import type { AgentModeHint } from "./agentOrchestration/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
-import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatModePreference";
 import { resolveCreateAgentBridgeRuntime } from "./agentBridgeRuntime/createAgentBridgeRuntime";
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "./agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
@@ -47,8 +46,6 @@ import {
 } from "./agentBridgeRuntime/pulsePresetRestart";
 
 type UseAiStudioAgentBridgeParams = {
-  projectId?: string | null;
-  projectRouteRequested?: boolean;
   sessionId: string | null;
   mode: StudioMode;
   selectedTool: ToolId | null;
@@ -56,6 +53,9 @@ type UseAiStudioAgentBridgeParams = {
   activePulsePresetId?: string | null;
   pulseSessionInstanceId?: string | null;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  standardChatModeEnabled?: boolean;
+  defaultStandardChatModeEnabled?: boolean;
+  setStandardChatModeEnabled?: Dispatch<SetStateAction<boolean>>;
   prompt: string;
   setSharedPrompt: (value: string) => void;
   getAgentContext: (params: {
@@ -166,8 +166,6 @@ const isAgentBridgeRuntimeStateEqual = (
  * Returns agent state and handlers used by the AI Studio page.
  */
 export const useAiStudioAgentBridge = ({
-  projectId = null,
-  projectRouteRequested = false,
   sessionId,
   mode,
   selectedTool,
@@ -175,6 +173,9 @@ export const useAiStudioAgentBridge = ({
   activePulsePresetId = null,
   pulseSessionInstanceId = null,
   pulseWorkflowSession = null,
+  standardChatModeEnabled = true,
+  defaultStandardChatModeEnabled = standardChatModeEnabled,
+  setStandardChatModeEnabled,
   prompt,
   setSharedPrompt,
   getAgentContext,
@@ -232,23 +233,14 @@ export const useAiStudioAgentBridge = ({
   const directOpenAiBypassEnabled =
     directOpenAiBypassEnabledByConfig && bridgeRuntime.kind === "standard";
   const agentBootstrapReady = Boolean(sessionId);
-  const [standardChatModeEnabled, setStandardChatModeEnabledState] = useState(() => {
-    if (typeof window === "undefined") return true;
-    if (projectRouteRequested || projectId) return true;
-    return readChatModeFromStorage(window.localStorage);
-  });
-  const [defaultStandardChatModeEnabled] = useState(standardChatModeEnabled);
   const chatModeEnabled = bridgeRuntime.effectiveChatMode(standardChatModeEnabled);
 
   const setChatModeEnabled = useCallback(
     (value: boolean) => {
       if (isPulseCreateMode) return;
-      setStandardChatModeEnabledState(value);
-      if (typeof window !== "undefined" && !projectRouteRequested && !projectId) {
-        writeChatModeToStorage(value, window.localStorage);
-      }
+      setStandardChatModeEnabled?.(value);
     },
-    [isPulseCreateMode, projectId, projectRouteRequested]
+    [isPulseCreateMode, setStandardChatModeEnabled]
   );
 
   const activeLiveRuntimeStateRef = useRef<{
@@ -480,7 +472,7 @@ export const useAiStudioAgentBridge = ({
     setLatestAgentPrompt(activeRuntimeState.latestAgentPrompt);
     setPromptOrigin(activeRuntimeState.promptOrigin);
     if (bridgeRuntime.shouldHydrateStandardChatMode) {
-      setStandardChatModeEnabledState(activeRuntimeState.chatModeEnabled);
+      setStandardChatModeEnabled?.(activeRuntimeState.chatModeEnabled);
     }
     setIsAgentChatOpen(activeRuntimeState.isAgentChatOpen);
     hydratedAgentBridgeSessionKeyRef.current = agentBridgeSessionKey;
@@ -498,6 +490,7 @@ export const useAiStudioAgentBridge = ({
     setPromptOrigin,
     bridgeRuntime.defaultRuntimeStateOptions,
     bridgeRuntime.shouldHydrateStandardChatMode,
+    setStandardChatModeEnabled,
   ]);
 
   const isComposerHydratedForActiveScope =
@@ -807,7 +800,7 @@ export const useAiStudioAgentBridge = ({
       if (nextEntries.length === Object.keys(current).length) return current;
       return Object.fromEntries(nextEntries);
     });
-    setStandardChatModeEnabledState(true);
+    setStandardChatModeEnabled?.(true);
     setPulseWorkflowSession(null);
     setAgentAttachmentError(null);
     setAgentAttachments([]);
@@ -818,6 +811,7 @@ export const useAiStudioAgentBridge = ({
     setAgentAttachmentError,
     setAgentAttachments,
     setPulseWorkflowSession,
+    setStandardChatModeEnabled,
   ]);
 
   useEffect(() => {

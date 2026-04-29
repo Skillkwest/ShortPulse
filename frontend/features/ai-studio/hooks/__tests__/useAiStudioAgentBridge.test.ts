@@ -4,7 +4,6 @@ import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioAgentBridge } from "../useAiStudioAgentBridge";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import type { StudioMode, ToolId, StudioOutput } from "../../types";
-import { readChatModeFromStorage } from "../../logic/chatModePreference";
 import type { AgentMessage } from "../../../../prefabs/agent";
 
 const useAiAgentMock = vi.fn();
@@ -51,13 +50,6 @@ vi.mock("../useAiStudioAgentOrchestration", () => ({
 vi.mock("../useAiStudioAgentInteractions", () => ({
   useAiStudioAgentInteractions: (...args: unknown[]) => useAiStudioAgentInteractionsMock(...args),
 }));
-
-vi.mock("../../logic/chatModePreference", () => ({
-  readChatModeFromStorage: vi.fn(() => true),
-  writeChatModeToStorage: vi.fn(),
-}));
-
-const readChatModeFromStorageMock = vi.mocked(readChatModeFromStorage);
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -2188,9 +2180,7 @@ describe("useAiStudioAgentBridge", () => {
     });
   });
 
-  it("keeps Pulse chat mode enabled even when the stored Standard preference is off", async () => {
-    readChatModeFromStorageMock.mockReturnValue(false);
-
+  it("keeps Pulse chat mode enabled even when page-owned Standard preference is off", async () => {
     useAiAgentMock.mockReturnValue({
       messages: [],
       isSending: false,
@@ -2242,6 +2232,8 @@ describe("useAiStudioAgentBridge", () => {
         createBridgeParams({
           expertCreateMode: "pulse",
           activePulsePresetId: "story_builder",
+          standardChatModeEnabled: false,
+          defaultStandardChatModeEnabled: false,
         })
       )
     );
@@ -2251,9 +2243,7 @@ describe("useAiStudioAgentBridge", () => {
     expect(result.current.persistedAgentRuntimes.pulse.chatModeEnabled).toBe(true);
   });
 
-  it("skips local chat-mode preference hydration while a project route is pending", async () => {
-    readChatModeFromStorageMock.mockReturnValue(false);
-
+  it("uses page-owned Standard chat-mode preference", async () => {
     useAiAgentMock.mockReturnValue({
       messages: [],
       isSending: false,
@@ -2303,15 +2293,14 @@ describe("useAiStudioAgentBridge", () => {
     const { result } = renderHook(() =>
       useAiStudioAgentBridge(
         createBridgeParams({
-          projectRouteRequested: true,
+          standardChatModeEnabled: false,
+          defaultStandardChatModeEnabled: false,
         })
       )
     );
 
     await waitFor(() => {
-      expect(result.current.chatModeEnabled).toBe(true);
+      expect(result.current.chatModeEnabled).toBe(false);
     });
-
-    expect(readChatModeFromStorageMock).not.toHaveBeenCalled();
   });
 });

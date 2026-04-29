@@ -308,47 +308,27 @@ export const createFalSubmitHandler = ({
         rewrittenPrompt,
       });
     }
-    if (runtimeFlags.videoSubmitCanonicalMode !== "off") {
-      const normalizedVideoContract = normalizeVideoSubmitIngressPayload({ modelId, payload });
-      if (!normalizedVideoContract.ok) {
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "api.fal_submit.video_contract_violation",
-          message: normalizedVideoContract.error,
-          statusCode: runtimeFlags.videoSubmitCanonicalMode === "on" ? 400 : 200,
-          metadata: {
-            model_id: modelId,
-            code: normalizedVideoContract.code,
-            detail: normalizedVideoContract.detail ?? null,
-            enforce_mode: runtimeFlags.videoSubmitCanonicalMode,
-          },
-        });
-        if (runtimeFlags.videoSubmitCanonicalMode === "on") {
-          return res.status(400).json({
-            error: normalizedVideoContract.error,
-            code: normalizedVideoContract.code,
-            detail: normalizedVideoContract.detail ?? null,
-          });
-        }
-      } else {
-        payload = normalizedVideoContract.payload;
-        if (normalizedVideoContract.aliasUsage.length) {
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "telemetry.api.fal_submit.video_alias_normalized",
-            message: "Normalized video submit alias fields to canonical names.",
-            statusCode: 200,
-            metadata: {
-              model_id: modelId,
-              alias_usage: normalizedVideoContract.aliasUsage,
-              enforce_mode: runtimeFlags.videoSubmitCanonicalMode,
-            },
-          });
-        }
-      }
+    const normalizedVideoContract = normalizeVideoSubmitIngressPayload({ modelId, payload });
+    if (!normalizedVideoContract.ok) {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.video_contract_violation",
+        message: normalizedVideoContract.error,
+        statusCode: 400,
+        metadata: {
+          model_id: modelId,
+          code: normalizedVideoContract.code,
+          detail: normalizedVideoContract.detail ?? null,
+        },
+      });
+      return res.status(400).json({
+        error: normalizedVideoContract.error,
+        code: normalizedVideoContract.code,
+        detail: normalizedVideoContract.detail ?? null,
+      });
     }
+    payload = normalizedVideoContract.payload;
     const contractValidation = evaluateSharedPayloadContract(payload);
     if (!contractValidation.valid) {
       await logGenerationFailure({

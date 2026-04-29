@@ -19,17 +19,17 @@ const assertNormalizedVideoPayload = (
 };
 
 describe("video contract parity", () => {
-  it("keeps Kie Veo ingress aliases aligned with route contract and provider normalizer", () => {
+  it("keeps Kie Veo canonical ingress aligned with route contract and provider normalizer", () => {
     const normalized = assertNormalizedVideoPayload("kie-ai/veo-3.1-fast-i2v", {
       prompt: "shoreline tracking shot",
-      imageUrls: ["https://cdn.shortpulse.test/first.png", "https://cdn.shortpulse.test/last.png"],
-      generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
-      callBackUrl: "https://api.shortpulse.test/callback",
-      seeds: 12345,
-      aspectRatio: "16:9",
+      image_urls: ["https://cdn.shortpulse.test/first.png", "https://cdn.shortpulse.test/last.png"],
+      generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+      callback_url: "https://api.shortpulse.test/callback",
+      seed: 12345,
+      aspect_ratio: "16:9",
       duration: 8,
       resolution: "720p",
-      generateAudio: true,
+      generate_audio: true,
     });
 
     const contractResult = evaluateFalPayloadContractForModel("kie-ai/veo-3.1-fast-i2v", {
@@ -55,11 +55,11 @@ describe("video contract parity", () => {
   it("keeps prompt-only Kie Veo text-to-video payloads aligned with route contract and provider normalizer", () => {
     const normalized = assertNormalizedVideoPayload("kie-ai/veo-3.1-fast-i2v", {
       prompt: "A cinematic drone shot over a neon city at dusk",
-      generationType: "TEXT_2_VIDEO",
-      aspectRatio: "9:16",
+      generation_type: "TEXT_2_VIDEO",
+      aspect_ratio: "9:16",
       duration: 5,
       resolution: "720p",
-      generateAudio: true,
+      generate_audio: true,
     });
 
     const contractResult = evaluateFalPayloadContractForModel("kie-ai/veo-3.1-fast-i2v", {
@@ -85,16 +85,16 @@ describe("video contract parity", () => {
     );
   });
 
-  it("keeps Kie Seedance 1.5 ingress aliases aligned with route contract and provider normalizer", () => {
+  it("keeps Kie Seedance 1.5 canonical ingress aligned with route contract and provider normalizer", () => {
     const normalized = assertNormalizedVideoPayload("kie-ai/seedance-1.5-pro", {
       prompt: "animate the portrait into a short fashion clip",
-      inputUrls: ["https://cdn.shortpulse.test/first.png", "https://cdn.shortpulse.test/last.png"],
-      aspectRatio: "9:16",
+      input_urls: ["https://cdn.shortpulse.test/first.png", "https://cdn.shortpulse.test/last.png"],
+      aspect_ratio: "9:16",
       duration: 12,
       resolution: "1080p",
-      generateAudio: false,
-      fixedLens: true,
-      callbackUrl: "https://api.shortpulse.test/callback",
+      generate_audio: false,
+      fixed_lens: true,
+      callback_url: "https://api.shortpulse.test/callback",
     });
 
     const contractResult = evaluateFalPayloadContractForModel("kie-ai/seedance-1.5-pro", {
@@ -126,16 +126,16 @@ describe("video contract parity", () => {
     });
   });
 
-  it("keeps Kie Kling motion aliases aligned with route contract and provider normalizer", () => {
+  it("keeps Kie Kling canonical motion fields aligned with route contract and provider normalizer", () => {
     const normalized = assertNormalizedVideoPayload("kie-ai/kling-3.0", {
       prompt: "motion transfer",
-      imageUrl: "https://cdn.shortpulse.test/character.png",
-      inputUrl: "https://cdn.shortpulse.test/character.png",
-      videoUrl: "https://cdn.shortpulse.test/motion.mp4",
-      callbackUrl: "https://api.shortpulse.test/callback",
+      image_url: "https://cdn.shortpulse.test/character.png",
+      input_url: "https://cdn.shortpulse.test/character.png",
+      video_url: "https://cdn.shortpulse.test/motion.mp4",
+      callback_url: "https://api.shortpulse.test/callback",
       resolution: "1080p",
       mode: "1080p",
-      generateAudio: true,
+      generate_audio: true,
     });
 
     const contractResult = evaluateFalPayloadContractForModel("kie-ai/kling-3.0", {

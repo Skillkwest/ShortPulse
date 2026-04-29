@@ -8,7 +8,7 @@ import {
 } from "../videoSubmitContracts";
 
 describe("videoSubmitContracts", () => {
-  it("normalizes legacy alias fields for Kie Veo ingress payloads", () => {
+  it("rejects non-canonical alias fields for Kie Veo ingress payloads", () => {
     const result = normalizeVideoSubmitIngressPayload({
       modelId: "kie-ai/veo-3.1-fast-i2v",
       payload: {
@@ -17,36 +17,21 @@ describe("videoSubmitContracts", () => {
           "https://cdn.shortpulse.test/first.png",
           "https://cdn.shortpulse.test/last.png",
         ],
-        generationType: "FIRST_AND_LAST_FRAMES_2_VIDEO",
-        callBackUrl: "https://api.shortpulse.test/kie-callback",
-        seeds: 12345,
       },
     });
 
     expect(result).toEqual({
-      ok: true,
-      payload: {
-        prompt: "clip",
-        image_urls: [
-          "https://cdn.shortpulse.test/first.png",
-          "https://cdn.shortpulse.test/last.png",
-        ],
-        generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
-        callback_url: "https://api.shortpulse.test/kie-callback",
-        seed: 12345,
+      ok: false,
+      code: "VIDEO_NON_CANONICAL_FIELD",
+      error: "Non-canonical video payload field provided: imageUrls. Use image_urls.",
+      detail: {
+        field: "imageUrls",
+        canonical: "image_urls",
       },
-      aliasUsage: [
-        { alias: "imageUrls", canonical: "image_urls" },
-        { alias: "generationType", canonical: "generation_type" },
-        { alias: "callBackUrl", canonical: "callback_url" },
-        { alias: "seeds", canonical: "seed" },
-      ],
-      queueCompatibilityApplied: false,
-      envelopeVersion: null,
     });
   });
 
-  it("rejects alias collisions when alias and canonical values differ", () => {
+  it("rejects alias fields even when canonical fields are also present", () => {
     const result = normalizeVideoSubmitIngressPayload({
       modelId: "kie-ai/veo-3.1-fast-i2v",
       payload: {
@@ -58,10 +43,10 @@ describe("videoSubmitContracts", () => {
 
     expect(result).toEqual({
       ok: false,
-      code: "VIDEO_ALIAS_COLLISION",
-      error: "Conflicting alias and canonical fields provided: imageUrl and image_url.",
+      code: "VIDEO_NON_CANONICAL_FIELD",
+      error: "Non-canonical video payload field provided: imageUrl. Use image_url.",
       detail: {
-        alias: "imageUrl",
+        field: "imageUrl",
         canonical: "image_url",
       },
     });
@@ -127,8 +112,6 @@ describe("videoSubmitContracts", () => {
           },
         ],
       },
-      aliasUsage: [],
-      queueCompatibilityApplied: false,
       envelopeVersion: null,
     });
   });
@@ -191,30 +174,23 @@ describe("videoSubmitContracts", () => {
         prompt: "queued clip",
         image_url: "https://cdn.shortpulse.test/ref.png",
       },
-      aliasUsage: [],
-      queueCompatibilityApplied: false,
       envelopeVersion: VIDEO_QUEUE_PAYLOAD_CONTRACT_VERSION,
     });
   });
 
-  it("treats legacy raw queue payloads as compatibility-normalized", () => {
+  it("rejects raw queue payloads without the v2 envelope", () => {
     const result = normalizeVideoQueueDispatchPayload({
       modelId: "kie-ai/veo-3.1-fast-i2v",
       payload: {
         prompt: "queued clip",
-        imageUrl: "https://cdn.shortpulse.test/ref.png",
+        image_url: "https://cdn.shortpulse.test/ref.png",
       },
     });
 
     expect(result).toEqual({
-      ok: true,
-      payload: {
-        prompt: "queued clip",
-        image_url: "https://cdn.shortpulse.test/ref.png",
-      },
-      aliasUsage: [{ alias: "imageUrl", canonical: "image_url" }],
-      queueCompatibilityApplied: true,
-      envelopeVersion: null,
+      ok: false,
+      code: "VIDEO_QUEUE_PAYLOAD_INVALID",
+      error: "Queue submit payload is missing the required video payload envelope.",
     });
   });
 });

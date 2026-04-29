@@ -11,8 +11,6 @@ import {
 import type { GenerationAdmissionConfig } from "./generationAdmission/types";
 
 export type FalRuntimeFlags = {
-  videoSubmitCanonicalMode: "off" | "shadow" | "on";
-  videoQueueCompatNormalizationEnabled: boolean;
   modelAllowlist: Set<string>;
   statusTransientFailuresEnabled: boolean;
   reconcilerEnabled: boolean;
@@ -56,14 +54,6 @@ const parseInteger = (value: string | undefined, fallback: number, min: number):
   return Math.max(min, parsed);
 };
 
-const parseVideoSubmitCanonicalMode = (value: string | undefined): "off" | "shadow" | "on" => {
-  const normalized = value?.trim().toLowerCase();
-  if (normalized === "off" || normalized === "shadow" || normalized === "on") {
-    return normalized;
-  }
-  return "on";
-};
-
 const normalizeBaseUrl = (value: string | undefined): string | null => {
   const trimmed = value?.trim();
   if (!trimmed) return null;
@@ -95,13 +85,6 @@ const matchAllowlistEntry = (modelId: string, entry: string): boolean => {
 };
 
 export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
-  videoSubmitCanonicalMode: parseVideoSubmitCanonicalMode(
-    process.env.SHORTPULSE_VIDEO_SUBMIT_CANONICAL_MODE
-  ),
-  videoQueueCompatNormalizationEnabled: parseBoolean(
-    process.env.SHORTPULSE_VIDEO_QUEUE_COMPAT_NORMALIZATION_ENABLED,
-    true
-  ),
   modelAllowlist: parseAllowlist(process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST),
   statusTransientFailuresEnabled: parseBoolean(
     process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED,

@@ -1,7 +1,7 @@
 /**
  * Canonical video submit contract helpers.
- * Provides ingress alias normalization, queue envelope compatibility,
- * and character-media isolation for video model submissions.
+ * Provides canonical field validation, queue envelope validation, and
+ * character-media isolation for video model submissions.
  */
 
 import { getModelConfig } from "../../model-runtime/pricing";
@@ -18,10 +18,8 @@ type JsonObject = Record<string, unknown>;
 export const VIDEO_QUEUE_PAYLOAD_CONTRACT_NAME = "video_submit_payload";
 export const VIDEO_QUEUE_PAYLOAD_CONTRACT_VERSION = 2;
 
-export type VideoSubmitCanonicalMode = "off" | "shadow" | "on";
-
 export type VideoContractViolationCode =
-  | "VIDEO_ALIAS_COLLISION"
+  | "VIDEO_NON_CANONICAL_FIELD"
   | "VIDEO_CHARACTER_MEDIA_BLOCKED"
   | "VIDEO_QUEUE_PAYLOAD_INVALID";
 
@@ -35,8 +33,6 @@ export type VideoContractViolation = {
 export type VideoContractSuccess = {
   ok: true;
   payload: JsonObject;
-  aliasUsage: Array<{ alias: string; canonical: string }>;
-  queueCompatibilityApplied: boolean;
   envelopeVersion: number | null;
 };
 
@@ -128,15 +124,6 @@ const asObject = (value: unknown): JsonObject | null => {
 };
 
 const cloneObject = (value: JsonObject): JsonObject => ({ ...value });
-
-const valuesEqual = (left: unknown, right: unknown): boolean => {
-  if (left === right) return true;
-  try {
-    return JSON.stringify(left) === JSON.stringify(right);
-  } catch {
-    return false;
-  }
-};
 
 const decodeSafe = (value: string): string => {
   try {
@@ -263,7 +250,7 @@ const readAliasMapForModel = (modelId: string): Record<string, string> => ({
   ...(VIDEO_ALIAS_MAP_BY_MODEL_ID[modelId] ?? {}),
 });
 
-const normalizeAliases = ({
+const validateCanonicalPayload = ({
   payload,
   modelId,
 }: {
@@ -272,30 +259,18 @@ const normalizeAliases = ({
 }): VideoContractResult => {
   const aliasMap = readAliasMapForModel(modelId);
   const nextPayload = cloneObject(payload);
-  const aliasUsage: Array<{ alias: string; canonical: string }> = [];
 
   for (const [alias, canonical] of Object.entries(aliasMap)) {
     if (!Object.prototype.hasOwnProperty.call(nextPayload, alias)) continue;
-    const aliasValue = nextPayload[alias];
-    if (Object.prototype.hasOwnProperty.call(nextPayload, canonical)) {
-      const canonicalValue = nextPayload[canonical];
-      if (!valuesEqual(aliasValue, canonicalValue)) {
-        return {
-          ok: false,
-          code: "VIDEO_ALIAS_COLLISION",
-          error: `Conflicting alias and canonical fields provided: ${alias} and ${canonical}.`,
-          detail: {
-            alias,
-            canonical,
-          },
-        };
-      }
-      delete nextPayload[alias];
-      continue;
-    }
-    nextPayload[canonical] = aliasValue;
-    delete nextPayload[alias];
-    aliasUsage.push({ alias, canonical });
+    return {
+      ok: false,
+      code: "VIDEO_NON_CANONICAL_FIELD",
+      error: `Non-canonical video payload field provided: ${alias}. Use ${canonical}.`,
+      detail: {
+        field: alias,
+        canonical,
+      },
+    };
   }
 
   const leak = detectCharacterMediaLeak(nextPayload);
@@ -311,8 +286,6 @@ const normalizeAliases = ({
   return {
     ok: true,
     payload: nextPayload,
-    aliasUsage,
-    queueCompatibilityApplied: false,
     envelopeVersion: null,
   };
 };
@@ -347,11 +320,9 @@ const unwrapQueueSubmitPayloadEnvelope = ({
   }
   if (envelope.__contract !== VIDEO_QUEUE_PAYLOAD_CONTRACT_NAME) {
     return {
-      ok: true,
-      payload: envelope,
-      aliasUsage: [],
-      queueCompatibilityApplied: true,
-      envelopeVersion: null,
+      ok: false,
+      code: "VIDEO_QUEUE_PAYLOAD_INVALID",
+      error: "Queue submit payload is missing the required video payload envelope.",
     };
   }
 
@@ -400,8 +371,6 @@ const unwrapQueueSubmitPayloadEnvelope = ({
   return {
     ok: true,
     payload: cloneObject(normalizedPayload),
-    aliasUsage: [],
-    queueCompatibilityApplied: false,
     envelopeVersion: version,
   };
 };
@@ -421,17 +390,15 @@ export const normalizeVideoSubmitIngressPayload = ({
     return {
       ok: true,
       payload: cloneObject(payload),
-      aliasUsage: [],
-      queueCompatibilityApplied: false,
       envelopeVersion: null,
     };
   }
-  return normalizeAliases({ payload, modelId });
+  return validateCanonicalPayload({ payload, modelId });
 };
 
 /**
- * Normalizes queue-dispatch payloads with legacy compatibility support.
- * Supports wrapped contract v2 envelopes and legacy raw payload rows.
+ * Normalizes queue-dispatch payloads.
+ * Supports only wrapped contract v2 envelopes.
  */
 export const normalizeVideoQueueDispatchPayload = ({
   modelId,
@@ -444,8 +411,6 @@ export const normalizeVideoQueueDispatchPayload = ({
     return {
       ok: true,
       payload: cloneObject(payload),
-      aliasUsage: [],
-      queueCompatibilityApplied: false,
       envelopeVersion: null,
     };
   }
@@ -453,12 +418,11 @@ export const normalizeVideoQueueDispatchPayload = ({
   const unwrapped = unwrapQueueSubmitPayloadEnvelope({ modelId, payload });
   if (!unwrapped.ok) return unwrapped;
 
-  const normalized = normalizeAliases({ payload: unwrapped.payload, modelId });
+  const normalized = validateCanonicalPayload({ payload: unwrapped.payload, modelId });
   if (!normalized.ok) return normalized;
 
   return {
     ...normalized,
-    queueCompatibilityApplied: unwrapped.queueCompatibilityApplied,
     envelopeVersion: unwrapped.envelopeVersion,
   };
 };

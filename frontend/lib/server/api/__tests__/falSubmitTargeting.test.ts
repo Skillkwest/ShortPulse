@@ -36,8 +36,6 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   admissionAtomicEnabled: false,
   queueBaseBackoffSeconds: 5,
   ...overrides,
-  videoSubmitCanonicalMode: overrides.videoSubmitCanonicalMode ?? "on",
-  videoQueueCompatNormalizationEnabled: overrides.videoQueueCompatNormalizationEnabled ?? true,
   statusTransientFailuresEnabled: overrides.statusTransientFailuresEnabled ?? false,
   providerAttachedReservationCleanupEnabled:
     overrides.providerAttachedReservationCleanupEnabled ?? true,

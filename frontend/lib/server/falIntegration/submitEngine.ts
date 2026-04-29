@@ -1,6 +1,6 @@
 /**
- * Submit engine for Fal routes with deterministic fallback target handling.
- * It keeps fallback policy centralized so route handlers stay small.
+ * Submit engine for Fal routes.
+ * One model resolves to one canonical provider submit URL; retry only repeats that URL.
  */
 
 import type { SubmitPayload, SubmitTarget, SubmitTargetAttemptDiagnostic } from "./contracts";
@@ -13,7 +13,6 @@ export type SubmitResult = {
   targetIndex: number;
   diagnostics: {
     attemptsTried: number;
-    fallbackCount: number;
     targetCount: number;
     totalDurationMs: number;
     targetAttempts: SubmitTargetAttemptDiagnostic[];
@@ -112,7 +111,6 @@ const runSubmitTarget = async ({
         targetIndex,
         diagnostics: {
           attemptsTried: attempt,
-          fallbackCount: targetIndex,
           targetCount: 1,
           totalDurationMs: Math.max(0, Date.now() - startedAt),
           targetAttempts: [
@@ -137,34 +135,26 @@ const runSubmitTarget = async ({
   throw new Error("Fal submit attempts exhausted unexpectedly.");
 };
 
-/**
- * Executes one or more submit targets with fallback semantics:
- * - primary response is authoritative unless it is `404`
- * - any successful fallback supersedes the primary failure
- */
-export const submitWithFallbackTargets = async ({
-  targets,
+export const submitSingleTargetWithRetry = async ({
+  target,
   payload,
   apiKey,
   signal,
   requestStartTimeoutSeconds,
   maxAttemptsPerTarget = 2,
 }: {
-  targets: SubmitTarget[];
+  target: SubmitTarget;
   payload: SubmitPayload;
   apiKey: string;
   signal: AbortSignal;
   requestStartTimeoutSeconds?: number;
   maxAttemptsPerTarget?: number;
 }): Promise<SubmitResult> => {
-  if (!targets.length) {
-    throw new Error("submitWithFallbackTargets requires at least one submit target.");
-  }
   const resolvedStartTimeoutSeconds = clampStartTimeoutSeconds(requestStartTimeoutSeconds ?? 30);
   const resolvedMaxAttemptsPerTarget = Math.max(1, Math.min(3, Math.trunc(maxAttemptsPerTarget)));
 
-  const primary = await runSubmitTarget({
-    target: targets[0],
+  return runSubmitTarget({
+    target,
     payload,
     apiKey,
     signal,
@@ -172,63 +162,4 @@ export const submitWithFallbackTargets = async ({
     requestStartTimeoutSeconds: resolvedStartTimeoutSeconds,
     maxAttemptsPerTarget: resolvedMaxAttemptsPerTarget,
   });
-  if (primary.response.ok || targets.length === 1) {
-    return {
-      ...primary,
-      diagnostics: {
-        ...primary.diagnostics,
-        targetCount: targets.length,
-      },
-    };
-  }
-
-  let fallbackFailure: SubmitResult | null = null;
-  for (const [offset, target] of targets.slice(1).entries()) {
-    const fallback = await runSubmitTarget({
-      target,
-      payload,
-      apiKey,
-      signal,
-      targetIndex: offset + 1,
-      requestStartTimeoutSeconds: resolvedStartTimeoutSeconds,
-      maxAttemptsPerTarget: resolvedMaxAttemptsPerTarget,
-    });
-    if (fallback.response.ok) {
-      return {
-        ...fallback,
-        diagnostics: {
-          ...fallback.diagnostics,
-          fallbackCount: offset + 1,
-          targetCount: targets.length,
-          targetAttempts: [
-            ...primary.diagnostics.targetAttempts,
-            ...fallback.diagnostics.targetAttempts,
-          ],
-        },
-      };
-    }
-    fallbackFailure = fallback;
-  }
-
-  if (primary.response.status === 404 && fallbackFailure) {
-    return {
-      ...fallbackFailure,
-      diagnostics: {
-        ...fallbackFailure.diagnostics,
-        fallbackCount: fallbackFailure.targetIndex,
-        targetCount: targets.length,
-        targetAttempts: [
-          ...primary.diagnostics.targetAttempts,
-          ...fallbackFailure.diagnostics.targetAttempts,
-        ],
-      },
-    };
-  }
-  return {
-    ...primary,
-    diagnostics: {
-      ...primary.diagnostics,
-      targetCount: targets.length,
-    },
-  };
 };

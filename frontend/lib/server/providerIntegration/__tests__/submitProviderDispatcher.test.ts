@@ -5,11 +5,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { dispatchProviderSubmit, ProviderSubmitValidationError } from "../submitProviderDispatcher";
 
-const submitWithFallbackTargetsMock = vi.fn();
+const submitSingleTargetWithRetryMock = vi.fn();
 const ORIGINAL_ENV = { ...process.env };
 
 vi.mock("../../falIntegration/submitEngine", () => ({
-  submitWithFallbackTargets: (...args: unknown[]) => submitWithFallbackTargetsMock(...args),
+  submitSingleTargetWithRetry: (...args: unknown[]) => submitSingleTargetWithRetryMock(...args),
 }));
 
 describe("submitProviderDispatcher", () => {
@@ -28,14 +28,13 @@ describe("submitProviderDispatcher", () => {
   });
 
   it("dispatches fal submits and returns canonical provider request id", async () => {
-    submitWithFallbackTargetsMock.mockResolvedValue({
+    submitSingleTargetWithRetryMock.mockResolvedValue({
       response: new Response(JSON.stringify({ request_id: "req-1" }), { status: 200 }),
       data: { request_id: "req-1" },
       targetUrl: "https://queue.fal.run/fal-ai/model",
       targetIndex: 0,
       diagnostics: {
         attemptsTried: 1,
-        fallbackCount: 0,
         targetCount: 1,
         totalDurationMs: 25,
         targetAttempts: [
@@ -61,7 +60,12 @@ describe("submitProviderDispatcher", () => {
       requestStartTimeoutSeconds: 20,
     });
 
-    expect(submitWithFallbackTargetsMock).toHaveBeenCalledTimes(1);
+    expect(submitSingleTargetWithRetryMock).toHaveBeenCalledTimes(1);
+    expect(submitSingleTargetWithRetryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: { submitUrl: "https://queue.fal.run/fal-ai/model" },
+      })
+    );
     expect(result.providerRequestId).toBe("req-1");
     expect(result.targetIndex).toBe(0);
     expect(result.providerDiagnostics).toEqual(
@@ -81,14 +85,13 @@ describe("submitProviderDispatcher", () => {
   });
 
   it("supports request-id aliases from provider payloads", async () => {
-    submitWithFallbackTargetsMock.mockResolvedValue({
+    submitSingleTargetWithRetryMock.mockResolvedValue({
       response: new Response(JSON.stringify({ task_id: "task-1" }), { status: 200 }),
       data: { task_id: "task-1" },
       targetUrl: "https://queue.fal.run/fal-ai/model",
       targetIndex: 0,
       diagnostics: {
         attemptsTried: 1,
-        fallbackCount: 0,
         targetCount: 1,
         totalDurationMs: 25,
         targetAttempts: [
@@ -116,6 +119,25 @@ describe("submitProviderDispatcher", () => {
     expect(result.providerRequestId).toBe("task-1");
   });
 
+  it("rejects fal submits with more than one target", async () => {
+    await expect(
+      dispatchProviderSubmit({
+        provider: "fal",
+        modelId: "fal-ai/nano-banana-pro",
+        targets: [
+          { submitUrl: "https://queue.fal.run/fal-ai/model" },
+          { submitUrl: "https://queue.fal.run/fal-ai/model-legacy" },
+        ],
+        payload: { prompt: "hello" },
+        apiKey: "key",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow(
+      "Fal submit requires exactly one canonical submit target for model fal-ai/nano-banana-pro; received 2."
+    );
+    expect(submitSingleTargetWithRetryMock).not.toHaveBeenCalled();
+  });
+
   it("fails closed for kie when dark path is disabled", async () => {
     await expect(
       dispatchProviderSubmit({
@@ -127,7 +149,7 @@ describe("submitProviderDispatcher", () => {
         signal: new AbortController().signal,
       })
     ).rejects.toThrow("Kie provider is disabled by runtime flag.");
-    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+    expect(submitSingleTargetWithRetryMock).not.toHaveBeenCalled();
   });
 
   it("dispatches kie submits when dark path is enabled", async () => {
@@ -150,11 +172,10 @@ describe("submitProviderDispatcher", () => {
     });
 
     expect(result.providerRequestId).toBe("kie-req-1");
-    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+    expect(submitSingleTargetWithRetryMock).not.toHaveBeenCalled();
     expect(result.providerDiagnostics).toEqual(
       expect.objectContaining({
         attemptsTried: 1,
-        fallbackCount: 0,
         targetCount: 1,
         totalDurationMs: expect.any(Number),
         targetAttempts: [
@@ -344,55 +365,30 @@ describe("submitProviderDispatcher", () => {
     expect(result.providerRequestId).toBeNull();
   });
 
-  it("falls through to the next Kie target when body code is retryable despite HTTP 200", async () => {
+  it("rejects Kie submits with more than one target", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ code: 500, msg: "internal error" }), { status: 200 })
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ code: 200, data: { taskId: "kie-task-2" } }), {
-          status: 200,
-        })
-      );
+    const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await dispatchProviderSubmit({
-      provider: "kie",
-      modelId: "kie-ai/veo-3.1-fast-i2v",
-      targets: [
-        { submitUrl: "https://queue.kie.ai/v1/jobs-primary" },
-        { submitUrl: "https://queue.kie.ai/v1/jobs-secondary" },
-      ],
-      payload: { prompt: "hello", image_url: "https://example.com/ref.png" },
-      apiKey: "key",
-      signal: new AbortController().signal,
-      maxAttemptsPerTarget: 1,
-    });
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(result.targetIndex).toBe(1);
-    expect(result.response.ok).toBe(true);
-    expect(result.providerRequestId).toBe("kie-task-2");
-    expect(result.providerDiagnostics).toEqual(
-      expect.objectContaining({
-        attemptsTried: 1,
-        fallbackCount: 1,
-        targetCount: 2,
-        totalDurationMs: expect.any(Number),
-        targetAttempts: expect.arrayContaining([
-          expect.objectContaining({
-            targetIndex: 1,
-            attemptsTried: 1,
-            finalStatus: 200,
-            ok: true,
-            durationMs: expect.any(Number),
-          }),
-        ]),
+    await expect(
+      dispatchProviderSubmit({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        targets: [
+          { submitUrl: "https://queue.kie.ai/v1/jobs-primary" },
+          { submitUrl: "https://queue.kie.ai/v1/jobs-secondary" },
+        ],
+        payload: { prompt: "hello", image_url: "https://example.com/ref.png" },
+        apiKey: "key",
+        signal: new AbortController().signal,
+        maxAttemptsPerTarget: 1,
       })
+    ).rejects.toThrow(
+      "Kie submit requires exactly one canonical submit target for model kie-ai/veo-3.1-fast-i2v; received 2."
     );
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("throws for unsupported non-kie providers", async () => {
@@ -406,6 +402,6 @@ describe("submitProviderDispatcher", () => {
         signal: new AbortController().signal,
       })
     ).rejects.toThrow("Unsupported provider for submit dispatch");
-    expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+    expect(submitSingleTargetWithRetryMock).not.toHaveBeenCalled();
   });
 });

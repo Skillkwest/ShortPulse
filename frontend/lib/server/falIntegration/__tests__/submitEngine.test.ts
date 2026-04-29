@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { submitWithFallbackTargets } from "../submitEngine";
+import { submitSingleTargetWithRetry } from "../submitEngine";
 
 describe("submitEngine trusted target policy", () => {
   afterEach(() => {
@@ -12,8 +12,8 @@ describe("submitEngine trusted target policy", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      submitWithFallbackTargets({
-        targets: [{ submitUrl: "https://example.com/untrusted" }],
+      submitSingleTargetWithRetry({
+        target: { submitUrl: "https://example.com/untrusted" },
         payload: { prompt: "hello" },
         apiKey: "test-key",
         signal: new AbortController().signal,
@@ -32,8 +32,8 @@ describe("submitEngine trusted target policy", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await submitWithFallbackTargets({
-      targets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana-pro" }],
+    const result = await submitSingleTargetWithRetry({
+      target: { submitUrl: "https://queue.fal.run/fal-ai/nano-banana-pro" },
       payload: { prompt: "hello" },
       apiKey: "test-key",
       signal: new AbortController().signal,
@@ -44,7 +44,6 @@ describe("submitEngine trusted target policy", () => {
     expect(result.diagnostics).toEqual(
       expect.objectContaining({
         attemptsTried: 1,
-        fallbackCount: 0,
         targetCount: 1,
         totalDurationMs: expect.any(Number),
         targetAttempts: [

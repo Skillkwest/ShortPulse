@@ -36,6 +36,11 @@ import { resolveCreateAgentOrchestrationRuntimePolicy } from "./agentOrchestrati
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { useCreateAgentBridgeActiveAgent } from "./agentBridgeRuntime/useCreateAgentBridgeActiveAgent";
 import {
+  pruneInactivePulseBridgeRuntimeStates,
+  resolvePulseAgentSessionNamespace,
+  resolvePulseWorkflowArtifactPrompt,
+} from "./agentBridgeRuntime/pulseBridgeRuntimeState";
+import {
   restartCreatePulsePreset,
   type RestartCreatePulsePresetParams,
 } from "./agentBridgeRuntime/pulsePresetRestart";
@@ -484,27 +489,22 @@ export const useAiStudioAgentBridge = ({
 
   const resolvePulseSessionNamespace = useCallback(
     (presetId: string, nextPulseSessionInstanceId?: string) =>
-      `ai-studio:${sessionId ?? "none"}::pulse:${presetId}:${nextPulseSessionInstanceId ?? "pending"}`,
+      resolvePulseAgentSessionNamespace({
+        sessionId,
+        presetId,
+        pulseSessionInstanceId: nextPulseSessionInstanceId,
+      }),
     [sessionId]
   );
 
   useEffect(() => {
-    const pulseSessionKeyPrefix = `${sessionId ?? "none"}::pulse:`;
-
     setAgentBridgeRuntimeStateBySessionKey((current) => {
-      let changed = false;
-      const nextEntries = Object.entries(current).filter(([key]) => {
-        const isPulseEntry = key.startsWith(pulseSessionKeyPrefix);
-        if (!isPulseEntry) return true;
-        const shouldKeep =
-          hasStoredPulseSession && key === `${sessionId ?? "none"}::${pulseRuntimeScopeKey}`;
-        if (!shouldKeep) {
-          changed = true;
-        }
-        return shouldKeep;
+      return pruneInactivePulseBridgeRuntimeStates({
+        current,
+        sessionId,
+        hasStoredPulseSession,
+        pulseRuntimeScopeKey,
       });
-      if (!changed) return current;
-      return Object.fromEntries(nextEntries);
     });
   }, [hasStoredPulseSession, pulseRuntimeScopeKey, sessionId]);
 
@@ -565,12 +565,10 @@ export const useAiStudioAgentBridge = ({
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
     [agentMessages]
   );
-  const pulseArtifactPrompt =
-    hasVisiblePulseSession &&
-    typeof pulseWorkflowSession?.lastArtifact === "string" &&
-    pulseWorkflowSession.lastArtifact.trim().length > 0
-      ? pulseWorkflowSession.lastArtifact.trim()
-      : null;
+  const pulseArtifactPrompt = resolvePulseWorkflowArtifactPrompt({
+    hasVisiblePulseSession,
+    pulseWorkflowSession,
+  });
   const effectiveLatestAgentPrompt = pulseArtifactPrompt ?? latestAgentPrompt;
   const effectivePromptOrigin =
     pulseArtifactPrompt && hasVisiblePulseSession ? "agent" : promptOrigin;

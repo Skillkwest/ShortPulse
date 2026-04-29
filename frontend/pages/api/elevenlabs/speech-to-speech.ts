@@ -2,7 +2,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
+import {
+  captureSucceededGenerationByProviderRequest,
+  chargeGenerationRequest,
+} from "../../../lib/server/api/generationBilling";
 import {
   assertTrustedRemoteMediaUrl,
   TrustedRemoteMediaUrlError,
@@ -261,13 +264,21 @@ export default async function handler(
       removeBackgroundNoise,
       inputFormat,
     });
+    const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
+    const submitLink = await charge.markSubmitted(providerRequestId, {
+      source_mode: "voice-changer",
+      source_duration_seconds: sourceDurationSeconds,
+    });
+    if (!submitLink.ok) {
+      throw new Error(`Unable to link generation billing reservation: ${submitLink.status}`);
+    }
 
     const persisted = await persistGeneratedAudioAsset({
       userId: charge.userId,
       promptText: `${sourceName} -> ${voiceName}`,
       provider: "elevenlabs",
       modelId,
-      providerRequestId: generated.providerRequestId,
+      providerRequestId,
       requestId: charge.sourceRef,
       projectId,
       sourceMode: "voice-changer",
@@ -281,16 +292,25 @@ export default async function handler(
         billing_source_ref: charge.sourceRef,
         debited_credits: charge.credits,
         pricing_metadata: charge.chargeMetadata,
-        provider_request_id: generated.providerRequestId,
+        provider_request_id: providerRequestId,
         source_duration_ms: Math.round(sourceDurationSeconds * 1000),
         source_duration_seconds: sourceDurationSeconds,
       },
     });
-    if (generated.providerRequestId) {
-      await charge.markSubmitted(generated.providerRequestId, {
+    const captureResult = await captureSucceededGenerationByProviderRequest({
+      userId: charge.userId,
+      providerRequestId,
+      reason: "ElevenLabs voice changer generation completed.",
+      routeLabel: "elevenlabs-speech-to-speech",
+      detail: {
+        generation_id: persisted.generationId,
+        source_ref: charge.sourceRef,
         source_mode: "voice-changer",
         source_duration_seconds: sourceDurationSeconds,
-      });
+      },
+    });
+    if (!captureResult.settled) {
+      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
     }
 
     let remuxedVideo: Awaited<ReturnType<typeof createRemuxedVoiceChangerVideo>> | null = null;
@@ -311,7 +331,7 @@ export default async function handler(
           promptText: `${originalVideoName ?? sourceName} -> ${voiceName} video`,
           provider: "elevenlabs",
           modelId,
-          providerRequestId: generated.providerRequestId,
+          providerRequestId,
           projectId,
           sourceMode: "voice-changer",
           outputBuffer: remuxedVideo.buffer,
@@ -322,7 +342,7 @@ export default async function handler(
             billing_source_ref: charge.sourceRef,
             debited_credits: charge.credits,
             pricing_metadata: charge.chargeMetadata,
-            provider_request_id: generated.providerRequestId,
+            provider_request_id: providerRequestId,
             source_audio_generation_id: persisted.generationId,
             source_duration_ms: Math.round(sourceDurationSeconds * 1000),
             source_duration_seconds: sourceDurationSeconds,

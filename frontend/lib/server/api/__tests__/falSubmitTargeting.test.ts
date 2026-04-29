@@ -32,7 +32,6 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   reservationCleanupEnabled: true,
   reservationCleanupMinAgeSeconds: 900,
   reservationCleanupBatchSize: 200,
-  admissionAtomicEnabled: false,
   queueBaseBackoffSeconds: 5,
   ...overrides,
   statusTransientFailuresEnabled: overrides.statusTransientFailuresEnabled ?? false,

@@ -103,7 +103,7 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual([]);
   });
 
-  it("returns only linkage context when the newest legacy row is success without canonical outputs", async () => {
+  it("ignores legacy success rows without projection context", async () => {
     persistedGenerationRows = [
       {
         id: "gen-success-1",
@@ -120,12 +120,12 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-1",
       })
     ).resolves.toEqual({
-      generationId: "gen-success-1",
+      generationId: null,
       resultUrls: [],
     });
   });
 
-  it("does not let an older legacy success row override a newer nonterminal row", async () => {
+  it("does not read older legacy success rows without projection context", async () => {
     persistedGenerationRows = [
       {
         id: "gen-processing-1",
@@ -147,12 +147,12 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-1",
       })
     ).resolves.toEqual({
-      generationId: "gen-processing-1",
+      generationId: null,
       resultUrls: [],
     });
   });
 
-  it("prefers generation projection result urls before ai_generations fallback", async () => {
+  it("uses generation projection result urls as the canonical source", async () => {
     persistedProjectionRows = [
       {
         generation_id: "gen-projection-1",
@@ -267,7 +267,7 @@ describe("falStatusPersistedResults", () => {
     });
   });
 
-  it("reads canonical outputs from projection-linked generation ids before ai_generations fallback", async () => {
+  it("reads canonical outputs from projection-linked generation ids", async () => {
     persistedProjectionRows = [
       {
         generation_id: "gen-projection-output-1",
@@ -316,6 +316,15 @@ describe("falStatusPersistedResults", () => {
   });
 
   it("prefers canonical persisted generation outputs over metadata result urls", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-1",
+        result_urls: [],
+        publication_state: "suppressed",
+        status: "ready",
+        task_state: "running",
+      },
+    ];
     persistedGenerationRows = [
       {
         id: "gen-1",
@@ -349,7 +358,7 @@ describe("falStatusPersistedResults", () => {
         "https://cdn.shortpulse.test/output-a.mp4",
         "https://cdn.shortpulse.test/output-b.mp4",
       ],
-      status: "success",
+      status: "ready",
       taskState: "success",
       deliveryState: "canonical_owned",
       recoveryPending: false,
@@ -361,6 +370,15 @@ describe("falStatusPersistedResults", () => {
   });
 
   it("returns canonical outputs from the newest generation row even before status flips to success", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-processing-1",
+        result_urls: [],
+        publication_state: "suppressed",
+        status: "processing",
+        task_state: "running",
+      },
+    ];
     persistedGenerationRows = [
       {
         id: "gen-processing-1",
@@ -434,7 +452,7 @@ describe("falStatusPersistedResults", () => {
     });
   });
 
-  it("returns the newest legacy failed generation row as compatibility failure context", async () => {
+  it("ignores legacy failed rows without projection context", async () => {
     persistedGenerationRows = [
       {
         id: "gen-failed-1",
@@ -450,17 +468,12 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-failed-1",
       })
     ).resolves.toEqual({
-      generationId: "gen-failed-1",
+      generationId: null,
       resultUrls: [],
-      status: "failed",
-      taskState: "fail",
-      queueState: "failed",
-      errorMessageShort: "Legacy generation failed",
-      errorDetail: "Legacy generation failed",
     });
   });
 
-  it("does not let an older legacy failed row override a newer nonterminal row", async () => {
+  it("does not read older legacy failed rows without projection context", async () => {
     persistedGenerationRows = [
       {
         id: "gen-processing-1",
@@ -481,7 +494,7 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-failed-1",
       })
     ).resolves.toEqual({
-      generationId: "gen-processing-1",
+      generationId: null,
       resultUrls: [],
     });
   });

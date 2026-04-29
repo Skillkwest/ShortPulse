@@ -131,35 +131,14 @@ describe("POST /api/kie/upload-url", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it("falls back to stream upload when Kie URL upload rejects the remote URL", async () => {
-    const sourceBytes = new Uint8Array([0xff, 0xd8, 0xff, 0xdb]);
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 403,
-        json: async () => ({
-          msg: "Forbidden",
-        }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "image/jpeg" }),
-        arrayBuffer: async () => sourceBytes.buffer,
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          msg: "File uploaded successfully",
-          data: {
-            downloadUrl: "https://tempfile.redpandaai.co/files/fallback-image.jpg",
-            fileName: "fallback-image.jpg",
-            mimeType: "image/jpeg",
-          },
-        }),
-      } as Response);
+  it("returns the Kie URL upload failure without trying a secondary upload route", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({
+        msg: "Forbidden",
+      }),
+    } as Response);
     vi.stubGlobal("fetch", fetchMock);
 
     const req = {
@@ -173,15 +152,12 @@ describe("POST /api/kie/upload-url", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://kieai.redpandaai.co/api/file-url-upload");
-    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://cdn.example.com/fallback-image.jpg");
-    expect(fetchMock.mock.calls[2]?.[0]).toBe("https://kieai.redpandaai.co/api/file-stream-upload");
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith({
-      url: "https://tempfile.redpandaai.co/files/fallback-image.jpg",
-      fileName: "fallback-image.jpg",
-      mimeType: "image/jpeg",
+      error: "Kie upload failed",
+      details: "Forbidden",
     });
   });
 

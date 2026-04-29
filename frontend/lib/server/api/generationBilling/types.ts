@@ -16,7 +16,7 @@ export type ChargeResult = {
   modelId: string;
   credits: number;
   sourceRef: string;
-  billingMode: "reservation" | "direct_debit";
+  billingMode: "reservation";
   chargeMetadata: JsonObject;
   pricingBreakdown: {
     billedCredits: number;

@@ -2,11 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { listSavedVoicesForUser } from "../../../lib/server/api/userSavedVoices";
-import {
-  buildFallbackElevenLabsVoices,
-  listElevenLabsVoices,
-  type ElevenLabsVoice,
-} from "../../../lib/server/elevenlabs";
+import { listElevenLabsVoices, type ElevenLabsVoice } from "../../../lib/server/elevenlabs";
 
 type VoicesSuccessResponse = {
   voices: Array<{
@@ -16,8 +12,7 @@ type VoicesSuccessResponse = {
     description: string | null;
     isFallback: boolean;
   }>;
-  source: "api" | "fallback";
-  warning?: string;
+  source: "api";
 };
 
 type VoicesErrorResponse = {
@@ -62,13 +57,9 @@ export default async function handler(
   }
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {
-    return res.status(200).json({
-      voices: mergeVoices(savedVoices, buildFallbackElevenLabsVoices()),
-      source: "fallback",
-      warning:
-        savedVoices.length > 0
-          ? "Showing your saved voices and the ElevenLabs default catalog until live voices are configured."
-          : "Showing the ElevenLabs default catalog until live voices are configured.",
+    return res.status(503).json({
+      error: "ElevenLabs voices are unavailable",
+      details: "ELEVENLABS_API_KEY is not configured.",
     });
   }
 
@@ -84,13 +75,9 @@ export default async function handler(
       user,
     });
 
-    return res.status(200).json({
-      voices: mergeVoices(savedVoices, buildFallbackElevenLabsVoices()),
-      source: "fallback",
-      warning:
-        savedVoices.length > 0
-          ? "Showing your saved voices and the ElevenLabs default catalog while live voices are unavailable."
-          : "Showing the ElevenLabs default catalog while live voices are unavailable.",
+    return res.status(502).json({
+      error: "ElevenLabs voices are unavailable",
+      details: error instanceof Error ? error.message : "Unable to load live voices.",
     });
   }
 }

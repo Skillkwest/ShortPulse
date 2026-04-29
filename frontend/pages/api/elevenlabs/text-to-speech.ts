@@ -1,7 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
+import {
+  captureSucceededGenerationByProviderRequest,
+  chargeGenerationRequest,
+} from "../../../lib/server/api/generationBilling";
 import {
   generateElevenLabsVoiceover,
   persistGeneratedAudioAsset,
@@ -98,12 +101,20 @@ export default async function handler(
       outputFormat,
       body: config,
     });
+    const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
+    const submitLink = await charge.markSubmitted(providerRequestId, {
+      source_mode: "voiceover",
+    });
+    if (!submitLink.ok) {
+      throw new Error(`Unable to link generation billing reservation: ${submitLink.status}`);
+    }
+
     const persisted = await persistGeneratedAudioAsset({
       userId: charge.userId,
       promptText: text,
       provider: "elevenlabs",
       modelId,
-      providerRequestId: generated.providerRequestId,
+      providerRequestId,
       requestId: charge.sourceRef,
       projectId,
       sourceMode: "voiceover",
@@ -117,14 +128,23 @@ export default async function handler(
         billing_source_ref: charge.sourceRef,
         debited_credits: charge.credits,
         pricing_metadata: charge.chargeMetadata,
-        provider_request_id: generated.providerRequestId,
+        provider_request_id: providerRequestId,
         text_character_count: text.length,
       },
     });
-    if (generated.providerRequestId) {
-      await charge.markSubmitted(generated.providerRequestId, {
+    const captureResult = await captureSucceededGenerationByProviderRequest({
+      userId: charge.userId,
+      providerRequestId,
+      reason: "ElevenLabs voiceover generation completed.",
+      routeLabel: "elevenlabs-text-to-speech",
+      detail: {
+        generation_id: persisted.generationId,
+        source_ref: charge.sourceRef,
         source_mode: "voiceover",
-      });
+      },
+    });
+    if (!captureResult.settled) {
+      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
     }
 
     return res.status(200).json({

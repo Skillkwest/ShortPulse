@@ -4,6 +4,7 @@ import handler from "../../pages/api/elevenlabs/text-to-speech";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
+const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsVoiceoverMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 
@@ -17,6 +18,8 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
+  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
+    captureSucceededGenerationByProviderRequestMock(...args),
 }));
 
 vi.mock("../../lib/server/elevenlabs", () => ({
@@ -38,7 +41,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
       modelId: "eleven_multilingual_v2",
       credits: 15,
       sourceRef: "billing-source-tts-1",
-      billingMode: "direct_debit",
+      billingMode: "reservation",
       chargeMetadata: { debited_credits: 15 },
       pricingBreakdown: {
         billedCredits: 15,
@@ -49,8 +52,13 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         usdRaw: 0.1,
       },
       pricingParams: { textCharacters: 1000 },
-      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "attached" }),
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "reserved" }),
       refund: vi.fn().mockResolvedValue(undefined),
+    });
+    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+      settled: true,
+      sourceRef: "billing-source-tts-1",
+      note: "captured",
     });
   });
 
@@ -117,6 +125,17 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         }),
       })
     );
+    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      providerRequestId: "provider-tts-1",
+      reason: "ElevenLabs voiceover generation completed.",
+      routeLabel: "elevenlabs-text-to-speech",
+      detail: {
+        generation_id: "gen-tts-1",
+        source_ref: "billing-source-tts-1",
+        source_mode: "voiceover",
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       output: {

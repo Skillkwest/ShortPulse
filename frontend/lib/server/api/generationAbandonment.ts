@@ -98,34 +98,10 @@ const resolveGenerationIds = async ({
 
   if (normalizedSourceRef) {
     await addProjectionMatches("source_ref", normalizedSourceRef);
-    const { data, error } = await adminClient
-      .from("ai_generations")
-      .select("id")
-      .eq("user_id", userId)
-      .contains("metadata", { source_ref: normalizedSourceRef })
-      .limit(20);
-    if (!error && Array.isArray(data)) {
-      data.forEach((row) => {
-        const id = normalizeString((row as Record<string, unknown>).id);
-        if (id) ids.add(id);
-      });
-    }
   }
 
   if (normalizedRequestId) {
     await addProjectionMatches("request_id", normalizedRequestId);
-    const { data, error } = await adminClient
-      .from("ai_generations")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("request_id", normalizedRequestId)
-      .limit(20);
-    if (!error && Array.isArray(data)) {
-      data.forEach((row) => {
-        const id = normalizeString((row as Record<string, unknown>).id);
-        if (id) ids.add(id);
-      });
-    }
   }
 
   return [...ids];

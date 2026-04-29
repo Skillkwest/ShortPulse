@@ -4,6 +4,7 @@ import handler from "../../pages/api/elevenlabs/sound-effects";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
+const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsSoundEffectMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 
@@ -17,6 +18,8 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
+  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
+    captureSucceededGenerationByProviderRequestMock(...args),
 }));
 
 vi.mock("../../lib/server/elevenlabs", () => ({
@@ -39,7 +42,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
       modelId: "eleven_text_to_sound_v2",
       credits: 15,
       sourceRef: "billing-source-sfx-1",
-      billingMode: "direct_debit",
+      billingMode: "reservation",
       chargeMetadata: { debited_credits: 15 },
       pricingBreakdown: {
         billedCredits: 15,
@@ -50,8 +53,13 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         usdRaw: 0.12,
       },
       pricingParams: { generationCount: 1 },
-      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "attached" }),
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "reserved" }),
       refund: vi.fn().mockResolvedValue(undefined),
+    });
+    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+      settled: true,
+      sourceRef: "billing-source-sfx-1",
+      note: "captured",
     });
   });
 
@@ -125,6 +133,18 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         }),
       })
     );
+    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      providerRequestId: "provider-sfx-1",
+      reason: "ElevenLabs sound effect generation completed.",
+      routeLabel: "elevenlabs-sound-effects",
+      detail: {
+        generation_id: "gen-sfx-1",
+        source_ref: "billing-source-sfx-1",
+        source_mode: "sound-effects",
+        provider_character_cost: 100,
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       output: {

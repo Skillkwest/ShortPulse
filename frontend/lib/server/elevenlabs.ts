@@ -1,7 +1,6 @@
 import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
-import { ELEVENLABS_DEFAULT_VOICES } from "../model-runtime/elevenLabsDefaultVoices";
 import { canAutoPersistRecoveryMedia } from "../mediaAutosavePolicy";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
@@ -196,15 +195,6 @@ const readProviderRequestId = (headers: Headers): string | null =>
   normalizeOptionalString(headers.get("x-request-id")) ??
   normalizeOptionalString(headers.get("request_id"));
 
-export const buildFallbackElevenLabsVoices = (): ElevenLabsVoice[] =>
-  ELEVENLABS_DEFAULT_VOICES.map((voice) => ({
-    voiceId: voice.fallbackVoiceId,
-    name: voice.name,
-    previewUrl: null,
-    description: voice.description,
-    isFallback: true,
-  }));
-
 const normalizeElevenLabsVoice = (voice: Record<string, unknown>): ElevenLabsVoice | null => {
   const voiceId = normalizeOptionalString(voice.voice_id) ?? normalizeOptionalString(voice.voiceId);
   const name = normalizeOptionalString(voice.name);
@@ -362,7 +352,7 @@ export const listElevenLabsVoices = async (): Promise<ElevenLabsVoice[]> => {
       .map((entry) => entry.voice);
   }
 
-  return buildFallbackElevenLabsVoices();
+  return [];
 };
 
 export const designElevenLabsVoice = async ({

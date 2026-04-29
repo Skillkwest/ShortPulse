@@ -22,7 +22,6 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED;
     delete process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS;
     delete process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS;
-    delete process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS;
     delete process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS;
     delete process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS;
@@ -50,7 +49,6 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.providerAttachedReservationCleanupEnabled).toBe(false);
     expect(flags.providerAttachedReservationCleanupMinAgeSeconds).toBe(7200);
     expect(flags.providerAttachedReservationOrphanMinAgeSeconds).toBe(86400);
-    expect(flags.admissionAtomicEnabled).toBe(false);
     expect(flags.queueBaseBackoffSeconds).toBe(3);
     expect(flags.queueMaxWaitSeconds).toBe(1200);
     expect(flags.recoveryProbeTimeoutMs).toBe(15000);
@@ -74,7 +72,6 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED = "true";
     process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS = "5400";
     process.env.SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS = "90000";
-    process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED = "true";
     process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS = "9";
     process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS = "1800";
     process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS = "22000";
@@ -102,7 +99,6 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.providerAttachedReservationCleanupEnabled).toBe(true);
     expect(flags.providerAttachedReservationCleanupMinAgeSeconds).toBe(5400);
     expect(flags.providerAttachedReservationOrphanMinAgeSeconds).toBe(90000);
-    expect(flags.admissionAtomicEnabled).toBe(true);
     expect(flags.queueBaseBackoffSeconds).toBe(9);
     expect(flags.queueMaxWaitSeconds).toBe(1800);
     expect(flags.recoveryProbeTimeoutMs).toBe(22000);

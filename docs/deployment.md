@@ -117,12 +117,10 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; client half of dual-flag signed-transform policy)
   - AI Studio legacy `sid` session-persistence env flags are retired and should not be configured. `sid` remains runtime identity only, and durable restore authority now belongs to project workspace persistence.
   - `OPENAI_PROMPT_SYSTEM`
-  - `SHORTPULSE_FAL_INTEGRATION_MODE` (`legacy|shadow|on`)
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)
   - `SHORTPULSE_FAL_WEBHOOK_ENABLED`
-  - `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE` (`dual|fal_only|hmac_only`)
+  - `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE` (`fal_only`)
   - `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`
-  - `SHORTPULSE_FAL_WEBHOOK_SECRET` (legacy dual-mode fallback only; target deprecation after cutover)
   - `SHORTPULSE_FAL_WEBHOOK_TOLERANCE_SECONDS`
   - `SHORTPULSE_PUBLIC_API_BASE_URL` (or `APP_BASE_URL` fallback) for Fal `fal_webhook` submit registration
   - `SHORTPULSE_FAL_RECONCILER_ENABLED`
@@ -142,7 +140,6 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE`
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_ENABLED`
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M`
-  - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED` (emergency only)
   - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED` (defaults to `false`; enables shared Fal-account admission alongside per-user caps)
   - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX` (defaults to `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX`; shared-provider active-generation ceiling)
 

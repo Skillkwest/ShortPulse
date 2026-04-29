@@ -75,7 +75,6 @@ const parseReservationRow = (
 };
 
 type ReserveGenerationCreditsAdmission = {
-  atomicEnabled: boolean;
   mode: "off" | "shadow" | "enforce";
   globalMax: number;
   tier: string;
@@ -100,37 +99,6 @@ const mapReserveRpcError = (error: { code?: string | null; message?: string | nu
   return { status: "failed" as const, message: error.message ?? "reservation_failed", code };
 };
 
-const reserveGenerationCreditsLegacy = async ({
-  rpcClient,
-  userId,
-  sourceRef,
-  modelId,
-  amountCents,
-  reason,
-  metadata,
-}: {
-  rpcClient: RpcInvoker;
-  userId: string;
-  sourceRef: string;
-  modelId: string;
-  amountCents: number;
-  reason: string;
-  metadata: JsonObject;
-}): Promise<ReservationRpcResult> => {
-  const { data, error } = await rpcClient.rpc("reserve_generation_credits", {
-    p_user_id: userId,
-    p_source_ref: sourceRef,
-    p_model_id: modelId,
-    p_amount_cents: amountCents,
-    p_reason: reason,
-    p_metadata: metadata,
-  });
-  if (error) {
-    return mapReserveRpcError(error);
-  }
-  return parseReservationRow(data, "reserved", sourceRef);
-};
-
 export const reserveGenerationCredits = async ({
   userId,
   sourceRef,
@@ -150,46 +118,26 @@ export const reserveGenerationCredits = async ({
 }): Promise<ReservationRpcResult> => {
   try {
     const rpcClient = getSupabaseAdmin() as unknown as RpcInvoker;
-    if (admission?.atomicEnabled) {
-      const { data, error } = await rpcClient.rpc("admit_and_reserve_generation_credits", {
-        p_user_id: userId,
-        p_source_ref: sourceRef,
-        p_model_id: modelId,
-        p_amount_cents: amountCents,
-        p_reason: reason,
-        p_metadata: metadata,
-        p_admission_mode: admission.mode,
-        p_global_max: admission.globalMax,
-        p_tier: admission.tier,
-        p_tier_max: admission.tierMax,
-        p_retry_after_seconds: admission.retryAfterSeconds,
-      });
-      if (error) {
-        const mapped = mapReserveRpcError(error);
-        if (mapped.message !== "missing_reservation_function") {
-          return mapped;
-        }
-        return reserveGenerationCreditsLegacy({
-          rpcClient,
-          userId,
-          sourceRef,
-          modelId,
-          amountCents,
-          reason,
-          metadata,
-        });
-      }
-      return parseReservationRow(data, "reserved", sourceRef);
+    if (!admission) {
+      return { status: "failed", message: "missing_admission_config", code: null };
     }
-    return reserveGenerationCreditsLegacy({
-      rpcClient,
-      userId,
-      sourceRef,
-      modelId,
-      amountCents,
-      reason,
-      metadata,
+    const { data, error } = await rpcClient.rpc("admit_and_reserve_generation_credits", {
+      p_user_id: userId,
+      p_source_ref: sourceRef,
+      p_model_id: modelId,
+      p_amount_cents: amountCents,
+      p_reason: reason,
+      p_metadata: metadata,
+      p_admission_mode: admission.mode,
+      p_global_max: admission.globalMax,
+      p_tier: admission.tier,
+      p_tier_max: admission.tierMax,
+      p_retry_after_seconds: admission.retryAfterSeconds,
     });
+    if (error) {
+      return mapReserveRpcError(error);
+    }
+    return parseReservationRow(data, "reserved", sourceRef);
   } catch (error) {
     return { status: "failed", message: String(error), code: null };
   }

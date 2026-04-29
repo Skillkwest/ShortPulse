@@ -13,7 +13,7 @@ export const normalizeProviderKey = (value: string): string => value.trim().toLo
  */
 export const isFalProviderKey = (provider: string): boolean => {
   const normalized = normalizeProviderKey(provider);
-  return normalized === "fal" || normalized.startsWith("fal");
+  return normalized === "fal";
 };
 
 /**
@@ -21,10 +21,5 @@ export const isFalProviderKey = (provider: string): boolean => {
  */
 export const isKieProviderKey = (provider: string): boolean => {
   const normalized = normalizeProviderKey(provider);
-  return (
-    normalized === "kie" ||
-    normalized.startsWith("kie/") ||
-    normalized.startsWith("kie-") ||
-    normalized.startsWith("kie_")
-  );
+  return normalized === "kie";
 };

@@ -42,15 +42,17 @@ describe("recoveryProviderDispatcher", () => {
     });
   });
 
-  it("accepts fal-prefixed provider aliases", async () => {
-    await probeGenerationProviderResult({
-      provider: "fal_legacy_alias",
-      requestId: "req-2",
-      modelId: "fal-ai/nano-banana-pro",
-      apiKey: "test-key",
-    });
+  it("rejects non-canonical fal provider aliases", async () => {
+    await expect(
+      probeGenerationProviderResult({
+        provider: "fal_legacy_alias",
+        requestId: "req-2",
+        modelId: "fal-ai/nano-banana-pro",
+        apiKey: "test-key",
+      })
+    ).rejects.toThrow("Unsupported recovery provider");
 
-    expect(probeProviderResultMock).toHaveBeenCalledTimes(1);
+    expect(probeProviderResultMock).not.toHaveBeenCalled();
   });
 
   it("routes kie provider keys through provider probe boundary", async () => {

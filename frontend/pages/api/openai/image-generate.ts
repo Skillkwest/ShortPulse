@@ -6,7 +6,10 @@ import {
 } from "../../../lib/model-runtime/openAiImage2";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
+import {
+  captureSucceededGenerationByProviderRequest,
+  chargeGenerationRequest,
+} from "../../../lib/server/api/generationBilling";
 import { readGenerationAbandonmentContext } from "../../../lib/server/api/generationAbandonment";
 import {
   generateOpenAiImage,
@@ -122,18 +125,22 @@ export default async function handler(
       size,
       quality,
     });
-    await charge.markSubmitted(generated.providerRequestId ?? `openai:${charge.sourceRef}`, {
+    const providerRequestId = generated.providerRequestId ?? `openai:${charge.sourceRef}`;
+    const submitLink = await charge.markSubmitted(providerRequestId, {
       source_mode: "image",
       requested_size: size,
       requested_quality: quality,
     });
+    if (!submitLink.ok) {
+      throw new Error(`Unable to link generation billing reservation: ${submitLink.status}`);
+    }
 
     const persisted = await persistGeneratedImageAsset({
       userId: charge.userId,
       projectId,
       promptText: prompt,
       modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
-      providerRequestId: generated.providerRequestId ?? `openai:${charge.sourceRef}`,
+      providerRequestId,
       requestId: charge.sourceRef,
       requestedSize: size,
       requestedQuality: quality,
@@ -147,12 +154,26 @@ export default async function handler(
         billing_source_ref: charge.sourceRef,
         debited_credits: charge.credits,
         pricing_metadata: charge.chargeMetadata,
-        provider_request_id: generated.providerRequestId ?? `openai:${charge.sourceRef}`,
+        provider_request_id: providerRequestId,
         revised_prompt: generated.revisedPrompt,
         shortpulse_context: shortpulseContext,
         provider_usage: generated.usage,
       },
     });
+    const captureResult = await captureSucceededGenerationByProviderRequest({
+      userId: charge.userId,
+      providerRequestId,
+      reason: "OpenAI image generation completed.",
+      routeLabel: "openai-image-generate",
+      detail: {
+        generation_id: persisted.generationId,
+        source_ref: charge.sourceRef,
+        source_mode: "image",
+      },
+    });
+    if (!captureResult.settled) {
+      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
+    }
 
     return res.status(200).json({
       output: {

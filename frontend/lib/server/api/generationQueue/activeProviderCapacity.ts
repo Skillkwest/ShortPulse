@@ -6,10 +6,6 @@ import {
   resolveGenerationAdmissionTier,
   type GenerationAdmissionTier,
 } from "../../../model-runtime/generationAdmissionTiers";
-import {
-  isMissingGenerationAttemptSchemaError,
-  readErrorCode,
-} from "../generationBilling/errorGuards";
 import { resolveProviderFromModelId } from "../../providerIntegration/providerRuntimeConfig";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 
@@ -22,18 +18,18 @@ type ReservationRow = {
   createdAtMs: number | null;
 };
 
+type GenerationAttemptRow = {
+  userId: string;
+  requestId: string;
+  generationId: string;
+};
+
 type GenerationRow = {
   userId: string;
   requestId: string;
   status: string | null;
   recoveryState: string | null;
   createdAtMs: number | null;
-};
-
-type GenerationAttemptRow = {
-  userId: string;
-  requestId: string;
-  generationId: string;
 };
 
 type GenerationStateRow = {
@@ -88,21 +84,6 @@ const parseReservationRow = (value: unknown): ReservationRow | null => {
   };
 };
 
-const parseGenerationRow = (value: unknown): GenerationRow | null => {
-  const row = asObject(value);
-  if (!row) return null;
-  const userId = asString(row.user_id);
-  const requestId = asString(row.request_id);
-  if (!userId || !requestId) return null;
-  return {
-    userId,
-    requestId,
-    status: asString(row.status)?.toLowerCase() ?? null,
-    recoveryState: asString(row.recovery_state)?.toLowerCase() ?? null,
-    createdAtMs: parseTimestampMs(row.created_at),
-  };
-};
-
 const parseGenerationAttemptRow = (value: unknown): GenerationAttemptRow | null => {
   const row = asObject(value);
   if (!row) return null;
@@ -148,7 +129,7 @@ const readGenerationRowsByAttemptRequestIds = async ({
 }: {
   userId?: string | null;
   requestIds: string[];
-}): Promise<{ rows: GenerationRow[]; handled: boolean }> => {
+}): Promise<GenerationRow[]> => {
   let attemptsQuery = getSupabaseAdmin()
     .from("generation_attempts")
     .select("user_id, provider_request_id, generation_id");
@@ -158,14 +139,6 @@ const readGenerationRowsByAttemptRequestIds = async ({
   const attemptsResponse = await attemptsQuery.in("provider_request_id", requestIds);
 
   if (attemptsResponse.error) {
-    if (
-      isMissingGenerationAttemptSchemaError(
-        readErrorCode(attemptsResponse.error),
-        attemptsResponse.error.message
-      )
-    ) {
-      return { rows: [], handled: false };
-    }
     throw attemptsResponse.error;
   }
 
@@ -173,7 +146,7 @@ const readGenerationRowsByAttemptRequestIds = async ({
     .map((row) => parseGenerationAttemptRow(row))
     .filter((row): row is GenerationAttemptRow => Boolean(row));
   if (!attemptRows.length) {
-    return { rows: [], handled: true };
+    return [];
   }
 
   const generationIds = Array.from(new Set(attemptRows.map((row) => row.generationId)));
@@ -211,7 +184,7 @@ const readGenerationRowsByAttemptRequestIds = async ({
     });
   }
 
-  return { rows: resolvedRows, handled: true };
+  return resolvedRows;
 };
 
 const classifyGenerationRequestState = ({
@@ -331,25 +304,10 @@ export const readActiveProviderCapacitySnapshot = async ({
   let generationRows: GenerationRow[] = [];
 
   if (requestIds.length > 0) {
-    const attemptScopedRows = await readGenerationRowsByAttemptRequestIds({
+    generationRows = await readGenerationRowsByAttemptRequestIds({
       userId,
       requestIds,
     });
-    generationRows = attemptScopedRows.rows;
-
-    if (!attemptScopedRows.handled) {
-      let generationsQuery = getSupabaseAdmin()
-        .from("ai_generations")
-        .select("user_id, request_id, status, recovery_state, created_at");
-      if (userId) {
-        generationsQuery = generationsQuery.eq("user_id", userId);
-      }
-      const generationsResponse = await generationsQuery.in("request_id", requestIds);
-      if (generationsResponse.error) throw generationsResponse.error;
-      generationRows = (Array.isArray(generationsResponse.data) ? generationsResponse.data : [])
-        .map((row) => parseGenerationRow(row))
-        .filter((row): row is GenerationRow => Boolean(row));
-    }
   }
 
   for (const row of generationRows) {

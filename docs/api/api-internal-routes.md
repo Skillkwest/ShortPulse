@@ -114,18 +114,13 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 ## Shared runtime contracts
 
 - Credit lifecycle for generation:
-  - Submit path: reserve credits (`reserve_generation_credits`).
-    - Optional flagged path: atomic admission+reserve (`admit_and_reserve_generation_credits`).
+  - Submit path: admit and reserve credits through `admit_and_reserve_generation_credits`.
   - Submit admission control (`off|shadow|enforce`) can reject over-limit starts with `429` + `Retry-After` and payload:
     - `code: GENERATION_ADMISSION_LIMIT`
     - `retryAfterSeconds`
     - `admissionScope: per_user | shared_provider`
     - `admissionReason: global_limit | tier_limit | global_and_tier_limit | admission_limited`
     - `limits: { globalMax, globalActive, tier, tierMax, tierActive }`
-  - In `enforce` mode, if reservation billing mode is unavailable and submit would fall back to direct debit, submit fails closed with:
-    - `503`
-    - `code: GENERATION_ADMISSION_UNAVAILABLE`
-    - `retryAfterSeconds` + `Retry-After` header.
   - Admission deny path immediately releases reservation (`release_generation_reservation_by_source_ref`).
   - Standard Fal/Kie submit paths no longer enter a ShortPulse pre-provider queue lane.
   - Compatibility queue-status contract (`GET /api/fal/queue-status`) remains available for historical queued rows and returns `queued | dispatched | failed | not_found`.
@@ -242,7 +237,6 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX` (defaults to `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX`)
   - `SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON`
   - `SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS`
-  - `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`
   - `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`

@@ -39,7 +39,6 @@ describe("generationBilling reservation RPC handling", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
-    delete process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED;
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
     logGenerationFailureMock.mockResolvedValue(undefined);
@@ -114,7 +113,10 @@ describe("generationBilling reservation RPC handling", () => {
 
     expect(result).toBeNull();
     expect(rpcMock).toHaveBeenCalledTimes(1);
-    expect(rpcMock).toHaveBeenCalledWith("reserve_generation_credits", expect.any(Object));
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.any(Object)
+    );
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({
@@ -159,7 +161,13 @@ describe("generationBilling reservation RPC handling", () => {
     });
   });
 
-  it("direct-debits gpt-image-2 requests without using the reservation RPC", async () => {
+  it("reserves gpt-image-2 requests through the canonical reservation RPC", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-openai-image", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
     const req = {
       headers: {
         "x-shortpulse-request-id": "req-openai-image",
@@ -189,16 +197,16 @@ describe("generationBilling reservation RPC handling", () => {
     const expectedEstimate = computeCostForModel("gpt-image-2", expectedPricingParams);
 
     expect(charge).not.toBeNull();
-    expect(charge?.billingMode).toBe("direct_debit");
-    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+    expect(charge?.billingMode).toBe("reservation");
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
       expect.objectContaining({
-        userId: "user-1",
-        changeCents: -Math.abs(expectedEstimate?.credits ?? 0),
-        source: "generation_charge",
-        sourceRef: "req-openai-image",
-        metadata: expect.objectContaining({
+        p_user_id: "user-1",
+        p_source_ref: "req-openai-image",
+        p_amount_cents: Math.abs(expectedEstimate?.credits ?? 0),
+        p_metadata: expect.objectContaining({
           model_id: "gpt-image-2",
           route: "/api/openai/image-generate",
           debited_credits: expectedEstimate?.credits,
@@ -217,7 +225,13 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
-  it("direct-debits gpt-image-2 edit requests with edit pricing params", async () => {
+  it("reserves gpt-image-2 edit requests with edit pricing params", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-openai-image-edit", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
     const req = {
       headers: {
         "x-shortpulse-request-id": "req-openai-image-edit",
@@ -253,16 +267,16 @@ describe("generationBilling reservation RPC handling", () => {
     const expectedEstimate = computeCostForModel("gpt-image-2", expectedPricingParams);
 
     expect(charge).not.toBeNull();
-    expect(charge?.billingMode).toBe("direct_debit");
-    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledTimes(1);
-    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+    expect(charge?.billingMode).toBe("reservation");
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(rpcMock).toHaveBeenCalledTimes(1);
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
       expect.objectContaining({
-        userId: "user-1",
-        changeCents: -Math.abs(expectedEstimate?.credits ?? 0),
-        source: "generation_charge",
-        sourceRef: "req-openai-image-edit",
-        metadata: expect.objectContaining({
+        p_user_id: "user-1",
+        p_source_ref: "req-openai-image-edit",
+        p_amount_cents: Math.abs(expectedEstimate?.credits ?? 0),
+        p_metadata: expect.objectContaining({
           model_id: "gpt-image-2",
           route: "/api/openai/image-edit",
           debited_credits: expectedEstimate?.credits,
@@ -541,7 +555,7 @@ describe("generationBilling reservation RPC handling", () => {
       expect(rpcMock.mock.calls.length).toBe(callCountBefore + 1);
 
       const reserveCall = rpcMock.mock.calls[callCountBefore];
-      expect(reserveCall?.[0]).toBe("reserve_generation_credits");
+      expect(reserveCall?.[0]).toBe("admit_and_reserve_generation_credits");
 
       const reservePayload = reserveCall?.[1] as {
         p_amount_cents: number;
@@ -576,8 +590,7 @@ describe("generationBilling reservation RPC handling", () => {
     }
   });
 
-  it("uses atomic admit+reserve RPC when the atomic flag is enabled", async () => {
-    process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED = "true";
+  it("uses admit+reserve RPC for generation reservations", async () => {
     process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: [{ status: "reserved", source_ref: "req-atomic", message: null }],
@@ -619,23 +632,16 @@ describe("generationBilling reservation RPC handling", () => {
     expect(atomicPayload.p_metadata.admission_tier).toBe("image_heavy");
   });
 
-  it("falls back to legacy reservation RPC when atomic function is unavailable", async () => {
-    process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED = "true";
+  it("fails closed when the canonical admit+reserve RPC is unavailable", async () => {
     process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
-    const rpcMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        data: null,
-        error: {
-          code: "PGRST202",
-          message:
-            "Could not find the function public.admit_and_reserve_generation_credits in the schema cache",
-        },
-      })
-      .mockResolvedValueOnce({
-        data: [{ status: "reserved", source_ref: "req-atomic-fallback", message: null }],
-        error: null,
-      });
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "PGRST202",
+        message:
+          "Could not find the function public.admit_and_reserve_generation_credits in the schema cache",
+      },
+    });
     getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
 
     const req = {
@@ -652,15 +658,17 @@ describe("generationBilling reservation RPC handling", () => {
       reason: "Fal Seedream generation",
     });
 
-    expect(charge).not.toBeNull();
-    expect(charge?.billingMode).toBe("reservation");
-    expect(rpcMock).toHaveBeenCalledTimes(2);
+    expect(charge).toBeNull();
+    expect(rpcMock).toHaveBeenCalledTimes(1);
     expect(rpcMock.mock.calls[0]?.[0]).toBe("admit_and_reserve_generation_credits");
-    expect(rpcMock.mock.calls[1]?.[0]).toBe("reserve_generation_credits");
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to process generation credits. Please retry.",
+    });
   });
 
   it("returns admission-limited 429 from atomic reservation RPC decisions", async () => {
-    process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED = "true";
     process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
     const rpcMock = vi.fn().mockResolvedValueOnce({
       data: [
@@ -725,7 +733,7 @@ describe("generationBilling reservation RPC handling", () => {
     });
     expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        source: "telemetry.api.fal_submit.admission_limited",
+        source: "telemetry.api.generation_submit.admission_limited",
         statusCode: 429,
       })
     );

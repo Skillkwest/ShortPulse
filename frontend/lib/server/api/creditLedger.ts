@@ -1,6 +1,5 @@
 /**
- * Credit ledger insert helper with legacy-schema compatibility fallback.
- * Tries the v2 schema first, then falls back to legacy `ref_id` shape when needed.
+ * Credit ledger insert helper for the canonical v2 ledger schema.
  */
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
@@ -16,11 +15,9 @@ type LedgerInsertOptions = {
   createdBy?: string | null;
 };
 
-type LedgerInsertMode = "rich" | "legacy";
-
 type LedgerInsertResult = {
   error: { message?: string; code?: string } | null;
-  mode: LedgerInsertMode;
+  mode: "rich";
 };
 
 const normalizeLedgerError = (error: unknown): { message?: string; code?: string } | null => {
@@ -32,20 +29,8 @@ const normalizeLedgerError = (error: unknown): { message?: string; code?: string
   };
 };
 
-const isMissingLedgerColumnError = (error: { message?: string; code?: string } | null): boolean => {
-  if (!error) return false;
-  const code = String(error.code ?? "").toUpperCase();
-  if (code === "42703" || code === "PGRST204") return true;
-
-  const message = String(error.message ?? "");
-  return (
-    /column .*ai_credit_ledger.*does not exist/i.test(message) ||
-    /could not find the '.*' column of 'ai_credit_ledger'/i.test(message)
-  );
-};
-
 /**
- * Inserts into `ai_credit_ledger`, falling back to the legacy table shape if needed.
+ * Inserts into `ai_credit_ledger`.
  */
 export const insertCreditLedgerEntry = async ({
   userId,
@@ -72,17 +57,5 @@ export const insertCreditLedgerEntry = async ({
   if (!richError) {
     return { error: null, mode: "rich" };
   }
-  const normalizedRichError = normalizeLedgerError(richError);
-  if (!isMissingLedgerColumnError(normalizedRichError)) {
-    return { error: normalizedRichError, mode: "rich" };
-  }
-
-  const legacyPayload = {
-    user_id: userId,
-    change_cents: changeCents,
-    reason,
-    ref_id: sourceRef,
-  };
-  const { error: legacyError } = await supabaseAdmin.from("ai_credit_ledger").insert(legacyPayload);
-  return { error: normalizeLedgerError(legacyError), mode: "legacy" };
+  return { error: normalizeLedgerError(richError), mode: "rich" };
 };

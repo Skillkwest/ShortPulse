@@ -38,7 +38,6 @@ const createDefaultFlags = () => ({
   reservationCleanupEnabled: true,
   reservationCleanupMinAgeSeconds: 900,
   reservationCleanupBatchSize: 200,
-  admissionAtomicEnabled: false,
   queueBaseBackoffSeconds: 5,
   queueMaxWaitSeconds: 1200,
 });
@@ -289,7 +288,7 @@ describe("claimDueQueueStatusRecovery", () => {
     expect(updateBuilder.select).toHaveBeenCalledWith("id, request_id");
   });
 
-  it("prefers generation_projection sourceRef lookup before legacy metadata scan", async () => {
+  it("uses generation_projection for sourceRef lookup without scanning legacy metadata", async () => {
     const projectionSelectBuilder = createListSelectBuilder([
       {
         generation_id: "gen-projection-1",

@@ -17,9 +17,16 @@ const scanTargets = [
   "frontend/lib/server/providerIntegration",
   "frontend/pages/api/elevenlabs",
   "frontend/pages/api/fal",
+  "frontend/pages/api/kie/upload-url.ts",
+  "frontend/pages/api/openai",
+  "docs/deployment.md",
+  "docs/operator-map.md",
   "docs/api/api-internal-routes.md",
   "docs/routes.md",
+  "docs/sops/sop_billing_credits_operations.md",
   "docs/sops/sop_ai_studio_index.md",
+  "docs/sops/sop_image_generation.md",
+  "docs/sops/sop_provider_incident_response.md",
   "docs/sops/sop_video_generation.md",
 ];
 
@@ -31,6 +38,34 @@ const bannedPatterns = [
   {
     pattern: "directDebitFallbackEnabled",
     reason: "runtime direct-debit fallback flag is retired",
+  },
+  {
+    pattern: "SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED",
+    reason: "atomic admission toggle is retired; admit+reserve is canonical",
+  },
+  {
+    pattern: "admissionAtomicEnabled",
+    reason: "atomic admission toggle is retired; admit+reserve is canonical",
+  },
+  {
+    pattern: "direct_debit",
+    reason: "generation billing mode must use reservations only",
+  },
+  {
+    pattern: "reserveGenerationCreditsLegacy",
+    reason: "legacy reservation RPC fallback is retired",
+  },
+  {
+    pattern: "fal_legacy_alias",
+    reason: "provider dispatch must require canonical provider keys",
+  },
+  {
+    pattern: "buildFallbackElevenLabsVoices",
+    reason: "ElevenLabs voices must fail closed on provider/catalog errors",
+  },
+  {
+    pattern: '.contains("metadata", { source_ref',
+    reason: "generation runtime must not recover by scanning legacy metadata source refs",
   },
   {
     pattern: "allowLegacyFallback",
@@ -70,7 +105,8 @@ const bannedPatterns = [
     reason: "Fal webhooks must verify with JWKS/Ed25519 only",
   },
   {
-    pattern: "files.file",
+    pattern: /(^|[^a-zA-Z0-9_])files\.file([^a-zA-Z0-9_]|$)/,
+    label: "files.file",
     reason: "ElevenLabs speech-to-speech final generation must not accept direct local uploads",
   },
   {
@@ -115,6 +151,7 @@ const listFiles = (targetPath) => {
       if (entry.name === "node_modules" || entry.name === ".next") continue;
       const entryPath = path.join(current, entry.name);
       if (entry.isDirectory()) {
+        if (entry.name === "__tests__") continue;
         stack.push(entryPath);
         continue;
       }

@@ -16,7 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SHORTPULSE_OPENAI_RESPONSES_ENABLED`, `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`.
-- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual/fallback), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`, `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX`.
+- For Fal/Kie generation reliability, also verify: `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual bearer), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`, `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -72,8 +72,7 @@ Mitigation guidance:
 4. For historical queued rows still visible through compatibility paths:
    - Confirm exhausted queue rows resolve as `failed` in `/api/fal/queue-status` (not persistent `queued`) and inspect queue `last_error` if present.
 5. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
-   - reservation RPC health (`reserve_generation_credits` / `admit_and_reserve_generation_credits`),
-   - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED`,
+   - canonical reservation RPC health (`admit_and_reserve_generation_credits`),
    - `SHORTPULSE_FAL_ADMISSION_MODE` (`enforce` fail-closes without reservation mode by design).
 6. If historical queue depth is pinned near `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`, run controlled compatibility backlog drain:
    - ensure reconciler route scheduler is active,
@@ -109,15 +108,14 @@ Correlate scheduler health with recovery pressure:
 - `ai_generation_submit_queue` depth should trend downward only when historical queued rows are still present.
 - stale `reserved` holds with `provider_request_id` should decline after repeated passes.
 
-Fal reliability rollout controls (when enabled):
-1. Confirm mode and model gating:
-   - `SHORTPULSE_FAL_INTEGRATION_MODE=legacy|shadow|on`
+Fal reliability controls:
+1. Confirm model gating:
    - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST`
-2. If incident severity requires immediate containment, set mode to `legacy` (global kill switch).
+2. If incident severity requires immediate containment, remove the affected model from UI selection or the allowlist.
 3. If recovery lag is accumulating, run one protected reconciler pass via `/api/internal/generation-recovery/run` and inspect replay outcomes.
    - Validate cleanup metrics in response: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
 4. For exhausted/edge cases, use admin replay (`/api/admin/generation-recovery/replay`).
-5. If webhook ingestion is unhealthy, keep polling fallback active and verify `/api/fal/webhook` signature errors before disabling webhook mode.
+5. If webhook ingestion is unhealthy, verify `/api/fal/webhook` signature errors and keep accepted-job recovery active.
 6. Webhook ingress ownership is now explicitly split:
    - route verification/parsing stays in `frontend/pages/api/fal/webhook.ts`
    - durable event insert, duplicate handling, ignore outcomes, and shared recovery handoff live in `frontend/lib/server/falIntegration/falWebhookIngress.ts`
@@ -190,7 +188,7 @@ Admission-control action map:
 | Signal | Primary action |
 | --- | --- |
 | `429 GENERATION_ADMISSION_LIMIT` | Expected limiter behavior under load; monitor tier distribution and user retry friction. |
-| `503 GENERATION_ADMISSION_UNAVAILABLE` | Admission safeguard tripped due reservation-mode unavailability in enforce mode; investigate reservation RPC and fallback settings before changing admission mode. |
+| `503 GENERATION_ADMISSION_UNAVAILABLE` | Admission safeguard tripped due reservation-mode unavailability in enforce mode; investigate the canonical reservation RPC before changing admission mode. |
 
 ### OpenAI prompt/agent failures
 Primary signals:

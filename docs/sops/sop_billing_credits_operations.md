@@ -25,7 +25,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Reservation RPC ambiguity fix: `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql`.
 - Reservation RPC auth/grant hardening: `sql/migrations/014_harden_generation_reservation_rpc_security.sql`.
 - Stale reservation cleanup RPC: `sql/migrations/031_release_stale_generation_reservations.sql`.
-- Atomic admission+reserve RPC (flagged): `sql/migrations/032_admit_and_reserve_generation_credits.sql`.
+- Canonical admission+reserve RPC: `sql/migrations/032_admit_and_reserve_generation_credits.sql`.
 - Atomic admission ambiguity hotfix: `sql/migrations/033_fix_atomic_admission_rpc_ambiguity.sql`.
 - Durable submit queue + lease claim RPCs: `sql/migrations/034_add_generation_submit_queue.sql`.
 - Stale cleanup queue exclusion hardening: `sql/migrations/035_exclude_queued_reservations_from_stale_cleanup.sql`.
@@ -35,7 +35,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Server debit helper: `frontend/lib/server/api/generationBilling.ts`.
 - Provider status polling helper: `frontend/lib/server/api/falStatusProxy.ts`.
 - Unified settlement service: `frontend/lib/server/api/generationBilling/settlementService.ts` (`settleGenerationOutcome`).
-- Ledger compatibility insert helper: `frontend/lib/server/api/creditLedger.ts`.
+- Ledger insert helper: `frontend/lib/server/api/creditLedger.ts`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 - Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
 - Admin billing diagnostics API: `frontend/pages/api/admin/billing-diagnostics.ts`.
@@ -67,11 +67,7 @@ Expected v2 columns on `ai_credit_ledger`:
 
 - `id`, `user_id`, `change_cents`, `reason`, `source`, `source_ref`, `metadata`, `created_by`, `created_at`.
 
-Legacy deployments may still expose:
-
-- `id`, `user_id`, `change_cents`, `reason`, `ref_id`, `created_at`.
-
-The API currently supports both shapes during rollout by falling back to `ref_id` writes (adjustments) and `ref_id` reads (admin ledger audit) if v2 columns are missing.
+Legacy `ref_id`-only ledger deployments are not supported by generation or admin adjustment writes. Run the migration below before enabling paid workflows.
 
 ## Migration runbook (required)
 
@@ -79,7 +75,7 @@ The API currently supports both shapes during rollout by falling back to `ref_id
 2. Run `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql` in Supabase SQL editor.
 3. Run `sql/migrations/014_harden_generation_reservation_rpc_security.sql` in Supabase SQL editor.
 4. Run `sql/migrations/031_release_stale_generation_reservations.sql` in Supabase SQL editor.
-5. Run `sql/migrations/032_admit_and_reserve_generation_credits.sql` in Supabase SQL editor before enabling `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`.
+5. Run `sql/migrations/032_admit_and_reserve_generation_credits.sql` in Supabase SQL editor.
 6. Run `sql/migrations/033_fix_atomic_admission_rpc_ambiguity.sql` in Supabase SQL editor if atomic RPC calls fail with `42702` ambiguity.
 7. Queue-era migrations `034`, `035`, `036`, and `052` remain historical only; do not re-enable pre-provider queue mode for standard Fal/Kie generation based on them.
 8. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
@@ -188,17 +184,13 @@ Recommended operator sequence:
 
 - Fal generation submit endpoints reserve credits server-side before provider submission.
 - Bria remove-background submit (`/api/fal/bria-background-remove-submit`) uses the same reservation/debit flow as other Fal submit routes (no billing bypass).
-- Admission enforcement is authoritative only in reservation billing mode.
+- Admission enforcement is authoritative in the reservation billing path used by paid image, video, and audio generation.
 - Standard Fal/Kie generation no longer uses ShortPulse pre-provider queue mode; over-cap submit behavior is governed by direct admission outcomes and accepted-job recovery after provider submit.
 - Submit rejection/transport failure auto-releases reservation (no debit posted).
 - Admission evaluation failures after reservation now fail closed with:
   - `503`
   - `code: GENERATION_ADMISSION_UNAVAILABLE`
   - immediate refund and `Retry-After`
-- If admission mode is `enforce` and billing falls back to direct debit, submit fails closed with:
-  - `503`
-  - `code: GENERATION_ADMISSION_UNAVAILABLE`
-  - immediate refund and `Retry-After`.
 - Successful submit records `provider_request_id` on the reservation/charge context.
 - Accepted submit returns success only when both the charge context and `ai_generations` row are durably linked to the provider request id; otherwise submit compensates and returns:
   - `500`
@@ -208,10 +200,8 @@ Recommended operator sequence:
 - Webhook/recovery routes settle generation outcomes idempotently by `provider_request_id`:
   - Success with usable media: capture reservation into `generation_charge` ledger debit.
   - Failed/error/content-policy/malformed output: release reservation (no debit posted).
-- User-cleared in-flight Reference Grid placeholders are recorded in `generation_abandonments` through `POST /api/generation/abandon`. Recovery/direct settlement still converges lifecycle, but abandoned failures are no-refund outcomes: reservations are captured when possible and direct-debit charges are left in place. Later success is persisted for audit/recovery but suppressed from Reference Grid publication/projection.
+- User-cleared in-flight Reference Grid placeholders are recorded in `generation_abandonments` through `POST /api/generation/abandon`. Recovery settlement still converges lifecycle, but abandoned failures are no-refund outcomes: reservations are captured when possible. Later success is persisted for audit/recovery but suppressed from Reference Grid publication/projection.
 - Status polling is observational only; it does not capture or release reservations.
-- Direct-debit fallback is an emergency-only kill switch (`SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED=false` by default).
-- Atomic admit+reserve is feature flagged (`SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED=false` by default) and should be enabled only after migration `032` is applied.
 - Studio-agent prompt-refine and describe flows currently return usage but are not yet debited.
 
 ## Reservation cleanup operations

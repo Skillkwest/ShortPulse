@@ -4,6 +4,8 @@ import handler from "../../pages/api/openai/image-generate";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
+const captureSucceededGenerationByProviderRequestMock = vi.fn();
+const readGenerationAbandonmentContextMock = vi.fn();
 const generateOpenAiImageMock = vi.fn();
 const persistGeneratedImageAssetMock = vi.fn();
 
@@ -17,6 +19,13 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
+  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
+    captureSucceededGenerationByProviderRequestMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationAbandonment", () => ({
+  readGenerationAbandonmentContext: (...args: unknown[]) =>
+    readGenerationAbandonmentContextMock(...args),
 }));
 
 vi.mock("../../lib/server/openaiImageGeneration", () => ({
@@ -38,7 +47,7 @@ describe("POST /api/openai/image-generate", () => {
       modelId: "gpt-image-2",
       credits: 10,
       sourceRef: "billing-source-image-1",
-      billingMode: "direct_debit",
+      billingMode: "reservation",
       chargeMetadata: { debited_credits: 10 },
       pricingBreakdown: {
         billedCredits: 10,
@@ -52,8 +61,17 @@ describe("POST /api/openai/image-generate", () => {
         size: "1024x1024",
         quality: "medium",
       },
-      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "attached" }),
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "reserved" }),
       refund: vi.fn().mockResolvedValue(undefined),
+    });
+    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+      settled: true,
+      sourceRef: "billing-source-image-1",
+      note: "captured",
+    });
+    readGenerationAbandonmentContextMock.mockResolvedValue({
+      abandoned: false,
+      noRefund: false,
     });
   });
 
@@ -147,7 +165,7 @@ describe("POST /api/openai/image-generate", () => {
         characterContext: { characterId: "char-1" },
         styleContext: { styleId: "style-1" },
         extraMetadata: expect.objectContaining({
-          billing_mode: "direct_debit",
+          billing_mode: "reservation",
           debited_credits: 10,
           provider_request_id: "provider-image-1",
           revised_prompt: "a more cinematic portrait",
@@ -155,6 +173,17 @@ describe("POST /api/openai/image-generate", () => {
         }),
       })
     );
+    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      providerRequestId: "provider-image-1",
+      reason: "OpenAI image generation completed.",
+      routeLabel: "openai-image-generate",
+      detail: {
+        generation_id: "gen-image-1",
+        source_ref: "billing-source-image-1",
+        source_mode: "image",
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       output: {

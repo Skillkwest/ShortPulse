@@ -84,7 +84,7 @@ describe("submitProviderDispatcher", () => {
     );
   });
 
-  it("supports request-id aliases from provider payloads", async () => {
+  it("rejects non-canonical fal provider aliases", async () => {
     submitSingleTargetWithRetryMock.mockResolvedValue({
       response: new Response(JSON.stringify({ task_id: "task-1" }), { status: 200 }),
       data: { task_id: "task-1" },
@@ -106,17 +106,17 @@ describe("submitProviderDispatcher", () => {
       },
     });
 
-    const controller = new AbortController();
-    const result = await dispatchProviderSubmit({
-      provider: "fal_legacy_alias",
-      modelId: "fal-ai/nano-banana-pro",
-      targets: [{ submitUrl: "https://queue.fal.run/fal-ai/model" }],
-      payload: { prompt: "hello" },
-      apiKey: "key",
-      signal: controller.signal,
-    });
-
-    expect(result.providerRequestId).toBe("task-1");
+    await expect(
+      dispatchProviderSubmit({
+        provider: "fal_legacy_alias",
+        modelId: "fal-ai/nano-banana-pro",
+        targets: [{ submitUrl: "https://queue.fal.run/fal-ai/model" }],
+        payload: { prompt: "hello" },
+        apiKey: "key",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow("Unsupported provider for submit dispatch: fal_legacy_alias");
+    expect(submitSingleTargetWithRetryMock).not.toHaveBeenCalled();
   });
 
   it("rejects fal submits with more than one target", async () => {

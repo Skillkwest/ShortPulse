@@ -29,7 +29,6 @@ export type FalRuntimeFlags = {
   providerAttachedReservationCleanupEnabled: boolean;
   providerAttachedReservationCleanupMinAgeSeconds: number;
   providerAttachedReservationOrphanMinAgeSeconds: number;
-  admissionAtomicEnabled: boolean;
   queueBaseBackoffSeconds: number;
   queueMaxWaitSeconds: number;
   recoveryProbeTimeoutMs: number;
@@ -154,7 +153,6 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     86400,
     0
   ),
-  admissionAtomicEnabled: parseBoolean(process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED, false),
   queueBaseBackoffSeconds: parseInteger(
     process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS,
     3,

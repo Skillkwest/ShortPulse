@@ -5,17 +5,11 @@
  * refund helpers for failed submits and failed status outcomes.
  */
 import { randomUUID } from "crypto";
-import { computeCostForModel, getModelConfig } from "../../model-runtime/pricing";
+import { computeCostForModel } from "../../model-runtime/pricing";
 import { requireApiUser } from "./auth";
-import { insertCreditLedgerEntry } from "./creditLedger";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { resolveRuntimeModelPricingPolicy } from "./modelPricingControlPlane";
-import {
-  isDuplicateError,
-  isInsufficientCreditError,
-  isRecoverableReservationFailure,
-  readErrorCode,
-} from "./generationBilling/errorGuards";
+import { isRecoverableReservationFailure } from "./generationBilling/errorGuards";
 import { logGenerationFailure } from "./appErrorLogs";
 import { buildPricingParams, summarizePayload } from "./generationBilling/pricingParams";
 import {
@@ -23,7 +17,6 @@ import {
   releaseGenerationReservationBySourceRef,
   reserveGenerationCredits,
 } from "./generationBilling/reservationRpcAdapter";
-import { attachProviderRequestToCharge } from "./generationBilling/settlementService";
 import type { ChargeOptions, ChargeResult, JsonObject } from "./generationBilling/types";
 import { GENERATION_BILLING_FAILURE_MESSAGE } from "./generationBilling/types";
 import { resolveGenerationAdmissionTier } from "../../model-runtime/generationAdmissionTiers";
@@ -54,13 +47,6 @@ const resolveSourceRef = (req: ChargeOptions["req"]): string => {
     if (typeof sourceRef === "string" && sourceRef.trim()) return sourceRef.trim();
   }
   return randomUUID();
-};
-
-const isFalModel = (modelId: string): boolean => {
-  const config = getModelConfig(modelId);
-  if (config?.provider === "fal" || config?.provider === "kie") return true;
-  const normalizedModelId = modelId.toLowerCase();
-  return normalizedModelId.startsWith("fal") || normalizedModelId.startsWith("kie");
 };
 
 /**
@@ -176,54 +162,37 @@ export const chargeGenerationRequest = async ({
     return null;
   };
 
-  const useReservationMode = isFalModel(modelId);
-  if (useReservationMode) {
-    const runtimeFlags = readFalRuntimeFlags();
-    const admissionTier = resolveGenerationAdmissionTier(modelId);
-    const reserveResult = await reserveGenerationCredits({
-      userId: user.id,
-      sourceRef,
-      modelId,
-      amountCents: Math.abs(Math.trunc(breakdown.credits)),
-      reason,
-      metadata: {
-        ...chargeMetadata,
-        admission_tier: admissionTier,
-      },
-      admission: {
-        atomicEnabled: runtimeFlags.admissionAtomicEnabled,
-        mode: runtimeFlags.admission.mode,
-        globalMax: runtimeFlags.admission.globalMax,
-        tier: admissionTier,
-        tierMax: runtimeFlags.admission.tierLimits[admissionTier],
-        retryAfterSeconds: runtimeFlags.admission.retryAfterSeconds,
-      },
-    });
-    if (reserveResult.status === "failed") {
-      if (reserveResult.message === "insufficient_credits") {
-        return respondChargeFailure(402, "Insufficient credits for this generation.", {
-          reservation_mode: true,
-          reservation_status: reserveResult.status,
-          reservation_message: reserveResult.message ?? null,
-          reservation_code: reserveResult.code ?? null,
-        });
-      }
-      if (!isRecoverableReservationFailure(reserveResult)) {
-        console.error("[generationBilling] reserve_generation_credits failed", {
-          modelId,
-          route: req.url ?? null,
-          sourceRef,
-          code: reserveResult.code ?? null,
-          message: reserveResult.message ?? null,
-        });
-        return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
-          reservation_mode: true,
-          reservation_status: reserveResult.status,
-          reservation_message: reserveResult.message ?? null,
-          reservation_code: reserveResult.code ?? null,
-        });
-      }
-      console.error("[generationBilling] reservation RPC unavailable", {
+  const runtimeFlags = readFalRuntimeFlags();
+  const admissionTier = resolveGenerationAdmissionTier(modelId);
+  const reserveResult = await reserveGenerationCredits({
+    userId: user.id,
+    sourceRef,
+    modelId,
+    amountCents: Math.abs(Math.trunc(breakdown.credits)),
+    reason,
+    metadata: {
+      ...chargeMetadata,
+      admission_tier: admissionTier,
+    },
+    admission: {
+      mode: runtimeFlags.admission.mode,
+      globalMax: runtimeFlags.admission.globalMax,
+      tier: admissionTier,
+      tierMax: runtimeFlags.admission.tierLimits[admissionTier],
+      retryAfterSeconds: runtimeFlags.admission.retryAfterSeconds,
+    },
+  });
+  if (reserveResult.status === "failed") {
+    if (reserveResult.message === "insufficient_credits") {
+      return respondChargeFailure(402, "Insufficient credits for this generation.", {
+        reservation_mode: true,
+        reservation_status: reserveResult.status,
+        reservation_message: reserveResult.message ?? null,
+        reservation_code: reserveResult.code ?? null,
+      });
+    }
+    if (!isRecoverableReservationFailure(reserveResult)) {
+      console.error("[generationBilling] admit_and_reserve_generation_credits failed", {
         modelId,
         route: req.url ?? null,
         sourceRef,
@@ -236,213 +205,82 @@ export const chargeGenerationRequest = async ({
         reservation_message: reserveResult.message ?? null,
         reservation_code: reserveResult.code ?? null,
       });
-    } else if (reserveResult.status === "admission_limited") {
-      const retryAfterSeconds =
-        reserveResult.admission?.retryAfterSeconds ?? runtimeFlags.admission.retryAfterSeconds;
-      const limits =
-        reserveResult.admission &&
-        typeof reserveResult.admission.tier === "string" &&
-        reserveResult.admission.tier.length > 0
-          ? {
-              globalMax: reserveResult.admission.globalMax,
-              globalActive: reserveResult.admission.globalActive,
-              tier: reserveResult.admission.tier,
-              tierMax: reserveResult.admission.tierMax,
-              tierActive: reserveResult.admission.tierActive,
-            }
-          : null;
-      await logGenerationFailure({
-        req,
-        routeLabel,
-        source: "telemetry.api.fal_submit.admission_limited",
-        message: "Generation admission limit reached.",
-        statusCode: 429,
-        userId: user.id,
-        metadata: {
-          model_id: modelId,
-          mode: runtimeFlags.admission.mode,
-          reason: reserveResult.admission?.reason ?? "admission_limited",
-          global_active: reserveResult.admission?.globalActive ?? null,
-          global_max: reserveResult.admission?.globalMax ?? runtimeFlags.admission.globalMax,
-          tier: reserveResult.admission?.tier ?? admissionTier,
-          tier_active: reserveResult.admission?.tierActive ?? null,
-          tier_max:
-            reserveResult.admission?.tierMax ?? runtimeFlags.admission.tierLimits[admissionTier],
-          admission_scope: "per_user",
-          admission_source: "atomic_reservation_rpc",
-        },
-      });
-      res.setHeader("Retry-After", String(retryAfterSeconds));
-      res.status(429).json({
-        error: "Too many active generations. Please retry shortly.",
-        code: "GENERATION_ADMISSION_LIMIT",
-        retryAfterSeconds,
-        admissionScope: "per_user",
-        admissionReason: reserveResult.admission?.reason ?? "admission_limited",
-        ...(limits ? { limits } : {}),
-      });
-      return null;
-    } else if (
-      reserveResult.status === "already_captured" ||
-      reserveResult.status === "already_released"
-    ) {
-      return respondChargeFailure(
-        409,
-        "Duplicate submit request id. Retry with a new request id.",
-        {
-          reservation_mode: true,
-          reservation_status: reserveResult.status,
-        }
-      );
-    } else if (reserveResult.status === "reserved" || reserveResult.status === "already_reserved") {
-      const markSubmitted = async (providerRequestId: string, extra: JsonObject = {}) => {
-        if (!providerRequestId) {
-          return {
-            ok: false,
-            status: "missing_provider_request_id",
-            sourceRef,
-            message: "provider_request_id is required",
-            code: null,
-          };
-        }
-        const status = await markGenerationReservationSubmitted({
-          userId: user.id,
-          sourceRef,
-          providerRequestId,
-          metadata: {
-            submit_marked_at: new Date().toISOString(),
-            ...extra,
-          },
-        });
-        if (status.status === "reserved" || status.status === "already_reserved") {
-          return {
-            ok: true,
-            status: status.status,
-            sourceRef: status.sourceRef ?? sourceRef,
-            message: status.message ?? null,
-            code: status.code ?? null,
-          };
-        }
-        if (status.status === "failed") {
-          console.error("[generationBilling] reservation markSubmitted failed", status.message);
-        }
-        return {
-          ok: false,
-          status: status.status,
-          sourceRef: status.sourceRef ?? sourceRef,
-          message: status.message ?? null,
-          code: status.code ?? null,
-        };
-      };
-
-      const refund = async (
-        message = "Auto-release: generation submit failed.",
-        extra: JsonObject = {}
-      ) => {
-        const released = await releaseGenerationReservationBySourceRef({
-          userId: user.id,
-          sourceRef,
-          reason: message,
-          metadata: {
-            route: req.url ?? null,
-            released_credits: breakdown.credits,
-            ...extra,
-          },
-        });
-        if (
-          released.status === "failed" ||
-          (released.status !== "released" &&
-            released.status !== "already_released" &&
-            released.status !== "already_captured" &&
-            released.status !== "not_found")
-        ) {
-          console.error(
-            "[generationBilling] reservation release failed",
-            released.message ?? released.status
-          );
-        }
-      };
-
-      return {
-        userId: user.id,
-        modelId,
-        credits: breakdown.credits,
-        sourceRef,
-        billingMode: "reservation",
-        chargeMetadata,
-        pricingBreakdown,
-        pricingParams,
-        markSubmitted,
-        refund,
-      };
     }
-  }
-
-  const { error: debitError } = await insertCreditLedgerEntry({
-    userId: user.id,
-    changeCents: -Math.abs(Math.trunc(breakdown.credits)),
-    reason,
-    source: "generation_charge",
-    sourceRef,
-    metadata: chargeMetadata,
-    createdBy: user.id,
-  });
-
-  if (debitError) {
-    if (isInsufficientCreditError(debitError.message)) {
-      return respondChargeFailure(402, "Insufficient credits for this generation.", {
-        reservation_mode: false,
-        debit_error_code: readErrorCode(debitError),
-        debit_error_message: debitError.message ?? null,
-      });
-    }
-    if (isDuplicateError(readErrorCode(debitError), debitError.message)) {
-      return respondChargeFailure(
-        409,
-        "Duplicate submit request id. Retry with a new request id.",
-        {
-          reservation_mode: false,
-          debit_error_code: readErrorCode(debitError),
-          debit_error_message: debitError.message ?? null,
-        }
-      );
-    }
-    console.error("[generationBilling] direct debit failed", {
+    console.error("[generationBilling] reservation RPC unavailable", {
       modelId,
       route: req.url ?? null,
       sourceRef,
-      code: readErrorCode(debitError),
-      message: debitError.message ?? null,
+      code: reserveResult.code ?? null,
+      message: reserveResult.message ?? null,
     });
     return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
-      reservation_mode: false,
-      debit_error_code: readErrorCode(debitError),
-      debit_error_message: debitError.message ?? null,
+      reservation_mode: true,
+      reservation_status: reserveResult.status,
+      reservation_message: reserveResult.message ?? null,
+      reservation_code: reserveResult.code ?? null,
     });
   }
-
-  const refund = async (
-    message = "Auto-refund: generation submit failed.",
-    extra: JsonObject = {}
-  ) => {
-    const { error } = await insertCreditLedgerEntry({
+  if (reserveResult.status === "admission_limited") {
+    const retryAfterSeconds =
+      reserveResult.admission?.retryAfterSeconds ?? runtimeFlags.admission.retryAfterSeconds;
+    const limits =
+      reserveResult.admission &&
+      typeof reserveResult.admission.tier === "string" &&
+      reserveResult.admission.tier.length > 0
+        ? {
+            globalMax: reserveResult.admission.globalMax,
+            globalActive: reserveResult.admission.globalActive,
+            tier: reserveResult.admission.tier,
+            tierMax: reserveResult.admission.tierMax,
+            tierActive: reserveResult.admission.tierActive,
+          }
+        : null;
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "telemetry.api.generation_submit.admission_limited",
+      message: "Generation admission limit reached.",
+      statusCode: 429,
       userId: user.id,
-      changeCents: Math.abs(Math.trunc(breakdown.credits)),
-      reason: message,
-      source: "generation_refund",
-      sourceRef,
       metadata: {
         model_id: modelId,
-        route: req.url ?? null,
-        refunded_credits: breakdown.credits,
-        ...extra,
+        mode: runtimeFlags.admission.mode,
+        reason: reserveResult.admission?.reason ?? "admission_limited",
+        global_active: reserveResult.admission?.globalActive ?? null,
+        global_max: reserveResult.admission?.globalMax ?? runtimeFlags.admission.globalMax,
+        tier: reserveResult.admission?.tier ?? admissionTier,
+        tier_active: reserveResult.admission?.tierActive ?? null,
+        tier_max:
+          reserveResult.admission?.tierMax ?? runtimeFlags.admission.tierLimits[admissionTier],
+        admission_scope: "per_user",
+        admission_source: "atomic_reservation_rpc",
       },
-      createdBy: user.id,
     });
-    if (error && !isDuplicateError(readErrorCode(error), error.message)) {
-      console.error("[generationBilling] refund insert failed", error.message);
-    }
-  };
+    res.setHeader("Retry-After", String(retryAfterSeconds));
+    res.status(429).json({
+      error: "Too many active generations. Please retry shortly.",
+      code: "GENERATION_ADMISSION_LIMIT",
+      retryAfterSeconds,
+      admissionScope: "per_user",
+      admissionReason: reserveResult.admission?.reason ?? "admission_limited",
+      ...(limits ? { limits } : {}),
+    });
+    return null;
+  }
+  if (reserveResult.status === "already_captured" || reserveResult.status === "already_released") {
+    return respondChargeFailure(409, "Duplicate submit request id. Retry with a new request id.", {
+      reservation_mode: true,
+      reservation_status: reserveResult.status,
+    });
+  }
+  if (reserveResult.status !== "reserved" && reserveResult.status !== "already_reserved") {
+    return respondChargeFailure(500, GENERATION_BILLING_FAILURE_MESSAGE, {
+      reservation_mode: true,
+      reservation_status: reserveResult.status,
+      reservation_message: reserveResult.message ?? null,
+      reservation_code: reserveResult.code ?? null,
+    });
+  }
 
   const markSubmitted = async (providerRequestId: string, extra: JsonObject = {}) => {
     if (!providerRequestId) {
@@ -454,16 +292,62 @@ export const chargeGenerationRequest = async ({
         code: null,
       };
     }
-    return attachProviderRequestToCharge({
+    const status = await markGenerationReservationSubmitted({
       userId: user.id,
       sourceRef,
       providerRequestId,
-      metadataExtra: {
+      metadata: {
         submit_marked_at: new Date().toISOString(),
-        reservation_mode: false,
         ...extra,
       },
     });
+    if (status.status === "reserved" || status.status === "already_reserved") {
+      return {
+        ok: true,
+        status: status.status,
+        sourceRef: status.sourceRef ?? sourceRef,
+        message: status.message ?? null,
+        code: status.code ?? null,
+      };
+    }
+    if (status.status === "failed") {
+      console.error("[generationBilling] reservation markSubmitted failed", status.message);
+    }
+    return {
+      ok: false,
+      status: status.status,
+      sourceRef: status.sourceRef ?? sourceRef,
+      message: status.message ?? null,
+      code: status.code ?? null,
+    };
+  };
+
+  const refund = async (
+    message = "Auto-release: generation submit failed.",
+    extra: JsonObject = {}
+  ) => {
+    const released = await releaseGenerationReservationBySourceRef({
+      userId: user.id,
+      sourceRef,
+      reason: message,
+      metadata: {
+        route: req.url ?? null,
+        released_credits: breakdown.credits,
+        ...extra,
+      },
+    });
+    if (
+      released.status === "failed" ||
+      (released.status !== "released" &&
+        released.status !== "already_released" &&
+        released.status !== "already_captured" &&
+        released.status !== "not_found")
+    ) {
+      console.error(
+        "[generationBilling] reservation release failed",
+        released.message ?? released.status
+      );
+    }
   };
 
   return {
@@ -471,7 +355,7 @@ export const chargeGenerationRequest = async ({
     modelId,
     credits: breakdown.credits,
     sourceRef,
-    billingMode: "direct_debit",
+    billingMode: "reservation",
     chargeMetadata,
     pricingBreakdown,
     pricingParams,

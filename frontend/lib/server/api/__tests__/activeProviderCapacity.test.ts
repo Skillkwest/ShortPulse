@@ -317,7 +317,7 @@ describe("readActiveProviderCapacitySnapshot", () => {
     });
   });
 
-  it("falls back to legacy ai_generations.request_id lookup when generation_attempts are unavailable", async () => {
+  it("fails closed when generation_attempts lookup is unavailable", async () => {
     const reservationResult = Promise.resolve({
       data: [
         {
@@ -343,41 +343,29 @@ describe("readActiveProviderCapacitySnapshot", () => {
     const attemptEq = vi.fn(() => ({ in: attemptIn }));
     const attemptSelect = vi.fn(() => ({ eq: attemptEq }));
 
-    const generationIn = vi.fn(async () => ({
-      data: [
-        {
-          user_id: "user-1",
-          request_id: "req-legacy",
-          status: "running",
-          recovery_state: "recovering",
-          created_at: "2026-03-25T11:59:30.000Z",
-        },
-      ],
-      error: null,
-    }));
-    const generationEq = vi.fn(() => ({ in: generationIn }));
-    const generationSelect = vi.fn(() => ({ eq: generationEq }));
-
     getSupabaseAdminMock.mockReturnValue({
       from: vi.fn((tableName: string) => {
         if (tableName === "ai_credit_reservations") return { select: reservationSelect };
         if (tableName === "generation_attempts") return { select: attemptSelect };
-        if (tableName === "ai_generations") return { select: generationSelect };
         throw new Error(`Unexpected table: ${tableName}`);
       }),
     });
 
-    const snapshot = await readActiveProviderCapacitySnapshot({
-      userId: "user-1",
-      provider: "fal",
-      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
-      staleIgnoreMinAgeSeconds: 1200,
-      orphanGraceSeconds: 60,
-      nowMs: Date.parse("2026-03-25T12:00:00.000Z"),
-    });
-
-    expect(snapshot.globalActive).toBe(1);
-    expect(snapshot.tierActive).toBe(1);
+    await expect(
+      readActiveProviderCapacitySnapshot({
+        userId: "user-1",
+        provider: "fal",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        staleIgnoreMinAgeSeconds: 1200,
+        orphanGraceSeconds: 60,
+        nowMs: Date.parse("2026-03-25T12:00:00.000Z"),
+      })
+    ).rejects.toEqual(
+      expect.objectContaining({
+        code: "42P01",
+        message: "relation generation_attempts does not exist",
+      })
+    );
   });
 
   it("reads shared-provider capacity across users while excluding other provider families", async () => {

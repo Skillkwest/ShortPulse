@@ -38,9 +38,9 @@ For Create properties panel, model-selector, and submission wiring details, see 
 5. On click:  
    - `CreatePropertiesPanel.onGenerate` routes through `useAiStudioGenerationController.handlePrimarySubmit`, which runs start invariants/preflight and delegates prompt composition to `useAiStudioGenerationPromptComposer`.
    - `useAiStudioTaskSubmission` creates/reconciles optimistic output state, resolves `taskSubmission` handler route by model id, and submits provider payloads (including aspect/resolution/reference mappings).
-   - Fal submit routes reserve credits before provider submission (no immediate debit posted), while `gpt-image-2` requests use direct-response submit paths through `/api/openai/image-generate` and `/api/openai/image-edit`.
+   - Fal/Kie and `gpt-image-2` routes reserve credits before provider submission (no immediate debit posted); direct-response OpenAI routes complete through `/api/openai/image-generate` and `/api/openai/image-edit`.
    - Submit admission control may reject over-limit requests with `429` (`code: GENERATION_ADMISSION_LIMIT`), `Retry-After`, and limiter metadata (`admissionScope`, `admissionReason`); denied requests release reservations immediately.
-   - Fal success captures reservation into a debit; failed submit/status outcomes release reservation. `gpt-image-2` is direct-debit and refunds on route failure through the shared billing helper.
+   - Successful generation captures the reservation into a debit; failed submit/status outcomes release the reservation.
    - Clearing a Reference Grid spinner calls `POST /api/generation/abandon` with the output `source_ref`/generation/request identifiers, removes the card locally, and marks later provider results as suppressed/no-refund. This does not attempt provider-side cancellation.
    - Fal/Kie task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. `gpt-image-2` create and standard edit complete immediately without provider polling and patch the optimistic output into terminal success once the route returns. Failures set `errorMessage` and stop polling.
 6. Reference Grid prepends the new output card; Studio Preview shows the latest image.  

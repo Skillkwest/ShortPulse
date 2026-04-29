@@ -4,7 +4,6 @@
  */
 
 import { lookupGenerationAttemptByProviderRequest } from "../api/generationAttempts";
-import { isMissingGenerationAttemptSchemaError } from "../api/generationBilling/errorGuards";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { asString } from "./falAdapter";
 
@@ -110,22 +109,8 @@ export const readRecoveryGenerationRow = async ({
     userId,
   });
   if (attemptLookup.error) {
-    if (
-      !isMissingGenerationAttemptSchemaError(
-        attemptLookup.error.code ?? null,
-        attemptLookup.error.message ?? undefined
-      )
-    ) {
-      throw new Error(attemptLookup.error.message ?? "attempt_provider_request_lookup_failed");
-    }
-  } else if (attemptLookup.data?.generationId) {
-    const generation = await readByGenerationId(attemptLookup.data.generationId);
-    if (generation) return generation;
+    throw new Error(attemptLookup.error.message ?? "attempt_provider_request_lookup_failed");
   }
-  let query = supabaseAdmin.from("ai_generations").select(selectFields).eq("request_id", requestId);
-  if (userId) query = query.eq("user_id", userId);
-  const { data, error } = await query.order("created_at", { ascending: false }).limit(1);
-  if (error) throw error;
-  const row = Array.isArray(data) ? data[0] : null;
-  return parseRecoveryGenerationRow(row);
+  if (!attemptLookup.data?.generationId) return null;
+  return readByGenerationId(attemptLookup.data.generationId);
 };

@@ -4,6 +4,7 @@ import handler from "../../pages/api/elevenlabs/music";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
+const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsMusicMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 
@@ -17,6 +18,8 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
+  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
+    captureSucceededGenerationByProviderRequestMock(...args),
 }));
 
 vi.mock("../../lib/server/elevenlabs", () => ({
@@ -41,7 +44,7 @@ describe("POST /api/elevenlabs/music", () => {
       modelId: "music_v1",
       credits: 35,
       sourceRef: "billing-source-1",
-      billingMode: "direct_debit",
+      billingMode: "reservation",
       chargeMetadata: { debited_credits: 35 },
       pricingBreakdown: {
         billedCredits: 35,
@@ -52,8 +55,13 @@ describe("POST /api/elevenlabs/music", () => {
         usdRaw: 0.315,
       },
       pricingParams: { durationSeconds: 42 },
-      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "attached" }),
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "reserved" }),
       refund: vi.fn().mockResolvedValue(undefined),
+    });
+    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+      settled: true,
+      sourceRef: "billing-source-1",
+      note: "captured",
     });
   });
 
@@ -214,6 +222,18 @@ describe("POST /api/elevenlabs/music", () => {
         }),
       })
     );
+    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      providerRequestId: "provider-req-1",
+      reason: "ElevenLabs music generation completed.",
+      routeLabel: "elevenlabs-music",
+      detail: {
+        generation_id: "gen-1",
+        source_ref: "billing-source-1",
+        source_mode: "music",
+        song_id: "song-123",
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       output: {

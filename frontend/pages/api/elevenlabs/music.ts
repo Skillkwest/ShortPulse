@@ -2,7 +2,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { ELEVENLABS_MUSIC_MODEL_ID } from "../../../lib/model-runtime/elevenLabsModels";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
+import {
+  captureSucceededGenerationByProviderRequest,
+  chargeGenerationRequest,
+} from "../../../lib/server/api/generationBilling";
 import {
   generateElevenLabsMusic,
   persistGeneratedAudioAsset,
@@ -210,13 +213,21 @@ export default async function handler(
         force_instrumental: mode === "instrumental",
       },
     });
+    const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
+    const submitLink = await charge.markSubmitted(providerRequestId, {
+      source_mode: "music",
+      song_id: generated.songId,
+    });
+    if (!submitLink.ok) {
+      throw new Error(`Unable to link generation billing reservation: ${submitLink.status}`);
+    }
 
     const persisted = await persistGeneratedAudioAsset({
       userId: charge.userId,
       promptText: text,
       provider: "elevenlabs",
       modelId,
-      providerRequestId: generated.providerRequestId,
+      providerRequestId,
       requestId: charge.sourceRef,
       projectId,
       sourceMode: "music",
@@ -233,16 +244,25 @@ export default async function handler(
         billing_source_ref: charge.sourceRef,
         debited_credits: charge.credits,
         pricing_metadata: charge.chargeMetadata,
-        provider_request_id: generated.providerRequestId,
+        provider_request_id: providerRequestId,
         provider_song_id: generated.songId,
         provider_prompt: providerPrompt,
       },
     });
-    if (generated.providerRequestId) {
-      await charge.markSubmitted(generated.providerRequestId, {
+    const captureResult = await captureSucceededGenerationByProviderRequest({
+      userId: charge.userId,
+      providerRequestId,
+      reason: "ElevenLabs music generation completed.",
+      routeLabel: "elevenlabs-music",
+      detail: {
+        generation_id: persisted.generationId,
+        source_ref: charge.sourceRef,
         source_mode: "music",
         song_id: generated.songId,
-      });
+      },
+    });
+    if (!captureResult.settled) {
+      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
     }
 
     return res.status(200).json({

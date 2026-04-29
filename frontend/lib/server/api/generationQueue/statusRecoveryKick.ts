@@ -137,15 +137,7 @@ const readRecoveryCandidate = async ({
     return parseCandidate(data);
   }
 
-  const { data } = await supabase
-    .from("ai_generations")
-    .select(selectFields)
-    .eq("user_id", userId)
-    .contains("metadata", { source_ref: sourceRef })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return parseCandidate(data);
+  return null;
 };
 
 const claimDueQueueStatusRecoveryInternal = async ({

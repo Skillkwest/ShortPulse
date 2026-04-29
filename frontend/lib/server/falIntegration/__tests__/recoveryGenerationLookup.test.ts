@@ -78,7 +78,7 @@ describe("readRecoveryGenerationRow", () => {
     );
   });
 
-  it("reads by request id when generation id is absent", async () => {
+  it("returns null when request id has no generation_attempt link", async () => {
     const lookup = createLookupAdmin([{ data: [fullRow], error: null }]);
     getSupabaseAdminMock.mockReturnValue(lookup.admin);
 
@@ -86,11 +86,11 @@ describe("readRecoveryGenerationRow", () => {
       requestId: "req-1",
     });
 
-    expect(lookup.eq).toHaveBeenNthCalledWith(1, "request_id", "req-1");
-    expect(row?.id).toBe("gen-1");
+    expect(row).toBeNull();
+    expect(lookup.select).not.toHaveBeenCalled();
   });
 
-  it("resolves request-id lookup through generation_attempts before legacy ai_generations.request_id", async () => {
+  it("resolves request-id lookup through generation_attempts", async () => {
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
       data: {
         generationId: "gen-1",
@@ -143,5 +143,19 @@ describe("readRecoveryGenerationRow", () => {
     getSupabaseAdminMock.mockReturnValue(lookup.admin);
 
     await expect(readRecoveryGenerationRow({ generationId: "gen-1" })).rejects.toThrow("db down");
+  });
+
+  it("throws on generation_attempt lookup errors", async () => {
+    const lookup = createLookupAdmin([]);
+    getSupabaseAdminMock.mockReturnValue(lookup.admin);
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValueOnce({
+      data: null,
+      error: { code: "42P01", message: "relation generation_attempts does not exist" },
+    });
+
+    await expect(readRecoveryGenerationRow({ requestId: "req-1" })).rejects.toThrow(
+      "relation generation_attempts does not exist"
+    );
+    expect(lookup.select).not.toHaveBeenCalled();
   });
 });

@@ -232,7 +232,7 @@ export default async function handler(
     const apiKey = readProviderApiKey("kie");
     const sourceUrl = parseSafeHttpUrl(fileUrl);
 
-    const primaryResult = prefersStreamUpload(sourceUrl)
+    const result = prefersStreamUpload(sourceUrl)
       ? await uploadFileStreamToKie({
           apiKey,
           sourceUrl,
@@ -245,17 +245,6 @@ export default async function handler(
           uploadPath,
           fileName,
         });
-
-    const result =
-      !prefersStreamUpload(sourceUrl) &&
-      (primaryResult.upstream.status === 400 || primaryResult.upstream.status === 403)
-        ? await uploadFileStreamToKie({
-            apiKey,
-            sourceUrl,
-            uploadPath,
-            fileName,
-          })
-        : primaryResult;
 
     if (!result.upstream.ok) {
       return res.status(result.upstream.status).json({

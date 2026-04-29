@@ -26,12 +26,6 @@ const isSuccessfulProjectionStatus = (value: string | null | undefined): boolean
   return value === "success" || value === "completed" || value === "complete" || value === "ready";
 };
 
-const asOptionalString = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
-};
-
 const normalizePersistedQueueState = (
   value: string | null | undefined
 ): PersistedGenerationStatusContext["queueState"] => {
@@ -192,7 +186,7 @@ export const readPersistedGenerationStatusContext = async ({
           };
         }
       } catch {
-        // fall through to compatibility reads if canonical output lookup fails
+        return { generationId: projectionContext.generationId, resultUrls: [] };
       }
     }
     if (projectionContext?.taskState === "fail") {
@@ -224,85 +218,7 @@ export const readPersistedGenerationStatusContext = async ({
       };
     }
 
-    const { data, error } = await adminClient
-      .from("ai_generations")
-      .select("id, status, error_message, created_at")
-      .eq("user_id", userId)
-      .eq("request_id", requestId)
-      .order("created_at", { ascending: false })
-      .limit(5);
-    if (error || !Array.isArray(data) || !data.length) {
-      return { generationId: null, resultUrls: [] };
-    }
-
-    // Compatibility-only fallback: ai_generations can still provide generation ids,
-    // canonical output linkage, and legacy terminal failures until projection coverage is complete.
-    let latestGenerationId: string | null = null;
-    let latestFailedContext: PersistedGenerationStatusContext | null = null;
-    let rowIndex = 0;
-    for (const item of data) {
-      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
-      const row = item as Record<string, unknown>;
-      const generationId = asOptionalString(row.id);
-      const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
-      const errorMessage = asOptionalString(row.error_message);
-      const isLatestRow = rowIndex === 0;
-      rowIndex += 1;
-      if (!latestGenerationId && generationId) {
-        latestGenerationId = generationId;
-      }
-      if (generationId) {
-        try {
-          const outputRows = await readPersistedGenerationOutputs({
-            generationId,
-            userId,
-            supabaseAdmin: adminClient,
-          });
-          if (outputRows.length) {
-            const deliveryState = areAllOutputsOwned(outputRows)
-              ? "canonical_owned"
-              : "transient_provider";
-            return {
-              generationId,
-              resultUrls: outputRows.map((row) => row.resultUrl),
-              status,
-              taskState: "success",
-              deliveryState,
-              recoveryPending: false,
-              completionState: null,
-              queueState: "dispatched",
-              errorMessageShort: null,
-              errorDetail: null,
-            };
-          }
-        } catch {
-          // fall back to compatibility metadata when canonical output reads fail
-        }
-      }
-      // Compatibility-only fallback: keep the newest legacy terminal failure readable
-      // until projection-backed failure coverage is proven sufficient for historical rows.
-      if (
-        isLatestRow &&
-        !latestFailedContext &&
-        (status === "fail" ||
-          status === "failed" ||
-          status === "error" ||
-          status === "cancelled" ||
-          status === "canceled")
-      ) {
-        latestFailedContext = {
-          generationId,
-          resultUrls: [],
-          status,
-          taskState: "fail",
-          queueState: "failed",
-          errorMessageShort: errorMessage ?? "Generation failed",
-          errorDetail: errorMessage ?? "Generation failed",
-        };
-      }
-    }
-    if (latestFailedContext) return latestFailedContext;
-    return { generationId: latestGenerationId, resultUrls: [] };
+    return { generationId: null, resultUrls: [] };
   } catch {
     return { generationId: null, resultUrls: [] };
   }

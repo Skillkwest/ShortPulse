@@ -2,7 +2,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { ELEVENLABS_SOUND_EFFECTS_MODEL_ID } from "../../../lib/model-runtime/elevenLabsModels";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { chargeGenerationRequest } from "../../../lib/server/api/generationBilling";
+import {
+  captureSucceededGenerationByProviderRequest,
+  chargeGenerationRequest,
+} from "../../../lib/server/api/generationBilling";
 import {
   generateElevenLabsSoundEffect,
   persistGeneratedAudioAsset,
@@ -126,13 +129,21 @@ export default async function handler(
         prompt_influence: DEFAULT_PROMPT_INFLUENCE,
       },
     });
+    const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
+    const submitLink = await charge.markSubmitted(providerRequestId, {
+      source_mode: "sound-effects",
+      provider_character_cost: generated.characterCost,
+    });
+    if (!submitLink.ok) {
+      throw new Error(`Unable to link generation billing reservation: ${submitLink.status}`);
+    }
 
     const persisted = await persistGeneratedAudioAsset({
       userId: charge.userId,
       promptText: text,
       provider: "elevenlabs",
       modelId,
-      providerRequestId: generated.providerRequestId,
+      providerRequestId,
       requestId: charge.sourceRef,
       projectId,
       sourceMode: "sound-effects",
@@ -148,14 +159,23 @@ export default async function handler(
         pricing_metadata: charge.chargeMetadata,
         prompt_influence: DEFAULT_PROMPT_INFLUENCE,
         provider_character_cost: generated.characterCost,
-        provider_request_id: generated.providerRequestId,
+        provider_request_id: providerRequestId,
       },
     });
-    if (generated.providerRequestId) {
-      await charge.markSubmitted(generated.providerRequestId, {
+    const captureResult = await captureSucceededGenerationByProviderRequest({
+      userId: charge.userId,
+      providerRequestId,
+      reason: "ElevenLabs sound effect generation completed.",
+      routeLabel: "elevenlabs-sound-effects",
+      detail: {
+        generation_id: persisted.generationId,
+        source_ref: charge.sourceRef,
         source_mode: "sound-effects",
         provider_character_cost: generated.characterCost,
-      });
+      },
+    });
+    if (!captureResult.settled) {
+      throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
     }
 
     return res.status(200).json({

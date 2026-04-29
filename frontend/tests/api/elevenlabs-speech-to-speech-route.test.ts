@@ -4,6 +4,7 @@ import handler from "../../pages/api/elevenlabs/speech-to-speech";
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const chargeGenerationRequestMock = vi.fn();
+const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsVoiceChangerMock = vi.fn();
 const createRemuxedVoiceChangerVideoMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
@@ -67,6 +68,8 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   chargeGenerationRequest: (...args: unknown[]) => chargeGenerationRequestMock(...args),
+  captureSucceededGenerationByProviderRequest: (...args: unknown[]) =>
+    captureSucceededGenerationByProviderRequestMock(...args),
 }));
 
 vi.mock("../../lib/server/api/trustedRemoteMediaUrl", () => ({
@@ -128,7 +131,7 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       modelId: "eleven_multilingual_sts_v2",
       credits: 15,
       sourceRef: "billing-source-voice-1",
-      billingMode: "direct_debit",
+      billingMode: "reservation",
       chargeMetadata: { debited_credits: 15 },
       pricingBreakdown: {
         billedCredits: 15,
@@ -139,8 +142,13 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         usdRaw: 0.12,
       },
       pricingParams: { sourceDurationSeconds: 12 },
-      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "attached" }),
+      markSubmitted: vi.fn().mockResolvedValue({ ok: true, status: "reserved" }),
       refund: vi.fn().mockResolvedValue(undefined),
+    });
+    captureSucceededGenerationByProviderRequestMock.mockResolvedValue({
+      settled: true,
+      sourceRef: "billing-source-voice-1",
+      note: "captured",
     });
     generateElevenLabsVoiceChangerMock.mockResolvedValue({
       buffer: Buffer.from("converted-audio"),
@@ -245,6 +253,18 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         }),
       })
     );
+    expect(captureSucceededGenerationByProviderRequestMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      providerRequestId: "provider-voice-req-1",
+      reason: "ElevenLabs voice changer generation completed.",
+      routeLabel: "elevenlabs-speech-to-speech",
+      detail: {
+        generation_id: "gen-audio-1",
+        source_ref: "billing-source-voice-1",
+        source_mode: "voice-changer",
+        source_duration_seconds: 12,
+      },
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       output: {

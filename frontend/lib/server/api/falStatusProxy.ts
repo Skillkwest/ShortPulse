@@ -21,8 +21,6 @@ import {
   buildFalStatusErrorPayload,
   buildShortPulseLifecycleHint,
   buildFalStatusTransientPayload,
-  probeResultBasesForMedia,
-  probeResponseUrlsForMedia,
   readJsonSafe,
   type JsonObject,
   type JsonReadResult,
@@ -641,7 +639,6 @@ export const createFalStatusHandler = ({
       let statusResp: Response | null = null;
       let statusData: JsonReadResult | null = null;
       let resolvedQueueBaseUrl: string | null = null;
-      const statusResponseUrls = new Set<string>();
       const statusCandidates: Array<{
         probe: StatusProbeCandidate;
         response: Response;
@@ -711,10 +708,6 @@ export const createFalStatusHandler = ({
       for (const statusProbeResult of statusProbeResults) {
         if (!statusProbeResult) continue;
         const { probe, response, data } = statusProbeResult;
-        const responseUrl = data.isJson ? readPayloadResponseUrl(data.json) : null;
-        if (responseUrl) {
-          statusResponseUrls.add(responseUrl);
-        }
         if (probe.isRetryableAlias) {
           retryableStatusCandidates.push({ probe, response, data });
           continue;
@@ -784,10 +777,9 @@ export const createFalStatusHandler = ({
         });
       }
 
-      const orderedResultBases = [
-        resolvedQueueBaseUrl,
-        ...queueBaseUrls.filter((baseUrl) => baseUrl !== resolvedQueueBaseUrl),
-      ].filter((baseUrl): baseUrl is string => Boolean(baseUrl));
+      const orderedResultBases = [resolvedQueueBaseUrl].filter((baseUrl): baseUrl is string =>
+        Boolean(baseUrl)
+      );
 
       if (!statusData.isJson) {
         if (statusTransientFailuresEnabled) {
@@ -828,13 +820,6 @@ export const createFalStatusHandler = ({
       }
 
       const normalizedStatus = readPayloadLifecycleStatus(statusData.json);
-      const preferredResponseUrl = readPayloadResponseUrl(statusData.json);
-      const orderedResponseUrls = preferredResponseUrl
-        ? [
-            preferredResponseUrl,
-            ...Array.from(statusResponseUrls).filter((url) => url !== preferredResponseUrl),
-          ]
-        : Array.from(statusResponseUrls);
       if (
         normalizedStatus &&
         isProviderFailedStatus({
@@ -906,35 +891,6 @@ export const createFalStatusHandler = ({
         })
       );
       if (!isComplete) {
-        const responseUrlProbe = await probeResponseUrlsForMedia({
-          provider: providerKey,
-          modelId,
-          responseUrls: orderedResponseUrls,
-          statusHint: normalizedStatus,
-          apiKey,
-          signal: controller.signal,
-        });
-        if (responseUrlProbe) {
-          return captureAndRespondSuccess(responseUrlProbe);
-        }
-
-        // Probe direct result endpoints as a fallback when status is lagging.
-        // Fal occasionally materializes result payload before status transitions.
-        const directResultProbe = await probeResultBasesForMedia({
-          provider: providerKey,
-          modelId,
-          resultBaseUrls: orderedResultBases,
-          requestId,
-          statusHint: normalizedStatus,
-          apiKey,
-          signal: controller.signal,
-        });
-        if (directResultProbe) {
-          return captureAndRespondSuccess({
-            payload: directResultProbe.payload,
-            payloadStatus: directResultProbe.payloadStatus,
-          });
-        }
         return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
           attachGenerationId(
             attachShortPulseLifecycle({
@@ -971,17 +927,6 @@ export const createFalStatusHandler = ({
         response: Response;
         data: JsonReadResult;
       }> = [];
-      const responseUrlProbe = await probeResponseUrlsForMedia({
-        provider: providerKey,
-        modelId,
-        responseUrls: orderedResponseUrls,
-        statusHint: normalizedStatus,
-        apiKey,
-        signal: controller.signal,
-      });
-      if (responseUrlProbe) {
-        return captureAndRespondSuccess(responseUrlProbe);
-      }
 
       const resultProbeResults = await Promise.all(
         orderedResultBases.map(async (baseUrl, index) => {

@@ -220,7 +220,7 @@ describe("createFalStatusHandler", () => {
     vi.unstubAllGlobals();
   });
 
-  it("forces terminal completed status when media is recovered from response_url payload", async () => {
+  it("keeps nonterminal response_url payloads in polling state without result probes", async () => {
     persistedGenerationRows = [
       {
         id: "gen-1",
@@ -228,28 +228,15 @@ describe("createFalStatusHandler", () => {
         metadata: {},
       },
     ];
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            status: "IN_PROGRESS",
-            response_url: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/requests/req-1",
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        )
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "IN_PROGRESS",
+          response_url: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/requests/req-1",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            status: "IN_PROGRESS",
-            data: {
-              images: [{ url: "https://cdn.shortpulse.test/seedream-image.png" }],
-            },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        )
-      );
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const handler = createFalStatusHandler({
@@ -267,46 +254,31 @@ describe("createFalStatusHandler", () => {
 
     await handler(req as never, res as never);
 
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0] as {
       status: string;
-      state: string;
-      request_id: string;
       generationId?: string;
-      data?: { images?: Array<{ url?: string }> };
       shortpulseLifecycle?: {
         taskState?: string;
         isTerminal?: boolean;
-        resultUrls?: string[];
+        providerState?: string;
       };
     };
-    expect(payload.status).toBe("completed");
-    expect(payload.state).toBe("completed");
-    expect(payload.request_id).toBe("req-1");
+    expect(payload.status).toBe("IN_PROGRESS");
     expect(payload.generationId).toBe("gen-1");
-    expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image.png");
     expect(payload.shortpulseLifecycle).toEqual(
       expect.objectContaining({
-        taskState: "success",
-        isTerminal: true,
-        resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-        deliveryState: "canonical_owned",
+        taskState: "running",
+        isTerminal: false,
+        providerState: "in_progress",
       })
     );
-    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        generationId: "gen-1",
-        requestId: "req-1",
-        userId: "user-1",
-        routeLabel: "Fal Seedream",
-        providerState: "completed",
-        resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-      })
-    );
+    expect(settleDirectGenerationSuccessMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
-  it("returns transient provider delivery without waiting for canonical persistence", async () => {
+  it("does not settle nonterminal response_url media before provider completion", async () => {
     persistedGenerationRows = [
       {
         id: "gen-1",
@@ -314,28 +286,15 @@ describe("createFalStatusHandler", () => {
         metadata: {},
       },
     ];
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            status: "IN_PROGRESS",
-            response_url: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/requests/req-1",
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        )
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "IN_PROGRESS",
+          response_url: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/requests/req-1",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
       )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            status: "IN_PROGRESS",
-            data: {
-              images: [{ url: "https://cdn.shortpulse.test/seedream-image.png" }],
-            },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        )
-      );
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const handler = createFalStatusHandler({
@@ -353,28 +312,19 @@ describe("createFalStatusHandler", () => {
 
     await handler(req as never, res as never);
 
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        request_id: "req-1",
         generationId: "gen-1",
-        status: "completed",
+        status: "IN_PROGRESS",
         shortpulseLifecycle: expect.objectContaining({
-          resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-          deliveryState: "canonical_owned",
+          taskState: "running",
+          isTerminal: false,
         }),
       })
     );
-    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        generationId: "gen-1",
-        requestId: "req-1",
-        userId: "user-1",
-        routeLabel: "Fal Seedream",
-        providerState: "completed",
-        resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-      })
-    );
+    expect(settleDirectGenerationSuccessMock).not.toHaveBeenCalled();
   });
 
   it("returns canonical completed payload immediately when direct settlement persists outputs", async () => {
@@ -501,26 +451,12 @@ describe("createFalStatusHandler", () => {
         responseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId=req-persisted-success",
       },
     };
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(pendingPayload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(pendingPayload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(pendingPayload), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
-      );
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(JSON.stringify(pendingPayload), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const handler = createFalStatusHandler({
@@ -540,7 +476,7 @@ describe("createFalStatusHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -872,7 +808,7 @@ describe("createFalStatusHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1338,7 +1274,7 @@ describe("createFalStatusHandler", () => {
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/alt-base-success.png");
   });
 
-  it("probes response_url across all status aliases before concluding no media", async () => {
+  it("uses the selected status base for terminal result fetches", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -1456,7 +1392,7 @@ describe("createFalStatusHandler", () => {
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image-3.png");
   });
 
-  it("prefers media-bearing alias results when another alias reports terminal failure", async () => {
+  it("uses the selected completed status base when another alias reports terminal failure", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -1486,15 +1422,6 @@ describe("createFalStatusHandler", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         )
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            status: "FAILED",
-            error: "stale secondary alias failure",
-          }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        )
       );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1516,7 +1443,7 @@ describe("createFalStatusHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0] as {
       status: string;

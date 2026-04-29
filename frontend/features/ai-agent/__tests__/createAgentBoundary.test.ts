@@ -134,6 +134,8 @@ describe("Create agent mode boundaries", () => {
     expect(switchSource).toContain("StandardCreatePropertiesPanel");
     expect(switchSource).toContain("PulseCreatePropertiesPanel");
     expect(switchSource).toContain('resolvedExpertCreateMode === "pulse"');
+    expect(switchSource).toContain('import("./create/PulseCreatePropertiesPanel")');
+    expect(switchSource).not.toContain("PulseCreatePropertiesPanel,\n  type");
 
     expect(standardComposerSource).not.toContain("PulseCreatePanelView");
     expect(standardComposerSource).not.toContain("PulseCreateChatPanel");

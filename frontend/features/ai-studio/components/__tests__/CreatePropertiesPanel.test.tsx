@@ -9,6 +9,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComposeSendCard, CreatePropertiesPanel } from "../CreatePropertiesPanel";
 
+vi.mock("next/dynamic", async () => {
+  const pulseModule = await import("../create/PulseCreatePropertiesPanel");
+  return {
+    default: () => pulseModule.PulseCreatePropertiesPanel,
+  };
+});
+
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
     const imageProps = { ...props };

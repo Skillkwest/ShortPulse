@@ -62,7 +62,9 @@ import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/compo
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import { usePulseWorkflowSessionReconciliation } from "../features/ai-studio/hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
+import { usePulseCreatePrimarySubmit } from "../features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit";
 import { useStandardCreateChatMode } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateChatMode";
+import { useStandardCreatePrimarySubmit } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit";
 import type {
   CanvasDropResolution,
   PrepareCanvasMediaLibraryDrop,
@@ -1205,66 +1207,32 @@ export default function AiStudioPage() {
     regenerateOutput,
     activeOutputId,
   });
-  const handleStandardCreatePrimarySubmit = useCallback(() => {
-    if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
-      if (chatModeEnabled) {
-        handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
-          if (result?.prompt) {
-            handleStandardAgentCaptureResult(result.prompt, result.referenceTitle);
-          }
-        });
-        return;
-      }
-      handleProviderPrimarySubmit();
-      return;
-    }
-    handleProviderPrimarySubmit();
-  }, [
-    agentInput,
+  const handleStandardCreatePrimarySubmit = useStandardCreatePrimarySubmit({
+    mode,
+    selectedTool,
     chatModeEnabled,
+    agentInput,
+    prompt,
     handleAgentSend,
     handleProviderPrimarySubmit,
     handleStandardAgentCaptureResult,
+  });
+  const {
+    pulseArtifactGenerateGuardrail,
+    pulseArtifactGenerateDisabled,
+    handlePulseCreatePrimarySubmit,
+  } = usePulseCreatePrimarySubmit({
     mode,
-    prompt,
     selectedTool,
-  ]);
-  const pulseWorkflowLastArtifact = pulseWorkflowSession?.lastArtifact ?? null;
-  const pulseCompletedArtifactPrompt = useMemo(() => {
-    if (!hasActivePulseSession || pulseWorkflowSession?.status !== "completed") return null;
-    if (typeof pulseWorkflowLastArtifact !== "string") return null;
-    const artifact = pulseWorkflowLastArtifact.trim();
-    return artifact.length > 0 ? artifact : null;
-  }, [hasActivePulseSession, pulseWorkflowLastArtifact, pulseWorkflowSession?.status]);
-  const pulseArtifactGenerateGuardrail = pulseCompletedArtifactPrompt
-    ? effectiveGenerationGuardrail
-    : "Complete the active Pulse before generating.";
-  const pulseArtifactGenerateDisabled =
-    Boolean(effectiveGenerationGuardrail) || !pulseCompletedArtifactPrompt;
-  const handlePulseCreatePrimarySubmit = useCallback(() => {
-    if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
-      if (!pulseCompletedArtifactPrompt) {
-        setUiNotice("Complete the active Pulse before generating.");
-        return;
-      }
-      void handleGenerate(pulseCompletedArtifactPrompt, {
-        modeOverride: "image",
-        toolOverride: "create",
-        costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
-      });
-      return;
-    }
-    handleProviderPrimarySubmit();
-  }, [
+    hasActivePulseSession,
+    pulseWorkflowSession,
+    effectiveGenerationGuardrail,
+    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
     currentCostCredits,
     handleGenerate,
     handleProviderPrimarySubmit,
-    mode,
-    pulseCompletedArtifactPrompt,
-    promptReferenceGenerateCostCredits,
-    selectedTool,
     setUiNotice,
-  ]);
+  });
   const handlePrimarySubmit =
     expertCreateMode === "pulse"
       ? handlePulseCreatePrimarySubmit

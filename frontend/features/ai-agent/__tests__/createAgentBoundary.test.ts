@@ -284,6 +284,12 @@ describe("Create agent mode boundaries", () => {
     const outputGenerationBridgeSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge.ts"
     );
+    const standardPrimarySubmitSource = readFrontendFile(
+      "features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit.ts"
+    );
+    const pulsePrimarySubmitSource = readFrontendFile(
+      "features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit.ts"
+    );
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
 
     expect(generationControllerSource).not.toContain("expertCreateMode");
@@ -294,14 +300,21 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
+    expect(pageSource).toContain("useStandardCreatePrimarySubmit");
+    expect(pageSource).toContain("usePulseCreatePrimarySubmit");
     expect(pageSource).not.toContain("const pulsePrompt = resolveChatOffCreatePrompt");
     expect(pageSource).not.toContain("handleAgentSend(pulsePrompt");
-    expect(pageSource).toContain("pulseCompletedArtifactPrompt");
     expect(pageSource).not.toContain("pulseArtifactPrompt ?? prompt.trim()");
     expect(pageSource).not.toContain(
       'expertCreateMode === "pulse" ? undefined : handleStandardAgentCaptureResult'
     );
     expect(pageSource).not.toContain('usesAgentLane: expertCreateMode === "pulse"');
+    expect(standardPrimarySubmitSource).not.toContain("Pulse");
+    expect(standardPrimarySubmitSource).not.toContain("pulseWorkflowSession");
+    expect(standardPrimarySubmitSource).not.toContain("pulseCompletedArtifactPrompt");
+    expect(pulsePrimarySubmitSource).not.toContain("agentInput");
+    expect(pulsePrimarySubmitSource).not.toContain("agentInput || prompt");
+    expect(pulsePrimarySubmitSource).toContain("pulseCompletedArtifactPrompt");
   });
 
   it("keeps Pulse workflow helpers out of shared orchestration static imports", () => {

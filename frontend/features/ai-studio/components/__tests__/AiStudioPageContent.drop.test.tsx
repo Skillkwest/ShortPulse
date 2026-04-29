@@ -236,11 +236,9 @@ vi.mock("../UnifiedPresetsLibraryPanel", () => ({
     promptPresets: Array<{ presetId: string; label: string }>;
     selectedPromptPresetId: string | null;
     onSelectPromptPreset?: (presetId: string | null) => void;
-    savedPulsePresets?: Array<{ presetId: string }>;
   }) => (
     <div data-testid="presets-library-panel">
       <div data-testid="presets-library-count">{props.promptPresets.length}</div>
-      <div data-testid="presets-library-pulse-count">{props.savedPulsePresets?.length ?? 0}</div>
       <div data-testid="presets-library-selected-preset">{props.selectedPromptPresetId ?? ""}</div>
       {props.promptPresets.map((preset) => (
         <button

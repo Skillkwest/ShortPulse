@@ -63,7 +63,6 @@ const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
-  expertCreateMode?: "standard" | "pulse";
   mode: StudioMode;
   selectedTool: ToolId | null;
   model: string | null;
@@ -109,7 +108,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
       modeHint?: "chat" | "text" | "describe" | "reference";
     }
   ) => Promise<{ prompt: string; referenceTitle?: string | null } | void>;
-  addAgentPromptReference: (promptText: string, title?: string) => void;
+  onAgentCaptureResult?: (promptText: string, title?: string | null) => void;
   resolveDefaultPromptForTool: (tool: ToolId | null) => string;
   refreshCharacterModeInjectionBundleForSubmission: (
     tool: ToolId | null
@@ -172,7 +171,6 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
  * Returns stable generation action handlers and click-lock state for AI Studio orchestration.
  */
 export const useAiStudioGenerationController = <TBundle, TFallbackCode extends string>({
-  expertCreateMode = "standard",
   mode,
   selectedTool,
   model,
@@ -200,7 +198,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   setOptimisticDebitEntries,
   refreshBalance,
   handleAgentSend,
-  addAgentPromptReference,
+  onAgentCaptureResult,
   resolveDefaultPromptForTool,
   refreshCharacterModeInjectionBundleForSubmission,
   resolveCharacterModeSubmissionOverrides,
@@ -498,11 +496,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
       if (usesAgentLane) {
         handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
-          if (expertCreateMode === "pulse") return;
           const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
           if (agentRes?.prompt) {
-            addAgentPromptReference(agentRes.prompt, agentRes.referenceTitle);
-            setPromptOrigin("agent");
+            onAgentCaptureResult?.(agentRes.prompt, agentRes.referenceTitle);
           }
         });
       } else {
@@ -524,13 +520,12 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     }
     void handleGenerate();
   }, [
-    addAgentPromptReference,
     agentInput,
     currentCostCredits,
-    expertCreateMode,
     handleAgentSend,
     handleGenerate,
     mode,
+    onAgentCaptureResult,
     prompt,
     promptReferenceGenerateCostCredits,
     selectedTool,

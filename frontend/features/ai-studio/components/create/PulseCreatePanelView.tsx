@@ -2,19 +2,22 @@ import React from "react";
 import { Power, Trash } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
-import { PromptStep } from "../PromptStep";
+import { PulsePromptStep } from "../PulsePromptStep";
 import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
 import { CreateExpertModeToggle } from "./CreateExpertModeToggle";
+import {
+  CreatePulsePreferenceProvider,
+  useCreatePulsePreferenceRuntime,
+} from "./CreatePulsePreferenceProvider";
 import type { ExpertCreateMode } from "./createModeTypes";
 import type {
   CreatePulsePresetId,
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
-  CreatePulseSavedPreset,
 } from "./createPulsePresets";
 
 type PulseCreatePanelViewProps = {
-  promptStepProps: React.ComponentProps<typeof PromptStep>;
+  promptStepProps: React.ComponentProps<typeof PulsePromptStep>;
   onGenerate: () => void;
   costCredits?: number | null;
   isPromptGenerating: boolean;
@@ -33,18 +36,10 @@ type PulseCreatePanelViewProps = {
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   isPulseActivationBusy?: boolean;
-  selectedPulsePresetIds?: readonly CreatePulsePresetId[];
-  onSelectedPulsePresetIdsChange?: (
-    presetIds: CreatePulsePresetId[]
-  ) => Promise<boolean> | boolean | void;
-  savedPulsePresets?: readonly CreatePulseSavedPreset[];
-  onSavedPulsePresetsChange?: (
-    presets: CreatePulseSavedPreset[]
-  ) => Promise<boolean> | boolean | void;
   onOpenPresetsLibrary?: () => void;
 };
 
-export function PulseCreatePanelView({
+const PulseCreatePanelViewContent = ({
   promptStepProps,
   onGenerate,
   costCredits,
@@ -58,12 +53,14 @@ export function PulseCreatePanelView({
   onActivePulsePresetIdChange,
   onPulsePresetStart,
   isPulseActivationBusy = false,
-  selectedPulsePresetIds,
-  onSelectedPulsePresetIdsChange,
-  savedPulsePresets,
-  onSavedPulsePresetsChange,
   onOpenPresetsLibrary,
-}: PulseCreatePanelViewProps) {
+}: PulseCreatePanelViewProps) => {
+  const {
+    presetPanelIds: selectedPulsePresetIds,
+    setPresetPanelIds: onSelectedPulsePresetIdsChange,
+    savedPresets: savedPulsePresets,
+    setSavedPresets: onSavedPulsePresetsChange,
+  } = useCreatePulsePreferenceRuntime();
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const [uncontrolledCreateMode, setUncontrolledCreateMode] =
     React.useState<ExpertCreateMode>("pulse");
@@ -81,7 +78,7 @@ export function PulseCreatePanelView({
     [onExpertCreateModeChange]
   );
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
-  const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
+  const promptStepLayoutProps: React.ComponentProps<typeof PulsePromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
     forceRenderAgentChatPanel: !shouldShowPersistentEmptyShell,
@@ -114,7 +111,7 @@ export function PulseCreatePanelView({
         </>
       ) : null}
       <div className="create-expert-bottom-block">
-        <PromptStep {...promptStepLayoutProps} />
+        <PulsePromptStep {...promptStepLayoutProps} />
         <div className="create-expert-secondary-row create-expert-generate-row">
           <div className="create-expert-inline-generate">
             <AgentGenerateButton
@@ -186,5 +183,13 @@ export function PulseCreatePanelView({
         </div>
       </div>
     </div>
+  );
+};
+
+export function PulseCreatePanelView(props: PulseCreatePanelViewProps) {
+  return (
+    <CreatePulsePreferenceProvider>
+      <PulseCreatePanelViewContent {...props} />
+    </CreatePulsePreferenceProvider>
   );
 }

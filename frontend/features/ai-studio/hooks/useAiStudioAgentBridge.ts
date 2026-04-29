@@ -12,8 +12,13 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { usePulseCreateAgent } from "../../ai-agent/usePulseCreateAgent";
-import { useStandardCreateAgent } from "../../ai-agent/useStandardCreateAgent";
+import { resolvePulseCreateAgentTransportSuccess } from "../../ai-agent/client/pulseTransportResultResolution";
+import { sendPulseCreateAgentTurn } from "../../ai-agent/client/pulseStudioAgentTransport";
+import { resolveStandardCreateAgentTransportSuccess } from "../../ai-agent/client/standardTransportResultResolution";
+import { sendStandardCreateAgentTurn } from "../../ai-agent/client/standardStudioAgentTransport";
+import { buildPulseCreateAgentContext } from "../../ai-agent/logic/pulseCreateAgentContextBuilder";
+import { buildStandardCreateAgentContext } from "../../ai-agent/logic/standardContextBuilder";
+import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
 import type {
   AgentAttachment,
   AgentAssistantMessageEditRequest,
@@ -311,19 +316,31 @@ export const useAiStudioAgentBridge = ({
     state: AgentBridgeRuntimeState;
   } | null>(null);
 
-  const standardAgent = useStandardCreateAgent({
+  const activeAgent = useCreateAgentStateCore({
     enabled: agentEnabled,
-    sessionNamespace: standardAgentSessionNamespace,
+    sessionNamespace: isPulseCreateMode
+      ? pulseAgentSessionNamespace
+      : standardAgentSessionNamespace,
     directOpenAiBypassEnabled:
+      !isPulseCreateMode &&
       chatModeEnabled &&
       directOpenAiBypassEnabled &&
       bridgeRuntime.shouldMirrorAssistantPromptToSharedPrompt(selectedTool),
+    requestRuntimeMode: isPulseCreateMode ? "pulse" : "standard",
+    allowSessionNamespaceOverride: isPulseCreateMode,
+    sessionNamespaceOverrideErrorText:
+      "Standard agent cannot send to an override session namespace.",
+    buildAgentContext: isPulseCreateMode
+      ? buildPulseCreateAgentContext
+      : buildStandardCreateAgentContext,
+    sendAgentTurn: isPulseCreateMode ? sendPulseCreateAgentTurn : sendStandardCreateAgentTurn,
+    resolveTransportSuccess: isPulseCreateMode
+      ? resolvePulseCreateAgentTransportSuccess
+      : (response) => ({
+          ...resolveStandardCreateAgentTransportSuccess(response),
+          workflowSession: null,
+        }),
   });
-  const pulseAgent = usePulseCreateAgent({
-    enabled: agentEnabled,
-    sessionNamespace: pulseAgentSessionNamespace,
-  });
-  const activeAgent = isPulseCreateMode ? pulseAgent : standardAgent;
   const {
     messages: agentMessages,
     isSending: agentIsSending,
@@ -334,8 +351,6 @@ export const useAiStudioAgentBridge = ({
     replaceMessages,
     reset: resetAgentChat,
   } = activeAgent;
-  const resetStandardAgentChat = standardAgent.reset;
-  const resetPulseAgentChat = pulseAgent.reset;
 
   const [agentUiBusy, setAgentUiBusy] = useState(false);
   const agentUiBusyRef = useRef(false);
@@ -734,7 +749,6 @@ export const useAiStudioAgentBridge = ({
     setSharedPrompt,
     setPromptOrigin,
     sendToAgent,
-    sendPulseActivationToAgent: pulseAgent.send,
     appendUserMessage,
     updateMessageById,
     getAgentContext,
@@ -807,9 +821,16 @@ export const useAiStudioAgentBridge = ({
       setLatestAgentPrompt(null);
       setPromptOrigin("manual");
       setPulseWorkflowSession(null);
-      const restartedPulse = restartPulse?.();
+      const restartedPulse = restartPulse?.() ?? null;
       const pulseSessionInstanceId =
         restartedPulse?.presetId === preset.presetId ? restartedPulse.sessionInstanceId : null;
+      if (!pulseSessionInstanceId) {
+        setUiNotice("Pulse restart could not create a fresh session. Start the Pulse again.");
+        trackAgentUiEvent("studio_agent_pulse_restart_blocked_missing_session", {
+          preset_id: preset.presetId,
+        });
+        return;
+      }
       await handlePulsePresetStart(preset, {
         pulseSessionInstanceId,
       });
@@ -822,14 +843,14 @@ export const useAiStudioAgentBridge = ({
       setLatestAgentPrompt,
       setPromptOrigin,
       setPulseWorkflowSession,
+      setUiNotice,
       trackAgentUiEvent,
     ]
   );
 
   const resetProjectAgentConversation = useCallback(() => {
     const sessionKeyPrefix = `${sessionId ?? "none"}::`;
-    resetStandardAgentChat();
-    resetPulseAgentChat();
+    resetAgentChat();
     resetAgentComposer({ preserveInput: false, preserveAttachments: false });
     setAgentBridgeRuntimeStateBySessionKey((current) => {
       const nextEntries = Object.entries(current).filter(
@@ -843,9 +864,8 @@ export const useAiStudioAgentBridge = ({
     setAgentAttachmentError(null);
     setAgentAttachments([]);
   }, [
-    resetPulseAgentChat,
     resetAgentComposer,
-    resetStandardAgentChat,
+    resetAgentChat,
     sessionId,
     setAgentAttachmentError,
     setAgentAttachments,

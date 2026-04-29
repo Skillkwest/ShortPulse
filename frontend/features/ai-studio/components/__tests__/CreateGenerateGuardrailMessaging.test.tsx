@@ -2,7 +2,8 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComposeSendCard } from "../CreatePropertiesPanel";
-import { ExpertCreatePanelView } from "../create/ExpertCreatePanelView";
+import { PulseCreatePanelView } from "../create/PulseCreatePanelView";
+import { StandardCreatePanelView } from "../create/StandardCreatePanelView";
 import type { PromptStepProps } from "../PromptStep";
 
 vi.mock("../../../../prefabs/agent", () => ({
@@ -49,7 +50,7 @@ describe("Create generate guardrail messaging", () => {
 
   it("shows the guardrail reason next to the expert inline generate button", () => {
     render(
-      <ExpertCreatePanelView
+      <StandardCreatePanelView
         promptStepProps={{} as PromptStepProps}
         onGenerate={vi.fn()}
         costCredits={15}
@@ -84,32 +85,12 @@ describe("Create generate guardrail messaging", () => {
 
   it("does not show the removed active Pulse status UI in Pulse mode", () => {
     render(
-      <ExpertCreatePanelView
+      <PulseCreatePanelView
         promptStepProps={{} as PromptStepProps}
         onGenerate={vi.fn()}
         costCredits={15}
         isPromptGenerating={false}
         isGenerateDisabled={false}
-        characterModeEnabled={false}
-        onCharacterModeEnabledToggle={vi.fn()}
-        onCharacterPickerOpen={vi.fn()}
-        characterSelectDisabled={false}
-        isCharacterSelectionEmpty
-        selectedCharacterName="No characters available"
-        selectedCharacterProfileImageUrl={null}
-        selectedCharacterInitials={null}
-        isCharacterPickerOpen={false}
-        isCreateModelPickerOpen={false}
-        isModelSelectionEmpty={false}
-        onCreateModelOpen={vi.fn()}
-        useUnoptimizedModelLogo={false}
-        effectiveModelLabel="Seedream 4.5 Edit"
-        aspect="9:16"
-        aspectOptionsForModel={[]}
-        onAspectChange={vi.fn()}
-        shouldShowImageResolutionCard={false}
-        imageResolutionValue="default"
-        imageResolutionOptions={[]}
         expertCreateMode="pulse"
         activePulsePresetId="story_builder"
       />

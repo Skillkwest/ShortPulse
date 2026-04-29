@@ -12,7 +12,6 @@ const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioGenerationController>[0]> = {}
 ): Parameters<typeof useAiStudioGenerationController>[0] => {
   const baseParams: Parameters<typeof useAiStudioGenerationController>[0] = {
-    expertCreateMode: "standard",
     mode: "image",
     selectedTool: "create",
     model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
@@ -35,7 +34,7 @@ const createParams = (
     setOptimisticDebitEntries: asDispatch<{ credits: number; outputId: string | null }[]>(vi.fn()),
     refreshBalance: vi.fn(async () => 100),
     handleAgentSend: vi.fn(async () => ({ prompt: "agent prompt", referenceTitle: "Agent ref" })),
-    addAgentPromptReference: vi.fn(),
+    onAgentCaptureResult: vi.fn(),
     resolveDefaultPromptForTool: vi.fn(() => "default prompt"),
     refreshCharacterModeInjectionBundleForSubmission: vi.fn(async () => null),
     resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
@@ -60,21 +59,19 @@ describe("useAiStudioGenerationController", () => {
     vi.clearAllMocks();
   });
 
-  it("routes primary text create submit through agent send and applies returned prompt origin", async () => {
+  it("routes primary text create submit through agent send and captures returned Standard prompt", async () => {
     const handleAgentSend = vi.fn(async () => ({
       prompt: "refined from agent",
       referenceTitle: "Refined",
     }));
-    const addAgentPromptReference = vi.fn();
-    const setPromptOrigin = vi.fn();
+    const onAgentCaptureResult = vi.fn();
     const generateOutput = vi.fn();
     const params = createParams({
       mode: "text",
       selectedTool: "create",
       prompt: "draft prompt",
       handleAgentSend,
-      addAgentPromptReference,
-      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+      onAgentCaptureResult,
       generateOutput,
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
@@ -87,8 +84,7 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(handleAgentSend).toHaveBeenCalledWith("draft prompt", { captureResult: true });
-    expect(addAgentPromptReference).toHaveBeenCalledWith("refined from agent", "Refined");
-    expect(setPromptOrigin).toHaveBeenCalledWith("agent");
+    expect(onAgentCaptureResult).toHaveBeenCalledWith("refined from agent", "Refined");
     expect(generateOutput).not.toHaveBeenCalled();
   });
 
@@ -318,17 +314,16 @@ describe("useAiStudioGenerationController", () => {
       prompt: "pulse bootstrap prompt",
       referenceTitle: "Pulse",
     }));
-    const addAgentPromptReference = vi.fn();
+    const onAgentCaptureResult = vi.fn();
     const setPromptOrigin = vi.fn();
     const generateOutput = vi.fn();
     const params = createParams({
-      expertCreateMode: "pulse",
       mode: "text",
       selectedTool: "create",
       prompt: "pulse draft",
       usesAgentLane: true,
       handleAgentSend,
-      addAgentPromptReference,
+      onAgentCaptureResult: undefined,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
       generateOutput,
     });
@@ -342,7 +337,7 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(handleAgentSend).toHaveBeenCalledWith("pulse draft", { captureResult: true });
-    expect(addAgentPromptReference).not.toHaveBeenCalled();
+    expect(onAgentCaptureResult).not.toHaveBeenCalled();
     expect(setPromptOrigin).not.toHaveBeenCalled();
     expect(generateOutput).not.toHaveBeenCalled();
   });

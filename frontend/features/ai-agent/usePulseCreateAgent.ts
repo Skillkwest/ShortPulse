@@ -4,7 +4,7 @@
  */
 import { resolvePulseCreateAgentTransportSuccess } from "./client/pulseTransportResultResolution";
 import { sendPulseCreateAgentTurn } from "./client/pulseStudioAgentTransport";
-import { buildAgentContext } from "./logic/contextBuilder";
+import { buildPulseCreateAgentContext } from "./logic/pulseCreateAgentContextBuilder";
 import { useCreateAgentStateCore } from "./useCreateAgentStateCore";
 import type { UseAiAgentOptions } from "./useAiAgentTypes";
 
@@ -17,7 +17,7 @@ export const usePulseCreateAgent = (options: Omit<UseAiAgentOptions, "runtimeMod
     directOpenAiBypassEnabled: false,
     requestRuntimeMode: "pulse",
     allowSessionNamespaceOverride: true,
-    buildAgentContext,
+    buildAgentContext: buildPulseCreateAgentContext,
     sendAgentTurn: sendPulseCreateAgentTurn,
     resolveTransportSuccess: resolvePulseCreateAgentTransportSuccess,
   });

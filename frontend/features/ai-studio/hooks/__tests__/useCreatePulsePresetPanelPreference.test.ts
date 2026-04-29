@@ -70,16 +70,15 @@ describe("useCreatePulsePresetPanelPreference", () => {
 
   it("keeps custom Pulse preference loading out of the AI Studio page root", () => {
     const pageSource = readFileSync(`${process.cwd()}/pages/ai-studio.tsx`, "utf8");
-    const pulseRuntimeSource = readFileSync(
-      `${process.cwd()}/features/ai-studio/components/create/CreatePulsePreferenceRuntime.tsx`,
+    const pulseProviderSource = readFileSync(
+      `${process.cwd()}/features/ai-studio/components/create/CreatePulsePreferenceProvider.tsx`,
       "utf8"
     );
 
     expect(pageSource).not.toContain("useCreatePulsePresetPanelPreference");
-    expect(pageSource).not.toContain(
-      'from "../features/ai-studio/components/create/CreatePulsePreferenceRuntime"'
-    );
-    expect(pulseRuntimeSource).toContain("useCreatePulsePresetPanelPreference");
+    expect(pageSource).not.toContain("CreatePulsePreferenceRuntime");
+    expect(pageSource).not.toContain("CreatePulsePreferenceProvider");
+    expect(pulseProviderSource).toContain("useCreatePulsePresetPanelPreference");
   });
 
   it("drops retired local pulse ids without legacy custom-slot migration", async () => {

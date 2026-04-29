@@ -1,17 +1,22 @@
 /**
- * Shared prompt step component for AI Studio.
- * Handles prompt entry modes and Agent interactions.
+ * Pulse prompt step component for AI Studio.
+ * Handles Pulse chat composer and guided workflow presentation.
  */
 import React from "react";
 import type { AgentMessage } from "../../../prefabs/agent";
 import { extractDragDropPayload } from "../utils/dragDrop";
-import { PromptStepChatSurface } from "./promptStep/PromptStepChatSurface";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
-import type { PromptStepProps } from "./promptStep/types";
+import { PulsePromptStepChatSurface } from "./promptStep/PulsePromptStepChatSurface";
+import type { PromptStepProps, PromptStepPulseLoadingState } from "./promptStep/types";
 export type { PromptStepProps } from "./promptStep/types";
 
-export function PromptStep({
+export type PulsePromptStepProps = PromptStepProps & {
+  useFlowComposerLayout?: boolean;
+  pulseLoadingState?: PromptStepPulseLoadingState | null;
+};
+
+export function PulsePromptStep({
   stepNumber,
   title = "Choose Prompt Mode",
   subtitle = "Draft the prompt you want to use, or switch to Chat to have the agent craft one for you.",
@@ -80,6 +85,7 @@ export function PromptStep({
   emptyAgentChatSpacerClassName = "",
   highlightLatestAssistantOnly = false,
   CreateChatPanel,
+  useFlowComposerLayout = false,
   composerMiddleContent = null,
   composerLeadingContent = null,
   chatComposerOverlayEnabled = false,
@@ -87,6 +93,7 @@ export function PromptStep({
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur = false,
   onAgentInputVisualRowCountChange,
+  pulseLoadingState = null,
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
@@ -101,7 +108,7 @@ export function PromptStep({
   onPromptBlur,
   onPromptSelect,
   onPromptKeyDown,
-}: PromptStepProps) {
+}: PulsePromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
   );
@@ -323,7 +330,7 @@ export function PromptStep({
         canUsePromptSurface ? (
           <>
             {showInlineChat ? (
-              <PromptStepChatSurface
+              <PulsePromptStepChatSurface
                 beginnerMode={beginnerMode}
                 chatOnly={chatOnly}
                 promptOnly={promptOnly}
@@ -363,6 +370,7 @@ export function PromptStep({
                 useAgentResponseInlineGeneratePrefab={useAgentResponseInlineGeneratePrefab}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
                 CreateChatPanel={CreateChatPanel}
+                {...(useFlowComposerLayout ? { useFlowComposerLayout, pulseLoadingState } : {})}
                 disableOutputGenerate={disableOutputGenerate}
                 outputGenerateCostCredits={outputGenerateCostCredits}
                 outputGenerateGuardrailReason={outputGenerateGuardrailReason}

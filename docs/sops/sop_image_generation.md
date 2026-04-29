@@ -21,7 +21,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 | `frontend/features/ai-studio/components/ReferenceGrid.tsx` | Reference grid (draggable cards) and file drop surface for seeding references. |
 | `frontend/features/ai-studio/logic/*` | Pricing (`pricing.ts`), prompt/token estimates, drag/drop utilities, and provider clients (Fal). |
 | `frontend/pages/ai-studio.tsx` | Orchestrates panels, wires cost display, and renders the error banner. |
-| `frontend/pages/api/ai/studio-agent.ts` | Canonical prompt-refinement and multimodal prompt-building route used by Create before image generation when chat or refine actions are active. |
+| `frontend/pages/api/ai/studio-agent-standard.ts` / `frontend/pages/api/ai/studio-agent-pulse.ts` | Mode-owned prompt-refinement and multimodal prompt-building routes used by Create before image generation when chat, Pulse, or refine actions are active. |
 
 ## Environment prerequisites
 

@@ -10,9 +10,9 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 | Component | Role |
 | --- | --- |
 | `frontend/lib/agentPromptsConfig.ts` | Source of truth for `STUDIO_AGENT_SYSTEM` prompt (do not duplicate here); loaded via `loadAgentPrompt`. |
-| `frontend/pages/api/ai/studio-agent.ts` | API route that brokers chat completions with vision; applies request guards and returns structured actions. |
+| `frontend/pages/api/ai/studio-agent-standard.ts` / `frontend/pages/api/ai/studio-agent-pulse.ts` | Mode-owned API routes that broker chat completions with vision, apply request guards, and return structured actions. The generic `studio-agent.ts` route is retired compatibility only. |
 | `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts` | Shared input safety precheck used to classify/rewrite/refuse provider-bound text before execution. |
-| `frontend/features/ai-agent/{logic,useAiAgent.ts}` | Feature module: manages chat state, context assembly, media downscaling, and action parsing. |
+| `frontend/features/ai-agent/{logic,useStandardCreateAgent.ts,usePulseCreateAgent.ts}` | Feature module: manages mode-owned chat state, context assembly, media downscaling, and action parsing. |
 | `frontend/prefabs/agent/{types.ts,buttons,inputs,panels}` | Prefab UI kit + shared agent types used by UI and API. |
 | `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Supplies prompt/model/reference state to the agent and receives applied prompts. |
 | `frontend/features/ai-studio/components/{CreatePropertiesPanel,VideoPropertiesPanel,DetailModal,StudioPreview}` plus `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx` | Replace prompt textareas with `AgentChatPanel` embeds; surface “Apply prompt”/“Generate” actions. |
@@ -30,7 +30,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 
 ## System prompt + message schema
 - System prompt ID: `STUDIO_AGENT_SYSTEM` in `frontend/lib/agentPromptsConfig.ts` (includes role, allowed tools, tone, brevity rules, safety refusal).
-- Request payload (`POST /api/ai/studio-agent`):
+- Request payload (`POST /api/ai/studio-agent-standard` or `POST /api/ai/studio-agent-pulse`):
   - `messages`: chat history `{ role: "user" | "assistant", content: string }[]`.
   - `clientSessionKey`: stable session key (required; used for canonical continuity).
   - `traceId` (optional): request correlation ID echoed by server.
@@ -59,12 +59,12 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 
 ## Workflow (happy path)
 1. User types or pastes in the chat UI (embedded where prompt textarea used to be). Messages persist per session/tool.
-2. `useAiAgent` gathers context: active prompt/model/mode, reference grid summaries, and safe `https://` previews for up to 3 images. Video references contribute text metadata only.
+2. The mode-owned Create agent hook gathers context: active prompt/model/mode, reference grid summaries, and safe `https://` previews for up to 3 images. Video references contribute text metadata only.
 3. If the user drags references into the chat surface, staged attachments are merged into context before send (prompt refs + image refs/media), then cleared on success.
-4. `useAiAgent` runs client pre-send safety precheck (when enabled) over outgoing messages/context/canonical prompt:
+4. The mode-owned Create agent hook runs client pre-send safety precheck (when enabled) over outgoing messages/context/canonical prompt:
    - `rewrite`: sends sanitized payload
    - `refuse`: appends canonical refusal and skips network call
-5. Client calls `/api/ai/studio-agent`; the route verifies feature flag, key, payload size, and model support.
+5. Client calls the active mode-owned studio-agent route; the route verifies feature flag, key, payload size, and model support.
 6. Route classifies turn type (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`) and runs server-authoritative pre-provider safety precheck:
    - `rewrite`: mutates in-memory request payload before downstream orchestration
    - `refuse`: returns canonical refusal payload with `200` and skips provider call

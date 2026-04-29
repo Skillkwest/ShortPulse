@@ -136,14 +136,3 @@ export const sendStudioAgentTurnToEndpoint = async (
     data: (await response.json()) as AgentResponse,
   };
 };
-
-/**
- * Compatibility transport for non-Create callers that still pass a runtimeMode.
- */
-export const sendStudioAgentTurn = async (
-  body: AgentApiRequest
-): Promise<StudioAgentTransportResult> =>
-  sendStudioAgentTurnToEndpoint(
-    body.runtimeMode === "pulse" ? "/api/ai/studio-agent-pulse" : "/api/ai/studio-agent-standard",
-    body
-  );

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAiAgent } from "../useAiAgent";
+import { useAiAgentCompat as useAiAgent } from "../legacy/useAiAgentCompat";
 import type { SendResult } from "../useAiAgentTypes";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 

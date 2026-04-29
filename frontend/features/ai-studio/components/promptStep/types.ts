@@ -99,7 +99,6 @@ export type PromptStepProps = {
   emptyAgentChatSpacerClassName?: string;
   highlightLatestAssistantOnly?: boolean;
   CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
-  useFlowComposerLayout?: boolean;
   composerMiddleContent?: React.ReactNode;
   composerLeadingContent?: React.ReactNode;
   chatComposerOverlayEnabled?: boolean;
@@ -107,7 +106,6 @@ export type PromptStepProps = {
   agentInputMaxHeightPx?: number;
   agentInputCollapseOnBlur?: boolean;
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
-  pulseLoadingState?: PromptStepPulseLoadingState | null;
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
   outputGenerateGuardrailReason?: string | null;

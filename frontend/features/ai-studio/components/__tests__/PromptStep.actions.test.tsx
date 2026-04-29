@@ -2,7 +2,7 @@
  * PromptStep action-surface tests.
  * Verifies structured agent actions are rendered and routed to callbacks.
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PromptStep } from "../PromptStep";
 
@@ -280,6 +280,84 @@ describe("PromptStep agent actions", () => {
       expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
       expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
       expect(composerInput).toHaveFocus();
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+    }
+  });
+
+  it("restores composer focus after the agent response completes", async () => {
+    const onAgentSend = vi.fn();
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+
+    try {
+      const { rerender } = render(
+        <PromptStep {...baseProps} agentInput="keep going" onAgentSend={onAgentSend} />
+      );
+
+      const composerInput = screen.getByRole("textbox");
+      fireEvent.focus(composerInput);
+      fireEvent.keyDown(composerInput, { key: "Enter" });
+
+      expect(onAgentSend).toHaveBeenCalledTimes(1);
+
+      rerender(
+        <PromptStep {...baseProps} agentInput="" onAgentSend={onAgentSend} agentIsSending />
+      );
+      rerender(<PromptStep {...baseProps} agentInput="" onAgentSend={onAgentSend} />);
+
+      await waitFor(() => {
+        expect(composerInput).toHaveFocus();
+      });
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+    }
+  });
+
+  it("does not restore composer focus after the user clicks away during an agent response", async () => {
+    const onAgentSend = vi.fn();
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+
+    try {
+      const renderPromptStep = (agentIsSending = false) => (
+        <>
+          <button type="button">Outside action</button>
+          <PromptStep
+            {...baseProps}
+            agentInput={agentIsSending ? "" : "keep going"}
+            onAgentSend={onAgentSend}
+            agentIsSending={agentIsSending}
+          />
+        </>
+      );
+      const { rerender } = render(renderPromptStep());
+
+      const composerInput = screen.getByRole("textbox");
+      fireEvent.focus(composerInput);
+      fireEvent.keyDown(composerInput, { key: "Enter" });
+
+      expect(onAgentSend).toHaveBeenCalledTimes(1);
+
+      rerender(renderPromptStep(true));
+      const outsideAction = screen.getByRole("button", { name: "Outside action" });
+      fireEvent.mouseDown(outsideAction);
+      act(() => {
+        outsideAction.focus();
+      });
+      rerender(renderPromptStep(false));
+
+      await waitFor(() => {
+        expect(composerInput).not.toHaveFocus();
+      });
     } finally {
       requestAnimationFrameSpy.mockRestore();
     }

@@ -60,7 +60,6 @@ export type UseAiStudioAgentOrchestrationParams = {
   setSharedPrompt: (value: string) => void;
   setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
   sendToAgent: AgentSendToAgent;
-  sendPulseActivationToAgent?: AgentSendToAgent;
   appendUserMessage: (text: string, attachments?: AgentAttachment[]) => string | null;
   updateMessageById: (
     messageId: string,

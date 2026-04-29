@@ -1320,16 +1320,12 @@ export function AiStudioPageContent({
         onOpenEditWorkflow={() => handleToolSelection("edit")}
         onSelectPromptPreset={handleSelectedPresetIdChange}
         onSavePromptPresetOverride={handlePresetOverrideSave}
-        savedPulsePresets={propertiesCreate.savedPulsePresets ?? []}
-        onSavedPulsePresetsChange={propertiesCreate.onSavedPulsePresetsChange}
       />
     ),
     [
       handleToolSelection,
       handlePresetOverrideSave,
       handleSelectedPresetIdChange,
-      propertiesCreate.onSavedPulsePresetsChange,
-      propertiesCreate.savedPulsePresets,
       presetsLibraryCatalog,
       selectedPresetId,
     ]

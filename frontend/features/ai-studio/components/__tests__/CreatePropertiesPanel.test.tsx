@@ -36,6 +36,30 @@ describe("CreatePropertiesPanel", () => {
     expect(pulseSource).not.toContain("ResolutionDropdown");
   });
 
+  it("keeps Standard chat surface out of Pulse workflow presentation", () => {
+    const standardChatSurface = readFileSync(
+      path.join(
+        process.cwd(),
+        "features/ai-studio/components/promptStep/PromptStepChatSurface.tsx"
+      ),
+      "utf8"
+    );
+    const pulseChatSurface = readFileSync(
+      path.join(
+        process.cwd(),
+        "features/ai-studio/components/promptStep/PulsePromptStepChatSurface.tsx"
+      ),
+      "utf8"
+    );
+
+    expect(standardChatSurface).not.toContain("PromptStepPulseLoadingState");
+    expect(standardChatSurface).not.toContain("pulseLoadingState");
+    expect(standardChatSurface).not.toContain("useFlowComposerLayout");
+    expect(pulseChatSurface).toContain("PromptStepPulseLoadingState");
+    expect(pulseChatSurface).toContain("pulseLoadingState");
+    expect(pulseChatSurface).toContain("useFlowComposerLayout");
+  });
+
   const baseProps: React.ComponentProps<typeof CreatePropertiesPanel> = {
     mode: "image",
     aspect: "9:16",
@@ -666,12 +690,15 @@ describe("CreatePropertiesPanel", () => {
       expertCreateMode: "pulse",
       activePulsePresetId: "story_builder",
       agentIsSending: true,
-      pulseLoadingState: {
-        phase: "starting_pulse",
-        title: "Starting DFY Story Builder",
-        message: "Preparing your guided workflow...",
-        presetLabel: "DFY Story Builder",
-        stepLabel: "Upload Characters",
+      agentTransportSending: true,
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "running",
+        currentStepIndex: 1,
+        currentStepLabel: "Upload Characters",
+        currentStepPrompt: "Upload your characters.",
+        collectedInputs: [],
+        lastArtifact: null,
       },
       agentMessages: [],
       onAgentInputChange: vi.fn(),
@@ -694,12 +721,15 @@ describe("CreatePropertiesPanel", () => {
       agentEnabled: true,
       expertCreateMode: "pulse",
       activePulsePresetId: "image",
-      pulseLoadingState: {
-        phase: "generating_step",
-        title: "Generating...",
-        message: "Building the next instruction for Camera Motion.",
-        presetLabel: "Video Prompt Magic",
-        stepLabel: "Camera Motion",
+      agentTransportSending: true,
+      pulseWorkflowSession: {
+        presetId: "image",
+        status: "running",
+        currentStepIndex: 2,
+        currentStepLabel: "Camera Motion",
+        currentStepPrompt: "Describe camera motion.",
+        collectedInputs: [],
+        lastArtifact: null,
       },
       agentIsSending: true,
       agentMessages: [
@@ -898,12 +928,15 @@ describe("CreatePropertiesPanel", () => {
       agentEnabled: true,
       expertCreateMode: "pulse",
       activePulsePresetId: "image",
-      pulseLoadingState: {
-        phase: "starting_pulse",
-        title: "Generating...",
-        message: "Preparing your guided workflow...",
-        presetLabel: "Video Prompt Magic",
-        stepLabel: "Image Gate",
+      agentTransportSending: true,
+      pulseWorkflowSession: {
+        presetId: "image",
+        status: "running",
+        currentStepIndex: 1,
+        currentStepLabel: "Image Gate",
+        currentStepPrompt: "Upload your image.",
+        collectedInputs: [],
+        lastArtifact: null,
       },
       agentMessages: [],
       onAgentInputChange: vi.fn(),
@@ -1535,21 +1568,6 @@ describe("CreatePropertiesPanel", () => {
       agentEnabled: true,
       expertCreateMode: "pulse",
       activePulsePresetId: "pulse_guided_video",
-      savedPulsePresets: [
-        {
-          presetId: "pulse_guided_video",
-          label: "Guided Video Pulse",
-          description: "Workflow pulse with persisted stage labels.",
-          systemInstructions: "Guide the user through a short video workflow.",
-          runtimeMode: "workflow_gpt",
-          activationMode: "activate_and_start",
-          starterAssistantMessage: "Upload your image to get the process started :)",
-          workflowStageHints: ["Image Gate", "Camera Motion", "Action", "Final Prompt"],
-          outputMode: "chat_reply",
-          memoryPolicy: "session",
-          createdAt: null,
-        },
-      ],
       pulseWorkflowSession: {
         presetId: "pulse_guided_video",
         status: "awaiting_input",

@@ -3,7 +3,7 @@
 Purpose: operational guide for safety profile tuning, activation, rollback, cooldown handling, and validation for AI Studio agent safety behavior.
 
 ## Scope
-- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent` and Fal submit routes, image preflight gating for retained image-analysis routes, client pre-send gating for studio-agent chat UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions.
+- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent-standard`, `/api/ai/studio-agent-pulse`, and Fal submit routes, image preflight gating for retained image-analysis routes, client pre-send gating for studio-agent chat UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions.
 - Out of scope: model prompt authoring, provider onboarding, and non-agent route behavior.
 
 ## Control Surface Summary
@@ -16,7 +16,8 @@ The safety control surface has six layers:
 2. Runtime input precheck (server-authoritative, pre-provider).
 - Files:
   - `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts`
-  - `frontend/pages/api/ai/studio-agent.ts`
+  - `frontend/pages/api/ai/studio-agent-standard.ts`
+  - `frontend/pages/api/ai/studio-agent-pulse.ts`
 - Evaluates provider-bound request text before any OpenAI call.
 - Actions:
   - `allow`: continue unchanged
@@ -24,7 +25,7 @@ The safety control surface has six layers:
   - `refuse`: return canonical refusal payload with `200` and skip provider call
 
 3. Client pre-send precheck (UX mirror, server-authoritative fallback still applies).
-- File: `frontend/features/ai-agent/useAiAgent.ts`
+- Files: `frontend/features/ai-agent/useStandardCreateAgent.ts`, `frontend/features/ai-agent/usePulseCreateAgent.ts`, and the shared `useCreateAgentStateCore` safety precheck core.
 - Uses the same runtime evaluator/rewrite logic before transport.
 - `rewrite`: sends sanitized payload.
 - `refuse`: appends refusal locally and skips network call.
@@ -50,12 +51,13 @@ The safety control surface has six layers:
 
 Current runtime-binding note:
 - Runtime profile selection reads `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (with optional control-plane sync) in:
-  - `frontend/pages/api/ai/studio-agent.ts`
+  - `frontend/pages/api/ai/studio-agent-standard.ts`
+  - `frontend/pages/api/ai/studio-agent-pulse.ts`
   - `frontend/features/agent-runtime/styleExtractionService.ts`
-- `/api/ai/studio-agent` now enforces input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
+- The mode-owned studio-agent routes enforce input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
 - Retained image-analysis routes run local image safety preflight before OpenAI vision calls.
 - Fal submit routes enforce prompt precheck before provider dispatch when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED=true` (default).
-- Studio-agent client chat path (`useAiAgent`) now runs a pre-send mirror gate when `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
+- Studio-agent client chat paths now run a pre-send mirror gate when `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
 - Server remains the source of truth for enforcement decisions.
 - Output post-process mode is controlled by `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (`enforce|shadow|off`) with `enforce` default.
 - Runtime can sync profile selection from control-plane active state when
@@ -82,7 +84,7 @@ Primary knobs:
 | Knob | Default | Effect | Safe usage |
 | --- | --- | --- | --- |
 | `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` | `prod_safe_v1` | Selects active profile for policy decisions. | Use `prod_safe_v1` in production unless explicitly running controlled canary/incident procedure. |
-| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables server pre-provider safety gate on `/api/ai/studio-agent`. | Keep `true` in production. Disable only as emergency rollback while keeping output post-process enabled. |
+| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables server pre-provider safety gate on the mode-owned studio-agent routes. | Keep `true` in production. Disable only as emergency rollback while keeping output post-process enabled. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` | `true` | Enables pre-provider prompt gate for Fal submit routes. | Keep enabled in production. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES` | unset | Shared JSON override for precheck field modes (`latest_user_turn`, `history_user_turn`, `active_prompt`, `last_assistant_message`, `reference_prompt_snippet`, `reference_caption`, `canonical_prompt`) with values `enforce`, `rewrite_only`, `shadow`, `off`. | Keep unset unless running controlled tuning. Prefer route-scoped overrides for narrow changes. |
 | `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` | `true` | Enables local image safety preflight before retained image-analysis vision calls. | Keep enabled in production. |
@@ -98,8 +100,8 @@ Supporting knobs:
 
 | Knob | Default | Effect |
 | --- | --- | --- |
-| `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables client pre-send safety gate in studio-agent chat path (`useAiAgent`). |
-| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT` | unset | Route-scoped JSON field-mode override for `/api/ai/studio-agent`; merged over shared field-mode config. |
+| `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables client pre-send safety gate in Standard/Pulse studio-agent chat paths. |
+| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT` | unset | Route-scoped JSON field-mode override for the mode-owned studio-agent routes; merged over shared field-mode config. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT` | unset | Route-scoped JSON field-mode override for Fal submit routes; merged over shared field-mode config. |
 | `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES` | unset | Shared JSON field-mode override for client pre-send mirror checks. |
 | `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT` | unset | Client route-scoped JSON field-mode override for studio-agent pre-send checks. |
@@ -115,7 +117,7 @@ Use this baseline while tuning rewrite consistency without additional stress tra
 - Keep pre-provider gates enabled for all covered routes.
 
 2. Rewrite recheck scope:
-- `/api/ai/studio-agent` uses `allow_or_rewrite` for rewrite-lane precheck continuation.
+- The mode-owned studio-agent routes use `allow_or_rewrite` for rewrite-lane precheck continuation.
 - Fal submit routes remain on default `allow_only` behavior during this phase.
 
 3. Safety boundary reminder:

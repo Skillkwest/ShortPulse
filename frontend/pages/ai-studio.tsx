@@ -3,7 +3,6 @@
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
 import Head from "next/head";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
@@ -24,16 +23,9 @@ import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/useExpertEditPresetPanelPreference";
 import {
-  CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS,
   isCreatePulseBuiltInPresetId,
-  normalizeCreatePulsePanelPresetIds,
-  resolveCreatePulsePresetById,
   type CreatePulseResolvedPreset,
 } from "../features/ai-studio/components/create/createPulsePresets";
-import type {
-  CreatePulsePreferenceRuntimeProps,
-  CreatePulsePreferenceRuntimeValue,
-} from "../features/ai-studio/components/create/createPulsePreferenceRuntimeTypes";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
@@ -122,25 +114,6 @@ const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
-const DEFAULT_CREATE_PULSE_PANEL_IDS = normalizeCreatePulsePanelPresetIds(
-  CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS
-);
-
-const createInactivePulsePreferenceRuntime = (): CreatePulsePreferenceRuntimeValue => ({
-  presetPanelIds: DEFAULT_CREATE_PULSE_PANEL_IDS,
-  savedPresets: [],
-  setPresetPanelIds: async () => false,
-  setSavedPresets: async () => false,
-});
-
-const CreatePulsePreferenceRuntime = dynamic<CreatePulsePreferenceRuntimeProps>(
-  () =>
-    import("../features/ai-studio/components/create/CreatePulsePreferenceRuntime").then(
-      (module) => module.CreatePulsePreferenceRuntime
-    ),
-  { ssr: false }
-);
-
 export default function AiStudioPage() {
   const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
@@ -156,21 +129,6 @@ export default function AiStudioPage() {
     setPresetPanelIds: setSelectedExpertEditPresetIds,
     setCustomPresetOverrides: setExpertEditCustomPresetOverrides,
   } = useExpertEditPresetPanelPreference();
-  const [createPulsePreferenceRuntime, setCreatePulsePreferenceRuntime] =
-    useState<CreatePulsePreferenceRuntimeValue>(() => createInactivePulsePreferenceRuntime());
-  const selectedCreatePulsePresetIds = createPulsePreferenceRuntime.presetPanelIds;
-  const savedCreatePulsePresets = createPulsePreferenceRuntime.savedPresets;
-  const setSelectedCreatePulsePresetIds = createPulsePreferenceRuntime.setPresetPanelIds;
-  const setSavedCreatePulsePresets = createPulsePreferenceRuntime.setSavedPresets;
-  const resetCreatePulsePreferenceRuntime = useCallback(() => {
-    setCreatePulsePreferenceRuntime(createInactivePulsePreferenceRuntime());
-  }, []);
-  const handleCreatePulsePreferenceChange = useCallback(
-    (value: CreatePulsePreferenceRuntimeValue) => {
-      setCreatePulsePreferenceRuntime(value);
-    },
-    []
-  );
   const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
   const {
     modelPricingPolicy,
@@ -233,11 +191,31 @@ export default function AiStudioPage() {
     restartPulse,
     handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange,
-  } = useAiStudioCreateModeRuntime({
-    projectId,
-    selectedCreatePulsePresetIds,
-    savedCreatePulsePresets,
-  });
+  } = useAiStudioCreateModeRuntime();
+  const [activeCreatePulsePresetSnapshotState, setActiveCreatePulsePresetSnapshot] =
+    useState<CreatePulseResolvedPreset | null>(null);
+  const clearPulseRuntimeForPage = useCallback(() => {
+    setActiveCreatePulsePresetSnapshot(null);
+    clearPulseRuntime();
+  }, [clearPulseRuntime]);
+  const handleExpertCreateModeChangeForPage = useCallback(
+    (nextMode: "standard" | "pulse") => {
+      if (nextMode === "standard") {
+        setActiveCreatePulsePresetSnapshot(null);
+      }
+      handleExpertCreateModeChange(nextMode);
+    },
+    [handleExpertCreateModeChange]
+  );
+  const handleActiveCreatePulsePresetIdChangeForPage = useCallback(
+    (nextPresetId: Parameters<typeof handleActiveCreatePulsePresetIdChange>[0]) => {
+      if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
+        setActiveCreatePulsePresetSnapshot(null);
+      }
+      return handleActiveCreatePulsePresetIdChange(nextPresetId);
+    },
+    [activeCreatePulsePresetId, handleActiveCreatePulsePresetIdChange]
+  );
   // Character workflow state (shared with Character tool workflows and error surfaces)
   const {
     error: characterError,
@@ -398,6 +376,11 @@ export default function AiStudioPage() {
     expertCreateMode === "pulse" &&
     Boolean(activeCreatePulsePresetId) &&
     Boolean(pulseSessionInstanceId);
+  const activeCreatePulsePresetSnapshot =
+    hasActivePulseSession &&
+    activeCreatePulsePresetSnapshotState?.presetId === activeCreatePulsePresetId
+      ? activeCreatePulsePresetSnapshotState
+      : null;
 
   const getPulseAwareAgentContext = useCallback(
     (params: {
@@ -409,10 +392,10 @@ export default function AiStudioPage() {
       if (!hasActivePulseSession || !activeCreatePulsePresetId) {
         return baseContext;
       }
-      const resolvedPulsePreset = resolveCreatePulsePresetById(
-        activeCreatePulsePresetId,
-        savedCreatePulsePresets
-      );
+      const resolvedPulsePreset =
+        activeCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId
+          ? activeCreatePulsePresetSnapshot
+          : null;
       const instructions = resolvedPulsePreset?.systemInstructions?.trim() ?? "";
       if (!resolvedPulsePreset || !instructions) return baseContext;
       return {
@@ -437,10 +420,10 @@ export default function AiStudioPage() {
     },
     [
       activeCreatePulsePresetId,
+      activeCreatePulsePresetSnapshot,
       getAgentContext,
       hasActivePulseSession,
       pulseWorkflowSession,
-      savedCreatePulsePresets,
     ]
   );
 
@@ -917,21 +900,29 @@ export default function AiStudioPage() {
     setActiveOutputId,
     setUiNotice,
     setPulseWorkflowSession,
-    clearPulseRuntime,
+    clearPulseRuntime: clearPulseRuntimeForPage,
     restartPulse,
     trackAgentUiEvent: trackUiEvent,
   });
 
   const handleCreatePulsePresetStart = useCallback(
-    (
+    async (
       preset: CreatePulseResolvedPreset,
       options?: {
         pulseSessionInstanceId?: string | null;
       }
-    ) =>
-      handlePulsePresetStart(preset, {
+    ) => {
+      setActiveCreatePulsePresetSnapshot(preset);
+      const result = await handlePulsePresetStart(preset, {
         pulseSessionInstanceId: options?.pulseSessionInstanceId ?? null,
-      }),
+      });
+      if (result.status !== "started") {
+        setActiveCreatePulsePresetSnapshot((current) =>
+          current?.presetId === preset.presetId ? null : current
+        );
+      }
+      return result;
+    },
     [handlePulsePresetStart]
   );
 
@@ -939,13 +930,13 @@ export default function AiStudioPage() {
     if (!hasActivePulseSession || !activeCreatePulsePresetId) {
       return null;
     }
-    const resolvedPreset = resolveCreatePulsePresetById(
-      activeCreatePulsePresetId,
-      savedCreatePulsePresets
-    );
+    const resolvedPreset =
+      activeCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId
+        ? activeCreatePulsePresetSnapshot
+        : null;
     if (!resolvedPreset || resolvedPreset.runtimeMode !== "workflow_gpt") return null;
     return resolvedPreset;
-  }, [activeCreatePulsePresetId, hasActivePulseSession, savedCreatePulsePresets]);
+  }, [activeCreatePulsePresetId, activeCreatePulsePresetSnapshot, hasActivePulseSession]);
 
   const derivedPulseWorkflowSession = useMemo(
     () =>
@@ -1247,6 +1238,16 @@ export default function AiStudioPage() {
     setSelectedToolWithEditIntentReset(null);
   }, [isMediaLibraryPanelEnabled, selectedTool, setSelectedToolWithEditIntentReset]);
 
+  const handleStandardAgentCaptureResult = useCallback(
+    (promptText: string, referenceTitle?: string | null) => {
+      addAgentPromptReference(promptText, referenceTitle ?? undefined);
+      setPromptOrigin("agent");
+    },
+    [addAgentPromptReference, setPromptOrigin]
+  );
+  const handleCreateAgentCaptureResult =
+    expertCreateMode === "pulse" ? undefined : handleStandardAgentCaptureResult;
+
   const {
     handleGenerate,
     handlePrimarySubmit,
@@ -1254,7 +1255,6 @@ export default function AiStudioPage() {
     handleRegenerateWithDebit,
     handleImageRegenerateWithDebit,
   } = useAiStudioGenerationController({
-    expertCreateMode,
     mode,
     selectedTool,
     model,
@@ -1281,7 +1281,7 @@ export default function AiStudioPage() {
     setOptimisticDebitEntries,
     refreshBalance,
     handleAgentSend,
-    addAgentPromptReference,
+    onAgentCaptureResult: handleCreateAgentCaptureResult,
     resolveDefaultPromptForTool,
     refreshCharacterModeInjectionBundleForSubmission,
     resolveCharacterModeSubmissionOverrides,
@@ -1401,14 +1401,11 @@ export default function AiStudioPage() {
     onSelectedExpertEditPresetIdsChange: setSelectedExpertEditPresetIds,
     expertEditCustomPresetOverrides,
     onExpertEditCustomPresetOverridesChange: setExpertEditCustomPresetOverrides,
-    selectedCreatePulsePresetIds,
-    onSelectedCreatePulsePresetIdsChange: setSelectedCreatePulsePresetIds,
-    savedCreatePulsePresets,
-    onSavedCreatePulsePresetsChange: setSavedCreatePulsePresets,
     expertCreateMode,
-    onExpertCreateModeChange: handleExpertCreateModeChange,
+    onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
     activeCreatePulsePresetId,
-    onActiveCreatePulsePresetIdChange: handleActiveCreatePulsePresetIdChange,
+    activeCreatePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
+    onActiveCreatePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
     expertEditSessionState,
     onExpertEditSessionStateChange: setExpertEditSessionState,
     videoDurationSeconds,
@@ -1701,12 +1698,6 @@ export default function AiStudioPage() {
 
   return (
     <AiStudioModalActivityProvider>
-      {expertCreateMode === "pulse" ? (
-        <CreatePulsePreferenceRuntime
-          onPreferenceChange={handleCreatePulsePreferenceChange}
-          onPreferenceReset={resetCreatePulsePreferenceRuntime}
-        />
-      ) : null}
       <Head>
         <title>ShortPulse · AI Studio</title>
         <meta name="description" content="AI Studio — prompt, generate, preview, save." />

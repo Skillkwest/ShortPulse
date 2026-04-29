@@ -3,22 +3,15 @@
  * Keeps mode, active Pulse selection, and Pulse workflow state together so
  * page-level callers do not hand-roll transition cleanup or cross-mode restore.
  */
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
-import {
-  isCreatePulsePresetId,
-  type CreatePulsePresetId,
-  type CreatePulseSavedPreset,
-} from "../components/create/createPulsePresets";
+import type { CreatePulsePresetId } from "../components/create/createPulsePresets";
 import { createPulseSessionInstanceId } from "../logic/pulseSessionIdentity";
 import { normalizePulseSessionInstanceId } from "../logic/pulseSessionState";
 
 export type AiStudioExpertCreateMode = "standard" | "pulse";
 
 type UseAiStudioCreateModeRuntimeParams = {
-  projectId?: string | null;
-  selectedCreatePulsePresetIds: readonly CreatePulsePresetId[];
-  savedCreatePulsePresets: readonly CreatePulseSavedPreset[];
   initialExpertCreateMode?: AiStudioExpertCreateMode;
   initialActiveCreatePulsePresetId?: CreatePulsePresetId | null;
   initialPulseSessionInstanceId?: string | null;
@@ -34,14 +27,11 @@ const resolveStateActionValue = <T>(value: SetStateAction<T>, current: T): T =>
  * exact state, while UI-triggered handlers apply the runtime cleanup contract.
  */
 export const useAiStudioCreateModeRuntime = ({
-  projectId = null,
-  selectedCreatePulsePresetIds,
-  savedCreatePulsePresets,
   initialExpertCreateMode = "standard",
   initialActiveCreatePulsePresetId = null,
   initialPulseSessionInstanceId = null,
   initialPulseWorkflowSession = null,
-}: UseAiStudioCreateModeRuntimeParams) => {
+}: UseAiStudioCreateModeRuntimeParams = {}) => {
   const [expertCreateModeState, setExpertCreateModeState] =
     useState<AiStudioExpertCreateMode>(initialExpertCreateMode);
   const [activeCreatePulsePresetIdState, setActiveCreatePulsePresetIdState] =
@@ -143,29 +133,6 @@ export const useAiStudioCreateModeRuntime = ({
     },
     [activatePulse, activeCreatePulsePresetIdState, deactivatePulse, pulseSessionInstanceIdState]
   );
-
-  useEffect(() => {
-    if (!activeCreatePulsePresetIdState) return;
-    const isActivePulseDefined = isCreatePulsePresetId(
-      activeCreatePulsePresetIdState,
-      savedCreatePulsePresets
-    );
-    const isVisibleInPanel = selectedCreatePulsePresetIds.includes(activeCreatePulsePresetIdState);
-    const isActivePulseStillAvailable = projectId
-      ? isActivePulseDefined
-      : isActivePulseDefined && isVisibleInPanel;
-    if (!isActivePulseStillAvailable) {
-      // Reconciles external preset-library changes back into the local runtime owner.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      clearPulseRuntime();
-    }
-  }, [
-    activeCreatePulsePresetIdState,
-    clearPulseRuntime,
-    projectId,
-    savedCreatePulsePresets,
-    selectedCreatePulsePresetIds,
-  ]);
 
   return {
     expertCreateMode: expertCreateModeState,

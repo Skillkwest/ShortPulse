@@ -25,15 +25,10 @@ import type {
   CreatePulsePresetId,
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
-  CreatePulseSavedPreset,
 } from "../components/create/createPulsePresets";
-import { resolveCreatePulsePresetLabelById } from "../components/create/createPulsePresets";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
-import type { PromptStepPulseLoadingState } from "../components/promptStep/types";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
-
-const PULSE_LOADING_TITLE = "Generating...";
 
 export type UseAiStudioPanelPropsParams = {
   mode: StudioMode;
@@ -125,15 +120,10 @@ export type UseAiStudioPanelPropsParams = {
   onSelectedExpertEditPresetIdsChange?: (presetIds: ExpertEditPresetId[]) => void;
   expertEditCustomPresetOverrides?: ExpertEditCustomPresetOverrides;
   onExpertEditCustomPresetOverridesChange?: (overrides: ExpertEditCustomPresetOverrides) => void;
-  selectedCreatePulsePresetIds?: readonly CreatePulsePresetId[];
-  onSelectedCreatePulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
-  savedCreatePulsePresets?: readonly CreatePulseSavedPreset[];
-  onSavedCreatePulsePresetsChange?: (
-    presets: CreatePulseSavedPreset[]
-  ) => Promise<boolean> | boolean | void;
   expertCreateMode?: "standard" | "pulse";
   onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
   activeCreatePulsePresetId?: CreatePulsePresetId | null;
+  activeCreatePulsePresetLabel?: string | null;
   onActiveCreatePulsePresetIdChange?: (
     presetId: CreatePulsePresetId | null
   ) => string | null | void;
@@ -308,13 +298,10 @@ export const useAiStudioPanelProps = ({
   onSelectedExpertEditPresetIdsChange,
   expertEditCustomPresetOverrides,
   onExpertEditCustomPresetOverridesChange,
-  selectedCreatePulsePresetIds,
-  onSelectedCreatePulsePresetIdsChange,
-  savedCreatePulsePresets,
-  onSavedCreatePulsePresetsChange,
   expertCreateMode,
   onExpertCreateModeChange,
   activeCreatePulsePresetId,
+  activeCreatePulsePresetLabel,
   onActiveCreatePulsePresetIdChange,
   onCreatePulsePresetStart,
   expertEditSessionState,
@@ -420,52 +407,6 @@ export const useAiStudioPanelProps = ({
       ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
       : currentCostCredits;
 
-  const pulseLoadingState = useMemo<PromptStepPulseLoadingState | null>(() => {
-    if (expertCreateMode !== "pulse" || !activeCreatePulsePresetId) {
-      return null;
-    }
-    const presetLabel = resolveCreatePulsePresetLabelById(
-      activeCreatePulsePresetId,
-      savedCreatePulsePresets
-    );
-    const assistantMessageCount = agentMessages.filter(
-      (message) => message.role === "assistant" && message.content.trim().length > 0
-    ).length;
-    const stepLabel = pulseWorkflowSession?.currentStepLabel?.trim() || null;
-    const hasPendingStartupStep =
-      pulseWorkflowSession?.status === "running" && assistantMessageCount === 0;
-    if (agentUiBusy || hasPendingStartupStep) {
-      return {
-        phase: "starting_pulse",
-        title: PULSE_LOADING_TITLE,
-        message: "Preparing your guided workflow...",
-        presetLabel,
-        stepLabel,
-      };
-    }
-    if (agentIsSending && assistantMessageCount > 0) {
-      return {
-        phase: "generating_step",
-        title: PULSE_LOADING_TITLE,
-        message: stepLabel
-          ? `Building the next instruction for ${stepLabel}.`
-          : "Building the next instruction for your workflow.",
-        presetLabel,
-        stepLabel,
-      };
-    }
-    return null;
-  }, [
-    activeCreatePulsePresetId,
-    agentMessages,
-    agentIsSending,
-    agentUiBusy,
-    expertCreateMode,
-    pulseWorkflowSession?.currentStepLabel,
-    pulseWorkflowSession?.status,
-    savedCreatePulsePresets,
-  ]);
-
   const propertiesCreate = useMemo(
     () => ({
       mode,
@@ -481,7 +422,8 @@ export const useAiStudioPanelProps = ({
       chatModeEnabled,
       directOpenAiBypassEnabled,
       agentIsSending: agentBusy,
-      pulseLoadingState,
+      agentTransportSending: agentIsSending,
+      agentUiBusy,
       agentError: agentAttachmentError ?? agentError ?? undefined,
       stagedPrompt: stagedAgentPrompt,
       assistantBubbleMedia,
@@ -532,14 +474,11 @@ export const useAiStudioPanelProps = ({
       resolveCharacterAvatarUrlById,
       imageResolution,
       onImageResolutionChange: setImageResolution,
-      selectedPulsePresetIds: selectedCreatePulsePresetIds,
-      onSelectedPulsePresetIdsChange: onSelectedCreatePulsePresetIdsChange,
-      savedPulsePresets: savedCreatePulsePresets,
-      onSavedPulsePresetsChange: onSavedCreatePulsePresetsChange,
       expertCreateMode,
       hasActivePulseSession,
       onExpertCreateModeChange,
       activePulsePresetId: activeCreatePulsePresetId,
+      activePulsePresetLabel: activeCreatePulsePresetLabel,
       onActivePulsePresetIdChange: onActiveCreatePulsePresetIdChange,
       onPulsePresetStart: onCreatePulsePresetStart,
       beginnerMode: beginnerPolicy.create.beginnerMode,
@@ -556,7 +495,8 @@ export const useAiStudioPanelProps = ({
       agentError,
       agentInput,
       agentMessages,
-      pulseLoadingState,
+      agentIsSending,
+      agentUiBusy,
       pulseWorkflowSession,
       assistantBubbleMedia,
       aspect,
@@ -566,6 +506,7 @@ export const useAiStudioPanelProps = ({
       currentModelLabel,
       describeInFlightCount,
       expertCreateMode,
+      activeCreatePulsePresetLabel,
       generationGuardrail,
       handleAgentAttachmentDragEnter,
       handleAgentAttachmentDragLeave,
@@ -601,19 +542,15 @@ export const useAiStudioPanelProps = ({
       prompt,
       promptReferenceGenerateCostCredits,
       savePromptReference,
-      selectedCreatePulsePresetIds,
       selectedCharacterId,
       selectedCharacterLookId,
       selectedCharacterLookLabel,
       onOpenCharacterLibrary,
       setAspect,
       setChatModeEnabled,
-      onSelectedCreatePulsePresetIdsChange,
       onExpertCreateModeChange,
       onActiveCreatePulsePresetIdChange,
       onCreatePulsePresetStart,
-      savedCreatePulsePresets,
-      onSavedCreatePulsePresetsChange,
       setImageResolution,
       setIsCharacterModeEnabled,
       setSelectedCharacterId,

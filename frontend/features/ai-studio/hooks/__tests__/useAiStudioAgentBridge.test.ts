@@ -12,22 +12,32 @@ const useAiStudioAgentComposerMock = vi.fn();
 const useAiStudioAgentOrchestrationMock = vi.fn();
 const useAiStudioAgentInteractionsMock = vi.fn();
 
-vi.mock("../../../ai-agent/useAiAgent", () => ({
-  useAiAgent: (...args: unknown[]) => useAiAgentMock(...args),
+vi.mock("../../../ai-agent/useCreateAgentStateCore", () => ({
+  useCreateAgentStateCore: (options: Record<string, unknown> = {}) => useAiAgentMock(options),
 }));
 
-vi.mock("../../../ai-agent/useStandardCreateAgent", () => ({
-  useStandardCreateAgent: (options: Record<string, unknown> = {}) =>
-    useAiAgentMock({ ...options, runtimeMode: "standard" }),
+vi.mock("../../../ai-agent/client/pulseStudioAgentTransport", () => ({
+  sendPulseCreateAgentTurn: vi.fn(),
 }));
 
-vi.mock("../../../ai-agent/usePulseCreateAgent", () => ({
-  usePulseCreateAgent: (options: Record<string, unknown> = {}) =>
-    useAiAgentMock({
-      ...options,
-      directOpenAiBypassEnabled: false,
-      runtimeMode: "pulse",
-    }),
+vi.mock("../../../ai-agent/client/standardStudioAgentTransport", () => ({
+  sendStandardCreateAgentTurn: vi.fn(),
+}));
+
+vi.mock("../../../ai-agent/client/pulseTransportResultResolution", () => ({
+  resolvePulseCreateAgentTransportSuccess: vi.fn(),
+}));
+
+vi.mock("../../../ai-agent/client/standardTransportResultResolution", () => ({
+  resolveStandardCreateAgentTransportSuccess: vi.fn(),
+}));
+
+vi.mock("../../../ai-agent/logic/pulseCreateAgentContextBuilder", () => ({
+  buildPulseCreateAgentContext: vi.fn(),
+}));
+
+vi.mock("../../../ai-agent/logic/standardContextBuilder", () => ({
+  buildStandardCreateAgentContext: vi.fn(),
 }));
 
 vi.mock("../useAiStudioAgentComposer", () => ({
@@ -664,7 +674,7 @@ describe("useAiStudioAgentBridge", () => {
     const { result } = renderHook(() => useAiStudioAgentBridge(createBridgeParams()));
 
     expect(useAiAgentMock).toHaveBeenCalledWith(
-      expect.objectContaining({ directOpenAiBypassEnabled: true, runtimeMode: "standard" })
+      expect.objectContaining({ directOpenAiBypassEnabled: true, requestRuntimeMode: "standard" })
     );
     expect(result.current.directOpenAiBypassEnabled).toBe(true);
   });
@@ -727,7 +737,7 @@ describe("useAiStudioAgentBridge", () => {
     );
 
     expect(useAiAgentMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ directOpenAiBypassEnabled: false, runtimeMode: "pulse" })
+      expect.objectContaining({ directOpenAiBypassEnabled: false, requestRuntimeMode: "pulse" })
     );
     expect(result.current.directOpenAiBypassEnabled).toBe(false);
   });
@@ -1361,6 +1371,104 @@ describe("useAiStudioAgentBridge", () => {
     );
     expect(result.current.latestAgentPrompt).toBeNull();
     expect(result.current.promptOrigin).toBe("manual");
+  });
+
+  it("does not restart a Pulse without a fresh session namespace", async () => {
+    const resetAgentChat = vi.fn();
+    const resetAgentComposer = vi.fn();
+    const setPulseWorkflowSession = vi.fn();
+    const setUiNotice = vi.fn();
+    const trackAgentUiEvent = vi.fn();
+    const handlePulsePresetStart = vi.fn().mockResolvedValue(undefined);
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: resetAgentChat,
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer,
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart,
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(
+        createBridgeParams({
+          expertCreateMode: "pulse",
+          activePulsePresetId: "story_builder",
+          setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+          setUiNotice: asDispatch(setUiNotice),
+          trackAgentUiEvent,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.handlePulsePresetRestart?.({
+        presetId: "story_builder",
+        label: "DFY Story Builder",
+        description: "Guided story workflow.",
+        systemInstructions: "Guide the user through story setup.",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        starterAssistantMessage: "Upload your characters first.",
+        workflowStageHints: ["Upload Characters"],
+        outputMode: "chat_reply",
+        memoryPolicy: "session",
+        isBuiltIn: true,
+        isEditable: true,
+        hasUserOverride: false,
+        isCustom: false,
+      });
+    });
+
+    expect(resetAgentChat).toHaveBeenCalledTimes(1);
+    expect(resetAgentComposer).toHaveBeenCalledWith({ preserveAttachments: false });
+    expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
+    expect(handlePulsePresetStart).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith(
+      "Pulse restart could not create a fresh session. Start the Pulse again."
+    );
+    expect(trackAgentUiEvent).toHaveBeenCalledWith(
+      "studio_agent_pulse_restart_blocked_missing_session",
+      { preset_id: "story_builder" }
+    );
   });
 
   it("drops stale Pulse bridge state when the active Pulse changes", async () => {

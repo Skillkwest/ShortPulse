@@ -6,7 +6,10 @@ import React from "react";
 import { Selection, Sparkle } from "phosphor-react";
 import { PresetsLibraryPanel as PromptPresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { PulsePresetsLibraryPanel } from "./PulsePresetsLibraryPanel";
-import type { CreatePulseSavedPreset } from "./create/createPulsePresets";
+import {
+  CreatePulsePreferenceProvider,
+  useCreatePulsePreferenceRuntime,
+} from "./create/CreatePulsePreferenceProvider";
 import type {
   ExpertEditPresetId,
   ExpertEditPresetOverride,
@@ -26,10 +29,6 @@ export type UnifiedPresetsLibraryPanelProps = {
     override: ExpertEditPresetOverride
   ) => Promise<boolean> | boolean;
   promptSaveError?: string | null;
-  savedPulsePresets?: readonly CreatePulseSavedPreset[];
-  onSavedPulsePresetsChange?: (
-    presets: CreatePulseSavedPreset[]
-  ) => Promise<boolean> | boolean | void;
 };
 
 const FILTER_OPTIONS: ReadonlyArray<{
@@ -52,8 +51,6 @@ export function UnifiedPresetsLibraryPanel({
   onSelectPromptPreset,
   onSavePromptPresetOverride,
   promptSaveError = null,
-  savedPulsePresets = [],
-  onSavedPulsePresetsChange,
 }: UnifiedPresetsLibraryPanelProps) {
   const [viewFilter, setViewFilter] = React.useState<PresetsLibraryViewFilter>("all");
   const showPulses = viewFilter === "all" || viewFilter === "pulses";
@@ -105,10 +102,9 @@ export function UnifiedPresetsLibraryPanel({
               </div>
             </div>
             <div className="merged-presets-library-section-body">
-              <PulsePresetsLibraryPanel
-                savedPresets={savedPulsePresets}
-                onSavedPresetsChange={onSavedPulsePresetsChange}
-              />
+              <CreatePulsePreferenceProvider>
+                <UnifiedPulsePresetsLibraryPanel />
+              </CreatePulsePreferenceProvider>
             </div>
           </section>
         ) : null}
@@ -153,3 +149,10 @@ export function UnifiedPresetsLibraryPanel({
     </section>
   );
 }
+
+const UnifiedPulsePresetsLibraryPanel = () => {
+  const { savedPresets, setSavedPresets } = useCreatePulsePreferenceRuntime();
+  return (
+    <PulsePresetsLibraryPanel savedPresets={savedPresets} onSavedPresetsChange={setSavedPresets} />
+  );
+};

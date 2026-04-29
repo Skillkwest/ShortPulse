@@ -1,6 +1,6 @@
 /**
- * Standard PromptStep chat-mode surface.
- * Renders Standard history, composer, attachment strip, and action panel.
+ * Pulse PromptStep chat-mode surface.
+ * Owns Pulse flow composer layout and guided loading history chrome.
  */
 import React from "react";
 import { ArrowsOutSimple, Trash } from "phosphor-react";
@@ -20,9 +20,9 @@ import type {
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
-import type { PromptStepInlineGenerateConfig } from "./types";
+import type { PromptStepInlineGenerateConfig, PromptStepPulseLoadingState } from "./types";
 
-type PromptStepChatSurfaceProps = {
+type PulsePromptStepChatSurfaceProps = {
   beginnerMode: boolean;
   chatOnly: boolean;
   promptOnly: boolean;
@@ -72,6 +72,7 @@ type PromptStepChatSurfaceProps = {
   useAgentResponseInlineGeneratePrefab?: boolean;
   highlightLatestAssistantOnly: boolean;
   CreateChatPanel?: React.ComponentType<AgentChatPanelProps>;
+  useFlowComposerLayout?: boolean;
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;
   outputGenerateGuardrailReason?: string | null;
@@ -87,6 +88,7 @@ type PromptStepChatSurfaceProps = {
   agentInputMaxHeightPx?: number;
   agentInputCollapseOnBlur: boolean;
   onAgentInputVisualRowCountChange?: (rowCount: number) => void;
+  pulseLoadingState?: PromptStepPulseLoadingState | null;
   embedSendButtonInInput: boolean;
   handleAgentSendClick: () => void;
   agentIsSending: boolean;
@@ -106,7 +108,7 @@ type PromptStepChatSurfaceProps = {
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
 };
 
-export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
+export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProps> = ({
   beginnerMode,
   chatOnly,
   promptOnly,
@@ -146,6 +148,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   useAgentResponseInlineGeneratePrefab = false,
   highlightLatestAssistantOnly,
   CreateChatPanel = AgentChatPanel,
+  useFlowComposerLayout = false,
   disableOutputGenerate,
   outputGenerateCostCredits,
   outputGenerateGuardrailReason,
@@ -161,6 +164,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   agentInputMaxHeightPx,
   agentInputCollapseOnBlur,
   onAgentInputVisualRowCountChange,
+  pulseLoadingState = null,
   embedSendButtonInInput,
   handleAgentSendClick,
   agentIsSending,
@@ -176,6 +180,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
 }) => {
   const [isAgentInputExpanded, setIsAgentInputExpanded] = React.useState(false);
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
+  const isPulseLoading = pulseLoadingState != null;
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
   const inlineGenerateCostLabel =
     outputGenerateCostCredits != null ? outputGenerateCostCredits.toLocaleString() : "—";
@@ -209,7 +214,10 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   const shouldRenderAgentChatPanel = hasAgentChatContent || !hideEmptyAgentChatState;
   const shouldRenderAgentChatSpacer = !shouldRenderAgentChatPanel;
   const shouldUseComposerOverlay =
-    chatComposerOverlayEnabled && shouldRenderAgentChatPanel && !shouldRenderAgentChatSpacer;
+    chatComposerOverlayEnabled &&
+    shouldRenderAgentChatPanel &&
+    !shouldRenderAgentChatSpacer &&
+    !useFlowComposerLayout;
   const shouldBlurComposerUnderlay = isAgentInputExpanded && agentInputVisualRowCount >= 8;
   const handleAgentInputVisualRowCountChange = React.useCallback(
     (rowCount: number) => {
@@ -219,16 +227,33 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     [onAgentInputVisualRowCountChange]
   );
 
+  const pulseLoadingTitle = "Generating...";
+  const pulseLoadingContent = pulseLoadingState ? (
+    <div
+      className={`create-expert-pulse-loading-card is-${pulseLoadingState.phase.replace("_", "-")}`}
+      role="status"
+      aria-live="polite"
+      aria-label={pulseLoadingTitle}
+    >
+      <span className="create-expert-pulse-loading-spinner" aria-hidden="true" />
+      <p className="create-expert-pulse-loading-card-title">{pulseLoadingTitle}</p>
+    </div>
+  ) : null;
+
   const chatHistoryContent = shouldRenderAgentChatPanel ? (
-    <div className="agent-chat-wrapper agent-chat-wrapper--inline">
+    <div
+      className="agent-chat-wrapper agent-chat-wrapper--inline"
+      aria-busy={isPulseLoading ? true : undefined}
+    >
       <CreateChatPanel
         messages={agentMessages}
         introMessage={hideAgentIntroMessage ? null : introMessage}
         input=""
         sendLabel="Send"
         isSending={promptThinking}
-        showThinkingIndicator
+        showThinkingIndicator={!isPulseLoading}
         thinkingIndicatorPlacement="history"
+        historyFooterContent={pulseLoadingContent}
         stagedPrompt={agentMessages.length === 0 ? stagedPrompt : null}
         assistantBubbleMedia={assistantBubbleMedia}
         stagedAttachments={dropToInputComposer ? [] : stagedAttachments}
@@ -324,17 +349,21 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
         onFocusChange={setIsAgentInputExpanded}
         onVisualRowCountChange={handleAgentInputVisualRowCountChange}
         placeholder={
-          chatModeEnabled
-            ? directOpenAiBypassEnabled
-              ? "Ask ShortPulse or write your prompt"
-              : "Message the agent..."
-            : "Write your prompt..."
+          isPulseLoading
+            ? pulseLoadingState.phase === "starting_pulse"
+              ? "Pulse is starting..."
+              : "Pulse is generating the next step..."
+            : chatModeEnabled
+              ? directOpenAiBypassEnabled
+                ? "Ask ShortPulse or write your prompt"
+                : "Message the agent..."
+              : "Write your prompt..."
         }
         onKeyDown={handleAgentInputKeyDown}
         className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
         maxHeightPx={agentInputMaxHeightPx}
         collapseToMinHeightWhenBlurred={agentInputCollapseOnBlur}
-        disabled={agentBootstrapPending || agentIsSending}
+        disabled={agentBootstrapPending || agentIsSending || isPulseLoading}
       />
       {hasInsideInputSendButton ? (
         <AgentSendButton

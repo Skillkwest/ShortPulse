@@ -298,7 +298,7 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
   });
 
-  it("derives a startup pulse loading surface during pulse kickoff", () => {
+  it("forwards Pulse runtime facts without deriving Pulse presentation state", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({
@@ -317,64 +317,19 @@ describe("useAiStudioPanelProps", () => {
             finalArtifactSource: null,
           },
           agentBusy: true,
-          agentUiBusy: false,
-          savedCreatePulsePresets: [],
-        })
-      )
-    );
-
-    expect(result.current.propertiesCreate.pulseLoadingState).toEqual({
-      phase: "starting_pulse",
-      title: "Generating...",
-      message: "Preparing your guided workflow...",
-      presetLabel: "DFY Story Builder",
-      stepLabel: "Upload Characters",
-    });
-  });
-
-  it("derives a step-generation loading surface for active pulse replies", () => {
-    const { result } = renderHook(() =>
-      useAiStudioPanelProps(
-        createParams({
-          expertCreateMode: "pulse",
-          hasActivePulseSession: true,
-          activeCreatePulsePresetId: "image",
-          agentMessages: [
-            {
-              id: "assistant-1",
-              role: "assistant",
-              content: "Upload your image to get the process started :)",
-            },
-            {
-              id: "user-1",
-              role: "user",
-              content: "Uploaded image.",
-            },
-          ],
-          pulseWorkflowSession: {
-            presetId: "image",
-            status: "running",
-            currentStepIndex: 2,
-            currentStepLabel: "Camera Motion",
-            currentStepPrompt: "Pick a camera move.",
-            collectedInputs: ["uploaded image"],
-            lastArtifact: null,
-            finalArtifactSource: null,
-          },
-          agentBusy: true,
           agentIsSending: true,
-          savedCreatePulsePresets: [],
+          agentUiBusy: false,
         })
       )
     );
 
-    expect(result.current.propertiesCreate.pulseLoadingState).toEqual({
-      phase: "generating_step",
-      title: "Generating...",
-      message: "Building the next instruction for Camera Motion.",
-      presetLabel: "Video Prompt Magic",
-      stepLabel: "Camera Motion",
-    });
+    expect("pulseLoadingState" in result.current.propertiesCreate).toBe(false);
+    expect(result.current.propertiesCreate.activePulsePresetId).toBe("story_builder");
+    expect(result.current.propertiesCreate.agentTransportSending).toBe(true);
+    expect(result.current.propertiesCreate.agentUiBusy).toBe(false);
+    expect(result.current.propertiesCreate.pulseWorkflowSession?.currentStepLabel).toBe(
+      "Upload Characters"
+    );
   });
 
   it("keeps edit generate available while edit submits are in flight but still locks video", () => {

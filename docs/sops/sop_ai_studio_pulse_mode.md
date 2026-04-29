@@ -129,7 +129,8 @@ Guided Pulse model/runtime config:
   - `frontend/features/ai-studio/hooks/useAiStudioCreateModeRuntime.ts`
 - Create panel surface:
   - `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`
-  - `frontend/features/ai-studio/components/create/ExpertCreatePanelView.tsx`
+  - `frontend/features/ai-studio/components/create/PulseCreatePropertiesPanel.tsx`
+  - `frontend/features/ai-studio/components/create/PulseCreatePanelView.tsx`
   - `frontend/features/ai-studio/components/create/CreateExpertPresetPanel.tsx`
   - `frontend/features/ai-studio/components/create/CreatePulsePresetsSurface.tsx`
 - Pulse click/runtime glue:
@@ -137,7 +138,8 @@ Guided Pulse model/runtime config:
 - Page orchestration:
   - `frontend/pages/ai-studio.tsx`
   - `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts`
-  - `frontend/features/ai-studio/components/create/CreatePulsePreferenceRuntime.tsx`
+- Pulse preference owner:
+  - `frontend/features/ai-studio/components/create/CreatePulsePreferenceProvider.tsx`
 - Agent bridge/orchestration:
   - `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts`
   - `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts`

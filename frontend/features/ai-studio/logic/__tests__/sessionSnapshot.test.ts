@@ -313,7 +313,7 @@ describe("sessionSnapshot", () => {
     );
   });
 
-  it("strips conversational runtime state from project workspace snapshots while keeping Pulse selection", () => {
+  it("strips Pulse runtime and prompts from project workspace snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
       updatedAt: "2026-03-02T12:00:00.000Z",
@@ -370,6 +370,9 @@ describe("sessionSnapshot", () => {
 
     expect(projectSnapshot.workspace.expertCreateMode).toBe("standard");
     expect(projectSnapshot.workspace.selectedTool).toBe("create");
+    expect(projectSnapshot.workspace.prompt).toBe("");
+    expect(projectSnapshot.workspace.standardPrompt).toBe("");
+    expect(projectSnapshot.workspace.pulsePrompt).toBe("");
     expect(projectSnapshot.workspace.activePulsePresetId).toBeNull();
     expect(projectSnapshot.workspace.pulseSessionInstanceId).toBeNull();
     expect(projectSnapshot.agent).toEqual({

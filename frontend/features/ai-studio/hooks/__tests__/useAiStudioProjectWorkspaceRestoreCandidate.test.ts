@@ -133,6 +133,9 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
     expect(result.current.result).toBe("found_snapshot");
     expect(result.current.source).toBe("project");
     expect(result.current.snapshot?.workspace.expertCreateMode).toBe("standard");
+    expect(result.current.snapshot?.workspace.prompt).toBe("");
+    expect(result.current.snapshot?.workspace.standardPrompt).toBe("");
+    expect(result.current.snapshot?.workspace.pulsePrompt).toBe("");
     expect(result.current.snapshot?.workspace.activePulsePresetId).toBeNull();
     expect(result.current.snapshot?.workspace.pulseSessionInstanceId).toBeNull();
     expect(result.current.snapshot?.agent).toEqual({

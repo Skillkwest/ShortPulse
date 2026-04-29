@@ -227,6 +227,10 @@ describe("Create agent mode boundaries", () => {
     expect(pulseComposerSource).not.toContain("StylesControl");
     expect(pulseComposerSource).not.toContain("AspectDropdown");
     expect(pulseComposerSource).not.toContain("ResolutionDropdown");
+    expect(pulseComposerSource).not.toContain("onChatOffInlineGenerate");
+    expect(pulseComposerSource).not.toContain("onGenerateFromAgentOutputPrompt");
+    expect(pulseComposerSource).not.toContain("chatModeInlineGenerate:");
+    expect(pulseComposerSource).not.toContain("outputGenerateCostCredits?:");
 
     expect(standardPromptStepSource).not.toContain("PulsePromptStepChatSurface");
     expect(standardPromptStepSource).toContain("StandardPromptStepChatSurface");

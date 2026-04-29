@@ -8,7 +8,6 @@ import type {
   AgentAttachment,
   AgentMessage,
   AgentOutputBubbleMediaState,
-  AgentOutputGenerateInput,
   AgentPulseWorkflowSession,
 } from "../../../../prefabs/agent";
 import { PulsePromptStep } from "../PulsePromptStep";
@@ -60,8 +59,6 @@ export type PulseCreatePropertiesPanelProps = {
   costCredits?: number | null;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
-  isChatOffInlineGenerateDisabled?: boolean;
-  outputGenerateCostCredits?: number | null;
   guardrailReason?: string | null;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
@@ -73,9 +70,7 @@ export type PulseCreatePropertiesPanelProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onGenerateFromAgentOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onGenerate: () => void;
-  onChatOffInlineGenerate: () => void;
   onSavePrompt: (customPrompt?: string) => void;
   shouldDisableSave?: boolean;
   onClearAgentChat?: () => void;
@@ -124,13 +119,10 @@ export function PulseCreatePropertiesPanel({
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAssistantMessageEdit,
-  onGenerateFromAgentOutputPrompt,
   onSavePrompt,
   shouldDisableSave = false,
   isPromptGenerating = false,
   isGenerateDisabled = false,
-  isChatOffInlineGenerateDisabled = false,
-  outputGenerateCostCredits = null,
   onClearAgentChat,
   expertCreateMode,
   onExpertCreateModeChange,
@@ -142,7 +134,6 @@ export function PulseCreatePropertiesPanel({
   onPulsePresetStart,
   onOpenPresetsLibrary,
   onGenerate,
-  onChatOffInlineGenerate,
   guardrailReason,
 }: PulseCreatePropertiesPanelProps) {
   const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] =
@@ -225,18 +216,11 @@ export function PulseCreatePropertiesPanel({
     onClearAgentAttachments,
     onClearAgentChat,
     onAssistantMessageEdit,
-    onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
-    chatModeInlineGenerate: {
-      onGenerate: onChatOffInlineGenerate,
-      disabled: isChatOffInlineGenerateDisabled,
-      ariaLabel: "Generate with current prompt",
-    },
     onSavePrompt,
     isGenerating: isPromptGenerating,
     showGenerationThinkingInChat: false,
     shouldDisableSave,
     disableOutputGenerate: false,
-    outputGenerateCostCredits,
     outputGenerateGuardrailReason: null,
     hideOutputGenerateControls: true,
     pulseLoadingState,

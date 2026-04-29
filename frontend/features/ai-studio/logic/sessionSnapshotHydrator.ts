@@ -21,11 +21,7 @@ import {
 } from "./sessionSnapshotCanvas";
 import { parseAiStudioSessionExpertEditState } from "./sessionSnapshotExpertEdit";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
-import {
-  normalizePulsePresetId,
-  resolveHydratedPulseRuntimeState,
-  resolvePulseRuntimeState,
-} from "./pulseSessionState";
+import { resolveHydratedPulseRuntimeState, resolvePulseRuntimeState } from "./pulseSessionState";
 
 const FALLBACK_MODE: StudioMode = "text";
 const FALLBACK_ASPECT = "9:16";
@@ -685,18 +681,15 @@ export const buildAiStudioSessionHydrationPayload = (
   const workspaceActivePulsePresetId = normalizedWorkspacePulseState.activePulsePresetId;
   const workspacePulseSessionInstanceId = normalizedWorkspacePulseState.pulseSessionInstanceId;
   const defaultAgentRuntime = buildHydratedAgentRuntime(null);
+  const hydratedPulsePresetId =
+    workspaceExpertCreateMode === "pulse" ? workspaceActivePulsePresetId : null;
   const hydratedAgentRuntimes = {
     standard: agentRuntimes?.standard
       ? buildHydratedAgentRuntime(agentRuntimes.standard)
       : defaultAgentRuntime,
-    pulsePresetId:
-      workspaceExpertCreateMode === "pulse"
-        ? normalizePulsePresetId(agentRuntimes?.pulsePresetId) ||
-          workspaceActivePulsePresetId ||
-          null
-        : null,
+    pulsePresetId: hydratedPulsePresetId,
     pulse:
-      workspaceExpertCreateMode === "pulse" && agentRuntimes?.pulse
+      hydratedPulsePresetId && agentRuntimes?.pulse
         ? coerceHydratedRuntimeChatMode(buildHydratedAgentRuntime(agentRuntimes.pulse), {
             forceChatModeEnabled: true,
           })
@@ -704,10 +697,8 @@ export const buildAiStudioSessionHydrationPayload = (
   };
   const resolvedWorkspacePulseState = resolveHydratedPulseRuntimeState({
     expertCreateMode: workspaceExpertCreateMode,
-    workspaceActivePulsePresetId:
-      workspaceActivePulsePresetId || hydratedAgentRuntimes.pulsePresetId,
+    workspaceActivePulsePresetId,
     workspacePulseSessionInstanceId: workspacePulseSessionInstanceId,
-    hydratedPulsePresetId: hydratedAgentRuntimes.pulsePresetId,
     sessionId: snapshot.sessionId,
     updatedAt: snapshot.updatedAt,
   });

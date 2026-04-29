@@ -193,7 +193,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.pulsePrompt).toBe("Pulse artifact prompt");
   });
 
-  it("restores the active Pulse id from persisted Pulse runtime ownership when the workspace field is missing", () => {
+  it("does not restore an active Pulse from runtime metadata when workspace authority is missing", () => {
     const payload = buildAiStudioSessionHydrationPayload({
       ...createSnapshot(),
       schemaVersion: 2,
@@ -244,9 +244,11 @@ describe("sessionSnapshotHydrator", () => {
     } as AiStudioSessionSnapshot);
 
     expect(payload.workspace.expertCreateMode).toBe("pulse");
-    expect(payload.workspace.activePulsePresetId).toBe("story_builder");
-    expect(payload.workspace.pulseSessionInstanceId).toMatch(/^pulse_restore_/);
-    expect(payload.agentRuntimes.pulsePresetId).toBe("story_builder");
+    expect(payload.workspace.activePulsePresetId).toBeNull();
+    expect(payload.workspace.pulseSessionInstanceId).toBeNull();
+    expect(payload.agentRuntimes.pulsePresetId).toBeNull();
+    expect(payload.agentRuntimes.pulse.messages).toEqual([]);
+    expect(payload.agentRuntimes.pulse.pulseWorkflowSession).toBeNull();
   });
 
   it("forces Pulse runtime chat mode on during hydration", () => {

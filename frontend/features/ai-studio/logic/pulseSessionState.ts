@@ -69,14 +69,12 @@ export const resolveHydratedPulseRuntimeState = ({
   expertCreateMode,
   workspaceActivePulsePresetId,
   workspacePulseSessionInstanceId,
-  hydratedPulsePresetId,
   sessionId,
   updatedAt,
 }: {
   expertCreateMode: AiStudioPulseCreateMode;
   workspaceActivePulsePresetId?: unknown;
   workspacePulseSessionInstanceId?: unknown;
-  hydratedPulsePresetId?: string | null;
   sessionId: string;
   updatedAt: string;
 }): PulseRuntimeState => {
@@ -86,19 +84,19 @@ export const resolveHydratedPulseRuntimeState = ({
     pulseSessionInstanceId: workspacePulseSessionInstanceId,
   });
   const restoredPulseSessionInstanceId =
-    !normalizedWorkspacePulseState.isPulseCreateMode || !hydratedPulsePresetId
+    !normalizedWorkspacePulseState.isPulseCreateMode ||
+    !normalizedWorkspacePulseState.activePulsePresetId
       ? normalizedWorkspacePulseState.pulseSessionInstanceId
       : normalizedWorkspacePulseState.pulseSessionInstanceId ||
         buildRestoredPulseSessionInstanceId({
           sessionId,
           updatedAt,
-          presetId: hydratedPulsePresetId,
+          presetId: normalizedWorkspacePulseState.activePulsePresetId,
         });
 
   return resolvePulseRuntimeState({
     expertCreateMode,
-    activePulsePresetId:
-      normalizedWorkspacePulseState.activePulsePresetId ?? hydratedPulsePresetId ?? null,
+    activePulsePresetId: normalizedWorkspacePulseState.activePulsePresetId,
     pulseSessionInstanceId: restoredPulseSessionInstanceId,
   });
 };

@@ -470,6 +470,15 @@ describe("Create agent mode boundaries", () => {
     expect(pagePersistenceSource).not.toContain("pulseWorkflowSession?: AgentPulseWorkflowSession");
   });
 
+  it("keeps Pulse hydration from using runtime metadata as workspace authority", () => {
+    const hydratorSource = readFrontendFile("features/ai-studio/logic/sessionSnapshotHydrator.ts");
+
+    expect(hydratorSource).not.toContain(
+      "workspaceActivePulsePresetId || hydratedAgentRuntimes.pulsePresetId"
+    );
+    expect(hydratorSource).toContain("pulsePresetId: hydratedPulsePresetId");
+  });
+
   it("keeps Standard and Pulse Create props from cloning one shared prop bag", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
     const panelPropBuilderSource = readFrontendFile(

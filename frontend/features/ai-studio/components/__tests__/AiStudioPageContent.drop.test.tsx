@@ -91,27 +91,31 @@ const createCreateProperties = (
     overrides.expertCreateMode === "pulse" || overrides.expertCreateMode === "standard"
       ? overrides.expertCreateMode
       : "standard";
-  const shared = {
-    ...overrides,
-    expertCreateMode,
-  } as Record<string, unknown>;
-  const onExpertCreateModeChange = shared.onExpertCreateModeChange as
+  const onExpertCreateModeChange = overrides.onExpertCreateModeChange as
     | ((value: "standard" | "pulse") => void)
     | undefined;
+  const commonCreateFields = {
+    expertCreateUiEligible: overrides.expertCreateUiEligible,
+    beginnerMode: overrides.beginnerMode,
+  };
   if (expertCreateMode === "pulse") {
     return {
       expertCreateMode,
       onExpertCreateModeChange,
       pulse: {
-        ...shared,
+        ...commonCreateFields,
       } as unknown as TestPulseCreateProps,
     };
   }
+  const standardOverrides = { ...overrides };
+  delete standardOverrides.expertCreateMode;
+  delete standardOverrides.onExpertCreateModeChange;
   return {
     expertCreateMode,
     onExpertCreateModeChange,
     standard: {
-      ...shared,
+      ...standardOverrides,
+      ...commonCreateFields,
     } as TestStandardCreateProps,
   };
 };
@@ -425,6 +429,23 @@ const createProps = (
 });
 
 describe("AiStudioPageContent right column drop router", () => {
+  it("keeps Standard-only Create props out of Pulse Create props in tests", () => {
+    const createPropsContract = createCreateProperties({
+      expertCreateMode: "pulse",
+      expertCreateUiEligible: true,
+      beginnerMode: false,
+      chatModeEnabled: false,
+      onChatModeEnabledChange: vi.fn(),
+      onChatOffInlineGenerate: vi.fn(),
+    });
+
+    expect(createPropsContract.expertCreateMode).toBe("pulse");
+    expect(createPropsContract).not.toHaveProperty("standard");
+    expect(createPropsContract.pulse).not.toHaveProperty("chatModeEnabled");
+    expect(createPropsContract.pulse).not.toHaveProperty("onChatModeEnabledChange");
+    expect(createPropsContract.pulse).not.toHaveProperty("onChatOffInlineGenerate");
+  });
+
   it("keeps the active create properties panel stable when inactive panel props change", () => {
     createPropertiesPanelRenderSpy.mockClear();
     const stableCreateProps = createCreateProperties();

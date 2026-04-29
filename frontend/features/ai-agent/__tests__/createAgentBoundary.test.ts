@@ -347,6 +347,9 @@ describe("Create agent mode boundaries", () => {
     const stateRuntimeControllersSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioStateRuntimeControllers.ts"
     );
+    const sessionSnapshotControllerSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioSessionSnapshotController.ts"
+    );
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
 
     expect(generationControllerSource).not.toContain("expertCreateMode");
@@ -370,6 +373,11 @@ describe("Create agent mode boundaries", () => {
       'const activeCreatePrompt = expertCreateMode === "pulse" ? pulsePrompt : standardPrompt'
     );
     expect(stateRuntimeControllersSource).toContain("prompt: activeCreatePrompt");
+    expect(sessionSnapshotControllerSource).not.toContain("\n  prompt: string;\n");
+    expect(sessionSnapshotControllerSource).toContain(
+      'pulseWorkspaceState.expertCreateMode === "pulse" ? pulseCreatePrompt : standardCreatePrompt'
+    );
+    expect(sessionSnapshotControllerSource).toContain("prompt: activeCreatePrompt");
     expect(pageSource).not.toContain(
       'expertCreateMode === "pulse" ? undefined : handleStandardAgentCaptureResult'
     );

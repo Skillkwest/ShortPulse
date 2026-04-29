@@ -29,7 +29,6 @@ import type { ExpertEditSessionState } from "../components/edit/expertEditSessio
 type UseAiStudioSessionSnapshotControllerParams = {
   mode: StudioMode;
   selectedTool: ToolId | null;
-  prompt: string;
   standardCreatePrompt: string;
   pulseCreatePrompt: string;
   model: string | null;
@@ -129,7 +128,6 @@ type UseAiStudioSessionSnapshotControllerParams = {
 export const useAiStudioSessionSnapshotController = ({
   mode,
   selectedTool,
-  prompt,
   standardCreatePrompt,
   pulseCreatePrompt,
   model,
@@ -205,6 +203,8 @@ export const useAiStudioSessionSnapshotController = ({
   setArchivedOutputs,
   setRuntimeUiStateForCreateMode,
 }: UseAiStudioSessionSnapshotControllerParams) => {
+  const activeCreatePrompt =
+    pulseWorkspaceState.expertCreateMode === "pulse" ? pulseCreatePrompt : standardCreatePrompt;
   const hydrateFromSessionSnapshot = useCallback(
     (snapshot: AiStudioSessionSnapshot): AiStudioSessionHydrationPayload => {
       const payload = buildAiStudioSessionHydrationPayload(snapshot);
@@ -361,7 +361,7 @@ export const useAiStudioSessionSnapshotController = ({
         updatedAt,
         mode,
         selectedTool,
-        prompt,
+        prompt: activeCreatePrompt,
         standardCreatePrompt,
         pulseCreatePrompt,
         model,
@@ -433,7 +433,7 @@ export const useAiStudioSessionSnapshotController = ({
       outputs,
       pulseCreatePrompt,
       pulseWorkspaceState,
-      prompt,
+      activeCreatePrompt,
       referenceImageUrl,
       removedFromAllRefsIds,
       selectedTool,

@@ -332,7 +332,6 @@ export const useAiStudioStateRuntimeControllers = ({
     {
       mode,
       selectedTool,
-      prompt: activeCreatePrompt,
       standardCreatePrompt: standardPrompt,
       pulseCreatePrompt: pulsePrompt,
       model,

@@ -133,7 +133,7 @@ export const useCreatePulsePresetPageRuntime = ({
     handleExpertCreateModeChangeForPage,
     handleActiveCreatePulsePresetIdChangeForPage,
     hasActivePulseSession,
-    createModeAgentContextResolver:
-      expertCreateMode === "pulse" ? getPulseAwareAgentContext : getAgentContext,
+    standardCreateAgentContextResolver: getAgentContext,
+    pulseCreateAgentContextResolver: getPulseAwareAgentContext,
   };
 };

@@ -363,7 +363,8 @@ export default function AiStudioPage() {
     handleExpertCreateModeChangeForPage,
     handleActiveCreatePulsePresetIdChangeForPage,
     hasActivePulseSession,
-    createModeAgentContextResolver,
+    standardCreateAgentContextResolver,
+    pulseCreateAgentContextResolver,
   } = useCreatePulsePresetPageRuntime({
     selectedTool,
     expertCreateMode,
@@ -831,7 +832,10 @@ export default function AiStudioPage() {
     setStandardChatModeEnabled,
     prompt,
     setSharedPrompt,
-    getAgentContext: createModeAgentContextResolver,
+    getAgentContext:
+      expertCreateMode === "pulse"
+        ? pulseCreateAgentContextResolver
+        : standardCreateAgentContextResolver,
     addAgentPromptReference,
     editReferenceText,
     setEditReferenceText,

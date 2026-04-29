@@ -178,10 +178,20 @@ describe("Create agent mode boundaries", () => {
     );
 
     expect(pageSource).toContain("useCreatePulsePresetPageRuntime");
-    expect(pageSource).toContain("getAgentContext: createModeAgentContextResolver");
+    expect(pageSource).toContain("standardCreateAgentContextResolver");
+    expect(pageSource).toContain("pulseCreateAgentContextResolver");
+    expect(pageSource).toContain(
+      'expertCreateMode === "pulse"\n        ? pulseCreateAgentContextResolver\n        : standardCreateAgentContextResolver'
+    );
+    expect(pageSource).not.toContain("createModeAgentContextResolver");
     expect(pageSource).not.toContain("getAgentContext: getPulseAwareAgentContext");
     expect(pageSource).not.toContain("const getPulseAwareAgentContext");
     expect(pageSource).not.toContain("CreatePulseResolvedPreset");
+    expect(pulsePageRuntimeSource).toContain("standardCreateAgentContextResolver: getAgentContext");
+    expect(pulsePageRuntimeSource).toContain(
+      "pulseCreateAgentContextResolver: getPulseAwareAgentContext"
+    );
+    expect(pulsePageRuntimeSource).not.toContain("createModeAgentContextResolver");
     expect(pulsePageRuntimeSource).toContain("clearPulseRuntimeForPage();");
     expect(pulsePageRuntimeSource).toContain("activeCreatePulsePresetSnapshot");
   });

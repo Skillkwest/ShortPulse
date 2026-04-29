@@ -140,6 +140,34 @@ describe("studioAgentRequestGuards", () => {
     );
   });
 
+  it("drops Pulse workflow sessions that do not belong to the active Pulse preset", () => {
+    const context = sanitizeStudioAgentContext({
+      mode: "text",
+      pulse: {
+        presetId: "pulse_active",
+        label: "Active Pulse",
+        instructions: "Ask for details, then produce a final prompt.",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        outputMode: "chat_reply",
+        source: "custom",
+        workflowSession: {
+          presetId: "pulse_stale",
+          status: "completed",
+          currentStepIndex: 3,
+          currentStepLabel: "Final",
+          currentStepPrompt: null,
+          collectedInputs: ["stale answer"],
+          lastArtifact: "stale artifact",
+          finalArtifactSource: "chat_reply",
+        },
+      },
+    });
+
+    expect(context.pulse?.presetId).toBe("pulse_active");
+    expect(context.pulse?.workflowSession).toBeNull();
+  });
+
   it("strips Pulse and passive media context from Standard runtime requests", () => {
     const context = sanitizeStudioAgentContext(
       {

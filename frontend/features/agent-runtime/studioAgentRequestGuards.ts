@@ -167,10 +167,14 @@ const sanitizeStudioAgentPulseContext = (
         .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
         .filter((entry) => entry.length > 0)
     : null;
+  const rawWorkflowSessionPresetId =
+    pulse.workflowSession && typeof pulse.workflowSession.presetId === "string"
+      ? pulse.workflowSession.presetId.trim()
+      : "";
   const workflowSession =
     pulse.workflowSession && typeof pulse.workflowSession.presetId === "string"
       ? ({
-          presetId: pulse.workflowSession.presetId.trim(),
+          presetId: rawWorkflowSessionPresetId,
           status: (pulse.workflowSession.status === "running" ||
           pulse.workflowSession.status === "awaiting_input" ||
           pulse.workflowSession.status === "completed"
@@ -209,6 +213,8 @@ const sanitizeStudioAgentPulseContext = (
         } satisfies AgentPulseWorkflowSession)
       : null;
   if (!presetId || !label || !instructions) return undefined;
+  const presetBoundWorkflowSession =
+    workflowSession?.presetId === presetId ? workflowSession : null;
   return {
     presetId,
     label,
@@ -221,7 +227,7 @@ const sanitizeStudioAgentPulseContext = (
     outputMode: GUIDED_PULSE_OUTPUT_MODE,
     memoryPolicy: "session",
     source: pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined,
-    workflowSession,
+    workflowSession: presetBoundWorkflowSession,
   };
 };
 

@@ -37,8 +37,8 @@ vi.mock("../AiStudioToolbar", () => ({
   AiStudioToolbar: () => <div data-testid="ai-toolbar" />,
 }));
 
-vi.mock("../CreatePropertiesPanel", () => ({
-  CreatePropertiesPanel: (props: {
+vi.mock("../create/StandardCreatePropertiesPanel", () => ({
+  StandardCreatePropertiesPanel: (props: {
     isStylesPanelOpen?: boolean;
     selectedStyleId?: string | null;
     onStylesPanelToggle?: () => void;
@@ -70,6 +70,25 @@ vi.mock("../CreatePropertiesPanel", () => ({
     );
   },
   ComposeSendCard: () => <div data-testid="compose-send-card" />,
+}));
+
+vi.mock("../create/PulseCreatePropertiesPanel", () => ({
+  PulseCreatePropertiesPanel: (props: {
+    chatModeEnabled?: boolean;
+    expertCreateMode?: "standard" | "pulse";
+    onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
+  }) => (
+    <div data-testid="text-properties">
+      <button type="button" onClick={() => props.onExpertCreateModeChange?.("standard")}>
+        Standard
+      </button>
+      <button type="button" onClick={() => props.onExpertCreateModeChange?.("pulse")}>
+        Pulse
+      </button>
+      <div data-testid="create-chat-mode">{props.chatModeEnabled ? "on" : "off"}</div>
+      <div data-testid="create-expert-mode">{props.expertCreateMode ?? "pulse"}</div>
+    </div>
+  ),
 }));
 
 vi.mock("../DetailModal", () => ({
@@ -785,7 +804,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
   });
 
-  it("relies on parent-owned Pulse chat mode transitions instead of forcing them in the shell", () => {
+  it("relies on parent-owned Pulse chat mode transitions instead of forcing them in the shell", async () => {
     const referenceGridProps = {
       ...createProps().referenceGridProps,
       onAddCuratedReference: vi.fn(),
@@ -822,7 +841,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
 
     fireEvent.click(screen.getByRole("button", { name: "Pulse" }));
-    expect(screen.getByTestId("create-chat-mode")).toHaveTextContent("off");
+    expect(await screen.findByTestId("create-chat-mode")).toHaveTextContent("off");
     expect(screen.getByTestId("create-expert-mode")).toHaveTextContent("pulse");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
 

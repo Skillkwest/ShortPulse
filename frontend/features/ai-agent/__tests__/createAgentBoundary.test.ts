@@ -163,8 +163,11 @@ describe("Create agent mode boundaries", () => {
   });
 
   it("keeps the active Create composers mode-owned below the top-level switch", () => {
-    const switchSource = readFrontendFile(
-      "features/ai-studio/components/CreatePropertiesPanel.tsx"
+    const pageContentSource = readFrontendFile(
+      "features/ai-studio/components/AiStudioPageContent.tsx"
+    );
+    const contractSource = readFrontendFile(
+      "features/ai-studio/hooks/contracts/pageContentContracts.ts"
     );
     const standardComposerSource = readFrontendFile(
       "features/ai-studio/components/create/StandardCreatePropertiesPanel.tsx"
@@ -182,11 +185,12 @@ describe("Create agent mode boundaries", () => {
       "features/ai-studio/components/PulsePromptStep.tsx"
     );
 
-    expect(switchSource).toContain("StandardCreatePropertiesPanel");
-    expect(switchSource).toContain("PulseCreatePropertiesPanel");
-    expect(switchSource).toContain('resolvedExpertCreateMode === "pulse"');
-    expect(switchSource).toContain('import("./create/PulseCreatePropertiesPanel")');
-    expect(switchSource).not.toContain("PulseCreatePropertiesPanel,\n  type");
+    expect(pageContentSource).toContain("StandardCreatePropertiesPanel");
+    expect(pageContentSource).toContain("PulseCreatePropertiesPanel");
+    expect(pageContentSource).toContain('expertCreateMode === "pulse"');
+    expect(pageContentSource).toContain('import("./create/PulseCreatePropertiesPanel")');
+    expect(pageContentSource).not.toContain('from "./CreatePropertiesPanel"');
+    expect(contractSource).not.toContain('from "../../components/CreatePropertiesPanel"');
 
     expect(standardComposerSource).not.toContain("PulseCreatePanelView");
     expect(standardComposerSource).not.toContain("PulseCreateChatPanel");

@@ -3,6 +3,7 @@
  * Receives a prepared view model from the page and renders toolbar, panels, previews, and system banners.
  */
 import React from "react";
+import dynamic from "next/dynamic";
 import { Eye, FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import {
@@ -11,7 +12,11 @@ import {
 } from "../../../lib/explicitContentFailure";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
-import { CreatePropertiesPanel, ComposeSendCard } from "./CreatePropertiesPanel";
+import {
+  ComposeSendCard,
+  StandardCreatePropertiesPanel,
+} from "./create/StandardCreatePropertiesPanel";
+import type { PulseCreatePropertiesPanelProps } from "./create/PulseCreatePropertiesPanel";
 import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
@@ -118,6 +123,10 @@ type FailureCard = Pick<
   StudioOutput,
   "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorMessageShort" | "errorDetail"
 >;
+
+const PulseCreatePropertiesPanel = dynamic<PulseCreatePropertiesPanelProps>(() =>
+  import("./create/PulseCreatePropertiesPanel").then((module) => module.PulseCreatePropertiesPanel)
+);
 
 type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
@@ -337,7 +346,8 @@ const getEventTargetElement = (target: EventTarget | null): Element | null => {
   return null;
 };
 
-type CreateSectionProps = React.ComponentProps<typeof CreatePropertiesPanel>;
+type CreateSectionProps = React.ComponentProps<typeof StandardCreatePropertiesPanel> &
+  Partial<PulseCreatePropertiesPanelProps>;
 type EditExpertSectionProps = React.ComponentProps<typeof ExpertEditPanelView>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
 const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
@@ -1279,10 +1289,17 @@ export function AiStudioPageContent({
     },
   });
 
-  const createPropertiesPanelContent = React.useMemo(
-    () => (
+  const createPropertiesPanelContent = React.useMemo(() => {
+    if (showExpertCreatePanel && expertCreateMode === "pulse") {
+      return (
+        <PulseCreatePropertiesPanel
+          {...(resolvedCreatePropertiesWithStyles as PulseCreatePropertiesPanelProps)}
+        />
+      );
+    }
+    return (
       <>
-        <CreatePropertiesPanel {...resolvedCreatePropertiesWithStyles} />
+        <StandardCreatePropertiesPanel {...resolvedCreatePropertiesWithStyles} />
         {!showExpertCreatePanel ? (
           <ComposeSendCard
             {...resolvedCreatePropertiesWithStyles}
@@ -1290,9 +1307,8 @@ export function AiStudioPageContent({
           />
         ) : null}
       </>
-    ),
-    [resolvedCreatePropertiesWithStyles, showExpertCreatePanel]
-  );
+    );
+  }, [expertCreateMode, resolvedCreatePropertiesWithStyles, showExpertCreatePanel]);
   const editPropertiesPanelContent = React.useMemo(
     () => <ExpertEditPanelView {...resolvedExpertEditProperties} />,
     [resolvedExpertEditProperties]

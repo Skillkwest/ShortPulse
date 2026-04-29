@@ -11,7 +11,6 @@ const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioAgentInteractions>[0]> = {}
 ): Parameters<typeof useAiStudioAgentInteractions>[0] => {
   const baseParams: Parameters<typeof useAiStudioAgentInteractions>[0] = {
-    expertCreateMode: "standard",
     setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
     setPromptOrigin: asDispatch<PromptOrigin>(vi.fn()),
     trackAgentUiEvent: vi.fn(),
@@ -22,7 +21,7 @@ const createParams = (
     latestAgentPrompt: null,
     resetAgentChat: vi.fn(),
     resetAgentComposer: vi.fn(),
-    clearPulseRuntime: vi.fn(),
+    clearActiveRuntime: undefined,
   };
 
   return {
@@ -68,11 +67,10 @@ describe("useAiStudioAgentInteractions", () => {
     expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_chat_cleared");
   });
 
-  it("deactivates the active pulse when clearing chat in pulse mode", () => {
-    const clearPulseRuntime = vi.fn();
+  it("clears the active mode runtime when provided", () => {
+    const clearActiveRuntime = vi.fn();
     const params = createParams({
-      expertCreateMode: "pulse",
-      clearPulseRuntime,
+      clearActiveRuntime,
     });
     const { result } = renderHook(() => useAiStudioAgentInteractions(params));
 
@@ -80,7 +78,7 @@ describe("useAiStudioAgentInteractions", () => {
       result.current.handleClearAgentChat();
     });
 
-    expect(clearPulseRuntime).toHaveBeenCalledTimes(1);
+    expect(clearActiveRuntime).toHaveBeenCalledTimes(1);
   });
 
   it("adds latest agent prompt to grid with the default agent title", () => {

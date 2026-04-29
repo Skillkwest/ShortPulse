@@ -4,7 +4,6 @@ import type { PromptOrigin } from "../logic/agentPromptOwnership";
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
 type UseAiStudioAgentInteractionsParams = {
-  expertCreateMode: "standard" | "pulse";
   setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
   setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
@@ -18,11 +17,10 @@ type UseAiStudioAgentInteractionsParams = {
     preserveInput?: boolean;
     preserveAttachments?: boolean;
   }) => void;
-  clearPulseRuntime?: () => void;
+  clearActiveRuntime?: () => void;
 };
 
 export const useAiStudioAgentInteractions = ({
-  expertCreateMode,
   setLatestAgentPrompt,
   setPromptOrigin,
   trackAgentUiEvent,
@@ -33,7 +31,7 @@ export const useAiStudioAgentInteractions = ({
   latestAgentPrompt,
   resetAgentChat,
   resetAgentComposer,
-  clearPulseRuntime,
+  clearActiveRuntime,
 }: UseAiStudioAgentInteractionsParams) => {
   const handleExpandChat = useCallback(() => {
     if (!agentSessionEnabled) setAgentSessionEnabled(true);
@@ -60,14 +58,11 @@ export const useAiStudioAgentInteractions = ({
     resetAgentComposer({ preserveAttachments: false });
     setLatestAgentPrompt(null);
     setPromptOrigin("manual");
-    if (expertCreateMode === "pulse") {
-      clearPulseRuntime?.();
-    }
+    clearActiveRuntime?.();
     setIsAgentChatOpen(false);
     trackAgentUiEvent("studio_agent_chat_cleared");
   }, [
-    clearPulseRuntime,
-    expertCreateMode,
+    clearActiveRuntime,
     resetAgentChat,
     resetAgentComposer,
     setLatestAgentPrompt,

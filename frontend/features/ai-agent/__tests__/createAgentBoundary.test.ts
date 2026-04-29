@@ -271,4 +271,14 @@ describe("Create agent mode boundaries", () => {
     expect(orchestrationSource).toContain("./agentOrchestration/pulseSendRuntime");
     expect(orchestrationSource).toContain("./agentOrchestration/pulsePresetStart");
   });
+
+  it("keeps generic agent interactions free of mode branches", () => {
+    const interactionsSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioAgentInteractions.ts"
+    );
+
+    expect(interactionsSource).not.toContain("expertCreateMode");
+    expect(interactionsSource).not.toContain("clearPulseRuntime");
+    expect(interactionsSource).toContain("clearActiveRuntime");
+  });
 });

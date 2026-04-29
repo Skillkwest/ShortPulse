@@ -749,7 +749,6 @@ export const useAiStudioAgentBridge = ({
     handleClearAgentChat: clearAgentChatInteraction,
     handleCloseAgentChat,
   } = useAiStudioAgentInteractions({
-    expertCreateMode,
     setLatestAgentPrompt,
     setPromptOrigin,
     trackAgentUiEvent,
@@ -760,7 +759,7 @@ export const useAiStudioAgentBridge = ({
     latestAgentPrompt: effectiveLatestAgentPrompt,
     resetAgentChat,
     resetAgentComposer,
-    clearPulseRuntime,
+    clearActiveRuntime: bridgeRuntime.kind === "pulse" ? clearPulseRuntime : undefined,
   });
 
   const handleClearAgentChat = useCallback(() => {

@@ -87,6 +87,9 @@ describe("Create agent mode boundaries", () => {
     const bridgeRuntimeSource = readFrontendFile(
       "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgeRuntime.ts"
     );
+    const bridgeRuntimeBindingLoaderSource = readFrontendFile(
+      "features/ai-studio/hooks/agentBridgeRuntime/createAgentRuntimeBindingLoader.ts"
+    );
     const orchestrationPolicySource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/createAgentOrchestrationRuntimePolicy.ts"
     );
@@ -110,8 +113,11 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("standardTransportResultResolution");
     expect(bridgeSource).not.toContain("standardContextBuilder");
     expect(bridgeSource).not.toContain("createPulsePresets");
-    expect(bridgeSource).toContain("./agentBridgeRuntime/pulseCreateAgentRuntimeBinding");
-    expect(bridgeSource).toContain("./agentBridgeRuntime/standardCreateAgentRuntimeBinding");
+    expect(bridgeSource).not.toContain("pulseCreateAgentRuntimeBinding");
+    expect(bridgeSource).not.toContain("standardCreateAgentRuntimeBinding");
+    expect(bridgeSource).toContain("./agentBridgeRuntime/createAgentRuntimeBindingLoader");
+    expect(bridgeRuntimeBindingLoaderSource).toContain("./pulseCreateAgentRuntimeBinding");
+    expect(bridgeRuntimeBindingLoaderSource).toContain("./standardCreateAgentRuntimeBinding");
     expect(bridgeSource).toContain("./agentBridgeRuntime/pulsePresetRestart");
     expect(bridgeSource).not.toContain("studio_agent_pulse_restart_requested");
     expect(bridgeSource).not.toContain("studio_agent_pulse_restart_blocked_missing_session");

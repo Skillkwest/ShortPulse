@@ -37,7 +37,7 @@ import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatMo
 import { resolveCreateAgentBridgeRuntime } from "./agentBridgeRuntime/createAgentBridgeRuntime";
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "./agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
-import type { CreateAgentRuntimeBinding } from "./agentBridgeRuntime/createAgentRuntimeBinding";
+import { loadCreateAgentRuntimeBinding } from "./agentBridgeRuntime/createAgentRuntimeBindingLoader";
 import {
   restartCreatePulsePreset,
   type RestartCreatePulsePresetParams,
@@ -95,24 +95,6 @@ type PendingRuntimeHydration = {
 };
 
 type AgentBridgeHydrationRuntime = AiStudioSessionHydrationPayload["agent"];
-
-let standardRuntimeBindingPromise: Promise<CreateAgentRuntimeBinding> | null = null;
-let pulseRuntimeBindingPromise: Promise<CreateAgentRuntimeBinding> | null = null;
-
-const loadStandardCreateAgentRuntimeBinding = () => {
-  standardRuntimeBindingPromise ??=
-    import("./agentBridgeRuntime/standardCreateAgentRuntimeBinding").then(
-      (module) => module.standardCreateAgentRuntimeBinding
-    );
-  return standardRuntimeBindingPromise;
-};
-
-const loadPulseCreateAgentRuntimeBinding = () => {
-  pulseRuntimeBindingPromise ??= import("./agentBridgeRuntime/pulseCreateAgentRuntimeBinding").then(
-    (module) => module.pulseCreateAgentRuntimeBinding
-  );
-  return pulseRuntimeBindingPromise;
-};
 
 const canUseAssistantMessageAsPrompt = (message: AgentMessage): boolean =>
   message.role === "assistant" &&
@@ -334,18 +316,16 @@ export const useAiStudioAgentBridge = ({
     state: AgentBridgeRuntimeState;
   } | null>(null);
   const activeAgentRuntimeBinding = useMemo(() => {
-    const loadRuntimeBinding = isPulseCreateMode
-      ? loadPulseCreateAgentRuntimeBinding
-      : loadStandardCreateAgentRuntimeBinding;
+    const runtimeKind = bridgeRuntime.kind;
     return {
       buildAgentContext: async (context: AgentContext) =>
-        (await loadRuntimeBinding()).buildAgentContext(context),
+        (await loadCreateAgentRuntimeBinding(runtimeKind)).buildAgentContext(context),
       sendAgentTurn: async (body: AgentApiRequest) =>
-        (await loadRuntimeBinding()).sendAgentTurn(body),
+        (await loadCreateAgentRuntimeBinding(runtimeKind)).sendAgentTurn(body),
       resolveTransportSuccess: async (response: AgentResponse) =>
-        (await loadRuntimeBinding()).resolveTransportSuccess(response),
+        (await loadCreateAgentRuntimeBinding(runtimeKind)).resolveTransportSuccess(response),
     };
-  }, [isPulseCreateMode]);
+  }, [bridgeRuntime.kind]);
 
   const activeAgent = useCreateAgentStateCore({
     enabled: agentEnabled,

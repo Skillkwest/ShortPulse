@@ -320,10 +320,6 @@ vi.mock("../VideoPropertiesPanel", () => ({
   VideoPropertiesPanel: () => <div data-testid="video-properties" />,
 }));
 
-vi.mock("../../../../prefabs/agent", () => ({
-  AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
-}));
-
 const { useAiStudioShellResizeMock } = vi.hoisted(() => {
   const collapseToMinMock = vi.fn();
   const expandToMaxMock = vi.fn();

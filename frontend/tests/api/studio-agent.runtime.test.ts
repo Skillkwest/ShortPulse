@@ -306,6 +306,41 @@ describe("AI Studio Create agent runtime boundaries", () => {
     );
   });
 
+  it("does not read or write generic canonical prompt persistence from Pulse", async () => {
+    process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "true";
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "prompt",
+                message: "Premium product hero prompt",
+                actions: { applyPrompt: "Premium product hero prompt" },
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        conversationId: "pulse-conversation",
+        context: createPulseContext(),
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(readAgentConversationCanonicalPromptMock).not.toHaveBeenCalled();
+    expect(upsertAgentConversationCanonicalPromptMock).not.toHaveBeenCalled();
+  });
+
   it("keeps route execution out of the retired generic page module", () => {
     const repoRoot = path.resolve(__dirname, "../..");
     const genericRoute = readFileSync(path.join(repoRoot, "pages/api/ai/studio-agent.ts"), "utf8");

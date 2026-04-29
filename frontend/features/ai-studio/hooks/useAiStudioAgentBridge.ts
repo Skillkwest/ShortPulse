@@ -20,10 +20,6 @@ import type {
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
-import type {
-  AiStudioSessionAgentMessageV1,
-  AiStudioSessionAgentRuntimesV2,
-} from "../logic/sessionSnapshot";
 import { useAiStudioAgentComposer } from "./useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "./useAiStudioAgentInteractions";
 import { useAiStudioAgentOrchestration } from "./useAiStudioAgentOrchestration";
@@ -35,6 +31,11 @@ import { resolveCreateAgentBridgeRuntime } from "./agentBridgeRuntime/createAgen
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "./agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { useCreateAgentBridgeActiveAgent } from "./agentBridgeRuntime/useCreateAgentBridgeActiveAgent";
+import {
+  buildHydratedCreateAgentRuntimeStateBySessionKey,
+  buildPersistedCreateAgentRuntimes,
+  type AgentBridgeRuntimeState,
+} from "./agentBridgeRuntime/createAgentBridgePersistenceRuntime";
 import {
   pruneInactivePulseBridgeRuntimeStates,
   resolvePulseAgentSessionNamespace,
@@ -80,23 +81,11 @@ type UseAiStudioAgentBridgeParams = {
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
 };
 
-type AgentBridgeRuntimeState = {
-  messages: AgentMessage[];
-  input: string;
-  attachments: AgentAttachment[];
-  latestAgentPrompt: string | null;
-  promptOrigin: PromptOrigin;
-  chatModeEnabled: boolean;
-  isAgentChatOpen: boolean;
-};
-
 type PendingRuntimeHydration = {
   key: string;
   state: AgentBridgeRuntimeState;
   previousKey: string | null;
 };
-
-type AgentBridgeHydrationRuntime = AiStudioSessionHydrationPayload["agent"];
 
 const canUseAssistantMessageAsPrompt = (message: AgentMessage): boolean =>
   message.role === "assistant" &&
@@ -114,51 +103,6 @@ const createDefaultAgentBridgeRuntimeState = (
   promptOrigin: "manual",
   chatModeEnabled: defaultChatModeEnabled,
   isAgentChatOpen: false,
-});
-
-const createAgentBridgeRuntimeStateFromHydration = (
-  runtime: AgentBridgeHydrationRuntime,
-  options?: {
-    forceChatModeEnabled?: boolean;
-  }
-): AgentBridgeRuntimeState => ({
-  messages: runtime.messages,
-  input: runtime.input,
-  attachments: [],
-  latestAgentPrompt: runtime.latestAgentPrompt,
-  promptOrigin: runtime.promptOrigin,
-  chatModeEnabled: options?.forceChatModeEnabled ?? runtime.chatModeEnabled,
-  isAgentChatOpen: false,
-});
-
-const createPersistedAgentRuntimeSnapshot = (
-  runtime: AgentBridgeRuntimeState,
-  options?: {
-    forceChatModeEnabled?: boolean;
-  }
-): AiStudioSessionAgentRuntimesV2["standard"] => ({
-  messages: runtime.messages.map(
-    (message): AiStudioSessionAgentMessageV1 => ({
-      id: message.id ?? null,
-      role: message.role,
-      content: message.content,
-      attachments: message.attachments?.map((attachment) => ({
-        id: attachment.id,
-        kind: attachment.kind,
-        referenceId: attachment.referenceId ?? null,
-        text: attachment.text ?? null,
-        imageUrl: attachment.imageUrl ?? null,
-        aspect: attachment.aspect ?? null,
-        deliveryStatus: attachment.deliveryStatus,
-        deliveryError: attachment.deliveryError ?? null,
-      })),
-    })
-  ),
-  input: runtime.input,
-  latestAgentPrompt: runtime.latestAgentPrompt,
-  promptOrigin: runtime.promptOrigin,
-  chatModeEnabled: options?.forceChatModeEnabled ?? runtime.chatModeEnabled,
-  pulseWorkflowSession: null,
 });
 
 const resolveStateActionValue = <T>(value: SetStateAction<T>, current: T): T =>
@@ -434,21 +378,15 @@ export const useAiStudioAgentBridge = ({
   const { isAgentChatOpen, latestAgentPrompt, promptOrigin } = activeAgentBridgeSessionUiState;
   const pendingRuntimeHydrationRef = useRef<PendingRuntimeHydration | null>(null);
   const persistedAgentRuntimes = useMemo(
-    () => ({
-      standard: createPersistedAgentRuntimeSnapshot(
-        agentBridgeRuntimeStateBySessionKey[`${sessionId ?? "none"}::standard`] ??
-          createDefaultRuntimeState()
-      ),
-      pulsePresetId: hasStoredPulseSession ? resolvedStoredPulsePresetId : null,
-      pulse: createPersistedAgentRuntimeSnapshot(
-        hasStoredPulseSession
-          ? (agentBridgeRuntimeStateBySessionKey[
-              `${sessionId ?? "none"}::${pulseRuntimeScopeKey}`
-            ] ?? createDefaultRuntimeState({ forceChatModeEnabled: true }))
-          : createDefaultRuntimeState({ forceChatModeEnabled: true }),
-        { forceChatModeEnabled: true }
-      ),
-    }),
+    () =>
+      buildPersistedCreateAgentRuntimes({
+        agentBridgeRuntimeStateBySessionKey,
+        createDefaultRuntimeState,
+        hasStoredPulseSession,
+        pulseRuntimeScopeKey,
+        resolvedStoredPulsePresetId,
+        sessionId,
+      }),
     [
       agentBridgeRuntimeStateBySessionKey,
       createDefaultRuntimeState,
@@ -897,24 +835,12 @@ export const useAiStudioAgentBridge = ({
       agentRuntimes,
     }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
       const sessionKeyPrefix = `${sessionId ?? "none"}::`;
-      const nextStateBySessionKey: Record<string, AgentBridgeRuntimeState> = {
-        [`${sessionKeyPrefix}standard`]: createAgentBridgeRuntimeStateFromHydration(
-          agentRuntimes.standard
-        ),
-      };
-      const pulsePresetId =
-        workspace.expertCreateMode === "pulse"
-          ? (agentRuntimes.pulsePresetId ?? workspace.activePulsePresetId)
-          : null;
-      const restoredPulseSessionInstanceId =
-        workspace.expertCreateMode === "pulse" ? workspace.pulseSessionInstanceId : null;
-      if (pulsePresetId && restoredPulseSessionInstanceId) {
-        nextStateBySessionKey[
-          `${sessionKeyPrefix}pulse:${pulsePresetId}:${restoredPulseSessionInstanceId}`
-        ] = createAgentBridgeRuntimeStateFromHydration(agentRuntimes.pulse, {
-          forceChatModeEnabled: true,
+      const { nextStateBySessionKey, restoredPulseWorkflowSession } =
+        buildHydratedCreateAgentRuntimeStateBySessionKey({
+          workspace,
+          agentRuntimes,
+          sessionId,
         });
-      }
 
       setAgentBridgeRuntimeStateBySessionKey((current) => {
         const nextEntries = Object.entries(current).filter(
@@ -926,11 +852,7 @@ export const useAiStudioAgentBridge = ({
         };
       });
       setAgentBridgeHydrationRevision((current) => current + 1);
-      setPulseWorkflowSession(
-        pulsePresetId && restoredPulseSessionInstanceId
-          ? (agentRuntimes.pulse.pulseWorkflowSession ?? null)
-          : null
-      );
+      setPulseWorkflowSession(restoredPulseWorkflowSession);
       setAgentAttachmentError(null);
       setAgentAttachments([]);
     },

@@ -127,7 +127,9 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("requestRuntimeMode:");
     expect(bridgeSource).not.toContain("allowSessionNamespaceOverride:");
     expect(bridgeSource).not.toContain("sessionNamespace:");
+    expect(bridgeSource).not.toContain("workspace.expertCreateMode");
     expect(bridgeSource).toContain("./agentBridgeRuntime/useCreateAgentBridgeActiveAgent");
+    expect(bridgeSource).toContain("./agentBridgeRuntime/createAgentBridgePersistenceRuntime");
     expect(bridgeActiveAgentSource).toContain("./createAgentRuntimeBindingLoader");
     expect(bridgeActiveAgentSource).toContain("useCreateAgentStateCore");
     expect(bridgeRuntimeBindingLoaderSource).toContain("./pulseCreateAgentRuntimeBinding");

@@ -6,8 +6,5 @@ import type { CreateAgentRuntimeBinding } from "./createAgentRuntimeBinding";
 export const standardCreateAgentRuntimeBinding: CreateAgentRuntimeBinding = {
   buildAgentContext: buildStandardCreateAgentContext,
   sendAgentTurn: sendStandardCreateAgentTurn,
-  resolveTransportSuccess: (response) => ({
-    ...resolveStandardCreateAgentTransportSuccess(response),
-    workflowSession: null,
-  }),
+  resolveTransportSuccess: resolveStandardCreateAgentTransportSuccess,
 };

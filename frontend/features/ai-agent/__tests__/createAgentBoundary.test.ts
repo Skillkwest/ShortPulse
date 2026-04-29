@@ -94,6 +94,9 @@ describe("Create agent mode boundaries", () => {
     const bridgeActiveAgentSource = readFrontendFile(
       "features/ai-studio/hooks/agentBridgeRuntime/useCreateAgentBridgeActiveAgent.ts"
     );
+    const standardRuntimeBindingSource = readFrontendFile(
+      "features/ai-studio/hooks/agentBridgeRuntime/standardCreateAgentRuntimeBinding.ts"
+    );
     const orchestrationPolicySource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/createAgentOrchestrationRuntimePolicy.ts"
     );
@@ -137,6 +140,8 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("studio_agent_pulse_restart_blocked_missing_session");
     expect(bridgeRuntimeSource).not.toContain("pulseSessionState");
     expect(orchestrationPolicySource).not.toContain("pulseSessionState");
+    expect(standardRuntimeBindingSource).not.toContain("workflowSession");
+    expect(standardRuntimeBindingSource).not.toContain("Pulse");
   });
 
   it("keeps custom Pulse preference loading out of page-root Create state", () => {

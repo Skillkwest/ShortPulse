@@ -237,7 +237,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   activeOutputId: string | null;
   curatedReferenceIds: string[];
   removedFromAllRefsIds: string[];
-  agentMessages: AgentMessage[];
+  agentMessages: Array<AgentMessage | AiStudioSessionAgentMessageV1>;
   agentInput: string;
   latestAgentPrompt: string | null;
   promptOrigin: "manual" | "agent" | "reference";

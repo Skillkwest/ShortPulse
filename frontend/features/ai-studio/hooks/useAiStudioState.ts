@@ -6,7 +6,6 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import { StudioOutput } from "../types";
 import {
   listVisibleGeneratedOutputs,
@@ -93,7 +92,6 @@ export const useAiStudioState = ({
   expertCreateMode = "standard",
   activePulsePresetId = null,
   pulseSessionInstanceId = null,
-  pulseWorkflowSession = null,
   setExpertCreateMode,
   setActivePulsePresetId,
   setPulseSessionInstanceId,
@@ -107,7 +105,6 @@ export const useAiStudioState = ({
   expertCreateMode?: "standard" | "pulse";
   activePulsePresetId?: string | null;
   pulseSessionInstanceId?: string | null;
-  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   setExpertCreateMode?: Dispatch<SetStateAction<"standard" | "pulse">>;
   setActivePulsePresetId?: Dispatch<SetStateAction<string | null>>;
   setPulseSessionInstanceId?: Dispatch<SetStateAction<string | null>>;
@@ -729,7 +726,6 @@ export const useAiStudioState = ({
     projectId,
     pulsePrompt,
     pulseSessionInstanceId,
-    pulseWorkflowSession,
     prompt,
     referenceImageUrl,
     removedFromAllRefsIds,

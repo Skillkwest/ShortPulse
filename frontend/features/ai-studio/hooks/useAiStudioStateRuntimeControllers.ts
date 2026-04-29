@@ -1,5 +1,4 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import { resolvePulseRuntimeState } from "../logic/pulseSessionState";
 import type { ReferenceProjectionState } from "../reference-projections";
@@ -42,7 +41,6 @@ type UseAiStudioStateRuntimeControllersParams = {
   projectId: string | null;
   pulsePrompt: string;
   pulseSessionInstanceId: string | null;
-  pulseWorkflowSession: AgentPulseWorkflowSession | null;
   prompt: string;
   referenceImageUrl: string | null;
   removedFromAllRefsIds: string[];
@@ -165,7 +163,6 @@ export const useAiStudioStateRuntimeControllers = ({
   projectId,
   pulsePrompt,
   pulseSessionInstanceId,
-  pulseWorkflowSession,
   prompt,
   referenceImageUrl,
   removedFromAllRefsIds,
@@ -342,7 +339,6 @@ export const useAiStudioStateRuntimeControllers = ({
       model,
       aspect,
       pulseWorkspaceState,
-      pulseWorkflowSession,
       referenceImageUrl,
       extraImageUrls,
       editReferenceText,

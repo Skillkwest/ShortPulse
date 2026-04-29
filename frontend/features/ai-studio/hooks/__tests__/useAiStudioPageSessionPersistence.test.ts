@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
+import type { AiStudioSessionAgentV1, AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import { useAiStudioPageSessionPersistence } from "../useAiStudioPageSessionPersistence";
 import { useAiStudioProjectWorkspacePersistenceController } from "../useAiStudioProjectWorkspacePersistenceController";
@@ -52,6 +52,18 @@ const mockedUseAiStudioSessionPersistenceController = vi.mocked(
 const mockedUseAiStudioProjectWorkspacePersistenceController = vi.mocked(
   useAiStudioProjectWorkspacePersistenceController
 );
+
+const createAgentRuntime = (
+  overrides: Partial<AiStudioSessionAgentV1> = {}
+): AiStudioSessionAgentV1 => ({
+  messages: [],
+  input: "",
+  latestAgentPrompt: null,
+  promptOrigin: "manual",
+  chatModeEnabled: true,
+  pulseWorkflowSession: null,
+  ...overrides,
+});
 
 describe("useAiStudioPageSessionPersistence", () => {
   const expertEditSessionState: ExpertEditSessionState = {
@@ -131,30 +143,17 @@ describe("useAiStudioPageSessionPersistence", () => {
       useAiStudioPageSessionPersistence({
         sessionId: "session-1",
         buildSessionSnapshot,
-        agentMessages: [],
-        agentInput: "plan next shot",
-        latestAgentPrompt: "latest",
-        promptOrigin: "manual",
-        chatModeEnabled: true,
-        pulseWorkflowSession: null,
+        agentRuntime: createAgentRuntime({
+          input: "plan next shot",
+          latestAgentPrompt: "latest",
+        }),
         agentRuntimes: {
-          standard: {
-            messages: [],
+          standard: createAgentRuntime({
             input: "plan next shot",
             latestAgentPrompt: "latest",
-            promptOrigin: "manual",
-            chatModeEnabled: true,
-            pulseWorkflowSession: null,
-          },
+          }),
           pulsePresetId: null,
-          pulse: {
-            messages: [],
-            input: "",
-            latestAgentPrompt: null,
-            promptOrigin: "manual",
-            chatModeEnabled: true,
-            pulseWorkflowSession: null,
-          },
+          pulse: createAgentRuntime(),
         },
         expertEditSessionState,
         hydrateFromSessionSnapshot,
@@ -172,30 +171,17 @@ describe("useAiStudioPageSessionPersistence", () => {
     params?.buildSessionSnapshot("session-2");
     expect(buildSessionSnapshot).toHaveBeenCalledWith({
       sessionId: "session-2",
-      agentMessages: [],
-      agentInput: "plan next shot",
-      latestAgentPrompt: "latest",
-      promptOrigin: "manual",
-      chatModeEnabled: true,
-      pulseWorkflowSession: null,
+      agentRuntime: createAgentRuntime({
+        input: "plan next shot",
+        latestAgentPrompt: "latest",
+      }),
       agentRuntimes: {
-        standard: {
-          messages: [],
+        standard: createAgentRuntime({
           input: "plan next shot",
           latestAgentPrompt: "latest",
-          promptOrigin: "manual",
-          chatModeEnabled: true,
-          pulseWorkflowSession: null,
-        },
+        }),
         pulsePresetId: null,
-        pulse: {
-          messages: [],
-          input: "",
-          latestAgentPrompt: null,
-          promptOrigin: "manual",
-          chatModeEnabled: true,
-          pulseWorkflowSession: null,
-        },
+        pulse: createAgentRuntime(),
       },
       expertEditSessionState,
     });
@@ -272,29 +258,22 @@ describe("useAiStudioPageSessionPersistence", () => {
       useAiStudioPageSessionPersistence({
         sessionId: "session-1",
         buildSessionSnapshot,
-        agentMessages: [
-          {
-            id: "assistant-1",
-            role: "assistant",
-            content: completedPulseWorkflowSession.lastArtifact ?? "",
-          },
-        ],
-        agentInput: "",
-        latestAgentPrompt: completedPulseWorkflowSession.lastArtifact ?? null,
-        promptOrigin: "agent",
-        chatModeEnabled: true,
-        pulseWorkflowSession: completedPulseWorkflowSession,
+        agentRuntime: createAgentRuntime({
+          messages: [
+            {
+              id: "assistant-1",
+              role: "assistant",
+              content: completedPulseWorkflowSession.lastArtifact ?? "",
+            },
+          ],
+          latestAgentPrompt: completedPulseWorkflowSession.lastArtifact ?? null,
+          promptOrigin: "agent",
+          pulseWorkflowSession: completedPulseWorkflowSession,
+        }),
         agentRuntimes: {
-          standard: {
-            messages: [],
-            input: "",
-            latestAgentPrompt: null,
-            promptOrigin: "manual",
-            chatModeEnabled: true,
-            pulseWorkflowSession: null,
-          },
+          standard: createAgentRuntime(),
           pulsePresetId: "story_builder",
-          pulse: {
+          pulse: createAgentRuntime({
             messages: [
               {
                 id: "assistant-1",
@@ -302,12 +281,10 @@ describe("useAiStudioPageSessionPersistence", () => {
                 content: completedPulseWorkflowSession.lastArtifact ?? "",
               },
             ],
-            input: "",
             latestAgentPrompt: completedPulseWorkflowSession.lastArtifact ?? null,
             promptOrigin: "agent",
-            chatModeEnabled: true,
             pulseWorkflowSession: completedPulseWorkflowSession,
-          },
+          }),
         },
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot: vi.fn(),
@@ -320,29 +297,22 @@ describe("useAiStudioPageSessionPersistence", () => {
 
     expect(buildSessionSnapshot).toHaveBeenCalledWith({
       sessionId: "session-2",
-      agentMessages: [
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: completedPulseWorkflowSession.lastArtifact,
-        },
-      ],
-      agentInput: "",
-      latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
-      promptOrigin: "agent",
-      chatModeEnabled: true,
-      pulseWorkflowSession: completedPulseWorkflowSession,
+      agentRuntime: createAgentRuntime({
+        messages: [
+          {
+            id: "assistant-1",
+            role: "assistant",
+            content: completedPulseWorkflowSession.lastArtifact,
+          },
+        ],
+        latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
+        promptOrigin: "agent",
+        pulseWorkflowSession: completedPulseWorkflowSession,
+      }),
       agentRuntimes: {
-        standard: {
-          messages: [],
-          input: "",
-          latestAgentPrompt: null,
-          promptOrigin: "manual",
-          chatModeEnabled: true,
-          pulseWorkflowSession: null,
-        },
+        standard: createAgentRuntime(),
         pulsePresetId: "story_builder",
-        pulse: {
+        pulse: createAgentRuntime({
           messages: [
             {
               id: "assistant-1",
@@ -350,12 +320,10 @@ describe("useAiStudioPageSessionPersistence", () => {
               content: completedPulseWorkflowSession.lastArtifact,
             },
           ],
-          input: "",
           latestAgentPrompt: completedPulseWorkflowSession.lastArtifact,
           promptOrigin: "agent",
-          chatModeEnabled: true,
           pulseWorkflowSession: completedPulseWorkflowSession,
-        },
+        }),
       },
       expertEditSessionState: undefined,
     });
@@ -417,12 +385,7 @@ describe("useAiStudioPageSessionPersistence", () => {
         projectId: "project-1",
         sessionId: "session-1",
         buildSessionSnapshot,
-        agentMessages: [],
-        agentInput: "",
-        latestAgentPrompt: null,
-        promptOrigin: "manual",
-        chatModeEnabled: true,
-        pulseWorkflowSession: null,
+        agentRuntime: createAgentRuntime(),
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
         resetProjectAgentConversation,
@@ -501,12 +464,7 @@ describe("useAiStudioPageSessionPersistence", () => {
         projectRouteRequested: true,
         sessionId: "session-1",
         buildSessionSnapshot,
-        agentMessages: [],
-        agentInput: "",
-        latestAgentPrompt: null,
-        promptOrigin: "manual",
-        chatModeEnabled: true,
-        pulseWorkflowSession: null,
+        agentRuntime: createAgentRuntime(),
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
         resetProjectAgentConversation,

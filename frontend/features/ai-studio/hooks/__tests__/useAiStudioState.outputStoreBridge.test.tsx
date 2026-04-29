@@ -527,12 +527,14 @@ describe("useAiStudioState output store bridge", () => {
 
     const snapshot = source.result.current.buildSessionSnapshot({
       sessionId: "session-restore-1",
-      agentMessages: [],
-      agentInput: "",
-      latestAgentPrompt: null,
-      promptOrigin: "manual",
-      chatModeEnabled: true,
-      pulseWorkflowSession: null,
+      agentRuntime: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      },
     });
 
     const restored = renderHook(

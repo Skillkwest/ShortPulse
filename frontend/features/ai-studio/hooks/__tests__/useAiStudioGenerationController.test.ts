@@ -19,7 +19,6 @@ const createParams = (
     isCharacterModeEnabled: false,
     prompt: "",
     agentInput: "",
-    usesAgentLane: true,
     currentCostCredits: 3,
     resolveCostCreditsForModel: vi.fn(() => null),
     isGenerateDisabled: false,
@@ -33,8 +32,6 @@ const createParams = (
     setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(vi.fn()),
     setOptimisticDebitEntries: asDispatch<{ credits: number; outputId: string | null }[]>(vi.fn()),
     refreshBalance: vi.fn(async () => 100),
-    handleAgentSend: vi.fn(async () => ({ prompt: "agent prompt", referenceTitle: "Agent ref" })),
-    onAgentCaptureResult: vi.fn(),
     resolveDefaultPromptForTool: vi.fn(() => "default prompt"),
     refreshCharacterModeInjectionBundleForSubmission: vi.fn(async () => null),
     resolveCharacterModeSubmissionOverrides: vi.fn(() => null),
@@ -50,7 +47,6 @@ const createParams = (
   return {
     ...baseParams,
     ...overrides,
-    usesAgentLane: overrides.usesAgentLane ?? baseParams.usesAgentLane,
   };
 };
 
@@ -59,49 +55,13 @@ describe("useAiStudioGenerationController", () => {
     vi.clearAllMocks();
   });
 
-  it("routes primary text create submit through agent send and captures returned Standard prompt", async () => {
-    const handleAgentSend = vi.fn(async () => ({
-      prompt: "refined from agent",
-      referenceTitle: "Refined",
-    }));
-    const onAgentCaptureResult = vi.fn();
-    const generateOutput = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "draft prompt",
-      handleAgentSend,
-      onAgentCaptureResult,
-      generateOutput,
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handlePrimarySubmit();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(handleAgentSend).toHaveBeenCalledWith("draft prompt", { captureResult: true });
-    expect(onAgentCaptureResult).toHaveBeenCalledWith("refined from agent", "Refined");
-    expect(generateOutput).not.toHaveBeenCalled();
-  });
-
-  it("routes chat-off primary text create submit into create image generation", async () => {
-    const handleAgentSend = vi.fn(async () => ({
-      prompt: "agent prompt should not be used",
-      referenceTitle: "unused",
-    }));
+  it("routes primary text create submit into provider generation", async () => {
     const generateOutput = vi.fn();
     const setPromptOrigin = vi.fn();
     const params = createParams({
       mode: "text",
       selectedTool: "create",
-      prompt: "shared fallback",
-      agentInput: "raw composer prompt",
-      usesAgentLane: false,
-      handleAgentSend,
+      prompt: "draft prompt",
       generateOutput,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
     });
@@ -114,7 +74,36 @@ describe("useAiStudioGenerationController", () => {
       await Promise.resolve();
     });
 
-    expect(handleAgentSend).not.toHaveBeenCalled();
+    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
+    expect(generateOutput).toHaveBeenCalledWith(
+      "draft prompt",
+      expect.objectContaining({
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      })
+    );
+  });
+
+  it("routes chat-off primary text create submit into create image generation", async () => {
+    const generateOutput = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      prompt: "shared fallback",
+      agentInput: "raw composer prompt",
+      generateOutput,
+      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handlePrimarySubmit();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
     expect(generateOutput).toHaveBeenCalledWith(
       "raw composer prompt",
@@ -126,10 +115,6 @@ describe("useAiStudioGenerationController", () => {
   });
 
   it("falls back to shared prompt for chat-off primary submit when composer input is empty", async () => {
-    const handleAgentSend = vi.fn(async () => ({
-      prompt: "agent prompt should not be used",
-      referenceTitle: "unused",
-    }));
     const generateOutput = vi.fn();
     const setPromptOrigin = vi.fn();
     const params = createParams({
@@ -137,8 +122,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "  shared fallback prompt  ",
       agentInput: "   ",
-      usesAgentLane: false,
-      handleAgentSend,
       generateOutput,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
     });
@@ -151,7 +134,6 @@ describe("useAiStudioGenerationController", () => {
       await Promise.resolve();
     });
 
-    expect(handleAgentSend).not.toHaveBeenCalled();
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
     expect(generateOutput).toHaveBeenCalledWith(
       "shared fallback prompt",
@@ -163,10 +145,6 @@ describe("useAiStudioGenerationController", () => {
   });
 
   it("uses chat-off inline generate to submit trimmed raw input to create image generation", async () => {
-    const handleAgentSend = vi.fn(async () => ({
-      prompt: "agent prompt should not be used",
-      referenceTitle: "unused",
-    }));
     const generateOutput = vi.fn();
     const setPromptOrigin = vi.fn();
     const params = createParams({
@@ -174,8 +152,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "shared fallback prompt",
       agentInput: "  raw inline prompt  ",
-      usesAgentLane: false,
-      handleAgentSend,
       generateOutput,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
     });
@@ -188,7 +164,6 @@ describe("useAiStudioGenerationController", () => {
       await Promise.resolve();
     });
 
-    expect(handleAgentSend).not.toHaveBeenCalled();
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
     expect(generateOutput).toHaveBeenCalledWith(
       "raw inline prompt",
@@ -200,10 +175,6 @@ describe("useAiStudioGenerationController", () => {
   });
 
   it("falls back to shared prompt for chat-off inline generate when input is empty", async () => {
-    const handleAgentSend = vi.fn(async () => ({
-      prompt: "agent prompt should not be used",
-      referenceTitle: "unused",
-    }));
     const generateOutput = vi.fn();
     const setPromptOrigin = vi.fn();
     const params = createParams({
@@ -211,8 +182,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "shared fallback prompt",
       agentInput: "   ",
-      usesAgentLane: false,
-      handleAgentSend,
       generateOutput,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
     });
@@ -225,7 +194,6 @@ describe("useAiStudioGenerationController", () => {
       await Promise.resolve();
     });
 
-    expect(handleAgentSend).not.toHaveBeenCalled();
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
     expect(generateOutput).toHaveBeenCalledWith(
       "shared fallback prompt",
@@ -243,7 +211,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "shared fallback",
       agentInput: "raw prompt",
-      usesAgentLane: false,
       currentCostCredits: 3,
       setOptimisticDebitEntries:
         asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
@@ -267,7 +234,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "shared fallback",
       agentInput: "raw prompt",
-      usesAgentLane: false,
       currentCostCredits: 3,
       setOptimisticDebitEntries:
         asDispatch<{ credits: number; outputId: string | null }[]>(setOptimisticDebitEntries),
@@ -292,7 +258,6 @@ describe("useAiStudioGenerationController", () => {
       selectedTool: "create",
       prompt: "   ",
       agentInput: "   ",
-      usesAgentLane: false,
       setUiError: asDispatch<string | null>(setUiError),
       generateOutput,
     });
@@ -306,39 +271,6 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(setUiError).toHaveBeenCalledWith("Add a prompt to start a generation.");
-    expect(generateOutput).not.toHaveBeenCalled();
-  });
-
-  it("keeps Pulse create submit in the Pulse agent lane without writing Standard prompt references", async () => {
-    const handleAgentSend = vi.fn(async () => ({
-      prompt: "pulse bootstrap prompt",
-      referenceTitle: "Pulse",
-    }));
-    const onAgentCaptureResult = vi.fn();
-    const setPromptOrigin = vi.fn();
-    const generateOutput = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      prompt: "pulse draft",
-      usesAgentLane: true,
-      handleAgentSend,
-      onAgentCaptureResult: undefined,
-      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
-      generateOutput,
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handlePrimarySubmit();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(handleAgentSend).toHaveBeenCalledWith("pulse draft", { captureResult: true });
-    expect(onAgentCaptureResult).not.toHaveBeenCalled();
-    expect(setPromptOrigin).not.toHaveBeenCalled();
     expect(generateOutput).not.toHaveBeenCalled();
   });
 

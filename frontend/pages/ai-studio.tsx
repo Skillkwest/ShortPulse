@@ -62,7 +62,7 @@ import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/compo
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import { usePulseWorkflowSessionReconciliation } from "../features/ai-studio/hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
-import { resolveCreateAgentGenerationHandoff } from "../features/ai-studio/hooks/agentGeneration/createAgentGenerationHandoff";
+import { resolveChatOffCreatePrompt } from "../features/ai-studio/logic/promptAdjacency";
 import type {
   CanvasDropResolution,
   PrepareCanvasMediaLibraryDrop,
@@ -89,6 +89,7 @@ import {
   createEmptyAiStudioSessionSnapshot,
   patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotWorkspace,
+  type AiStudioSessionAgentV1,
   type AiStudioSessionAgentRuntimesV2,
 } from "../features/ai-studio/logic/sessionSnapshot";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
@@ -337,7 +338,6 @@ export default function AiStudioPage() {
     expertCreateMode,
     activePulsePresetId: activeCreatePulsePresetId,
     pulseSessionInstanceId,
-    pulseWorkflowSession,
     setExpertCreateMode,
     setActivePulsePresetId: setActiveCreatePulsePresetId,
     setPulseSessionInstanceId,
@@ -789,8 +789,6 @@ export default function AiStudioPage() {
     agentAttachments,
     linkedPromptReferenceIds,
     isAgentDropActive,
-    latestAgentPrompt,
-    promptOrigin,
     persistedAgentRuntimes,
     setPromptOrigin,
     stagedAgentPrompt,
@@ -932,6 +930,14 @@ export default function AiStudioPage() {
     persistedAgentRuntimes,
     pulseWorkflowSession,
   ]);
+  const sessionAgentRuntime = useMemo<AiStudioSessionAgentV1>(() => {
+    if (expertCreateMode === "pulse") {
+      return hasActivePulseSession
+        ? sessionAgentRuntimes.pulse
+        : createEmptyAiStudioSessionAgentState();
+    }
+    return sessionAgentRuntimes.standard;
+  }, [expertCreateMode, hasActivePulseSession, sessionAgentRuntimes]);
 
   const {
     sessionRestoreCandidate,
@@ -944,13 +950,7 @@ export default function AiStudioPage() {
     sessionId: activeSessionPersistenceSessionId,
     sessionTitleOverride: sessionPersistenceTitleOverride,
     buildSessionSnapshot: buildProjectAwareSessionSnapshot,
-    agentMessages,
-    agentInput,
-    latestAgentPrompt,
-    promptOrigin,
-    chatModeEnabled,
-    pulseWorkflowSession:
-      expertCreateMode === "pulse" && hasActivePulseSession ? pulseWorkflowSession : null,
+    agentRuntime: sessionAgentRuntime,
     agentRuntimes: sessionAgentRuntimes,
     expertEditSessionState,
     hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
@@ -1156,19 +1156,9 @@ export default function AiStudioPage() {
     },
     [addAgentPromptReference, setPromptOrigin]
   );
-  const createAgentGenerationHandoff = useMemo(
-    () =>
-      resolveCreateAgentGenerationHandoff({
-        expertCreateMode,
-        chatModeEnabled,
-        onStandardAgentCaptureResult: handleStandardAgentCaptureResult,
-      }),
-    [chatModeEnabled, expertCreateMode, handleStandardAgentCaptureResult]
-  );
-
   const {
     handleGenerate,
-    handlePrimarySubmit,
+    handlePrimarySubmit: handleProviderPrimarySubmit,
     handleChatOffInlineGenerate,
     handleRegenerateWithDebit,
     handleImageRegenerateWithDebit,
@@ -1184,7 +1174,6 @@ export default function AiStudioPage() {
     prompt,
     selectedStyleContext,
     agentInput,
-    usesAgentLane: createAgentGenerationHandoff.usesAgentLane,
     currentCostCredits,
     resolveCostCreditsForModel: resolveModelPickerCredits,
     isGenerateDisabled: effectiveIsGenerateDisabled,
@@ -1198,8 +1187,6 @@ export default function AiStudioPage() {
     setPromptOrigin,
     setOptimisticDebitEntries,
     refreshBalance,
-    handleAgentSend,
-    onAgentCaptureResult: createAgentGenerationHandoff.onAgentCaptureResult,
     resolveDefaultPromptForTool,
     refreshCharacterModeInjectionBundleForSubmission,
     resolveCharacterModeSubmissionOverrides,
@@ -1212,6 +1199,46 @@ export default function AiStudioPage() {
     regenerateOutput,
     activeOutputId,
   });
+  const handleStandardCreatePrimarySubmit = useCallback(() => {
+    if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
+      if (chatModeEnabled) {
+        handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
+          if (result?.prompt) {
+            handleStandardAgentCaptureResult(result.prompt, result.referenceTitle);
+          }
+        });
+        return;
+      }
+      handleProviderPrimarySubmit();
+      return;
+    }
+    handleProviderPrimarySubmit();
+  }, [
+    agentInput,
+    chatModeEnabled,
+    handleAgentSend,
+    handleProviderPrimarySubmit,
+    handleStandardAgentCaptureResult,
+    mode,
+    prompt,
+    selectedTool,
+  ]);
+  const handlePulseCreatePrimarySubmit = useCallback(() => {
+    if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
+      const pulsePrompt = resolveChatOffCreatePrompt({
+        agentInput,
+        sharedPrompt: prompt,
+        allowSharedPromptFallback: true,
+      });
+      void handleAgentSend(pulsePrompt ?? "", { captureResult: true });
+      return;
+    }
+    handleProviderPrimarySubmit();
+  }, [agentInput, handleAgentSend, handleProviderPrimarySubmit, mode, prompt, selectedTool]);
+  const handlePrimarySubmit =
+    expertCreateMode === "pulse"
+      ? handlePulseCreatePrimarySubmit
+      : handleStandardCreatePrimarySubmit;
   const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt } =
     useAiStudioAgentOutputGenerationBridge({
       expertCreateMode,

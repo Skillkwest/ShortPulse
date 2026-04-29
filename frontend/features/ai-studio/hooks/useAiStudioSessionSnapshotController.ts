@@ -4,9 +4,9 @@
  */
 import { useCallback, type Dispatch, type SetStateAction, type MutableRefObject } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import type { AgentMessage, AgentPulseWorkflowSession } from "../../../prefabs/agent/types";
 import {
   buildAiStudioSessionSnapshot,
+  type AiStudioSessionAgentV1,
   type AiStudioSessionAgentRuntimesV2,
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
@@ -35,7 +35,6 @@ type UseAiStudioSessionSnapshotControllerParams = {
   model: string | null;
   aspect: string;
   pulseWorkspaceState: PulseWorkspaceState;
-  pulseWorkflowSession: AgentPulseWorkflowSession | null;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
@@ -136,7 +135,6 @@ export const useAiStudioSessionSnapshotController = ({
   model,
   aspect,
   pulseWorkspaceState,
-  pulseWorkflowSession,
   referenceImageUrl,
   extraImageUrls,
   editReferenceText,
@@ -348,23 +346,13 @@ export const useAiStudioSessionSnapshotController = ({
     ({
       sessionId,
       updatedAt,
-      agentMessages,
-      agentInput,
-      latestAgentPrompt,
-      promptOrigin,
-      chatModeEnabled,
-      pulseWorkflowSession: pulseWorkflowSessionOverride,
+      agentRuntime,
       agentRuntimes,
       expertEditSessionState,
     }: {
       sessionId: string;
       updatedAt?: string;
-      agentMessages: AgentMessage[];
-      agentInput: string;
-      latestAgentPrompt: string | null;
-      promptOrigin: "manual" | "agent" | "reference";
-      chatModeEnabled: boolean;
-      pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+      agentRuntime: AiStudioSessionAgentV1;
       agentRuntimes?: AiStudioSessionAgentRuntimesV2;
       expertEditSessionState?: ExpertEditSessionState | null;
     }): AiStudioSessionSnapshotV2 =>
@@ -409,12 +397,12 @@ export const useAiStudioSessionSnapshotController = ({
         activeOutputId,
         curatedReferenceIds,
         removedFromAllRefsIds,
-        agentMessages,
-        agentInput,
-        latestAgentPrompt,
-        promptOrigin,
-        chatModeEnabled,
-        pulseWorkflowSession: pulseWorkflowSessionOverride ?? pulseWorkflowSession,
+        agentMessages: agentRuntime.messages,
+        agentInput: agentRuntime.input,
+        latestAgentPrompt: agentRuntime.latestAgentPrompt,
+        promptOrigin: agentRuntime.promptOrigin,
+        chatModeEnabled: agentRuntime.chatModeEnabled,
+        pulseWorkflowSession: agentRuntime.pulseWorkflowSession ?? null,
         agentRuntimes,
         expertEditSessionState,
       }),
@@ -445,7 +433,6 @@ export const useAiStudioSessionSnapshotController = ({
       outputs,
       pulseCreatePrompt,
       pulseWorkspaceState,
-      pulseWorkflowSession,
       prompt,
       referenceImageUrl,
       removedFromAllRefsIds,

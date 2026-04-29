@@ -260,8 +260,12 @@ describe("Create agent mode boundaries", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
 
     expect(generationControllerSource).not.toContain("expertCreateMode");
-    expect(generationControllerSource).toContain("onAgentCaptureResult");
-    expect(pageSource).toContain("resolveCreateAgentGenerationHandoff");
+    expect(generationControllerSource).not.toContain("onAgentCaptureResult");
+    expect(generationControllerSource).not.toContain("usesAgentLane");
+    expect(generationControllerSource).not.toContain("handleAgentSend");
+    expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
+    expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
+    expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
     expect(pageSource).not.toContain(
       'expertCreateMode === "pulse" ? undefined : handleStandardAgentCaptureResult'
     );
@@ -337,5 +341,17 @@ describe("Create agent mode boundaries", () => {
       expect(source).not.toContain("agentChatOpen");
       expect(source).not.toContain("prompt-expand-btn");
     }
+  });
+
+  it("keeps page persistence from accepting loose active agent fields", () => {
+    const pagePersistenceSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioPageSessionPersistence.ts"
+    );
+
+    expect(pagePersistenceSource).toContain("agentRuntime: AiStudioSessionAgentV1");
+    expect(pagePersistenceSource).not.toContain("agentMessages: AgentMessage[]");
+    expect(pagePersistenceSource).not.toContain("agentInput: string");
+    expect(pagePersistenceSource).not.toContain("latestAgentPrompt: string | null");
+    expect(pagePersistenceSource).not.toContain("pulseWorkflowSession?: AgentPulseWorkflowSession");
   });
 });

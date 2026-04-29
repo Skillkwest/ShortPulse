@@ -74,7 +74,6 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   prompt: string;
   selectedStyleContext?: StudioOutput["styleContext"] | null;
   agentInput: string;
-  usesAgentLane: boolean;
   currentCostCredits: number | null;
   promptReferenceGenerateCostCredits?: number | null;
   resolveCostCreditsForModel?: (modelId: string) => number | null;
@@ -100,15 +99,6 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
       source?: "snapshot" | "fallback";
     }) => void;
   }) => Promise<number | null>;
-  handleAgentSend: (
-    textOverride?: string,
-    options?: {
-      captureResult?: boolean;
-      selectedOverride?: StudioOutput | null;
-      modeHint?: "chat" | "text" | "describe" | "reference";
-    }
-  ) => Promise<{ prompt: string; referenceTitle?: string | null } | void>;
-  onAgentCaptureResult?: (promptText: string, title?: string | null) => void;
   resolveDefaultPromptForTool: (tool: ToolId | null) => string;
   refreshCharacterModeInjectionBundleForSubmission: (
     tool: ToolId | null
@@ -182,7 +172,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   prompt,
   selectedStyleContext = null,
   agentInput,
-  usesAgentLane,
   currentCostCredits,
   promptReferenceGenerateCostCredits = null,
   resolveCostCreditsForModel,
@@ -197,8 +186,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   setPromptOrigin,
   setOptimisticDebitEntries,
   refreshBalance,
-  handleAgentSend,
-  onAgentCaptureResult,
   resolveDefaultPromptForTool,
   refreshCharacterModeInjectionBundleForSubmission,
   resolveCharacterModeSubmissionOverrides,
@@ -494,43 +481,31 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 
   const handlePrimarySubmit = useCallback(() => {
     if ((selectedTool === "create" || selectedTool === "text") && mode === "text") {
-      if (usesAgentLane) {
-        handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
-          const agentRes = result as { prompt: string; referenceTitle?: string } | undefined;
-          if (agentRes?.prompt) {
-            onAgentCaptureResult?.(agentRes.prompt, agentRes.referenceTitle);
-          }
-        });
-      } else {
-        const rawPrompt = resolveChatOffCreatePrompt({
-          agentInput,
-          sharedPrompt: prompt,
-          allowSharedPromptFallback: true,
-        });
-        if (rawPrompt) {
-          setPromptOrigin("manual");
-        }
-        void handleGenerate(rawPrompt ?? "", {
-          modeOverride: "image",
-          toolOverride: "create",
-          costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
-        });
+      const rawPrompt = resolveChatOffCreatePrompt({
+        agentInput,
+        sharedPrompt: prompt,
+        allowSharedPromptFallback: true,
+      });
+      if (rawPrompt) {
+        setPromptOrigin("manual");
       }
+      void handleGenerate(rawPrompt ?? "", {
+        modeOverride: "image",
+        toolOverride: "create",
+        costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+      });
       return;
     }
     void handleGenerate();
   }, [
     agentInput,
     currentCostCredits,
-    handleAgentSend,
     handleGenerate,
     mode,
-    onAgentCaptureResult,
     prompt,
     promptReferenceGenerateCostCredits,
     selectedTool,
     setPromptOrigin,
-    usesAgentLane,
   ]);
 
   const handleChatOffInlineGenerate = useCallback(() => {

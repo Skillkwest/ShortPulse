@@ -3,10 +3,8 @@
  * Keeps page-owned snapshot wiring and warning hydration out of the page component while preserving the existing controller contract.
  */
 import { useCallback } from "react";
-import type { AgentMessage } from "../../ai-agent/types";
-import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
-import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import type {
+  AiStudioSessionAgentV1,
   AiStudioSessionAgentRuntimesV2,
   AiStudioSessionSnapshot,
 } from "../logic/sessionSnapshot";
@@ -18,12 +16,7 @@ import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas"
 
 type BuildPageSessionSnapshotArgs = {
   sessionId: string;
-  agentMessages: AgentMessage[];
-  agentInput: string;
-  latestAgentPrompt: string | null;
-  promptOrigin: PromptOrigin;
-  chatModeEnabled: boolean;
-  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  agentRuntime: AiStudioSessionAgentV1;
   agentRuntimes?: AiStudioSessionAgentRuntimesV2;
   expertEditSessionState?: ExpertEditSessionState | null;
 };
@@ -34,12 +27,7 @@ type UseAiStudioPageSessionPersistenceParams = {
   sessionId: string | null;
   sessionTitleOverride?: string | null;
   buildSessionSnapshot: (args: BuildPageSessionSnapshotArgs) => AiStudioSessionSnapshot;
-  agentMessages: AgentMessage[];
-  agentInput: string;
-  latestAgentPrompt: string | null;
-  promptOrigin: PromptOrigin;
-  chatModeEnabled: boolean;
-  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  agentRuntime: AiStudioSessionAgentV1;
   agentRuntimes?: AiStudioSessionAgentRuntimesV2;
   expertEditSessionState?: ExpertEditSessionState | null;
   hydrateFromSessionSnapshot: (
@@ -66,12 +54,7 @@ export const useAiStudioPageSessionPersistence = ({
   sessionId,
   sessionTitleOverride,
   buildSessionSnapshot,
-  agentMessages,
-  agentInput,
-  latestAgentPrompt,
-  promptOrigin,
-  chatModeEnabled,
-  pulseWorkflowSession,
+  agentRuntime,
   agentRuntimes,
   expertEditSessionState,
   hydrateFromSessionSnapshot,
@@ -86,26 +69,11 @@ export const useAiStudioPageSessionPersistence = ({
     (activeSessionId: string) =>
       buildSessionSnapshot({
         sessionId: activeSessionId,
-        agentMessages,
-        agentInput,
-        latestAgentPrompt,
-        promptOrigin,
-        chatModeEnabled,
-        pulseWorkflowSession,
+        agentRuntime,
         agentRuntimes,
         expertEditSessionState,
       }),
-    [
-      agentInput,
-      agentMessages,
-      buildSessionSnapshot,
-      chatModeEnabled,
-      expertEditSessionState,
-      agentRuntimes,
-      latestAgentPrompt,
-      pulseWorkflowSession,
-      promptOrigin,
-    ]
+    [agentRuntime, buildSessionSnapshot, expertEditSessionState, agentRuntimes]
   );
 
   const handleSessionPersistenceWarning = useCallback(

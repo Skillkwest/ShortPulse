@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { useAiStudioAgentOrchestration } from "../useAiStudioAgentOrchestration";
+import { resolveCreateAgentOrchestrationRuntimePolicy } from "../agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import { prepareImageUrl } from "../../logic/imageDescription";
 import type { StudioOutput } from "../../types";
 import type { AgentAttachment, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
@@ -27,6 +28,23 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
+
+const standardRuntimePolicy = () =>
+  resolveCreateAgentOrchestrationRuntimePolicy({
+    expertCreateMode: "standard",
+    activePulsePresetId: null,
+    pulseSessionInstanceId: null,
+  });
+
+const pulseRuntimePolicy = (
+  activePulsePresetId = "story_builder",
+  pulseSessionInstanceId = "pulse-session-1"
+) =>
+  resolveCreateAgentOrchestrationRuntimePolicy({
+    expertCreateMode: "pulse",
+    activePulsePresetId,
+    pulseSessionInstanceId,
+  });
 
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioAgentOrchestration>[0]> = {}
@@ -66,6 +84,7 @@ const createParams = (
   setActiveOutputId: asDispatch<string | null>(vi.fn()),
   lastAssistantMessage: null,
   setUiNotice: asDispatch<string | null>(vi.fn()),
+  runtimePolicy: standardRuntimePolicy(),
   ...overrides,
 });
 
@@ -366,9 +385,7 @@ describe("useAiStudioAgentOrchestration", () => {
       setUiNotice: asDispatch<string | null>(setUiNotice),
       setAgentAttachmentError: asDispatch<string | null>(setAgentAttachmentError),
       trackAgentUiEvent,
-      expertCreateMode: "pulse",
-      activePulsePresetId: "image",
-      pulseSessionInstanceId: "pulse-session-1",
+      runtimePolicy: pulseRuntimePolicy("image"),
       getAgentContext: vi.fn(() => ({
         activePrompt: "Upload your image to get the process started :)",
         lastAssistantMessage: "Upload your image to get the process started :)",
@@ -422,9 +439,7 @@ describe("useAiStudioAgentOrchestration", () => {
       sendToAgent,
       appendUserMessage,
       setUiNotice: asDispatch<string | null>(setUiNotice),
-      expertCreateMode: "pulse",
-      activePulsePresetId: "image",
-      pulseSessionInstanceId: "pulse-session-1",
+      runtimePolicy: pulseRuntimePolicy("image"),
       getAgentContext: vi.fn(() => ({
         media: [
           {
@@ -670,6 +685,7 @@ describe("useAiStudioAgentOrchestration", () => {
       setSharedPrompt,
       setLatestAgentPrompt: asDispatch<string | null>(setLatestAgentPrompt),
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+      runtimePolicy: pulseRuntimePolicy("multi_shot"),
       getAgentContext: vi.fn(() => ({
         pulse: {
           presetId: "multi_shot",
@@ -742,9 +758,7 @@ describe("useAiStudioAgentOrchestration", () => {
       sendToAgent,
       setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
       getAgentContext: vi.fn(() => ({})),
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-      pulseSessionInstanceId: "pulse-session-1",
+      runtimePolicy: pulseRuntimePolicy("story_builder"),
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -822,9 +836,7 @@ describe("useAiStudioAgentOrchestration", () => {
           },
         ],
       })),
-      expertCreateMode: "pulse",
-      activePulsePresetId: "image",
-      pulseSessionInstanceId: "pulse-session-1",
+      runtimePolicy: pulseRuntimePolicy("image"),
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -892,9 +904,7 @@ describe("useAiStudioAgentOrchestration", () => {
       sendToAgent,
       setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
       getAgentContext: vi.fn(() => ({})),
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-      pulseSessionInstanceId: "pulse-session-1",
+      runtimePolicy: pulseRuntimePolicy("story_builder"),
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -942,9 +952,7 @@ describe("useAiStudioAgentOrchestration", () => {
       sendToAgent,
       setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
       getAgentContext: vi.fn(() => ({})),
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-      pulseSessionInstanceId: "pulse-session-1",
+      runtimePolicy: pulseRuntimePolicy("story_builder"),
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -989,9 +997,7 @@ describe("useAiStudioAgentOrchestration", () => {
       sendToAgent,
       setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
       getAgentContext: vi.fn(() => ({})),
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-      pulseSessionInstanceId: "pulse-session-1",
+      runtimePolicy: pulseRuntimePolicy("story_builder"),
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -1032,9 +1038,7 @@ describe("useAiStudioAgentOrchestration", () => {
     const params = createParams({
       sendToAgent,
       getAgentContext: vi.fn(() => ({})),
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-      pulseSessionInstanceId: "pulse-session-1",
+      runtimePolicy: pulseRuntimePolicy("story_builder"),
       resolvePulseSessionNamespace: (presetId, pulseSessionInstanceId) =>
         `ai-studio:session-1::pulse:${presetId}:${pulseSessionInstanceId}`,
     });
@@ -1083,6 +1087,7 @@ describe("useAiStudioAgentOrchestration", () => {
       agentInput: "A knight enters a cursed forest",
       sendToAgent,
       setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+      runtimePolicy: pulseRuntimePolicy("story_builder"),
       getAgentContext: vi.fn(() => ({
         pulse: {
           presetId: "story_builder",

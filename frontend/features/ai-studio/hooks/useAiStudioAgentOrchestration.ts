@@ -13,7 +13,6 @@ import type {
   AgentSendOptions,
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
-import { resolvePulseRuntimeState } from "../logic/pulseSessionState";
 import { buildPendingPulseWorkflowSessionForUserInput } from "../logic/pulseWorkflowSession";
 import {
   hasPulseImageContext,
@@ -70,9 +69,7 @@ export const useAiStudioAgentOrchestration = ({
   setActiveOutputId,
   lastAssistantMessage,
   setUiNotice,
-  expertCreateMode = "standard",
-  activePulsePresetId = null,
-  pulseSessionInstanceId = null,
+  runtimePolicy,
   resolvePulseSessionNamespace,
 }: UseAiStudioAgentOrchestrationParams) => {
   const [isPromptRefining, setIsPromptRefining] = useState(false);
@@ -94,17 +91,12 @@ export const useAiStudioAgentOrchestration = ({
     setAgentAttachmentError(PULSE_IMAGE_INTAKE_REQUIRED_NOTICE);
     trackAgentUiEvent("studio_agent_send_blocked_pulse_image_required");
   }, [setAgentAttachmentError, setUiNotice, trackAgentUiEvent]);
-  const { hasActivePulseSession } = resolvePulseRuntimeState({
-    expertCreateMode,
-    activePulsePresetId,
-    pulseSessionInstanceId,
-  });
   const ensurePulseSessionReady = useCallback(() => {
-    if (expertCreateMode !== "pulse") return true;
-    if (hasActivePulseSession) return true;
+    if (runtimePolicy.kind !== "pulse") return true;
+    if (runtimePolicy.hasActivePulseSession) return true;
     notifyPulseSelectionRequired();
     return false;
-  }, [expertCreateMode, hasActivePulseSession, notifyPulseSelectionRequired]);
+  }, [notifyPulseSelectionRequired, runtimePolicy]);
 
   const handleAgentSend = useCallback(
     async (
@@ -132,14 +124,11 @@ export const useAiStudioAgentOrchestration = ({
         trimmed || droppedPromptText || (allowImageOnlySend ? "" : prompt.trim());
       if (!outboundText && !allowImageOnlySend) return;
       const outboundAttachments = cloneMessageAttachments(agentAttachments);
-      const selectedOverride =
-        options?.selectedOverride === undefined && expertCreateMode !== "pulse"
-          ? null
-          : options?.selectedOverride;
+      const selectedOverride = runtimePolicy.resolveSelectedOverride(options?.selectedOverride);
       const baseContext = getAgentContext({
         lastAssistantMessage,
         selectedOverride,
-        includeActiveOutput: expertCreateMode === "pulse",
+        includeActiveOutput: runtimePolicy.includeActiveOutput,
         modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
       });
       if (
@@ -282,10 +271,7 @@ export const useAiStudioAgentOrchestration = ({
           attachments: outboundAttachments,
           preparedImageUrls,
         });
-        const workflowPulse =
-          mediaPatchedContext.pulse?.runtimeMode === "workflow_gpt"
-            ? mediaPatchedContext.pulse
-            : null;
+        const workflowPulse = runtimePolicy.resolveWorkflowPulse(mediaPatchedContext);
         const pendingWorkflowSession = buildPendingPulseWorkflowSessionForUserInput({
           preset: workflowPulse
             ? {
@@ -308,7 +294,7 @@ export const useAiStudioAgentOrchestration = ({
                 },
               }
             : mediaPatchedContext;
-        if (pendingWorkflowSession) {
+        if (pendingWorkflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
           setPulseWorkflowSession(pendingWorkflowSession);
         }
 
@@ -338,7 +324,7 @@ export const useAiStudioAgentOrchestration = ({
           has_apply_prompt: Boolean(appliedPrompt),
         });
 
-        const hasActivePulse = Boolean(requestContext.pulse);
+        const hasActivePulse = runtimePolicy.hasPromptApplyPulseContext(requestContext);
         if (appliedPrompt) {
           setLatestAgentPrompt(appliedPrompt);
           if (shouldApplyAgentPromptToSharedPrompt(selectedTool, { hasActivePulse })) {
@@ -347,7 +333,7 @@ export const useAiStudioAgentOrchestration = ({
           }
         }
 
-        if (workflowSession) {
+        if (workflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
           setPulseWorkflowSession(workflowSession);
         }
 
@@ -384,9 +370,9 @@ export const useAiStudioAgentOrchestration = ({
       setAgentAttachments,
       setPulseWorkflowSession,
       ensurePulseSessionReady,
-      expertCreateMode,
       notifyBootstrapPending,
       notifyPulseImageRequired,
+      runtimePolicy,
       trackAgentUiEvent,
     ]
   );
@@ -404,8 +390,8 @@ export const useAiStudioAgentOrchestration = ({
     try {
       const context = getAgentContext({
         lastAssistantMessage,
-        selectedOverride: expertCreateMode === "pulse" ? undefined : null,
-        includeActiveOutput: expertCreateMode === "pulse",
+        selectedOverride: runtimePolicy.resolveSelectedOverride(undefined),
+        includeActiveOutput: runtimePolicy.includeActiveOutput,
         modeHint: "text",
       });
       const { response, actions, workflowSession, discarded } = await sendToAgent({
@@ -428,7 +414,7 @@ export const useAiStudioAgentOrchestration = ({
         addAgentPromptReference(refinedPrompt, "Refined prompt");
         setPromptOrigin("agent");
       }
-      if (workflowSession) {
+      if (workflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
         setPulseWorkflowSession(workflowSession);
       }
     } finally {
@@ -447,8 +433,8 @@ export const useAiStudioAgentOrchestration = ({
     setPromptOrigin,
     setSharedPrompt,
     ensurePulseSessionReady,
-    expertCreateMode,
     notifyBootstrapPending,
+    runtimePolicy,
   ]);
 
   const handlePulsePresetStart = useCallback(
@@ -468,7 +454,7 @@ export const useAiStudioAgentOrchestration = ({
         latestAgentPrompt: null,
         lastAssistantMessage: null,
         selectedTool,
-        pulseSessionInstanceId,
+        pulseSessionInstanceId: runtimePolicy.pulseSessionInstanceId,
         resolvePulseSessionNamespace,
         getAgentContext,
         notifyBootstrapPending,
@@ -499,7 +485,7 @@ export const useAiStudioAgentOrchestration = ({
       setPromptOrigin,
       setSharedPrompt,
       notifyBootstrapPending,
-      pulseSessionInstanceId,
+      runtimePolicy,
       resolvePulseSessionNamespace,
       trackAgentUiEvent,
     ]
@@ -521,8 +507,8 @@ export const useAiStudioAgentOrchestration = ({
     try {
       const context = getAgentContext({
         lastAssistantMessage,
-        selectedOverride: expertCreateMode === "pulse" ? undefined : null,
-        includeActiveOutput: expertCreateMode === "pulse",
+        selectedOverride: runtimePolicy.resolveSelectedOverride(undefined),
+        includeActiveOutput: runtimePolicy.includeActiveOutput,
         modeHint: "text",
       });
       const { response, actions, workflowSession, discarded } = await sendToAgent({
@@ -547,7 +533,7 @@ export const useAiStudioAgentOrchestration = ({
         }
         setPromptOrigin("manual");
       }
-      if (workflowSession) {
+      if (workflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
         setPulseWorkflowSession(workflowSession);
       }
     } finally {
@@ -568,8 +554,8 @@ export const useAiStudioAgentOrchestration = ({
     setVideoReferenceText,
     videoReferenceText,
     ensurePulseSessionReady,
-    expertCreateMode,
     notifyBootstrapPending,
+    runtimePolicy,
   ]);
 
   const handleDescribeReference = useCallback(

@@ -12,6 +12,7 @@ import type {
 } from "../../../../prefabs/agent";
 import type { PromptOrigin } from "../../logic/agentPromptOwnership";
 import type { StudioOutput, ToolId } from "../../types";
+import type { CreateAgentOrchestrationRuntimePolicy } from "./createAgentOrchestrationRuntimePolicy";
 
 export type AgentModeHint = "chat" | "text" | "describe" | "reference";
 
@@ -84,8 +85,6 @@ export type UseAiStudioAgentOrchestrationParams = {
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   lastAssistantMessage: string | null;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
-  expertCreateMode?: "standard" | "pulse";
-  activePulsePresetId?: string | null;
-  pulseSessionInstanceId?: string | null;
+  runtimePolicy: CreateAgentOrchestrationRuntimePolicy;
   resolvePulseSessionNamespace?: (presetId: string, pulseSessionInstanceId?: string) => string;
 };

@@ -35,6 +35,7 @@ import type { CreatePulseResolvedPreset } from "../components/create/createPulse
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
 import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatModePreference";
 import { resolveCreateAgentBridgeRuntime } from "./agentBridgeRuntime/createAgentBridgeRuntime";
+import { resolveCreateAgentOrchestrationRuntimePolicy } from "./agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 
 type UseAiStudioAgentBridgeParams = {
@@ -250,6 +251,15 @@ export const useAiStudioAgentBridge = ({
         pulseSessionInstanceId,
       }),
     [activePulsePresetId, expertCreateMode, pulseSessionInstanceId, sessionId]
+  );
+  const orchestrationRuntimePolicy = useMemo(
+    () =>
+      resolveCreateAgentOrchestrationRuntimePolicy({
+        expertCreateMode,
+        activePulsePresetId,
+        pulseSessionInstanceId,
+      }),
+    [activePulsePresetId, expertCreateMode, pulseSessionInstanceId]
   );
   const {
     isPulseCreateMode,
@@ -739,10 +749,8 @@ export const useAiStudioAgentBridge = ({
     setActiveOutputId,
     lastAssistantMessage: latestAssistantMessage,
     setUiNotice,
+    runtimePolicy: orchestrationRuntimePolicy,
     resolvePulseSessionNamespace,
-    expertCreateMode,
-    activePulsePresetId,
-    pulseSessionInstanceId,
   });
 
   const {

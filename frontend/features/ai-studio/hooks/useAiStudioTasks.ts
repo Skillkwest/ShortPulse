@@ -400,6 +400,10 @@ export function useAiStudioTasks({
             item.previewUrl === (visibleGeneration.previewUrl ?? item.previewUrl)
               ? item.previewUrl
               : (visibleGeneration.previewUrl ?? item.previewUrl),
+          previewPosterUrl:
+            item.previewPosterUrl === visibleGeneration.previewPosterUrl
+              ? item.previewPosterUrl
+              : (visibleGeneration.previewPosterUrl ?? item.previewPosterUrl ?? null),
           previewStoragePath:
             item.previewStoragePath === nextDelivery.previewStoragePath
               ? item.previewStoragePath
@@ -809,6 +813,16 @@ export function useAiStudioTasks({
                 scheduleRecoveryRecheckPoll({
                   nextNoMediaAttempt: noMediaAttempt + 1,
                 });
+                return;
+              }
+
+              const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
+                outputId,
+                taskId,
+                provider,
+                timestamp: lifecycleStatusLabel ?? "Just now",
+              });
+              if (visibleGenerationSettled) {
                 return;
               }
 

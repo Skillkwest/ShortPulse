@@ -403,6 +403,7 @@ describe("useAiStudioTasks", () => {
     resolveVisibleGenerationReconcileMock.mockResolvedValue({
       generationId: "gen-projection-1",
       previewUrl: "https://cdn.test/projection-preview.png",
+      previewPosterUrl: "https://cdn.test/projection-poster.jpg",
       previewStoragePath: null,
       fullStoragePath: null,
       resultUrls: ["https://cdn.test/projection-full.png"],
@@ -447,6 +448,7 @@ describe("useAiStudioTasks", () => {
     expect(output.taskState).toBe("success");
     expect(output.generationId).toBe("gen-projection-1");
     expect(output.previewUrl).toBe("https://cdn.test/projection-preview.png");
+    expect(output.previewPosterUrl).toBe("https://cdn.test/projection-poster.jpg");
     expect(output.resultUrls).toEqual(["https://cdn.test/projection-full.png"]);
   });
 

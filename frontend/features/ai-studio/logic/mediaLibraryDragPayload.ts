@@ -21,6 +21,10 @@ const MEDIA_LIBRARY_FALLBACK_PREVIEW_STORAGE_PATH_TYPE =
 const MEDIA_LIBRARY_FALLBACK_FULL_STORAGE_PATH_TYPE =
   "text/shortpulse-media-library-full-storage-path";
 const MEDIA_LIBRARY_FALLBACK_PREVIEW_URL_TYPE = "text/shortpulse-media-library-preview-url";
+const MEDIA_LIBRARY_FALLBACK_PREVIEW_POSTER_URL_TYPE =
+  "text/shortpulse-media-library-preview-poster-url";
+const MEDIA_LIBRARY_FALLBACK_PREVIEW_POSTER_STORAGE_PATH_TYPE =
+  "text/shortpulse-media-library-preview-poster-storage-path";
 const MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE = "text/shortpulse-media-library-full-url";
 const MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE = "text/shortpulse-media-library-width";
 const MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE = "text/shortpulse-media-library-height";
@@ -164,6 +168,12 @@ const readFallbackMediaLibraryDragPayload = (
         previewUrl: normalizeTransferText(
           transfer.getData(MEDIA_LIBRARY_FALLBACK_PREVIEW_URL_TYPE)
         ),
+        previewPosterUrl: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_PREVIEW_POSTER_URL_TYPE)
+        ),
+        previewPosterStoragePath: normalizeTransferText(
+          transfer.getData(MEDIA_LIBRARY_FALLBACK_PREVIEW_POSTER_STORAGE_PATH_TYPE)
+        ),
         fullUrl: normalizeTransferText(transfer.getData(MEDIA_LIBRARY_FALLBACK_FULL_URL_TYPE)),
         width: normalizePositiveNumber(transfer.getData(MEDIA_LIBRARY_FALLBACK_WIDTH_TYPE)),
         height: normalizePositiveNumber(transfer.getData(MEDIA_LIBRARY_FALLBACK_HEIGHT_TYPE)),
@@ -289,6 +299,16 @@ export const writeMediaLibraryDragPayload = (
       transfer,
       MEDIA_LIBRARY_FALLBACK_PREVIEW_URL_TYPE,
       payload.payload.previewUrl
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_PREVIEW_POSTER_URL_TYPE,
+      payload.payload.previewPosterUrl
+    );
+    setTransferTextIfPresent(
+      transfer,
+      MEDIA_LIBRARY_FALLBACK_PREVIEW_POSTER_STORAGE_PATH_TYPE,
+      payload.payload.previewPosterStoragePath
     );
     setTransferTextIfPresent(
       transfer,

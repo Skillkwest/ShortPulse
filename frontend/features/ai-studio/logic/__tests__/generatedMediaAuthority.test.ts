@@ -8,10 +8,15 @@ import {
 
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
+const getSignedMediaUrlsBatchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/supabaseClient", () => ({
   ensureSupabaseQueryClient: ensureSupabaseQueryClientMock,
   readSupabaseUserId: readSupabaseUserIdMock,
+}));
+
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrlsBatch: getSignedMediaUrlsBatchMock,
 }));
 
 const createAwaitableSelectBuilder = (result: { data: unknown; error: unknown }) => {
@@ -45,6 +50,7 @@ describe("generatedMediaAuthority", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     readSupabaseUserIdMock.mockResolvedValue("user-1");
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
   });
 
   it("falls back to successful generation projection delivery when published media is suppressed", async () => {
@@ -87,6 +93,8 @@ describe("generatedMediaAuthority", () => {
       })
     ).resolves.toEqual({
       previewUrl: "https://fal.test/preview.png",
+      previewPosterUrl: null,
+      previewPosterStoragePath: null,
       fullUrl: "https://fal.test/full.png",
       previewStoragePath: null,
       fullStoragePath: null,
@@ -142,6 +150,8 @@ describe("generatedMediaAuthority", () => {
       })
     ).resolves.toEqual({
       previewUrl: "https://cdn.test/published-preview.png",
+      previewPosterUrl: null,
+      previewPosterStoragePath: null,
       fullUrl: "https://cdn.test/published-full.png",
       previewStoragePath: null,
       fullStoragePath: null,
@@ -191,10 +201,63 @@ describe("generatedMediaAuthority", () => {
     ).resolves.toEqual({
       generationId: "gen-request-1",
       previewUrl: "https://fal.test/request-preview.png",
+      previewPosterUrl: null,
       previewStoragePath: null,
       fullStoragePath: null,
       resultUrls: ["https://fal.test/request-full.png"],
     });
+  });
+
+  it("signs projection poster storage for completed generated video reconcile", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        ["user-1/variants/videos/gen-video-1/poster_720.jpg", "https://signed.test/poster_720.jpg"],
+      ])
+    );
+    const projectionDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        model_id: "fal-ai/veo3.1",
+        preview_url: "https://fal.test/video-preview.mp4",
+        result_urls: ["https://fal.test/video-full.mp4"],
+        preview_storage_path: "user-1/variants/videos/gen-video-1/poster_720.jpg",
+        full_storage_path: "user-1/generations/videos/gen-video-1.mp4",
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionDeliveryBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        generationId: "gen-video-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-video-1",
+      previewUrl: "https://fal.test/video-preview.mp4",
+      previewPosterUrl: "https://signed.test/poster_720.jpg",
+      previewStoragePath: "user-1/variants/videos/gen-video-1/poster_720.jpg",
+      fullStoragePath: "user-1/generations/videos/gen-video-1.mp4",
+      resultUrls: ["https://fal.test/video-full.mp4"],
+    });
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bucket: "media_library",
+        storagePaths: ["user-1/variants/videos/gen-video-1/poster_720.jpg"],
+        surface: "reference-grid",
+      })
+    );
   });
 
   it("requires project association before resolving request-backed generation ids on project routes", async () => {
@@ -346,6 +409,93 @@ describe("generatedMediaAuthority", () => {
     ]);
   });
 
+  it("hydrates completed generated videos with published poster storage paths", async () => {
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-video-poster-1",
+          request_id: "req-video-poster-1",
+          source_ref: "source-video-poster-1",
+          provider: "fal",
+          model_id: "fal-ai/veo3.1",
+          display_prompt: "A cinematic video",
+          preview_url: "https://fal.test/video-preview.mp4",
+          result_urls: ["https://fal.test/video-full.mp4"],
+          preview_storage_path: "user-1/generations/videos/gen-video-poster-1.mp4",
+          full_storage_path: "user-1/generations/videos/gen-video-poster-1.mp4",
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {
+            aspect: "16:9",
+          },
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-video-poster-1",
+          owned_media_file_id: "media-video-poster-1",
+          created_at: "2026-04-18T16:11:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          id: "media-video-poster-1",
+          storage_path: "user-1/generations/videos/gen-video-poster-1.mp4",
+          file_type: "video/mp4",
+          poster_variant_path: "user-1/variants/videos/gen-video-poster-1/poster_720.jpg",
+          preview_variant_path: "user-1/variants/videos/gen-video-poster-1/preview_loop_360p.mp4",
+          filename: "video.mp4",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-video-poster-1",
+        mode: "video",
+        resultUrls: ["https://fal.test/video-full.mp4"],
+        previewUrl: "https://fal.test/video-preview.mp4",
+        previewStoragePath: "user-1/variants/videos/gen-video-poster-1/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/gen-video-poster-1.mp4",
+      }),
+    ]);
+  });
+
   it("lists only project-associated visible generated outputs when project scoped", async () => {
     const projectGenerationBuilder = createAwaitableSelectBuilder({
       data: [
@@ -464,6 +614,7 @@ describe("generatedMediaAuthority", () => {
     ).resolves.toEqual({
       generationId: "gen-project-1",
       previewUrl: "https://fal.test/project-preview.png",
+      previewPosterUrl: null,
       previewStoragePath: null,
       fullStoragePath: null,
       resultUrls: ["https://fal.test/project-full.png"],

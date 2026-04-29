@@ -263,6 +263,36 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.fullStoragePath).toBe("user/full.jpg");
   });
 
+  it("builds library video output with poster preview metadata", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "libraryMedia",
+        source: "mediaLibrary",
+        payload: {
+          id: "media-video-1",
+          url: "https://example.com/video.mp4",
+          fileType: "video",
+          previewUrl: "https://example.com/poster.jpg",
+          previewPosterUrl: "https://example.com/poster.jpg",
+          fullUrl: "https://example.com/video.mp4",
+          previewStoragePath: "user/variants/videos/media-video-1/poster_720.jpg",
+          fullStoragePath: "user/generations/videos/media-video-1.mp4",
+        },
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.mode).toBe("video");
+    expect(output?.previewUrl).toBe("https://example.com/poster.jpg");
+    expect(output?.previewPosterUrl).toBe("https://example.com/poster.jpg");
+    expect(output?.resultUrls).toEqual(["https://example.com/video.mp4"]);
+    expect(output?.previewStoragePath).toBe("user/variants/videos/media-video-1/poster_720.jpg");
+    expect(output?.fullStoragePath).toBe("user/generations/videos/media-video-1.mp4");
+  });
+
   it("builds library media output with audio semantics", async () => {
     const context = createContext();
     const result = await buildStudioOutputsFromReferenceInput(

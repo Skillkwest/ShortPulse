@@ -39,6 +39,8 @@ export type ReferenceIngestionInput =
         previewStoragePath?: string | null;
         fullStoragePath?: string | null;
         previewUrl?: string | null;
+        previewPosterUrl?: string | null;
+        previewPosterStoragePath?: string | null;
         fullUrl?: string | null;
         width?: number;
         height?: number;

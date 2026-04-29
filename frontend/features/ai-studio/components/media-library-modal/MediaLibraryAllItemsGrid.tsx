@@ -29,6 +29,11 @@ type ResolveMediaLibraryGridPreviewUrlArgs = {
   devicePixelRatio?: number;
 };
 
+export type MediaLibraryMediaDragPreview = {
+  hoverVideoUrl?: string | null;
+  posterPreviewUrl?: string | null;
+};
+
 type MediaLibraryAllItemsGridProps = {
   mediaRows: MediaFileRow[];
   promptRows: PromptRow[];
@@ -42,7 +47,11 @@ type MediaLibraryAllItemsGridProps = {
   onSelectMediaFile: (file: MediaFileRow) => void;
   onSelectPromptCard: (prompt: PromptRow) => void;
   onMediaDoubleClick?: (file: MediaFileRow) => void;
-  onMediaDragStart?: (event: React.DragEvent<HTMLElement>, file: MediaFileRow) => void;
+  onMediaDragStart?: (
+    event: React.DragEvent<HTMLElement>,
+    file: MediaFileRow,
+    preview?: MediaLibraryMediaDragPreview
+  ) => void;
   onPromptDragStart?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
   onMediaDragEnd?: (event: React.DragEvent<HTMLElement>, file: MediaFileRow) => void;
   onPromptDragEnd?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
@@ -112,7 +121,11 @@ type MediaCardShellProps = {
   getMediaCardRef: (fileId: string) => MediaCardRefCallback;
   onSelectMediaFile: (file: MediaFileRow) => void;
   onMediaDoubleClick?: (file: MediaFileRow) => void;
-  onMediaDragStart?: (event: React.DragEvent<HTMLElement>, file: MediaFileRow) => void;
+  onMediaDragStart?: (
+    event: React.DragEvent<HTMLElement>,
+    file: MediaFileRow,
+    preview?: MediaLibraryMediaDragPreview
+  ) => void;
   onMediaDragEnd?: (event: React.DragEvent<HTMLElement>, file: MediaFileRow) => void;
   onToggleMediaSelection?: (file: MediaFileRow) => void;
   onMediaContextMenu?: (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => void;
@@ -289,7 +302,12 @@ function MediaLibraryAllItemsMediaCard({
           onToggleMediaSelection ? onToggleMediaSelection(file) : onSelectMediaFile(file)
         }
         onDoubleClick={() => onMediaDoubleClick?.(file)}
-        onDragStart={(event) => onMediaDragStart?.(event, file)}
+        onDragStart={(event) =>
+          onMediaDragStart?.(event, file, {
+            hoverVideoUrl,
+            posterPreviewUrl,
+          })
+        }
         onDragEnd={(event) => onMediaDragEnd?.(event, file)}
         onContextMenu={(event) => onMediaContextMenu?.(event, file)}
         onPointerEnter={() => {

@@ -29,7 +29,13 @@ vi.mock("../generationProjection", () => ({
 const createAdminClient = ({
   storageRows,
 }: {
-  storageRows: Array<{ id: string; storage_path: string }>;
+  storageRows: Array<{
+    id: string;
+    storage_path: string;
+    file_type?: string | null;
+    poster_variant_path?: string | null;
+    preview_variant_path?: string | null;
+  }>;
 }) => ({
   from: vi.fn((table: string) => {
     if (table !== "media_files") {
@@ -47,7 +53,7 @@ const createAdminClient = ({
     builder.in.mockReturnValue(builder);
     return {
       select: vi.fn((fields: string) => {
-        if (fields !== "id, storage_path") {
+        if (fields !== "id, storage_path, file_type, poster_variant_path, preview_variant_path") {
           throw new Error(`Unexpected fields: ${fields}`);
         }
         return builder;
@@ -212,5 +218,54 @@ describe("generationOutputConvergence", () => {
       previewStoragePath: "user-1/generations/images/media-1.png",
       fullStoragePath: "user-1/generations/images/media-1.png",
     });
+  });
+
+  it("uses video poster variants for preview storage while preserving the video as full storage", async () => {
+    const adminClient = createAdminClient({
+      storageRows: [
+        {
+          id: "media-video-1",
+          storage_path: "user-1/generations/videos/media-video-1.mp4",
+          file_type: "video/mp4",
+          poster_variant_path: "user-1/variants/videos/media-video-1/poster_720.jpg",
+          preview_variant_path: "user-1/variants/videos/media-video-1/preview_loop_360p.mp4",
+        },
+      ],
+    });
+    getSupabaseAdminMock.mockReturnValue(adminClient);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-video-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/video-1.mp4",
+        mediaFileId: "media-video-1",
+      },
+    ]);
+
+    const result = await reconcileOwnedGenerationOutputSlot({
+      generationId: "gen-video-1",
+      userId: "user-1",
+      outputIndex: 0,
+      mediaFileId: "media-video-1",
+      resultUrl: "https://cdn.shortpulse.test/video-1.mp4",
+    });
+
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationOutputId: "output-video-1",
+        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
+        publicationState: "published",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-video-1",
+        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
+      })
+    );
+    expect(result.previewStoragePath).toBe("user-1/variants/videos/media-video-1/poster_720.jpg");
+    expect(result.fullStoragePath).toBe("user-1/generations/videos/media-video-1.mp4");
   });
 });

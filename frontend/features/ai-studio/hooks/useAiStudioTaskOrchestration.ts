@@ -198,6 +198,7 @@ export const useAiStudioTaskOrchestration = ({
               timestamp: "Just now",
               resultUrls: nextResultUrls,
               previewUrl: visibleGeneration.previewUrl ?? item.previewUrl,
+              previewPosterUrl: visibleGeneration.previewPosterUrl ?? item.previewPosterUrl ?? null,
               previewStoragePath: nextDelivery.previewStoragePath,
               fullStoragePath: nextDelivery.fullStoragePath,
               mediaSource: item.mediaSource ?? "generated",

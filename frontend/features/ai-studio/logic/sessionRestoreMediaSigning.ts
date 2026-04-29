@@ -8,6 +8,7 @@ import type { StudioOutput } from "../types";
 
 export type SessionOutputSigningFingerprint = {
   previewUrl: string | null;
+  previewPosterUrl: string | null;
   previewStoragePath: string | null;
   fullStoragePath: string | null;
 };
@@ -29,6 +30,7 @@ const toCanonicalStoragePath = (value: string | null | undefined): string | null
 
 const resolveFingerprintForOutput = (output: StudioOutput): SessionOutputSigningFingerprint => ({
   previewUrl: toNormalizedNullableString(output.previewUrl),
+  previewPosterUrl: toNormalizedNullableString(output.previewPosterUrl),
   previewStoragePath: toCanonicalStoragePath(output.previewStoragePath),
   fullStoragePath: toCanonicalStoragePath(output.fullStoragePath),
 });
@@ -40,6 +42,7 @@ const isFingerprintEqual = (
   if (!left) return false;
   return (
     left.previewUrl === right.previewUrl &&
+    left.previewPosterUrl === right.previewPosterUrl &&
     left.previewStoragePath === right.previewStoragePath &&
     left.fullStoragePath === right.fullStoragePath
   );
@@ -116,9 +119,14 @@ export const applySessionRestoreSignedUrls = (
       (fullStoragePath ? signedByPath.get(fullStoragePath) : null) ??
       null;
     if (!signedPreviewUrl) return output;
+    const signedPreviewPosterUrl =
+      output.mode === "video" && previewStoragePath && previewStoragePath !== fullStoragePath
+        ? signedPreviewUrl
+        : currentFingerprint.previewPosterUrl;
 
     if (
       currentFingerprint.previewUrl === signedPreviewUrl &&
+      currentFingerprint.previewPosterUrl === signedPreviewPosterUrl &&
       currentFingerprint.previewStoragePath === previewStoragePath &&
       currentFingerprint.fullStoragePath === fullStoragePath
     ) {
@@ -129,6 +137,7 @@ export const applySessionRestoreSignedUrls = (
     return {
       ...output,
       previewUrl: signedPreviewUrl,
+      previewPosterUrl: signedPreviewPosterUrl,
       previewStoragePath,
       fullStoragePath,
     };

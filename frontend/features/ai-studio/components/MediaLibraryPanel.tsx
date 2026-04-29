@@ -54,7 +54,10 @@ import { MediaLibraryPanelFolderContent } from "./MediaLibraryPanelFolderContent
 import { MediaLibraryPanelHeader } from "./MediaLibraryPanelHeader";
 import { MediaLibraryPanelRootContent } from "./MediaLibraryPanelRootContent";
 import { MediaLibraryPanelStatusArea } from "./MediaLibraryPanelStatusArea";
-import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllItemsGrid";
+import {
+  MediaLibraryAllItemsGrid,
+  type MediaLibraryMediaDragPreview,
+} from "./media-library-modal/MediaLibraryAllItemsGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
@@ -578,12 +581,24 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   });
 
   const handleMediaCardDragStart = useCallback(
-    (event: React.DragEvent<HTMLElement>, file: MediaFileRow) => {
+    (
+      event: React.DragEvent<HTMLElement>,
+      file: MediaFileRow,
+      preview?: MediaLibraryMediaDragPreview
+    ) => {
       const signedUrl = (file.signedUrl ?? "").trim();
       if (!signedUrl) {
         event.preventDefault();
         return;
       }
+      const isVideo = isVideoFile(file.file_type);
+      const hoverVideoUrl = preview?.hoverVideoUrl?.trim() || signedUrl;
+      const posterPreviewUrl = isVideo ? preview?.posterPreviewUrl?.trim() || null : null;
+      const transferUrl = isVideo ? hoverVideoUrl : signedUrl;
+      const previewUrl = posterPreviewUrl ?? signedUrl;
+      const previewStoragePath = isVideo
+        ? (file.poster_variant_path ?? file.preview_storage_path ?? file.storage_path)
+        : (file.preview_storage_path ?? file.storage_path);
       const dragDimensions = resolveMediaDragDimensions({
         fileType: file.file_type,
         width: file.width ?? null,
@@ -596,34 +611,36 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         source: "mediaLibrary",
         payload: {
           id: file.id,
-          url: signedUrl,
+          url: transferUrl,
           fileType: resolveLibraryMediaReferenceFileType(file.file_type),
           originFolderId: activeFolderId,
           filename: file.filename,
           promptText,
           source: file.source ?? null,
-          previewStoragePath: file.preview_storage_path ?? file.storage_path,
+          previewStoragePath,
           fullStoragePath: file.storage_path,
-          previewUrl: signedUrl,
-          fullUrl: signedUrl,
+          previewUrl,
+          previewPosterUrl: posterPreviewUrl,
+          previewPosterStoragePath: isVideo ? (file.poster_variant_path ?? null) : null,
+          fullUrl: transferUrl,
           width: dragDimensions.width,
           height: dragDimensions.height,
         },
       });
       event.dataTransfer.effectAllowed = "copy";
-      setTransferDataSafe(event.dataTransfer, "text/reference-url", signedUrl);
-      setTransferDataSafe(event.dataTransfer, "text/uri-list", signedUrl);
+      setTransferDataSafe(event.dataTransfer, "text/reference-url", transferUrl);
+      setTransferDataSafe(event.dataTransfer, "text/uri-list", transferUrl);
       if (promptText.trim()) {
         setTransferDataSafe(event.dataTransfer, "text/prompt", promptText);
         setTransferDataSafe(event.dataTransfer, "text/plain", promptText);
       } else {
-        setTransferDataSafe(event.dataTransfer, "text/plain", signedUrl);
+        setTransferDataSafe(event.dataTransfer, "text/plain", transferUrl);
       }
       event.currentTarget.classList.add("is-dragging");
       attachMediaLibraryDragGhost(event, {
         label: file.filename || "Media",
         detail: promptText,
-        previewUrl: signedUrl,
+        previewUrl,
         previewKind: isVideoFile(file.file_type)
           ? "video"
           : isAudioFile(file.file_type)

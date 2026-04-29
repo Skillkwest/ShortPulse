@@ -84,6 +84,30 @@ describe("sessionRestoreMediaSigning", () => {
     expect(result.outputs[0]?.previewUrl).toBe("https://signed/a.png");
   });
 
+  it("applies signed poster urls for restored videos with distinct poster storage", () => {
+    const rows = [
+      createOutput({
+        id: "video-a",
+        mode: "video",
+        previewStoragePath: "user-1/variants/videos/video-a/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/video-a.mp4",
+        previewUrl: "https://provider.test/video-a.mp4",
+      }),
+    ];
+    const signedByPath = new Map<string, string | null>([
+      ["user-1/variants/videos/video-a/poster_720.jpg", "https://signed/poster_720.jpg"],
+      ["user-1/generations/videos/video-a.mp4", "https://signed/video-a.mp4"],
+    ]);
+
+    const result = applySessionRestoreSignedUrls(rows, signedByPath);
+
+    expect(result.changed).toBe(true);
+    expect(result.outputs[0]?.previewUrl).toBe("https://signed/poster_720.jpg");
+    expect(result.outputs[0]?.previewPosterUrl).toBe("https://signed/poster_720.jpg");
+    expect(result.outputs[0]?.resultUrls).toBeUndefined();
+    expect(result.outputs[0]?.fullStoragePath).toBe("user-1/generations/videos/video-a.mp4");
+  });
+
   it("skips apply when baseline fingerprint no longer matches", () => {
     const baselineRows = [
       createOutput({

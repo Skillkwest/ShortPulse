@@ -123,6 +123,8 @@ const buildLibraryMediaOutput = ({
   const fullUrl = payload.fullUrl?.trim() || cleanedUrl;
   const previewStoragePath = asCanonicalStoragePath(payload.previewStoragePath);
   const fullStoragePath = asCanonicalStoragePath(payload.fullStoragePath) ?? previewStoragePath;
+  const previewPosterUrl =
+    payload.fileType === "video" ? payload.previewPosterUrl?.trim() || null : null;
   const resultUrls = fullUrl ? [fullUrl] : undefined;
 
   return {
@@ -137,6 +139,7 @@ const buildLibraryMediaOutput = ({
     resultUrls,
     previewStoragePath,
     fullStoragePath,
+    previewPosterUrl,
     mediaSource: payload.source === "ai_studio" ? "generated" : "library",
     previewTier:
       payload.fileType === "video"

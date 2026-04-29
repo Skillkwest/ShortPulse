@@ -94,7 +94,11 @@ describe("mediaLibraryDragPayload", () => {
         previewStoragePath: null,
         fullStoragePath: null,
         previewUrl: null,
+        previewPosterUrl: null,
+        previewPosterStoragePath: null,
         fullUrl: null,
+        width: undefined,
+        height: undefined,
       },
     });
   });
@@ -126,8 +130,55 @@ describe("mediaLibraryDragPayload", () => {
         previewStoragePath: null,
         fullStoragePath: null,
         previewUrl: null,
+        previewPosterUrl: null,
+        previewPosterStoragePath: null,
         fullUrl: null,
+        width: undefined,
+        height: undefined,
       },
+    });
+  });
+
+  it("serializes and parses library video poster payloads", () => {
+    const transferData = new Map<string, string>();
+    const transfer = {
+      setData: vi.fn((type: string, value: string) => {
+        transferData.set(type, value);
+      }),
+      getData: vi.fn((type: string) => transferData.get(type) ?? ""),
+    } as unknown as DataTransfer;
+
+    writeMediaLibraryDragPayload(transfer, {
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-video-1",
+        url: "https://cdn.test/video.mp4",
+        fileType: "video",
+        previewUrl: "https://cdn.test/poster.jpg",
+        previewPosterUrl: "https://cdn.test/poster.jpg",
+        previewPosterStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        fullUrl: "https://cdn.test/video.mp4",
+        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
+      },
+    });
+
+    expect(transfer.setData).toHaveBeenCalledWith(
+      "text/shortpulse-media-library-preview-poster-url",
+      "https://cdn.test/poster.jpg"
+    );
+    expect(readMediaLibraryDragPayload(transfer)).toEqual({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: expect.objectContaining({
+        id: "media-video-1",
+        fileType: "video",
+        previewUrl: "https://cdn.test/poster.jpg",
+        previewPosterUrl: "https://cdn.test/poster.jpg",
+        previewPosterStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        fullUrl: "https://cdn.test/video.mp4",
+      }),
     });
   });
 

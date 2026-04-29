@@ -9,6 +9,12 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
 
+type MediaDeliveryPaths = {
+  storagePath: string;
+  previewStoragePath: string;
+  fullStoragePath: string;
+};
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -26,7 +32,7 @@ const readMediaStoragePathById = async ({
   supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
   userId: string;
   mediaFileIds: string[];
-}): Promise<Map<string, string>> => {
+}): Promise<Map<string, MediaDeliveryPaths>> => {
   const normalizedMediaFileIds = Array.from(
     new Set(
       mediaFileIds
@@ -40,7 +46,7 @@ const readMediaStoragePathById = async ({
 
   const { data, error } = await supabaseAdmin
     .from("media_files")
-    .select("id, storage_path")
+    .select("id, storage_path, file_type, poster_variant_path, preview_variant_path")
     .eq("user_id", userId)
     .in("id", normalizedMediaFileIds)
     .limit(normalizedMediaFileIds.length);
@@ -48,15 +54,26 @@ const readMediaStoragePathById = async ({
     return new Map();
   }
 
-  const storagePathByMediaId = new Map<string, string>();
+  const deliveryPathsByMediaId = new Map<string, MediaDeliveryPaths>();
   for (const item of data) {
     const row = asObject(item);
     const mediaFileId = asString(row.id);
     const storagePath = asString(row.storage_path);
     if (!mediaFileId || !storagePath) continue;
-    storagePathByMediaId.set(mediaFileId, storagePath);
+    const fileType = asString(row.file_type)?.toLowerCase() ?? "";
+    const isVideo = fileType.startsWith("video");
+    const posterStoragePath = asString(row.poster_variant_path);
+    const previewVariantPath = asString(row.preview_variant_path);
+    const previewStoragePath = isVideo
+      ? (posterStoragePath ?? previewVariantPath ?? storagePath)
+      : storagePath;
+    deliveryPathsByMediaId.set(mediaFileId, {
+      storagePath,
+      previewStoragePath,
+      fullStoragePath: storagePath,
+    });
   }
-  return storagePathByMediaId;
+  return deliveryPathsByMediaId;
 };
 
 export type ReconcileOwnedGenerationOutputSlotInput = {
@@ -108,7 +125,7 @@ export const reconcileOwnedGenerationOutputSlot = async ({
     userId,
     supabaseAdmin: adminClient,
   });
-  const storagePathByMediaId = await readMediaStoragePathById({
+  const deliveryPathsByMediaId = await readMediaStoragePathById({
     supabaseAdmin: adminClient,
     userId,
     mediaFileIds: persistedOutputRows
@@ -118,39 +135,39 @@ export const reconcileOwnedGenerationOutputSlot = async ({
   const savedMediaIds = persistedOutputRows
     .map((row) => row.mediaFileId)
     .filter(
-      (value): value is string => Boolean(value) && storagePathByMediaId.has(value as string)
+      (value): value is string => Boolean(value) && deliveryPathsByMediaId.has(value as string)
     );
   const hasCanonicalOwnedMedia =
     persistedOutputRows.length > 0 &&
     persistedOutputRows.every(
-      (row) => typeof row.mediaFileId === "string" && storagePathByMediaId.has(row.mediaFileId)
+      (row) => typeof row.mediaFileId === "string" && deliveryPathsByMediaId.has(row.mediaFileId)
     );
-  const firstOwnedStoragePath =
+  const firstOwnedDeliveryPaths =
     persistedOutputRows
       .map((row) => {
         if (!row.mediaFileId) return null;
-        return storagePathByMediaId.get(row.mediaFileId) ?? null;
+        return deliveryPathsByMediaId.get(row.mediaFileId) ?? null;
       })
-      .find((value): value is string => Boolean(value)) ?? null;
+      .find((value): value is MediaDeliveryPaths => Boolean(value)) ?? null;
   const normalizedResultUrls = persistedOutputRows.map((row) => row.resultUrl);
   const nowIso = new Date().toISOString();
 
   await Promise.all(
     persistedOutputRows.map((row) => {
       if (!row.id || !row.mediaFileId) return Promise.resolve();
-      const storagePath = storagePathByMediaId.get(row.mediaFileId) ?? null;
+      const deliveryPaths = deliveryPathsByMediaId.get(row.mediaFileId) ?? null;
       return upsertGenerationPublication({
         generationId,
         generationOutputId: row.id,
         userId,
         generationAttemptId,
-        publicationState: storagePath ? "published" : "suppressed",
+        publicationState: deliveryPaths ? "published" : "suppressed",
         ownedMediaFileId: row.mediaFileId,
         previewUrl: row.resultUrl,
         fullUrl: row.resultUrl,
-        previewStoragePath: storagePath,
-        fullStoragePath: storagePath,
-        publishedAt: storagePath ? nowIso : undefined,
+        previewStoragePath: deliveryPaths?.previewStoragePath ?? null,
+        fullStoragePath: deliveryPaths?.fullStoragePath ?? null,
+        publishedAt: deliveryPaths ? nowIso : undefined,
         metadata,
       });
     })
@@ -164,9 +181,9 @@ export const reconcileOwnedGenerationOutputSlot = async ({
     resultUrls: normalizedResultUrls,
     savedMediaIds,
   };
-  if (firstOwnedStoragePath) {
-    projectionPayload.previewStoragePath = firstOwnedStoragePath;
-    projectionPayload.fullStoragePath = firstOwnedStoragePath;
+  if (firstOwnedDeliveryPaths) {
+    projectionPayload.previewStoragePath = firstOwnedDeliveryPaths.previewStoragePath;
+    projectionPayload.fullStoragePath = firstOwnedDeliveryPaths.fullStoragePath;
   }
   if (hasCanonicalOwnedMedia) {
     projectionPayload.publicationState = "published";
@@ -178,7 +195,7 @@ export const reconcileOwnedGenerationOutputSlot = async ({
     persistedOutputRows,
     savedMediaIds,
     hasCanonicalOwnedMedia,
-    previewStoragePath: firstOwnedStoragePath,
-    fullStoragePath: firstOwnedStoragePath,
+    previewStoragePath: firstOwnedDeliveryPaths?.previewStoragePath ?? null,
+    fullStoragePath: firstOwnedDeliveryPaths?.fullStoragePath ?? null,
   };
 };

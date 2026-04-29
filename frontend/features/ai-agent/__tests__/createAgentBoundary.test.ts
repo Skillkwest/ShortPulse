@@ -91,6 +91,12 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("const pulseAgent");
     expect(bridgeSource).not.toContain("activeAgent = isPulseCreateMode ? pulseAgent");
     expect(bridgeSource).not.toContain("sendPulseActivationToAgent");
+    expect(bridgeSource).not.toContain("import { sendPulseCreateAgentTurn");
+    expect(bridgeSource).not.toContain("import { resolvePulseCreateAgentTransportSuccess");
+    expect(bridgeSource).not.toContain("import { buildPulseCreateAgentContext");
+    expect(bridgeSource).not.toContain("import { sendStandardCreateAgentTurn");
+    expect(bridgeSource).not.toContain("import { resolveStandardCreateAgentTransportSuccess");
+    expect(bridgeSource).not.toContain("import { buildStandardCreateAgentContext");
   });
 
   it("keeps custom Pulse preference loading out of page-root Create state", () => {
@@ -175,5 +181,20 @@ describe("Create agent mode boundaries", () => {
 
     expect(generationControllerSource).not.toContain("expertCreateMode");
     expect(generationControllerSource).toContain("onAgentCaptureResult");
+  });
+
+  it("keeps Pulse workflow helpers out of shared orchestration static imports", () => {
+    const orchestrationSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioAgentOrchestration.ts"
+    );
+
+    expect(orchestrationSource).not.toContain("import { startPulsePreset");
+    expect(orchestrationSource).not.toContain(
+      "import { buildPendingPulseWorkflowSessionForUserInput"
+    );
+    expect(orchestrationSource).not.toContain('from "../logic/pulseImageIntake"');
+    expect(orchestrationSource).toContain("../logic/pulseImageIntake");
+    expect(orchestrationSource).toContain("../logic/pulseWorkflowSession");
+    expect(orchestrationSource).toContain("./agentOrchestration/pulsePresetStart");
   });
 });

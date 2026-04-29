@@ -38,6 +38,14 @@ import { ensureSessionKey, persistSessionKey, randomId } from "./client/sessionC
 import { EMPTY_MESSAGES, type SendParams, type SendResult } from "./useAiAgentTypes";
 import type { StudioAgentTransportResult } from "./client/studioAgentTransport";
 
+type CreateAgentTransportSuccess = {
+  actions: AgentActions | undefined;
+  workflowSession?: SendResult["workflowSession"];
+  canonicalPrompt: string | null;
+  assistantContent: string;
+  assistantOutputPrompt: string | null;
+};
+
 type UseCreateAgentStateCoreOptions = {
   initialMessages?: AgentMessage[];
   enabled?: boolean;
@@ -47,15 +55,13 @@ type UseCreateAgentStateCoreOptions = {
   requestRuntimeMode: AgentRuntimeMode;
   allowSessionNamespaceOverride: boolean;
   sessionNamespaceOverrideErrorText?: string;
-  buildAgentContext: (context: NonNullable<SendParams["context"]>) => AgentApiContext;
+  buildAgentContext: (
+    context: NonNullable<SendParams["context"]>
+  ) => AgentApiContext | Promise<AgentApiContext>;
   sendAgentTurn: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
-  resolveTransportSuccess: (response: AgentResponse) => {
-    actions: AgentActions | undefined;
-    workflowSession?: SendResult["workflowSession"];
-    canonicalPrompt: string | null;
-    assistantContent: string;
-    assistantOutputPrompt: string | null;
-  };
+  resolveTransportSuccess: (
+    response: AgentResponse
+  ) => CreateAgentTransportSuccess | Promise<CreateAgentTransportSuccess>;
 };
 const createAgentMessageId = (role: "user" | "assistant") => `agent-${role}-${randomId()}`;
 const cloneAgentAttachments = (attachments: AgentAttachment[] = []): AgentAttachment[] =>
@@ -238,7 +244,7 @@ export const useCreateAgentStateCore = ({
         });
         const clientSessionKey = ensureSessionKey(requestSessionNamespace, conversationId);
         clientSessionKeyRef.current = clientSessionKey;
-        const safeContext = context ? buildAgentContext(context) : undefined;
+        const safeContext = context ? await buildAgentContext(context) : undefined;
         const precheckContext: AgentApiContext = safeContext ?? {};
         const inputPrecheckResult = runStudioAgentSafetyInputPrecheck({
           enabled: isClientInputPrecheckEnabled(),
@@ -335,7 +341,7 @@ export const useCreateAgentStateCore = ({
           canonicalPrompt,
           assistantContent,
           assistantOutputPrompt,
-        } = resolveTransportSuccess(data);
+        } = await resolveTransportSuccess(data);
         if (canonicalPrompt) {
           canonicalPromptBySessionIdentityRef.current.set(requestSessionIdentity, canonicalPrompt);
         }

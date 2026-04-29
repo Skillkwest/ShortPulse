@@ -8,17 +8,10 @@ import type {
 import { mergeAttachmentContext } from "./agentOrchestration/attachmentContext";
 import { prepareAgentImageAttachments } from "./agentOrchestration/attachmentPreparation";
 import { describeReferenceOutput } from "./agentOrchestration/describeReference";
-import { startPulsePreset } from "./agentOrchestration/pulsePresetStart";
 import type {
   AgentSendOptions,
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
-import { buildPendingPulseWorkflowSessionForUserInput } from "../logic/pulseWorkflowSession";
-import {
-  hasPulseImageContext,
-  isPulseImageIntakeStep,
-  PULSE_IMAGE_INTAKE_REQUIRED_NOTICE,
-} from "../logic/pulseImageIntake";
 
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
@@ -85,11 +78,6 @@ export const useAiStudioAgentOrchestration = ({
     setUiNotice("Select a Pulse to start.");
     trackAgentUiEvent("studio_agent_send_blocked_no_active_pulse_session");
   }, [setUiNotice, trackAgentUiEvent]);
-  const notifyPulseImageRequired = useCallback(() => {
-    setUiNotice(PULSE_IMAGE_INTAKE_REQUIRED_NOTICE);
-    setAgentAttachmentError(PULSE_IMAGE_INTAKE_REQUIRED_NOTICE);
-    trackAgentUiEvent("studio_agent_send_blocked_pulse_image_required");
-  }, [setAgentAttachmentError, setUiNotice, trackAgentUiEvent]);
   const ensurePulseSessionReady = useCallback(() => {
     if (runtimePolicy.kind !== "pulse") return true;
     if (runtimePolicy.hasActivePulseSession) return true;
@@ -130,13 +118,19 @@ export const useAiStudioAgentOrchestration = ({
         includeActiveOutput: runtimePolicy.includeActiveOutput,
         modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
       });
-      if (
-        isPulseImageIntakeStep(baseContext.pulse) &&
-        !hasImageAttachment &&
-        !hasPulseImageContext(baseContext)
-      ) {
-        notifyPulseImageRequired();
-        return;
+      if (runtimePolicy.kind === "pulse") {
+        const { PULSE_IMAGE_INTAKE_REQUIRED_NOTICE, hasPulseImageContext, isPulseImageIntakeStep } =
+          await import("../logic/pulseImageIntake");
+        if (
+          isPulseImageIntakeStep(baseContext.pulse) &&
+          !hasImageAttachment &&
+          !hasPulseImageContext(baseContext)
+        ) {
+          setUiNotice(PULSE_IMAGE_INTAKE_REQUIRED_NOTICE);
+          setAgentAttachmentError(PULSE_IMAGE_INTAKE_REQUIRED_NOTICE);
+          trackAgentUiEvent("studio_agent_send_blocked_pulse_image_required");
+          return;
+        }
       }
       trackAgentUiEvent("studio_agent_send_requested", {
         mode_hint: options?.modeHint ?? "chat",
@@ -270,31 +264,36 @@ export const useAiStudioAgentOrchestration = ({
           attachments: outboundAttachments,
           preparedImageUrls,
         });
-        const workflowPulse = runtimePolicy.resolveWorkflowPulse(mediaPatchedContext);
-        const pendingWorkflowSession = buildPendingPulseWorkflowSessionForUserInput({
-          preset: workflowPulse
-            ? {
-                presetId: workflowPulse.presetId,
-                runtimeMode: "workflow_gpt",
-                starterAssistantMessage: workflowPulse.starterAssistantMessage,
-                workflowStageHints: workflowPulse.workflowStageHints,
-              }
-            : null,
-          existingSession: workflowPulse?.workflowSession ?? null,
-          userInput: userMessageText,
-        });
-        const requestContext =
-          pendingWorkflowSession && mediaPatchedContext.pulse
-            ? {
-                ...mediaPatchedContext,
-                pulse: {
-                  ...mediaPatchedContext.pulse,
-                  workflowSession: pendingWorkflowSession,
-                },
-              }
-            : mediaPatchedContext;
-        if (pendingWorkflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
-          setPulseWorkflowSession(pendingWorkflowSession);
+        let requestContext = mediaPatchedContext;
+        if (runtimePolicy.kind === "pulse") {
+          const workflowPulse = runtimePolicy.resolveWorkflowPulse(mediaPatchedContext);
+          const { buildPendingPulseWorkflowSessionForUserInput } =
+            await import("../logic/pulseWorkflowSession");
+          const pendingWorkflowSession = buildPendingPulseWorkflowSessionForUserInput({
+            preset: workflowPulse
+              ? {
+                  presetId: workflowPulse.presetId,
+                  runtimeMode: "workflow_gpt",
+                  starterAssistantMessage: workflowPulse.starterAssistantMessage,
+                  workflowStageHints: workflowPulse.workflowStageHints,
+                }
+              : null,
+            existingSession: workflowPulse?.workflowSession ?? null,
+            userInput: userMessageText,
+          });
+          requestContext =
+            pendingWorkflowSession && mediaPatchedContext.pulse
+              ? {
+                  ...mediaPatchedContext,
+                  pulse: {
+                    ...mediaPatchedContext.pulse,
+                    workflowSession: pendingWorkflowSession,
+                  },
+                }
+              : mediaPatchedContext;
+          if (pendingWorkflowSession && runtimePolicy.shouldCaptureWorkflowSession) {
+            setPulseWorkflowSession(pendingWorkflowSession);
+          }
         }
 
         const { response, actions, workflowSession, discarded } = await sendToAgent({
@@ -368,9 +367,9 @@ export const useAiStudioAgentOrchestration = ({
       setSharedPrompt,
       setAgentAttachments,
       setPulseWorkflowSession,
+      setUiNotice,
       ensurePulseSessionReady,
       notifyBootstrapPending,
-      notifyPulseImageRequired,
       runtimePolicy,
       trackAgentUiEvent,
     ]
@@ -442,8 +441,9 @@ export const useAiStudioAgentOrchestration = ({
       options?: {
         pulseSessionInstanceId?: string | null;
       }
-    ): Promise<CreatePulsePresetStartResult> =>
-      startPulsePreset({
+    ): Promise<CreatePulsePresetStartResult> => {
+      const { startPulsePreset } = await import("./agentOrchestration/pulsePresetStart");
+      return startPulsePreset({
         preset,
         options,
         agentBootstrapReady,
@@ -466,7 +466,8 @@ export const useAiStudioAgentOrchestration = ({
         setLatestAgentPrompt,
         setSharedPrompt,
         setPromptOrigin,
-      }),
+      });
+    },
     [
       agentBootstrapReady,
       agentIsSending,

@@ -77,6 +77,10 @@ describe("CreatePropertiesPanel", () => {
     expect(pulseChatSurface).toContain("PromptStepPulseLoadingState");
     expect(pulseChatSurface).toContain("pulseLoadingState");
     expect(pulseChatSurface).toContain("useFlowComposerLayout");
+    expect(pulseChatSurface).not.toContain("AgentResponseInlineGenerateButton");
+    expect(pulseChatSurface).not.toContain("resolveChatOffCreatePrompt");
+    expect(pulseChatSurface).not.toContain("chatModeInlineGenerate");
+    expect(pulseChatSurface).not.toContain("onGenerateOutputPrompt");
   });
 
   const baseProps: TestCreatePanelProps = {

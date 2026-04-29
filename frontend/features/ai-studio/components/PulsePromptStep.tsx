@@ -47,9 +47,6 @@ export function PulsePromptStep({
   onClearAgentAttachments,
   onClearAgentChat,
   onAssistantMessageEdit,
-  onGenerateOutputPrompt,
-  chatModeInlineGenerate,
-  useAgentResponseInlineGeneratePrefab = false,
   onSavePrompt,
   isCollapsed,
   onToggleCollapse,
@@ -92,10 +89,6 @@ export function PulsePromptStep({
   agentInputCollapseOnBlur = false,
   onAgentInputVisualRowCountChange,
   pulseLoadingState = null,
-  disableOutputGenerate = false,
-  outputGenerateCostCredits = null,
-  outputGenerateGuardrailReason = null,
-  hideOutputGenerateControls = false,
   chatHeaderExtraContent = null,
   hideHeader = false,
   autoResize = false,
@@ -358,16 +351,9 @@ export function PulsePromptStep({
                 directOpenAiBypassEnabled={directOpenAiBypassEnabled}
                 agentBootstrapPending={agentBootstrapPending}
                 onAgentSend={onAgentSend}
-                onGenerateOutputPrompt={onGenerateOutputPrompt}
-                chatModeInlineGenerate={chatModeInlineGenerate}
-                useAgentResponseInlineGeneratePrefab={useAgentResponseInlineGeneratePrefab}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
                 CreateChatPanel={CreateChatPanel}
                 {...(useFlowComposerLayout ? { useFlowComposerLayout, pulseLoadingState } : {})}
-                disableOutputGenerate={disableOutputGenerate}
-                outputGenerateCostCredits={outputGenerateCostCredits}
-                outputGenerateGuardrailReason={outputGenerateGuardrailReason}
-                hideOutputGenerateControls={hideOutputGenerateControls}
                 composerMiddleContent={composerMiddleContent}
                 composerLeadingContent={composerLeadingContent}
                 chatComposerOverlayEnabled={chatComposerOverlayEnabled}
@@ -389,7 +375,6 @@ export function PulsePromptStep({
                 chatPromptSaveButtonClassName={chatPromptSaveButtonClassName}
                 chatPromptSaveButtonUnstyled={chatPromptSaveButtonUnstyled}
                 imageAttachmentCounts={imageAttachmentCounts}
-                prompt={prompt}
                 onAssistantMessageEdit={onAssistantMessageEdit}
               />
             ) : (

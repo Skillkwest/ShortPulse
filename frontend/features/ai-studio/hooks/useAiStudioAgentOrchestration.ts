@@ -127,6 +127,9 @@ export const useAiStudioAgentOrchestration = ({
         includeActiveOutput: orchestrationRuntime.includeActiveOutput,
         modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
       });
+      if (!orchestrationRuntime.hasRequiredRequestContext(baseContext)) {
+        return;
+      }
       if (
         await orchestrationRuntime.blockInvalidUserInput({
           context: baseContext,

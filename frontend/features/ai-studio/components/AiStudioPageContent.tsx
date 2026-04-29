@@ -49,14 +49,10 @@ import { useStylesLibraryPanelIdsPreference } from "../hooks/useStylesLibraryPan
 import { useStylesLibraryStyleDetailsPreference } from "../hooks/useStylesLibraryStyleDetailsPreference";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
-import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 import type {
-  AgentAssistantMessageEditRequest,
-  AgentAttachment,
-  AgentMessage,
-  AgentOutputBubbleMediaState,
-  AgentOutputGenerateInput,
-} from "../../ai-agent/types";
+  AiStudioCreatePanelContract,
+  AiStudioReferenceGridContract,
+} from "../hooks/contracts/pageContentContracts";
 import type { StudioOutput, ToolId } from "../types";
 import type {
   LibraryMediaReferencePayload,
@@ -346,8 +342,7 @@ const getEventTargetElement = (target: EventTarget | null): Element | null => {
   return null;
 };
 
-type CreateSectionProps = React.ComponentProps<typeof StandardCreatePropertiesPanel> &
-  Partial<PulseCreatePropertiesPanelProps>;
+type CreateSectionProps = AiStudioCreatePanelContract;
 type EditExpertSectionProps = React.ComponentProps<typeof ExpertEditPanelView>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
 const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
@@ -356,32 +351,6 @@ const FLAG_DND_BACKPRESSURE = PERF_FLAG_SHELL_DND_BACKPRESSURE;
 const FLAG_PANEL_MEMOIZATION = PERF_FLAG_SHELL_PANEL_MEMOIZATION;
 const FLAG_SHELL_BOUNDARY_SPLIT = PERF_FLAG_SHELL_BOUNDARY_SPLIT;
 const FLAG_HIGH_DENSITY_SHELL_MODE = PERF_FLAG_SHELL_HIGH_DENSITY_MODE;
-
-type AgentChatProps = {
-  isOpen: boolean;
-  agentMessages: AgentMessage[];
-  agentInput: string;
-  agentIsSending: boolean;
-  latestAgentPrompt: string | null;
-  assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
-  stagedAttachments: AgentAttachment[];
-  agentDropActive: boolean;
-  onInputChange: (value: string) => void;
-  onSend: () => void;
-  onAddToGrid: () => void;
-  onClose: () => void;
-  onAttachmentDrop: (event: React.DragEvent<HTMLDivElement>) => void;
-  onAttachmentDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
-  onAttachmentDragEnter: (event: React.DragEvent<HTMLDivElement>) => void;
-  onAttachmentDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
-  onRemoveAttachment: (id: string) => void;
-  onClearAttachments: () => void;
-  onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
-  onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
-  outputGenerateCostCredits?: number | null;
-  disableOutputGenerate?: boolean;
-  outputGenerateGuardrailReason?: string | null;
-};
 
 type AiStudioAlertsStackProps = {
   uiError: string | null;
@@ -575,7 +544,6 @@ export type AiStudioPageContentProps = {
     onSelect: (value: string) => void;
     context?: ModelModalContext | null;
   };
-  agentChat: AgentChatProps;
   handleReferenceGridFiles: (files: FileList) => void;
   triggerFilePicker: () => void;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
@@ -636,7 +604,6 @@ export function AiStudioPageContent({
   resolveStyleLibraryInternalDrop,
   onOpenMediaLibrary,
   modelModalState,
-  agentChat,
   handleReferenceGridFiles,
   triggerFilePicker,
   resolveCharacterDropReference,
@@ -647,6 +614,8 @@ export function AiStudioPageContent({
 }: AiStudioPageContentProps) {
   const resolvedReferenceGridFileInputRef = referenceGridFileInputRef;
   const resolvedCreateProperties = propertiesCreate;
+  const resolvedStandardCreateProperties = resolvedCreateProperties.standard;
+  const resolvedPulseCreateProperties = resolvedCreateProperties.pulse;
   const resolvedReferenceGridProps = referenceGridProps;
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
@@ -657,8 +626,8 @@ export function AiStudioPageContent({
   const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
   const showExpertCreatePanel = Boolean(
     propertiesPanelKind === "create" &&
-    resolvedCreateProperties.expertCreateUiEligible &&
-    !resolvedCreateProperties.beginnerMode
+    resolvedStandardCreateProperties.expertCreateUiEligible &&
+    !resolvedStandardCreateProperties.beginnerMode
   );
   const showExpertEditPanel = propertiesPanelKind === "edit";
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
@@ -1177,9 +1146,9 @@ export function AiStudioPageContent({
       visibleStylesCatalog,
     ]
   );
-  const resolvedCreatePropertiesWithStyles = React.useMemo(
+  const resolvedStandardCreatePropertiesWithStyles = React.useMemo(
     () => ({
-      ...resolvedCreateProperties,
+      ...resolvedStandardCreateProperties,
       isStylesPanelOpen,
       onStylesPanelToggle: handleStylesPanelToggle,
       onOpenPresetsLibrary: () => handleToolSelection("presets"),
@@ -1194,9 +1163,23 @@ export function AiStudioPageContent({
       handleToolSelection,
       handleStylesPanelToggle,
       isStylesPanelOpen,
-      resolvedCreateProperties,
+      resolvedStandardCreateProperties,
       selectedStyleId,
       visibleStylesCatalog,
+    ]
+  );
+  const resolvedPulseCreatePropertiesWithRuntime = React.useMemo(
+    () => ({
+      ...resolvedPulseCreateProperties,
+      onOpenPresetsLibrary: () => handleToolSelection("presets"),
+      expertCreateMode,
+      onExpertCreateModeChange: handleExpertCreateModeChange,
+    }),
+    [
+      expertCreateMode,
+      handleExpertCreateModeChange,
+      handleToolSelection,
+      resolvedPulseCreateProperties,
     ]
   );
   const resolvedReferenceGridPropsWithStylesPanel = React.useMemo(
@@ -1291,24 +1274,25 @@ export function AiStudioPageContent({
 
   const createPropertiesPanelContent = React.useMemo(() => {
     if (showExpertCreatePanel && expertCreateMode === "pulse") {
-      return (
-        <PulseCreatePropertiesPanel
-          {...(resolvedCreatePropertiesWithStyles as PulseCreatePropertiesPanelProps)}
-        />
-      );
+      return <PulseCreatePropertiesPanel {...resolvedPulseCreatePropertiesWithRuntime} />;
     }
     return (
       <>
-        <StandardCreatePropertiesPanel {...resolvedCreatePropertiesWithStyles} />
+        <StandardCreatePropertiesPanel {...resolvedStandardCreatePropertiesWithStyles} />
         {!showExpertCreatePanel ? (
           <ComposeSendCard
-            {...resolvedCreatePropertiesWithStyles}
-            onGenerate={resolvedCreatePropertiesWithStyles.onGenerate}
+            {...resolvedStandardCreatePropertiesWithStyles}
+            onGenerate={resolvedStandardCreatePropertiesWithStyles.onGenerate}
           />
         ) : null}
       </>
     );
-  }, [expertCreateMode, resolvedCreatePropertiesWithStyles, showExpertCreatePanel]);
+  }, [
+    expertCreateMode,
+    resolvedPulseCreatePropertiesWithRuntime,
+    resolvedStandardCreatePropertiesWithStyles,
+    showExpertCreatePanel,
+  ]);
   const editPropertiesPanelContent = React.useMemo(
     () => <ExpertEditPanelView {...resolvedExpertEditProperties} />,
     [resolvedExpertEditProperties]
@@ -1669,13 +1653,11 @@ export function AiStudioPageContent({
               onRightColumnDragLeaveCapture={handleRightColumnDragLeaveCapture}
               onShellDragOverCapture={handleShellDragOverCapture}
               onShellDropCapture={handleShellDropCapture}
-              agentChat={agentChat}
               referenceGridProps={resolvedReferenceGridPropsWithStylesPanel}
               studioPreviewProps={studioPreviewProps}
               handleReferenceGridFiles={handleReferenceGridFiles}
               triggerFilePicker={triggerFilePicker}
               onOpenMediaLibrary={onOpenMediaLibrary}
-              beginnerMode={beginnerMode}
               showPreviewRail={expandedRightRailTarget == null}
             />
             {comingSoon ? (

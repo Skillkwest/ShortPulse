@@ -119,6 +119,7 @@ export type AgentChatPanelProps = {
   outputGenerateCostCredits?: number | null;
   outputGenerateGuardrailReason?: string | null;
   hideOutputGenerateControls?: boolean;
+  preserveOutputGenerateLayoutWhenControlsHidden?: boolean;
 };
 
 export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
@@ -158,6 +159,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
   hideOutputGenerateControls = false,
+  preserveOutputGenerateLayoutWhenControlsHidden = false,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
   const shouldFollowHistoryRef = useRef(true);
@@ -646,6 +648,10 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   canUseMessageAsPrompt;
                 const showOutputBubbleControls =
                   Boolean(bubbleMedia && bubbleMedia.state !== "idle") || showOutputGenerateButton;
+                const shouldUseOutputGenerateLayout =
+                  showOutputGenerateButton ||
+                  (preserveOutputGenerateLayoutWhenControlsHidden &&
+                    Boolean(bubbleMedia && bubbleMedia.state !== "idle"));
                 const isLatestAssistantMessage =
                   highlightLatestAssistantOnly &&
                   message.role === "assistant" &&
@@ -667,7 +673,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 return (
                   <div
                     key={key}
-                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${hasMessageAttachments ? " agent-message--with-attachments" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}${resolvedAssistantMessageClassName}`}
+                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${shouldUseOutputGenerateLayout ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${hasMessageAttachments ? " agent-message--with-attachments" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}${resolvedAssistantMessageClassName}`}
                     onClick={
                       isClickable && !isEditingMessage
                         ? () => handleMessageClick(message)

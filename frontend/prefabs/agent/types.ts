@@ -163,6 +163,7 @@ export type AgentApiRequest = {
   messages: AgentApiMessage[];
   context?: AgentApiContext;
   clientSessionKey: string;
+  clientSessionNamespace?: string | null;
   runtimeMode?: AgentRuntimeMode;
   traceId?: string;
   directOpenAiBypass?: boolean;

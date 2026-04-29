@@ -4,7 +4,6 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
-import { sanitizeGenerationPromptText } from "../../agent-core/promptText";
 import { pickSelectedReferencesForThinker } from "../../ai-agent/logic/studioAgentReferenceSelection";
 import { buildStudioAgentOrchestration } from "../../ai-agent/logic/studioAgentOrchestration";
 import { resolveStudioAgentOpenAiConfig } from "../studioAgentOpenAiGateway";
@@ -30,6 +29,12 @@ import {
   setStudioAgentContractHeaders,
 } from "../studioAgentRouteEnvelope";
 import {
+  hasInboundStudioAgentCanonicalPrompt,
+  hasStudioAgentPulseContext,
+  isPulseCreateAgentSessionNamespace,
+  readStudioAgentClientSessionNamespace,
+} from "../studioAgentRouteModeBoundary";
+import {
   applyStudioAgentVisionSummariesToContext,
   buildStudioAgentImageSummaryMap,
   describeStudioAgentVisionSummaryError,
@@ -48,14 +53,19 @@ const PULSE_ROUTE_LABEL = "ai/studio-agent-pulse";
 const PULSE_PROMPT_CACHE_ROUTE = "studio-agent-pulse";
 const PULSE_RUNTIME_SCOPE_FALLBACK = "studio-agent-pulse";
 
+const hasPulseWorkflowPresetMismatch = (body: unknown): boolean => {
+  const pulse = (body as { context?: { pulse?: unknown } })?.context?.pulse as
+    | { presetId?: unknown; workflowSession?: { presetId?: unknown } | null }
+    | null
+    | undefined;
+  if (!pulse?.workflowSession) return false;
+  const presetId = typeof pulse.presetId === "string" ? pulse.presetId.trim() : "";
+  const workflowPresetId =
+    typeof pulse.workflowSession.presetId === "string" ? pulse.workflowSession.presetId.trim() : "";
+  return Boolean(workflowPresetId && presetId && workflowPresetId !== presetId);
+};
+
 export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextApiResponse) => {
-  if (req.method === "POST") {
-    req.body = {
-      ...req.body,
-      directOpenAiBypass: false,
-      runtimeMode: "pulse",
-    };
-  }
   const requestStartedAt = Date.now();
   const traceId = resolveStudioAgentTraceId(req);
   setStudioAgentContractHeaders(res, traceId);
@@ -63,6 +73,29 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const markStage = (stage: string, startedAt: number) => {
     stageLatencyMs[stage] = Date.now() - startedAt;
   };
+
+  if (req.method === "POST") {
+    const clientSessionNamespace = readStudioAgentClientSessionNamespace(req.body);
+    if (
+      req.body?.runtimeMode === "standard" ||
+      !hasStudioAgentPulseContext(req.body?.context) ||
+      !isPulseCreateAgentSessionNamespace(clientSessionNamespace) ||
+      hasInboundStudioAgentCanonicalPrompt(req.body) ||
+      hasPulseWorkflowPresetMismatch(req.body)
+    ) {
+      return sendStudioAgentError(res, 400, {
+        code: "INVALID_REQUEST",
+        message: "Pulse agent runtime requires Pulse runtime context.",
+        traceId,
+      });
+    }
+    req.body = {
+      ...req.body,
+      directOpenAiBypass: false,
+      runtimeMode: "pulse",
+      canonicalPrompt: null,
+    };
+  }
 
   if (req.method !== "POST") {
     return sendStudioAgentError(res, 405, {
@@ -120,6 +153,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
       traceId,
     });
   }
+  context = { ...context, lastAssistantMessage: undefined };
   const safetyInputPrecheckEnabled =
     process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED !== "false";
   const safetyDebugEnabled = process.env.STUDIO_AGENT_SAFETY_DEBUG === "true";
@@ -207,8 +241,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const coordinatorOpenAiModel = workflowPulseActive ? openAiPulseModel : openAiModel;
   const coordinatorTurnTimeoutMs = workflowPulseActive ? pulseTurnTimeoutMs : turnTimeoutMs;
 
-  const canonicalPrompt =
-    incomingCanonical ?? sanitizeGenerationPromptText(context.lastAssistantMessage) ?? null;
+  const canonicalPrompt = incomingCanonical ?? null;
   let effectiveCanonical = clampCanonicalPrompt(canonicalPrompt);
 
   const selectedReferencesBeforePrecheck = pickSelectedReferencesForThinker(context);

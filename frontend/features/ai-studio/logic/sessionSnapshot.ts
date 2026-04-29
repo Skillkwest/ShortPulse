@@ -552,11 +552,14 @@ export const buildAiStudioSessionSnapshot = (
           resolvedExpertCreateMode === "pulse"
             ? input.agentRuntimes.pulsePresetId?.trim() || resolvedActivePulsePresetId
             : null,
-        pulse: sanitizeAgentRuntime(input.agentRuntimes.pulse),
+        pulse:
+          resolvedExpertCreateMode === "pulse"
+            ? sanitizeAgentRuntime(input.agentRuntimes.pulse)
+            : emptyAgentRuntime,
       }
     : {
         standard: resolvedExpertCreateMode === "pulse" ? emptyAgentRuntime : activeAgentRuntime,
-        pulsePresetId: resolvedActivePulsePresetId,
+        pulsePresetId: resolvedExpertCreateMode === "pulse" ? resolvedActivePulsePresetId : null,
         pulse: resolvedExpertCreateMode === "pulse" ? activeAgentRuntime : emptyAgentRuntime,
       };
 

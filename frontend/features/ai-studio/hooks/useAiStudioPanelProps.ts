@@ -22,7 +22,6 @@ import type {
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
-import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
 
 export type UseAiStudioPanelPropsParams = {
   mode: StudioMode;
@@ -82,9 +81,7 @@ export type UseAiStudioPanelPropsParams = {
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
-  handleExpandChat: () => void;
   handleClearAgentChat: () => void;
-  isAgentChatOpen: boolean;
   handlePrimarySubmit: () => void;
   handleChatOffInlineGenerate: () => void;
   savePromptReference: (customPrompt?: string) => void;
@@ -249,9 +246,7 @@ export const useAiStudioPanelProps = ({
   hasSufficientCreditsForPromptReferenceGenerate,
   isGenerateDisabled,
   generationGuardrail,
-  handleExpandChat,
   handleClearAgentChat,
-  isAgentChatOpen,
   handlePrimarySubmit,
   handleChatOffInlineGenerate,
   savePromptReference,
@@ -343,7 +338,7 @@ export const useAiStudioPanelProps = ({
   handleRegenerateWithDebit,
   onCreateCharacter,
   onCreateElement,
-}: UseAiStudioPanelPropsParams): AiStudioPanelContracts => {
+}: UseAiStudioPanelPropsParams) => {
   const isDevBuild = process.env.NODE_ENV === "development";
   const explicitExpertCreateUiFlag = process.env.NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI;
   const normalizedExpertCreateUiFlag = explicitExpertCreateUiFlag?.trim().toLowerCase();
@@ -423,13 +418,11 @@ export const useAiStudioPanelProps = ({
       isGenerateDisabled,
       isChatOffInlineGenerateDisabled: isGenerateDisabled,
       guardrailReason: generationGuardrail,
-      onExpandChat: handleExpandChat,
       onClearAgentChat: handleClearAgentChat,
       shouldDisableSave: useReferenceImageIndicator && mode === "text",
       onGenerate: handlePrimarySubmit,
       onChatOffInlineGenerate: handleChatOffInlineGenerate,
       onSavePrompt: savePromptReference,
-      agentChatOpen: isAgentChatOpen,
       characterOptions,
       selectedCharacterId,
       selectedCharacterLookId,
@@ -478,7 +471,6 @@ export const useAiStudioPanelProps = ({
       handleAgentSend,
       handleClearAgentAttachments,
       handleClearAgentChat,
-      handleExpandChat,
       handleGenerateFromAgentOutputPrompt,
       handleManualPromptChange,
       handleOpenModelModal,
@@ -487,7 +479,6 @@ export const useAiStudioPanelProps = ({
       handleRemoveAgentAttachment,
       hasSufficientCreditsForPromptReferenceGenerate,
       imageResolution,
-      isAgentChatOpen,
       isAgentDropActive,
       isCharacterModeEnabled,
       isCharacterOptionsLoading,

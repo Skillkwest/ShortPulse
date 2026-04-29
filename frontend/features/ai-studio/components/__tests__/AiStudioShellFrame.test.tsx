@@ -3,10 +3,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiStudioShellFrame } from "../AiStudioShellFrame";
 
-vi.mock("../../../../prefabs/agent", () => ({
-  AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
-}));
-
 vi.mock("../AiStudioReferenceRail", () => ({
   AiStudioReferenceRail: () => <div data-testid="reference-rail" />,
 }));
@@ -43,25 +39,6 @@ const createProps = (): React.ComponentProps<typeof AiStudioShellFrame> => ({
   onRightColumnDragLeaveCapture: vi.fn(),
   onShellDragOverCapture: vi.fn(),
   onShellDropCapture: vi.fn(),
-  agentChat: {
-    isOpen: false,
-    agentMessages: [],
-    agentInput: "",
-    agentIsSending: false,
-    latestAgentPrompt: null,
-    stagedAttachments: [],
-    agentDropActive: false,
-    onInputChange: vi.fn(),
-    onSend: vi.fn(),
-    onAddToGrid: vi.fn(),
-    onClose: vi.fn(),
-    onAttachmentDrop: vi.fn(),
-    onAttachmentDragOver: vi.fn(),
-    onAttachmentDragEnter: vi.fn(),
-    onAttachmentDragLeave: vi.fn(),
-    onRemoveAttachment: vi.fn(),
-    onClearAttachments: vi.fn(),
-  },
   referenceGridProps: {
     outputs: [],
     activeOutputId: null,
@@ -80,7 +57,6 @@ const createProps = (): React.ComponentProps<typeof AiStudioShellFrame> => ({
   },
   handleReferenceGridFiles: vi.fn(),
   triggerFilePicker: vi.fn(),
-  beginnerMode: false,
 });
 
 describe("AiStudioShellFrame", () => {
@@ -90,7 +66,6 @@ describe("AiStudioShellFrame", () => {
     expect(container.querySelector(".ai-shell-right")).toBeTruthy();
     expect(screen.queryByTestId("reference-rail")).not.toBeInTheDocument();
     expect(screen.queryByTestId("preview-rail")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("agent-chat-panel")).not.toBeInTheDocument();
   });
 
   it("renders rail content when the right column is visible", () => {

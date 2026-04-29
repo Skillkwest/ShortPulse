@@ -63,11 +63,17 @@ const createMockResponse = () => {
   return res;
 };
 
-const createBaseRequestBody = () => ({
+const createBaseRequestBody = (
+  clientSessionNamespace = "ai-studio:session-runtime-test::standard"
+) => ({
   clientSessionKey: "session-runtime-test",
+  clientSessionNamespace,
   messages: [{ role: "user", content: "Improve this prompt." }],
   context: {},
 });
+
+const createPulseRequestBody = () =>
+  createBaseRequestBody("ai-studio:session-runtime-test::pulse:product_hero:pulse-session-test");
 
 const createPulseContext = () => ({
   pulse: {
@@ -156,7 +162,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     const req = {
       method: "POST",
       body: {
-        ...createBaseRequestBody(),
+        ...createPulseRequestBody(),
         context: createPulseContext(),
       },
     };
@@ -183,6 +189,20 @@ describe("AI Studio Create agent runtime boundaries", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects Pulse session namespaces on the Standard route", async () => {
+    const req = {
+      method: "POST",
+      body: createPulseRequestBody(),
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
   });
 
   it("returns a Standard-only response without workflowSession", async () => {
@@ -237,7 +257,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     const req = {
       method: "POST",
       body: {
-        ...createBaseRequestBody(),
+        ...createPulseRequestBody(),
         context: createPulseContext(),
         runtimeMode: "standard",
       },
@@ -248,6 +268,95 @@ describe("AI Studio Create agent runtime boundaries", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects inbound canonical prompts on the Pulse route", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        context: createPulseContext(),
+        canonicalPrompt: "Standard prompt memory must not seed Pulse.",
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+  });
+
+  it("strips generic last-assistant context before Pulse provider execution", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "needs_input",
+                message: "What product should we feature first?",
+                actions: null,
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        context: {
+          ...createPulseContext(),
+          lastAssistantMessage: "Standard assistant memory must not enter Pulse.",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const serializedRequest = requestInit?.body ?? "";
+    expect(serializedRequest).not.toContain("Standard assistant memory must not enter Pulse.");
+  });
+
+  it("rejects Pulse workflow sessions from a different preset", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        context: {
+          ...createPulseContext(),
+          pulse: {
+            ...createPulseContext().pulse,
+            workflowSession: {
+              presetId: "other_preset",
+              status: "awaiting_input",
+              currentStepIndex: 2,
+              currentStepLabel: "Mismatched",
+              currentStepPrompt: "This should not steer Product Hero.",
+              collectedInputs: ["stale input"],
+              lastArtifact: null,
+            },
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
   });
 
   it("runs Pulse through the Pulse runtime and does not honor direct bypass", async () => {
@@ -271,7 +380,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     const req = {
       method: "POST",
       body: {
-        ...createBaseRequestBody(),
+        ...createPulseRequestBody(),
         context: createPulseContext(),
         directOpenAiBypass: true,
       },
@@ -327,7 +436,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     const req = {
       method: "POST",
       body: {
-        ...createBaseRequestBody(),
+        ...createPulseRequestBody(),
         conversationId: "pulse-conversation",
         context: createPulseContext(),
       },

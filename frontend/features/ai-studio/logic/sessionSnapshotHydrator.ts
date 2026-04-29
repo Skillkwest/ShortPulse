@@ -695,11 +695,12 @@ export const buildAiStudioSessionHydrationPayload = (
           workspaceActivePulsePresetId ||
           null
         : null,
-    pulse: agentRuntimes?.pulse
-      ? coerceHydratedRuntimeChatMode(buildHydratedAgentRuntime(agentRuntimes.pulse), {
-          forceChatModeEnabled: true,
-        })
-      : defaultAgentRuntime,
+    pulse:
+      workspaceExpertCreateMode === "pulse" && agentRuntimes?.pulse
+        ? coerceHydratedRuntimeChatMode(buildHydratedAgentRuntime(agentRuntimes.pulse), {
+            forceChatModeEnabled: true,
+          })
+        : defaultAgentRuntime,
   };
   const resolvedWorkspacePulseState = resolveHydratedPulseRuntimeState({
     expertCreateMode: workspaceExpertCreateMode,

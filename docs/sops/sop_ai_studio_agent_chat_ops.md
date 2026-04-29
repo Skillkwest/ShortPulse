@@ -3,14 +3,14 @@
 Purpose: operational playbook for the AI Studio chat agent—where it lives in the UI, how context is built, how actions are applied, and how to validate or debug it without touching the model prompts themselves.
 
 ## Scope
-- In scope: AI Studio chat/agent surfaces in Create → Prompt step (inline chat mode), the expanded Agent Chat column, drag-and-drop reference attachments into chat, Text (prompt refinement) fallback to the agent, and reference Describe actions.
+- In scope: AI Studio chat/agent surfaces in Create → Prompt step (inline chat mode), drag-and-drop reference attachments into chat, Text (prompt refinement) fallback to the agent, and reference Describe actions.
 - Out of scope: Character tool agent flows (none today), media library ingestion, and non-studio routes.
 
 ## UI entry points
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
 - Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps the chat send/respond path active. OFF disables send affordances and routes Create `mode=text` raw composer/shared text into the normal file-generation path. This toggle is Standard Create only. In Expert Create `Pulse` mode, the toggle is hidden because Pulse always uses the agent/chat lane and does not read or write the Standard toggle state.
 - Direct OpenAI bypass (backend-gated): when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Standard Create chat lane defaults to raw user/assistant turns through `/api/ai/studio-agent-standard` with `directOpenAiBypass=true`. There is no separate inline toggle; the flag itself is the control. The bypass lane can also attach staged image media as multimodal input so users can ask for image descriptions or prompt rewrites directly from dropped images.
-- Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
+- Retired expanded column: the right-side Agent Chat rail is removed. Agent conversation UI now stays inside the active Create composer so Standard/Pulse runtime state does not leave the mode-owned Create surface.
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
 - Prompt save: Save buttons persist the current prompt (including agent-applied text) to the reference grid.
@@ -49,7 +49,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 Prompt ownership rule:
 - Prompt state is updated from `actions.applyPrompt` only (not generic assistant message text) so generation always uses explicit, structured prompt output from the agent route.
-- There is no separate apply/action strip in the inline prompt card or expanded Agent Chat column; prompt application happens when the response is received.
+- There is no separate apply/action strip in the inline prompt card; prompt application happens when the response is received.
 
 ## User workflows & expected outcomes
 - **Iterate in Chat mode (Create tool):**
@@ -78,9 +78,9 @@ Prompt ownership rule:
 - **Describe a reference:**
   - Uses `/api/ai/studio-agent-standard` with isolated history, focused image context, and `modeHint="describe"`.
   - Result becomes prompt + prompt card.
-- **Expanded Agent Chat column:**
-  - Shows the same history and attachment behavior as inline chat.
-  - “Add to grid” pushes the latest agent prompt as a card; close returns to Reference Grid.
+- **Retired expanded Agent Chat column:**
+  - The right-column chat surface is intentionally removed.
+  - Prompt-card save/add behavior belongs in the active Create composer or explicit prompt-reference actions, not a global right rail.
 
 ## Safeguards & drift control
 - Canonical prompt store: API persists canonical prompt state in Supabase (`ai_agent_conversation_state`) keyed by `user_id + clientSessionKey`, with service-role-only execute posture, DB-enforced TTL/cap clamps, deterministic pruning, and daily stale-row cleanup support.

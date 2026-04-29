@@ -295,9 +295,11 @@ export const useCreateAgentStateCore = ({
           messages: precheckedApiMessages,
           context: precheckedContext,
           clientSessionKey,
+          clientSessionNamespace: requestSessionNamespace,
           conversationId: clientSessionKey,
           traceId: `agent-${randomId()}`,
-          canonicalPrompt: inputPrecheckResult.canonicalPrompt,
+          canonicalPrompt:
+            requestRuntimeMode === "pulse" ? null : inputPrecheckResult.canonicalPrompt,
           directOpenAiBypass: directOpenAiBypassEnabled,
           runtimeMode: requestRuntimeMode,
         };

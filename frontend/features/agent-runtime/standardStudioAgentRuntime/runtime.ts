@@ -32,6 +32,13 @@ import {
   runStudioAgentSafetyInputPrecheck,
 } from "../studioAgentSafetyInputPrecheck";
 import {
+  hasInboundStudioAgentCanonicalPrompt,
+  hasStudioAgentPulseContext,
+  isPulseCreateAgentSessionNamespace,
+  isStandardCreateAgentSessionNamespace,
+  readStudioAgentClientSessionNamespace,
+} from "../studioAgentRouteModeBoundary";
+import {
   extractStudioAgentCompletionText,
   parseStudioAgentJsonWithStatus,
 } from "../studioAgentResponseNormalization";
@@ -202,13 +209,6 @@ const extractStandardOpenAiResponse = (payload: unknown): StandardRuntimeResult 
  * Runs one Standard Create agent request with the Standard-only direct response contract.
  */
 export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: NextApiResponse) => {
-  if (req.method === "POST") {
-    req.body = {
-      ...req.body,
-      runtimeMode: "standard",
-    };
-  }
-
   const requestStartedAt = Date.now();
   const traceId = resolveStudioAgentTraceId(req);
   setStudioAgentContractHeaders(res, traceId);
@@ -216,6 +216,29 @@ export const runStandardStudioAgentRuntime = async (req: NextApiRequest, res: Ne
   const markStage = (stage: string, startedAt: number) => {
     stageLatencyMs[stage] = Date.now() - startedAt;
   };
+
+  if (req.method === "POST") {
+    const clientSessionNamespace = readStudioAgentClientSessionNamespace(req.body);
+    const hasCrossModeContinuity =
+      isPulseCreateAgentSessionNamespace(clientSessionNamespace) ||
+      (hasInboundStudioAgentCanonicalPrompt(req.body) &&
+        !isStandardCreateAgentSessionNamespace(clientSessionNamespace));
+    if (
+      req.body?.runtimeMode === "pulse" ||
+      hasStudioAgentPulseContext(req.body?.context) ||
+      hasCrossModeContinuity
+    ) {
+      return sendStudioAgentError(res, 400, {
+        code: "INVALID_REQUEST",
+        message: "Standard agent runtime does not accept Pulse runtime payloads.",
+        traceId,
+      });
+    }
+    req.body = {
+      ...req.body,
+      runtimeMode: "standard",
+    };
+  }
 
   if (req.method !== "POST") {
     return sendStudioAgentError(res, 405, {

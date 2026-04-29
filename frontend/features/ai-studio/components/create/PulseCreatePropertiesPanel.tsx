@@ -63,8 +63,6 @@ export type PulseCreatePropertiesPanelProps = {
   isChatOffInlineGenerateDisabled?: boolean;
   outputGenerateCostCredits?: number | null;
   guardrailReason?: string | null;
-  onExpandChat?: () => void;
-  agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
@@ -116,7 +114,6 @@ export function PulseCreatePropertiesPanel({
   assistantBubbleMedia,
   stagedAttachments = [],
   agentDropActive = false,
-  onExpandChat,
   onAgentInputChange,
   onAgentSend,
   onAgentEnhanceSend,
@@ -128,7 +125,6 @@ export function PulseCreatePropertiesPanel({
   onClearAgentAttachments,
   onAssistantMessageEdit,
   onGenerateFromAgentOutputPrompt,
-  agentChatOpen = false,
   onSavePrompt,
   shouldDisableSave = false,
   isPromptGenerating = false,
@@ -215,7 +211,6 @@ export function PulseCreatePropertiesPanel({
     assistantBubbleMedia,
     stagedAttachments,
     agentDropActive,
-    agentChatOpen,
     onAgentInputChange,
     chatModeEnabled: true,
     onChatModeEnabledChange: undefined,
@@ -228,7 +223,6 @@ export function PulseCreatePropertiesPanel({
     onAgentAttachmentDragLeave,
     onRemoveAgentAttachment,
     onClearAgentAttachments,
-    onExpandChat,
     onClearAgentChat,
     onAssistantMessageEdit,
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,

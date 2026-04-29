@@ -301,4 +301,41 @@ describe("Create agent mode boundaries", () => {
     expect(interactionsSource).not.toContain("clearPulseRuntime");
     expect(interactionsSource).toContain("clearActiveRuntime");
   });
+
+  it("keeps the retired right-rail Agent Chat out of the AI Studio shell", () => {
+    const pageSource = readFrontendFile("pages/ai-studio.tsx");
+    const pageContentSource = readFrontendFile(
+      "features/ai-studio/components/AiStudioPageContent.tsx"
+    );
+    const shellFrameSource = readFrontendFile(
+      "features/ai-studio/components/AiStudioShellFrame.tsx"
+    );
+
+    expect(pageSource).not.toContain("const agentChat");
+    expect(pageSource).not.toContain("agentChat={");
+    expect(pageContentSource).not.toContain("agentChat:");
+    expect(pageContentSource).not.toContain("agentChat={");
+    expect(shellFrameSource).not.toContain("AgentChatPanel");
+    expect(shellFrameSource).not.toContain("Agent Chat");
+  });
+
+  it("keeps the retired expanded-chat control out of Create composer contracts", () => {
+    const createSourceFiles = [
+      "features/ai-studio/hooks/useAiStudioPanelProps.ts",
+      "features/ai-studio/components/create/StandardCreatePropertiesPanel.tsx",
+      "features/ai-studio/components/create/PulseCreatePropertiesPanel.tsx",
+      "features/ai-studio/components/PromptStep.tsx",
+      "features/ai-studio/components/PulsePromptStep.tsx",
+      "features/ai-studio/components/promptStep/types.ts",
+      "features/ai-studio/components/promptStep/StandardPromptStepChatSurface.tsx",
+      "features/ai-studio/components/promptStep/PulsePromptStepChatSurface.tsx",
+    ];
+
+    for (const relativePath of createSourceFiles) {
+      const source = readFrontendFile(relativePath);
+      expect(source).not.toContain("onExpandChat");
+      expect(source).not.toContain("agentChatOpen");
+      expect(source).not.toContain("prompt-expand-btn");
+    }
+  });
 });

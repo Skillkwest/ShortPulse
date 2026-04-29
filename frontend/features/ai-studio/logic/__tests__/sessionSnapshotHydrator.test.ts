@@ -322,6 +322,72 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agentRuntimes.pulse.latestAgentPrompt).toBeNull();
   });
 
+  it("ignores persisted Pulse runtime payloads during Standard hydration", () => {
+    const payload = buildAiStudioSessionHydrationPayload({
+      ...createSnapshot(),
+      schemaVersion: 2,
+      meta: {
+        generatedAt: createSnapshot().updatedAt,
+        checksum: "test-checksum",
+      },
+      workspace: {
+        ...createSnapshot().workspace,
+        expertCreateMode: "standard",
+        activePulsePresetId: null,
+      },
+      agentRuntimes: {
+        standard: {
+          messages: [
+            {
+              id: "standard-1",
+              role: "assistant",
+              content: "Standard reply",
+              attachments: [],
+            },
+          ],
+          input: "",
+          latestAgentPrompt: "Standard reply",
+          promptOrigin: "agent",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: "story_builder",
+        pulse: {
+          messages: [
+            {
+              id: "pulse-1",
+              role: "assistant",
+              content: "Pulse-only reply",
+              attachments: [],
+            },
+          ],
+          input: "stale Pulse draft",
+          latestAgentPrompt: "Pulse artifact",
+          promptOrigin: "agent",
+          chatModeEnabled: true,
+          pulseWorkflowSession: {
+            presetId: "story_builder",
+            status: "completed",
+            currentStepIndex: 3,
+            currentStepLabel: "Final",
+            currentStepPrompt: null,
+            collectedInputs: ["Pulse-only input"],
+            lastArtifact: "Pulse artifact",
+            finalArtifactSource: "chat_reply",
+          },
+        },
+      },
+    } as AiStudioSessionSnapshot);
+
+    expect(payload.workspace.expertCreateMode).toBe("standard");
+    expect(payload.agentRuntimes.pulsePresetId).toBeNull();
+    expect(payload.agentRuntimes.pulse.messages).toEqual([]);
+    expect(payload.agentRuntimes.pulse.input).toBe("");
+    expect(payload.agentRuntimes.pulse.latestAgentPrompt).toBeNull();
+    expect(payload.agentRuntimes.pulse.pulseWorkflowSession).toBeNull();
+    expect(payload.agent.messages[0]?.content).toBe("Standard reply");
+  });
+
   it("hydrates selected character workspace state when present", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

@@ -19,6 +19,7 @@ type UseCreatePulsePresetPageRuntimeParams = {
   pulseWorkflowSession: AgentPulseWorkflowSession | null;
   getAgentContext: GetAgentContext;
   clearPulseRuntime: () => void;
+  clearPulsePrompt: () => void;
   handleExpertCreateModeChange: (nextMode: "standard" | "pulse") => void;
   handleActiveCreatePulsePresetIdChange: (nextPresetId: string | null) => void;
 };
@@ -31,6 +32,7 @@ export const useCreatePulsePresetPageRuntime = ({
   pulseWorkflowSession,
   getAgentContext,
   clearPulseRuntime,
+  clearPulsePrompt,
   handleExpertCreateModeChange,
   handleActiveCreatePulsePresetIdChange,
 }: UseCreatePulsePresetPageRuntimeParams) => {
@@ -40,26 +42,29 @@ export const useCreatePulsePresetPageRuntime = ({
   const clearPulseRuntimeForPage = useCallback(() => {
     setActiveCreatePulsePresetSnapshot(null);
     clearPulseRuntime();
-  }, [clearPulseRuntime]);
+    clearPulsePrompt();
+  }, [clearPulsePrompt, clearPulseRuntime]);
 
   const handleExpertCreateModeChangeForPage = useCallback(
     (nextMode: "standard" | "pulse") => {
       if (nextMode === "standard") {
         setActiveCreatePulsePresetSnapshot(null);
+        clearPulsePrompt();
       }
       handleExpertCreateModeChange(nextMode);
     },
-    [handleExpertCreateModeChange]
+    [clearPulsePrompt, handleExpertCreateModeChange]
   );
 
   const handleActiveCreatePulsePresetIdChangeForPage = useCallback(
     (nextPresetId: string | null) => {
       if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
         setActiveCreatePulsePresetSnapshot(null);
+        clearPulsePrompt();
       }
       return handleActiveCreatePulsePresetIdChange(nextPresetId);
     },
-    [activeCreatePulsePresetId, handleActiveCreatePulsePresetIdChange]
+    [activeCreatePulsePresetId, clearPulsePrompt, handleActiveCreatePulsePresetIdChange]
   );
 
   const hasActivePulseSession =

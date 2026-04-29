@@ -91,6 +91,30 @@ vi.mock("../create/PulseCreatePropertiesPanel", () => ({
   ),
 }));
 
+const createCreateProperties = (
+  overrides: Record<string, unknown> = {}
+): AiStudioPageContentProps["propertiesCreate"] => {
+  const expertCreateMode =
+    overrides.expertCreateMode === "pulse" || overrides.expertCreateMode === "standard"
+      ? overrides.expertCreateMode
+      : "standard";
+  const shared = {
+    ...overrides,
+    expertCreateMode,
+  } as Record<string, unknown>;
+  return {
+    expertCreateMode,
+    onExpertCreateModeChange: shared.onExpertCreateModeChange as
+      | ((value: "standard" | "pulse") => void)
+      | undefined,
+    standard: shared as AiStudioPageContentProps["propertiesCreate"]["standard"],
+    pulse: {
+      ...shared,
+      chatModeEnabled: shared.chatModeEnabled ?? true,
+    } as AiStudioPageContentProps["propertiesCreate"]["pulse"],
+  };
+};
+
 vi.mock("../DetailModal", () => ({
   DetailModal: () => null,
 }));
@@ -295,32 +319,28 @@ vi.mock("../../../../prefabs/agent", () => ({
   AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
 }));
 
-const { collapseToMinMock, expandToMaxMock, resetToDefaultWidthMock, useAiStudioShellResizeMock } =
-  vi.hoisted(() => {
-    const collapseToMinMock = vi.fn();
-    const expandToMaxMock = vi.fn();
-    const resetToDefaultWidthMock = vi.fn();
-    const useAiStudioShellResizeMock = vi.fn(() => ({
-      shellRef: { current: null },
-      leftColumnRef: { current: null },
-      leftWidthPx: 420,
-      showDivider: false,
-      isResizing: false,
-      shellStyle: {},
-      collapseToMin: collapseToMinMock,
-      resetToDefaultWidth: resetToDefaultWidthMock,
-      restoreWidth: vi.fn(),
-      expandToMax: expandToMaxMock,
-      dividerProps: {},
-      rightColumnHidden: false,
-    }));
-    return {
-      collapseToMinMock,
-      expandToMaxMock,
-      resetToDefaultWidthMock,
-      useAiStudioShellResizeMock,
-    };
-  });
+const { useAiStudioShellResizeMock } = vi.hoisted(() => {
+  const collapseToMinMock = vi.fn();
+  const expandToMaxMock = vi.fn();
+  const resetToDefaultWidthMock = vi.fn();
+  const useAiStudioShellResizeMock = vi.fn(() => ({
+    shellRef: { current: null },
+    leftColumnRef: { current: null },
+    leftWidthPx: 420,
+    showDivider: false,
+    isResizing: false,
+    shellStyle: {},
+    collapseToMin: collapseToMinMock,
+    resetToDefaultWidth: resetToDefaultWidthMock,
+    restoreWidth: vi.fn(),
+    expandToMax: expandToMaxMock,
+    dividerProps: {},
+    rightColumnHidden: false,
+  }));
+  return {
+    useAiStudioShellResizeMock,
+  };
+});
 vi.mock("../../hooks/useAiStudioShellResize", () => ({
   useAiStudioShellResize: useAiStudioShellResizeMock,
 }));
@@ -361,7 +381,7 @@ const createProps = (
   showCreateTools: false,
   onSelectTool: vi.fn(),
   onToggleCreateTools: vi.fn(),
-  propertiesCreate: {} as AiStudioPageContentProps["propertiesCreate"],
+  propertiesCreate: createCreateProperties(),
   propertiesEditExpert: {
     expertEditEligible: false,
   } as AiStudioPageContentProps["propertiesEditExpert"],
@@ -397,28 +417,6 @@ const createProps = (
     onSelect: vi.fn(),
     context: null,
   },
-  agentChat: {
-    isOpen: false,
-    agentMessages: [],
-    agentInput: "",
-    agentIsSending: false,
-    latestAgentPrompt: null,
-    stagedAttachments: [],
-    agentDropActive: false,
-    onInputChange: vi.fn(),
-    onSend: vi.fn(),
-    onAddToGrid: vi.fn(),
-    onClose: vi.fn(),
-    onAttachmentDrop: vi.fn(),
-    onAttachmentDragOver: vi.fn(),
-    onAttachmentDragEnter: vi.fn(),
-    onAttachmentDragLeave: vi.fn(),
-    onRemoveAttachment: vi.fn(),
-    onClearAttachments: vi.fn(),
-    onGenerateFromOutputPrompt: vi.fn(),
-    outputGenerateCostCredits: null,
-    disableOutputGenerate: false,
-  },
   handleReferenceGridFiles: vi.fn(),
   triggerFilePicker: vi.fn(),
   ...overrides,
@@ -428,7 +426,7 @@ const createProps = (
 describe("AiStudioPageContent right column drop router", () => {
   it("keeps the active create properties panel stable when inactive panel props change", () => {
     createPropertiesPanelRenderSpy.mockClear();
-    const stableCreateProps = {} as AiStudioPageContentProps["propertiesCreate"];
+    const stableCreateProps = createCreateProperties();
     const baseProps = createProps({
       selectedTool: "create",
       propertiesCreate: stableCreateProps,
@@ -813,6 +811,9 @@ describe("AiStudioPageContent right column drop router", () => {
     };
 
     const PulseCreateHarness = () => {
+      const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">(
+        "standard"
+      );
       const [chatModeEnabled, setChatModeEnabled] = React.useState(false);
 
       return (
@@ -820,12 +821,14 @@ describe("AiStudioPageContent right column drop router", () => {
           {...createProps({
             selectedTool: "create",
             referenceGridProps,
-            propertiesCreate: {
+            propertiesCreate: createCreateProperties({
+              expertCreateMode,
+              onExpertCreateModeChange: setExpertCreateMode,
               expertCreateUiEligible: true,
               beginnerMode: false,
               chatModeEnabled,
               onChatModeEnabledChange: setChatModeEnabled,
-            } as AiStudioPageContentProps["propertiesCreate"],
+            }),
           })}
         />
       );
@@ -1242,11 +1245,10 @@ describe("AiStudioPageContent right column drop router", () => {
       <AiStudioPageContent
         {...createProps({
           selectedTool: "create",
-          propertiesCreate: {
-            ...(createProps().propertiesCreate as object),
+          propertiesCreate: createCreateProperties({
             expertCreateUiEligible: true,
             beginnerMode: false,
-          } as AiStudioPageContentProps["propertiesCreate"],
+          }),
         })}
       />
     );
@@ -1290,11 +1292,10 @@ describe("AiStudioPageContent right column drop router", () => {
         {...createProps({
           ...baseProps,
           selectedTool: "create",
-          propertiesCreate: {
-            ...(createProps().propertiesCreate as object),
+          propertiesCreate: createCreateProperties({
             expertCreateUiEligible: true,
             beginnerMode: false,
-          } as AiStudioPageContentProps["propertiesCreate"],
+          }),
         })}
       />
     );

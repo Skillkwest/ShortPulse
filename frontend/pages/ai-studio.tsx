@@ -85,9 +85,11 @@ import {
   resolveVoiceChangerOutputStoragePath,
 } from "../features/ai-studio/logic/voiceChangerReferenceSource";
 import {
+  createEmptyAiStudioSessionAgentState,
   createEmptyAiStudioSessionSnapshot,
   patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotWorkspace,
+  type AiStudioSessionAgentRuntimesV2,
 } from "../features/ai-studio/logic/sessionSnapshot";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
@@ -202,6 +204,7 @@ export default function AiStudioPage() {
     prompt,
     outputs,
     setOutputs,
+    setPulseCreatePrompt,
     resetReferenceGridState,
     curatedReferenceIds,
     removedFromAllRefsIds,
@@ -339,6 +342,9 @@ export default function AiStudioPage() {
     setActivePulsePresetId: setActiveCreatePulsePresetId,
     setPulseSessionInstanceId,
   });
+  const clearPulsePromptForPage = useCallback(() => {
+    setPulseCreatePrompt("");
+  }, [setPulseCreatePrompt]);
 
   const {
     activeCreatePulsePresetSnapshot,
@@ -356,6 +362,7 @@ export default function AiStudioPage() {
     pulseWorkflowSession,
     getAgentContext,
     clearPulseRuntime,
+    clearPulsePrompt: clearPulsePromptForPage,
     handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange,
   });
@@ -782,7 +789,6 @@ export default function AiStudioPage() {
     agentAttachments,
     linkedPromptReferenceIds,
     isAgentDropActive,
-    isAgentChatOpen,
     latestAgentPrompt,
     promptOrigin,
     persistedAgentRuntimes,
@@ -801,10 +807,7 @@ export default function AiStudioPage() {
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
     handleAssistantMessageEdit,
-    handleExpandChat,
-    handleAgentAddToGrid,
     handleClearAgentChat,
-    handleCloseAgentChat,
     resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
   } = useAiStudioAgentBridge({
@@ -906,6 +909,30 @@ export default function AiStudioPage() {
     setExpertEditSessionState,
   ]);
 
+  const sessionAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(() => {
+    if (expertCreateMode === "pulse" && hasActivePulseSession) {
+      return {
+        ...persistedAgentRuntimes,
+        pulsePresetId: activeCreatePulsePresetId,
+        pulse: {
+          ...persistedAgentRuntimes.pulse,
+          pulseWorkflowSession: pulseWorkflowSession ?? null,
+        },
+      };
+    }
+    return {
+      standard: persistedAgentRuntimes.standard,
+      pulsePresetId: null,
+      pulse: createEmptyAiStudioSessionAgentState(),
+    };
+  }, [
+    activeCreatePulsePresetId,
+    expertCreateMode,
+    hasActivePulseSession,
+    persistedAgentRuntimes,
+    pulseWorkflowSession,
+  ]);
+
   const {
     sessionRestoreCandidate,
     projectBootstrapApplied,
@@ -922,15 +949,9 @@ export default function AiStudioPage() {
     latestAgentPrompt,
     promptOrigin,
     chatModeEnabled,
-    pulseWorkflowSession,
-    agentRuntimes: {
-      ...persistedAgentRuntimes,
-      pulsePresetId: hasActivePulseSession ? activeCreatePulsePresetId : null,
-      pulse: {
-        ...persistedAgentRuntimes.pulse,
-        pulseWorkflowSession: hasActivePulseSession ? (pulseWorkflowSession ?? null) : null,
-      },
-    },
+    pulseWorkflowSession:
+      expertCreateMode === "pulse" && hasActivePulseSession ? pulseWorkflowSession : null,
+    agentRuntimes: sessionAgentRuntimes,
     expertEditSessionState,
     hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
@@ -1191,7 +1212,7 @@ export default function AiStudioPage() {
     regenerateOutput,
     activeOutputId,
   });
-  const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt, disableAgentOutputGenerate } =
+  const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt } =
     useAiStudioAgentOutputGenerationBridge({
       expertCreateMode,
       outputs,
@@ -1269,9 +1290,7 @@ export default function AiStudioPage() {
     hasSufficientCreditsForPromptReferenceGenerate,
     isGenerateDisabled: effectiveIsGenerateDisabled,
     generationGuardrail: effectiveGenerationGuardrail,
-    handleExpandChat,
     handleClearAgentChat,
-    isAgentChatOpen,
     handlePrimarySubmit,
     handleChatOffInlineGenerate,
     savePromptReference,
@@ -1369,33 +1388,43 @@ export default function AiStudioPage() {
     onCreateCharacter: handleOpenCharacterCreate,
     onCreateElement: handleOpenElementCreate,
   });
-  const panelPropsWithCreateModeRuntime = useMemo(
-    () => ({
+  const panelPropsWithCreateModeRuntime = useMemo(() => {
+    const standardCreateProperties = {
+      ...panelProps.propertiesCreate,
+      expertCreateMode,
+      onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
+    };
+    const pulseCreateProperties = {
+      ...panelProps.propertiesCreate,
+      expertCreateMode,
+      hasActivePulseSession,
+      onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
+      pulseWorkflowSession,
+      activePulsePresetId: activeCreatePulsePresetId,
+      activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
+      onActivePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
+      onPulsePresetStart: handleCreatePulsePresetStart,
+    };
+    return {
       ...panelProps,
       propertiesCreate: {
-        ...panelProps.propertiesCreate,
         expertCreateMode,
-        hasActivePulseSession,
         onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
-        pulseWorkflowSession,
-        activePulsePresetId: activeCreatePulsePresetId,
-        activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
-        onActivePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
-        onPulsePresetStart: handleCreatePulsePresetStart,
+        standard: standardCreateProperties,
+        pulse: pulseCreateProperties,
       },
-    }),
-    [
-      activeCreatePulsePresetId,
-      activeCreatePulsePresetSnapshot?.label,
-      expertCreateMode,
-      handleActiveCreatePulsePresetIdChangeForPage,
-      handleCreatePulsePresetStart,
-      handleExpertCreateModeChangeForPage,
-      hasActivePulseSession,
-      panelProps,
-      pulseWorkflowSession,
-    ]
-  );
+    };
+  }, [
+    activeCreatePulsePresetId,
+    activeCreatePulsePresetSnapshot?.label,
+    expertCreateMode,
+    handleActiveCreatePulsePresetIdChangeForPage,
+    handleCreatePulsePresetStart,
+    handleExpertCreateModeChangeForPage,
+    hasActivePulseSession,
+    panelProps,
+    pulseWorkflowSession,
+  ]);
   const referenceGridHookProps = useAiStudioReferenceGridProps({
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
@@ -1519,58 +1548,6 @@ export default function AiStudioPage() {
       resolveModelPickerCredits,
     ]
   );
-  const agentChat = useMemo(
-    () => ({
-      isOpen: isAgentChatOpen,
-      agentMessages,
-      agentInput,
-      agentIsSending: agentBusy,
-      latestAgentPrompt,
-      stagedAttachments: agentAttachments,
-      agentDropActive: isAgentDropActive,
-      onInputChange: handleAgentInputChange,
-      onSend: handleAgentSend,
-      onAddToGrid: handleAgentAddToGrid,
-      onClose: handleCloseAgentChat,
-      onAttachmentDrop: handleAgentAttachmentDrop,
-      onAttachmentDragOver: handleAgentAttachmentDragOver,
-      onAttachmentDragEnter: handleAgentAttachmentDragEnter,
-      onAttachmentDragLeave: handleAgentAttachmentDragLeave,
-      onRemoveAttachment: handleRemoveAgentAttachment,
-      onClearAttachments: handleClearAgentAttachments,
-      onAssistantMessageEdit: handleAssistantBubbleMessageEdit,
-      onGenerateFromOutputPrompt: handleGenerateFromAgentOutputPrompt,
-      assistantBubbleMedia,
-      outputGenerateCostCredits: promptReferenceGenerateCostCredits,
-      disableOutputGenerate: disableAgentOutputGenerate,
-      outputGenerateGuardrailReason: disableAgentOutputGenerate ? generationGuardrail : null,
-    }),
-    [
-      agentAttachments,
-      agentBusy,
-      agentInput,
-      agentMessages,
-      assistantBubbleMedia,
-      disableAgentOutputGenerate,
-      generationGuardrail,
-      handleAgentAddToGrid,
-      handleAgentAttachmentDragEnter,
-      handleAgentAttachmentDragLeave,
-      handleAgentAttachmentDragOver,
-      handleAgentAttachmentDrop,
-      handleAgentInputChange,
-      handleAgentSend,
-      handleAssistantBubbleMessageEdit,
-      handleClearAgentAttachments,
-      handleCloseAgentChat,
-      handleGenerateFromAgentOutputPrompt,
-      handleRemoveAgentAttachment,
-      isAgentChatOpen,
-      isAgentDropActive,
-      latestAgentPrompt,
-      promptReferenceGenerateCostCredits,
-    ]
-  );
 
   if (shouldGateProjectBootstrap) {
     return (
@@ -1692,7 +1669,6 @@ export default function AiStudioPage() {
         resolveStyleLibraryInternalDrop={resolveStyleLibraryInternalDrop}
         onOpenMediaLibrary={handleOpenMediaLibraryPanelOnly}
         modelModalState={modelModalState}
-        agentChat={agentChat}
         handleReferenceGridFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}
         resolveCharacterDropReference={resolveCharacterDropReference}

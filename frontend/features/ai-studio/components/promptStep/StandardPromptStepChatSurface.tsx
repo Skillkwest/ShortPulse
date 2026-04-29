@@ -3,7 +3,7 @@
  * Renders Standard history, composer, attachment strip, and action panel.
  */
 import React from "react";
-import { ArrowsOutSimple, Trash } from "phosphor-react";
+import { Trash } from "phosphor-react";
 import {
   AgentChatPanel,
   type AgentChatPanelProps,
@@ -29,10 +29,7 @@ type StandardPromptStepChatSurfaceProps = {
   enhanceOnly: boolean;
   promptMode: "enhanced" | "chat";
   setPromptMode: React.Dispatch<React.SetStateAction<"enhanced" | "chat">>;
-  onExpandChat?: () => void;
   onClearAgentChat?: () => void;
-  agentChatOpen: boolean;
-  canExpandInlineChat: boolean;
   promptThinking: boolean;
   hideAgentIntroMessage: boolean;
   hideEmptyAgentChatState: boolean;
@@ -113,10 +110,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   enhanceOnly,
   promptMode,
   setPromptMode,
-  onExpandChat,
   onClearAgentChat,
-  agentChatOpen,
-  canExpandInlineChat,
   promptThinking,
   hideAgentIntroMessage,
   hideEmptyAgentChatState,
@@ -254,6 +248,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         outputGenerateCostCredits={outputGenerateCostCredits}
         outputGenerateGuardrailReason={outputGenerateGuardrailReason}
         hideOutputGenerateControls={hideOutputGenerateControls || !chatModeEnabled}
+        preserveOutputGenerateLayoutWhenControlsHidden={!chatModeEnabled}
       />
     </div>
   ) : null;
@@ -525,21 +520,6 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
             </button>
           </div>
           <div className={`prompt-chat-actions ${promptMode === "chat" ? "is-active" : ""}`}>
-            {promptMode === "chat" && onExpandChat ? (
-              <button
-                type="button"
-                className={`ghost-btn mini prompt-expand-btn ${agentChatOpen ? "is-chat-open" : ""}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (canExpandInlineChat) onExpandChat();
-                }}
-                aria-label="Expand chat"
-                disabled={!canExpandInlineChat}
-                aria-disabled={!canExpandInlineChat}
-              >
-                <ArrowsOutSimple size={20} weight="bold" aria-hidden />
-              </button>
-            ) : null}
             {promptMode === "chat" && onClearAgentChat ? (
               <button
                 type="button"

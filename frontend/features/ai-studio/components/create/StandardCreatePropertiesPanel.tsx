@@ -71,9 +71,7 @@ export type StandardCreatePropertiesPanelProps = {
   outputGenerateCostCredits?: number | null;
   hasSufficientCreditsForOutputGenerate?: boolean;
   guardrailReason?: string | null;
-  onExpandChat?: () => void;
   onStepActionClick?: (step: "character" | "model" | "prompt" | "imageSettings") => void;
-  agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
   onChatModeEnabledChange?: (value: boolean) => void;
   onAgentSend?: () => void;
@@ -603,7 +601,6 @@ export function StandardCreatePropertiesPanel({
   assistantBubbleMedia,
   stagedAttachments = [],
   agentDropActive = false,
-  onExpandChat,
   onStepActionClick,
   onAgentInputChange,
   onChatModeEnabledChange,
@@ -617,7 +614,6 @@ export function StandardCreatePropertiesPanel({
   onClearAgentAttachments,
   onAssistantMessageEdit,
   onGenerateFromAgentOutputPrompt,
-  agentChatOpen = false,
   onSavePrompt,
   shouldDisableSave = false,
   isPromptGenerating = false,
@@ -814,7 +810,6 @@ export function StandardCreatePropertiesPanel({
     assistantBubbleMedia,
     stagedAttachments,
     agentDropActive,
-    agentChatOpen,
     onAgentInputChange,
     chatModeEnabled,
     onChatModeEnabledChange,
@@ -827,7 +822,6 @@ export function StandardCreatePropertiesPanel({
     onAgentAttachmentDragLeave,
     onRemoveAgentAttachment,
     onClearAgentAttachments,
-    onExpandChat,
     onClearAgentChat,
     onAssistantMessageEdit,
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,

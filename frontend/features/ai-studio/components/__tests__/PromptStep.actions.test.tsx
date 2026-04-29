@@ -153,6 +153,37 @@ describe("PromptStep agent actions", () => {
     expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
   });
 
+  it("keeps response output previews in the Standard response layout when chat mode is off", () => {
+    render(
+      <PromptStep
+        {...baseProps}
+        chatModeEnabled={false}
+        agentMessages={[
+          {
+            id: "assistant-1",
+            role: "assistant",
+            content: "Assistant output one.",
+            outputPrompt: "Assistant output one.",
+            canUseAsPrompt: true,
+          },
+        ]}
+        assistantBubbleMedia={{
+          "assistant-1": {
+            outputId: "out-pending",
+            thumbnailUrl: null,
+            state: "pending",
+          },
+        }}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
+    expect(screen.getByText("Generating preview…")).toBeInTheDocument();
+    const messageBubble = screen.getByText("Assistant output one.").closest(".agent-message");
+    expect(messageBubble).toHaveClass("agent-message--with-output-generate");
+    expect(messageBubble).toHaveClass("agent-message--with-output-thumbnail");
+  });
+
   it("disables inline generate in chat-off mode when input is empty", () => {
     render(
       <PromptStep
@@ -197,8 +228,8 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
   });
 
-  it("keeps inline chat visible in chat-only mode when expanded chat state is true", () => {
-    render(<PromptStep {...baseProps} agentChatOpen />);
+  it("keeps inline chat visible in chat-only mode", () => {
+    render(<PromptStep {...baseProps} />);
 
     expect(screen.getByPlaceholderText("Message the agent...")).toBeInTheDocument();
   });

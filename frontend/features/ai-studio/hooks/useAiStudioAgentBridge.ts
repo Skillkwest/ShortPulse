@@ -255,6 +255,7 @@ export const useAiStudioAgentBridge = ({
     key: string;
     state: AgentBridgeRuntimeState;
   } | null>(null);
+  const hydratedAgentBridgeSessionKeyRef = useRef(agentBridgeSessionKey);
   const committedLiveRuntimeStateRef = useRef<{
     key: string;
     state: AgentBridgeRuntimeState;
@@ -409,7 +410,6 @@ export const useAiStudioAgentBridge = ({
     setAgentAttachmentError,
     agentAttachments,
     setAgentAttachments,
-    linkedPromptReferenceIds,
     isAgentDropActive,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,
@@ -483,6 +483,7 @@ export const useAiStudioAgentBridge = ({
       setStandardChatModeEnabledState(activeRuntimeState.chatModeEnabled);
     }
     setIsAgentChatOpen(activeRuntimeState.isAgentChatOpen);
+    hydratedAgentBridgeSessionKeyRef.current = agentBridgeSessionKey;
   }, [
     agentBridgeSessionKey,
     agentBridgeHydrationRevision,
@@ -499,9 +500,32 @@ export const useAiStudioAgentBridge = ({
     bridgeRuntime.shouldHydrateStandardChatMode,
   ]);
 
+  const isComposerHydratedForActiveScope =
+    hydratedAgentBridgeSessionKeyRef.current === agentBridgeSessionKey;
+  const visibleAgentMessages = isComposerHydratedForActiveScope
+    ? agentMessages
+    : activeAgentBridgeSessionUiState.messages;
+  const visibleAgentInput = isComposerHydratedForActiveScope
+    ? agentInput
+    : activeAgentBridgeSessionUiState.input;
+  const visibleAgentAttachments = isComposerHydratedForActiveScope
+    ? agentAttachments
+    : activeAgentBridgeSessionUiState.attachments;
+  const visibleLinkedPromptReferenceIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          visibleAgentAttachments
+            .map((attachment) => attachment.referenceId)
+            .filter((referenceId): referenceId is string => Boolean(referenceId))
+        )
+      ),
+    [visibleAgentAttachments]
+  );
   const latestAssistantMessage = useMemo(
-    () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
-    [agentMessages]
+    () =>
+      [...visibleAgentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
+    [visibleAgentMessages]
   );
   const pulseArtifactPrompt = resolvePulseWorkflowArtifactPrompt({
     hasVisiblePulseSession,
@@ -512,50 +536,52 @@ export const useAiStudioAgentBridge = ({
     pulseArtifactPrompt && hasVisiblePulseSession ? "agent" : promptOrigin;
   const liveRuntimeState = useMemo<AgentBridgeRuntimeState>(
     () => ({
-      messages: agentMessages,
-      input: agentInput,
-      attachments: agentAttachments,
+      messages: visibleAgentMessages,
+      input: visibleAgentInput,
+      attachments: visibleAgentAttachments,
       latestAgentPrompt: effectiveLatestAgentPrompt,
       promptOrigin: effectivePromptOrigin,
       chatModeEnabled: bridgeRuntime.effectiveChatMode(chatModeEnabled),
       isAgentChatOpen,
     }),
     [
-      agentAttachments,
-      agentInput,
-      agentMessages,
       chatModeEnabled,
       effectiveLatestAgentPrompt,
       effectivePromptOrigin,
       isAgentChatOpen,
       bridgeRuntime,
+      visibleAgentAttachments,
+      visibleAgentInput,
+      visibleAgentMessages,
     ]
   );
   const activeLiveRuntimeState = useMemo<AgentBridgeRuntimeState>(
     () => ({
-      messages: agentMessages,
-      input: agentInput,
-      attachments: agentAttachments,
+      messages: visibleAgentMessages,
+      input: visibleAgentInput,
+      attachments: visibleAgentAttachments,
       latestAgentPrompt,
       promptOrigin,
       chatModeEnabled: bridgeRuntime.effectiveChatMode(chatModeEnabled),
       isAgentChatOpen,
     }),
     [
-      agentAttachments,
-      agentInput,
-      agentMessages,
       chatModeEnabled,
       isAgentChatOpen,
       bridgeRuntime,
       latestAgentPrompt,
       promptOrigin,
+      visibleAgentAttachments,
+      visibleAgentInput,
+      visibleAgentMessages,
     ]
   );
-  activeLiveRuntimeStateRef.current = {
-    key: agentBridgeSessionKey,
-    state: activeLiveRuntimeState,
-  };
+  if (isComposerHydratedForActiveScope) {
+    activeLiveRuntimeStateRef.current = {
+      key: agentBridgeSessionKey,
+      state: activeLiveRuntimeState,
+    };
+  }
 
   useLayoutEffect(() => {
     const committedLiveRuntimeState = committedLiveRuntimeStateRef.current;
@@ -648,9 +674,9 @@ export const useAiStudioAgentBridge = ({
     setAgentUiBusy,
     agentSessionEnabled,
     setAgentSessionEnabled,
-    agentInput,
+    agentInput: visibleAgentInput,
     setAgentInput,
-    agentAttachments,
+    agentAttachments: visibleAgentAttachments,
     setAgentAttachments,
     setAgentAttachmentError,
     prompt,
@@ -778,7 +804,7 @@ export const useAiStudioAgentBridge = ({
 
   const handleAssistantMessageEdit = useCallback(
     ({ messageId, content }: AgentAssistantMessageEditRequest): boolean => {
-      const targetMessage = agentMessages.find(
+      const targetMessage = visibleAgentMessages.find(
         (message) => message.id === messageId && message.role === "assistant"
       );
       if (!targetMessage) return false;
@@ -800,7 +826,7 @@ export const useAiStudioAgentBridge = ({
           : message
       );
       if (didUpdate) {
-        const latestEditableAssistantId = [...agentMessages]
+        const latestEditableAssistantId = [...visibleAgentMessages]
           .reverse()
           .find((message) => canUseAssistantMessageAsPrompt(message))?.id;
         if (latestEditableAssistantId === messageId) {
@@ -818,7 +844,6 @@ export const useAiStudioAgentBridge = ({
       return didUpdate;
     },
     [
-      agentMessages,
       bridgeRuntime,
       selectedTool,
       setLatestAgentPrompt,
@@ -826,6 +851,7 @@ export const useAiStudioAgentBridge = ({
       setSharedPrompt,
       trackAgentUiEvent,
       updateMessageById,
+      visibleAgentMessages,
     ]
   );
 
@@ -863,15 +889,15 @@ export const useAiStudioAgentBridge = ({
     agentEnabled,
     agentBootstrapReady,
     directOpenAiBypassEnabled,
-    agentMessages,
+    agentMessages: visibleAgentMessages,
     agentError,
     agentIsSending,
     agentUiBusy,
     agentBusy,
-    agentInput,
+    agentInput: visibleAgentInput,
     agentAttachmentError,
-    agentAttachments,
-    linkedPromptReferenceIds,
+    agentAttachments: visibleAgentAttachments,
+    linkedPromptReferenceIds: visibleLinkedPromptReferenceIds,
     isAgentDropActive,
     isAgentChatOpen,
     latestAgentPrompt: effectiveLatestAgentPrompt,

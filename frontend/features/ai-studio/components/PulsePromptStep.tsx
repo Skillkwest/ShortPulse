@@ -34,7 +34,6 @@ export function PulsePromptStep({
   assistantBubbleMedia,
   stagedAttachments = [],
   agentDropActive = false,
-  agentChatOpen = false,
   onAgentInputChange,
   onChatModeEnabledChange,
   hideChatModeToggle = false,
@@ -46,7 +45,6 @@ export function PulsePromptStep({
   onAgentAttachmentDragLeave,
   onRemoveAgentAttachment,
   onClearAgentAttachments,
-  onExpandChat,
   onClearAgentChat,
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
@@ -154,13 +152,11 @@ export function PulsePromptStep({
     onAgentEnhanceSend();
   };
 
-  const canExpandInlineChat = agentMessages.length > 0;
   const canUsePromptSurface = agentEnabled || enhanceOnly;
   const isChatMode = !promptOnly && !enhanceOnly && (chatOnly || promptMode === "chat");
   const effectiveComposerInput = chatModeEnabled ? agentInput : prompt;
   const effectiveAgentInputChange = chatModeEnabled ? onAgentInputChange : onPromptChange;
-  // Chat-only mode should not depend on "expanded chat" state now that the expand control is removed.
-  const showInlineChat = isChatMode && (!agentChatOpen || chatOnly);
+  const showInlineChat = isChatMode;
   const promptThinking = Boolean(agentIsSending || isGenerating);
   const chatThinking = Boolean(
     agentIsSending || (showGenerationThinkingInChat ? isGenerating : false)
@@ -337,10 +333,7 @@ export function PulsePromptStep({
                 enhanceOnly={enhanceOnly}
                 promptMode={promptMode}
                 setPromptMode={setPromptMode}
-                onExpandChat={onExpandChat}
                 onClearAgentChat={onClearAgentChat}
-                agentChatOpen={agentChatOpen}
-                canExpandInlineChat={canExpandInlineChat}
                 promptThinking={chatThinking}
                 hideAgentIntroMessage={hideAgentIntroMessage}
                 hideEmptyAgentChatState={hideEmptyAgentChatState}

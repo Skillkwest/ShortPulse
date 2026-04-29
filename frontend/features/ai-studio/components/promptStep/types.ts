@@ -45,7 +45,6 @@ export type PromptStepProps = {
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   stagedAttachments?: AgentAttachment[];
   agentDropActive?: boolean;
-  agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
   onChatModeEnabledChange?: (value: boolean) => void;
   hideChatModeToggle?: boolean;
@@ -57,7 +56,6 @@ export type PromptStepProps = {
   onAgentAttachmentDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void;
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
-  onExpandChat?: () => void;
   onClearAgentChat?: () => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;

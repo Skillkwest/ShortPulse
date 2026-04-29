@@ -135,6 +135,17 @@ export const useCreateAgentOrchestrationRuntime = ({
     [captureWorkflowSession, runtimePolicy]
   );
 
+  const hasRequiredRequestContext = useCallback(
+    (context: AgentContext): boolean => {
+      if (runtimePolicy.kind !== "pulse") return true;
+      if (runtimePolicy.resolveWorkflowPulse(context)) return true;
+      setUiNotice("Pulse context is unavailable. Start the Pulse again.");
+      trackAgentUiEvent("studio_agent_send_blocked_missing_pulse_context");
+      return false;
+    },
+    [runtimePolicy, setUiNotice, trackAgentUiEvent]
+  );
+
   const handlePulsePresetStart = useCallback(
     async (
       preset: CreatePulseResolvedPreset,
@@ -198,6 +209,7 @@ export const useCreateAgentOrchestrationRuntime = ({
       hasPromptApplyPulseContext: runtimePolicy.hasPromptApplyPulseContext,
       ensureSessionReady,
       blockInvalidUserInput,
+      hasRequiredRequestContext,
       prepareUserInputRequestContext,
       captureWorkflowSession,
       handlePulsePresetStart,
@@ -206,6 +218,7 @@ export const useCreateAgentOrchestrationRuntime = ({
       blockInvalidUserInput,
       captureWorkflowSession,
       ensureSessionReady,
+      hasRequiredRequestContext,
       handlePulsePresetStart,
       prepareUserInputRequestContext,
       runtimePolicy,

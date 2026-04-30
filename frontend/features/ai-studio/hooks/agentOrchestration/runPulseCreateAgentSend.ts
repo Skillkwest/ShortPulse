@@ -1,4 +1,5 @@
 import type { MutableRefObject } from "react";
+import type { AgentContext } from "../../../../prefabs/agent";
 import { normalizePromptText } from "../../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../../logic/promptTargeting";
 import { mergeAttachmentContext } from "./attachmentContext";
@@ -29,7 +30,6 @@ export type RunPulseCreateAgentSendParams = Pick<
   | "setAgentAttachments"
   | "setAgentAttachmentError"
   | "prompt"
-  | "latestAgentPrompt"
   | "setLatestAgentPrompt"
   | "setPulseWorkflowSession"
   | "selectedTool"
@@ -40,7 +40,6 @@ export type RunPulseCreateAgentSendParams = Pick<
   | "updateMessageById"
   | "getAgentContext"
   | "trackAgentUiEvent"
-  | "lastAssistantMessage"
   | "setUiNotice"
 > & {
   runtimePolicy: CreateAgentOrchestrationRuntimePolicy;
@@ -53,6 +52,15 @@ export type RunPulseCreateAgentSendParams = Pick<
 const cloneMessageAttachments = (
   attachments: UseAiStudioAgentOrchestrationParams["agentAttachments"]
 ) => attachments.map((attachment) => ({ ...attachment }));
+
+const stripGenericPromptContinuity = (context: AgentContext): AgentContext => {
+  const {
+    activePrompt: _activePrompt,
+    lastAssistantMessage: _lastAssistantMessage,
+    ...pulseContext
+  } = context;
+  return pulseContext;
+};
 
 /**
  * Executes the Pulse Create guided send path. Owns workflow request shaping,
@@ -71,7 +79,6 @@ export const runPulseCreateAgentSend = async ({
   setAgentAttachments,
   setAgentAttachmentError,
   prompt,
-  latestAgentPrompt,
   setLatestAgentPrompt,
   setPulseWorkflowSession,
   selectedTool,
@@ -82,7 +89,6 @@ export const runPulseCreateAgentSend = async ({
   updateMessageById,
   getAgentContext,
   trackAgentUiEvent,
-  lastAssistantMessage,
   setUiNotice,
   runtimePolicy,
   notifyBootstrapPending,
@@ -116,12 +122,14 @@ export const runPulseCreateAgentSend = async ({
   if (!outboundText && !allowImageOnlySend) return;
   const outboundAttachments = cloneMessageAttachments(agentAttachments);
   const selectedOverride = runtimePolicy.resolveSelectedOverride(options?.selectedOverride);
-  const baseContext = getAgentContext({
-    lastAssistantMessage,
-    selectedOverride,
-    includeActiveOutput: runtimePolicy.includeActiveOutput,
-    modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
-  });
+  const baseContext = stripGenericPromptContinuity(
+    getAgentContext({
+      lastAssistantMessage: null,
+      selectedOverride,
+      includeActiveOutput: runtimePolicy.includeActiveOutput,
+      modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
+    })
+  );
   if (!runtimePolicy.resolveWorkflowPulse(baseContext)) {
     setUiNotice("Pulse context is unavailable. Start the Pulse again.");
     trackAgentUiEvent("studio_agent_send_blocked_missing_pulse_context");
@@ -258,10 +266,6 @@ export const runPulseCreateAgentSend = async ({
       updateOptimisticAttachmentDelivery(imageAttachmentIds, "ready", null);
     }
 
-    const shouldInjectLatestAgentPrompt = Boolean(latestAgentPrompt) && outboundText.length > 0;
-    if (shouldInjectLatestAgentPrompt) {
-      baseContext.activePrompt = latestAgentPrompt;
-    }
     const mediaPatchedContext = mergeAttachmentContext({
       baseContext,
       attachments: outboundAttachments,
@@ -281,7 +285,7 @@ export const runPulseCreateAgentSend = async ({
     const { response, actions, workflowSession, discarded } = await sendToAgent({
       text: outboundText,
       payloadText: outboundText,
-      previousPrompt: latestAgentPrompt ?? null,
+      previousPrompt: null,
       context: requestContext,
       skipUserEcho: true,
       optimisticUserMessageId,

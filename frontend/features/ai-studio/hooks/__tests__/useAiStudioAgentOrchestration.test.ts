@@ -397,9 +397,16 @@ describe("useAiStudioAgentOrchestration", () => {
 
     expect(sendToAgent).toHaveBeenCalledWith(
       expect.objectContaining({
+        previousPrompt: null,
+        context: expect.not.objectContaining({
+          activePrompt: expect.anything(),
+          lastAssistantMessage: expect.anything(),
+        }),
+      })
+    );
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
         context: expect.objectContaining({
-          activePrompt: "Which camera motion should I use?",
-          lastAssistantMessage: "Upload your image to get the process started :)",
           pulse: expect.objectContaining({
             label: "Video Prompt Magic",
             presetId: "image",

@@ -437,6 +437,9 @@ describe("Create agent mode boundaries", () => {
     const standardSendSource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/runStandardCreateAgentSend.ts"
     );
+    const pulseSendSource = readFrontendFile(
+      "features/ai-studio/hooks/agentOrchestration/runPulseCreateAgentSend.ts"
+    );
     const standardPromptEnhanceSource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/useStandardCreatePromptEnhance.ts"
     );
@@ -486,6 +489,9 @@ describe("Create agent mode boundaries", () => {
     expect(standardSendSource).not.toContain("Pulse");
     expect(standardSendSource).not.toContain("WorkflowSession");
     expect(standardSendSource).not.toContain("pulseSendRuntime");
+    expect(pulseSendSource).not.toContain("previousPrompt: latestAgentPrompt");
+    expect(pulseSendSource).not.toContain("baseContext.activePrompt = latestAgentPrompt");
+    expect(pulseSendSource).toContain("stripGenericPromptContinuity");
     expect(standardPromptEnhanceSource).not.toContain("runtimePolicy");
     expect(standardPromptEnhanceSource).not.toContain("Pulse");
     expect(standardPromptEnhanceSource).not.toContain("WorkflowSession");

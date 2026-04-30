@@ -33,6 +33,7 @@ import {
   hasStudioAgentPulseContext,
   isPulseCreateAgentSessionNamespace,
   readStudioAgentClientSessionNamespace,
+  readPulsePresetIdFromSessionNamespace,
 } from "../studioAgentRouteModeBoundary";
 import {
   applyStudioAgentVisionSummariesToContext,
@@ -46,7 +47,6 @@ import {
 import { isStudioAgentWorkflowPulse } from "../studioAgentPulseRuntime";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
-import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationState";
 import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
 
 const PULSE_ROUTE_LABEL = "ai/studio-agent-pulse";
@@ -65,6 +65,19 @@ const hasPulseWorkflowPresetMismatch = (body: unknown): boolean => {
   return Boolean(workflowPresetId && presetId && workflowPresetId !== presetId);
 };
 
+const hasPulseSessionNamespacePresetMismatch = (body: unknown): boolean => {
+  const clientSessionNamespace = readStudioAgentClientSessionNamespace(
+    body as { clientSessionNamespace?: unknown } | null | undefined
+  );
+  const namespacePresetId = readPulsePresetIdFromSessionNamespace(clientSessionNamespace);
+  const pulse = (body as { context?: { pulse?: unknown } })?.context?.pulse as
+    | { presetId?: unknown }
+    | null
+    | undefined;
+  const presetId = typeof pulse?.presetId === "string" ? pulse.presetId.trim() : "";
+  return Boolean(namespacePresetId && presetId && namespacePresetId !== presetId);
+};
+
 export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextApiResponse) => {
   const requestStartedAt = Date.now();
   const traceId = resolveStudioAgentTraceId(req);
@@ -81,6 +94,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
       !hasStudioAgentPulseContext(req.body?.context) ||
       !isPulseCreateAgentSessionNamespace(clientSessionNamespace) ||
       hasInboundStudioAgentCanonicalPrompt(req.body) ||
+      hasPulseSessionNamespacePresetMismatch(req.body) ||
       hasPulseWorkflowPresetMismatch(req.body)
     ) {
       return sendStudioAgentError(res, 400, {

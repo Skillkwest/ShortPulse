@@ -31,6 +31,16 @@ export const isStandardCreateAgentSessionNamespace = (value: string | null): boo
 export const isPulseCreateAgentSessionNamespace = (value: string | null): boolean =>
   Boolean(value && value.includes("::pulse:"));
 
+export const readPulsePresetIdFromSessionNamespace = (value: string | null): string | null => {
+  if (!value) return null;
+  const marker = "::pulse:";
+  const markerIndex = value.indexOf(marker);
+  if (markerIndex < 0) return null;
+  const pulseScope = value.slice(markerIndex + marker.length);
+  const presetId = pulseScope.split(":")[0]?.trim() ?? "";
+  return presetId || null;
+};
+
 export const hasInboundStudioAgentCanonicalPrompt = (
   body: StudioAgentRequestBody | null | undefined
 ): boolean => typeof body?.canonicalPrompt === "string" && body.canonicalPrompt.trim().length > 0;

@@ -482,6 +482,15 @@ const sanitizeAgentRuntime = (runtime: {
   pulseWorkflowSession: sanitizePulseWorkflowSession(runtime.pulseWorkflowSession),
 });
 
+const isPulseAgentRuntimeAuthorizedForPreset = (
+  runtime: AiStudioSessionAgentV1,
+  presetId: string | null
+): boolean => {
+  if (!presetId) return false;
+  const workflowPresetId = runtime.pulseWorkflowSession?.presetId ?? null;
+  return workflowPresetId === null || workflowPresetId === presetId;
+};
+
 /**
  * Returns the canonical empty agent runtime payload.
  * Project workspace persistence uses this to strip conversation state while
@@ -545,22 +554,33 @@ export const buildAiStudioSessionSnapshot = (
     pulseWorkflowSession: input.pulseWorkflowSession,
   });
   const emptyAgentRuntime = createEmptyAiStudioSessionAgentState();
+  const hasPulseWorkspaceAuthority =
+    resolvedExpertCreateMode === "pulse" && resolvedActivePulsePresetId !== null;
+  const resolveAuthorizedPulseAgentRuntime = (
+    runtime: AiStudioSessionAgentV1
+  ): AiStudioSessionAgentV1 =>
+    isPulseAgentRuntimeAuthorizedForPreset(runtime, resolvedActivePulsePresetId)
+      ? runtime
+      : emptyAgentRuntime;
   const agentRuntimes = input.agentRuntimes
-    ? {
-        standard: sanitizeAgentRuntime(input.agentRuntimes.standard),
-        pulsePresetId:
-          resolvedExpertCreateMode === "pulse"
-            ? input.agentRuntimes.pulsePresetId?.trim() || resolvedActivePulsePresetId
-            : null,
-        pulse:
-          resolvedExpertCreateMode === "pulse"
-            ? sanitizeAgentRuntime(input.agentRuntimes.pulse)
+    ? (() => {
+        const inputPulsePresetId = input.agentRuntimes.pulsePresetId?.trim() || null;
+        const hasMatchingPulseRuntimeAuthority =
+          hasPulseWorkspaceAuthority && inputPulsePresetId === resolvedActivePulsePresetId;
+        return {
+          standard: sanitizeAgentRuntime(input.agentRuntimes.standard),
+          pulsePresetId: hasPulseWorkspaceAuthority ? resolvedActivePulsePresetId : null,
+          pulse: hasMatchingPulseRuntimeAuthority
+            ? resolveAuthorizedPulseAgentRuntime(sanitizeAgentRuntime(input.agentRuntimes.pulse))
             : emptyAgentRuntime,
-      }
+        };
+      })()
     : {
-        standard: resolvedExpertCreateMode === "pulse" ? emptyAgentRuntime : activeAgentRuntime,
-        pulsePresetId: resolvedExpertCreateMode === "pulse" ? resolvedActivePulsePresetId : null,
-        pulse: resolvedExpertCreateMode === "pulse" ? activeAgentRuntime : emptyAgentRuntime,
+        standard: hasPulseWorkspaceAuthority ? emptyAgentRuntime : activeAgentRuntime,
+        pulsePresetId: hasPulseWorkspaceAuthority ? resolvedActivePulsePresetId : null,
+        pulse: hasPulseWorkspaceAuthority
+          ? resolveAuthorizedPulseAgentRuntime(activeAgentRuntime)
+          : emptyAgentRuntime,
       };
 
   const basePayload = {

@@ -382,6 +382,92 @@ describe("sessionSnapshot", () => {
     });
   });
 
+  it("hard-drops Pulse runtime state when the runtime preset does not match workspace authority", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Pulse draft prompt",
+      standardCreatePrompt: "",
+      pulseCreatePrompt: "Pulse draft prompt",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-story",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+      agentRuntimes: {
+        standard: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: "multi_shot",
+        pulse: {
+          messages: [{ id: "pulse-1", role: "assistant", content: "Other preset reply" }],
+          input: "other preset draft",
+          latestAgentPrompt: "Other preset artifact",
+          promptOrigin: "agent",
+          chatModeEnabled: true,
+          pulseWorkflowSession: {
+            presetId: "multi_shot",
+            status: "completed",
+            currentStepIndex: 3,
+            currentStepLabel: "Final",
+            currentStepPrompt: null,
+            collectedInputs: ["other preset input"],
+            lastArtifact: "Other preset artifact",
+            finalArtifactSource: "chat_reply",
+          },
+        },
+      },
+    });
+
+    expect(snapshot.workspace.expertCreateMode).toBe("pulse");
+    expect(snapshot.workspace.activePulsePresetId).toBe("story_builder");
+    expect(snapshot.agentRuntimes?.pulsePresetId).toBe("story_builder");
+    expect(snapshot.agentRuntimes?.pulse).toEqual({
+      messages: [],
+      input: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+    });
+  });
+
   it("preserves a Pulse draft separately from the completed workflow artifact", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

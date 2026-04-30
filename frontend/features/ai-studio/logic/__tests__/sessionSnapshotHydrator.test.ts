@@ -396,6 +396,69 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agent.messages[0]?.content).toBe("Standard reply");
   });
 
+  it("ignores persisted Pulse runtime payloads with mismatched preset authority", () => {
+    const payload = buildAiStudioSessionHydrationPayload({
+      ...createSnapshot(),
+      schemaVersion: 2,
+      meta: {
+        generatedAt: createSnapshot().updatedAt,
+        checksum: "test-checksum",
+      },
+      workspace: {
+        ...createSnapshot().workspace,
+        prompt: "Pulse prompt",
+        pulsePrompt: "Pulse prompt",
+        expertCreateMode: "pulse",
+        activePulsePresetId: "story_builder",
+        pulseSessionInstanceId: "pulse-session-story",
+      },
+      agentRuntimes: {
+        standard: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: "multi_shot",
+        pulse: {
+          messages: [
+            {
+              id: "pulse-1",
+              role: "assistant",
+              content: "Other preset reply",
+              attachments: [],
+            },
+          ],
+          input: "other preset draft",
+          latestAgentPrompt: "Other preset artifact",
+          promptOrigin: "agent",
+          chatModeEnabled: true,
+          pulseWorkflowSession: {
+            presetId: "multi_shot",
+            status: "completed",
+            currentStepIndex: 3,
+            currentStepLabel: "Final",
+            currentStepPrompt: null,
+            collectedInputs: ["other preset input"],
+            lastArtifact: "Other preset artifact",
+            finalArtifactSource: "chat_reply",
+          },
+        },
+      },
+    } as AiStudioSessionSnapshot);
+
+    expect(payload.workspace.expertCreateMode).toBe("pulse");
+    expect(payload.workspace.activePulsePresetId).toBe("story_builder");
+    expect(payload.agentRuntimes.pulsePresetId).toBe("story_builder");
+    expect(payload.agentRuntimes.pulse.messages).toEqual([]);
+    expect(payload.agentRuntimes.pulse.input).toBe("");
+    expect(payload.agentRuntimes.pulse.latestAgentPrompt).toBeNull();
+    expect(payload.agentRuntimes.pulse.pulseWorkflowSession).toBeNull();
+    expect(payload.agent.messages).toEqual([]);
+  });
+
   it("hydrates selected character workspace state when present", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

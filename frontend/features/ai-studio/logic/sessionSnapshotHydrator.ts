@@ -617,6 +617,15 @@ const coerceHydratedRuntimeChatMode = <
   }
 ): TRuntime => (options?.forceChatModeEnabled ? { ...runtime, chatModeEnabled: true } : runtime);
 
+const isHydratedPulseRuntimeAuthorizedForPreset = (
+  runtime: ReturnType<typeof buildHydratedAgentRuntime>,
+  presetId: string | null
+): boolean => {
+  if (!presetId) return false;
+  const workflowPresetId = runtime.pulseWorkflowSession?.presetId ?? null;
+  return workflowPresetId === null || workflowPresetId === presetId;
+};
+
 /**
  * Builds normalized state payload used by snapshot hydration apply paths.
  */
@@ -683,16 +692,25 @@ export const buildAiStudioSessionHydrationPayload = (
   const defaultAgentRuntime = buildHydratedAgentRuntime(null);
   const hydratedPulsePresetId =
     workspaceExpertCreateMode === "pulse" ? workspaceActivePulsePresetId : null;
+  const persistedPulsePresetId = asNullableString(agentRuntimes?.pulsePresetId)?.trim() || null;
+  const hasHydratedPulseRuntimeAuthority =
+    hydratedPulsePresetId !== null &&
+    persistedPulsePresetId === hydratedPulsePresetId &&
+    Boolean(agentRuntimes?.pulse);
+  const candidatePulseRuntime = hasHydratedPulseRuntimeAuthority
+    ? coerceHydratedRuntimeChatMode(buildHydratedAgentRuntime(agentRuntimes?.pulse), {
+        forceChatModeEnabled: true,
+      })
+    : defaultAgentRuntime;
   const hydratedAgentRuntimes = {
     standard: agentRuntimes?.standard
       ? buildHydratedAgentRuntime(agentRuntimes.standard)
       : defaultAgentRuntime,
     pulsePresetId: hydratedPulsePresetId,
     pulse:
-      hydratedPulsePresetId && agentRuntimes?.pulse
-        ? coerceHydratedRuntimeChatMode(buildHydratedAgentRuntime(agentRuntimes.pulse), {
-            forceChatModeEnabled: true,
-          })
+      hasHydratedPulseRuntimeAuthority &&
+      isHydratedPulseRuntimeAuthorizedForPreset(candidatePulseRuntime, hydratedPulsePresetId)
+        ? candidatePulseRuntime
         : defaultAgentRuntime,
   };
   const resolvedWorkspacePulseState = resolveHydratedPulseRuntimeState({

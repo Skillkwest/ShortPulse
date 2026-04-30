@@ -93,24 +93,34 @@ export const resolveVoiceChangerSourceStoragePath = (
   return null;
 };
 
-export const signVoiceChangerStoragePath = async (storagePath: string): Promise<string> => {
+export const signVoiceSourceStoragePath = async (storagePath: string): Promise<string> => {
   const signedUrl = await getSignedMediaUrl({
     bucket: BUCKET,
     storagePath,
     forceRefresh: true,
   });
   if (!signedUrl?.trim()) {
-    throw new Error("Unable to sign the stored voice changer source.");
+    throw new Error("Unable to sign the stored voice source.");
   }
   return signedUrl;
 };
 
-export const uploadVoiceChangerSourceFile = async ({
+export const signVoiceChangerStoragePath = signVoiceSourceStoragePath;
+
+const uploadStagedVoiceSourceFile = async ({
   file,
   kind,
+  route,
+  filenameFallbackPrefix,
+  stageError,
+  extraHeaders = {},
 }: {
   file: File;
   kind: "audio" | "video";
+  route: string;
+  filenameFallbackPrefix: string;
+  stageError: string;
+  extraHeaders?: Record<string, string>;
 }): Promise<{
   storagePath: string;
   signedUrl: string | null;
@@ -119,21 +129,19 @@ export const uploadVoiceChangerSourceFile = async ({
   size: number;
 }> => {
   const mimeType = file.type.trim() || (kind === "audio" ? "audio/wav" : "video/mp4");
-  const response = await fetchWithAuth(
-    kind === "video" ? "/api/upload-video" : "/api/media/stage-voice-changer-source",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": mimeType,
-        "x-shortpulse-upload-filename":
-          file.name.trim() || `voice-changer-source.${inferExtensionFromMimeType(mimeType, kind)}`,
-        ...(kind === "audio" ? { "x-shortpulse-voice-changer-kind": kind } : {}),
-      },
-      body: file,
-      shortpulseLogScope: "generation",
-      shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
-    }
-  );
+  const response = await fetchWithAuth(route, {
+    method: "POST",
+    headers: {
+      "Content-Type": mimeType,
+      "x-shortpulse-upload-filename":
+        file.name.trim() ||
+        `${filenameFallbackPrefix}.${inferExtensionFromMimeType(mimeType, kind)}`,
+      ...extraHeaders,
+    },
+    body: file,
+    shortpulseLogScope: "generation",
+    shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+  });
   const payload = (await response.json().catch(() => null)) as {
     source?: {
       storagePath?: unknown;
@@ -191,7 +199,7 @@ export const uploadVoiceChangerSourceFile = async ({
         ? payload.details.trim()
         : typeof payload?.error === "string" && payload.error.trim()
           ? payload.error.trim()
-          : "Unable to stage the voice changer source.";
+          : stageError;
     throw new Error(error);
   }
 
@@ -203,6 +211,31 @@ export const uploadVoiceChangerSourceFile = async ({
     size: Number.isFinite(size) ? size : file.size,
   };
 };
+
+export const uploadVoiceChangerSourceFile = async ({
+  file,
+  kind,
+}: {
+  file: File;
+  kind: "audio" | "video";
+}) =>
+  uploadStagedVoiceSourceFile({
+    file,
+    kind,
+    route: kind === "video" ? "/api/upload-video" : "/api/media/stage-voice-changer-source",
+    filenameFallbackPrefix: "voice-changer-source",
+    stageError: "Unable to stage the voice changer source.",
+    extraHeaders: kind === "audio" ? { "x-shortpulse-voice-changer-kind": kind } : {},
+  });
+
+export const uploadVoiceCloneSourceFile = async ({ file }: { file: File }) =>
+  uploadStagedVoiceSourceFile({
+    file,
+    kind: "audio",
+    route: "/api/media/stage-voice-clone-source",
+    filenameFallbackPrefix: "voice-clone-source",
+    stageError: "Unable to stage the voice clone source.",
+  });
 
 type ExtractAudioResponse = {
   audio?: {

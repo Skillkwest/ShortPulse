@@ -60,8 +60,16 @@ All ShortPulse ElevenLabs routes use handler-level bearer auth via `requireApiUs
   - routes:
     - `POST /api/elevenlabs/text-to-voice/design`
     - `POST /api/elevenlabs/text-to-voice/create`
-  - input family: preview description and chosen generated preview id
-  - output: preview candidates for selection, then persisted saved-voice metadata
+  - input family: voice description plus selected generated preview
+  - output: reusable provider voice persisted in the user-scoped saved-voice cache
+  - Billing basis: metadata-only provider voice creation workflow, not part of shared user-billable runtime pricing
+- Voice clone create:
+  - routes:
+    - `POST /api/media/stage-voice-clone-source`
+    - `POST /api/elevenlabs/voices/clone`
+  - input family: staged local audio sample plus voice name and optional description
+  - output: reusable provider voice persisted in the user-scoped saved-voice cache
+  - Billing basis: metadata-only provider voice creation workflow, not part of shared user-billable runtime pricing
 
 ## Runtime pricing notes
 

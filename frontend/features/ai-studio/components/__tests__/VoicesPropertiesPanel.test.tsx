@@ -3,7 +3,7 @@
  * Verifies the dedicated Voices workflow shell renders independently from TTS.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetSharedVoicesGridStore } from "../../hooks/useSharedVoicesGrid";
 import {
@@ -16,6 +16,7 @@ import { prepareReferenceDrag } from "../../utils/dragDrop";
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const extractAudioWaveformPeaksFromUrlMock = vi.hoisted(() => vi.fn());
 const uploadVoiceChangerSourceFileMock = vi.hoisted(() => vi.fn());
+const uploadVoiceCloneSourceFileMock = vi.hoisted(() => vi.fn());
 const extractVoiceChangerVideoSourceMock = vi.hoisted(() => vi.fn());
 const resolveVoiceChangerMediaDurationMsMock = vi.hoisted(() => vi.fn());
 const resolveVoiceChangerVideoAspectMock = vi.hoisted(() => vi.fn());
@@ -55,6 +56,7 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
 
 vi.mock("../../utils/voiceChangerSourceAsset", () => ({
   uploadVoiceChangerSourceFile: (...args: unknown[]) => uploadVoiceChangerSourceFileMock(...args),
+  uploadVoiceCloneSourceFile: (...args: unknown[]) => uploadVoiceCloneSourceFileMock(...args),
   extractVoiceChangerVideoSource: (...args: unknown[]) =>
     extractVoiceChangerVideoSourceMock(...args),
   resolveVoiceChangerMediaDurationMs: (...args: unknown[]) =>
@@ -63,6 +65,7 @@ vi.mock("../../utils/voiceChangerSourceAsset", () => ({
     resolveVoiceChangerVideoAspectMock(...args),
   resolveVoiceChangerSourceStoragePath: (...args: unknown[]) =>
     resolveVoiceChangerSourceStoragePathMock(...args),
+  signVoiceSourceStoragePath: (...args: unknown[]) => signVoiceChangerStoragePathMock(...args),
   signVoiceChangerStoragePath: (...args: unknown[]) => signVoiceChangerStoragePathMock(...args),
 }));
 
@@ -83,6 +86,7 @@ describe("VoicesPropertiesPanel", () => {
     fetchWithAuthMock.mockReset();
     extractAudioWaveformPeaksFromUrlMock.mockReset();
     uploadVoiceChangerSourceFileMock.mockReset();
+    uploadVoiceCloneSourceFileMock.mockReset();
     extractVoiceChangerVideoSourceMock.mockReset();
     resolveVoiceChangerMediaDurationMsMock.mockReset();
     resolveVoiceChangerVideoAspectMock.mockReset();
@@ -94,6 +98,13 @@ describe("VoicesPropertiesPanel", () => {
     createObjectUrlMock.mockImplementation((value: unknown) => `blob:voice-${String(value)}`);
     uploadVoiceChangerSourceFileMock.mockImplementation(async ({ file }: { file: File }) => ({
       storagePath: `user-1/voice-changer/source-audio/${file.name}`,
+      signedUrl: `https://signed.example/${encodeURIComponent(file.name)}`,
+      mimeType: file.type || "audio/wav",
+      name: file.name,
+      size: file.size,
+    }));
+    uploadVoiceCloneSourceFileMock.mockImplementation(async ({ file }: { file: File }) => ({
+      storagePath: `user-1/voice-clone/source-audio/${file.name}`,
       signedUrl: `https://signed.example/${encodeURIComponent(file.name)}`,
       mimeType: file.type || "audio/wav",
       name: file.name,
@@ -1363,6 +1374,83 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /lantern voice/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /lantern voice/i })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+  });
+
+  it("stages an audio sample and saves a cloned provider voice into the voices grid", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        voice: {
+          voiceId: "voice_cloned_123",
+          name: "Cloned Lantern",
+          previewUrl: "https://cdn.elevenlabs.test/cloned-lantern.mp3",
+          description: "Cloned documentary narrator.",
+          isFallback: false,
+        },
+      }),
+    });
+
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Clone Voice" }));
+    const createDialog = screen.getByRole("dialog", { name: "Create New Voice" });
+
+    expect(screen.getByText("Drop a voice sample")).toBeInTheDocument();
+    expect(screen.getByText("Record a voice sample to create a cloned voice.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Accepts MP3, WAV, M4A, AAC, FLAC, OGG, and WEBM.")
+    ).toBeInTheDocument();
+    expect(within(createDialog).queryByText(/voice changer/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
+      target: { value: "Cloned Lantern" },
+    });
+
+    const fileInput = document.querySelector(
+      ".voices-create-modal .voices-properties-voice-changer-file-input"
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+    const file = new File(["audio"], "clone-sample.mp3", { type: "audio/mpeg" });
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Ready to clone")).toBeInTheDocument();
+    });
+
+    expect(uploadVoiceCloneSourceFileMock).toHaveBeenCalledWith({ file });
+    const cloneButton = screen.getByRole("button", { name: "Create cloned voice" });
+    expect(cloneButton).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText("I have permission to clone this voice."));
+    expect(cloneButton).toBeEnabled();
+    fireEvent.click(cloneButton);
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/voices/clone", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          voiceName: "Cloned Lantern",
+          voiceDescription: null,
+          sourceStoragePath: "user-1/voice-clone/source-audio/clone-sample.mp3",
+          sourceName: "clone-sample.mp3",
+          removeBackgroundNoise: true,
+        }),
+        shortpulseLogScope: "generation",
+      });
+    });
+
+    expect(screen.queryByRole("dialog", { name: "Create New Voice" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /cloned lantern voice/i })).toHaveAttribute(
       "aria-pressed",
       "true"
     );

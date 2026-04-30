@@ -142,6 +142,10 @@
   animation: voices-create-modal-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.voices-create-modal--clone {
+  width: min(920px, calc(100vw - 48px));
+}
+
 @keyframes voices-create-modal-in {
   from {
     opacity: 0;
@@ -221,6 +225,10 @@
   padding: 18px 20px 20px;
 }
 
+.voices-create-modal-method-tabs {
+  max-width: 420px;
+}
+
 .voices-create-modal-form {
   display: flex;
   flex-direction: column;
@@ -230,6 +238,32 @@
 .voices-create-modal-actions {
   display: flex;
   justify-content: flex-start;
+}
+
+.voices-create-modal-clone-source {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voices-create-modal-clone-source .voices-properties-voice-changer-dropzone-shell {
+  min-height: 360px;
+}
+
+.voices-create-modal-consent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(225, 233, 242, 0.84);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.voices-create-modal-consent input {
+  width: 16px;
+  height: 16px;
+  accent-color: rgba(149, 235, 228, 0.96);
 }
 
 .voices-create-modal-preview-section {
@@ -3044,6 +3078,10 @@
     width: min(100vw - 28px, 760px);
   }
 
+  .voices-create-modal--clone {
+    width: min(100vw - 28px, 920px);
+  }
+
   .voices-create-modal-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -3106,6 +3144,10 @@
   .voices-create-modal-save-btn {
     width: 100%;
     min-width: 0;
+  }
+
+  .voices-create-modal-method-tabs {
+    max-width: none;
   }
 }
 

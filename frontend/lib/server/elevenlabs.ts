@@ -464,6 +464,54 @@ export const createElevenLabsDesignedVoice = async ({
   return normalizedVoice;
 };
 
+export const createElevenLabsClonedVoice = async ({
+  voiceName,
+  voiceDescription,
+  sourceBuffer,
+  sourceFilename,
+  sourceMimeType,
+  removeBackgroundNoise,
+}: {
+  voiceName: string;
+  voiceDescription?: string | null;
+  sourceBuffer: Buffer;
+  sourceFilename: string;
+  sourceMimeType: string | null;
+  removeBackgroundNoise: boolean;
+}): Promise<ElevenLabsVoice> => {
+  const formData = new FormData();
+  formData.append("name", voiceName);
+  if (voiceDescription?.trim()) {
+    formData.append("description", voiceDescription.trim());
+  }
+  formData.append("remove_background_noise", removeBackgroundNoise ? "true" : "false");
+  formData.append(
+    "files",
+    new Blob([sourceBuffer], { type: sourceMimeType ?? "application/octet-stream" }),
+    sourceFilename
+  );
+
+  const response = await fetch(`${ELEVENLABS_BASE_URL}/v1/voices/add`, {
+    method: "POST",
+    headers: buildElevenLabsHeaders(),
+    body: formData,
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message =
+      normalizeOptionalString((payload as { detail?: unknown } | null)?.detail) ??
+      normalizeOptionalString((payload as { error?: unknown } | null)?.error) ??
+      "ElevenLabs voice clone request failed.";
+    throw new Error(message);
+  }
+
+  const normalizedVoice = normalizeElevenLabsVoice(payload as Record<string, unknown>);
+  if (!normalizedVoice) {
+    throw new Error("ElevenLabs returned an invalid cloned voice payload.");
+  }
+  return normalizedVoice;
+};
+
 /**
  * Deletes a provider-backed ElevenLabs voice by id.
  * Throws a status-bearing error when the upstream request fails.

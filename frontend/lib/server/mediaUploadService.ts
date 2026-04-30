@@ -625,6 +625,28 @@ const uploadScopedStorageBuffer = async ({
   };
 };
 
+const resolveVoiceAudioSourceMimeType = ({
+  declaredMimeType,
+  filename,
+  errorDetails,
+}: {
+  declaredMimeType: string;
+  filename: string;
+  errorDetails: string;
+}): string => {
+  const filenameExtension = resolveExtensionFromFilename(filename);
+  const candidateMimeType =
+    declaredMimeType && ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES.has(declaredMimeType)
+      ? declaredMimeType
+      : filenameExtension && VOICE_CHANGER_AUDIO_MIME_BY_EXTENSION[filenameExtension]
+        ? VOICE_CHANGER_AUDIO_MIME_BY_EXTENSION[filenameExtension]
+        : null;
+  if (!candidateMimeType || !ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES.has(candidateMimeType)) {
+    throw new MediaUploadServiceError(400, "Invalid file type", errorDetails);
+  }
+  return candidateMimeType;
+};
+
 const resolveVoiceChangerSourceMimeType = ({
   kind,
   declaredMimeType,
@@ -657,20 +679,11 @@ const resolveVoiceChangerSourceMimeType = ({
     return candidateMimeType;
   }
 
-  const candidateMimeType =
-    declaredMimeType && ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES.has(declaredMimeType)
-      ? declaredMimeType
-      : filenameExtension && VOICE_CHANGER_AUDIO_MIME_BY_EXTENSION[filenameExtension]
-        ? VOICE_CHANGER_AUDIO_MIME_BY_EXTENSION[filenameExtension]
-        : null;
-  if (!candidateMimeType || !ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES.has(candidateMimeType)) {
-    throw new MediaUploadServiceError(
-      400,
-      "Invalid file type",
-      "Voice changer source file is not a supported audio format."
-    );
-  }
-  return candidateMimeType;
+  return resolveVoiceAudioSourceMimeType({
+    declaredMimeType,
+    filename,
+    errorDetails: "Voice changer source file is not a supported audio format.",
+  });
 };
 
 const uploadStorageAssetForUser = async ({
@@ -762,6 +775,60 @@ export const uploadVoiceChangerSourceForUser = async ({
   const uploaded = await uploadScopedStorageBuffer({
     userId,
     storageFolder: kind === "video" ? "voice-changer/source-video" : "voice-changer/source-audio",
+    filename,
+    mimeType,
+    buffer,
+  });
+
+  return {
+    url: uploaded.signedUrl,
+    path: uploaded.storagePath,
+    size: uploaded.size,
+    mimeType,
+    name: filename,
+  };
+};
+
+export const uploadVoiceCloneSourceForUser = async ({
+  req,
+  userId,
+}: {
+  req: NextApiRequest;
+  userId: string;
+}): Promise<{
+  url: string;
+  path: string;
+  size: number;
+  mimeType: string;
+  name: string;
+}> => {
+  const filename =
+    readHeaderString(req.headers["x-shortpulse-upload-filename"]) || "voice-clone-source.wav";
+  const buffer = await readRawBody(req, {
+    maxBytes: MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES,
+    tooLargeError: new MediaUploadServiceError(
+      413,
+      "Invalid request",
+      "Voice clone source audio must be 100 MB or smaller."
+    ),
+  });
+  if (!buffer.length) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid request",
+      "Voice clone source upload is empty."
+    );
+  }
+
+  const declaredMimeType = normalizeContentType(req.headers["content-type"]);
+  const mimeType = resolveVoiceAudioSourceMimeType({
+    declaredMimeType,
+    filename,
+    errorDetails: "Voice clone source file is not a supported audio format.",
+  });
+  const uploaded = await uploadScopedStorageBuffer({
+    userId,
+    storageFolder: "voice-clone/source-audio",
     filename,
     mimeType,
     buffer,

@@ -565,7 +565,7 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(updateOutputById).not.toHaveBeenCalled();
   });
 
-  it("does not resume task-backed outputs from the browser watchdog once a task id exists", async () => {
+  it("resumes task-backed outputs from the browser watchdog when no poll timer exists", async () => {
     const outputs = [
       createOutput({
         id: "out-task-resume",
@@ -574,6 +574,7 @@ describe("useAiStudioTaskOrchestration", () => {
         modelId: "fal-ai/bytedance/seedream/v4.5/edit",
         taskState: "running",
         timestamp: "Waiting for server recovery...",
+        mediaSource: "generated",
       }),
     ];
 
@@ -621,14 +622,10 @@ describe("useAiStudioTaskOrchestration", () => {
     });
 
     expect(clearPollTimer).not.toHaveBeenCalledWith("out-task-resume");
-    expect(startPollingTask).not.toHaveBeenCalledWith(
+    expect(startPollingTask).toHaveBeenCalledWith(
       "req-task-resume",
       "out-task-resume",
       0,
-      expect.anything(),
-      expect.anything(),
-      expect.anything(),
-      expect.anything(),
       expect.anything()
     );
   });

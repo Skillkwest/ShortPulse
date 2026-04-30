@@ -160,6 +160,16 @@ export const useAiStudioTaskOrchestration = ({
     [clearPrimaryReferenceReplacementOutput, findOutputById, isPrimaryReferenceReplacementOutput]
   );
 
+  const { startPollingTask, clearPollTimer, pollTimersRef } = useAiStudioTasks({
+    updateOutputById,
+    findOutputById,
+    notifyGenerationFailure,
+    onGenerationSuccess: handleGenerationSuccess,
+    onGenerationFailure: handleGenerationFailure,
+    onPollingOutputLookupHardStop: handlePollingOutputLookupHardStop,
+    projectId,
+  });
+
   const runVisibleGenerationWatchdog = useCallback(() => {
     if (!isDocumentVisible()) return;
     const now = Date.now();
@@ -225,7 +235,16 @@ export const useAiStudioTaskOrchestration = ({
             requestId: requestId || undefined,
             ...(projectId ? { projectId } : {}),
           });
-          if (!visibleGeneration) return;
+          if (!visibleGeneration) {
+            const provider = resolveTaskPollingProvider({
+              provider: output.provider,
+              modelId: output.modelId,
+            });
+            if (requestId && provider && !pollTimersRef.current[output.id]) {
+              startPollingTask(requestId, output.id, 0, provider);
+            }
+            return;
+          }
           if (abandonedOutputIdsRef.current.has(output.id)) return;
           if (!findOutputById(output.id)) return;
           updateOutputById(output.id, (item) => {
@@ -288,17 +307,14 @@ export const useAiStudioTaskOrchestration = ({
         delete visibleGenerationLastCheckedAtRef.current[outputId];
       }
     });
-  }, [findOutputById, handleGenerationSuccess, projectId, updateOutputById]);
-
-  const { startPollingTask, clearPollTimer } = useAiStudioTasks({
-    updateOutputById,
+  }, [
     findOutputById,
-    notifyGenerationFailure,
-    onGenerationSuccess: handleGenerationSuccess,
-    onGenerationFailure: handleGenerationFailure,
-    onPollingOutputLookupHardStop: handlePollingOutputLookupHardStop,
+    handleGenerationSuccess,
+    pollTimersRef,
     projectId,
-  });
+    startPollingTask,
+    updateOutputById,
+  ]);
 
   const submitTask = useAiStudioTaskSubmission({
     ...taskSubmissionConfig,

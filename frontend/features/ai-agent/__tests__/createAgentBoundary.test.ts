@@ -561,6 +561,18 @@ describe("Create agent mode boundaries", () => {
     expect(hydratorSource).toContain("pulsePresetId: hydratedPulsePresetId");
   });
 
+  it("keeps page-content Create test fixtures discriminated by mode", () => {
+    const pageContentDropTestSource = readFrontendFile(
+      "features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx"
+    );
+
+    expect(pageContentDropTestSource).not.toContain("commonCreateFields");
+    expect(pageContentDropTestSource).not.toContain("Record<string, unknown>");
+    expect(pageContentDropTestSource).toContain("type CreatePropertiesTestParams");
+    expect(pageContentDropTestSource).toContain("standard?: Partial<TestStandardCreateProps>");
+    expect(pageContentDropTestSource).toContain("pulse?: Partial<TestPulseCreateProps>");
+  });
+
   it("keeps Standard and Pulse Create props from cloning one shared prop bag", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
     const panelPropBuilderSource = readFrontendFile(

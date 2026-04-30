@@ -84,38 +84,36 @@ vi.mock("../create/PulseCreatePropertiesPanel", () => ({
   ),
 }));
 
+type CreatePropertiesTestParams =
+  | {
+      expertCreateMode?: "standard";
+      onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
+      standard?: Partial<TestStandardCreateProps>;
+    }
+  | {
+      expertCreateMode: "pulse";
+      onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
+      pulse?: Partial<TestPulseCreateProps>;
+    };
+
 const createCreateProperties = (
-  overrides: Record<string, unknown> = {}
+  params: CreatePropertiesTestParams = {}
 ): AiStudioPageContentProps["propertiesCreate"] => {
-  const expertCreateMode =
-    overrides.expertCreateMode === "pulse" || overrides.expertCreateMode === "standard"
-      ? overrides.expertCreateMode
-      : "standard";
-  const onExpertCreateModeChange = overrides.onExpertCreateModeChange as
-    | ((value: "standard" | "pulse") => void)
-    | undefined;
-  const commonCreateFields = {
-    expertCreateUiEligible: overrides.expertCreateUiEligible,
-    beginnerMode: overrides.beginnerMode,
-  };
-  if (expertCreateMode === "pulse") {
+  if (params.expertCreateMode === "pulse") {
     return {
-      expertCreateMode,
-      onExpertCreateModeChange,
+      expertCreateMode: "pulse",
+      onExpertCreateModeChange: params.onExpertCreateModeChange,
       pulse: {
-        ...commonCreateFields,
-      } as unknown as TestPulseCreateProps,
+        ...params.pulse,
+      } as TestPulseCreateProps,
     };
   }
-  const standardOverrides = { ...overrides };
-  delete standardOverrides.expertCreateMode;
-  delete standardOverrides.onExpertCreateModeChange;
+
   return {
-    expertCreateMode,
-    onExpertCreateModeChange,
+    expertCreateMode: "standard",
+    onExpertCreateModeChange: params.onExpertCreateModeChange,
     standard: {
-      ...standardOverrides,
-      ...commonCreateFields,
+      ...params.standard,
     } as TestStandardCreateProps,
   };
 };
@@ -428,11 +426,10 @@ describe("AiStudioPageContent right column drop router", () => {
   it("keeps Standard-only Create props out of Pulse Create props in tests", () => {
     const createPropsContract = createCreateProperties({
       expertCreateMode: "pulse",
-      expertCreateUiEligible: true,
-      beginnerMode: false,
-      chatModeEnabled: false,
-      onChatModeEnabledChange: vi.fn(),
-      onChatOffInlineGenerate: vi.fn(),
+      pulse: {
+        expertCreateUiEligible: true,
+        beginnerMode: false,
+      },
     });
 
     expect(createPropsContract.expertCreateMode).toBe("pulse");
@@ -842,10 +839,21 @@ describe("AiStudioPageContent right column drop router", () => {
             propertiesCreate: createCreateProperties({
               expertCreateMode,
               onExpertCreateModeChange: setExpertCreateMode,
-              expertCreateUiEligible: true,
-              beginnerMode: false,
-              chatModeEnabled,
-              onChatModeEnabledChange: setChatModeEnabled,
+              ...(expertCreateMode === "pulse"
+                ? {
+                    pulse: {
+                      expertCreateUiEligible: true,
+                      beginnerMode: false,
+                    },
+                  }
+                : {
+                    standard: {
+                      expertCreateUiEligible: true,
+                      beginnerMode: false,
+                      chatModeEnabled,
+                      onChatModeEnabledChange: setChatModeEnabled,
+                    },
+                  }),
             }),
           })}
         />
@@ -1264,8 +1272,10 @@ describe("AiStudioPageContent right column drop router", () => {
         {...createProps({
           selectedTool: "create",
           propertiesCreate: createCreateProperties({
-            expertCreateUiEligible: true,
-            beginnerMode: false,
+            standard: {
+              expertCreateUiEligible: true,
+              beginnerMode: false,
+            },
           }),
         })}
       />
@@ -1311,8 +1321,10 @@ describe("AiStudioPageContent right column drop router", () => {
           ...baseProps,
           selectedTool: "create",
           propertiesCreate: createCreateProperties({
-            expertCreateUiEligible: true,
-            beginnerMode: false,
+            standard: {
+              expertCreateUiEligible: true,
+              beginnerMode: false,
+            },
           }),
         })}
       />

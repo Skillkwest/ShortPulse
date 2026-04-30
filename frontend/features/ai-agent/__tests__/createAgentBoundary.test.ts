@@ -169,6 +169,63 @@ describe("Create agent mode boundaries", () => {
     expect(panelPropSource).not.toContain("selectedPulsePresetIds");
   });
 
+  it("keeps mode-owned Create runtime result builders from accepting the opposite mode", () => {
+    const standardRuntimeBuilder = readFrontendFile(
+      "features/ai-studio/createRuntime/buildStandardCreateRuntimeResult.ts"
+    );
+    const pulseRuntimeBuilder = readFrontendFile(
+      "features/ai-studio/createRuntime/buildPulseCreateRuntimeResult.ts"
+    );
+
+    expect(standardRuntimeBuilder).not.toContain("PulseCreate");
+    expect(standardRuntimeBuilder).not.toContain("pulsePrompt");
+    expect(standardRuntimeBuilder).not.toContain("workflowSession");
+    expect(standardRuntimeBuilder).not.toContain("activePreset");
+    expect(pulseRuntimeBuilder).not.toContain("StandardCreate");
+    expect(pulseRuntimeBuilder).not.toContain("chatModeEnabled");
+    expect(pulseRuntimeBuilder).not.toContain("directOpenAiBypassEnabled");
+    expect(pulseRuntimeBuilder).not.toContain("handleChatOffInlineGenerate");
+  });
+
+  it("keeps the Standard Create agent runtime statically Standard-only", () => {
+    const standardAgentRuntime = readFrontendFile(
+      "features/ai-studio/createRuntime/useStandardCreateAgentRuntime.ts"
+    );
+
+    expect(standardAgentRuntime).toContain("standardCreateAgentRuntimeBinding");
+    expect(standardAgentRuntime).toContain('requestRuntimeMode: "standard"');
+    expect(standardAgentRuntime).toContain("runStandardCreateAgentSend");
+    expect(standardAgentRuntime).not.toContain("Pulse");
+    expect(standardAgentRuntime).not.toContain("pulse");
+    expect(standardAgentRuntime).not.toContain("useCreateAgentBridgeActiveAgent");
+    expect(standardAgentRuntime).not.toContain("useAiStudioAgentOrchestration");
+    expect(standardAgentRuntime).not.toContain("pulseCreateAgentRuntimeBinding");
+    expect(standardAgentRuntime).not.toContain("workflowSession");
+  });
+
+  it("keeps the Pulse Create agent runtime statically Pulse-only", () => {
+    const pulseAgentRuntime = readFrontendFile(
+      "features/ai-studio/createRuntime/usePulseCreateAgentRuntime.ts"
+    );
+
+    expect(pulseAgentRuntime).toContain("pulseCreateAgentRuntimeBinding");
+    expect(pulseAgentRuntime).toContain('requestRuntimeMode: "pulse"');
+    expect(pulseAgentRuntime).toContain("runPulseCreateAgentSend");
+    expect(pulseAgentRuntime).toContain("runPulsePresetStartRuntime");
+    expect(pulseAgentRuntime).not.toContain("Standard");
+    expect(pulseAgentRuntime).not.toContain("standard");
+    expect(pulseAgentRuntime).not.toContain("useCreateAgentBridgeActiveAgent");
+    expect(pulseAgentRuntime).not.toContain("useAiStudioAgentOrchestration");
+    expect(pulseAgentRuntime).not.toContain("standardCreateAgentRuntimeBinding");
+    expect(pulseAgentRuntime).not.toContain("onChatModeChange");
+    expect(pulseAgentRuntime).not.toContain("setChatModeEnabled");
+    expect(pulseAgentRuntime).not.toContain("directOpenAiBypassEnabledByConfig");
+    expect(pulseAgentRuntime).not.toContain(
+      "NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED"
+    );
+    expect(pulseAgentRuntime).not.toContain("directOpenAiBypassEnabled: true");
+  });
+
   it("keeps Pulse workflow implementation helpers out of page-root static imports", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
     const pulseReconciliationSource = readFrontendFile(

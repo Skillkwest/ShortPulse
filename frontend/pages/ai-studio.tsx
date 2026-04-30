@@ -355,32 +355,6 @@ const useAiStudioPageBaseRuntime = () => {
     setActivePulsePresetId: setActiveCreatePulsePresetId,
     setPulseSessionInstanceId,
   });
-  const clearPulsePromptForPage = useCallback(() => {
-    setPulseCreatePrompt("");
-  }, [setPulseCreatePrompt]);
-
-  const {
-    activeCreatePulsePresetSnapshot,
-    setActiveCreatePulsePresetSnapshot,
-    clearPulseRuntimeForPage,
-    handleExpertCreateModeChangeForPage,
-    handleActiveCreatePulsePresetIdChangeForPage,
-    hasActivePulseSession,
-    standardCreateAgentContextResolver,
-    pulseCreateAgentContextResolver,
-  } = useCreatePulsePresetPageRuntime({
-    selectedTool,
-    expertCreateMode,
-    activeCreatePulsePresetId,
-    pulseSessionInstanceId,
-    pulseWorkflowSession,
-    getAgentContext,
-    clearPulseRuntime,
-    clearPulsePrompt: clearPulsePromptForPage,
-    handleExpertCreateModeChange,
-    handleActiveCreatePulsePresetIdChange,
-  });
-
   const handleQuickSlotLibraryMediaDrop = useCallback(
     async (
       payload: Parameters<typeof addLibraryMediaReferenceToQuickSlot>[0],
@@ -793,7 +767,6 @@ const useAiStudioPageBaseRuntime = () => {
   return {
     activeCreatePrompt,
     activeCreatePulsePresetId,
-    activeCreatePulsePresetSnapshot,
     activeOutput,
     activeOutputId,
     activeSessionPersistenceSessionId,
@@ -820,7 +793,7 @@ const useAiStudioPageBaseRuntime = () => {
     characterOptions,
     clearCharacterError,
     clearGenerationOutput,
-    clearPulseRuntimeForPage,
+    clearPulseRuntime,
     closeModelModal,
     createCharacterModeInjectionBundle,
     createIsGenerating,
@@ -842,16 +815,16 @@ const useAiStudioPageBaseRuntime = () => {
     extraImageUrls,
     findOutputById,
     generateOutput,
+    getAgentContext,
     getDefaultDurationSeconds,
-    handleActiveCreatePulsePresetIdChangeForPage,
+    handleActiveCreatePulsePresetIdChange,
     handleCreateCharacterSelection,
-    handleExpertCreateModeChangeForPage,
+    handleExpertCreateModeChange,
     handleOpenCharacterCreate,
     handleOpenCharacterLibrary,
     handleOpenElementCreate,
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryPromptDrop,
-    hasActivePulseSession,
     hydrateCanvasSessionState,
     hydrateFromSessionSnapshot,
     imageExtraImageUrls,
@@ -898,7 +871,6 @@ const useAiStudioPageBaseRuntime = () => {
     projectId,
     projectRouteRequested,
     projectStatus,
-    pulseCreateAgentContextResolver,
     pulsePrompt,
     pulseSessionInstanceId,
     pulseWorkflowSession,
@@ -948,7 +920,6 @@ const useAiStudioPageBaseRuntime = () => {
     selectedTool,
     sessionId,
     sessionPersistenceTitleOverride,
-    setActiveCreatePulsePresetSnapshot,
     setActiveOutputId,
     setAspect,
     setBeginnerMode,
@@ -1008,7 +979,6 @@ const useAiStudioPageBaseRuntime = () => {
     setVideoResolution,
     showBeginnerModeToggle,
     showCreateTools,
-    standardCreateAgentContextResolver,
     standardPrompt,
     trackCharacterModeFallback,
     trackUiEvent,
@@ -1031,6 +1001,7 @@ const useAiStudioPageBaseRuntime = () => {
 };
 
 type AiStudioPageBaseRuntime = ReturnType<typeof useAiStudioPageBaseRuntime>;
+type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRuntime>;
 
 export default function AiStudioPage() {
   const base = useAiStudioPageBaseRuntime();
@@ -1042,6 +1013,35 @@ export default function AiStudioPage() {
 }
 
 const StandardCreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
+  const {
+    clearPulseRuntime,
+    getAgentContext,
+    handleActiveCreatePulsePresetIdChange,
+    handleExpertCreateModeChange,
+    setPulseCreatePrompt,
+  } = base;
+  const standardCreatePulsePageRuntime = useMemo<CreatePulsePresetPageRuntime>(
+    () => ({
+      activeCreatePulsePresetSnapshot: null,
+      setActiveCreatePulsePresetSnapshot: () => undefined,
+      clearPulseRuntimeForPage: () => {
+        clearPulseRuntime();
+        setPulseCreatePrompt("");
+      },
+      handleExpertCreateModeChangeForPage: handleExpertCreateModeChange,
+      handleActiveCreatePulsePresetIdChangeForPage: handleActiveCreatePulsePresetIdChange,
+      hasActivePulseSession: false,
+      standardCreateAgentContextResolver: getAgentContext,
+      pulseCreateAgentContextResolver: getAgentContext,
+    }),
+    [
+      clearPulseRuntime,
+      getAgentContext,
+      handleActiveCreatePulsePresetIdChange,
+      handleExpertCreateModeChange,
+      setPulseCreatePrompt,
+    ]
+  );
   const standardCreateAgentRuntime = useStandardCreateAgentRuntime({
     sessionId: base.sessionId,
     mode: base.mode,
@@ -1049,7 +1049,7 @@ const StandardCreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) 
     prompt: base.standardPrompt,
     projectId: base.projectId,
     projectRouteRequested: base.projectRouteRequested,
-    getAgentContext: base.standardCreateAgentContextResolver,
+    getAgentContext: base.getAgentContext,
     setSharedPrompt: base.setSharedPrompt,
     addAgentPromptReference: base.addAgentPromptReference,
     editReferenceText: base.editReferenceText,
@@ -1067,24 +1067,44 @@ const StandardCreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) 
   });
 
   return (
-    <AiStudioPageRuntimeBody base={base} activeCreateAgentRuntime={standardCreateAgentRuntime} />
+    <AiStudioPageRuntimeBody
+      base={base}
+      createPulsePageRuntime={standardCreatePulsePageRuntime}
+      activeCreateAgentRuntime={standardCreateAgentRuntime}
+    />
   );
 };
 
 const PulseCreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
+  const { setPulseCreatePrompt } = base;
+  const clearPulsePromptForPage = useCallback(() => {
+    setPulseCreatePrompt("");
+  }, [setPulseCreatePrompt]);
+  const createPulsePageRuntime = useCreatePulsePresetPageRuntime({
+    selectedTool: base.selectedTool,
+    expertCreateMode: base.expertCreateMode,
+    activeCreatePulsePresetId: base.activeCreatePulsePresetId,
+    pulseSessionInstanceId: base.pulseSessionInstanceId,
+    pulseWorkflowSession: base.pulseWorkflowSession,
+    getAgentContext: base.getAgentContext,
+    clearPulseRuntime: base.clearPulseRuntime,
+    clearPulsePrompt: clearPulsePromptForPage,
+    handleExpertCreateModeChange: base.handleExpertCreateModeChange,
+    handleActiveCreatePulsePresetIdChange: base.handleActiveCreatePulsePresetIdChange,
+  });
   const pulseCreateAgentRuntime = usePulseCreateAgentRuntime({
     sessionId: base.sessionId,
     mode: base.mode,
     selectedTool: base.selectedTool,
     prompt: base.pulsePrompt,
-    activePresetSnapshot: base.activeCreatePulsePresetSnapshot,
+    activePresetSnapshot: createPulsePageRuntime.activeCreatePulsePresetSnapshot,
     activePresetId: base.activeCreatePulsePresetId,
     sessionInstanceId: base.pulseSessionInstanceId,
     workflowSession: base.pulseWorkflowSession,
     setWorkflowSession: base.setPulseWorkflowSession,
-    clearRuntime: base.clearPulseRuntimeForPage,
+    clearRuntime: createPulsePageRuntime.clearPulseRuntimeForPage,
     restartPulse: base.restartPulse,
-    getAgentContext: base.pulseCreateAgentContextResolver,
+    getAgentContext: createPulsePageRuntime.pulseCreateAgentContextResolver,
     setSharedPrompt: base.setSharedPrompt,
     findOutputById: base.findOutputById,
     resolvePanelOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
@@ -1092,20 +1112,27 @@ const PulseCreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => 
     trackAgentUiEvent: base.trackUiEvent,
   });
 
-  return <AiStudioPageRuntimeBody base={base} activeCreateAgentRuntime={pulseCreateAgentRuntime} />;
+  return (
+    <AiStudioPageRuntimeBody
+      base={base}
+      createPulsePageRuntime={createPulsePageRuntime}
+      activeCreateAgentRuntime={pulseCreateAgentRuntime}
+    />
+  );
 };
 
 const useAiStudioPageRuntimeShell = ({
   base,
+  createPulsePageRuntime,
   activeCreateAgentRuntime,
 }: {
   base: AiStudioPageBaseRuntime;
+  createPulsePageRuntime: CreatePulsePresetPageRuntime;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
 }) => {
   const {
     activeCreatePrompt,
     activeCreatePulsePresetId,
-    activeCreatePulsePresetSnapshot,
     activeOutput,
     activeOutputId,
     activeSessionPersistenceSessionId,
@@ -1154,15 +1181,12 @@ const useAiStudioPageRuntimeShell = ({
     findOutputById,
     generateOutput,
     getDefaultDurationSeconds,
-    handleActiveCreatePulsePresetIdChangeForPage,
     handleCreateCharacterSelection,
-    handleExpertCreateModeChangeForPage,
     handleOpenCharacterCreate,
     handleOpenCharacterLibrary,
     handleOpenElementCreate,
     handleQuickSlotLibraryMediaDrop,
     handleQuickSlotLibraryPromptDrop,
-    hasActivePulseSession,
     hydrateCanvasSessionState,
     hydrateFromSessionSnapshot,
     imageExtraImageUrls,
@@ -1255,7 +1279,6 @@ const useAiStudioPageRuntimeShell = ({
     selectedTool,
     sessionId,
     sessionPersistenceTitleOverride,
-    setActiveCreatePulsePresetSnapshot,
     setActiveOutputId,
     setAspect,
     setBeginnerMode,
@@ -1333,6 +1356,13 @@ const useAiStudioPageRuntimeShell = ({
     videoReferenceText,
     videoResolution,
   } = base;
+  const {
+    activeCreatePulsePresetSnapshot,
+    setActiveCreatePulsePresetSnapshot,
+    handleExpertCreateModeChangeForPage,
+    handleActiveCreatePulsePresetIdChangeForPage,
+    hasActivePulseSession,
+  } = createPulsePageRuntime;
   const {
     agentEnabled,
     agentBootstrapReady,
@@ -2091,12 +2121,18 @@ const noopGenerateFromAgentOutputPrompt: ReturnType<
 
 const AiStudioPageRuntimeBody = ({
   base,
+  createPulsePageRuntime,
   activeCreateAgentRuntime,
 }: {
   base: AiStudioPageBaseRuntime;
+  createPulsePageRuntime: CreatePulsePresetPageRuntime;
   activeCreateAgentRuntime: CreatePageAgentRuntime;
 }) => {
-  const shell = useAiStudioPageRuntimeShell({ base, activeCreateAgentRuntime });
+  const shell = useAiStudioPageRuntimeShell({
+    base,
+    createPulsePageRuntime,
+    activeCreateAgentRuntime,
+  });
   return activeCreateAgentRuntime.kind === "pulse" ? (
     <PulseCreateGenerationCommandRoot shell={shell} />
   ) : (

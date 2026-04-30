@@ -875,6 +875,7 @@ export const useAiStudioState = ({
     setPrompt: setSharedPrompt,
     standardPrompt,
     pulsePrompt,
+    setStandardCreatePrompt,
     setPulseCreatePrompt,
     outputs,
     outputOrder: activeOutputState.order,

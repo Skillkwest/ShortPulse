@@ -74,7 +74,8 @@ export type UseAiStudioPanelPropsParams = {
       | "text-video"
       | null
   ) => void;
-  handleManualPromptChange: (value: string) => void;
+  handleStandardPromptChange: (value: string) => void;
+  handlePulsePromptChange: (value: string) => void;
   createIsGenerating: boolean;
   editIsGenerating: boolean;
   isPrimaryEditStageGenerating: boolean;
@@ -246,7 +247,8 @@ export const useAiStudioPanelProps = ({
   isModelModalOpen,
   modelModalAnchor,
   handleOpenModelModal,
-  handleManualPromptChange,
+  handleStandardPromptChange,
+  handlePulsePromptChange,
   createIsGenerating,
   editIsGenerating,
   isPrimaryEditStageGenerating,
@@ -411,7 +413,7 @@ export const useAiStudioPanelProps = ({
             handleRemoveAgentAttachment,
             handleClearAgentAttachments,
             handleAssistantMessageEdit,
-            handlePulsePromptChange: handleManualPromptChange,
+            handlePulsePromptChange,
             createIsGenerating,
             currentCostCredits,
             isGenerateDisabled,
@@ -459,7 +461,7 @@ export const useAiStudioPanelProps = ({
             modelModalAnchor,
             setAspect,
             handleOpenModelModal,
-            handleManualPromptChange,
+            handleManualPromptChange: handleStandardPromptChange,
             createIsGenerating,
             isPromptRefining,
             describeInFlightCount,

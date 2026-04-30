@@ -308,6 +308,8 @@ describe("Create agent mode boundaries", () => {
     expect(panelPropBuilderSource).not.toContain("\n  prompt: string;\n");
     expect(panelPropBuilderSource).toContain("standardPrompt: string;");
     expect(panelPropBuilderSource).toContain("pulsePrompt: string;");
+    expect(panelPropBuilderSource).toContain("handleStandardPromptChange");
+    expect(panelPropBuilderSource).toContain("handlePulsePromptChange");
     expect(panelPropBuilderSource).toContain("prompt: standardPrompt");
     expect(panelPropBuilderSource).toContain("pulsePrompt");
     expect(panelPropBuilderSource).toContain("buildStandardCreatePanelProps");

@@ -215,6 +215,7 @@ export default function AiStudioPage() {
     pulsePrompt,
     outputs,
     setOutputs,
+    setStandardCreatePrompt,
     setPulseCreatePrompt,
     resetReferenceGridState,
     curatedReferenceIds,
@@ -878,6 +879,20 @@ export default function AiStudioPage() {
     setUiNotice,
     trackAgentUiEvent: trackUiEvent,
   });
+  const handleStandardCreatePromptChange = useCallback(
+    (value: string) => {
+      setStandardCreatePrompt(value);
+      setPromptOrigin("manual");
+    },
+    [setPromptOrigin, setStandardCreatePrompt]
+  );
+  const handlePulseCreatePromptChange = useCallback(
+    (value: string) => {
+      setPulseCreatePrompt(value);
+      setPromptOrigin("manual");
+    },
+    [setPromptOrigin, setPulseCreatePrompt]
+  );
 
   const handleCreatePulsePresetStart = useCallback(
     async (
@@ -1353,7 +1368,8 @@ export default function AiStudioPage() {
     isModelModalOpen,
     modelModalAnchor,
     handleOpenModelModal,
-    handleManualPromptChange,
+    handleStandardPromptChange: handleStandardCreatePromptChange,
+    handlePulsePromptChange: handlePulseCreatePromptChange,
     createIsGenerating,
     editIsGenerating,
     isPrimaryEditStageGenerating,

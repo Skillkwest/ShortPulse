@@ -407,7 +407,7 @@ describe("useAiStudioReferenceAssetActions", () => {
     });
 
     expect(from).toHaveBeenCalledWith("generation_projection");
-    expect(from).toHaveBeenCalledWith("ai_generations");
+    expect(from).not.toHaveBeenCalledWith("ai_generations");
     expect(storageDownload).not.toHaveBeenCalled();
     expect(setUiError).toHaveBeenCalledWith(
       "Generated media is missing durable generation tracking."

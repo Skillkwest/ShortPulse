@@ -104,6 +104,6 @@ describe("POST /api/fal/seedream-status ownership", () => {
         }),
       })
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

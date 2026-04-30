@@ -290,7 +290,7 @@ describe("DetailModal", () => {
   });
 
   it("keeps image previews fit-to-screen on open and does not zoom in on double-click", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={baseOutput}
         onClose={vi.fn()}
@@ -299,7 +299,7 @@ describe("DetailModal", () => {
       />
     );
 
-    const vessel = container.querySelector(".art-image-vessel");
+    const vessel = baseElement.querySelector(".art-image-vessel");
     expect(vessel).not.toBeNull();
     if (!vessel) return;
 
@@ -309,7 +309,7 @@ describe("DetailModal", () => {
   });
 
   it("treats uploaded image blob URLs as images instead of videos", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -323,14 +323,14 @@ describe("DetailModal", () => {
     );
 
     expect(screen.getByText("Image")).toBeInTheDocument();
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
-    expect(container.querySelector("video.art-hero-image")).toBeNull();
-    expect(container.querySelector("img.art-hero-image")).not.toBeNull();
+    expect(baseElement.querySelector("video.art-hero-image")).toBeNull();
+    expect(baseElement.querySelector("img.art-hero-image")).not.toBeNull();
   });
 
   it("shows only media type in the header for non-generated library media", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -344,12 +344,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
   });
 
   it("shows only media type in the header for media loaded from library modal even when source media was generated", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -364,12 +364,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
   });
 
   it("renders generated voiceover audio with the normalized header label only", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={buildGeneratedAudioOutput()}
         onClose={vi.fn()}
@@ -378,12 +378,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voiceover");
   });
 
   it("renders generated voice changer audio with the normalized header label only", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={buildGeneratedAudioOutput({
           model: "ElevenLabs Voice Changer",
@@ -395,12 +395,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer");
   });
 
   it("renders generated music audio with the normalized header label only", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={buildGeneratedAudioOutput({
           model: "ElevenLabs Music",
@@ -412,12 +412,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("music");
   });
 
   it("renders generated sound effects audio with the normalized header label only", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={buildGeneratedAudioOutput({
           model: "ElevenLabs Sound Effects",
@@ -429,12 +429,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("SFX");
   });
 
   it("uses the audio modal sizing hook for pure audio outputs", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={buildGeneratedAudioOutput()}
         onClose={vi.fn()}
@@ -444,12 +444,12 @@ describe("DetailModal", () => {
     );
 
     expect(
-      container.querySelector(".reference-modal-new")?.classList.contains("is-audio-modal")
+      baseElement.querySelector(".reference-modal-new")?.classList.contains("is-audio-modal")
     ).toBe(true);
   });
 
   it("keeps the aspect hidden for generated pure audio outputs", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={buildGeneratedAudioOutput({ aspect: "9:16" })}
         onClose={vi.fn()}
@@ -458,12 +458,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent).not.toContain("9:16");
   });
 
   it("shows voice changer and aspect for generated remuxed voice changer video", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -483,12 +483,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer/16:9");
   });
 
   it("shows voice changer and the preserved aspect for an active staged source video", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -511,12 +511,12 @@ describe("DetailModal", () => {
       />
     );
 
-    const headerPill = container.querySelector(".art-modal-meta-pill");
+    const headerPill = baseElement.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer/4:3");
   });
 
   it("keeps image mode previews as images when URL paths contain video-like segments", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -531,12 +531,12 @@ describe("DetailModal", () => {
     );
 
     expect(screen.getByText("Image")).toBeInTheDocument();
-    expect(container.querySelector("video.art-hero-image")).toBeNull();
-    expect(container.querySelector("img.art-hero-image")).not.toBeNull();
+    expect(baseElement.querySelector("video.art-hero-image")).toBeNull();
+    expect(baseElement.querySelector("img.art-hero-image")).not.toBeNull();
   });
 
   it("keeps poster-image previews as images for video outputs when no playable preview URL is selected", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -553,12 +553,12 @@ describe("DetailModal", () => {
     );
 
     expect(screen.getByText("Image")).toBeInTheDocument();
-    expect(container.querySelector("video.art-hero-image")).toBeNull();
-    expect(container.querySelector("img.art-hero-image")).not.toBeNull();
+    expect(baseElement.querySelector("video.art-hero-image")).toBeNull();
+    expect(baseElement.querySelector("img.art-hero-image")).not.toBeNull();
   });
 
   it("falls back to an alternative result URL when the first image does not match the output aspect", async () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -572,7 +572,7 @@ describe("DetailModal", () => {
       />
     );
 
-    const firstImage = container.querySelector(".art-hero-image") as HTMLImageElement | null;
+    const firstImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
     expect(firstImage).not.toBeNull();
     if (!firstImage) return;
 
@@ -581,14 +581,14 @@ describe("DetailModal", () => {
     fireEvent.load(firstImage);
 
     await waitFor(() => {
-      const nextImage = container.querySelector(".art-hero-image") as HTMLImageElement | null;
+      const nextImage = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
       expect(nextImage).not.toBeNull();
       expect(nextImage?.getAttribute("src")).toBe("https://cdn.test/correct-5x4.png");
     });
   });
 
   it("uses full storage media URL for detail rendering when available", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -602,13 +602,13 @@ describe("DetailModal", () => {
       />
     );
 
-    const image = container.querySelector(".art-hero-image") as HTMLImageElement | null;
+    const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
     expect(image).not.toBeNull();
     expect(image?.getAttribute("src")).toBe("https://cdn.test/full-quality.jpg");
   });
 
   it("prefers canonical preview media over transient preview url in detail rendering", () => {
-    const { container } = render(
+    const { baseElement } = render(
       <DetailModal
         output={{
           ...baseOutput,
@@ -626,7 +626,7 @@ describe("DetailModal", () => {
       />
     );
 
-    const image = container.querySelector(".art-hero-image") as HTMLImageElement | null;
+    const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
     expect(image).not.toBeNull();
     expect(image?.getAttribute("src")).toBe("https://cdn.test/canonical-preview.jpg");
   });

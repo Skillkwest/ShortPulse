@@ -29,19 +29,17 @@ const createSupabaseMock = ({
 }) => ({
   from: (table: string) => {
     if (table === "generation_projection") {
-      return {
-        select: () => ({
-          eq: () => ({
-            eq: () => ({
-              limit: () => ({
-                maybeSingle: async (): Promise<QueryResult> => ({
-                  data: Array.isArray(projectionRows) ? (projectionRows[0] ?? null) : null,
-                  error: null,
-                }),
-              }),
-            }),
+      const builder = {
+        eq: () => builder,
+        limit: () => ({
+          maybeSingle: async (): Promise<QueryResult> => ({
+            data: Array.isArray(projectionRows) ? (projectionRows[0] ?? null) : null,
+            error: null,
           }),
         }),
+      };
+      return {
+        select: () => builder,
       };
     }
     if (table === "ai_generations") {

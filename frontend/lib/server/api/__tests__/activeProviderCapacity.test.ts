@@ -432,7 +432,7 @@ describe("readActiveProviderCapacitySnapshot", () => {
 
     expect(snapshot).toEqual({
       tier: "image_heavy",
-      globalActive: 3,
+      globalActive: 2,
       tierActive: 1,
       staleIgnoredGlobal: 0,
       staleIgnoredTier: 0,

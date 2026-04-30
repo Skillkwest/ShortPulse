@@ -214,7 +214,7 @@ function DetailModalContent({
     output?.mode === "audio" || (displayPreviewUrl && isAudioUrl(displayPreviewUrl))
   );
   const isVideoOutput = Boolean(
-    !isAudioOutput && displayPreviewUrl && isVideoUrl(displayPreviewUrl)
+    !isAudioOutput && output?.mode !== "image" && displayPreviewUrl && isVideoUrl(displayPreviewUrl)
   );
   const isImageOutput = Boolean(displayPreviewUrl) && !isVideoOutput && !isAudioOutput;
   const mediaType = displayPreviewUrl

@@ -31,7 +31,7 @@ describe("DetailModal full-quality media policy", () => {
       });
 
     try {
-      const { container } = render(
+      const { baseElement } = render(
         <DetailModal
           output={baseOutput}
           onClose={vi.fn()}
@@ -40,7 +40,7 @@ describe("DetailModal full-quality media policy", () => {
         />
       );
 
-      const image = container.querySelector(".art-hero-image") as HTMLImageElement | null;
+      const image = baseElement.querySelector(".art-hero-image") as HTMLImageElement | null;
       expect(image).not.toBeNull();
       expect(image?.getAttribute("src")).toBe("https://signed.test/full.png");
       expect(resolveSpy).toHaveBeenCalled();

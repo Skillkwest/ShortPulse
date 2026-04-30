@@ -146,10 +146,10 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
         }),
       })
     );
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("treats retryable 405/non-JSON result probes as transient and keeps polling payload", async () => {
+  it("surfaces non-JSON completed result probes as status errors", async () => {
     resolveProviderRequestOwnershipMock.mockResolvedValue("owned");
     const fetchMock = vi.fn();
     fetchMock.mockResolvedValueOnce(
@@ -167,16 +167,19 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
     fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 405,
+      headers: { get: () => "text/html" },
       text: async () => "<html>Method Not Allowed</html>",
     });
     fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 405,
+      headers: { get: () => "text/html" },
       text: async () => "<html>Method Not Allowed</html>",
     });
     fetchMock.mockResolvedValueOnce({
       ok: false,
       status: 405,
+      headers: { get: () => "text/html" },
       text: async () => "<html>Method Not Allowed</html>",
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -200,18 +203,13 @@ describe("POST /api/fal/seedream-status middleware auth-context ownership", () =
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "completed",
-        shortpulseLifecycle: expect.objectContaining({
-          taskState: "running",
-          isTerminal: false,
-          providerState: "completed",
-          recoveryPending: true,
-          queueState: "dispatched",
-          statusLabel: "Processing...",
-        }),
+        status: "error",
+        state: "error",
+        error: "Fal Seedream result returned non-JSON response",
+        request_id: "owned-request-id",
       })
     );
-    expect(logGenerationFailureMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

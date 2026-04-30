@@ -2714,7 +2714,7 @@ describe("ExpertEditPanelView", () => {
     ).not.toBeInTheDocument();
 
     fireEvent.click(modalAspectTrigger as HTMLButtonElement);
-    fireEvent.click(within(modalAspectGroup).getByRole("option", { name: /16:9/i }));
+    fireEvent.click(screen.getByRole("option", { name: /16:9/i }));
     expect(onAspectChange).toHaveBeenCalledWith("16:9");
 
     rerender(<ExpertEditPanelView {...baseProps} aspect="16:9" onAspectChange={onAspectChange} />);

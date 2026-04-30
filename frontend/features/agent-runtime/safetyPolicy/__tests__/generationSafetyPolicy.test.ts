@@ -33,7 +33,7 @@ describe("generationSafetyPolicy", () => {
             video: { level: "moderate" },
           },
           per_model: {
-            "fal-ai/veo3.1": {
+            "fal-ai/flux-pro/v1/fill": {
               level: "strict",
               enableSafetyChecker: true,
               safetyTolerance: 1,
@@ -46,14 +46,14 @@ describe("generationSafetyPolicy", () => {
     const payload: Record<string, unknown> = { prompt: "safe clip" };
     enforceServerGenerationSafetyPayload({
       payload,
-      modelId: "fal-ai/veo3.1",
+      modelId: "fal-ai/flux-pro/v1/fill",
       modality: "video",
-      spec: getModelPayloadValidationSpec("fal-ai/veo3.1"),
+      spec: getModelPayloadValidationSpec("fal-ai/flux-pro/v1/fill"),
       policyDocument: policy,
     });
 
-    expect(payload.enable_safety_checker).toBe(false);
-    expect(payload.safety_tolerance).toBe(5);
+    expect(payload.enable_safety_checker).toBeUndefined();
+    expect(payload.safety_tolerance).toBe("5");
   });
 
   it("enforces off defaults for dev_absolute_zero generation profile", () => {

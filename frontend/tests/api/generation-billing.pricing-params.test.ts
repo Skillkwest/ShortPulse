@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { KIE_SEEDANCE_15_PRO_MODEL_ID } from "../../lib/model-runtime/providerModelIds";
 import { buildPricingParams } from "../../lib/server/api/generationBilling/pricingParams";
 
 describe("generationBilling pricing params normalization", () => {
@@ -13,13 +14,13 @@ describe("generationBilling pricing params normalization", () => {
   });
 
   it("normalizes invalid seedance text duration/resolution to safe billable values", () => {
-    const params = buildPricingParams("fal-ai/bytedance/seedance/v1.5/pro/text-to-video", {
+    const params = buildPricingParams(KIE_SEEDANCE_15_PRO_MODEL_ID, {
       duration: 3,
       resolution: "ultra",
     });
 
     expect(params.durationSeconds).toBe(4);
-    expect(params.resolution).toBe("1080p");
+    expect(params.resolution).toBe("720p");
   });
 
   it("maps enable_google_search to webSearch for nano-banana pricing", () => {

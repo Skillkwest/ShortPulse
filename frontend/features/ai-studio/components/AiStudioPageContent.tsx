@@ -1288,13 +1288,21 @@ export function AiStudioPageContent({
   const createPropertiesPanelContent = React.useMemo(() => {
     // eslint-disable-next-line react-hooks/refs -- Mode-owned panel props are pass-through render inputs; any nested refs are owned by the child panel.
     if (showExpertCreatePanel && resolvedPulseCreatePropertiesWithRuntime) {
-      return <PulseCreatePropertiesPanel {...resolvedPulseCreatePropertiesWithRuntime} />;
+      return (
+        <PulseCreatePropertiesPanel
+          key="pulse-create-runtime"
+          {...resolvedPulseCreatePropertiesWithRuntime}
+        />
+      );
     }
     // eslint-disable-next-line react-hooks/refs -- Mode-owned panel props are pass-through render inputs; any nested refs are owned by the child panel.
     if (!resolvedStandardCreatePropertiesWithStyles) return null;
     return (
       <>
-        <StandardCreatePropertiesPanel {...resolvedStandardCreatePropertiesWithStyles} />
+        <StandardCreatePropertiesPanel
+          key="standard-create-runtime"
+          {...resolvedStandardCreatePropertiesWithStyles}
+        />
         {!showExpertCreatePanel ? (
           <ComposeSendCard
             {...resolvedStandardCreatePropertiesWithStyles}

@@ -408,6 +408,32 @@ export const buildAdminHealthResponse = ({
       projectionBillingByProviderRequestId.set(row.request_id, row);
     }
   });
+  const resolveBillingProjection = (
+    sourceRef: string | null,
+    providerRequestId: string | null
+  ): GenerationProjectionBillingRow | null => {
+    if (sourceRef) {
+      const bySourceRef = projectionBillingBySourceRef.get(sourceRef);
+      if (bySourceRef) return bySourceRef;
+    }
+    if (providerRequestId) {
+      const byProviderRequestId = projectionBillingByProviderRequestId.get(providerRequestId);
+      if (byProviderRequestId) return byProviderRequestId;
+    }
+    return null;
+  };
+  const hasSuccessfulProjectionMedia = (
+    projection: GenerationProjectionBillingRow | null | undefined
+  ): boolean => {
+    const projectionStatus = projection?.task_state ?? projection?.status ?? null;
+    const projectionResultUrls = Array.isArray(projection?.result_urls)
+      ? projection.result_urls
+      : [];
+    return (
+      projectionStatus === "success" &&
+      (projectionResultUrls.length > 0 || Boolean(projection?.preview_url))
+    );
+  };
   const remainingRefundCentsBySourceRef = new Map<string, number>();
   ledger.forEach((row) => {
     if (row.change_cents <= 0 || !row.source_ref) return;
@@ -515,17 +541,29 @@ export const buildAdminHealthResponse = ({
         let reason = "No linked reservation found for charge row.";
         if (row.source_ref) {
           const reservation = reservationBySourceRef.get(row.source_ref);
+          const metadataProviderRequestId =
+            typeof row.metadata?.provider_request_id === "string"
+              ? row.metadata.provider_request_id
+              : null;
           if (reservation?.provider_request_id) {
             const generation =
               generationByRequestId.get(reservation.provider_request_id) ??
+              generationByRequestId.get(row.source_ref) ??
               generationByAttemptProviderRequestId.get(reservation.provider_request_id);
-            generationStatus = generation?.status ?? null;
+            const projection = resolveBillingProjection(
+              row.source_ref,
+              metadataProviderRequestId ?? reservation.provider_request_id
+            );
+            const projectionStatus = projection?.task_state ?? projection?.status ?? null;
+            generationStatus = generation?.status ?? projectionStatus ?? null;
+            const linkedGenerationSuccess = generation?.status === "success";
             canonicalSuccessEvidence =
-              generation?.id !== undefined &&
-              (outputCountByGenerationId.get(generation.id) ?? 0) > 0;
+              (generation?.id !== undefined &&
+                (outputCountByGenerationId.get(generation.id) ?? 0) > 0) ||
+              hasSuccessfulProjectionMedia(projection);
             intentionalNoRefundAbandonment = isUserAbandonedNoRefundGeneration(generation);
             if (
-              generationStatus === "success" ||
+              linkedGenerationSuccess ||
               canonicalSuccessEvidence ||
               intentionalNoRefundAbandonment
             ) {
@@ -539,21 +577,10 @@ export const buildAdminHealthResponse = ({
           } else if (reservation) {
             reason = "Reservation has no provider_request_id linkage.";
           } else {
-            const projection =
-              projectionBillingBySourceRef.get(row.source_ref) ??
-              projectionBillingByProviderRequestId.get(
-                typeof row.metadata?.provider_request_id === "string"
-                  ? row.metadata.provider_request_id
-                  : ""
-              );
+            const projection = resolveBillingProjection(row.source_ref, metadataProviderRequestId);
             const projectionStatus = projection?.task_state ?? projection?.status ?? null;
             generationStatus = projectionStatus;
-            const projectionResultUrls = Array.isArray(projection?.result_urls)
-              ? projection.result_urls
-              : [];
-            canonicalSuccessEvidence =
-              projectionStatus === "success" &&
-              (projectionResultUrls.length > 0 || Boolean(projection?.preview_url));
+            canonicalSuccessEvidence = hasSuccessfulProjectionMedia(projection);
             reason = canonicalSuccessEvidence
               ? ""
               : "No reservation linkage and no successful projection media found for charge row.";

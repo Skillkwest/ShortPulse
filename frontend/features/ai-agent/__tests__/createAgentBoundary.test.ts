@@ -238,6 +238,8 @@ describe("Create agent mode boundaries", () => {
 
     expect(pageContentSource).toContain("StandardCreatePropertiesPanel");
     expect(pageContentSource).toContain("PulseCreatePropertiesPanel");
+    expect(pageContentSource).toContain('key="standard-create-runtime"');
+    expect(pageContentSource).toContain('key="pulse-create-runtime"');
     expect(pageContentSource).toContain('expertCreateMode === "pulse"');
     expect(pageContentSource).toContain('import("./create/PulseCreatePropertiesPanel")');
     expect(pageContentSource).not.toContain('from "./CreatePropertiesPanel"');

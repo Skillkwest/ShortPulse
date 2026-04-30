@@ -126,8 +126,9 @@ export const resolveAiStudioAllowedModelOptions = ({
     if (resolvedVideoLane === "text") {
       return selectorVideoOptions.filter(
         (option) =>
-          isVideoMediaOption(option) &&
-          optionSupportsGenerationLane({ option, getModelConfig, lane: "text-to-video" })
+          option.value === KIE_KLING_30_MODEL_ID ||
+          (isVideoMediaOption(option) &&
+            optionSupportsGenerationLane({ option, getModelConfig, lane: "text-to-video" }))
       );
     }
     if (resolvedVideoLane === "single-image") {

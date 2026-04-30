@@ -123,7 +123,7 @@ describe("ModelModal", () => {
     expect(screen.queryByRole("button", { name: "Seedance 1.5 Pro" })).not.toBeInTheDocument();
   });
 
-  it("uses a constant video title and filters text-video context to text-capable models", () => {
+  it("uses a constant video title and keeps Kling manually selectable in text-video context", () => {
     const options: ModelOption[] = [
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -154,8 +154,12 @@ describe("ModelModal", () => {
 
     expect(screen.getByText("Video")).toBeInTheDocument();
     expect(screen.queryByText("Text-to-Video")).not.toBeInTheDocument();
-    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)", "Seedance 1.5 Pro (Kie)"]);
-    expect(screen.queryByRole("button", { name: /Kling 3\.0/i })).not.toBeInTheDocument();
+    expect(readChipTitles(container)).toEqual([
+      "Veo 3.1 Fast I2V (Kie)",
+      "Kling 3.0 (Kie)",
+      "Seedance 1.5 Pro (Kie)",
+    ]);
+    expect(screen.getByRole("button", { name: /Kling 3\.0/i })).toBeInTheDocument();
   });
 
   it("includes Seedance 2.x chips when passed explicitly", () => {

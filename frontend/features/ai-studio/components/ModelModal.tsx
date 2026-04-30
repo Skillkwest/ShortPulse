@@ -18,6 +18,7 @@ import { buildDefaultPricingParams, computeCostForModel, getModelConfig } from "
 import { isSeedance2ModelId, isSeedance2UiEnabled } from "../logic/seedance2Availability";
 import { stripEditLabel } from "../utils/modelLabels";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 
 export type ModelModalContext =
   | "reference-image"
@@ -295,6 +296,7 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   "reference-keyframes": ["kie-ai/veo-3.1-fast-i2v"],
   "text-video": [
     "kie-ai/veo-3.1-fast-i2v",
+    "kie-ai/kling-3.0",
     "kie-ai/seedance-1.5-pro",
     "kie-ai/seedance-2",
     "kie-ai/seedance-2-fast",
@@ -322,7 +324,12 @@ const modelMatchesModalContext = (option: ModelOption, context?: ModelModalConte
   if (!context) return true;
   if (context === "text-image") return Boolean(config.supportsTextToImage);
   if (context === "reference-image") return Boolean(config.supportsImageToImage);
-  if (context === "text-video") return Boolean(config.generationLanes?.includes("text-to-video"));
+  if (context === "text-video") {
+    return (
+      option.value === KIE_KLING_30_MODEL_ID ||
+      Boolean(config.generationLanes?.includes("text-to-video"))
+    );
+  }
   if (context === "reference-video") {
     return Boolean(config.generationLanes?.includes("image-to-video"));
   }

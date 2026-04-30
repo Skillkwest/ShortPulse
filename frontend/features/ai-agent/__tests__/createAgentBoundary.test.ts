@@ -359,6 +359,13 @@ describe("Create agent mode boundaries", () => {
     const stateRuntimeControllersSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioStateRuntimeControllers.ts"
     );
+    const stateSource = readFrontendFile("features/ai-studio/hooks/useAiStudioState.ts");
+    const outputControllersSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioStateOutputControllers.ts"
+    );
+    const pageDerivationsSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioPageDerivations.ts"
+    );
     const sessionSnapshotControllerSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioSessionSnapshotController.ts"
     );
@@ -394,6 +401,14 @@ describe("Create agent mode boundaries", () => {
     expect(stateRuntimeControllersSource).toContain("createRuntime:");
     expect(stateRuntimeControllersSource).toContain("createPrompts:");
     expect(stateRuntimeControllersSource).toContain("prompt: createRuntime.prompt");
+    expect(stateSource).not.toContain(
+      'const prompt = expertCreateMode === "pulse" ? pulsePrompt : standardPrompt'
+    );
+    expect(stateSource).toContain("const activeCreatePrompt = createStateRuntime.prompt");
+    expect(outputControllersSource).not.toContain("\n  prompt: string;\n");
+    expect(outputControllersSource).toContain("createPrompt: string;");
+    expect(pageDerivationsSource).not.toContain("\n  prompt: string;\n");
+    expect(pageDerivationsSource).toContain("createPrompt: string;");
     expect(sessionSnapshotControllerSource).not.toContain("\n  prompt: string;\n");
     expect(sessionSnapshotControllerSource).toContain(
       'pulseWorkspaceState.expertCreateMode === "pulse" ? pulseCreatePrompt : standardCreatePrompt'

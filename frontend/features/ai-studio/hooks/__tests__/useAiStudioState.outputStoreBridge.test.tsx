@@ -364,25 +364,25 @@ describe("useAiStudioState output store bridge", () => {
       result.current.setPrompt("Standard prompt draft");
     });
 
-    expect(result.current.prompt).toBe("Standard prompt draft");
+    expect(result.current.activeCreatePrompt).toBe("Standard prompt draft");
     expect(result.current.standardPrompt).toBe("Standard prompt draft");
     expect(result.current.pulsePrompt).toBe("");
 
     rerender({ expertCreateMode: "pulse" });
 
-    expect(result.current.prompt).toBe("");
+    expect(result.current.activeCreatePrompt).toBe("");
 
     act(() => {
       result.current.setPrompt("Pulse final artifact");
     });
 
-    expect(result.current.prompt).toBe("Pulse final artifact");
+    expect(result.current.activeCreatePrompt).toBe("Pulse final artifact");
     expect(result.current.standardPrompt).toBe("Standard prompt draft");
     expect(result.current.pulsePrompt).toBe("Pulse final artifact");
 
     rerender({ expertCreateMode: "standard" });
 
-    expect(result.current.prompt).toBe("Standard prompt draft");
+    expect(result.current.activeCreatePrompt).toBe("Standard prompt draft");
     expect(result.current.standardPrompt).toBe("Standard prompt draft");
     expect(result.current.pulsePrompt).toBe("Pulse final artifact");
   });
@@ -433,7 +433,7 @@ describe("useAiStudioState output store bridge", () => {
       expect(result.current.curatedReferenceIds).toEqual([]);
       expect(getAiStudioOutputSnapshot().outputOrder).toEqual([]);
     });
-    expect(result.current.prompt).toBe("");
+    expect(result.current.activeCreatePrompt).toBe("");
     expect(result.current.getAgentContext().media).toEqual([]);
 
     act(() => {
@@ -459,7 +459,7 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.prompt).toBe("Standard draft");
+      expect(result.current.activeCreatePrompt).toBe("Standard draft");
       expect(result.current.outputs.map((item) => item.id)).toEqual(["standard-out"]);
       expect(result.current.activeOutputId).toBe("standard-out");
       expect(result.current.curatedReferenceIds).toEqual(["standard-out"]);
@@ -474,7 +474,7 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.prompt).toBe("Pulse artifact");
+      expect(result.current.activeCreatePrompt).toBe("Pulse artifact");
       expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out"]);
       expect(result.current.activeOutputId).toBe("pulse-out");
       expect(result.current.curatedReferenceIds).toEqual(["pulse-out"]);
@@ -564,7 +564,7 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(restored.result.current.prompt).toBe("Pulse restored artifact");
+      expect(restored.result.current.activeCreatePrompt).toBe("Pulse restored artifact");
       expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
       expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
       expect(restored.result.current.outputs.map((item) => item.id)).toEqual([
@@ -577,7 +577,7 @@ describe("useAiStudioState output store bridge", () => {
       restored.result.current.setExpertCreateMode("standard");
     });
 
-    expect(restored.result.current.prompt).toBe("Standard restore draft");
+    expect(restored.result.current.activeCreatePrompt).toBe("Standard restore draft");
     expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
     expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
     expect(restored.result.current.outputs).toEqual([]);
@@ -587,7 +587,7 @@ describe("useAiStudioState output store bridge", () => {
       restored.result.current.setExpertCreateMode("pulse");
     });
 
-    expect(restored.result.current.prompt).toBe("Pulse restored artifact");
+    expect(restored.result.current.activeCreatePrompt).toBe("Pulse restored artifact");
     expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
     expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
     expect(restored.result.current.outputs.map((item) => item.id)).toEqual(["pulse-restored-out"]);

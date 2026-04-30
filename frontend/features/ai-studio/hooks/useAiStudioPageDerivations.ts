@@ -20,7 +20,7 @@ type UseAiStudioPageDerivationsParams = {
   selectedTool: ToolId | null;
   model: string | null;
   aspect: string;
-  prompt: string;
+  createPrompt: string;
   editReferenceText: string;
   videoReferenceText: string;
   videoReferenceMode: string;
@@ -37,7 +37,7 @@ export const useAiStudioPageDerivations = ({
   selectedTool,
   model,
   aspect,
-  prompt,
+  createPrompt,
   editReferenceText,
   videoReferenceText,
   videoReferenceMode,
@@ -124,9 +124,9 @@ export const useAiStudioPageDerivations = ({
     (tool: ToolId | null) => {
       if (tool === "video" || tool === "kling") return videoReferenceText;
       if (tool === "image" || tool === "edit") return editReferenceText;
-      return prompt;
+      return createPrompt;
     },
-    [editReferenceText, prompt, videoReferenceText]
+    [createPrompt, editReferenceText, videoReferenceText]
   );
 
   const promptForViewModel = useMemo(

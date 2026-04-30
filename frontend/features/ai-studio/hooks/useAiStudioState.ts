@@ -418,7 +418,6 @@ export const useAiStudioState = ({
     setEditReferenceTextState,
     setVideoReferenceTextState,
   });
-  const prompt = expertCreateMode === "pulse" ? pulsePrompt : standardPrompt;
   const createStateRuntime = useMemo(
     () =>
       expertCreateMode === "pulse"
@@ -436,6 +435,7 @@ export const useAiStudioState = ({
           },
     [activePulsePresetId, expertCreateMode, pulsePrompt, pulseSessionInstanceId, standardPrompt]
   );
+  const activeCreatePrompt = createStateRuntime.prompt;
   const createStatePrompts = useMemo(
     () => ({
       standard: standardPrompt,
@@ -701,7 +701,7 @@ export const useAiStudioState = ({
     pendingAutoSavesRef,
     pendingFinalizeRemovalIdsRef,
     projectId,
-    prompt,
+    createPrompt: activeCreatePrompt,
     quickSlotIds: referenceProjectionState.quickSlotIds,
     setActiveOutputId,
     setActiveOutputState,
@@ -871,7 +871,7 @@ export const useAiStudioState = ({
     model,
     setModel: setModelState,
     currentModelLabel,
-    prompt,
+    activeCreatePrompt,
     setPrompt: setSharedPrompt,
     standardPrompt,
     pulsePrompt,

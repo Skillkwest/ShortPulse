@@ -14,7 +14,7 @@ type UseAiStudioStateOutputControllersParams = {
   pendingAutoSavesRef: MutableRefObject<Record<string, unknown>>;
   pendingFinalizeRemovalIdsRef: MutableRefObject<Set<string>>;
   projectId: string | null;
-  prompt: string;
+  createPrompt: string;
   quickSlotIds: string[];
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   setActiveOutputState: Dispatch<
@@ -35,7 +35,7 @@ export const useAiStudioStateOutputControllers = ({
   pendingAutoSavesRef,
   pendingFinalizeRemovalIdsRef,
   projectId,
-  prompt,
+  createPrompt,
   quickSlotIds,
   setActiveOutputId,
   setActiveOutputState,
@@ -91,7 +91,7 @@ export const useAiStudioStateOutputControllers = ({
     activeOutputId,
     model,
     aspect,
-    prompt,
+    prompt: createPrompt,
   });
 
   return {

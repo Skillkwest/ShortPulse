@@ -10,7 +10,7 @@ const createParams = (
   selectedTool: "create",
   model: "fal-ai/bytedance/seedream/v4.5/edit",
   aspect: "1:1",
-  prompt: "base prompt",
+  createPrompt: "base prompt",
   editReferenceText: "edit prompt",
   videoReferenceText: "video prompt",
   videoReferenceMode: "standard",

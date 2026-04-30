@@ -475,10 +475,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     ]
   );
 
-  const handlePrimarySubmit = useCallback(() => {
-    void handleGenerate();
-  }, [handleGenerate]);
-
   const runRegenerateWithDebit = useCallback(
     async (tool: ToolId | null, options?: RegenerateWithDebitOptions) => {
       const removeExternalOptimisticPlaceholder = () => {
@@ -742,7 +738,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 
   return {
     handleGenerate,
-    handlePrimarySubmit,
     handleRegenerateWithDebit,
     handleImageRegenerateWithDebit,
   };

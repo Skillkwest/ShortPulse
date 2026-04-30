@@ -379,6 +379,7 @@ describe("Create agent mode boundaries", () => {
     expect(generationControllerSource).not.toContain("handleAgentSend");
     expect(generationControllerSource).not.toContain("agentInput");
     expect(generationControllerSource).not.toContain("resolveChatOffCreatePrompt");
+    expect(generationControllerSource).not.toContain("handlePrimarySubmit");
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");

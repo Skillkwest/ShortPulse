@@ -52,7 +52,7 @@ describe("useAiStudioGenerationController", () => {
     vi.clearAllMocks();
   });
 
-  it("routes primary submit into provider generation", async () => {
+  it("exposes provider generation without owning Create primary submit routing", async () => {
     const generateOutput = vi.fn();
     const params = createParams({
       selectedTool: "create",
@@ -60,11 +60,8 @@ describe("useAiStudioGenerationController", () => {
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
-    act(() => {
-      result.current.handlePrimarySubmit();
-    });
     await act(async () => {
-      await Promise.resolve();
+      await result.current.handleGenerate();
     });
 
     expect(generateOutput).toHaveBeenCalledWith(

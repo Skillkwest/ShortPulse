@@ -65,7 +65,7 @@ const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean 
 
 const isGeneratedVideoPosterRepairCandidate = (output: StudioOutput): boolean => {
   if (output.mode !== "video") return false;
-  if (output.taskState !== "success") return false;
+  if (output.taskState && output.taskState !== "success") return false;
   if (output.previewPosterUrl?.trim()) return false;
   if (output.mediaSource !== "generated" && !output.generationId && !output.taskId) return false;
   return Boolean(output.generationId || output.taskId);

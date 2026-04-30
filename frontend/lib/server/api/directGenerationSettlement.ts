@@ -17,6 +17,11 @@ import { associateGenerationWithProjectForUser } from "../projectGenerationAssoc
 
 type JsonObject = Record<string, unknown>;
 
+type MediaDeliveryPaths = {
+  previewStoragePath: string;
+  fullStoragePath: string;
+};
+
 type DirectGenerationSettlementInput = {
   generationId?: string | null;
   requestId: string;
@@ -195,13 +200,13 @@ const readMediaAutosaveEnabledForUser = async (userId: string): Promise<boolean>
   }
 };
 
-const readMediaStoragePathsById = async ({
+const readMediaDeliveryPathsById = async ({
   mediaFileIds,
   userId,
 }: {
   mediaFileIds: string[];
   userId: string;
-}): Promise<Map<string, string>> => {
+}): Promise<Map<string, MediaDeliveryPaths>> => {
   const ids = mediaFileIds
     .map((value) => asString(value))
     .filter((value): value is string => Boolean(value));
@@ -209,19 +214,35 @@ const readMediaStoragePathsById = async ({
 
   const { data, error } = await getSupabaseAdmin()
     .from("media_files")
-    .select("id, preview_storage_path, storage_path")
+    .select(
+      "id, preview_storage_path, storage_path, file_type, poster_variant_path, preview_variant_path"
+    )
     .in("id", ids)
     .eq("user_id", userId)
     .limit(ids.length);
   if (error || !Array.isArray(data)) return new Map();
 
-  const map = new Map<string, string>();
+  const map = new Map<string, MediaDeliveryPaths>();
   for (const rawRow of data) {
     const row = asObject(rawRow);
     const mediaFileId = asString(row.id);
-    const storagePath = asString(row.preview_storage_path) ?? asString(row.storage_path);
-    if (mediaFileId && storagePath) {
-      map.set(mediaFileId, storagePath);
+    const storagePath = asString(row.storage_path);
+    if (!mediaFileId || !storagePath) continue;
+    const fileType = asString(row.file_type)?.toLowerCase() ?? "";
+    const isVideo = fileType.startsWith("video");
+    const posterStoragePath = asString(row.poster_variant_path);
+    const previewVariantPath = asString(row.preview_variant_path);
+    const previewStoragePath = isVideo
+      ? (posterStoragePath ??
+        previewVariantPath ??
+        asString(row.preview_storage_path) ??
+        storagePath)
+      : (asString(row.preview_storage_path) ?? storagePath);
+    if (previewStoragePath) {
+      map.set(mediaFileId, {
+        previewStoragePath,
+        fullStoragePath: storagePath,
+      });
     }
   }
   return map;
@@ -383,7 +404,7 @@ export const settleDirectGenerationSuccess = async ({
       }).catch(() => undefined);
     }
   }
-  const storagePathByMediaId = await readMediaStoragePathsById({
+  const deliveryPathsByMediaId = await readMediaDeliveryPathsById({
     mediaFileIds: persistedOutputRows
       .map((row) => row.mediaFileId)
       .filter((value): value is string => Boolean(value)),
@@ -393,7 +414,7 @@ export const settleDirectGenerationSuccess = async ({
     persistedOutputRows.length > 0 &&
     persistedOutputRows.every((row) => {
       if (!row.mediaFileId) return false;
-      return storagePathByMediaId.has(row.mediaFileId);
+      return deliveryPathsByMediaId.has(row.mediaFileId);
     });
 
   const hiddenInReferenceGrid =
@@ -407,8 +428,8 @@ export const settleDirectGenerationSuccess = async ({
   await Promise.all(
     persistedOutputRows.map((row) => {
       if (!row.id) return Promise.resolve();
-      const storagePath = row.mediaFileId
-        ? (storagePathByMediaId.get(row.mediaFileId) ?? null)
+      const deliveryPaths = row.mediaFileId
+        ? (deliveryPathsByMediaId.get(row.mediaFileId) ?? null)
         : null;
       return upsertGenerationPublication({
         generationId: generation.id,
@@ -422,8 +443,8 @@ export const settleDirectGenerationSuccess = async ({
         ownedMediaFileId: row.mediaFileId,
         previewUrl: row.resultUrl,
         fullUrl: row.resultUrl,
-        previewStoragePath: storagePath,
-        fullStoragePath: storagePath,
+        previewStoragePath: deliveryPaths?.previewStoragePath ?? null,
+        fullStoragePath: deliveryPaths?.fullStoragePath ?? null,
         publishedAt: nowIso,
         metadata: {
           direct_terminal_settlement: true,
@@ -437,9 +458,9 @@ export const settleDirectGenerationSuccess = async ({
       });
     })
   );
-  const firstOwnedStoragePath =
+  const firstOwnedDeliveryPaths =
     persistedOutputRows.length > 0 && persistedOutputRows[0]?.mediaFileId
-      ? (storagePathByMediaId.get(persistedOutputRows[0].mediaFileId) ?? null)
+      ? (deliveryPathsByMediaId.get(persistedOutputRows[0].mediaFileId) ?? null)
       : null;
 
   await upsertGenerationProjection({
@@ -457,8 +478,8 @@ export const settleDirectGenerationSuccess = async ({
     displayPrompt: generation.prompt_text,
     modelId: generation.model_id,
     previewUrl: normalizedResultUrls[0] ?? null,
-    previewStoragePath: firstOwnedStoragePath,
-    fullStoragePath: firstOwnedStoragePath,
+    previewStoragePath: firstOwnedDeliveryPaths?.previewStoragePath ?? null,
+    fullStoragePath: firstOwnedDeliveryPaths?.fullStoragePath ?? null,
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,

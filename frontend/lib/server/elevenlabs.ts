@@ -16,6 +16,7 @@ import {
   remuxVideoWithAudioTrack,
   type TempFileHandle,
 } from "./mediaAudioExtraction";
+import { signVideoPosterVariant, upsertVideoPosterVariantFromBuffer } from "./videoPosterVariant";
 const MEDIA_BUCKET = "media_library";
 const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io";
 const AUDIO_EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
@@ -103,7 +104,12 @@ export type PersistGeneratedAudioResult = {
   outputRowId: string | null;
 };
 
-export type PersistGeneratedVideoResult = PersistGeneratedAudioResult;
+export type PersistGeneratedVideoResult = PersistGeneratedAudioResult & {
+  previewStoragePath: string;
+  fullStoragePath: string;
+  previewPosterStoragePath: string | null;
+  previewPosterUrl: string | null;
+};
 
 export type RemuxedVoiceChangerVideoResult = {
   buffer: Buffer;
@@ -1051,6 +1057,8 @@ export const persistGeneratedVideoAsset = async ({
     ? "auto_persisted"
     : "autosave_skipped";
   let autosaveDecisionReason: string = autosavePolicyDecision.reason;
+  let previewPosterStoragePath: string | null = null;
+  let previewPosterUrl: string | null = null;
   let outputRows = await persistGenerationOutputRecords({
     generationId,
     providerRequestId: resolvedProviderRequestId,
@@ -1103,6 +1111,24 @@ export const persistGeneratedVideoAsset = async ({
         throw new Error(mediaInsert.error?.message || "Unable to record generated video media.");
       }
       mediaFileId = mediaInsert.data.id as string;
+      previewPosterStoragePath = await upsertVideoPosterVariantFromBuffer({
+        supabaseAdmin,
+        userId,
+        mediaFileId,
+        videoBuffer: outputBuffer,
+        videoMimeType: outputContentType,
+        filename,
+        metadata: {
+          generated_by: "elevenlabs_video_persistence",
+          generation_id: generationId,
+          source_mode: sourceMode,
+          provider_request_id: resolvedProviderRequestId,
+        },
+      }).catch(() => null);
+      previewPosterUrl = await signVideoPosterVariant({
+        supabaseAdmin,
+        storagePath: previewPosterStoragePath,
+      });
       outputRows = await persistGenerationOutputRecords({
         generationId,
         providerRequestId: resolvedProviderRequestId,
@@ -1141,6 +1167,7 @@ export const persistGeneratedVideoAsset = async ({
     }
   }
   const outputRowId = outputRows[0]?.id ?? null;
+  const previewStoragePath = previewPosterStoragePath ?? storagePath;
 
   if (outputRowId) {
     await upsertGenerationPublication({
@@ -1151,7 +1178,7 @@ export const persistGeneratedVideoAsset = async ({
       ownedMediaFileId: mediaFileId,
       previewUrl: signedResult.data.signedUrl,
       fullUrl: signedResult.data.signedUrl,
-      previewStoragePath: storagePath,
+      previewStoragePath,
       fullStoragePath: storagePath,
       publishedAt: createdAtIso,
       metadata: {
@@ -1179,7 +1206,7 @@ export const persistGeneratedVideoAsset = async ({
     displayPrompt: promptText,
     modelId,
     previewUrl: signedResult.data.signedUrl,
-    previewStoragePath: storagePath,
+    previewStoragePath,
     fullStoragePath: storagePath,
     saveState: mediaFileId ? "saved" : "idle",
     hiddenInReferenceGrid: false,
@@ -1209,6 +1236,10 @@ export const persistGeneratedVideoAsset = async ({
     requestId: resolvedRequestId,
     storagePath,
     signedUrl: signedResult.data.signedUrl,
+    previewStoragePath,
+    fullStoragePath: storagePath,
+    previewPosterStoragePath,
+    previewPosterUrl,
     outputRowId,
   };
 };

@@ -284,6 +284,70 @@ describe("directGenerationSettlement", () => {
     );
   });
 
+  it("uses video poster variants for direct terminal preview storage", async () => {
+    readRecoveryGenerationRowMock.mockResolvedValueOnce({
+      id: "gen-video-1",
+      user_id: "user-1",
+      request_id: "req-video-1",
+      provider: "kie",
+      model_id: "kie-ai/seedance-2-fast",
+      prompt_text: "project video",
+      created_at: "2026-04-26T00:00:00.000Z",
+      metadata: {
+        source_ref: "source-ref-video",
+      },
+    });
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValueOnce(["media-video-1"]);
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-video-1",
+        resultUrl: "https://provider.example/project-video.mp4",
+        mediaFileId: "media-video-1",
+      },
+    ]);
+    mediaFilesLimitMock.mockResolvedValueOnce({
+      data: [
+        {
+          id: "media-video-1",
+          storage_path: "user-1/generations/videos/media-video-1.mp4",
+          file_type: "video/mp4",
+          poster_variant_path: "user-1/variants/videos/media-video-1/poster_720.jpg",
+          preview_variant_path: "user-1/variants/videos/media-video-1/preview_loop_360p.mp4",
+        },
+      ],
+      error: null,
+    });
+
+    const result = await settleDirectGenerationSuccess({
+      generationId: "gen-video-1",
+      requestId: "req-video-1",
+      userId: "user-1",
+      routeLabel: "test/direct-success-video",
+      providerState: "COMPLETED",
+      resultUrls: ["https://provider.example/project-video.mp4"],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      generationId: "gen-video-1",
+      requestId: "req-video-1",
+    });
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationOutputId: "output-video-1",
+        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-video-1",
+        previewStoragePath: "user-1/variants/videos/media-video-1/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/media-video-1.mp4",
+      })
+    );
+  });
+
   it("refreshes project association at direct terminal success time", async () => {
     readRecoveryGenerationRowMock.mockResolvedValueOnce({
       id: "gen-project",

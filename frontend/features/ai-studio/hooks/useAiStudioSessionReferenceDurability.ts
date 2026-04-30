@@ -20,6 +20,7 @@ type LocalReferenceCandidate = {
   id: string;
   mode: StudioOutput["mode"];
   previewUrl: string;
+  previewPosterUrl: string | null;
   signature: string;
 };
 
@@ -63,11 +64,25 @@ const isLocalPreviewUrl = (value: string | null | undefined): boolean => {
   return false;
 };
 
+const isLocalImagePreviewUrl = (value: string | null | undefined): boolean => {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim();
+  if (!normalized) return false;
+  if (normalized.startsWith("blob:")) return true;
+  const dataMimeType = resolveDataUrlMimeType(normalized);
+  return Boolean(
+    dataMimeType?.startsWith("image/") && SUPPORTED_DATA_IMAGE_MIME_TYPES.has(dataMimeType)
+  );
+};
+
 const resolveCandidateSignature = (output: StudioOutput): string => {
   const previewUrl = output.previewUrl?.trim() ?? "";
+  const previewPosterUrl = output.previewPosterUrl?.trim() ?? "";
   return [
     output.mode,
     previewUrl,
+    previewPosterUrl,
+    output.previewPosterStoragePath ?? "",
     output.previewStoragePath ?? "",
     output.fullStoragePath ?? "",
   ].join("|");
@@ -85,10 +100,17 @@ const toLocalReferenceCandidate = (output: StudioOutput): LocalReferenceCandidat
   }
   const previewUrl = output.previewUrl?.trim();
   if (!previewUrl) return null;
+  const previewPosterUrl =
+    output.mode === "video" &&
+    !asCanonicalStoragePath(output.previewPosterStoragePath) &&
+    isLocalImagePreviewUrl(output.previewPosterUrl)
+      ? (output.previewPosterUrl?.trim() ?? null)
+      : null;
   return {
     id: output.id,
     mode: output.mode,
     previewUrl,
+    previewPosterUrl,
     signature: resolveCandidateSignature(output),
   };
 };
@@ -99,12 +121,16 @@ const patchOutputIfUnchanged = ({
   expectedSignature,
   path,
   signedUrl,
+  posterPath,
+  signedPosterUrl,
 }: {
   rows: StudioOutput[];
   outputId: string;
   expectedSignature: string;
   path: string;
   signedUrl: string;
+  posterPath?: string | null;
+  signedPosterUrl?: string | null;
 }): { rows: StudioOutput[]; changed: boolean } => {
   let changed = false;
   const patched = rows.map((row) => {
@@ -112,10 +138,14 @@ const patchOutputIfUnchanged = ({
     if (resolveCandidateSignature(row) !== expectedSignature) return row;
     const canonicalPath = asCanonicalStoragePath(path);
     if (!canonicalPath) return row;
+    const canonicalPosterPath = row.mode === "video" ? asCanonicalStoragePath(posterPath) : null;
+    const nextPreviewStoragePath = canonicalPosterPath ?? canonicalPath;
     if (
       row.previewUrl === signedUrl &&
-      asCanonicalStoragePath(row.previewStoragePath) === canonicalPath &&
-      asCanonicalStoragePath(row.fullStoragePath) === canonicalPath
+      asCanonicalStoragePath(row.previewStoragePath) === nextPreviewStoragePath &&
+      asCanonicalStoragePath(row.fullStoragePath) === canonicalPath &&
+      asCanonicalStoragePath(row.previewPosterStoragePath) === canonicalPosterPath &&
+      (row.mode !== "video" || (row.previewPosterUrl ?? null) === (signedPosterUrl ?? null))
     ) {
       return row;
     }
@@ -123,7 +153,10 @@ const patchOutputIfUnchanged = ({
     return {
       ...row,
       previewUrl: signedUrl,
-      previewStoragePath: canonicalPath,
+      previewPosterUrl:
+        row.mode === "video" ? (signedPosterUrl ?? row.previewPosterUrl ?? null) : null,
+      previewPosterStoragePath: row.mode === "video" ? canonicalPosterPath : null,
+      previewStoragePath: nextPreviewStoragePath,
       fullStoragePath: canonicalPath,
     };
   });
@@ -161,14 +194,32 @@ export const useAiStudioSessionReferenceDurability = ({
       inFlightRef.current.add(candidate.id);
       try {
         let uploaded: { url: string; path: string } | null = null;
+        let uploadedPoster: { url: string; path: string } | null = null;
         if (candidate.mode === "video") {
           uploaded = await uploadVideoAssetToStorage(candidate.previewUrl);
+          if (candidate.previewPosterUrl) {
+            try {
+              uploadedPoster = await uploadImageAssetToStorage(candidate.previewPosterUrl);
+            } catch (error) {
+              addBreadcrumb({
+                type: "ui",
+                level: "warn",
+                message: "ai_studio_session_reference_durability_poster_upload_failed",
+                data: {
+                  output_id: candidate.id,
+                  error: error instanceof Error ? error.message : "unknown_error",
+                },
+              });
+            }
+          }
         } else {
           uploaded = await uploadImageAssetToStorage(candidate.previewUrl);
         }
 
         const canonicalPath = asCanonicalStoragePath(uploaded.path);
         const signedUrl = uploaded.url?.trim();
+        const canonicalPosterPath = asCanonicalStoragePath(uploadedPoster?.path);
+        const signedPosterUrl = uploadedPoster?.url?.trim() ?? null;
         if (!canonicalPath || !signedUrl) {
           throw new Error("Uploaded reference result did not include a valid signed delivery.");
         }
@@ -181,6 +232,8 @@ export const useAiStudioSessionReferenceDurability = ({
               expectedSignature: candidate.signature,
               path: canonicalPath,
               signedUrl,
+              posterPath: canonicalPosterPath,
+              signedPosterUrl,
             }).rows
         );
         setArchivedOutputs(
@@ -191,6 +244,8 @@ export const useAiStudioSessionReferenceDurability = ({
               expectedSignature: candidate.signature,
               path: canonicalPath,
               signedUrl,
+              posterPath: canonicalPosterPath,
+              signedPosterUrl,
             }).rows
         );
 

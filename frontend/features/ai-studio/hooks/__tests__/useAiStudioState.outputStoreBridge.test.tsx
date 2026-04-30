@@ -324,6 +324,7 @@ describe("useAiStudioState output store bridge", () => {
           mode: "video",
           generationId: "gen-video-1",
           taskId: "req-video-1",
+          taskState: undefined,
           mediaSource: "generated",
           previewUrl: "https://cdn.test/video.mp4",
           previewStoragePath: "user-1/generations/videos/gen-video-1.mp4",

@@ -51,7 +51,9 @@ type GenerateAudioSuccessResponse = {
     mediaFileId: string | null;
     requestId: string;
     previewUrl: string;
+    previewPosterUrl: string | null;
     resultUrls: string[];
+    previewPosterStoragePath: string | null;
     previewStoragePath: string;
     fullStoragePath: string;
     mimeType: "video/mp4" | "video/webm";
@@ -389,9 +391,11 @@ export default async function handler(
               mediaFileId: persistedRemuxedVideo.mediaFileId,
               requestId: persistedRemuxedVideo.requestId,
               previewUrl: persistedRemuxedVideo.signedUrl,
+              previewPosterUrl: persistedRemuxedVideo.previewPosterUrl,
               resultUrls: [persistedRemuxedVideo.signedUrl],
-              previewStoragePath: persistedRemuxedVideo.storagePath,
-              fullStoragePath: persistedRemuxedVideo.storagePath,
+              previewPosterStoragePath: persistedRemuxedVideo.previewPosterStoragePath,
+              previewStoragePath: persistedRemuxedVideo.previewStoragePath,
+              fullStoragePath: persistedRemuxedVideo.fullStoragePath,
               mimeType: remuxedVideo.contentType,
               modelId,
             },

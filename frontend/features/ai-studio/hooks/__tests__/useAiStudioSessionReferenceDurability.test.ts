@@ -101,6 +101,45 @@ describe("useAiStudioSessionReferenceDurability", () => {
     expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
   });
 
+  it("uploads local video poster images and patches poster-backed preview delivery", async () => {
+    uploadVideoAssetToStorageMock.mockResolvedValueOnce({
+      url: "https://signed/user-1/videos/ref.mp4",
+      path: "user-1/videos/ref.mp4",
+      size: 456,
+    });
+    uploadImageAssetToStorageMock.mockResolvedValueOnce({
+      url: "https://signed/user-1/variants/videos/ref/poster_720.jpg",
+      path: "user-1/variants/videos/ref/poster_720.jpg",
+      size: 123,
+    });
+    const { result } = renderHook(() =>
+      useHarness([
+        createOutput({
+          id: "video-1",
+          mode: "video",
+          previewUrl: "blob:local-video-1#video=1",
+          previewPosterUrl: "data:image/jpeg;base64,poster",
+        }),
+      ])
+    );
+
+    await waitFor(() => {
+      expect(result.current.outputs[0]?.previewUrl).toBe("https://signed/user-1/videos/ref.mp4");
+      expect(result.current.outputs[0]?.previewPosterUrl).toBe(
+        "https://signed/user-1/variants/videos/ref/poster_720.jpg"
+      );
+      expect(result.current.outputs[0]?.previewPosterStoragePath).toBe(
+        "user-1/variants/videos/ref/poster_720.jpg"
+      );
+      expect(result.current.outputs[0]?.previewStoragePath).toBe(
+        "user-1/variants/videos/ref/poster_720.jpg"
+      );
+      expect(result.current.outputs[0]?.fullStoragePath).toBe("user-1/videos/ref.mp4");
+    });
+    expect(uploadVideoAssetToStorageMock).toHaveBeenCalledWith("blob:local-video-1#video=1");
+    expect(uploadImageAssetToStorageMock).toHaveBeenCalledWith("data:image/jpeg;base64,poster");
+  });
+
   it("does not enqueue non-local references", async () => {
     renderHook(() =>
       useHarness([

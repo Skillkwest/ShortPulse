@@ -12,6 +12,7 @@ import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { readPersistedGenerationOutputs } from "../api/generationOutputs";
 import { reconcileOwnedGenerationOutputSlot } from "../api/generationOutputConvergence";
+import { upsertVideoPosterVariantFromBuffer } from "../videoPosterVariant";
 import { asString } from "./falAdapter";
 import { extractImageDimensionsFromBuffer } from "../imageDimensions";
 import {
@@ -331,6 +332,21 @@ export const persistRecoveryMediaFilesForGeneration = async ({
           } catch {
             // best-effort cleanup only
           }
+          if (fileType === "video") {
+            await upsertVideoPosterVariantFromBuffer({
+              supabaseAdmin,
+              userId: generation.user_id,
+              mediaFileId: existingRowId,
+              videoBuffer: buffer,
+              videoMimeType: contentType,
+              filename,
+              metadata: {
+                generated_by: "recovery_media_persistence_duplicate",
+                generation_id: generation.id,
+                generation_output_index: index,
+              },
+            }).catch(() => null);
+          }
           await reconcileOwnedGenerationOutputSlot({
             generationId: generation.id,
             userId: generation.user_id,
@@ -356,6 +372,21 @@ export const persistRecoveryMediaFilesForGeneration = async ({
     }
     const mediaFileId = asString(asObject(data).id);
     if (mediaFileId) {
+      if (fileType === "video") {
+        await upsertVideoPosterVariantFromBuffer({
+          supabaseAdmin,
+          userId: generation.user_id,
+          mediaFileId,
+          videoBuffer: buffer,
+          videoMimeType: contentType,
+          filename,
+          metadata: {
+            generated_by: "recovery_media_persistence",
+            generation_id: generation.id,
+            generation_output_index: index,
+          },
+        }).catch(() => null);
+      }
       await reconcileOwnedGenerationOutputSlot({
         generationId: generation.id,
         userId: generation.user_id,

@@ -38,6 +38,7 @@ const createPulseRequest = () => ({
   method: "POST",
   body: {
     clientSessionKey: "pulse-bypass-retired",
+    clientSessionNamespace: "ai-studio:pulse-bypass-retired::pulse:product_hero:pulse-session-test",
     messages: [{ role: "user", content: "Start the workflow." }],
     context: {
       pulse: {

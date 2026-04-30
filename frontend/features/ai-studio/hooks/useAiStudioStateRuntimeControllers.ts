@@ -16,12 +16,20 @@ import { useAiStudioTaskOrchestration } from "./useAiStudioTaskOrchestration";
 type UseAiStudioStateRuntimeControllersParams = {
   activeOutputId: string | null;
   activeOutputPreviewUrl: string | null;
-  activePulsePresetId: string | null;
   archivedOutputs: StudioOutput[];
   aspect: string;
+  createPrompts: {
+    standard: string;
+    pulse: string;
+  };
+  createRuntime: {
+    kind: "standard" | "pulse";
+    prompt: string;
+    activePulsePresetId: string | null;
+    pulseSessionInstanceId: string | null;
+  };
   curatedReferenceIds: string[];
   editReferenceText: string;
-  expertCreateMode: "standard" | "pulse";
   extraImageUrls: [string | null, string | null, string | null];
   findOutputById: (id: string) => StudioOutput | null;
   imageResolution: string;
@@ -39,8 +47,6 @@ type UseAiStudioStateRuntimeControllersParams = {
   notifyGenerationFailure: ReturnType<typeof useAiStudioOutputLifecycle>["notifyGenerationFailure"];
   outputs: StudioOutput[];
   projectId: string | null;
-  pulsePrompt: string;
-  pulseSessionInstanceId: string | null;
   referenceImageUrl: string | null;
   removedFromAllRefsIds: string[];
   resolveReferenceInputsForTool: (tool: ToolId | null) => {
@@ -118,7 +124,6 @@ type UseAiStudioStateRuntimeControllersParams = {
   >;
   setVideoReferenceText: (value: string) => void;
   setVideoResolution: Dispatch<SetStateAction<string>>;
-  standardPrompt: string;
   updateOutputById: ReturnType<typeof useAiStudioOutputLifecycle>["updateOutputById"];
   useReferenceImageIndicator: boolean;
   videoAutoFix: boolean;
@@ -137,12 +142,12 @@ type UseAiStudioStateRuntimeControllersParams = {
 export const useAiStudioStateRuntimeControllers = ({
   activeOutputId,
   activeOutputPreviewUrl,
-  activePulsePresetId,
   archivedOutputs,
   aspect,
+  createPrompts,
+  createRuntime,
   curatedReferenceIds,
   editReferenceText,
-  expertCreateMode,
   extraImageUrls,
   findOutputById,
   imageResolution,
@@ -160,8 +165,6 @@ export const useAiStudioStateRuntimeControllers = ({
   notifyGenerationFailure,
   outputs,
   projectId,
-  pulsePrompt,
-  pulseSessionInstanceId,
   referenceImageUrl,
   removedFromAllRefsIds,
   resolveReferenceInputsForTool,
@@ -219,7 +222,6 @@ export const useAiStudioStateRuntimeControllers = ({
   setVideoReferenceMode,
   setVideoReferenceText,
   setVideoResolution,
-  standardPrompt,
   updateOutputById,
   useReferenceImageIndicator,
   videoAutoFix,
@@ -236,11 +238,10 @@ export const useAiStudioStateRuntimeControllers = ({
     resolveReferenceInputsForTool,
   });
   const pulseWorkspaceState = resolvePulseRuntimeState({
-    expertCreateMode,
-    activePulsePresetId,
-    pulseSessionInstanceId,
+    expertCreateMode: createRuntime.kind,
+    activePulsePresetId: createRuntime.activePulsePresetId,
+    pulseSessionInstanceId: createRuntime.pulseSessionInstanceId,
   });
-  const activeCreatePrompt = expertCreateMode === "pulse" ? pulsePrompt : standardPrompt;
 
   const { submitTask, onReferenceOutputMediaLoaded, retryOutputStatus, abandonTaskOutput } =
     useAiStudioTaskOrchestration({
@@ -249,7 +250,7 @@ export const useAiStudioStateRuntimeControllers = ({
         mode,
         projectId,
         model,
-        prompt: activeCreatePrompt,
+        prompt: createRuntime.prompt,
         selectedTool,
         imageResolution,
         videoDurationSeconds,
@@ -299,7 +300,7 @@ export const useAiStudioStateRuntimeControllers = ({
 
   const { generateOutput, regenerateOutput } = useAiStudioGenerationPromptComposer({
     model,
-    prompt: activeCreatePrompt,
+    prompt: createRuntime.prompt,
     editReferenceText,
     videoReferenceText,
     selectedStylePrompt,
@@ -332,8 +333,8 @@ export const useAiStudioStateRuntimeControllers = ({
     {
       mode,
       selectedTool,
-      standardCreatePrompt: standardPrompt,
-      pulseCreatePrompt: pulsePrompt,
+      standardCreatePrompt: createPrompts.standard,
+      pulseCreatePrompt: createPrompts.pulse,
       model,
       aspect,
       pulseWorkspaceState,

@@ -388,10 +388,12 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("pulseArtifactPrompt ?? prompt.trim()");
     expect(pageSource).toContain("prompt: standardPrompt");
     expect(stateRuntimeControllersSource).not.toContain("\n  prompt: string;\n");
-    expect(stateRuntimeControllersSource).toContain(
+    expect(stateRuntimeControllersSource).not.toContain(
       'const activeCreatePrompt = expertCreateMode === "pulse" ? pulsePrompt : standardPrompt'
     );
-    expect(stateRuntimeControllersSource).toContain("prompt: activeCreatePrompt");
+    expect(stateRuntimeControllersSource).toContain("createRuntime:");
+    expect(stateRuntimeControllersSource).toContain("createPrompts:");
+    expect(stateRuntimeControllersSource).toContain("prompt: createRuntime.prompt");
     expect(sessionSnapshotControllerSource).not.toContain("\n  prompt: string;\n");
     expect(sessionSnapshotControllerSource).toContain(
       'pulseWorkspaceState.expertCreateMode === "pulse" ? pulseCreatePrompt : standardCreatePrompt'

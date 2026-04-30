@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -418,6 +419,30 @@ export const useAiStudioState = ({
     setVideoReferenceTextState,
   });
   const prompt = expertCreateMode === "pulse" ? pulsePrompt : standardPrompt;
+  const createStateRuntime = useMemo(
+    () =>
+      expertCreateMode === "pulse"
+        ? {
+            kind: "pulse" as const,
+            prompt: pulsePrompt,
+            activePulsePresetId,
+            pulseSessionInstanceId,
+          }
+        : {
+            kind: "standard" as const,
+            prompt: standardPrompt,
+            activePulsePresetId: null,
+            pulseSessionInstanceId: null,
+          },
+    [activePulsePresetId, expertCreateMode, pulsePrompt, pulseSessionInstanceId, standardPrompt]
+  );
+  const createStatePrompts = useMemo(
+    () => ({
+      standard: standardPrompt,
+      pulse: pulsePrompt,
+    }),
+    [pulsePrompt, standardPrompt]
+  );
   const {
     archiveOlderOutputs,
     restoreArchivedOutput,
@@ -701,12 +726,12 @@ export const useAiStudioState = ({
   } = useAiStudioStateRuntimeControllers({
     activeOutputId,
     activeOutputPreviewUrl,
-    activePulsePresetId,
     archivedOutputs,
     aspect,
+    createPrompts: createStatePrompts,
+    createRuntime: createStateRuntime,
     curatedReferenceIds,
     editReferenceText,
-    expertCreateMode,
     extraImageUrls,
     findOutputById,
     imageResolution,
@@ -724,8 +749,6 @@ export const useAiStudioState = ({
     notifyGenerationFailure,
     outputs,
     projectId,
-    pulsePrompt,
-    pulseSessionInstanceId,
     referenceImageUrl,
     removedFromAllRefsIds,
     resolveReferenceInputsForTool,
@@ -783,7 +806,6 @@ export const useAiStudioState = ({
     setVideoReferenceMode,
     setVideoReferenceText,
     setVideoResolution,
-    standardPrompt,
     updateOutputById,
     useReferenceImageIndicator,
     videoAutoFix,

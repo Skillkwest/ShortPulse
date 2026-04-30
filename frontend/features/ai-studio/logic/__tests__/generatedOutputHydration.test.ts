@@ -80,4 +80,86 @@ describe("generatedOutputHydration", () => {
       })
     );
   });
+
+  it("keeps batched canonical generated outputs newest first", () => {
+    const existing = [createOutput({ id: "local-existing" })];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-newest",
+        generationId: "gen-newest",
+        taskId: "req-newest",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+      createOutput({
+        id: "generated:gen-middle",
+        generationId: "gen-middle",
+        taskId: "req-middle",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+      createOutput({
+        id: "generated:gen-oldest",
+        generationId: "gen-oldest",
+        taskId: "req-oldest",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated).map((output) => output.id)).toEqual([
+      "generated:gen-newest",
+      "generated:gen-middle",
+      "generated:gen-oldest",
+      "local-existing",
+    ]);
+  });
+
+  it("orders matched generated outputs by the canonical newest-first batch", () => {
+    const existing = [
+      createOutput({
+        id: "local-oldest",
+        generationId: "gen-oldest",
+        taskId: "req-oldest",
+        taskState: "running",
+      }),
+      createOutput({
+        id: "local-newest",
+        generationId: "gen-newest",
+        taskId: "req-newest",
+        taskState: "running",
+      }),
+      createOutput({ id: "local-upload" }),
+    ];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-newest",
+        generationId: "gen-newest",
+        taskId: "req-newest",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+      createOutput({
+        id: "generated:gen-middle",
+        generationId: "gen-middle",
+        taskId: "req-middle",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+      createOutput({
+        id: "generated:gen-oldest",
+        generationId: "gen-oldest",
+        taskId: "req-oldest",
+        taskState: "success",
+        mediaSource: "generated",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated).map((output) => output.id)).toEqual([
+      "local-newest",
+      "generated:gen-middle",
+      "local-oldest",
+      "local-upload",
+    ]);
+  });
 });

@@ -25,6 +25,7 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "generation_replay",
   "character_context",
   "style_context",
+  "updated_at",
   "hidden_in_reference_grid",
   "reference_grid_visible",
 ].join(", ");
@@ -53,6 +54,7 @@ type ProjectGenerationProjectionRow = {
   generation_replay?: unknown;
   character_context?: unknown;
   style_context?: unknown;
+  updated_at?: unknown;
   hidden_in_reference_grid?: unknown;
   reference_grid_visible?: unknown;
 };
@@ -223,7 +225,7 @@ const readRecentProjectAssociatedGenerationIds = async ({
   }
 
   const generationIdsByUpdatedAt = new Map<string, string | null>();
-  [...(Array.isArray(data) ? data : []), ...(Array.isArray(projectionData) ? projectionData : [])]
+  (Array.isArray(data) ? data : [])
     .map((row) => {
       const record = asRecord(row);
       return {
@@ -232,8 +234,24 @@ const readRecentProjectAssociatedGenerationIds = async ({
       };
     })
     .forEach(({ generationId, updatedAt }) => {
-      if (!generationId || generationIdsByUpdatedAt.has(generationId)) return;
+      if (!generationId) return;
       generationIdsByUpdatedAt.set(generationId, updatedAt);
+    });
+
+  (Array.isArray(projectionData) ? projectionData : [])
+    .map((row) => {
+      const record = asRecord(row);
+      return {
+        generationId: asTrimmedString(record.generation_id),
+        updatedAt: asTrimmedString(record.updated_at),
+      };
+    })
+    .forEach(({ generationId, updatedAt }) => {
+      if (!generationId) return;
+      generationIdsByUpdatedAt.set(
+        generationId,
+        updatedAt ?? generationIdsByUpdatedAt.get(generationId) ?? null
+      );
     });
 
   return [...generationIdsByUpdatedAt.entries()]
@@ -469,6 +487,70 @@ const createSnapshotOutputRowFromProjection = (
   });
 };
 
+const areSnapshotRowsSameOrder = (left: SnapshotRecord[], right: SnapshotRecord[]): boolean =>
+  left.length === right.length && left.every((row, index) => row === right[index]);
+
+const projectionUpdatedAtMs = (
+  projection: ProjectGenerationProjectionRow | undefined
+): number | null => {
+  const updatedAt = asTrimmedString(projection?.updated_at);
+  const updatedAtMs = Date.parse(updatedAt ?? "");
+  return Number.isFinite(updatedAtMs) ? updatedAtMs : null;
+};
+
+const orderActiveSnapshotRowsByProjectGenerationRecency = ({
+  rows,
+  recentAssociatedGenerationIds,
+  projectionByGenerationId,
+}: {
+  rows: SnapshotRecord[];
+  recentAssociatedGenerationIds: string[];
+  projectionByGenerationId: Map<string, ProjectGenerationProjectionRow>;
+}): SnapshotRecord[] => {
+  if (rows.length <= 1) return rows;
+  const generationRankById = new Map(
+    recentAssociatedGenerationIds.map((generationId, index) => [generationId, index])
+  );
+  const rankedRows: Array<{
+    row: SnapshotRecord;
+    index: number;
+    rank: number | null;
+    updatedAtMs: number | null;
+  }> = [];
+  const unrankedRows: SnapshotRecord[] = [];
+
+  rows.forEach((row, index) => {
+    const generationId = asTrimmedString(row.generationId);
+    if (!generationId) {
+      unrankedRows.push(row);
+      return;
+    }
+    const rank = generationRankById.get(generationId) ?? null;
+    const updatedAtMs = projectionUpdatedAtMs(projectionByGenerationId.get(generationId));
+    if (updatedAtMs !== null || rank !== null) {
+      rankedRows.push({ row, index, rank, updatedAtMs });
+      return;
+    }
+    unrankedRows.push(row);
+  });
+
+  if (rankedRows.length <= 1) return rows;
+  return [
+    ...rankedRows
+      .sort((left, right) => {
+        const leftUpdatedAtMs = left.updatedAtMs ?? Number.NEGATIVE_INFINITY;
+        const rightUpdatedAtMs = right.updatedAtMs ?? Number.NEGATIVE_INFINITY;
+        return (
+          rightUpdatedAtMs - leftUpdatedAtMs ||
+          (left.rank ?? Number.MAX_SAFE_INTEGER) - (right.rank ?? Number.MAX_SAFE_INTEGER) ||
+          left.index - right.index
+        );
+      })
+      .map(({ row }) => row),
+    ...unrankedRows,
+  ];
+};
+
 /**
  * Associates the generated outputs referenced by a project workspace snapshot with that project.
  */
@@ -603,10 +685,22 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
   if (appendedActiveRows.length > 0) {
     changed = true;
   }
+  const unorderedActiveRows = [
+    ...appendedActiveRows,
+    ...(Array.isArray(activeRows) ? activeRows : []),
+  ];
+  const orderedActiveRows = orderActiveSnapshotRowsByProjectGenerationRecency({
+    rows: unorderedActiveRows,
+    recentAssociatedGenerationIds,
+    projectionByGenerationId,
+  });
+  if (!areSnapshotRowsSameOrder(unorderedActiveRows, orderedActiveRows)) {
+    changed = true;
+  }
 
   const nextOutputs = {
     ...outputsRecord,
-    active: [...appendedActiveRows, ...(Array.isArray(activeRows) ? activeRows : [])],
+    active: orderedActiveRows,
     archived: Array.isArray(archivedRows) ? archivedRows : [],
   };
 

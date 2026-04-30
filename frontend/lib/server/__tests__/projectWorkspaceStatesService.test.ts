@@ -90,16 +90,28 @@ const createSupabaseMock = ({
       })),
     })),
   }));
-  const generationProjectionSelect = vi.fn(() => ({
-    eq: vi.fn(() => ({
+  const generationProjectionSelect = vi.fn(() => {
+    const builder = {
+      eq: vi.fn(),
       in: vi.fn(async (_column: string, ids: string[]) => ({
         data: ids
           .map((id) => projectionRowsById.get(id))
           .filter((row): row is Record<string, unknown> => Boolean(row)),
         error: null,
       })),
-    })),
-  }));
+      order: vi.fn(),
+      limit: vi.fn(async () => ({
+        data: recentGenerationIds.map((generationId, index) => ({
+          generation_id: generationId,
+          updated_at: new Date(Date.UTC(2026, 3, 18, 16, 13 - index, 0)).toISOString(),
+        })),
+        error: null,
+      })),
+    };
+    builder.eq.mockReturnValue(builder);
+    builder.order.mockReturnValue(builder);
+    return builder;
+  });
   const workspaceMaybeSingle = vi.fn(async () => ({
     data: {
       project_id: "project-1",

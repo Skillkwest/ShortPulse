@@ -186,4 +186,129 @@ describe("associateGenerationWithProjectForUser", () => {
     );
     expect(recentProjectionBuilder.eq).toHaveBeenCalledWith("project_id", "project-1");
   });
+
+  it("orders restored project generated outputs by newest project generation recency", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [
+        { generation_id: "gen-oldest" },
+        { generation_id: "gen-newest" },
+        { generation_id: "gen-middle" },
+      ],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [
+        { generation_id: "gen-oldest", updated_at: "2026-04-18T16:30:00.000Z" },
+        { generation_id: "gen-newest", updated_at: "2026-04-18T16:30:00.000Z" },
+        { generation_id: "gen-middle", updated_at: "2026-04-18T16:30:00.000Z" },
+      ],
+      error: null,
+    });
+    const associationProjectionBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-newest",
+          updated_at: "2026-04-18T16:13:00.000Z",
+          request_id: "req-newest",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Newest",
+          preview_url: "https://fal.test/newest.png",
+          result_urls: ["https://fal.test/newest.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+        {
+          generation_id: "gen-middle",
+          updated_at: "2026-04-18T16:12:00.000Z",
+          request_id: "req-middle",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Middle",
+          preview_url: "https://fal.test/middle.png",
+          result_urls: ["https://fal.test/middle.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+        {
+          generation_id: "gen-oldest",
+          updated_at: "2026-04-18T16:11:00.000Z",
+          request_id: "req-oldest",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Oldest",
+          preview_url: "https://fal.test/oldest.png",
+          result_urls: ["https://fal.test/oldest.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id") return associationProjectionBuilder;
+      if (columns === "generation_id, updated_at") return recentProjectionBuilder;
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "local-oldest",
+              generationId: "gen-oldest",
+              prompt: "Oldest local",
+              resultUrls: ["https://fal.test/oldest-stale.png"],
+            },
+            {
+              id: "local-newest",
+              generationId: "gen-newest",
+              prompt: "Newest local",
+              resultUrls: ["https://fal.test/newest-stale.png"],
+            },
+            {
+              id: "local-middle",
+              generationId: "gen-middle",
+              prompt: "Middle local",
+              resultUrls: ["https://fal.test/middle-stale.png"],
+            },
+            {
+              id: "local-upload",
+              prompt: "Upload",
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    const outputs = snapshot.outputs as { active: Array<{ id: string }> };
+    expect(outputs.active.map((row) => row.id)).toEqual([
+      "local-newest",
+      "local-middle",
+      "local-oldest",
+      "local-upload",
+    ]);
+  });
 });

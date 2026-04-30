@@ -73,21 +73,25 @@ export const mergeCanonicalGeneratedOutputs = (
   existingOutputs: StudioOutput[],
   hydratedOutputs: StudioOutput[]
 ): StudioOutput[] => {
-  let nextOutputs = [...existingOutputs];
+  if (hydratedOutputs.length === 0) return existingOutputs;
 
+  const matchedExistingIndexes = new Set<number>();
+  const canonicalOutputs: StudioOutput[] = [];
   for (const hydrated of hydratedOutputs) {
-    const existingIndex = nextOutputs.findIndex((item) =>
-      matchesHydratedGeneratedOutput(item, hydrated)
+    const existingIndex = existingOutputs.findIndex(
+      (item, index) =>
+        !matchedExistingIndexes.has(index) && matchesHydratedGeneratedOutput(item, hydrated)
     );
     if (existingIndex >= 0) {
-      nextOutputs[existingIndex] = mergeHydratedGeneratedOutput(
-        nextOutputs[existingIndex],
-        hydrated
-      );
+      matchedExistingIndexes.add(existingIndex);
+      canonicalOutputs.push(mergeHydratedGeneratedOutput(existingOutputs[existingIndex], hydrated));
       continue;
     }
-    nextOutputs = [hydrated, ...nextOutputs];
+    canonicalOutputs.push(hydrated);
   }
 
-  return nextOutputs;
+  return [
+    ...canonicalOutputs,
+    ...existingOutputs.filter((_, index) => !matchedExistingIndexes.has(index)),
+  ];
 };

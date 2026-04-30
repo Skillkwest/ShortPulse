@@ -63,6 +63,7 @@ import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiS
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import { buildPulseCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildPulseCreateRuntimeResult";
 import { buildStandardCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildStandardCreateRuntimeResult";
+import type { CreatePageAgentRuntime } from "../features/ai-studio/createRuntime/contracts";
 import { usePulseCreateAgentRuntime } from "../features/ai-studio/createRuntime/usePulseCreateAgentRuntime";
 import { useStandardCreateAgentRuntime } from "../features/ai-studio/createRuntime/useStandardCreateAgentRuntime";
 import { usePulseCreatePrimarySubmit } from "../features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit";
@@ -115,7 +116,7 @@ const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
-export default function AiStudioPage() {
+const useAiStudioPageBaseRuntime = () => {
   const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
 
@@ -782,60 +783,548 @@ export default function AiStudioPage() {
     trackCharacterModeEvent: trackUiEvent,
     bundleStaleAfterMs: CHARACTER_MODE_BUNDLE_STALE_AFTER_MS,
   });
-  const standardCreateAgentRuntime = useStandardCreateAgentRuntime({
-    sessionId,
+  return {
+    activeCreatePrompt,
+    activeCreatePulsePresetId,
+    activeCreatePulsePresetSnapshot,
+    activeOutput,
+    activeOutputId,
+    activeSessionPersistenceSessionId,
+    addAgentPromptReference,
+    addCharacterReferences,
+    addCuratedReference,
+    addLibraryMediaReference,
+    addLibraryPromptReference,
+    addOutputsFromFiles,
+    addPastedMediaReference,
+    addPastedPromptReference,
+    archivedOutputs,
+    aspect,
+    balanceCredits,
+    balanceLoading,
+    beginnerMode,
+    beginnerModeError,
+    beginnerModeLoading,
+    beginnerModeSyncState,
+    buildSessionSnapshot,
+    canvasSessionState,
+    characterCreateRequestKey,
+    characterError,
+    characterOptions,
+    clearCharacterError,
+    clearGenerationOutput,
+    clearPulseRuntimeForPage,
+    closeModelModal,
+    createCharacterModeInjectionBundle,
+    createIsGenerating,
+    createSelectedCharacterId,
+    createSelectedCharacterLookId,
+    curatedReferenceIds,
+    currentModelLabel,
+    deleteOutput,
+    detailOutput,
+    editIsGenerating,
+    editReferenceText,
+    editSelectedCharacterId,
+    editSubmitIntent,
+    effectiveBalanceCredits,
+    elementCreateRequestKey,
+    expertCreateMode,
+    expertEditCustomPresetOverrides,
+    expertEditSessionState,
+    extraImageUrls,
+    findOutputById,
+    generateOutput,
+    getDefaultDurationSeconds,
+    handleActiveCreatePulsePresetIdChangeForPage,
+    handleCreateCharacterSelection,
+    handleExpertCreateModeChangeForPage,
+    handleOpenCharacterCreate,
+    handleOpenCharacterLibrary,
+    handleOpenElementCreate,
+    handleQuickSlotLibraryMediaDrop,
+    handleQuickSlotLibraryPromptDrop,
+    hasActivePulseSession,
+    hydrateCanvasSessionState,
+    hydrateFromSessionSnapshot,
+    imageExtraImageUrls,
+    imageReferenceImageUrl,
+    imageResolution,
+    insertOptimisticGenerationPlaceholder,
+    isCharacterOptionsLoading,
+    isCreateCharacterBundleLoading,
+    isCreateCharacterModeEnabled,
+    isEditCharacterModeEnabled,
+    isModelModalOpen,
+    isPrimaryEditStageGenerating,
+    isProjectsModalOpen,
+    klingCfgScale,
+    klingElements,
+    klingMultiPrompts,
+    klingNegativePrompt,
+    klingShotType,
+    klingVoiceIds,
+    klingWorkflowMode,
+    loadCreateCharacterLookOptions,
+    localSessionTitleOverride,
+    mediaAutosaveError,
+    mediaAutosaveSyncState,
     mode,
-    selectedTool,
-    prompt: standardPrompt,
+    model,
+    modelModalAnchor,
+    modelModalContext,
+    modelPricingPolicy,
+    modelPricingPolicyError,
+    modelPricingPolicyLoading,
+    modelPricingPolicyReady,
+    motionReferenceVideoUrl,
+    notifyGenerationFailure,
+    onReferenceOutputMediaLoaded,
+    openModelModal,
+    optimisticDebitEntries,
+    optimisticUncoveredDebitCredits,
+    outputs,
+    pendingHoldCredits,
+    project,
+    projectError,
     projectId,
     projectRouteRequested,
-    getAgentContext: standardCreateAgentContextResolver,
-    setSharedPrompt,
-    addAgentPromptReference,
-    editReferenceText,
-    setEditReferenceText,
-    videoReferenceText,
-    setVideoReferenceText,
-    findOutputById,
+    projectStatus,
+    pulseCreateAgentContextResolver,
+    pulsePrompt,
+    pulseSessionInstanceId,
+    pulseWorkflowSession,
+    railCanvasProps,
+    referenceGridFileInputRef,
+    referenceGridPreconnectOrigin,
+    referenceGridReadyOutputIds,
+    referenceImageUrl,
+    refreshBalance,
+    refreshCharacterModeInjectionBundleForSubmission,
+    refreshCharacterOptions,
+    refreshProject,
+    regenerateOutput,
+    removeCuratedReference,
+    removeOptimisticGenerationPlaceholder,
+    removedFromAllRefsIds,
+    reorderCuratedReference,
+    rerollOutputFromReplay,
+    resolveCharacterAvatarUrlById,
+    resolveCharacterDropReference,
+    resolveCharacterModeSubmissionOverrides,
+    resolveElementProfileImageDropSource,
+    resolveIsCharacterModeEnabledForTool,
+    resolveMediaLibraryInternalDropItem,
     resolvePanelOutputPreviewUrl,
-    aspect,
-    model,
-    setOutputs,
-    setActiveOutputId,
-    setUiNotice,
-    trackAgentUiEvent: trackUiEvent,
-  });
-  const pulseCreateAgentRuntime = usePulseCreateAgentRuntime({
-    sessionId,
-    mode,
-    selectedTool,
-    prompt: pulsePrompt,
-    activePresetSnapshot: activeCreatePulsePresetSnapshot,
-    activePresetId: activeCreatePulsePresetId,
-    sessionInstanceId: pulseSessionInstanceId,
-    workflowSession: pulseWorkflowSession,
-    setWorkflowSession: setPulseWorkflowSession,
-    clearRuntime: clearPulseRuntimeForPage,
+    resolveReferenceInputsForTool,
+    resolveSelectedCharacterIdForTool,
+    resolveStyleLibraryInternalDrop,
+    resolveVoiceChangerInternalReferenceSource,
     restartPulse,
-    getAgentContext: pulseCreateAgentContextResolver,
+    restoreAllArchivedOutputs,
+    restoreArchivedOutput,
+    retryOutputStatus,
+    router,
+    savePromptReference,
+    savePromptToLibrary,
+    saveReferenceToLibrary,
+    seedance2InputMode,
+    seedance2ReferenceAudioUrls,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
+    selectedCreateCharacterLookLabel,
+    selectedExpertEditPresetIds,
+    selectedStyleContext,
+    selectedTool,
+    sessionId,
+    sessionPersistenceTitleOverride,
+    setActiveCreatePulsePresetSnapshot,
+    setActiveOutputId,
+    setAspect,
+    setBeginnerMode,
+    setCreateSelectedCharacterId,
+    setCreateSelectedCharacterLookId,
+    setDetailOutputId,
+    setEditReferenceText,
+    setEditSelectedCharacterId,
+    setEditSubmitIntent,
+    setExpertEditCustomPresetOverrides,
+    setExpertEditSessionState,
+    setImageExtraImageUrl,
+    setImageReferenceImageUrl,
+    setImageResolution,
+    setIsCreateCharacterModeEnabled,
+    setIsEditCharacterModeEnabled,
+    setIsProjectsModalOpen,
+    setKlingCfgScale,
+    setKlingElements,
+    setKlingMultiPrompts,
+    setKlingNegativePrompt,
+    setKlingShotType,
+    setKlingVoiceIds,
+    setKlingWorkflowMode,
+    setMode,
+    setModel,
+    setMotionReferenceVideoUrl,
+    setOptimisticDebitEntries,
+    setOutputs,
+    setPulseCreatePrompt,
+    setPulseWorkflowSession,
+    setReferenceImageUrl,
+    setSeedance2InputMode,
+    setSeedance2ReferenceAudioUrls,
+    setSeedance2ReferenceImageUrls,
+    setSeedance2ReferenceVideoUrls,
+    setSeedance2ReturnLastFrame,
+    setSeedance2WebSearch,
+    setSelectedExpertEditPresetIds,
+    setSelectedStyleContext,
+    setSelectedStylePrompt,
+    setSelectedToolWithEditIntentReset,
+    setSessionTitleOverrideState,
     setSharedPrompt,
-    findOutputById,
-    resolvePanelOutputPreviewUrl,
+    setShowCreateTools,
+    setStandardCreatePrompt,
+    setUiError,
     setUiNotice,
-    trackAgentUiEvent: trackUiEvent,
+    setVideoAutoFix,
+    setVideoCameraFixed,
+    setVideoDurationSeconds,
+    setVideoExtraImageUrl,
+    setVideoGenerateAudio,
+    setVideoReferenceImageUrl,
+    setVideoReferenceMode,
+    setVideoReferenceText,
+    setVideoResolution,
+    showBeginnerModeToggle,
+    showCreateTools,
+    standardCreateAgentContextResolver,
+    standardPrompt,
+    trackCharacterModeFallback,
+    trackUiEvent,
+    uiError,
+    uiNotice,
+    updateOutputById,
+    updateOutputPrompt,
+    updateProjectTitle,
+    useReferenceImageIndicator,
+    videoAutoFix,
+    videoCameraFixed,
+    videoDurationSeconds,
+    videoExtraImageUrls,
+    videoGenerateAudio,
+    videoReferenceImageUrl,
+    videoReferenceMode,
+    videoReferenceText,
+    videoResolution,
+  };
+};
+
+type AiStudioPageBaseRuntime = ReturnType<typeof useAiStudioPageBaseRuntime>;
+
+export default function AiStudioPage() {
+  const base = useAiStudioPageBaseRuntime();
+  return base.expertCreateMode === "pulse" ? (
+    <PulseCreateRuntimeRoot base={base} />
+  ) : (
+    <StandardCreateRuntimeRoot base={base} />
+  );
+}
+
+const StandardCreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
+  const standardCreateAgentRuntime = useStandardCreateAgentRuntime({
+    sessionId: base.sessionId,
+    mode: base.mode,
+    selectedTool: base.selectedTool,
+    prompt: base.standardPrompt,
+    projectId: base.projectId,
+    projectRouteRequested: base.projectRouteRequested,
+    getAgentContext: base.standardCreateAgentContextResolver,
+    setSharedPrompt: base.setSharedPrompt,
+    addAgentPromptReference: base.addAgentPromptReference,
+    editReferenceText: base.editReferenceText,
+    setEditReferenceText: base.setEditReferenceText,
+    videoReferenceText: base.videoReferenceText,
+    setVideoReferenceText: base.setVideoReferenceText,
+    findOutputById: base.findOutputById,
+    resolvePanelOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
+    aspect: base.aspect,
+    model: base.model,
+    setOutputs: base.setOutputs,
+    setActiveOutputId: base.setActiveOutputId,
+    setUiNotice: base.setUiNotice,
+    trackAgentUiEvent: base.trackUiEvent,
   });
-  const activeCreateAgentRuntime =
-    expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime;
+
+  return (
+    <AiStudioPageRuntimeBody base={base} activeCreateAgentRuntime={standardCreateAgentRuntime} />
+  );
+};
+
+const PulseCreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
+  const pulseCreateAgentRuntime = usePulseCreateAgentRuntime({
+    sessionId: base.sessionId,
+    mode: base.mode,
+    selectedTool: base.selectedTool,
+    prompt: base.pulsePrompt,
+    activePresetSnapshot: base.activeCreatePulsePresetSnapshot,
+    activePresetId: base.activeCreatePulsePresetId,
+    sessionInstanceId: base.pulseSessionInstanceId,
+    workflowSession: base.pulseWorkflowSession,
+    setWorkflowSession: base.setPulseWorkflowSession,
+    clearRuntime: base.clearPulseRuntimeForPage,
+    restartPulse: base.restartPulse,
+    getAgentContext: base.pulseCreateAgentContextResolver,
+    setSharedPrompt: base.setSharedPrompt,
+    findOutputById: base.findOutputById,
+    resolvePanelOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
+    setUiNotice: base.setUiNotice,
+    trackAgentUiEvent: base.trackUiEvent,
+  });
+
+  return <AiStudioPageRuntimeBody base={base} activeCreateAgentRuntime={pulseCreateAgentRuntime} />;
+};
+
+const AiStudioPageRuntimeBody = ({
+  base,
+  activeCreateAgentRuntime,
+}: {
+  base: AiStudioPageBaseRuntime;
+  activeCreateAgentRuntime: CreatePageAgentRuntime;
+}) => {
   const {
-    persistedAgentRuntime: persistedStandardAgentRuntime,
-    resetProjectAgentConversation: resetStandardProjectAgentConversation,
-    hydrateFromSessionAgentSnapshot: hydrateFromStandardSessionAgentSnapshot,
-  } = standardCreateAgentRuntime;
-  const {
-    persistedAgentRuntime: persistedPulseAgentRuntime,
-    resetProjectAgentConversation: resetPulseProjectAgentConversation,
-    hydrateFromSessionAgentSnapshot: hydrateFromPulseSessionAgentSnapshot,
-  } = pulseCreateAgentRuntime;
+    activeCreatePrompt,
+    activeCreatePulsePresetId,
+    activeCreatePulsePresetSnapshot,
+    activeOutput,
+    activeOutputId,
+    activeSessionPersistenceSessionId,
+    addAgentPromptReference,
+    addCharacterReferences,
+    addCuratedReference,
+    addLibraryMediaReference,
+    addLibraryPromptReference,
+    addOutputsFromFiles,
+    addPastedMediaReference,
+    addPastedPromptReference,
+    archivedOutputs,
+    aspect,
+    balanceCredits,
+    balanceLoading,
+    beginnerMode,
+    beginnerModeError,
+    beginnerModeLoading,
+    beginnerModeSyncState,
+    buildSessionSnapshot,
+    canvasSessionState,
+    characterCreateRequestKey,
+    characterError,
+    characterOptions,
+    clearCharacterError,
+    clearGenerationOutput,
+    closeModelModal,
+    createCharacterModeInjectionBundle,
+    createIsGenerating,
+    createSelectedCharacterId,
+    createSelectedCharacterLookId,
+    curatedReferenceIds,
+    currentModelLabel,
+    deleteOutput,
+    detailOutput,
+    editIsGenerating,
+    editReferenceText,
+    editSelectedCharacterId,
+    editSubmitIntent,
+    effectiveBalanceCredits,
+    elementCreateRequestKey,
+    expertCreateMode,
+    expertEditCustomPresetOverrides,
+    expertEditSessionState,
+    extraImageUrls,
+    findOutputById,
+    generateOutput,
+    getDefaultDurationSeconds,
+    handleActiveCreatePulsePresetIdChangeForPage,
+    handleCreateCharacterSelection,
+    handleExpertCreateModeChangeForPage,
+    handleOpenCharacterCreate,
+    handleOpenCharacterLibrary,
+    handleOpenElementCreate,
+    handleQuickSlotLibraryMediaDrop,
+    handleQuickSlotLibraryPromptDrop,
+    hasActivePulseSession,
+    hydrateCanvasSessionState,
+    hydrateFromSessionSnapshot,
+    imageExtraImageUrls,
+    imageReferenceImageUrl,
+    imageResolution,
+    insertOptimisticGenerationPlaceholder,
+    isCharacterOptionsLoading,
+    isCreateCharacterBundleLoading,
+    isCreateCharacterModeEnabled,
+    isEditCharacterModeEnabled,
+    isModelModalOpen,
+    isPrimaryEditStageGenerating,
+    isProjectsModalOpen,
+    klingCfgScale,
+    klingElements,
+    klingMultiPrompts,
+    klingNegativePrompt,
+    klingShotType,
+    klingVoiceIds,
+    klingWorkflowMode,
+    loadCreateCharacterLookOptions,
+    localSessionTitleOverride,
+    mediaAutosaveError,
+    mediaAutosaveSyncState,
+    mode,
+    model,
+    modelModalAnchor,
+    modelModalContext,
+    modelPricingPolicy,
+    modelPricingPolicyError,
+    modelPricingPolicyLoading,
+    modelPricingPolicyReady,
+    motionReferenceVideoUrl,
+    notifyGenerationFailure,
+    onReferenceOutputMediaLoaded,
+    openModelModal,
+    optimisticDebitEntries,
+    optimisticUncoveredDebitCredits,
+    outputs,
+    pendingHoldCredits,
+    project,
+    projectError,
+    projectId,
+    projectRouteRequested,
+    projectStatus,
+    pulsePrompt,
+    pulseWorkflowSession,
+    railCanvasProps,
+    referenceGridFileInputRef,
+    referenceGridPreconnectOrigin,
+    referenceGridReadyOutputIds,
+    referenceImageUrl,
+    refreshBalance,
+    refreshCharacterModeInjectionBundleForSubmission,
+    refreshCharacterOptions,
+    refreshProject,
+    regenerateOutput,
+    removeCuratedReference,
+    removeOptimisticGenerationPlaceholder,
+    removedFromAllRefsIds,
+    reorderCuratedReference,
+    rerollOutputFromReplay,
+    resolveCharacterAvatarUrlById,
+    resolveCharacterDropReference,
+    resolveCharacterModeSubmissionOverrides,
+    resolveElementProfileImageDropSource,
+    resolveIsCharacterModeEnabledForTool,
+    resolveMediaLibraryInternalDropItem,
+    resolvePanelOutputPreviewUrl,
+    resolveReferenceInputsForTool,
+    resolveSelectedCharacterIdForTool,
+    resolveStyleLibraryInternalDrop,
+    resolveVoiceChangerInternalReferenceSource,
+    restoreAllArchivedOutputs,
+    restoreArchivedOutput,
+    retryOutputStatus,
+    router,
+    savePromptReference,
+    savePromptToLibrary,
+    saveReferenceToLibrary,
+    seedance2InputMode,
+    seedance2ReferenceAudioUrls,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
+    selectedCreateCharacterLookLabel,
+    selectedExpertEditPresetIds,
+    selectedStyleContext,
+    selectedTool,
+    sessionId,
+    sessionPersistenceTitleOverride,
+    setActiveCreatePulsePresetSnapshot,
+    setActiveOutputId,
+    setAspect,
+    setBeginnerMode,
+    setCreateSelectedCharacterId,
+    setCreateSelectedCharacterLookId,
+    setDetailOutputId,
+    setEditReferenceText,
+    setEditSelectedCharacterId,
+    setEditSubmitIntent,
+    setExpertEditCustomPresetOverrides,
+    setExpertEditSessionState,
+    setImageExtraImageUrl,
+    setImageReferenceImageUrl,
+    setImageResolution,
+    setIsCreateCharacterModeEnabled,
+    setIsEditCharacterModeEnabled,
+    setIsProjectsModalOpen,
+    setKlingCfgScale,
+    setKlingElements,
+    setKlingMultiPrompts,
+    setKlingNegativePrompt,
+    setKlingShotType,
+    setKlingVoiceIds,
+    setKlingWorkflowMode,
+    setMode,
+    setModel,
+    setMotionReferenceVideoUrl,
+    setOptimisticDebitEntries,
+    setOutputs,
+    setPulseCreatePrompt,
+    setReferenceImageUrl,
+    setSeedance2InputMode,
+    setSeedance2ReferenceAudioUrls,
+    setSeedance2ReferenceImageUrls,
+    setSeedance2ReferenceVideoUrls,
+    setSeedance2ReturnLastFrame,
+    setSeedance2WebSearch,
+    setSelectedExpertEditPresetIds,
+    setSelectedStyleContext,
+    setSelectedStylePrompt,
+    setSelectedToolWithEditIntentReset,
+    setSessionTitleOverrideState,
+    setSharedPrompt,
+    setShowCreateTools,
+    setStandardCreatePrompt,
+    setUiError,
+    setUiNotice,
+    setVideoAutoFix,
+    setVideoCameraFixed,
+    setVideoDurationSeconds,
+    setVideoExtraImageUrl,
+    setVideoGenerateAudio,
+    setVideoReferenceImageUrl,
+    setVideoReferenceMode,
+    setVideoReferenceText,
+    setVideoResolution,
+    showBeginnerModeToggle,
+    showCreateTools,
+    standardPrompt,
+    trackCharacterModeFallback,
+    trackUiEvent,
+    uiError,
+    uiNotice,
+    updateOutputById,
+    updateOutputPrompt,
+    updateProjectTitle,
+    useReferenceImageIndicator,
+    videoAutoFix,
+    videoCameraFixed,
+    videoDurationSeconds,
+    videoExtraImageUrls,
+    videoGenerateAudio,
+    videoReferenceImageUrl,
+    videoReferenceMode,
+    videoReferenceText,
+    videoResolution,
+  } = base;
   const {
     agentEnabled,
     agentBootstrapReady,
@@ -863,32 +1352,48 @@ export default function AiStudioPage() {
     handleClearAgentAttachments,
     handleAssistantMessageEdit,
     handleClearAgentChat,
+    persistedAgentRuntime,
+    resetProjectAgentConversation: resetActiveProjectAgentConversation,
+    hydrateFromSessionAgentSnapshot: hydrateActiveFromSessionAgentSnapshot,
   } = activeCreateAgentRuntime;
-  const directOpenAiBypassEnabled =
-    expertCreateMode === "standard" ? standardCreateAgentRuntime.directOpenAiBypassEnabled : false;
-  const chatModeEnabled =
-    expertCreateMode === "standard" ? standardCreateAgentRuntime.chatModeEnabled : true;
-  const setChatModeEnabled = standardCreateAgentRuntime.setChatModeEnabled;
-  const handleAgentEnhanceSend = standardCreateAgentRuntime.handleAgentEnhanceSend;
-  const handlePulsePresetStart = pulseCreateAgentRuntime.handlePulsePresetStart;
+  const standardCreateAgentRuntime =
+    activeCreateAgentRuntime.kind === "standard" ? activeCreateAgentRuntime : null;
+  const pulseCreateAgentRuntime =
+    activeCreateAgentRuntime.kind === "pulse" ? activeCreateAgentRuntime : null;
+  const noopSetChatModeEnabled = useCallback<React.Dispatch<React.SetStateAction<boolean>>>(
+    () => undefined,
+    []
+  );
+  const noopAction = useCallback(() => undefined, []);
+  const directOpenAiBypassEnabled = standardCreateAgentRuntime?.directOpenAiBypassEnabled ?? false;
+  const chatModeEnabled = standardCreateAgentRuntime?.chatModeEnabled ?? true;
+  const setChatModeEnabled =
+    standardCreateAgentRuntime?.setChatModeEnabled ?? noopSetChatModeEnabled;
+  const handleAgentEnhanceSend = standardCreateAgentRuntime?.handleAgentEnhanceSend ?? noopAction;
+  const handlePulsePresetStart = pulseCreateAgentRuntime?.handlePulsePresetStart;
   const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
-    () => ({
-      standard: persistedStandardAgentRuntime,
-      pulsePresetId: activeCreatePulsePresetId,
-      pulse: persistedPulseAgentRuntime,
-    }),
-    [activeCreatePulsePresetId, persistedPulseAgentRuntime, persistedStandardAgentRuntime]
+    () =>
+      activeCreateAgentRuntime.kind === "pulse"
+        ? {
+            standard: createEmptyAiStudioSessionAgentState(),
+            pulsePresetId: activeCreatePulsePresetId,
+            pulse: persistedAgentRuntime,
+          }
+        : {
+            standard: persistedAgentRuntime,
+            pulsePresetId: null,
+            pulse: createEmptyAiStudioSessionAgentState(),
+          },
+    [activeCreateAgentRuntime.kind, activeCreatePulsePresetId, persistedAgentRuntime]
   );
   const resetProjectAgentConversation = useCallback(() => {
-    resetStandardProjectAgentConversation();
-    resetPulseProjectAgentConversation();
-  }, [resetPulseProjectAgentConversation, resetStandardProjectAgentConversation]);
+    resetActiveProjectAgentConversation();
+  }, [resetActiveProjectAgentConversation]);
   const hydrateFromSessionAgentSnapshot = useCallback(
-    (payload: Parameters<typeof hydrateFromStandardSessionAgentSnapshot>[0]) => {
-      hydrateFromStandardSessionAgentSnapshot(payload);
-      hydrateFromPulseSessionAgentSnapshot(payload);
+    (payload: Parameters<typeof hydrateActiveFromSessionAgentSnapshot>[0]) => {
+      hydrateActiveFromSessionAgentSnapshot(payload);
     },
-    [hydrateFromPulseSessionAgentSnapshot, hydrateFromStandardSessionAgentSnapshot]
+    [hydrateActiveFromSessionAgentSnapshot]
   );
   const handleStandardCreatePromptChange = useCallback(
     (value: string) => {
@@ -907,9 +1412,16 @@ export default function AiStudioPage() {
 
   const handleCreatePulsePresetStart = useCallback(
     async (
-      preset: Parameters<typeof handlePulsePresetStart>[0],
-      options?: Parameters<typeof handlePulsePresetStart>[1]
+      preset: Parameters<NonNullable<typeof handlePulsePresetStart>>[0],
+      options?: Parameters<NonNullable<typeof handlePulsePresetStart>>[1]
     ) => {
+      if (!handlePulsePresetStart) {
+        return {
+          status: "failed" as const,
+          reason: "scope_discarded" as const,
+          message: "Pulse runtime is inactive.",
+        };
+      }
       setActiveCreatePulsePresetSnapshot(preset);
       const result = await handlePulsePresetStart(preset, {
         pulseSessionInstanceId: options?.pulseSessionInstanceId ?? null,
@@ -1051,14 +1563,14 @@ export default function AiStudioPage() {
         title: normalizeAiStudioProjectName(value),
       });
     },
-    [projectId, sessionId, setUiError, updateProjectTitle]
+    [projectId, sessionId, setSessionTitleOverrideState, setUiError, updateProjectTitle]
   );
   const handleOpenProjectsModal = useCallback(() => {
     setIsProjectsModalOpen(true);
-  }, []);
+  }, [setIsProjectsModalOpen]);
   const handleCloseProjectsModal = useCallback(() => {
     setIsProjectsModalOpen(false);
-  }, []);
+  }, [setIsProjectsModalOpen]);
   const handleSelectProjectFromModal = useCallback(
     async (nextProjectId: string) => {
       if (nextProjectId === projectId) return;
@@ -1075,7 +1587,7 @@ export default function AiStudioPage() {
 
   const triggerFilePicker = useCallback(() => {
     referenceGridFileInputRef.current?.click();
-  }, []);
+  }, [referenceGridFileInputRef]);
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
   const { effectiveUiNotice, handleBeginnerModeChange } = useAiStudioPageUiNotices({
@@ -1952,4 +2464,4 @@ export default function AiStudioPage() {
       />
     </AiStudioModalActivityProvider>
   );
-}
+};

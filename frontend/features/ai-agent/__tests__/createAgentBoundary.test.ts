@@ -249,11 +249,18 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain("useCreatePulsePresetPageRuntime");
     expect(pageSource).toContain("standardCreateAgentContextResolver");
     expect(pageSource).toContain("pulseCreateAgentContextResolver");
-    expect(pageSource).toContain("useStandardCreateAgentRuntime");
-    expect(pageSource).toContain("usePulseCreateAgentRuntime");
-    expect(pageSource).toContain("const activeCreateAgentRuntime =");
-    expect(pageSource).toContain("getAgentContext: standardCreateAgentContextResolver");
-    expect(pageSource).toContain("getAgentContext: pulseCreateAgentContextResolver");
+    expect(pageSource).toContain('return base.expertCreateMode === "pulse" ?');
+    expect(pageSource).toContain("<PulseCreateRuntimeRoot base={base} />");
+    expect(pageSource).toContain("<StandardCreateRuntimeRoot base={base} />");
+    expect(pageSource).toContain("const StandardCreateRuntimeRoot =");
+    expect(pageSource).toContain("const PulseCreateRuntimeRoot =");
+    expect(pageSource).toContain("const AiStudioPageRuntimeBody =");
+    expect(pageSource).not.toContain("const activeCreateAgentRuntime =");
+    expect(pageSource).not.toContain(
+      'expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime'
+    );
+    expect(pageSource).toContain("getAgentContext: base.standardCreateAgentContextResolver");
+    expect(pageSource).toContain("getAgentContext: base.pulseCreateAgentContextResolver");
     expect(pageSource).not.toContain("useAiStudioAgentBridge");
     expect(pageSource).not.toContain("const createAgentBridgeRuntime = useMemo");
     expect(pageSource).not.toContain("createAgentRuntime: createAgentBridgeRuntime");
@@ -269,6 +276,17 @@ describe("Create agent mode boundaries", () => {
     expect(pulsePageRuntimeSource).toContain("clearPulseRuntimeForPage();");
     expect(pulsePageRuntimeSource).toContain("clearPulsePrompt();");
     expect(pulsePageRuntimeSource).toContain("activeCreatePulsePresetSnapshot");
+
+    const standardRootIndex = pageSource.indexOf("const StandardCreateRuntimeRoot =");
+    const pulseRootIndex = pageSource.indexOf("const PulseCreateRuntimeRoot =");
+    const runtimeBodyIndex = pageSource.indexOf("const AiStudioPageRuntimeBody =");
+    const standardRuntimeCallIndex = pageSource.indexOf("useStandardCreateAgentRuntime({");
+    const pulseRuntimeCallIndex = pageSource.indexOf("usePulseCreateAgentRuntime({");
+
+    expect(standardRuntimeCallIndex).toBeGreaterThan(standardRootIndex);
+    expect(standardRuntimeCallIndex).toBeLessThan(pulseRootIndex);
+    expect(pulseRuntimeCallIndex).toBeGreaterThan(pulseRootIndex);
+    expect(pulseRuntimeCallIndex).toBeLessThan(runtimeBodyIndex);
   });
 
   it("keeps the active Create composers mode-owned below the top-level switch", () => {

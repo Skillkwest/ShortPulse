@@ -32,6 +32,7 @@ import type {
 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { StandardCreatePageAgentRuntime } from "./contracts";
 
 type StandardCreateAgentContextResolver = (params: {
   lastAssistantMessage: string | null;
@@ -128,7 +129,7 @@ export const useStandardCreateAgentRuntime = ({
   setActiveOutputId,
   setUiNotice,
   trackAgentUiEvent,
-}: UseStandardCreateAgentRuntimeParams) => {
+}: UseStandardCreateAgentRuntimeParams): StandardCreatePageAgentRuntime => {
   void editReferenceText;
   void setEditReferenceText;
   void videoReferenceText;
@@ -405,6 +406,7 @@ export const useStandardCreateAgentRuntime = ({
   }, [mode, resetAgentComposer, selectedTool, sessionId]);
 
   return {
+    kind: "standard",
     agentEnabled,
     agentBootstrapReady,
     directOpenAiBypassEnabled,

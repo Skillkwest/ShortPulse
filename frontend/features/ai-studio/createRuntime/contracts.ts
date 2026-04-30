@@ -24,8 +24,10 @@ import type {
 import type { PulseCreatePropertiesPanelProps } from "../components/create/PulseCreatePropertiesPanel";
 import type { StandardCreatePropertiesPanelProps } from "../components/create/StandardCreatePropertiesPanel";
 import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
-import type { StudioMode, ToolId } from "../types";
+import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
+import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
+import type { PromptOrigin } from "../logic/agentPromptOwnership";
 
 export type NeutralCreateGenerationServices = {
   handleGenerate: (
@@ -135,6 +137,37 @@ export type StandardCreateRuntimeResult = {
   actions: StandardCreateAgentRuntimeActions;
 };
 
+export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
+  kind: "standard";
+  linkedPromptReferenceIds: string[];
+  latestAgentPrompt: string | null;
+  promptOrigin: PromptOrigin;
+  setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
+  isPromptRefining: boolean;
+  isReferencePromptEnhancing: false;
+  describeInFlightCount: number;
+  setChatModeEnabled: Dispatch<SetStateAction<boolean>>;
+  handleAgentInputChange: (value: string) => void;
+  handleAgentSend: (
+    textOverride?: string,
+    options?: { captureResult?: boolean; selectedOverride?: StudioOutput | null }
+  ) => Promise<{ prompt: string; referenceTitle?: string | null } | void>;
+  handleAgentEnhanceSend: () => void;
+  handleReferencePromptEnhance: () => void;
+  handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
+  handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
+  handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
+  handleAgentAttachmentDragLeave: (event: DragEvent<HTMLDivElement>) => void;
+  handleRemoveAgentAttachment: (id: string) => void;
+  handleClearAgentAttachments: () => void;
+  handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
+  handleClearAgentChat: () => void;
+  hydrateFromSessionAgentSnapshot: (
+    payload: Pick<AiStudioSessionHydrationPayload, "agent" | "agentRuntimes">
+  ) => void;
+  resetProjectAgentConversation: () => void;
+};
+
 export type PulseCreateAgentRuntimeState = {
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
@@ -196,3 +229,38 @@ export type PulseCreateRuntimeResult = {
   agentRuntime: PulseCreateAgentRuntimeState;
   actions: PulseCreateAgentRuntimeActions;
 };
+
+export type PulseCreatePageAgentRuntime = PulseCreateAgentRuntimeState & {
+  kind: "pulse";
+  linkedPromptReferenceIds: string[];
+  latestAgentPrompt: string | null;
+  promptOrigin: PromptOrigin;
+  setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
+  isPromptRefining: false;
+  isReferencePromptEnhancing: false;
+  describeInFlightCount: 0;
+  handleAgentInputChange: (value: string) => void;
+  handleAgentSend: (
+    textOverride?: string,
+    options?: { captureResult?: boolean; selectedOverride?: StudioOutput | null }
+  ) => Promise<{ prompt: string; referenceTitle?: string | null } | void>;
+  handlePulsePresetStart: (
+    preset: CreatePulseResolvedPreset,
+    options?: { pulseSessionInstanceId?: string | null }
+  ) => Promise<CreatePulsePresetStartResult>;
+  handlePulsePresetRestart: (preset: CreatePulseResolvedPreset) => Promise<void>;
+  handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
+  handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
+  handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
+  handleAgentAttachmentDragLeave: (event: DragEvent<HTMLDivElement>) => void;
+  handleRemoveAgentAttachment: (id: string) => void;
+  handleClearAgentAttachments: () => void;
+  handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
+  handleClearAgentChat: () => void;
+  hydrateFromSessionAgentSnapshot: (
+    payload: Pick<AiStudioSessionHydrationPayload, "agent" | "agentRuntimes">
+  ) => void;
+  resetProjectAgentConversation: () => void;
+};
+
+export type CreatePageAgentRuntime = StandardCreatePageAgentRuntime | PulseCreatePageAgentRuntime;

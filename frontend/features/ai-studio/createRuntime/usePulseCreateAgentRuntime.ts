@@ -36,6 +36,7 @@ import type {
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import { resolvePulseWorkflowArtifactPrompt } from "../hooks/agentBridgeRuntime/pulseBridgeRuntimeState";
+import type { PulseCreatePageAgentRuntime } from "./contracts";
 
 type PulseCreateAgentContextResolver = (params: {
   lastAssistantMessage: string | null;
@@ -134,7 +135,7 @@ export const usePulseCreateAgentRuntime = ({
   resolvePanelOutputPreviewUrl,
   setUiNotice,
   trackAgentUiEvent,
-}: UsePulseCreateAgentRuntimeParams) => {
+}: UsePulseCreateAgentRuntimeParams): PulseCreatePageAgentRuntime => {
   const agentFlag =
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === undefined ||
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
@@ -468,6 +469,7 @@ export const usePulseCreateAgentRuntime = ({
   }, [mode, resetAgentComposer, selectedTool, sessionId]);
 
   return {
+    kind: "pulse",
     agentEnabled,
     agentBootstrapReady,
     agentMessages,
@@ -480,6 +482,7 @@ export const usePulseCreateAgentRuntime = ({
     agentAttachments,
     linkedPromptReferenceIds,
     isAgentDropActive,
+    workflowSession,
     latestAgentPrompt: effectiveLatestAgentPrompt,
     promptOrigin: effectivePromptOrigin,
     setPromptOrigin,

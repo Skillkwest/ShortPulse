@@ -61,7 +61,6 @@ import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/compo
 import { createWorkflowBeginnerModePolicy } from "../features/ai-studio/logic/beginnerWorkflowPolicy";
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
-import { usePulseWorkflowSessionReconciliation } from "../features/ai-studio/hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
 import { buildPulseCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildPulseCreateRuntimeResult";
 import { buildStandardCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildStandardCreateRuntimeResult";
 import { usePulseCreateAgentRuntime } from "../features/ai-studio/createRuntime/usePulseCreateAgentRuntime";
@@ -816,6 +815,7 @@ export default function AiStudioPage() {
     mode,
     selectedTool,
     prompt: pulsePrompt,
+    activePresetSnapshot: activeCreatePulsePresetSnapshot,
     activePresetId: activeCreatePulsePresetId,
     sessionInstanceId: pulseSessionInstanceId,
     workflowSession: pulseWorkflowSession,
@@ -928,16 +928,6 @@ export default function AiStudioPage() {
     },
     [handlePulsePresetStart, setActiveCreatePulsePresetSnapshot]
   );
-
-  usePulseWorkflowSessionReconciliation({
-    hasActivePulseSession,
-    activeCreatePulsePresetId,
-    activeCreatePulsePresetSnapshot,
-    agentBusy,
-    agentMessages,
-    pulseWorkflowSession,
-    setPulseWorkflowSession,
-  });
 
   const buildProjectAwareSessionSnapshot = useCallback(
     (args: Parameters<typeof buildSessionSnapshot>[0]) =>

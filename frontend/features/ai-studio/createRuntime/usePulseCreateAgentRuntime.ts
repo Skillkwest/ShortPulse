@@ -25,6 +25,7 @@ import { resolveCreateAgentOrchestrationRuntimePolicy } from "../hooks/agentOrch
 import type { AgentModeHint } from "../hooks/agentOrchestration/types";
 import { runPulseCreateAgentSend } from "../hooks/agentOrchestration/runPulseCreateAgentSend";
 import { runPulsePresetStartRuntime } from "../hooks/agentOrchestration/runPulsePresetStartRuntime";
+import { usePulseWorkflowSessionReconciliation } from "../hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
 import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
@@ -50,6 +51,7 @@ type UsePulseCreateAgentRuntimeParams = {
   mode: StudioMode;
   selectedTool: ToolId | null;
   prompt: string;
+  activePresetSnapshot: CreatePulseResolvedPreset | null;
   activePresetId: string | null;
   sessionInstanceId: string | null;
   workflowSession: AgentPulseWorkflowSession | null;
@@ -123,6 +125,7 @@ export const usePulseCreateAgentRuntime = ({
   mode,
   selectedTool,
   prompt,
+  activePresetSnapshot,
   activePresetId,
   sessionInstanceId,
   workflowSession,
@@ -185,6 +188,16 @@ export const usePulseCreateAgentRuntime = ({
     reset: resetAgentChat,
   } = activeAgent;
   const agentBusy = agentIsSending || agentUiBusy;
+
+  usePulseWorkflowSessionReconciliation({
+    hasActivePulseSession: runtimePolicy.hasActivePulseSession,
+    activeCreatePulsePresetId: activePresetId,
+    activeCreatePulsePresetSnapshot: activePresetSnapshot,
+    agentMessages,
+    agentBusy,
+    pulseWorkflowSession: workflowSession,
+    setPulseWorkflowSession: setWorkflowSession,
+  });
 
   const ensureAgentSession = useCallback(() => {
     if (agentFlag) setAgentSessionEnabled(true);

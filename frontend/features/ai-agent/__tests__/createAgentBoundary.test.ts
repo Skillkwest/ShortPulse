@@ -236,6 +236,7 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("isCreatePulseBuiltInPresetId");
     expect(pageSource).not.toContain('from "../features/ai-studio/logic/pulseWorkflowSession"');
     expect(pageSource).not.toContain('import("../features/ai-studio/logic/pulseWorkflowSession")');
+    expect(pageSource).not.toContain("usePulseWorkflowSessionReconciliation");
     expect(pulseReconciliationSource).toContain('import("../../logic/pulseWorkflowSession")');
   });
 

@@ -22,6 +22,7 @@ type HandleGenerateResult = {
 };
 
 type UseAiStudioAgentOutputGenerationBridgeParams = {
+  enabled?: boolean;
   outputs: StudioOutput[];
   referenceGridReadyOutputIds?: ReadonlySet<string>;
   mode: StudioMode;
@@ -46,6 +47,7 @@ type UseAiStudioAgentOutputGenerationBridgeParams = {
  * Returns the page-facing agent-output generate handler, bubble media state, and disable guard.
  */
 export const useAiStudioAgentOutputGenerationBridge = ({
+  enabled = true,
   outputs,
   referenceGridReadyOutputIds = new Set<string>(),
   mode,
@@ -72,6 +74,7 @@ export const useAiStudioAgentOutputGenerationBridge = ({
 
   const handleGenerateFromAgentOutputPrompt = useCallback(
     (input: AgentOutputGenerateInput) => {
+      if (!enabled) return;
       const request = normalizeAgentOutputGenerateRequest(input);
       if (!request) return;
       const isVideoWorkflow = selectedTool === "video" || selectedTool === "kling";
@@ -110,6 +113,7 @@ export const useAiStudioAgentOutputGenerationBridge = ({
     },
     [
       currentCostCredits,
+      enabled,
       handleGenerate,
       promptReferenceGenerateCostCredits,
       registerOutputLink,
@@ -125,6 +129,7 @@ export const useAiStudioAgentOutputGenerationBridge = ({
 
   const disableAgentOutputGenerate = useMemo(
     () =>
+      !enabled ||
       shouldDisableAgentOutputGenerate({
         mode,
         selectedTool,
@@ -136,6 +141,7 @@ export const useAiStudioAgentOutputGenerationBridge = ({
       }),
     [
       characterModeEnabled,
+      enabled,
       hasSufficientCreditsForOutputGenerate,
       isGenerateDisabled,
       mode,
@@ -146,7 +152,9 @@ export const useAiStudioAgentOutputGenerationBridge = ({
   );
 
   return {
-    assistantBubbleMedia: assistantBubbleMedia as Record<string, AgentOutputBubbleMediaState>,
+    assistantBubbleMedia: enabled
+      ? (assistantBubbleMedia as Record<string, AgentOutputBubbleMediaState>)
+      : {},
     handleGenerateFromAgentOutputPrompt,
     disableAgentOutputGenerate,
   };

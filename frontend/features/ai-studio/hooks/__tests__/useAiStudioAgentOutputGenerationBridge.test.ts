@@ -157,4 +157,22 @@ describe("useAiStudioAgentOutputGenerationBridge", () => {
 
     expect(result.current.disableAgentOutputGenerate).toBe(true);
   });
+
+  it("fails closed when the Standard output-generation bridge is disabled", () => {
+    const params = createParams({ enabled: false });
+    const { result } = renderHook(() => useAiStudioAgentOutputGenerationBridge(params));
+
+    act(() => {
+      result.current.handleGenerateFromAgentOutputPrompt({
+        messageId: "msg-1",
+        prompt: "refined prompt",
+        source: "history",
+      });
+    });
+
+    expect(params.setSharedPrompt).not.toHaveBeenCalled();
+    expect(params.handleGenerate).not.toHaveBeenCalled();
+    expect(result.current.assistantBubbleMedia).toEqual({});
+    expect(result.current.disableAgentOutputGenerate).toBe(true);
+  });
 });

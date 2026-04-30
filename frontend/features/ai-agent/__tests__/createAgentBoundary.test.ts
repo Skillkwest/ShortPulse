@@ -382,10 +382,14 @@ describe("Create agent mode boundaries", () => {
     expect(generationControllerSource).not.toContain("agentInput");
     expect(generationControllerSource).not.toContain("resolveChatOffCreatePrompt");
     expect(generationControllerSource).not.toContain("handlePrimarySubmit");
+    expect(outputGenerationBridgeSource).toContain("enabled?: boolean");
+    expect(outputGenerationBridgeSource).toContain("if (!enabled) return;");
+    expect(outputGenerationBridgeSource).toContain("assistantBubbleMedia: enabled");
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
     expect(pageSource).toContain('enabled: expertCreateMode === "standard"');
+    expect(pageSource).toContain("useAiStudioAgentOutputGenerationBridge({");
     expect(pageSource).not.toContain("const handlePrimarySubmit =");
     expect(pageSource).toContain("standardCreateCommands:");
     expect(pageSource).toContain("pulseCreateCommands:");

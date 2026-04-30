@@ -41,25 +41,47 @@ import {
   resolvePulseWorkflowArtifactPrompt,
 } from "./agentBridgeRuntime/pulseBridgeRuntimeState";
 
-type UseAiStudioAgentBridgeParams = {
-  sessionId: string | null;
-  mode: StudioMode;
-  selectedTool: ToolId | null;
-  expertCreateMode?: "standard" | "pulse";
-  activePulsePresetId?: string | null;
-  pulseSessionInstanceId?: string | null;
-  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
-  standardChatModeEnabled?: boolean;
-  defaultStandardChatModeEnabled?: boolean;
-  setStandardChatModeEnabled?: Dispatch<SetStateAction<boolean>>;
-  standardPrompt: string;
-  pulsePrompt: string;
-  setSharedPrompt: (value: string) => void;
+type CreateAgentContextResolver = (params: {
+  lastAssistantMessage: string | null;
+  selectedOverride?: StudioOutput | null;
+  modeHint?: AgentModeHint;
+}) => AgentContext;
+
+export type StandardCreateAgentBridgeRuntimeConfig = {
+  kind: "standard";
+  prompt: string;
+  chatModeEnabled?: boolean;
+  defaultChatModeEnabled?: boolean;
+  setChatModeEnabled?: Dispatch<SetStateAction<boolean>>;
   getAgentContext: (params: {
     lastAssistantMessage: string | null;
     selectedOverride?: StudioOutput | null;
     modeHint?: AgentModeHint;
   }) => AgentContext;
+};
+
+export type PulseCreateAgentBridgeRuntimeConfig = {
+  kind: "pulse";
+  prompt: string;
+  activePresetId?: string | null;
+  sessionInstanceId?: string | null;
+  workflowSession?: AgentPulseWorkflowSession | null;
+  setWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
+  clearRuntime?: () => void;
+  restart?: () => { presetId: string; sessionInstanceId: string } | null;
+  getAgentContext: CreateAgentContextResolver;
+};
+
+export type CreateAgentBridgeRuntimeConfig =
+  | StandardCreateAgentBridgeRuntimeConfig
+  | PulseCreateAgentBridgeRuntimeConfig;
+
+type UseAiStudioAgentBridgeParams = {
+  sessionId: string | null;
+  mode: StudioMode;
+  selectedTool: ToolId | null;
+  createAgentRuntime: CreateAgentBridgeRuntimeConfig;
+  setSharedPrompt: (value: string) => void;
   addAgentPromptReference: (promptText: string, title?: string) => void;
   editReferenceText: string;
   setEditReferenceText: (value: string) => void;
@@ -72,9 +94,6 @@ type UseAiStudioAgentBridgeParams = {
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
-  setPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
-  clearPulseRuntime?: () => void;
-  restartPulse?: () => { presetId: string; sessionInstanceId: string } | null;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
 };
 
@@ -166,17 +185,8 @@ export const useAiStudioAgentBridge = ({
   sessionId,
   mode,
   selectedTool,
-  expertCreateMode = "standard",
-  activePulsePresetId = null,
-  pulseSessionInstanceId = null,
-  pulseWorkflowSession = null,
-  standardChatModeEnabled = true,
-  defaultStandardChatModeEnabled = standardChatModeEnabled,
-  setStandardChatModeEnabled,
-  standardPrompt,
-  pulsePrompt,
+  createAgentRuntime,
   setSharedPrompt,
-  getAgentContext,
   addAgentPromptReference,
   editReferenceText,
   setEditReferenceText,
@@ -189,11 +199,35 @@ export const useAiStudioAgentBridge = ({
   setOutputs,
   setActiveOutputId,
   setUiNotice,
-  setPulseWorkflowSession,
-  clearPulseRuntime,
-  restartPulse,
   trackAgentUiEvent,
 }: UseAiStudioAgentBridgeParams) => {
+  const noopSetPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>> =
+    useCallback(() => {}, []);
+  const expertCreateMode = createAgentRuntime.kind;
+  const activePulsePresetId =
+    createAgentRuntime.kind === "pulse" ? (createAgentRuntime.activePresetId ?? null) : null;
+  const pulseSessionInstanceId =
+    createAgentRuntime.kind === "pulse" ? (createAgentRuntime.sessionInstanceId ?? null) : null;
+  const pulseWorkflowSession =
+    createAgentRuntime.kind === "pulse" ? (createAgentRuntime.workflowSession ?? null) : null;
+  const standardChatModeEnabled =
+    createAgentRuntime.kind === "standard" ? (createAgentRuntime.chatModeEnabled ?? true) : true;
+  const defaultStandardChatModeEnabled =
+    createAgentRuntime.kind === "standard"
+      ? (createAgentRuntime.defaultChatModeEnabled ?? standardChatModeEnabled)
+      : true;
+  const setStandardChatModeEnabled =
+    createAgentRuntime.kind === "standard" ? createAgentRuntime.setChatModeEnabled : undefined;
+  const activeCreatePrompt = createAgentRuntime.prompt;
+  const getAgentContext = createAgentRuntime.getAgentContext;
+  const setPulseWorkflowSession =
+    createAgentRuntime.kind === "pulse"
+      ? createAgentRuntime.setWorkflowSession
+      : noopSetPulseWorkflowSession;
+  const clearPulseRuntime =
+    createAgentRuntime.kind === "pulse" ? createAgentRuntime.clearRuntime : undefined;
+  const restartPulse = createAgentRuntime.kind === "pulse" ? createAgentRuntime.restart : undefined;
+
   const bridgeRuntime = useMemo(
     () =>
       resolveCreateAgentBridgeRuntime({
@@ -232,7 +266,6 @@ export const useAiStudioAgentBridge = ({
     directOpenAiBypassEnabledByConfig && bridgeRuntime.kind === "standard";
   const agentBootstrapReady = Boolean(sessionId);
   const chatModeEnabled = bridgeRuntime.effectiveChatMode(standardChatModeEnabled);
-  const activeCreatePrompt = isPulseCreateMode ? pulsePrompt : standardPrompt;
 
   const setChatModeEnabled = useCallback(
     (value: boolean) => {

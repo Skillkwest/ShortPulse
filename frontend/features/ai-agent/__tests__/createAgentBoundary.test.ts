@@ -128,12 +128,15 @@ describe("Create agent mode boundaries", () => {
     expect(bridgeSource).not.toContain("allowSessionNamespaceOverride:");
     expect(bridgeSource).not.toContain("sessionNamespace:");
     expect(bridgeSource).not.toContain("workspace.expertCreateMode");
-    expect(bridgeSource).not.toContain("\n  prompt: string;\n");
-    expect(bridgeSource).toContain("standardPrompt: string;");
-    expect(bridgeSource).toContain("pulsePrompt: string;");
-    expect(bridgeSource).toContain(
+    expect(bridgeSource).toContain("type StandardCreateAgentBridgeRuntimeConfig");
+    expect(bridgeSource).toContain("type PulseCreateAgentBridgeRuntimeConfig");
+    expect(bridgeSource).toContain("createAgentRuntime: CreateAgentBridgeRuntimeConfig");
+    expect(bridgeSource).not.toContain("standardPrompt: string;");
+    expect(bridgeSource).not.toContain("pulsePrompt: string;");
+    expect(bridgeSource).not.toContain(
       "const activeCreatePrompt = isPulseCreateMode ? pulsePrompt : standardPrompt"
     );
+    expect(bridgeSource).toContain("const activeCreatePrompt = createAgentRuntime.prompt");
     expect(bridgeSource).toContain("prompt: activeCreatePrompt");
     expect(bridgeSource).toContain("./agentBridgeRuntime/useCreateAgentBridgeActiveAgent");
     expect(bridgeSource).toContain("./agentBridgeRuntime/createAgentBridgePersistenceRuntime");
@@ -187,9 +190,12 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain("useCreatePulsePresetPageRuntime");
     expect(pageSource).toContain("standardCreateAgentContextResolver");
     expect(pageSource).toContain("pulseCreateAgentContextResolver");
-    expect(pageSource).toContain(
-      'expertCreateMode === "pulse"\n        ? pulseCreateAgentContextResolver\n        : standardCreateAgentContextResolver'
-    );
+    expect(pageSource).toContain("const createAgentBridgeRuntime = useMemo");
+    expect(pageSource).toContain('kind: "standard" as const');
+    expect(pageSource).toContain('kind: "pulse" as const');
+    expect(pageSource).toContain("getAgentContext: standardCreateAgentContextResolver");
+    expect(pageSource).toContain("getAgentContext: pulseCreateAgentContextResolver");
+    expect(pageSource).toContain("createAgentRuntime: createAgentBridgeRuntime");
     expect(pageSource).not.toContain("createModeAgentContextResolver");
     expect(pageSource).not.toContain("getAgentContext: getPulseAwareAgentContext");
     expect(pageSource).not.toContain("const getPulseAwareAgentContext");

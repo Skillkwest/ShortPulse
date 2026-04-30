@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioAgentBridge } from "../useAiStudioAgentBridge";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import type { StudioMode, ToolId, StudioOutput } from "../../types";
-import type { AgentMessage } from "../../../../prefabs/agent";
+import type { AgentMessage, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 
 const useAiAgentMock = vi.fn();
 const useAiStudioAgentComposerMock = vi.fn();
@@ -54,20 +54,64 @@ vi.mock("../useAiStudioAgentInteractions", () => ({
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
 
-const createBridgeParams = (
-  overrides: Partial<Parameters<typeof useAiStudioAgentBridge>[0]> = {}
-): Parameters<typeof useAiStudioAgentBridge>[0] => {
+type BridgeParams = Parameters<typeof useAiStudioAgentBridge>[0];
+type BridgeRuntimeKind = BridgeParams["createAgentRuntime"]["kind"];
+type BridgeContextResolver = BridgeParams["createAgentRuntime"]["getAgentContext"];
+
+type BridgeParamOverrides = Partial<Omit<BridgeParams, "createAgentRuntime">> & {
+  expertCreateMode?: BridgeRuntimeKind;
+  activePulsePresetId?: string | null;
+  pulseSessionInstanceId?: string | null;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  standardChatModeEnabled?: boolean;
+  defaultStandardChatModeEnabled?: boolean;
+  setStandardChatModeEnabled?: Dispatch<SetStateAction<boolean>>;
+  standardPrompt?: string;
+  pulsePrompt?: string;
+  setPulseWorkflowSession?: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
+  clearPulseRuntime?: () => void;
+  restartPulse?: () => { presetId: string; sessionInstanceId: string } | null;
+  getAgentContext?: BridgeContextResolver;
+};
+
+const createBridgeParams = (overrides: BridgeParamOverrides = {}): BridgeParams => {
+  const expertCreateMode = overrides.expertCreateMode ?? "standard";
+  const activePulsePresetId = overrides.activePulsePresetId ?? null;
+  const pulseSessionInstanceId = Object.prototype.hasOwnProperty.call(
+    overrides,
+    "pulseSessionInstanceId"
+  )
+    ? (overrides.pulseSessionInstanceId ?? null)
+    : activePulsePresetId
+      ? "pulse-session-1"
+      : null;
+  const createAgentRuntime: BridgeParams["createAgentRuntime"] =
+    expertCreateMode === "pulse"
+      ? {
+          kind: "pulse",
+          prompt: overrides.pulsePrompt ?? "",
+          activePresetId: activePulsePresetId,
+          sessionInstanceId: pulseSessionInstanceId,
+          workflowSession: overrides.pulseWorkflowSession ?? null,
+          setWorkflowSession: overrides.setPulseWorkflowSession ?? asDispatch(vi.fn()),
+          clearRuntime: overrides.clearPulseRuntime,
+          restart: overrides.restartPulse,
+          getAgentContext: overrides.getAgentContext ?? vi.fn(() => ({})),
+        }
+      : {
+          kind: "standard",
+          prompt: overrides.standardPrompt ?? "",
+          chatModeEnabled: overrides.standardChatModeEnabled,
+          defaultChatModeEnabled: overrides.defaultStandardChatModeEnabled,
+          setChatModeEnabled: overrides.setStandardChatModeEnabled,
+          getAgentContext: overrides.getAgentContext ?? vi.fn(() => ({})),
+        };
   const baseParams: Parameters<typeof useAiStudioAgentBridge>[0] = {
     sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
     mode: "text",
     selectedTool: "create",
-    expertCreateMode: "standard",
-    activePulsePresetId: null,
-    pulseSessionInstanceId: null,
-    standardPrompt: "",
-    pulsePrompt: "",
+    createAgentRuntime,
     setSharedPrompt: vi.fn(),
-    getAgentContext: vi.fn(() => ({})),
     addAgentPromptReference: vi.fn(),
     editReferenceText: "",
     setEditReferenceText: vi.fn(),
@@ -80,24 +124,12 @@ const createBridgeParams = (
     setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
     setActiveOutputId: asDispatch<string | null>(vi.fn()),
     setUiNotice: asDispatch<string | null>(vi.fn()),
-    setPulseWorkflowSession: asDispatch(vi.fn()),
     trackAgentUiEvent: vi.fn(),
   };
-  const merged = {
+  return {
     ...baseParams,
     ...overrides,
-  };
-
-  return {
-    ...merged,
-    pulseSessionInstanceId: Object.prototype.hasOwnProperty.call(
-      overrides,
-      "pulseSessionInstanceId"
-    )
-      ? (overrides.pulseSessionInstanceId ?? null)
-      : merged.activePulsePresetId
-        ? "pulse-session-1"
-        : null,
+    createAgentRuntime,
   };
 };
 
@@ -793,7 +825,6 @@ describe("useAiStudioAgentBridge", () => {
       };
     });
 
-    const base = createBridgeParams();
     const bridgeModeProps: {
       expertCreateMode: "standard" | "pulse";
       activePulsePresetId: string | null;
@@ -813,12 +844,13 @@ describe("useAiStudioAgentBridge", () => {
         activePulsePresetId: string | null;
         pulseSessionInstanceId: string | null;
       }) =>
-        useAiStudioAgentBridge({
-          ...base,
-          expertCreateMode,
-          activePulsePresetId,
-          pulseSessionInstanceId,
-        }),
+        useAiStudioAgentBridge(
+          createBridgeParams({
+            expertCreateMode,
+            activePulsePresetId,
+            pulseSessionInstanceId,
+          })
+        ),
       {
         initialProps: bridgeModeProps,
       }
@@ -1516,10 +1548,6 @@ describe("useAiStudioAgentBridge", () => {
       };
     });
 
-    const base = createBridgeParams({
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-    });
     const { result, rerender } = renderHook(
       ({
         activePulsePresetId,
@@ -1528,11 +1556,13 @@ describe("useAiStudioAgentBridge", () => {
         activePulsePresetId: string | null;
         pulseSessionInstanceId: string | null;
       }) =>
-        useAiStudioAgentBridge({
-          ...base,
-          activePulsePresetId,
-          pulseSessionInstanceId,
-        }),
+        useAiStudioAgentBridge(
+          createBridgeParams({
+            expertCreateMode: "pulse",
+            activePulsePresetId,
+            pulseSessionInstanceId,
+          })
+        ),
       {
         initialProps: {
           activePulsePresetId: "story_builder",
@@ -1615,10 +1645,6 @@ describe("useAiStudioAgentBridge", () => {
       handleCloseAgentChat: vi.fn(),
     });
 
-    const base = createBridgeParams({
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-    });
     const initialBusyProps: {
       expertCreateMode: "standard" | "pulse";
       activePulsePresetId: string | null;
@@ -1634,11 +1660,12 @@ describe("useAiStudioAgentBridge", () => {
         expertCreateMode: "standard" | "pulse";
         activePulsePresetId: string | null;
       }) =>
-        useAiStudioAgentBridge({
-          ...base,
-          expertCreateMode,
-          activePulsePresetId,
-        }),
+        useAiStudioAgentBridge(
+          createBridgeParams({
+            expertCreateMode,
+            activePulsePresetId,
+          })
+        ),
       {
         initialProps: initialBusyProps,
       }
@@ -1714,6 +1741,9 @@ describe("useAiStudioAgentBridge", () => {
     const { result } = renderHook(() =>
       useAiStudioAgentBridge(
         createBridgeParams({
+          expertCreateMode: "pulse",
+          activePulsePresetId: "story_builder",
+          pulseSessionInstanceId: "pulse-session-restore-1",
           setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
         })
       )
@@ -1908,7 +1938,7 @@ describe("useAiStudioAgentBridge", () => {
       });
     });
 
-    expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
+    expect(setPulseWorkflowSession).not.toHaveBeenCalled();
   });
 
   it("does not restore hidden Pulse runtime after a Standard-first restore", async () => {
@@ -2056,10 +2086,10 @@ describe("useAiStudioAgentBridge", () => {
 
     expect(result.current.latestAgentPrompt).toBeNull();
     expect(result.current.promptOrigin).toBe("manual");
-    expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
+    expect(setPulseWorkflowSession).not.toHaveBeenCalled();
   });
 
-  it("preserves hidden Pulse runtime state across temporary Standard mode switches", async () => {
+  it("drops hidden Pulse runtime state across Standard mode switches", async () => {
     let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
     const pulseMessages: Array<{ id: string; role: "user" | "assistant"; content: string }> = [
       {
@@ -2176,8 +2206,8 @@ describe("useAiStudioAgentBridge", () => {
       pulseSessionInstanceId: "pulse-session-1",
     });
     await waitFor(() => {
-      expect(result.current.latestAgentPrompt).toBe("Pulse prompt");
-      expect(result.current.agentMessages).toEqual(pulseMessages);
+      expect(result.current.latestAgentPrompt).toBeNull();
+      expect(result.current.agentMessages).toEqual([]);
     });
   });
 
@@ -2240,7 +2270,7 @@ describe("useAiStudioAgentBridge", () => {
     );
 
     expect(result.current.chatModeEnabled).toBe(true);
-    expect(result.current.persistedAgentRuntimes.standard.chatModeEnabled).toBe(false);
+    expect(result.current.persistedAgentRuntimes.standard.chatModeEnabled).toBe(true);
     expect(result.current.persistedAgentRuntimes.pulse.chatModeEnabled).toBe(true);
   });
 

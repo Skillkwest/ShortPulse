@@ -784,6 +784,45 @@ export default function AiStudioPage() {
     trackCharacterModeEvent: trackUiEvent,
     bundleStaleAfterMs: CHARACTER_MODE_BUNDLE_STALE_AFTER_MS,
   });
+  const createAgentBridgeRuntime = useMemo(
+    () =>
+      expertCreateMode === "pulse"
+        ? {
+            kind: "pulse" as const,
+            prompt: pulsePrompt,
+            activePresetId: activeCreatePulsePresetId,
+            sessionInstanceId: pulseSessionInstanceId,
+            workflowSession: pulseWorkflowSession,
+            setWorkflowSession: setPulseWorkflowSession,
+            clearRuntime: clearPulseRuntimeForPage,
+            restart: restartPulse,
+            getAgentContext: pulseCreateAgentContextResolver,
+          }
+        : {
+            kind: "standard" as const,
+            prompt: standardPrompt,
+            chatModeEnabled: standardChatModeEnabled,
+            defaultChatModeEnabled: defaultStandardChatModeEnabled,
+            setChatModeEnabled: setStandardChatModeEnabled,
+            getAgentContext: standardCreateAgentContextResolver,
+          },
+    [
+      activeCreatePulsePresetId,
+      clearPulseRuntimeForPage,
+      defaultStandardChatModeEnabled,
+      expertCreateMode,
+      pulseCreateAgentContextResolver,
+      pulsePrompt,
+      pulseSessionInstanceId,
+      pulseWorkflowSession,
+      restartPulse,
+      setPulseWorkflowSession,
+      setStandardChatModeEnabled,
+      standardChatModeEnabled,
+      standardCreateAgentContextResolver,
+      standardPrompt,
+    ]
+  );
   const {
     agentEnabled,
     agentBootstrapReady,
@@ -823,20 +862,8 @@ export default function AiStudioPage() {
     sessionId,
     mode,
     selectedTool,
-    expertCreateMode,
-    activePulsePresetId: activeCreatePulsePresetId,
-    pulseSessionInstanceId,
-    pulseWorkflowSession,
-    standardChatModeEnabled,
-    defaultStandardChatModeEnabled,
-    setStandardChatModeEnabled,
-    standardPrompt,
-    pulsePrompt,
+    createAgentRuntime: createAgentBridgeRuntime,
     setSharedPrompt,
-    getAgentContext:
-      expertCreateMode === "pulse"
-        ? pulseCreateAgentContextResolver
-        : standardCreateAgentContextResolver,
     addAgentPromptReference,
     editReferenceText,
     setEditReferenceText,
@@ -849,9 +876,6 @@ export default function AiStudioPage() {
     setOutputs,
     setActiveOutputId,
     setUiNotice,
-    setPulseWorkflowSession,
-    clearPulseRuntime: clearPulseRuntimeForPage,
-    restartPulse,
     trackAgentUiEvent: trackUiEvent,
   });
 

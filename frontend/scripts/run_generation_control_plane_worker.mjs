@@ -72,7 +72,7 @@ process.on("unhandledRejection", (reason) => {
 const bundleDirectory = await fs.promises.mkdtemp(
   path.join(os.tmpdir(), "shortpulse-generation-worker-")
 );
-const bundlePath = path.join(bundleDirectory, "worker-loop.mjs");
+const bundlePath = path.join(bundleDirectory, "worker-loop.cjs");
 
 try {
   requireEnv("NEXT_PUBLIC_SUPABASE_URL");
@@ -82,7 +82,7 @@ try {
     entryPoints: [path.resolve(process.cwd(), "lib/server/generationControlPlane/workerLoop.ts")],
     outfile: bundlePath,
     bundle: true,
-    format: "esm",
+    format: "cjs",
     platform: "node",
     target: "node22",
     sourcemap: "inline",

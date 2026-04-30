@@ -206,6 +206,7 @@ describe("Create agent mode boundaries", () => {
     );
     expect(pulsePageRuntimeSource).not.toContain("createModeAgentContextResolver");
     expect(pulsePageRuntimeSource).toContain("clearPulseRuntimeForPage();");
+    expect(pulsePageRuntimeSource).toContain("clearPulsePrompt();");
     expect(pulsePageRuntimeSource).toContain("activeCreatePulsePresetSnapshot");
   });
 

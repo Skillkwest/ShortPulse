@@ -1276,15 +1276,12 @@ export default function AiStudioPage() {
     pulseArtifactGenerateDisabled,
     handlePulseCreatePrimarySubmit,
   } = usePulseCreatePrimarySubmit({
-    mode,
-    selectedTool,
     hasActivePulseSession,
     pulseWorkflowSession,
     effectiveGenerationGuardrail,
     promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
     currentCostCredits,
     handleGenerate,
-    handleProviderPrimarySubmit,
     setUiNotice,
   });
   const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt } =

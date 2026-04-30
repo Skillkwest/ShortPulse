@@ -13,37 +13,28 @@ type GeneratePulseArtifact = (
 ) => void | Promise<unknown>;
 
 type UsePulseCreatePrimarySubmitParams = {
-  mode: StudioMode;
-  selectedTool: ToolId | null;
   hasActivePulseSession: boolean;
   pulseWorkflowSession: AgentPulseWorkflowSession | null;
   effectiveGenerationGuardrail: string | null;
   promptReferenceGenerateCostCredits: number | null;
   currentCostCredits: number | null;
   handleGenerate: GeneratePulseArtifact;
-  handleProviderPrimarySubmit: () => void;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
 };
 
 const PULSE_INCOMPLETE_GENERATION_GUARDRAIL = "Complete the active Pulse before generating.";
-
-const isPulseCreateTextTool = (tool: ToolId | null): boolean =>
-  tool === "create" || tool === "text";
 
 /**
  * Pulse Create primary submit command.
  * Owns artifact generation and refuses to generate until the active workflow completes.
  */
 export const usePulseCreatePrimarySubmit = ({
-  mode,
-  selectedTool,
   hasActivePulseSession,
   pulseWorkflowSession,
   effectiveGenerationGuardrail,
   promptReferenceGenerateCostCredits,
   currentCostCredits,
   handleGenerate,
-  handleProviderPrimarySubmit,
   setUiNotice,
 }: UsePulseCreatePrimarySubmitParams) => {
   const pulseWorkflowLastArtifact = pulseWorkflowSession?.lastArtifact ?? null;
@@ -59,28 +50,21 @@ export const usePulseCreatePrimarySubmit = ({
   const pulseArtifactGenerateDisabled =
     Boolean(effectiveGenerationGuardrail) || !pulseCompletedArtifactPrompt;
   const handlePulseCreatePrimarySubmit = useCallback(() => {
-    if (isPulseCreateTextTool(selectedTool) && mode === "text") {
-      if (!pulseCompletedArtifactPrompt) {
-        setUiNotice(PULSE_INCOMPLETE_GENERATION_GUARDRAIL);
-        return;
-      }
-      void handleGenerate(pulseCompletedArtifactPrompt, {
-        modeOverride: "image",
-        toolOverride: "create",
-        costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
-        suppressStyle: true,
-      });
+    if (!pulseCompletedArtifactPrompt) {
+      setUiNotice(PULSE_INCOMPLETE_GENERATION_GUARDRAIL);
       return;
     }
-    handleProviderPrimarySubmit();
+    void handleGenerate(pulseCompletedArtifactPrompt, {
+      modeOverride: "image",
+      toolOverride: "create",
+      costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+      suppressStyle: true,
+    });
   }, [
     currentCostCredits,
     handleGenerate,
-    handleProviderPrimarySubmit,
-    mode,
     pulseCompletedArtifactPrompt,
     promptReferenceGenerateCostCredits,
-    selectedTool,
     setUiNotice,
   ]);
 

@@ -431,6 +431,7 @@ describe("Create agent mode boundaries", () => {
     expect(standardInlineGenerateSource).not.toContain("Pulse");
     expect(pulsePrimarySubmitSource).not.toContain("agentInput");
     expect(pulsePrimarySubmitSource).not.toContain("agentInput || prompt");
+    expect(pulsePrimarySubmitSource).not.toContain("handleProviderPrimarySubmit");
     expect(pulsePrimarySubmitSource).toContain("pulseCompletedArtifactPrompt");
     expect(pulsePrimarySubmitSource).toContain("suppressStyle: true");
   });

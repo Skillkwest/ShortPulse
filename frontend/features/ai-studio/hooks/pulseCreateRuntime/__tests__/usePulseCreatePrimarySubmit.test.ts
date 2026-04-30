@@ -19,20 +19,16 @@ const createCompletedWorkflowSession = (
 describe("usePulseCreatePrimarySubmit", () => {
   it("generates only from a completed Pulse artifact", () => {
     const handleGenerate = vi.fn();
-    const handleProviderPrimarySubmit = vi.fn();
     const setUiNotice = vi.fn();
 
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
-        mode: "text",
-        selectedTool: "create",
         hasActivePulseSession: true,
         pulseWorkflowSession: createCompletedWorkflowSession("  Completed Pulse artifact  "),
         effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: 12,
         currentCostCredits: 20,
         handleGenerate,
-        handleProviderPrimarySubmit,
         setUiNotice,
       })
     );
@@ -47,7 +43,6 @@ describe("usePulseCreatePrimarySubmit", () => {
       costOverrideCredits: 12,
       suppressStyle: true,
     });
-    expect(handleProviderPrimarySubmit).not.toHaveBeenCalled();
     expect(setUiNotice).not.toHaveBeenCalled();
   });
 
@@ -57,15 +52,12 @@ describe("usePulseCreatePrimarySubmit", () => {
 
     const { result } = renderHook(() =>
       usePulseCreatePrimarySubmit({
-        mode: "text",
-        selectedTool: "create",
         hasActivePulseSession: true,
         pulseWorkflowSession: createCompletedWorkflowSession("   "),
         effectiveGenerationGuardrail: null,
         promptReferenceGenerateCostCredits: null,
         currentCostCredits: 20,
         handleGenerate,
-        handleProviderPrimarySubmit: vi.fn(),
         setUiNotice,
       })
     );
@@ -76,30 +68,5 @@ describe("usePulseCreatePrimarySubmit", () => {
 
     expect(handleGenerate).not.toHaveBeenCalled();
     expect(setUiNotice).toHaveBeenCalledWith("Complete the active Pulse before generating.");
-  });
-
-  it("uses the neutral provider submit for non-Create tools", () => {
-    const handleProviderPrimarySubmit = vi.fn();
-
-    const { result } = renderHook(() =>
-      usePulseCreatePrimarySubmit({
-        mode: "image",
-        selectedTool: "edit",
-        hasActivePulseSession: true,
-        pulseWorkflowSession: createCompletedWorkflowSession(),
-        effectiveGenerationGuardrail: null,
-        promptReferenceGenerateCostCredits: null,
-        currentCostCredits: 20,
-        handleGenerate: vi.fn(),
-        handleProviderPrimarySubmit,
-        setUiNotice: vi.fn(),
-      })
-    );
-
-    act(() => {
-      result.current.handlePulseCreatePrimarySubmit();
-    });
-
-    expect(handleProviderPrimarySubmit).toHaveBeenCalledTimes(1);
   });
 });

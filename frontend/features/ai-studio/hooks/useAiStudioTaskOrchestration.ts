@@ -236,6 +236,8 @@ export const useAiStudioTaskOrchestration = ({
             ...(projectId ? { projectId } : {}),
           });
           if (!visibleGeneration) {
+            if (abandonedOutputIdsRef.current.has(output.id)) return;
+            if (!findOutputById(output.id)) return;
             const provider = resolveTaskPollingProvider({
               provider: output.provider,
               modelId: output.modelId,

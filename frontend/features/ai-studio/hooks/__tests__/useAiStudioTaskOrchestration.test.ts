@@ -639,6 +639,7 @@ describe("useAiStudioTaskOrchestration", () => {
         provider: "fal",
         modelId: "fal-ai/bytedance/seedream/v4.5/edit",
         taskState: "running",
+        mediaSource: "generated",
       }),
     ];
 
@@ -689,6 +690,73 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(startPollingTask).not.toHaveBeenCalledWith(
       "req-task-active",
       "out-task-active",
+      0,
+      expect.anything()
+    );
+  });
+
+  it("does not restart watchdog polling after an output is abandoned", async () => {
+    const outputs = [
+      createOutput({
+        id: "out-abandoned",
+        taskId: "req-abandoned",
+        provider: "fal",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        taskState: "running",
+        mediaSource: "generated",
+      }),
+    ];
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setPanelGenerating: vi.fn(),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById: vi.fn(),
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    act(() => {
+      result.current.abandonTaskOutput("out-abandoned");
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(clearPollTimer).toHaveBeenCalledWith("out-abandoned");
+    expect(startPollingTask).not.toHaveBeenCalledWith(
+      "req-abandoned",
+      "out-abandoned",
       0,
       expect.anything()
     );

@@ -483,6 +483,11 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(pulseRuntime).toContain("canonicalDbEnabled: false");
     expect(pulseRuntime).toContain("ai/studio-agent-pulse");
     expect(pulseRuntime).toContain("studio-agent-pulse");
+    const pulseCoordinator = readFileSync(
+      path.join(repoRoot, "features/agent-runtime/pulseStudioAgentRuntime/coordinator.ts"),
+      "utf8"
+    );
+    expect(pulseCoordinator).not.toContain("lastAssistantMessage");
   });
 
   it("keeps the coordinator owned by the Pulse runtime tree", () => {

@@ -1249,6 +1249,7 @@ export default function AiStudioPage() {
     activeOutputId,
   });
   const handleStandardCreatePrimarySubmit = useStandardCreatePrimarySubmit({
+    enabled: expertCreateMode === "standard",
     mode,
     selectedTool,
     chatModeEnabled,
@@ -1263,6 +1264,7 @@ export default function AiStudioPage() {
     setPromptOrigin,
   });
   const handleChatOffInlineGenerate = useStandardCreateInlineGenerate({
+    enabled: expertCreateMode === "standard",
     agentInput,
     prompt: standardPrompt,
     currentCostCredits,

@@ -17,6 +17,7 @@ type GenerateStandardCreateOutput = (
 ) => void | Promise<unknown>;
 
 type UseStandardCreatePrimarySubmitParams = {
+  enabled?: boolean;
   mode: StudioMode;
   selectedTool: ToolId | null;
   chatModeEnabled: boolean;
@@ -42,6 +43,7 @@ const isStandardCreateTextTool = (tool: ToolId | null): boolean =>
  * Owns chat-mode agent send and chat-off provider generation.
  */
 export const useStandardCreatePrimarySubmit = ({
+  enabled = true,
   mode,
   selectedTool,
   chatModeEnabled,
@@ -56,6 +58,7 @@ export const useStandardCreatePrimarySubmit = ({
   setPromptOrigin,
 }: UseStandardCreatePrimarySubmitParams) =>
   useCallback(() => {
+    if (!enabled) return;
     if (isStandardCreateTextTool(selectedTool) && mode === "text") {
       if (chatModeEnabled) {
         handleAgentSend(agentInput || prompt, { captureResult: true }).then((result) => {
@@ -85,6 +88,7 @@ export const useStandardCreatePrimarySubmit = ({
     agentInput,
     chatModeEnabled,
     currentCostCredits,
+    enabled,
     handleAgentSend,
     handleGenerate,
     handleProviderPrimarySubmit,

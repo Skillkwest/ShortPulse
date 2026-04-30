@@ -381,6 +381,7 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
+    expect(pageSource).toContain('enabled: expertCreateMode === "standard"');
     expect(pageSource).not.toContain("const handlePrimarySubmit =");
     expect(pageSource).toContain("standardCreateCommands:");
     expect(pageSource).toContain("pulseCreateCommands:");

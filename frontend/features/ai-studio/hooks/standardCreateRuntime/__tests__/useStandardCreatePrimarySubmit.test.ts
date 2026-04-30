@@ -107,4 +107,36 @@ describe("useStandardCreatePrimarySubmit", () => {
       })
     );
   });
+
+  it("does nothing when the Standard command is disabled", async () => {
+    const handleAgentSend = vi.fn().mockResolvedValue(undefined);
+    const handleGenerate = vi.fn();
+    const handleProviderPrimarySubmit = vi.fn();
+
+    const { result } = renderHook(() =>
+      useStandardCreatePrimarySubmit({
+        enabled: false,
+        mode: "text",
+        selectedTool: "create",
+        chatModeEnabled: true,
+        agentInput: "pulse draft that must not submit",
+        prompt: "standard prompt",
+        currentCostCredits: 3,
+        promptReferenceGenerateCostCredits: null,
+        handleAgentSend,
+        handleGenerate,
+        handleProviderPrimarySubmit,
+        handleStandardAgentCaptureResult: vi.fn(),
+        setPromptOrigin: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      result.current();
+    });
+
+    expect(handleAgentSend).not.toHaveBeenCalled();
+    expect(handleGenerate).not.toHaveBeenCalled();
+    expect(handleProviderPrimarySubmit).not.toHaveBeenCalled();
+  });
 });

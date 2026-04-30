@@ -16,6 +16,7 @@ type GenerateStandardCreateOutput = (
 ) => void | Promise<unknown>;
 
 type UseStandardCreateInlineGenerateParams = {
+  enabled?: boolean;
   agentInput: string;
   prompt: string;
   currentCostCredits: number | null;
@@ -28,6 +29,7 @@ type UseStandardCreateInlineGenerateParams = {
  * Returns the Standard-only inline generate handler used when Chat Mode is off.
  */
 export const useStandardCreateInlineGenerate = ({
+  enabled = true,
   agentInput,
   prompt,
   currentCostCredits,
@@ -36,6 +38,7 @@ export const useStandardCreateInlineGenerate = ({
   setPromptOrigin,
 }: UseStandardCreateInlineGenerateParams) =>
   useCallback(() => {
+    if (!enabled) return;
     const rawPrompt = resolveChatOffCreatePrompt({
       agentInput,
       sharedPrompt: prompt,
@@ -50,6 +53,7 @@ export const useStandardCreateInlineGenerate = ({
   }, [
     agentInput,
     currentCostCredits,
+    enabled,
     handleGenerate,
     prompt,
     promptReferenceGenerateCostCredits,

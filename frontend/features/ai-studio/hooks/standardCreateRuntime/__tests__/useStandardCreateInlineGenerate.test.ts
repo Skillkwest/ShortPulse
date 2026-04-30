@@ -58,4 +58,27 @@ describe("useStandardCreateInlineGenerate", () => {
       })
     );
   });
+
+  it("does nothing when the Standard inline command is disabled", () => {
+    const handleGenerate = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const { result } = renderHook(() =>
+      useStandardCreateInlineGenerate({
+        enabled: false,
+        agentInput: "pulse draft that must not generate",
+        prompt: "shared fallback prompt",
+        currentCostCredits: 3,
+        promptReferenceGenerateCostCredits: null,
+        handleGenerate,
+        setPromptOrigin,
+      })
+    );
+
+    act(() => {
+      result.current();
+    });
+
+    expect(setPromptOrigin).not.toHaveBeenCalled();
+    expect(handleGenerate).not.toHaveBeenCalled();
+  });
 });

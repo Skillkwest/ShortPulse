@@ -156,7 +156,7 @@ describe("providerRuntimeConfig", () => {
     expect(targets).toEqual([{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }]);
   });
 
-  it("falls back to model-catalog submit/status topology when env urls are unset", () => {
+  it("uses model-catalog submit/status topology when env urls are unset", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v,kie-ai/kling-3.0";
     delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
@@ -176,6 +176,14 @@ describe("providerRuntimeConfig", () => {
     ]);
   });
 
+  it("rejects non-template status bases for Kie status resolution", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS = "https://queue.kie.ai/v1/requests";
+
+    expect(resolveKieStatusBaseUrlsForModel("kie-ai/veo-3.1-fast-i2v")).toEqual([]);
+  });
+
   it("uses model-catalog timeout when status timeout env override is unset", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
@@ -192,6 +200,9 @@ describe("providerRuntimeConfig", () => {
         modelId: "fal-ai/nano-banana-pro",
       })
     ).toBe("kie");
+    expect(() => resolveProviderFromModelId({ modelId: "unknown/model" })).toThrow(
+      "Provider is not configured for model: unknown/model"
+    );
   });
 
   it("reads provider API keys by provider family", () => {

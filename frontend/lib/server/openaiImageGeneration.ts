@@ -195,6 +195,47 @@ const readMediaAutosaveEnabledForUser = async (userId: string): Promise<boolean>
   }
 };
 
+const associateGeneratedOpenAiImageWithProject = async ({
+  generationId,
+  modelId,
+  projectId,
+  providerRequestId,
+  requestId,
+  userId,
+}: {
+  generationId: string;
+  modelId: string;
+  projectId: string | null;
+  providerRequestId: string | null;
+  requestId: string;
+  userId: string;
+}): Promise<void> => {
+  if (!projectId) return;
+  try {
+    await associateGenerationWithProjectForUser({
+      userId,
+      projectId,
+      generationId,
+    });
+  } catch (error) {
+    await writeAppErrorLog({
+      source: "telemetry.openai_image.project_association_failed",
+      message: "OpenAI image generation project association failed.",
+      requestId,
+      userId,
+      statusCode: 200,
+      metadata: {
+        generation_id: generationId,
+        project_id: projectId,
+        provider: "openai",
+        provider_request_id: providerRequestId,
+        model_id: modelId,
+        association_error: error instanceof Error ? error.message : String(error),
+      },
+    }).catch(() => undefined);
+  }
+};
+
 /**
  * Calls the OpenAI Images API for a single GPT Image 2 generation.
  */
@@ -487,13 +528,14 @@ export const persistGeneratedImageAsset = async ({
     completedAt: createdAtIso,
   });
 
-  if (resolvedProjectId) {
-    await associateGenerationWithProjectForUser({
-      userId,
-      projectId: resolvedProjectId,
-      generationId,
-    });
-  }
+  await associateGeneratedOpenAiImageWithProject({
+    generationId,
+    modelId,
+    projectId: resolvedProjectId,
+    providerRequestId: resolvedProviderRequestId,
+    requestId: resolvedRequestId,
+    userId,
+  });
 
   return {
     generationId,

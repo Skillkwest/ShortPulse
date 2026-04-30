@@ -76,7 +76,7 @@ describe("statusProviderTopology", () => {
     expect(() =>
       resolveProviderConfiguredStatusBaseUrls({
         provider: "kie",
-        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        configuredBaseUrls: ["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"],
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toThrow("Kie provider is disabled by runtime flag.");
@@ -107,23 +107,24 @@ describe("statusProviderTopology", () => {
   it("resolves kie topology when dark path is enabled", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
-    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS = "https://queue.kie.ai/v1/requests";
+    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS =
+      "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}";
     process.env.SHORTPULSE_KIE_STATUS_TIMEOUT_MS = "45000";
 
     expect(
       resolveProviderConfiguredStatusBaseUrls({
         provider: "kie",
-        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        configuredBaseUrls: ["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"],
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
-    ).toEqual(["https://queue.kie.ai/v1/requests"]);
+    ).toEqual(["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"]);
 
     expect(
       resolveProviderModelStatusBaseUrls({
         provider: "kie",
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
-    ).toEqual(["https://queue.kie.ai/v1/requests"]);
+    ).toEqual(["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"]);
 
     expect(
       resolveProviderModelStatusTimeoutMs({
@@ -141,7 +142,7 @@ describe("statusProviderTopology", () => {
     ).toEqual(["https://queue.kie.ai/v1/requests/1"]);
   });
 
-  it("falls back to model-catalog kie topology when env urls are not configured", () => {
+  it("uses model-catalog kie topology when env urls are not configured", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v,kie-ai/kling-3.0";
     delete process.env.SHORTPULSE_KIE_STATUS_BASE_URLS;
@@ -190,6 +191,27 @@ describe("statusProviderTopology", () => {
     ).toEqual(["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"]);
   });
 
+  it("rejects non-template kie status bases", () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS = "https://queue.kie.ai/v1/requests";
+
+    expect(
+      resolveProviderConfiguredStatusBaseUrls({
+        provider: "kie",
+        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toEqual([]);
+
+    expect(
+      resolveProviderModelStatusBaseUrls({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    ).toEqual([]);
+  });
+
   it("fails closed for kie status topology when model id is missing", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
@@ -197,7 +219,7 @@ describe("statusProviderTopology", () => {
     expect(() =>
       resolveProviderConfiguredStatusBaseUrls({
         provider: "kie",
-        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        configuredBaseUrls: ["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"],
       })
     ).toThrow("Kie status base resolution requires modelId.");
 
@@ -216,10 +238,10 @@ describe("statusProviderTopology", () => {
     expect(
       resolveProviderConfiguredStatusBaseUrls({
         provider: "kie",
-        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        configuredBaseUrls: ["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"],
         modelId: "kie-ai/kling-3.0",
       })
-    ).toEqual(["https://queue.kie.ai/v1/requests"]);
+    ).toEqual(["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"]);
 
     expect(
       resolveProviderResponseProbeUrls({

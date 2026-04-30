@@ -76,4 +76,4 @@ export type ImageSubmissionArgs = BaseSubmissionArgs & {
   inpaintOverride?: InpaintSubmissionOverride | null;
 };
 
-export type SubmissionHandlerRoute = "video" | "image" | "default";
+export type SubmissionHandlerRoute = "video" | "image" | "default" | "unsupported";

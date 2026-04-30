@@ -116,7 +116,11 @@ const matchesProviderFamily = ({
     );
   }
   if (!modelId) return false;
-  return resolveProviderFromModelId({ modelId, fallback: provider }) === provider;
+  try {
+    return resolveProviderFromModelId({ modelId }) === provider;
+  } catch {
+    return false;
+  }
 };
 
 const readStaleProviderAttachedReservations = async ({

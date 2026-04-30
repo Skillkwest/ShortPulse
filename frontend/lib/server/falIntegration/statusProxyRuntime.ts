@@ -7,12 +7,7 @@ import {
   providerPayloadHasMedia,
   readProviderLifecycleStatus,
 } from "../providerIntegration/statusProviderPayload";
-import {
-  isProviderCompletedStatus,
-  isProviderFailedStatus,
-  isProviderRetryableUpstreamResponse,
-  resolveProviderSuccessfulPayloadStatus,
-} from "../providerIntegration/statusProviderPolicy";
+import { resolveProviderSuccessfulPayloadStatus } from "../providerIntegration/statusProviderPolicy";
 import { selectBestProviderResultCandidate } from "../providerIntegration/statusProviderSelection";
 import type { ResultProbeCandidate } from "./contracts";
 
@@ -36,44 +31,6 @@ export type ShortPulseLifecycleHint = {
   deliveryState?: "transient_provider" | "canonical_owned";
   queueState?: "queued" | "dispatching" | "dispatched" | "failed" | null;
   statusLabel?: string | null;
-};
-
-/**
- * Legacy Fal compatibility wrapper for provider completed-status policy.
- */
-export const isCompletedStatus = (status: string | null): boolean =>
-  isProviderCompletedStatus({
-    provider: "fal",
-    status,
-  });
-
-/**
- * Legacy Fal compatibility wrapper for provider failed-status policy.
- */
-export const isFailedStatus = (status: string | null): boolean =>
-  isProviderFailedStatus({
-    provider: "fal",
-    status,
-  });
-
-/**
- * Legacy Fal compatibility wrapper for provider retryable-response policy.
- */
-export const isRetryableUpstreamResponse = (response: Response): boolean => {
-  return isProviderRetryableUpstreamResponse({
-    provider: "fal",
-    response,
-  });
-};
-
-/**
- * Legacy Fal compatibility wrapper for provider successful-payload status policy.
- */
-export const resolveSuccessfulPayloadStatus = (...candidates: unknown[]): string => {
-  return resolveProviderSuccessfulPayloadStatus({
-    provider: "fal",
-    candidates,
-  });
 };
 
 export const readJsonSafe = async (response: Response): Promise<JsonReadResult> => {
@@ -302,7 +259,7 @@ export const probeResultBasesForMedia = async ({
           index,
           baseUrl,
           isJson: data.isJson,
-          isRetryableAlias: response.status === 404 || response.status === 405,
+          isRetryableAlias: false,
           httpStatus: response.status,
           isHttpOk: response.ok,
           status: candidateStatus,

@@ -95,8 +95,20 @@ const normalizeCountMap = (value: Record<string, number>): string =>
 type AccountHealthSnapshot = Awaited<
   typeof import("../frontend/lib/server/adminUserHealth/snapshot").loadAdminHealthSnapshot
 >;
+type Snapshot = Awaited<ReturnType<AccountHealthSnapshot>>;
+type OptionalQueueSummary = {
+  queue?: {
+    total: number;
+    byStatus: Record<string, number>;
+    exhaustedCount: number;
+    exhaustedWithReleasedReservationCount: number;
+    exhaustedWithChargeCount: number;
+  };
+};
 
-const printHumanReport = (snapshot: Awaited<ReturnType<AccountHealthSnapshot>>) => {
+const printHumanReport = (snapshot: Snapshot) => {
+  const queue = (snapshot as Snapshot & OptionalQueueSummary).queue;
+
   console.log("[account-health] snapshot loaded");
   console.log(
     `[account-health] target lookup=${snapshot.target.lookup} mode=${snapshot.target.lookupMode} user_id=${snapshot.target.userId} email=${snapshot.target.email ?? "n/a"}`
@@ -124,9 +136,13 @@ const printHumanReport = (snapshot: Awaited<ReturnType<AccountHealthSnapshot>>) 
   console.log(
     `[account-health] reservations total=${snapshot.reservations.total} by_status=${normalizeCountMap(snapshot.reservations.byStatus)} provider_attached_over_1h=${snapshot.reservations.reservedWithProviderOver1hCount} pre_submit_over_15m=${snapshot.reservations.reservedWithoutProviderOver15mCount}`
   );
-  console.log(
-    `[account-health] queue total=${snapshot.queue.total} by_status=${normalizeCountMap(snapshot.queue.byStatus)} exhausted=${snapshot.queue.exhaustedCount} exhausted_with_released_reservation=${snapshot.queue.exhaustedWithReleasedReservationCount} exhausted_with_charge=${snapshot.queue.exhaustedWithChargeCount}`
-  );
+  if (queue) {
+    console.log(
+      `[account-health] queue total=${queue.total} by_status=${normalizeCountMap(queue.byStatus)} exhausted=${queue.exhaustedCount} exhausted_with_released_reservation=${queue.exhaustedWithReleasedReservationCount} exhausted_with_charge=${queue.exhaustedWithChargeCount}`
+    );
+  } else {
+    console.log("[account-health] queue summary: not included in current snapshot schema");
+  }
   console.log(
     `[account-health] drainage cost_without_success_cents=${snapshot.drainage.costWithoutSuccessfulGeneration.debitCents} linked=${snapshot.drainage.costWithoutSuccessfulGeneration.linkedNonSuccessGeneration.debitCents} missing_linkage=${snapshot.drainage.costWithoutSuccessfulGeneration.missingLinkageData.debitCents}`
   );

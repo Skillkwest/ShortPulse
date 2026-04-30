@@ -11,14 +11,7 @@ import {
   OPENAI_GPT_IMAGE_2_MODEL_ID,
   resolveOpenAiGptImage2SizeForAspect,
 } from "../../../../lib/model-runtime/openAiImage2";
-import {
-  type FalSubmitResponse,
-  submitFalNanoBanana,
-  submitFalNanoBanana2,
-  submitFalNanoBananaPro,
-  submitFalSeedream,
-  submitFalSeedreamV5Lite,
-} from "../../../../lib/falClient";
+import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import {
   normalizeNanoBanana2Resolution,
   normalizeNanoBananaProResolution,
@@ -134,11 +127,7 @@ export const handleDefaultModelSubmission = async ({
     finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
   ) {
     const image_size = resolveSeedreamImageSize(aspect, requestedResolution);
-    const submitSeedream =
-      finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
-        ? submitFalSeedreamV5Lite
-        : submitFalSeedream;
-    response = await submitSeedream({
+    response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       image_size,
       num_images: 1,
@@ -153,7 +142,7 @@ export const handleDefaultModelSubmission = async ({
         ? "fal-seedream-v5-lite"
         : "fal-seedream";
   } else if (finalModel === "fal-ai/nano-banana") {
-    response = await submitFalNanoBanana({
+    response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       num_images: 1,
       aspect_ratio: normalizeAspectForFalNanoBanana(aspect),
@@ -163,7 +152,7 @@ export const handleDefaultModelSubmission = async ({
     });
     pollingProvider = "fal-nano-banana";
   } else if (finalModel === "fal-ai/nano-banana-pro") {
-    response = await submitFalNanoBananaPro({
+    response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       num_images: 1,
       aspect_ratio: normalizeAspectForFalNanoBananaPro(aspect),
@@ -174,7 +163,7 @@ export const handleDefaultModelSubmission = async ({
     });
     pollingProvider = "fal-nano-banana-pro";
   } else if (finalModel === "fal-ai/nano-banana-2") {
-    response = await submitFalNanoBanana2({
+    response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       num_images: 1,
       aspect_ratio: normalizeAspectForFalNanoBanana2(aspect),

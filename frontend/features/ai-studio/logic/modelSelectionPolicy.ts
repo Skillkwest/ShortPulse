@@ -8,11 +8,9 @@ import { isSeedance2ModelId, isSeedance2UiEnabled } from "./seedance2Availabilit
 import type { StudioMode, ToolId } from "../types";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
-  KIE_SEEDANCE_2_FAST_MODEL_ID,
-  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import type { GenerationWorkflowLane } from "../../../lib/model-runtime/modelCatalog";
 import type { ResolvedVideoGenerationLane } from "./referenceInputs";
 import {
   CREATE_DEFAULT_MODEL_ID,
@@ -33,6 +31,7 @@ export type ModelSelectionVideoReferenceMode =
 type ModelConfigLike = {
   supportsImageToImage?: boolean;
   supportsTextToImage?: boolean;
+  generationLanes?: GenerationWorkflowLane[];
   provider?: string;
 };
 
@@ -49,6 +48,29 @@ const isVideoMediaOption = (option: ModelOption): boolean => {
     option.mediaType === "image-to-video" ||
     option.mediaType === "multi"
   );
+};
+
+const optionSupportsGenerationLane = ({
+  getModelConfig,
+  lane,
+  option,
+}: {
+  getModelConfig: (id: string) => ModelConfigLike | null;
+  lane: GenerationWorkflowLane;
+  option: ModelOption;
+}): boolean => {
+  return Boolean(getModelConfig(option.value)?.generationLanes?.includes(lane));
+};
+
+const optionSupportsAnyVideoLane = ({
+  getModelConfig,
+  option,
+}: {
+  getModelConfig: (id: string) => ModelConfigLike | null;
+  option: ModelOption;
+}): boolean => {
+  const lanes = getModelConfig(option.value)?.generationLanes ?? [];
+  return lanes.includes("text-to-video") || lanes.includes("image-to-video");
 };
 
 const isOptionProviderSelectable = ({
@@ -104,43 +126,35 @@ export const resolveAiStudioAllowedModelOptions = ({
     if (resolvedVideoLane === "text") {
       return selectorVideoOptions.filter(
         (option) =>
-          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID ||
-          option.value === KIE_KLING_30_MODEL_ID ||
-          option.value === KIE_SEEDANCE_15_PRO_MODEL_ID ||
-          (isSeedance2UiEnabled() &&
-            (option.value === KIE_SEEDANCE_2_MODEL_ID ||
-              option.value === KIE_SEEDANCE_2_FAST_MODEL_ID))
+          isVideoMediaOption(option) &&
+          optionSupportsGenerationLane({ option, getModelConfig, lane: "text-to-video" })
       );
     }
     if (resolvedVideoLane === "single-image") {
       return selectorVideoOptions.filter(
         (option) =>
-          option.value === KIE_KLING_30_MODEL_ID ||
-          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID ||
-          option.value === KIE_SEEDANCE_15_PRO_MODEL_ID ||
-          (isSeedance2UiEnabled() &&
-            (option.value === KIE_SEEDANCE_2_MODEL_ID ||
-              option.value === KIE_SEEDANCE_2_FAST_MODEL_ID))
+          isVideoMediaOption(option) &&
+          optionSupportsGenerationLane({ option, getModelConfig, lane: "image-to-video" })
       );
     }
     if (resolvedVideoLane === "first-last") {
       return selectorVideoOptions.filter(
         (option) =>
-          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID ||
-          option.value === KIE_KLING_30_MODEL_ID ||
-          option.value === KIE_SEEDANCE_15_PRO_MODEL_ID ||
-          (isSeedance2UiEnabled() &&
-            (option.value === KIE_SEEDANCE_2_MODEL_ID ||
-              option.value === KIE_SEEDANCE_2_FAST_MODEL_ID))
+          isVideoMediaOption(option) &&
+          optionSupportsGenerationLane({ option, getModelConfig, lane: "image-to-video" })
       );
     }
     return selectorVideoOptions.filter(
-      (option) => option.mediaType === "image-to-video" || option.mediaType === "video"
+      (option) =>
+        isVideoMediaOption(option) && optionSupportsAnyVideoLane({ option, getModelConfig })
     );
   }
 
   if (isCreateTool(selectedTool) && mode === "video") {
-    return selectableOptions.filter((option) => isVideoMediaOption(option));
+    return selectableOptions.filter(
+      (option) =>
+        isVideoMediaOption(option) && optionSupportsAnyVideoLane({ option, getModelConfig })
+    );
   }
 
   // Create defaults to "text" mode on initial load; keep model picker behavior aligned with

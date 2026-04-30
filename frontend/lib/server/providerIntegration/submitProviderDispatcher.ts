@@ -9,7 +9,7 @@ import type {
   SubmitTargetAttemptDiagnostic,
 } from "../falIntegration/contracts";
 import { submitSingleTargetWithRetry } from "../falIntegration/submitEngine";
-import { readCanonicalProviderRequestId } from "./canonicalProviderPayload";
+import { asProviderString, readCanonicalProviderRequestId } from "./canonicalProviderPayload";
 import { KIE_KLING_30_MODEL_ID } from "./kieModelIds";
 import { normalizeKieSubmitPayloadForModel } from "./kieModelContracts";
 import {
@@ -31,6 +31,9 @@ export type ProviderSubmitResult = {
   targetUrl: string;
   targetIndex: number;
   providerRequestId: string | null;
+  providerStatusUrl: string | null;
+  providerResponseUrl: string | null;
+  providerCancelUrl: string | null;
   providerDiagnostics: Record<string, unknown> | null;
 };
 
@@ -70,6 +73,12 @@ const toProviderSubmitResult = (
 ): ProviderSubmitResult => ({
   ...result,
   providerRequestId: readCanonicalProviderRequestId(result.data, { allowGenericId: true }),
+  providerStatusUrl:
+    asProviderString(result.data.status_url) ?? asProviderString(result.data.statusUrl),
+  providerResponseUrl:
+    asProviderString(result.data.response_url) ?? asProviderString(result.data.responseUrl),
+  providerCancelUrl:
+    asProviderString(result.data.cancel_url) ?? asProviderString(result.data.cancelUrl),
   providerDiagnostics:
     result.diagnostics || providerDiagnostics
       ? {

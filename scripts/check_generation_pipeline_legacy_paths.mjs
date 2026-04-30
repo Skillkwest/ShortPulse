@@ -10,6 +10,7 @@ const repoRoot = process.cwd();
 
 const scanTargets = [
   "frontend/features/ai-studio/hooks/taskSubmission",
+  "frontend/lib/falClient.ts",
   "frontend/features/ai-studio/hooks/useAiStudioAudioGeneration.ts",
   "frontend/lib/server/api",
   "frontend/lib/server/elevenlabs.ts",
@@ -22,6 +23,11 @@ const scanTargets = [
   "docs/deployment.md",
   "docs/operator-map.md",
   "docs/api/api-internal-routes.md",
+  "docs/api/api-kie-kling-3-0.md",
+  "docs/api/api-kie-seedance-1-5-pro.md",
+  "docs/api/api-kie-seedance-2.md",
+  "docs/api/api-kie-seedance-2-fast.md",
+  "docs/api/api-kie-veo-3-1-fast-image-to-video.md",
   "docs/routes.md",
   "docs/sops/sop_billing_credits_operations.md",
   "docs/sops/sop_ai_studio_index.md",
@@ -120,6 +126,69 @@ const bannedPatterns = [
   {
     pattern: "Compatibility local upload",
     reason: "Voice Changer final generation must require staged storage or trusted URL input",
+  },
+  {
+    pattern: "Legacy Fal compatibility wrapper",
+    reason: "Fal status/runtime policy must use canonical providerIntegration helpers directly",
+  },
+  {
+    pattern: "defaulting to Fal",
+    reason: "provider resolution must fail closed instead of silently defaulting to Fal",
+  },
+  {
+    pattern: /resolveProviderFrom(ModelId|GenerationContext)\(\{[^}]*fallback/,
+    label: "resolveProviderFrom* fallback",
+    reason: "provider resolution must use catalog/provider context without fallback defaults",
+  },
+  {
+    pattern: "submitEndpointRegistry",
+    reason: "Fal browser client must derive submit routes from canonical model catalog metadata",
+  },
+  {
+    pattern: "statusEndpointRegistry",
+    reason: "Fal browser client must derive status routes from canonical model catalog metadata",
+  },
+  {
+    pattern: "endpointModelIdRegistry",
+    reason: "Fal browser client must derive model routes directly from canonical model catalog metadata",
+  },
+  {
+    pattern: "submitFalEndpoint",
+    reason: "per-model browser submit compatibility helpers are retired",
+  },
+  {
+    pattern: "fetchFalStatusEndpoint",
+    reason: "per-model browser status compatibility helpers are retired",
+  },
+  {
+    pattern: "Generic Fal submit",
+    reason: "dead generic Fal submit compatibility exports are retired",
+  },
+  {
+    pattern: "Generic Fal status",
+    reason: "dead generic Fal status compatibility exports are retired",
+  },
+  {
+    pattern: "export const submitFalFlux =",
+    reason: "generic Fal submit export must not be reintroduced",
+  },
+  {
+    pattern: "export const fetchFalStatus =",
+    reason: "generic Fal status export must not be reintroduced",
+  },
+  {
+    pattern: /\bexport const submit(Fal|Kie)[A-Z]/,
+    label: "export const submitFal*/submitKie*",
+    reason: "queued generation submits must use submitQueuedGenerationByModelId",
+  },
+  {
+    pattern: /\bexport const fetch(Fal|Kie)[A-Z][A-Za-z0-9]+Status\b/,
+    label: "export const fetchFal*/fetchKie*Status",
+    reason: "queued generation status polling must use fetchQueuedGenerationStatusByModelId",
+  },
+  {
+    pattern: 'falls back to legacy `/{requestId}/status` probing',
+    reason: "Kie status/result polling must use canonical record-info templates only",
   },
 ];
 

@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { listModelConfigs } from "../modelRegistry";
 import { aspectOptions } from "../../constants";
 import {
@@ -73,5 +75,51 @@ describe("model API contracts", () => {
       );
 
     expect(unexpectedDefaults).toEqual([]);
+  });
+
+  it("keeps generation-capable catalog models registered with workflow routing metadata", () => {
+    const missingWorkflowMetadata = listModelConfigs()
+      .filter((config) => config.mediaType !== "text")
+      .filter(
+        (config) =>
+          !config.generationLanes?.length ||
+          !config.executionMode ||
+          !config.submitHandler ||
+          typeof config.gridEligible !== "boolean"
+      )
+      .map((config) => config.id);
+
+    expect(missingWorkflowMetadata).toEqual([]);
+  });
+
+  it("keeps queued models wired to explicit unique API route slugs", () => {
+    const queuedModels = listModelConfigs().filter((config) => config.executionMode === "queued");
+    const missingRouteSlugs = queuedModels
+      .filter((config) => !config.apiRouteSlug)
+      .map((config) => config.id);
+    const routeSlugs = queuedModels
+      .map((config) => config.apiRouteSlug)
+      .filter((slug): slug is string => Boolean(slug));
+
+    expect(missingRouteSlugs).toEqual([]);
+    expect(new Set(routeSlugs).size).toBe(routeSlugs.length);
+  });
+
+  it("keeps queued model route slugs backed by concrete submit and status routes", () => {
+    const missingRoutes = listModelConfigs()
+      .filter((config) => config.executionMode === "queued")
+      .flatMap((config) => {
+        const routeSlug = config.apiRouteSlug;
+        if (!routeSlug) return [`${config.id}: missing apiRouteSlug`];
+        const routeFiles = [
+          path.join(process.cwd(), "pages/api/fal", `${routeSlug}-submit.ts`),
+          path.join(process.cwd(), "pages/api/fal", `${routeSlug}-status.ts`),
+        ];
+        return routeFiles
+          .filter((routeFile) => !existsSync(routeFile))
+          .map((routeFile) => `${config.id}: ${path.relative(process.cwd(), routeFile)}`);
+      });
+
+    expect(missingRoutes).toEqual([]);
   });
 });

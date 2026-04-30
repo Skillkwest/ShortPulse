@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildFalStatusTransientPayload,
-  isRetryableUpstreamResponse,
   readJsonSafe,
-  resolveSuccessfulPayloadStatus,
   probeResponseUrlsForMedia,
 } from "../statusProxyRuntime";
+import {
+  isProviderRetryableUpstreamResponse,
+  resolveProviderSuccessfulPayloadStatus,
+} from "../../providerIntegration/statusProviderPolicy";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -38,12 +40,30 @@ describe("statusProxyRuntime", () => {
     });
     const nonRetryable = new Response("{}", { status: 422 });
 
-    expect(isRetryableUpstreamResponse(retryableByStatus)).toBe(true);
-    expect(isRetryableUpstreamResponse(retryableByHeader)).toBe(true);
-    expect(isRetryableUpstreamResponse(nonRetryableByNeedsRetryFalse)).toBe(false);
-    expect(isRetryableUpstreamResponse(retryableByNeedsRetryTrue)).toBe(true);
-    expect(isRetryableUpstreamResponse(conflictingHeadersNeedsRetryWins)).toBe(false);
-    expect(isRetryableUpstreamResponse(nonRetryable)).toBe(false);
+    expect(
+      isProviderRetryableUpstreamResponse({ provider: "fal", response: retryableByStatus })
+    ).toBe(true);
+    expect(
+      isProviderRetryableUpstreamResponse({ provider: "fal", response: retryableByHeader })
+    ).toBe(true);
+    expect(
+      isProviderRetryableUpstreamResponse({
+        provider: "fal",
+        response: nonRetryableByNeedsRetryFalse,
+      })
+    ).toBe(false);
+    expect(
+      isProviderRetryableUpstreamResponse({ provider: "fal", response: retryableByNeedsRetryTrue })
+    ).toBe(true);
+    expect(
+      isProviderRetryableUpstreamResponse({
+        provider: "fal",
+        response: conflictingHeadersNeedsRetryWins,
+      })
+    ).toBe(false);
+    expect(isProviderRetryableUpstreamResponse({ provider: "fal", response: nonRetryable })).toBe(
+      false
+    );
   });
 
   it("parses JSON and wraps non-JSON payloads safely", async () => {
@@ -79,10 +99,18 @@ describe("statusProxyRuntime", () => {
   });
 
   it("resolves completed payload status from mixed candidate values", () => {
-    expect(resolveSuccessfulPayloadStatus(undefined, "IN_PROGRESS", "completed", "queued")).toBe(
-      "completed"
-    );
-    expect(resolveSuccessfulPayloadStatus(undefined, null, "running")).toBe("completed");
+    expect(
+      resolveProviderSuccessfulPayloadStatus({
+        provider: "fal",
+        candidates: [undefined, "IN_PROGRESS", "completed", "queued"],
+      })
+    ).toBe("completed");
+    expect(
+      resolveProviderSuccessfulPayloadStatus({
+        provider: "fal",
+        candidates: [undefined, null, "running"],
+      })
+    ).toBe("completed");
   });
 
   it("probes response urls and returns first media-bearing payload", async () => {

@@ -2,13 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VideoSubmissionArgs } from "../types";
 import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
-import {
-  submitKieKlingImageToVideo,
-  submitKieSeedance2FastVideo,
-  submitKieSeedance2Video,
-  submitKieSeedanceVideo,
-  submitKieVeoImageToVideo,
-} from "../../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
 import {
@@ -18,7 +11,7 @@ import {
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../../lib/model-runtime/providerModelIds";
 
-vi.mock("../../../../../lib/falClient", () => ({
+const falClientMocks = vi.hoisted(() => ({
   submitKieKlingImageToVideo: vi.fn(),
   submitKieSeedance2FastVideo: vi.fn(),
   submitKieSeedance2Video: vi.fn(),
@@ -26,12 +19,42 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitKieVeoImageToVideo: vi.fn(),
 }));
 
+vi.mock("../../../../../lib/falClient", () => {
+  const submitQueuedGenerationByModelId = vi.fn((modelId: string, payload: unknown) => {
+    switch (modelId) {
+      case "kie-ai/kling-3.0":
+        return falClientMocks.submitKieKlingImageToVideo(payload);
+      case "kie-ai/seedance-2-fast":
+        return falClientMocks.submitKieSeedance2FastVideo(payload);
+      case "kie-ai/seedance-2":
+        return falClientMocks.submitKieSeedance2Video(payload);
+      case "kie-ai/seedance-1.5-pro":
+        return falClientMocks.submitKieSeedanceVideo(payload);
+      case "kie-ai/veo-3.1-fast-i2v":
+        return falClientMocks.submitKieVeoImageToVideo(payload);
+      default:
+        throw new Error(`Unexpected model ${modelId}`);
+    }
+  });
+  return {
+    submitQueuedGenerationByModelId,
+  };
+});
+
 vi.mock("../../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
 }));
 vi.mock("../../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: vi.fn(),
 }));
+
+const {
+  submitKieKlingImageToVideo,
+  submitKieSeedance2FastVideo,
+  submitKieSeedance2Video,
+  submitKieSeedanceVideo,
+  submitKieVeoImageToVideo,
+} = falClientMocks;
 
 const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmissionArgs => ({
   id: "out-1",

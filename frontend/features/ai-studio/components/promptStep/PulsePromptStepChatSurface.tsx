@@ -359,7 +359,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
       {shouldStackTrailingComposerControls ? (
         <>
           <div className="agent-composer-primary-row">
-            {chatModeToggleContent}
+            {chatModeActionsContent}
             {inputShellContent}
             {composerLeadingControlContent}
           </div>

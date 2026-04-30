@@ -14,7 +14,7 @@ import {
   ModelOption,
   SEEDREAM_LOGO_SRC,
 } from "../constants";
-import { buildDefaultPricingParams, computeCostForModel } from "../logic/pricing";
+import { buildDefaultPricingParams, computeCostForModel, getModelConfig } from "../logic/pricing";
 import { isSeedance2ModelId, isSeedance2UiEnabled } from "../logic/seedance2Availability";
 import { stripEditLabel } from "../utils/modelLabels";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
@@ -293,7 +293,12 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   ],
   "reference-video": ["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0"],
   "reference-keyframes": ["kie-ai/veo-3.1-fast-i2v"],
-  "text-video": ["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0"],
+  "text-video": [
+    "kie-ai/veo-3.1-fast-i2v",
+    "kie-ai/seedance-1.5-pro",
+    "kie-ai/seedance-2",
+    "kie-ai/seedance-2-fast",
+  ],
 };
 
 const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
@@ -311,11 +316,19 @@ const contextTitleMap: Partial<Record<ModelModalContext, string>> = {
   "text-image": "Text-to-Image",
 };
 
-const isDisabledLegacyVideoModel = (option: ModelOption): boolean =>
-  option.value.startsWith("fal-ai/") &&
-  (option.mediaType === "video" ||
-    option.mediaType === "image-to-video" ||
-    option.mediaType === "keyframes");
+const modelMatchesModalContext = (option: ModelOption, context?: ModelModalContext | null) => {
+  const config = getModelConfig(option.value);
+  if (!config) return false;
+  if (!context) return true;
+  if (context === "text-image") return Boolean(config.supportsTextToImage);
+  if (context === "reference-image") return Boolean(config.supportsImageToImage);
+  if (context === "text-video") return Boolean(config.generationLanes?.includes("text-to-video"));
+  if (context === "reference-video") {
+    return Boolean(config.generationLanes?.includes("image-to-video"));
+  }
+  if (context === "reference-keyframes") return option.value === "kie-ai/veo-3.1-fast-i2v";
+  return true;
+};
 
 /**
  * Renders the floating model selection modal.
@@ -397,10 +410,10 @@ function ModelModalContent({
       options.filter(
         (option) =>
           !contextHiddenModelIds.has(option.value) &&
-          !isDisabledLegacyVideoModel(option) &&
+          modelMatchesModalContext(option, context) &&
           (isSeedance2UiEnabled() || !isSeedance2ModelId(option.value))
       ),
-    [contextHiddenModelIds, options]
+    [context, contextHiddenModelIds, options]
   );
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredOptions = useMemo(
@@ -560,6 +573,7 @@ function ModelModalContent({
                         aria-hidden
                         width={80}
                         height={20}
+                        style={{ width: "auto" }}
                       />
                     ) : null}
                     <div className="model-chip-text">

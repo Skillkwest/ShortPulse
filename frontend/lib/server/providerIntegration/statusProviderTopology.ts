@@ -8,6 +8,7 @@ import { filterTrustedFalProviderUrls } from "../falIntegration/providerTrustPol
 import {
   assertKieRuntimeEnabledForModel,
   filterTrustedKieProviderUrls,
+  filterTrustedKieStatusTemplateUrls,
   readKieRuntimeFlags,
   resolveKieStatusBaseUrlsForModel,
   resolveKieStatusTimeoutMsForModel,
@@ -39,7 +40,7 @@ export const resolveProviderConfiguredStatusBaseUrls = ({
     }
     assertKieRuntimeEnabledForModel({ modelId: normalizedModelId, flags });
     const candidateBaseUrls = configuredBaseUrls.length ? configuredBaseUrls : flags.statusBaseUrls;
-    return filterTrustedKieProviderUrls(candidateBaseUrls, flags);
+    return filterTrustedKieStatusTemplateUrls(candidateBaseUrls, flags);
   }
   throw new Error(`Unsupported provider for status base resolution: ${provider}`);
 };

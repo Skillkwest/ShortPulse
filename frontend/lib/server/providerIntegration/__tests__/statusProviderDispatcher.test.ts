@@ -106,7 +106,7 @@ describe("statusProviderDispatcher", () => {
     expect(() =>
       resolveProviderStatusBaseUrls({
         provider: "kie",
-        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        configuredBaseUrls: ["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"],
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toThrow("Kie provider is disabled by runtime flag.");
@@ -120,18 +120,22 @@ describe("statusProviderDispatcher", () => {
     ).toThrow("Kie provider is disabled by runtime flag.");
   });
 
-  it("dispatches kie requests when dark path is enabled", async () => {
+  it("filters kie status bases to canonical request-id templates", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
-    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS = "https://queue.kie.ai/v1/requests";
+    process.env.SHORTPULSE_KIE_STATUS_BASE_URLS =
+      "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}";
 
     expect(
       resolveProviderStatusBaseUrls({
         provider: "kie",
-        configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
+        configuredBaseUrls: [
+          "https://queue.kie.ai/v1/requests",
+          "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+        ],
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
-    ).toEqual(["https://queue.kie.ai/v1/requests"]);
+    ).toEqual(["https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}"]);
     expect(
       resolveProviderResponseUrls({
         provider: "kie",
@@ -151,14 +155,14 @@ describe("statusProviderDispatcher", () => {
 
     await dispatchProviderStatusRequest({
       provider: "kie",
-      baseUrl: "https://queue.kie.ai/v1/requests",
+      baseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
       requestId: "req-kie",
       apiKey: "test-key",
       signal: new AbortController().signal,
     });
     await dispatchProviderResultRequest({
       provider: "kie",
-      baseUrl: "https://queue.kie.ai/v1/requests",
+      baseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
       requestId: "req-kie",
       apiKey: "test-key",
       signal: new AbortController().signal,
@@ -172,7 +176,7 @@ describe("statusProviderDispatcher", () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      "https://queue.kie.ai/v1/requests/req-kie/status",
+      "https://api.kie.ai/api/v1/veo/record-info?taskId=req-kie",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({ Authorization: "Bearer test-key" }),
@@ -180,7 +184,7 @@ describe("statusProviderDispatcher", () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      "https://queue.kie.ai/v1/requests/req-kie",
+      "https://api.kie.ai/api/v1/veo/record-info?taskId=req-kie",
       expect.objectContaining({
         method: "GET",
         headers: expect.objectContaining({ Authorization: "Bearer test-key" }),
@@ -194,6 +198,28 @@ describe("statusProviderDispatcher", () => {
         headers: expect.objectContaining({ Authorization: "Bearer test-key" }),
       })
     );
+  });
+
+  it("fails closed when kie status/result dispatch receives a non-template base URL", async () => {
+    await expect(
+      dispatchProviderStatusRequest({
+        provider: "kie",
+        baseUrl: "https://queue.kie.ai/v1/requests",
+        requestId: "req-kie",
+        apiKey: "test-key",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow("Kie status dispatch requires a {requestId} status URL template.");
+
+    await expect(
+      dispatchProviderResultRequest({
+        provider: "kie",
+        baseUrl: "https://queue.kie.ai/v1/requests",
+        requestId: "req-kie",
+        apiKey: "test-key",
+        signal: new AbortController().signal,
+      })
+    ).rejects.toThrow("Kie result dispatch requires a {requestId} status URL template.");
   });
 
   it("dispatches kie requests from {requestId} url templates", async () => {

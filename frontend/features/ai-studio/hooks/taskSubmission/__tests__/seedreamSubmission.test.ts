@@ -4,22 +4,11 @@ import { handleImageModelSubmission } from "../imageHandlers";
 import type { ImageSubmissionArgs } from "../types";
 import { getModelConfig } from "../../../logic/modelRegistry";
 import {
-  submitFalSeedream,
-  submitFalSeedreamEdit,
-  submitFalSeedreamV5Lite,
-  submitFalSeedreamV5LiteEdit,
-  submitFalNanoBanana,
-  submitFalNanoBananaPro,
-  submitFalNanoBananaEdit,
-  submitFalNanoBananaProEdit,
-  submitFalFlux2Klein,
-} from "../../../../../lib/falClient";
-import {
   submitOpenAiGptImage2,
   submitOpenAiGptImage2Edit,
 } from "../../../../../lib/openAiImageClient";
 
-vi.mock("../../../../../lib/falClient", () => ({
+const falClientMocks = vi.hoisted(() => ({
   submitFalSeedream: vi.fn(),
   submitFalSeedreamEdit: vi.fn(),
   submitFalSeedreamV5Lite: vi.fn(),
@@ -31,10 +20,54 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitFalFlux2Klein: vi.fn(),
 }));
 
+vi.mock("../../../../../lib/falClient", () => {
+  const submitQueuedGenerationByModelId = vi.fn((modelId: string, payload: unknown) => {
+    switch (modelId) {
+      case "fal-ai/bytedance/seedream/v4.5/text-to-image":
+        return falClientMocks.submitFalSeedream(payload);
+      case "fal-ai/bytedance/seedream/v5/lite/text-to-image":
+        return falClientMocks.submitFalSeedreamV5Lite(payload);
+      case "fal-ai/nano-banana":
+        return falClientMocks.submitFalNanoBanana(payload);
+      case "fal-ai/nano-banana-pro":
+        return falClientMocks.submitFalNanoBananaPro(payload);
+      case "fal-ai/nano-banana-2":
+        return Promise.resolve({ request_id: "nano-2-req" });
+      case "fal-ai/bytedance/seedream/v4.5/edit":
+        return falClientMocks.submitFalSeedreamEdit(payload);
+      case "fal-ai/bytedance/seedream/v5/lite/edit":
+        return falClientMocks.submitFalSeedreamV5LiteEdit(payload);
+      case "fal-ai/nano-banana/edit":
+        return falClientMocks.submitFalNanoBananaEdit(payload);
+      case "fal-ai/nano-banana-pro/edit":
+        return falClientMocks.submitFalNanoBananaProEdit(payload);
+      case "fal-ai/flux-2/klein/9b":
+        return falClientMocks.submitFalFlux2Klein(payload);
+      default:
+        return Promise.reject(new Error(`Unhandled queued submit model ${modelId}`));
+    }
+  });
+  return {
+    submitQueuedGenerationByModelId,
+  };
+});
+
 vi.mock("../../../../../lib/openAiImageClient", () => ({
   submitOpenAiGptImage2: vi.fn(),
   submitOpenAiGptImage2Edit: vi.fn(),
 }));
+
+const {
+  submitFalSeedream,
+  submitFalSeedreamEdit,
+  submitFalSeedreamV5Lite,
+  submitFalSeedreamV5LiteEdit,
+  submitFalNanoBanana,
+  submitFalNanoBananaPro,
+  submitFalNanoBananaEdit,
+  submitFalNanoBananaProEdit,
+  submitFalFlux2Klein,
+} = falClientMocks;
 
 const makeArgs = (overrides: Partial<ImageSubmissionArgs> = {}): ImageSubmissionArgs => ({
   id: "out-1",

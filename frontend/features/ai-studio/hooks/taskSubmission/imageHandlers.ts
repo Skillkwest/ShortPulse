@@ -1,18 +1,7 @@
 /**
  * Image and edit submission handlers for AI Studio task generation.
  */
-import {
-  type FalSubmitResponse,
-  submitFalBriaBackgroundRemove,
-  submitFalFluxKontextInpaint,
-  submitFalFlux2Klein,
-  submitFalFluxProFill,
-  submitFalNanoBananaEdit,
-  submitFalNanoBanana2Edit,
-  submitFalNanoBananaProEdit,
-  submitFalSeedreamEdit,
-  submitFalSeedreamV5LiteEdit,
-} from "../../../../lib/falClient";
+import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import { falNanoBananaAllowedAspects, falNanoBananaProAllowedAspects } from "../../constants";
 import {
   normalizeNanoBanana2Resolution,
@@ -78,7 +67,7 @@ export const handleImageModelSubmission = async ({
       notifyGenerationFailure(id, "Background remove requires a source image.");
       return true;
     }
-    const response = await submitFalBriaBackgroundRemove({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       image_url: sourceImageUrl,
       ...shortpulseSubmitPayload,
     });
@@ -97,7 +86,7 @@ export const handleImageModelSubmission = async ({
       notifyGenerationFailure(id, "FLUX Fill requires both a base image and mask.");
       return true;
     }
-    const response = await submitFalFluxProFill({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       image_url: preparedBaseImage,
       mask_url: preparedMaskImage,
@@ -124,7 +113,7 @@ export const handleImageModelSubmission = async ({
       );
       return true;
     }
-    const response = await submitFalFluxKontextInpaint({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       image_url: preparedBaseImage,
       mask_url: preparedMaskImage,
@@ -146,7 +135,7 @@ export const handleImageModelSubmission = async ({
       notifyGenerationFailure(id, "Nano Banana Edit requires at least one reference image.");
       return true;
     }
-    const response = await submitFalNanoBananaEdit({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       num_images: 1,
       aspect_ratio: falNanoBananaAllowedAspects.has(aspect) ? aspect : "auto",
@@ -167,7 +156,7 @@ export const handleImageModelSubmission = async ({
       notifyGenerationFailure(id, "Nano Banana Pro Edit requires at least one reference image.");
       return true;
     }
-    const response = await submitFalNanoBananaProEdit({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       num_images: 1,
       aspect_ratio: falNanoBananaProAllowedAspects.has(aspect) ? aspect : "auto",
@@ -189,7 +178,7 @@ export const handleImageModelSubmission = async ({
       notifyGenerationFailure(id, "Nano Banana 2 Edit requires at least one reference image.");
       return true;
     }
-    const response = await submitFalNanoBanana2Edit({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       num_images: 1,
       aspect_ratio: normalizeAspectForFalNanoBanana2(aspect),
@@ -212,7 +201,7 @@ export const handleImageModelSubmission = async ({
       return true;
     }
     const image_size = resolveSeedreamImageSize(aspect, requestedResolution);
-    const response = await submitFalSeedreamEdit({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       image_size,
       num_images: 1,
@@ -234,7 +223,7 @@ export const handleImageModelSubmission = async ({
       return true;
     }
     const image_size = resolveSeedreamImageSize(aspect, requestedResolution);
-    const response = await submitFalSeedreamV5LiteEdit({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       image_size,
       num_images: 1,
@@ -252,7 +241,7 @@ export const handleImageModelSubmission = async ({
 
   if (finalModel === "fal-ai/flux-2/klein/9b") {
     const size = falSizeForAspect(aspect);
-    const falResp = await submitFalFlux2Klein({
+    const falResp = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       image_size: { width: size.width, height: size.height },
       num_images: 1,

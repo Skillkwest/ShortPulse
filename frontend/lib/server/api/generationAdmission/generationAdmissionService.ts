@@ -142,7 +142,7 @@ export const evaluateUserGenerationAdmission = async ({
   userId,
   modelId,
   config,
-  provider = resolveProviderFromModelId({ modelId, fallback: "fal" }),
+  provider = resolveProviderFromModelId({ modelId }),
   staleIgnoreMinAgeSeconds = 0,
   activeGenerationStaleIgnoreMinAgeSeconds = 0,
   orphanGraceSeconds = 0,

@@ -62,7 +62,6 @@ const VIDEO_ALIAS_MAP_BY_MODEL_ID: Record<string, Record<string, string>> = {
     modelVariant: "model",
     seeds: "seed",
     enableTranslation: "enable_translation",
-    enableFallback: "enable_fallback",
   },
   [KIE_KLING_30_MODEL_ID]: {
     callBackUrl: "callback_url",

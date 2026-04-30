@@ -4,10 +4,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  fetchFalSeedreamEditStatus,
-  fetchFalSeedreamStatus,
-  submitFalSeedream,
-  submitFalSeedreamEdit,
+  fetchQueuedGenerationStatusByModelId,
+  submitQueuedGenerationByModelId,
   type FalSeedreamEditSubmitRequest,
   type FalSeedreamSubmitRequest,
 } from "../../../lib/falClient";
@@ -237,13 +235,16 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
         const shouldUseEdit =
           preparedImages.length > 0 &&
           activeModel !== "fal-ai/bytedance/seedream/v4.5/text-to-image";
-        const poll = shouldUseEdit ? fetchFalSeedreamEditStatus : fetchFalSeedreamStatus;
+        const generationModelId = shouldUseEdit
+          ? "fal-ai/bytedance/seedream/v4.5/edit"
+          : "fal-ai/bytedance/seedream/v4.5/text-to-image";
         const submitResponse = shouldUseEdit
-          ? await submitFalSeedreamEdit({
+          ? await submitQueuedGenerationByModelId(generationModelId, {
               ...basePayload,
               image_urls: preparedImages.slice(0, 4),
             } satisfies FalSeedreamEditSubmitRequest & { identity_token?: string | null })
-          : await submitFalSeedream(
+          : await submitQueuedGenerationByModelId(
+              generationModelId,
               basePayload satisfies FalSeedreamSubmitRequest & {
                 identity_token?: string | null;
               }
@@ -256,7 +257,7 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
         }
 
         const pollStatus = async (attempt = 0): Promise<string[]> => {
-          const status = await poll(request_id);
+          const status = await fetchQueuedGenerationStatusByModelId(generationModelId, request_id);
           const statusRecord = toRecord(status);
           const stateRaw =
             statusRecord.status?.toString().toLowerCase() ??

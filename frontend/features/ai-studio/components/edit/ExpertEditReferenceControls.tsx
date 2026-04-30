@@ -173,6 +173,7 @@ export function ExpertEditSelectorControls({
                 width={74}
                 height={18}
                 unoptimized={false}
+                style={isLockedEditToolLogo ? { height: "auto" } : { width: "auto" }}
               />
             ) : null}
             <span className="model-picker-name">{effectiveModelPickerLabel}</span>

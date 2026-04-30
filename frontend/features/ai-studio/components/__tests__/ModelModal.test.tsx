@@ -29,10 +29,12 @@ const baseOptions: ModelOption[] = [
   },
 ];
 
-const readChipTitles = (container: HTMLElement): string[] =>
-  Array.from(container.querySelectorAll(".model-chip-title"))
+const readChipTitles = (_container: HTMLElement): string[] => {
+  void _container;
+  return Array.from(document.body.querySelectorAll(".model-chip-title"))
     .map((element) => element.textContent?.trim() ?? "")
     .filter(Boolean);
+};
 
 describe("ModelModal", () => {
   it("hides Nano Banana chips in text-image context while keeping supported alternatives", () => {
@@ -121,7 +123,7 @@ describe("ModelModal", () => {
     expect(screen.queryByRole("button", { name: "Seedance 1.5 Pro" })).not.toBeInTheDocument();
   });
 
-  it("uses a constant video title and keeps Kie Kling selectable in text-video context", () => {
+  it("uses a constant video title and filters text-video context to text-capable models", () => {
     const options: ModelOption[] = [
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -152,11 +154,8 @@ describe("ModelModal", () => {
 
     expect(screen.getByText("Video")).toBeInTheDocument();
     expect(screen.queryByText("Text-to-Video")).not.toBeInTheDocument();
-    expect(readChipTitles(container)).toEqual([
-      "Veo 3.1 Fast I2V (Kie)",
-      "Kling 3.0 (Kie)",
-      "Seedance 1.5 Pro (Kie)",
-    ]);
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)", "Seedance 1.5 Pro (Kie)"]);
+    expect(screen.queryByRole("button", { name: /Kling 3\.0/i })).not.toBeInTheDocument();
   });
 
   it("includes Seedance 2.x chips when passed explicitly", () => {
@@ -345,15 +344,7 @@ describe("ModelModal", () => {
   });
 
   it("keeps FLUX.2 and Nano Banana chips visible outside text-image context", () => {
-    render(
-      <ModelModal
-        isOpen
-        onClose={vi.fn()}
-        onSelect={vi.fn()}
-        options={baseOptions}
-        context="reference-image"
-      />
-    );
+    render(<ModelModal isOpen onClose={vi.fn()} onSelect={vi.fn()} options={baseOptions} />);
 
     expect(screen.getByRole("button", { name: /FLUX\.2/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Nano Banana/i })).toBeInTheDocument();

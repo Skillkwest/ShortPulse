@@ -105,6 +105,18 @@ describe("loadAdminHealthSnapshot", () => {
         if (table === "project_generation_items") {
           return buildQuery({ data: [], error: null });
         }
+        if (table === "generation_projection") {
+          return buildQuery({
+            data: [
+              {
+                project_id: "project-1",
+                generation_id: "gen-1",
+                user_id: "user-1",
+              },
+            ],
+            error: null,
+          });
+        }
         throw new Error(`unexpected table ${table}`);
       },
     });

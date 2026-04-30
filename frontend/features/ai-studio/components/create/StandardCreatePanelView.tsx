@@ -194,6 +194,7 @@ export function StandardCreatePanelView({
                     width={modelLogoWidth}
                     height={modelLogoHeight}
                     unoptimized={useUnoptimizedModelLogo}
+                    style={{ width: "auto" }}
                   />
                 ) : null}
                 <span className="model-picker-name">{effectiveModelLabel}</span>

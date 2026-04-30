@@ -51,7 +51,7 @@ export const isOutputVideoPreview = (
   url: string | null | undefined
 ): boolean => {
   if (!url) return false;
-  if (output?.mode === "image" || output?.mode === "audio") return false;
+  if (output?.mode === "audio") return false;
   return isVideoUrl(url);
 };
 
@@ -60,6 +60,6 @@ export const isOutputAudioPreview = (
   url: string | null | undefined
 ): boolean => {
   if (!url) return false;
-  if (output?.mode === "image" || output?.mode === "video") return false;
+  if (output?.mode === "video") return false;
   return isAudioUrl(url);
 };

@@ -82,11 +82,13 @@ export const dispatchProviderStatusRequest = async ({
     });
   }
   if (isKieProviderKey(provider)) {
-    const statusUrl =
-      resolveTemplateRequestUrl({
-        templateUrl: baseUrl,
-        requestId,
-      }) ?? `${baseUrl}/${requestId}/status`;
+    const statusUrl = resolveTemplateRequestUrl({
+      templateUrl: baseUrl,
+      requestId,
+    });
+    if (!statusUrl) {
+      throw new Error("Kie status dispatch requires a {requestId} status URL template.");
+    }
     return await fetch(statusUrl, {
       method: "GET",
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -120,11 +122,13 @@ export const dispatchProviderResultRequest = async ({
     });
   }
   if (isKieProviderKey(provider)) {
-    const resultUrl =
-      resolveTemplateRequestUrl({
-        templateUrl: baseUrl,
-        requestId,
-      }) ?? `${baseUrl}/${requestId}`;
+    const resultUrl = resolveTemplateRequestUrl({
+      templateUrl: baseUrl,
+      requestId,
+    });
+    if (!resultUrl) {
+      throw new Error("Kie result dispatch requires a {requestId} status URL template.");
+    }
     return await fetch(resultUrl, {
       method: "GET",
       headers: { Authorization: `Bearer ${apiKey}` },

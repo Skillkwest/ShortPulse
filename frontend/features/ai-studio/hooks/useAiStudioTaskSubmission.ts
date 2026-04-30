@@ -804,6 +804,11 @@ export const useAiStudioTaskSubmission = ({
           };
 
           const route = resolveSubmissionHandlerRoute(finalModel);
+          if (route === "unsupported") {
+            throw submitNotStartedError(
+              `Model '${finalModel}' is not registered for AI Studio generation submission.`
+            );
+          }
           if (route === "video") {
             await handleVideoModelSubmission({
               id,

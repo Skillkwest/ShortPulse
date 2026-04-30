@@ -500,11 +500,6 @@ const normalizeKieVeoI2vPayload = (payload: Record<string, unknown>): Record<str
     fields: ["enable_translation", "enableTranslation"],
     modelLabel: "Kie VEO 3.1 Fast I2V",
   });
-  const enableFallback = normalizeOptionalBooleanFields({
-    payload,
-    fields: ["enable_fallback", "enableFallback"],
-    modelLabel: "Kie VEO 3.1 Fast I2V",
-  });
   const seeds = normalizeOptionalSeed({
     payload,
     modelLabel: "Kie VEO 3.1 Fast I2V",
@@ -518,7 +513,6 @@ const normalizeKieVeoI2vPayload = (payload: Record<string, unknown>): Record<str
   if (callbackUrl) normalized.callBackUrl = callbackUrl;
   if (watermark) normalized.watermark = watermark;
   if (enableTranslation !== null) normalized.enableTranslation = enableTranslation;
-  if (enableFallback !== null) normalized.enableFallback = enableFallback;
   if (seeds !== null) normalized.seeds = seeds;
   return normalized;
 };

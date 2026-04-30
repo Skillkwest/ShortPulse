@@ -281,7 +281,7 @@ const collectModelSpecificCandidates = (modelId: string, payload: Record<string,
   return [];
 };
 
-const collectFallbackCandidates = (payload: Record<string, unknown>) => {
+const collectCommonCandidates = (payload: Record<string, unknown>) => {
   const data = asProviderRecord(payload.data);
   const dataResponse = asProviderRecord(data.response);
   const result = asProviderRecord(payload.result);
@@ -446,7 +446,7 @@ export const extractKieResultMediaUrls = ({
 
   if (urls.length) return dedupeUrls(urls);
 
-  for (const candidate of collectFallbackCandidates(root)) {
+  for (const candidate of collectCommonCandidates(root)) {
     if (Array.isArray(candidate)) {
       urls.push(...asUrlList(candidate));
       continue;

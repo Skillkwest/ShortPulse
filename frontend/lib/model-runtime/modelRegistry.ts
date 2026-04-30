@@ -5,6 +5,9 @@ import type { ElevenLabsModelPricingAuthority } from "./elevenLabsModels";
 import {
   getModelCatalogEntry,
   listModelCatalogEntries,
+  type GenerationExecutionMode,
+  type GenerationSubmitHandler,
+  type GenerationWorkflowLane,
   type ModelCatalogEntry,
   type ModelCatalogMediaType,
   type ModelProvider,
@@ -37,6 +40,11 @@ export type ModelConfig = {
   supportsTextToImage?: boolean;
   supportsImageToImage?: boolean;
   supportsImageToVideo?: boolean;
+  generationLanes?: GenerationWorkflowLane[];
+  executionMode?: GenerationExecutionMode;
+  submitHandler?: GenerationSubmitHandler;
+  gridEligible?: boolean;
+  apiRouteSlug?: string;
 };
 
 type RegistryReadyCatalogEntry = ModelCatalogEntry & {
@@ -82,6 +90,11 @@ const buildModelConfig = (entry: RegistryReadyCatalogEntry): ModelConfig => ({
   supportsTextToImage: entry.supportsTextToImage,
   supportsImageToImage: entry.supportsImageToImage,
   supportsImageToVideo: entry.supportsImageToVideo,
+  generationLanes: entry.generationLanes,
+  executionMode: entry.executionMode,
+  submitHandler: entry.submitHandler,
+  gridEligible: entry.gridEligible,
+  apiRouteSlug: entry.apiRouteSlug,
 });
 
 const registryConfigs: ModelConfig[] = listModelCatalogEntries()
@@ -92,6 +105,17 @@ const registry: Record<string, ModelConfig> = Object.fromEntries(
   registryConfigs.map((config) => [config.id, config])
 );
 
+const registryByApiRouteSlug: Record<string, ModelConfig> = Object.fromEntries(
+  registryConfigs
+    .filter((config): config is ModelConfig & { apiRouteSlug: string } =>
+      Boolean(config.apiRouteSlug)
+    )
+    .map((config) => [config.apiRouteSlug, config])
+);
+
 export const getModelConfig = (id: string): ModelConfig | null => registry[id] ?? null;
+
+export const getModelConfigByApiRouteSlug = (slug: string): ModelConfig | null =>
+  registryByApiRouteSlug[slug] ?? null;
 
 export const listModelConfigs = (): ModelConfig[] => Object.values(registry);

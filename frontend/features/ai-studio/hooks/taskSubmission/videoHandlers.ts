@@ -1,14 +1,7 @@
 /**
  * Video submission handlers for AI Studio task generation.
  */
-import {
-  type FalSubmitResponse,
-  submitKieKlingImageToVideo,
-  submitKieSeedance2FastVideo,
-  submitKieSeedance2Video,
-  submitKieSeedanceVideo,
-  submitKieVeoImageToVideo,
-} from "../../../../lib/falClient";
+import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import {
   KIE_KLING_30_MODEL_ID,
@@ -497,7 +490,7 @@ export const handleVideoModelSubmission = async ({
     const aspectRatio = resolveVeoTextAspect(aspect, modelConfig);
     const duration = requestedDurationSeconds <= 5 ? 5 : 8;
     const resolution = resolveVeoResolution(requestedResolution);
-    const response = await submitKieVeoImageToVideo({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       image_url: keyframeImageUrls[0],
       image_urls: keyframeImageUrls,
@@ -527,7 +520,7 @@ export const handleVideoModelSubmission = async ({
       mediaKind: "image",
       cache: kieUploadCache,
     });
-    const response = await submitKieSeedanceVideo({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,
       input_urls: inputUrls,
       aspect_ratio: resolveSeedanceI2VAspect(aspect, modelConfig),
@@ -608,10 +601,6 @@ export const handleVideoModelSubmission = async ({
       notifyGenerationFailure(id, promptPayload.error);
       return true;
     }
-    const submitSeedance2 =
-      finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID
-        ? submitKieSeedance2FastVideo
-        : submitKieSeedance2Video;
     const pollingProvider =
       finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID ? "kie-seedance-2-fast" : "kie-seedance-2";
     const kieUploadCache = new Map<string, Promise<string>>();
@@ -663,7 +652,7 @@ export const handleVideoModelSubmission = async ({
         : Promise.resolve([]),
     ]);
 
-    const response = await submitSeedance2({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: promptPayload.prompt,
       ...(effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
         ? { first_frame_url: firstFrameUrl }
@@ -745,7 +734,7 @@ export const handleVideoModelSubmission = async ({
 
       const motionResolution = resolveKlingResolution(requestedResolution);
       const finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
-      const response = await submitKieKlingImageToVideo({
+      const response = await submitQueuedGenerationByModelId(finalModel, {
         prompt: finalPrompt,
         image_url: characterImageUrl,
         image_urls: [characterImageUrl],
@@ -808,7 +797,7 @@ export const handleVideoModelSubmission = async ({
       notifyGenerationFailure(id, resolvedShotModePayload.error);
       return true;
     }
-    const response = await submitKieKlingImageToVideo({
+    const response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: resolvedShotModePayload.prompt,
       image_url: preparedImageInputs[0],
       image_urls: resolvedShotModePayload.imageUrls,

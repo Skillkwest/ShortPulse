@@ -8,22 +8,22 @@ describe("resolveSubmissionHandlerRoute", () => {
   });
 
   it("does not route retired Fal video models to the video handler", () => {
-    expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1")).toBe("default");
-    expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1/image-to-video")).toBe("default");
+    expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1")).toBe("unsupported");
+    expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1/image-to-video")).toBe("unsupported");
     expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1/first-last-frame-to-video")).toBe(
-      "default"
+      "unsupported"
     );
     expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/text-to-video")).toBe(
-      "default"
+      "unsupported"
     );
     expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/image-to-video")).toBe(
-      "default"
+      "unsupported"
     );
     expect(resolveSubmissionHandlerRoute("fal-ai/bytedance/seedance/v1.5/pro/text-to-video")).toBe(
-      "default"
+      "unsupported"
     );
     expect(resolveSubmissionHandlerRoute("fal-ai/bytedance/seedance/v1.5/pro/image-to-video")).toBe(
-      "default"
+      "unsupported"
     );
   });
 
@@ -37,11 +37,13 @@ describe("resolveSubmissionHandlerRoute", () => {
     expect(resolveSubmissionHandlerRoute("fal-ai/flux-pro/v1/fill")).toBe("image");
   });
 
-  it("routes unknown and fallback models to default handler", () => {
-    expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/nonexistent")).toBe("default");
+  it("only routes catalog models through supported AI Studio handlers", () => {
+    expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/nonexistent")).toBe(
+      "unsupported"
+    );
     expect(resolveSubmissionHandlerRoute("fal-ai/nano-banana")).toBe("default");
     expect(resolveSubmissionHandlerRoute("gpt-image-2")).toBe("default");
-    expect(resolveSubmissionHandlerRoute("legacy/provider-image")).toBe("default");
-    expect(resolveSubmissionHandlerRoute("custom/unknown-model")).toBe("default");
+    expect(resolveSubmissionHandlerRoute("legacy/provider-image")).toBe("unsupported");
+    expect(resolveSubmissionHandlerRoute("custom/unknown-model")).toBe("unsupported");
   });
 });

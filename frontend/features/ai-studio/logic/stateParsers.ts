@@ -7,6 +7,10 @@ import { resolveEffectiveAspectForModel } from "./modelApiContracts";
 import type { ModelMediaType, ModelOption } from "../constants";
 import type { StudioMode, StudioOutput } from "../types";
 import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import {
+  getModelConfig,
+  getModelConfigByApiRouteSlug,
+} from "../../../lib/model-runtime/modelRegistry";
 
 export type Provider =
   | "fal"
@@ -113,7 +117,12 @@ export const normalizeProviderForPolling = (
     ) {
       return "fal-bria-background-remove";
     }
-    if (normalized.includes("flux-2") && normalized.includes("klein")) return "fal-flux2-klein";
+    if (
+      (normalized.includes("flux-2") || normalized.includes("flux2")) &&
+      normalized.includes("klein")
+    ) {
+      return "fal-flux2-klein";
+    }
     return "fal";
   }
   if (normalized.startsWith("kie")) {
@@ -130,6 +139,26 @@ const resolveActivePollingProvider = (value: string | null | undefined): Provide
   return activePollingProviders.has(provider) ? provider : null;
 };
 
+const pollingProviderRouteSlugAliases: Partial<Record<Provider, string>> = {
+  "fal-flux2-klein": "flux2klein",
+};
+
+const resolveQueuedPollingModelId = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const directModelConfig = getModelConfig(trimmed);
+  if (directModelConfig?.executionMode === "queued") return directModelConfig.id;
+
+  const provider = resolveActivePollingProvider(trimmed);
+  if (!provider) return null;
+  const routeSlug =
+    pollingProviderRouteSlugAliases[provider] ??
+    (provider.startsWith("fal-") ? provider.slice("fal-".length) : provider);
+  const routeModelConfig = getModelConfigByApiRouteSlug(routeSlug);
+  return routeModelConfig?.executionMode === "queued" ? routeModelConfig.id : null;
+};
+
 export const resolveTaskPollingProvider = ({
   provider,
   modelId,
@@ -138,6 +167,16 @@ export const resolveTaskPollingProvider = ({
   modelId?: string | null;
 }): Provider | null => {
   return resolveActivePollingProvider(provider) ?? resolveActivePollingProvider(modelId);
+};
+
+export const resolveTaskPollingModelId = ({
+  provider,
+  modelId,
+}: {
+  provider?: string | null;
+  modelId?: string | null;
+}): string | null => {
+  return resolveQueuedPollingModelId(modelId) ?? resolveQueuedPollingModelId(provider);
 };
 
 export const resolveModelLabel = (value?: string) =>

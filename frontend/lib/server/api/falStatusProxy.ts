@@ -51,6 +51,7 @@ import {
   readProviderResponseUrl,
 } from "../providerIntegration/statusProviderPayload";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
+import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type FalStatusConfig = {
   provider?: string;
@@ -101,6 +102,76 @@ const attachShortPulseLifecycle = ({
 };
 
 const ACTIVE_POLLING_QUEUE_STATE = "dispatched" as const;
+
+const asObject = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const deriveFalStatusBaseFromProviderUrl = ({
+  requestId,
+  url,
+}: {
+  requestId: string;
+  url: string | null;
+}): string | null => {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const requestSegment = `/${encodeURIComponent(requestId)}`;
+    if (parsed.pathname.endsWith(`${requestSegment}/status`)) {
+      parsed.pathname = parsed.pathname.slice(0, -`${requestSegment}/status`.length);
+      parsed.search = "";
+      parsed.hash = "";
+      return parsed.toString().replace(/\/+$/, "");
+    }
+    if (parsed.pathname.endsWith(requestSegment)) {
+      parsed.pathname = parsed.pathname.slice(0, -requestSegment.length);
+      parsed.search = "";
+      parsed.hash = "";
+      return parsed.toString().replace(/\/+$/, "");
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const readProviderReturnedStatusBases = async ({
+  provider,
+  requestId,
+  userId,
+}: {
+  provider: string;
+  requestId: string;
+  userId: string;
+}): Promise<string[]> => {
+  if (provider !== "fal") return [];
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from("ai_generations")
+      .select("metadata")
+      .eq("user_id", userId)
+      .eq("request_id", requestId)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error || !Array.isArray(data) || !data.length) return [];
+    const metadata = asObject(asObject(data[0]).metadata);
+    const statusBase = deriveFalStatusBaseFromProviderUrl({
+      requestId,
+      url: asProviderString(metadata.provider_status_url),
+    });
+    const responseBase = deriveFalStatusBaseFromProviderUrl({
+      requestId,
+      url: asProviderString(metadata.provider_response_url),
+    });
+    return [
+      ...new Set([statusBase, responseBase].filter((value): value is string => Boolean(value))),
+    ];
+  } catch {
+    return [];
+  }
+};
 
 const resolveLifecycleStatusLabel = ({
   taskState,
@@ -556,9 +627,15 @@ export const createFalStatusHandler = ({
       });
     let queueBaseUrls: string[];
     try {
+      const providerReturnedStatusBases = await readProviderReturnedStatusBases({
+        provider: providerKey,
+        requestId,
+        userId: user.id,
+      });
+      const configuredBaseUrls = Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl];
       queueBaseUrls = resolveProviderStatusBaseUrls({
         provider: providerKey,
-        configuredBaseUrls: Array.isArray(queueBaseUrl) ? queueBaseUrl : [queueBaseUrl],
+        configuredBaseUrls: [...providerReturnedStatusBases, ...configuredBaseUrls],
         modelId,
       });
     } catch (error) {
@@ -579,8 +656,8 @@ export const createFalStatusHandler = ({
     if (!queueBaseUrls.length) {
       return await respondErrorWithLogging({
         requestId,
-        error: "No trusted Fal queue base URL configured for this status route.",
-        detail: { queueBaseUrl },
+        error: "No trusted provider status URL configured for this status route.",
+        detail: { provider: providerKey, queueBaseUrl },
         statusCode: 500,
         source: "api.fal_status.untrusted_base_url",
         stage: "queue_base_url_validation",
@@ -639,13 +716,7 @@ export const createFalStatusHandler = ({
       let statusResp: Response | null = null;
       let statusData: JsonReadResult | null = null;
       let resolvedQueueBaseUrl: string | null = null;
-      let selectedStatusProbe: StatusProbeCandidate | null = null;
       const statusCandidates: Array<{
-        probe: StatusProbeCandidate;
-        response: Response;
-        data: JsonReadResult;
-      }> = [];
-      const retryableStatusCandidates: Array<{
         probe: StatusProbeCandidate;
         response: Response;
         data: JsonReadResult;
@@ -689,7 +760,7 @@ export const createFalStatusHandler = ({
               index,
               baseUrl,
               isJson: data.isJson,
-              isRetryableAlias: !data.isJson || response.status === 404 || response.status === 405,
+              isRetryableAlias: false,
               httpStatus: response.status,
               isHttpOk: response.ok,
               status: candidateStatus,
@@ -709,10 +780,6 @@ export const createFalStatusHandler = ({
       for (const statusProbeResult of statusProbeResults) {
         if (!statusProbeResult) continue;
         const { probe, response, data } = statusProbeResult;
-        if (probe.isRetryableAlias) {
-          retryableStatusCandidates.push({ probe, response, data });
-          continue;
-        }
         statusCandidates.push({ probe, response, data });
       }
 
@@ -728,16 +795,7 @@ export const createFalStatusHandler = ({
           statusResp = bestStatusCandidate.response;
           statusData = bestStatusCandidate.data;
           resolvedQueueBaseUrl = bestStatusCandidate.probe.baseUrl;
-          selectedStatusProbe = bestStatusCandidate.probe;
         }
-      }
-
-      if (!statusResp && retryableStatusCandidates.length) {
-        const fallbackCandidate = retryableStatusCandidates[0];
-        statusResp = fallbackCandidate.response;
-        statusData = fallbackCandidate.data;
-        resolvedQueueBaseUrl = fallbackCandidate.probe.baseUrl;
-        selectedStatusProbe = fallbackCandidate.probe;
       }
 
       if (!statusResp || !statusData) {
@@ -783,7 +841,6 @@ export const createFalStatusHandler = ({
       const orderedResultBases = [resolvedQueueBaseUrl].filter((baseUrl): baseUrl is string =>
         Boolean(baseUrl)
       );
-      const selectedStatusIsRetryableAlias = selectedStatusProbe?.isRetryableAlias === true;
 
       if (!statusData.isJson) {
         if (statusTransientFailuresEnabled) {
@@ -843,7 +900,7 @@ export const createFalStatusHandler = ({
         });
       }
 
-      if (!statusResp.ok && !selectedStatusIsRetryableAlias) {
+      if (!statusResp.ok) {
         if (
           isProviderRetryableUpstreamResponse({
             provider: providerKey,
@@ -894,7 +951,7 @@ export const createFalStatusHandler = ({
           status: normalizedStatus,
         })
       );
-      if (!isComplete && !selectedStatusIsRetryableAlias) {
+      if (!isComplete) {
         return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
           attachGenerationId(
             attachShortPulseLifecycle({
@@ -926,11 +983,6 @@ export const createFalStatusHandler = ({
         response: Response;
         data: JsonReadResult;
       }> = [];
-      const retryableResultCandidates: Array<{
-        probe: ResultProbeCandidate;
-        response: Response;
-        data: JsonReadResult;
-      }> = [];
 
       const resultProbeResults = await Promise.all(
         orderedResultBases.map(async (baseUrl, index) => {
@@ -953,7 +1005,7 @@ export const createFalStatusHandler = ({
               index,
               baseUrl,
               isJson: data.isJson,
-              isRetryableAlias: response.status === 404 || response.status === 405,
+              isRetryableAlias: false,
               httpStatus: response.status,
               isHttpOk: response.ok,
               status: candidateStatus,
@@ -969,14 +1021,10 @@ export const createFalStatusHandler = ({
       for (const resultProbeResult of resultProbeResults) {
         if (!resultProbeResult) continue;
         const { probe, response, data } = resultProbeResult;
-        if (probe.isRetryableAlias) {
-          retryableResultCandidates.push({ probe, response, data });
-          continue;
-        }
         resultCandidates.push({ probe, response, data });
       }
 
-      if (!resultCandidates.length && !retryableResultCandidates.length) {
+      if (!resultCandidates.length) {
         return respondErrorWithLogging({
           requestId,
           error: `${routeLabel} result request failed`,
@@ -984,22 +1032,6 @@ export const createFalStatusHandler = ({
           source: "api.fal_status.result_request_failed",
           stage: "result",
         });
-      }
-
-      // Treat a full sweep of retryable alias responses (404/405) as
-      // transient so polling can continue instead of settling terminal failure.
-      if (!resultCandidates.length) {
-        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
-          attachGenerationId(
-            attachShortPulseLifecycle({
-              payload: statusData.json,
-              lifecycle: buildNonterminalLifecycleHint({
-                normalizedStatus,
-                recoveryPending: true,
-              }),
-            })
-          )
-        );
       }
 
       const bestResultProbe = selectBestProviderResultCandidate({
@@ -1125,13 +1157,6 @@ export const createFalStatusHandler = ({
       const explicitResultFailure =
         resultStatus === "error" || resultStatus === "failed" || Boolean(resultErrorMessage);
       const resultHasMedia = payloadHasMedia(resultData.json);
-      const resultIsComplete = Boolean(
-        resultStatus &&
-        isProviderCompletedStatus({
-          provider: providerKey,
-          status: resultStatus,
-        })
-      );
 
       if (explicitResultFailure) {
         return await settleCanonicalFailedPayload({
@@ -1140,20 +1165,6 @@ export const createFalStatusHandler = ({
           fallbackDetail: resultData.json,
           failureReasonCode: "provider_error",
         });
-      }
-
-      if (!resultHasMedia && selectedStatusIsRetryableAlias && !resultIsComplete) {
-        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
-          attachGenerationId(
-            attachShortPulseLifecycle({
-              payload: resultData.json,
-              lifecycle: buildNonterminalLifecycleHint({
-                normalizedStatus: resultStatus ?? normalizedStatus,
-                recoveryPending: true,
-              }),
-            })
-          )
-        );
       }
 
       if (!resultHasMedia) {

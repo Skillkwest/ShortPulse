@@ -1274,7 +1274,7 @@ describe("createFalStatusHandler", () => {
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/alt-base-success.png");
   });
 
-  it("probes result payloads after a retryable status alias miss", async () => {
+  it("fails closed when the status route returns a missing-route response", async () => {
     persistedGenerationRows = [
       {
         id: "gen-status-alias-result-1",
@@ -1316,34 +1316,26 @@ describe("createFalStatusHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "completed",
-        state: "completed",
+        status: "error",
+        state: "error",
+        error: "Fal Nano Banana 2 status request failed",
         request_id: "req-status-alias-result",
-        generationId: "gen-status-alias-result-1",
-        data: expect.objectContaining({
-          images: [{ url: "https://cdn.shortpulse.test/status-alias-result.png" }],
-        }),
-        shortpulseLifecycle: expect.objectContaining({
-          taskState: "success",
-          isTerminal: true,
-          resultUrls: ["https://cdn.shortpulse.test/status-alias-result.png"],
-        }),
+        detail: { detail: "Not found" },
       })
     );
-    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
+    expect(settleDirectGenerationSuccessMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: "req-status-alias-result",
-        resultUrls: ["https://cdn.shortpulse.test/status-alias-result.png"],
+        source: "api.fal_status.status_upstream_non_ok",
       })
     );
-    expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
-  it("keeps polling when a status alias miss has no completed result media yet", async () => {
+  it("does not keep polling when the status route returns a missing-route response", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -1375,23 +1367,25 @@ describe("createFalStatusHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "IN_PROGRESS",
-        shortpulseLifecycle: expect.objectContaining({
-          taskState: "running",
-          isTerminal: false,
-          providerState: "in_progress",
-          recoveryPending: true,
-        }),
+        status: "error",
+        state: "error",
+        error: "Fal Nano Banana 2 status request failed",
+        request_id: "req-status-alias-running",
+        detail: { detail: "Not found" },
       })
     );
     expect(settleDirectGenerationSuccessMock).not.toHaveBeenCalled();
     expect(settleDirectGenerationFailureMock).not.toHaveBeenCalled();
     expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
-    expect(logGenerationFailureMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_status.status_upstream_non_ok",
+      })
+    );
   });
 
   it("uses the selected status base for terminal result fetches", async () => {
@@ -1857,7 +1851,7 @@ describe("createFalStatusHandler", () => {
     );
   });
 
-  it("marks retryable result alias sweeps as recovery-pending lifecycle", async () => {
+  it("settles missing result routes as terminal provider failures", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -1896,14 +1890,15 @@ describe("createFalStatusHandler", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "COMPLETED",
+        status: "error",
+        state: "error",
+        error: "not ready",
+        request_id: "req-result-alias-retryable",
         shortpulseLifecycle: expect.objectContaining({
-          taskState: "running",
-          isTerminal: false,
+          taskState: "fail",
+          isTerminal: true,
           providerState: "completed",
-          recoveryPending: true,
-          queueState: "dispatched",
-          statusLabel: "Processing...",
+          queueState: "failed",
         }),
       })
     );

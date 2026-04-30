@@ -28,6 +28,19 @@ export type ModelCatalogMediaType =
   | "multi"
   | "text"
   | "audio";
+export type GenerationWorkflowLane =
+  | "text-to-image"
+  | "image-to-image"
+  | "text-to-video"
+  | "image-to-video"
+  | "text-to-speech"
+  | "speech-to-speech"
+  | "music"
+  | "sfx"
+  | "voice-design"
+  | "text";
+export type GenerationExecutionMode = "queued" | "direct" | "none";
+export type GenerationSubmitHandler = "default" | "image" | "video" | "audio" | "unsupported";
 
 export type ModelPayloadValidationSpec = {
   allowedTopLevelFields?: string[];
@@ -66,6 +79,11 @@ export type ModelCatalogEntry = {
   supportsTextToImage?: boolean;
   supportsImageToImage?: boolean;
   supportsImageToVideo?: boolean;
+  generationLanes?: GenerationWorkflowLane[];
+  executionMode?: GenerationExecutionMode;
+  submitHandler?: GenerationSubmitHandler;
+  gridEligible?: boolean;
+  apiRouteSlug?: string;
   falSubmitUrl?: string;
   falStatusBaseUrls?: string[];
   falTimeoutMs?: number;
@@ -93,6 +111,11 @@ type ModelCatalogRuntimeMetadata = Pick<
   | "supportsTextToImage"
   | "supportsImageToImage"
   | "supportsImageToVideo"
+  | "generationLanes"
+  | "executionMode"
+  | "submitHandler"
+  | "gridEligible"
+  | "apiRouteSlug"
   | "defaultGenerationCount"
   | "defaultSourceDurationSeconds"
   | "defaultTextCharacters"
@@ -112,7 +135,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultResolution: "model_default",
     allowedResolutions: ["model_default"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/flux-2/klein/9b",
-    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/flux-2/klein/9b/requests"],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/flux-2/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -596,7 +619,6 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
         "seed",
         "watermark",
         "enable_translation",
-        "enable_fallback",
       ],
       requiredStringFields: ["prompt"],
       enumFields: {
@@ -605,7 +627,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
         generation_type: ["TEXT_2_VIDEO", "FIRST_AND_LAST_FRAMES_2_VIDEO", "REFERENCE_2_VIDEO"],
         model: ["veo3", "veo3_fast"],
       },
-      optionalBooleanFields: ["generate_audio", "enable_translation", "enable_fallback"],
+      optionalBooleanFields: ["generate_audio", "enable_translation"],
       optionalNumberFields: ["duration", "seed"],
     },
   },
@@ -826,6 +848,10 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultDurationSeconds: 30,
     minDurationSeconds: 8,
     maxDurationSeconds: 180,
+    generationLanes: ["music"],
+    executionMode: "direct",
+    submitHandler: "audio",
+    gridEligible: true,
   },
   [ELEVENLABS_SOUND_EFFECTS_MODEL_ID]: {
     modelId: ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
@@ -842,6 +868,10 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultGenerationCount: 1,
     minDurationSeconds: 0.5,
     maxDurationSeconds: 30,
+    generationLanes: ["sfx"],
+    executionMode: "direct",
+    submitHandler: "audio",
+    gridEligible: true,
   },
   [ELEVENLABS_VOICEOVER_MODEL_ID]: {
     modelId: ELEVENLABS_VOICEOVER_MODEL_ID,
@@ -856,6 +886,10 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultAspect: "audio",
     allowedAspects: [],
     defaultTextCharacters: 1000,
+    generationLanes: ["text-to-speech"],
+    executionMode: "direct",
+    submitHandler: "audio",
+    gridEligible: true,
   },
   [ELEVENLABS_VOICE_CHANGER_MODEL_ID]: {
     modelId: ELEVENLABS_VOICE_CHANGER_MODEL_ID,
@@ -870,6 +904,10 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultAspect: "audio",
     allowedAspects: [],
     defaultSourceDurationSeconds: 60,
+    generationLanes: ["speech-to-speech"],
+    executionMode: "direct",
+    submitHandler: "audio",
+    gridEligible: true,
   },
   [ELEVENLABS_VOICE_DESIGN_MODEL_ID]: {
     modelId: ELEVENLABS_VOICE_DESIGN_MODEL_ID,
@@ -882,6 +920,10 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     submitAspectField: "none",
     defaultAspect: "audio",
     allowedAspects: [],
+    generationLanes: ["voice-design"],
+    executionMode: "direct",
+    submitHandler: "audio",
+    gridEligible: false,
   },
 };
 const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
@@ -891,6 +933,11 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingStrategy: "fal-economy-image-per-mp",
     sizeMapId: "fal-image",
     supportsTextToImage: true,
+    generationLanes: ["text-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    gridEligible: true,
+    apiRouteSlug: "flux2klein",
   },
   "fal-ai/flux-pro/v1/fill": {
     label: "FLUX Pro Fill",
@@ -898,6 +945,11 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingStrategy: "fal-fill-per-mp",
     sizeMapId: "fal-image",
     supportsImageToImage: true,
+    generationLanes: ["image-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    gridEligible: true,
+    apiRouteSlug: "flux-pro-fill",
   },
   "fal-ai/flux-kontext-lora/inpaint": {
     label: "FLUX Kontext Inpaint",
@@ -905,6 +957,11 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingStrategy: "fal-flux-kontext-inpaint-per-mp",
     sizeMapId: "fal-image",
     supportsImageToImage: true,
+    generationLanes: ["image-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    gridEligible: true,
+    apiRouteSlug: "flux-kontext-inpaint",
   },
   "fal-ai/bria/background/remove": {
     label: "Bria Background Remove",
@@ -912,6 +969,11 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingStrategy: "fal-economy-image-per-mp",
     sizeMapId: "fal-image",
     supportsImageToImage: true,
+    generationLanes: ["image-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    gridEligible: false,
+    apiRouteSlug: "bria-background-remove",
   },
   "gpt-image-2": {
     label: "ChatGPT Image 2",
@@ -919,66 +981,120 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingStrategy: "gpt-image-2-per-image",
     supportsTextToImage: true,
     supportsImageToImage: true,
+    generationLanes: ["text-to-image", "image-to-image"],
+    executionMode: "direct",
+    submitHandler: "default",
+    gridEligible: true,
   },
   "fal-ai/nano-banana": {
     label: "Nano Banana",
     mediaType: "image",
     pricingStrategy: "google-nano-banana-per-image",
     supportsTextToImage: true,
+    generationLanes: ["text-to-image"],
+    executionMode: "queued",
+    submitHandler: "default",
+    gridEligible: true,
+    apiRouteSlug: "nano-banana",
   },
   "fal-ai/nano-banana/edit": {
     label: "Nano Banana Edit",
     mediaType: "image",
     pricingStrategy: "google-nano-banana-per-image",
     supportsImageToImage: true,
+    generationLanes: ["image-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    gridEligible: true,
+    apiRouteSlug: "nano-banana-edit",
   },
   "fal-ai/nano-banana-2": {
     label: "Nano Banana 2",
     mediaType: "image",
     pricingStrategy: "nano-banana-2-per-image",
     supportsTextToImage: true,
+    generationLanes: ["text-to-image"],
+    executionMode: "queued",
+    submitHandler: "default",
+    gridEligible: true,
+    apiRouteSlug: "nano-banana-2",
   },
   "fal-ai/nano-banana-2/edit": {
     label: "Nano Banana 2 Edit",
     mediaType: "image",
     pricingStrategy: "nano-banana-2-per-image",
     supportsImageToImage: true,
+    generationLanes: ["image-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    gridEligible: true,
+    apiRouteSlug: "nano-banana-2-edit",
   },
   "fal-ai/nano-banana-pro": {
     label: "Nano Banana Pro",
     mediaType: "image",
     pricingStrategy: "nano-banana-per-image",
     supportsTextToImage: true,
+    generationLanes: ["text-to-image"],
+    executionMode: "queued",
+    submitHandler: "default",
+    gridEligible: true,
+    apiRouteSlug: "nano-banana-pro",
   },
   "fal-ai/nano-banana-pro/edit": {
     label: "Nano Banana Pro Edit",
     mediaType: "image",
     pricingStrategy: "nano-banana-per-image",
     supportsImageToImage: true,
+    generationLanes: ["image-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    gridEligible: true,
+    apiRouteSlug: "nano-banana-pro-edit",
   },
   "fal-ai/bytedance/seedream/v4.5/text-to-image": {
     label: "Seedream 4.5",
     mediaType: "image",
     pricingStrategy: "seedream-per-image",
     supportsTextToImage: true,
+    generationLanes: ["text-to-image"],
+    executionMode: "queued",
+    submitHandler: "default",
+    gridEligible: true,
+    apiRouteSlug: "seedream",
   },
   "fal-ai/bytedance/seedream/v4.5/edit": {
     label: "Seedream 4.5 Edit",
     mediaType: "image",
     pricingStrategy: "seedream-per-image",
     supportsImageToImage: true,
+    generationLanes: ["image-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    gridEligible: true,
+    apiRouteSlug: "seedream-edit",
   },
   "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
     label: "Seedream 5 Lite",
     mediaType: "image",
     pricingStrategy: "seedream-5-lite-per-image",
     supportsTextToImage: true,
+    generationLanes: ["text-to-image"],
+    executionMode: "queued",
+    submitHandler: "default",
+    gridEligible: true,
+    apiRouteSlug: "seedream-v5-lite",
   },
   "fal-ai/bytedance/seedream/v5/lite/edit": {
     label: "Seedream 5 Lite Edit",
     mediaType: "image",
     pricingStrategy: "seedream-5-lite-per-image",
     supportsImageToImage: true,
+    generationLanes: ["image-to-image"],
+    executionMode: "queued",
+    submitHandler: "image",
+    gridEligible: true,
+    apiRouteSlug: "seedream-v5-lite-edit",
   },
   [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
     label: "Veo 3.1 Fast I2V (Kie)",
@@ -988,6 +1104,11 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     maxDurationSeconds: 8,
     defaultAudio: true,
     supportsImageToVideo: true,
+    generationLanes: ["text-to-video", "image-to-video"],
+    executionMode: "queued",
+    submitHandler: "video",
+    gridEligible: true,
+    apiRouteSlug: "kie-veo",
   },
   [KIE_KLING_30_MODEL_ID]: {
     label: "Kling 3.0 (Kie)",
@@ -997,6 +1118,11 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     maxDurationSeconds: 15,
     defaultAudio: true,
     supportsImageToVideo: true,
+    generationLanes: ["image-to-video"],
+    executionMode: "queued",
+    submitHandler: "video",
+    gridEligible: true,
+    apiRouteSlug: "kie-kling",
   },
   [KIE_SEEDANCE_15_PRO_MODEL_ID]: {
     label: "Seedance 1.5 Pro (Kie)",
@@ -1006,6 +1132,11 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     maxDurationSeconds: 12,
     defaultAudio: true,
     supportsImageToVideo: true,
+    generationLanes: ["text-to-video", "image-to-video"],
+    executionMode: "queued",
+    submitHandler: "video",
+    gridEligible: true,
+    apiRouteSlug: "kie-seedance",
   },
   [KIE_SEEDANCE_2_MODEL_ID]: {
     label: "Seedance 2.0 (Kie)",
@@ -1015,6 +1146,11 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     maxDurationSeconds: 15,
     defaultAudio: true,
     supportsImageToVideo: true,
+    generationLanes: ["text-to-video", "image-to-video"],
+    executionMode: "queued",
+    submitHandler: "video",
+    gridEligible: true,
+    apiRouteSlug: "kie-seedance-2",
   },
   [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
     label: "Seedance 2.0 Fast (Kie)",
@@ -1024,11 +1160,20 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     maxDurationSeconds: 15,
     defaultAudio: true,
     supportsImageToVideo: true,
+    generationLanes: ["text-to-video", "image-to-video"],
+    executionMode: "queued",
+    submitHandler: "video",
+    gridEligible: true,
+    apiRouteSlug: "kie-seedance-2-fast",
   },
   "gpt-5-nano": {
     label: "GPT-5 Nano",
     mediaType: "text",
     pricingStrategy: "gpt41nano-per-token",
+    generationLanes: ["text"],
+    executionMode: "none",
+    submitHandler: "unsupported",
+    gridEligible: false,
   },
 };
 

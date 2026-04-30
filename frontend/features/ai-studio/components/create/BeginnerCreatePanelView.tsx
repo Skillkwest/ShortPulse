@@ -230,6 +230,7 @@ export function BeginnerCreatePanelView({
                         width={80}
                         height={20}
                         unoptimized={useUnoptimizedModelLogo}
+                        style={{ width: "auto" }}
                       />
                     ) : null}
                     <span className="model-picker-name">{effectiveModelLabel}</span>

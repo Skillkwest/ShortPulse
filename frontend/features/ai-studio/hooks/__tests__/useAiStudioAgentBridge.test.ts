@@ -2122,6 +2122,125 @@ describe("useAiStudioAgentBridge", () => {
     });
   });
 
+  it("does not expose a Pulse composer draft after switching back to Standard", async () => {
+    let composerInput = "";
+    const setAgentInput = vi.fn((value: SetStateAction<string>) => {
+      composerInput = typeof value === "function" ? value(composerInput) : value;
+    });
+    const handleAgentInputChange = vi.fn((value: string) => {
+      composerInput = value;
+    });
+    const setAgentAttachmentError = vi.fn();
+    const setAgentAttachments = vi.fn();
+    const handleAgentAttachmentDragOver = vi.fn();
+    const handleAgentAttachmentDragEnter = vi.fn();
+    const handleAgentAttachmentDragLeave = vi.fn();
+    const handleAgentAttachmentDrop = vi.fn();
+    const handleRemoveAgentAttachment = vi.fn();
+    const handleClearAgentAttachments = vi.fn();
+    const resetAgentComposer = vi.fn();
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockImplementation(() => ({
+      agentInput: composerInput,
+      setAgentInput,
+      handleAgentInputChange,
+      agentAttachmentError: null,
+      setAgentAttachmentError,
+      agentAttachments: [],
+      setAgentAttachments,
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver,
+      handleAgentAttachmentDragEnter,
+      handleAgentAttachmentDragLeave,
+      handleAgentAttachmentDrop,
+      handleRemoveAgentAttachment,
+      handleClearAgentAttachments,
+      resetAgentComposer,
+    }));
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+    });
+
+    const initialModeProps: {
+      expertCreateMode: "standard" | "pulse";
+      activePulsePresetId: string | null;
+      pulseSessionInstanceId: string | null;
+    } = {
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
+    };
+    const { result, rerender } = renderHook(
+      ({
+        expertCreateMode,
+        activePulsePresetId,
+        pulseSessionInstanceId,
+      }: {
+        expertCreateMode: "standard" | "pulse";
+        activePulsePresetId: string | null;
+        pulseSessionInstanceId: string | null;
+      }) =>
+        useAiStudioAgentBridge(
+          createBridgeParams({
+            expertCreateMode,
+            activePulsePresetId,
+            pulseSessionInstanceId,
+          })
+        ),
+      {
+        initialProps: initialModeProps,
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.agentInput).toBe("");
+    });
+
+    act(() => {
+      result.current.handleAgentInputChange("pulse draft must stay in pulse");
+    });
+    rerender({
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
+    });
+
+    expect(result.current.agentInput).toBe("pulse draft must stay in pulse");
+
+    rerender({
+      expertCreateMode: "standard",
+      activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-1",
+    });
+
+    expect(result.current.agentInput).toBe("");
+    await waitFor(() => {
+      expect(setAgentInput).toHaveBeenLastCalledWith("");
+    });
+  });
+
   it("blocks Standard enhancement handlers while Pulse runtime is active", async () => {
     const handleAgentEnhanceSend = vi.fn();
     const handleReferencePromptEnhance = vi.fn();

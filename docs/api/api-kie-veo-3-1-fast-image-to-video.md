@@ -14,25 +14,25 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.
 - Status/details polling:
   - default model-contract endpoint: `https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}`
   - configured via `SHORTPULSE_KIE_STATUS_BASE_URLS`
-  - supports optional `{requestId}` template token for query-style endpoints (for example `.../record-info?taskId={requestId}`)
-  - falls back to legacy `/{requestId}/status` probing when template is not used
+  - requires the `{requestId}` template token for the canonical record-info endpoint
+  - status routes fail closed when the configured endpoint shape is invalid.
 - Submit aspect field: `aspect_ratio`
 - Allowed aspects: `16:9`, `9:16`
 - Allowed durations: `5`, `8` (seconds)
 - Allowed resolutions: `720p`, `1080p`
 - Canonical ingress fields (strict):
   - `prompt`, `image_url|image_urls`, `aspect_ratio`, `duration|duration_seconds`, `resolution`, `generate_audio`
-  - `generation_type`, `model`, `callback_url`, `seed`, `enable_translation`, `enable_fallback`, `watermark`
+  - `generation_type`, `model`, `callback_url`, `seed`, `enable_translation`, `watermark`
 - Accepted edge aliases (normalized immediately at ingress, never persisted as canonical):
   - `imageUrl|imageUrls` -> `image_url|image_urls`
   - `generationType` -> `generation_type`
   - `callBackUrl|callbackUrl` -> `callback_url`
   - `seeds` -> `seed`
-  - `enableTranslation|enableFallback` -> `enable_translation|enable_fallback`
+  - `enableTranslation` -> `enable_translation`
 - Runtime-normalized provider submit fields:
   - required: `prompt`, `imageUrls`
   - defaults: `model=veo3_fast`, `generationType=FIRST_AND_LAST_FRAMES_2_VIDEO`
-  - optional validated: `aspect_ratio`, `duration`, `resolution`, `seeds (10000-99999)`, `enableTranslation`, `enableFallback`, `watermark`, `callBackUrl`
+  - optional validated: `aspect_ratio`, `duration`, `resolution`, `seeds (10000-99999)`, `enableTranslation`, `watermark`, `callBackUrl`
 - Explicit guardrails:
   - `FIRST_AND_LAST_FRAMES_2_VIDEO` supports `1-2` images.
   - `REFERENCE_2_VIDEO` supports `1-3` images and requires `aspect_ratio=16:9`.

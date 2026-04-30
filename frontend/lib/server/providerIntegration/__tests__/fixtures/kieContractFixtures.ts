@@ -11,7 +11,6 @@ export const kieVeoGenerateRequestFixture = {
   callBackUrl: "https://example.com/callback/veo",
   aspect_ratio: "16:9",
   seeds: 12345,
-  enableFallback: false,
   enableTranslation: true,
   generationType: "REFERENCE_2_VIDEO",
 } as const;

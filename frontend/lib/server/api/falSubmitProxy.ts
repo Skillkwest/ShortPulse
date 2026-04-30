@@ -634,6 +634,9 @@ export const createFalSubmitHandler = ({
             route_label: routeLabel,
             upstream_target_url: submitResult.targetUrl,
             upstream_target_index: submitResult.targetIndex,
+            provider_status_url: submitResult.providerStatusUrl,
+            provider_response_url: submitResult.providerResponseUrl,
+            provider_cancel_url: submitResult.providerCancelUrl,
             provider_diagnostics: submitResult.providerDiagnostics ?? null,
             ...(Object.keys(generationReplayContext).length > 0
               ? { generation_replay: generationReplayContext }
@@ -659,6 +662,9 @@ export const createFalSubmitHandler = ({
               generation_submit_authority: "direct",
               submit_target_url: submitResult.targetUrl,
               submit_target_index: submitResult.targetIndex,
+              provider_status_url: submitResult.providerStatusUrl,
+              provider_response_url: submitResult.providerResponseUrl,
+              provider_cancel_url: submitResult.providerCancelUrl,
               provider_diagnostics: submitResult.providerDiagnostics ?? null,
               ...(Object.keys(shortpulseContext).length > 0
                 ? { shortpulse_context: shortpulseContext }
@@ -713,6 +719,9 @@ export const createFalSubmitHandler = ({
             model_id: modelId,
             upstream_target_url: submitResult.targetUrl,
             upstream_target_index: submitResult.targetIndex,
+            provider_status_url: submitResult.providerStatusUrl,
+            provider_response_url: submitResult.providerResponseUrl,
+            provider_cancel_url: submitResult.providerCancelUrl,
           });
 
           if (!markSubmittedResult.ok) {

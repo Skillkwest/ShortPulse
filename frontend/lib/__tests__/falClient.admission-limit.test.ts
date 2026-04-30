@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { submitFalNanoBanana } from "../falClient";
+import { submitQueuedGenerationByModelId } from "../falClient";
 import { fetchWithAuth } from "../authenticatedFetch";
 
 vi.mock("../authenticatedFetch", () => ({
@@ -35,9 +35,9 @@ describe("falClient generation admission error handling", () => {
       )
     );
 
-    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
-      "You already have too many active generations. Please retry in 20 seconds."
-    );
+    await expect(
+      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+    ).rejects.toThrow("You already have too many active generations. Please retry in 20 seconds.");
   });
 
   it("surfaces shared-provider retry guidance for shared-capacity saturation", async () => {
@@ -53,9 +53,9 @@ describe("falClient generation admission error handling", () => {
       )
     );
 
-    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
-      "Shared generation capacity is busy right now. Please retry in 14 seconds."
-    );
+    await expect(
+      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+    ).rejects.toThrow("Shared generation capacity is busy right now. Please retry in 14 seconds.");
   });
 
   it("uses Retry-After header fallback when payload omits retryAfterSeconds", async () => {
@@ -72,9 +72,9 @@ describe("falClient generation admission error handling", () => {
       )
     );
 
-    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
-      "Too many active generations. Please retry in 9 seconds."
-    );
+    await expect(
+      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+    ).rejects.toThrow("Too many active generations. Please retry in 9 seconds.");
   });
 
   it("surfaces deterministic retry guidance for admission unavailable 503 payloads", async () => {
@@ -91,7 +91,9 @@ describe("falClient generation admission error handling", () => {
       )
     );
 
-    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
+    await expect(
+      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+    ).rejects.toThrow(
       "Generation admission is temporarily unavailable. Please retry in 12 seconds."
     );
   });
@@ -110,9 +112,9 @@ describe("falClient generation admission error handling", () => {
       )
     );
 
-    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
-      "Fal Nano Banana did not return a request_id"
-    );
+    await expect(
+      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+    ).rejects.toThrow("Fal Nano Banana did not return a request_id");
   });
 
   it("surfaces provider msg fields for non-admission submit failures", async () => {
@@ -126,9 +128,9 @@ describe("falClient generation admission error handling", () => {
       )
     );
 
-    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
-      "Input video URL is not publicly reachable."
-    );
+    await expect(
+      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+    ).rejects.toThrow("Input video URL is not publicly reachable.");
   });
 
   it("maps generic validation envelopes with unsafe-content detail to explicit-content copy", async () => {
@@ -143,7 +145,9 @@ describe("falClient generation admission error handling", () => {
       )
     );
 
-    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
+    await expect(
+      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+    ).rejects.toThrow(
       "This request was blocked for explicit or unsafe content. Try revising the prompt or references."
     );
   });

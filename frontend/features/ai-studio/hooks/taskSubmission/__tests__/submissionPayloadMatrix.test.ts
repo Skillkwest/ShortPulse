@@ -11,24 +11,8 @@ import { handleImageModelSubmission } from "../imageHandlers";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import { resolveSubmissionHandlerRoute } from "../routing";
 import type { ImageSubmissionArgs, VideoSubmissionArgs } from "../types";
-import {
-  submitFalBriaBackgroundRemove,
-  submitFalFluxKontextInpaint,
-  submitFalFlux2Klein,
-  submitFalFluxProFill,
-  submitFalNanoBanana,
-  submitFalNanoBananaEdit,
-  submitFalNanoBanana2,
-  submitFalNanoBanana2Edit,
-  submitFalNanoBananaPro,
-  submitFalNanoBananaProEdit,
-  submitFalSeedream,
-  submitFalSeedreamEdit,
-  submitFalSeedreamV5Lite,
-  submitFalSeedreamV5LiteEdit,
-} from "../../../../../lib/falClient";
 
-vi.mock("../../../../../lib/falClient", () => ({
+const falClientMocks = vi.hoisted(() => ({
   submitFalBriaBackgroundRemove: vi.fn(),
   submitFalFluxKontextInpaint: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
@@ -44,6 +28,63 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitFalSeedreamV5Lite: vi.fn(),
   submitFalSeedreamV5LiteEdit: vi.fn(),
 }));
+
+vi.mock("../../../../../lib/falClient", () => {
+  const submitQueuedGenerationByModelId = vi.fn((modelId: string, payload: unknown) => {
+    switch (modelId) {
+      case "fal-ai/bytedance/seedream/v4.5/text-to-image":
+        return falClientMocks.submitFalSeedream(payload);
+      case "fal-ai/bytedance/seedream/v5/lite/text-to-image":
+        return falClientMocks.submitFalSeedreamV5Lite(payload);
+      case "fal-ai/nano-banana":
+        return falClientMocks.submitFalNanoBanana(payload);
+      case "fal-ai/nano-banana-2":
+        return falClientMocks.submitFalNanoBanana2(payload);
+      case "fal-ai/nano-banana-pro":
+        return falClientMocks.submitFalNanoBananaPro(payload);
+      case "fal-ai/bria/background/remove":
+        return falClientMocks.submitFalBriaBackgroundRemove(payload);
+      case "fal-ai/flux-2/klein/9b":
+        return falClientMocks.submitFalFlux2Klein(payload);
+      case "fal-ai/flux-pro/v1/fill":
+        return falClientMocks.submitFalFluxProFill(payload);
+      case "fal-ai/flux-kontext-lora/inpaint":
+        return falClientMocks.submitFalFluxKontextInpaint(payload);
+      case "fal-ai/bytedance/seedream/v4.5/edit":
+        return falClientMocks.submitFalSeedreamEdit(payload);
+      case "fal-ai/bytedance/seedream/v5/lite/edit":
+        return falClientMocks.submitFalSeedreamV5LiteEdit(payload);
+      case "fal-ai/nano-banana/edit":
+        return falClientMocks.submitFalNanoBananaEdit(payload);
+      case "fal-ai/nano-banana-2/edit":
+        return falClientMocks.submitFalNanoBanana2Edit(payload);
+      case "fal-ai/nano-banana-pro/edit":
+        return falClientMocks.submitFalNanoBananaProEdit(payload);
+      default:
+        return Promise.reject(new Error(`Unhandled queued submit model ${modelId}`));
+    }
+  });
+  return {
+    submitQueuedGenerationByModelId,
+  };
+});
+
+const {
+  submitFalBriaBackgroundRemove,
+  submitFalFluxKontextInpaint,
+  submitFalFlux2Klein,
+  submitFalFluxProFill,
+  submitFalNanoBanana,
+  submitFalNanoBananaEdit,
+  submitFalNanoBanana2,
+  submitFalNanoBanana2Edit,
+  submitFalNanoBananaPro,
+  submitFalNanoBananaProEdit,
+  submitFalSeedream,
+  submitFalSeedreamEdit,
+  submitFalSeedreamV5Lite,
+  submitFalSeedreamV5LiteEdit,
+} = falClientMocks;
 
 type Route = "default" | "image" | "video";
 type CaseConfig = {

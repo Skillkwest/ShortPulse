@@ -277,11 +277,14 @@ export const readActiveProviderCapacitySnapshot = async ({
 
   const reservations = (Array.isArray(reservationsResponse.data) ? reservationsResponse.data : [])
     .map((row) => parseReservationRow(row))
-    .filter(
-      (row): row is ReservationRow =>
-        row !== null &&
-        resolveProviderFromModelId({ modelId: row.modelId, fallback: provider }) === provider
-    );
+    .filter((row): row is ReservationRow => {
+      if (row === null) return false;
+      try {
+        return resolveProviderFromModelId({ modelId: row.modelId }) === provider;
+      } catch {
+        return false;
+      }
+    });
 
   if (!reservations.length) {
     return {

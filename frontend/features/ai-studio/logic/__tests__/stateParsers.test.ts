@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractFalMediaUrls,
   extractResultUrls,
+  resolveTaskPollingModelId,
   resolveTaskPollingProvider,
 } from "../stateParsers";
 
@@ -98,5 +99,41 @@ describe("resolveTaskPollingProvider", () => {
         modelId: "kie-ai/seedance-2",
       })
     ).toBe("kie-seedance-2-fast");
+  });
+});
+
+describe("resolveTaskPollingModelId", () => {
+  it("resolves generic Fal outputs to the queued model id", () => {
+    expect(
+      resolveTaskPollingModelId({
+        provider: "fal",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      })
+    ).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+  });
+
+  it("resolves provider route slugs through catalog route metadata", () => {
+    expect(
+      resolveTaskPollingModelId({
+        provider: "fal-flux2-klein",
+      })
+    ).toBe("fal-ai/flux-2/klein/9b");
+  });
+
+  it("resolves active Kie provider aliases to their catalog model ids", () => {
+    expect(
+      resolveTaskPollingModelId({
+        provider: "kie-seedance-2-fast",
+      })
+    ).toBe("kie-ai/seedance-2-fast");
+  });
+
+  it("rejects provider/model pairs with no queued catalog route", () => {
+    expect(
+      resolveTaskPollingModelId({
+        provider: "fal",
+        modelId: "unknown-model",
+      })
+    ).toBeNull();
   });
 });

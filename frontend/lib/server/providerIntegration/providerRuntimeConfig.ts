@@ -277,20 +277,25 @@ export const filterTrustedKieProviderUrls = (
 };
 
 /**
- * Resolves canonical provider key from model config, defaulting to Fal.
+ * Filters Kie status routes to trusted record-info templates only.
  */
-export const resolveProviderFromModelId = ({
-  modelId,
-  fallback = "fal",
-}: {
-  modelId: string;
-  fallback?: string;
-}): string => {
+export const filterTrustedKieStatusTemplateUrls = (
+  urls: string[],
+  flags: KieRuntimeFlags = readKieRuntimeFlags()
+): string[] =>
+  filterTrustedKieProviderUrls(urls, flags).filter((url) =>
+    url.includes(REQUEST_ID_TEMPLATE_TOKEN)
+  );
+
+/**
+ * Resolves canonical provider key from model config.
+ */
+export const resolveProviderFromModelId = ({ modelId }: { modelId: string }): string => {
   const configuredProvider = getModelConfig(modelId)?.provider;
   if (typeof configuredProvider === "string" && configuredProvider.trim().length) {
     return normalizeProviderKey(configuredProvider);
   }
-  return normalizeProviderKey(fallback);
+  throw new Error(`Provider is not configured for model: ${modelId}`);
 };
 
 /**
@@ -299,16 +304,14 @@ export const resolveProviderFromModelId = ({
 export const resolveProviderFromGenerationContext = ({
   provider,
   modelId,
-  fallback = "fal",
 }: {
   provider?: string | null;
   modelId: string;
-  fallback?: string;
 }): string => {
   if (typeof provider === "string" && provider.trim().length) {
     return normalizeProviderKey(provider);
   }
-  return resolveProviderFromModelId({ modelId, fallback });
+  return resolveProviderFromModelId({ modelId });
 };
 
 /**
@@ -359,17 +362,12 @@ export const resolveKieStatusBaseUrlsForModel = (
 ): string[] => {
   assertKieRuntimeEnabledForModel({ modelId, flags });
   const catalogStatusBaseUrls = getKieStatusBaseUrlsByModelId(modelId);
-  const catalogSubmitUrl = getKieSubmitUrlByModelId(modelId);
   const baseCandidates = flags.statusBaseUrls.length
     ? flags.statusBaseUrls
     : catalogStatusBaseUrls.length
       ? catalogStatusBaseUrls
-      : flags.submitUrls.length
-        ? flags.submitUrls
-        : catalogSubmitUrl
-          ? [catalogSubmitUrl]
-          : [];
-  return filterTrustedKieProviderUrls(baseCandidates, flags);
+      : [];
+  return filterTrustedKieStatusTemplateUrls(baseCandidates, flags);
 };
 
 /**

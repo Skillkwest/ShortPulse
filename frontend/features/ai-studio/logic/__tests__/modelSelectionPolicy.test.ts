@@ -9,6 +9,7 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import type { GenerationWorkflowLane } from "../../../../lib/model-runtime/modelCatalog";
 import type { ModelOption } from "../../constants";
 import {
   CREATE_DEFAULT_MODEL_ID,
@@ -76,6 +77,9 @@ const videoReferenceOptions: ModelOption[] = [
   },
 ];
 
+const textAndImageVideoLanes: GenerationWorkflowLane[] = ["text-to-video", "image-to-video"];
+const imageVideoLanes: GenerationWorkflowLane[] = ["image-to-video"];
+
 const getModelConfig = (id: string) => {
   if (
     id === "gpt-image-2" ||
@@ -105,7 +109,6 @@ const getModelConfig = (id: string) => {
   }
   if (
     id === KIE_VEO_31_FAST_I2V_MODEL_ID ||
-    id === KIE_KLING_30_MODEL_ID ||
     id === KIE_SEEDANCE_15_PRO_MODEL_ID ||
     id === KIE_SEEDANCE_2_MODEL_ID ||
     id === KIE_SEEDANCE_2_FAST_MODEL_ID
@@ -114,6 +117,15 @@ const getModelConfig = (id: string) => {
       provider: "kie",
       supportsTextToImage: false,
       supportsImageToImage: false,
+      generationLanes: textAndImageVideoLanes,
+    };
+  }
+  if (id === KIE_KLING_30_MODEL_ID) {
+    return {
+      provider: "kie",
+      supportsTextToImage: false,
+      supportsImageToImage: false,
+      generationLanes: imageVideoLanes,
     };
   }
 
@@ -326,7 +338,6 @@ describe("modelSelectionPolicy", () => {
 
     expect(values).toEqual([
       KIE_VEO_31_FAST_I2V_MODEL_ID,
-      KIE_KLING_30_MODEL_ID,
       KIE_SEEDANCE_15_PRO_MODEL_ID,
       KIE_SEEDANCE_2_MODEL_ID,
       KIE_SEEDANCE_2_FAST_MODEL_ID,

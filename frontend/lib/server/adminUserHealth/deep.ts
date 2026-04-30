@@ -27,6 +27,7 @@ export const asLookupMode = (value: unknown): DeepLookupMode => {
 };
 
 export const asPositiveInt = (value: unknown, fallback: number): number => {
+  if (value === null || typeof value === "undefined" || value === "") return fallback;
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.trunc(parsed));

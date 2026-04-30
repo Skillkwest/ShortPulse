@@ -145,7 +145,6 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const normalizedConversationId = requestEnvelope.value.clientSessionKey;
   let messages = requestEnvelope.value.messages;
   let context = requestEnvelope.value.context;
-  const incomingCanonical = requestEnvelope.value.incomingCanonical;
   if (!context.pulse) {
     return sendStudioAgentError(res, 400, {
       code: "INVALID_REQUEST",
@@ -241,8 +240,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const coordinatorOpenAiModel = workflowPulseActive ? openAiPulseModel : openAiModel;
   const coordinatorTurnTimeoutMs = workflowPulseActive ? pulseTurnTimeoutMs : turnTimeoutMs;
 
-  const canonicalPrompt = incomingCanonical ?? null;
-  let effectiveCanonical = clampCanonicalPrompt(canonicalPrompt);
+  let effectiveCanonical: string | null = null;
 
   const selectedReferencesBeforePrecheck = pickSelectedReferencesForThinker(context);
   const orchestrationBeforePrecheck = buildStudioAgentOrchestration({

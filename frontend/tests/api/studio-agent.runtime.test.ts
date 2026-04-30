@@ -478,6 +478,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
     );
 
     expect(pulseRuntime).not.toContain("readStudioAgentCanonicalPrompt");
+    expect(pulseRuntime).not.toContain("incomingCanonical");
     expect(pulseRuntime).not.toContain("STUDIO_AGENT_SYSTEM");
     expect(pulseRuntime).toContain("STUDIO_AGENT_WORKFLOW_SYSTEM prompt missing");
     expect(pulseRuntime).toContain("canonicalDbEnabled: false");

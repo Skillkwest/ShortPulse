@@ -1,6 +1,6 @@
 /**
- * Admin kanban board section.
- * Provides the shared operator task board on the admin kanban page.
+ * Ophestivus board section.
+ * Provides the shared operator task board on the admin Ophestivus page.
  */
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, DotsSixVertical, Plus, Trash } from "phosphor-react";
@@ -30,9 +30,9 @@ const readItemPayload = async (response: Response): Promise<AdminKanbanItem | nu
 };
 
 /**
- * Renders the shared admin kanban board with add, move, drag/drop, and archive controls.
+ * Renders the shared Ophestivus board with add, move, drag/drop, and archive controls.
  * Inputs: none.
- * Outputs: the kanban board UI.
+ * Outputs: the Ophestivus board UI.
  * Side effects: reads and writes the admin kanban API through the active Supabase session.
  */
 export function AdminKanbanBoardSection() {
@@ -188,7 +188,7 @@ export function AdminKanbanBoardSection() {
         <div className={styles.boardTitleBlock}>
           <p className={styles.boardEyebrow}>Task board</p>
           <h2 id="admin-kanban-title" className={styles.boardTitle}>
-            Admin kanban
+            Ophestivus
           </h2>
           <p className={styles.boardDescription}>
             Track operator to-do items from backlog through published. This board is shared across

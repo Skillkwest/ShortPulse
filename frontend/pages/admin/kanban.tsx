@@ -1,6 +1,6 @@
 /**
- * Admin kanban page.
- * Hosts the operator task board as a dedicated admin workspace.
+ * Admin Ophestivus page.
+ * Hosts the operator task board as Ophestivus's dedicated admin workspace.
  */
 import { AdminKanbanBoardSection } from "../../features/admin/components/AdminKanbanBoardSection";
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
@@ -30,9 +30,9 @@ export default function AdminKanbanPage() {
       adminAccessStatus={adminAccessStatus}
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
-      documentTitle="ShortPulse · Admin Kanban"
-      metaDescription="Admin kanban workspace for operator task tracking."
-      pageTitle="Kanban board"
+      documentTitle="ShortPulse · Admin Ophestivus"
+      metaDescription="Ophestivus workspace for operator task tracking."
+      pageTitle="Ophestivus"
       pageDescription="Track shared operator tasks from backlog through published without mixing task planning into support account workflows."
       userEmail={user?.email}
       currentPath="/admin/kanban"

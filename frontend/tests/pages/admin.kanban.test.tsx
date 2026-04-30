@@ -1,6 +1,6 @@
 /**
- * Admin kanban page tests.
- * Verifies the standalone kanban route uses the admin shell and renders the board.
+ * Admin Ophestivus page tests.
+ * Verifies the standalone Ophestivus route uses the admin shell and renders the board.
  */
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -42,7 +42,7 @@ vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
-describe("Admin kanban page", () => {
+describe("Admin Ophestivus page", () => {
   beforeEach(() => {
     fetchWithAuthMock.mockReset();
     fetchWithAuthMock.mockResolvedValue(
@@ -67,9 +67,12 @@ describe("Admin kanban page", () => {
   it("renders the standalone kanban workspace", () => {
     render(<AdminKanbanPage />);
 
-    expect(screen.getByRole("heading", { name: "Kanban board" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Admin kanban" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Kanban" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("heading", { level: 1, name: "Ophestivus" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "Ophestivus" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ophestivus" })).toHaveAttribute(
+      "aria-current",
+      "page"
+    );
     expect(screen.getByLabelText("Admin task status columns")).toBeInTheDocument();
   });
 });

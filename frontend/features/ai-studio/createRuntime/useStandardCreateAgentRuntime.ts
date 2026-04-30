@@ -23,6 +23,7 @@ import { standardCreateAgentRuntimeBinding } from "../hooks/agentBridgeRuntime/s
 import type { AgentModeHint } from "../hooks/agentOrchestration/types";
 import { runStandardCreateAgentSend } from "../hooks/agentOrchestration/runStandardCreateAgentSend";
 import { useStandardCreatePromptEnhance } from "../hooks/agentOrchestration/useStandardCreatePromptEnhance";
+import { useStandardCreateChatMode } from "../hooks/standardCreateRuntime/useStandardCreateChatMode";
 import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
@@ -45,8 +46,8 @@ type UseStandardCreateAgentRuntimeParams = {
   mode: StudioMode;
   selectedTool: ToolId | null;
   prompt: string;
-  chatModeEnabled: boolean;
-  setChatModeEnabled: Dispatch<SetStateAction<boolean>>;
+  projectId?: string | null;
+  projectRouteRequested?: boolean;
   getAgentContext: StandardCreateAgentContextResolver;
   setSharedPrompt: (value: string) => void;
   addAgentPromptReference: (promptText: string, title?: string) => void;
@@ -112,8 +113,8 @@ export const useStandardCreateAgentRuntime = ({
   mode,
   selectedTool,
   prompt,
-  chatModeEnabled,
-  setChatModeEnabled,
+  projectId,
+  projectRouteRequested,
   getAgentContext,
   setSharedPrompt,
   addAgentPromptReference,
@@ -151,6 +152,13 @@ export const useStandardCreateAgentRuntime = ({
   const agentUiBusyRef = useRef(false);
   const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
   const [promptOrigin, setPromptOrigin] = useState<PromptOrigin>("manual");
+  const {
+    standardChatModeEnabled: chatModeEnabled,
+    setStandardChatModeEnabled: setChatModeEnabled,
+  } = useStandardCreateChatMode({
+    projectId,
+    projectRouteRequested,
+  });
   const preparedImageUrlCacheRef = useRef<Map<string, { safeUrl: string; expiresAtMs: number }>>(
     new Map()
   );

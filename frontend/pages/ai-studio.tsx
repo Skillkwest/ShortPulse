@@ -66,7 +66,6 @@ import { buildStandardCreateRuntimeResult } from "../features/ai-studio/createRu
 import { usePulseCreateAgentRuntime } from "../features/ai-studio/createRuntime/usePulseCreateAgentRuntime";
 import { useStandardCreateAgentRuntime } from "../features/ai-studio/createRuntime/useStandardCreateAgentRuntime";
 import { usePulseCreatePrimarySubmit } from "../features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit";
-import { useStandardCreateChatMode } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateChatMode";
 import { useStandardCreateInlineGenerate } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateInlineGenerate";
 import { useStandardCreatePrimarySubmit } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit";
 import type {
@@ -177,10 +176,6 @@ export default function AiStudioPage() {
     refreshProject,
     updateProjectTitle,
   } = useAiStudioProjectIdentity();
-  const { standardChatModeEnabled, setStandardChatModeEnabled } = useStandardCreateChatMode({
-    projectId,
-    projectRouteRequested,
-  });
   const shouldGateSessionPersistence = Boolean(projectId) && projectStatus !== "ready";
   const activeSessionPersistenceSessionId = shouldGateSessionPersistence ? null : sessionId;
   const sessionPersistenceTitleOverride = project?.title ?? localSessionTitleOverride;
@@ -792,8 +787,8 @@ export default function AiStudioPage() {
     mode,
     selectedTool,
     prompt: standardPrompt,
-    chatModeEnabled: standardChatModeEnabled,
-    setChatModeEnabled: setStandardChatModeEnabled,
+    projectId,
+    projectRouteRequested,
     getAgentContext: standardCreateAgentContextResolver,
     setSharedPrompt,
     addAgentPromptReference,

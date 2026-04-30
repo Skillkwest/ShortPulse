@@ -634,13 +634,19 @@ describe("Create agent mode boundaries", () => {
   it("keeps Standard chat-mode preference ownership out of the shared bridge", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
     const bridgeSource = readFrontendFile("features/ai-studio/hooks/useAiStudioAgentBridge.ts");
+    const standardRuntimeSource = readFrontendFile(
+      "features/ai-studio/createRuntime/useStandardCreateAgentRuntime.ts"
+    );
     const standardChatModeSource = readFrontendFile(
       "features/ai-studio/hooks/standardCreateRuntime/useStandardCreateChatMode.ts"
     );
 
-    expect(pageSource).toContain("useStandardCreateChatMode");
-    expect(pageSource).toContain("standardChatModeEnabled");
-    expect(pageSource).toContain("setStandardChatModeEnabled");
+    expect(pageSource).not.toContain("useStandardCreateChatMode");
+    expect(pageSource).not.toContain("standardChatModeEnabled");
+    expect(pageSource).not.toContain("setStandardChatModeEnabled");
+    expect(standardRuntimeSource).toContain("useStandardCreateChatMode");
+    expect(standardRuntimeSource).toContain("standardChatModeEnabled");
+    expect(standardRuntimeSource).toContain("setStandardChatModeEnabled");
     expect(bridgeSource).not.toContain("readChatModeFromStorage");
     expect(bridgeSource).not.toContain("writeChatModeToStorage");
     expect(standardChatModeSource).toContain("readChatModeFromStorage");

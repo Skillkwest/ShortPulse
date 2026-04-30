@@ -63,6 +63,23 @@ export type ProjectGenerationItemRow = {
   user_id?: string | null;
 };
 
+export type GenerationProjectionProjectRow = {
+  project_id: string | null;
+  generation_id: string | null;
+  user_id?: string | null;
+};
+
+export type GenerationProjectionBillingRow = {
+  generation_id: string | null;
+  source_ref: string | null;
+  request_id: string | null;
+  provider_request_id: string | null;
+  status: string | null;
+  task_state: string | null;
+  result_urls?: unknown;
+  preview_url?: string | null;
+};
+
 export type ReservationRow = {
   id: string;
   status: string | null;
@@ -239,6 +256,8 @@ export type BuildAdminHealthResponseArgs = {
   attempts: AttemptRow[];
   outputs: OutputRow[];
   projectGenerationItems?: ProjectGenerationItemRow[];
+  generationProjectionProjects?: GenerationProjectionProjectRow[];
+  generationProjectionBillingRows?: GenerationProjectionBillingRow[];
   activeProjectIds?: string[];
   reservations: ReservationRow[];
   ledger: NormalizedLedgerRow[];
@@ -247,9 +266,21 @@ export type BuildAdminHealthResponseArgs = {
 
 const toDayKey = (timestampMs: number): string => new Date(timestampMs).toISOString().slice(0, 10);
 
+const isUserAbandonedNoRefundGeneration = (row: GenerationRow | null | undefined): boolean => {
+  if (!row) return false;
+  const metadata = asRecord(row.metadata);
+  return (
+    row.failure_reason_code === "user_abandoned" ||
+    metadata.user_abandoned === true ||
+    metadata.abandoned_no_refund === true
+  );
+};
+
 const buildWindowGenerationSummary = (rows: GenerationRow[]) => {
   const success = rows.filter((row) => row.status === "success").length;
-  const fail = rows.filter((row) => row.status === "fail").length;
+  const fail = rows.filter(
+    (row) => row.status === "fail" && !isUserAbandonedNoRefundGeneration(row)
+  ).length;
   return {
     total: rows.length,
     success,
@@ -294,6 +325,8 @@ export const buildAdminHealthResponse = ({
   attempts,
   outputs,
   projectGenerationItems = [],
+  generationProjectionProjects = [],
+  generationProjectionBillingRows = [],
   activeProjectIds,
   reservations,
   ledger,
@@ -345,7 +378,7 @@ export const buildAdminHealthResponse = ({
   });
 
   const projectGenerationAssociationKeys = new Set<string>();
-  projectGenerationItems.forEach((row) => {
+  [...projectGenerationItems, ...generationProjectionProjects].forEach((row) => {
     const projectId = asTrimmedString(row.project_id);
     const generationId = asTrimmedString(row.generation_id);
     if (!projectId || !generationId) return;
@@ -358,6 +391,31 @@ export const buildAdminHealthResponse = ({
     if (!reservationBySourceRef.has(row.source_ref)) {
       reservationBySourceRef.set(row.source_ref, row);
     }
+  });
+  const projectionBillingBySourceRef = new Map<string, GenerationProjectionBillingRow>();
+  const projectionBillingByProviderRequestId = new Map<string, GenerationProjectionBillingRow>();
+  generationProjectionBillingRows.forEach((row) => {
+    if (row.source_ref && !projectionBillingBySourceRef.has(row.source_ref)) {
+      projectionBillingBySourceRef.set(row.source_ref, row);
+    }
+    if (
+      row.provider_request_id &&
+      !projectionBillingByProviderRequestId.has(row.provider_request_id)
+    ) {
+      projectionBillingByProviderRequestId.set(row.provider_request_id, row);
+    }
+    if (row.request_id && !projectionBillingByProviderRequestId.has(row.request_id)) {
+      projectionBillingByProviderRequestId.set(row.request_id, row);
+    }
+  });
+  const remainingRefundCentsBySourceRef = new Map<string, number>();
+  ledger.forEach((row) => {
+    if (row.change_cents <= 0 || !row.source_ref) return;
+    if (row.source !== "generation_refund") return;
+    remainingRefundCentsBySourceRef.set(
+      row.source_ref,
+      (remainingRefundCentsBySourceRef.get(row.source_ref) ?? 0) + row.change_cents
+    );
   });
 
   const lookbackMs = lookbackDays * DAY_MS;
@@ -399,7 +457,7 @@ export const buildAdminHealthResponse = ({
     }
     if (change >= 0) return;
 
-    const debitAbs = Math.abs(change);
+    let debitAbs = Math.abs(change);
     totalDebitsCentsAbs += debitAbs;
     if (row.source === "generation_charge") {
       generationDebitsCentsAbs += debitAbs;
@@ -439,8 +497,19 @@ export const buildAdminHealthResponse = ({
     if (row.source === "generation_charge" && row.created_at) {
       const createdAtMsForCost = parseTimestamp(row.created_at);
       if (createdAtMsForCost !== null && nowMs - createdAtMsForCost <= lookbackMs) {
+        if (row.source_ref) {
+          const remainingRefund = remainingRefundCentsBySourceRef.get(row.source_ref) ?? 0;
+          if (remainingRefund > 0) {
+            const appliedRefund = Math.min(remainingRefund, debitAbs);
+            remainingRefundCentsBySourceRef.set(row.source_ref, remainingRefund - appliedRefund);
+            debitAbs -= appliedRefund;
+          }
+        }
+        if (debitAbs <= 0) return;
+
         let generationStatus: string | null = null;
         let canonicalSuccessEvidence = false;
+        let intentionalNoRefundAbandonment = false;
         let bucket: "linked_non_success_generation" | "missing_linkage_data" =
           "missing_linkage_data";
         let reason = "No linked reservation found for charge row.";
@@ -454,7 +523,12 @@ export const buildAdminHealthResponse = ({
             canonicalSuccessEvidence =
               generation?.id !== undefined &&
               (outputCountByGenerationId.get(generation.id) ?? 0) > 0;
-            if (generationStatus === "success" || canonicalSuccessEvidence) {
+            intentionalNoRefundAbandonment = isUserAbandonedNoRefundGeneration(generation);
+            if (
+              generationStatus === "success" ||
+              canonicalSuccessEvidence ||
+              intentionalNoRefundAbandonment
+            ) {
               reason = "";
             } else if (generationStatus) {
               reason = `Linked generation is ${generationStatus}.`;
@@ -464,12 +538,35 @@ export const buildAdminHealthResponse = ({
             }
           } else if (reservation) {
             reason = "Reservation has no provider_request_id linkage.";
+          } else {
+            const projection =
+              projectionBillingBySourceRef.get(row.source_ref) ??
+              projectionBillingByProviderRequestId.get(
+                typeof row.metadata?.provider_request_id === "string"
+                  ? row.metadata.provider_request_id
+                  : ""
+              );
+            const projectionStatus = projection?.task_state ?? projection?.status ?? null;
+            generationStatus = projectionStatus;
+            const projectionResultUrls = Array.isArray(projection?.result_urls)
+              ? projection.result_urls
+              : [];
+            canonicalSuccessEvidence =
+              projectionStatus === "success" &&
+              (projectionResultUrls.length > 0 || Boolean(projection?.preview_url));
+            reason = canonicalSuccessEvidence
+              ? ""
+              : "No reservation linkage and no successful projection media found for charge row.";
           }
         } else {
           reason = "Generation charge row has no source_ref.";
         }
 
-        if (generationStatus !== "success" && !canonicalSuccessEvidence) {
+        if (
+          generationStatus !== "success" &&
+          !canonicalSuccessEvidence &&
+          !intentionalNoRefundAbandonment
+        ) {
           costWithoutSuccessCents += debitAbs;
           costWithoutSuccessRows += 1;
           if (costWithoutSuccessSample.length < 20) {
@@ -761,12 +858,12 @@ export const buildAdminHealthResponse = ({
       "critical",
       "high",
       "PROJECT_GENERATION_ASSOCIATION_DRIFT",
-      "Project-scoped successful generations are missing project associations.",
-      `${projectScopedSuccessMissingAssociation.length} project-scoped success row(s) have no matching project_generation_items association.`,
+      "Project-scoped successful generations are missing project visibility links.",
+      `${projectScopedSuccessMissingAssociation.length} project-scoped success row(s) have neither a generation_projection project_id nor a project_generation_items association.`,
       [
-        "Backfill project_generation_items for the listed project/generation pairs.",
-        "Verify each active generation lane writes project associations server-side.",
-        "Reload the affected project workspace after the association exists.",
+        "Backfill generation_projection.project_id for the listed project/generation pairs.",
+        "Verify each active generation lane writes project_id into the canonical projection.",
+        "Reload the affected project workspace after the projection is repaired.",
       ]
     );
   }

@@ -4,7 +4,11 @@
  */
 import { useCallback, useEffect, useRef } from "react";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
-import { resolveVisibleGenerationReconcile } from "../logic/generatedMediaAuthority";
+import {
+  resolveGenerationProjectionLifecycle,
+  resolveVisibleGenerationReconcile,
+  type GenerationProjectionLifecycle,
+} from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import { resolveTaskPollingProvider, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
@@ -56,11 +60,23 @@ const hasSettledOutputPayload = (output: StudioOutput): boolean => {
 
 const isVisibleGenerationWatchdogEligible = (output: StudioOutput): boolean => {
   if (output.mediaSource !== "generated") return false;
+  if (output.hiddenInReferenceGrid === true) return false;
   if (hasSettledOutputLifecycle(output)) return false;
   if (!isOutputLifecycleInFlight(output) && hasSettledOutputPayload(output)) return false;
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
   const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
   return generationId.length > 0 || taskId.length > 0;
+};
+
+const resolveProjectionFailureMessage = (
+  projectionLifecycle: GenerationProjectionLifecycle
+): { message: string; detail: string } => {
+  const detail = projectionLifecycle.errorDetail?.trim() || projectionLifecycle.errorMessageShort;
+  const message = projectionLifecycle.errorMessageShort?.trim() || detail || "Generation failed.";
+  return {
+    message,
+    detail: detail || message,
+  };
 };
 
 /**
@@ -169,6 +185,41 @@ export const useAiStudioTaskOrchestration = ({
 
       void (async () => {
         try {
+          const projectionLifecycle = await resolveGenerationProjectionLifecycle({
+            generationId: generationId || undefined,
+            requestId: requestId || undefined,
+            ...(projectId ? { projectId } : {}),
+          });
+          if (
+            projectionLifecycle?.taskState === "fail" ||
+            projectionLifecycle?.hiddenInReferenceGrid === true ||
+            projectionLifecycle?.referenceGridVisible === false
+          ) {
+            if (abandonedOutputIdsRef.current.has(output.id)) return;
+            if (!findOutputById(output.id)) return;
+            const failure = resolveProjectionFailureMessage(projectionLifecycle);
+            updateOutputById(output.id, (item) => ({
+              ...item,
+              generationId: item.generationId ?? projectionLifecycle.generationId,
+              status: "ready",
+              taskState: projectionLifecycle.taskState === "fail" ? "fail" : item.taskState,
+              queueState: projectionLifecycle.queueState ?? item.queueState,
+              timestamp: projectionLifecycle.taskState === "fail" ? "Failed" : item.timestamp,
+              hiddenInReferenceGrid:
+                projectionLifecycle.hiddenInReferenceGrid === true ||
+                projectionLifecycle.referenceGridVisible === false
+                  ? true
+                  : item.hiddenInReferenceGrid,
+              errorMessage:
+                projectionLifecycle.taskState === "fail" ? failure.message : item.errorMessage,
+              errorMessageShort:
+                projectionLifecycle.taskState === "fail" ? failure.message : item.errorMessageShort,
+              errorDetail:
+                projectionLifecycle.taskState === "fail" ? failure.detail : item.errorDetail,
+            }));
+            return;
+          }
+
           const visibleGeneration = await resolveVisibleGenerationReconcile({
             generationId: generationId || undefined,
             requestId: requestId || undefined,

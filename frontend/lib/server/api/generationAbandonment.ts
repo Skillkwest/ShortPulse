@@ -1,8 +1,12 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { settleGenerationOutcome } from "./generationBilling";
 
 type JsonObject = Record<string, unknown>;
 
 type SupabaseAdmin = ReturnType<typeof getSupabaseAdmin>;
+
+const ABANDONED_ERROR_MESSAGE = "Generation abandoned by user.";
+const ABANDONED_FAILURE_REASON_CODE = "user_abandoned";
 
 export type GenerationAbandonmentIdentifiers = {
   userId: string;
@@ -68,6 +72,11 @@ const buildAbandonedMetadata = ({
   abandoned_no_refund: noRefund,
   hidden_in_reference_grid: true,
 });
+
+const isActiveGenerationStatus = (value: unknown): boolean => {
+  const normalized = normalizeString(value)?.toLowerCase();
+  return normalized === "pending" || normalized === "submitted" || normalized === "running";
+};
 
 const resolveGenerationIds = async ({
   adminClient,
@@ -220,28 +229,82 @@ export const recordGenerationAbandonment = async ({
     matchedGenerationIds.map(async (id) => {
       const { data } = await adminClient
         .from("ai_generations")
-        .select("metadata")
+        .select("metadata, request_id, status")
         .eq("id", id)
         .eq("user_id", userId)
         .maybeSingle();
+      const generationRow = asObject(data);
       const nextMetadata = buildAbandonedMetadata({
-        metadata:
-          data && typeof data === "object" ? (data as Record<string, unknown>).metadata : {},
+        metadata: generationRow.metadata,
         nowIso,
         reason,
         noRefund,
       });
+      const providerRequestId = normalizeString(generationRow.request_id) ?? normalizedRequestId;
+      const shouldCloseGeneration = isActiveGenerationStatus(generationRow.status);
+      const generationPayload: Record<string, unknown> = { metadata: nextMetadata };
+      if (shouldCloseGeneration) {
+        generationPayload.status = "fail";
+        generationPayload.completed_at = nowIso;
+        generationPayload.failure_reason_code = ABANDONED_FAILURE_REASON_CODE;
+        generationPayload.error_message = ABANDONED_ERROR_MESSAGE;
+        generationPayload.recovery_state = "exhausted";
+        generationPayload.next_recovery_at = null;
+        generationPayload.last_recovery_at = nowIso;
+      }
       const generationUpdate = await adminClient
         .from("ai_generations")
-        .update({ metadata: nextMetadata })
+        .update(generationPayload)
         .eq("id", id)
         .eq("user_id", userId);
       if (generationUpdate.error) {
         throw new Error(generationUpdate.error.message || "Failed to mark generation abandoned.");
       }
+      if (shouldCloseGeneration) {
+        const attemptUpdate = await adminClient
+          .from("generation_attempts")
+          .update({
+            status: "abandoned",
+            completed_at: nowIso,
+            error_message: ABANDONED_ERROR_MESSAGE,
+          })
+          .eq("generation_id", id)
+          .eq("user_id", userId);
+        if (attemptUpdate.error) {
+          throw new Error(
+            attemptUpdate.error.message || "Failed to mark generation attempt abandoned."
+          );
+        }
+        if (providerRequestId) {
+          await settleGenerationOutcome({
+            userId,
+            providerRequestId,
+            outcome: "fail",
+            reason: ABANDONED_ERROR_MESSAGE,
+            routeLabel: "generation-abandon",
+            abandonedNoRefund: noRefund,
+            detail: {
+              generation_id: id,
+              abandon_reason: reason,
+              abandoned_at: nowIso,
+            },
+          });
+        }
+      }
       const projectionUpdate = await adminClient
         .from("generation_projection")
         .update({
+          ...(shouldCloseGeneration
+            ? {
+                status: "ready",
+                task_state: "fail",
+                queue_state: "failed",
+                error_message: ABANDONED_ERROR_MESSAGE,
+                error_message_short: ABANDONED_ERROR_MESSAGE,
+                error_detail: ABANDONED_ERROR_MESSAGE,
+                completed_at: nowIso,
+              }
+            : {}),
           hidden_in_reference_grid: true,
           reference_grid_visible: false,
           publication_state: "suppressed",

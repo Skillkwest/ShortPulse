@@ -263,6 +263,154 @@ describe("buildAdminHealthResponse", () => {
     );
   });
 
+  it("does not classify user-abandoned no-refund captures as billing leakage", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user-1",
+      lookupMode: "user_id",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,recovery_state,request_id,metadata",
+      reservationsSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: null,
+      generations: [
+        {
+          id: "gen-abandoned",
+          status: "fail",
+          recovery_state: "exhausted",
+          provider: "fal",
+          model_id: "fal-ai/nano-banana-2/edit",
+          request_id: "req-abandoned",
+          created_at: "2026-03-17T11:30:00.000Z",
+          completed_at: "2026-03-17T11:35:00.000Z",
+          failure_reason_code: "user_abandoned",
+          next_recovery_at: null,
+          metadata: {
+            user_abandoned: true,
+            abandoned_no_refund: true,
+          },
+        },
+      ],
+      attempts: [],
+      outputs: [],
+      reservations: [
+        {
+          id: "res-abandoned",
+          status: "captured",
+          source_ref: "src-abandoned",
+          provider_request_id: "req-abandoned",
+          model_id: "fal-ai/nano-banana-2/edit",
+          amount_cents: 10,
+          metadata: {
+            debited_credits: 10,
+          },
+          created_at: "2026-03-17T11:30:00.000Z",
+          released_at: null,
+          captured_at: "2026-03-17T11:35:00.000Z",
+        },
+      ],
+      ledger: [
+        {
+          id: "ledger-abandoned",
+          user_id: "user-1",
+          change_cents: -10,
+          reason: "generation charge",
+          source: "generation_charge",
+          source_ref: "src-abandoned",
+          metadata: null,
+          created_at: "2026-03-17T11:35:00.000Z",
+        },
+      ],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.generations.last24h.fail).toBe(0);
+    expect(result.drainage.costWithoutSuccessfulGeneration.debitCents).toBe(0);
+    expect(result.findings.map((finding) => finding.code)).not.toEqual(
+      expect.arrayContaining(["HIGH_FAIL_RATE_24H", "CHARGED_LINKED_NON_SUCCESS_GENERATION"])
+    );
+  });
+
+  it("nets generation refunds and direct projection success before flagging charge leakage", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user-1",
+      lookupMode: "user_id",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,recovery_state,request_id,metadata",
+      reservationsSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: null,
+      generations: [],
+      attempts: [],
+      outputs: [],
+      reservations: [],
+      generationProjectionBillingRows: [
+        {
+          generation_id: "gen-audio",
+          source_ref: "src-audio",
+          request_id: "src-audio",
+          provider_request_id: "provider-audio",
+          status: "success",
+          task_state: "success",
+          result_urls: ["https://cdn.test/audio.mp3"],
+          preview_url: "https://cdn.test/audio.mp3",
+        },
+      ],
+      ledger: [
+        {
+          id: "ledger-openai-charge",
+          user_id: "user-1",
+          change_cents: -20,
+          reason: "openai image generation",
+          source: "generation_charge",
+          source_ref: "src-refunded",
+          metadata: null,
+          created_at: "2026-03-17T11:00:00.000Z",
+        },
+        {
+          id: "ledger-openai-refund",
+          user_id: "user-1",
+          change_cents: 20,
+          reason: "Auto-refund: OpenAI image generation failed.",
+          source: "generation_refund",
+          source_ref: "src-refunded",
+          metadata: null,
+          created_at: "2026-03-17T11:00:01.000Z",
+        },
+        {
+          id: "ledger-audio-charge",
+          user_id: "user-1",
+          change_cents: -5,
+          reason: "elevenlabs text to speech generation",
+          source: "generation_charge",
+          source_ref: "src-audio",
+          metadata: {
+            provider_request_id: "provider-audio",
+          },
+          created_at: "2026-03-17T11:05:00.000Z",
+        },
+      ],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.drainage.costWithoutSuccessfulGeneration.debitCents).toBe(0);
+    expect(result.findings.map((finding) => finding.code)).not.toEqual(
+      expect.arrayContaining([
+        "CHARGED_MISSING_LINKAGE_DATA",
+        "CHARGED_LINKED_NON_SUCCESS_GENERATION",
+      ])
+    );
+  });
+
   it("surfaces generation output, project association, and terminal hold invariants", () => {
     const result = buildAdminHealthResponse({
       lookup: "user-1",
@@ -413,6 +561,68 @@ describe("buildAdminHealthResponse", () => {
       ],
       projectGenerationItems: [],
       activeProjectIds: ["active-project"],
+      reservations: [],
+      ledger: [],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.findings.map((finding) => finding.code)).not.toContain(
+      "PROJECT_GENERATION_ASSOCIATION_DRIFT"
+    );
+    expect(result.generations.projectScopedSuccessMissingAssociationCount).toBe(0);
+  });
+
+  it("does not flag missing project_generation_items when projection owns project visibility", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user@example.com",
+      lookupMode: "email",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,metadata",
+      reservationsSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: null,
+      generations: [
+        {
+          id: "gen-projection-project",
+          status: "success",
+          recovery_state: null,
+          provider: "fal",
+          model_id: "fal-ai/nano-banana",
+          request_id: "req-projection-project",
+          created_at: "2026-03-17T11:00:00.000Z",
+          completed_at: "2026-03-17T11:01:00.000Z",
+          failure_reason_code: null,
+          next_recovery_at: null,
+          metadata: {
+            shortpulse_context: {
+              project_id: "project-1",
+            },
+          },
+        },
+      ],
+      attempts: [],
+      outputs: [
+        {
+          id: "output-1",
+          generation_id: "gen-projection-project",
+          media_file_id: "media-1",
+          created_at: "2026-03-17T11:06:00.000Z",
+        },
+      ],
+      projectGenerationItems: [],
+      generationProjectionProjects: [
+        {
+          project_id: "project-1",
+          generation_id: "gen-projection-project",
+          user_id: "user-1",
+        },
+      ],
+      activeProjectIds: ["project-1"],
       reservations: [],
       ledger: [],
       nowMs: Date.parse("2026-03-17T12:00:00.000Z"),

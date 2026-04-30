@@ -3,21 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "../useAiStudioTasks";
 import { MAX_CONCURRENT_STATUS_REQUESTS } from "../taskPolling/pollingSchedulePolicy";
-import { resolveVisibleGenerationReconcile } from "../../logic/generatedMediaAuthority";
 import {
-  fetchFalBriaBackgroundRemoveStatus,
-  fetchFalNanoBananaStatus,
-  fetchFalSeedreamStatus,
-  fetchKieKlingImageToVideoStatus,
-  fetchKieSeedanceVideoStatus,
-  fetchKieVeoImageToVideoStatus,
-} from "../../../../lib/falClient";
+  resolveGenerationProjectionLifecycle,
+  resolveVisibleGenerationReconcile,
+} from "../../logic/generatedMediaAuthority";
+import type { FalStatusResponse } from "../../../../lib/falClient";
 
-vi.mock("../../../../lib/clientBreadcrumbs", () => ({
-  addBreadcrumb: vi.fn(),
-}));
-
-vi.mock("../../../../lib/falClient", () => ({
+const falClientMocks = vi.hoisted(() => ({
   fetchFalBriaBackgroundRemoveStatus: vi.fn(),
   fetchFalFlux2KleinStatus: vi.fn(),
   fetchFalNanoBananaStatus: vi.fn(),
@@ -30,7 +22,44 @@ vi.mock("../../../../lib/falClient", () => ({
   fetchKieSeedanceVideoStatus: vi.fn(),
 }));
 
+vi.mock("../../../../lib/clientBreadcrumbs", () => ({
+  addBreadcrumb: vi.fn(),
+}));
+
+vi.mock("../../../../lib/falClient", () => {
+  const fetchQueuedGenerationStatusByModelId = vi.fn((modelId: string, requestId: string) => {
+    switch (modelId) {
+      case "fal-ai/bria/background/remove":
+        return falClientMocks.fetchFalBriaBackgroundRemoveStatus(requestId);
+      case "fal-ai/flux-2/klein/9b":
+        return falClientMocks.fetchFalFlux2KleinStatus(requestId);
+      case "fal-ai/nano-banana":
+        return falClientMocks.fetchFalNanoBananaStatus(requestId);
+      case "fal-ai/nano-banana/edit":
+        return falClientMocks.fetchFalNanoBananaEditStatus(requestId);
+      case "fal-ai/nano-banana-pro":
+        return falClientMocks.fetchFalNanoBananaProStatus(requestId);
+      case "fal-ai/nano-banana-pro/edit":
+        return falClientMocks.fetchFalNanoBananaProEditStatus(requestId);
+      case "fal-ai/bytedance/seedream/v4.5/text-to-image":
+        return falClientMocks.fetchFalSeedreamStatus(requestId);
+      case "kie-ai/veo-3.1-fast-i2v":
+        return falClientMocks.fetchKieVeoImageToVideoStatus(requestId);
+      case "kie-ai/kling-3.0":
+        return falClientMocks.fetchKieKlingImageToVideoStatus(requestId);
+      case "kie-ai/seedance-1.5-pro":
+        return falClientMocks.fetchKieSeedanceVideoStatus(requestId);
+      default:
+        return Promise.reject(new Error(`Unhandled mocked model id ${modelId}`));
+    }
+  });
+  return {
+    fetchQueuedGenerationStatusByModelId,
+  };
+});
+
 vi.mock("../../logic/generatedMediaAuthority", () => ({
+  resolveGenerationProjectionLifecycle: vi.fn(),
   resolveVisibleGenerationReconcile: vi.fn(),
 }));
 
@@ -56,22 +85,12 @@ const createDeferred = <T>() => {
   return { promise, resolve, reject };
 };
 
-const asFalNanoBananaStatusResponse = (
-  value: unknown
-): Awaited<ReturnType<typeof fetchFalNanoBananaStatus>> =>
-  value as Awaited<ReturnType<typeof fetchFalNanoBananaStatus>>;
-const asKieVeoStatusResponse = (
-  value: unknown
-): Awaited<ReturnType<typeof fetchKieVeoImageToVideoStatus>> =>
-  value as Awaited<ReturnType<typeof fetchKieVeoImageToVideoStatus>>;
-const asKieKlingStatusResponse = (
-  value: unknown
-): Awaited<ReturnType<typeof fetchKieKlingImageToVideoStatus>> =>
-  value as Awaited<ReturnType<typeof fetchKieKlingImageToVideoStatus>>;
-const asKieSeedanceStatusResponse = (
-  value: unknown
-): Awaited<ReturnType<typeof fetchKieSeedanceVideoStatus>> =>
-  value as Awaited<ReturnType<typeof fetchKieSeedanceVideoStatus>>;
+const asFalNanoBananaStatusResponse = (value: unknown): FalStatusResponse =>
+  value as FalStatusResponse;
+const asKieVeoStatusResponse = (value: unknown): FalStatusResponse => value as FalStatusResponse;
+const asKieKlingStatusResponse = (value: unknown): FalStatusResponse => value as FalStatusResponse;
+const asKieSeedanceStatusResponse = (value: unknown): FalStatusResponse =>
+  value as FalStatusResponse;
 
 const flushQueuedOutputUpdates = async () => {
   await Promise.resolve();
@@ -79,17 +98,23 @@ const flushQueuedOutputUpdates = async () => {
 };
 
 describe("useAiStudioTasks", () => {
-  const fetchFalNanoBananaStatusMock = vi.mocked(fetchFalNanoBananaStatus);
-  const fetchFalBriaBackgroundRemoveStatusMock = vi.mocked(fetchFalBriaBackgroundRemoveStatus);
-  const fetchFalSeedreamStatusMock = vi.mocked(fetchFalSeedreamStatus);
-  const fetchKieVeoImageToVideoStatusMock = vi.mocked(fetchKieVeoImageToVideoStatus);
-  const fetchKieKlingImageToVideoStatusMock = vi.mocked(fetchKieKlingImageToVideoStatus);
-  const fetchKieSeedanceVideoStatusMock = vi.mocked(fetchKieSeedanceVideoStatus);
+  const fetchFalNanoBananaStatusMock = vi.mocked(falClientMocks.fetchFalNanoBananaStatus);
+  const fetchFalBriaBackgroundRemoveStatusMock = vi.mocked(
+    falClientMocks.fetchFalBriaBackgroundRemoveStatus
+  );
+  const fetchFalSeedreamStatusMock = vi.mocked(falClientMocks.fetchFalSeedreamStatus);
+  const fetchKieVeoImageToVideoStatusMock = vi.mocked(falClientMocks.fetchKieVeoImageToVideoStatus);
+  const fetchKieKlingImageToVideoStatusMock = vi.mocked(
+    falClientMocks.fetchKieKlingImageToVideoStatus
+  );
+  const fetchKieSeedanceVideoStatusMock = vi.mocked(falClientMocks.fetchKieSeedanceVideoStatus);
+  const resolveGenerationProjectionLifecycleMock = vi.mocked(resolveGenerationProjectionLifecycle);
   const resolveVisibleGenerationReconcileMock = vi.mocked(resolveVisibleGenerationReconcile);
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.resetAllMocks();
+    resolveGenerationProjectionLifecycleMock.mockResolvedValue(null);
     resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
   });
 
@@ -341,6 +366,64 @@ describe("useAiStudioTasks", () => {
     expect(output.taskState).toBe("running");
     expect(output.previewUrl).toBeUndefined();
     expect(output.timestamp).toBe("Processing...");
+  });
+
+  it("settles hidden terminal projection failures without polling the provider", async () => {
+    fetchFalSeedreamStatusMock.mockResolvedValue({
+      status: "processing",
+    });
+    resolveGenerationProjectionLifecycleMock.mockResolvedValue({
+      generationId: "gen-hidden-failure",
+      taskState: "fail",
+      queueState: undefined,
+      hiddenInReferenceGrid: true,
+      referenceGridVisible: false,
+      errorMessageShort: "Generation abandoned by user.",
+      errorDetail: "Generation abandoned by user.",
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("seedream-task-hidden", "out-1", 0, "fal-seedream");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(resolveGenerationProjectionLifecycleMock).toHaveBeenCalledWith({
+      generationId: null,
+      requestId: "seedream-task-hidden",
+    });
+    expect(resolveVisibleGenerationReconcileMock).not.toHaveBeenCalled();
+    expect(fetchFalSeedreamStatusMock).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "seedream-task-hidden",
+        provider: "fal-seedream",
+        message: "Generation abandoned by user.",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.hiddenInReferenceGrid).toBe(true);
+    expect(output.errorMessage).toBe("Generation abandoned by user.");
   });
 
   it("reconciles visible generation delivery on recovery recheck polls", async () => {
@@ -2058,7 +2141,7 @@ describe("useAiStudioTasks", () => {
 
   it("allows four fresh status polls before deferring the fifth for concurrency backpressure", async () => {
     const deferreds = Array.from({ length: MAX_CONCURRENT_STATUS_REQUESTS + 1 }, () =>
-      createDeferred<Awaited<ReturnType<typeof fetchFalNanoBananaStatus>>>()
+      createDeferred<FalStatusResponse>()
     );
     let callIndex = 0;
     fetchFalNanoBananaStatusMock.mockImplementation(() => {
@@ -2142,6 +2225,9 @@ describe("useAiStudioTasks", () => {
       })
     );
 
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     await flushQueuedOutputUpdates();

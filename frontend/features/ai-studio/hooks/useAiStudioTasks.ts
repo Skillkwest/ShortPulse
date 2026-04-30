@@ -3,35 +3,19 @@
  * Handles submit + polling orchestration per provider, isolated from UI state.
  */
 import { startTransition, useCallback, useEffect, useRef } from "react";
-import {
-  fetchKieKlingImageToVideoStatus,
-  fetchKieSeedance2FastVideoStatus,
-  fetchKieSeedance2VideoStatus,
-  fetchKieSeedanceVideoStatus,
-  fetchKieVeoImageToVideoStatus,
-  fetchFalBriaBackgroundRemoveStatus,
-  fetchFalFluxKontextInpaintStatus,
-  fetchFalFluxProFillStatus,
-  fetchFalFlux2KleinStatus,
-  fetchFalNanoBananaStatus,
-  fetchFalNanoBananaEditStatus,
-  fetchFalNanoBanana2Status,
-  fetchFalNanoBanana2EditStatus,
-  fetchFalNanoBananaProStatus,
-  fetchFalNanoBananaProEditStatus,
-  fetchFalSeedreamStatus,
-  fetchFalSeedreamEditStatus,
-  fetchFalSeedreamV5LiteStatus,
-  fetchFalSeedreamV5LiteEditStatus,
-} from "../../../lib/falClient";
+import { fetchQueuedGenerationStatusByModelId } from "../../../lib/falClient";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
   PERF_FLAG_RAF_STATUS_FLUSH,
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
 } from "../logic/perfProfileFlags";
-import { resolveVisibleGenerationReconcile } from "../logic/generatedMediaAuthority";
+import {
+  resolveGenerationProjectionLifecycle,
+  resolveVisibleGenerationReconcile,
+  type GenerationProjectionLifecycle,
+} from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
-import { Provider } from "../logic/stateParsers";
+import { Provider, resolveTaskPollingModelId } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
 import {
   evaluateOutputLookupMiss,
@@ -160,6 +144,18 @@ const resolveLifecycleTaskState = (
   }
 };
 
+const resolveProjectionFailureMessage = (
+  projectionLifecycle: GenerationProjectionLifecycle
+): { message: string; detail: string; shortMessage: string } => {
+  const detail = projectionLifecycle.errorDetail?.trim() || projectionLifecycle.errorMessageShort;
+  const message = projectionLifecycle.errorMessageShort?.trim() || detail || "Generation failed.";
+  return {
+    message,
+    detail: detail || message,
+    shortMessage: createShortErrorMessage(message),
+  };
+};
+
 const stringifyLifecycleErrorDetail = (value: unknown): string | null => {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -187,50 +183,11 @@ const normalizeLifecycleQueueState = (
 };
 
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
-  switch (provider) {
-    case "fal-flux2-klein":
-      return fetchFalFlux2KleinStatus(taskId);
-    case "fal-flux-pro-fill":
-      return fetchFalFluxProFillStatus(taskId);
-    case "fal-flux-kontext-inpaint":
-      return fetchFalFluxKontextInpaintStatus(taskId);
-    case "fal-bria-background-remove":
-      return fetchFalBriaBackgroundRemoveStatus(taskId);
-    case "fal-seedream":
-      return fetchFalSeedreamStatus(taskId);
-    case "fal-seedream-edit":
-      return fetchFalSeedreamEditStatus(taskId);
-    case "fal-seedream-v5-lite":
-      return fetchFalSeedreamV5LiteStatus(taskId);
-    case "fal-seedream-v5-lite-edit":
-      return fetchFalSeedreamV5LiteEditStatus(taskId);
-    case "fal-nano-banana":
-      return fetchFalNanoBananaStatus(taskId);
-    case "fal-nano-banana-edit":
-      return fetchFalNanoBananaEditStatus(taskId);
-    case "fal-nano-banana-2":
-      return fetchFalNanoBanana2Status(taskId);
-    case "fal-nano-banana-2-edit":
-      return fetchFalNanoBanana2EditStatus(taskId);
-    case "fal-nano-banana-pro":
-      return fetchFalNanoBananaProStatus(taskId);
-    case "fal-nano-banana-pro-edit":
-      return fetchFalNanoBananaProEditStatus(taskId);
-    case "kie-veo":
-      return fetchKieVeoImageToVideoStatus(taskId);
-    case "kie-kling":
-      return fetchKieKlingImageToVideoStatus(taskId);
-    case "kie-seedance":
-      return fetchKieSeedanceVideoStatus(taskId);
-    case "kie-seedance-2":
-      return fetchKieSeedance2VideoStatus(taskId);
-    case "kie-seedance-2-fast":
-      return fetchKieSeedance2FastVideoStatus(taskId);
-    default:
-      throw new Error(
-        `Unsupported generation polling provider '${provider}'. Use a model-specific status client.`
-      );
+  const modelId = resolveTaskPollingModelId({ provider });
+  if (!modelId) {
+    throw new Error(`Unsupported generation polling provider '${provider}'.`);
   }
+  return fetchQueuedGenerationStatusByModelId(modelId, taskId);
 };
 
 export function useAiStudioTasks({
@@ -369,6 +326,60 @@ export function useAiStudioTasks({
       timestamp?: string;
     }) => {
       const existingOutput = findOutputById?.(outputId) ?? null;
+      const projectionLifecycle = await resolveGenerationProjectionLifecycle({
+        generationId: asTrimmedString(existingOutput?.generationId),
+        requestId: taskId,
+        ...(projectId ? { projectId } : {}),
+      }).catch(() => null);
+      if (
+        projectionLifecycle?.taskState === "fail" ||
+        projectionLifecycle?.hiddenInReferenceGrid === true ||
+        projectionLifecycle?.referenceGridVisible === false
+      ) {
+        const isVisibleFailure =
+          projectionLifecycle.taskState === "fail" &&
+          projectionLifecycle.hiddenInReferenceGrid !== true &&
+          projectionLifecycle.referenceGridVisible !== false;
+        const failure = resolveProjectionFailureMessage(projectionLifecycle);
+        if (isVisibleFailure) {
+          notifyGenerationFailure(outputId, failure.message, failure.detail, {
+            reasonCode: "provider_error",
+            providerState: projectionLifecycle.queueState ?? projectionLifecycle.taskState ?? null,
+          });
+        }
+        queueOutputUpdate(outputId, (item) => ({
+          ...item,
+          generationId: item.generationId ?? projectionLifecycle.generationId,
+          status: "ready",
+          taskState: projectionLifecycle.taskState === "fail" ? "fail" : item.taskState,
+          queueState: projectionLifecycle.queueState ?? item.queueState,
+          timestamp: projectionLifecycle.taskState === "fail" ? "Failed" : item.timestamp,
+          hiddenInReferenceGrid:
+            projectionLifecycle.hiddenInReferenceGrid === true ||
+            projectionLifecycle.referenceGridVisible === false
+              ? true
+              : item.hiddenInReferenceGrid,
+          errorMessage:
+            projectionLifecycle.taskState === "fail" ? failure.message : item.errorMessage,
+          errorMessageShort:
+            projectionLifecycle.taskState === "fail"
+              ? failure.shortMessage
+              : item.errorMessageShort,
+          errorDetail: projectionLifecycle.taskState === "fail" ? failure.detail : item.errorDetail,
+        }));
+        if (projectionLifecycle.taskState === "fail" && onGenerationFailure) {
+          onGenerationFailure({
+            outputId,
+            taskId,
+            provider,
+            message: failure.detail,
+            reasonCode: "provider_error",
+          });
+        }
+        clearPollTimer(outputId);
+        return true;
+      }
+
       const visibleGeneration = await resolveVisibleGenerationReconcile({
         generationId: asTrimmedString(existingOutput?.generationId),
         requestId: taskId,
@@ -438,7 +449,15 @@ export function useAiStudioTasks({
       clearPollTimer(outputId);
       return true;
     },
-    [clearPollTimer, findOutputById, onGenerationSuccess, projectId, queueOutputUpdate]
+    [
+      clearPollTimer,
+      findOutputById,
+      notifyGenerationFailure,
+      onGenerationFailure,
+      onGenerationSuccess,
+      projectId,
+      queueOutputUpdate,
+    ]
   );
 
   const {

@@ -15,6 +15,8 @@ import {
   type AdminHealthResponse,
   type BalanceRow,
   type GenerationRow,
+  type GenerationProjectionBillingRow,
+  type GenerationProjectionProjectRow,
   type NormalizedLedgerRow,
   type OutputRow,
   type ProjectGenerationItemRow,
@@ -402,6 +404,106 @@ export const loadAdminHealthSnapshot = async ({
     }
   }
 
+  const generationProjectionProjectsResult = generationIds.length
+    ? await (async () => {
+        const rows: GenerationProjectionProjectRow[] = [];
+        for (const generationIdChunk of chunkArray(generationIds, DB_IN_CLAUSE_BATCH_SIZE)) {
+          const batchResult = await fetchAllRowsForSelect<GenerationProjectionProjectRow>(
+            async (from, to) => {
+              const query = supabaseAdmin
+                .from("generation_projection")
+                .select("project_id,generation_id,user_id")
+                .eq("user_id", userId)
+                .in("generation_id", generationIdChunk)
+                .range(from, to);
+              const { data, error } = await query;
+              return {
+                data:
+                  ((data as GenerationProjectionProjectRow[] | null) ?? null)?.filter((row) =>
+                    Boolean(asTrimmedString(row.project_id))
+                  ) ?? null,
+                error: normalizeQueryError(error),
+              };
+            }
+          );
+          if (batchResult.error) {
+            return batchResult;
+          }
+          rows.push(...batchResult.rows);
+        }
+        return { rows, error: null as QueryError | null };
+      })()
+    : { rows: [] as GenerationProjectionProjectRow[], error: null };
+
+  const generationProjectionProjectsError = normalizeQueryError(
+    generationProjectionProjectsResult.error
+  );
+  if (generationProjectionProjectsError) {
+    if (isSchemaCompatibilityError(generationProjectionProjectsError)) {
+      compatibilityWarnings.push(
+        "generation_projection.project_id is unavailable in this environment; project-visibility diagnostics are partial."
+      );
+    } else {
+      throw new Error(
+        generationProjectionProjectsError.message || "Failed to load generation_projection."
+      );
+    }
+  }
+
+  const ledgerSourceRefs = Array.from(
+    new Set(
+      ledgerResult.rows
+        .filter((row) => row.source === "generation_charge")
+        .map((row) => asTrimmedString(row.source_ref))
+        .filter((sourceRef): sourceRef is string => Boolean(sourceRef))
+    )
+  );
+  const generationProjectionBillingResult = ledgerSourceRefs.length
+    ? await (async () => {
+        const rows: GenerationProjectionBillingRow[] = [];
+        for (const sourceRefChunk of chunkArray(ledgerSourceRefs, DB_IN_CLAUSE_BATCH_SIZE)) {
+          const batchResult = await fetchAllRowsForSelect<GenerationProjectionBillingRow>(
+            async (from, to) => {
+              const query = supabaseAdmin
+                .from("generation_projection")
+                .select(
+                  "generation_id,source_ref,request_id,provider_request_id,status,task_state,result_urls,preview_url"
+                )
+                .eq("user_id", userId)
+                .in("source_ref", sourceRefChunk)
+                .range(from, to);
+              const { data, error } = await query;
+              return {
+                data: (data as GenerationProjectionBillingRow[] | null) ?? null,
+                error: normalizeQueryError(error),
+              };
+            }
+          );
+          if (batchResult.error) {
+            return batchResult;
+          }
+          rows.push(...batchResult.rows);
+        }
+        return { rows, error: null as QueryError | null };
+      })()
+    : { rows: [] as GenerationProjectionBillingRow[], error: null };
+
+  const generationProjectionBillingError = normalizeQueryError(
+    generationProjectionBillingResult.error
+  );
+  if (generationProjectionBillingError) {
+    if (isSchemaCompatibilityError(generationProjectionBillingError)) {
+      compatibilityWarnings.push(
+        "generation_projection billing linkage fields are unavailable; direct-charge diagnostics are partial."
+      );
+    } else {
+      throw new Error(
+        generationProjectionBillingError.message ||
+          "Failed to load generation_projection billing rows."
+      );
+    }
+  }
+
   const generationProjectIds = Array.from(
     new Set(
       generationsResult.rows.map(readGenerationProjectId).filter((id): id is string => Boolean(id))
@@ -456,6 +558,12 @@ export const loadAdminHealthSnapshot = async ({
     projectGenerationItems: projectGenerationItemsResult.error
       ? []
       : projectGenerationItemsResult.rows,
+    generationProjectionProjects: generationProjectionProjectsResult.error
+      ? []
+      : generationProjectionProjectsResult.rows,
+    generationProjectionBillingRows: generationProjectionBillingResult.error
+      ? []
+      : generationProjectionBillingResult.rows,
     activeProjectIds: activeProjectIdsResult.error ? undefined : activeProjectIdsResult.rows,
     reservations: reservationsResult.rows,
     ledger: ledgerResult.rows,

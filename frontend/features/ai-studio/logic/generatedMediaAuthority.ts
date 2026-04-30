@@ -116,6 +116,16 @@ export type VisibleGenerationReconcile = {
   resultUrls: string[];
 };
 
+export type GenerationProjectionLifecycle = {
+  generationId: string;
+  taskState: StudioOutput["taskState"] | undefined;
+  queueState: StudioOutput["queueState"] | undefined;
+  hiddenInReferenceGrid: boolean;
+  referenceGridVisible: boolean;
+  errorMessageShort: string | null;
+  errorDetail: string | null;
+};
+
 const VIDEO_MODEL_MARKER_PATTERN =
   /(?:veo|kling|seedance|image-to-video|text-to-video|video|i2v|t2v)/i;
 const AUDIO_MODEL_MARKER_PATTERN = /(?:audio|speech|music|tts|voice)/i;
@@ -161,6 +171,67 @@ const signReferenceGridStoragePath = async (storagePath: string | null): Promise
     queryMode: "default",
   }).catch(() => null);
   return signedByPath?.get(storagePath) ?? null;
+};
+
+const signReferenceGridStoragePaths = async (
+  storagePaths: Iterable<string | null | undefined>
+): Promise<Map<string, string>> => {
+  const normalizedPaths = Array.from(
+    new Set(
+      Array.from(storagePaths)
+        .map((value) => asCanonicalStoragePath(asTrimmedString(value)))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  if (!normalizedPaths.length) return new Map();
+  return (
+    (await getSignedMediaUrlsBatch({
+      bucket: "media_library",
+      storagePaths: normalizedPaths,
+      surface: "reference-grid",
+      queryMode: "default",
+    }).catch(() => null)) ?? new Map()
+  );
+};
+
+const signVisibleGenerationDelivery = async (
+  delivery: VisibleGenerationDelivery
+): Promise<VisibleGenerationDelivery> => {
+  const signedByPath = await signReferenceGridStoragePaths([
+    delivery.previewStoragePath,
+    delivery.fullStoragePath,
+    delivery.previewPosterStoragePath,
+  ]);
+  if (signedByPath.size === 0) return delivery;
+
+  const signedPreviewUrl = delivery.previewStoragePath
+    ? (signedByPath.get(delivery.previewStoragePath) ?? null)
+    : null;
+  const signedFullUrl = delivery.fullStoragePath
+    ? (signedByPath.get(delivery.fullStoragePath) ?? null)
+    : null;
+  const signedPosterUrl = delivery.previewPosterStoragePath
+    ? (signedByPath.get(delivery.previewPosterStoragePath) ?? null)
+    : null;
+  const isVideoDelivery =
+    Boolean(delivery.fullStoragePath && isVideoUrl(delivery.fullStoragePath)) ||
+    Boolean(delivery.fullUrl && isVideoUrl(delivery.fullUrl)) ||
+    Boolean(delivery.previewUrl && isVideoUrl(delivery.previewUrl));
+  const signedPreviewVideoUrl =
+    delivery.previewStoragePath && isVideoUrl(delivery.previewStoragePath)
+      ? signedPreviewUrl
+      : null;
+
+  return {
+    ...delivery,
+    previewUrl: isVideoDelivery
+      ? (signedFullUrl ?? signedPreviewVideoUrl ?? delivery.previewUrl)
+      : (signedPreviewUrl ?? signedFullUrl ?? delivery.previewUrl),
+    previewPosterUrl: signedPosterUrl ?? delivery.previewPosterUrl,
+    fullUrl: isVideoDelivery
+      ? (signedFullUrl ?? signedPreviewVideoUrl ?? delivery.fullUrl)
+      : (signedFullUrl ?? signedPreviewUrl ?? delivery.fullUrl),
+  };
 };
 
 const sanitizeFilename = (value: string | null | undefined): string | null => {
@@ -352,6 +423,23 @@ const toHydratedGeneratedOutput = (
   };
 };
 
+const toProjectionLifecycle = (
+  row: GenerationProjectionDeliveryRow | null | undefined
+): GenerationProjectionLifecycle | null => {
+  if (!row) return null;
+  const generationId = asTrimmedString(row.generation_id);
+  if (!generationId) return null;
+  return {
+    generationId,
+    taskState: normalizeProjectionTaskState(row.task_state),
+    queueState: normalizeProjectionQueueState(row.queue_state),
+    hiddenInReferenceGrid: row.hidden_in_reference_grid === true,
+    referenceGridVisible: row.reference_grid_visible !== false,
+    errorMessageShort: asTrimmedString(row.error_message_short),
+    errorDetail: asTrimmedString(row.error_detail),
+  };
+};
+
 const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
   const message =
@@ -369,8 +457,8 @@ const runMaybeSingleMediaStorageQuery = async <TRow extends MediaFileRow>(args: 
   const primary = await args.runSelect("preview_storage_path, storage_path, filename");
   if (!primary.error) return primary.data;
   if (!isPreviewStoragePathSchemaError(primary.error)) return null;
-  const fallback = await args.runSelect("storage_path, filename");
-  return fallback.error ? null : fallback.data;
+  const storageOnly = await args.runSelect("storage_path, filename");
+  return storageOnly.error ? null : storageOnly.data;
 };
 
 const toGeneratedMediaFileRecord = (
@@ -416,10 +504,10 @@ const runMaybeSingleMediaLibraryQuery = async <TRow extends MediaFileRow>(args: 
   );
   if (!primary.error) return primary.data;
   if (!isPreviewStoragePathSchemaError(primary.error)) return null;
-  const fallback = await args.runSelect(
+  const storageOnly = await args.runSelect(
     "id, storage_path, filename, file_type, thumb_variant_path, poster_variant_path, preview_variant_path"
   );
-  return fallback.error ? null : fallback.data;
+  return storageOnly.error ? null : storageOnly.data;
 };
 
 export const resolveGeneratedMediaFileRecordById = async ({
@@ -541,21 +629,7 @@ export const resolveGenerationIdForRequestId = async ({
     }
   }
 
-  const { data: generationData, error: generationError } = await supabase
-    .from("ai_generations")
-    .select("id")
-    .eq("user_id", resolvedUserId)
-    .eq("request_id", normalizedRequestId)
-    .limit(1)
-    .maybeSingle();
-  if (generationError) return null;
-
-  return await resolveProjectAssociatedGenerationId({
-    supabase,
-    userId: resolvedUserId,
-    projectId: projectId ?? null,
-    generationId: asTrimmedString((generationData as Record<string, unknown> | null)?.id),
-  });
+  return null;
 };
 
 export const resolvePublishedGenerationOutputStoragePathByIndex = async ({
@@ -793,6 +867,45 @@ const applyPublishedVideoPosterStoragePaths = (
     };
   });
 
+const applySignedGeneratedMediaUrls = async (outputs: StudioOutput[]): Promise<StudioOutput[]> => {
+  const signedByPath = await signReferenceGridStoragePaths(
+    outputs.flatMap((output) => [output.previewStoragePath, output.fullStoragePath])
+  );
+  if (signedByPath.size === 0) return outputs;
+
+  let changed = false;
+  const patched = outputs.map((output) => {
+    const previewStoragePath = asCanonicalStoragePath(output.previewStoragePath ?? null);
+    const fullStoragePath = asCanonicalStoragePath(output.fullStoragePath ?? null);
+    const signedPreviewUrl = previewStoragePath
+      ? (signedByPath.get(previewStoragePath) ?? null)
+      : null;
+    const signedFullUrl = fullStoragePath ? (signedByPath.get(fullStoragePath) ?? null) : null;
+    if (!signedPreviewUrl && !signedFullUrl) return output;
+    const signedPreviewVideoUrl =
+      previewStoragePath && isVideoUrl(previewStoragePath) ? signedPreviewUrl : null;
+
+    const previewUrl =
+      output.mode === "video"
+        ? (signedFullUrl ?? signedPreviewVideoUrl ?? output.previewUrl)
+        : (signedPreviewUrl ?? signedFullUrl ?? output.previewUrl);
+    const resultUrls = signedFullUrl
+      ? [signedFullUrl]
+      : signedPreviewUrl && (!output.resultUrls || output.resultUrls.length === 0)
+        ? [signedPreviewUrl]
+        : output.resultUrls;
+    if (previewUrl === output.previewUrl && resultUrls === output.resultUrls) return output;
+    changed = true;
+    return {
+      ...output,
+      previewUrl,
+      resultUrls,
+    };
+  });
+
+  return changed ? patched : outputs;
+};
+
 const applySignedVideoPosterUrls = async (outputs: StudioOutput[]): Promise<StudioOutput[]> => {
   const posterPathByOutputId = new Map<string, string>();
   const storagePaths = new Set<string>();
@@ -968,29 +1081,31 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
         projectionData as GenerationProjectionDeliveryRow | null
       );
       if (projectionDelivery) {
-        if (!projectionDelivery.previewPosterStoragePath && resolvedUserId) {
+        const projectionUrls = [projectionDelivery.previewUrl, projectionDelivery.fullUrl].filter(
+          (url): url is string => Boolean(url)
+        );
+        const needsVideoPoster =
+          !projectionDelivery.previewPosterStoragePath &&
+          projectionUrls.some((url) => isVideoUrl(url));
+        if (needsVideoPoster && resolvedUserId) {
           const publishedDelivery = await resolvePublishedGenerationDeliveryByGenerationId({
             supabase,
             generationId,
             userId: resolvedUserId,
           });
           if (publishedDelivery?.previewPosterStoragePath) {
-            return {
+            return await signVisibleGenerationDelivery({
               ...projectionDelivery,
               previewPosterStoragePath: publishedDelivery.previewPosterStoragePath,
               previewStoragePath: publishedDelivery.previewPosterStoragePath,
-            };
+            });
           }
         }
-        return projectionDelivery;
+        return await signVisibleGenerationDelivery(projectionDelivery);
       }
     }
 
-    return await resolvePublishedGenerationDeliveryByGenerationId({
-      supabase,
-      generationId,
-      userId: resolvedUserId,
-    });
+    return null;
   } catch {
     return null;
   }
@@ -1011,6 +1126,55 @@ export const resolveVisibleGenerationDelivery = async ({
     generationId: resolvedGenerationId,
     userId,
   });
+};
+
+export const resolveGenerationProjectionLifecycle = async ({
+  generationId,
+  requestId,
+  projectId,
+}: {
+  generationId?: string | null;
+  requestId?: string | null;
+  projectId?: string | null;
+}): Promise<GenerationProjectionLifecycle | null> => {
+  const normalizedGenerationId = asTrimmedString(generationId);
+  const normalizedRequestId = asTrimmedString(requestId);
+  if (!normalizedGenerationId && !normalizedRequestId) return null;
+
+  const supabase = ensureSupabaseQueryClient();
+  const userId = await readSupabaseUserId();
+  if (!userId) return null;
+  const normalizedProjectId = resolveProjectId(projectId);
+
+  const candidateGenerationId =
+    normalizedGenerationId ??
+    (await resolveGenerationIdForRequestId({
+      supabase,
+      requestId: normalizedRequestId,
+      userId,
+      projectId: normalizedProjectId,
+    }));
+  if (!candidateGenerationId) return null;
+
+  const resolvedGenerationId = await resolveProjectAssociatedGenerationId({
+    supabase,
+    userId,
+    projectId: normalizedProjectId,
+    generationId: candidateGenerationId,
+  });
+  if (!resolvedGenerationId) return null;
+
+  const { data, error } = await supabase
+    .from("generation_projection")
+    .select(
+      "generation_id, task_state, queue_state, error_message_short, error_detail, hidden_in_reference_grid, reference_grid_visible"
+    )
+    .eq("user_id", userId)
+    .eq("generation_id", resolvedGenerationId)
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return toProjectionLifecycle(data as GenerationProjectionDeliveryRow | null);
 };
 
 export const resolveVisibleGenerationReconcile = async ({
@@ -1199,7 +1363,7 @@ export const listVisibleGeneratedOutputs = async ({
     const videoGenerationIds = outputs
       .filter((output) => output.mode === "video" && output.generationId)
       .map((output) => output.generationId as string);
-    if (!videoGenerationIds.length) return outputs;
+    if (!videoGenerationIds.length) return await applySignedGeneratedMediaUrls(outputs);
     const mediaByGenerationId = await resolveLatestPublishedGenerationMediaByGenerationIds({
       supabase,
       generationIds: videoGenerationIds,
@@ -1209,7 +1373,10 @@ export const listVisibleGeneratedOutputs = async ({
       mediaByGenerationId.size === 0
         ? outputs
         : applyPublishedVideoPosterStoragePaths(outputs, mediaByGenerationId);
-    return await applySignedVideoPosterUrls(outputsWithPosterStoragePaths);
+    const outputsWithSignedMediaUrls = await applySignedGeneratedMediaUrls(
+      outputsWithPosterStoragePaths
+    );
+    return await applySignedVideoPosterUrls(outputsWithSignedMediaUrls);
   } catch {
     return [];
   }

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   listVisibleGeneratedOutputs,
+  resolveGenerationProjectionLifecycle,
   resolveGenerationIdForRequestId,
   resolveVisibleGenerationDelivery,
   resolveVisibleGenerationReconcile,
@@ -53,11 +54,7 @@ describe("generatedMediaAuthority", () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
   });
 
-  it("falls back to successful generation projection delivery when published media is suppressed", async () => {
-    const publicationsBuilder = createAwaitableSelectBuilder({
-      data: [],
-      error: null,
-    });
+  it("uses successful generation projection delivery when published media is suppressed", async () => {
     const projectionBuilder = createAwaitableSelectBuilder({
       data: {
         preview_url: "https://fal.test/preview.png",
@@ -73,11 +70,6 @@ describe("generatedMediaAuthority", () => {
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
-        if (table === "generation_publications") {
-          return {
-            select: vi.fn(() => publicationsBuilder),
-          };
-        }
         if (table === "generation_projection") {
           return {
             select: vi.fn(() => projectionBuilder),
@@ -101,20 +93,7 @@ describe("generatedMediaAuthority", () => {
     });
   });
 
-  it("falls back to published generation delivery when projection is not renderable", async () => {
-    const publicationsBuilder = createAwaitableSelectBuilder({
-      data: [
-        {
-          preview_url: "https://cdn.test/published-preview.png",
-          full_url: "https://cdn.test/published-full.png",
-          preview_storage_path: null,
-          full_storage_path: null,
-          created_at: "2026-04-11T19:45:41.000Z",
-        },
-      ],
-      error: null,
-    });
-
+  it("does not use published delivery when projection is not renderable", async () => {
     const projectionBuilder = createAwaitableSelectBuilder({
       data: {
         preview_url: null,
@@ -135,11 +114,6 @@ describe("generatedMediaAuthority", () => {
             select: vi.fn(() => projectionBuilder),
           };
         }
-        if (table === "generation_publications") {
-          return {
-            select: vi.fn(() => publicationsBuilder),
-          };
-        }
         throw new Error(`Unexpected table: ${table}`);
       }),
     });
@@ -148,13 +122,46 @@ describe("generatedMediaAuthority", () => {
       resolveVisibleGenerationDelivery({
         generationId: "gen-published-1",
       })
+    ).resolves.toBeNull();
+  });
+
+  it("reads hidden terminal projection lifecycle without requiring visible media", async () => {
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-hidden-fail",
+        task_state: "fail",
+        queue_state: "failed",
+        error_message_short: "Generation abandoned by user.",
+        error_detail: "Generation abandoned by user.",
+        hidden_in_reference_grid: true,
+        reference_grid_visible: false,
+      },
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveGenerationProjectionLifecycle({
+        generationId: "gen-hidden-fail",
+      })
     ).resolves.toEqual({
-      previewUrl: "https://cdn.test/published-preview.png",
-      previewPosterUrl: null,
-      previewPosterStoragePath: null,
-      fullUrl: "https://cdn.test/published-full.png",
-      previewStoragePath: null,
-      fullStoragePath: null,
+      generationId: "gen-hidden-fail",
+      taskState: "fail",
+      queueState: undefined,
+      hiddenInReferenceGrid: true,
+      referenceGridVisible: false,
+      errorMessageShort: "Generation abandoned by user.",
+      errorDetail: "Generation abandoned by user.",
     });
   });
 
@@ -209,6 +216,55 @@ describe("generatedMediaAuthority", () => {
     });
   });
 
+  it("re-signs storage-backed projection delivery before returning single-generation reconcile", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/generations/images/gen-storage-1/preview.png",
+          "https://signed.test/fresh-preview.png",
+        ],
+        ["user-1/generations/images/gen-storage-1/full.png", "https://signed.test/fresh-full.png"],
+      ])
+    );
+    const projectionDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://signed.test/expired-preview.png",
+        result_urls: ["https://signed.test/expired-full.png"],
+        preview_storage_path: "user-1/generations/images/gen-storage-1/preview.png",
+        full_storage_path: "user-1/generations/images/gen-storage-1/full.png",
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionDeliveryBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        generationId: "gen-storage-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-storage-1",
+      previewUrl: "https://signed.test/fresh-preview.png",
+      previewPosterUrl: null,
+      previewPosterStoragePath: null,
+      previewStoragePath: "user-1/generations/images/gen-storage-1/preview.png",
+      fullStoragePath: "user-1/generations/images/gen-storage-1/full.png",
+      resultUrls: ["https://signed.test/fresh-full.png"],
+    });
+  });
+
   it("signs projection poster storage for completed generated video reconcile", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([
@@ -256,7 +312,7 @@ describe("generatedMediaAuthority", () => {
     expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
       expect.objectContaining({
         bucket: "media_library",
-        storagePaths: ["user-1/variants/videos/gen-video-1/poster_720.jpg"],
+        storagePaths: expect.arrayContaining(["user-1/variants/videos/gen-video-1/poster_720.jpg"]),
         surface: "reference-grid",
       })
     );
@@ -302,15 +358,38 @@ describe("generatedMediaAuthority", () => {
     ).resolves.toBe("gen-request-project-1");
   });
 
+  it("resolves request-backed generation ids only from generation_projection", async () => {
+    const projectionIdentityBuilder = createAwaitableSelectBuilder({
+      data: null,
+      error: null,
+    });
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionIdentityBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    };
+
+    await expect(
+      resolveGenerationIdForRequestId({
+        supabase: supabase as never,
+        requestId: "req-missing-projection-1",
+        userId: "user-1",
+      })
+    ).resolves.toBeNull();
+    expect(supabase.from).not.toHaveBeenCalledWith("ai_generations");
+  });
+
   it("returns null when a request-backed generation is not associated to the active project", async () => {
     const projectionIdentityBuilder = createAwaitableSelectBuilder({
       data: {
         generation_id: "gen-request-missing",
       },
-      error: null,
-    });
-    const generationBuilder = createAwaitableSelectBuilder({
-      data: null,
       error: null,
     });
     const projectGenerationBuilder = createAwaitableSelectBuilder({
@@ -323,11 +402,6 @@ describe("generatedMediaAuthority", () => {
         if (table === "generation_projection") {
           return {
             select: vi.fn(() => projectionIdentityBuilder),
-          };
-        }
-        if (table === "ai_generations") {
-          return {
-            select: vi.fn(() => generationBuilder),
           };
         }
         if (table === "project_generation_items") {
@@ -579,6 +653,181 @@ describe("generatedMediaAuthority", () => {
         surface: "reference-grid",
       })
     );
+  });
+
+  it("hydrates completed generated audio from projection result urls", async () => {
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-audio-1",
+          request_id: "req-audio-1",
+          source_ref: "source-audio-1",
+          provider: "elevenlabs",
+          model_id: "elevenlabs/music",
+          display_prompt: "Sparse synth pulse",
+          preview_url: "https://signed.example/music.mp3",
+          result_urls: ["https://signed.example/music.mp3"],
+          preview_storage_path: "user-1/generations/audio/gen-audio-1/music.mp3",
+          full_storage_path: "user-1/generations/audio/gen-audio-1/music.mp3",
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-audio-1",
+        mode: "audio",
+        provider: "elevenlabs",
+        modelId: "elevenlabs/music",
+        resultUrls: ["https://signed.example/music.mp3"],
+        previewUrl: "https://signed.example/music.mp3",
+        previewStoragePath: "user-1/generations/audio/gen-audio-1/music.mp3",
+        fullStoragePath: "user-1/generations/audio/gen-audio-1/music.mp3",
+        taskState: "success",
+      }),
+    ]);
+  });
+
+  it("re-signs storage-backed generated image rows during list hydration", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/generations/images/gen-image-storage-1/preview.png",
+          "https://signed.test/image-fresh-preview.png",
+        ],
+        [
+          "user-1/generations/images/gen-image-storage-1/full.png",
+          "https://signed.test/image-fresh-full.png",
+        ],
+      ])
+    );
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-image-storage-1",
+          request_id: "req-image-storage-1",
+          source_ref: "source-image-storage-1",
+          provider: "openai",
+          model_id: "gpt-image-2",
+          display_prompt: "Green product portrait",
+          preview_url: "https://signed.test/image-expired-preview.png",
+          result_urls: ["https://signed.test/image-expired-full.png"],
+          preview_storage_path: "user-1/generations/images/gen-image-storage-1/preview.png",
+          full_storage_path: "user-1/generations/images/gen-image-storage-1/full.png",
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-image-storage-1",
+        mode: "image",
+        previewUrl: "https://signed.test/image-fresh-preview.png",
+        resultUrls: ["https://signed.test/image-fresh-full.png"],
+      }),
+    ]);
+  });
+
+  it("re-signs storage-backed generated audio rows during list hydration", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/generations/audio/gen-audio-storage-1/music.mp3",
+          "https://signed.test/audio-fresh.mp3",
+        ],
+      ])
+    );
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-audio-storage-1",
+          request_id: "req-audio-storage-1",
+          source_ref: "source-audio-storage-1",
+          provider: "elevenlabs",
+          model_id: "elevenlabs/music",
+          display_prompt: "Sparse synth pulse",
+          preview_url: "https://signed.test/audio-expired.mp3",
+          result_urls: ["https://signed.test/audio-expired.mp3"],
+          preview_storage_path: "user-1/generations/audio/gen-audio-storage-1/music.mp3",
+          full_storage_path: "user-1/generations/audio/gen-audio-storage-1/music.mp3",
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {},
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-audio-storage-1",
+        mode: "audio",
+        previewUrl: "https://signed.test/audio-fresh.mp3",
+        resultUrls: ["https://signed.test/audio-fresh.mp3"],
+      }),
+    ]);
   });
 
   it("hydrates completed generated videos from canonical output media when publication is missing", async () => {

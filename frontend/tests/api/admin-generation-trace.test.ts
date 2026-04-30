@@ -56,6 +56,19 @@ const createFallbackGenerationQueryBuilder = (rows: unknown[]) => {
   };
 };
 
+const createOutputColumnGuardBuilder = (rows: unknown[]) => {
+  const builder = createQueryBuilder(rows);
+  const select = vi.fn((fields: string) => {
+    if (fields.includes("storage_path") || fields.includes("source_url")) {
+      throw new Error(`Dead ai_generation_outputs column selected: ${fields}`);
+    }
+    return builder;
+  });
+  return {
+    select,
+  };
+};
+
 describe("GET /api/admin/generation-trace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -259,6 +272,47 @@ describe("GET /api/admin/generation-trace", () => {
         ]),
       })
     );
+  });
+
+  it("uses live ai_generation_outputs columns in the trace query", async () => {
+    const generationRow = {
+      id: "gen-output-columns-1",
+      user_id: "user-1",
+      request_id: "req-output-columns-1",
+      status: "success",
+      metadata: {},
+      created_at: "2026-02-19T14:10:00.000Z",
+    };
+    const outputRow = {
+      id: "output-columns-1",
+      generation_id: "gen-output-columns-1",
+      result_url: "https://cdn.test/output.png",
+      media_file_id: null,
+      created_at: "2026-02-19T14:11:00.000Z",
+    };
+    const outputBuilder = createOutputColumnGuardBuilder([outputRow]);
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        switch (table) {
+          case "ai_generations":
+            return createQueryBuilder([generationRow]);
+          case "ai_generation_outputs":
+            return outputBuilder;
+          default:
+            return createQueryBuilder([]);
+        }
+      },
+    });
+
+    const req = { method: "GET", query: { requestId: "req-output-columns-1" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(outputBuilder.select).toHaveBeenCalledWith(expect.stringContaining("result_url"));
+    expect(outputBuilder.select).not.toHaveBeenCalledWith(expect.stringContaining("storage_path"));
+    expect(outputBuilder.select).not.toHaveBeenCalledWith(expect.stringContaining("source_url"));
   });
 
   it("resolves generations by source_ref when traceId matches submit source reference", async () => {

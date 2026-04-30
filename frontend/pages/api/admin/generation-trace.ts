@@ -161,8 +161,9 @@ const selectOutputFields = [
   "generation_id",
   "output_index",
   "media_file_id",
-  "storage_path",
-  "source_url",
+  "result_url",
+  "provider_request_id",
+  "metadata",
   "created_at",
   "updated_at",
 ].join(", ");

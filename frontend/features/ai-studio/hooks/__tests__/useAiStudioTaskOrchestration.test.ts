@@ -5,7 +5,10 @@ import type { StudioOutput } from "../../types";
 import { useAiStudioTaskOrchestration } from "../useAiStudioTaskOrchestration";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "../useAiStudioTasks";
-import { resolveVisibleGenerationReconcile } from "../../logic/generatedMediaAuthority";
+import {
+  resolveGenerationProjectionLifecycle,
+  resolveVisibleGenerationReconcile,
+} from "../../logic/generatedMediaAuthority";
 
 vi.mock("../useAiStudioTaskSubmission", () => ({
   useAiStudioTaskSubmission: vi.fn(),
@@ -16,6 +19,7 @@ vi.mock("../useAiStudioTasks", () => ({
 }));
 
 vi.mock("../../logic/generatedMediaAuthority", () => ({
+  resolveGenerationProjectionLifecycle: vi.fn(),
   resolveVisibleGenerationReconcile: vi.fn(),
 }));
 
@@ -41,6 +45,7 @@ type TasksCallbacks = Parameters<typeof useAiStudioTasks>[0];
 describe("useAiStudioTaskOrchestration", () => {
   const useAiStudioTaskSubmissionMock = vi.mocked(useAiStudioTaskSubmission);
   const useAiStudioTasksMock = vi.mocked(useAiStudioTasks);
+  const resolveGenerationProjectionLifecycleMock = vi.mocked(resolveGenerationProjectionLifecycle);
   const resolveVisibleGenerationReconcileMock = vi.mocked(resolveVisibleGenerationReconcile);
 
   let capturedTaskCallbacks: TasksCallbacks | null;
@@ -56,6 +61,7 @@ describe("useAiStudioTaskOrchestration", () => {
     pollTimersRef = { current: {} };
 
     useAiStudioTaskSubmissionMock.mockReturnValue(vi.fn());
+    resolveGenerationProjectionLifecycleMock.mockResolvedValue(null);
     resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
     useAiStudioTasksMock.mockImplementation(((callbacks: TasksCallbacks) => {
       capturedTaskCallbacks = callbacks;
@@ -689,6 +695,94 @@ describe("useAiStudioTaskOrchestration", () => {
       0,
       expect.anything()
     );
+  });
+
+  it("hides in-flight generated outputs when projection marks them hidden terminal failures", async () => {
+    vi.useFakeTimers();
+    try {
+      let outputs = [
+        createOutput({
+          id: "out-hidden-fail",
+          generationId: "gen-hidden-fail",
+          taskId: "req-hidden-fail",
+          provider: "fal",
+          modelId: "fal-ai/nano-banana-pro/edit",
+          taskState: "running",
+          timestamp: "Processing...",
+          mediaSource: "generated",
+        }),
+      ];
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+        }
+      );
+      resolveGenerationProjectionLifecycleMock.mockResolvedValue({
+        generationId: "gen-hidden-fail",
+        taskState: "fail",
+        queueState: undefined,
+        hiddenInReferenceGrid: true,
+        referenceGridVisible: false,
+        errorMessageShort: "Generation abandoned by user.",
+        errorDetail: "Generation abandoned by user.",
+      });
+
+      renderHook(() =>
+        useAiStudioTaskOrchestration({
+          projectId: "project-1",
+          taskSubmissionConfig: {
+            aspect: "9:16",
+            mode: "image",
+            model: "model-id",
+            prompt: "Prompt",
+            selectedTool: "edit",
+            imageResolution: "model_default",
+            videoDurationSeconds: 6,
+            videoResolution: "1080p",
+            videoGenerateAudio: false,
+            videoReferenceMode: "standard",
+            videoReferenceImageUrl: null,
+            motionReferenceVideoUrl: null,
+            videoCameraFixed: false,
+            videoAutoFix: false,
+            klingNegativePrompt: "blur",
+            klingCfgScale: 0.5,
+            klingShotType: "customize",
+            klingVoiceIds: ["", ""],
+            klingMultiPrompts: [],
+            klingElements: [],
+            setPanelGenerating: vi.fn(),
+            setUiError: asDispatch<string | null>(vi.fn()),
+            setUiNotice: asDispatch<string | null>(vi.fn()),
+            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+            setSaved: asDispatch<boolean>(vi.fn()),
+            getDefaultDurationSeconds: vi.fn(() => 6),
+            notifyGenerationFailure: vi.fn(),
+            updateOutputById,
+            ensureGenerationRecord: vi.fn(async () => null),
+          },
+          outputs,
+          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        })
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(resolveGenerationProjectionLifecycleMock).toHaveBeenCalledWith({
+        generationId: "gen-hidden-fail",
+        requestId: "req-hidden-fail",
+        projectId: "project-1",
+      });
+      expect(resolveVisibleGenerationReconcileMock).not.toHaveBeenCalled();
+      expect(outputs[0]?.taskState).toBe("fail");
+      expect(outputs[0]?.hiddenInReferenceGrid).toBe(true);
+      expect(outputs[0]?.errorMessage).toBe("Generation abandoned by user.");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("settles unresolved generated outputs from projection-backed delivery even without a task handoff", async () => {

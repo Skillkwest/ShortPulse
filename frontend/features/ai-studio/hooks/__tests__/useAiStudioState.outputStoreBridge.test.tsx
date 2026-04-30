@@ -37,6 +37,12 @@ const resolveVisibleGenerationReconcileMock = vi.fn(
     return null;
   }
 );
+const resolveVideoPosterRepairsForOutputsMock = vi.fn(
+  async (outputs?: unknown): Promise<Map<string, unknown>> => {
+    void outputs;
+    return new Map();
+  }
+);
 const generationPromptComposerArgsMock = vi.fn();
 const EDIT_REFERENCE_INPUTS = {
   referenceImageUrl: "https://example.com/edit-primary.png",
@@ -117,6 +123,11 @@ vi.mock("../../logic/generatedMediaAuthority", () => ({
     resolveVisibleGenerationReconcileMock(options),
 }));
 
+vi.mock("../../logic/videoPosterRepair", () => ({
+  resolveVideoPosterRepairsForOutputs: (outputs?: unknown) =>
+    resolveVideoPosterRepairsForOutputsMock(outputs),
+}));
+
 vi.mock("../useAiStudioStateEffects", () => ({
   useAiStudioStateEffects: () => undefined,
 }));
@@ -185,6 +196,8 @@ describe("useAiStudioState output store bridge", () => {
     listVisibleGeneratedOutputsMock.mockClear();
     resolveVisibleGenerationReconcileMock.mockClear();
     resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
+    resolveVideoPosterRepairsForOutputsMock.mockClear();
+    resolveVideoPosterRepairsForOutputsMock.mockResolvedValue(new Map());
     mockUpdateOutputById.mockClear();
     mockUpdateOutputById.mockImplementation(
       (id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -349,6 +362,58 @@ describe("useAiStudioState output store bridge", () => {
       requestId: "req-video-1",
       projectId: null,
     });
+  });
+
+  it("repairs storage-backed restored videos from media poster variants", async () => {
+    resolveVideoPosterRepairsForOutputsMock.mockResolvedValue(
+      new Map([
+        [
+          "storage-video-1",
+          {
+            outputId: "storage-video-1",
+            previewPosterUrl: "https://cdn.test/storage-poster.jpg",
+            previewPosterStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
+            previewStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
+            fullStoragePath: "user-1/videos/storage-video-1.mp4",
+            previewUrl: "https://cdn.test/storage-video.mp4",
+            resultUrls: ["https://cdn.test/storage-video.mp4"],
+          },
+        ],
+      ])
+    );
+
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([
+        makeOutput("storage-video-1", {
+          mode: "video",
+          mediaSource: "library",
+          savedMediaIds: ["media-1"],
+          previewUrl: "https://cdn.test/storage-video.mp4",
+          previewStoragePath: "user-1/videos/storage-video-1.mp4",
+          fullStoragePath: "user-1/videos/storage-video-1.mp4",
+        }),
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs[0]).toEqual(
+        expect.objectContaining({
+          previewPosterUrl: "https://cdn.test/storage-poster.jpg",
+          previewPosterStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
+          previewStoragePath: "user-1/variants/videos/media-1/poster_720.jpg",
+          fullStoragePath: "user-1/videos/storage-video-1.mp4",
+        })
+      );
+    });
+
+    expect(resolveVideoPosterRepairsForOutputsMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        id: "storage-video-1",
+        savedMediaIds: ["media-1"],
+      }),
+    ]);
   });
 
   it("keeps Standard and Pulse create prompts isolated across mode toggles", () => {

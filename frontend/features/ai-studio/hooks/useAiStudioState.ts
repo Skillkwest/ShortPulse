@@ -13,6 +13,7 @@ import {
   resolveVisibleGenerationReconcile,
 } from "../logic/generatedMediaAuthority";
 import { mergeCanonicalGeneratedOutputs } from "../logic/generatedOutputHydration";
+import { resolveVideoPosterRepairsForOutputs } from "../logic/videoPosterRepair";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
 import { abandonGenerationOutput } from "../logic/generationAbandonment";
 import { useAiStudioCreationState } from "./useAiStudioCreationState";
@@ -55,6 +56,7 @@ const isPlainSessionGeneratedOutputHydrationEnabled = (): boolean =>
 const CANONICAL_GENERATED_OUTPUT_SYNC_INTERVAL_MS = 5_000;
 const CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS = 120_000;
 const GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE = 4;
+const STORAGE_VIDEO_POSTER_REPAIR_BATCH_SIZE = 12;
 
 const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean => {
   const hasGenerationIdentity = Boolean(output.generationId || output.taskId);
@@ -81,6 +83,26 @@ const buildGeneratedVideoPosterRepairKey = (output: StudioOutput): string =>
     output.previewStoragePath ?? "",
     output.fullStoragePath ?? "",
     output.resultUrls?.join("|") ?? "",
+  ].join("::");
+
+const isStorageVideoPosterRepairCandidate = (output: StudioOutput): boolean => {
+  if (output.mode !== "video") return false;
+  if (output.previewPosterUrl?.trim()) return false;
+  if (output.previewPosterStoragePath?.trim()) return true;
+  if (output.savedMediaIds?.some((id) => id.trim().length > 0)) return true;
+  return Boolean(output.previewStoragePath?.trim() || output.fullStoragePath?.trim());
+};
+
+const buildStorageVideoPosterRepairKey = (output: StudioOutput): string =>
+  [
+    output.id,
+    output.previewPosterUrl ?? "",
+    output.previewPosterStoragePath ?? "",
+    output.previewStoragePath ?? "",
+    output.fullStoragePath ?? "",
+    output.previewUrl ?? "",
+    output.resultUrls?.join("|") ?? "",
+    output.savedMediaIds?.join("|") ?? "",
   ].join("::");
 
 export const useAiStudioState = ({
@@ -225,6 +247,7 @@ export const useAiStudioState = ({
   const canonicalGeneratedOutputSyncInFlightRef = useRef(false);
   const canonicalGeneratedOutputSyncLastActiveAtRef = useRef<number | null>(null);
   const generatedVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
+  const storageVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
   const activeBaseRuntimeAuthorityKeyRef = useRef(baseRuntimeAuthorityKey);
   const activeRuntimeAuthorityKeyRef = useRef(runtimeAuthorityKey);
   const runtimeUiStateByAuthorityKeyRef = useRef<Record<string, AiStudioRuntimeUiState>>({});
@@ -275,6 +298,7 @@ export const useAiStudioState = ({
       activeBaseRuntimeAuthorityKeyRef.current = baseRuntimeAuthorityKey;
       canonicalGeneratedHydrationStartedRef.current = false;
       generatedVideoPosterRepairKeySetRef.current.clear();
+      storageVideoPosterRepairKeySetRef.current.clear();
     }
     activeRuntimeAuthorityKeyRef.current = runtimeAuthorityKey;
     const restoredState = baseAuthorityChanged
@@ -679,6 +703,68 @@ export const useAiStudioState = ({
       cancelled = true;
     };
   }, [hasPendingWorkflowRestore, outputs, projectId, setOutputsState]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
+    const repairCandidates = outputs
+      .filter(isStorageVideoPosterRepairCandidate)
+      .map((output) => ({
+        output,
+        repairKey: buildStorageVideoPosterRepairKey(output),
+      }))
+      .filter(({ repairKey }) => !storageVideoPosterRepairKeySetRef.current.has(repairKey))
+      .slice(0, STORAGE_VIDEO_POSTER_REPAIR_BATCH_SIZE);
+    if (!repairCandidates.length) return;
+
+    repairCandidates.forEach(({ repairKey }) => {
+      storageVideoPosterRepairKeySetRef.current.add(repairKey);
+    });
+
+    let cancelled = false;
+    void (async () => {
+      const repairs = await resolveVideoPosterRepairsForOutputs(
+        repairCandidates.map(({ output }) => output)
+      );
+      if (cancelled || repairs.size === 0) return;
+
+      const repairKeyByOutputId = new Map(
+        repairCandidates.map(({ output, repairKey }) => [output.id, repairKey])
+      );
+
+      setOutputsState((currentOutputs) => {
+        let changed = false;
+        const patchedOutputs = currentOutputs.map((output) => {
+          const repair = repairs.get(output.id);
+          if (!repair) return output;
+          if (output.previewPosterUrl?.trim()) return output;
+          const baselineRepairKey = repairKeyByOutputId.get(output.id);
+          if (baselineRepairKey && buildStorageVideoPosterRepairKey(output) !== baselineRepairKey) {
+            return output;
+          }
+
+          changed = true;
+          return {
+            ...output,
+            previewPosterUrl: repair.previewPosterUrl,
+            previewPosterStoragePath: repair.previewPosterStoragePath,
+            previewStoragePath: repair.previewStoragePath,
+            fullStoragePath: repair.fullStoragePath ?? output.fullStoragePath ?? null,
+            previewUrl: repair.previewUrl ?? output.previewUrl,
+            resultUrls: repair.resultUrls ?? output.resultUrls,
+          };
+        });
+        return changed ? patchedOutputs : currentOutputs;
+      });
+    })().catch(() => {
+      repairCandidates.forEach(({ repairKey }) => {
+        storageVideoPosterRepairKeySetRef.current.delete(repairKey);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasPendingWorkflowRestore, outputs, setOutputsState]);
 
   const {
     deleteOutput,

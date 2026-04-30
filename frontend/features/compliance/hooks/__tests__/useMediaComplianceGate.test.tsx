@@ -80,4 +80,41 @@ describe("useMediaComplianceGate", () => {
     expect(result.current.accepted).toBe(true);
     expect(result.current.acceptedAt).toBe("2026-04-25T18:30:00.000Z");
   });
+
+  it("keeps failed acceptance errors in gate state", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          accepted: false,
+          acceptedAt: null,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: vi.fn().mockResolvedValue({
+          error: "Unauthorized",
+        }),
+      });
+
+    const { result } = renderHook(() =>
+      useMediaComplianceGate({
+        enabled: true,
+        userId: "user-123",
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.initialized).toBe(true);
+      expect(result.current.accepted).toBe(false);
+    });
+
+    await act(async () => {
+      await expect(result.current.acceptAgreement()).rejects.toThrow("Unauthorized");
+    });
+
+    expect(result.current.accepted).toBe(false);
+    expect(result.current.error).toBe("Unauthorized");
+    expect(result.current.loading).toBe(false);
+  });
 });

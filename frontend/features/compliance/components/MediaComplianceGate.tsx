@@ -98,7 +98,9 @@ export function MediaComplianceGate({
             className="primary-btn compliance-gate-primary"
             disabled={!checked || loading}
             onClick={() => {
-              void onAccept();
+              void onAccept().catch(() => {
+                // The hook owns user-facing error state; keep API failures inside the gate.
+              });
             }}
           >
             {loading ? "Saving..." : agreement.confirmLabel}

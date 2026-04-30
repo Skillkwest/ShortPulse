@@ -132,6 +132,20 @@ const readSessionFromClient = async (): Promise<Session | null> => {
   }
 };
 
+const refreshSessionFromClient = async (): Promise<Session | null> => {
+  try {
+    const supabase = ensureSupabaseClient();
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) throw error;
+    const session = data.session ?? null;
+    setSessionSnapshot(session, true);
+    return session;
+  } catch (error) {
+    setSessionSnapshotFromError();
+    throw error;
+  }
+};
+
 /**
  * Reads the current browser session through one shared in-flight request.
  * Prefer this over calling `supabase.auth.getSession()` at leaf consumers.
@@ -147,11 +161,13 @@ export const readSupabaseSession = async (options?: {
     return await currentSessionReadPromise;
   }
 
-  const pendingRead = readSessionFromClient().finally(() => {
-    if (currentSessionReadPromise === pendingRead) {
-      currentSessionReadPromise = null;
+  const pendingRead = (forceRefresh ? refreshSessionFromClient() : readSessionFromClient()).finally(
+    () => {
+      if (currentSessionReadPromise === pendingRead) {
+        currentSessionReadPromise = null;
+      }
     }
-  });
+  );
   currentSessionReadPromise = pendingRead;
   return await pendingRead;
 };

@@ -22,7 +22,6 @@ type UseAiStudioReferenceIngestionActionsArgs = {
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
-  setSharedPrompt: (value: string) => void;
   setUiError?: Dispatch<SetStateAction<string | null>>;
 };
 
@@ -84,7 +83,6 @@ export const useAiStudioReferenceIngestionActions = ({
   model,
   setOutputs,
   updateOutputById,
-  setSharedPrompt,
   setUiError,
 }: UseAiStudioReferenceIngestionActionsArgs): UseAiStudioReferenceIngestionActionsResult => {
   const libraryMediaIngestionErrorMessage =
@@ -219,9 +217,8 @@ export const useAiStudioReferenceIngestionActions = ({
       const [promptReference] = result.outputs;
       if (!promptReference) return;
       setOutputs((prev) => [promptReference, ...prev]);
-      setSharedPrompt(promptReference.prompt);
     },
-    [aspect, mode, model, setOutputs, setSharedPrompt]
+    [aspect, mode, model, setOutputs]
   );
 
   const addPastedPromptReference = useCallback(

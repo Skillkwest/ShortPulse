@@ -856,7 +856,6 @@ export const useAiStudioState = ({
     model,
     outputs,
     setOutputs,
-    setSharedPrompt,
     setUiError,
     updateOutputById,
   });

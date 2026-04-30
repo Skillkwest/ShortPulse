@@ -25,7 +25,6 @@ const createParams = (
   model: "fal-ai/flux/dev",
   setOutputs: vi.fn(),
   updateOutputById: vi.fn(),
-  setSharedPrompt: vi.fn(),
   setUiError: vi.fn(),
   ...overrides,
 });

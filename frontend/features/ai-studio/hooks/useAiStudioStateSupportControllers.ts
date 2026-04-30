@@ -12,7 +12,6 @@ type UseAiStudioStateSupportControllersParams = {
   model: string | null;
   outputs: StudioOutput[];
   setOutputs: (updater: StudioOutput[] | ((prev: StudioOutput[]) => StudioOutput[])) => void;
-  setSharedPrompt: (value: string) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
   updateOutputById: ReturnType<typeof useAiStudioOutputLifecycle>["updateOutputById"];
 };
@@ -25,7 +24,6 @@ export const useAiStudioStateSupportControllers = ({
   model,
   outputs,
   setOutputs,
-  setSharedPrompt,
   setUiError,
   updateOutputById,
 }: UseAiStudioStateSupportControllersParams) => {
@@ -36,7 +34,6 @@ export const useAiStudioStateSupportControllers = ({
     model,
     setOutputs,
     updateOutputById,
-    setSharedPrompt,
     setUiError,
   });
 

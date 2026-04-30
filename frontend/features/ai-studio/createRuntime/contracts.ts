@@ -163,7 +163,7 @@ export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
   handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
   handleClearAgentChat: () => void;
   hydrateFromSessionAgentSnapshot: (
-    payload: Pick<AiStudioSessionHydrationPayload, "agent" | "agentRuntimes">
+    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
   ) => void;
   resetProjectAgentConversation: () => void;
 };
@@ -258,7 +258,7 @@ export type PulseCreatePageAgentRuntime = PulseCreateAgentRuntimeState & {
   handleAssistantMessageEdit: (request: AgentAssistantMessageEditRequest) => boolean;
   handleClearAgentChat: () => void;
   hydrateFromSessionAgentSnapshot: (
-    payload: Pick<AiStudioSessionHydrationPayload, "agent" | "agentRuntimes">
+    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
   ) => void;
   resetProjectAgentConversation: () => void;
 };

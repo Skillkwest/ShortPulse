@@ -64,6 +64,10 @@ import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/cre
 import { buildPulseCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildPulseCreateRuntimeResult";
 import { buildStandardCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildStandardCreateRuntimeResult";
 import type { CreatePageAgentRuntime } from "../features/ai-studio/createRuntime/contracts";
+import {
+  shouldApplySessionAgentHydrationToRuntime,
+  type CreateRuntimeAgentHydrationPayload,
+} from "../features/ai-studio/createRuntime/sessionAgentHydrationBoundary";
 import { usePulseCreateAgentRuntime } from "../features/ai-studio/createRuntime/usePulseCreateAgentRuntime";
 import { useStandardCreateAgentRuntime } from "../features/ai-studio/createRuntime/useStandardCreateAgentRuntime";
 import { usePulseCreatePrimarySubmit } from "../features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit";
@@ -783,6 +787,9 @@ const useAiStudioPageBaseRuntime = () => {
     trackCharacterModeEvent: trackUiEvent,
     bundleStaleAfterMs: CHARACTER_MODE_BUNDLE_STALE_AFTER_MS,
   });
+  const pendingCreateRuntimeAgentHydrationRef = useRef<CreateRuntimeAgentHydrationPayload | null>(
+    null
+  );
   return {
     activeCreatePrompt,
     activeCreatePulsePresetId,
@@ -884,6 +891,7 @@ const useAiStudioPageBaseRuntime = () => {
     optimisticDebitEntries,
     optimisticUncoveredDebitCredits,
     outputs,
+    pendingCreateRuntimeAgentHydrationRef,
     pendingHoldCredits,
     project,
     projectError,
@@ -1389,12 +1397,35 @@ const useAiStudioPageRuntimeShell = ({
   const resetProjectAgentConversation = useCallback(() => {
     resetActiveProjectAgentConversation();
   }, [resetActiveProjectAgentConversation]);
+  const { pendingCreateRuntimeAgentHydrationRef } = base;
   const hydrateFromSessionAgentSnapshot = useCallback(
-    (payload: Parameters<typeof hydrateActiveFromSessionAgentSnapshot>[0]) => {
+    (payload: CreateRuntimeAgentHydrationPayload) => {
+      if (!shouldApplySessionAgentHydrationToRuntime(payload, activeCreateAgentRuntime.kind)) {
+        pendingCreateRuntimeAgentHydrationRef.current = payload;
+        return;
+      }
+      pendingCreateRuntimeAgentHydrationRef.current = null;
       hydrateActiveFromSessionAgentSnapshot(payload);
     },
-    [hydrateActiveFromSessionAgentSnapshot]
+    [
+      activeCreateAgentRuntime.kind,
+      hydrateActiveFromSessionAgentSnapshot,
+      pendingCreateRuntimeAgentHydrationRef,
+    ]
   );
+  useEffect(() => {
+    const pendingPayload = pendingCreateRuntimeAgentHydrationRef.current;
+    if (!pendingPayload) return;
+    if (!shouldApplySessionAgentHydrationToRuntime(pendingPayload, activeCreateAgentRuntime.kind)) {
+      return;
+    }
+    pendingCreateRuntimeAgentHydrationRef.current = null;
+    hydrateActiveFromSessionAgentSnapshot(pendingPayload);
+  }, [
+    activeCreateAgentRuntime.kind,
+    hydrateActiveFromSessionAgentSnapshot,
+    pendingCreateRuntimeAgentHydrationRef,
+  ]);
   const handleStandardCreatePromptChange = useCallback(
     (value: string) => {
       setStandardCreatePrompt(value);

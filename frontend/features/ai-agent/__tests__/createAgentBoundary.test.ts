@@ -255,6 +255,8 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain("const StandardCreateRuntimeRoot =");
     expect(pageSource).toContain("const PulseCreateRuntimeRoot =");
     expect(pageSource).toContain("const AiStudioPageRuntimeBody =");
+    expect(pageSource).toContain("pendingCreateRuntimeAgentHydrationRef");
+    expect(pageSource).toContain("shouldApplySessionAgentHydrationToRuntime");
     expect(pageSource).not.toContain("const activeCreateAgentRuntime =");
     expect(pageSource).not.toContain(
       'expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime'

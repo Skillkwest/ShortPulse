@@ -372,7 +372,11 @@ export const useStandardCreateAgentRuntime = ({
   );
 
   const hydrateFromSessionAgentSnapshot = useCallback(
-    ({ agentRuntimes }: Pick<AiStudioSessionHydrationPayload, "agent" | "agentRuntimes">) => {
+    ({
+      workspace,
+      agentRuntimes,
+    }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
+      if (workspace.expertCreateMode !== "standard") return;
       const standardRuntime = agentRuntimes.standard;
       replaceMessages(standardRuntime.messages);
       setAgentInput(standardRuntime.input);

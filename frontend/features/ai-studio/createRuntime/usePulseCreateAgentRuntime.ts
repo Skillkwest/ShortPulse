@@ -442,8 +442,28 @@ export const usePulseCreateAgentRuntime = ({
   );
 
   const hydrateFromSessionAgentSnapshot = useCallback(
-    ({ agentRuntimes }: Pick<AiStudioSessionHydrationPayload, "agent" | "agentRuntimes">) => {
-      const pulseRuntime = agentRuntimes.pulse;
+    ({
+      workspace,
+      agentRuntimes,
+    }: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">) => {
+      if (workspace.expertCreateMode !== "pulse") return;
+      const workspacePresetId = workspace.activePulsePresetId ?? null;
+      const runtimePresetId = agentRuntimes.pulsePresetId ?? null;
+      const hasAuthorizedPulseRuntime =
+        Boolean(workspacePresetId) &&
+        Boolean(workspace.pulseSessionInstanceId) &&
+        runtimePresetId === workspacePresetId;
+      const pulseRuntime: AiStudioSessionHydrationPayload["agentRuntimes"]["pulse"] =
+        hasAuthorizedPulseRuntime
+          ? agentRuntimes.pulse
+          : {
+              messages: [],
+              input: "",
+              latestAgentPrompt: null,
+              promptOrigin: "manual",
+              chatModeEnabled: true,
+              pulseWorkflowSession: null,
+            };
       replaceMessages(pulseRuntime.messages);
       setAgentInput(pulseRuntime.input);
       setAgentAttachments([]);

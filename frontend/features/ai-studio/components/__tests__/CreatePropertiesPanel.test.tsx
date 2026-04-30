@@ -1418,6 +1418,57 @@ describe("CreatePropertiesPanel", () => {
     expect(onExpertCreateModeChange).toHaveBeenNthCalledWith(2, "standard");
   });
 
+  it("does not show a Pulse composer draft after switching back to Standard", () => {
+    function ModeOwnedComposerHarness() {
+      const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">(
+        "standard"
+      );
+      const [standardInput, setStandardInput] = React.useState("Standard-only draft");
+      const [pulseInput, setPulseInput] = React.useState("Pulse starter draft");
+
+      return (
+        <RenderModeOwnedCreatePanel
+          {...baseProps}
+          beginnerMode={false}
+          expertCreateUiEligible
+          agentEnabled
+          chatModeEnabled
+          expertCreateMode={expertCreateMode}
+          onExpertCreateModeChange={setExpertCreateMode}
+          activePulsePresetId="story_builder"
+          hasActivePulseSession
+          pulseWorkflowSession={{
+            presetId: "story_builder",
+            status: "awaiting_input",
+            currentStepIndex: 1,
+            currentStepLabel: "Scene",
+            currentStepPrompt: "Describe the scene.",
+            collectedInputs: [],
+            lastArtifact: null,
+            finalArtifactSource: null,
+          }}
+          agentInput={expertCreateMode === "pulse" ? pulseInput : standardInput}
+          onAgentInputChange={expertCreateMode === "pulse" ? setPulseInput : setStandardInput}
+          onAgentSend={vi.fn()}
+        />
+      );
+    }
+
+    render(<ModeOwnedComposerHarness />);
+
+    expect(screen.getByRole("textbox")).toHaveValue("Standard-only draft");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
+    const pulseComposer = screen.getByRole("textbox");
+    fireEvent.change(pulseComposer, { target: { value: "Custom Pulse draft" } });
+    expect(pulseComposer).toHaveValue("Custom Pulse draft");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Standard" }));
+
+    expect(screen.getByRole("textbox")).toHaveValue("Standard-only draft");
+    expect(screen.getByRole("textbox")).not.toHaveValue("Custom Pulse draft");
+  });
+
   it("renders the shared styles control in expert create and toggles via callback", () => {
     const onStylesPanelToggle = vi.fn();
     const { rerender } = renderPanel({

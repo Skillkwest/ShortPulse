@@ -347,6 +347,9 @@ describe("Create agent mode boundaries", () => {
     const pulsePrimarySubmitSource = readFrontendFile(
       "features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit.ts"
     );
+    const panelPropBuilderSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioPanelProps.ts"
+    );
     const stateRuntimeControllersSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioStateRuntimeControllers.ts"
     );
@@ -366,8 +369,12 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
     expect(pageSource).not.toContain("const handlePrimarySubmit =");
-    expect(pageSource).toContain("handleStandardCreatePrimarySubmit,");
-    expect(pageSource).toContain("handlePulseCreatePrimarySubmit,");
+    expect(pageSource).toContain("standardCreateCommands:");
+    expect(pageSource).toContain("pulseCreateCommands:");
+    expect(pageSource).toContain("handlePrimarySubmit: handleStandardCreatePrimarySubmit");
+    expect(pageSource).toContain("handleGenerateArtifact: handlePulseCreatePrimarySubmit");
+    expect(panelPropBuilderSource).toContain("standardCreateCommands:");
+    expect(panelPropBuilderSource).toContain("pulseCreateCommands:");
     expect(pageSource).toContain("useStandardCreatePrimarySubmit");
     expect(pageSource).toContain("usePulseCreatePrimarySubmit");
     expect(pageSource).not.toContain("const pulsePrompt = resolveChatOffCreatePrompt");

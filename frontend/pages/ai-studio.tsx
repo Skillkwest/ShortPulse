@@ -1329,9 +1329,13 @@ export default function AiStudioPage() {
     isGenerateDisabled: effectiveIsGenerateDisabled,
     generationGuardrail: effectiveGenerationGuardrail,
     handleClearAgentChat,
-    handleStandardCreatePrimarySubmit,
-    handlePulseCreatePrimarySubmit,
-    handleChatOffInlineGenerate,
+    standardCreateCommands: {
+      handlePrimarySubmit: handleStandardCreatePrimarySubmit,
+      handleChatOffInlineGenerate,
+    },
+    pulseCreateCommands: {
+      handleGenerateArtifact: handlePulseCreatePrimarySubmit,
+    },
     savePromptReference,
     characterOptions,
     selectedCharacterId: createSelectedCharacterId,

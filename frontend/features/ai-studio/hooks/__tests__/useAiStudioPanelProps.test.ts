@@ -70,9 +70,13 @@ const createParams = (
     isGenerateDisabled: false,
     generationGuardrail: null,
     handleClearAgentChat: vi.fn(),
-    handleStandardCreatePrimarySubmit: vi.fn(),
-    handlePulseCreatePrimarySubmit: vi.fn(),
-    handleChatOffInlineGenerate: vi.fn(),
+    standardCreateCommands: {
+      handlePrimarySubmit: vi.fn(),
+      handleChatOffInlineGenerate: vi.fn(),
+    },
+    pulseCreateCommands: {
+      handleGenerateArtifact: vi.fn(),
+    },
     savePromptReference: vi.fn(),
     characterOptions: [],
     selectedCharacterId: "",
@@ -173,7 +177,10 @@ describe("useAiStudioPanelProps", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({
-          handleChatOffInlineGenerate,
+          standardCreateCommands: {
+            handlePrimarySubmit: vi.fn(),
+            handleChatOffInlineGenerate,
+          },
         })
       )
     );

@@ -85,9 +85,13 @@ export type UseAiStudioPanelPropsParams = {
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
-  handleStandardCreatePrimarySubmit: () => void;
-  handlePulseCreatePrimarySubmit: () => void;
-  handleChatOffInlineGenerate: () => void;
+  standardCreateCommands: {
+    handlePrimarySubmit: () => void;
+    handleChatOffInlineGenerate: () => void;
+  };
+  pulseCreateCommands: {
+    handleGenerateArtifact: () => void;
+  };
   savePromptReference: (customPrompt?: string) => void;
   characterOptions: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
   selectedCharacterId: string;
@@ -252,9 +256,8 @@ export const useAiStudioPanelProps = ({
   isGenerateDisabled,
   generationGuardrail,
   handleClearAgentChat,
-  handleStandardCreatePrimarySubmit,
-  handlePulseCreatePrimarySubmit,
-  handleChatOffInlineGenerate,
+  standardCreateCommands,
+  pulseCreateCommands,
   savePromptReference,
   characterOptions,
   selectedCharacterId,
@@ -427,8 +430,8 @@ export const useAiStudioPanelProps = ({
     generationGuardrail,
     handleClearAgentChat,
     useReferenceImageIndicator,
-    handleStandardCreatePrimarySubmit,
-    handleChatOffInlineGenerate,
+    handleStandardCreatePrimarySubmit: standardCreateCommands.handlePrimarySubmit,
+    handleChatOffInlineGenerate: standardCreateCommands.handleChatOffInlineGenerate,
     savePromptReference,
     characterOptions,
     selectedCharacterId,
@@ -476,7 +479,7 @@ export const useAiStudioPanelProps = ({
     isGenerateDisabled,
     generationGuardrail,
     handleClearAgentChat,
-    handlePulseCreatePrimarySubmit,
+    handlePulseCreatePrimarySubmit: pulseCreateCommands.handleGenerateArtifact,
     savePromptReference,
     expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
   });

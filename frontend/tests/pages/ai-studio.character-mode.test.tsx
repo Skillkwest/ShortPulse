@@ -478,7 +478,9 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioWorkspaceActions", () => ({
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioPanelProps", () => ({
   useAiStudioPanelProps: (params: {
-    handleStandardCreatePrimarySubmit: () => void;
+    standardCreateCommands: {
+      handlePrimarySubmit: () => void;
+    };
     characterOptions: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
     selectedCharacterId: string;
     setSelectedCharacterId: (value: string) => void;
@@ -486,7 +488,7 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioPanelProps", () => ({
     setIsCharacterModeEnabled: (value: boolean) => void;
   }) => ({
     propertiesCreate: {
-      onGenerate: params.handleStandardCreatePrimarySubmit,
+      onGenerate: params.standardCreateCommands.handlePrimarySubmit,
       onSelectedCharacterIdChange: params.setSelectedCharacterId,
       onCharacterModeEnabledChange: params.setIsCharacterModeEnabled,
       characterOptions: params.characterOptions,

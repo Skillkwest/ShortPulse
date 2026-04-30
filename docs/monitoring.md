@@ -3,6 +3,7 @@
 Purpose: define how runtime incidents are captured, triaged, and resolved.
 
 ## Signals in place
+
 - Client runtime, API/network, and generation workflow failures are captured and sent to `/api/log/client-error`.
 - Client route-transition failures (`client.route_change`, excluding cancelled navigations) are captured for incident triage.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
@@ -23,6 +24,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `telemetry.media.upload_adapter.upload_video_used`
 
 ## Telemetry pipeline topology
+
 1. Ingestion entrypoints:
    - Browser/runtime: `POST /api/log/client-error`
    - Browser/public growth telemetry: `POST /api/telemetry/growth`
@@ -40,6 +42,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
    - `/api/admin/stats/global` = admin stats workspace payload for product + growth lenses
 
 ## AI Studio usage analytics
+
 - Primary generate-click source: `telemetry.ai_studio.generate_clicked`
 - Primary accepted-run source: `ai_generations`
 - Primary workflow-context source: `generation_projection` (style/character/reference lineage)
@@ -65,6 +68,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `reference_count`
 
 ## Growth analytics
+
 - Attribution identity storage: `growth_attribution_identities`
 - Signup authority: `billing_profiles.created_at`
 - Activation authority: derived from first `media_events.event_type='generation_saved'` or first `project_generation_items.created_at` within 7 days of signup
@@ -77,8 +81,18 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Growth telemetry remains telemetry-only in `app_error_events`; it does not create grouped incidents in `app_error_logs`.
 
 ## AI Studio Pulse runtime monitoring
+
 - Pulse runtime quality is monitored through Pulse-owned studio-agent route telemetry plus authoritative `pulseWorkflowSession` state. Standard and Pulse use separate route/runtime labels; do not aggregate custom Pulse state into Standard telemetry.
 - Route-level studio-agent telemetry is emitted by `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts` as `[studio-agent][telemetry]` and is the primary signal for Pulse request outcomes.
+- Mode-owned route labels are part of the monitoring contract:
+  - Standard Create: `/api/ai/studio-agent-standard`, `runtime_scope_key` rooted in `studio-agent-standard`.
+  - Pulse Create: `/api/ai/studio-agent-pulse`, `runtime_scope_key` rooted in `route:studio-agent-pulse`.
+  - Generic `/api/ai/studio-agent` is retired compatibility only and should not emit successful work telemetry.
+- Treat these as high-signal boundary regressions:
+  - Pulse telemetry or `workflowSession` fields appearing on Standard route responses,
+  - Standard traffic carrying `context.pulse`,
+  - Pulse traffic missing a Pulse session namespace,
+  - Pulse traffic rejected because the namespace preset segment differs from `context.pulse.presetId`.
 - Treat these telemetry fields as the Pulse runtime outcome contract:
   - routing: `flow`, `path`, `model`
   - outcome: `status`, `decision`, `outcome_class`, `reason_code`, `retryable`
@@ -106,6 +120,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - workflow session state tells you whether a workflow Pulse is active, awaiting input, still running, or completed with a reusable artifact.
 
 ## AI Studio Pulse eval posture
+
 - Pulse closeout eval coverage is regression-based and lives in the runtime and persistence suites:
   - `frontend/tests/api/studio-agent.runtime.test.ts`
   - `frontend/features/agent-runtime/__tests__/studioAgentCoordinator.test.ts`
@@ -125,11 +140,13 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - on project routes, verify only workspace-owned Pulse context persists across reload (`expertCreateMode` and the active preset selection). Do not expect project workspace restore to hydrate `pulseWorkflowSession`, chat history, draft chat input, or `chatModeEnabled`; ADR 0070 explicitly excludes conversational runtime from project restore.
 
 ## Severity model
+
 - `low`: recoverable UI issues with clear user fallback.
 - `medium`: workflow failures that block a feature but have workaround paths.
 - `high`: auth, billing, data-loss, or widespread generation failures.
 
 ## Operational workflow
+
 1. Detect incident in `/admin`.
 2. Classify severity and affected route/API.
 3. Reproduce using request ID, route, and metadata.
@@ -137,6 +154,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 5. Record outcome in `docs/change_log.md` and, if unresolved, `docs/known-issues.md`.
 
 ### Fal drain cycle monitoring
+
 - Use `scripts/run_generation_drain_cycle.mjs` to run controlled all-user drain loops via `/api/internal/generation-recovery/run`.
 - Use `npx tsx scripts/replay_generation_convergence_backlog.ts --dry-run` to inspect `outputs_without_publications` backlog rows that are already `status='success'` and therefore outside normal reconciler claiming.
 - Use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical drain/remediation sequence.
@@ -163,6 +181,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - worst-case rows identify whether lag clusters around a specific model, provider, or recovery actor.
 
 ### Admin fleet health monitoring
+
 - Fleet scan trigger route: `/api/internal/admin-user-health-fleet/run`.
 - Cadence state:
   - current runtime baseline: hourly,
@@ -180,6 +199,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - partial runs and degraded reads should include actionable reason text and operator follow-up.
 
 ### Single-account health snapshot
+
 - Use `npx tsx scripts/account_health_snapshot.ts --lookup <email-or-user-id>` for a read-only one-account snapshot.
 - Add `--json` when you want a machine-readable capture for diffing or handoff.
 - Add `--strict` after cleanup or reconciliation to fail closed on critical findings or compatibility warnings.
@@ -187,6 +207,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Use `/api/admin/user-health` and `/admin/generation-trace` alongside the snapshot when you need deeper operator context.
 
 ### Control-Plane Diagnostics Bundle
+
 - Scheduler/cron diagnostics: `sql/check_control_plane_scheduler_health.sql`.
 - `pg_net` diagnostics taxonomy: `sql/check_pg_net_failure_taxonomy.sql`.
 - Use these scripts as the canonical R1 control-plane checks before and during incident escalation.
@@ -195,6 +216,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - durable inbox / duplicate / ignore / recovery handoff: `frontend/lib/server/falIntegration/falWebhookIngress.ts`
 
 ## Admin triage controls
+
 - `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.
 - Use incident status transitions (`open` -> `resolved`/`ignored`, with `reopen` when needed) to represent triage state.
 - Admin UI supports single-item and listed-page bulk status transitions for incidents (resolve/ignore) via `/api/admin/errors-status` and `/api/admin/errors-status-bulk`.
@@ -204,6 +226,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `Hide` removes a row from the current session view only; `Show hidden` restores hidden rows.
 
 ### Triage packet contract
+
 - Incident packets use `shortpulseIncidentVersion` (current: `3`) plus `packetType: "triage"` and an `incident` object.
 - Event packets use `shortpulseEventVersion` (current: `2`) plus `packetType: "triage"` and an `event` object.
 - Compatibility rule for tooling/scripts:
@@ -216,11 +239,13 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - When deep forensics requires unsummarized metadata, copy it from Event Detail in `/admin` as a second step.
 
 ## Smoke-test trigger
+
 - Operators can create a synthetic incident via `/api/admin/errors-test` (Admin auth required).
 - Admin UI shortcut: Errors tab buttons `Trigger app test` / `Trigger generation test`.
 - Synthetic incidents are tagged in metadata (`synthetic: true`) and should be resolved/ignored after verification.
 
 ## Alert thresholds
+
 - `/api/admin/error-events` computes 15-minute spike indicators and breach flags for:
   - total event volume,
   - high-severity event volume,
@@ -234,12 +259,14 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 
 ## Character Manager compatibility drift monitor
+
 - During the Character Sheet migration window, run `sql/check_character_sheet_alias_drift.sql` after each deploy that touches Character Manager persistence or schema.
 - Expected result: every `mismatch_count` is `0`.
 - If any non-zero count appears, treat as `medium` severity because cross-surface assignment behavior may diverge.
 - Escalate using the troubleshooting runbook section `Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)`.
 
 ## Media storage scope drift monitor
+
 - After any deploy that changes media upload/sign/move behavior or storage-path constraints, run `sql/check_media_storage_scope_drift.sql`.
 - Expected result: every `mismatch_count` is `0`.
 - If any non-zero count appears, treat as `high` severity because cross-user object reference risk can reappear.
@@ -248,6 +275,7 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 - Escalate using troubleshooting runbook section `Media storage path scope drift`.
 
 ## Release checklist tie-in
+
 - Before release, verify incident ingestion is functioning.
 - After release, spot-check new incidents and confirm no high-severity regressions.
 - For media-rendering `P9` closeout, review adapter usage counts in `/api/admin/error-events` or the Admin Event Stream using:
@@ -255,6 +283,7 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
   - `source=telemetry.media.upload_adapter.upload_video_used`
 
 ## Canary window for cleanup PRs
+
 - Deploy dead-code/refactor PRs separately from feature launches.
 - During the first post-deploy window, monitor:
   - `/api/admin/error-events` for event spikes,
@@ -263,6 +292,7 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 - If a regression appears, revert the cleanup PR first, then re-open analysis with a narrowed delete set.
 
 ## Auth Boundary Latency Benchmark (2026-02-14)
+
 - Scope: synthetic benchmark of `requireApiUser` on protected API paths comparing middleware-authenticated context reuse vs token-only fallback verification.
 - Method: `frontend/tests/api/auth-latency-benchmark.test.ts` runs `40` samples per path with a controlled `12ms` mocked Supabase `/auth/v1/user` delay for fallback.
 - Result snapshot (recent sampled range across repeated runs):
@@ -271,6 +301,7 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 - Command: `cd frontend && npm run test -- auth-latency-benchmark`
 
 ## Protected-Route Staging Latency Capture (2026-02-14)
+
 - Goal: collect one real staging p50/p95 sample on a protected API route before external tester rollout.
 - Preferred route: `/api/billing/credit-packages` (auth-protected read path, no mutation side effects).
 - Script: `scripts/capture_protected_route_latency.mjs`.
@@ -294,6 +325,7 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
   - Copy one successful sample into `docs/planning/mvp-pretester-full-audit-remediation-plan.md` and `docs/change_log.md` with capture date/time and route list.
 
 Latest captured sample (credentialed runtime probe on 2026-02-14):
+
 - Environment: local running app (`http://127.0.0.1:3000`) with real Supabase-authenticated bearer token from a short-lived test user.
 - Route: `/api/billing/credit-packages` (`30` measured samples, `5` warmup).
 - Result: `p50=222.99ms`, `p95=291.78ms`, `min=204.88ms`, `max=294.34ms`, `success_rate=100.0%`, `statuses=200:30`.

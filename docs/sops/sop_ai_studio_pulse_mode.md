@@ -128,22 +128,27 @@ Guided Pulse model/runtime config:
 - Mode/runtime controller:
   - `frontend/features/ai-studio/hooks/useAiStudioCreateModeRuntime.ts`
 - Create panel surface:
-  - `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`
+  - `frontend/features/ai-studio/components/create/StandardCreatePropertiesPanel.tsx`
   - `frontend/features/ai-studio/components/create/PulseCreatePropertiesPanel.tsx`
   - `frontend/features/ai-studio/components/create/PulseCreatePanelView.tsx`
   - `frontend/features/ai-studio/components/create/CreateExpertPresetPanel.tsx`
   - `frontend/features/ai-studio/components/create/CreatePulsePresetsSurface.tsx`
-- Pulse click/runtime glue:
-  - `frontend/features/ai-studio/components/create/useCreatePulsePresetRuntime.ts`
 - Page orchestration:
   - `frontend/pages/ai-studio.tsx`
-  - `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts`
+  - `StandardCreateRuntimeRoot`
+  - `PulseCreateRuntimeRoot`
+  - `AiStudioPageRuntimeBody`
+- Mode-owned Create runtime contracts:
+  - `frontend/features/ai-studio/createRuntime/contracts.ts`
+  - `frontend/features/ai-studio/createRuntime/buildStandardCreateRuntimeResult.ts`
+  - `frontend/features/ai-studio/createRuntime/buildPulseCreateRuntimeResult.ts`
+  - `frontend/features/ai-studio/createRuntime/useStandardCreateAgentRuntime.ts`
+  - `frontend/features/ai-studio/createRuntime/usePulseCreateAgentRuntime.ts`
 - Pulse preference owner:
   - `frontend/features/ai-studio/components/create/CreatePulsePreferenceProvider.tsx`
-- Agent bridge/orchestration:
-  - `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts`
-  - `frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts`
-  - `frontend/features/ai-agent/useStandardCreateAgent.ts`
+- Agent orchestration helpers:
+  - `frontend/features/ai-studio/hooks/agentOrchestration/runPulseCreateAgentSend.ts`
+  - `frontend/features/ai-studio/hooks/agentOrchestration/runPulsePresetStartRuntime.ts`
   - `frontend/features/ai-agent/usePulseCreateAgent.ts`
 - Server/runtime contract:
   - `frontend/pages/api/ai/studio-agent-standard.ts`
@@ -195,6 +200,15 @@ Guided Pulse model/runtime config:
 7. The server applies the Pulse runtime system behavior and returns the first workflow response.
 8. The Pulse workflow session becomes the authoritative source for guided status and artifact completion.
 
+## Standard/Pulse separation guardrails
+
+- Active Create must render one mode root at a time: `PulseCreateRuntimeRoot` or `StandardCreateRuntimeRoot`.
+- Pulse composer input, prompt state, transcript, attachments, workflow session, telemetry route label, and persistence payload must never be passed into Standard runtime contracts.
+- Standard chat mode is Standard-owned. Pulse must not read or write the Standard chat-mode preference.
+- Pulse artifact generation reads `pulseWorkflowSession.lastArtifact` only; it must not fall back to Standard composer input.
+- `/api/ai/studio-agent-pulse` rejects requests when `clientSessionNamespace` does not carry a Pulse namespace or when that namespace's preset segment differs from `context.pulse.presetId`.
+- The retired generic `/api/ai/studio-agent` route is compatibility-only and must not execute Standard or Pulse work.
+
 ## Iteration guardrails
 
 Future Pulse changes should preserve these rules:
@@ -226,6 +240,8 @@ Future Pulse changes should preserve these rules:
   - Pulse mode remains open with no active Pulse.
 - Confirm Pulse mode hides Standard-only controls such as the Standard chat toggle and shared Styles controls.
 - Confirm project-route restore does not hydrate Pulse conversational runtime.
+- Confirm Standard route payloads do not include `context.pulse`, `pulseWorkflowSession`, Pulse transcript/input, or Pulse preset/session ids.
+- Confirm Pulse route rejects a namespace/preset mismatch.
 
 ## Related source-of-truth docs
 

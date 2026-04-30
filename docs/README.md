@@ -3,6 +3,7 @@
 Start here for all repository documentation.
 
 ## Navigation
+
 - Core engineering and governance docs live at `docs/` root.
 - API references live in `docs/api/`.
 - SOP runbooks live in `docs/sops/`.
@@ -19,6 +20,7 @@ Start here for all repository documentation.
 - Early non-authoritative ideas live in `docs/brainstorming/`.
 
 ## Core Engineering
+
 - `docs/documentation_overview.md` (documentation governance + quality bar)
 - `docs/dev-ground-rules.md`
 - `docs/conventions.md`
@@ -44,6 +46,7 @@ Start here for all repository documentation.
 - `docs/adr/0068-model-pricing-control-plane.md`
 - `docs/adr/0069-admin-created-billing-plans.md`
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
+- `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
@@ -66,6 +69,7 @@ Start here for all repository documentation.
 - `docs/supabase_full_schema.sql`
 
 ## APIs
+
 - `docs/api/README.md`
 - `docs/api/api-internal-routes.md`
 - `docs/api/api-responses.md`
@@ -101,6 +105,7 @@ Start here for all repository documentation.
 - `docs/api/api-fal-seedream-5-lite-edit.md`
 
 ## SOPs
+
 - `docs/sops/README.md`
 - `docs/sops/sop_character_manager_operations.md`
 - `docs/sops/sop_new_feature_modularization.md`
@@ -135,6 +140,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_naming_canonicalization_rollback.md`
 
 ## Product
+
 - `docs/product/README.md`
 - `docs/product/ai-studio-pricing.md`
 - `docs/product/billing-pricing-catalog.md`
@@ -145,6 +151,7 @@ Start here for all repository documentation.
 - `docs/product/short_pulse_ideal_customer_profile_icp.md`
 
 ## Planning And History
+
 - `docs/planning/README.md`
 - `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
@@ -346,6 +353,7 @@ Start here for all repository documentation.
 - `docs/change_log.md`
 
 ## Records And Evidence
+
 - `docs/records/README.md`
 - `docs/records/evidence/README.md`
 - `docs/records/evidence-migration-classification-2026-04-27.md`
@@ -353,6 +361,7 @@ Start here for all repository documentation.
 - `docs/planning/archive/original-plans/manifest.json` (controlled checksum-backed source-plan exception)
 
 ## ADRs
+
 - `docs/adr/README.md`
 - `docs/adr/0001-client-only-and-demo-data.md`
 - `docs/adr/0002-media-library-persistence.md`
@@ -402,8 +411,11 @@ Start here for all repository documentation.
 - `docs/adr/0046-ai-studio-output-visibility-authority-contract.md`
 - `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
 - `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
+- `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
+- `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
 
 ## Archive
+
 - `docs/archive/README.md`
 - `docs/archive/planning/README.md`
 - `docs/archive/planning/ai-studio-fal-reliability-rollout.md`
@@ -475,6 +487,7 @@ Start here for all repository documentation.
 - `docs/planning/archive/original-plans/README.md` (controlled exception for verbatim source-plan evidence with checksum manifest)
 
 ## Design And Brainstorming
+
 - `docs/design/README.md`
 - `docs/design/ai-studio-style-inventory.md`
 - `docs/design/ai-studio-color-inventory.tsv`
@@ -484,6 +497,7 @@ Start here for all repository documentation.
 - `docs/brainstorming/README.md`
 
 ## Automation
+
 - `skills/skill-session-startup-contract/SKILL.md`
 - `skills/skill-subagent-audit-research/SKILL.md`
 - `skills/skill-pricing-audit/SKILL.md`

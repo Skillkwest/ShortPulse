@@ -3,16 +3,19 @@
 ADRs capture **important, durable decisions** so the repo stays coherent as it grows.
 
 ## When to write an ADR
+
 - Introducing or removing a major dependency/tooling (e.g., test framework, state management).
 - Changing architecture (e.g., client-only → backend, pages router → app router).
 - New cross-cutting patterns (e.g., feature module conventions, data contracts).
 
 ## How to add one
+
 1. Copy `TEMPLATE.md` to a new file: `NNNN-title-in-kebab-case.md`
 2. Fill it out succinctly (1–2 pages is ideal).
 3. Link it from `docs/README.md` if it changes how people work.
 
 ## Active inventory
+
 - `docs/adr/0001-client-only-and-demo-data.md`
 - `docs/adr/0002-media-library-persistence.md`
 - `docs/adr/0003-admin-authorization-source.md`
@@ -82,3 +85,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0068-model-pricing-control-plane.md`
 - `docs/adr/0069-admin-created-billing-plans.md`
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
+- `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`

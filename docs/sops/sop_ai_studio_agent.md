@@ -3,22 +3,27 @@
 Purpose: define how the new chat-based agent replaces prompt textareas across AI Studio, how it receives context (references, prompts, media), and how to run/maintain the flow safely. For UI entry points and runbook details, see `docs/sops/sop_ai_studio_agent_chat_ops.md`. For safety profile tuning knobs and admin control-plane operations, see `docs/sops/sop_ai_studio_agent_safety_control_plane.md`.
 
 ## Scope
+
 - In scope: AI Studio (Create → Text/Image/Video, detail modal, Studio Preview prompt preview) prompt inputs now mediated by the agent. Agent can describe references, propose prompts, and hand off a chosen prompt to generation.
 - Out of scope for this phase: Character tool identity/token flows, performance dashboards, Media Library ingestion.
 
 ## Key components
-| Component | Role |
-| --- | --- |
-| `frontend/lib/agentPromptsConfig.ts` | Source of truth for `STUDIO_AGENT_SYSTEM` prompt (do not duplicate here); loaded via `loadAgentPrompt`. |
-| `frontend/pages/api/ai/studio-agent-standard.ts` / `frontend/pages/api/ai/studio-agent-pulse.ts` | Mode-owned API routes that broker chat completions with vision, apply request guards, and return structured actions. The generic `studio-agent.ts` route is retired compatibility only. |
-| `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts` | Shared input safety precheck used to classify/rewrite/refuse provider-bound text before execution. |
-| `frontend/features/ai-agent/{logic,useStandardCreateAgent.ts,usePulseCreateAgent.ts}` | Feature module: manages mode-owned chat state, context assembly, media downscaling, and action parsing. |
-| `frontend/prefabs/agent/{types.ts,buttons,inputs,panels}` | Prefab UI kit + shared agent types used by UI and API. |
-| `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Supplies prompt/model/reference state to the agent and receives applied prompts. |
-| `frontend/features/ai-studio/components/{CreatePropertiesPanel,VideoPropertiesPanel,DetailModal,StudioPreview}` plus `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx` | Replace prompt textareas with `AgentChatPanel` embeds; surface “Apply prompt”/“Generate” actions. |
-| `frontend/features/ai-studio/components/ReferenceGrid.tsx` | Supplies lightweight reference metadata (id, type, prompt, preview URL) to the agent context. |
+
+| Component                                                                                                                                                                                                                                                                             | Role                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `frontend/lib/agentPromptsConfig.ts`                                                                                                                                                                                                                                                  | Source of truth for `STUDIO_AGENT_SYSTEM` prompt (do not duplicate here); loaded via `loadAgentPrompt`.                                                                                 |
+| `frontend/pages/api/ai/studio-agent-standard.ts` / `frontend/pages/api/ai/studio-agent-pulse.ts`                                                                                                                                                                                      | Mode-owned API routes that broker chat completions with vision, apply request guards, and return structured actions. The generic `studio-agent.ts` route is retired compatibility only. |
+| `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts`                                                                                                                                                                                                                   | Shared input safety precheck used to classify/rewrite/refuse provider-bound text before execution.                                                                                      |
+| `frontend/features/ai-agent/{logic,useStandardCreateAgent.ts,usePulseCreateAgent.ts}`                                                                                                                                                                                                 | Feature module: manages mode-owned chat state, context assembly, media downscaling, and action parsing.                                                                                 |
+| `frontend/prefabs/agent/{types.ts,buttons,inputs,panels}`                                                                                                                                                                                                                             | Prefab UI kit + shared agent types used by UI and API.                                                                                                                                  |
+| `frontend/pages/ai-studio.tsx`                                                                                                                                                                                                                                                        | Top-level Create runtime boundary. Renders `PulseCreateRuntimeRoot` or `StandardCreateRuntimeRoot`, never both active agent runtimes in one root.                                       |
+| `frontend/features/ai-studio/createRuntime/*`                                                                                                                                                                                                                                         | Mode-owned Create page runtime contracts and Standard/Pulse runtime result builders.                                                                                                    |
+| `frontend/features/ai-studio/hooks/useAiStudioState.ts`                                                                                                                                                                                                                               | Supplies prompt/model/reference state and exposes mode-owned Standard/Pulse prompt setters.                                                                                             |
+| `frontend/features/ai-studio/components/create/{StandardCreatePropertiesPanel,PulseCreatePropertiesPanel}.tsx`, `frontend/features/ai-studio/components/{VideoPropertiesPanel,DetailModal,StudioPreview}`, plus `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx` | Embed the active agent/composer surfaces and surface prompt/generation actions.                                                                                                         |
+| `frontend/features/ai-studio/components/ReferenceGrid.tsx`                                                                                                                                                                                                                            | Supplies lightweight reference metadata (id, type, prompt, preview URL) to the agent context.                                                                                           |
 
 ## Prerequisites
+
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (studio-agent default `gpt-5-nano`), optional `OPENAI_VISION_MODEL`, optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (server-authoritative bypass gate), optional `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (client flag that forces the Create chat lane onto the direct bypass path), optional `STUDIO_AGENT_DIRECT_OPENAI_MODEL` (direct bypass model, defaults to `gpt-5.4`), optional `OPENAI_API_BASE`.
 - Timeouts: `STUDIO_AGENT_TIMEOUT_MS` (shared default), optional `STUDIO_AGENT_VISION_TIMEOUT_MS` (vision summary budget), optional `STUDIO_AGENT_TURN_TIMEOUT_MS` (generation turn budget). If split values are unset, both inherit `STUDIO_AGENT_TIMEOUT_MS`.
 - Runtime flags: `STUDIO_AGENT_SINGLE_STAGE_ENABLED` (default on), `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED` (default off, rollback aid), `STUDIO_AGENT_TEXT_FAST_PATH_ENABLED` (legacy path control when single-stage is disabled).
@@ -29,6 +34,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Frontend uploads local blob/data previews to `/api/upload-image` and sends signed/public `https://` URLs to the agent route.
 
 ## System prompt + message schema
+
 - System prompt ID: `STUDIO_AGENT_SYSTEM` in `frontend/lib/agentPromptsConfig.ts` (includes role, allowed tools, tone, brevity rules, safety refusal).
 - Request payload (`POST /api/ai/studio-agent-standard` or `POST /api/ai/studio-agent-pulse`):
   - `messages`: chat history `{ role: "user" | "assistant", content: string }[]`.
@@ -47,7 +53,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
     `lastAssistantMessage`?: string | null;
     `modeHint`?: "chat" | "text" | "describe" | "reference";
     `creditBalance`: number | null;
-  }
+    }
 - Response payload:
   - `message`: on success, mirrors the final generation-ready prompt (`actions.applyPrompt`); on refusal, contains refusal text.
   - `actions` (optional): runtime emits `applyPrompt` for successful turns; refusal leaves actions empty. Legacy extra fields are tolerated for compatibility but are not produced by the canonical path.
@@ -58,7 +64,8 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
   - `traceId`: request correlation ID (server-generated if client omitted).
 
 ## Workflow (happy path)
-1. User types or pastes in the chat UI (embedded where prompt textarea used to be). Messages persist per session/tool.
+
+1. User types or pastes in the active mode-owned chat UI (embedded where prompt textarea used to be). Messages persist only in that mounted runtime.
 2. The mode-owned Create agent hook gathers context: active prompt/model/mode, reference grid summaries, and safe `https://` previews for up to 3 images. Video references contribute text metadata only.
 3. If the user drags references into the chat surface, staged attachments are merged into context before send (prompt refs + image refs/media), then cleared on success.
 4. The mode-owned Create agent hook runs client pre-send safety precheck (when enabled) over outgoing messages/context/canonical prompt:
@@ -75,10 +82,11 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
    - Canonical: single-stage call for `TEXT_ONLY`, `IMAGE_ONLY`, and `MIXED`.
    - Optional rollback: legacy thinker/formatter fallback when `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`.
 9. Response returns normalized prompt output (`message` + `actions.applyPrompt` on success) and canonical prompt continuity.
-10. On Apply: prompt state in `useAiStudioState` updates; the textarea mirrors the applied text (for manual editing), and the next Generate uses it.
+10. On Apply: the active mode-owned prompt setter updates only that mode's prompt state; Standard updates Standard prompt state and Pulse updates Pulse prompt state. The next Generate uses the active mode contract.
 11. Manual reference describe actions remain available through the existing describe flows; canonical prompt-agent turns do not depend on `describeTargets`.
 
 ## Error handling & fallbacks
+
 - If the feature flag or key is missing, show a single-line banner and render the legacy textarea with no chat.
 - Runtime/provider transient failures (timeouts/network/429/5xx): return assistant fallback text with `200` and keep the previous prompt intact.
 - Server input precheck refusal lane: return canonical refusal (`I cannot describe this.`) with `200` and empty actions before any provider call.
@@ -91,6 +99,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Infra fallback copy: `I can't process that request right now. Please try again.` with empty actions.
 
 ## Data handling & safety
+
 - Never send raw file blobs to the LLM route; convert local previews to signed/public `https://` URLs first.
 - No transcript storage in Supabase; chats live in memory while `clientSessionKey` persists in `sessionStorage` for reload continuity.
 - Canonical prompt continuity is persisted in Supabase (`ai_agent_conversation_state`) through a service-role RPC with DB-enforced retention bounds (TTL `1..90 days`, cap `1..200`, defaults `30 days` + `200`) and deterministic pruning.
@@ -99,6 +108,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Agent must refuse PII extraction and harmful requests (covered in `STUDIO_AGENT_SYSTEM` prompt).
 
 ## UX behaviors
+
 - Chat panel sits where prompt boxes were; shows reference chips and current model badge.
 - Inline chat now includes a “Primary generation prompt” state block so users can confirm the exact prompt Generate will use.
 - Quick actions: “Apply prompt”, “Generate with agent”, “Summarize grid”, “Describe latest image”.
@@ -106,6 +116,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Detail modal: agent chat focuses on the selected card and preloads its prompt/preview.
 
 ## Tests / verification
+
 - Agent enabled: start chat, receive a prompt, apply it, and successfully generate image/video.
 - Agent disabled (flag off or missing key): legacy prompt textarea renders; generation still works.
 - Large image drop: agent call omits media and reports omission without crashing.
@@ -113,6 +124,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 - Safety refusal path returns without altering prompt state.
 
 ## Maintenance notes
+
 - Keep system prompt updates in `agentPromptsConfig.ts` only; document deltas in change log, not full text here.
 - Monitor token usage metrics in API logs before enabling streaming by default.
 - Follow ADR 0007 (`docs/adr/0007-ai-studio-agent-tooling-strategy.md`) for phased tooling rollout and MCP adoption gates; do not introduce MCP runtime until gate criteria are met.

@@ -464,8 +464,14 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
-    expect(pageSource).toContain('enabled: expertCreateMode === "standard"');
+    expect(pageSource).toContain("<StandardCreateGenerationCommandRoot shell={shell} />");
+    expect(pageSource).toContain("<PulseCreateGenerationCommandRoot shell={shell} />");
+    expect(pageSource).toContain("const StandardCreateGenerationCommandRoot =");
+    expect(pageSource).toContain("const PulseCreateGenerationCommandRoot =");
+    expect(pageSource).toContain("const AiStudioPageRuntimePresenter =");
     expect(pageSource).toContain("useAiStudioAgentOutputGenerationBridge({");
+    expect(pageSource).not.toContain('enabled: expertCreateMode === "standard"');
+    expect(pageSource).not.toContain('enabled: expertCreateMode === "pulse"');
     expect(pageSource).not.toContain("const handlePrimarySubmit =");
     expect(pageSource).not.toContain("standardCreateCommands:");
     expect(pageSource).not.toContain("pulseCreateCommands:");
@@ -474,6 +480,25 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("useAiStudioPanelProps");
     expect(pageSource).toContain("useStandardCreatePrimarySubmit");
     expect(pageSource).toContain("usePulseCreatePrimarySubmit");
+    expect(pageSource).toContain("useStandardCreateInlineGenerate");
+    const standardCommandRootIndex = pageSource.indexOf(
+      "const StandardCreateGenerationCommandRoot"
+    );
+    const pulseCommandRootIndex = pageSource.indexOf("const PulseCreateGenerationCommandRoot");
+    const presenterIndex = pageSource.indexOf("const AiStudioPageRuntimePresenter");
+    const standardPrimarySubmitIndex = pageSource.indexOf("useStandardCreatePrimarySubmit({");
+    const standardInlineGenerateIndex = pageSource.indexOf("useStandardCreateInlineGenerate({");
+    const outputBridgeIndex = pageSource.indexOf("useAiStudioAgentOutputGenerationBridge({");
+    const pulsePrimarySubmitIndex = pageSource.indexOf("usePulseCreatePrimarySubmit({");
+
+    expect(standardPrimarySubmitIndex).toBeGreaterThan(standardCommandRootIndex);
+    expect(standardPrimarySubmitIndex).toBeLessThan(pulseCommandRootIndex);
+    expect(standardInlineGenerateIndex).toBeGreaterThan(standardCommandRootIndex);
+    expect(standardInlineGenerateIndex).toBeLessThan(pulseCommandRootIndex);
+    expect(outputBridgeIndex).toBeGreaterThan(standardCommandRootIndex);
+    expect(outputBridgeIndex).toBeLessThan(pulseCommandRootIndex);
+    expect(pulsePrimarySubmitIndex).toBeGreaterThan(pulseCommandRootIndex);
+    expect(pulsePrimarySubmitIndex).toBeLessThan(presenterIndex);
     expect(pageSource).not.toContain("const pulsePrompt = resolveChatOffCreatePrompt");
     expect(pageSource).not.toContain("handleAgentSend(pulsePrompt");
     expect(pageSource).not.toContain("pulseArtifactPrompt ?? prompt.trim()");

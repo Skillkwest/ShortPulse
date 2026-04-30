@@ -28,7 +28,6 @@ import {
   shouldDisableGenerateWhileCharacterLoading,
 } from "../features/ai-studio/logic/createGenerationGuards";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
-import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
 import {
@@ -65,6 +64,8 @@ import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/cre
 import { usePulseWorkflowSessionReconciliation } from "../features/ai-studio/hooks/createPulsePageRuntime/usePulseWorkflowSessionReconciliation";
 import { buildPulseCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildPulseCreateRuntimeResult";
 import { buildStandardCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildStandardCreateRuntimeResult";
+import { usePulseCreateAgentRuntime } from "../features/ai-studio/createRuntime/usePulseCreateAgentRuntime";
+import { useStandardCreateAgentRuntime } from "../features/ai-studio/createRuntime/useStandardCreateAgentRuntime";
 import { usePulseCreatePrimarySubmit } from "../features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit";
 import { useStandardCreateChatMode } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateChatMode";
 import { useStandardCreateInlineGenerate } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateInlineGenerate";
@@ -177,11 +178,10 @@ export default function AiStudioPage() {
     refreshProject,
     updateProjectTitle,
   } = useAiStudioProjectIdentity();
-  const { standardChatModeEnabled, defaultStandardChatModeEnabled, setStandardChatModeEnabled } =
-    useStandardCreateChatMode({
-      projectId,
-      projectRouteRequested,
-    });
+  const { standardChatModeEnabled, setStandardChatModeEnabled } = useStandardCreateChatMode({
+    projectId,
+    projectRouteRequested,
+  });
   const shouldGateSessionPersistence = Boolean(projectId) && projectStatus !== "ready";
   const activeSessionPersistenceSessionId = shouldGateSessionPersistence ? null : sessionId;
   const sessionPersistenceTitleOverride = project?.title ?? localSessionTitleOverride;
@@ -788,85 +788,14 @@ export default function AiStudioPage() {
     trackCharacterModeEvent: trackUiEvent,
     bundleStaleAfterMs: CHARACTER_MODE_BUNDLE_STALE_AFTER_MS,
   });
-  const createAgentBridgeRuntime = useMemo(
-    () =>
-      expertCreateMode === "pulse"
-        ? {
-            kind: "pulse" as const,
-            prompt: pulsePrompt,
-            activePresetId: activeCreatePulsePresetId,
-            sessionInstanceId: pulseSessionInstanceId,
-            workflowSession: pulseWorkflowSession,
-            setWorkflowSession: setPulseWorkflowSession,
-            clearRuntime: clearPulseRuntimeForPage,
-            restart: restartPulse,
-            getAgentContext: pulseCreateAgentContextResolver,
-          }
-        : {
-            kind: "standard" as const,
-            prompt: standardPrompt,
-            chatModeEnabled: standardChatModeEnabled,
-            defaultChatModeEnabled: defaultStandardChatModeEnabled,
-            setChatModeEnabled: setStandardChatModeEnabled,
-            getAgentContext: standardCreateAgentContextResolver,
-          },
-    [
-      activeCreatePulsePresetId,
-      clearPulseRuntimeForPage,
-      defaultStandardChatModeEnabled,
-      expertCreateMode,
-      pulseCreateAgentContextResolver,
-      pulsePrompt,
-      pulseSessionInstanceId,
-      pulseWorkflowSession,
-      restartPulse,
-      setPulseWorkflowSession,
-      setStandardChatModeEnabled,
-      standardChatModeEnabled,
-      standardCreateAgentContextResolver,
-      standardPrompt,
-    ]
-  );
-  const {
-    agentEnabled,
-    agentBootstrapReady,
-    agentMessages,
-    agentError,
-    agentIsSending,
-    agentUiBusy,
-    agentBusy,
-    agentInput,
-    directOpenAiBypassEnabled,
-    chatModeEnabled,
-    setChatModeEnabled,
-    agentAttachmentError,
-    agentAttachments,
-    linkedPromptReferenceIds,
-    isAgentDropActive,
-    persistedAgentRuntimes,
-    setPromptOrigin,
-    stagedAgentPrompt,
-    isPromptRefining,
-    describeInFlightCount,
-    handleAgentInputChange,
-    handleAgentSend,
-    handlePulsePresetStart,
-    handleAgentEnhanceSend,
-    handleAgentAttachmentDragOver,
-    handleAgentAttachmentDragEnter,
-    handleAgentAttachmentDragLeave,
-    handleAgentAttachmentDrop,
-    handleRemoveAgentAttachment,
-    handleClearAgentAttachments,
-    handleAssistantMessageEdit,
-    handleClearAgentChat,
-    resetProjectAgentConversation,
-    hydrateFromSessionAgentSnapshot,
-  } = useAiStudioAgentBridge({
+  const standardCreateAgentRuntime = useStandardCreateAgentRuntime({
     sessionId,
     mode,
     selectedTool,
-    createAgentRuntime: createAgentBridgeRuntime,
+    prompt: standardPrompt,
+    chatModeEnabled: standardChatModeEnabled,
+    setChatModeEnabled: setStandardChatModeEnabled,
+    getAgentContext: standardCreateAgentContextResolver,
     setSharedPrompt,
     addAgentPromptReference,
     editReferenceText,
@@ -882,6 +811,90 @@ export default function AiStudioPage() {
     setUiNotice,
     trackAgentUiEvent: trackUiEvent,
   });
+  const pulseCreateAgentRuntime = usePulseCreateAgentRuntime({
+    sessionId,
+    mode,
+    selectedTool,
+    prompt: pulsePrompt,
+    activePresetId: activeCreatePulsePresetId,
+    sessionInstanceId: pulseSessionInstanceId,
+    workflowSession: pulseWorkflowSession,
+    setWorkflowSession: setPulseWorkflowSession,
+    clearRuntime: clearPulseRuntimeForPage,
+    restartPulse,
+    getAgentContext: pulseCreateAgentContextResolver,
+    setSharedPrompt,
+    findOutputById,
+    resolvePanelOutputPreviewUrl,
+    setUiNotice,
+    trackAgentUiEvent: trackUiEvent,
+  });
+  const activeCreateAgentRuntime =
+    expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime;
+  const {
+    persistedAgentRuntime: persistedStandardAgentRuntime,
+    resetProjectAgentConversation: resetStandardProjectAgentConversation,
+    hydrateFromSessionAgentSnapshot: hydrateFromStandardSessionAgentSnapshot,
+  } = standardCreateAgentRuntime;
+  const {
+    persistedAgentRuntime: persistedPulseAgentRuntime,
+    resetProjectAgentConversation: resetPulseProjectAgentConversation,
+    hydrateFromSessionAgentSnapshot: hydrateFromPulseSessionAgentSnapshot,
+  } = pulseCreateAgentRuntime;
+  const {
+    agentEnabled,
+    agentBootstrapReady,
+    agentMessages,
+    agentError,
+    agentIsSending,
+    agentUiBusy,
+    agentBusy,
+    agentInput,
+    agentAttachmentError,
+    agentAttachments,
+    linkedPromptReferenceIds,
+    isAgentDropActive,
+    setPromptOrigin,
+    stagedAgentPrompt,
+    isPromptRefining,
+    describeInFlightCount,
+    handleAgentInputChange,
+    handleAgentSend,
+    handleAgentAttachmentDragOver,
+    handleAgentAttachmentDragEnter,
+    handleAgentAttachmentDragLeave,
+    handleAgentAttachmentDrop,
+    handleRemoveAgentAttachment,
+    handleClearAgentAttachments,
+    handleAssistantMessageEdit,
+    handleClearAgentChat,
+  } = activeCreateAgentRuntime;
+  const directOpenAiBypassEnabled =
+    expertCreateMode === "standard" ? standardCreateAgentRuntime.directOpenAiBypassEnabled : false;
+  const chatModeEnabled =
+    expertCreateMode === "standard" ? standardCreateAgentRuntime.chatModeEnabled : true;
+  const setChatModeEnabled = standardCreateAgentRuntime.setChatModeEnabled;
+  const handleAgentEnhanceSend = standardCreateAgentRuntime.handleAgentEnhanceSend;
+  const handlePulsePresetStart = pulseCreateAgentRuntime.handlePulsePresetStart;
+  const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
+    () => ({
+      standard: persistedStandardAgentRuntime,
+      pulsePresetId: activeCreatePulsePresetId,
+      pulse: persistedPulseAgentRuntime,
+    }),
+    [activeCreatePulsePresetId, persistedPulseAgentRuntime, persistedStandardAgentRuntime]
+  );
+  const resetProjectAgentConversation = useCallback(() => {
+    resetStandardProjectAgentConversation();
+    resetPulseProjectAgentConversation();
+  }, [resetPulseProjectAgentConversation, resetStandardProjectAgentConversation]);
+  const hydrateFromSessionAgentSnapshot = useCallback(
+    (payload: Parameters<typeof hydrateFromStandardSessionAgentSnapshot>[0]) => {
+      hydrateFromStandardSessionAgentSnapshot(payload);
+      hydrateFromPulseSessionAgentSnapshot(payload);
+    },
+    [hydrateFromPulseSessionAgentSnapshot, hydrateFromStandardSessionAgentSnapshot]
+  );
   const handleStandardCreatePromptChange = useCallback(
     (value: string) => {
       setStandardCreatePrompt(value);

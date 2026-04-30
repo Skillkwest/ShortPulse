@@ -248,12 +248,14 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain("useCreatePulsePresetPageRuntime");
     expect(pageSource).toContain("standardCreateAgentContextResolver");
     expect(pageSource).toContain("pulseCreateAgentContextResolver");
-    expect(pageSource).toContain("const createAgentBridgeRuntime = useMemo");
-    expect(pageSource).toContain('kind: "standard" as const');
-    expect(pageSource).toContain('kind: "pulse" as const');
+    expect(pageSource).toContain("useStandardCreateAgentRuntime");
+    expect(pageSource).toContain("usePulseCreateAgentRuntime");
+    expect(pageSource).toContain("const activeCreateAgentRuntime =");
     expect(pageSource).toContain("getAgentContext: standardCreateAgentContextResolver");
     expect(pageSource).toContain("getAgentContext: pulseCreateAgentContextResolver");
-    expect(pageSource).toContain("createAgentRuntime: createAgentBridgeRuntime");
+    expect(pageSource).not.toContain("useAiStudioAgentBridge");
+    expect(pageSource).not.toContain("const createAgentBridgeRuntime = useMemo");
+    expect(pageSource).not.toContain("createAgentRuntime: createAgentBridgeRuntime");
     expect(pageSource).not.toContain("createModeAgentContextResolver");
     expect(pageSource).not.toContain("getAgentContext: getPulseAwareAgentContext");
     expect(pageSource).not.toContain("const getPulseAwareAgentContext");

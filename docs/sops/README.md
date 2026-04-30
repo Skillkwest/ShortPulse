@@ -42,6 +42,7 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - `docs/sops/sop_media_performance_operations.md`
 - `docs/sops/sop_performance_ai_detection.md`
 - `docs/sops/sop_billing_credits_operations.md`
+- `docs/sops/sop_admin_kamaji_board_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`

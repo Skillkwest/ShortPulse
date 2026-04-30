@@ -15,6 +15,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/user-health", label: "User health" },
   { href: "/admin/user-health-fleet", label: "Fleet health" },
   { href: "/admin/generation-trace", label: "Generation trace" },
+  { href: "/admin/kanban", label: "Kanban" },
 ] as const;
 
 type AdminPageHeaderProps = {

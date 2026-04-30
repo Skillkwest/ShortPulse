@@ -150,6 +150,8 @@ Current set:
 - `106_add_annual_billing_intervals_and_credit_allocation_cursors.sql`
 - `107_add_generation_abandonments.sql`
 - `108_retire_legacy_ai_studio_pulses.sql`
+- `109_add_generation_projection_project_id.sql`
+- `110_add_admin_kanban_foundation.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

@@ -224,7 +224,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 107.  `sql/migrations/107_add_generation_abandonments.sql`
 108.  `sql/migrations/108_retire_legacy_ai_studio_pulses.sql`
 109.  `sql/migrations/109_add_generation_projection_project_id.sql`
-110.  Rollback files:
+110.  `sql/migrations/110_add_admin_kanban_foundation.sql`
+111.  Rollback files:
 
 
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
@@ -256,6 +257,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/086_add_internal_comp_billing_contract_support_rollback.sql`
     - `sql/migrations/rollback/087_add_storage_entitlements_and_recurring_storage_addons_rollback.sql`
     - `sql/migrations/rollback/107_add_generation_abandonments_rollback.sql`
+    - `sql/migrations/rollback/110_add_admin_kanban_foundation_rollback.sql`
     - `sql/migrations/rollback/060_add_media_folders_and_membership_rollback.sql`
     - `sql/migrations/rollback/061_backfill_media_image_dimensions_metadata_rollback.sql`
     - `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql`
@@ -352,6 +354,7 @@ Billing safety note:
 - Migration `105_enforce_spendable_balance_for_direct_generation_charges.sql` hardens `enforce_credit_ledger_insert()` so direct generation debits cannot spend credits already reserved by active generation reservations.
 - Migration `106_add_annual_billing_intervals_and_credit_allocation_cursors.sql` adds annual billing interval support plus per-contract credit-allocation cursors so yearly subscriptions and recurring grants stay idempotent across renewals and replays.
 - Migration `109_add_generation_projection_project_id.sql` adds `generation_projection.project_id` plus a project-scoped read index so project Reference Grid reads can resolve generated outputs without depending solely on junction repair timing.
+- Migration `110_add_admin_kanban_foundation.sql` adds shared admin kanban persistence (`admin_kanban_items`, `admin_kanban_activity`) with RLS enabled, service-role-only table access, soft archive semantics, and activity logging for admin task-board mutations.
 - Migration `060_add_media_folders_and_membership.sql` adds user-owned Media Library folders (`media_folders`) and scoped media/prompt membership junctions (`media_folder_media_items`, `media_folder_prompt_items`) for AI Studio folder-based organization.
 - Migration `061_backfill_media_image_dimensions_metadata.sql` canonicalizes legacy image-dimension metadata keys to `metadata.width`, `metadata.height`, and `metadata.aspect_ratio` so masonry surfaces can render true image ratios consistently.
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.

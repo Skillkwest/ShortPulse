@@ -86,3 +86,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0069-admin-created-billing-plans.md`
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
 - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
+- `docs/adr/0072-admin-kanban-and-kamaji-foundation.md`

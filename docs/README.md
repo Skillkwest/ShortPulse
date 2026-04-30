@@ -28,6 +28,7 @@ Start here for all repository documentation.
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
 - `docs/agents/change-impact-auditor.md`
+- `docs/agents/kamaji.md`
 - `docs/repo-structure.md`
 - `docs/architecture-overview.md`
 - `docs/frontend-architecture.md`
@@ -47,6 +48,7 @@ Start here for all repository documentation.
 - `docs/adr/0069-admin-created-billing-plans.md`
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
 - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
+- `docs/adr/0072-admin-kanban-and-kamaji-foundation.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
@@ -128,6 +130,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
 - `docs/sops/sop_billing_credits_operations.md`
+- `docs/sops/sop_admin_kamaji_board_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md`
 - `docs/sops/sop_account_health_snapshot.md`

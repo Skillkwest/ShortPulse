@@ -294,7 +294,6 @@ const useAiStudioPageBaseRuntime = () => {
     editIsGenerating,
     expertEditSessionState,
     setExpertEditSessionState,
-    setSharedPrompt,
     useReferenceImageIndicator,
     detailOutput,
     setDetailOutputId,
@@ -963,7 +962,6 @@ const useAiStudioPageBaseRuntime = () => {
     setSelectedStylePrompt,
     setSelectedToolWithEditIntentReset,
     setSessionTitleOverrideState,
-    setSharedPrompt,
     setShowCreateTools,
     setStandardCreatePrompt,
     setUiError,
@@ -1321,7 +1319,6 @@ const useAiStudioPageRuntimeShell = ({
     setSelectedStylePrompt,
     setSelectedToolWithEditIntentReset,
     setSessionTitleOverrideState,
-    setSharedPrompt,
     setShowCreateTools,
     setStandardCreatePrompt,
     setUiError,
@@ -1470,6 +1467,8 @@ const useAiStudioPageRuntimeShell = ({
     },
     [setPromptOrigin, setPulseCreatePrompt]
   );
+  const setActiveCreatePrompt =
+    activeCreateAgentRuntime.kind === "pulse" ? setPulseCreatePrompt : setStandardCreatePrompt;
 
   const handleCreatePulsePresetStart = useCallback(
     async (
@@ -1775,7 +1774,7 @@ const useAiStudioPageRuntimeShell = ({
     setShowCreateTools,
     setVideoReferenceText,
     setEditReferenceText,
-    setSharedPrompt,
+    setSharedPrompt: setActiveCreatePrompt,
     setPromptOrigin,
     openModelModal,
     closeModelModal,
@@ -2055,7 +2054,6 @@ const useAiStudioPageRuntimeShell = ({
     setSelectedStyleContext,
     setSelectedStylePrompt,
     setSelectedToolWithEditIntentReset,
-    setSharedPrompt,
     setShowCreateTools,
     setStandardCreatePrompt,
     setUiError,

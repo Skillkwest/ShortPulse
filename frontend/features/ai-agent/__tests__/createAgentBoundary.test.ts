@@ -546,6 +546,24 @@ describe("Create agent mode boundaries", () => {
     }
   });
 
+  it("keeps retired expanded-chat state out of the Create agent bridge", () => {
+    const bridgeSource = readFrontendFile("features/ai-studio/hooks/useAiStudioAgentBridge.ts");
+    const interactionsSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioAgentInteractions.ts"
+    );
+    const persistenceRuntimeSource = readFrontendFile(
+      "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgePersistenceRuntime.ts"
+    );
+
+    for (const source of [bridgeSource, interactionsSource, persistenceRuntimeSource]) {
+      expect(source).not.toContain("isAgentChatOpen");
+      expect(source).not.toContain("setIsAgentChatOpen");
+      expect(source).not.toContain("handleExpandChat");
+      expect(source).not.toContain("handleCloseAgentChat");
+      expect(source).not.toContain("handleAgentAddToGrid");
+    }
+  });
+
   it("keeps Standard chat-mode preference ownership out of the shared bridge", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
     const bridgeSource = readFrontendFile("features/ai-studio/hooks/useAiStudioAgentBridge.ts");

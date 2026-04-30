@@ -14,11 +14,6 @@ const createParams = (
     setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
     setPromptOrigin: asDispatch<PromptOrigin>(vi.fn()),
     trackAgentUiEvent: vi.fn(),
-    addAgentPromptReference: vi.fn(),
-    setIsAgentChatOpen: asDispatch<boolean>(vi.fn()),
-    agentSessionEnabled: true,
-    setAgentSessionEnabled: asDispatch<boolean>(vi.fn()),
-    latestAgentPrompt: null,
     resetAgentChat: vi.fn(),
     resetAgentComposer: vi.fn(),
     clearActiveRuntime: undefined,
@@ -40,14 +35,12 @@ describe("useAiStudioAgentInteractions", () => {
     const resetAgentComposer = vi.fn();
     const setLatestAgentPrompt = vi.fn();
     const setPromptOrigin = vi.fn();
-    const setIsAgentChatOpen = vi.fn();
     const trackAgentUiEvent = vi.fn();
     const params = createParams({
       resetAgentChat,
       resetAgentComposer,
       setLatestAgentPrompt: asDispatch<string | null>(setLatestAgentPrompt),
       setPromptOrigin: asDispatch<PromptOrigin>(setPromptOrigin),
-      setIsAgentChatOpen: asDispatch<boolean>(setIsAgentChatOpen),
       trackAgentUiEvent,
     });
     const { result } = renderHook(() => useAiStudioAgentInteractions(params));
@@ -63,7 +56,6 @@ describe("useAiStudioAgentInteractions", () => {
     });
     expect(setLatestAgentPrompt).toHaveBeenCalledWith(null);
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
-    expect(setIsAgentChatOpen).toHaveBeenCalledWith(false);
     expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_chat_cleared");
   });
 
@@ -79,29 +71,5 @@ describe("useAiStudioAgentInteractions", () => {
     });
 
     expect(clearActiveRuntime).toHaveBeenCalledTimes(1);
-  });
-
-  it("adds latest agent prompt to grid with the default agent title", () => {
-    const addAgentPromptReference = vi.fn();
-    const setPromptOrigin = vi.fn();
-    const setIsAgentChatOpen = vi.fn();
-    const trackAgentUiEvent = vi.fn();
-    const params = createParams({
-      latestAgentPrompt: "Prompt from assistant",
-      addAgentPromptReference,
-      setPromptOrigin: asDispatch<PromptOrigin>(setPromptOrigin),
-      setIsAgentChatOpen: asDispatch<boolean>(setIsAgentChatOpen),
-      trackAgentUiEvent,
-    });
-    const { result } = renderHook(() => useAiStudioAgentInteractions(params));
-
-    act(() => {
-      result.current.handleAgentAddToGrid();
-    });
-
-    expect(addAgentPromptReference).toHaveBeenCalledWith("Prompt from assistant", "Agent prompt");
-    expect(setPromptOrigin).toHaveBeenCalledWith("agent");
-    expect(setIsAgentChatOpen).toHaveBeenCalledWith(false);
-    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_add_to_grid");
   });
 });

@@ -13,7 +13,6 @@ export type AgentBridgeRuntimeState = {
   latestAgentPrompt: string | null;
   promptOrigin: PromptOrigin;
   chatModeEnabled: boolean;
-  isAgentChatOpen: boolean;
 };
 
 type AgentBridgeHydrationRuntime = AiStudioSessionHydrationPayload["agent"];
@@ -30,7 +29,6 @@ export const createAgentBridgeRuntimeStateFromHydration = (
   latestAgentPrompt: runtime.latestAgentPrompt,
   promptOrigin: runtime.promptOrigin,
   chatModeEnabled: options?.forceChatModeEnabled ?? runtime.chatModeEnabled,
-  isAgentChatOpen: false,
 });
 
 const createPersistedAgentRuntimeSnapshot = (

@@ -534,16 +534,20 @@ describe("Create agent mode boundaries", () => {
       "features/ai-studio/hooks/useAiStudioPageSessionPersistence.ts"
     );
 
-    expect(pagePersistenceSource).toContain("agentRuntime: AiStudioSessionAgentV1");
+    expect(pagePersistenceSource).toContain("type StandardCreatePersistenceRuntime");
+    expect(pagePersistenceSource).toContain("type PulseCreatePersistenceRuntime");
+    expect(pagePersistenceSource).toContain("createPersistenceRuntime: CreatePersistenceRuntime");
     expect(pagePersistenceSource).not.toContain("agentMessages: AgentMessage[]");
     expect(pagePersistenceSource).not.toContain("agentInput: string");
     expect(pagePersistenceSource).not.toContain("latestAgentPrompt: string | null");
     expect(pagePersistenceSource).not.toContain("pulseWorkflowSession?: AgentPulseWorkflowSession");
-    expect(pagePersistenceSource).toContain('expertCreateMode: "standard" | "pulse"');
-    expect(pagePersistenceSource).toContain(
-      'const activeAgentRuntimes = expertCreateMode === "pulse" ? agentRuntimes : undefined'
-    );
-    expect(pageSource).toContain(
+    expect(pagePersistenceSource).not.toContain('expertCreateMode: "standard" | "pulse"');
+    expect(pagePersistenceSource).not.toContain("activeAgentRuntimes");
+    expect(pageSource).toContain("const createPersistenceRuntime = useMemo");
+    expect(pageSource).toContain("createPersistenceRuntime,");
+    expect(pageSource).toContain('kind: "standard"');
+    expect(pageSource).toContain('kind: "pulse"');
+    expect(pageSource).not.toContain(
       'agentRuntimes: expertCreateMode === "pulse" ? sessionAgentRuntimes : undefined'
     );
   });

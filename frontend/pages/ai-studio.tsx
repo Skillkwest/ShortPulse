@@ -954,6 +954,20 @@ export default function AiStudioPage() {
     }
     return sessionAgentRuntimes.standard;
   }, [expertCreateMode, hasActivePulseSession, sessionAgentRuntimes]);
+  const createPersistenceRuntime = useMemo(
+    () =>
+      expertCreateMode === "pulse"
+        ? {
+            kind: "pulse" as const,
+            agentRuntime: sessionAgentRuntime,
+            agentRuntimes: sessionAgentRuntimes,
+          }
+        : {
+            kind: "standard" as const,
+            agentRuntime: sessionAgentRuntime,
+          },
+    [expertCreateMode, sessionAgentRuntime, sessionAgentRuntimes]
+  );
 
   const {
     sessionRestoreCandidate,
@@ -964,11 +978,9 @@ export default function AiStudioPage() {
     projectId,
     projectRouteRequested,
     sessionId: activeSessionPersistenceSessionId,
-    expertCreateMode,
     sessionTitleOverride: sessionPersistenceTitleOverride,
     buildSessionSnapshot: buildProjectAwareSessionSnapshot,
-    agentRuntime: sessionAgentRuntime,
-    agentRuntimes: expertCreateMode === "pulse" ? sessionAgentRuntimes : undefined,
+    createPersistenceRuntime,
     expertEditSessionState,
     hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
     hydrateFromSessionAgentSnapshot,

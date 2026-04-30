@@ -21,15 +21,26 @@ type BuildPageSessionSnapshotArgs = {
   expertEditSessionState?: ExpertEditSessionState | null;
 };
 
+type StandardCreatePersistenceRuntime = {
+  kind: "standard";
+  agentRuntime: AiStudioSessionAgentV1;
+};
+
+type PulseCreatePersistenceRuntime = {
+  kind: "pulse";
+  agentRuntime: AiStudioSessionAgentV1;
+  agentRuntimes: AiStudioSessionAgentRuntimesV2;
+};
+
+type CreatePersistenceRuntime = StandardCreatePersistenceRuntime | PulseCreatePersistenceRuntime;
+
 type UseAiStudioPageSessionPersistenceParams = {
   projectId?: string | null;
   projectRouteRequested?: boolean;
   sessionId: string | null;
-  expertCreateMode: "standard" | "pulse";
   sessionTitleOverride?: string | null;
   buildSessionSnapshot: (args: BuildPageSessionSnapshotArgs) => AiStudioSessionSnapshot;
-  agentRuntime: AiStudioSessionAgentV1;
-  agentRuntimes?: AiStudioSessionAgentRuntimesV2;
+  createPersistenceRuntime: CreatePersistenceRuntime;
   expertEditSessionState?: ExpertEditSessionState | null;
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
@@ -53,11 +64,9 @@ export const useAiStudioPageSessionPersistence = ({
   projectId = null,
   projectRouteRequested = false,
   sessionId,
-  expertCreateMode,
   sessionTitleOverride,
   buildSessionSnapshot,
-  agentRuntime,
-  agentRuntimes,
+  createPersistenceRuntime,
   expertEditSessionState,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
@@ -67,16 +76,17 @@ export const useAiStudioPageSessionPersistence = ({
   resetProjectAgentConversation,
   setUiNotice,
 }: UseAiStudioPageSessionPersistenceParams) => {
-  const activeAgentRuntimes = expertCreateMode === "pulse" ? agentRuntimes : undefined;
   const buildSessionSnapshotForSessionId = useCallback(
     (activeSessionId: string) =>
       buildSessionSnapshot({
         sessionId: activeSessionId,
-        agentRuntime,
-        ...(activeAgentRuntimes ? { agentRuntimes: activeAgentRuntimes } : {}),
+        agentRuntime: createPersistenceRuntime.agentRuntime,
+        ...(createPersistenceRuntime.kind === "pulse"
+          ? { agentRuntimes: createPersistenceRuntime.agentRuntimes }
+          : {}),
         expertEditSessionState,
       }),
-    [agentRuntime, buildSessionSnapshot, expertEditSessionState, activeAgentRuntimes]
+    [buildSessionSnapshot, createPersistenceRuntime, expertEditSessionState]
   );
 
   const handleSessionPersistenceWarning = useCallback(

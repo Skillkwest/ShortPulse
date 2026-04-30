@@ -142,19 +142,13 @@ describe("useAiStudioPageSessionPersistence", () => {
     renderHook(() =>
       useAiStudioPageSessionPersistence({
         sessionId: "session-1",
-        expertCreateMode: "standard",
         buildSessionSnapshot,
-        agentRuntime: createAgentRuntime({
-          input: "plan next shot",
-          latestAgentPrompt: "latest",
-        }),
-        agentRuntimes: {
-          standard: createAgentRuntime({
+        createPersistenceRuntime: {
+          kind: "standard",
+          agentRuntime: createAgentRuntime({
             input: "plan next shot",
             latestAgentPrompt: "latest",
           }),
-          pulsePresetId: null,
-          pulse: createAgentRuntime(),
         },
         expertEditSessionState,
         hydrateFromSessionSnapshot,
@@ -250,24 +244,10 @@ describe("useAiStudioPageSessionPersistence", () => {
     renderHook(() =>
       useAiStudioPageSessionPersistence({
         sessionId: "session-1",
-        expertCreateMode: "pulse",
         buildSessionSnapshot,
-        agentRuntime: createAgentRuntime({
-          messages: [
-            {
-              id: "assistant-1",
-              role: "assistant",
-              content: completedPulseWorkflowSession.lastArtifact ?? "",
-            },
-          ],
-          latestAgentPrompt: completedPulseWorkflowSession.lastArtifact ?? null,
-          promptOrigin: "agent",
-          pulseWorkflowSession: completedPulseWorkflowSession,
-        }),
-        agentRuntimes: {
-          standard: createAgentRuntime(),
-          pulsePresetId: "story_builder",
-          pulse: createAgentRuntime({
+        createPersistenceRuntime: {
+          kind: "pulse",
+          agentRuntime: createAgentRuntime({
             messages: [
               {
                 id: "assistant-1",
@@ -279,6 +259,22 @@ describe("useAiStudioPageSessionPersistence", () => {
             promptOrigin: "agent",
             pulseWorkflowSession: completedPulseWorkflowSession,
           }),
+          agentRuntimes: {
+            standard: createAgentRuntime(),
+            pulsePresetId: "story_builder",
+            pulse: createAgentRuntime({
+              messages: [
+                {
+                  id: "assistant-1",
+                  role: "assistant",
+                  content: completedPulseWorkflowSession.lastArtifact ?? "",
+                },
+              ],
+              latestAgentPrompt: completedPulseWorkflowSession.lastArtifact ?? null,
+              promptOrigin: "agent",
+              pulseWorkflowSession: completedPulseWorkflowSession,
+            }),
+          },
         },
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot: vi.fn(),
@@ -378,9 +374,11 @@ describe("useAiStudioPageSessionPersistence", () => {
       useAiStudioPageSessionPersistence({
         projectId: "project-1",
         sessionId: "session-1",
-        expertCreateMode: "standard",
         buildSessionSnapshot,
-        agentRuntime: createAgentRuntime(),
+        createPersistenceRuntime: {
+          kind: "standard",
+          agentRuntime: createAgentRuntime(),
+        },
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
         resetProjectAgentConversation,
@@ -458,9 +456,11 @@ describe("useAiStudioPageSessionPersistence", () => {
       useAiStudioPageSessionPersistence({
         projectRouteRequested: true,
         sessionId: "session-1",
-        expertCreateMode: "standard",
         buildSessionSnapshot,
-        agentRuntime: createAgentRuntime(),
+        createPersistenceRuntime: {
+          kind: "standard",
+          agentRuntime: createAgentRuntime(),
+        },
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
         resetProjectAgentConversation,

@@ -94,6 +94,15 @@ const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgen
   })),
 });
 
+const resolveLinkedPromptReferenceIds = (attachments: AgentMessage["attachments"] = []): string[] =>
+  Array.from(
+    new Set(
+      attachments
+        .map((attachment) => attachment.referenceId)
+        .filter((referenceId): referenceId is string => Boolean(referenceId))
+    )
+  );
+
 /**
  * Returns the Standard Create agent runtime.
  */
@@ -202,6 +211,10 @@ export const useStandardCreateAgentRuntime = ({
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,
     [agentMessages]
+  );
+  const linkedPromptReferenceIds = useMemo(
+    () => resolveLinkedPromptReferenceIds(agentAttachments),
+    [agentAttachments]
   );
   const stagedAgentPrompt = getStagedAgentPrompt(promptOrigin, latestAgentPrompt);
   const notifyBootstrapPending = useCallback(() => {
@@ -403,6 +416,7 @@ export const useStandardCreateAgentRuntime = ({
     agentInput,
     agentAttachmentError,
     agentAttachments,
+    linkedPromptReferenceIds,
     isAgentDropActive,
     latestAgentPrompt,
     promptOrigin,

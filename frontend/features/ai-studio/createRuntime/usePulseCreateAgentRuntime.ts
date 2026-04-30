@@ -28,10 +28,7 @@ import { runPulsePresetStartRuntime } from "../hooks/agentOrchestration/runPulse
 import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
-import type {
-  CreatePulsePresetStartResult,
-  CreatePulseResolvedPreset,
-} from "../components/create/createPulsePresets";
+import type { CreatePulseResolvedPreset } from "../components/create/createPulsePresets";
 import type {
   AiStudioSessionAgentMessageV1,
   AiStudioSessionAgentV1,
@@ -57,6 +54,7 @@ type UsePulseCreateAgentRuntimeParams = {
   workflowSession: AgentPulseWorkflowSession | null;
   setWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
   clearRuntime?: () => void;
+  restartPulse?: () => { presetId: string; sessionInstanceId: string } | null;
   getAgentContext: PulseCreateAgentContextResolver;
   setSharedPrompt: (value: string) => void;
   findOutputById: (id: string) => StudioOutput | null;
@@ -96,6 +94,15 @@ const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgen
   })),
 });
 
+const resolveLinkedPromptReferenceIds = (attachments: AgentMessage["attachments"] = []): string[] =>
+  Array.from(
+    new Set(
+      attachments
+        .map((attachment) => attachment.referenceId)
+        .filter((referenceId): referenceId is string => Boolean(referenceId))
+    )
+  );
+
 const resolvePulseAgentSessionNamespace = ({
   sessionId,
   presetId,
@@ -120,6 +127,7 @@ export const usePulseCreateAgentRuntime = ({
   workflowSession,
   setWorkflowSession,
   clearRuntime,
+  restartPulse,
   getAgentContext,
   setSharedPrompt,
   findOutputById,
@@ -203,6 +211,10 @@ export const usePulseCreateAgentRuntime = ({
     findOutputById,
     resolveOutputPreviewUrlById: (id) => resolvePanelOutputPreviewUrl(id),
   });
+  const linkedPromptReferenceIds = useMemo(
+    () => resolveLinkedPromptReferenceIds(agentAttachments),
+    [agentAttachments]
+  );
   const pulseArtifactPrompt = resolvePulseWorkflowArtifactPrompt({
     hasVisiblePulseSession: runtimePolicy.hasActivePulseSession,
     pulseWorkflowSession: workflowSession,
@@ -325,6 +337,34 @@ export const usePulseCreateAgentRuntime = ({
     ]
   );
 
+  const handlePulsePresetRestart = useCallback(
+    async (preset: CreatePulseResolvedPreset) => {
+      const { restartCreatePulsePreset } =
+        await import("../hooks/agentBridgeRuntime/pulsePresetRestart");
+      await restartCreatePulsePreset({
+        preset,
+        restartPulse,
+        resetAgentChat,
+        resetAgentComposer,
+        setLatestAgentPrompt,
+        setPromptOrigin,
+        setPulseWorkflowSession: setWorkflowSession,
+        setUiNotice,
+        trackAgentUiEvent,
+        startPulsePreset: handlePulsePresetStart,
+      });
+    },
+    [
+      handlePulsePresetStart,
+      restartPulse,
+      resetAgentChat,
+      resetAgentComposer,
+      setUiNotice,
+      setWorkflowSession,
+      trackAgentUiEvent,
+    ]
+  );
+
   const { handleClearAgentChat } = useAiStudioAgentInteractions({
     setLatestAgentPrompt,
     setPromptOrigin,
@@ -438,9 +478,11 @@ export const usePulseCreateAgentRuntime = ({
     agentInput,
     agentAttachmentError,
     agentAttachments,
+    linkedPromptReferenceIds,
     isAgentDropActive,
     latestAgentPrompt: effectiveLatestAgentPrompt,
     promptOrigin: effectivePromptOrigin,
+    setPromptOrigin,
     persistedAgentRuntime,
     stagedAgentPrompt,
     isPromptRefining: false,
@@ -449,6 +491,7 @@ export const usePulseCreateAgentRuntime = ({
     handleAgentInputChange,
     handleAgentSend,
     handlePulsePresetStart,
+    handlePulsePresetRestart,
     resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
     handleAgentAttachmentDragOver,

@@ -193,6 +193,7 @@ describe("Create agent mode boundaries", () => {
     expect(standardAgentRuntime).toContain("standardCreateAgentRuntimeBinding");
     expect(standardAgentRuntime).toContain('requestRuntimeMode: "standard"');
     expect(standardAgentRuntime).toContain("runStandardCreateAgentSend");
+    expect(standardAgentRuntime).toContain("linkedPromptReferenceIds");
     expect(standardAgentRuntime).not.toContain("Pulse");
     expect(standardAgentRuntime).not.toContain("pulse");
     expect(standardAgentRuntime).not.toContain("useCreateAgentBridgeActiveAgent");
@@ -210,6 +211,8 @@ describe("Create agent mode boundaries", () => {
     expect(pulseAgentRuntime).toContain('requestRuntimeMode: "pulse"');
     expect(pulseAgentRuntime).toContain("runPulseCreateAgentSend");
     expect(pulseAgentRuntime).toContain("runPulsePresetStartRuntime");
+    expect(pulseAgentRuntime).toContain("restartCreatePulsePreset");
+    expect(pulseAgentRuntime).toContain("linkedPromptReferenceIds");
     expect(pulseAgentRuntime).not.toContain("Standard");
     expect(pulseAgentRuntime).not.toContain("standard");
     expect(pulseAgentRuntime).not.toContain("useCreateAgentBridgeActiveAgent");

@@ -1,4 +1,5 @@
 import type { MutableRefObject } from "react";
+import type { AgentContext } from "../../../../prefabs/agent";
 import { normalizePromptText } from "../../logic/agentPromptOwnership";
 import { mergeAttachmentContext } from "./attachmentContext";
 import { prepareAgentImageAttachments } from "./attachmentPreparation";
@@ -43,6 +44,11 @@ export type RunStandardCreateAgentSendParams = Pick<
 const cloneMessageAttachments = (
   attachments: UseAiStudioAgentOrchestrationParams["agentAttachments"]
 ) => attachments.map((attachment) => ({ ...attachment }));
+
+const stripModeSpecificContext = (context: AgentContext): AgentContext => {
+  const { pulse: _pulse, ...standardContext } = context;
+  return standardContext;
+};
 
 /**
  * Executes the Standard Create chat send path.
@@ -99,12 +105,14 @@ export const runStandardCreateAgentSend = async ({
   const outboundAttachments = cloneMessageAttachments(agentAttachments);
   const selectedOverride =
     options?.selectedOverride === undefined ? null : options.selectedOverride;
-  const baseContext = getAgentContext({
-    lastAssistantMessage,
-    selectedOverride,
-    includeActiveOutput: false,
-    modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
-  });
+  const baseContext = stripModeSpecificContext(
+    getAgentContext({
+      lastAssistantMessage,
+      selectedOverride,
+      includeActiveOutput: false,
+      modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
+    })
+  );
 
   trackAgentUiEvent("studio_agent_send_requested", {
     mode_hint: options?.modeHint ?? "chat",

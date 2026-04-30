@@ -289,6 +289,44 @@ describe("useAiStudioAgentOrchestration", () => {
     );
   });
 
+  it("strips stale Pulse context from Standard agent sends", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
+    const getAgentContext = vi.fn(() => ({
+      focusedSource: "prompt" as const,
+      pulse: {
+        presetId: "story_builder",
+        label: "Story Builder",
+        instructions: "Pulse-only custom instructions",
+        runtimeMode: "workflow_gpt" as const,
+        activationMode: "activate_and_start" as const,
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        outputMode: "chat_reply" as const,
+        memoryPolicy: "session" as const,
+        source: "custom" as const,
+      },
+    }));
+    const params = createParams({
+      agentInput: "Standard prompt request",
+      sendToAgent,
+      getAgentContext,
+      runtimePolicy: standardRuntimePolicy(),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.not.objectContaining({
+          pulse: expect.anything(),
+        }),
+      })
+    );
+  });
+
   it("keeps the transcript assistant message separate from the latest agent prompt seed", async () => {
     const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
     const params = createParams({
@@ -325,6 +363,7 @@ describe("useAiStudioAgentOrchestration", () => {
       latestAgentPrompt: "Which camera motion should I use?",
       lastAssistantMessage: "Upload your image to get the process started :)",
       sendToAgent,
+      runtimePolicy: pulseRuntimePolicy("image"),
       getAgentContext: vi.fn(() => ({
         activePrompt: "Which camera motion should I use?",
         lastAssistantMessage: "Upload your image to get the process started :)",

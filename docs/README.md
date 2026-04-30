@@ -24,6 +24,7 @@ Start here for all repository documentation.
 - `docs/conventions.md`
 - `docs/agent-playbook.md`
 - `docs/AGENTS.md`
+- `docs/developer-analytics-stat-sheet.md`
 - `docs/agents/change-impact-auditor.md`
 - `docs/repo-structure.md`
 - `docs/architecture-overview.md`
@@ -484,6 +485,7 @@ Start here for all repository documentation.
 
 ## Automation
 - `skills/skill-session-startup-contract/SKILL.md`
+- `skills/skill-subagent-audit-research/SKILL.md`
 - `skills/skill-pricing-audit/SKILL.md`
 - `skills/skill-doc-index/SKILL.md`
 - `skills/skill-media-storage-deploy-gate/SKILL.md`

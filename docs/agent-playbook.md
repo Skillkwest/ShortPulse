@@ -57,6 +57,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 ## Maintenance skills
 - Run `npm -C frontend run docs:check` to validate markdown/index integrity plus semantic parity checks (routes, API inventory, migrations, archive manifest).
 - Use `skills/skill-session-startup-contract/SKILL.md` at the start of every new task/session to enforce startup preflight, core context loading, and no-edit gating.
+- Use `skills/skill-subagent-audit-research/SKILL.md` when the user asks to audit, inspect, investigate, or do online research; use subagents for substantive lanes when available, allowed, and useful, and close unused subagents at will.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
 - Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.
 - Use `skills/palette-normalizer/SKILL.md` for dry-run-first CSS palette drift audits and safe normalization passes.

@@ -39,6 +39,7 @@ npm run build
 - For durable architecture decisions, add an ADR under `docs/adr/`.
 - Prefer existing references first: `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
 - Mini Ecosystem isolation policy: treat `mini-ecosystem/` as a separate entity and exclude it from default audits, inspections, and build-planning context unless the user explicitly requests Mini Ecosystem scope.
+- Subagent audit/research policy: when the user asks to audit, inspect, investigate, or do online research, run `skills/skill-subagent-audit-research/SKILL.md` and use subagents for substantive audit/research lanes when they are available, allowed, and useful. The agent may decide subagents are unnecessary for narrow scopes and may close unused subagents at will.
 - After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggested next steps upon completion of your task.
 
 ## Workspace safety guardrails (mandatory)
@@ -68,6 +69,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 - Routes/UI behavior: read `README.md`, `docs/routes.md`, and the relevant SOP(s).
 - Pricing/credits changes: run `skills/skill-pricing-audit/SKILL.md`.
 - Docs/index drift: run `skills/skill-doc-index/SKILL.md` or `skills/skill-mvp-docs-sop-governance/SKILL.md`.
+- Audit/inspection/online research: run `skills/skill-subagent-audit-research/SKILL.md`.
 
 4. **Web research policy**
 - Default to local repo sources first.

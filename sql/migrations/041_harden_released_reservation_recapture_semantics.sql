@@ -15,7 +15,7 @@ set search_path = public
 as $$
 #variable_conflict use_column
 declare
-    reservation_row public.ai_credit_reservations%rowtype;
+    reservation_row record;
     resolved_release_finality text;
     release_metadata jsonb;
 begin
@@ -85,7 +85,7 @@ set search_path = public
 as $$
 #variable_conflict use_column
 declare
-    reservation_row public.ai_credit_reservations%rowtype;
+    reservation_row record;
     resolved_release_finality text;
     release_metadata jsonb;
 begin
@@ -155,7 +155,7 @@ set search_path = public
 as $$
 #variable_conflict use_column
 declare
-    reservation_row public.ai_credit_reservations%rowtype;
+    reservation_row record;
     release_finality text;
     recaptured_from_released boolean := false;
 begin

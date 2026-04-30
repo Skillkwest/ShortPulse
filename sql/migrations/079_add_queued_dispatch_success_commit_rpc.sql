@@ -30,7 +30,7 @@ security definer
 set search_path = public
 as $$
 declare
-    v_reservation_row ai_credit_reservations%rowtype;
+    v_reservation_row record;
     v_existing_attempt generation_attempts%rowtype;
     v_attempt_id uuid;
     v_attempt_number integer;

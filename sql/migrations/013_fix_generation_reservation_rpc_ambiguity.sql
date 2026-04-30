@@ -181,7 +181,7 @@ security definer
 set search_path = public
 as $$
 declare
-    reservation_row ai_credit_reservations%rowtype;
+    reservation_row record;
 begin
     if p_user_id is null then
         raise exception 'User id is required';
@@ -237,7 +237,7 @@ security definer
 set search_path = public
 as $$
 declare
-    reservation_row ai_credit_reservations%rowtype;
+    reservation_row record;
 begin
     if p_user_id is null then
         raise exception 'User id is required';
@@ -293,7 +293,7 @@ security definer
 set search_path = public
 as $$
 declare
-    reservation_row ai_credit_reservations%rowtype;
+    reservation_row record;
 begin
     if p_user_id is null then
         raise exception 'User id is required';

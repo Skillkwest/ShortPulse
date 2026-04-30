@@ -18,7 +18,7 @@ type DescribeReferenceParams = {
   latestAgentPrompt: string | null;
   lastAssistantMessage: string | null;
   notifyBootstrapPending: () => void;
-  ensurePulseSessionReady: () => boolean;
+  ensureSessionReady: () => boolean;
   getOutputById: UseAiStudioAgentOrchestrationParams["getOutputById"];
   getAgentContext: UseAiStudioAgentOrchestrationParams["getAgentContext"];
   sendToAgent: UseAiStudioAgentOrchestrationParams["sendToAgent"];
@@ -38,7 +38,7 @@ export const describeReferenceOutput = async ({
   latestAgentPrompt,
   lastAssistantMessage,
   notifyBootstrapPending,
-  ensurePulseSessionReady,
+  ensureSessionReady,
   getOutputById,
   getAgentContext,
   sendToAgent,
@@ -53,7 +53,7 @@ export const describeReferenceOutput = async ({
     notifyBootstrapPending();
     return;
   }
-  if (!ensurePulseSessionReady()) {
+  if (!ensureSessionReady()) {
     return;
   }
   if (!outputId) return;

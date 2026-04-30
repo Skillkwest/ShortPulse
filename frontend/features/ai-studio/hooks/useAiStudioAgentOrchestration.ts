@@ -5,7 +5,6 @@ import type {
   AgentSendOptions,
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
-import { useCreateAgentOrchestrationRuntime } from "./agentOrchestration/useCreateAgentOrchestrationRuntime";
 import type { PulsePresetStartHandler } from "./agentOrchestration/runPulsePresetStartRuntime";
 import { useStandardCreatePromptEnhance } from "./agentOrchestration/useStandardCreatePromptEnhance";
 
@@ -63,13 +62,12 @@ export const useAiStudioAgentOrchestration = ({
     setUiNotice("Preparing chat. Try again in a moment.");
     trackAgentUiEvent("studio_agent_send_blocked_bootstrap_pending");
   }, [setUiNotice, trackAgentUiEvent]);
-  const orchestrationRuntime = useCreateAgentOrchestrationRuntime({
-    runtimePolicy,
-    setPulseWorkflowSession,
-    setUiNotice,
-    setAgentAttachmentError,
-    trackAgentUiEvent,
-  });
+  const ensureStandardCreateSessionReady = useCallback(() => {
+    if (runtimePolicy.kind === "standard") return true;
+    setUiNotice("Use the Pulse workflow to continue.");
+    trackAgentUiEvent("studio_agent_standard_action_blocked_in_pulse_mode");
+    return false;
+  }, [runtimePolicy, setUiNotice, trackAgentUiEvent]);
   const handlePulsePresetStart = useCallback<PulsePresetStartHandler>(
     async (preset, options) => {
       const { runPulsePresetStartRuntime } =
@@ -242,7 +240,7 @@ export const useAiStudioAgentOrchestration = ({
       notifyBootstrapPending();
       return;
     }
-    if (!orchestrationRuntime.ensureSessionReady()) {
+    if (!ensureStandardCreateSessionReady()) {
       return;
     }
     const isVideoPromptTool = selectedTool === "video" || selectedTool === "kling";
@@ -253,11 +251,11 @@ export const useAiStudioAgentOrchestration = ({
     try {
       const context = getAgentContext({
         lastAssistantMessage,
-        selectedOverride: orchestrationRuntime.resolveSelectedOverride(undefined),
-        includeActiveOutput: orchestrationRuntime.includeActiveOutput,
+        selectedOverride: null,
+        includeActiveOutput: false,
         modeHint: "text",
       });
-      const { response, actions, workflowSession, discarded } = await sendToAgent({
+      const { response, actions, discarded } = await sendToAgent({
         text: currentPrompt,
         payloadText: currentPrompt,
         previousPrompt: latestAgentPrompt ?? null,
@@ -279,7 +277,6 @@ export const useAiStudioAgentOrchestration = ({
         }
         setPromptOrigin("manual");
       }
-      await orchestrationRuntime.captureWorkflowSession(workflowSession);
     } finally {
       setIsReferencePromptEnhancing(false);
     }
@@ -296,7 +293,7 @@ export const useAiStudioAgentOrchestration = ({
     setPromptOrigin,
     setVideoReferenceText,
     videoReferenceText,
-    orchestrationRuntime,
+    ensureStandardCreateSessionReady,
     notifyBootstrapPending,
   ]);
 
@@ -310,7 +307,7 @@ export const useAiStudioAgentOrchestration = ({
         latestAgentPrompt,
         lastAssistantMessage,
         notifyBootstrapPending,
-        ensurePulseSessionReady: orchestrationRuntime.ensureSessionReady,
+        ensureSessionReady: ensureStandardCreateSessionReady,
         getOutputById,
         getAgentContext,
         sendToAgent,
@@ -335,7 +332,7 @@ export const useAiStudioAgentOrchestration = ({
       setOutputs,
       setPromptOrigin,
       setSharedPrompt,
-      orchestrationRuntime.ensureSessionReady,
+      ensureStandardCreateSessionReady,
       notifyBootstrapPending,
     ]
   );

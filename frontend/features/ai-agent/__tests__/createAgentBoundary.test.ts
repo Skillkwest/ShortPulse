@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -440,11 +440,16 @@ describe("Create agent mode boundaries", () => {
     const standardPromptEnhanceSource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/useStandardCreatePromptEnhance.ts"
     );
-    const orchestrationRuntimeSource = readFrontendFile(
-      "features/ai-studio/hooks/agentOrchestration/useCreateAgentOrchestrationRuntime.ts"
-    );
     const pulsePresetStartRuntimeSource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/runPulsePresetStartRuntime.ts"
+    );
+    const orchestrationRuntimeAdapterPath = path.join(
+      process.cwd(),
+      "features",
+      "ai-studio",
+      "hooks",
+      "agentOrchestration",
+      "useCreateAgentOrchestrationRuntime.ts"
     );
 
     expect(orchestrationSource).not.toContain("import { startPulsePreset");
@@ -455,9 +460,10 @@ describe("Create agent mode boundaries", () => {
     expect(orchestrationSource).not.toContain("../logic/pulseImageIntake");
     expect(orchestrationSource).not.toContain("../logic/pulseWorkflowSession");
     expect(orchestrationSource).not.toContain("./agentOrchestration/pulseSendRuntime");
-    expect(orchestrationSource).toContain(
+    expect(orchestrationSource).not.toContain(
       "./agentOrchestration/useCreateAgentOrchestrationRuntime"
     );
+    expect(existsSync(orchestrationRuntimeAdapterPath)).toBe(false);
     expect(orchestrationSource).toContain("./agentOrchestration/runPulsePresetStartRuntime");
     expect(orchestrationSource).toContain("./agentOrchestration/runStandardCreateAgentSend");
     expect(orchestrationSource).toContain("./agentOrchestration/runPulseCreateAgentSend");
@@ -475,8 +481,6 @@ describe("Create agent mode boundaries", () => {
     expect(orchestrationSource).toContain("./agentOrchestration/useStandardCreatePromptEnhance");
     expect(orchestrationSource).toContain('runtimePolicy.kind === "standard"');
     expect(orchestrationSource).not.toContain("./agentOrchestration/pulsePresetStart");
-    expect(orchestrationRuntimeSource).toContain("./pulseSendRuntime");
-    expect(orchestrationRuntimeSource).not.toContain("./pulsePresetStart");
     expect(pulsePresetStartRuntimeSource).toContain("./pulsePresetStart");
     expect(standardSendSource).not.toContain("runtimePolicy");
     expect(standardSendSource).not.toContain("Pulse");

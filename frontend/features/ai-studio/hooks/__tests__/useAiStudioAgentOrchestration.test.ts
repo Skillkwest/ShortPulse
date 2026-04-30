@@ -575,6 +575,34 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
   });
 
+  it("blocks Standard reference prompt enhancement while Pulse runtime is active", async () => {
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "Refined video prompt" },
+      actions: { applyPrompt: "Refined video prompt" },
+    }));
+    const setUiNotice = vi.fn();
+    const trackAgentUiEvent = vi.fn();
+    const params = createParams({
+      selectedTool: "video",
+      videoReferenceText: "Base video prompt",
+      sendToAgent,
+      runtimePolicy: pulseRuntimePolicy("multi_shot"),
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      trackAgentUiEvent,
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleReferencePromptEnhance();
+    });
+
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("Use the Pulse workflow to continue.");
+    expect(trackAgentUiEvent).toHaveBeenCalledWith(
+      "studio_agent_standard_action_blocked_in_pulse_mode"
+    );
+  });
+
   it("blocks prompt enhancement while agent bootstrap is still pending", async () => {
     const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
     const setUiNotice = vi.fn();

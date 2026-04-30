@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -80,7 +80,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -98,7 +98,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -116,7 +116,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -199,7 +199,7 @@ jobs:
           fi
           echo "run=false" >> "$GITHUB_OUTPUT"
           echo "reason=no_phase11_fal_changes" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         if: ${{ steps.should_run.outputs.run == 'true' }}
         with:
           node-version: 20
@@ -252,7 +252,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -302,7 +302,7 @@ jobs:
           fi
           echo "run=false" >> "$GITHUB_OUTPUT"
           echo "reason=no_expert_edit_coordinate_parity_changes" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         if: ${{ steps.should_run.outputs.run == 'true' }}
         with:
           node-version: 20
@@ -356,7 +356,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Run semantic docs drift checks (warn/enforce)
@@ -399,7 +399,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Run migration/docs parity checks (warn/enforce)
@@ -442,7 +442,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Run archive manifest checks (warn/enforce)
@@ -486,7 +486,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -545,7 +545,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Run architecture boundary checks (warn/enforce)
@@ -598,7 +598,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Run size budget checks (warn/enforce)
@@ -651,7 +651,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -698,7 +698,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -745,7 +745,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm
@@ -823,7 +823,7 @@ jobs:
             exit 0
           fi
           echo "run=false" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         if: ${{ steps.should_run.outputs.run == 'true' }}
         with:
           node-version: 20
@@ -890,7 +890,7 @@ jobs:
           fi
           echo "run=false" >> "$GITHUB_OUTPUT"
           echo "reason=no_perf_impacting_changes" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         if: ${{ steps.should_run.outputs.run == 'true' }}
         with:
           node-version: 20
@@ -973,7 +973,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
       - name: Run secret exposure checks (warn/enforce)
@@ -1016,7 +1016,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: npm

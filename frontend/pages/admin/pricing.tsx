@@ -301,15 +301,9 @@ export default function AdminPricingPage() {
     const query = modelSearchQuery.trim().toLowerCase();
     if (!query) return models;
     return models.filter((model) =>
-      [
-        model.label,
-        model.id,
-        model.provider,
-        model.workflowType,
-        model.pricingStrategy,
-        model.pricingStrategyLabel,
-        model.pricingAuthority,
-      ].some((value) => value.toLowerCase().includes(query))
+      [model.label, model.id, model.provider, model.workflowType, model.pricingAuthority].some(
+        (value) => value.toLowerCase().includes(query)
+      )
     );
   }, [modelSearchQuery, pricingState?.models]);
 
@@ -871,7 +865,7 @@ export default function AdminPricingPage() {
                       className={styles.searchInput}
                       value={modelSearchQuery}
                       onChange={(event) => setModelSearchQuery(event.target.value)}
-                      placeholder="Search models, providers, ids, or strategies"
+                      placeholder="Search models, providers, or ids"
                       aria-label="Search pricing models"
                     />
                   </div>
@@ -880,7 +874,6 @@ export default function AdminPricingPage() {
                       <span>Model</span>
                       <span>Provider</span>
                       <span>Type</span>
-                      <span>Strategy</span>
                       <span>Current</span>
                       <span>Conversion override</span>
                       <span>Markup override</span>
@@ -935,7 +928,6 @@ export default function AdminPricingPage() {
                               {model.provider}
                             </span>
                             <span>{model.workflowType}</span>
-                            <span>{model.pricingStrategyLabel}</span>
                             <span className={styles.pricingPrimaryCell}>
                               {activePreview ? (
                                 <>

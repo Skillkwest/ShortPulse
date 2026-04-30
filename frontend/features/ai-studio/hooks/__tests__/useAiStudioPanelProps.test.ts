@@ -142,6 +142,16 @@ const createParams = (
   } as Parameters<typeof useAiStudioPanelProps>[0];
 };
 
+type PanelPropsResult = ReturnType<typeof useAiStudioPanelProps>;
+
+const getStandardCreateProps = (panelProps: PanelPropsResult) => {
+  expect(panelProps.propertiesCreate.expertCreateMode).toBe("standard");
+  if (panelProps.propertiesCreate.expertCreateMode !== "standard") {
+    throw new Error("Expected Standard Create panel props");
+  }
+  return panelProps.propertiesCreate.standard;
+};
+
 describe("useAiStudioPanelProps", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
@@ -156,20 +166,16 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.standard.isPromptGenerating).toBe(true);
-    expect(result.current.propertiesCreate.standard.isGenerateDisabled).toBe(false);
-    expect(result.current.propertiesCreate.standard.isChatOffInlineGenerateDisabled).toBe(false);
-    expect(result.current.propertiesCreate.standard.outputGenerateCostCredits).toBe(25);
-    expect(result.current.propertiesCreate.standard.hasSufficientCreditsForOutputGenerate).toBe(
-      true
-    );
+    expect(getStandardCreateProps(result.current).isPromptGenerating).toBe(true);
+    expect(getStandardCreateProps(result.current).isGenerateDisabled).toBe(false);
+    expect(getStandardCreateProps(result.current).isChatOffInlineGenerateDisabled).toBe(false);
+    expect(getStandardCreateProps(result.current).outputGenerateCostCredits).toBe(25);
+    expect(getStandardCreateProps(result.current).hasSufficientCreditsForOutputGenerate).toBe(true);
     expect(result.current.propertiesEditExpert.expertEditEligible).toBe(false);
-    expect(typeof result.current.propertiesCreate.standard.onGenerateFromAgentOutputPrompt).toBe(
+    expect(typeof getStandardCreateProps(result.current).onGenerateFromAgentOutputPrompt).toBe(
       "function"
     );
-    expect(typeof result.current.propertiesCreate.standard.onChatOffInlineGenerate).toBe(
-      "function"
-    );
+    expect(typeof getStandardCreateProps(result.current).onChatOffInlineGenerate).toBe("function");
   });
 
   it("forwards chat-off inline generate handler into create properties", () => {
@@ -185,8 +191,32 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.standard.onChatOffInlineGenerate).toBe(
+    expect(getStandardCreateProps(result.current).onChatOffInlineGenerate).toBe(
       handleChatOffInlineGenerate
+    );
+  });
+
+  it("builds only Pulse Create props while Pulse mode is active", () => {
+    const handleGenerateArtifact = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          expertCreateMode: "pulse",
+          pulseCreateCommands: {
+            handleGenerateArtifact,
+          },
+        })
+      )
+    );
+
+    expect(result.current.propertiesCreate.expertCreateMode).toBe("pulse");
+    if (result.current.propertiesCreate.expertCreateMode !== "pulse") {
+      throw new Error("Expected Pulse Create panel props");
+    }
+    expect(result.current.propertiesCreate.standard).toBeUndefined();
+    expect(result.current.propertiesCreate.pulse.pulsePrompt).toBe("Pulse draft prompt");
+    expect(result.current.propertiesCreate.pulse.onGeneratePulseArtifact).toBe(
+      handleGenerateArtifact
     );
   });
 
@@ -202,8 +232,8 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.standard.costCredits).toBe(25);
-    expect(result.current.propertiesCreate.standard.outputGenerateCostCredits).toBe(25);
+    expect(getStandardCreateProps(result.current).costCredits).toBe(25);
+    expect(getStandardCreateProps(result.current).outputGenerateCostCredits).toBe(25);
   });
 
   it("forwards expert edit flatten callbacks into expert edit panel props", () => {
@@ -256,12 +286,12 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.standard.selectedCharacterId).toBe("char-create");
-    expect(result.current.propertiesCreate.standard.characterModeEnabled).toBe(true);
-    expect(result.current.propertiesCreate.standard.onSelectedCharacterIdChange).toBe(
+    expect(getStandardCreateProps(result.current).selectedCharacterId).toBe("char-create");
+    expect(getStandardCreateProps(result.current).characterModeEnabled).toBe(true);
+    expect(getStandardCreateProps(result.current).onSelectedCharacterIdChange).toBe(
       setCreateSelectedCharacterId
     );
-    expect(result.current.propertiesCreate.standard.onCharacterModeEnabledChange).toBe(
+    expect(getStandardCreateProps(result.current).onCharacterModeEnabledChange).toBe(
       setCreateCharacterModeEnabled
     );
 
@@ -305,8 +335,8 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.standard.agentIsSending).toBe(true);
-    expect(result.current.propertiesCreate.standard.isGenerateDisabled).toBe(false);
+    expect(getStandardCreateProps(result.current).agentIsSending).toBe(true);
+    expect(getStandardCreateProps(result.current).isGenerateDisabled).toBe(false);
     expect(result.current.propertiesEditExpert.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
   });
@@ -326,7 +356,7 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesEditExpert.isGenerateBusy).toBe(true);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesVideo.agentIsSending).toBe(false);
-    expect(result.current.propertiesCreate.standard.isChatOffInlineGenerateDisabled).toBe(false);
+    expect(getStandardCreateProps(result.current).isChatOffInlineGenerateDisabled).toBe(false);
   });
 
   it("forwards optimistic placeholder helpers into expert edit props", () => {
@@ -364,7 +394,7 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.standard.isChatOffInlineGenerateDisabled).toBe(true);
+    expect(getStandardCreateProps(result.current).isChatOffInlineGenerateDisabled).toBe(true);
   });
 
   it("forwards primary-stage generation state into expert edit props", () => {
@@ -429,7 +459,7 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.standard.expertCreateUiEligible).toBe(true);
+    expect(getStandardCreateProps(result.current).expertCreateUiEligible).toBe(true);
   });
 
   it("allows explicit env override to disable expert create UI in development", () => {
@@ -443,7 +473,7 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.standard.expertCreateUiEligible).toBe(false);
+    expect(getStandardCreateProps(result.current).expertCreateUiEligible).toBe(false);
   });
 
   it("allows explicit env override to enable expert create UI in production", () => {
@@ -457,7 +487,7 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesCreate.standard.expertCreateUiEligible).toBe(true);
+    expect(getStandardCreateProps(result.current).expertCreateUiEligible).toBe(true);
   });
 
   it("disables expert create UI in production builds and while beginner mode is on", () => {
@@ -469,7 +499,7 @@ describe("useAiStudioPanelProps", () => {
         })
       )
     );
-    expect(productionResult.current.propertiesCreate.standard.expertCreateUiEligible).toBe(false);
+    expect(getStandardCreateProps(productionResult.current).expertCreateUiEligible).toBe(false);
 
     vi.stubEnv("NODE_ENV", "development");
     const { result: beginnerResult } = renderHook(() =>
@@ -479,7 +509,7 @@ describe("useAiStudioPanelProps", () => {
         })
       )
     );
-    expect(beginnerResult.current.propertiesCreate.standard.expertCreateUiEligible).toBe(false);
+    expect(getStandardCreateProps(beginnerResult.current).expertCreateUiEligible).toBe(false);
   });
 
   it("enables expert edit UI by default when beginner mode is off", () => {

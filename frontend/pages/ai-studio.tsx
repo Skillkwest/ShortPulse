@@ -1320,6 +1320,7 @@ export default function AiStudioPage() {
     aspect,
     model,
     currentModelLabel,
+    expertCreateMode,
     standardPrompt,
     pulsePrompt,
     agentEnabled,
@@ -1468,33 +1469,32 @@ export default function AiStudioPage() {
     onCreateElement: handleOpenElementCreate,
   });
   const panelPropsWithCreateModeRuntime = useMemo(() => {
-    const standardCreateProperties = {
-      ...panelProps.propertiesCreate.standard,
-    };
-    const pulseCreateProperties = {
-      ...panelProps.propertiesCreate.pulse,
-      hasActivePulseSession,
-      isGenerateDisabled: pulseArtifactGenerateDisabled,
-      guardrailReason: pulseArtifactGenerateGuardrail,
-      pulseWorkflowSession,
-      activePulsePresetId: activeCreatePulsePresetId,
-      activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
-      onActivePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
-      onPulsePresetStart: handleCreatePulsePresetStart,
-    };
+    const activeCreateProperties = panelProps.propertiesCreate;
     return {
       ...panelProps,
       propertiesCreate:
-        expertCreateMode === "pulse"
+        activeCreateProperties.expertCreateMode === "pulse"
           ? {
-              expertCreateMode,
+              expertCreateMode: activeCreateProperties.expertCreateMode,
               onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
-              pulse: pulseCreateProperties,
+              pulse: {
+                ...activeCreateProperties.pulse,
+                hasActivePulseSession,
+                isGenerateDisabled: pulseArtifactGenerateDisabled,
+                guardrailReason: pulseArtifactGenerateGuardrail,
+                pulseWorkflowSession,
+                activePulsePresetId: activeCreatePulsePresetId,
+                activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
+                onActivePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
+                onPulsePresetStart: handleCreatePulsePresetStart,
+              },
             }
           : {
-              expertCreateMode,
+              expertCreateMode: activeCreateProperties.expertCreateMode,
               onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
-              standard: standardCreateProperties,
+              standard: {
+                ...activeCreateProperties.standard,
+              },
             },
     };
   }, [

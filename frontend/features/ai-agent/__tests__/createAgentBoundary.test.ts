@@ -307,8 +307,8 @@ describe("Create agent mode boundaries", () => {
     expect(panelPropBuilderSource).toContain("pulsePrompt: string;");
     expect(panelPropBuilderSource).toContain("prompt: standardPrompt");
     expect(panelPropBuilderSource).toContain("pulsePrompt");
-    expect(panelPropBuilderSource).toContain("useStandardCreatePanelProps");
-    expect(panelPropBuilderSource).toContain("usePulseCreatePanelProps");
+    expect(panelPropBuilderSource).toContain("buildStandardCreatePanelProps");
+    expect(panelPropBuilderSource).toContain("buildPulseCreatePanelProps");
     expect(standardCreatePanelPropsSource).not.toContain("Pulse");
     expect(standardCreatePanelPropsSource).not.toContain("pulseWorkflowSession");
     expect(pulseCreatePanelPropsSource).not.toContain("Standard");
@@ -603,8 +603,8 @@ describe("Create agent mode boundaries", () => {
     );
 
     expect(pageSource).not.toContain("...panelProps.propertiesCreate,");
-    expect(pageSource).toContain("...panelProps.propertiesCreate.standard");
-    expect(pageSource).toContain("...panelProps.propertiesCreate.pulse");
+    expect(pageSource).toContain("activeCreateProperties.standard");
+    expect(pageSource).toContain("activeCreateProperties.pulse");
     expect(pageSource).not.toContain(
       "...panelProps.propertiesCreate.standard,\n      expertCreateMode"
     );
@@ -614,7 +614,8 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain(
       "...panelProps.propertiesCreate.pulse,\n      onExpertCreateModeChange"
     );
-    expect(panelPropBuilderSource).toContain("standard: standardCreateProperties");
-    expect(panelPropBuilderSource).toContain("pulse: pulseCreateProperties");
+    expect(panelPropBuilderSource).toContain('expertCreateMode === "pulse"');
+    expect(panelPropBuilderSource).toContain("pulse: buildPulseCreatePanelProps");
+    expect(panelPropBuilderSource).toContain("standard: buildStandardCreatePanelProps");
   });
 });

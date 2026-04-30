@@ -105,6 +105,9 @@ const createSupabaseAdmin = (options?: {
     mediaRows.push({
       id: options.existingRow.id,
       storage_path: options.existingRow.storage_path,
+      file_type: options.existingRow.file_type,
+      poster_variant_path: options.existingRow.poster_variant_path,
+      preview_variant_path: options.existingRow.preview_variant_path,
     });
   }
 
@@ -199,7 +202,10 @@ const createSupabaseAdmin = (options?: {
       mediaSelectBuilder.limit.mockReturnValue(mediaSelectBuilder);
       return {
         select: vi.fn((fields: string) => {
-          if (fields === "id, storage_path") {
+          if (
+            fields === "id, storage_path" ||
+            fields === "id, storage_path, file_type, poster_variant_path, preview_variant_path"
+          ) {
             return storageLookupBuilder;
           }
           return mediaSelectBuilder;
@@ -217,6 +223,9 @@ const createSupabaseAdmin = (options?: {
                 mediaRows.push({
                   id: insertedRow.id,
                   storage_path: insertedRow.storage_path,
+                  file_type: insertedRow.file_type,
+                  poster_variant_path: insertedRow.poster_variant_path,
+                  preview_variant_path: insertedRow.preview_variant_path,
                 });
               }
               return response;
@@ -627,8 +636,26 @@ describe("POST /api/media/copy-from-url", () => {
         media_file_id: "media-existing-1",
       })
     );
-    expect(supabase.generationPublicationUpsertMock).not.toHaveBeenCalled();
-    expect(supabase.generationProjectionUpsertMock).not.toHaveBeenCalled();
+    expect(supabase.generationPublicationUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-1",
+        owned_media_file_id: "media-existing-1",
+        preview_storage_path: "user-1/generations/images/existing.png",
+      }),
+      expect.objectContaining({
+        onConflict: "generation_output_id",
+      })
+    );
+    expect(supabase.generationProjectionUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-1",
+        user_id: "user-1",
+        saved_media_ids: ["media-existing-1"],
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
   });
 
   it("falls back to legacy metadata-index lookup when canonical output media linkage is absent", async () => {
@@ -734,8 +761,25 @@ describe("POST /api/media/copy-from-url", () => {
         media_file_id: "media-generated-1",
       })
     );
-    expect(supabase.generationPublicationUpsertMock).not.toHaveBeenCalled();
-    expect(supabase.generationProjectionUpsertMock).not.toHaveBeenCalled();
+    expect(supabase.generationPublicationUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-22",
+        owned_media_file_id: "media-generated-1",
+      }),
+      expect.objectContaining({
+        onConflict: "generation_output_id",
+      })
+    );
+    expect(supabase.generationProjectionUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-22",
+        user_id: "user-1",
+        saved_media_ids: ["media-generated-1"],
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
   });
 
   it("rejects redirect hops that leave the trusted allowlist", async () => {

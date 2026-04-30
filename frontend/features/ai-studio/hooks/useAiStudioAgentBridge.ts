@@ -751,6 +751,22 @@ export const useAiStudioAgentBridge = ({
     runtimePolicy: orchestrationRuntimePolicy,
     resolvePulseSessionNamespace,
   });
+  const handleStandardAgentEnhanceSend = useCallback(() => {
+    if (isPulseCreateMode) {
+      setUiNotice("Use the Pulse workflow to continue.");
+      trackAgentUiEvent("studio_agent_standard_action_blocked_in_pulse_mode");
+      return;
+    }
+    handleAgentEnhanceSend();
+  }, [handleAgentEnhanceSend, isPulseCreateMode, setUiNotice, trackAgentUiEvent]);
+  const handleStandardReferencePromptEnhance = useCallback(() => {
+    if (isPulseCreateMode) {
+      setUiNotice("Use the Pulse workflow to continue.");
+      trackAgentUiEvent("studio_agent_standard_action_blocked_in_pulse_mode");
+      return;
+    }
+    void handleReferencePromptEnhance();
+  }, [handleReferencePromptEnhance, isPulseCreateMode, setUiNotice, trackAgentUiEvent]);
 
   const {
     handleExpandChat,
@@ -961,8 +977,8 @@ export const useAiStudioAgentBridge = ({
     handleAgentSend,
     handlePulsePresetStart,
     handlePulsePresetRestart,
-    handleAgentEnhanceSend,
-    handleReferencePromptEnhance,
+    handleAgentEnhanceSend: handleStandardAgentEnhanceSend,
+    handleReferencePromptEnhance: handleStandardReferencePromptEnhance,
     resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
     handleAgentAttachmentDragOver,

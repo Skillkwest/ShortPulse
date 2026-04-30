@@ -2211,6 +2211,82 @@ describe("useAiStudioAgentBridge", () => {
     });
   });
 
+  it("blocks Standard enhancement handlers while Pulse runtime is active", async () => {
+    const handleAgentEnhanceSend = vi.fn();
+    const handleReferencePromptEnhance = vi.fn();
+    const setUiNotice = vi.fn();
+    const trackAgentUiEvent = vi.fn();
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend,
+      handleReferencePromptEnhance,
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(
+        createBridgeParams({
+          expertCreateMode: "pulse",
+          activePulsePresetId: "story_builder",
+          setUiNotice: asDispatch<string | null>(setUiNotice),
+          trackAgentUiEvent,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleAgentEnhanceSend();
+      result.current.handleReferencePromptEnhance();
+    });
+
+    expect(handleAgentEnhanceSend).not.toHaveBeenCalled();
+    expect(handleReferencePromptEnhance).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("Use the Pulse workflow to continue.");
+    expect(trackAgentUiEvent).toHaveBeenCalledWith(
+      "studio_agent_standard_action_blocked_in_pulse_mode"
+    );
+  });
+
   it("keeps Pulse chat mode enabled even when page-owned Standard preference is off", async () => {
     useAiAgentMock.mockReturnValue({
       messages: [],

@@ -24,7 +24,7 @@ import type {
 import type { PulseCreatePropertiesPanelProps } from "../components/create/PulseCreatePropertiesPanel";
 import type { StandardCreatePropertiesPanelProps } from "../components/create/StandardCreatePropertiesPanel";
 import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { StudioMode, ToolId } from "../types";
 import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
 
 export type NeutralCreateGenerationServices = {
@@ -185,7 +185,7 @@ export type PulseCreateRuntimeProps = {
   onActivePresetIdChange: (
     nextPresetId: string | null,
     options?: { forceNewSession?: boolean }
-  ) => string | null;
+  ) => string | null | void;
   onSavePromptReference: (customPrompt?: string) => void;
   generationServices: NeutralCreateGenerationServices;
 };

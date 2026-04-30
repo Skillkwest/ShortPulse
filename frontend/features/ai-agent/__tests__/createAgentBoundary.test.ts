@@ -450,10 +450,10 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain('enabled: expertCreateMode === "standard"');
     expect(pageSource).toContain("useAiStudioAgentOutputGenerationBridge({");
     expect(pageSource).not.toContain("const handlePrimarySubmit =");
-    expect(pageSource).toContain("standardCreateCommands:");
-    expect(pageSource).toContain("pulseCreateCommands:");
-    expect(pageSource).toContain("handlePrimarySubmit: handleStandardCreatePrimarySubmit");
-    expect(pageSource).toContain("handleGenerateArtifact: handlePulseCreatePrimarySubmit");
+    expect(pageSource).not.toContain("standardCreateCommands:");
+    expect(pageSource).not.toContain("pulseCreateCommands:");
+    expect(pageSource).toContain("onPrimarySubmit: handleStandardCreatePrimarySubmit");
+    expect(pageSource).toContain("onGenerateArtifact: handlePulseCreatePrimarySubmit");
     expect(panelPropBuilderSource).toContain("standardCreateCommands:");
     expect(panelPropBuilderSource).toContain("pulseCreateCommands:");
     expect(pageSource).toContain("useStandardCreatePrimarySubmit");
@@ -700,8 +700,13 @@ describe("Create agent mode boundaries", () => {
     );
 
     expect(pageSource).not.toContain("...panelProps.propertiesCreate,");
-    expect(pageSource).toContain("activeCreateProperties.standard");
-    expect(pageSource).toContain("activeCreateProperties.pulse");
+    expect(pageSource).not.toContain("useAiStudioPanelProps");
+    expect(pageSource).toContain("useAiStudioEditVideoPanelProps");
+    expect(pageSource).toContain("buildStandardCreateRuntimeResult");
+    expect(pageSource).toContain("buildPulseCreateRuntimeResult");
+    expect(pageSource).toContain("propertiesCreate: createRuntimePanelContract");
+    expect(pageSource).not.toContain("activeCreateProperties.standard");
+    expect(pageSource).not.toContain("activeCreateProperties.pulse");
     expect(pageSource).not.toContain(
       "...panelProps.propertiesCreate.standard,\n      expertCreateMode"
     );

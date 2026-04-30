@@ -310,7 +310,10 @@ describe("Create agent mode boundaries", () => {
     expect(pulseCreatePanelPropsSource).not.toContain("onChatModeEnabledChange");
     expect(pulseCreatePanelPropsSource).not.toContain("onChatOffInlineGenerate");
     expect(pulseCreatePanelPropsSource).not.toContain("onGenerate: handlePrimarySubmit");
-    expect(pulseCreatePanelPropsSource).toContain("onGeneratePulseArtifact: handlePrimarySubmit");
+    expect(pulseCreatePanelPropsSource).not.toContain("handlePrimarySubmit");
+    expect(pulseCreatePanelPropsSource).toContain(
+      "onGeneratePulseArtifact: handlePulseCreatePrimarySubmit"
+    );
     expect(pulseComposerSource).not.toContain("onGenerate: () => void");
     expect(pulseComposerSource).toContain("onGeneratePulseArtifact: () => void");
     expect(pulseComposerSource).not.toContain("prompt: string;");
@@ -362,6 +365,9 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
+    expect(pageSource).not.toContain("const handlePrimarySubmit =");
+    expect(pageSource).toContain("handleStandardCreatePrimarySubmit,");
+    expect(pageSource).toContain("handlePulseCreatePrimarySubmit,");
     expect(pageSource).toContain("useStandardCreatePrimarySubmit");
     expect(pageSource).toContain("usePulseCreatePrimarySubmit");
     expect(pageSource).not.toContain("const pulsePrompt = resolveChatOffCreatePrompt");

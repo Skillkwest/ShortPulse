@@ -35,7 +35,7 @@ type UsePulseCreatePanelPropsParams = {
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
-  handlePrimarySubmit: () => void;
+  handlePulseCreatePrimarySubmit: () => void;
   savePromptReference: (customPrompt?: string) => void;
   expertCreateUiEligible: boolean;
 };
@@ -73,7 +73,7 @@ export const usePulseCreatePanelProps = ({
   isGenerateDisabled,
   generationGuardrail,
   handleClearAgentChat,
-  handlePrimarySubmit,
+  handlePulseCreatePrimarySubmit,
   savePromptReference,
   expertCreateUiEligible,
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps =>
@@ -107,7 +107,7 @@ export const usePulseCreatePanelProps = ({
       guardrailReason: generationGuardrail,
       onClearAgentChat: handleClearAgentChat,
       shouldDisableSave: false,
-      onGeneratePulseArtifact: handlePrimarySubmit,
+      onGeneratePulseArtifact: handlePulseCreatePrimarySubmit,
       onSavePrompt: savePromptReference,
       beginnerMode: false,
       expertCreateUiEligible,
@@ -136,7 +136,7 @@ export const usePulseCreatePanelProps = ({
       handleClearAgentAttachments,
       handleClearAgentChat,
       handlePulsePromptChange,
-      handlePrimarySubmit,
+      handlePulseCreatePrimarySubmit,
       handleRemoveAgentAttachment,
       isAgentDropActive,
       isGenerateDisabled,

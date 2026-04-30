@@ -67,7 +67,7 @@ type UseStandardCreatePanelPropsParams = {
   generationGuardrail: string | null;
   handleClearAgentChat: () => void;
   useReferenceImageIndicator: boolean;
-  handlePrimarySubmit: () => void;
+  handleStandardCreatePrimarySubmit: () => void;
   handleChatOffInlineGenerate: () => void;
   savePromptReference: (customPrompt?: string) => void;
   characterOptions: CreateCharacterOption[];
@@ -147,7 +147,7 @@ export const useStandardCreatePanelProps = ({
   generationGuardrail,
   handleClearAgentChat,
   useReferenceImageIndicator,
-  handlePrimarySubmit,
+  handleStandardCreatePrimarySubmit,
   handleChatOffInlineGenerate,
   savePromptReference,
   characterOptions,
@@ -219,7 +219,7 @@ export const useStandardCreatePanelProps = ({
       guardrailReason: generationGuardrail,
       onClearAgentChat: handleClearAgentChat,
       shouldDisableSave: useReferenceImageIndicator && mode === "text",
-      onGenerate: handlePrimarySubmit,
+      onGenerate: handleStandardCreatePrimarySubmit,
       onChatOffInlineGenerate: handleChatOffInlineGenerate,
       onSavePrompt: savePromptReference,
       characterOptions,
@@ -279,7 +279,7 @@ export const useStandardCreatePanelProps = ({
       handleGenerateFromAgentOutputPrompt,
       handleManualPromptChange,
       handleOpenModelModal,
-      handlePrimarySubmit,
+      handleStandardCreatePrimarySubmit,
       handleRemoveAgentAttachment,
       hasSufficientCreditsForPromptReferenceGenerate,
       imageResolution,

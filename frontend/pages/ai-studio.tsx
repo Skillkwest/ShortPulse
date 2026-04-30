@@ -1250,10 +1250,6 @@ export default function AiStudioPage() {
     handleProviderPrimarySubmit,
     setUiNotice,
   });
-  const handlePrimarySubmit =
-    expertCreateMode === "pulse"
-      ? handlePulseCreatePrimarySubmit
-      : handleStandardCreatePrimarySubmit;
   const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt } =
     useAiStudioAgentOutputGenerationBridge({
       outputs,
@@ -1333,7 +1329,8 @@ export default function AiStudioPage() {
     isGenerateDisabled: effectiveIsGenerateDisabled,
     generationGuardrail: effectiveGenerationGuardrail,
     handleClearAgentChat,
-    handlePrimarySubmit,
+    handleStandardCreatePrimarySubmit,
+    handlePulseCreatePrimarySubmit,
     handleChatOffInlineGenerate,
     savePromptReference,
     characterOptions,

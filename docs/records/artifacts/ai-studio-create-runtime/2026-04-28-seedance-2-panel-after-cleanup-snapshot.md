@@ -1,0 +1,87 @@
+- generic [ref=e1]:
+  - main [ref=e91]:
+    - generic [ref=e92]:
+      - generic [ref=e93]:
+        - heading "AI Studio" [level=1] [ref=e94]
+        - generic [ref=e95]:
+          - generic [ref=e96]: Credits
+          - generic [ref=e97]: 39,678
+      - generic "AI Studio header shortcuts" [ref=e100]:
+        - button "Canvas" [ref=e101] [cursor=pointer]
+        - button "Quick Slot Inventory" [pressed] [ref=e102] [cursor=pointer]
+        - button "Reference Grid" [pressed] [ref=e103] [cursor=pointer]
+    - generic [ref=e104]:
+      - complementary [ref=e105]:
+        - img "AI Studio logo" [ref=e107]
+        - link "Dashboard" [ref=e108] [cursor=pointer]:
+          - /url: /dashboard
+          - img
+          - text: Dashboard
+        - button "Projects" [ref=e109] [cursor=pointer]:
+          - img
+          - text: Projects
+        - generic [ref=e110]:
+          - button "Create" [ref=e112] [cursor=pointer]:
+            - img [ref=e113]
+            - generic [ref=e117]: Create
+          - button "Edit" [ref=e118] [cursor=pointer]:
+            - img [ref=e119]
+            - generic [ref=e126]: Edit
+          - button "Video" [ref=e127] [cursor=pointer]:
+            - img [ref=e128]
+            - generic [ref=e133]: Video
+          - button "Sound" [ref=e134] [cursor=pointer]:
+            - img [ref=e135]
+            - generic [ref=e141]: Sound
+          - generic [ref=e143]:
+            - paragraph [ref=e144]: Libraries
+            - button "Media" [ref=e145] [cursor=pointer]:
+              - img [ref=e146]
+              - generic [ref=e152]: Media
+            - button "Characters" [ref=e153] [cursor=pointer]:
+              - img [ref=e154]
+              - generic [ref=e159]: Characters
+            - button "Elements" [ref=e160] [cursor=pointer]:
+              - img [ref=e161]
+              - generic [ref=e166]: Elements
+            - button "Presets" [ref=e167] [cursor=pointer]:
+              - img [ref=e168]
+              - generic [ref=e174]: Presets
+            - button "Styles" [ref=e175] [cursor=pointer]:
+              - img [ref=e176]
+              - generic [ref=e184]: Styles
+          - generic [ref=e186]:
+            - paragraph [ref=e187]: Shortcuts
+            - button "Templates" [ref=e188] [cursor=pointer]:
+              - img [ref=e189]
+              - generic [ref=e196]: Templates
+      - generic [ref=e200]:
+        - complementary [ref=e530]:
+          - group "Expert create composer" [ref=e531]:
+            - generic [ref=e532]:
+              - region "Create pulse presets" [ref=e535]:
+                - generic [ref=e536]
+              - generic [ref=e563]:
+                - generic [ref=e564]
+                - group "Ask anything section" [ref=e577]
+        - separator "Resize creative properties and reference grid columns" [ref=e276]
+        - generic [ref=e282]:
+          - generic [ref=e283]:
+            - paragraph [ref=e285]: Quick Slot Inventory
+            - paragraph [ref=e290]: Drag & drop references here from the Reference Grid.
+          - separator "Resize Quick Slot Inventory and Reference Grid sections" [ref=e291]:
+            - generic: Reference Grid
+          - generic [ref=e292]:
+            - generic [ref=e295]:
+              - button "Add files" [ref=e296] [cursor=pointer]:
+                - img [ref=e297]
+                - generic [ref=e301]: Add files
+              - button "Media Library" [ref=e302] [cursor=pointer]:
+                - img [ref=e303]
+                - generic [ref=e308]: Media Library
+            - generic [ref=e311]:
+              - paragraph [ref=e312]: Upload or generate to see your references here.
+              - paragraph [ref=e313]: New text prompts, images, and videos will appear in this grid.
+  - button "Open Next.js Dev Tools" [ref=e43] [cursor=pointer]:
+    - img [ref=e44]
+  - alert [ref=e47]: ShortPulse · AI Studio

@@ -207,6 +207,26 @@ describe("studioAgentRequestGuards", () => {
     expect(context.focusedReferenceId).toBeNull();
   });
 
+  it("strips generic prompt continuity from Pulse runtime requests", () => {
+    const context = sanitizeStudioAgentContext(
+      {
+        mode: "image",
+        activePrompt: "Standard prompt memory that must not seed Pulse",
+        lastAssistantMessage: "Standard assistant transcript",
+        pulse: {
+          presetId: "pulse_story",
+          label: "Story Builder",
+          instructions: "Ask for details, then produce a final prompt.",
+        },
+      },
+      "pulse"
+    );
+
+    expect(context.activePrompt).toBeNull();
+    expect(context.lastAssistantMessage).toBeNull();
+    expect(context.pulse?.presetId).toBe("pulse_story");
+  });
+
   it("keeps explicitly referenced Standard media context", () => {
     const context = sanitizeStudioAgentContext(
       {

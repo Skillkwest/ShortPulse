@@ -270,6 +270,13 @@ export const sanitizeStudioAgentContext = (
     modeHint: context.modeHint ?? undefined,
     pulse: sanitizeStudioAgentPulseContext(context.pulse) ?? null,
   };
+  if (runtimeMode === "pulse") {
+    return {
+      ...sanitized,
+      activePrompt: null,
+      lastAssistantMessage: null,
+    };
+  }
   if (runtimeMode !== "standard") return sanitized;
   const keepMedia = shouldKeepStandardMediaContext(sanitized);
   return {

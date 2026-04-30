@@ -92,6 +92,7 @@
     "@types/react-dom": "18.3.7",
     "@vitest/coverage-v8": "^4.0.18",
     "@vitest/ui": "^4.0.18",
+    "esbuild": "^0.27.3",
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.1.6",
     "eslint-config-prettier": "^10.1.8",
@@ -117,18 +118,35 @@
       "prettier --write"
     ]
   },
+  "overrides": {
+    "postcss": "8.5.12"
+  },
   "knip": {
     "ignoreFiles": [
+      "features/ai-agent/client/transportResultResolution.ts",
+      "features/ai-agent/legacy/useAiAgentCompat.ts",
+      "features/ai-agent/useAiAgent.ts",
+      "features/ai-agent/usePulseCreateAgent.ts",
+      "features/ai-agent/useStandardCreateAgent.ts",
       "features/ai-studio/components/canvas/__tests__/canvasTestHarness.tsx",
       "features/ai-studio/components/MediaLibraryFolderCanvas.tsx",
       "features/ai-studio/components/style-creator/__tests__/styleDropCharacterization.fixtures.ts",
       "features/agent-runtime/canaryThresholdDecision.ts",
+      "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgePersistenceRuntime.ts",
+      "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgeRuntime.ts",
+      "features/ai-studio/hooks/agentBridgeRuntime/useCreateAgentBridgeActiveAgent.ts",
+      "features/ai-studio/hooks/agentOrchestration/describeReference.ts",
+      "features/ai-studio/hooks/useAiStudioAgentBridge.ts",
+      "features/ai-studio/hooks/useAiStudioAgentOrchestration.ts",
       "features/ai-studio/hooks/useMediaLibraryPanelFolderCanvasController.ts",
       "features/ai-studio/logic/mediaFolderCanvasSnapshot.ts",
+      "lib/model-runtime/falImageModelSupport.ts",
+      "lib/server/api/falSubmitTargeting.ts",
       "lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts",
       "lib/server/generationControlPlane/workerOps.ts",
       "lib/server/generationControlPlane/workerLoop.ts",
       "scripts/ai-studio-perf-release-check.mjs",
+      "scripts/run_dev_with_generation_worker.mjs",
       "scripts/run_generation_control_plane_worker.mjs",
       "tests/api/studio-agent.runtime.test-support.ts",
       "tests/support/supabaseClientMock.ts",

@@ -4,10 +4,8 @@
  */
 import { randomUUID } from "crypto";
 import {
-  type OpenAiImage2InputFidelity,
   type OpenAiImage2Quality,
   type OpenAiImage2Size,
-  OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
 } from "../model-runtime/openAiImage2";
 import { canAutoPersistRecoveryMedia } from "../mediaAutosavePolicy";
@@ -36,7 +34,6 @@ type OpenAiGenerateImageInput = {
 
 type OpenAiEditImageInput = OpenAiGenerateImageInput & {
   images: string[];
-  inputFidelity?: OpenAiImage2InputFidelity;
   maskUrl?: string | null;
 };
 
@@ -277,7 +274,6 @@ export const editOpenAiImage = async ({
   size,
   quality,
   images,
-  inputFidelity = OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
   maskUrl = null,
 }: OpenAiEditImageInput): Promise<OpenAiImageGenerationResult> => {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -300,7 +296,6 @@ export const editOpenAiImage = async ({
       n: 1,
       output_format: "png",
       moderation: "auto",
-      input_fidelity: inputFidelity,
       ...(maskUrl ? { mask: { image_url: maskUrl } } : {}),
     }),
   });

@@ -376,7 +376,6 @@ describe("Seedream submission payloads", () => {
         { image_url: "https://cdn.test/ref-1.png" },
         { image_url: "https://cdn.test/ref-2.png" },
       ],
-      input_fidelity: "high",
       shortpulse_context: { surface: "ai-studio-edit" },
     });
     expect(submitOpenAiGptImage2).not.toHaveBeenCalled();

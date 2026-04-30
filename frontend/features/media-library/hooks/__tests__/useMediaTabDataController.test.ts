@@ -403,7 +403,13 @@ describe("useMediaTabDataController", () => {
 
     expect(result.current.error).toBe("Unable to load media.");
     expect(result.current.mediaTabCache.uploaded_images.error).toBe("Unable to load media.");
+    expect(result.current.mediaTabCache.uploaded_images.loadedAtMs).toEqual(expect.any(Number));
     expect(result.current.files).toEqual([]);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
   });
 
   it("keeps existing rows visible while stale refresh is unresolved", async () => {

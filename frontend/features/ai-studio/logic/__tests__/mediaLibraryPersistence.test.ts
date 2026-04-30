@@ -1484,7 +1484,7 @@ describe("resolveGenerationIdForRequestId", () => {
     expect(generationSelectBuilder.maybeSingle).not.toHaveBeenCalled();
   });
 
-  it("falls back to ai_generations when projection does not resolve a generation id", async () => {
+  it("returns null when projection does not resolve a request-backed generation id", async () => {
     const projectionSelectBuilder = createMaybeSingleEqBuilder(
       vi.fn().mockResolvedValue({
         data: null,
@@ -1510,7 +1510,8 @@ describe("resolveGenerationIdForRequestId", () => {
       }),
     });
 
-    await expect(resolveGenerationIdForRequestId("req-1")).resolves.toBe("gen-from-generations");
+    await expect(resolveGenerationIdForRequestId("req-1")).resolves.toBeNull();
+    expect(generationSelectBuilder.maybeSingle).not.toHaveBeenCalled();
   });
 
   it("returns null on project routes when the request-backed generation is not associated to that project", async () => {

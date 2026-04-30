@@ -2856,6 +2856,7 @@ const AiStudioPageRuntimePresenter = ({
         selectedToolOverride: "edit",
       }),
     removeOptimisticGenerationPlaceholder,
+    notifyGenerationFailure,
     onEditSubmitIntentChange: setEditSubmitIntent,
     addSessionMediaReference: addPastedMediaReference,
     referenceImageWarning,

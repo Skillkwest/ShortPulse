@@ -3,7 +3,9 @@
 Purpose: define the Supabase tables and analytics fields used by ShortPulse’s Next.js app and internal API routes.
 
 ## Supabase tables
+
 ### saved_creators
+
 - `id` (uuid, pk)
 - `handle` (text): Creator handle stored in normalized form.
 - `platform` (text): instagram | tiktok | youtube.
@@ -14,6 +16,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### media_files
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `filename` (text): Friendly file name stored alongside the object.
 - `storage_path` (text): Full path in the `media_library` bucket (prefix with `auth.uid()`). Private tab uploads use `<auth.uid()>/private/images/<filename>`.
@@ -53,6 +56,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Migration `065_add_media_derivative_processing_fields.sql` adds derivative retry/lease control fields and an insert-default trigger that marks new image rows `pending` for derivative processing.
 
 ### media_asset_variants
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `media_file_id` (uuid): Parent media row with cascade delete.
 - `user_id` (uuid): Owner for RLS scoping and scoped FK parity with `media_files`.
@@ -68,10 +72,12 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### Media usage RPCs
+
 - `get_media_library_usage_bytes()`: returns total `file_size` bytes for the authenticated user’s `media_files` rows.
 - Used by: `frontend/pages/media-library.tsx` for accurate storage usage display independent of paged list cache.
 
 ### characters
+
 - `id` (uuid, pk)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `name` (text): Character display name.
@@ -103,6 +109,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### elements
+
 - `id` (uuid, pk)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `name` (text): Element display name.
@@ -128,6 +135,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### element_reference_sets
+
 - `id` (uuid, pk)
 - `element_id` (uuid): Parent element.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
@@ -142,6 +150,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### element_media_assets
+
 - `id` (uuid, pk)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `element_id` (uuid): Parent element.
@@ -155,6 +164,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### character_reference_packs
+
 - `id` (uuid, pk)
 - `character_id` (uuid): Parent character.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
@@ -166,6 +176,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### character_reference_images
+
 - `id` (uuid, pk)
 - `character_id` (uuid): Parent character.
 - `character_sheet_id` (uuid): Parent character sheet (canonical).
@@ -183,6 +194,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Trigger `trg_character_reference_images_media_integrity` enforces that linked `media_files` row stays user-owned, uses `source = character_reference`, and has matching path/metadata.
 
 ### character_quick_swap_items
+
 - `id` (uuid, pk)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `character_id` (uuid): Parent character.
@@ -197,6 +209,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Legacy `character_reference_images` remains compatibility data for fixed-slot fallback only.
 
 ### character_generation_jobs
+
 - `id` (uuid, pk)
 - `character_id` (uuid): Parent character.
 - `character_sheet_id` (uuid): Parent character sheet used by generation (canonical).
@@ -209,6 +222,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### media_prompts
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `title` (text, nullable): Optional friendly label.
@@ -221,6 +235,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### media_folders
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, references `auth.users.id`): Owner for RLS scoping.
 - `name` (text): Custom folder display name (`btrim(name)`, length `1..64`).
@@ -235,6 +250,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Recursive cycle guard trigger rejects folder hierarchies that would introduce ancestry loops.
 
 ### media_folder_media_items
+
 - `folder_id` (uuid, pk segment): References `media_folders.id` with cascade delete.
 - `media_file_id` (uuid, pk segment): References `media_files.id` with cascade delete.
 - `user_id` (uuid, references `auth.users.id`): Owner for RLS scoping.
@@ -246,6 +262,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Real nested hierarchy work now lives on `media_folders.parent_folder_id`; membership semantics remain a compatibility/runtime concern until the folder-contents cutover lands.
 
 ### media_folder_prompt_items
+
 - `folder_id` (uuid, pk segment): References `media_folders.id` with cascade delete.
 - `prompt_id` (uuid, pk segment): References `media_prompts.id` with cascade delete.
 - `user_id` (uuid, references `auth.users.id`): Owner for RLS scoping.
@@ -257,6 +274,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Real nested hierarchy work now lives on `media_folders.parent_folder_id`; prompt membership semantics remain a compatibility/runtime concern until the folder-contents cutover lands.
 
 ### ai_generations
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `mode` (text): image | video.
@@ -298,6 +316,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Trigger `trg_ai_generations_enforce_status_transition` blocks illegal status transitions, with guarded recovery override for `fail -> success` when `failure_reason_code='terminal_success_no_media'` and recovery state is converging to `recovered`.
 
 ### projects
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid): Owner for RLS scoping.
 - `title` (text): Server-normalized project display title.
@@ -308,6 +327,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Dashboard lists are ordered by `updated_at desc`.
 
 ### project_workspace_states
+
 - `project_id` (uuid, pk segment): References the parent `projects` row.
 - `user_id` (uuid): Owner for RLS scoping and same-user FK parity with `projects`.
 - `schema_version` (int): Current persisted AI Studio workspace envelope version.
@@ -319,6 +339,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Workspace reads now refresh generated-output delivery from project-associated generation rows before returning the snapshot.
 
 ### project_media_items
+
 - `project_id` (uuid, pk segment): Parent project.
 - `media_file_id` (uuid, pk segment): Associated saved media row.
 - `user_id` (uuid): Owner for RLS scoping and same-user FK parity.
@@ -329,6 +350,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Used for project-owned saved-media association without changing global Media Library ownership.
 
 ### project_prompt_items
+
 - `project_id` (uuid, pk segment): Parent project.
 - `prompt_id` (uuid, pk segment): Associated saved prompt row.
 - `user_id` (uuid): Owner for RLS scoping and same-user FK parity.
@@ -339,6 +361,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Used for project-owned saved-prompt association without changing global prompt library ownership.
 
 ### project_generation_items
+
 - `project_id` (uuid, pk segment): Parent project.
 - `generation_id` (uuid, pk segment): Associated generated output lineage row in `ai_generations`.
 - `user_id` (uuid): Owner for RLS scoping and same-user FK parity.
@@ -350,6 +373,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Workspace reads use this table to refresh generated-output delivery only for generations explicitly associated to the active project.
 
 ### generation_attempts
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `generation_id` (uuid): Parent `ai_generations` row with cascade delete.
 - `user_id` (uuid): Owner for RLS scoping.
@@ -374,6 +398,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - `generation_attempts_dispatch_source_check` enforces bounded dispatch-source values.
 
 ### ai_generation_outputs
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `generation_id` (uuid): Parent `ai_generations` row with cascade delete.
 - `user_id` (uuid): Owner for RLS scoping.
@@ -389,6 +414,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - `(user_id, provider_request_id)` index supports request-level output lookups when needed.
 
 ### generation_projection
+
 - `generation_id` (uuid, pk/fk): Parent `ai_generations` row with same-user parity.
 - `user_id` (uuid): Owner for RLS scoping.
 - `source_ref` (text, nullable): Submit/request correlation seam.
@@ -403,6 +429,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Accepted submit paths now pass additive `generation_replay`, `character_context`, and `style_context` snapshots through the provider submit proxy so direct accepted runs preserve workflow analytics context.
 
 ### generation_abandonments
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid): Owner for RLS scoping.
 - `source_ref` (text, nullable): Client/server submit correlation used before provider request ids or generation ids exist.
@@ -417,6 +444,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Used when a user clears an in-flight Reference Grid placeholder. Provider work may continue upstream, but recovery/direct settlement suppresses projection/publication and honors no-refund semantics.
 
 ### media_events
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `event_type` (text): upload | delete | rename | move | prompt_saved | generation_saved | generation_failed.
@@ -430,6 +458,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Some event families are emitted from client interaction hooks, so they are suitable for product/marketing insight but not strict audit-grade accounting.
 
 ### generation persistence idempotency
+
 - `media_files_generation_output_idx_unique`:
   - Unique index on `(source_ref, metadata->>'generation_output_index')` for `source='ai_studio'`.
   - Prevents duplicate media rows for the same generation output slot.
@@ -438,12 +467,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Canonical output-slot idempotency key for persisted generation outputs.
 
 ### reconciler claim function
+
 - `claim_generation_recovery_batch(p_limit, p_max_attempts, p_min_age_seconds, p_lease_seconds)`:
   - Claims recovery work using `FOR UPDATE SKIP LOCKED`.
   - Increments `recovery_attempts` and marks claimed rows `recovery_state='recovering'`.
   - Sets `next_recovery_at` lease to prevent concurrent re-claims during active execution.
 
 ### media derivative claim/update functions
+
 - `claim_media_derivative_batch(p_limit, p_max_attempts, p_lease_seconds)`:
   - Claims image derivative work using `FOR UPDATE SKIP LOCKED`.
   - Increments `processing_attempts` and marks claimed rows `processing_status='processing'`.
@@ -454,6 +485,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Marks derivative processing failure, records last error, and either schedules retry or exhausts retries.
 
 ### fal_webhook_events
+
 - `id` (uuid, pk): Ingestion event row id.
 - `event_id` (text, unique): Provider webhook event id for idempotent ingest.
 - `request_id` (text, nullable): Provider request/job id.
@@ -462,11 +494,12 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `payload` (jsonb): Raw webhook payload snapshot.
 - `verification_method` (text, nullable): `fal` or `hmac` during dual cutover.
 - `payload_hash` (text, nullable): SHA-256 hash used in Fal signature validation.
-- `processing_status` (text): received | recovered | exhausted | ignored_* | failed.
+- `processing_status` (text): received | recovered | exhausted | ignored\_\* | failed.
 - `processing_error` (text, nullable): Processing failure detail when applicable.
 - `received_at` / `processed_at` (timestamptz): Ingestion + terminal processing timestamps.
 
 ### ai_agent_conversation_state
+
 - `user_id` (uuid, pk segment, fk -> `auth.users.id`): Owner for state isolation.
 - `conversation_id` (text, pk segment): Conversation identity (`<=191` chars).
 - `canonical_prompt` (text): Canonical prompt continuity value (`<=4096` chars).
@@ -479,6 +512,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Expired rows are removed in write path and can be pruned operationally.
 
 ### Conversation state RPC contract
+
 - `upsert_ai_agent_conversation_state(p_user_id, p_conversation_id, p_canonical_prompt, p_ttl, p_user_cap)`
   - Name/signature and return shape are stable for runtime compatibility.
   - Execution posture: service-role path only.
@@ -493,6 +527,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Service-role cleanup helper for scheduled stale-row pruning.
 
 ### ai_studio_sessions
+
 - `user_id` (uuid, pk segment, fk -> `auth.users.id`): Session owner.
 - `session_id` (uuid, pk segment): Stable AI Studio session identity (`sid` query contract).
 - `title` (text, nullable, `<=120` chars): Optional display label.
@@ -506,6 +541,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Expired rows are cleaned in save path and by scheduled prune RPC.
 
 ### AI Studio session RPC contract
+
 - `upsert_ai_studio_session_snapshot(p_user_id, p_session_id, p_snapshot, p_schema_version, p_title, p_ttl, p_user_cap)`
   - Service-role-only execute posture.
   - Requires JSON-object snapshot payload and valid user/session ids.
@@ -519,6 +555,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Service-role cleanup helper for bounded stale-row pruning.
 
 ### dashboard_announcements
+
 - `id` (uuid, pk, default `gen_random_uuid()`).
 - `title` (text, required): Trimmed title (`btrim`) with length `1..120`.
 - `message` (text, required): Trimmed body copy (`btrim`) with length `1..500`.
@@ -533,6 +570,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Historical rows are retained after deactivation for future admin history UX.
 
 ### Dashboard announcement RPC contract
+
 - `publish_dashboard_announcement(p_title, p_message, p_actor_user_id)`
   - Service-role-only execute posture (`security definer` + execute grant restricted to `service_role`).
   - Trims and bounds payload server-side (`title <= 120`, `message <= 500`) and rejects empty values.
@@ -540,6 +578,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Uses advisory lock serialization for deterministic one-active semantics under concurrent publish calls.
 
 ### admin_kanban_items
+
 - `id` (uuid, pk, default `gen_random_uuid()`).
 - `title` (text, required): Trimmed task title with length `1..140`.
 - `details` (text, default `''`): Trimmed operator notes, bounded to 1000 characters.
@@ -555,6 +594,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Partial active indexes support status/ordering reads while archived history remains retained.
 
 ### admin_kanban_activity
+
 - `id` (uuid, pk, default `gen_random_uuid()`).
 - `item_id` (uuid, fk -> `admin_kanban_items.id`): Parent task.
 - `action` (text): `created | updated | moved | archived`.
@@ -566,9 +606,21 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: enabled with no direct browser policies; admin timeline reads flow through `/api/admin/kanban/items/:itemId/activity`.
 - Integrity:
   - Activity actions and statuses are constrained to known board values.
-  - Activity rows are retained until their parent item is deleted by an explicit future maintenance operation.
+  - Activity rows restrict parent item deletion so audit history cannot be cascade-deleted accidentally.
+
+### Admin kanban RPC contract
+
+- `create_admin_kanban_item(p_title, p_details, p_actor_user_id, p_actor_email)`
+- `update_admin_kanban_item(p_item_id, p_title, p_details, p_actor_user_id, p_actor_email)`
+- `move_admin_kanban_item(p_item_id, p_status, p_actor_user_id, p_actor_email)`
+- `archive_admin_kanban_item(p_item_id, p_actor_user_id, p_actor_email)`
+  - Service-role-only execute posture (`security definer` + execute grant restricted to `service_role`).
+  - Validate bounded task input and allowed statuses in-database.
+  - Atomically mutate `admin_kanban_items` and insert the matching `admin_kanban_activity` row.
+  - `move_admin_kanban_item` locks the active item row before computing `from_status`, preventing stale transition logs under concurrent moves.
 
 ### agent_safety_policy_versions
+
 - `id` (bigint identity, pk): Immutable policy version row id.
 - `profile_id` (text): `prod_safe_v1 | staging_lenient | dev_absolute_zero`.
 - `version` (integer): Profile-local version number (`>=1`).
@@ -580,6 +632,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: enabled; service-role RPC paths are authoritative for writes/reads.
 
 ### agent_safety_policy_runtime
+
 - `singleton` (boolean, pk, always `true`): Singleton runtime state row key.
 - `active_policy_version_id` (bigint fk -> `agent_safety_policy_versions.id`): Currently active policy version.
 - `last_known_safe_policy_version_id` (bigint fk -> `agent_safety_policy_versions.id`, nullable): Rollback target version.
@@ -589,6 +642,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: enabled; service-role RPC paths are authoritative for writes/reads.
 
 ### agent_safety_policy_events
+
 - `id` (bigint identity, pk): Event row id.
 - `event_type` (text): `activate | rollback | cooldown_blocked`.
 - `from_policy_version_id` / `to_policy_version_id` (nullable fk -> `agent_safety_policy_versions.id`): Policy transition pointers.
@@ -599,6 +653,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: enabled; service-role RPC paths are authoritative for writes/reads.
 
 ### Agent safety control-plane RPC contract
+
 - `get_active_agent_safety_policy()`
   - Service-role-only read helper for active runtime profile/version + last-known-safe + cooldown metadata.
 - `activate_agent_safety_policy(p_profile_id, p_reason, p_actor_user_id, p_actor_email, p_single_reviewer_ack, p_source)`
@@ -611,6 +666,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Records rollback audit events for operator traceability.
 
 ### model_pricing_policy_versions
+
 - `id` (bigint identity, pk): Immutable model-pricing policy version row id.
 - `version` (integer): Global version number (`>=1`).
 - `policy` (jsonb object): Normalized model-pricing policy document (`global` conversion/markup/rounding + `perModel` overrides).
@@ -620,6 +676,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: enabled; service-role RPC paths are authoritative for writes/reads.
 
 ### model_pricing_policy_runtime
+
 - `singleton` (boolean, pk, always `true`): Singleton runtime state row key.
 - `active_policy_version_id` (bigint fk -> `model_pricing_policy_versions.id`): Currently active model-pricing policy version.
 - `last_known_safe_policy_version_id` (bigint fk -> `model_pricing_policy_versions.id`, nullable): Rollback target version.
@@ -628,6 +685,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: enabled; service-role RPC paths are authoritative for writes/reads.
 
 ### model_pricing_policy_events
+
 - `id` (bigint identity, pk): Event row id.
 - `event_type` (text): `apply | rollback`.
 - `from_policy_version_id` / `to_policy_version_id` (nullable fk -> `model_pricing_policy_versions.id`): Policy transition pointers.
@@ -639,6 +697,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: enabled; service-role RPC paths are authoritative for writes/reads.
 
 ### Model pricing control-plane RPC contract
+
 - `get_active_model_pricing_policy()`
   - Service-role-only read helper for active runtime version/document + last-known-safe metadata.
 - `apply_model_pricing_policy(p_policy, p_note, p_reason, p_actor_user_id, p_actor_email, p_source)`
@@ -649,6 +708,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Swaps the runtime singleton back to the last-known-safe version and records a `rollback` audit event.
 
 ### user_preferences
+
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.
 - `beginner_mode` (boolean, default `false`): AI Studio/Character Manager beginner mode preference (expert-first default while runtime lockdown is active).
 - `media_autosave_enabled` (boolean, default `true`): AI Studio autosave policy toggle used by client autosave orchestration and server recovery enforcement.
@@ -667,6 +727,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### user_media_compliance_acceptances
+
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, fk -> `auth.users.id`): Owner for RLS scoping.
 - `agreement_key` (text): Stable agreement identifier. Current protected-route gate uses `media_usage_compliance`.
@@ -678,6 +739,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert allowed only when `user_id = auth.uid()`. Protected-route reads/writes currently flow through authenticated server routes.
 
 ### billing_plans
+
 - `id` (text, pk): Stable plan identifier used across billing profiles, subscriber contracts, and the public catalog. Historically seeded with `free | media | studio | business`, but admin-created plans may add more ids.
 - `display_name` (text): UI-facing plan label.
 - `monthly_price_cents` (int): Current public baseline price in cents for the tier.
@@ -691,6 +753,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select allowed for all users; writes are server/admin only.
 
 ### billing_plan_offers
+
 - `id` (text, pk): Stable versioned offer id (for example `studio__current`, future dated legacy/current variants).
 - `plan_id` (text, fk -> `billing_plans.id`): Tier this offer belongs to.
 - `offer_name` (text): Operator-facing offer label.
@@ -708,6 +771,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select allowed for all users; writes are server-only/service-role-only.
 
 ### billing_credit_packages
+
 - `id` (text, pk): Stable package ID used by checkout API.
 - `display_name` (text): UI package label.
 - `credit_amount_cents` (int): Credits granted on successful purchase.
@@ -719,6 +783,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select allowed for all users; writes are server/admin only.
 
 ### billing_storage_addons
+
 - `id` (text, pk): Stable recurring storage add-on id used for catalog and Stripe mapping.
 - `display_name` (text): UI-facing add-on label.
 - `storage_limit_bytes` (bigint): Included recurring storage capacity for one add-on unit.
@@ -729,6 +794,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select allowed for all users; writes are server-only/service-role-only.
 
 ### billing_storage_addon_offers
+
 - `id` (text, pk): Stable versioned recurring storage add-on offer id.
 - `storage_addon_id` (text, fk -> `billing_storage_addons.id`): Shared add-on this offer belongs to.
 - `offer_name` (text): Operator-facing add-on offer label.
@@ -744,6 +810,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select allowed for all users; writes are server-only/service-role-only.
 
 ### billing_profiles
+
 - `user_id` (uuid, pk, references `auth.users(id)`): Owner.
 - `plan_id` (text, fk -> `billing_plans.id`): Active plan projection used by existing runtime/UI paths.
 - `stripe_customer_id` (text, nullable): Stripe customer reference.
@@ -755,6 +822,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Contract note: `billing_profiles` is not the long-term commercial source of truth for grandfathered recurring pricing; use `billing_subscription_contracts` for subscriber-specific recurring terms.
 
 ### billing_subscription_contracts
+
 - `id` (uuid, pk): Historical/current subscriber contract row.
 - `user_id` (uuid, fk -> `auth.users(id)`): Contract owner.
 - `plan_id` (text, fk -> `billing_plans.id`): Tier associated with the contract.
@@ -780,6 +848,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: users can read only their own rows; writes are server-only/service-role-only. At most one open contract row per user and per Stripe subscription.
 
 ### growth_attribution_identities
+
 - `anonymous_id` (text, pk): Browser-stable anonymous attribution key (`sp_growth_anonymous_id`).
 - `user_id` (uuid, nullable unique fk -> `auth.users.id`): Stitched authenticated owner once a trusted growth event arrives with bearer auth.
 - First-touch fields:
@@ -801,6 +870,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: service-role-only read/write surface used by trusted API routes and admin aggregate RPCs.
 
 ### billing_subscription_storage_addons
+
 - `id` (uuid, pk): Historical/current subscriber recurring storage add-on row.
 - `user_id` (uuid, fk -> `auth.users(id)`): Add-on owner.
 - `storage_addon_id` (text, fk -> `billing_storage_addons.id`): Shared add-on catalog id.
@@ -821,12 +891,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: users can read only their own rows; writes are server-only/service-role-only. At most one open row per Stripe subscription item.
 
 ### ai_credit_balance
+
 - `user_id` (uuid, pk, references `auth.users(id)`): Balance owner.
 - `balance_cents` (bigint): Current credit balance (1 cent == 1 credit in current pricing model).
 - `updated_at` (timestamptz): Last balance mutation timestamp.
 - RLS: select only when `user_id = auth.uid()`.
 
 ### ai_credit_ledger
+
 - `id` (uuid, pk): Ledger entry.
 - `user_id` (uuid, fk -> `auth.users.id`): Balance owner.
 - `change_cents` (int): Positive credits grant; negative credits debit.
@@ -841,6 +913,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Trigger guards: disallow zero deltas, prevent balance underflow, keep `ai_credit_balance` synchronized.
 
 ### ai_credit_reservations
+
 - `id` (uuid, pk): Reservation row.
 - `user_id` (uuid, fk -> `auth.users.id`): Balance owner.
 - `source_ref` (text): Request correlation/idempotency key for the generation attempt.
@@ -858,6 +931,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Provisioned by: `sql/migrations/002_add_generation_credit_reservations.sql`.
 
 ### Reservation lifecycle RPCs
+
 - `reserve_generation_credits(...)`: creates or idempotently confirms a reservation if funds are available.
 - `admit_and_reserve_generation_credits(...)`: flagged atomic admission+reservation path that can return `admission_limited` with snapshot counters before insert.
 - `mark_generation_reservation_submitted(...)`: attaches provider request id to a reserved row.
@@ -869,6 +943,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Used by: `frontend/lib/server/api/generationBilling.ts`, `frontend/lib/server/api/falSubmitProxy.ts`, `frontend/lib/server/api/falStatusProxy.ts`.
 
 ### ai_generation_submit_queue
+
 - `id` (uuid, pk, default `gen_random_uuid()`): Queue row id.
 - `generation_id` (uuid, unique, fk -> `ai_generations.id`): Pending generation row associated with queued submit intent.
 - `user_id` (uuid, fk -> `auth.users.id`): Queue owner for per-user concurrency control.
@@ -894,6 +969,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Service-role RPCs (`enqueue_generation_submit`, `claim_generation_submit_queue_batch`) are authoritative write paths.
 
 ### stripe_event_log
+
 - `id` (text, pk): Stripe event ID (`evt_*`).
 - `event_type` (text): Stripe event type.
 - `received_at` (timestamptz, default now)
@@ -902,6 +978,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: service-role-only write surface; customer sessions never mutate this table directly.
 
 ### app_error_logs
+
 - `id` (uuid, pk): Incident record ID.
 - `fingerprint` (text): Hash of normalized source/message/stack/location for deduping repeats.
 - `source` (text): e.g. client.runtime | client.unhandledrejection | client.api_response | client.api_network | client.react_error_boundary | client.route_change | generation.workflow_failure | generation.stale_timeout | api.exception | db.trigger.handle_new_user_billing_setup.
@@ -923,6 +1000,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: enabled with no client policies by default (service-role/server-only writes and reads).
 
 ### app_error_events
+
 - `id` (uuid, pk): Immutable event row ID.
 - `incident_id` (uuid, nullable): Optional link to grouped `app_error_logs.id`.
 - `fingerprint` (text): Same normalized fingerprint used for incident grouping.
@@ -971,6 +1049,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
     - event-specific metadata such as `page_name`, `cta_id`, `pricing_surface`, `upgrade_target`, `package_id`
 
 ### storage.objects (Supabase bucket)
+
 - Bucket: `media_library` (private).
 - Policy: allow select/insert/update/delete when bucket is `media_library` **and** the folder prefix matches `auth.uid()` (or service role).
 - App path convention:
@@ -980,6 +1059,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - See `sql/storage_policies.sql` for the full policy script.
 
 ## Demo analytics fields (computed client-side)
+
 - `reel_id`, `reel_url`, `platform`, `platform_label`, `category`, `creator_username`
 - `publish_time`, `latest_scraped_at`
 - `views`, `likes`, `comments`, `shares_or_saves`

@@ -315,21 +315,50 @@ const main = async () => {
       currentContract?.stripe_subscription_id ?? profile.stripe_subscription_id ?? null;
     const customerId = profile.stripe_customer_id ?? null;
     let liveSubscription: StripeSubscriptionResponse | null = null;
+    let stripeLookupError: string | null = null;
 
     if (subscriptionId) {
-      liveSubscription = await stripeGet<StripeSubscriptionResponse>(
-        stripeSecretKey,
-        `/subscriptions/${subscriptionId}`,
-        { "expand[]": "items.data.price" }
-      );
+      try {
+        liveSubscription = await stripeGet<StripeSubscriptionResponse>(
+          stripeSecretKey,
+          `/subscriptions/${subscriptionId}`,
+          { "expand[]": "items.data.price" }
+        );
+      } catch (error) {
+        stripeLookupError =
+          error instanceof Error && error.message.trim().length > 0
+            ? error.message
+            : `Stripe subscription lookup failed for ${subscriptionId}.`;
+      }
     } else if (customerId) {
-      const list = await stripeGet<StripeSubscriptionListResponse>(stripeSecretKey, "/subscriptions", {
-        customer: customerId,
-        status: "all",
-        limit: 1,
-        "expand[]": "data.items.data.price",
+      try {
+        const list = await stripeGet<StripeSubscriptionListResponse>(
+          stripeSecretKey,
+          "/subscriptions",
+          {
+            customer: customerId,
+            status: "all",
+            limit: 1,
+            "expand[]": "data.items.data.price",
+          }
+        );
+        liveSubscription = Array.isArray(list.data) ? (list.data[0] ?? null) : null;
+      } catch (error) {
+        stripeLookupError =
+          error instanceof Error && error.message.trim().length > 0
+            ? error.message
+            : `Stripe subscription list lookup failed for ${customerId}.`;
+      }
+    }
+
+    if (stripeLookupError) {
+      findings.push({
+        code: isActivePaidProfile(profile)
+          ? "stripe_lookup_failed"
+          : "stripe_lookup_failed_inactive_account",
+        severity: "warning",
+        message: stripeLookupError,
       });
-      liveSubscription = Array.isArray(list.data) ? (list.data[0] ?? null) : null;
     }
 
     const livePrice = liveSubscription?.items?.data?.[0]?.price ?? null;
@@ -372,7 +401,7 @@ const main = async () => {
       });
     }
 
-    if (customerId && subscriptionId && !liveSubscription) {
+    if (customerId && subscriptionId && !liveSubscription && !stripeLookupError) {
       findings.push({
         code: "stripe_subscription_not_found",
         severity: "critical",

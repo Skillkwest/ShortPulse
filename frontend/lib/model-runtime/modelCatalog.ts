@@ -96,7 +96,7 @@ export type ModelCatalogEntry = {
   payloadValidation?: ModelPayloadValidationSpec;
 };
 
-const VERIFIED_AT = "2026-03-14";
+const VERIFIED_AT = "2026-04-30";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 const GPT_IMAGE_2_VERIFIED_AT = "2026-04-27";
 const ELEVENLABS_VERIFIED_AT = "2026-04-27";

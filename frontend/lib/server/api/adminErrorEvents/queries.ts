@@ -12,6 +12,9 @@ import {
 import { applyEventFilters } from "./filters";
 import type { CountQueryResult, EventFilterInput, EventQuery, ListQueryResult } from "./types";
 
+const APP_ERROR_EVENTS_COLUMNS =
+  "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at, app_error_logs!left(status)";
+
 export type ErrorEventsDatasetResult = {
   eventsResult: ListQueryResult;
   filteredCountResult: CountQueryResult;
@@ -31,6 +34,13 @@ export type ErrorEventsDatasetResult = {
   admissionDeniedTelemetryRowsResult: ListQueryResult;
 };
 
+export type ErrorActionableEventsResult = {
+  openEventsResult: ListQueryResult;
+  unlinkedEventsResult: ListQueryResult;
+  openCountResult: CountQueryResult;
+  unlinkedCountResult: CountQueryResult;
+};
+
 export const fetchErrorEventsDataset = async (params: {
   supabaseAdmin: SupabaseClient;
   listFilters: EventFilterInput;
@@ -44,9 +54,7 @@ export const fetchErrorEventsDataset = async (params: {
   const eventsQuery = applyEventFilters(
     params.supabaseAdmin
       .from("app_error_events")
-      .select(
-        "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at, app_error_logs!left(status)"
-      )
+      .select(APP_ERROR_EVENTS_COLUMNS)
       .order("occurred_at", { ascending: false })
       .range(params.listRangeStart, params.listRangeEnd) as unknown as EventQuery,
     params.listFilters
@@ -210,6 +218,62 @@ export const fetchErrorEventsDataset = async (params: {
   };
 };
 
+export const fetchActionableErrorEvents = async (params: {
+  supabaseAdmin: SupabaseClient;
+  filters: EventFilterInput;
+  fetchWindow: number;
+}): Promise<ErrorActionableEventsResult> => {
+  const window = Math.max(1, params.fetchWindow);
+  const end = window - 1;
+  const openFilters: EventFilterInput = {
+    ...params.filters,
+    incident: "open",
+  };
+  const unlinkedFilters: EventFilterInput = {
+    ...params.filters,
+    incident: "unlinked",
+  };
+
+  const [openEventsResult, unlinkedEventsResult, openCountResult, unlinkedCountResult] =
+    await Promise.all([
+      applyEventFilters(
+        params.supabaseAdmin
+          .from("app_error_events")
+          .select(APP_ERROR_EVENTS_COLUMNS)
+          .order("occurred_at", { ascending: false })
+          .range(0, end) as unknown as EventQuery,
+        openFilters
+      ) as unknown as Promise<ListQueryResult>,
+      applyEventFilters(
+        params.supabaseAdmin
+          .from("app_error_events")
+          .select(APP_ERROR_EVENTS_COLUMNS)
+          .order("occurred_at", { ascending: false })
+          .range(0, end) as unknown as EventQuery,
+        unlinkedFilters
+      ) as unknown as Promise<ListQueryResult>,
+      applyEventFilters(
+        params.supabaseAdmin
+          .from("app_error_events")
+          .select("id", { count: "exact", head: true }) as unknown as EventQuery,
+        openFilters
+      ) as unknown as Promise<CountQueryResult>,
+      applyEventFilters(
+        params.supabaseAdmin
+          .from("app_error_events")
+          .select("id", { count: "exact", head: true }) as unknown as EventQuery,
+        unlinkedFilters
+      ) as unknown as Promise<CountQueryResult>,
+    ]);
+
+  return {
+    openEventsResult,
+    unlinkedEventsResult,
+    openCountResult,
+    unlinkedCountResult,
+  };
+};
+
 export const fetchFallbackEventsPage = async (params: {
   supabaseAdmin: SupabaseClient;
   filters: EventFilterInput;
@@ -219,9 +283,7 @@ export const fetchFallbackEventsPage = async (params: {
   return (await applyEventFilters(
     params.supabaseAdmin
       .from("app_error_events")
-      .select(
-        "id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at, app_error_logs!left(status)"
-      )
+      .select(APP_ERROR_EVENTS_COLUMNS)
       .order("occurred_at", { ascending: false })
       .range(params.offset, params.offset + params.limit - 1) as unknown as EventQuery,
     params.filters

@@ -134,48 +134,19 @@ const toActivity = (value: unknown): AdminKanbanActivity | null => {
   };
 };
 
-const nextSortOrder = async (supabaseAdmin: SupabaseAdminClient): Promise<number> => {
-  const { data, error } = await supabaseAdmin
-    .from("admin_kanban_items")
-    .select("sort_order")
-    .is("archived_at", null)
-    .order("sort_order", { ascending: false })
-    .limit(1);
-
-  if (error) {
-    throw new Error(error.message || "Failed to resolve next kanban sort order.");
-  }
-
-  const firstRow = Array.isArray(data) ? (data[0] as { sort_order?: unknown } | undefined) : null;
-  const currentMax = typeof firstRow?.sort_order === "number" ? firstRow.sort_order : 0;
-  return currentMax + 1;
-};
-
-const recordActivity = async (
+const callKanbanMutationRpc = async (
   supabaseAdmin: SupabaseAdminClient,
-  args: {
-    itemId: string;
-    action: AdminKanbanActivity["action"];
-    fromStatus?: AdminKanbanStatus | null;
-    toStatus?: AdminKanbanStatus | null;
-    note?: string | null;
-    actorUserId: string | null;
-    actorEmail: string | null;
-  }
-): Promise<void> => {
-  const { error } = await supabaseAdmin.from("admin_kanban_activity").insert({
-    item_id: args.itemId,
-    action: args.action,
-    from_status: args.fromStatus ?? null,
-    to_status: args.toStatus ?? null,
-    note: args.note ?? null,
-    actor_user_id: args.actorUserId,
-    actor_email: args.actorEmail,
-  });
+  rpcName: string,
+  args: Record<string, unknown>,
+  fallbackError: string
+): Promise<AdminKanbanItem | null> => {
+  const { data, error } = await supabaseAdmin.rpc(rpcName, args);
 
   if (error) {
-    throw new Error(error.message || "Failed to record kanban activity.");
+    throw new Error(error.message || fallbackError);
   }
+
+  return toItem(data);
 };
 
 /**
@@ -233,63 +204,50 @@ export const listAdminKanbanItems = async (
 };
 
 /**
- * Creates a new backlog kanban item and records the creation activity.
+ * Creates a new backlog kanban item through the atomic item/activity RPC.
  */
 export const createAdminKanbanItem = async (
   supabaseAdmin: SupabaseAdminClient,
   args: { title: string; details: string; actorUserId: string | null; actorEmail: string | null }
 ): Promise<AdminKanbanItem> => {
-  const sortOrder = await nextSortOrder(supabaseAdmin);
-  const { data, error } = await supabaseAdmin
-    .from("admin_kanban_items")
-    .insert({
-      title: args.title,
-      details: args.details,
-      status: "backlog",
-      sort_order: sortOrder,
-      created_by: args.actorUserId,
-      updated_by: args.actorUserId,
-    })
-    .select(
-      "id, title, details, status, sort_order, created_at, updated_at, created_by, updated_by"
-    )
-    .single();
-
-  if (error) {
-    throw new Error(error.message || "Failed to create admin kanban item.");
-  }
-
-  const item = toItem(data);
+  const item = await callKanbanMutationRpc(
+    supabaseAdmin,
+    "create_admin_kanban_item",
+    {
+      p_title: args.title,
+      p_details: args.details,
+      p_actor_user_id: args.actorUserId,
+      p_actor_email: args.actorEmail,
+    },
+    "Failed to create admin kanban item."
+  );
   if (!item) {
     throw new Error("Created admin kanban item payload is invalid.");
   }
 
-  await recordActivity(supabaseAdmin, {
-    itemId: item.id,
-    action: "created",
-    toStatus: item.status,
-    note: item.title,
-    actorUserId: args.actorUserId,
-    actorEmail: args.actorEmail,
-  });
   return item;
 };
 
 /**
- * Reads one active kanban item.
+ * Reads one kanban item. Archived rows are excluded unless explicitly requested.
  */
 export const readAdminKanbanItem = async (
   supabaseAdmin: SupabaseAdminClient,
-  itemId: string
+  itemId: string,
+  options: { includeArchived?: boolean } = {}
 ): Promise<AdminKanbanItem | null> => {
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("admin_kanban_items")
     .select(
       "id, title, details, status, sort_order, created_at, updated_at, created_by, updated_by"
     )
-    .eq("id", itemId)
-    .is("archived_at", null)
-    .maybeSingle();
+    .eq("id", itemId);
+
+  if (!options.includeArchived) {
+    query = query.is("archived_at", null);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     throw new Error(error.message || "Failed to load admin kanban item.");
@@ -298,7 +256,7 @@ export const readAdminKanbanItem = async (
 };
 
 /**
- * Updates task text fields for one active kanban item.
+ * Updates task text fields through the atomic item/activity RPC.
  */
 export const updateAdminKanbanItem = async (
   supabaseAdmin: SupabaseAdminClient,
@@ -310,40 +268,22 @@ export const updateAdminKanbanItem = async (
     actorEmail: string | null;
   }
 ): Promise<AdminKanbanItem | null> => {
-  const { data, error } = await supabaseAdmin
-    .from("admin_kanban_items")
-    .update({
-      title: args.title,
-      details: args.details,
-      updated_by: args.actorUserId,
-    })
-    .eq("id", args.itemId)
-    .is("archived_at", null)
-    .select(
-      "id, title, details, status, sort_order, created_at, updated_at, created_by, updated_by"
-    )
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message || "Failed to update admin kanban item.");
-  }
-
-  const item = toItem(data);
-  if (item) {
-    await recordActivity(supabaseAdmin, {
-      itemId: item.id,
-      action: "updated",
-      toStatus: item.status,
-      note: item.title,
-      actorUserId: args.actorUserId,
-      actorEmail: args.actorEmail,
-    });
-  }
-  return item;
+  return callKanbanMutationRpc(
+    supabaseAdmin,
+    "update_admin_kanban_item",
+    {
+      p_item_id: args.itemId,
+      p_title: args.title,
+      p_details: args.details,
+      p_actor_user_id: args.actorUserId,
+      p_actor_email: args.actorEmail,
+    },
+    "Failed to update admin kanban item."
+  );
 };
 
 /**
- * Moves one active kanban item between workflow statuses.
+ * Moves one active kanban item through the atomic item/activity RPC.
  */
 export const moveAdminKanbanItem = async (
   supabaseAdmin: SupabaseAdminClient,
@@ -354,77 +294,37 @@ export const moveAdminKanbanItem = async (
     actorEmail: string | null;
   }
 ): Promise<AdminKanbanItem | null> => {
-  const currentItem = await readAdminKanbanItem(supabaseAdmin, args.itemId);
-  if (!currentItem) return null;
-
-  if (currentItem.status === args.status) {
-    return currentItem;
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from("admin_kanban_items")
-    .update({
-      status: args.status,
-      updated_by: args.actorUserId,
-    })
-    .eq("id", args.itemId)
-    .is("archived_at", null)
-    .select(
-      "id, title, details, status, sort_order, created_at, updated_at, created_by, updated_by"
-    )
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message || "Failed to move admin kanban item.");
-  }
-
-  const item = toItem(data);
-  if (item) {
-    await recordActivity(supabaseAdmin, {
-      itemId: item.id,
-      action: "moved",
-      fromStatus: currentItem.status,
-      toStatus: item.status,
-      actorUserId: args.actorUserId,
-      actorEmail: args.actorEmail,
-    });
-  }
-  return item;
+  return callKanbanMutationRpc(
+    supabaseAdmin,
+    "move_admin_kanban_item",
+    {
+      p_item_id: args.itemId,
+      p_status: args.status,
+      p_actor_user_id: args.actorUserId,
+      p_actor_email: args.actorEmail,
+    },
+    "Failed to move admin kanban item."
+  );
 };
 
 /**
- * Archives one active kanban item instead of deleting its audit history.
+ * Archives one active kanban item through the atomic item/activity RPC.
  */
 export const archiveAdminKanbanItem = async (
   supabaseAdmin: SupabaseAdminClient,
   args: { itemId: string; actorUserId: string | null; actorEmail: string | null }
 ): Promise<boolean> => {
-  const currentItem = await readAdminKanbanItem(supabaseAdmin, args.itemId);
-  if (!currentItem) return false;
-
-  const { error } = await supabaseAdmin
-    .from("admin_kanban_items")
-    .update({
-      archived_at: new Date().toISOString(),
-      archived_by: args.actorUserId,
-      updated_by: args.actorUserId,
-    })
-    .eq("id", args.itemId)
-    .is("archived_at", null);
-
-  if (error) {
-    throw new Error(error.message || "Failed to archive admin kanban item.");
-  }
-
-  await recordActivity(supabaseAdmin, {
-    itemId: args.itemId,
-    action: "archived",
-    fromStatus: currentItem.status,
-    note: currentItem.title,
-    actorUserId: args.actorUserId,
-    actorEmail: args.actorEmail,
-  });
-  return true;
+  const item = await callKanbanMutationRpc(
+    supabaseAdmin,
+    "archive_admin_kanban_item",
+    {
+      p_item_id: args.itemId,
+      p_actor_user_id: args.actorUserId,
+      p_actor_email: args.actorEmail,
+    },
+    "Failed to archive admin kanban item."
+  );
+  return Boolean(item);
 };
 
 /**

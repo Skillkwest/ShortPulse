@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 import { isOutputAudioPreview, isOutputVideoPreview } from "../referenceGridMediaHelpers";
 
 describe("referenceGridMediaHelpers", () => {
-  it("treats video URLs as video previews even when restored output mode is stale", () => {
-    const url = "https://tempfile.aiquickdraw.com/v/generated-output.mp4";
+  it("does not force video preview for stale image-mode restored output", () => {
+    const url = "https://tempfile.aiquickdraw.com/videos/generated-output.png";
 
-    expect(isOutputVideoPreview({ mode: "image" }, url)).toBe(true);
+    expect(isOutputVideoPreview({ mode: "image" }, url)).toBe(false);
     expect(isOutputAudioPreview({ mode: "image" }, url)).toBe(false);
   });
 

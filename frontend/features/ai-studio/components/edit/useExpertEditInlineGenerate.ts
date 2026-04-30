@@ -60,6 +60,7 @@ type UseExpertEditInlineGenerateParams = {
   resolveStageFlattenSnapshot?: () => StageFlattenSnapshot;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
+  notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
 };
 
 const LAYER_IMAGE_LOAD_FAILURE_PREFIX = "Failed to load layer image:";
@@ -97,6 +98,7 @@ export const useExpertEditInlineGenerate = ({
   resolveStageFlattenSnapshot,
   insertOptimisticGenerationPlaceholder,
   removeOptimisticGenerationPlaceholder,
+  notifyGenerationFailure,
 }: UseExpertEditInlineGenerateParams) => {
   const [inlineGeneratePendingCount, setInlineGeneratePendingCount] = React.useState(0);
   const inpaintPromptReferencePolicy = React.useMemo(
@@ -136,6 +138,15 @@ export const useExpertEditInlineGenerate = ({
 
       setInlineGeneratePendingCount((currentCount) => currentCount + 1);
       let optimisticOutputId = insertOptimisticGenerationPlaceholder?.(promptText) ?? null;
+      const markOptimisticGenerationFailure = (message: string, detail: string = message) => {
+        if (!optimisticOutputId) return;
+        if (notifyGenerationFailure) {
+          notifyGenerationFailure(optimisticOutputId, message, detail);
+        } else {
+          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+        }
+        optimisticOutputId = null;
+      };
       const objectUrls = {
         flattenedUrl: null,
         flattenedMarkupReferenceUrl: null,
@@ -173,10 +184,7 @@ export const useExpertEditInlineGenerate = ({
           maxSecondaryReferenceTokens,
         });
         if (preparedSubmission.status === "invalid_tokens") {
-          if (optimisticOutputId) {
-            removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
-            optimisticOutputId = null;
-          }
+          markOptimisticGenerationFailure(preparedSubmission.message);
           onInvalidPromptReferenceToken?.(preparedSubmission.message);
           return;
         }
@@ -194,10 +202,7 @@ export const useExpertEditInlineGenerate = ({
           promptOverrideOptions,
         });
         if (submitDispatch.status === "error") {
-          if (optimisticOutputId) {
-            removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
-            optimisticOutputId = null;
-          }
+          markOptimisticGenerationFailure(submitDispatch.message);
           showStatusToast(submitDispatch.message);
           return;
         }
@@ -215,15 +220,13 @@ export const useExpertEditInlineGenerate = ({
         });
         optimisticOutputId = null;
       } catch (error) {
-        if (optimisticOutputId) {
-          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
-          optimisticOutputId = null;
-        }
+        const failureMessage = resolveFlattenFailureToastMessage(error);
+        markOptimisticGenerationFailure(failureMessage);
         revokeExpertEditSubmissionObjectUrls({
           objectUrls,
           revokeObjectUrlSafe,
         });
-        showStatusToast(resolveFlattenFailureToastMessage(error));
+        showStatusToast(failureMessage);
       } finally {
         setInlineGeneratePendingCount((currentCount) => Math.max(0, currentCount - 1));
         cleanupExpertEditSubmissionObjectUrls({
@@ -256,6 +259,7 @@ export const useExpertEditInlineGenerate = ({
     resolveStageFlattenSnapshot,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
+    notifyGenerationFailure,
   ]);
 
   return {

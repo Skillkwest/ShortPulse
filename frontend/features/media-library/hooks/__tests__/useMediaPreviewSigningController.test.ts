@@ -258,6 +258,68 @@ describe("useMediaPreviewSigningController", () => {
     );
   });
 
+  it("does not retry an unresolved signing miss on unchanged pass context", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+    const hydrateViaStorageDownload = vi.fn(async () => null);
+
+    const { result } = renderHook(() => {
+      const rows = [makeRow()];
+      const [renderNonce, setRenderNonce] = useState(0);
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn(() => {
+        setRenderNonce((prev) => prev + 1);
+      });
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 1, prefetchWindow: 1, signBatchSize: 1 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 0,
+      });
+
+      return {
+        renderNonce,
+        signAttemptRef,
+      };
+    });
+
+    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(result.current.renderNonce).toBe(1));
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(1);
+    expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledTimes(1);
+    expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
+    expect(result.current.signAttemptRef.current["row-1"]).toBe(1);
+  });
+
   it("runs hydrate fallback when explicitly enabled for the signing pass", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
     const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));

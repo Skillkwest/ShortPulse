@@ -29,6 +29,74 @@ Checklist:
 - Include fresh events first (match `occurredAt` to current test run to avoid historical duplicates).
 - If triage packet fields are insufficient for root cause, then include the raw `metadata` block from Event Detail as a second step.
 
+## Admin incident triage: billing diagnostics + AI Studio runtime failures
+Use this for the exact signatures you pasted from the admin `Errors` panel.
+
+### `admin/billing-diagnostics` returns `500` with mode-mismatch customer error
+Symptoms:
+- `/admin` opens a user's billing diagnostics and request fails with `API 500` on:
+  - `/api/admin/billing-diagnostics?userId=<uuid>`
+- Incident stack includes `No such customer... a similar object exists in test mode, but a live mode key was used`.
+
+Interpretation:
+- This is usually a Stripe key-mode mismatch between stored customer IDs and the active key.
+- For `contract_source = 'internal_comp'`, this is usually non-blocking for entitlement checks.
+- For Stripe-owned subscriptions, treat this as a reconciliation issue.
+
+Checklist:
+- Confirm these DB values for the affected user:
+  - `billing_subscription_contracts.contract_source`
+  - `billing_subscription_contracts.stripe_subscription_id`
+  - `billing_profiles.stripe_customer_id`
+- Re-run `/api/admin/billing-diagnostics?userId=...` and check findings:
+  - `stripe_customer_mode_mismatch` (warning)
+  - `internal_comp_contract` (info) when exempt.
+- If the account should be Stripe-paid, use `/api/admin/billing/customer-sync` and then rerun diagnostics in a Stripe-mode-matched environment.
+- Validate consistency with `scripts/verify_billing_contracts_against_stripe.ts` when a paid subscription is expected.
+
+### `client.route_change` shows `Failed to load script` / route change error
+Symptoms:
+- Console shows `Route change failed: Failed to load script: /_next/static/...`.
+- UI may jump or fail on navigation.
+
+Checklist:
+- Confirm the active deployment includes the referenced chunk and the deployment alias is not stale.
+- Run `node scripts/verify_deployment_route_parity.mjs --base-url <target-url> --token <token>` from docs.
+- Confirm no active caching policy is pinning an older build for that user.
+
+Mitigation:
+- Repoint affected traffic to a known-good deployment and rerun parity checks.
+- Hard-refresh the browser after deploy/failover.
+
+### `/api/elevenlabs/voices` shows repeated 503
+Symptoms:
+- AI Studio shows voice library/network failure around `/api/elevenlabs/voices`.
+- Admin/client logs show `503` for this endpoint.
+
+Interpretation:
+- In the current API design, provider outages should usually produce a fallback `200` with a `source="fallback"` payload.
+- A `503` indicates environment/proxy/deployment instability rather than expected business behavior.
+
+Checklist:
+- Confirm proxy/auth and route health in the target environment.
+- Check `app_error_logs` for `scope='generation'` + `route_label='elevenlabs-voices'`.
+- Validate ElevenLabs key routing and rate/security policy in that environment.
+- Reproduce the call once in isolation to separate transient provider failure from app routing regression.
+
+### `client.ai_studio.failure_stack` visible failure cards
+Symptoms:
+- UI message says `N generation failure card(s) visible in UI.` with repeated attempts in adjacent events.
+
+Interpretation:
+- Could be normal provider/transient failures when the user keeps retrying.
+- Prioritize validating paired provider/status/submit telemetry before treating as a core UI bug.
+
+Checklist:
+- Link failure cards to timeline events by `requestId` and generation IDs.
+- Check `/api/fal/*-status` responses and recent `media_perf` telemetry.
+- Correlate with provider-facing errors (credits, prompts, source signing, preflight).
+- If failures are user-impacting for all runs, escalate with route labels + request IDs and include a short reproducible sample.
+
 ## `next build` / `next lint` prompts to “configure ESLint”
 This happens when the repo has `eslint-config-next` installed but no ESLint config file exists.
 
@@ -38,6 +106,7 @@ Fix: ensure `frontend/eslint.config.mjs` is present and valid (flat ESLint confi
 Symptoms:
 - `Unable to acquire lock .../.next/dev/lock`
 - Port conflict messages (`Port 3000 is in use ... using 3001`) followed by lock failure.
+- Turbopack reports `Next.js package not found` while another local server is still running.
 
 Checklist:
 - Ensure only one dev server is running.
@@ -52,6 +121,27 @@ Mitigation:
   ```bash
   cd frontend
   npm run dev
+  ```
+
+## Local dev worker cannot find `esbuild`
+Symptoms:
+- `npm run dev` exits after:
+  - `Cannot find package 'esbuild' imported from .../frontend/scripts/run_generation_control_plane_worker.mjs`
+- The wrapper logs `generation-worker stopped unexpectedly`, then shuts down Next.
+
+Cause:
+- The local generation worker bundles its TypeScript loop with `esbuild`; `frontend` dependencies are missing, stale, or out of sync with `package-lock.json`.
+
+Checklist:
+- Confirm the dependency resolves:
+  ```bash
+  cd frontend
+  node -e "console.log(require.resolve('esbuild/package.json'))"
+  ```
+- If it does not resolve, run the one-time dependency setup:
+  ```bash
+  cd frontend
+  npm install
   ```
 
 ## Next image host not configured (`images.pexels.com`)

@@ -51,6 +51,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   }) => void | Promise<void>;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
+  notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   currentCostCredits: number | null;
@@ -101,6 +102,7 @@ export const useAiStudioEditExpertPanelProps = ({
   handleImageRegenerateWithDebit,
   insertOptimisticGenerationPlaceholder,
   removeOptimisticGenerationPlaceholder,
+  notifyGenerationFailure,
   onEditSubmitIntentChange,
   addSessionMediaReference,
   currentCostCredits,
@@ -148,6 +150,7 @@ export const useAiStudioEditExpertPanelProps = ({
       onRegenerate: handleImageRegenerateWithDebit,
       insertOptimisticGenerationPlaceholder,
       removeOptimisticGenerationPlaceholder,
+      notifyGenerationFailure,
       onRegenerateWithReferenceInputs: (
         referenceInputs: string[],
         options?: {
@@ -222,6 +225,7 @@ export const useAiStudioEditExpertPanelProps = ({
       isModelModalOpen,
       model,
       modelModalAnchor,
+      notifyGenerationFailure,
       removeOptimisticGenerationPlaceholder,
       referenceImageUrl,
       referenceImageWarning,

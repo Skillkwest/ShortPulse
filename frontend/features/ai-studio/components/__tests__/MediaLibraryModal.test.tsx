@@ -20,25 +20,78 @@ type MediaRow = {
   preview_variant_path?: string | null;
 };
 
+type MediaListApiResult = {
+  rows: MediaRow[];
+  nextCursor: null;
+  hasMore: boolean;
+  signedById: Map<string, string>;
+};
+
 const mockMediaRows: MediaRow[] = [];
 const {
   mockClassifyMediaPreviewPath,
   mockFetchWithAuth,
+  mockFetchMediaListPage,
+  mockResolveDurablePreviewStoragePath,
   mockResolveMediaDirectPreviewUrls,
+  mockResolveMediaPreviewCandidates,
+  mockResolvePreferredMediaSigningStoragePath,
   mockResolveMediaSigningStoragePaths,
+  mockResolveVideoPosterStoragePath,
   mockGetSignedMediaUrl,
   mockGetSignedMediaUrlsBatch,
 } = vi.hoisted(() => ({
   mockClassifyMediaPreviewPath: vi.fn(() => "unknown" as const),
   mockFetchWithAuth: vi.fn(async () => ({ ok: false, json: async () => ({}) })),
+  mockFetchMediaListPage: vi.fn<() => Promise<MediaListApiResult | null>>(async () => null),
+  mockResolveDurablePreviewStoragePath: vi.fn(
+    (row: {
+      preview_variant_path?: string | null;
+      thumb_variant_path?: string | null;
+      storage_path?: string | null;
+    }) => row.preview_variant_path ?? row.thumb_variant_path ?? row.storage_path ?? null
+  ),
   mockResolveMediaDirectPreviewUrls: vi.fn((...args: unknown[]) => {
     void args;
     return [] as string[];
   }),
+  mockResolveMediaPreviewCandidates: vi.fn(
+    (row: { storage_path?: string | null }, currentUserId?: string | null) => ({
+      storagePaths: mockResolveMediaSigningStoragePaths(row, currentUserId),
+      directUrl: null,
+    })
+  ),
+  mockResolvePreferredMediaSigningStoragePath: vi.fn(
+    (
+      row:
+        | {
+            file_type?: string | null;
+            poster_variant_path?: string | null;
+            preview_variant_path?: string | null;
+            storage_path?: string | null;
+            thumb_variant_path?: string | null;
+          }
+        | undefined
+    ) => {
+      if (!row) return null;
+      const isVideo = row.file_type?.toLowerCase().startsWith("video") ?? false;
+      return (
+        (isVideo
+          ? (row.preview_variant_path ?? row.poster_variant_path)
+          : row.thumb_variant_path) ??
+        row.storage_path ??
+        null
+      );
+    }
+  ),
   mockResolveMediaSigningStoragePaths: vi.fn((...args: unknown[]) => {
     void args;
     return [] as string[];
   }),
+  mockResolveVideoPosterStoragePath: vi.fn(
+    (row: { poster_variant_path?: string | null; thumb_variant_path?: string | null }) =>
+      row.poster_variant_path ?? row.thumb_variant_path ?? null
+  ),
   mockGetSignedMediaUrl: vi.fn(async (...args: unknown[]) => {
     void args;
     return null as string | null;
@@ -57,8 +110,12 @@ vi.mock("../../../../lib/authenticatedFetch", () => ({
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
   classifyMediaPreviewPath: mockClassifyMediaPreviewPath,
+  resolveDurablePreviewStoragePath: mockResolveDurablePreviewStoragePath,
   resolveMediaDirectPreviewUrls: mockResolveMediaDirectPreviewUrls,
+  resolveMediaPreviewCandidates: mockResolveMediaPreviewCandidates,
+  resolvePreferredMediaSigningStoragePath: mockResolvePreferredMediaSigningStoragePath,
   resolveMediaSigningStoragePaths: mockResolveMediaSigningStoragePaths,
+  resolveVideoPosterStoragePath: mockResolveVideoPosterStoragePath,
 }));
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
@@ -74,7 +131,7 @@ vi.mock("../../../media-library/logic/mediaLibraryFeatureFlags", () => ({
 }));
 
 vi.mock("../../../media-library/logic/mediaListApi", () => ({
-  fetchMediaListPage: vi.fn(async () => null),
+  fetchMediaListPage: mockFetchMediaListPage,
 }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
@@ -140,6 +197,13 @@ const createDeferred = <T,>() => {
   return { promise, resolve, reject };
 };
 
+const createMediaListApiResult = (rows: MediaRow[]): MediaListApiResult => ({
+  rows,
+  nextCursor: null,
+  hasMore: false,
+  signedById: new Map<string, string>(),
+});
+
 describe("MediaLibraryModal", () => {
   beforeEach(() => {
     mockMediaRows.length = 0;
@@ -147,10 +211,17 @@ describe("MediaLibraryModal", () => {
     ensureSupabaseQueryClientMock.mockImplementation(() => createSupabaseClientMock() as never);
     readSupabaseUserIdMock.mockReset();
     readSupabaseUserIdMock.mockResolvedValue("user-1");
-    mockFetchWithAuth.mockClear();
+    mockFetchWithAuth.mockReset();
+    mockFetchWithAuth.mockImplementation(async () => ({ ok: false, json: async () => ({}) }));
+    mockFetchMediaListPage.mockReset();
+    mockFetchMediaListPage.mockImplementation(async () => createMediaListApiResult(mockMediaRows));
+    mockResolveDurablePreviewStoragePath.mockClear();
     mockResolveMediaDirectPreviewUrls.mockClear();
+    mockResolveMediaPreviewCandidates.mockClear();
+    mockResolvePreferredMediaSigningStoragePath.mockClear();
     mockResolveMediaSigningStoragePaths.mockReset();
     mockResolveMediaSigningStoragePaths.mockImplementation(() => []);
+    mockResolveVideoPosterStoragePath.mockClear();
     mockGetSignedMediaUrl.mockClear();
     mockGetSignedMediaUrlsBatch.mockReset();
     mockGetSignedMediaUrlsBatch.mockImplementation(async () => new Map<string, string>());
@@ -188,7 +259,7 @@ describe("MediaLibraryModal", () => {
       },
     });
 
-    const { container } = render(
+    render(
       <MediaLibraryModal
         isOpen
         onClose={() => undefined}
@@ -198,20 +269,15 @@ describe("MediaLibraryModal", () => {
     );
 
     await waitFor(() => {
-      const placeholder = container.querySelector(".media-thumb.placeholder");
+      const placeholder = document.querySelector(".media-thumb.placeholder");
       expect(placeholder).toBeTruthy();
       expect((placeholder as HTMLDivElement).style.aspectRatio).toBe("1.5");
     });
   });
 
   it("shows blocking loading state on initial empty media fetch", async () => {
-    const deferred = createDeferred<{ data: MediaRow[]; error: null }>();
-    ensureSupabaseQueryClientMock.mockImplementation(
-      () =>
-        createSupabaseClientMock({
-          mediaLimitImpl: () => deferred.promise,
-        }) as never
-    );
+    const deferred = createDeferred<ReturnType<typeof createMediaListApiResult>>();
+    mockFetchMediaListPage.mockImplementation(async () => deferred.promise);
 
     render(
       <MediaLibraryModal
@@ -227,17 +293,14 @@ describe("MediaLibraryModal", () => {
     });
     expect(screen.queryByText("Refreshing media…")).toBeNull();
 
-    deferred.resolve({
-      data: [],
-      error: null,
-    });
+    deferred.resolve(createMediaListApiResult([]));
     await waitFor(() => {
       expect(screen.queryByText("Loading media library…")).toBeNull();
     });
   });
 
   it("does not stay stuck loading after close/reopen while initial fetch is unresolved", async () => {
-    const firstDeferred = createDeferred<{ data: MediaRow[]; error: null }>();
+    const firstDeferred = createDeferred<ReturnType<typeof createMediaListApiResult>>();
     const reopenRow: MediaRow = {
       id: "media-reopen-1",
       filename: "reopen.png",
@@ -250,18 +313,15 @@ describe("MediaLibraryModal", () => {
       },
     };
     let mediaFetchCount = 0;
-    ensureSupabaseQueryClientMock.mockImplementation(
-      () =>
-        createSupabaseClientMock({
-          mediaLimitImpl: async () => {
-            mediaFetchCount += 1;
-            if (mediaFetchCount === 1) return firstDeferred.promise;
-            return { data: [reopenRow], error: null };
-          },
-        }) as never
-    );
+    mockFetchMediaListPage.mockImplementation(async () => {
+      mediaFetchCount += 1;
+      if (mediaFetchCount === 1) {
+        return firstDeferred.promise;
+      }
+      return createMediaListApiResult([reopenRow]);
+    });
 
-    const { container, rerender } = render(
+    const { rerender } = render(
       <MediaLibraryModal
         isOpen
         onClose={() => undefined}
@@ -292,7 +352,7 @@ describe("MediaLibraryModal", () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector("[data-media-id='media-reopen-1']")).toBeTruthy();
+      expect(document.querySelector("[data-media-id='media-reopen-1']")).toBeTruthy();
     });
     expect(mediaFetchCount).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("Loading media library…")).toBeNull();
@@ -315,21 +375,16 @@ describe("MediaLibraryModal", () => {
       };
       mockResolveMediaSigningStoragePaths.mockImplementation(() => ["user-1/upload/stale.png"]);
       let fetchCount = 0;
-      const deferred = createDeferred<{ data: MediaRow[]; error: null }>();
-      ensureSupabaseQueryClientMock.mockImplementation(
-        () =>
-          createSupabaseClientMock({
-            mediaLimitImpl: async () => {
-              fetchCount += 1;
-              if (fetchCount === 1) {
-                return { data: [staleRow], error: null };
-              }
-              return deferred.promise;
-            },
-          }) as never
-      );
+      const deferred = createDeferred<ReturnType<typeof createMediaListApiResult>>();
+      mockFetchMediaListPage.mockImplementation(async () => {
+        fetchCount += 1;
+        if (fetchCount === 1) {
+          return createMediaListApiResult([staleRow]);
+        }
+        return deferred.promise;
+      });
 
-      const { container, rerender } = render(
+      const { rerender } = render(
         <MediaLibraryModal
           isOpen
           onClose={() => undefined}
@@ -339,7 +394,7 @@ describe("MediaLibraryModal", () => {
       );
 
       await waitFor(() => {
-        expect(container.querySelector("[data-media-id='media-stale-1']")).toBeTruthy();
+        expect(document.querySelector("[data-media-id='media-stale-1']")).toBeTruthy();
       });
 
       nowMs = Date.parse("2026-03-02T00:01:05.000Z");
@@ -363,10 +418,10 @@ describe("MediaLibraryModal", () => {
       await waitFor(() => {
         expect(screen.getByText("Refreshing media…")).toBeTruthy();
       });
-      expect(container.querySelector("[data-media-id='media-stale-1']")).toBeTruthy();
+      expect(document.querySelector("[data-media-id='media-stale-1']")).toBeTruthy();
       expect(screen.queryByText("Loading media library…")).toBeNull();
 
-      deferred.resolve({ data: [staleRow], error: null });
+      deferred.resolve(createMediaListApiResult([staleRow]));
       await waitFor(() => {
         expect(screen.queryByText("Refreshing media…")).toBeNull();
       });
@@ -434,7 +489,7 @@ describe("MediaLibraryModal", () => {
     );
     mockGetSignedMediaUrl.mockImplementation(async () => sourceUrl);
 
-    const { container } = render(
+    render(
       <MediaLibraryModal
         isOpen
         onClose={() => undefined}
@@ -444,16 +499,16 @@ describe("MediaLibraryModal", () => {
     );
 
     await waitFor(() => {
-      const image = container.querySelector(".media-thumb") as HTMLImageElement | null;
+      const image = document.querySelector(".media-thumb") as HTMLImageElement | null;
       expect(image).toBeTruthy();
       expect(image?.getAttribute("src")).toBe(optimizerUrl);
     });
 
-    const image = container.querySelector(".media-thumb") as HTMLImageElement;
+    const image = document.querySelector(".media-thumb") as HTMLImageElement;
     fireEvent.error(image);
 
     await waitFor(() => {
-      const nextImage = container.querySelector(".media-thumb") as HTMLImageElement | null;
+      const nextImage = document.querySelector(".media-thumb") as HTMLImageElement | null;
       expect(nextImage).toBeTruthy();
       expect(nextImage?.getAttribute("src")).toBe(sourceUrl);
     });
@@ -579,7 +634,7 @@ describe("MediaLibraryModal", () => {
     mockGetSignedMediaUrl.mockImplementation(async () => "https://signed.example.com/forest.png");
     const onSelectMedia = vi.fn();
 
-    const { container } = render(
+    render(
       <MediaLibraryModal
         isOpen
         onClose={() => undefined}
@@ -589,10 +644,10 @@ describe("MediaLibraryModal", () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector("[data-media-id='media-prompt-1']")).toBeTruthy();
+      expect(document.querySelector("[data-media-id='media-prompt-1']")).toBeTruthy();
     });
     fireEvent.click(
-      container.querySelector("[data-media-id='media-prompt-1']") as HTMLButtonElement
+      document.querySelector("[data-media-id='media-prompt-1']") as HTMLButtonElement
     );
 
     await waitFor(() => {
@@ -644,7 +699,7 @@ describe("MediaLibraryModal", () => {
     });
     const onSelectMedia = vi.fn();
 
-    const { container } = render(
+    render(
       <MediaLibraryModal
         isOpen
         onClose={() => undefined}
@@ -654,10 +709,10 @@ describe("MediaLibraryModal", () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector("[data-media-id='media-prefer-full-1']")).toBeTruthy();
+      expect(document.querySelector("[data-media-id='media-prefer-full-1']")).toBeTruthy();
     });
     fireEvent.click(
-      container.querySelector("[data-media-id='media-prefer-full-1']") as HTMLButtonElement
+      document.querySelector("[data-media-id='media-prefer-full-1']") as HTMLButtonElement
     );
 
     await waitFor(() => {

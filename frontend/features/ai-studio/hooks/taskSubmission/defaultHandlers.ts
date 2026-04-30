@@ -6,7 +6,6 @@ import {
   submitOpenAiGptImage2Edit,
 } from "../../../../lib/openAiImageClient";
 import {
-  OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
   normalizeOpenAiGptImage2Quality,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
   resolveOpenAiGptImage2SizeForAspect,
@@ -95,7 +94,6 @@ export const handleDefaultModelSubmission = async ({
             size,
             quality,
             images: openAiReferenceImages.map((imageUrl) => ({ image_url: imageUrl })),
-            input_fidelity: OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
             ...(maskImageUrl ? { mask: { image_url: maskImageUrl } } : {}),
             ...(projectId ? { project_id: projectId } : {}),
             ...shortpulseSubmitPayload,

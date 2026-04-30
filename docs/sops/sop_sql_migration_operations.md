@@ -1,9 +1,11 @@
 # SOP: SQL Migration And Operations
 
 ## Purpose
+
 Provide a single operational guide for SQL work in this repo: what each SQL area is for, how to run scripts safely, and how to validate user-isolation/security outcomes.
 
 ## Scope
+
 - Supabase schema/bootstrap scripts under `sql/`.
 - Ordered migrations under `sql/migrations/`.
 - Rollback scripts under `sql/migrations/rollback/`.
@@ -13,6 +15,7 @@ Provide a single operational guide for SQL work in this repo: what each SQL area
 ## SQL Layout And Intent
 
 ### 1) Bootstrap and utility scripts (`sql/`)
+
 Use these for foundational setup or targeted one-off operations.
 
 - `sql/storage_policies.sql`: creates private `media_library` bucket + user-scoped storage policies.
@@ -43,9 +46,11 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_agent_safety_policy_control_plane.sql`: agent safety control-plane table/function/execute-posture diagnostics (read-only).
 
 ### 2) Ordered migrations (`sql/migrations/`)
+
 Use these for durable schema evolution across environments.
 
 Current set:
+
 - `001_add_studio_10000_credit_package.sql`
 - `002_add_generation_credit_reservations.sql`
 - `003_add_private_media_source.sql`
@@ -152,36 +157,46 @@ Current set:
 - `108_retire_legacy_ai_studio_pulses.sql`
 - `109_add_generation_projection_project_id.sql`
 - `110_add_admin_kanban_foundation.sql`
+- `111_harden_admin_kanban_audit_integrity.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
+
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.
 
 ## Operating Principles
 
 1. Treat migrations as forward-first.
+
 - Production/staging should move forward through ordered migrations.
 
 2. Idempotent scripts can be safely re-run.
+
 - Many scripts here intentionally use patterns like `drop ... if exists`, `create ... if not exists`, and corrective updates.
 
 3. Diagnostics are read-only and can be run repeatedly.
+
 - `sql/check_media_storage_scope_drift.sql` and `sql/check_character_sheet_alias_drift.sql` should be part of release validation.
 
 4. Re-run hardening after repairs.
+
 - Expected loop: harden -> diagnose -> repair -> harden -> diagnose.
 
 5. Run runtime SQL security audit after migration/security changes.
+
 - Execute `sql/check_runtime_sql_security_audit.sql` in staging/production.
 - Expect `failing_checks = 0` before phase/deploy signoff.
 
 6. Lint SQL before merge when migrations/functions changed.
+
 - Run: `supabase db lint --linked --schema public --fail-on warning`.
 - Alternative for explicit DB target pinning: `supabase db lint --db-url "$SUPABASE_DB_URL" --schema public --fail-on warning`.
 
 7. Do not use Docker-based local Supabase commands in agent workflows.
+
 - Avoid `supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, and direct `docker` commands.
 
 8. Hosted-runner fallback is required when `SUPABASE_DB_URL` is unavailable in local shell context.
+
 - Use `.github/workflows/reliability-control-plane-diagnostics.yml` for read-only reliability diagnostics against `staging`/`production`.
 - Runner script authority: `scripts/reliability_control_plane_diagnostics.sh`.
 - Keep mode at `warn` for first-time environment validation; use `enforce` only after baseline reliability evidence is established.
@@ -190,6 +205,7 @@ Use only when explicitly reverting a migration in a controlled window. Prefer ta
 ## Standard Runbooks
 
 ### A) New environment bootstrap (minimum secure media stack)
+
 Run in order:
 
 1. `sql/storage_policies.sql`
@@ -201,9 +217,11 @@ Run in order:
 7. `sql/check_media_storage_scope_drift.sql`
 
 Expected outcome:
+
 - All drift checks return `mismatch_count = 0`.
 
 ### B) Existing environment hardening (recommended for active dev/staging)
+
 Run in order:
 
 1. `sql/migrations/003_add_private_media_source.sql`
@@ -218,6 +236,7 @@ Run in order:
 10. Final `sql/check_media_storage_scope_drift.sql`
 
 ### C) Development loop (safe repeated runs)
+
 Use this loop while iterating:
 
 1. Apply target migration(s).
@@ -231,11 +250,14 @@ This is expected and not a broken loop; it is convergence to a strict, validated
 ## Verification Queries
 
 ### Media drift checks
+
 Run:
+
 - `sql/check_media_storage_scope_drift.sql`
 - `sql/check_media_all_media_completeness_drift.sql` (before/after migration `064`)
 
 Expected:
+
 - `media_files.storage_path_backslash = 0`
 - `media_files.storage_path_empty = 0`
 - `media_files.storage_path_leading_slash = 0`
@@ -246,6 +268,7 @@ Expected:
 - `check_media_all_media_completeness_drift` summary converges missing durable counts as expected after migration `064`.
 
 ### Constraint validation status
+
 ```sql
 select conname, convalidated
 from pg_constraint
@@ -259,14 +282,18 @@ order by conname;
 ```
 
 ### Runtime SQL security posture
+
 Run:
+
 - `sql/check_runtime_sql_security_audit.sql`
 
 Expected:
+
 - Detail query shows `pass = true` for all rows.
 - Summary query returns `failing_checks = 0`.
 
 ### Storage policy presence
+
 ```sql
 select policyname, cmd
 from pg_policies
@@ -279,25 +306,33 @@ order by policyname;
 ## Common Errors And Fixes
 
 ### Error: `42501 must be owner of table objects`
+
 Cause:
+
 - Role lacks ownership for `storage.objects`.
 
 Action:
+
 - Do not run owner-only `ALTER TABLE storage.objects ...` with restricted roles.
 - Apply `sql/storage_policies.sql` policy statements using the project owner role in Supabase Dashboard SQL Editor if needed.
 
 ### Error: `23514 check constraint "media_files_source_check" ... violated`
+
 Cause:
+
 - Existing rows contain unsupported `source` values for that migration state.
 
 Action:
+
 1. Inspect values:
+
 ```sql
 select source, count(*)
 from media_files
 group by source
 order by count(*) desc;
 ```
+
 2. Apply updated `sql/migrations/003_add_private_media_source.sql` (forward-compatible allowlist + null normalization).
 3. Continue with `004`, `016`, `017`, then drift checks.
 
@@ -325,6 +360,7 @@ After applying `018`, `028`, `029`, and `030`:
    - `prune_ai_agent_conversation_state_expired(...)` callable from service role for daily cleanup cadence.
 
 ## Related Docs
+
 - `docs/database-migrations.md`
 - `docs/security-checklist.md`
 - `docs/troubleshooting.md`

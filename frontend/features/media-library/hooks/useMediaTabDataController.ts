@@ -373,6 +373,7 @@ export const useMediaTabDataController = <
             ...prev[tab],
             loading: false,
             loaded: true,
+            loadedAtMs: Date.now(),
             query: normalizedQuery,
             error: message,
           },

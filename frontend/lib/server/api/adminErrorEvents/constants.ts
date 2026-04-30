@@ -4,7 +4,6 @@
 
 export const DEFAULT_LIMIT = 50;
 export const MAX_LIMIT = 200;
-export const ACTIONABLE_PREFETCH_LIMIT = 800;
 
 export const DEFAULT_TOTAL_15M_THRESHOLD = 40;
 export const DEFAULT_HIGH_15M_THRESHOLD = 8;

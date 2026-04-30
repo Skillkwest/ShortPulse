@@ -36,8 +36,9 @@ Purpose: document the ShortPulse `gpt-image-2` integration that powers AI Studio
   - `low`
   - `medium`
   - `high`
-- Supported edit input fidelity:
-  - `high`
+- Edit input fidelity:
+  - ShortPulse bills and records GPT Image 2 edit inputs as high fidelity.
+  - Do not forward `input_fidelity` to OpenAI for `gpt-image-2`; the provider processes image inputs at high fidelity automatically and rejects the parameter.
 - Output format: `png`
 - Moderation mode: `auto`
 - Standard edit inputs:
@@ -76,7 +77,6 @@ Edit route body:
     { "image_url": "https://example.com/base.png" },
     { "image_url": "https://example.com/reference.png" }
   ],
-  "input_fidelity": "high",
   "mask": { "image_url": "https://example.com/mask.png" },
   "project_id": "project-uuid-optional",
   "generation_replay": {},
@@ -92,7 +92,7 @@ Validation rules:
 - `size` must be one of the supported phase-1 sizes.
 - `quality` must be one of `low | medium | high`.
 - `images` is required for `/api/openai/image-edit` and must contain `1..8` image URLs.
-- `input_fidelity` for `/api/openai/image-edit` must be `high` or `low`; current AI Studio standard-edit flow always uses `high`.
+- `input_fidelity` is optional compatibility input for `/api/openai/image-edit`; when omitted or supplied as a legacy `low | high` value, ShortPulse bills and records `high`. The OpenAI provider request must omit `input_fidelity` for `gpt-image-2`.
 - `mask` is optional for `/api/openai/image-edit`.
 - `project_id` is optional; when present, successful direct-complete generations are eagerly associated to the owned project so restore/reopen can find them without waiting for later workspace-save backfill.
 - Server enforces `n = 1`; callers do not supply arbitrary counts.

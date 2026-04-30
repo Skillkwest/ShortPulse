@@ -61,6 +61,7 @@ const createArgs = (
   resolveStageFlattenSnapshot: vi.fn(() => ({ outputAspectRatio: 1 })),
   insertOptimisticGenerationPlaceholder: vi.fn(() => "out-optimistic"),
   removeOptimisticGenerationPlaceholder: vi.fn(),
+  notifyGenerationFailure: vi.fn(),
   ...overrides,
 });
 
@@ -188,15 +189,17 @@ describe("useExpertEditInlineGenerate", () => {
     );
   });
 
-  it("removes the optimistic placeholder when export fails before submit", async () => {
+  it("marks the optimistic placeholder failed when export fails before submit", async () => {
     exportExpertEditStageArtifactsMock.mockRejectedValue(new Error("flatten failed"));
     const removeOptimisticGenerationPlaceholder = vi.fn();
+    const notifyGenerationFailure = vi.fn();
     const showStatusToast = vi.fn();
 
     const { result } = renderHook(() =>
       useExpertEditInlineGenerate(
         createArgs({
           removeOptimisticGenerationPlaceholder,
+          notifyGenerationFailure,
           showStatusToast,
         })
       )
@@ -207,12 +210,51 @@ describe("useExpertEditInlineGenerate", () => {
     });
 
     await waitFor(() => {
-      expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
+      expect(notifyGenerationFailure).toHaveBeenCalledWith(
+        "out-optimistic",
+        "Unable to flatten layers.",
+        "Unable to flatten layers."
+      );
     });
+    expect(removeOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
     await waitFor(() => {
       expect(result.current.isInlineGeneratePending).toBe(false);
     });
     expect(showStatusToast).toHaveBeenCalledWith("Unable to flatten layers.");
+  });
+
+  it("marks the optimistic placeholder failed when submission dispatch rejects the request", async () => {
+    resolveExpertEditSubmissionDispatchMock.mockReturnValue({
+      status: "error",
+      message: "Select a layer mask before inpainting.",
+    });
+    const removeOptimisticGenerationPlaceholder = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const showStatusToast = vi.fn();
+
+    const { result } = renderHook(() =>
+      useExpertEditInlineGenerate(
+        createArgs({
+          removeOptimisticGenerationPlaceholder,
+          notifyGenerationFailure,
+          showStatusToast,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleInlineGenerate();
+    });
+
+    await waitFor(() => {
+      expect(notifyGenerationFailure).toHaveBeenCalledWith(
+        "out-optimistic",
+        "Select a layer mask before inpainting.",
+        "Select a layer mask before inpainting."
+      );
+    });
+    expect(removeOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(showStatusToast).toHaveBeenCalledWith("Select a layer mask before inpainting.");
   });
 
   it("allows valid clicks while the shared edit generation state is already busy", async () => {

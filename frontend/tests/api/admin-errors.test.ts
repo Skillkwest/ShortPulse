@@ -196,6 +196,42 @@ describe("GET /api/admin/errors", () => {
     });
   });
 
+  it("returns degraded payload when app_error_logs table is unavailable", async () => {
+    const missingTableMessage =
+      "Could not find the table 'public.app_error_logs' in the schema cache";
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminMock({
+        app_error_logs: [{ data: null, error: { message: missingTableMessage } }],
+      })
+    );
+
+    const req = { method: "GET", query: { page: "1", limit: "50", status: "open" } };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0] as {
+      health: { degraded: boolean; reason: string | null };
+      summary: {
+        openCount: number;
+        highSeverityOpenCount: number;
+      };
+      pagination: {
+        page: number;
+        perPage: number;
+        totalCount: number;
+      };
+    };
+    expect(payload.health).toMatchObject({
+      degraded: true,
+    });
+    expect(payload.health.reason).toContain("app_error_logs");
+    expect(payload.summary.openCount).toBe(0);
+    expect(payload.summary.highSeverityOpenCount).toBe(0);
+    expect(payload.pagination).toMatchObject({ page: 1, perPage: 50, totalCount: 0 });
+  });
+
   it("returns 500 when core incident query fails", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({

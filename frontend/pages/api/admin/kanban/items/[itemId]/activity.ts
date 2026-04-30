@@ -43,7 +43,7 @@ export default async function handler(
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const item = await readAdminKanbanItem(supabaseAdmin, itemId);
+    const item = await readAdminKanbanItem(supabaseAdmin, itemId, { includeArchived: true });
     if (!item) return res.status(404).json({ error: "Kanban item not found." });
 
     const activity = await listAdminKanbanActivity(supabaseAdmin, itemId);

@@ -44,6 +44,12 @@ const normalizeDisplayName = (value: string | null | undefined): string | null =
   return normalized.length > 0 ? normalized : null;
 };
 
+const isStripeCustomerMissingError = (message: unknown): boolean => {
+  if (typeof message !== "string") return false;
+  const normalized = message.toLowerCase();
+  return normalized.includes("no such customer") || normalized.includes("does not exist");
+};
+
 const upsertStripeCustomerMapping = async ({
   userId,
   profile,
@@ -116,9 +122,17 @@ export const syncStripeCustomerForUser = async ({
     return await createCustomer();
   }
 
-  const existingCustomer = await stripeGet<StripeCustomerResponse>(
-    `/customers/${profileSnapshot.stripe_customer_id}`
-  );
+  let existingCustomer: StripeCustomerResponse;
+  try {
+    existingCustomer = await stripeGet<StripeCustomerResponse>(
+      `/customers/${profileSnapshot.stripe_customer_id}`
+    );
+  } catch (error) {
+    if (error instanceof Error && isStripeCustomerMissingError(error.message)) {
+      return await createCustomer();
+    }
+    throw error;
+  }
 
   if (existingCustomer.deleted) {
     return await createCustomer();

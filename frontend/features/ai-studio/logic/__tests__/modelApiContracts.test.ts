@@ -24,7 +24,7 @@ describe("model API contracts", () => {
     const contracts = listModelApiContracts();
     expect(contracts.length).toBeGreaterThan(0);
     const verifiedAtValues = new Set(contracts.map((contract) => contract.verifiedAt));
-    expect([...verifiedAtValues].sort()).toEqual(["2026-03-14", "2026-04-14", "2026-04-27"]);
+    expect([...verifiedAtValues].sort()).toEqual(["2026-04-14", "2026-04-27", "2026-04-30"]);
   });
 
   it("clamps unsupported aspects to model defaults", () => {

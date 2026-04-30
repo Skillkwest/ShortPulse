@@ -109,6 +109,7 @@ export const useMediaPreviewSigningController = <
   const deferredDrainArmedRef = useRef(false);
   const queueScopeKeyRef = useRef<string>("");
   const preparedSignStateRef = useRef<PreparedSignState<TRow> | null>(null);
+  const failedSignAttemptKeyByIdRef = useRef<Record<string, string>>({});
   const clearDeferredDrainTimeout = useCallback(() => {
     if (deferredDrainTimeoutRef.current == null || typeof window === "undefined") return;
     window.clearTimeout(deferredDrainTimeoutRef.current);
@@ -138,6 +139,7 @@ export const useMediaPreviewSigningController = <
     urgentQueueRef.current = [];
     deferredQueueRef.current = [];
     queueStateByIdRef.current = {};
+    failedSignAttemptKeyByIdRef.current = {};
     deferredDrainArmedRef.current = false;
     clearDeferredDrainTimeout();
   }, [activeMediaQuery, activeMediaTab, clearDeferredDrainTimeout]);
@@ -168,6 +170,24 @@ export const useMediaPreviewSigningController = <
           })();
     const { readyRows, signCandidateEntryById } = preparedSignState;
     if (!readyRows.length) return;
+    const signPassAttemptScopeKey = [
+      queueScopeKeyRef.current,
+      signPassNonce,
+      visibleMediaVersion,
+      activeMediaCachePagesLoaded,
+    ].join("|");
+    const resolveSignAttemptKey = (rowId: string) => {
+      const entry = signCandidateEntryById.get(rowId);
+      const candidateKey = [entry?.directUrl ?? "", ...(entry?.candidates ?? [])].join("\0");
+      return `${signPassAttemptScopeKey}|${candidateKey}`;
+    };
+    const blockedSignAttemptIds = new Set<string>();
+    for (const row of readyRows) {
+      if ((signAttemptRef.current[row.id] ?? 0) <= 0) continue;
+      if (failedSignAttemptKeyByIdRef.current[row.id] === resolveSignAttemptKey(row.id)) {
+        blockedSignAttemptIds.add(row.id);
+      }
+    }
     const queuePass = resolveMediaSignQueuePass({
       preparedState: preparedSignState,
       existingState: {
@@ -180,6 +200,7 @@ export const useMediaPreviewSigningController = <
       isSignPrefetchEnabled,
       isDeferredDrainArmed: deferredDrainArmedRef.current,
       signAttemptCounts: signAttemptRef.current,
+      blockedSignAttemptIds,
       maxSignAttemptsPerItem,
     });
     urgentQueueRef.current = queuePass.queueState.urgentQueue;
@@ -259,9 +280,11 @@ export const useMediaPreviewSigningController = <
             signAttemptRef.current[result.id] = 0;
             signedById.set(result.id, result.signedUrl);
             delete queueStateByIdRef.current[result.id];
+            delete failedSignAttemptKeyByIdRef.current[result.id];
           } else {
             signAttemptRef.current[result.id] = (signAttemptRef.current[result.id] ?? 0) + 1;
             delete queueStateByIdRef.current[result.id];
+            failedSignAttemptKeyByIdRef.current[result.id] = resolveSignAttemptKey(result.id);
           }
         }
         applySignedUrlsToTab(tabForBatch, signedById);

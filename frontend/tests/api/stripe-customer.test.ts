@@ -101,6 +101,64 @@ describe("syncStripeCustomerForUser", () => {
     expect(result.updated).toBe(true);
   });
 
+  it("recreates a Stripe customer when existing mapping points to a missing customer", async () => {
+    const upsertMock = vi.fn().mockResolvedValue({ error: null });
+    const stripeCustomerError = new Error("No such customer: 'cus_stale'");
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        if (table === "billing_profiles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: {
+                    stripe_customer_id: "cus_stale",
+                    plan_id: "business",
+                    subscription_status: "active",
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+            upsert: upsertMock,
+          };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      },
+    });
+    stripeGetMock.mockRejectedValue(stripeCustomerError);
+    stripePostFormMock.mockResolvedValue({
+      id: "cus_replaced",
+      email: "user@example.com",
+      name: "User Example",
+    });
+
+    const result = await syncStripeCustomerForUser({
+      userId: "user_1",
+      email: "user@example.com",
+      displayName: "User Example",
+    });
+
+    expect(result.stripeCustomerId).toBe("cus_replaced");
+    expect(result.created).toBe(true);
+    expect(stripePostFormMock).toHaveBeenCalledWith("/customers", {
+      email: "user@example.com",
+      name: "User Example",
+      "metadata[user_id]": "user_1",
+    });
+    expect(upsertMock).toHaveBeenCalledWith(
+      {
+        user_id: "user_1",
+        plan_id: "business",
+        subscription_status: "active",
+        stripe_customer_id: "cus_replaced",
+      },
+      { onConflict: "user_id" }
+    );
+    expect(stripeGetMock).toHaveBeenCalledWith("/customers/cus_stale");
+    expect(stripePostFormMock).toHaveBeenCalledTimes(1);
+  });
+
   it("creates stripe customer and persists mapping when billing profile is missing", async () => {
     const upsertMock = vi.fn().mockResolvedValue({ error: null });
     getSupabaseAdminMock.mockReturnValue({

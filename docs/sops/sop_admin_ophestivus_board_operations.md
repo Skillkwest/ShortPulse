@@ -16,7 +16,7 @@ Purpose: operate the shared Ophestivus board safely as the durable task source f
 - Client status model: `frontend/features/admin/data/adminKanbanBoard.ts`
 - Server persistence helper: `frontend/lib/server/api/adminKanbanBoard.ts`
 - API routes: `frontend/pages/api/admin/kanban/items/*`
-- Persistence migration: `sql/migrations/110_add_admin_kanban_foundation.sql`
+- Persistence migrations: `sql/migrations/110_add_admin_kanban_foundation.sql`, `sql/migrations/111_harden_admin_kanban_audit_integrity.sql`
 - Architecture decision: `docs/adr/0072-admin-kanban-and-ophestivus-foundation.md`
 
 ## Prerequisites
@@ -38,8 +38,9 @@ Purpose: operate the shared Ophestivus board safely as the durable task source f
 - Do not use the board as an authorization source; it tracks work only.
 - Do not store secrets, customer private data, or service-role values in task titles or notes.
 - Keep `Published` human-controlled until a later approved Ophestivus automation phase changes the contract.
-- Keep all reads/writes behind `requireAdminUser` and service-role server helpers.
+- Keep all reads/writes behind `requireAdminUser` and service-role server helpers/RPCs.
 - Keep normal removal as archive-only so `admin_kanban_activity` stays useful for audit and future agent coordination.
+- Keep item mutations and activity logging inside the transactional admin kanban RPCs; do not reintroduce split item-write/activity-write flows.
 
 ## Validation
 

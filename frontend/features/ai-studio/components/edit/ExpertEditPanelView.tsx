@@ -116,6 +116,7 @@ export function ExpertEditPanelView({
   onRegenerateWithReferenceInputs,
   insertOptimisticGenerationPlaceholder,
   removeOptimisticGenerationPlaceholder,
+  notifyGenerationFailure,
   onAddSessionMediaReference,
   resolvePreviewUrlById,
   costCredits,
@@ -666,6 +667,7 @@ export function ExpertEditPanelView({
     resolveStageFlattenSnapshot,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
+    notifyGenerationFailure,
   });
   const resolvedInlineGenerateBusy = isGenerateBusy || isInlineGeneratePending;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;

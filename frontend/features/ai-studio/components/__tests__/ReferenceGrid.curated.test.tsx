@@ -1860,7 +1860,7 @@ describe("ReferenceGrid curated split", () => {
       status: "ready",
       timestamp: "Now",
       previewUrl:
-        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/uploads/videos/reference_asset_12345?token=abc123",
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/uploads/videos/reference_asset_12345.png?token=abc123",
       mediaSource: "upload",
     };
 

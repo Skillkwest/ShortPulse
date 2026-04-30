@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { listSavedVoicesForUser } from "../../../lib/server/api/userSavedVoices";
+import { ELEVENLABS_DEFAULT_VOICES } from "../../../lib/model-runtime/elevenLabsDefaultVoices";
 import { listElevenLabsVoices, type ElevenLabsVoice } from "../../../lib/server/elevenlabs";
 
 type VoicesSuccessResponse = {
@@ -12,7 +13,8 @@ type VoicesSuccessResponse = {
     description: string | null;
     isFallback: boolean;
   }>;
-  source: "api";
+  source: "api" | "fallback";
+  warning?: string;
 };
 
 type VoicesErrorResponse = {
@@ -32,6 +34,20 @@ const mergeVoices = (
   }
   return Array.from(mergedVoices.values());
 };
+
+const fallbackVoices: ElevenLabsVoice[] = ELEVENLABS_DEFAULT_VOICES.map((voice) => ({
+  voiceId: voice.fallbackVoiceId,
+  name: voice.name,
+  previewUrl: null,
+  description: voice.description,
+  isFallback: true,
+}));
+
+const buildFallbackVoicesResponse = () => ({
+  source: "fallback" as const,
+  warning: "Showing the ElevenLabs default catalog until live voices are configured.",
+  voices: fallbackVoices,
+});
 
 export default async function handler(
   req: NextApiRequest,
@@ -57,10 +73,7 @@ export default async function handler(
   }
 
   if (!process.env.ELEVENLABS_API_KEY?.trim()) {
-    return res.status(503).json({
-      error: "ElevenLabs voices are unavailable",
-      details: "ELEVENLABS_API_KEY is not configured.",
-    });
+    return res.status(200).json(buildFallbackVoicesResponse());
   }
 
   try {
@@ -74,10 +87,6 @@ export default async function handler(
       scope: "generation",
       user,
     });
-
-    return res.status(502).json({
-      error: "ElevenLabs voices are unavailable",
-      details: error instanceof Error ? error.message : "Unable to load live voices.",
-    });
+    return res.status(200).json(buildFallbackVoicesResponse());
   }
 }

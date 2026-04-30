@@ -15,6 +15,7 @@ The first implementation must support shared admin visibility without granting t
 - Store board tasks in shared Supabase tables: `admin_kanban_items` and `admin_kanban_activity`.
 - Keep RLS enabled and expose no direct browser table policies.
 - Route all board reads/writes through `/api/admin/kanban/*` handlers that call `requireAdminUser` and use `getSupabaseAdmin`.
+- Execute task mutations through service-role-only admin kanban RPCs so item changes and activity rows commit atomically.
 - Use soft archive semantics for normal task removal so the board retains audit history.
 - Treat Ophestivus as a future steward/orchestrator layered on this board, not as an autonomous repo-editing runtime in this phase.
 
@@ -29,5 +30,6 @@ The first implementation must support shared admin visibility without granting t
 
 - `Published` remains human-controlled by default.
 - Task content must not include secrets or private customer data.
+- Activity rows must not cascade-delete with task rows.
 - Ophestivus memory, claims, scheduling, and execution tables require separate migrations and docs before activation.
 - Any future internal scheduler must follow the existing Supabase Cron + Vault pattern, not browser-local automation.

@@ -135,7 +135,6 @@ describe("POST /api/openai/image-edit", () => {
           { image_url: "https://example.com/base.png" },
           { image_url: "https://example.com/ref.png" },
         ],
-        input_fidelity: "high",
         mask: { image_url: "https://example.com/mask.png" },
         project_id: "project-1",
         generation_replay: { source: "reroll" },
@@ -170,7 +169,6 @@ describe("POST /api/openai/image-edit", () => {
       size: "1024x1024",
       quality: "medium",
       images: ["https://example.com/base.png", "https://example.com/ref.png"],
-      inputFidelity: "high",
       maskUrl: "https://example.com/mask.png",
     });
 
@@ -241,6 +239,37 @@ describe("POST /api/openai/image-edit", () => {
         savedMediaIds: ["media-image-edit-1"],
       },
     });
+  });
+
+  it("clamps legacy input_fidelity payloads to high before internal billing", async () => {
+    editOpenAiImageMock.mockRejectedValue(new Error("provider stopped"));
+
+    const req = {
+      method: "POST",
+      body: {
+        prompt: "cinematic portrait edit",
+        size: "1024x1024",
+        quality: "medium",
+        images: [{ image_url: "https://example.com/base.png" }],
+        input_fidelity: "low",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          input_fidelity: "high",
+        }),
+      })
+    );
+    expect(editOpenAiImageMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        inputFidelity: expect.any(String),
+      })
+    );
   });
 
   it("refunds the user when provider edit fails", async () => {

@@ -279,6 +279,15 @@ Recommended operator sequence:
 - Renewal idempotency uses deterministic period references per contract; duplicate runs must be safe.
 - Revoking internal comp access returns the account to `free` runtime state unless a different trusted operator path is intentionally used.
 
+- Payment-exempt users do **not** require a Stripe product for runtime entitlement.
+- Internal-comp entitlement is enforced by the `billing_subscription_contracts` row:
+  - `contract_source = 'internal_comp'`
+  - `offer_id` pointing at a hidden internal-comp offer in `billing_plan_offers`
+  - `stripe_price_id` intentionally nullable in this mode
+- For diagnostics and operator visibility, use `/api/admin/billing-diagnostics` and `billing_source` rows in `/api/admin/users` as the source of truth for plan entitlement and credits.
+- Avoid creating additional public Stripe products to represent payment-exempt access; reserve new Stripe offers for externally billable plan variants only.
+- Payment-exempt users still receive full plan context through contract/offer snapshots (plan id + current public offer metadata), but access/renewal is enforced through `billing_subscription_contracts` with `contract_source='internal_comp'` and no Stripe recurring charge.
+
 ## Internal comp renewal scheduler setup
 
 1. Set runtime env on the target deployment:

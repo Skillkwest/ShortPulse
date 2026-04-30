@@ -92,6 +92,7 @@ type UseAiStudioEditVideoPanelPropsParams = {
   }) => void | Promise<void>;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
+  notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;
@@ -212,6 +213,7 @@ export const useAiStudioEditVideoPanelProps = ({
   handleImageRegenerateWithDebit,
   insertOptimisticGenerationPlaceholder,
   removeOptimisticGenerationPlaceholder,
+  notifyGenerationFailure,
   onEditSubmitIntentChange,
   addSessionMediaReference,
   referenceImageWarning,
@@ -296,6 +298,7 @@ export const useAiStudioEditVideoPanelProps = ({
     handleImageRegenerateWithDebit,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
+    notifyGenerationFailure,
     onEditSubmitIntentChange,
     addSessionMediaReference,
     currentCostCredits,

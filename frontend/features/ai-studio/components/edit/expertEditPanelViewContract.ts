@@ -62,6 +62,7 @@ export type ExpertEditPanelViewProps = {
   ) => void | Promise<void>;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
+  notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
   onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;

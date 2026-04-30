@@ -96,6 +96,12 @@ type StripeCustomerResponse = {
   deleted?: boolean;
 };
 
+type StripeLookupFailure = {
+  target: "customer" | "subscription" | "subscription_list";
+  identifier: string | null;
+  message: string;
+};
+
 const asSingleString = (value: unknown): string => {
   if (typeof value === "string") return value;
   if (Array.isArray(value) && typeof value[0] === "string") return value[0];
@@ -124,6 +130,22 @@ const asCents = (value: number | string | null | undefined): number | null => {
 const asQuantity = (value: number | string | null | undefined): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
+};
+
+const isStripeModeMismatchError = (message: string): boolean => {
+  const text = message.toLowerCase();
+  return (
+    text.includes("test mode") &&
+    text.includes("live mode") &&
+    (text.includes("no such") || text.includes("does not exist"))
+  );
+};
+
+const stringifyLookupError = (error: unknown, fallback: string): string => {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+  return `Stripe ${fallback} failed.`;
 };
 
 const normalizeText = (value: string | null | undefined): string | null => {
@@ -326,33 +348,97 @@ export default async function handler(
 
     let liveStripeCustomer: StripeCustomerResponse | null = null;
     let liveStripeSubscription: StripeSubscriptionResponse | null = null;
+    const stripeLookupFailures: StripeLookupFailure[] = [];
     if (stripeConfigured) {
       if (billingProfile?.stripe_customer_id) {
-        liveStripeCustomer = await stripeGet<StripeCustomerResponse>(
-          `/customers/${billingProfile.stripe_customer_id}`
-        );
+        try {
+          liveStripeCustomer = await stripeGet<StripeCustomerResponse>(
+            `/customers/${billingProfile.stripe_customer_id}`
+          );
+        } catch (error) {
+          const message = stringifyLookupError(error, "customer lookup");
+          if (!isStripeModeMismatchError(message)) {
+            await logApiRouteException({
+              req,
+              error,
+              routeLabel: "admin/billing-diagnostics",
+              user: adminUser,
+              metadata: {
+                stripe_lookup_target: "customer",
+                stripe_customer_id: billingProfile.stripe_customer_id,
+                message: "Customer lookup failed in billing diagnostics.",
+              },
+            });
+          }
+          stripeLookupFailures.push({
+            target: "customer",
+            identifier: billingProfile.stripe_customer_id,
+            message,
+          });
+        }
       }
       if (currentContract?.stripe_subscription_id || billingProfile?.stripe_subscription_id) {
         const subscriptionId =
           currentContract?.stripe_subscription_id ?? billingProfile?.stripe_subscription_id ?? null;
         if (subscriptionId) {
-          liveStripeSubscription = await stripeGet<StripeSubscriptionResponse>(
-            `/subscriptions/${subscriptionId}`,
-            {
-              "expand[]": "items.data.price",
-            }
-          );
+          try {
+            liveStripeSubscription = await stripeGet<StripeSubscriptionResponse>(
+              `/subscriptions/${subscriptionId}`,
+              {
+                "expand[]": "items.data.price",
+              }
+            );
+          } catch (error) {
+            await logApiRouteException({
+              req,
+              error,
+              routeLabel: "admin/billing-diagnostics",
+              user: adminUser,
+              metadata: {
+                stripe_lookup_target: "subscription",
+                stripe_subscription_id: subscriptionId,
+                message: "Subscription lookup failed in billing diagnostics.",
+              },
+            });
+            stripeLookupFailures.push({
+              target: "subscription",
+              identifier: subscriptionId,
+              message: stringifyLookupError(error, "subscription lookup"),
+            });
+          }
         }
       } else if (billingProfile?.stripe_customer_id) {
-        const subscriptionList = await stripeGet<StripeSubscriptionListResponse>("/subscriptions", {
-          customer: billingProfile.stripe_customer_id,
-          status: "all",
-          limit: 1,
-          "expand[]": "data.items.data.price",
-        });
-        liveStripeSubscription = Array.isArray(subscriptionList.data)
-          ? (subscriptionList.data[0] ?? null)
-          : null;
+        try {
+          const subscriptionList = await stripeGet<StripeSubscriptionListResponse>(
+            "/subscriptions",
+            {
+              customer: billingProfile.stripe_customer_id,
+              status: "all",
+              limit: 1,
+              "expand[]": "data.items.data.price",
+            }
+          );
+          liveStripeSubscription = Array.isArray(subscriptionList.data)
+            ? (subscriptionList.data[0] ?? null)
+            : null;
+        } catch (error) {
+          await logApiRouteException({
+            req,
+            error,
+            routeLabel: "admin/billing-diagnostics",
+            user: adminUser,
+            metadata: {
+              stripe_lookup_target: "subscription_list",
+              stripe_customer_id: billingProfile.stripe_customer_id,
+              message: "Subscription list lookup failed in billing diagnostics.",
+            },
+          });
+          stripeLookupFailures.push({
+            target: "subscription_list",
+            identifier: billingProfile.stripe_customer_id,
+            message: stringifyLookupError(error, "subscription list lookup"),
+          });
+        }
       }
     }
 
@@ -594,6 +680,7 @@ export default async function handler(
 
     if (
       stripeCustomer.customerId &&
+      stripeCustomer.email != null &&
       normalizeText(authIdentity.email) !== normalizeText(stripeCustomer.email)
     ) {
       pushFinding(findings, {
@@ -609,6 +696,7 @@ export default async function handler(
 
     if (
       stripeCustomer.customerId &&
+      stripeCustomer.name != null &&
       normalizeText(authIdentity.displayName) !== normalizeText(stripeCustomer.name)
     ) {
       pushFinding(findings, {
@@ -703,11 +791,64 @@ export default async function handler(
         details:
           "The server does not have STRIPE_SECRET_KEY configured, so diagnostics are limited to local billing tables.",
       });
-    } else if (
+    }
+
+    const hasStripeLookupFailures = stripeLookupFailures.length > 0;
+    if (hasStripeLookupFailures) {
+      for (const failure of stripeLookupFailures) {
+        const isCustomerFailure = failure.target === "customer";
+        const isModeMismatch = isStripeModeMismatchError(failure.message);
+        const isInternalComp = currentContract?.contract_source === "internal_comp";
+        const details = isCustomerFailure
+          ? `Stripe customer ${failure.identifier ?? "unknown"} could not be loaded: ${failure.message}`
+          : `Stripe subscription lookup for ${failure.identifier ?? "unknown"} failed: ${failure.message}`;
+
+        pushFinding(findings, {
+          code: isCustomerFailure
+            ? isModeMismatch
+              ? "stripe_customer_mode_mismatch"
+              : "stripe_customer_lookup_failed"
+            : "stripe_subscription_lookup_failed",
+          severity: isInternalComp || isModeMismatch ? "warning" : "critical",
+          confidence: isModeMismatch ? "medium" : "high",
+          summary: isModeMismatch
+            ? "Stripe lookup failed due test/live mode mismatch."
+            : "Stripe live lookup failed for a related object.",
+          details,
+          recommendedActions: isModeMismatch
+            ? [
+                "Repair stale Stripe identifiers to match the active billing mode before using this account in billing diagnostics.",
+              ]
+            : [
+                "Inspect the linked Stripe id values and run a reconciliation path after confirming the intended environment and subscription state.",
+              ],
+        });
+      }
+
+      if (
+        currentContract?.contract_source === "internal_comp" &&
+        stripeLookupFailures.some((failure) => failure.target === "customer")
+      ) {
+        pushFinding(findings, {
+          code: "internal_comp_stripe_lookup_failure",
+          severity: "info",
+          confidence: "medium",
+          summary: "Internal-comp user has unresolved Stripe linkage.",
+          details:
+            "Payment-exempt accounts do not require Stripe reconciliation for plan access, but stale customer IDs can still confuse operations.",
+          recommendedActions: [
+            "Use admin payment-exempt controls to clear stale Stripe customer identifiers before retrying reconciliation.",
+          ],
+        });
+      }
+    }
+
+    if (
       currentContract?.contract_source !== "internal_comp" &&
       billingProfile?.stripe_customer_id &&
       (billingProfile?.stripe_subscription_id || currentContract?.stripe_subscription_id) &&
-      !liveStripeSubscription
+      !liveStripeSubscription &&
+      !hasStripeLookupFailures
     ) {
       pushFinding(findings, {
         code: "stripe_subscription_not_found",

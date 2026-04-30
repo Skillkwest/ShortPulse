@@ -71,6 +71,7 @@ export const resolveMediaSignQueuePass = <TRow extends PreparedSigningRowLike>(p
   isSignPrefetchEnabled: boolean;
   isDeferredDrainArmed: boolean;
   signAttemptCounts: Record<string, number>;
+  blockedSignAttemptIds?: Set<string>;
   maxSignAttemptsPerItem?: number;
 }): MediaSignQueuePassResult<TRow> => {
   const {
@@ -81,6 +82,7 @@ export const resolveMediaSignQueuePass = <TRow extends PreparedSigningRowLike>(p
     isSignPrefetchEnabled,
     isDeferredDrainArmed,
     signAttemptCounts,
+    blockedSignAttemptIds,
     maxSignAttemptsPerItem,
   } = params;
   const { readyRows, signCandidateEntryById, rowById, readyIds } = preparedState;
@@ -118,6 +120,7 @@ export const resolveMediaSignQueuePass = <TRow extends PreparedSigningRowLike>(p
 
   const enqueue = (row: TRow | undefined, priority: "urgent" | "deferred") => {
     if (!row) return;
+    if (blockedSignAttemptIds?.has(row.id)) return;
     if (
       typeof maxSignAttemptsPerItem === "number" &&
       Number.isFinite(maxSignAttemptsPerItem) &&

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/admin/error-events";
+import * as errorEventQueries from "../../lib/server/api/adminErrorEvents/queries";
 
 const requireAdminUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
@@ -21,7 +22,6 @@ const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
-
 type QueryResult = {
   data?: unknown[] | null;
   count?: number | null;
@@ -33,6 +33,7 @@ const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
     const queue = queues[table] ?? [];
 
     let selected: QueryResult | null = null;
+    const eqCalls: string[] = [];
     const ensureSelected = () => {
       if (!selected) {
         selected = queue.shift() ?? { data: null, count: null, error: null };
@@ -40,18 +41,22 @@ const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
     };
 
     const query = {
-      select: () => {
+      select: (columns?: string) => {
         ensureSelected();
         return query;
       },
       order: () => query,
       range: () => query,
-      eq: () => query,
+      eq: (column: string, value: string) => {
+        eqCalls.push(`${column}=${value}`);
+        return query;
+      },
+      in: () => query,
+      is: () => query,
       like: () => query,
       not: () => query,
       gte: () => query,
       or: () => query,
-      in: () => query,
       then: (resolve: (value: QueryResult) => unknown, reject: (reason: unknown) => unknown) => {
         ensureSelected();
         const payload: QueryResult = {
@@ -69,6 +74,7 @@ const createSupabaseAdminMock = (queues: Record<string, QueryResult[]>) => ({
 
 describe("GET /api/admin/error-events", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
     process.env.SHORTPULSE_ADMIN_ALERT_TOTAL_15M = "40";
@@ -310,56 +316,14 @@ describe("GET /api/admin/error-events", () => {
     });
   });
 
-  it("returns actionable events without relation-or parse failures", async () => {
+  it("returns actionable events by combining open incidents and unlinked rows", async () => {
+    const req = {
+      method: "GET",
+      query: { page: "1", limit: "50", synthetic: "exclude", incident: "actionable" },
+    };
+    const res = createMockResponse();
     getSupabaseAdminMock.mockReturnValue(
       createSupabaseAdminMock({
-        app_error_events: [
-          {
-            data: [
-              {
-                id: "evt-unlinked",
-                incident_id: null,
-                source: "api.alpha",
-                scope: "app",
-                severity: "medium",
-                message: "Unlinked event",
-                occurred_at: "2026-02-27T18:00:00.000Z",
-              },
-              {
-                id: "evt-open",
-                incident_id: "11111111-1111-4111-8111-111111111111",
-                source: "api.beta",
-                scope: "app",
-                severity: "high",
-                message: "Open incident event",
-                occurred_at: "2026-02-27T17:59:00.000Z",
-              },
-              {
-                id: "evt-resolved",
-                incident_id: "22222222-2222-4222-8222-222222222222",
-                source: "api.gamma",
-                scope: "app",
-                severity: "medium",
-                message: "Resolved incident event",
-                occurred_at: "2026-02-27T17:58:00.000Z",
-              },
-            ],
-            error: null,
-          },
-          { count: 3, error: null },
-          { count: 3, error: null },
-          { count: 1, error: null },
-          { count: 0, error: null },
-          { count: 3, error: null },
-          { count: 3, error: null },
-          { count: 3, error: null },
-          { count: 3, error: null },
-          { count: 1, error: null },
-          { count: 1, error: null },
-          { count: 0, error: null },
-          { count: 0, error: null },
-          { data: [], error: null },
-        ],
         app_error_logs: [
           {
             data: [
@@ -371,12 +335,69 @@ describe("GET /api/admin/error-events", () => {
         ],
       })
     );
-
-    const req = {
-      method: "GET",
-      query: { page: "1", limit: "50", synthetic: "exclude", incident: "actionable" },
-    };
-    const res = createMockResponse();
+    vi.spyOn(errorEventQueries, "fetchErrorEventsDataset").mockResolvedValue({
+      eventsResult: {
+        data: [
+          {
+            id: "evt-ignored",
+            incident_id: "22222222-2222-4222-8222-222222222222",
+            source: "api-ignored",
+            scope: "app",
+            severity: "low",
+            message: "Ignored from dataset",
+            occurred_at: "2026-02-27T18:01:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      filteredCountResult: { count: 0, error: null },
+      last15mCountResult: { count: 3, error: null },
+      high15mCountResult: { count: 1, error: null },
+      generation15mCountResult: { count: 0, error: null },
+      providerRunningTimeout15mCountResult: { count: 0, error: null },
+      lastHourCountResult: { count: 3, error: null },
+      last24hCountResult: { count: 3, error: null },
+      app24hCountResult: { count: 3, error: null },
+      generation24hCountResult: { count: 3, error: null },
+      high24hCountResult: { count: 1, error: null },
+      characterModeReferenceRefreshEmptyLastHourCountResult: { count: 1, error: null },
+      characterModeReferenceRefreshEmptyLast24hCountResult: { count: 0, error: null },
+      characterModeBundleUnavailableFallbackLastHourCountResult: { count: 0, error: null },
+      characterModeBundleUnavailableFallbackLast24hCountResult: { count: 0, error: null },
+      admissionDeniedTelemetryRowsResult: { data: [], error: null },
+    });
+    vi.spyOn(errorEventQueries, "fetchActionableErrorEvents").mockResolvedValue({
+      openEventsResult: {
+        data: [
+          {
+            id: "evt-open",
+            incident_id: "11111111-1111-4111-8111-111111111111",
+            source: "api.beta",
+            scope: "app",
+            severity: "high",
+            message: "Open incident event",
+            occurred_at: "2026-02-27T17:59:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      unlinkedEventsResult: {
+        data: [
+          {
+            id: "evt-unlinked",
+            incident_id: null,
+            source: "api.alpha",
+            scope: "app",
+            severity: "medium",
+            message: "Unlinked event",
+            occurred_at: "2026-02-27T18:00:00.000Z",
+          },
+        ],
+        error: null,
+      },
+      openCountResult: { count: 1, error: null },
+      unlinkedCountResult: { count: 1, error: null },
+    });
 
     await handler(req as never, res as never);
 
@@ -389,10 +410,8 @@ describe("GET /api/admin/error-events", () => {
 
     expect(payload.events.map((event) => event.id)).toEqual(["evt-unlinked", "evt-open"]);
     expect(payload.pagination.totalCount).toBe(2);
-    expect(payload.health.degraded).toBe(true);
-    expect(payload.health.reason).toContain(
-      "Actionable incident filtering uses bounded in-memory merge"
-    );
+    expect(payload.health.degraded).toBe(false);
+    expect(payload.health.reason).toBeNull();
   });
 
   it("returns degraded mode when app_error_events is unavailable", async () => {

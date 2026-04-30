@@ -5,7 +5,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
-  ACTIONABLE_PREFETCH_LIMIT,
   APP_ERROR_EVENTS_MISSING_REASON,
   DEFAULT_GENERATION_15M_THRESHOLD,
   DEFAULT_HIGH_15M_THRESHOLD,
@@ -14,10 +13,7 @@ import {
   DEFAULT_TOTAL_15M_THRESHOLD,
   MAX_LIMIT,
 } from "../../../lib/server/api/adminErrorEvents/constants";
-import {
-  isActionableEvent,
-  enrichEventsWithIncidentStatus,
-} from "../../../lib/server/api/adminErrorEvents/enrichment";
+import { enrichEventsWithIncidentStatus } from "../../../lib/server/api/adminErrorEvents/enrichment";
 import {
   asIncidentFilter,
   asPositiveInt,
@@ -30,6 +26,7 @@ import {
 import {
   fetchErrorEventsDataset,
   fetchFallbackEventsPage,
+  fetchActionableErrorEvents,
 } from "../../../lib/server/api/adminErrorEvents/queries";
 import {
   buildAdmissionSummary,
@@ -87,9 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     const listRangeStart = isActionableIncidentFilter ? 0 : offset;
-    const listRangeEnd = isActionableIncidentFilter
-      ? ACTIONABLE_PREFETCH_LIMIT - 1
-      : offset + limit - 1;
+    const listRangeEnd = isActionableIncidentFilter ? Math.max(0, limit - 1) : offset + limit - 1;
 
     const nowMs = Date.now();
     const since15mIso = new Date(nowMs - 15 * 60 * 1000).toISOString();
@@ -162,23 +157,118 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    let events = eventsResult.data ?? [];
-    const eventRowsCount = Array.isArray(events) ? events.length : 0;
-    const fallbackLikelyHasNextPage = eventRowsCount === limit;
-    const hasFilteredCountError = isActionableIncidentFilter || Boolean(filteredCountResult.error);
-    const totalCount = hasFilteredCountError
+    let events = isActionableIncidentFilter ? [] : (eventsResult.data ?? []);
+    let eventRowsCount = Array.isArray(events) ? events.length : 0;
+    let fallbackLikelyHasNextPage = eventRowsCount === limit;
+    let hasFilteredCountError = isActionableIncidentFilter || Boolean(filteredCountResult.error);
+    let totalCount = hasFilteredCountError
       ? offset + eventRowsCount + (fallbackLikelyHasNextPage ? 1 : 0)
       : Number(filteredCountResult.count ?? 0);
-    const totalPages = hasFilteredCountError
+    let totalPages = hasFilteredCountError
       ? Math.max(1, page + (fallbackLikelyHasNextPage ? 1 : 0))
       : Math.max(1, Math.ceil(totalCount / limit));
-    const resolvedPage = hasFilteredCountError
+    let resolvedPage = hasFilteredCountError
       ? page
       : totalCount > 0
         ? Math.min(page, totalPages)
         : 1;
 
-    if (!hasFilteredCountError && resolvedPage !== page) {
+    if (isActionableIncidentFilter) {
+      const actionableWindow = offset + limit;
+      const actionableEventData = await fetchActionableErrorEvents({
+        supabaseAdmin,
+        filters,
+        fetchWindow: actionableWindow,
+      });
+
+      if (actionableEventData.openEventsResult.error) {
+        if (isMissingEventsTableError(actionableEventData.openEventsResult.error.message)) {
+          return res.status(200).json(
+            buildDegradedEventsPayload({
+              perPage: limit,
+              total15mThreshold,
+              high15mThreshold,
+              generation15mThreshold,
+              providerRunningTimeout15mThreshold,
+              reason: APP_ERROR_EVENTS_MISSING_REASON,
+            })
+          );
+        }
+        return res.status(500).json({
+          error:
+            actionableEventData.openEventsResult.error.message || "Unable to load error events.",
+        });
+      }
+      if (actionableEventData.unlinkedEventsResult.error) {
+        if (isMissingEventsTableError(actionableEventData.unlinkedEventsResult.error.message)) {
+          return res.status(200).json(
+            buildDegradedEventsPayload({
+              perPage: limit,
+              total15mThreshold,
+              high15mThreshold,
+              generation15mThreshold,
+              providerRunningTimeout15mThreshold,
+              reason: APP_ERROR_EVENTS_MISSING_REASON,
+            })
+          );
+        }
+        return res.status(500).json({
+          error:
+            actionableEventData.unlinkedEventsResult.error.message ||
+            "Unable to load error events.",
+        });
+      }
+
+      const openEvents = Array.isArray(actionableEventData.openEventsResult.data)
+        ? actionableEventData.openEventsResult.data
+        : [];
+      const unlinkedEvents = Array.isArray(actionableEventData.unlinkedEventsResult.data)
+        ? actionableEventData.unlinkedEventsResult.data
+        : [];
+      const actionById = new Map<string, unknown>();
+      type ActionableEventRow = {
+        id: string;
+        occurred_at?: string | null;
+      };
+      const mergedActionableEvents = [...openEvents, ...unlinkedEvents]
+        .filter((row): row is ActionableEventRow => {
+          return (
+            row != null &&
+            typeof row === "object" &&
+            typeof (row as { id?: unknown }).id === "string"
+          );
+        })
+        .sort((left, right) => {
+          const leftTime = Date.parse(String(left.occurred_at ?? ""));
+          const rightTime = Date.parse(String(right.occurred_at ?? ""));
+          const leftMs = Number.isFinite(leftTime) ? leftTime : 0;
+          const rightMs = Number.isFinite(rightTime) ? rightTime : 0;
+          return rightMs - leftMs;
+        })
+        .filter((row) => {
+          const eventId = String(row.id);
+          if (actionById.has(eventId)) return false;
+          actionById.set(eventId, row);
+          return true;
+        });
+
+      const hasOpenCountError = Boolean(actionableEventData.openCountResult.error);
+      const hasUnlinkedCountError = Boolean(actionableEventData.unlinkedCountResult.error);
+      hasFilteredCountError = hasOpenCountError || hasUnlinkedCountError;
+      eventRowsCount = mergedActionableEvents.length;
+      fallbackLikelyHasNextPage =
+        openEvents.length === actionableWindow || unlinkedEvents.length === actionableWindow;
+      totalCount = hasFilteredCountError
+        ? offset + eventRowsCount + (fallbackLikelyHasNextPage ? 1 : 0)
+        : countOrZero(actionableEventData.openCountResult) +
+          countOrZero(actionableEventData.unlinkedCountResult);
+      totalPages = hasFilteredCountError
+        ? Math.max(1, page + (fallbackLikelyHasNextPage ? 1 : 0))
+        : Math.max(1, Math.ceil(totalCount / limit));
+      resolvedPage = totalCount > 0 && !hasFilteredCountError ? Math.min(page, totalPages) : page;
+      const responseOffset = (resolvedPage - 1) * limit;
+      events = mergedActionableEvents.slice(responseOffset, responseOffset + limit);
+    } else if (!hasFilteredCountError && resolvedPage !== page) {
       const fallbackOffset = (resolvedPage - 1) * limit;
       const fallbackResult = await fetchFallbackEventsPage({
         supabaseAdmin,
@@ -228,8 +318,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       healthReasons.push(enrichedEventsResult.reason);
     }
 
-    let responseEvents = enrichedEventsResult.events;
-    let responsePagination = {
+    const responseEvents = enrichedEventsResult.events;
+    const responsePagination = {
       page: resolvedPage,
       perPage: limit,
       totalCount,
@@ -237,32 +327,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       hasNextPage: hasFilteredCountError ? fallbackLikelyHasNextPage : resolvedPage < totalPages,
       hasPrevPage: resolvedPage > 1,
     };
-
-    if (isActionableIncidentFilter) {
-      const actionableEvents = responseEvents.filter(isActionableEvent);
-      const actionableTotalCount = actionableEvents.length;
-      const actionableTotalPages = Math.max(1, Math.ceil(actionableTotalCount / limit));
-      const actionableResolvedPage =
-        actionableTotalCount > 0 ? Math.min(page, actionableTotalPages) : 1;
-      const actionableOffset = (actionableResolvedPage - 1) * limit;
-      responseEvents = actionableEvents.slice(actionableOffset, actionableOffset + limit);
-      responsePagination = {
-        page: actionableResolvedPage,
-        perPage: limit,
-        totalCount: actionableTotalCount,
-        totalPages: actionableTotalPages,
-        hasNextPage: actionableResolvedPage < actionableTotalPages,
-        hasPrevPage: actionableResolvedPage > 1,
-      };
-      healthReasons.push(
-        "Actionable incident filtering uses bounded in-memory merge while relation OR parsing is unavailable."
-      );
-      if (eventRowsCount >= ACTIONABLE_PREFETCH_LIMIT) {
-        healthReasons.push(
-          "Actionable results may be truncated at prefetch limit; narrow filters for complete coverage."
-        );
-      }
-    }
 
     const health = healthReasons.length
       ? {

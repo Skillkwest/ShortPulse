@@ -90,7 +90,7 @@ const normalizeInputFidelity = (value: unknown): OpenAiImage2InputFidelity | nul
   if (value == null) return OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY;
   const normalized = normalizeRequiredString(value)?.toLowerCase();
   if (normalized === "low" || normalized === "high") {
-    return normalized;
+    return OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY;
   }
   return null;
 };
@@ -145,7 +145,7 @@ export default async function handler(
       return res.status(400).json({
         error: "Invalid request",
         details:
-          "prompt, size, quality, images, valid input_fidelity, and an optional valid mask are required.",
+          "prompt, size, quality, images, optional compatibility input_fidelity, and an optional valid mask are required.",
       });
     }
 
@@ -171,7 +171,6 @@ export default async function handler(
       size,
       quality,
       images,
-      inputFidelity,
       maskUrl,
     });
     const providerRequestId = edited.providerRequestId ?? `openai:${charge.sourceRef}`;

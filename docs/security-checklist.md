@@ -3,11 +3,13 @@
 Purpose: ensure user isolation and authenticated access across the Next.js app + internal API stack.
 
 ## Current expectations
+
 - Supabase client uses persisted sessions and auto-refresh tokens.
 - Frontend redirects authenticated sessions to the dashboard after sign-in/sign-up.
 - SQL runbook reference: `docs/sops/sop_sql_migration_operations.md`.
 
 ## Required controls
+
 - **RLS**: Enable Row-Level Security on Supabase tables; policies should enforce `user_id = auth.uid()` for select/insert/update/delete on user-owned tables (`saved_creators`, `projects`, `project_workspace_states`, `project_media_items`, `project_prompt_items`, `project_generation_items`, `project_media_folders`, `media_files`, `media_prompts`, `media_folders`, `ai_generations`, `generation_attempts`, `ai_generation_outputs`, `generation_publications`, `generation_projection`). Membership tables (`media_folder_media_items`, `media_folder_prompt_items`, `project_media_folder_media_items`, `project_media_folder_prompt_items`) should enforce user-scoped select/insert/delete. `media_events` allows select + insert only. Control-plane inbox tables such as `generation_observation_inbox` should remain service-role-only, and claim RPCs such as `claim_generation_observation_inbox_batch` must stay `SECURITY DEFINER` with `service_role`-only execute grants.
 - **Billing tables**: Keep `billing_profiles`, `billing_subscription_contracts`, `ai_credit_balance`, and `ai_credit_ledger` isolated per user (`user_id = auth.uid()`). `billing_profiles` and `billing_subscription_contracts` must remain read-only to customer sessions; only trusted server/webhook paths may mutate plan/customer/subscription linkage or subscriber contract terms. `billing_plan_offers` may be public-read but must remain service-role-only for writes. Do not allow users to self-credit with positive ledger rows.
 - **Model pricing control plane**: Keep `model_pricing_policy_versions`, `model_pricing_policy_runtime`, and `model_pricing_policy_events` service-role-only for reads/writes. Customer sessions may read the active policy only through trusted authenticated API routes, never by direct table access or direct RPC execute grants.
@@ -56,7 +58,7 @@ Purpose: ensure user isolation and authenticated access across the Next.js app +
 - **Emergency auth fallback**: `SHORTPULSE_TRUST_PROXY_AUTH_HEADERS` may be enabled only for short-lived incident recovery. Default must remain `false` in normal operation.
 - **Admin boundary**: Restrict admin APIs to operator roles from `app_metadata` (`role`/`roles`) or explicit allow-listed admin emails. Do not trust `user_metadata` for admin authorization.
 - **Dashboard announcement boundary**: Expose only active announcement reads to authenticated users (`/api/announcements/active` + active-row RLS policy) and keep publish/clear operations admin-only through server routes (`/api/admin/announcements/*`) using service-role DB access.
-- **Admin kanban board boundary**: Keep `admin_kanban_items` and `admin_kanban_activity` RLS-enabled with no direct browser policies; all reads/writes must flow through `/api/admin/kanban/*` routes that call `requireAdminUser` and use service-role Supabase access. Archive tasks instead of hard-deleting them during normal operations so the activity trail remains auditable.
+- **Admin kanban board boundary**: Keep `admin_kanban_items` and `admin_kanban_activity` RLS-enabled with no direct browser policies; all reads/writes must flow through `/api/admin/kanban/*` routes that call `requireAdminUser` and use service-role Supabase access. Mutations must use the service-role-only admin kanban RPCs so item state and activity logging commit atomically. Archive tasks instead of hard-deleting them during normal operations so the activity trail remains auditable.
 - **Conversation-state RPC hardening**: Keep `upsert_ai_agent_conversation_state` execute scope service-role-only, enforce bounded TTL/cap in DB logic, and run scheduled cleanup via `prune_ai_agent_conversation_state_expired`.
 - **AI Studio session RPC hardening**: Keep session persistence RPCs (`upsert_ai_studio_session_snapshot`, `get_ai_studio_session_snapshot`, `list_ai_studio_sessions`, `prune_ai_studio_sessions_expired`) service-role-only with explicit `SECURITY DEFINER` search-path hardening and deterministic bounded prune semantics.
 - **Agent safety control-plane RPC hardening**: Keep control-plane RPCs (`get_active_agent_safety_policy`, `activate_agent_safety_policy`, `rollback_agent_safety_policy`) service-role-only with `SECURITY DEFINER` posture; only admin APIs may invoke these via server-side service-role clients.
@@ -64,6 +66,7 @@ Purpose: ensure user isolation and authenticated access across the Next.js app +
 - **Runtime SQL RPC hardening audit**: Run `sql/check_runtime_sql_security_audit.sql` after migration/security updates and before release signoff; require `failing_checks = 0`.
 
 ## Validation
+
 - Periodically test RLS with different users to confirm isolation.
 - Manually verify unauthenticated visitors cannot reach gated routes and cannot list/upload media.
 - Verify new-signup flow allocates the expected plan and initial credits.

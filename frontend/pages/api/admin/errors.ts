@@ -8,6 +8,8 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 500;
+const APP_ERROR_LOGS_MISSING_REASON =
+  "app_error_logs is unavailable; apply sql/create_app_error_logs_table.sql.";
 
 type IncidentQuery = {
   eq: (column: string, value: string) => IncidentQuery;
@@ -53,6 +55,39 @@ const normalizeSearchTerm = (value: unknown): string => {
 const countOrZero = (result: CountQueryResult): number => Number(result.count ?? 0);
 
 const hasQueryError = (result: CountQueryResult): boolean => Boolean(result.error);
+
+const isMissingErrorsTableError = (message: string): boolean => {
+  const normalized = message.toLowerCase();
+  if (!normalized.includes("app_error_logs")) return false;
+  return (
+    normalized.includes("does not exist") ||
+    normalized.includes("could not find the table") ||
+    normalized.includes("schema cache")
+  );
+};
+
+const buildDegradedErrorsPayload = (params: { perPage: number; reason: string }) => ({
+  errors: [],
+  summary: {
+    openCount: 0,
+    highSeverityOpenCount: 0,
+    last24hCount: 0,
+    appOpenCount: 0,
+    generationOpenCount: 0,
+  },
+  health: {
+    degraded: true,
+    reason: params.reason,
+  },
+  pagination: {
+    page: 1,
+    perPage: params.perPage,
+    totalCount: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  },
+});
 
 const applyIncidentFilters = (
   query: IncidentQuery,
@@ -170,6 +205,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ]);
 
     if (logsResult.error) {
+      if (isMissingErrorsTableError(logsResult.error.message)) {
+        return res.status(200).json(
+          buildDegradedErrorsPayload({
+            perPage: limit,
+            reason: APP_ERROR_LOGS_MISSING_REASON,
+          })
+        );
+      }
       return res
         .status(500)
         .json({ error: logsResult.error.message || "Unable to load admin errors." });
@@ -248,6 +291,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (isMissingErrorsTableError(message)) {
+      const perPage = Math.min(MAX_LIMIT, asPositiveInt(req.query.limit, DEFAULT_LIMIT));
+      return res.status(200).json(
+        buildDegradedErrorsPayload({
+          perPage,
+          reason: APP_ERROR_LOGS_MISSING_REASON,
+        })
+      );
+    }
+
     await logApiRouteException({
       req,
       error,

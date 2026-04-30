@@ -156,17 +156,15 @@ describe("Create agent mode boundaries", () => {
 
   it("keeps custom Pulse preference loading out of page-root Create state", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
-    const panelPropSource = readFrontendFile("features/ai-studio/hooks/useAiStudioPanelProps.ts");
 
     expect(pageSource).not.toContain("useCreatePulsePresetPanelPreference");
     expect(pageSource).not.toContain("CreatePulsePreferenceProvider");
     expect(pageSource).not.toContain("CreatePulsePreferenceRuntime");
     expect(pageSource).not.toContain("savedCreatePulsePresets");
     expect(pageSource).not.toContain("selectedCreatePulsePresetIds");
-    expect(panelPropSource).not.toContain("savedCreatePulsePresets");
-    expect(panelPropSource).not.toContain("selectedCreatePulsePresetIds");
-    expect(panelPropSource).not.toContain("savedPulsePresets");
-    expect(panelPropSource).not.toContain("selectedPulsePresetIds");
+    expect(
+      existsSync(path.join(process.cwd(), "features/ai-studio/hooks/useAiStudioPanelProps.ts"))
+    ).toBe(false);
   });
 
   it("keeps mode-owned Create runtime result builders from accepting the opposite mode", () => {
@@ -336,12 +334,12 @@ describe("Create agent mode boundaries", () => {
     expect(pulsePromptStepSource).not.toContain("onAgentEnhanceSend");
   });
 
-  it("keeps Pulse loading presentation out of the shared panel prop builder", () => {
+  it("keeps Pulse loading presentation out of shared Create contracts", () => {
     const pageContractSource = readFrontendFile(
       "features/ai-studio/hooks/contracts/pageContentContracts.ts"
     );
-    const panelPropBuilderSource = readFrontendFile(
-      "features/ai-studio/hooks/useAiStudioPanelProps.ts"
+    const editVideoPanelPropsSource = readFrontendFile(
+      "features/ai-studio/hooks/useAiStudioEditVideoPanelProps.ts"
     );
     const standardCreatePanelPropsSource = readFrontendFile(
       "features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePanelProps.ts"
@@ -353,24 +351,22 @@ describe("Create agent mode boundaries", () => {
       "features/ai-studio/components/create/PulseCreatePropertiesPanel.tsx"
     );
 
-    expect(panelPropBuilderSource).not.toContain("PromptStepPulseLoadingState");
-    expect(panelPropBuilderSource).not.toContain("resolveCreatePulsePresetLabelById");
-    expect(panelPropBuilderSource).not.toContain("pulseLoadingState");
-    expect(panelPropBuilderSource).not.toContain("AgentPulseWorkflowSession");
-    expect(panelPropBuilderSource).not.toContain("CreatePulsePresetId");
-    expect(panelPropBuilderSource).not.toContain("CreatePulseResolvedPreset");
-    expect(panelPropBuilderSource).not.toContain("activeCreatePulsePreset");
-    expect(panelPropBuilderSource).not.toContain("onCreatePulsePresetStart");
-    expect(panelPropBuilderSource).not.toContain("createModeRuntimeProps");
-    expect(panelPropBuilderSource).not.toContain("\n  prompt: string;\n");
-    expect(panelPropBuilderSource).toContain("standardPrompt: string;");
-    expect(panelPropBuilderSource).toContain("pulsePrompt: string;");
-    expect(panelPropBuilderSource).toContain("handleStandardPromptChange");
-    expect(panelPropBuilderSource).toContain("handlePulsePromptChange");
-    expect(panelPropBuilderSource).toContain("prompt: standardPrompt");
-    expect(panelPropBuilderSource).toContain("pulsePrompt");
-    expect(panelPropBuilderSource).toContain("buildStandardCreatePanelProps");
-    expect(panelPropBuilderSource).toContain("buildPulseCreatePanelProps");
+    expect(
+      existsSync(path.join(process.cwd(), "features/ai-studio/hooks/useAiStudioPanelProps.ts"))
+    ).toBe(false);
+    expect(editVideoPanelPropsSource).not.toContain("PromptStepPulseLoadingState");
+    expect(editVideoPanelPropsSource).not.toContain("resolveCreatePulsePresetLabelById");
+    expect(editVideoPanelPropsSource).not.toContain("pulseLoadingState");
+    expect(editVideoPanelPropsSource).not.toContain("AgentPulseWorkflowSession");
+    expect(editVideoPanelPropsSource).not.toContain("CreatePulsePresetId");
+    expect(editVideoPanelPropsSource).not.toContain("CreatePulseResolvedPreset");
+    expect(editVideoPanelPropsSource).not.toContain("activeCreatePulsePreset");
+    expect(editVideoPanelPropsSource).not.toContain("onCreatePulsePresetStart");
+    expect(editVideoPanelPropsSource).not.toContain("createModeRuntimeProps");
+    expect(editVideoPanelPropsSource).not.toContain("standardPrompt: string;");
+    expect(editVideoPanelPropsSource).not.toContain("pulsePrompt: string;");
+    expect(editVideoPanelPropsSource).not.toContain("handleStandardPromptChange");
+    expect(editVideoPanelPropsSource).not.toContain("handlePulsePromptChange");
     expect(standardCreatePanelPropsSource).not.toContain("Pulse");
     expect(standardCreatePanelPropsSource).not.toContain("pulseWorkflowSession");
     expect(pulseCreatePanelPropsSource).not.toContain("Standard");
@@ -415,9 +411,6 @@ describe("Create agent mode boundaries", () => {
     const pulsePrimarySubmitSource = readFrontendFile(
       "features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit.ts"
     );
-    const panelPropBuilderSource = readFrontendFile(
-      "features/ai-studio/hooks/useAiStudioPanelProps.ts"
-    );
     const stateRuntimeControllersSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioStateRuntimeControllers.ts"
     );
@@ -454,8 +447,7 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("pulseCreateCommands:");
     expect(pageSource).toContain("onPrimarySubmit: handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("onGenerateArtifact: handlePulseCreatePrimarySubmit");
-    expect(panelPropBuilderSource).toContain("standardCreateCommands:");
-    expect(panelPropBuilderSource).toContain("pulseCreateCommands:");
+    expect(pageSource).not.toContain("useAiStudioPanelProps");
     expect(pageSource).toContain("useStandardCreatePrimarySubmit");
     expect(pageSource).toContain("usePulseCreatePrimarySubmit");
     expect(pageSource).not.toContain("const pulsePrompt = resolveChatOffCreatePrompt");
@@ -596,7 +588,8 @@ describe("Create agent mode boundaries", () => {
 
   it("keeps the retired expanded-chat control out of Create composer contracts", () => {
     const createSourceFiles = [
-      "features/ai-studio/hooks/useAiStudioPanelProps.ts",
+      "features/ai-studio/createRuntime/buildStandardCreateRuntimeResult.ts",
+      "features/ai-studio/createRuntime/buildPulseCreateRuntimeResult.ts",
       "features/ai-studio/components/create/StandardCreatePropertiesPanel.tsx",
       "features/ai-studio/components/create/PulseCreatePropertiesPanel.tsx",
       "features/ai-studio/components/PromptStep.tsx",
@@ -695,10 +688,10 @@ describe("Create agent mode boundaries", () => {
 
   it("keeps Standard and Pulse Create props from cloning one shared prop bag", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
-    const panelPropBuilderSource = readFrontendFile(
-      "features/ai-studio/hooks/useAiStudioPanelProps.ts"
-    );
 
+    expect(
+      existsSync(path.join(process.cwd(), "features/ai-studio/hooks/useAiStudioPanelProps.ts"))
+    ).toBe(false);
     expect(pageSource).not.toContain("...panelProps.propertiesCreate,");
     expect(pageSource).not.toContain("useAiStudioPanelProps");
     expect(pageSource).toContain("useAiStudioEditVideoPanelProps");
@@ -716,8 +709,5 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain(
       "...panelProps.propertiesCreate.pulse,\n      onExpertCreateModeChange"
     );
-    expect(panelPropBuilderSource).toContain('expertCreateMode === "pulse"');
-    expect(panelPropBuilderSource).toContain("pulse: buildPulseCreatePanelProps");
-    expect(panelPropBuilderSource).toContain("standard: buildStandardCreatePanelProps");
   });
 });

@@ -74,7 +74,14 @@ const {
         balanceCredits?: number | null;
         pendingHoldCredits?: number | null;
         propertiesCreate?: {
-          characterOptions?: Array<{ id: string; name: string; profileImageUrl: string | null }>;
+          expertCreateMode: "standard" | "pulse";
+          standard?: {
+            characterOptions?: Array<{
+              id: string;
+              name: string;
+              profileImageUrl: string | null;
+            }>;
+          };
         };
       } | null,
     };
@@ -204,22 +211,28 @@ vi.mock("next/head", () => ({
 vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
   AiStudioPageContent: (props: {
     propertiesCreate: {
-      onGenerate: () => void;
-      onSelectedCharacterIdChange?: (value: string) => void;
-      onCharacterModeEnabledChange?: (value: boolean) => void;
-      characterOptions?: Array<{ id: string; name: string; profileImageUrl: string | null }>;
+      expertCreateMode: "standard" | "pulse";
+      standard?: {
+        onGenerate: () => void;
+        onSelectedCharacterIdChange?: (value: string, lookId: string) => void;
+        onCharacterModeEnabledChange?: (value: boolean) => void;
+        characterOptions?: Array<{ id: string; name: string; profileImageUrl: string | null }>;
+      };
     };
     balanceCredits?: number | null;
     pendingHoldCredits?: number | null;
   }) => {
     aiStudioPageContentCapture.lastProps = props;
-    const { propertiesCreate } = props;
+    const standardCreateProps =
+      props.propertiesCreate.expertCreateMode === "standard"
+        ? props.propertiesCreate.standard
+        : null;
     return (
       <div>
         <button
           type="button"
           onClick={() => {
-            propertiesCreate.onCharacterModeEnabledChange?.(true);
+            standardCreateProps?.onCharacterModeEnabledChange?.(true);
           }}
         >
           enable-character-mode
@@ -227,12 +240,12 @@ vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
         <button
           type="button"
           onClick={() => {
-            propertiesCreate.onSelectedCharacterIdChange?.("char-1");
+            standardCreateProps?.onSelectedCharacterIdChange?.("char-1", "look-1");
           }}
         >
           select-character
         </button>
-        <button type="button" onClick={() => propertiesCreate.onGenerate()}>
+        <button type="button" onClick={() => standardCreateProps?.onGenerate()}>
           generate
         </button>
       </div>
@@ -473,30 +486,6 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioWorkspaceActions", () => ({
     handleFileBrowserSelection: vi.fn(),
     handleReferenceGridFiles: vi.fn(),
     handleSelectOutput: vi.fn(),
-  }),
-}));
-
-vi.mock("../../features/ai-studio/hooks/useAiStudioPanelProps", () => ({
-  useAiStudioPanelProps: (params: {
-    standardCreateCommands: {
-      handlePrimarySubmit: () => void;
-    };
-    characterOptions: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
-    selectedCharacterId: string;
-    setSelectedCharacterId: (value: string) => void;
-    isCharacterModeEnabled: boolean;
-    setIsCharacterModeEnabled: (value: boolean) => void;
-  }) => ({
-    propertiesCreate: {
-      onGenerate: params.standardCreateCommands.handlePrimarySubmit,
-      onSelectedCharacterIdChange: params.setSelectedCharacterId,
-      onCharacterModeEnabledChange: params.setIsCharacterModeEnabled,
-      characterOptions: params.characterOptions,
-      selectedCharacterId: params.selectedCharacterId,
-      isCharacterModeEnabled: params.isCharacterModeEnabled,
-    },
-    propertiesEditExpert: null,
-    propertiesVideo: null,
   }),
 }));
 
@@ -818,9 +807,9 @@ describe.skip("ai-studio page character mode submission", () => {
 
     await waitFor(() => expect(readSupabaseUserIdMock).toHaveBeenCalled());
     await waitFor(() =>
-      expect(aiStudioPageContentCapture.lastProps?.propertiesCreate?.characterOptions).toHaveLength(
-        1
-      )
+      expect(
+        aiStudioPageContentCapture.lastProps?.propertiesCreate?.standard?.characterOptions
+      ).toHaveLength(1)
     );
     await act(async () => {});
 
@@ -845,9 +834,9 @@ describe.skip("ai-studio page character mode submission", () => {
     });
 
     await waitFor(() =>
-      expect(aiStudioPageContentCapture.lastProps?.propertiesCreate?.characterOptions).toHaveLength(
-        2
-      )
+      expect(
+        aiStudioPageContentCapture.lastProps?.propertiesCreate?.standard?.characterOptions
+      ).toHaveLength(2)
     );
   });
 

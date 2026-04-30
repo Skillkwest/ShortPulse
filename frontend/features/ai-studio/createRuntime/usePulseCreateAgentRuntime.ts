@@ -59,7 +59,7 @@ type UsePulseCreateAgentRuntimeParams = {
   clearRuntime?: () => void;
   restartPulse?: () => { presetId: string; sessionInstanceId: string } | null;
   getAgentContext: PulseCreateAgentContextResolver;
-  setSharedPrompt: (value: string) => void;
+  setPulseCreatePrompt: (value: string) => void;
   findOutputById: (id: string) => StudioOutput | null;
   resolvePanelOutputPreviewUrl: (id: string | null | undefined) => string | null;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
@@ -133,7 +133,7 @@ export const usePulseCreateAgentRuntime = ({
   clearRuntime,
   restartPulse,
   getAgentContext,
-  setSharedPrompt,
+  setPulseCreatePrompt,
   findOutputById,
   resolvePanelOutputPreviewUrl,
   setUiNotice,
@@ -272,7 +272,7 @@ export const usePulseCreateAgentRuntime = ({
         setLatestAgentPrompt,
         setPulseWorkflowSession: setWorkflowSession,
         selectedTool,
-        setSharedPrompt,
+        setSharedPrompt: setPulseCreatePrompt,
         setPromptOrigin,
         sendToAgent,
         appendUserMessage,
@@ -302,7 +302,7 @@ export const usePulseCreateAgentRuntime = ({
       setAgentAttachmentError,
       setAgentAttachments,
       setAgentInput,
-      setSharedPrompt,
+      setPulseCreatePrompt,
       setUiNotice,
       setWorkflowSession,
       trackAgentUiEvent,
@@ -326,7 +326,7 @@ export const usePulseCreateAgentRuntime = ({
         setAgentUiBusy,
         setLatestAgentPrompt,
         setPulseWorkflowSession: setWorkflowSession,
-        setSharedPrompt,
+        setSharedPrompt: setPulseCreatePrompt,
         setPromptOrigin,
         setAgentAttachmentError,
         trackAgentUiEvent,
@@ -345,7 +345,7 @@ export const usePulseCreateAgentRuntime = ({
       selectedTool,
       sendToAgent,
       setAgentAttachmentError,
-      setSharedPrompt,
+      setPulseCreatePrompt,
       setWorkflowSession,
       trackAgentUiEvent,
     ]

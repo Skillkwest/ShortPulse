@@ -49,7 +49,7 @@ type UseStandardCreateAgentRuntimeParams = {
   projectId?: string | null;
   projectRouteRequested?: boolean;
   getAgentContext: StandardCreateAgentContextResolver;
-  setSharedPrompt: (value: string) => void;
+  setStandardCreatePrompt: (value: string) => void;
   addAgentPromptReference: (promptText: string, title?: string) => void;
   editReferenceText: string;
   setEditReferenceText: (value: string) => void;
@@ -116,7 +116,7 @@ export const useStandardCreateAgentRuntime = ({
   projectId,
   projectRouteRequested,
   getAgentContext,
-  setSharedPrompt,
+  setStandardCreatePrompt,
   addAgentPromptReference,
   editReferenceText,
   setEditReferenceText,
@@ -235,7 +235,7 @@ export const useStandardCreateAgentRuntime = ({
     prompt,
     latestAgentPrompt,
     setLatestAgentPrompt,
-    setSharedPrompt,
+    setSharedPrompt: setStandardCreatePrompt,
     setPromptOrigin,
     sendToAgent,
     getAgentContext,
@@ -265,7 +265,7 @@ export const useStandardCreateAgentRuntime = ({
         latestAgentPrompt,
         setLatestAgentPrompt,
         selectedTool,
-        setSharedPrompt,
+        setSharedPrompt: setStandardCreatePrompt,
         setPromptOrigin,
         sendToAgent,
         appendUserMessage,
@@ -296,7 +296,7 @@ export const useStandardCreateAgentRuntime = ({
       setAgentAttachments,
       setAgentInput,
       setPromptOrigin,
-      setSharedPrompt,
+      setStandardCreatePrompt,
       trackAgentUiEvent,
       updateMessageById,
     ]
@@ -342,7 +342,7 @@ export const useStandardCreateAgentRuntime = ({
         setLatestAgentPrompt(commitContent);
         setPromptOrigin("agent");
         if (shouldMirrorAssistantPromptToSharedPrompt) {
-          setSharedPrompt(commitContent);
+          setStandardCreatePrompt(commitContent);
         }
       }
       trackAgentUiEvent("studio_agent_message_edit_committed", {
@@ -354,7 +354,7 @@ export const useStandardCreateAgentRuntime = ({
     [
       agentMessages,
       shouldMirrorAssistantPromptToSharedPrompt,
-      setSharedPrompt,
+      setStandardCreatePrompt,
       trackAgentUiEvent,
       updateMessageById,
     ]

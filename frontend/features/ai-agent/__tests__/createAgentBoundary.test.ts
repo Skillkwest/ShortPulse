@@ -265,6 +265,9 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain(
       "getAgentContext: createPulsePageRuntime.pulseCreateAgentContextResolver"
     );
+    expect(pageSource).toContain("setStandardCreatePrompt: base.setStandardCreatePrompt");
+    expect(pageSource).toContain("setPulseCreatePrompt: base.setPulseCreatePrompt");
+    expect(pageSource).not.toContain("setSharedPrompt: base.setSharedPrompt");
     expect(pageSource).toContain("const createPulsePageRuntime = useCreatePulsePresetPageRuntime");
     expect(pageSource).not.toContain("base.standardCreateAgentContextResolver");
     expect(pageSource).not.toContain("base.pulseCreateAgentContextResolver");

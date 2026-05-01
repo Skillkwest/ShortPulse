@@ -425,13 +425,10 @@ export function AdminKanbanBoardSection() {
             aria-modal="true"
             aria-labelledby="ophestivus-action-log-title"
           >
-            <div className={styles.logHeader}>
-              <div>
-                <p className={styles.boardEyebrow}>Review trail</p>
-                <h3 id="ophestivus-action-log-title" className={styles.logTitle}>
-                  Ophestivus action log
-                </h3>
-              </div>
+            <header className={styles.logHeader}>
+              <h3 id="ophestivus-action-log-title" className={styles.logTitle}>
+                Ophestivus action log
+              </h3>
               <button
                 type="button"
                 className={styles.iconButton}
@@ -440,43 +437,37 @@ export function AdminKanbanBoardSection() {
               >
                 <X size={16} weight="bold" />
               </button>
-            </div>
+            </header>
 
-            <div className={styles.logBody}>
-              {isActionLogLoading ? (
-                <div className={styles.emptyState}>Loading actions</div>
-              ) : actionLogError ? (
-                <div className={styles.emptyState}>{actionLogError}</div>
-              ) : actionLog.length === 0 ? (
-                <div className={styles.emptyState}>No actions recorded</div>
-              ) : (
-                <div className={styles.logList}>
-                  {actionLog.map((entry) => {
-                    const transitionLabel = formatTransitionLabel(entry);
-                    return (
-                      <article key={entry.id} className={styles.logEntry}>
-                        <div className={styles.logEntryTop}>
-                          <div className={styles.logEntryTitleBlock}>
-                            <h4 className={styles.logEntryTitle}>{formatActionLabel(entry)}</h4>
-                            <p className={styles.logEntryTask}>
-                              {entry.itemTitle ?? entry.note ?? "Untitled task"}
-                            </p>
-                          </div>
-                          <time className={styles.logEntryTime} dateTime={entry.createdAt}>
-                            {formatActionDate(entry.createdAt)}
-                          </time>
-                        </div>
-                        <div className={styles.logEntryMeta}>
-                          <span>{entry.actorEmail ?? "Admin"}</span>
-                          {transitionLabel ? <span>{transitionLabel}</span> : null}
-                        </div>
-                        {entry.note ? <p className={styles.logEntryNote}>{entry.note}</p> : null}
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            {isActionLogLoading ? (
+              <div className={styles.emptyState}>Loading actions</div>
+            ) : actionLogError ? (
+              <div className={styles.emptyState}>{actionLogError}</div>
+            ) : actionLog.length === 0 ? (
+              <div className={styles.emptyState}>No actions recorded</div>
+            ) : (
+              <ul className={styles.logList}>
+                {actionLog.map((entry) => {
+                  const taskTitle = entry.itemTitle ?? entry.note ?? "Untitled task";
+                  const transitionLabel = formatTransitionLabel(entry);
+                  const shouldShowNote = Boolean(entry.note && entry.note !== taskTitle);
+                  return (
+                    <li key={entry.id} className={styles.logEntry}>
+                      <p className={styles.logEntryLine}>
+                        <strong>{formatActionLabel(entry)}</strong>
+                        <span>{taskTitle}</span>
+                      </p>
+                      <p className={styles.logEntrySubline}>
+                        <time dateTime={entry.createdAt}>{formatActionDate(entry.createdAt)}</time>
+                        <span>{entry.actorEmail ?? "Admin"}</span>
+                        {transitionLabel ? <span>{transitionLabel}</span> : null}
+                      </p>
+                      {shouldShowNote ? <p className={styles.logEntryNote}>{entry.note}</p> : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         </div>
       ) : null}

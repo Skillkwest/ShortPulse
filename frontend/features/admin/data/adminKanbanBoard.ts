@@ -3,7 +3,7 @@
  * Keeps the operator task board status model centralized for UI and tests.
  */
 
-export type AdminKanbanStatus = "backlog" | "in_progress" | "complete" | "published";
+export type AdminKanbanStatus = "backlog" | "in_progress" | "review" | "complete" | "published";
 
 export type AdminKanbanItem = {
   id: string;
@@ -50,9 +50,14 @@ export const ADMIN_KANBAN_COLUMNS: AdminKanbanColumn[] = [
     helper: "Actively being handled",
   },
   {
+    id: "review",
+    label: "Review",
+    helper: "Ready for operator review",
+  },
+  {
     id: "complete",
     label: "Complete",
-    helper: "Finished, waiting review",
+    helper: "Finished and approved",
   },
   {
     id: "published",

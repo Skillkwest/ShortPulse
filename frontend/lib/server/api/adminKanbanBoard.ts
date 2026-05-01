@@ -4,7 +4,7 @@
  */
 import type { getSupabaseAdmin } from "./supabaseAdmin";
 
-export type AdminKanbanStatus = "backlog" | "in_progress" | "complete" | "published";
+export type AdminKanbanStatus = "backlog" | "in_progress" | "review" | "complete" | "published";
 
 export type AdminKanbanItem = {
   id: string;
@@ -72,6 +72,7 @@ export const ADMIN_KANBAN_DETAILS_MAX_LENGTH = 1000;
 const ADMIN_KANBAN_STATUSES: AdminKanbanStatus[] = [
   "backlog",
   "in_progress",
+  "review",
   "complete",
   "published",
 ];

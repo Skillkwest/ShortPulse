@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-ShortPulse needs a dedicated admin task board for operational work tracking across `Backlog`, `In progress`, `Complete`, and `Published`. The board is also the planned durable coordination surface for a future admin identity agent named Ophestivus.
+ShortPulse needs a dedicated admin task board for operational work tracking across `Backlog`, `In progress`, `Review`, `Complete`, and `Published`. The board is also the planned durable coordination surface for a future admin identity agent named Ophestivus.
 
 The first implementation must support shared admin visibility without granting the browser direct access to control-plane tables or implying autonomous code execution before the safety contract exists.
 

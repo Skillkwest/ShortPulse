@@ -582,14 +582,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (uuid, pk, default `gen_random_uuid()`).
 - `title` (text, required): Trimmed task title with length `1..140`.
 - `details` (text, default `''`): Trimmed operator notes, bounded to 1000 characters.
-- `status` (text, default `backlog`): `backlog | in_progress | complete | published`.
+- `status` (text, default `backlog`): `backlog | in_progress | review | complete | published`.
 - `sort_order` (integer, default `0`): Stable board ordering value for future manual ordering.
 - `created_by` / `updated_by` / `archived_by` (uuid, nullable fk -> `auth.users.id`): Admin attribution.
 - `archived_at` (timestamptz, nullable): Soft-delete marker; active board APIs exclude archived rows.
 - `created_at` / `updated_at` (timestamptz, default UTC now).
 - RLS: enabled with no direct browser policies; trusted admin API routes use service-role access after `requireAdminUser`.
 - Integrity:
-  - Status is constrained to the four shipped board columns.
+  - Status is constrained to the five shipped board columns.
   - `updated_at` is stamped by trigger on row mutation.
   - Partial active indexes support status/ordering reads while archived history remains retained.
 

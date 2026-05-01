@@ -80,6 +80,7 @@ describe("AdminKanbanBoardSection", () => {
     fetchWithAuthMock
       .mockResolvedValueOnce(jsonResponse({ items: [makeItem()] }))
       .mockResolvedValueOnce(jsonResponse({ ok: true, item: makeItem({ status: "in_progress" }) }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, item: makeItem({ status: "review" }) }))
       .mockResolvedValueOnce(jsonResponse({ ok: true, item: makeItem({ status: "complete" }) }))
       .mockResolvedValueOnce(jsonResponse({ ok: true, item: makeItem({ status: "published" }) }));
 
@@ -95,6 +96,13 @@ describe("AdminKanbanBoardSection", () => {
     await waitFor(() =>
       expect(
         within(screen.getByLabelText("In progress tasks")).getByText("Publish billing update")
+      ).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Move Publish billing update right" }));
+    await waitFor(() =>
+      expect(
+        within(screen.getByLabelText("Review tasks")).getByText("Publish billing update")
       ).toBeInTheDocument()
     );
 
@@ -154,7 +162,7 @@ describe("AdminKanbanBoardSection", () => {
             itemTitle: "Publish billing update",
             action: "moved",
             fromStatus: "backlog",
-            toStatus: "complete",
+            toStatus: "review",
             note: "Moved during review",
             actorUserId: "admin-user-1",
             actorEmail: "admin@example.com",
@@ -173,7 +181,7 @@ describe("AdminKanbanBoardSection", () => {
       expect(screen.getByText("Publish billing update")).toBeInTheDocument();
       expect(screen.getByText("Moved during review")).toBeInTheDocument();
       expect(screen.getByText("admin@example.com")).toBeInTheDocument();
-      expect(screen.getByText("Backlog -> Complete")).toBeInTheDocument();
+      expect(screen.getByText("Backlog -> Review")).toBeInTheDocument();
     });
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/admin/kanban/activity",

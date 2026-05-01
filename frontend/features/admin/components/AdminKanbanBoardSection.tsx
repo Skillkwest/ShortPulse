@@ -132,6 +132,7 @@ export function AdminKanbanBoardSection() {
         {
           backlog: 0,
           in_progress: 0,
+          review: 0,
           complete: 0,
           published: 0,
         }

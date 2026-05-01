@@ -161,13 +161,13 @@ describe("admin kanban API routes", () => {
   });
 
   it("moves a task to a valid status", async () => {
-    const item = makeItem({ status: "complete" });
+    const item = makeItem({ status: "review" });
     moveAdminKanbanItemMock.mockResolvedValue(item);
 
     const req = {
       method: "POST",
       query: { itemId: "task-1" },
-      body: { status: "complete" },
+      body: { status: "review" },
     };
     const res = createMockResponse();
     await moveHandler(req as never, res as never);
@@ -176,7 +176,7 @@ describe("admin kanban API routes", () => {
       getSupabaseAdminMock.mock.results[0].value,
       {
         itemId: "task-1",
-        status: "complete",
+        status: "review",
         actorUserId: "admin-1",
         actorEmail: "admin@example.com",
       }
@@ -261,7 +261,7 @@ describe("admin kanban API routes", () => {
         itemTitle: "Draft launch checklist",
         action: "moved",
         fromStatus: "backlog",
-        toStatus: "complete",
+        toStatus: "review",
         note: "Draft launch checklist",
         actorUserId: "admin-1",
         actorEmail: "admin@example.com",

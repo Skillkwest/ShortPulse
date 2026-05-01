@@ -2405,7 +2405,7 @@ create table if not exists public.admin_kanban_items (
         and char_length(details) <= 1000
     ),
     constraint admin_kanban_items_status_check check (
-        status in ('backlog', 'in_progress', 'complete', 'published')
+        status in ('backlog', 'in_progress', 'review', 'complete', 'published')
     ),
     constraint admin_kanban_items_sort_order_check check (sort_order >= 0)
 );
@@ -2433,11 +2433,11 @@ create table if not exists public.admin_kanban_activity (
     ),
     constraint admin_kanban_activity_from_status_check check (
         from_status is null
-        or from_status in ('backlog', 'in_progress', 'complete', 'published')
+        or from_status in ('backlog', 'in_progress', 'review', 'complete', 'published')
     ),
     constraint admin_kanban_activity_to_status_check check (
         to_status is null
-        or to_status in ('backlog', 'in_progress', 'complete', 'published')
+        or to_status in ('backlog', 'in_progress', 'review', 'complete', 'published')
     ),
     constraint admin_kanban_activity_note_length_check check (
         note is null
@@ -2634,8 +2634,8 @@ begin
         raise exception 'Item id is required.' using errcode = '22023';
     end if;
 
-    if v_next_status not in ('backlog', 'in_progress', 'complete', 'published') then
-        raise exception 'status must be one of backlog, in_progress, complete, published.' using errcode = '22023';
+    if v_next_status not in ('backlog', 'in_progress', 'review', 'complete', 'published') then
+        raise exception 'status must be one of backlog, in_progress, review, complete, published.' using errcode = '22023';
     end if;
 
     select *

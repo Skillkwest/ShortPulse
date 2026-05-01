@@ -9,6 +9,7 @@ import styles from "../../../styles/admin.module.css";
 const ADMIN_NAV_ITEMS = [
   { href: "/admin", label: "Support" },
   { href: "/admin/pricing", label: "Pricing" },
+  { href: "/admin/offers", label: "Offers" },
   { href: "/admin/announcements", label: "Announcements" },
   { href: "/admin/stats", label: "Analytics" },
   { href: "/admin/errors", label: "Errors" },

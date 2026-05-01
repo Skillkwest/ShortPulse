@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/admin/billing/contracts/update";
 
 const requireAdminUserMock = vi.fn();
@@ -31,8 +31,14 @@ const createMockResponse = () => ({
 describe("POST /api/admin/billing/contracts/update", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-15T12:00:00.000Z"));
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null, mode: "rich" });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("grants internal comp access and seeds the current period credits", async () => {

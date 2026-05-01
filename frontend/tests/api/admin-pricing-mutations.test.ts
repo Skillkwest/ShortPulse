@@ -26,9 +26,11 @@ vi.mock("../../lib/server/api/billingContracts", () => ({
 }));
 
 const stripePostFormMock = vi.fn();
+const stripeGetMock = vi.fn();
 
 vi.mock("../../lib/server/api/stripe", () => ({
   stripePostForm: (...args: unknown[]) => stripePostFormMock(...args),
+  stripeGet: (...args: unknown[]) => stripeGetMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -43,6 +45,15 @@ describe("admin pricing mutation routes", () => {
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
     isUniqueViolationErrorMock.mockReturnValue(false);
     stripePostFormMock.mockReset();
+    stripeGetMock.mockResolvedValue({
+      id: "price_valid",
+      active: true,
+      currency: "usd",
+      unit_amount: 2600,
+      recurring: null,
+      metadata: {},
+      product: { id: "prod_valid", metadata: {} },
+    });
   });
 
   it("updates a credit package", async () => {
@@ -67,6 +78,18 @@ describe("admin pricing mutation routes", () => {
         }
         throw new Error(`Unexpected table ${table}`);
       },
+    });
+    stripeGetMock.mockResolvedValueOnce({
+      id: "price_growth_2000",
+      active: true,
+      currency: "usd",
+      unit_amount: 2600,
+      recurring: null,
+      metadata: {
+        shortpulse_catalog_type: "credit_package",
+        shortpulse_credit_package_id: "growth_2000",
+      },
+      product: { id: "prod_growth", metadata: {} },
     });
 
     const req = {
@@ -94,60 +117,31 @@ describe("admin pricing mutation routes", () => {
   });
 
   it("creates and activates the next plan offer", async () => {
-    const disableCurrentOffer = vi.fn().mockResolvedValue({ error: null });
-    const insertPlanOffer = vi.fn().mockResolvedValue({ error: null });
+    const activateOffer = vi.fn().mockResolvedValue({
+      data: [
+        {
+          status: "activated",
+          offer_id: "studio__month__studio_admin_offer__abc",
+          message: "Plan offer created and activated.",
+        },
+      ],
+      error: null,
+    });
+    stripeGetMock.mockResolvedValueOnce({
+      id: "price_studio_admin",
+      active: true,
+      currency: "usd",
+      unit_amount: 4900,
+      recurring: { interval: "month" },
+      metadata: {
+        shortpulse_catalog_type: "plan",
+        shortpulse_plan_id: "studio",
+      },
+      product: { id: "prod_studio", metadata: {} },
+    });
 
     getSupabaseAdminMock.mockReturnValue({
-      from: (table: string) => {
-        if (table === "billing_plans") {
-          return {
-            select: () => ({
-              eq: () => ({
-                maybeSingle: async () => ({
-                  data: { id: "studio" },
-                  error: null,
-                }),
-              }),
-            }),
-          };
-        }
-
-        if (table === "billing_plan_offers") {
-          return {
-            select: () => ({
-              eq: () => ({
-                eq: () => ({
-                  eq: () => ({
-                    eq: () => ({
-                      is: () => ({
-                        limit: () => ({
-                          maybeSingle: async () => ({
-                            data: {
-                              id: "studio__current",
-                              billing_interval: "month",
-                              recurring_price_cents: 3900,
-                              monthly_credits_cents: 3000,
-                              storage_limit_bytes: 107374182400,
-                              stripe_price_id: "price_studio_current",
-                            },
-                            error: null,
-                          }),
-                        }),
-                      }),
-                    }),
-                  }),
-                }),
-              }),
-            }),
-            update: () => ({
-              eq: disableCurrentOffer,
-            }),
-            insert: insertPlanOffer,
-          };
-        }
-
-        throw new Error(`Unexpected table ${table}`);
-      },
+      rpc: activateOffer,
     });
 
     const req = {
@@ -159,21 +153,26 @@ describe("admin pricing mutation routes", () => {
         monthlyCreditsCents: 3500,
         storageLimitBytes: 107374182400,
         stripePriceId: "price_studio_admin",
+        expectedCurrentOfferId: "studio__current",
       },
     };
     const res = createMockResponse();
 
     await createPlanOfferHandler(req as never, res as never);
 
-    expect(disableCurrentOffer).toHaveBeenCalled();
-    expect(insertPlanOffer).toHaveBeenCalledWith(
+    expect(stripeGetMock).toHaveBeenCalledWith("/prices/price_studio_admin", {
+      "expand[]": "product",
+    });
+    expect(activateOffer).toHaveBeenCalledWith(
+      "activate_billing_plan_offer",
       expect.objectContaining({
-        plan_id: "studio",
-        offer_name: "Studio Admin Offer",
-        recurring_price_cents: 4900,
-        monthly_credits_cents: 3500,
-        stripe_price_id: "price_studio_admin",
-        acquisition_enabled: true,
+        p_plan_id: "studio",
+        p_offer_name: "Studio Admin Offer",
+        p_recurring_price_cents: 4900,
+        p_monthly_credits_cents: 3500,
+        p_stripe_price_id: "price_studio_admin",
+        p_expected_current_offer_id: "studio__current",
+        p_expected_current_offer_absent: false,
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
@@ -186,13 +185,38 @@ describe("admin pricing mutation routes", () => {
     );
   });
 
+  it("rejects non-free zero-price plan offers before activation", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        planId: "studio",
+        offerName: "Studio Free Admin Offer",
+        recurringPriceCents: 0,
+        monthlyCreditsCents: 3500,
+        storageLimitBytes: 107374182400,
+        stripePriceId: "",
+      },
+    };
+    const res = createMockResponse();
+
+    await createPlanOfferHandler(req as never, res as never);
+
+    expect(stripeGetMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Paid public plan offers must be greater than $0.",
+    });
+  });
+
   it("creates a new plan with initial offer and Stripe linkage", async () => {
     const insertPlan = vi.fn().mockResolvedValue({ error: null });
     const insertOffer = vi.fn().mockResolvedValue({ error: null });
 
     stripePostFormMock
       .mockResolvedValueOnce({ id: "prod_plan_creator" })
-      .mockResolvedValueOnce({ id: "price_plan_creator" });
+      .mockResolvedValueOnce({ id: "price_plan_creator_month" })
+      .mockResolvedValueOnce({ id: "price_plan_creator_year" });
 
     getSupabaseAdminMock.mockReturnValue({
       from: (table: string) => {
@@ -228,6 +252,7 @@ describe("admin pricing mutation routes", () => {
         planId: "creator",
         displayName: "Creator",
         recurringPriceCents: 5900,
+        annualRecurringPriceCents: 59000,
         monthlyCreditsCents: 4500,
         storageLimitBytes: 214748364800,
         sortOrder: 40,
@@ -254,86 +279,162 @@ describe("admin pricing mutation routes", () => {
         "recurring[interval]": "month",
       })
     );
+    expect(stripePostFormMock).toHaveBeenNthCalledWith(
+      3,
+      "/prices",
+      expect.objectContaining({
+        product: "prod_plan_creator",
+        unit_amount: 59000,
+        "recurring[interval]": "year",
+      })
+    );
     expect(insertPlan).toHaveBeenCalledWith(
       expect.objectContaining({
         id: "creator",
         display_name: "Creator",
         sort_order: 40,
         stripe_product_id: "prod_plan_creator",
-        stripe_price_id: "price_plan_creator",
+        stripe_price_id: "price_plan_creator_month",
       })
     );
-    expect(insertOffer).toHaveBeenCalledWith(
+    expect(insertOffer).toHaveBeenCalledWith([
       expect.objectContaining({
         id: "creator__current",
         plan_id: "creator",
-        offer_name: "Creator Current Offer",
-        stripe_price_id: "price_plan_creator",
-      })
-    );
+        offer_name: "Creator Monthly Current Offer",
+        billing_interval: "month",
+        stripe_price_id: "price_plan_creator_month",
+      }),
+      expect.objectContaining({
+        id: "creator__year_current",
+        plan_id: "creator",
+        offer_name: "Creator Annual Current Offer",
+        billing_interval: "year",
+        recurring_price_cents: 59000,
+        stripe_price_id: "price_plan_creator_year",
+      }),
+    ]);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
         planId: "creator",
         offerId: "creator__current",
+        annualOfferId: "creator__year_current",
         stripeProductId: "prod_plan_creator",
-        stripePriceId: "price_plan_creator",
+        stripePriceId: "price_plan_creator_month",
+        annualStripePriceId: "price_plan_creator_year",
       })
     );
   });
 
+  it("rejects non-free zero-price plan creation before creating Stripe artifacts", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        planId: "creator",
+        displayName: "Creator",
+        recurringPriceCents: 0,
+        annualRecurringPriceCents: 0,
+        monthlyCreditsCents: 4500,
+        storageLimitBytes: 214748364800,
+        sortOrder: 40,
+      },
+    };
+    const res = createMockResponse();
+
+    await createPlanHandler(req as never, res as never);
+
+    expect(stripePostFormMock).not.toHaveBeenCalled();
+    expect(getSupabaseAdminMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Paid public plans require monthly and annual prices greater than $0.",
+    });
+  });
+
+  it("passes expected-empty state for first annual plan offer creation", async () => {
+    const activateOffer = vi.fn().mockResolvedValue({
+      data: [
+        {
+          status: "activated",
+          offer_id: "creator__year__creator_annual_admin_offer__abc",
+          message: "Plan offer created and activated.",
+        },
+      ],
+      error: null,
+    });
+    stripeGetMock.mockResolvedValueOnce({
+      id: "price_creator_annual",
+      active: true,
+      currency: "usd",
+      unit_amount: 59000,
+      recurring: { interval: "year" },
+      metadata: {
+        shortpulse_catalog_type: "plan",
+        shortpulse_plan_id: "creator",
+      },
+      product: { id: "prod_creator", metadata: {} },
+    });
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: activateOffer,
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        planId: "creator",
+        offerName: "Creator Annual Admin Offer",
+        billingInterval: "year",
+        recurringPriceCents: 59000,
+        monthlyCreditsCents: 4500,
+        storageLimitBytes: 214748364800,
+        stripePriceId: "price_creator_annual",
+        expectedCurrentOfferId: null,
+        expectedCurrentOfferAbsent: true,
+      },
+    };
+    const res = createMockResponse();
+
+    await createPlanOfferHandler(req as never, res as never);
+
+    expect(activateOffer).toHaveBeenCalledWith(
+      "activate_billing_plan_offer",
+      expect.objectContaining({
+        p_billing_interval: "year",
+        p_expected_current_offer_id: null,
+        p_expected_current_offer_absent: true,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it("creates and activates the next storage add-on offer", async () => {
-    const disableCurrentOffer = vi.fn().mockResolvedValue({ error: null });
-    const insertStorageOffer = vi.fn().mockResolvedValue({ error: null });
+    const activateStorageOffer = vi.fn().mockResolvedValue({
+      data: [
+        {
+          status: "activated",
+          offer_id: "storage_25gb__month__extra_25_gb_admin_offer__abc",
+          message: "Storage add-on offer created and activated.",
+        },
+      ],
+      error: null,
+    });
+    stripeGetMock.mockResolvedValueOnce({
+      id: "price_storage_admin",
+      active: true,
+      currency: "usd",
+      unit_amount: 700,
+      recurring: { interval: "month" },
+      metadata: {
+        shortpulse_catalog_type: "storage_addon",
+        shortpulse_storage_addon_id: "storage_25gb",
+      },
+      product: { id: "prod_storage", metadata: {} },
+    });
 
     getSupabaseAdminMock.mockReturnValue({
-      from: (table: string) => {
-        if (table === "billing_storage_addons") {
-          return {
-            select: () => ({
-              eq: () => ({
-                maybeSingle: async () => ({
-                  data: { id: "storage_25gb" },
-                  error: null,
-                }),
-              }),
-            }),
-          };
-        }
-
-        if (table === "billing_storage_addon_offers") {
-          return {
-            select: () => ({
-              eq: () => ({
-                eq: () => ({
-                  eq: () => ({
-                    is: () => ({
-                      limit: () => ({
-                        maybeSingle: async () => ({
-                          data: {
-                            id: "storage_25gb__current",
-                            storage_limit_bytes: 26843545600,
-                            recurring_price_cents: 500,
-                            stripe_price_id: "price_storage_current",
-                          },
-                          error: null,
-                        }),
-                      }),
-                    }),
-                  }),
-                }),
-              }),
-            }),
-            update: () => ({
-              eq: disableCurrentOffer,
-            }),
-            insert: insertStorageOffer,
-          };
-        }
-
-        throw new Error(`Unexpected table ${table}`);
-      },
+      rpc: activateStorageOffer,
     });
 
     const req = {
@@ -344,20 +445,25 @@ describe("admin pricing mutation routes", () => {
         storageLimitBytes: 26843545600,
         recurringPriceCents: 700,
         stripePriceId: "price_storage_admin",
+        expectedCurrentOfferId: "storage_25gb__current",
       },
     };
     const res = createMockResponse();
 
     await createStorageOfferHandler(req as never, res as never);
 
-    expect(disableCurrentOffer).toHaveBeenCalled();
-    expect(insertStorageOffer).toHaveBeenCalledWith(
+    expect(stripeGetMock).toHaveBeenCalledWith("/prices/price_storage_admin", {
+      "expand[]": "product",
+    });
+    expect(activateStorageOffer).toHaveBeenCalledWith(
+      "activate_billing_storage_addon_offer",
       expect.objectContaining({
-        storage_addon_id: "storage_25gb",
-        offer_name: "Extra 25 GB Admin Offer",
-        recurring_price_cents: 700,
-        stripe_price_id: "price_storage_admin",
-        acquisition_enabled: true,
+        p_storage_addon_id: "storage_25gb",
+        p_offer_name: "Extra 25 GB Admin Offer",
+        p_recurring_price_cents: 700,
+        p_stripe_price_id: "price_storage_admin",
+        p_expected_current_offer_id: "storage_25gb__current",
+        p_expected_current_offer_absent: false,
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);

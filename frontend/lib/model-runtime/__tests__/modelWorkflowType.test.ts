@@ -67,7 +67,7 @@ describe("getAdminModelWorkflowType", () => {
 
     expect(
       getAdminModelWorkflowType({
-        id: "gpt-5-nano",
+        id: "gpt-5.4-nano",
         mediaType: "text",
       })
     ).toBe("Text");

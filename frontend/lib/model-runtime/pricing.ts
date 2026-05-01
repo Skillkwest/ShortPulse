@@ -27,6 +27,7 @@ export const buildDefaultPricingParams = (
     defaults.sourceDurationSeconds = config.defaultSourceDurationSeconds;
   }
   if (config.defaultTextCharacters) defaults.textCharacters = config.defaultTextCharacters;
+  if (config.pricingStrategy === "openai-text-token") defaults.inputTokens = 1_000_000;
   if (config.defaultAudio !== undefined) defaults.audio = config.defaultAudio;
   return { ...defaults, ...overrides };
 };

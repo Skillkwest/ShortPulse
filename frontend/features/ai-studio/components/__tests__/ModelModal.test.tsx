@@ -36,6 +36,14 @@ const readChipTitles = (_container: HTMLElement): string[] => {
     .filter(Boolean);
 };
 
+const readFamilyColumns = (): { family: string; chips: string[] }[] =>
+  Array.from(document.body.querySelectorAll(".model-family-column")).map((column) => ({
+    family: column.querySelector(".model-family-title")?.textContent?.trim() ?? "",
+    chips: Array.from(column.querySelectorAll(".model-chip-title"))
+      .map((element) => element.textContent?.trim() ?? "")
+      .filter(Boolean),
+  }));
+
 describe("ModelModal", () => {
   it("does not close when search text selection overextends to the backdrop", () => {
     const onClose = vi.fn();
@@ -174,6 +182,11 @@ describe("ModelModal", () => {
       "Kling 3.0 (Kie)",
       "Seedance 1.5 Pro (Kie)",
     ]);
+    expect(readFamilyColumns()).toEqual([
+      { family: "Veo", chips: ["Veo 3.1 Fast I2V (Kie)"] },
+      { family: "Kling", chips: ["Kling 3.0 (Kie)"] },
+      { family: "Seedance", chips: ["Seedance 1.5 Pro (Kie)"] },
+    ]);
     expect(screen.getByRole("button", { name: /Kling 3\.0/i })).toBeInTheDocument();
   });
 
@@ -214,7 +227,7 @@ describe("ModelModal", () => {
     expect(screen.getByRole("button", { name: /Seedance 2\.0/i })).toBeInTheDocument();
   });
 
-  it("orders text-image chips by provider-grouped workflow priority", () => {
+  it("groups text-image chips into family columns by workflow priority", () => {
     const options: ModelOption[] = [
       { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
       {
@@ -247,9 +260,14 @@ describe("ModelModal", () => {
       "Nano Banana Pro",
       "FLUX.2 Lite",
     ]);
+    expect(readFamilyColumns()).toEqual([
+      { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
+      { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
+      { family: "FLUX", chips: ["FLUX.2 Lite"] },
+    ]);
   });
 
-  it("orders reference-image chips by provider-grouped workflow priority", () => {
+  it("groups reference-image chips into family columns by workflow priority", () => {
     const options: ModelOption[] = [
       { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro", mediaType: "image" },
       { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2", mediaType: "image" },
@@ -282,9 +300,13 @@ describe("ModelModal", () => {
       "Nano Banana 2",
       "Nano Banana Pro",
     ]);
+    expect(readFamilyColumns()).toEqual([
+      { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
+      { family: "Nano Banana", chips: ["Nano Banana", "Nano Banana 2", "Nano Banana Pro"] },
+    ]);
   });
 
-  it("orders reference-video chips by provider-grouped workflow priority", () => {
+  it("groups reference-video chips into family columns by workflow priority", () => {
     const options: ModelOption[] = [
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -308,6 +330,10 @@ describe("ModelModal", () => {
     );
 
     expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)", "Kling 3.0 (Kie)"]);
+    expect(readFamilyColumns()).toEqual([
+      { family: "Veo", chips: ["Veo 3.1 Fast I2V (Kie)"] },
+      { family: "Kling", chips: ["Kling 3.0 (Kie)"] },
+    ]);
   });
 
   it("hides Fal Veo keyframe chips and keeps Kie Veo visible", () => {

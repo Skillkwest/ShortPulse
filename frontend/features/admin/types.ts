@@ -546,6 +546,31 @@ export type AdminDashboardAnnouncement = {
   updatedAt: string | null;
 };
 
+export type AdminDashboardOfferKind =
+  | "model_pricing"
+  | "plan"
+  | "credit_package"
+  | "storage_addon"
+  | "custom";
+
+export type AdminDashboardOffer = {
+  id: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  offerKind: AdminDashboardOfferKind;
+  discountLabel: string;
+  targetLabel: string;
+  ctaLabel: string;
+  ctaHref: string;
+  displayOrder: number;
+  isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
 export type AdminPricingPolicySnapshot = ModelPricingPolicySnapshot;
 
 export type AdminPricingPreviewVariant = {
@@ -558,12 +583,17 @@ export type AdminPricingModelRow = {
   id: string;
   label: string;
   provider: "fal" | "kie" | "openai" | "elevenlabs" | "other";
+  sourceUrl: string;
   workflowType: AdminModelWorkflowType;
   pricingStrategy: string;
   pricingStrategyLabel: string;
   defaultAspect: string;
   defaultResolution: string | null;
   defaultDurationSeconds: number | null;
+  defaultSourceDurationSeconds: number | null;
+  minDurationSeconds: number | null;
+  maxDurationSeconds: number | null;
+  allowedDurations: number[];
   roundingIncrement: number;
   pricingAuthority: "shared_policy" | "local_pricing" | "metadata_only";
   pricingPreview: AdminCreditPricingBreakdown | null;

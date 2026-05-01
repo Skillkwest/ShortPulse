@@ -45,7 +45,20 @@ type ModelMeta = {
   verified?: boolean;
 };
 
+type ModelFamilyGroup = {
+  key: string;
+  label: string;
+  logo?: string;
+  items: ModelOption[];
+};
+
 const modelMeta: Record<string, ModelMeta> = {
+  "gpt-image-2": {
+    provider: "OpenAI",
+    description: "ChatGPT Image 2 supports high-quality image generation and standard edits.",
+    tags: ["Image", "Text-to-Image", "Image-to-Image"],
+    verified: true,
+  },
   "fal-ai/flux-2/klein/9b": {
     provider: "Black Forest Labs",
     description: "FLUX.2 Lite (9B) for fast text-to-image drafts across core aspect ratios.",
@@ -250,6 +263,36 @@ const sectionLogos: Record<string, string> = {
   Seedream: SEEDREAM_LOGO_SRC,
 };
 
+const modelFamilyMeta: Record<string, { label: string; logo?: string }> = {
+  "gpt-image": { label: "ChatGPT Image" },
+  flux: { label: "FLUX", logo: FLUX_LOGO_SRC },
+  kling: { label: "Kling", logo: KLING_LOGO_SRC },
+  "nano-banana": { label: "Nano Banana", logo: GOOGLE_LOGO_SRC },
+  other: { label: "Other" },
+  seedance: { label: "Seedance", logo: SEEDREAM_LOGO_SRC },
+  seedream: { label: "Seedream", logo: SEEDREAM_LOGO_SRC },
+  veo: { label: "Veo", logo: GOOGLE_LOGO_SRC },
+};
+
+const familyPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
+  "text-image": ["seedream", "nano-banana", "gpt-image", "flux"],
+  "reference-image": ["seedream", "nano-banana", "gpt-image", "flux"],
+  "reference-video": ["veo", "kling", "seedance"],
+  "reference-keyframes": ["veo"],
+  "text-video": ["veo", "kling", "seedance"],
+};
+
+const defaultFamilyPriority = [
+  "veo",
+  "kling",
+  "seedance",
+  "seedream",
+  "nano-banana",
+  "gpt-image",
+  "flux",
+  "other",
+];
+
 const resolveModelLogo = (modelId: string) => {
   const explicitLogo = modelLogos[modelId];
   if (explicitLogo) {
@@ -260,6 +303,17 @@ const resolveModelLogo = (modelId: string) => {
     return undefined;
   }
   return sectionLogos[fallbackKey];
+};
+
+const resolveModelFamilyKey = (modelId: string): string => {
+  if (modelId === "gpt-image-2") return "gpt-image";
+  if (modelId.includes("seedream")) return "seedream";
+  if (modelId.includes("nano-banana")) return "nano-banana";
+  if (modelId.includes("flux")) return "flux";
+  if (modelId.includes("veo")) return "veo";
+  if (modelId.includes("kling")) return "kling";
+  if (modelId.includes("seedance")) return "seedance";
+  return "other";
 };
 
 const contextTooltipTagMap: Record<ModelModalContext, string> = {
@@ -486,6 +540,37 @@ function ModelModalContent({
       return (originalIndex.get(a.value) ?? 0) - (originalIndex.get(b.value) ?? 0);
     });
   }, [context, filteredOptions]);
+  const familyColumns = useMemo((): ModelFamilyGroup[] => {
+    const grouped = new Map<string, ModelOption[]>();
+    orderedOptions.forEach((option) => {
+      const familyKey = resolveModelFamilyKey(option.value);
+      const familyItems = grouped.get(familyKey) ?? [];
+      familyItems.push(option);
+      grouped.set(familyKey, familyItems);
+    });
+
+    const priority = context
+      ? (familyPriorityByContext[context] ?? defaultFamilyPriority)
+      : defaultFamilyPriority;
+    const familyRank = new Map(priority.map((familyKey, index) => [familyKey, index]));
+
+    return Array.from(grouped.entries())
+      .map(([familyKey, items]) => {
+        const familyMeta = modelFamilyMeta[familyKey] ?? modelFamilyMeta.other;
+        return {
+          key: familyKey,
+          label: familyMeta.label,
+          logo: familyMeta.logo,
+          items,
+        };
+      })
+      .sort((a, b) => {
+        const rankA = familyRank.get(a.key) ?? Number.MAX_SAFE_INTEGER;
+        const rankB = familyRank.get(b.key) ?? Number.MAX_SAFE_INTEGER;
+        if (rankA !== rankB) return rankA - rankB;
+        return a.label.localeCompare(b.label);
+      });
+  }, [context, orderedOptions]);
   const modalTitle =
     context && videoModalContexts.has(context)
       ? "Video"
@@ -556,49 +641,73 @@ function ModelModalContent({
     setChipTooltip(null);
   };
 
-  const renderSection = (title: string, items: ModelOption[]) => {
-    if (!items.length) return null;
+  const renderChip = (option: ModelOption) => {
+    const logoSrc = resolveModelLogo(option.value);
+    return (
+      <button
+        key={option.value}
+        type="button"
+        className="model-chip"
+        onClick={() => handleSelect(option.value)}
+        onMouseEnter={handleChipTooltipShow(option.value)}
+        onMouseLeave={handleChipTooltipHide}
+      >
+        <div className="model-chip-row">
+          <div className="model-chip-content">
+            {logoSrc ? (
+              <Image
+                className="model-chip-logo-img"
+                src={logoSrc}
+                alt=""
+                aria-hidden
+                width={80}
+                height={20}
+                style={{ width: "auto" }}
+              />
+            ) : null}
+            <div className="model-chip-text">
+              <span className="model-chip-title">{getDisplayLabel(option.value)}</span>
+            </div>
+          </div>
+          <span className="model-chip-pill">
+            <span aria-hidden="true" className="model-chip-icon">
+              ✦
+            </span>
+            <span className="model-chip-credits">{formatCredits(option.value)}</span>
+          </span>
+        </div>
+      </button>
+    );
+  };
+
+  const renderFamilyColumns = (families: ModelFamilyGroup[]) => {
+    if (!families.length) return null;
     return (
       <div className="model-modal-section">
-        <div className="model-modal-grid">
-          {items.map((option) => {
-            const logoSrc = resolveModelLogo(option.value);
-            return (
-              <button
-                key={option.value}
-                type="button"
-                className="model-chip"
-                onClick={() => handleSelect(option.value)}
-                onMouseEnter={handleChipTooltipShow(option.value)}
-                onMouseLeave={handleChipTooltipHide}
-              >
-                <div className="model-chip-row">
-                  <div className="model-chip-content">
-                    {logoSrc ? (
-                      <Image
-                        className="model-chip-logo-img"
-                        src={logoSrc}
-                        alt=""
-                        aria-hidden
-                        width={80}
-                        height={20}
-                        style={{ width: "auto" }}
-                      />
-                    ) : null}
-                    <div className="model-chip-text">
-                      <span className="model-chip-title">{getDisplayLabel(option.value)}</span>
-                    </div>
-                  </div>
-                  <span className="model-chip-pill">
-                    <span aria-hidden="true" className="model-chip-icon">
-                      ✦
-                    </span>
-                    <span className="model-chip-credits">{formatCredits(option.value)}</span>
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+        <div className="model-family-grid">
+          {families.map((family) => (
+            <section
+              key={family.key}
+              className="model-family-column"
+              aria-label={`${family.label} models`}
+            >
+              <div className="model-family-header">
+                {family.logo ? (
+                  <Image
+                    className="model-family-logo-img"
+                    src={family.logo}
+                    alt=""
+                    aria-hidden
+                    width={80}
+                    height={20}
+                    style={{ width: "auto" }}
+                  />
+                ) : null}
+                <span className="model-family-title">{family.label}</span>
+              </div>
+              <div className="model-family-chip-list">{family.items.map(renderChip)}</div>
+            </section>
+          ))}
         </div>
       </div>
     );
@@ -618,7 +727,7 @@ function ModelModalContent({
     <AiStudioModalLayer>
       <div className="model-modal-backdrop" {...backdropDismiss}>
         <div
-          className="model-modal"
+          className="model-modal model-picker-modal"
           role="dialog"
           aria-modal="true"
           ref={modalRef}
@@ -655,7 +764,7 @@ function ModelModalContent({
               </button>
             </div>
           </div>
-          <div className="model-modal-scroll">{renderSection("Models", orderedOptions)}</div>
+          <div className="model-modal-scroll">{renderFamilyColumns(familyColumns)}</div>
           {chipTooltip ? (
             <div
               className={`model-chip-tooltip ${chipTooltip.placement === "below" ? "is-below" : "is-above"}`}

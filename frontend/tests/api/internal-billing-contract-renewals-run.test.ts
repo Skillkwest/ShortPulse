@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/internal/billing-contract-renewals/run";
 
 const logApiRouteExceptionMock = vi.fn();
@@ -26,9 +26,15 @@ const createMockResponse = () => ({
 describe("POST /api/internal/billing-contract-renewals/run", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-02T00:00:00.000Z"));
     process.env.SHORTPULSE_INTERNAL_BILLING_RENEWALS_ENABLED = "true";
     process.env.SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET = "secret";
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null, mode: "rich" });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renews a due internal comp contract and advances the period", async () => {

@@ -29,13 +29,13 @@ describe("computeCostForModel (economy image lane)", () => {
     expect(cost?.height).toBe(falImageSizeMap["4:3"].height);
   });
 
-  it("applies markup before nearest-5 quantization", () => {
+  it("applies the at-cost credit ceiling by default", () => {
     const cost = computeCostForModel(modelId, { aspect: "1:1" });
     expect(cost).not.toBeNull();
     expect(cost?.megapixels).toBeCloseTo(1.048576, 6);
     expect(cost?.usdRaw).toBeCloseTo(0.006291456, 9);
     expect(cost?.rawCredits).toBe(1);
-    expect(cost?.credits).toBe(5);
+    expect(cost?.credits).toBe(1);
   });
 
   it("uses explicit image dimensions when provided", () => {
@@ -44,17 +44,17 @@ describe("computeCostForModel (economy image lane)", () => {
     expect(cost?.width).toBe(4096);
     expect(cost?.height).toBe(4096);
     expect(cost?.rawCredits).toBe(11);
-    expect(cost?.credits).toBe(15);
+    expect(cost?.credits).toBe(11);
   });
 });
 
 describe("computeCostForModel (FLUX.2 Lite + Bria rounding)", () => {
-  it("uses shared nearest-5 quantization for fal-ai/flux-2/klein/9b by default", () => {
+  it("does not apply global round-nearest quantization for fal-ai/flux-2/klein/9b by default", () => {
     const cost = computeCostForModel("fal-ai/flux-2/klein/9b", { aspect: "4:3" });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.00648, 6);
     expect(cost?.rawCredits).toBe(1);
-    expect(cost?.credits).toBe(5);
+    expect(cost?.credits).toBe(1);
   });
 
   it("keeps FLUX.2 Lite dynamic for large explicit dimensions", () => {
@@ -64,10 +64,10 @@ describe("computeCostForModel (FLUX.2 Lite + Bria rounding)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.rawCredits).toBe(11);
-    expect(cost?.credits).toBe(15);
+    expect(cost?.credits).toBe(11);
   });
 
-  it("uses shared nearest-5 quantization for fal-ai/bria/background/remove by default", () => {
+  it("does not apply global round-nearest quantization for fal-ai/bria/background/remove by default", () => {
     const cost = computeCostForModel("fal-ai/bria/background/remove", {
       imageWidth: 1024,
       imageHeight: 1024,
@@ -75,28 +75,36 @@ describe("computeCostForModel (FLUX.2 Lite + Bria rounding)", () => {
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.018, 6);
     expect(cost?.rawCredits).toBe(2);
-    expect(cost?.credits).toBe(5);
+    expect(cost?.credits).toBe(2);
   });
 });
 
 describe("computeCostForModel (FLUX edit/fill lanes)", () => {
-  it("uses ceil(MP) * $0.05 for fal-ai/flux-pro/v1/fill", () => {
+  it("uses raw megapixels * $0.05 for fal-ai/flux-pro/v1/fill", () => {
     const cost = computeCostForModel("fal-ai/flux-pro/v1/fill", { aspect: "1:1" });
     expect(cost).not.toBeNull();
-    expect(cost?.usdRaw).toBeCloseTo(0.1, 6);
-    expect(cost?.rawCredits).toBe(11);
-    expect(cost?.credits).toBe(15);
+    expect(cost?.usdRaw).toBeCloseTo(0.0524288, 9);
+    expect(cost?.rawCredits).toBe(6);
+    expect(cost?.credits).toBe(6);
+  });
+
+  it("uses raw megapixels * $0.035 for fal-ai/flux-kontext-lora/inpaint", () => {
+    const cost = computeCostForModel("fal-ai/flux-kontext-lora/inpaint", { aspect: "1:1" });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.03670016, 9);
+    expect(cost?.rawCredits).toBe(4);
+    expect(cost?.credits).toBe(4);
   });
 });
 
-describe("computeCostForModel (GPT-5 Nano helper lane)", () => {
+describe("computeCostForModel (GPT-5.4 Nano helper lane)", () => {
   it("calculates non-zero cost from token usage", () => {
-    const cost = computeCostForModel("gpt-5-nano", { inputTokens: 500, outputTokens: 700 });
+    const cost = computeCostForModel("gpt-5.4-nano", { inputTokens: 500, outputTokens: 700 });
     expect(cost).not.toBeNull();
-    expect(cost?.usdRaw).toBeCloseTo(0.0000675, 9);
+    expect(cost?.usdRaw).toBeCloseTo(0.000975, 9);
     expect(cost?.rawCredits).toBe(1);
-    expect(cost?.credits).toBe(5);
-    expect(cost?.usd).toBeCloseTo(0.05, 6);
+    expect(cost?.credits).toBe(1);
+    expect(cost?.usd).toBeCloseTo(0.01, 6);
   });
 });
 
@@ -109,8 +117,8 @@ describe("computeCostForModel (Veo 3.1)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.4, 6);
-    expect(cost?.rawCredits).toBe(42);
-    expect(cost?.credits).toBe(45);
+    expect(cost?.rawCredits).toBe(40);
+    expect(cost?.credits).toBe(40);
   });
 
   it("keeps kie-ai/veo-3.1-fast-i2v pricing invariant across duration/resolution/audio inputs", () => {
@@ -125,14 +133,14 @@ describe("computeCostForModel (Veo 3.1)", () => {
       const cost = computeCostForModel(KIE_VEO_31_FAST_I2V_MODEL_ID, params);
       expect(cost).not.toBeNull();
       expect(cost?.usdRaw).toBeCloseTo(0.4, 6);
-      expect(cost?.rawCredits).toBe(42);
-      expect(cost?.credits).toBe(45);
+      expect(cost?.rawCredits).toBe(40);
+      expect(cost?.credits).toBe(40);
     }
   });
 });
 
 describe("computeCostForModel (Kling 3.0)", () => {
-  it("uses kie-ai/kling-3.0 pro-mode per-second rates with markup", () => {
+  it("uses kie-ai/kling-3.0 pro-mode per-second rates at cost", () => {
     const cost = computeCostForModel(KIE_KLING_30_MODEL_ID, {
       durationSeconds: 4,
       resolution: "1080p",
@@ -141,11 +149,11 @@ describe("computeCostForModel (Kling 3.0)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.36, 6);
-    expect(cost?.rawCredits).toBe(38);
-    expect(cost?.credits).toBe(40);
+    expect(cost?.rawCredits).toBe(36);
+    expect(cost?.credits).toBe(36);
   });
 
-  it("uses kie-ai/kling-3.0 std-mode per-second rates with markup", () => {
+  it("uses kie-ai/kling-3.0 std-mode per-second rates at cost", () => {
     const cost = computeCostForModel(KIE_KLING_30_MODEL_ID, {
       durationSeconds: 4,
       resolution: "720p",
@@ -154,8 +162,8 @@ describe("computeCostForModel (Kling 3.0)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.28, 6);
-    expect(cost?.rawCredits).toBe(29);
-    expect(cost?.credits).toBe(30);
+    expect(cost?.rawCredits).toBe(28);
+    expect(cost?.credits).toBe(28);
   });
 
   it("falls back to resolution-derived mode when explicit mode is absent", () => {
@@ -166,8 +174,8 @@ describe("computeCostForModel (Kling 3.0)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.21, 6);
-    expect(cost?.rawCredits).toBe(22);
-    expect(cost?.credits).toBe(25);
+    expect(cost?.rawCredits).toBe(21);
+    expect(cost?.credits).toBe(21);
   });
 });
 
@@ -180,8 +188,8 @@ describe("computeCostForModel (Kie Seedance 1.5)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.07, 6);
-    expect(cost?.rawCredits).toBe(8);
-    expect(cost?.credits).toBe(10);
+    expect(cost?.rawCredits).toBe(7);
+    expect(cost?.credits).toBe(7);
   });
 
   it("matches observed 12s 1080p audio-off Kie pricing", () => {
@@ -192,8 +200,8 @@ describe("computeCostForModel (Kie Seedance 1.5)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.45, 6);
-    expect(cost?.rawCredits).toBe(47);
-    expect(cost?.credits).toBe(50);
+    expect(cost?.rawCredits).toBe(45);
+    expect(cost?.credits).toBe(45);
   });
 
   it("matches observed 12s 720p audio-on Kie pricing", () => {
@@ -204,8 +212,8 @@ describe("computeCostForModel (Kie Seedance 1.5)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.42, 6);
-    expect(cost?.rawCredits).toBe(44);
-    expect(cost?.credits).toBe(45);
+    expect(cost?.rawCredits).toBe(42);
+    expect(cost?.credits).toBe(42);
   });
 
   it("matches observed 12s 1080p audio-on Kie pricing", () => {
@@ -216,8 +224,8 @@ describe("computeCostForModel (Kie Seedance 1.5)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.9, 6);
-    expect(cost?.rawCredits).toBe(93);
-    expect(cost?.credits).toBe(95);
+    expect(cost?.rawCredits).toBe(90);
+    expect(cost?.credits).toBe(90);
   });
 });
 
@@ -248,63 +256,63 @@ describe("computeCostForModel (Kie Seedance 2)", () => {
 describe("computeCostForModel (Nano Banana Pro)", () => {
   const modelId = "fal-ai/nano-banana-pro";
 
-  it("applies markup and nearest-5 quantization for standard runs", () => {
+  it("applies the at-cost credit ceiling for standard runs", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K" });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.15, 6);
-    expect(cost?.rawCredits).toBe(16);
-    expect(cost?.credits).toBe(20);
+    expect(cost?.rawCredits).toBe(15);
+    expect(cost?.credits).toBe(15);
   });
 
   it("doubles the base price for 4K renders", () => {
     const cost = computeCostForModel(modelId, { resolution: "4K" });
-    expect(cost?.rawCredits).toBe(31);
-    expect(cost?.credits).toBe(35);
+    expect(cost?.rawCredits).toBe(30);
+    expect(cost?.credits).toBe(30);
   });
 
   it("adds web search surcharge", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K", webSearch: true });
     expect(cost?.rawCredits).toBe(17);
-    expect(cost?.credits).toBe(20);
+    expect(cost?.credits).toBe(17);
   });
 });
 
 describe("computeCostForModel (Nano Banana 2)", () => {
   const modelId = "fal-ai/nano-banana-2";
 
-  it("charges 10 credits for 1K defaults", () => {
+  it("charges 8 credits for 1K defaults", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K" });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.08, 6);
-    expect(cost?.rawCredits).toBe(9);
-    expect(cost?.credits).toBe(10);
+    expect(cost?.rawCredits).toBe(8);
+    expect(cost?.credits).toBe(8);
   });
 
   it("supports 0.5K pricing multiplier", () => {
     const cost = computeCostForModel(modelId, { resolution: "0.5K" });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.06, 6);
-    expect(cost?.rawCredits).toBe(7);
-    expect(cost?.credits).toBe(10);
+    expect(cost?.rawCredits).toBe(6);
+    expect(cost?.credits).toBe(6);
   });
 
-  it("charges 15 credits at 2K", () => {
+  it("charges 12 credits at 2K", () => {
     const cost = computeCostForModel(modelId, { resolution: "2K" });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.12, 6);
-    expect(cost?.rawCredits).toBe(13);
-    expect(cost?.credits).toBe(15);
+    expect(cost?.rawCredits).toBe(12);
+    expect(cost?.credits).toBe(12);
   });
 
-  it("charges 20 credits at 4K", () => {
+  it("charges 16 credits at 4K", () => {
     const cost = computeCostForModel(modelId, { resolution: "4K" });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.16, 6);
-    expect(cost?.rawCredits).toBe(17);
-    expect(cost?.credits).toBe(20);
+    expect(cost?.rawCredits).toBe(16);
+    expect(cost?.credits).toBe(16);
   });
 
-  it("adds web search surcharge and keeps nearest-5 quantization", () => {
+  it("adds web search surcharge and keeps credit ceiling", () => {
     const cost = computeCostForModel(modelId, { resolution: "1K", webSearch: true });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.095, 6);
@@ -314,14 +322,14 @@ describe("computeCostForModel (Nano Banana 2)", () => {
 });
 
 describe("computeCostForModel (Seedream)", () => {
-  it("charges a rounded 5-credit minimum at standard resolution", () => {
+  it("charges the ceiled credit value at standard resolution", () => {
     const cost = computeCostForModel("fal-ai/bytedance/seedream/v4.5/text-to-image", {
       resolution: "1K",
     });
     expect(cost).not.toBeNull();
-    expect(cost?.rawCredits).toBe(5);
-    expect(cost?.credits).toBe(5);
-    expect(cost?.usd).toBeCloseTo(0.05, 6);
+    expect(cost?.rawCredits).toBe(4);
+    expect(cost?.credits).toBe(4);
+    expect(cost?.usd).toBeCloseTo(0.04, 6);
   });
 
   it("uses doubled raw usd for 4K inputs", () => {
@@ -330,8 +338,8 @@ describe("computeCostForModel (Seedream)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.08, 6);
-    expect(cost?.rawCredits).toBe(9);
-    expect(cost?.credits).toBe(10);
+    expect(cost?.rawCredits).toBe(8);
+    expect(cost?.credits).toBe(8);
   });
 
   it("keeps seedream 5 lite flat across auto_2K and auto_3K", () => {
@@ -345,7 +353,7 @@ describe("computeCostForModel (Seedream)", () => {
     expect(auto3k).not.toBeNull();
     expect(auto2k?.usdRaw).toBeCloseTo(0.035, 6);
     expect(auto2k?.rawCredits).toBe(4);
-    expect(auto2k?.credits).toBe(5);
+    expect(auto2k?.credits).toBe(4);
     expect(auto2k?.usdRaw).toBeCloseTo(auto3k?.usdRaw ?? 0, 6);
     expect(auto2k?.credits).toBe(auto3k?.credits);
   });

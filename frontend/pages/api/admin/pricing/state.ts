@@ -236,9 +236,19 @@ const buildHealthSummary = ({
   creditPackages: AdminPricingCreditPackageRow[];
   storageAddons: AdminPricingStorageAddonRow[];
 }): AdminPricingHealthSummary => {
-  const activePlanOffersMissingStripePriceIds = plans.filter(
-    (row) => row.status === "active" && !row.stripePriceId
-  ).length;
+  const activePlanOffersMissingStripePriceIds = plans.reduce((count, row) => {
+    const intervalOffers = [row.monthlyOffer, row.annualOffer];
+    return (
+      count +
+      intervalOffers.filter(
+        (offer) =>
+          offer?.acquisitionEnabled &&
+          offer.isActive &&
+          offer.recurringPriceCents > 0 &&
+          !offer.stripePriceId
+      ).length
+    );
+  }, 0);
   const creditPackagesMissingStripePriceIds = creditPackages.filter(
     (row) => !row.stripePriceId
   ).length;
@@ -286,7 +296,7 @@ export default async function handler(
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy();
+    const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy({ bypassCache: true });
     const [
       planMetadataRows,
       planOffersResult,
@@ -536,7 +546,7 @@ export default async function handler(
         ): model is ReturnType<typeof listModelConfigs>[number] & { pricingStrategy: string } =>
           Boolean(model.pricingStrategy)
       )
-      .sort((a, b) => a.label.localeCompare(b.label))
+      // Preserve catalog order so related model families stay grouped in the workbook.
       .map((model) => {
         const pricingPreviewVariants = mapPricingPreviewVariants(
           model,
@@ -546,12 +556,17 @@ export default async function handler(
           id: model.id,
           label: model.label,
           provider: model.provider,
+          sourceUrl: model.sourceUrl ?? "",
           workflowType: getAdminModelWorkflowType(model),
           pricingStrategy: model.pricingStrategy,
           pricingStrategyLabel: getAdminPricingStrategyLabel(model.id, model.pricingStrategy),
           defaultAspect: model.defaultAspect,
           defaultResolution: model.defaultResolution ?? null,
           defaultDurationSeconds: model.defaultDurationSeconds ?? null,
+          defaultSourceDurationSeconds: model.defaultSourceDurationSeconds ?? null,
+          minDurationSeconds: model.minDurationSeconds ?? null,
+          maxDurationSeconds: model.maxDurationSeconds ?? null,
+          allowedDurations: model.allowedDurations ?? [],
           roundingIncrement: resolveModelPricingForModel(runtimePricingPolicy.policy, model.id)
             .roundingIncrement,
           pricingAuthority: model.pricingAuthority ?? "shared_policy",

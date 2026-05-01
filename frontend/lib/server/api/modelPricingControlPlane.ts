@@ -4,6 +4,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   compactModelPricingPolicyDocument,
+  getDefaultModelPricingPolicyDocument,
   type ModelPricingPolicyDocument,
 } from "../../model-runtime/pricingPolicy";
 import { getSupabaseAdmin } from "./supabaseAdmin";
@@ -30,6 +31,9 @@ export type ModelPricingPolicyMutationResult = {
   status: ModelPricingPolicyMutationStatus;
   activePolicyVersion: number | null;
   activePolicyVersionId: number | null;
+  activePolicy: ModelPricingPolicyDocument | null;
+  activePolicyUpdatedAt: string | null;
+  activePolicyUpdatedByEmail: string | null;
   message: string | null;
 };
 
@@ -40,6 +44,11 @@ export type RuntimeModelPricingPolicyResolution = {
   source: "control_plane";
   updatedAt: string | null;
   updatedByEmail: string | null;
+};
+
+type ModelPricingPolicyVersionRow = {
+  id: number;
+  version: number;
 };
 
 const DEFAULT_CONTROL_PLANE_CACHE_TTL_MS = 5000;
@@ -129,11 +138,92 @@ const mapMutationResult = (
   status: asMutationStatus(row?.status) ?? fallbackStatus,
   activePolicyVersion: asNullableNumber(row?.active_policy_version),
   activePolicyVersionId: asNullableNumber(row?.active_policy_version_id),
+  activePolicy: null,
+  activePolicyUpdatedAt: null,
+  activePolicyUpdatedByEmail: null,
   message: asNullableString(row?.message),
 });
 
 export const clearRuntimeModelPricingPolicyCacheForTests = (): void => {
   runtimePolicyCache = null;
+};
+
+export const ensureModelPricingControlPlaneInitialized = async ({
+  supabaseAdmin = getSupabaseAdmin(),
+  actorUserId = null,
+  actorEmail = "system_seed",
+}: {
+  supabaseAdmin?: SupabaseClient;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+} = {}): Promise<boolean> => {
+  const existingRuntimeResult = await supabaseAdmin
+    .from("model_pricing_policy_runtime")
+    .select("singleton")
+    .eq("singleton", true)
+    .maybeSingle();
+
+  if (existingRuntimeResult.error) {
+    throw new Error(
+      existingRuntimeResult.error.message || "Failed to inspect model pricing runtime row."
+    );
+  }
+  if (existingRuntimeResult.data) return false;
+
+  const latestVersionResult = await supabaseAdmin
+    .from("model_pricing_policy_versions")
+    .select("id, version")
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestVersionResult.error) {
+    throw new Error(
+      latestVersionResult.error.message || "Failed to inspect model pricing policy versions."
+    );
+  }
+
+  let activeVersion = latestVersionResult.data as ModelPricingPolicyVersionRow | null;
+  if (!activeVersion) {
+    const insertVersionResult = await supabaseAdmin
+      .from("model_pricing_policy_versions")
+      .insert({
+        version: 1,
+        policy: getDefaultModelPricingPolicyDocument(),
+        note: "baseline_seed_v1",
+        created_by_user_id: actorUserId,
+        created_by_email: actorEmail,
+      })
+      .select("id, version")
+      .single();
+
+    if (insertVersionResult.error) {
+      throw new Error(
+        insertVersionResult.error.message || "Failed to seed model pricing policy version."
+      );
+    }
+    activeVersion = insertVersionResult.data as ModelPricingPolicyVersionRow;
+  }
+
+  const insertRuntimeResult = await supabaseAdmin.from("model_pricing_policy_runtime").upsert(
+    {
+      singleton: true,
+      active_policy_version_id: activeVersion.id,
+      last_known_safe_policy_version_id: activeVersion.id,
+      updated_by_user_id: actorUserId,
+      updated_by_email: actorEmail,
+    },
+    { onConflict: "singleton" }
+  );
+
+  if (insertRuntimeResult.error) {
+    throw new Error(
+      insertRuntimeResult.error.message || "Failed to seed model pricing runtime row."
+    );
+  }
+
+  clearRuntimeModelPricingPolicyCacheForTests();
+  return true;
 };
 
 export const fetchActiveModelPricingPolicy = async ({
@@ -150,8 +240,10 @@ export const fetchActiveModelPricingPolicy = async ({
 
 export const resolveRuntimeModelPricingPolicy = async ({
   controlPlaneCacheTtlMs = process.env.MODEL_PRICING_CONTROL_PLANE_CACHE_TTL_MS,
+  bypassCache = false,
 }: {
   controlPlaneCacheTtlMs?: string | null;
+  bypassCache?: boolean;
 } = {}): Promise<RuntimeModelPricingPolicyResolution> => {
   const hasAdminConfig =
     typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
@@ -163,7 +255,7 @@ export const resolveRuntimeModelPricingPolicy = async ({
   }
 
   const nowMs = Date.now();
-  if (runtimePolicyCache && runtimePolicyCache.expiresAtMs > nowMs) {
+  if (!bypassCache && runtimePolicyCache && runtimePolicyCache.expiresAtMs > nowMs) {
     const cached = runtimePolicyCache.value;
     if (cached) {
       return {
@@ -177,7 +269,11 @@ export const resolveRuntimeModelPricingPolicy = async ({
     }
   }
 
-  const activePolicy = await fetchActiveModelPricingPolicy();
+  let activePolicy = await fetchActiveModelPricingPolicy();
+  if (!activePolicy) {
+    await ensureModelPricingControlPlaneInitialized();
+    activePolicy = await fetchActiveModelPricingPolicy();
+  }
   runtimePolicyCache = {
     expiresAtMs: nowMs + resolveControlPlaneCacheTtlMs(controlPlaneCacheTtlMs),
     value: activePolicy,
@@ -210,19 +306,43 @@ export const applyModelPricingPolicy = async ({
   actorEmail?: string | null;
   supabaseAdmin?: SupabaseClient;
 }): Promise<ModelPricingPolicyMutationResult> => {
-  const { data, error } = await supabaseAdmin.rpc("apply_model_pricing_policy", {
-    p_policy: compactModelPricingPolicyDocument(policy),
-    p_note: note ?? null,
-    p_reason: reason ?? null,
-    p_actor_user_id: actorUserId ?? null,
-    p_actor_email: actorEmail ?? null,
-    p_source: "admin_api",
-  });
-  if (error) {
-    throw new Error(error.message || "Failed to apply model pricing policy.");
+  const applyPolicy = async () => {
+    const { data, error } = await supabaseAdmin.rpc("apply_model_pricing_policy", {
+      p_policy: compactModelPricingPolicyDocument(policy),
+      p_note: note ?? null,
+      p_reason: reason ?? null,
+      p_actor_user_id: actorUserId ?? null,
+      p_actor_email: actorEmail ?? null,
+      p_source: "admin_api",
+    });
+    if (error) {
+      throw new Error(error.message || "Failed to apply model pricing policy.");
+    }
+    return mapMutationResult(normalizeRpcRow(data), "rejected");
+  };
+
+  let result = await applyPolicy();
+  if (result.status === "not_initialized") {
+    await ensureModelPricingControlPlaneInitialized({
+      supabaseAdmin,
+      actorUserId: actorUserId ?? null,
+      actorEmail: actorEmail ?? null,
+    });
+    result = await applyPolicy();
   }
+
   clearRuntimeModelPricingPolicyCacheForTests();
-  return mapMutationResult(normalizeRpcRow(data), "rejected");
+  if (result.status !== "activated") {
+    return result;
+  }
+
+  const activePolicy = await fetchActiveModelPricingPolicy({ supabaseAdmin });
+  return {
+    ...result,
+    activePolicy: activePolicy?.activePolicy ?? null,
+    activePolicyUpdatedAt: activePolicy?.updatedAt ?? null,
+    activePolicyUpdatedByEmail: activePolicy?.updatedByEmail ?? null,
+  };
 };
 
 export const rollbackModelPricingPolicy = async ({

@@ -64,7 +64,7 @@ describe("model pricing coverage", () => {
         ? [60]
         : [undefined];
       const tokenCases =
-        config.pricingStrategy === "gpt41nano-per-token"
+        config.pricingStrategy === "openai-text-token"
           ? [{ inputTokens: 500, outputTokens: 700 }]
           : [{}];
 
@@ -106,12 +106,6 @@ describe("model pricing coverage", () => {
                           );
                         }
 
-                        if (estimate.credits % 5 !== 0) {
-                          failures.push(
-                            `${config.id} => expected nearest-5 credits (${estimate.credits})`
-                          );
-                        }
-
                         if (estimate.rawCredits > estimate.credits) {
                           failures.push(
                             `${config.id} => raw credits exceed billed (${estimate.rawCredits} > ${estimate.credits})`
@@ -142,7 +136,7 @@ describe("model pricing coverage", () => {
     }
   });
 
-  it("uses shared nearest-5 quantization by default for every model", () => {
+  it("does not apply global round-nearest quantization by default", () => {
     listModelConfigs()
       .filter(
         (
@@ -153,7 +147,7 @@ describe("model pricing coverage", () => {
       .forEach((config) => {
         const estimate = computeCostForModel(config.id, {
           aspect: "4:3",
-          ...(config.pricingStrategy === "gpt41nano-per-token"
+          ...(config.pricingStrategy === "openai-text-token"
             ? { inputTokens: 500, outputTokens: 700 }
             : {}),
           ...(TEXT_CHARACTER_STRATEGIES.has(config.pricingStrategy)
@@ -164,7 +158,7 @@ describe("model pricing coverage", () => {
             : {}),
         });
         expect(estimate).not.toBeNull();
-        expect((estimate?.credits ?? 0) % 5).toBe(0);
+        expect(estimate?.credits).toBe(estimate?.rawCredits);
       });
   });
 

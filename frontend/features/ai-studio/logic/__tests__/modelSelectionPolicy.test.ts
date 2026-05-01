@@ -326,7 +326,7 @@ describe("modelSelectionPolicy", () => {
     ]);
   });
 
-  it("narrows standard video selection to text-capable models when the resolved lane is text", () => {
+  it("keeps manually selectable Kling in standard video text-lane selection", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "video",
       mode: "video",
@@ -338,6 +338,7 @@ describe("modelSelectionPolicy", () => {
 
     expect(values).toEqual([
       KIE_VEO_31_FAST_I2V_MODEL_ID,
+      KIE_KLING_30_MODEL_ID,
       KIE_SEEDANCE_15_PRO_MODEL_ID,
       KIE_SEEDANCE_2_MODEL_ID,
       KIE_SEEDANCE_2_FAST_MODEL_ID,

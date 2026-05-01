@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
   compactModelPricingPolicyDocument,
+  modelPricingPolicyDocumentsEqual,
   type ModelPricingPolicyDocument,
 } from "../../../../../lib/model-runtime/pricingPolicy";
 import { logApiRouteException } from "../../../../../lib/server/api/appErrorLogs";
@@ -21,6 +22,7 @@ const normalizeText = (value: unknown, maxLength: number): string | null => {
 
 const statusToHttpCode = (status: string): number => {
   if (status === "rejected") return 400;
+  if (status === "not_initialized") return 503;
   return 200;
 };
 
@@ -47,6 +49,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       actorEmail: adminUser.email ?? null,
     });
     const statusCode = statusToHttpCode(result.status);
+    if (statusCode >= 400) {
+      return res.status(statusCode).json({ ok: false, ...result });
+    }
+    if (!modelPricingPolicyDocumentsEqual(policy, result.activePolicy)) {
+      const message = "Applied policy could not be verified against the active runtime policy.";
+      return res.status(409).json({
+        ok: false,
+        error: message,
+        status: "verification_failed",
+        activePolicyVersion: result.activePolicyVersion,
+        activePolicyVersionId: result.activePolicyVersionId,
+        activePolicy: result.activePolicy,
+        activePolicyUpdatedAt: result.activePolicyUpdatedAt,
+        activePolicyUpdatedByEmail: result.activePolicyUpdatedByEmail,
+        message,
+      });
+    }
     return res.status(statusCode).json({ ok: statusCode < 400, ...result });
   } catch (error) {
     await logApiRouteException({

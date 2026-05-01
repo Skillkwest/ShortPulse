@@ -42,6 +42,7 @@ export const useActiveModelPricingPolicy = ({
     try {
       const response = await fetchWithAuth("/api/pricing/model-policy", {
         method: "GET",
+        shortpulseRetryNetworkOnce: true,
       });
       const payload = (await response.json().catch(() => ({}))) as
         | ModelPricingPolicyApiResponse

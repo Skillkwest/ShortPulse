@@ -66,9 +66,8 @@ select
         'schemaVersion', 1,
         'global', jsonb_build_object(
             'creditUsdScale', 100,
-            'markupBps', 300,
-            'defaultRoundingMode', 'nearest-5',
-            'defaultRoundingIncrement', 5,
+            'defaultRoundingMode', 'ceil',
+            'defaultRoundingIncrement', 1,
             'exceptionRoundingModelIds', jsonb_build_array(
                 'fal-ai/flux-2/klein/9b',
                 'fal-ai/bria/background/remove'

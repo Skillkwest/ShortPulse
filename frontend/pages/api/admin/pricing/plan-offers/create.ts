@@ -4,10 +4,12 @@ import { logApiRouteException } from "../../../../../lib/server/api/appErrorLogs
 import { requireAdminUser } from "../../../../../lib/server/api/auth";
 import {
   buildCatalogOfferId,
+  CatalogStripePriceValidationError,
   normalizeNullableText,
   normalizeRequiredText,
   parseNonNegativeInteger,
   requireStripePriceForPaidCatalogRow,
+  validateStripePriceForCatalogRow,
 } from "../../../../../lib/server/api/adminPricingCatalog";
 import { getSupabaseAdmin } from "../../../../../lib/server/api/supabaseAdmin";
 
@@ -19,19 +21,25 @@ type CreatePlanOfferRequest = {
   monthlyCreditsCents?: number | string;
   storageLimitBytes?: number | string;
   stripePriceId?: string | null;
+  expectedCurrentOfferId?: string | null;
+  expectedCurrentOfferAbsent?: boolean;
 };
 
-type CurrentPlanOfferRow = {
-  id: string;
-  billing_interval: "month" | "year";
-  recurring_price_cents: number;
-  monthly_credits_cents: number;
-  storage_limit_bytes: number;
-  stripe_price_id: string | null;
+type ActivateOfferResult = {
+  status: "activated" | "already_current" | "rejected" | "not_found" | "stale";
+  offer_id: string | null;
+  message: string | null;
 };
 
 const normalizeBillingInterval = (value: unknown): "month" | "year" =>
   value === "year" ? "year" : "month";
+
+const statusToHttpCode = (status: ActivateOfferResult["status"]): number => {
+  if (status === "rejected") return 400;
+  if (status === "not_found") return 404;
+  if (status === "stale") return 409;
+  return 200;
+};
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -50,6 +58,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const monthlyCreditsCents = parseNonNegativeInteger(body.monthlyCreditsCents);
   const storageLimitBytes = parseNonNegativeInteger(body.storageLimitBytes);
   const stripePriceId = normalizeNullableText(body.stripePriceId);
+  const expectedCurrentOfferId = normalizeNullableText(body.expectedCurrentOfferId);
+  const expectedCurrentOfferAbsent =
+    expectedCurrentOfferId == null && body.expectedCurrentOfferAbsent === true;
 
   if (!planId) {
     return res.status(400).json({ error: "planId is required." });
@@ -59,6 +70,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (recurringPriceCents == null) {
     return res.status(400).json({ error: "recurringPriceCents must be a non-negative integer." });
+  }
+  if (planId !== "free" && recurringPriceCents <= 0) {
+    return res.status(400).json({ error: "Paid public plan offers must be greater than $0." });
   }
   if (monthlyCreditsCents == null) {
     return res.status(400).json({ error: "monthlyCreditsCents must be a non-negative integer." });
@@ -71,102 +85,54 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const [planResult, currentOfferResult] = await Promise.all([
-      supabaseAdmin.from("billing_plans").select("id").eq("id", planId).maybeSingle(),
-      supabaseAdmin
-        .from("billing_plan_offers")
-        .select(
-          "id, billing_interval, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id"
-        )
-        .eq("plan_id", planId)
-        .eq("billing_interval", billingInterval)
-        .eq("acquisition_enabled", true)
-        .eq("is_active", true)
-        .is("effective_end_at", null)
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-    if (planResult.error || currentOfferResult.error) {
-      throw new Error(
-        [planResult.error?.message, currentOfferResult.error?.message]
-          .filter(Boolean)
-          .join(" | ") || "Failed to load the current plan pricing state."
-      );
-    }
-    if (!planResult.data) {
-      return res.status(404).json({ error: "Plan not found." });
-    }
-
-    const currentOffer = (currentOfferResult.data as CurrentPlanOfferRow | null) ?? null;
-    if (
-      currentOffer &&
-      Number(currentOffer.recurring_price_cents) === recurringPriceCents &&
-      Number(currentOffer.monthly_credits_cents) === monthlyCreditsCents &&
-      Number(currentOffer.storage_limit_bytes) === storageLimitBytes &&
-      (currentOffer.stripe_price_id ?? null) === stripePriceId
-    ) {
-      return res.status(200).json({
-        ok: true,
-        id: currentOffer.id,
-        message: "Plan offer is already current.",
-      });
-    }
-
-    const nowIso = new Date().toISOString();
-    if (currentOffer) {
-      const { error: disableCurrentError } = await supabaseAdmin
-        .from("billing_plan_offers")
-        .update({
-          acquisition_enabled: false,
-          effective_end_at: nowIso,
-          updated_at: nowIso,
-        })
-        .eq("id", currentOffer.id);
-      if (disableCurrentError) {
-        throw new Error(disableCurrentError.message || "Failed to close the current plan offer.");
-      }
-    }
-
-    const nextOfferId = buildCatalogOfferId(planId, offerName, billingInterval);
-    const insertResult = await supabaseAdmin.from("billing_plan_offers").insert({
-      id: nextOfferId,
-      plan_id: planId,
-      offer_name: offerName,
-      billing_interval: billingInterval,
-      recurring_price_cents: recurringPriceCents,
-      monthly_credits_cents: monthlyCreditsCents,
-      storage_limit_bytes: storageLimitBytes,
-      stripe_price_id: stripePriceId,
-      acquisition_enabled: true,
-      is_active: true,
-      effective_start_at: nowIso,
+    await validateStripePriceForCatalogRow({
+      stripePriceId,
+      expectedAmountCents: recurringPriceCents,
+      expectedInterval: billingInterval,
+      catalogType: "plan",
+      expectedMetadataIdKey: "shortpulse_plan_id",
+      expectedMetadataIdValue: planId,
     });
 
-    if (insertResult.error) {
-      if (currentOffer) {
-        await supabaseAdmin
-          .from("billing_plan_offers")
-          .update({
-            acquisition_enabled: true,
-            effective_end_at: null,
-            updated_at: nowIso,
-          })
-          .eq("id", currentOffer.id);
-      }
-      if (isUniqueViolationError(insertResult.error)) {
+    const supabaseAdmin = getSupabaseAdmin();
+    const nextOfferId = buildCatalogOfferId(planId, offerName, billingInterval);
+    const rpcResult = await supabaseAdmin.rpc("activate_billing_plan_offer", {
+      p_offer_id: nextOfferId,
+      p_plan_id: planId,
+      p_offer_name: offerName,
+      p_billing_interval: billingInterval,
+      p_recurring_price_cents: recurringPriceCents,
+      p_monthly_credits_cents: monthlyCreditsCents,
+      p_storage_limit_bytes: storageLimitBytes,
+      p_stripe_price_id: stripePriceId,
+      p_expected_current_offer_id: expectedCurrentOfferId,
+      p_expected_current_offer_absent: expectedCurrentOfferAbsent,
+    });
+
+    if (rpcResult.error) {
+      if (isUniqueViolationError(rpcResult.error)) {
         return res.status(409).json({ error: "Offer name or Stripe price id is already in use." });
       }
-      throw new Error(insertResult.error.message || "Failed to create the next plan offer.");
+      throw new Error(rpcResult.error.message || "Failed to create the next plan offer.");
     }
 
-    return res.status(200).json({
-      ok: true,
-      id: nextOfferId,
-      message: "Plan offer created and activated.",
+    const result = (
+      Array.isArray(rpcResult.data) ? rpcResult.data[0] : rpcResult.data
+    ) as ActivateOfferResult | null;
+    const statusCode = statusToHttpCode(result?.status ?? "rejected");
+    return res.status(statusCode).json({
+      ok: statusCode < 400,
+      id: result?.offer_id ?? nextOfferId,
+      status: result?.status ?? "rejected",
+      message: result?.message ?? "Plan offer created and activated.",
+      ...(statusCode >= 400
+        ? { error: result?.message ?? "Failed to create the next plan offer." }
+        : {}),
     });
   } catch (error) {
+    if (error instanceof CatalogStripePriceValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
     await logApiRouteException({
       req,
       error,

@@ -37,6 +37,8 @@ import { buildPricingPath } from "../features/pricing/paths";
 import { ConfirmationModal } from "../components/ConfirmationModal";
 import { trackMarketingPageView } from "../lib/growthTelemetry";
 import { loadBillingCatalogSnapshot } from "../lib/server/api/billingCatalog";
+import { readActiveDashboardOffers, type DashboardOffer } from "../lib/server/api/dashboardOffers";
+import { getSupabaseAdmin } from "../lib/server/api/supabaseAdmin";
 import {
   ensureSupabaseClient,
   ensureSupabaseQueryClient,
@@ -62,6 +64,7 @@ type BillingProfilePlanRow = {
 type DashboardPageStaticProps = InferGetStaticPropsType<typeof getStaticProps>;
 type DashboardPageProps = {
   billingCatalog?: DashboardPageStaticProps["billingCatalog"];
+  dashboardOffers?: DashboardPageStaticProps["dashboardOffers"];
 };
 
 type DashboardHeaderCard = {
@@ -106,32 +109,59 @@ const emptyBillingCatalogSnapshot = (): BillingCatalogSnapshot => ({
   storageAddons: [],
 });
 
-const buildGuestHeaderCards = (): DashboardHeaderCard[] => [
-  {
-    key: "guest-offer-1",
-    label: "Offer 1",
-    value: "Offer 1",
-    icon: Sparkle,
-  },
-  {
-    key: "guest-offer-2",
-    label: "Offer 2",
-    value: "Offer 2",
-    icon: CloudArrowUp,
-  },
-  {
-    key: "guest-offer-3",
-    label: "Offer 3",
-    value: "Offer 3",
-    icon: ShieldCheck,
-  },
-  {
-    key: "guest-offer-4",
-    label: "Offer 4",
-    value: "Offer 4",
-    icon: ChartBar,
-  },
-];
+const loadDashboardOffersSnapshot = async (): Promise<DashboardOffer[]> => {
+  try {
+    return await readActiveDashboardOffers(getSupabaseAdmin());
+  } catch {
+    return [];
+  }
+};
+
+const getOfferIcon = (offer: DashboardOffer) => {
+  if (offer.offerKind === "storage_addon") return CloudArrowUp;
+  if (offer.offerKind === "plan") return ShieldCheck;
+  if (offer.offerKind === "model_pricing") return ChartBar;
+  return Sparkle;
+};
+
+const buildGuestHeaderCards = (offers: DashboardOffer[]): DashboardHeaderCard[] => {
+  if (offers.length) {
+    return offers.slice(0, 4).map((offer) => ({
+      key: offer.id,
+      label: offer.eyebrow,
+      value: offer.title,
+      icon: getOfferIcon(offer),
+      href: offer.ctaHref,
+    }));
+  }
+
+  return [
+    {
+      key: "guest-offer-1",
+      label: "Offer 1",
+      value: "Offer 1",
+      icon: Sparkle,
+    },
+    {
+      key: "guest-offer-2",
+      label: "Offer 2",
+      value: "Offer 2",
+      icon: CloudArrowUp,
+    },
+    {
+      key: "guest-offer-3",
+      label: "Offer 3",
+      value: "Offer 3",
+      icon: ShieldCheck,
+    },
+    {
+      key: "guest-offer-4",
+      label: "Offer 4",
+      value: "Offer 4",
+      icon: ChartBar,
+    },
+  ];
+};
 
 const dashboardToolCards: DashboardToolCard[] = [
   {
@@ -183,19 +213,24 @@ const dashboardToolCards: DashboardToolCard[] = [
  */
 export const getStaticProps: GetStaticProps<{
   billingCatalog: BillingCatalogSnapshot;
+  dashboardOffers: DashboardOffer[];
 }> = async () => {
-  try {
-    const billingCatalog = await loadBillingCatalogSnapshot();
-    return {
-      props: { billingCatalog },
-      revalidate: 60,
-    };
-  } catch {
-    return {
-      props: { billingCatalog: emptyBillingCatalogSnapshot() },
-      revalidate: 60,
-    };
-  }
+  const [billingCatalogResult, dashboardOffersResult] = await Promise.allSettled([
+    loadBillingCatalogSnapshot(),
+    loadDashboardOffersSnapshot(),
+  ]);
+
+  return {
+    props: {
+      billingCatalog:
+        billingCatalogResult.status === "fulfilled"
+          ? billingCatalogResult.value
+          : emptyBillingCatalogSnapshot(),
+      dashboardOffers:
+        dashboardOffersResult.status === "fulfilled" ? dashboardOffersResult.value : [],
+    },
+    revalidate: 60,
+  };
 };
 
 /**
@@ -203,6 +238,7 @@ export const getStaticProps: GetStaticProps<{
  */
 export default function DashboardPage({
   billingCatalog = emptyBillingCatalogSnapshot(),
+  dashboardOffers = [],
 }: DashboardPageProps) {
   const router = useRouter();
   const { initialized, user } = useSupabaseSessionState();
@@ -515,7 +551,7 @@ export default function DashboardPage({
 
       <main id="main-content" className="page page-wide dashboard-refresh">
         <DashboardAppBar
-          cards={isAuthenticated ? authHeaderCards : buildGuestHeaderCards()}
+          cards={isAuthenticated ? authHeaderCards : buildGuestHeaderCards(dashboardOffers)}
           actionSlot={
             isAuthenticated ? (
               <div className="user-cluster profile-menu" ref={profileMenuRef}>

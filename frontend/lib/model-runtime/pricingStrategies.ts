@@ -35,6 +35,14 @@ const ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION = 0.12;
 const ELEVENLABS_SOUND_EFFECT_EXPLICIT_USD_PER_SECOND =
   ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION / 5;
 const ELEVENLABS_MUSIC_USD_PER_MINUTE = 0.3;
+const OPENAI_TEXT_TOKEN_RATES_USD_PER_M: Record<
+  string,
+  { input: number; cachedInput: number; output: number }
+> = {
+  "gpt-5.4": { input: 2.5, cachedInput: 0.25, output: 15 },
+  "gpt-5.4-mini": { input: 0.75, cachedInput: 0.075, output: 4.5 },
+  "gpt-5.4-nano": { input: 0.2, cachedInput: 0.02, output: 1.25 },
+};
 const VEO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.4;
 const VEO_NO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.2;
 const VEO_AUDIO_RATE_4K_USD_PER_SECOND = 0.6;
@@ -162,8 +170,7 @@ const computeFalPerMpCost: StrategyFn = ({
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const roundedMp = Math.ceil(megapixels);
-  const usdRaw = roundedMp * FAL_COST_PER_MP_USD;
+  const usdRaw = megapixels * FAL_COST_PER_MP_USD;
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -210,8 +217,7 @@ const computeFalFillPerMpCost: StrategyFn = ({
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const roundedOutputMp = Math.max(1, Math.ceil(megapixels));
-  const usdRaw = roundedOutputMp * FLUX_PRO_FILL_COST_PER_MP_USD;
+  const usdRaw = megapixels * FLUX_PRO_FILL_COST_PER_MP_USD;
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -233,8 +239,7 @@ const computeFluxKontextInpaintPerMpCost: StrategyFn = ({
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const roundedOutputMp = Math.max(1, Math.ceil(megapixels));
-  const usdRaw = roundedOutputMp * FLUX_KONTEXT_INPAINT_COST_PER_MP_USD;
+  const usdRaw = megapixels * FLUX_KONTEXT_INPAINT_COST_PER_MP_USD;
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -297,18 +302,19 @@ const computeGptImage2PerImageCost: StrategyFn = ({
   });
 };
 
-const computeGpt41NanoPerTokenCost: StrategyFn = ({
+const computeOpenAiTextTokenCost: StrategyFn = ({
   modelId,
   inputTokens = 0,
+  cachedInputTokens = 0,
   outputTokens = 0,
   pricingPolicy,
 }) => {
-  // Rates are per 1M tokens: input $0.10, output $0.025.
-  const INPUT_USD_PER_M = 0.1;
-  const OUTPUT_USD_PER_M = 0.025;
+  const rates = OPENAI_TEXT_TOKEN_RATES_USD_PER_M[modelId];
+  if (!rates) return null;
   const totalUsd =
-    (Math.max(0, inputTokens) / 1_000_000) * INPUT_USD_PER_M +
-    (Math.max(0, outputTokens) / 1_000_000) * OUTPUT_USD_PER_M;
+    (Math.max(0, inputTokens) / 1_000_000) * rates.input +
+    (Math.max(0, cachedInputTokens) / 1_000_000) * rates.cachedInput +
+    (Math.max(0, outputTokens) / 1_000_000) * rates.output;
   return toCostBreakdown({
     modelId,
     usdRaw: totalUsd,
@@ -384,7 +390,7 @@ const computeElevenLabsSoundEffectCost: StrategyFn = ({
 
 const computeElevenLabsMusicCost: StrategyFn = ({ durationSeconds, modelId, pricingPolicy }) => {
   const resolvedDurationSeconds =
-    resolvePositiveFiniteNumber(durationSeconds) ?? resolveDefaultDuration({ modelId }, 30);
+    resolvePositiveFiniteNumber(durationSeconds) ?? resolveDefaultDuration({ modelId }, 60);
   const normalizedDurationSeconds = resolvePositiveFiniteNumber(resolvedDurationSeconds);
   if (normalizedDurationSeconds == null) return null;
 
@@ -635,7 +641,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "gpt-image-2-per-image": computeGptImage2PerImageCost,
   "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
   "nano-banana-2-per-image": computeNanoBanana2PerImageCost,
-  "gpt41nano-per-token": computeGpt41NanoPerTokenCost,
+  "openai-text-token": computeOpenAiTextTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,
   "seedream-per-image": computeSeedreamPerImageCost,
   "seedream-5-lite-per-image": computeSeedream5LitePerImageCost,

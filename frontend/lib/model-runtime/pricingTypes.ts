@@ -15,7 +15,7 @@ export type PricingStrategyId =
   | "gpt-image-2-per-image"
   | "google-nano-banana-per-image"
   | "nano-banana-2-per-image"
-  | "gpt41nano-per-token"
+  | "openai-text-token"
   | "nano-banana-per-image"
   | "seedream-per-image"
   | "seedream-5-lite-per-image"
@@ -36,6 +36,7 @@ export type PricingParams = {
   inputFidelity?: string;
   maskPresent?: boolean;
   inputTokens?: number;
+  cachedInputTokens?: number;
   outputTokens?: number;
   durationSeconds?: number;
   generationCount?: number;

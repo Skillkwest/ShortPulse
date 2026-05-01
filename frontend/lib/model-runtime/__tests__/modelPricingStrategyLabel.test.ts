@@ -25,7 +25,9 @@ describe("getAdminPricingStrategyLabel", () => {
   });
 
   it("describes token billing plainly", () => {
-    expect(getAdminPricingStrategyLabel("gpt-5-nano", "gpt41nano-per-token")).toBe("Per token");
+    expect(getAdminPricingStrategyLabel("gpt-5.4-nano", "openai-text-token")).toBe(
+      "Per 1M input tokens"
+    );
   });
 
   it("describes time-based video billing plainly", () => {

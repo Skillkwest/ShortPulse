@@ -45,9 +45,8 @@ describe("model pricing policy routes", () => {
         schemaVersion: 1,
         global: {
           creditUsdScale: 100,
-          markupBps: 300,
-          defaultRoundingMode: "nearest-5",
-          defaultRoundingIncrement: 5,
+          defaultRoundingMode: "ceil",
+          defaultRoundingIncrement: 1,
         },
         perModel: {},
       },
@@ -68,34 +67,37 @@ describe("model pricing policy routes", () => {
       modelPolicy: expect.objectContaining({
         version: "policy-v4",
         policySource: "control_plane",
-        markupBps: 300,
+        creditUsdScale: 100,
       }),
     });
   });
 
   it("applies a new admin policy", async () => {
+    const submittedPolicy = {
+      schemaVersion: 1 as const,
+      global: {
+        creditUsdScale: 100,
+        defaultRoundingMode: "ceil" as const,
+        defaultRoundingIncrement: 1,
+      },
+      perModel: {},
+    };
     applyModelPricingPolicyMock.mockResolvedValue({
       status: "activated",
       activePolicyVersion: 5,
       activePolicyVersionId: 55,
+      activePolicy: submittedPolicy,
+      activePolicyUpdatedAt: "2026-04-24T13:00:00.000Z",
+      activePolicyUpdatedByEmail: "admin@example.com",
       message: null,
     });
 
     const req = {
       method: "POST",
       body: {
-        note: "Raise markup for testing",
+        note: "Update pricing for testing",
         reason: "Admin update",
-        policy: {
-          schemaVersion: 1,
-          global: {
-            creditUsdScale: 100,
-            markupBps: 500,
-            defaultRoundingMode: "nearest-5",
-            defaultRoundingIncrement: 5,
-          },
-          perModel: {},
-        },
+        policy: submittedPolicy,
       },
     };
     const res = createMockResponse();
@@ -105,12 +107,10 @@ describe("model pricing policy routes", () => {
     expect(applyModelPricingPolicyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         actorEmail: "admin@example.com",
-        note: "Raise markup for testing",
+        note: "Update pricing for testing",
         reason: "Admin update",
         policy: expect.objectContaining({
-          global: expect.objectContaining({
-            markupBps: 500,
-          }),
+          global: expect.objectContaining({}),
         }),
       })
     );
@@ -120,6 +120,95 @@ describe("model pricing policy routes", () => {
         ok: true,
         status: "activated",
         activePolicyVersion: 5,
+      })
+    );
+  });
+
+  it("maps apply initialization errors to 503", async () => {
+    applyModelPricingPolicyMock.mockResolvedValue({
+      status: "not_initialized",
+      activePolicyVersion: null,
+      activePolicyVersionId: null,
+      activePolicy: null,
+      activePolicyUpdatedAt: null,
+      activePolicyUpdatedByEmail: null,
+      message: "Model pricing control plane is not initialized.",
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        policy: {
+          schemaVersion: 1,
+          global: {
+            creditUsdScale: 100,
+            defaultRoundingMode: "ceil",
+            defaultRoundingIncrement: 1,
+          },
+          perModel: {},
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await applyPolicyHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: false,
+        status: "not_initialized",
+      })
+    );
+  });
+
+  it("rejects apply responses that do not verify the submitted active policy", async () => {
+    applyModelPricingPolicyMock.mockResolvedValue({
+      status: "activated",
+      activePolicyVersion: 5,
+      activePolicyVersionId: 55,
+      activePolicy: {
+        schemaVersion: 1,
+        global: {
+          creditUsdScale: 100,
+          defaultRoundingMode: "ceil",
+          defaultRoundingIncrement: 1,
+        },
+        perModel: {},
+      },
+      activePolicyUpdatedAt: "2026-04-24T13:00:00.000Z",
+      activePolicyUpdatedByEmail: "admin@example.com",
+      message: null,
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        policy: {
+          schemaVersion: 1,
+          global: {
+            creditUsdScale: 100,
+            defaultRoundingMode: "ceil",
+            defaultRoundingIncrement: 1,
+          },
+          perModel: {
+            "fal-ai/nano-banana": {
+              markupBps: 1000,
+            },
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await applyPolicyHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: false,
+        error: "Applied policy could not be verified against the active runtime policy.",
+        status: "verification_failed",
       })
     );
   });

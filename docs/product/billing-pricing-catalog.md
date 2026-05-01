@@ -6,7 +6,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 
 - Catalog tables define how many credits a plan or top-up grants to a user account.
 - The current default AI model debit scale is `1 credit = $0.01`, but that runtime conversion is no longer fixed in code; it lives in the shared model-pricing control plane documented in `docs/product/ai-studio-pricing.md`.
-- Changes to model markup, rounding, or credit conversion affect future generation debits only.
+- Changes to model markup, row-specific round-nearest values, or credit conversion affect future generation debits only.
 - Changes to this billing catalog affect product/package pricing and granted-credit quantities only.
 
 ## Source of truth
@@ -25,7 +25,8 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 - Operators can now inspect and update public catalog pricing from:
   - `/admin/pricing`
 - New plan tiers can now be created from the same admin surface:
-  - `/api/admin/pricing/plans/create` creates the `billing_plans` row, the initial current `billing_plan_offers` row, and the Stripe product plus recurring price in one operator flow.
+  - `/api/admin/pricing/plans/create` creates the `billing_plans` row, initial monthly and annual current `billing_plan_offers` rows, and the Stripe product plus recurring prices in one operator flow.
+- Existing plan/storage offer activation uses service-role-only atomic RPCs from `sql/migrations/116_add_atomic_admin_pricing_offer_activation_rpcs.sql`.
 - Operators can inspect the active runtime model-pricing policy from the same admin surface, but that policy is a separate control plane from the billing catalog tables in this doc.
 - UI presentation and package math helpers live in:
   - `frontend/features/billing/catalog.ts`
@@ -82,13 +83,14 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
 
 1. Decide which pricing domain is changing:
    - billing catalog (`plans`, `storage add-ons`, `credit top-ups`) via `/admin/pricing`
-   - runtime AI model debit policy (`credit conversion`, `markup`, `rounding`, `per-model overrides`) via the same admin page's model-pricing section and `docs/product/ai-studio-pricing.md`
+   - runtime AI model debit policy (`credit conversion`, per-model markup, row-specific round-nearest values) via the same admin page's model-pricing section and `docs/product/ai-studio-pricing.md`
 2. If you are creating a brand-new plan tier, use `/admin/pricing` -> `Create new plan`.
-   - This creates the Stripe product, the recurring Stripe price, the new `billing_plans` row, and the first current `billing_plan_offers` row together.
+   - This creates the Stripe product, monthly and annual recurring Stripe prices, the new `billing_plans` row, and the first current monthly and annual `billing_plan_offers` rows together.
 3. If you are changing public pricing for an existing recurring plan, create a new internal offer row instead of overwriting historical subscriber pricing:
    - `billing_plan_offers`
    - `billing_storage_addon_offers` for recurring storage add-ons
 4. If you are changing an existing plan/storage/top-up price outside the new-plan flow, create or attach the correct Stripe Price before activation.
+   - Paid plan/storage/top-up activation validates the Stripe Price is active, USD-denominated, amount-matched, interval-matched for recurring offers, and catalog-target-compatible when ShortPulse metadata is present.
 5. Update the acquisition catalog for new buyers:
    - `billing_plan_offers` for the current public recurring offer
    - `billing_plans` for shared tier metadata only

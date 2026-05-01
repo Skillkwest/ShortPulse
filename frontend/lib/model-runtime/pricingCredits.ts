@@ -57,7 +57,7 @@ export const resolveModelCreditRoundingMode = (
 
 /**
  * Converts provider USD to credits with decimal-safe math.
- * Markup is applied before quantization.
+ * Markup is applied before credit ceiling and any row-specific round-nearest override.
  */
 export const convertUsdToCredits = ({
   usdRaw,

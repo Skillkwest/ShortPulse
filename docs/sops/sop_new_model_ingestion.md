@@ -4,7 +4,7 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
 
 ## Inputs to collect
 - API docs: submit/status endpoints, auth header, required/optional fields, defaults (aspect, format, guidance/steps, safety).
-- Pricing rule: per-image, per-MP (tiered), per-duration, or per-token; $→credits conversion with markup (`markedCredits = usd * 100 * 1.03`, `rawCredits = ceil(markedCredits)`, default `credits = ceil(rawCredits / 5) * 5`; use explicit per-model overrides in `/admin/pricing` when a model should bill differently).
+- Pricing rule: per-image, per-MP (tiered), per-duration, or per-token; $→credits conversion uses the active credit scale plus per-model markup (`rawCredits = ceil(usd * creditUsdScale * (1 + modelMarkupBps / 10000))`, default `credits = rawCredits`; use explicit per-model markup/rounding overrides in `/admin/pricing` when a model should bill differently).
 - Allowed aspects/sizes: enum list and width/height map if MP-based.
 - Output schema: result URLs/fields needed for preview/result parsing.
 
@@ -13,7 +13,7 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
    - `frontend/lib/model-runtime/modelSizes.ts`: add/extend aspect → size map if MP-based.
    - `frontend/lib/model-runtime/pricingTypes.ts`: add a pricing strategy id.
    - `frontend/lib/model-runtime/pricingStrategies.ts`: add strategy fn for the pricing rule (per-image/per-MP/per-duration/tiered) and register it.
-   - `frontend/lib/model-runtime/pricingCredits.ts`: use shared conversion helper for markup + rounding policy.
+   - `frontend/lib/model-runtime/pricingCredits.ts`: use shared conversion helper for per-model markup + rounding policy.
 2) **Model registry + UI options**
    - `frontend/lib/model-runtime/modelRegistry.ts`: add `ModelConfig` with `id`, `label`, `provider`, `mediaType`, `defaultAspect`, `allowedAspects`, `pricingStrategy`, optional `sizeMap`, and any default runtime params (`defaultDurationSeconds`, `defaultResolution`, `defaultAudio`).
    - `frontend/lib/model-runtime/modelCatalog.ts`: add/update payload validation and capability metadata when the model introduces new submit fields/contracts.
@@ -123,7 +123,7 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
   Status: ...
   Input: prompt, aspect/size, format, safety, defaults
   Output: result URLs, fields
-  Pricing: <formula>, markedCredits = usd*100*1.03, rawCredits = ceil(markedCredits), credits = ceil(rawCredits/5)*5 (or an explicit per-model override in `/admin/pricing` if needed)
+  Pricing: <formula>, rawCredits = ceil(usd * creditPerDollar * (1 + perModelMarkupBps/10000)), credits = rawCredits unless a row-specific round-nearest override is configured in `/admin/pricing`
   Defaults we use: aspect fallback, format, safety, steps/guidance (if any)
   ```
 

@@ -44,9 +44,11 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Customer unified billing-history API: `frontend/pages/api/billing/stripe/transactions.ts`.
 - Admin pricing state API: `frontend/pages/api/admin/pricing/state.ts`.
 - Admin pricing catalog APIs: `frontend/pages/api/admin/pricing/credit-packages/update.ts`, `frontend/pages/api/admin/pricing/plan-offers/create.ts`, `frontend/pages/api/admin/pricing/storage-offers/create.ts`.
+- Admin dashboard offers API: `frontend/pages/api/admin/offers/index.ts`.
 - Model-pricing control plane: `frontend/lib/server/api/modelPricingControlPlane.ts`.
 - Model-pricing policy APIs: `frontend/pages/api/pricing/model-policy.ts`, `frontend/pages/api/admin/pricing/model-policy/apply.ts`, `frontend/pages/api/admin/pricing/model-policy/rollback.ts`.
 - Model-pricing control-plane migration: `sql/migrations/096_add_model_pricing_control_plane.sql`.
+- Atomic admin pricing offer activation migration: `sql/migrations/116_add_atomic_admin_pricing_offer_activation_rpcs.sql`.
 - User credit snapshot API: `frontend/pages/api/credits/snapshot.ts`.
 - Contract reconciliation script: `scripts/verify_billing_contracts_against_stripe.ts`.
 
@@ -153,17 +155,21 @@ Primary path:
 - Runtime model-pricing policy read -> `/api/pricing/model-policy`.
 - Runtime model-pricing policy apply -> `/api/admin/pricing/model-policy/apply`.
 - Runtime model-pricing policy rollback -> `/api/admin/pricing/model-policy/rollback`.
+- Dashboard special offers -> `/admin/offers` and `/api/admin/offers`.
 
 Operational rules:
 
 - Treat catalog pricing and runtime model pricing as separate domains even though they share `/admin/pricing`.
 - Treat ElevenLabs sound-generation rows on `/admin/pricing` as `Shared policy` models once they are wired through shared runtime pricing and server debits. These rows should expose live previews and shared-policy override controls.
 - Treat remaining ElevenLabs `Metadata only` rows as informational supporting/provider-preview inventory. They are not billable through the shared model-pricing control plane.
-- `Create new plan` is a new tier-identity flow. It creates the `billing_plans` row, the first current public `billing_plan_offers` row, the Stripe product, and the Stripe recurring price together.
+- `Create new plan` is a new tier-identity flow. It creates the `billing_plans` row, first current monthly and annual public `billing_plan_offers` rows, the Stripe product, and the Stripe recurring prices together.
 - Plan and storage changes create new public offers for future acquisitions; they do not mutate historical subscriber contracts.
+- Plan and storage offer activation must use the service-role-only atomic RPCs so the previous public acquisition offer is closed and the next offer is inserted in one transaction.
 - Credit-package updates change the active package row used for future top-up checkout.
+- Paid catalog activations must validate the Stripe price before writing: active, USD, amount match, expected interval for recurring offers, and matching ShortPulse catalog metadata when present.
 - Model-pricing policy changes affect future AI Studio estimates and server debits immediately after activation.
 - Model-pricing rollback returns the runtime to the last-known-safe versioned policy; use rollback instead of hand-editing pricing tables or invoking RPCs manually.
+- Dashboard special offers are marketing/acquisition cards only. They can advertise discounts or deals, but they do not mutate catalog pricing, model debit policy, subscriber contracts, or Stripe prices by themselves.
 - Stripe-linked public catalog rows must keep valid `stripe_price_id` values before activation for any paid acquisition offer or active paid top-up package.
 - Internal comp remains limited to the canonical hidden offers (`media`, `studio`, `business`) unless a future billing-contract change explicitly widens that support for admin-created plans.
 
@@ -172,7 +178,7 @@ Recommended operator sequence:
 1. Open `/admin/pricing` and inspect state warnings first.
 2. For a brand-new plan, use `Create new plan` so ShortPulse and Stripe are created together.
 3. For existing plan/storage/top-up changes, create or attach the correct Stripe Price before activating the catalog update.
-4. For model-pricing changes, review the effective conversion, markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
+4. For model-pricing changes, review the effective credit conversion, per-model markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
 5. After any pricing change, verify the customer-facing catalog on `/profile?section=credits` and `/profile?section=storage`.
 6. Verify `/profile?section=subscription` still routes each plan card to the intended self-serve flow:
    - free/internal-comp to paid should open Stripe Checkout for the selected target plan

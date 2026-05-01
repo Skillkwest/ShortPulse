@@ -54,6 +54,7 @@ describe("GET /api/admin/pricing/state", () => {
         id: "gpt-image-2",
         label: "ChatGPT Image 2",
         provider: "openai",
+        sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
         mediaType: "image",
         supportsTextToImage: true,
         supportsImageToImage: true,
@@ -90,9 +91,8 @@ describe("GET /api/admin/pricing/state", () => {
         schemaVersion: 1,
         global: {
           creditUsdScale: 100,
-          markupBps: 300,
-          defaultRoundingMode: "nearest-5",
-          defaultRoundingIncrement: 5,
+          defaultRoundingMode: "ceil",
+          defaultRoundingIncrement: 1,
         },
         perModel: {},
       },
@@ -110,27 +110,23 @@ describe("GET /api/admin/pricing/state", () => {
       updatedByEmail: "admin@example.com",
       creditUsdScale: 100,
       creditValueUsd: 0.01,
-      markupBps: 300,
-      markupPercent: 3,
-      defaultRoundingMode: "nearest-5",
-      defaultRoundingIncrement: 5,
+      defaultRoundingMode: "ceil",
+      defaultRoundingIncrement: 1,
       overrideCount: 0,
       document: {
         schemaVersion: 1,
         global: {
           creditUsdScale: 100,
-          markupBps: 300,
-          defaultRoundingMode: "nearest-5",
-          defaultRoundingIncrement: 5,
+          defaultRoundingMode: "ceil",
+          defaultRoundingIncrement: 1,
         },
         perModel: {},
       },
     });
     resolveModelPricingForModelMock.mockReturnValue({
       creditUsdScale: 100,
-      markupBps: 300,
-      roundingMode: "nearest-5",
-      roundingIncrement: 5,
+      roundingMode: "ceil",
+      roundingIncrement: 1,
     });
   });
 
@@ -146,6 +142,47 @@ describe("GET /api/admin/pricing/state", () => {
   });
 
   it("returns current model pricing policy and active catalog rows", async () => {
+    listModelConfigsMock.mockReturnValue([
+      {
+        id: "kie-kling-3",
+        label: "Kling 3.0",
+        provider: "kie",
+        sourceUrl: "https://docs.kie.ai/",
+        mediaType: "video",
+        supportsTextToImage: true,
+        supportsImageToImage: false,
+        pricingStrategy: "kie-video-per-second",
+        defaultAspect: "16:9",
+        defaultResolution: "720",
+        defaultDurationSeconds: 5,
+      },
+      {
+        id: "bria-background-remove",
+        label: "Bria Background Remove",
+        provider: "fal",
+        sourceUrl: "https://fal.ai/models/fal-ai/bria/background/remove/api",
+        mediaType: "image",
+        supportsTextToImage: false,
+        supportsImageToImage: true,
+        pricingStrategy: "fal-economy-image-per-mp",
+        defaultAspect: "1:1",
+        defaultResolution: "model_default",
+        defaultDurationSeconds: undefined,
+      },
+      {
+        id: "gpt-image-2",
+        label: "ChatGPT Image 2",
+        provider: "openai",
+        sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
+        mediaType: "image",
+        supportsTextToImage: true,
+        supportsImageToImage: true,
+        pricingStrategy: "gpt-image-2-per-image",
+        defaultAspect: "1:1",
+        defaultResolution: "medium",
+        defaultDurationSeconds: undefined,
+      },
+    ]);
     getSupabaseAdminMock.mockReturnValue({
       from: (table: string) => {
         if (table === "billing_plans") {
@@ -183,6 +220,19 @@ describe("GET /api/admin/pricing/state", () => {
                       monthly_credits_cents: 3000,
                       storage_limit_bytes: 107374182400,
                       stripe_price_id: "price_plan_studio",
+                      acquisition_enabled: true,
+                      is_active: true,
+                      effective_start_at: "2026-04-01T00:00:00.000Z",
+                      created_at: "2026-04-01T00:00:00.000Z",
+                    },
+                    {
+                      id: "studio__year_current",
+                      plan_id: "studio",
+                      billing_interval: "year",
+                      recurring_price_cents: 39000,
+                      monthly_credits_cents: 3000,
+                      storage_limit_bytes: 107374182400,
+                      stripe_price_id: null,
                       acquisition_enabled: true,
                       is_active: true,
                       effective_start_at: "2026-04-01T00:00:00.000Z",
@@ -314,20 +364,19 @@ describe("GET /api/admin/pricing/state", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(resolveRuntimeModelPricingPolicyMock).toHaveBeenCalled();
+    expect(resolveRuntimeModelPricingPolicyMock).toHaveBeenCalledWith({ bypassCache: true });
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         modelPolicy: expect.objectContaining({
-          markupPercent: 3,
           creditUsdScale: 100,
           policySource: "control_plane",
         }),
-        models: [
+        models: expect.arrayContaining([
           expect.objectContaining({
             id: "gpt-image-2",
             workflowType: "Text + image edit",
             pricingStrategyLabel: "Per image",
-            roundingIncrement: 5,
+            roundingIncrement: 1,
             pricingPreview: expect.objectContaining({
               billedCredits: 10,
               usdRaw: 0.08,
@@ -349,7 +398,7 @@ describe("GET /api/admin/pricing/state", () => {
               }),
             ],
           }),
-        ],
+        ]),
         plans: [
           expect.objectContaining({
             planId: "studio",
@@ -373,10 +422,17 @@ describe("GET /api/admin/pricing/state", () => {
           }),
         ],
         health: expect.objectContaining({
+          planOffersMissingStripePriceIds: 1,
           creditPackagesMissingStripePriceIds: 1,
-          totalWarnings: 1,
+          totalWarnings: 2,
         }),
       })
     );
+    const payload = res.json.mock.calls[0]?.[0] as { models: Array<{ id: string }> };
+    expect(payload.models.map((model) => model.id)).toEqual([
+      "kie-kling-3",
+      "bria-background-remove",
+      "gpt-image-2",
+    ]);
   });
 });

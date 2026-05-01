@@ -3,11 +3,13 @@ import { isUniqueViolationError } from "../../../../../lib/server/api/billingCon
 import { logApiRouteException } from "../../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../../lib/server/api/auth";
 import {
+  CatalogStripePriceValidationError,
   normalizeNullableText,
   normalizeRequiredText,
   parseNonNegativeInteger,
   parsePositiveInteger,
   requireStripePriceForPaidCatalogRow,
+  validateStripePriceForCatalogRow,
 } from "../../../../../lib/server/api/adminPricingCatalog";
 import { getSupabaseAdmin } from "../../../../../lib/server/api/supabaseAdmin";
 
@@ -61,6 +63,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    if (isActive) {
+      await validateStripePriceForCatalogRow({
+        stripePriceId,
+        expectedAmountCents: priceCents,
+        expectedInterval: null,
+        catalogType: "credit_package",
+        expectedMetadataIdKey: "shortpulse_credit_package_id",
+        expectedMetadataIdValue: id,
+      });
+    }
+
     const supabaseAdmin = getSupabaseAdmin();
     const existingResult = await supabaseAdmin
       .from("billing_credit_packages")
@@ -101,6 +114,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: "Credit package updated.",
     });
   } catch (error) {
+    if (error instanceof CatalogStripePriceValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
     await logApiRouteException({
       req,
       error,

@@ -85,7 +85,9 @@ const MODEL_DOC_MAP = {
   eleven_multilingual_v2: "api-elevenlabs-audio-models.md",
   eleven_multilingual_sts_v2: "api-elevenlabs-audio-models.md",
   eleven_multilingual_ttv_v2: "api-elevenlabs-audio-models.md",
-  "gpt-5-nano": "api-responses.md",
+  "gpt-5.4": "api-responses.md",
+  "gpt-5.4-mini": "api-responses.md",
+  "gpt-5.4-nano": "api-responses.md",
 };
 
 function readText(filePath) {

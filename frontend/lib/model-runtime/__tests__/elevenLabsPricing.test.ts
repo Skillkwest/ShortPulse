@@ -8,7 +8,7 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      credits: 15,
+      credits: 10,
       usdRaw: 0.1,
     });
   });
@@ -19,7 +19,7 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      credits: 15,
+      credits: 12,
       usdRaw: 0.12,
     });
   });
@@ -30,7 +30,7 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      credits: 15,
+      credits: 12,
       usdRaw: 0.12,
     });
   });
@@ -41,8 +41,17 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      credits: 20,
+      credits: 15,
       usdRaw: 0.15,
+    });
+  });
+
+  it("prices music from the 60s catalog default", () => {
+    const breakdown = computeCostForModel("music_v1", {});
+
+    expect(breakdown).toMatchObject({
+      credits: 30,
+      usdRaw: 0.3,
     });
   });
 });

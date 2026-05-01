@@ -15,7 +15,6 @@ export type ModelPricingPolicyDocument = {
   schemaVersion: 1;
   global: {
     creditUsdScale: number;
-    markupBps: number;
     defaultRoundingMode: CreditRoundingMode;
     defaultRoundingIncrement: number;
   };
@@ -37,8 +36,6 @@ export type ModelPricingPolicySnapshot = {
   updatedByEmail: string | null;
   creditUsdScale: number;
   creditValueUsd: number;
-  markupBps: number;
-  markupPercent: number;
   defaultRoundingMode: CreditRoundingMode;
   defaultRoundingIncrement: number;
   overrideCount: number;
@@ -47,15 +44,12 @@ export type ModelPricingPolicySnapshot = {
 
 export const CREDIT_USD_SCALE = 100; // 1 USD = 100 credits
 export const USD_MICRO_SCALE = 1_000_000; // 1e-6 USD precision
-export const DEFAULT_MARKUP_BPS = 300; // +3%
-export const MARKUP_NUMERATOR = 103;
-export const MARKUP_DENOMINATOR = 100;
-export const DEFAULT_CREDIT_ROUNDING_MODE: CreditRoundingMode = "nearest-5";
-export const DEFAULT_CREDIT_ROUNDING_INCREMENT = 5;
+export const DEFAULT_MARKUP_BPS = 0;
+export const DEFAULT_CREDIT_ROUNDING_MODE: CreditRoundingMode = "ceil";
+export const DEFAULT_CREDIT_ROUNDING_INCREMENT = 1;
 export const MODEL_PRICING_POLICY_SCHEMA_VERSION = 1;
 export const MODEL_PRICING_POLICY_VERSION = "runtime-default-v1";
 
-const VALID_ROUNDING_MODES = new Set<CreditRoundingMode>(["nearest-5", "ceil"]);
 const MIN_MARKUP_BPS = 0;
 const MAX_MARKUP_BPS = 100_000;
 
@@ -76,11 +70,6 @@ const asInteger = (value: unknown): number | null => {
   return null;
 };
 
-const asCreditRoundingMode = (value: unknown): CreditRoundingMode | null =>
-  typeof value === "string" && VALID_ROUNDING_MODES.has(value as CreditRoundingMode)
-    ? (value as CreditRoundingMode)
-    : null;
-
 const normalizeModelIdList = (value: unknown, fallback: string[]): string[] => {
   if (!Array.isArray(value)) return [...fallback];
   const normalized = value
@@ -90,15 +79,10 @@ const normalizeModelIdList = (value: unknown, fallback: string[]): string[] => {
   return normalized.length ? Array.from(new Set(normalized)) : [...fallback];
 };
 
-const convertLegacyMultiplierToMarkupOverride = (
-  globalMarkupBps: number,
-  multiplierBps: number
-): number => Math.round(((10_000 + globalMarkupBps) * multiplierBps) / 10_000 - 10_000);
+const convertLegacyMultiplierToMarkupOverride = (multiplierBps: number): number =>
+  multiplierBps - 10_000;
 
-const normalizePerModelOverride = (
-  value: unknown,
-  globalMarkupBps: number
-): ModelPricingPerModelOverride | null => {
+const normalizePerModelOverride = (value: unknown): ModelPricingPerModelOverride | null => {
   const record = asObjectRecord(value);
   if (!record) return null;
 
@@ -115,7 +99,7 @@ const normalizePerModelOverride = (
     normalized.markupBps = clampInteger(markupBps, MIN_MARKUP_BPS, MAX_MARKUP_BPS);
   } else if (legacyMultiplierBps != null && legacyMultiplierBps > 0) {
     normalized.markupBps = clampInteger(
-      convertLegacyMultiplierToMarkupOverride(globalMarkupBps, legacyMultiplierBps),
+      convertLegacyMultiplierToMarkupOverride(legacyMultiplierBps),
       MIN_MARKUP_BPS,
       MAX_MARKUP_BPS
     );
@@ -131,7 +115,6 @@ export const getDefaultModelPricingPolicyDocument = (): ModelPricingPolicyDocume
   schemaVersion: MODEL_PRICING_POLICY_SCHEMA_VERSION,
   global: {
     creditUsdScale: CREDIT_USD_SCALE,
-    markupBps: DEFAULT_MARKUP_BPS,
     defaultRoundingMode: DEFAULT_CREDIT_ROUNDING_MODE,
     defaultRoundingIncrement: DEFAULT_CREDIT_ROUNDING_INCREMENT,
   },
@@ -147,13 +130,6 @@ export const normalizeModelPricingPolicyDocument = (value: unknown): ModelPricin
   const perModelRecord = asObjectRecord(record.perModel);
 
   const creditUsdScale = asInteger(globalRecord?.creditUsdScale);
-  const markupBps = asInteger(globalRecord?.markupBps);
-  const defaultRoundingMode = asCreditRoundingMode(globalRecord?.defaultRoundingMode);
-  const defaultRoundingIncrement = asInteger(globalRecord?.defaultRoundingIncrement);
-  const resolvedGlobalMarkupBps =
-    markupBps != null
-      ? clampInteger(markupBps, MIN_MARKUP_BPS, MAX_MARKUP_BPS)
-      : defaults.global.markupBps;
   const legacyExceptionRoundingModelIds = normalizeModelIdList(
     globalRecord?.exceptionRoundingModelIds,
     []
@@ -162,7 +138,7 @@ export const normalizeModelPricingPolicyDocument = (value: unknown): ModelPricin
   const normalizedPerModel = Object.entries(perModelRecord ?? {}).reduce<
     Record<string, ModelPricingPerModelOverride>
   >((accumulator, [modelId, override]) => {
-    const normalized = normalizePerModelOverride(override, resolvedGlobalMarkupBps);
+    const normalized = normalizePerModelOverride(override);
     if (normalized) {
       accumulator[modelId] = normalized;
     }
@@ -190,12 +166,8 @@ export const normalizeModelPricingPolicyDocument = (value: unknown): ModelPricin
         creditUsdScale != null && creditUsdScale > 0
           ? creditUsdScale
           : defaults.global.creditUsdScale,
-      markupBps: resolvedGlobalMarkupBps,
-      defaultRoundingMode: defaultRoundingMode ?? defaults.global.defaultRoundingMode,
-      defaultRoundingIncrement:
-        defaultRoundingIncrement != null && defaultRoundingIncrement > 0
-          ? defaultRoundingIncrement
-          : defaults.global.defaultRoundingIncrement,
+      defaultRoundingMode: defaults.global.defaultRoundingMode,
+      defaultRoundingIncrement: defaults.global.defaultRoundingIncrement,
     },
     perModel: normalizedPerModel,
   };
@@ -216,18 +188,11 @@ export const compactModelPricingPolicyDocument = (value: unknown): ModelPricingP
       nextOverride.creditUsdScale = override.creditUsdScale;
     }
 
-    if (
-      typeof override.markupBps === "number" &&
-      override.markupBps !== normalized.global.markupBps
-    ) {
+    if (typeof override.markupBps === "number" && override.markupBps >= MIN_MARKUP_BPS) {
       nextOverride.markupBps = override.markupBps;
     }
 
-    if (
-      typeof override.roundingIncrement === "number" &&
-      override.roundingIncrement > 0 &&
-      override.roundingIncrement !== normalized.global.defaultRoundingIncrement
-    ) {
+    if (typeof override.roundingIncrement === "number" && override.roundingIncrement > 0) {
       nextOverride.roundingIncrement = override.roundingIncrement;
     }
 
@@ -243,18 +208,58 @@ export const compactModelPricingPolicyDocument = (value: unknown): ModelPricingP
   };
 };
 
+const modelPricingOverridesEqual = (
+  left: ModelPricingPerModelOverride,
+  right: ModelPricingPerModelOverride
+): boolean =>
+  left.creditUsdScale === right.creditUsdScale &&
+  left.markupBps === right.markupBps &&
+  left.roundingIncrement === right.roundingIncrement;
+
+export const modelPricingPolicyDocumentsEqual = (
+  left: ModelPricingPolicyDocument | null | undefined,
+  right: ModelPricingPolicyDocument | null | undefined
+): boolean => {
+  if (!left || !right) return false;
+
+  const leftPolicy = compactModelPricingPolicyDocument(left);
+  const rightPolicy = compactModelPricingPolicyDocument(right);
+  if (
+    leftPolicy.schemaVersion !== rightPolicy.schemaVersion ||
+    leftPolicy.global.creditUsdScale !== rightPolicy.global.creditUsdScale ||
+    leftPolicy.global.defaultRoundingMode !== rightPolicy.global.defaultRoundingMode ||
+    leftPolicy.global.defaultRoundingIncrement !== rightPolicy.global.defaultRoundingIncrement
+  ) {
+    return false;
+  }
+
+  const leftModelIds = Object.keys(leftPolicy.perModel).sort();
+  const rightModelIds = Object.keys(rightPolicy.perModel).sort();
+  if (leftModelIds.length !== rightModelIds.length) return false;
+
+  return leftModelIds.every((modelId, index) => {
+    if (modelId !== rightModelIds[index]) return false;
+    const leftOverride = leftPolicy.perModel[modelId];
+    const rightOverride = rightPolicy.perModel[modelId];
+    return Boolean(
+      leftOverride && rightOverride && modelPricingOverridesEqual(leftOverride, rightOverride)
+    );
+  });
+};
+
 export const resolveModelPricingForModel = (
   policy: ModelPricingPolicyDocument | null | undefined,
   modelId: string
 ): ResolvedModelPricingForModel => {
   const normalized = compactModelPricingPolicyDocument(policy);
   const override = normalized.perModel[modelId] ?? null;
+  const roundingIncrement = override?.roundingIncrement ?? DEFAULT_CREDIT_ROUNDING_INCREMENT;
 
   return {
     creditUsdScale: override?.creditUsdScale ?? normalized.global.creditUsdScale,
-    markupBps: override?.markupBps ?? normalized.global.markupBps,
-    roundingMode: normalized.global.defaultRoundingMode,
-    roundingIncrement: override?.roundingIncrement ?? normalized.global.defaultRoundingIncrement,
+    markupBps: override?.markupBps ?? DEFAULT_MARKUP_BPS,
+    roundingMode: roundingIncrement > 1 ? "nearest-5" : "ceil",
+    roundingIncrement,
   };
 };
 
@@ -268,7 +273,6 @@ export const getModelPricingPolicySnapshot = (
   } = {}
 ): ModelPricingPolicySnapshot => {
   const normalized = compactModelPricingPolicyDocument(policy);
-  const markupPercent = normalized.global.markupBps / 100;
 
   return {
     version:
@@ -281,8 +285,6 @@ export const getModelPricingPolicySnapshot = (
     updatedByEmail: options.updatedByEmail ?? null,
     creditUsdScale: normalized.global.creditUsdScale,
     creditValueUsd: 1 / normalized.global.creditUsdScale,
-    markupBps: normalized.global.markupBps,
-    markupPercent,
     defaultRoundingMode: normalized.global.defaultRoundingMode,
     defaultRoundingIncrement: normalized.global.defaultRoundingIncrement,
     overrideCount: Object.keys(normalized.perModel).length,

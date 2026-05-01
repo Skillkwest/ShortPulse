@@ -18,18 +18,15 @@ const createPolicyPayload = () => ({
     updatedByEmail: "ops@example.com",
     creditUsdScale: 100,
     creditValueUsd: 0.01,
-    markupBps: 300,
-    markupPercent: 3,
-    defaultRoundingMode: "nearest-5" as const,
-    defaultRoundingIncrement: 5,
+    defaultRoundingMode: "ceil" as const,
+    defaultRoundingIncrement: 1,
     overrideCount: 1,
     document: {
       schemaVersion: 1 as const,
       global: {
         creditUsdScale: 100,
-        markupBps: 300,
-        defaultRoundingMode: "nearest-5" as const,
-        defaultRoundingIncrement: 5,
+        defaultRoundingMode: "ceil" as const,
+        defaultRoundingIncrement: 1,
       },
       perModel: {
         "gpt-image-2": {
@@ -63,6 +60,10 @@ describe("useActiveModelPricingPolicy", () => {
     expect(result.current.modelPricingPolicyReady).toBe(true);
     expect(result.current.modelPricingPolicyError).toBeNull();
     expect(result.current.modelPricingPolicy?.perModel["gpt-image-2"]?.roundingIncrement).toBe(1);
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/pricing/model-policy", {
+      method: "GET",
+      shortpulseRetryNetworkOnce: true,
+    });
   });
 
   it("preserves the last known good policy when refresh fails", async () => {

@@ -27,8 +27,8 @@ export const getAdminPricingStrategyLabel = (
       return "Per image";
     case "seedream-per-image":
       return "Per image (4K costs more)";
-    case "gpt41nano-per-token":
-      return "Per token";
+    case "openai-text-token":
+      return "Per 1M input tokens";
     case "veo-3-per-second":
     case "kling-3-per-second":
     case "seedance-1.5-per-second":

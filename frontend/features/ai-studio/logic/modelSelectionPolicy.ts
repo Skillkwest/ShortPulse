@@ -62,6 +62,19 @@ const optionSupportsGenerationLane = ({
   return Boolean(getModelConfig(option.value)?.generationLanes?.includes(lane));
 };
 
+const optionSupportsTextLaneSelection = ({
+  getModelConfig,
+  option,
+}: {
+  getModelConfig: (id: string) => ModelConfigLike | null;
+  option: ModelOption;
+}): boolean => {
+  if (option.value === KIE_KLING_30_MODEL_ID) {
+    return true;
+  }
+  return optionSupportsGenerationLane({ option, getModelConfig, lane: "text-to-video" });
+};
+
 const optionSupportsAnyVideoLane = ({
   getModelConfig,
   option,
@@ -126,8 +139,7 @@ export const resolveAiStudioAllowedModelOptions = ({
     if (resolvedVideoLane === "text") {
       return selectorVideoOptions.filter(
         (option) =>
-          isVideoMediaOption(option) &&
-          optionSupportsGenerationLane({ option, getModelConfig, lane: "text-to-video" })
+          isVideoMediaOption(option) && optionSupportsTextLaneSelection({ option, getModelConfig })
       );
     }
     if (resolvedVideoLane === "single-image") {

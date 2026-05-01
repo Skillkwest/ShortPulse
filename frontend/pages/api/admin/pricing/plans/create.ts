@@ -15,6 +15,7 @@ type CreatePlanRequest = {
   planId?: string;
   displayName?: string;
   recurringPriceCents?: number | string;
+  annualRecurringPriceCents?: number | string;
   monthlyCreditsCents?: number | string;
   storageLimitBytes?: number | string;
   sortOrder?: number | string;
@@ -32,15 +33,17 @@ const PLAN_ID_PATTERN = /^[a-z0-9_]+$/;
 
 const archiveStripeArtifacts = async ({
   stripeProductId,
-  stripePriceId,
+  stripePriceIds,
 }: {
   stripeProductId: string | null;
-  stripePriceId: string | null;
+  stripePriceIds: Array<string | null>;
 }) => {
-  if (stripePriceId) {
-    await stripePostForm(`/prices/${stripePriceId}`, {
-      active: false,
-    }).catch(() => undefined);
+  for (const stripePriceId of stripePriceIds) {
+    if (stripePriceId) {
+      await stripePostForm(`/prices/${stripePriceId}`, {
+        active: false,
+      }).catch(() => undefined);
+    }
   }
   if (stripeProductId) {
     await stripePostForm(`/products/${stripeProductId}`, {
@@ -62,6 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const planId = normalizeIdentifier(body.planId);
   const displayName = normalizeRequiredText(body.displayName);
   const recurringPriceCents = parseNonNegativeInteger(body.recurringPriceCents);
+  const annualRecurringPriceCents = parseNonNegativeInteger(body.annualRecurringPriceCents);
   const monthlyCreditsCents = parseNonNegativeInteger(body.monthlyCreditsCents);
   const storageLimitBytes = parseNonNegativeInteger(body.storageLimitBytes);
   const sortOrder = parseNonNegativeInteger(body.sortOrder);
@@ -76,6 +80,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   if (recurringPriceCents == null) {
     return res.status(400).json({ error: "recurringPriceCents must be a non-negative integer." });
+  }
+  if (annualRecurringPriceCents == null) {
+    return res
+      .status(400)
+      .json({ error: "annualRecurringPriceCents must be a non-negative integer." });
+  }
+  if (planId !== "free" && (recurringPriceCents <= 0 || annualRecurringPriceCents <= 0)) {
+    return res.status(400).json({
+      error: "Paid public plans require monthly and annual prices greater than $0.",
+    });
   }
   if (monthlyCreditsCents == null) {
     return res.status(400).json({ error: "monthlyCreditsCents must be a non-negative integer." });
@@ -114,6 +128,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     let stripePriceId: string | null = null;
+    let annualStripePriceId: string | null = null;
     if (recurringPriceCents > 0) {
       const stripePrice = await stripePostForm<StripePriceResponse>("/prices", {
         product: stripeProduct.id,
@@ -126,9 +141,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       stripePriceId = stripePrice.id;
     }
+    if (annualRecurringPriceCents > 0) {
+      const annualStripePrice = await stripePostForm<StripePriceResponse>("/prices", {
+        product: stripeProduct.id,
+        currency: "usd",
+        unit_amount: annualRecurringPriceCents,
+        "recurring[interval]": "year",
+        "metadata[shortpulse_catalog_type]": "plan",
+        "metadata[shortpulse_plan_id]": planId,
+        "metadata[shortpulse_display_name]": displayName,
+        "metadata[shortpulse_billing_interval]": "year",
+      });
+      annualStripePriceId = annualStripePrice.id;
+    }
 
     const nowIso = new Date().toISOString();
     const initialOfferId = buildCurrentCatalogOfferId(planId, "month");
+    const initialAnnualOfferId = buildCurrentCatalogOfferId(planId, "year");
     const insertPlanResult = await supabaseAdmin.from("billing_plans").insert({
       id: planId,
       display_name: displayName,
@@ -144,7 +173,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (insertPlanResult.error) {
       await archiveStripeArtifacts({
         stripeProductId: stripeProduct.id,
-        stripePriceId,
+        stripePriceIds: [stripePriceId, annualStripePriceId],
       });
       if (isUniqueViolationError(insertPlanResult.error)) {
         return res
@@ -154,25 +183,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       throw new Error(insertPlanResult.error.message || "Failed to create the new plan.");
     }
 
-    const insertOfferResult = await supabaseAdmin.from("billing_plan_offers").insert({
-      id: initialOfferId,
-      plan_id: planId,
-      offer_name: `${displayName} Current Offer`,
-      billing_interval: "month",
-      recurring_price_cents: recurringPriceCents,
-      monthly_credits_cents: monthlyCreditsCents,
-      storage_limit_bytes: storageLimitBytes,
-      stripe_price_id: stripePriceId,
-      acquisition_enabled: true,
-      is_active: true,
-      effective_start_at: nowIso,
-    });
+    const insertOfferResult = await supabaseAdmin.from("billing_plan_offers").insert([
+      {
+        id: initialOfferId,
+        plan_id: planId,
+        offer_name: `${displayName} Monthly Current Offer`,
+        billing_interval: "month",
+        recurring_price_cents: recurringPriceCents,
+        monthly_credits_cents: monthlyCreditsCents,
+        storage_limit_bytes: storageLimitBytes,
+        stripe_price_id: stripePriceId,
+        acquisition_enabled: true,
+        is_active: true,
+        effective_start_at: nowIso,
+      },
+      {
+        id: initialAnnualOfferId,
+        plan_id: planId,
+        offer_name: `${displayName} Annual Current Offer`,
+        billing_interval: "year",
+        recurring_price_cents: annualRecurringPriceCents,
+        monthly_credits_cents: monthlyCreditsCents,
+        storage_limit_bytes: storageLimitBytes,
+        stripe_price_id: annualStripePriceId,
+        acquisition_enabled: true,
+        is_active: true,
+        effective_start_at: nowIso,
+      },
+    ]);
 
     if (insertOfferResult.error) {
+      await supabaseAdmin.from("billing_plan_offers").delete().eq("plan_id", planId);
       await supabaseAdmin.from("billing_plans").delete().eq("id", planId);
       await archiveStripeArtifacts({
         stripeProductId: stripeProduct.id,
-        stripePriceId,
+        stripePriceIds: [stripePriceId, annualStripePriceId],
       });
       if (isUniqueViolationError(insertOfferResult.error)) {
         return res
@@ -188,8 +233,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ok: true,
       planId,
       offerId: initialOfferId,
+      annualOfferId: initialAnnualOfferId,
       stripeProductId: stripeProduct.id,
       stripePriceId,
+      annualStripePriceId,
       message: "Plan created and activated.",
     });
   } catch (error) {

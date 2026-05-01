@@ -937,8 +937,83 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: clamp(48px, 7vw, 120px);
   margin: 10px 0;
+}
+
+.pricingWorkbookControls {
+  display: flex;
+  align-items: center;
+  flex: 1 1 520px;
+  min-width: min(100%, 360px);
+  gap: 8px;
+}
+
+.pricingSortLabel {
+  flex: 0 0 auto;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pricingSortSelect {
+  flex: 0 0 112px;
+  min-width: 0;
+}
+
+.pricingConversionControl {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 9px;
+  min-height: 44px;
+  padding: 7px 10px 7px 12px;
+  border: 1px solid rgba(37, 169, 191, 0.42);
+  border-radius: 12px;
+  background: rgba(37, 169, 191, 0.11);
+  color: var(--admin-text-strong);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pricingConversionLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--admin-text-strong);
+}
+
+.pricingConversionInput {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 76px;
+  min-height: 36px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-color: rgba(37, 169, 191, 0.5);
+  background: rgba(2, 6, 10, 0.42);
+  color: var(--admin-text-strong);
+  font-size: 15px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.pricingConversionDollarInput {
+  width: 64px;
+}
+
+.pricingConversionCurrency {
+  margin-left: -3px;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.pricingConversionUnit {
+  color: var(--admin-text-muted);
+  font-size: 12px;
 }
 
 .manualAdjustField {
@@ -983,20 +1058,158 @@
   font-size: 13px;
 }
 
+.pricingHealthSection {
+  border-color: rgba(255, 196, 87, 0.34);
+}
+
+.pricingConfirmationBody {
+  display: grid;
+  gap: 12px;
+}
+
+.pricingConfirmationBody p {
+  margin: 0;
+}
+
+.pricingConfirmationDiff {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 10px;
+  background: var(--admin-surface-2);
+}
+
+.pricingConfirmationDiffHead,
+.pricingConfirmationDiffRow {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.6fr) repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.pricingConfirmationDiffHead {
+  color: var(--admin-text-muted);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0;
+  background: var(--admin-surface-3);
+}
+
+.pricingConfirmationDiffRow {
+  color: var(--admin-text);
+  border-top: 1px solid var(--admin-border-soft);
+}
+
+.pricingConfirmationDiffRow span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .pricingModelsHead,
 .pricingModelsRow {
   display: grid;
   grid-template-columns:
-    minmax(0, 1.85fr)
-    0.72fr
-    0.9fr
-    minmax(0, 1.3fr)
-    0.82fr
-    0.92fr
-    0.88fr
-    0.92fr;
+    minmax(62px, 0.48fr)
+    minmax(136px, 0.96fr)
+    minmax(92px, 0.7fr)
+    minmax(86px, 0.5fr)
+    minmax(116px, 0.82fr)
+    minmax(132px, 0.92fr)
+    minmax(78px, 0.52fr)
+    minmax(88px, 0.58fr)
+    minmax(92px, 0.62fr)
+    minmax(86px, 0.56fr)
+    minmax(96px, 0.62fr)
+    minmax(82px, 0.54fr)
+    minmax(86px, 0.58fr);
   gap: 10px;
   align-items: center;
+}
+
+.pricingWorkbookTable {
+  min-width: 1290px;
+  gap: 0;
+  background: transparent;
+}
+
+.pricingWorkbookActionsHead {
+  justify-content: space-between;
+}
+
+.pricingWorkbookTable .pricingModelsHead,
+.pricingWorkbookTable .pricingModelsRow {
+  gap: 0;
+}
+
+.pricingWorkbookTable .pricingModelsHead {
+  min-height: 38px;
+  border-bottom: 1px solid rgba(180, 190, 204, 0.2);
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.pricingWorkbookTable .pricingModelsHead span,
+.pricingWorkbookTable .pricingModelsRow > span {
+  display: grid;
+  align-content: center;
+  min-height: 100%;
+  padding: 7px 8px;
+  border-right: 1px solid rgba(210, 220, 232, 0.065);
+}
+
+.pricingWorkbookTable .pricingModelsRow > span {
+  font-size: 12px;
+}
+
+.pricingWorkbookTable .pricingPrimaryCell {
+  gap: 0;
+}
+
+.pricingWorkbookTable .pricingPrimaryCell strong {
+  line-height: 1.2;
+}
+
+.pricingWorkbookTable .pricingModelsRow > span:nth-child(1),
+.pricingWorkbookTable .pricingModelsRow > span:nth-child(2) strong,
+.pricingWorkbookTable .pricingModelsRow > span:nth-child(3) strong,
+.pricingWorkbookTable .pricingModelsRow > span:nth-child(5) strong,
+.pricingWorkbookTable .pricingModelsRow > span:nth-child(6) strong {
+  font-weight: 400;
+}
+
+.pricingWorkbookTable .pricingTypeCell strong {
+  white-space: nowrap;
+}
+
+.pricingWorkbookTable .pricingModelsHead span:last-child,
+.pricingWorkbookTable .pricingModelsRow > span:last-child {
+  border-right: 0;
+}
+
+.pricingWorkbookTable .pricingModelsRow {
+  min-height: 46px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(210, 220, 232, 0.075);
+  background: rgba(255, 255, 255, 0.032);
+}
+
+.pricingWorkbookTable .pricingModelsRow:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.048);
+}
+
+.pricingWorkbookTable .pricingModelsRow:last-child {
+  border-bottom: 0;
+}
+
+.pricingWorkbookTable .pricingModelsRow:hover {
+  background: rgba(232, 242, 248, 0.07);
+}
+
+.pricingWorkbookTable .adminTableRowActive {
+  background: rgba(232, 242, 248, 0.09);
 }
 
 .pricingCatalogHead,
@@ -1010,7 +1223,17 @@
 .pricingPlanCatalogHead,
 .pricingPlanCatalogRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) 0.6fr 0.8fr 0.9fr 0.9fr 0.9fr minmax(0, 1.2fr) 0.9fr;
+  grid-template-columns:
+    minmax(0, 1.05fr)
+    0.5fr
+    0.62fr
+    0.72fr
+    0.72fr
+    0.72fr
+    0.72fr
+    minmax(0, 1.05fr)
+    minmax(0, 1.05fr)
+    auto;
   gap: 10px;
   align-items: center;
 }
@@ -1045,6 +1268,133 @@
 
 .pricingPrimaryCell small {
   color: var(--admin-text-faint);
+}
+
+.pricingModelCellButton {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pricingModelCellButton:hover strong {
+  color: var(--admin-text-strong);
+}
+
+.pricingCostUnitButton {
+  display: inline-grid;
+  justify-items: start;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: help;
+}
+
+.pricingCostUnitButton strong {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.pricingCostUnitButton:hover strong,
+.pricingCostUnitButton:focus-visible strong {
+  color: var(--admin-text-strong);
+}
+
+.pricingCostDocsPopover {
+  position: fixed;
+  z-index: 60;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(360px, calc(100vh - 32px));
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 8px;
+  background: #0f1317;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.44);
+  color: var(--admin-text);
+  pointer-events: none;
+}
+
+.pricingCostDocsPopover h3 {
+  margin: 4px 0 8px;
+  color: var(--admin-text-strong);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.pricingCostDocsBody {
+  display: grid;
+  gap: 6px;
+}
+
+.pricingCostDocsBody p {
+  margin: 0;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.pricingSheetInputWrap {
+  display: grid;
+  grid-template-columns: minmax(0, 60px) auto;
+  gap: 4px;
+  align-items: center;
+  max-width: 84px;
+}
+
+.pricingRoundInputWrap {
+  display: block;
+  max-width: 58px;
+}
+
+.pricingRoundInputWrap .pricingSheetInput {
+  box-sizing: border-box;
+  width: 58px;
+  min-width: 0;
+}
+
+.pricingDurationInputWrap {
+  display: block;
+  max-width: 76px;
+}
+
+.pricingDurationInputWrap .pricingSheetInput {
+  box-sizing: border-box;
+  width: 76px;
+  min-width: 0;
+  padding-inline: 10px;
+  appearance: textfield;
+}
+
+.pricingDurationInputWrap .pricingSheetInput::-webkit-outer-spin-button,
+.pricingDurationInputWrap .pricingSheetInput::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.pricingSheetInput {
+  min-height: 30px;
+  padding: 5px 7px;
+  text-align: right;
+}
+
+.adminPage .pricingSheetInput:focus,
+.adminPage .pricingSheetInput:focus-visible {
+  outline: none;
+  border-color: var(--admin-border-strong);
+  box-shadow: inset 0 0 0 1px rgba(215, 222, 230, 0.08);
 }
 
 .pricingMonoCell {
@@ -1093,6 +1443,80 @@
   gap: 12px;
 }
 
+.offerFormGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.offerCardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.offerSlotRows {
+  display: grid;
+  gap: 12px;
+}
+
+.offerSlotRow {
+  display: grid;
+  grid-template-columns:
+    minmax(88px, 0.5fr)
+    minmax(112px, 0.65fr)
+    minmax(180px, 1.1fr)
+    minmax(132px, 0.8fr)
+    minmax(132px, 0.8fr)
+    minmax(132px, 0.8fr)
+    minmax(116px, 0.7fr)
+    minmax(132px, 0.8fr)
+    auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px;
+  border: 1px solid var(--admin-border-soft);
+  border-radius: 12px;
+  background: var(--admin-surface-3);
+}
+
+.offerSlotNumber {
+  display: grid;
+  gap: 8px;
+  align-self: stretch;
+  align-content: center;
+}
+
+.offerSlotActiveToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.offerAdminCard {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  background: var(--admin-surface-2);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.offerAdminCard:hover {
+  border-color: var(--admin-accent-border);
+}
+
+.offerAdminCard strong,
+.offerAdminCard small {
+  overflow-wrap: anywhere;
+}
+
 .pricingWideField {
   grid-column: span 3;
 }
@@ -1126,6 +1550,37 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+}
+
+.pricingUnsavedCue {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(246, 199, 99, 0.42);
+  border-radius: 999px;
+  background: rgba(246, 199, 99, 0.12);
+  color: #f6d483;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.adminPage :global(.ghost-btn).pricingSaveButtonDirty:not(:disabled),
+.adminPage :global(.ghost-btn.mini).pricingSaveButtonDirty:not(:disabled) {
+  border-color: var(--admin-warning-border-max);
+  background: linear-gradient(180deg, rgba(255, 212, 122, 0.28), rgba(216, 168, 74, 0.2));
+  color: var(--admin-warning-text);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 241, 207, 0.08),
+    0 0 0 1px rgba(255, 212, 122, 0.14);
+}
+
+.adminPage :global(.ghost-btn).pricingSaveButtonDirty:not(:disabled):hover,
+.adminPage :global(.ghost-btn.mini).pricingSaveButtonDirty:not(:disabled):hover {
+  border-color: #ffd47a;
+  background: linear-gradient(180deg, rgba(255, 212, 122, 0.36), rgba(216, 168, 74, 0.26));
 }
 
 .pricingEditorActionsColumn {
@@ -1915,7 +2370,8 @@
 
   .pricingInlineEditorTopRow,
   .pricingInlineOverridesGrid,
-  .pricingInlineEditorBottomRow {
+  .pricingInlineEditorBottomRow,
+  .offerSlotRow {
     grid-template-columns: 1fr;
   }
 

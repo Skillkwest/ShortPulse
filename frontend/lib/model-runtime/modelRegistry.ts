@@ -21,6 +21,7 @@ export type ModelConfig = {
   id: string;
   label: string;
   provider: ModelProvider | "other";
+  sourceUrl?: string;
   mediaType: ModelCatalogMediaType;
   defaultAspect: string;
   allowedAspects: string[];
@@ -71,6 +72,7 @@ const buildModelConfig = (entry: RegistryReadyCatalogEntry): ModelConfig => ({
   id: entry.modelId,
   label: entry.label,
   provider: entry.provider,
+  sourceUrl: entry.sourceUrl,
   mediaType: entry.mediaType,
   defaultAspect: entry.defaultAspect,
   allowedAspects: entry.allowedAspects,

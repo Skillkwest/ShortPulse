@@ -4,10 +4,12 @@ import { logApiRouteException } from "../../../../../lib/server/api/appErrorLogs
 import { requireAdminUser } from "../../../../../lib/server/api/auth";
 import {
   buildCatalogOfferId,
+  CatalogStripePriceValidationError,
   normalizeNullableText,
   normalizeRequiredText,
   parsePositiveInteger,
   requireStripePriceForPaidCatalogRow,
+  validateStripePriceForCatalogRow,
 } from "../../../../../lib/server/api/adminPricingCatalog";
 import { getSupabaseAdmin } from "../../../../../lib/server/api/supabaseAdmin";
 
@@ -17,13 +19,21 @@ type CreateStorageOfferRequest = {
   storageLimitBytes?: number | string;
   recurringPriceCents?: number | string;
   stripePriceId?: string | null;
+  expectedCurrentOfferId?: string | null;
+  expectedCurrentOfferAbsent?: boolean;
 };
 
-type CurrentStorageOfferRow = {
-  id: string;
-  storage_limit_bytes: number;
-  recurring_price_cents: number;
-  stripe_price_id: string | null;
+type ActivateStorageOfferResult = {
+  status: "activated" | "already_current" | "rejected" | "not_found" | "stale";
+  offer_id: string | null;
+  message: string | null;
+};
+
+const statusToHttpCode = (status: ActivateStorageOfferResult["status"]): number => {
+  if (status === "rejected") return 400;
+  if (status === "not_found") return 404;
+  if (status === "stale") return 409;
+  return 200;
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -41,6 +51,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const storageLimitBytes = parsePositiveInteger(body.storageLimitBytes);
   const recurringPriceCents = parsePositiveInteger(body.recurringPriceCents);
   const stripePriceId = normalizeNullableText(body.stripePriceId);
+  const expectedCurrentOfferId = normalizeNullableText(body.expectedCurrentOfferId);
+  const expectedCurrentOfferAbsent =
+    expectedCurrentOfferId == null && body.expectedCurrentOfferAbsent === true;
 
   if (!storageAddonId) {
     return res.status(400).json({ error: "storageAddonId is required." });
@@ -61,104 +74,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const [storageAddonResult, currentOfferResult] = await Promise.all([
-      supabaseAdmin
-        .from("billing_storage_addons")
-        .select("id")
-        .eq("id", storageAddonId)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("billing_storage_addon_offers")
-        .select("id, storage_limit_bytes, recurring_price_cents, stripe_price_id")
-        .eq("storage_addon_id", storageAddonId)
-        .eq("acquisition_enabled", true)
-        .eq("is_active", true)
-        .is("effective_end_at", null)
-        .limit(1)
-        .maybeSingle(),
-    ]);
-
-    if (storageAddonResult.error || currentOfferResult.error) {
-      throw new Error(
-        [storageAddonResult.error?.message, currentOfferResult.error?.message]
-          .filter(Boolean)
-          .join(" | ") || "Failed to load the current storage pricing state."
-      );
-    }
-    if (!storageAddonResult.data) {
-      return res.status(404).json({ error: "Storage add-on not found." });
-    }
-
-    const currentOffer = (currentOfferResult.data as CurrentStorageOfferRow | null) ?? null;
-    if (
-      currentOffer &&
-      Number(currentOffer.storage_limit_bytes) === storageLimitBytes &&
-      Number(currentOffer.recurring_price_cents) === recurringPriceCents &&
-      (currentOffer.stripe_price_id ?? null) === stripePriceId
-    ) {
-      return res.status(200).json({
-        ok: true,
-        id: currentOffer.id,
-        message: "Storage add-on offer is already current.",
-      });
-    }
-
-    const nowIso = new Date().toISOString();
-    if (currentOffer) {
-      const { error: disableCurrentError } = await supabaseAdmin
-        .from("billing_storage_addon_offers")
-        .update({
-          acquisition_enabled: false,
-          effective_end_at: nowIso,
-          updated_at: nowIso,
-        })
-        .eq("id", currentOffer.id);
-      if (disableCurrentError) {
-        throw new Error(
-          disableCurrentError.message || "Failed to close the current storage add-on offer."
-        );
-      }
-    }
-
-    const nextOfferId = buildCatalogOfferId(storageAddonId, offerName);
-    const insertResult = await supabaseAdmin.from("billing_storage_addon_offers").insert({
-      id: nextOfferId,
-      storage_addon_id: storageAddonId,
-      offer_name: offerName,
-      storage_limit_bytes: storageLimitBytes,
-      recurring_price_cents: recurringPriceCents,
-      stripe_price_id: stripePriceId,
-      acquisition_enabled: true,
-      is_active: true,
-      effective_start_at: nowIso,
+    await validateStripePriceForCatalogRow({
+      stripePriceId,
+      expectedAmountCents: recurringPriceCents,
+      expectedInterval: "month",
+      catalogType: "storage_addon",
+      expectedMetadataIdKey: "shortpulse_storage_addon_id",
+      expectedMetadataIdValue: storageAddonId,
     });
 
-    if (insertResult.error) {
-      if (currentOffer) {
-        await supabaseAdmin
-          .from("billing_storage_addon_offers")
-          .update({
-            acquisition_enabled: true,
-            effective_end_at: null,
-            updated_at: nowIso,
-          })
-          .eq("id", currentOffer.id);
-      }
-      if (isUniqueViolationError(insertResult.error)) {
+    const supabaseAdmin = getSupabaseAdmin();
+    const nextOfferId = buildCatalogOfferId(storageAddonId, offerName);
+    const rpcResult = await supabaseAdmin.rpc("activate_billing_storage_addon_offer", {
+      p_offer_id: nextOfferId,
+      p_storage_addon_id: storageAddonId,
+      p_offer_name: offerName,
+      p_storage_limit_bytes: storageLimitBytes,
+      p_recurring_price_cents: recurringPriceCents,
+      p_stripe_price_id: stripePriceId,
+      p_expected_current_offer_id: expectedCurrentOfferId,
+      p_expected_current_offer_absent: expectedCurrentOfferAbsent,
+    });
+
+    if (rpcResult.error) {
+      if (isUniqueViolationError(rpcResult.error)) {
         return res.status(409).json({ error: "Offer name or Stripe price id is already in use." });
       }
-      throw new Error(
-        insertResult.error.message || "Failed to create the next storage add-on offer."
-      );
+      throw new Error(rpcResult.error.message || "Failed to create the next storage add-on offer.");
     }
 
-    return res.status(200).json({
-      ok: true,
-      id: nextOfferId,
-      message: "Storage add-on offer created and activated.",
+    const result = (
+      Array.isArray(rpcResult.data) ? rpcResult.data[0] : rpcResult.data
+    ) as ActivateStorageOfferResult | null;
+    const statusCode = statusToHttpCode(result?.status ?? "rejected");
+    return res.status(statusCode).json({
+      ok: statusCode < 400,
+      id: result?.offer_id ?? nextOfferId,
+      status: result?.status ?? "rejected",
+      message: result?.message ?? "Storage add-on offer created and activated.",
+      ...(statusCode >= 400
+        ? { error: result?.message ?? "Failed to create the next storage add-on offer." }
+        : {}),
     });
   } catch (error) {
+    if (error instanceof CatalogStripePriceValidationError) {
+      return res.status(400).json({ error: error.message });
+    }
     await logApiRouteException({
       req,
       error,

@@ -48,6 +48,21 @@ For push, pull request, review-routing, merge queue, auto-merge, merge, and post
 - Do not push directly to `main`.
 - Do not expose secrets, env values, tokens, customer-private data, or temporary env copies.
 
+## Prompt Cadence Contract
+
+Treat the user's prompt sequence as an authorization ladder. Do not move to a later rung until the user explicitly asks for that operation in the current thread.
+
+| User prompt intent | Gear Ball may do | Gear Ball must not do yet |
+| --- | --- | --- |
+| Analyze worktree | Inspect branch, status, diffs, staged state, and risk areas. | Edit, stage, commit, push, or open a PR. |
+| Organize/group changes | Produce logical batches, test plan, risk map, and mixed-file warnings; run requested or safe validation. | Stage, commit, or push. |
+| Double-check tests | Run targeted or full validation and report exact failures. | Change product behavior or commit. |
+| Fix failures with constraints | Fix only inside the authorized scope, such as test-only or no UI/UX/behavior changes. | Broaden scope by adjacency or alter user-visible behavior without permission. |
+| Commit changes | Stage reviewed batch paths, verify staged diff, and commit logical batches. | Push or open a PR. |
+| Push changes | Push only the current approved branch after push-readiness checks. | Open a PR, merge, deploy, or promote branches unless asked. |
+
+If a prompt is ambiguous, use the safest lower rung and ask before mutating Git state or product behavior.
+
 ## Batch Principles
 
 A commit batch should have one coherent reason to exist. Prefer batches that are independently reviewable, independently explainable, and reasonably reversible.
@@ -130,6 +145,8 @@ Batch 1: <name>
 - Reason: <single coherent change>
 - Validation: <targeted checks>
 - Risk: <main review concern>
+- Mixed files: <none | file paths and handling plan>
+- Commit hash: <fill after commit>
 
 Batch 2: ...
 ```
@@ -142,6 +159,8 @@ Rules:
 - Keep package lockfile changes with the manifest change that caused them.
 - If a single file contains unrelated changes from multiple logical batches, mark it as `mixed-file`.
 - Do not split a mixed file blindly. Prefer a single coherent combined batch, or stop for user review if combining would hide risk.
+- For shared docs indexes, shared CSS, app shells, or route files that span multiple batches, either stage by hunk with immediate staged-diff verification or defer them to a final reconciliation batch.
+- If a file's dominant owner is clear but it contains supporting references for another batch, document the dominant-owner decision in the batch plan.
 
 ### 4. Inspect A Batch
 
@@ -170,13 +189,23 @@ If the batch touches high-risk areas, run or schedule the relevant specialist ch
 
 ### 5. Validate Before Commit
 
-Run the smallest validation that proves the batch:
+Run the smallest validation that proves the batch, then escalate based on risk:
 
 - Docs-only: `npm -C frontend run docs:check`.
 - Frontend logic or UI: targeted tests first, then `npm -C frontend run lint` or `npm -C frontend run build` when risk warrants.
 - API/server logic: targeted API/server tests plus type/build checks when contracts changed.
 - SQL/schema: migration parity, security checklist, SQL diagnostics, and Supabase CLI hosted-target validation when authorized.
 - Release-sized batch: use `docs/release-checklist.md`.
+
+For a large, mixed, or cross-cutting worktree, full test green is the commit-readiness bar:
+
+1. Run targeted tests for each affected batch.
+2. Run the full suite before declaring the worktree commit-ready.
+3. If tests fail, do not commit. Report exact failing files, tests, expected/actual values, and whether the failures are deterministic.
+4. Fix only within the user's authorized scope.
+5. Re-run the failing files first.
+6. Re-run the full suite after fixes.
+7. Commit only when tests are green, unless the user explicitly authorizes a known-failing checkpoint commit.
 
 If validation is skipped or unavailable, record the reason in the final report and, when committing, in the commit body if the risk is material.
 
@@ -215,6 +244,7 @@ Confirm:
 - Whitespace check passes.
 - No secrets/env values are staged.
 - The unstaged worktree still contains only intentionally deferred changes.
+- Test status is green for the validation level required by the batch plan.
 
 ### 8. Commit
 
@@ -232,10 +262,12 @@ Commit message guidelines:
 
 ### 9. Post-Commit Audit
 
-After each commit:
+After each commit, account for hooks such as Husky and lint-staged that may inspect or rewrite staged files:
 
 ```bash
 git status --short
+git diff --name-status
+git diff --cached --name-status
 git show --stat --oneline --decorate --no-renames HEAD
 ```
 
@@ -245,10 +277,35 @@ Confirm:
 - Remaining dirty files belong to later batches or known pre-existing work.
 - No staged changes remain unless intentionally prepared for the next batch.
 - Validation results are recorded.
+- Any hook-made formatting or lint changes are included in the intended commit, or are left as explicit follow-up work.
 
 If a commit is wrong, stop and ask before rewriting history unless the user explicitly authorized correction in the current thread.
 
-### 10. Repeat Or Stop
+### 10. Post-Series Validation
+
+After the final requested commit batch:
+
+1. Run docs/index validation when docs, routes, migrations, APIs, SOPs, or agent records changed:
+   ```bash
+   npm -C frontend run docs:check
+   ```
+2. For large or cross-cutting worktrees, rerun the full test suite even if targeted tests passed before committing:
+   ```bash
+   npm -C frontend run test
+   ```
+3. Verify a clean or intentionally deferred tree:
+   ```bash
+   git status --short
+   ```
+4. Verify branch guard alignment:
+   ```bash
+   git branch --show-current
+   git config --local --get shortpulse.allowedBranch
+   ```
+
+Do not proceed to push-readiness if post-series validation is failing, incomplete, or inconsistent with the commit report.
+
+### 11. Repeat Or Stop
 
 Repeat batch planning, inspection, validation, staging, and commit steps until:
 
@@ -269,6 +326,15 @@ After the workflow, report:
 - Any skipped validation and why.
 - Any residual risks or required follow-up.
 
+For substantial multi-batch worktree operations, also create or update a Gear Ball report under `docs/agents/gear-ball/reports/` using the template in `docs/agents/gear-ball/reports/README.md`. Include:
+
+- Prompt cadence followed.
+- Batch manifest with file groups, risks, validation, and commit hashes.
+- Failure signals found during validation.
+- Fix constraints and what was deliberately not changed.
+- Post-commit and post-push state, when applicable.
+- Unverified assumptions and human-review requirements.
+
 If files were staged successfully, final response must include the app git-stage directive. If commits were created successfully, final response must include the app git-commit directive.
 
 ## Stop Rules
@@ -282,4 +348,5 @@ Stop and ask for human review when:
 - A batch includes secrets, raw env values, customer-private data, or unclear credential material.
 - A database, Vercel, deployment, or production-target action is implied but not explicitly authorized.
 - Validation fails in a way that changes batch risk or product intent.
+- Required tests are failing. Continue iterating inside the authorized scope until tests are green, or stop for user approval of a known-failing checkpoint.
 - The only way forward appears to require destructive Git commands, history rewrite, branch switching, force push, or direct push to `main`.

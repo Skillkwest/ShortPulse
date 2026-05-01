@@ -20,10 +20,11 @@ Purpose: keep repo-visible memory for Gear Ball's worktree, branch, environment,
 - 2026-05-01: Gear Ball was established as the repo-visible coordinator for worktree, commit, branch, environment, Vercel, and database coordination. The role is broad enough for one accountable coordinator, but high-risk lanes should be split into bounded specialist checks when useful.
 - 2026-05-01: Worktree organization and commit batching should follow `docs/sops/sop_gear_ball_worktree_batch_commit_operations.md`: inventory first, plan logical batches, inspect and validate each batch, stage only reviewed paths, then commit with direct evidence.
 - 2026-05-01: GitHub push, PR, review, merge queue, auto-merge, and merge coordination should follow `docs/sops/sop_gear_ball_github_pr_merge_operations.md`: explicit authorization, draft PRs by default, explicit base/head branches, review routing, required checks, and no self-approval for risky work.
+- 2026-05-01: The first full Gear Ball worktree run proved the prompt cadence should be treated as an authorization ladder: analyze, organize/validate, fix, commit, and push are separate gates. For large mixed worktrees, targeted tests are not enough; continue iterating until failing files and the full suite are green before committing unless the user explicitly approves a known-failing checkpoint.
+- 2026-05-01: For future high-risk worktree runs, use the prompt sequence in `docs/agents/gear-ball/README.md` and the report template in `docs/agents/gear-ball/reports/README.md` so the authorization gates and evidence format are repeatable.
 
 ## Open Follow-Ups
 
-- Define the first Gear Ball report template after the next substantial commit, env, database, deployment, or branch-promotion task.
-- Build a reusable pre-commit/pre-push readiness checklist after observing one full Gear Ball workflow.
+- Build a reusable pre-commit/pre-push readiness checklist from the prompt-cadence and green-test gates now captured in the worktree SOP.
 - Build a Vercel/Supabase environment coordination checklist once the current environment inventory and deployment targets are explicitly confirmed.
 - Consider hook-based policy checks for blocked commands, unsafe staging, secret exposure, direct pushes, and branch-rule bypasses after the GitHub operations SOP has been exercised once.

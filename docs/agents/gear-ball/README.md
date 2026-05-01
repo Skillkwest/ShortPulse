@@ -90,6 +90,28 @@ Gear Ball's local report index lives in:
 
 Use reports for commit, branch, env, Vercel, database, release, research, or merge coordination tasks that need durable evidence beyond a short final response.
 
+## Prompt Template Contract
+
+Use this prompt sequence for high-risk worktree organization and publish flows. Each line is a separate authorization gate; do not skip ahead unless the user explicitly combines gates in the current thread.
+
+```text
+First analyze the changes in the worktree. Do not edit, stage, commit, or push.
+
+Next organize and group the changes into logical batches and run the relevant tests we need on those changes. Do not commit yet.
+
+Double check all tests are passing.
+
+Fix any issue with no UI/UX or behavior changes. Continue iterating until the failing files and full suite are green.
+
+Double check all tests are passing.
+
+Now commit changes. Organize and commit in logical batches.
+
+Now push all changes on the current approved branch.
+```
+
+For substantial runs, copy the report template from `docs/agents/gear-ball/reports/README.md` and fill it as evidence before final closeout.
+
 ## Default Workflow
 
 1. Load startup instructions and classify the task.

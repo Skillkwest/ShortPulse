@@ -23,6 +23,10 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 
 ## Active SOPs
 
+- Agent training and operating-model setup:
+  - `docs/sops/sop_agent_training_and_nurture.md`
+  - `docs/sops/sop_agent_post_run_training_audit.md`
+
 - `docs/sops/sop_character_manager_operations.md` (canonical `/character` runbook)
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_agent.md`
@@ -48,6 +52,13 @@ Purpose: operational runbooks for recurring engineering and product workflows.
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_admin_ophestivus_board_operations.md`
 - `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
+- `docs/sops/sop_admin_ophestivus_review_to_complete.md`
+- `docs/sops/sop_admin_ophestivus_complete_regression_audit.md` (manual one-ticket maintenance audit for aged Complete-column work)
+- `docs/sops/sop_admin_ophestivus_post_run_training_audit.md` (temporary dev/training audit after error + review SOP runs)
+- `docs/sops/sop_agent_training_and_nurture.md`
+- `docs/sops/sop_agent_post_run_training_audit.md`
+- `docs/sops/sop_gear_ball_worktree_batch_commit_operations.md`
+- `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`

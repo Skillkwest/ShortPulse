@@ -669,7 +669,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 - `id` (bigint identity, pk): Immutable model-pricing policy version row id.
 - `version` (integer): Global version number (`>=1`).
-- `policy` (jsonb object): Normalized model-pricing policy document (`global` conversion/markup/rounding + `perModel` overrides).
+- `policy` (jsonb object): Normalized model-pricing policy document (credit conversion settings plus row-specific `perModel` pricing/rounding overrides).
 - `note` (text, nullable): Optional operator note for the version.
 - `created_by_user_id` / `created_by_email` (nullable): Operator attribution metadata.
 - `created_at` (timestamptz, default now).

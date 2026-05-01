@@ -19,6 +19,16 @@ Start here for all repository documentation.
 - Historical/deprecated docs live in `docs/archive/`.
 - Early non-authoritative ideas live in `docs/brainstorming/`.
 
+## Agent Training Quick Start
+
+Use these docs when creating, nurturing, or training a new task-specific agent:
+
+- `docs/sops/sop_agent_training_and_nurture.md`: step-by-step SOP for turning one real task into a trained workflow.
+- `docs/sops/sop_agent_post_run_training_audit.md`: reusable post-run audit SOP for improving prompts, tools, templates, and workflow reliability after real runs.
+- `docs/agents/generic-agent-training-template.md`: fill-in template with prompt patterns, state mapping, training history, and run log sections.
+- `docs/agents/README.md`: index of agent contracts, memory entrypoints, and training helpers.
+- `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract.
+
 ## Core Engineering
 
 - `docs/documentation_overview.md` (documentation governance + quality bar)
@@ -27,7 +37,13 @@ Start here for all repository documentation.
 - `docs/agent-playbook.md`
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
+- `docs/agents/README.md`
 - `docs/agents/change-impact-auditor.md`
+- `docs/agents/generic-agent-training-template.md`
+- `docs/agents/gear-ball/github-operations.md`
+- `docs/agents/gear-ball/README.md`
+- `docs/agents/gottspan-the-admin/README.md`
+- `docs/agents/pulse/README.md`
 - `docs/agents/ophestivus.md`
 - `docs/repo-structure.md`
 - `docs/architecture-overview.md`
@@ -132,6 +148,13 @@ Start here for all repository documentation.
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_admin_ophestivus_board_operations.md`
 - `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
+- `docs/sops/sop_admin_ophestivus_review_to_complete.md`
+- `docs/sops/sop_admin_ophestivus_complete_regression_audit.md`
+- `docs/sops/sop_admin_ophestivus_post_run_training_audit.md`
+- `docs/sops/sop_agent_training_and_nurture.md`
+- `docs/sops/sop_agent_post_run_training_audit.md`
+- `docs/sops/sop_gear_ball_worktree_batch_commit_operations.md`
+- `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md`
 - `docs/sops/sop_account_health_snapshot.md`

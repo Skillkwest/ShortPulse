@@ -226,7 +226,12 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 109.  `sql/migrations/109_add_generation_projection_project_id.sql`
 110.  `sql/migrations/110_add_admin_kanban_foundation.sql`
 111.  `sql/migrations/111_harden_admin_kanban_audit_integrity.sql`
-112.  Rollback files:
+112.  `sql/migrations/112_repair_model_pricing_control_plane_seed.sql`
+113.  `sql/migrations/113_add_admin_kanban_review_status.sql`
+114.  `sql/migrations/114_add_dashboard_offers.sql`
+115.  `sql/migrations/115_remove_global_model_pricing_rounding.sql`
+116.  `sql/migrations/116_add_atomic_admin_pricing_offer_activation_rpcs.sql`
+117.  Rollback files:
 
 
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
@@ -301,6 +306,7 @@ Hosted SQL lint note:
 - Apply `sql/migrations/101_fix_admin_stats_and_pricing_rpc_lint.sql` when linked-hosted lint surfaces the legacy admin stats `model_id` ambiguity or the `rollback_model_pricing_policy()` `%rowtype` warning.
 - Apply `sql/migrations/102_add_admin_growth_stats_v1.sql` to provision `growth_attribution_identities` and `get_admin_growth_stats_v1()` before expecting `/admin/stats` Marketing/Sales lenses to load beyond safe fallback values.
 - Apply `sql/migrations/104_add_user_media_compliance_acceptances.sql` before enforcing the protected-route media agreement gate so acceptance records can be stored and replayed by version.
+- Apply `sql/migrations/112_repair_model_pricing_control_plane_seed.sql` if `/admin/pricing` can load the model-pricing workspace but credit conversion or markup changes do not persist because `model_pricing_policy_runtime` is missing its singleton row. Verify with `sql/check_model_pricing_control_plane.sql`.
 
 Billing safety note:
 

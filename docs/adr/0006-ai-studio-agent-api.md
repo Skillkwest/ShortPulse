@@ -10,7 +10,7 @@ Accepted
 - The agent needs multi-modal inputs (text + small image/video thumbnails), fast round-trips, server-held secrets, and predictable cost controls.
 
 ## Decision
-- Use a single API route (`POST /api/ai/studio-agent`) that calls a pluggable chat-completions model with vision support (default: OpenAI `gpt-5-nano` with images via `image_url`).
+- Use a single API route (`POST /api/ai/studio-agent`) that calls a pluggable chat-completions model with vision support (default: OpenAI `gpt-5.4-nano` with images via `image_url`).
 - Keep system prompt and tool schema in code (`frontend/lib/agentPromptsConfig.ts`) with an ID `STUDIO_AGENT_SYSTEM`; load via `loadAgentPrompt` to allow env overrides without redeploying.
 - Accept a structured payload of `messages` + `context` (reference grid summaries + downscaled previews) and return streamed or buffered assistant messages plus optional tool directives (`apply_prompt`, `describe_asset`, `ask_clarification`).
 - Gate feature on presence of `OPENAI_API_KEY` (or compatible provider env) and a feature flag; fail closed with a friendly fallback to the legacy prompt textareas.

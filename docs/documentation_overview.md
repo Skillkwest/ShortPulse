@@ -14,7 +14,7 @@ Purpose: define the documentation information architecture, ownership rules, and
   - `docs/records/evidence/`: migrated human-readable retained evidence namespaces.
   - `docs/records/artifacts/`: migrated raw retained artifact namespaces.
 - `docs/adr/`: durable architecture decisions.
-- `docs/agents/`: agent workflow helpers and execution guard aids.
+- `docs/agents/`: agent workflow helpers, execution guard aids, reusable agent-training templates, and task-specific agent folders with inspectable memory.
 - `docs/design/`: design rationale used by implementation.
 - `docs/archive/`: historical or superseded docs (non-authoritative).
 - `docs/brainstorming/`: early ideas and exploratory notes (non-authoritative).

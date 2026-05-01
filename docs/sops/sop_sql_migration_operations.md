@@ -44,6 +44,7 @@ Use these for foundational setup or targeted one-off operations.
 - `sql/check_control_plane_scheduler_health.sql`: canonical `pg_cron` liveness/missing/inactive/failing/stalled diagnostics (read-only).
 - `sql/check_pg_net_failure_taxonomy.sql`: canonical `pg_net` queue-depth/failure-taxonomy diagnostics (read-only).
 - `sql/check_agent_safety_policy_control_plane.sql`: agent safety control-plane table/function/execute-posture diagnostics (read-only).
+- `sql/check_model_pricing_control_plane.sql`: model-pricing control-plane active policy/version diagnostics (read-only).
 
 ### 2) Ordered migrations (`sql/migrations/`)
 
@@ -158,6 +159,10 @@ Current set:
 - `109_add_generation_projection_project_id.sql`
 - `110_add_admin_kanban_foundation.sql`
 - `111_harden_admin_kanban_audit_integrity.sql`
+- `112_repair_model_pricing_control_plane_seed.sql`
+- `113_add_admin_kanban_review_status.sql`
+- `114_add_dashboard_offers.sql`
+- `115_remove_global_model_pricing_rounding.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

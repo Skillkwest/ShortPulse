@@ -3,7 +3,7 @@
 Purpose: index migrated raw artifact namespaces that belong in retained records rather than the active planning reading path.
 
 ## Active migrated namespaces
-- `docs/records/artifacts/agent/`: raw payload inputs retained alongside the Agent modularization evidence packet family.
+- `docs/records/artifacts/agent/`: raw payload inputs and inspectable local agent artifacts retained alongside the Agent modularization evidence packet family.
 - `docs/records/artifacts/agent-pipeline-remediation/`: raw payload inputs, simulation outputs, and generated packet artifacts retained alongside the AI Studio agent pipeline remediation evidence family.
 - `docs/records/artifacts/ai-studio-create-runtime/`: UI validation screenshots and accessibility snapshots retained for AI Studio Create runtime panel wiring changes.
 

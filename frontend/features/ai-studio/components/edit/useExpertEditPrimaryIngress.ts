@@ -33,6 +33,11 @@ type UseExpertEditPrimaryIngressArgs = {
   setEditingLayerValue: React.Dispatch<React.SetStateAction<string>>;
   revokeObjectUrlSafe: (url: string) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
+  seedLayerImageDimensions?: (
+    layerId: string,
+    url: string,
+    dimensions: { width: number; height: number }
+  ) => void;
 };
 
 export function useExpertEditPrimaryIngress({
@@ -47,6 +52,7 @@ export function useExpertEditPrimaryIngress({
   setEditingLayerValue,
   revokeObjectUrlSafe,
   resolvePreviewUrlById,
+  seedLayerImageDimensions,
 }: UseExpertEditPrimaryIngressArgs) {
   const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
   const layersRef = React.useRef(layers);
@@ -74,7 +80,11 @@ export function useExpertEditPrimaryIngress({
   }, []);
 
   const applyPrimaryImageIngress = React.useCallback(
-    (payload: { url: string; ownsImageUrl: boolean }) => {
+    (payload: {
+      url: string;
+      ownsImageUrl: boolean;
+      dimensions?: { width?: number; height?: number };
+    }) => {
       const candidateUrl = payload.url.trim();
       if (!candidateUrl) {
         if (payload.ownsImageUrl && payload.url.startsWith("blob:")) {
@@ -82,6 +92,16 @@ export function useExpertEditPrimaryIngress({
         }
         return;
       }
+      const seededDimensions =
+        typeof payload.dimensions?.width === "number" &&
+        payload.dimensions.width > 0 &&
+        typeof payload.dimensions.height === "number" &&
+        payload.dimensions.height > 0
+          ? {
+              width: payload.dimensions.width,
+              height: payload.dimensions.height,
+            }
+          : null;
 
       const currentLayers = layersRef.current;
       const currentSelectedLayerIndex = selectedLayerIndexRef.current;
@@ -108,6 +128,9 @@ export function useExpertEditPrimaryIngress({
           transform: defaultLayerTransform(),
         };
         setLayers(nextLayers);
+        if (seededDimensions) {
+          seedLayerImageDimensions?.(foundationLayer.id, candidateUrl, seededDimensions);
+        }
         setSelectedLayerIndex(foundationIndex);
         setEditingLayerIndex(null);
         setEditingLayerValue("");
@@ -135,6 +158,9 @@ export function useExpertEditPrimaryIngress({
         foundationLayerId: currentFoundationLayerId,
       });
       setLayers(nextLayers);
+      if (seededDimensions) {
+        seedLayerImageDimensions?.(insertedLayer.id, candidateUrl, seededDimensions);
+      }
       const insertedIndex = nextLayers.findIndex((layer) => layer.id === insertedLayer.id);
       setSelectedLayerIndex(insertedIndex >= 0 ? insertedIndex : 0);
       setEditingLayerIndex(null);
@@ -143,6 +169,7 @@ export function useExpertEditPrimaryIngress({
     [
       createLayer,
       revokeObjectUrlSafe,
+      seedLayerImageDimensions,
       setEditingLayerIndex,
       setEditingLayerValue,
       setLayers,
@@ -210,7 +237,9 @@ export function useExpertEditPrimaryIngress({
       }
       event.preventDefault();
       setPrimaryDragActive(false);
-      const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
+      const { imageUrl, fromFile, referenceId, width, height } = extractDragDropPayload(
+        event.dataTransfer
+      );
       void (async () => {
         let nextUrl = imageUrl;
         const resolvePreview = resolvePreviewUrlByIdRef.current;
@@ -229,7 +258,11 @@ export function useExpertEditPrimaryIngress({
             ownsImageUrl = true;
           }
         }
-        applyPrimaryImageIngress({ url: nextUrl, ownsImageUrl });
+        applyPrimaryImageIngress({
+          url: nextUrl,
+          ownsImageUrl,
+          dimensions: { width, height },
+        });
       })();
     },
     [applyPrimaryImageIngress]

@@ -84,4 +84,94 @@ describe("localTranscode upload preprocessing", () => {
     expect(toBlob).toHaveBeenCalledWith(expect.any(Function), "image/webp", 0.88);
     expect(close).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps compressing when the first upload transcode remains over the upload target", async () => {
+    const close = vi.fn();
+    const bitmap = {
+      width: 4096,
+      height: 4096,
+      close,
+    } as unknown as ImageBitmap;
+    globalThis.createImageBitmap = vi.fn(async () => bitmap) as typeof createImageBitmap;
+
+    const encodedSizes = [24 * 1024 * 1024, 2 * 1024 * 1024];
+    const drawImage = vi.fn();
+    const toBlob = vi.fn((callback: BlobCallback, type?: string) => {
+      const size = encodedSizes.shift() ?? 1024;
+      callback(new Blob([new Uint8Array(size)], { type: type ?? "image/webp" }));
+    });
+    const fakeContext = {
+      imageSmoothingEnabled: false,
+      imageSmoothingQuality: "low",
+      drawImage,
+    } as unknown as CanvasRenderingContext2D;
+    const fakeCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => fakeContext),
+      toBlob,
+    } as unknown as HTMLCanvasElement;
+
+    vi.spyOn(document, "createElement").mockImplementation(((tagName: string) =>
+      tagName === "canvas"
+        ? fakeCanvas
+        : originalCreateElement(tagName)) as typeof document.createElement);
+
+    const sourceBlob = new Blob([new Uint8Array(30 * 1024 * 1024)], { type: "image/png" });
+    const result = await maybeTranscodeLocalImageBlobForUpload(sourceBlob);
+
+    expect(result).not.toBe(sourceBlob);
+    expect(result.size).toBe(2 * 1024 * 1024);
+    expect(toBlob).toHaveBeenNthCalledWith(1, expect.any(Function), "image/webp", 0.88);
+    expect(toBlob).toHaveBeenNthCalledWith(2, expect.any(Function), "image/webp", 0.76);
+    expect(drawImage).toHaveBeenCalledTimes(2);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps downsizing with jpeg when webp encoding cannot produce an upload-safe blob", async () => {
+    const close = vi.fn();
+    const bitmap = {
+      width: 4096,
+      height: 4096,
+      close,
+    } as unknown as ImageBitmap;
+    globalThis.createImageBitmap = vi.fn(async () => bitmap) as typeof createImageBitmap;
+
+    const jpegSizes = [24 * 1024 * 1024, 2 * 1024 * 1024];
+    const drawImage = vi.fn();
+    const toBlob = vi.fn((callback: BlobCallback, type?: string) => {
+      if (type === "image/webp") {
+        callback(null);
+        return;
+      }
+      const size = jpegSizes.shift() ?? 1024;
+      callback(new Blob([new Uint8Array(size)], { type: type ?? "image/jpeg" }));
+    });
+    const fakeContext = {
+      imageSmoothingEnabled: false,
+      imageSmoothingQuality: "low",
+      drawImage,
+    } as unknown as CanvasRenderingContext2D;
+    const fakeCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn(() => fakeContext),
+      toBlob,
+    } as unknown as HTMLCanvasElement;
+
+    vi.spyOn(document, "createElement").mockImplementation(((tagName: string) =>
+      tagName === "canvas"
+        ? fakeCanvas
+        : originalCreateElement(tagName)) as typeof document.createElement);
+
+    const sourceBlob = new Blob([new Uint8Array(30 * 1024 * 1024)], { type: "image/png" });
+    const result = await maybeTranscodeLocalImageBlobForUpload(sourceBlob);
+
+    expect(result).not.toBe(sourceBlob);
+    expect(result.type).toBe("image/jpeg");
+    expect(result.size).toBe(2 * 1024 * 1024);
+    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), "image/jpeg", 0.88);
+    expect(toBlob).toHaveBeenCalledWith(expect.any(Function), "image/jpeg", 0.76);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
 });

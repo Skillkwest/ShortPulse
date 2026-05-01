@@ -1,5 +1,6 @@
 import React from "react";
 import { modelLogos } from "../../constants";
+import { needsImageUpload } from "../../utils/imageUpload";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import {
@@ -632,8 +633,7 @@ export function ExpertEditPanelView({
     const primaryLayer = layers.find((layer) => layerHasImage(layer)) ?? null;
     const primaryUrl = primaryLayer?.imageUrl?.trim() ?? "";
     if (!primaryLayer || !primaryUrl) return null;
-    if (primaryLayer.ownsImageUrl || primaryUrl.startsWith("blob:")) return null;
-    if (!primaryUrl.includes("/storage/v1/object/sign/")) return null;
+    if (primaryLayer.ownsImageUrl || needsImageUpload(primaryUrl)) return null;
     if (!areLayerTransformsEqual(primaryLayer.transform, defaultLayerTransform())) return null;
     const primaryAspectRatio = resolveLayerImageAspectRatio(primaryLayer);
     if (Math.abs(primaryCompositionSurfaceAspectRatioValue - primaryAspectRatio) > 0.01) {

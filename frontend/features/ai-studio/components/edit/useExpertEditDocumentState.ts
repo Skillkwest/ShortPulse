@@ -83,6 +83,32 @@ export function useExpertEditDocumentState({
     []
   );
 
+  const seedLayerImageDimensions = React.useCallback(
+    (layerId: string, url: string, dimensions: { width: number; height: number }) => {
+      if (!(dimensions.width > 0) || !(dimensions.height > 0)) return;
+      setLayerImageDimensionCache((previousCache) => {
+        const current = previousCache[layerId];
+        if (
+          current &&
+          current.url === url &&
+          current.width === dimensions.width &&
+          current.height === dimensions.height
+        ) {
+          return previousCache;
+        }
+        return {
+          ...previousCache,
+          [layerId]: {
+            url,
+            width: dimensions.width,
+            height: dimensions.height,
+          },
+        };
+      });
+    },
+    []
+  );
+
   const clearLayerEditing = React.useCallback(() => {
     setEditingLayerIndex(null);
     setEditingLayerValue("");
@@ -218,6 +244,7 @@ export function useExpertEditDocumentState({
     setEditingLayerValue,
     revokeObjectUrlSafe,
     resolvePreviewUrlById,
+    seedLayerImageDimensions,
   });
 
   const handleRemoveSelectedLayerImage = React.useCallback(() => {

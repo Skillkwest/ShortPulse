@@ -6,7 +6,9 @@ import type { AdaptiveDecision } from "./types";
 
 const LOCAL_IMAGE_UPLOAD_MAX_LONG_EDGE_PX = 2048;
 const LOCAL_IMAGE_UPLOAD_SIZE_THRESHOLD_BYTES = 8 * 1024 * 1024;
-const LOCAL_IMAGE_UPLOAD_WEBP_QUALITY = 0.88;
+const LOCAL_IMAGE_UPLOAD_TARGET_MAX_BYTES = 23 * 1024 * 1024;
+const LOCAL_IMAGE_UPLOAD_WEBP_QUALITY_STEPS = [0.88, 0.76, 0.64, 0.52];
+const LOCAL_IMAGE_UPLOAD_LONG_EDGE_STEPS = [2048, 1792, 1536, 1280, 1024];
 
 const isLocalImageBlob = (blob: Blob): boolean =>
   typeof blob.type === "string" && blob.type.toLowerCase().startsWith("image/");
@@ -100,6 +102,29 @@ const canvasToBlob = (
     }
   });
 
+const encodeResizedImageBlob = async ({
+  source,
+  sourceWidth,
+  sourceHeight,
+  targetLongEdge,
+  quality,
+  mimeType,
+}: {
+  source: CanvasImageSource;
+  sourceWidth: number;
+  sourceHeight: number;
+  targetLongEdge: number;
+  quality: number;
+  mimeType: string;
+}): Promise<Blob | null> => {
+  const scale = targetLongEdge / Math.max(sourceWidth, sourceHeight);
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+  const { canvas, context } = createCanvasContext(width, height);
+  context.drawImage(source, 0, 0, width, height);
+  return await canvasToBlob(canvas, mimeType, quality);
+};
+
 export const shouldTranscodeLocalAdaptiveImage = ({
   sourceUrl,
   naturalWidth,
@@ -174,20 +199,47 @@ export const maybeTranscodeLocalImageBlobForUpload = async (blob: Blob): Promise
     return blob;
   }
 
-  const targetLongEdge =
-    longEdge > LOCAL_IMAGE_UPLOAD_MAX_LONG_EDGE_PX ? LOCAL_IMAGE_UPLOAD_MAX_LONG_EDGE_PX : longEdge;
-  const scale = targetLongEdge / longEdge;
-  const width = Math.max(1, Math.round(resolvedSource.width * scale));
-  const height = Math.max(1, Math.round(resolvedSource.height * scale));
-
   try {
-    const { canvas, context } = createCanvasContext(width, height);
-    context.drawImage(resolvedSource.source, 0, 0, width, height);
+    let bestBlob: Blob | null = null;
+    const initialTargetLongEdge = Math.min(longEdge, LOCAL_IMAGE_UPLOAD_MAX_LONG_EDGE_PX);
+    const targetLongEdges = [
+      initialTargetLongEdge,
+      ...LOCAL_IMAGE_UPLOAD_LONG_EDGE_STEPS.filter((edge) => edge < initialTargetLongEdge),
+    ];
 
-    const webpBlob = await canvasToBlob(canvas, "image/webp", LOCAL_IMAGE_UPLOAD_WEBP_QUALITY);
-    if (webpBlob) return webpBlob;
-    const jpegBlob = await canvasToBlob(canvas, "image/jpeg", LOCAL_IMAGE_UPLOAD_WEBP_QUALITY);
-    if (jpegBlob) return jpegBlob;
+    for (const targetLongEdge of targetLongEdges) {
+      for (const quality of LOCAL_IMAGE_UPLOAD_WEBP_QUALITY_STEPS) {
+        const webpBlob = await encodeResizedImageBlob({
+          source: resolvedSource.source,
+          sourceWidth: resolvedSource.width,
+          sourceHeight: resolvedSource.height,
+          targetLongEdge,
+          quality,
+          mimeType: "image/webp",
+        });
+        if (!webpBlob) continue;
+        if (!bestBlob || webpBlob.size < bestBlob.size) bestBlob = webpBlob;
+        if (webpBlob.size <= LOCAL_IMAGE_UPLOAD_TARGET_MAX_BYTES) return webpBlob;
+      }
+    }
+
+    for (const targetLongEdge of targetLongEdges) {
+      for (const quality of LOCAL_IMAGE_UPLOAD_WEBP_QUALITY_STEPS) {
+        const jpegBlob = await encodeResizedImageBlob({
+          source: resolvedSource.source,
+          sourceWidth: resolvedSource.width,
+          sourceHeight: resolvedSource.height,
+          targetLongEdge,
+          quality,
+          mimeType: "image/jpeg",
+        });
+        if (!jpegBlob) continue;
+        if (!bestBlob || jpegBlob.size < bestBlob.size) bestBlob = jpegBlob;
+        if (jpegBlob.size <= LOCAL_IMAGE_UPLOAD_TARGET_MAX_BYTES) return jpegBlob;
+      }
+    }
+
+    if (bestBlob) return bestBlob;
   } catch {
     return blob;
   } finally {

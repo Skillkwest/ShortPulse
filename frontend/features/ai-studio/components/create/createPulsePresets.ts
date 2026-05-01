@@ -11,6 +11,11 @@ export type CreatePulseRuntimeMode = "workflow_gpt";
 export type CreatePulseActivationMode = "activate_and_start";
 export type CreatePulseOutputMode = "chat_reply";
 export type CreatePulseMemoryPolicy = "session";
+export type CreatePulseArtifactTarget =
+  | "image_prompt"
+  | "video_prompt"
+  | "storyboard"
+  | "text_artifact";
 export type CreatePulsePresetStartFailureReason =
   | "bootstrap_pending"
   | "activation_seed_missing"
@@ -38,12 +43,16 @@ const CREATE_PULSE_DEFAULT_ACTIVATION_MODE =
   "activate_and_start" as const satisfies CreatePulseActivationMode;
 const CREATE_PULSE_DEFAULT_OUTPUT_MODE = "chat_reply" as const satisfies CreatePulseOutputMode;
 const CREATE_PULSE_DEFAULT_MEMORY_POLICY = "session" as const satisfies CreatePulseMemoryPolicy;
+const CREATE_PULSE_DEFAULT_ARTIFACT_TARGET =
+  "text_artifact" as const satisfies CreatePulseArtifactTarget;
 export const CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE =
   "workflow_gpt" as const satisfies CreatePulseRuntimeMode;
 export const CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE =
   "activate_and_start" as const satisfies CreatePulseActivationMode;
 export const CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE =
   "chat_reply" as const satisfies CreatePulseOutputMode;
+export const CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET =
+  "text_artifact" as const satisfies CreatePulseArtifactTarget;
 const CREATE_PULSE_BUILT_IN_RUNTIME_MODE = "workflow_gpt" as const satisfies CreatePulseRuntimeMode;
 const CREATE_PULSE_BUILT_IN_ACTIVATION_MODE =
   "activate_and_start" as const satisfies CreatePulseActivationMode;
@@ -363,6 +372,7 @@ const createBuiltInPulseDefinition = ({
   outputMode = CREATE_PULSE_BUILT_IN_OUTPUT_MODE,
   starterAssistantMessage = null,
   workflowStageHints = null,
+  artifactTarget,
 }: {
   presetId: string;
   label: string;
@@ -373,6 +383,7 @@ const createBuiltInPulseDefinition = ({
   outputMode?: CreatePulseOutputMode;
   starterAssistantMessage?: string | null;
   workflowStageHints?: readonly string[] | null;
+  artifactTarget: CreatePulseArtifactTarget;
 }) => ({
   presetId,
   label,
@@ -385,6 +396,7 @@ const createBuiltInPulseDefinition = ({
   starterAssistantMessage,
   workflowStageHints:
     workflowStageHints?.map((entry) => entry.trim()).filter((entry) => entry.length > 0) ?? null,
+  artifactTarget,
 });
 
 const CREATE_PULSE_BUILT_IN_DEFINITIONS = [
@@ -398,6 +410,7 @@ const CREATE_PULSE_BUILT_IN_DEFINITIONS = [
     outputMode: "chat_reply",
     starterAssistantMessage: VIDEO_PROMPT_MAGIC_STARTER_MESSAGE,
     workflowStageHints: VIDEO_PROMPT_MAGIC_STAGE_HINTS,
+    artifactTarget: "video_prompt",
   }),
   createBuiltInPulseDefinition({
     presetId: "multi_shot",
@@ -409,6 +422,7 @@ const CREATE_PULSE_BUILT_IN_DEFINITIONS = [
     outputMode: "chat_reply",
     starterAssistantMessage: MULTI_SEQUENCE_VIDEO_PROMPT_STARTER_MESSAGE,
     workflowStageHints: MULTI_SEQUENCE_VIDEO_PROMPT_STAGE_HINTS,
+    artifactTarget: "video_prompt",
   }),
   createBuiltInPulseDefinition({
     presetId: "story_builder",
@@ -420,6 +434,7 @@ const CREATE_PULSE_BUILT_IN_DEFINITIONS = [
     outputMode: "chat_reply",
     starterAssistantMessage: STORY_BUILDER_STARTER_MESSAGE,
     workflowStageHints: STORY_BUILDER_STAGE_HINTS,
+    artifactTarget: "image_prompt",
   }),
 ] as const;
 
@@ -451,6 +466,7 @@ export type CreatePulseSavedPreset = {
   starterAssistantMessage?: string | null;
   workflowStageHints?: CreatePulseWorkflowStageHints | null;
   outputMode: CreatePulseOutputMode;
+  artifactTarget?: CreatePulseArtifactTarget;
   memoryPolicy: CreatePulseMemoryPolicy;
   createdAt: string | null;
 };
@@ -465,6 +481,7 @@ export type CreatePulseResolvedPreset = {
   starterAssistantMessage: string | null;
   workflowStageHints: CreatePulseWorkflowStageHints | null;
   outputMode: CreatePulseOutputMode;
+  artifactTarget: CreatePulseArtifactTarget;
   memoryPolicy: CreatePulseMemoryPolicy;
   isCustom: boolean;
   isBuiltIn: boolean;
@@ -493,6 +510,12 @@ let createPulseCustomPresetFallbackCounter = 0;
 
 const isValidCreatePulseDragSource = (value: string): value is CreatePulsePresetDragSource =>
   value === "surface" || value === "panel";
+
+const isCreatePulseArtifactTarget = (value: string): value is CreatePulseArtifactTarget =>
+  value === "image_prompt" ||
+  value === "video_prompt" ||
+  value === "storyboard" ||
+  value === "text_artifact";
 
 export const isCreatePulseRetiredPresetId = (value: string): value is CreatePulseRetiredPresetId =>
   CREATE_PULSE_RETIRED_PRESET_ID_SET.has(value);
@@ -536,6 +559,10 @@ const normalizeCreatePulseSavedPresetRecord = (value: unknown): CreatePulseSaved
     typeof (value as { outputMode?: unknown }).outputMode === "string"
       ? (value as { outputMode: string }).outputMode.trim()
       : "";
+  const artifactTargetRaw =
+    typeof (value as { artifactTarget?: unknown }).artifactTarget === "string"
+      ? (value as { artifactTarget: string }).artifactTarget.trim()
+      : "";
   const memoryPolicyRaw =
     typeof (value as { memoryPolicy?: unknown }).memoryPolicy === "string"
       ? (value as { memoryPolicy: string }).memoryPolicy.trim()
@@ -568,6 +595,9 @@ const normalizeCreatePulseSavedPresetRecord = (value: unknown): CreatePulseSaved
       outputModeRaw === CREATE_PULSE_DEFAULT_OUTPUT_MODE
         ? outputModeRaw
         : CREATE_PULSE_DEFAULT_OUTPUT_MODE,
+    artifactTarget: isCreatePulseArtifactTarget(artifactTargetRaw)
+      ? artifactTargetRaw
+      : CREATE_PULSE_DEFAULT_ARTIFACT_TARGET,
     memoryPolicy:
       memoryPolicyRaw === "session" ? memoryPolicyRaw : CREATE_PULSE_DEFAULT_MEMORY_POLICY,
     createdAt,
@@ -724,6 +754,7 @@ export const resolveCreatePulsePresetCatalog = (
           ? (override.workflowStageHints ?? null)
           : definition.workflowStageHints,
         outputMode: CREATE_PULSE_GUIDED_BEHAVIOR.outputMode,
+        artifactTarget: definition.artifactTarget,
         memoryPolicy: override?.memoryPolicy ?? definition.memoryPolicy,
         isCustom: false,
         isBuiltIn: true,
@@ -743,6 +774,7 @@ export const resolveCreatePulsePresetCatalog = (
         starterAssistantMessage: preset.starterAssistantMessage ?? null,
         workflowStageHints: preset.workflowStageHints ?? null,
         outputMode: CREATE_PULSE_GUIDED_BEHAVIOR.outputMode,
+        artifactTarget: preset.artifactTarget ?? CREATE_PULSE_DEFAULT_ARTIFACT_TARGET,
         memoryPolicy: preset.memoryPolicy,
         isCustom: true,
         isBuiltIn: false,

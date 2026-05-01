@@ -3,6 +3,7 @@ import { canExposeDirectReferenceUrls } from "../logic/referenceOutputAuthority"
 import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 import {
+  extractInternalReferenceDragPayload,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
 } from "../../../lib/internalReferenceDragPayload";
@@ -68,6 +69,8 @@ export type DragDropPayload = {
   promptText: string | null;
   referenceId?: string | null;
   fromFile?: boolean;
+  width?: number;
+  height?: number;
 };
 
 export type VideoDragDropPayload = {
@@ -90,6 +93,28 @@ const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
 const INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY = "internalReferenceDragToken";
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
+
+const parseTransferDimension = (value: string | null | undefined): number | undefined => {
+  const parsed = Number.parseFloat((value ?? "").trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return parsed;
+};
+
+const resolveReferenceTransferDimensions = (
+  transfer: DataTransfer
+): Pick<DragDropPayload, "width" | "height"> => {
+  const internalPayload = extractInternalReferenceDragPayload(transfer);
+  const width =
+    internalPayload?.width ??
+    parseTransferDimension(transfer.getData(REFERENCE_TRANSFER_WIDTH_TYPE));
+  const height =
+    internalPayload?.height ??
+    parseTransferDimension(transfer.getData(REFERENCE_TRANSFER_HEIGHT_TYPE));
+  return {
+    ...(typeof width === "number" ? { width } : {}),
+    ...(typeof height === "number" ? { height } : {}),
+  };
+};
 
 const clampDragGhostSize = (value: number): number =>
   Math.max(DRAG_GHOST_MIN_SIZE_PX, Math.min(DRAG_GHOST_MAX_SIZE_PX, value));
@@ -466,6 +491,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
   const referenceId = transfer.getData("text/reference-id") || null;
   const normalizedReferenceUrl =
     referenceUrl && isLikelyImageTransferUrl(referenceUrl) ? referenceUrl : null;
+  const dimensions = resolveReferenceTransferDimensions(transfer);
 
   if (imageFile) {
     return {
@@ -482,6 +508,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
       promptText: extractPromptText(transfer),
       referenceId,
       fromFile: false,
+      ...dimensions,
     };
   }
 
@@ -501,6 +528,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
           promptText: extractPromptText(transfer),
           referenceId,
           fromFile: false,
+          ...dimensions,
         };
       }
     }
@@ -519,6 +547,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
         promptText: extractPromptText(transfer),
         referenceId,
         fromFile: false,
+        ...dimensions,
       };
     }
   }
@@ -537,6 +566,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
         promptText: extractPromptText(transfer),
         referenceId,
         fromFile: false,
+        ...dimensions,
       };
     }
   }
@@ -546,6 +576,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     promptText: extractPromptText(transfer),
     referenceId,
     fromFile: false,
+    ...dimensions,
   };
 };
 

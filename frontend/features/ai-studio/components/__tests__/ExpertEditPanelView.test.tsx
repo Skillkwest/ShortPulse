@@ -99,9 +99,13 @@ const createImageDropTransfer = (url: string) =>
 const createReferenceImageDropTransfer = ({
   url,
   referenceId,
+  width,
+  height,
 }: {
   url: string;
   referenceId: string;
+  width?: number;
+  height?: number;
 }) =>
   ({
     files: [],
@@ -110,6 +114,8 @@ const createReferenceImageDropTransfer = ({
     getData: vi.fn((type: string) => {
       if (type === "text/reference-url") return url;
       if (type === "text/reference-id") return referenceId;
+      if (type === "text/reference-width") return width ? String(width) : "";
+      if (type === "text/reference-height") return height ? String(height) : "";
       return "";
     }),
   }) as unknown as DataTransfer;
@@ -1254,7 +1260,7 @@ describe("ExpertEditPanelView", () => {
     expect(resolutionTrigger).toHaveTextContent("Model default");
   });
 
-  it("inserts @img token text at caret when dragging a populated secondary slot into prompt", () => {
+  it("inserts @img token text at caret when dragging a populated secondary slot into prompt", async () => {
     const onPromptTextChange = vi.fn();
     render(
       <ExpertEditPanelView
@@ -1266,13 +1272,19 @@ describe("ExpertEditPanelView", () => {
     );
 
     const promptInput = screen.getByLabelText("Edit prompt") as HTMLTextAreaElement;
-    promptInput.focus();
-    promptInput.setSelectionRange(5, 5);
+    act(() => {
+      promptInput.focus();
+      promptInput.setSelectionRange(5, 5);
+    });
     const secondarySlot = screen.getByLabelText("Secondary edit image 1");
     const transfer = createPromptTokenTransfer();
 
-    fireEvent.dragStart(secondarySlot, { dataTransfer: transfer });
-    fireEvent.drop(promptInput, { dataTransfer: transfer });
+    await act(async () => {
+      fireEvent.dragStart(secondarySlot, { dataTransfer: transfer });
+      fireEvent.drop(promptInput, { dataTransfer: transfer });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
     expect(onPromptTextChange).toHaveBeenCalledWith("Blend @img1 scene");
   });
@@ -6227,6 +6239,51 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
   });
 
+  it("seeds dropped generated image dimensions before standard edit reuse", async () => {
+    const generatedUrl = "https://fal.media/files/generated-wide-2k.png";
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        aspect="16:9"
+        referenceText="prompt text"
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    const primaryCanvasFrameStack = container.querySelector(
+      '[data-testid="edit-expert-primary-canvas-frame-stack"]'
+    ) as HTMLDivElement;
+    const transfer = createReferenceImageDropTransfer({
+      url: generatedUrl,
+      referenceId: "out-wide-1",
+      width: 2048,
+      height: 1152,
+    });
+
+    await act(async () => {
+      fireEvent.drop(primaryCanvasFrameStack, { dataTransfer: transfer });
+      await Promise.resolve();
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
+    const [referenceInputs, submitOptions] = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[], { referenceInputsMode?: "merge" | "replace" }?]>;
+        };
+      }
+    ).mock.calls[0] ?? [[], undefined];
+    expect(referenceInputs).toEqual([generatedUrl]);
+    expect(submitOptions?.referenceInputsMode).toBe("replace");
+  });
+
   it("does not open the custom stage actions menu from the blank primary stage", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
@@ -6868,6 +6925,38 @@ describe("ExpertEditPanelView", () => {
     expect(referenceInputs).toEqual([
       "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user/reference-portrait.png?token=test",
     ]);
+    expect(submitOptions?.referenceInputsMode).toBe("replace");
+  });
+
+  it("reuses a public generated primary source url for unchanged standard edit", async () => {
+    const publicGeneratedUrl = "https://fal.media/files/generated-2k.png";
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="prompt text"
+        referenceImageUrl={publicGeneratedUrl}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const [referenceInputs, submitOptions] = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[], { referenceInputsMode?: "merge" | "replace" }?]>;
+        };
+      }
+    ).mock.calls[0] ?? [[], undefined];
+    expect(referenceInputs).toEqual([publicGeneratedUrl]);
     expect(submitOptions?.referenceInputsMode).toBe("replace");
   });
 

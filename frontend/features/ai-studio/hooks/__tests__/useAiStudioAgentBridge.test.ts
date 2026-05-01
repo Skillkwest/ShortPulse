@@ -984,7 +984,7 @@ describe("useAiStudioAgentBridge", () => {
       handleAgentEnhanceSend: vi.fn(),
       handleReferencePromptEnhance: vi.fn(),
     });
-    useAiStudioAgentInteractionsMock.mockImplementation((params) => {
+    useAiStudioAgentInteractionsMock.mockImplementation(() => {
       return {
         handleAgentApplyPrompt: vi.fn(),
         handleClearAgentChat: vi.fn(),
@@ -1056,7 +1056,7 @@ describe("useAiStudioAgentBridge", () => {
       handleAgentEnhanceSend: vi.fn(),
       handleReferencePromptEnhance: vi.fn(),
     });
-    useAiStudioAgentInteractionsMock.mockImplementation((params) => {
+    useAiStudioAgentInteractionsMock.mockImplementation(() => {
       return {
         handleAgentApplyPrompt: vi.fn(),
         handleClearAgentChat: vi.fn(),
@@ -1308,6 +1308,7 @@ describe("useAiStudioAgentBridge", () => {
         starterAssistantMessage: "Upload your characters first.",
         workflowStageHints: ["Upload Characters"],
         outputMode: "chat_reply",
+        artifactTarget: "image_prompt",
         memoryPolicy: "session",
         isBuiltIn: true,
         isEditable: true,
@@ -1404,6 +1405,7 @@ describe("useAiStudioAgentBridge", () => {
         starterAssistantMessage: "Upload your characters first.",
         workflowStageHints: ["Upload Characters"],
         outputMode: "chat_reply",
+        artifactTarget: "image_prompt",
         memoryPolicy: "session",
         isBuiltIn: true,
         isEditable: true,

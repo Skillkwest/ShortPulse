@@ -6,7 +6,7 @@ import React, { createContext, useContext } from "react";
 import { useCreatePulsePresetPanelPreference } from "../../hooks/useCreatePulsePresetPanelPreference";
 import type { CreatePulsePresetId, CreatePulseSavedPreset } from "./createPulsePresets";
 
-type CreatePulsePreferenceRuntimeValue = {
+export type CreatePulsePreferenceRuntimeValue = {
   presetPanelIds: readonly CreatePulsePresetId[];
   savedPresets: readonly CreatePulseSavedPreset[];
   setPresetPanelIds: (value: CreatePulsePresetId[]) => Promise<boolean>;

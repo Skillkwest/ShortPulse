@@ -12,6 +12,9 @@ import { normalizePulseSessionInstanceId } from "../logic/pulseSessionState";
 export type AiStudioExpertCreateMode = "standard" | "pulse";
 export type AiStudioPulsePresetChangeOptions = {
   forceNewSession?: boolean;
+  sessionInstanceIdOverride?: string | null;
+  workflowSessionOverride?: AgentPulseWorkflowSession | null;
+  preserveWorkflowSession?: boolean;
 };
 
 type UseAiStudioCreateModeRuntimeParams = {
@@ -132,6 +135,18 @@ export const useAiStudioCreateModeRuntime = ({
         normalizePulseSessionInstanceId(pulseSessionInstanceIdState)
       ) {
         return null;
+      }
+      const sessionInstanceIdOverride = normalizePulseSessionInstanceId(
+        options?.sessionInstanceIdOverride ?? null
+      );
+      if (sessionInstanceIdOverride) {
+        setExpertCreateModeState("pulse");
+        setActiveCreatePulsePresetIdState(nextPresetId);
+        setPulseSessionInstanceIdState(sessionInstanceIdOverride);
+        if (!options?.preserveWorkflowSession) {
+          setPulseWorkflowSessionState(options?.workflowSessionOverride ?? null);
+        }
+        return sessionInstanceIdOverride;
       }
       return activatePulse(nextPresetId);
     },

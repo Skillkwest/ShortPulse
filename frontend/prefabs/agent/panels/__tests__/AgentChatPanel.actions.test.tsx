@@ -831,6 +831,48 @@ describe("AgentChatPanel prompt actions", () => {
     expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
   });
 
+  it("keeps completed Pulse artifact text draggable when generate controls are hidden", () => {
+    render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "pulse-final",
+            role: "assistant",
+            content: "Completed Pulse artifact prompt.",
+            outputPrompt: "Completed Pulse artifact prompt.",
+            canUseAsPrompt: true,
+          },
+        ]}
+        input=""
+        assistantMessageClassName="agent-message--pulse-guided"
+        hideOutputGenerateControls
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const draggableMessage = screen
+      .getByText("Completed Pulse artifact prompt.")
+      .closest(".agent-message") as HTMLElement;
+    expect(draggableMessage).toBeTruthy();
+    expect(draggableMessage).toHaveClass("agent-message--pulse-guided");
+    expect(draggableMessage).toHaveClass("is-draggable");
+    expect(draggableMessage).not.toHaveClass("agent-message--with-output-generate");
+
+    const setData = vi.fn();
+    const dataTransfer = {
+      setData,
+      effectAllowed: "none",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(draggableMessage, { dataTransfer });
+    expect(setData).toHaveBeenCalledWith("text/plain", "Completed Pulse artifact prompt.");
+    expect(setData).toHaveBeenCalledWith("text/prompt", "Completed Pulse artifact prompt.");
+
+    fireEvent.dragEnd(draggableMessage);
+    expect(draggableMessage.classList.contains("is-dragging")).toBe(false);
+  });
+
   it("keeps assistant bubble draggable from text area when output preview media exists", () => {
     render(
       <AgentChatPanel

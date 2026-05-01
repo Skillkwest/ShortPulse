@@ -104,6 +104,7 @@ export type AgentPulseRuntimeContext = {
   starterAssistantMessage?: string | null;
   workflowStageHints?: string[] | null;
   outputMode?: "apply_prompt" | "chat_reply";
+  artifactTarget?: "image_prompt" | "video_prompt" | "storyboard" | "text_artifact";
   memoryPolicy?: "session";
   source?: "builtin" | "custom";
   workflowSession?: AgentPulseWorkflowSession | null;

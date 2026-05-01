@@ -100,6 +100,7 @@ describe("studioAgentRequestGuards", () => {
         runtimeMode: "prompt_editor",
         activationMode: "activate_only",
         outputMode: "apply_prompt",
+        artifactTarget: "video_prompt",
         source: "custom",
       },
     });
@@ -114,6 +115,7 @@ describe("studioAgentRequestGuards", () => {
       starterAssistantMessage: null,
       workflowStageHints: null,
       outputMode: "chat_reply",
+      artifactTarget: "video_prompt",
       memoryPolicy: "session",
       source: "custom",
       workflowSession: null,

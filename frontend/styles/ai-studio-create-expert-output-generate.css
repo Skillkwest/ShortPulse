@@ -37,6 +37,21 @@
 
 .create-expert-panel
   .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--prompt-output.agent-message--with-output-generate
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--prompt-output.agent-message--with-output-generate
+  .tiny,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--prompt-output.agent-message--with-output-generate
+  .agent-message-edit-input {
+  color: var(--agent-output-prompt-text, #57d4ff) !important;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--with-output-generate.is-draggable {
   transform: none;
   transition:

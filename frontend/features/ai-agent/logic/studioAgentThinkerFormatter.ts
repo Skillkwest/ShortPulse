@@ -251,7 +251,7 @@ export const runThinkerFormatterTurn = async ({
   maxStageAttempts?: number;
 }): Promise<ThinkerFormatterTurnResult> => {
   const resolvedThinkerModel = (thinkerModel ?? model ?? "").trim();
-  const thinkerStageModel = resolvedThinkerModel.length ? resolvedThinkerModel : "gpt-5-nano";
+  const thinkerStageModel = resolvedThinkerModel.length ? resolvedThinkerModel : "gpt-5.4-nano";
   const resolvedFormatterModel = (formatterModel ?? thinkerStageModel).trim();
   const formatterStageModel = resolvedFormatterModel.length
     ? resolvedFormatterModel

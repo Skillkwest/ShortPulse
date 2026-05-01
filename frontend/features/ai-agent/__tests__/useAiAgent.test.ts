@@ -206,6 +206,11 @@ describe("useAiAgent", () => {
       }
     );
 
+    act(() => {
+      result.current.appendUserMessage("Previous Pulse transcript");
+    });
+    expect(result.current.messages).toHaveLength(1);
+
     let sendResult!: SendResult;
     await act(async () => {
       sendResult = await result.current.send({
@@ -232,12 +237,12 @@ describe("useAiAgent", () => {
     });
 
     expect(sendResult.discarded).not.toBe(true);
-    expect(result.current.messages.at(-1)).toEqual(
+    expect(result.current.messages).toEqual([
       expect.objectContaining({
         role: "assistant",
         content: "Pulse activated.",
-      })
-    );
+      }),
+    ]);
 
     await act(async () => {
       rerender({ sessionNamespace: "ai-studio:seed:none::pulse:custom" });
@@ -364,11 +369,11 @@ describe("useAiAgent", () => {
     expect(fetchWithAuthMock.mock.calls[0]?.[0]).toBe("/api/ai/studio-agent-pulse");
   });
 
-  it("preserves finalArtifactSource from workflow-session responses", async () => {
+  it("preserves exact completed chat_reply artifacts for draggable Pulse output", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({
-        message: "final artifact",
+        message: "final artifact in 16:9",
         workflowSession: {
           presetId: "story_builder",
           status: "completed",
@@ -376,7 +381,7 @@ describe("useAiAgent", () => {
           currentStepLabel: "Image Prompts",
           currentStepPrompt: null,
           collectedInputs: ["grimdark"],
-          lastArtifact: "final artifact",
+          lastArtifact: "final artifact in 16:9",
           finalArtifactSource: "chat_reply",
         },
       }),
@@ -398,9 +403,17 @@ describe("useAiAgent", () => {
       currentStepLabel: "Image Prompts",
       currentStepPrompt: null,
       collectedInputs: ["grimdark"],
-      lastArtifact: "final artifact",
+      lastArtifact: "final artifact in 16:9",
       finalArtifactSource: "chat_reply",
     });
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "final artifact in 16:9",
+        outputPrompt: "final artifact in 16:9",
+        canUseAsPrompt: true,
+      })
+    );
   });
 
   it("reuses stored clientSessionKey across hook remounts and rotates on reset", async () => {

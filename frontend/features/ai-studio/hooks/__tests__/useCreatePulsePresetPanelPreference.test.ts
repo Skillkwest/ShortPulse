@@ -31,6 +31,7 @@ const buildExpectedSavedPulse = ({
   activationMode: "activate_and_start" as const,
   starterAssistantMessage: null,
   outputMode: "chat_reply" as const,
+  artifactTarget: "text_artifact" as const,
   memoryPolicy: "session" as const,
   workflowStageHints: null,
   createdAt,
@@ -68,8 +69,12 @@ describe("useCreatePulsePresetPanelPreference", () => {
     expect(readSupabaseUserId).not.toHaveBeenCalled();
   });
 
-  it("keeps custom Pulse preference loading out of the AI Studio page root", () => {
+  it("keeps Pulse preference loading out of the page root and inside Pulse surfaces", () => {
     const pageSource = readFileSync(`${process.cwd()}/pages/ai-studio.tsx`, "utf8");
+    const pulsePageRuntimeSource = readFileSync(
+      `${process.cwd()}/features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime.ts`,
+      "utf8"
+    );
     const pulseProviderSource = readFileSync(
       `${process.cwd()}/features/ai-studio/components/create/CreatePulsePreferenceProvider.tsx`,
       "utf8"
@@ -77,7 +82,9 @@ describe("useCreatePulsePresetPanelPreference", () => {
 
     expect(pageSource).not.toContain("useCreatePulsePresetPanelPreference");
     expect(pageSource).not.toContain("CreatePulsePreferenceRuntime");
-    expect(pageSource).not.toContain("CreatePulsePreferenceProvider");
+    expect(pageSource).not.toContain("<CreatePulsePreferenceProvider");
+    expect(pulsePageRuntimeSource).toContain("useCreatePulsePresetPanelPreference");
+    expect(pulsePageRuntimeSource).toContain("enabled: shouldLoadPulsePreferences");
     expect(pulseProviderSource).toContain("useCreatePulsePresetPanelPreference");
   });
 

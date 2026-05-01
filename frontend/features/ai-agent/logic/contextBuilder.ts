@@ -16,6 +16,16 @@ const GUIDED_PULSE_RUNTIME_MODE = "workflow_gpt" as const;
 const GUIDED_PULSE_ACTIVATION_MODE = "activate_and_start" as const;
 const GUIDED_PULSE_OUTPUT_MODE = "chat_reply" as const;
 
+const normalizePulseArtifactTarget = (
+  value: AgentPulseRuntimeContext["artifactTarget"]
+): AgentPulseRuntimeContext["artifactTarget"] | undefined =>
+  value === "image_prompt" ||
+  value === "video_prompt" ||
+  value === "storyboard" ||
+  value === "text_artifact"
+    ? value
+    : undefined;
+
 const isSafeRemoteUrl = (value?: string | null) => {
   if (!value || typeof value !== "string") return false;
   if (!value.startsWith("https://")) return false;
@@ -102,6 +112,7 @@ const pickPulseRuntime = (
         } satisfies AgentPulseWorkflowSession)
       : null;
   if (!presetId || !label || !instructions) return undefined;
+  const artifactTarget = normalizePulseArtifactTarget(pulse.artifactTarget);
   return {
     presetId,
     label,
@@ -112,6 +123,7 @@ const pickPulseRuntime = (
     starterAssistantMessage,
     workflowStageHints,
     outputMode: GUIDED_PULSE_OUTPUT_MODE,
+    ...(artifactTarget ? { artifactTarget } : {}),
     memoryPolicy: "session",
     source: pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined,
     workflowSession,

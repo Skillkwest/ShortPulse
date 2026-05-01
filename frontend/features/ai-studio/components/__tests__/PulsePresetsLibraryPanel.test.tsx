@@ -32,6 +32,7 @@ describe("PulsePresetsLibraryPanel", () => {
             activationMode: "activate_and_start",
             starterAssistantMessage: null,
             outputMode: "chat_reply",
+            artifactTarget: "text_artifact",
             memoryPolicy: "session",
             createdAt: null,
           },
@@ -70,6 +71,7 @@ describe("PulsePresetsLibraryPanel", () => {
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
           outputMode: "chat_reply",
+          artifactTarget: "text_artifact",
         }),
       ]);
     });
@@ -138,6 +140,7 @@ describe("PulsePresetsLibraryPanel", () => {
             starterAssistantMessage: "Old hidden starter.",
             workflowStageHints: ["Old", "Hidden", "Hints"],
             outputMode: "chat_reply",
+            artifactTarget: "text_artifact",
             memoryPolicy: "session",
             createdAt: null,
           },
@@ -200,6 +203,7 @@ describe("PulsePresetsLibraryPanel", () => {
             activationMode: "activate_and_start",
             starterAssistantMessage: null,
             outputMode: "chat_reply",
+            artifactTarget: "text_artifact",
             memoryPolicy: "session",
             createdAt: null,
           },

@@ -261,19 +261,19 @@
 
 .agent-message-rich-heading--level-1 {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.15;
 }
 
 .agent-message-rich-heading--level-2 {
   font-size: 18px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.18;
 }
 
 .agent-message-rich-heading--level-3 {
   font-size: 15px;
-  font-weight: 750;
+  font-weight: 600;
   line-height: 1.24;
   text-transform: none;
 }
@@ -285,7 +285,7 @@
 .agent-message-rich-hint strong,
 .agent-message-rich-option-title strong,
 .agent-message-rich-option-description strong {
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .agent-message-rich-heading--level-1 em,
@@ -304,7 +304,7 @@
 
 .agent-message-rich-lead {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 500;
   line-height: 1.45;
   letter-spacing: -0.01em;
   white-space: pre-wrap;
@@ -327,7 +327,7 @@
 .agent-message-rich-reply-intro {
   margin: 0;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.25;
   white-space: pre-wrap;
 }
@@ -350,7 +350,7 @@
   background: rgba(201, 205, 214, 0.13);
   color: #f5f7fb;
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1;
   letter-spacing: 0.01em;
 }
@@ -389,7 +389,7 @@
 .agent-message-rich-option-title {
   margin: 0;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.22;
   letter-spacing: -0.01em;
   white-space: pre-wrap;
@@ -460,7 +460,7 @@
     0 20px 44px rgba(0, 0, 0, 0.55),
     0 0 0 1px rgba(52, 214, 255, 0.32),
     0 0 20px rgba(52, 214, 255, 0.24);
-  color: #bfeeff;
+  color: #ececf1;
   overflow: hidden;
   opacity: 0.98;
   z-index: 2147483647;
@@ -471,7 +471,8 @@
 .agent-message-drag-ghost p,
 .agent-message-drag-ghost .tiny {
   margin: 0;
-  color: #bfeeff !important;
+  color: #ececf1 !important;
+  font-weight: 400;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 7;
@@ -533,7 +534,8 @@
 .agent-message.agent-assistant,
 .agent-message.agent-assistant p,
 .agent-message.agent-assistant .tiny {
-  color: #25a9bf !important;
+  color: #ececf1 !important;
+  font-weight: 400;
 }
 
 .agent-message.agent-assistant {
@@ -541,6 +543,13 @@
   text-align: left;
   position: relative;
   padding-bottom: 44px;
+}
+
+.agent-message.agent-assistant.agent-message--prompt-output,
+.agent-message.agent-assistant.agent-message--prompt-output p,
+.agent-message.agent-assistant.agent-message--prompt-output .tiny,
+.agent-message.agent-assistant.agent-message--prompt-output .agent-message-edit-input {
+  color: var(--agent-output-prompt-text, #57d4ff) !important;
 }
 
 .agent-message.agent-assistant.is-draggable {
@@ -652,7 +661,7 @@
   margin: 0;
   font-size: 10px;
   line-height: 1.2;
-  color: rgba(226, 239, 252, 0.9) !important;
+  color: rgba(236, 236, 241, 0.86) !important;
 }
 
 .agent-message .agent-output-generate-pill.agent-generate-prefab {

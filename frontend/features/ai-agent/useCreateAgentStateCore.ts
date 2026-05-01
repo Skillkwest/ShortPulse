@@ -212,6 +212,8 @@ export const useCreateAgentStateCore = ({
       }
 
       const previousMessages = isolateHistory ? EMPTY_MESSAGES : messagesRef.current;
+      const getResponseBaseMessages = () =>
+        isolateHistory ? previousMessages : messagesRef.current;
       const requestCanonicalPrompt =
         canonicalPromptBySessionIdentityRef.current.get(requestSessionIdentity) ?? null;
       if (!skipUserEcho && !allowContextOnlyTurn) {
@@ -263,7 +265,7 @@ export const useCreateAgentStateCore = ({
           }),
         });
         if (inputPrecheckResult.outcome === "refusal") {
-          const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
+          const nextAssistantMessages = appendAssistantMessage(getResponseBaseMessages(), {
             id: createAgentMessageId("assistant"),
             content: SAFETY_REFUSAL_MESSAGE,
             canUseAsPrompt: false,
@@ -310,7 +312,7 @@ export const useCreateAgentStateCore = ({
         if (!transportResult.ok) {
           const failureResolution = resolveStudioAgentTransportFailure(transportResult);
           if (failureResolution.assistantMessage) {
-            const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
+            const nextAssistantMessages = appendAssistantMessage(getResponseBaseMessages(), {
               id: createAgentMessageId("assistant"),
               content: failureResolution.assistantMessage,
               canUseAsPrompt: false,
@@ -355,7 +357,7 @@ export const useCreateAgentStateCore = ({
             data.outcome_class !== "fallback_infra" &&
             data.outcome_class !== "refusal_safety" &&
             data.outcome_class !== "refusal_model";
-          const nextAssistantMessages = appendAssistantMessage(messagesRef.current, {
+          const nextAssistantMessages = appendAssistantMessage(getResponseBaseMessages(), {
             id: createAgentMessageId("assistant"),
             content: assistantContent,
             outputPrompt: assistantOutputPrompt,

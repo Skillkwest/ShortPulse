@@ -4,8 +4,8 @@ import {
 } from "../../lib/server/api/openAiCompat";
 
 const DEFAULT_OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-const DEFAULT_MODEL = "gpt-5-nano";
-const DEFAULT_VISION_MODEL = "gpt-5-nano";
+const DEFAULT_MODEL = "gpt-5.4-nano";
+const DEFAULT_VISION_MODEL = "gpt-5.4-nano";
 const DEFAULT_TIMEOUT_MS = 20000;
 const MIN_TIMEOUT_MS = 1000;
 const MAX_TIMEOUT_MS = 120000;

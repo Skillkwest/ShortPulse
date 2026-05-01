@@ -27,6 +27,7 @@ export type RestartCreatePulsePresetParams = {
     preset: CreatePulseResolvedPreset,
     options?: {
       pulseSessionInstanceId?: string | null;
+      deferWorkflowSessionCommit?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult>;
 };

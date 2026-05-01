@@ -143,6 +143,16 @@ const normalizeFocusedSource = (
   return undefined;
 };
 
+const normalizePulseArtifactTarget = (
+  value: NonNullable<AgentContext["pulse"]>["artifactTarget"]
+): NonNullable<AgentContext["pulse"]>["artifactTarget"] | undefined =>
+  value === "image_prompt" ||
+  value === "video_prompt" ||
+  value === "storyboard" ||
+  value === "text_artifact"
+    ? value
+    : undefined;
+
 const sanitizeStudioAgentPulseContext = (
   pulse?: AgentContext["pulse"] | null
 ): AgentContext["pulse"] | undefined => {
@@ -215,6 +225,7 @@ const sanitizeStudioAgentPulseContext = (
   if (!presetId || !label || !instructions) return undefined;
   const presetBoundWorkflowSession =
     workflowSession?.presetId === presetId ? workflowSession : null;
+  const artifactTarget = normalizePulseArtifactTarget(pulse.artifactTarget);
   return {
     presetId,
     label,
@@ -225,6 +236,7 @@ const sanitizeStudioAgentPulseContext = (
     starterAssistantMessage,
     workflowStageHints,
     outputMode: GUIDED_PULSE_OUTPUT_MODE,
+    ...(artifactTarget ? { artifactTarget } : {}),
     memoryPolicy: "session",
     source: pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined,
     workflowSession: presetBoundWorkflowSession,

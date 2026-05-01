@@ -26,6 +26,7 @@ export type CreatePulsePresetStartFailureReason =
 export type CreatePulsePresetStartResult =
   | {
       status: "started";
+      latestAgentPrompt?: string | null;
     }
   | {
       status: "blocked_busy";

@@ -15,11 +15,11 @@ describe("studioAgentOpenAiGateway", () => {
 
     expect(config).toEqual({
       openAiUrl: "https://api.openai.com/v1/chat/completions",
-      openAiModel: "gpt-5-nano",
-      openAiVisionModel: "gpt-5-nano",
-      openAiThinkerModel: "gpt-5-nano",
-      openAiFormatterModel: "gpt-5-nano",
-      openAiPulseModel: "gpt-5-nano",
+      openAiModel: "gpt-5.4-nano",
+      openAiVisionModel: "gpt-5.4-nano",
+      openAiThinkerModel: "gpt-5.4-nano",
+      openAiFormatterModel: "gpt-5.4-nano",
+      openAiPulseModel: "gpt-5.4-nano",
       requestTimeoutMs: 20000,
       visionTimeoutMs: 20000,
       turnTimeoutMs: 20000,
@@ -35,10 +35,10 @@ describe("studioAgentOpenAiGateway", () => {
       STUDIO_AGENT_DIRECT_OPENAI_MODEL: "gpt-5.4",
     } as unknown as NodeJS.ProcessEnv);
 
-    expect(config.openAiModel).toBe("gpt-5-nano");
-    expect(config.openAiThinkerModel).toBe("gpt-5-nano");
-    expect(config.openAiFormatterModel).toBe("gpt-5-nano");
-    expect(config.openAiPulseModel).toBe("gpt-5-nano");
+    expect(config.openAiModel).toBe("gpt-5.4-nano");
+    expect(config.openAiThinkerModel).toBe("gpt-5.4-nano");
+    expect(config.openAiFormatterModel).toBe("gpt-5.4-nano");
+    expect(config.openAiPulseModel).toBe("gpt-5.4-nano");
   });
 
   it("clamps timeout/retry config and applies thinker/formatter fallback chain", () => {
@@ -119,10 +119,10 @@ describe("studioAgentOpenAiGateway", () => {
       STUDIO_AGENT_DIRECT_OPENAI_MODEL: "gpt-5.4",
     } as unknown as NodeJS.ProcessEnv);
 
-    expect(config.openAiModel).toBe("gpt-5-nano");
-    expect(config.openAiThinkerModel).toBe("gpt-5-nano");
-    expect(config.openAiFormatterModel).toBe("gpt-5-nano");
-    expect(config.openAiPulseModel).toBe("gpt-5-nano");
+    expect(config.openAiModel).toBe("gpt-5.4-nano");
+    expect(config.openAiThinkerModel).toBe("gpt-5.4-nano");
+    expect(config.openAiFormatterModel).toBe("gpt-5.4-nano");
+    expect(config.openAiPulseModel).toBe("gpt-5.4-nano");
   });
 
   it("formats timeout errors deterministically", () => {

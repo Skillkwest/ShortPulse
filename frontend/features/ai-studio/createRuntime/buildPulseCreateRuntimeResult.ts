@@ -58,5 +58,6 @@ export const buildPulseCreateRuntimeResult = ({
     handlePulseCreatePrimarySubmit: actions.onGenerateArtifact,
     savePromptReference: props.onSavePromptReference,
     expertCreateUiEligible: props.expertCreateUiEligible,
+    pulsePreferenceRuntime: props.pulsePreferenceRuntime,
   }),
 });

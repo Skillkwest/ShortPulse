@@ -66,20 +66,31 @@ const resolveWorkflowSession = (
   };
 };
 
+const normalizeExactArtifactText = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 export const resolvePulseCreateAgentTransportSuccess = (
   response: AgentResponse
 ): PulseCreateAgentTransportSuccess => {
   const actions = normalizeActions(response.actions);
+  const workflowSession = resolveWorkflowSession(response);
   const canonicalPrompt = sanitizeGenerationPromptText(
     response.canonicalPrompt ?? actions?.applyPrompt ?? null
   );
   const applyPromptText = sanitizeGenerationPromptText(actions?.applyPrompt ?? null) ?? "";
+  const completedChatReplyArtifact =
+    workflowSession?.status === "completed" && workflowSession.finalArtifactSource === "chat_reply"
+      ? (normalizeExactArtifactText(workflowSession.lastArtifact) ?? "")
+      : "";
   const messageText = typeof response.message === "string" ? response.message.trim() : "";
   return {
     actions,
-    workflowSession: resolveWorkflowSession(response),
+    workflowSession,
     canonicalPrompt,
-    assistantContent: applyPromptText || messageText,
-    assistantOutputPrompt: applyPromptText || null,
+    assistantContent: completedChatReplyArtifact || applyPromptText || messageText,
+    assistantOutputPrompt: completedChatReplyArtifact || applyPromptText || null,
   };
 };

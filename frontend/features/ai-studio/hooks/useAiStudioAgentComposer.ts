@@ -54,6 +54,7 @@ type UseAiStudioAgentComposerParams = {
   ensureAgentSession: () => void;
   findOutputById: (outputId: string) => StudioOutput | null;
   resolveOutputPreviewUrlById: (outputId: string) => string | null;
+  maxImageAttachmentsPerDrop?: number;
 };
 
 type ResetAgentComposerOptions = {
@@ -66,6 +67,7 @@ export const useAiStudioAgentComposer = ({
   ensureAgentSession,
   findOutputById,
   resolveOutputPreviewUrlById,
+  maxImageAttachmentsPerDrop = 1,
 }: UseAiStudioAgentComposerParams) => {
   const [agentInput, setAgentInput] = useState("");
   const [agentAttachmentError, setAgentAttachmentError] = useState<string | null>(null);
@@ -184,6 +186,29 @@ export const useAiStudioAgentComposer = ({
       event.preventDefault();
       agentDropDepthRef.current = 0;
       setIsAgentDropActive(false);
+      const droppedImageFiles = Array.from(event.dataTransfer.files ?? [])
+        .filter((file) => file.type.startsWith("image/"))
+        .slice(
+          0,
+          Math.max(1, Math.min(MAX_AGENT_IMAGE_ATTACHMENTS, Math.trunc(maxImageAttachmentsPerDrop)))
+        );
+      if (droppedImageFiles.length > 0) {
+        if (!agentSessionEnabled) {
+          ensureAgentSession();
+        }
+        setAgentAttachmentError(null);
+        droppedImageFiles.forEach((file) => {
+          insertAttachment({
+            id: randomId(),
+            kind: "image",
+            referenceId: null,
+            imageUrl: URL.createObjectURL(file),
+            text: null,
+            aspect: null,
+          });
+        });
+        return;
+      }
       const payload = extractDragDropPayload(event.dataTransfer);
       const droppedReferenceId = payload.referenceId ?? null;
       const matchedOutput = droppedReferenceId ? findOutputById(droppedReferenceId) : null;
@@ -241,6 +266,7 @@ export const useAiStudioAgentComposer = ({
       ensureAgentSession,
       findOutputById,
       insertAttachment,
+      maxImageAttachmentsPerDrop,
       resolveOutputPreviewUrlById,
     ]
   );

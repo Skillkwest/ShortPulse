@@ -247,19 +247,20 @@ describe("Create agent mode boundaries", () => {
     );
 
     expect(pageSource).toContain("useCreatePulsePresetPageRuntime");
-    expect(pageSource).toContain("standardCreateAgentContextResolver");
-    expect(pageSource).toContain("pulseCreateAgentContextResolver");
-    expect(pageSource).toContain('return base.expertCreateMode === "pulse" ?');
-    expect(pageSource).toContain("<PulseCreateRuntimeRoot base={base} />");
-    expect(pageSource).toContain("<StandardCreateRuntimeRoot base={base} />");
-    expect(pageSource).toContain("const StandardCreateRuntimeRoot =");
-    expect(pageSource).toContain("const PulseCreateRuntimeRoot =");
+    expect(pulsePageRuntimeSource).toContain("standardCreateAgentContextResolver");
+    expect(pulsePageRuntimeSource).toContain("pulseCreateAgentContextResolver");
+    expect(pageSource).toContain("return <CreateRuntimeRoot base={base} />;");
+    expect(pageSource).toContain("const CreateRuntimeRoot =");
+    expect(pageSource).not.toContain("<PulseCreateRuntimeRoot base={base} />");
+    expect(pageSource).not.toContain("<StandardCreateRuntimeRoot base={base} />");
+    expect(pageSource).not.toContain("const StandardCreateRuntimeRoot =");
+    expect(pageSource).not.toContain("const PulseCreateRuntimeRoot =");
     expect(pageSource).toContain("const AiStudioPageRuntimeBody =");
     expect(pageSource).toContain("pendingCreateRuntimeAgentHydrationRef");
     expect(pageSource).toContain("shouldApplySessionAgentHydrationToRuntime");
-    expect(pageSource).not.toContain("const activeCreateAgentRuntime =");
-    expect(pageSource).not.toContain(
-      'expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime'
+    expect(pageSource).toContain("const activeCreateAgentRuntime =");
+    expect(pageSource).toContain(
+      'base.expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime'
     );
     expect(pageSource).toContain("getAgentContext: base.getAgentContext");
     expect(pageSource).toContain(
@@ -289,18 +290,18 @@ describe("Create agent mode boundaries", () => {
     expect(pulsePageRuntimeSource).toContain("clearPulsePrompt();");
     expect(pulsePageRuntimeSource).toContain("activeCreatePulsePresetSnapshot");
 
-    const standardRootIndex = pageSource.indexOf("const StandardCreateRuntimeRoot =");
-    const pulseRootIndex = pageSource.indexOf("const PulseCreateRuntimeRoot =");
+    const createRootIndex = pageSource.indexOf("const CreateRuntimeRoot =");
     const runtimeBodyIndex = pageSource.indexOf("const AiStudioPageRuntimeBody =");
     const standardRuntimeCallIndex = pageSource.indexOf("useStandardCreateAgentRuntime({");
     const pulsePageRuntimeCallIndex = pageSource.indexOf("useCreatePulsePresetPageRuntime({");
     const pulseRuntimeCallIndex = pageSource.indexOf("usePulseCreateAgentRuntime({");
 
-    expect(standardRuntimeCallIndex).toBeGreaterThan(standardRootIndex);
-    expect(standardRuntimeCallIndex).toBeLessThan(pulseRootIndex);
-    expect(pulsePageRuntimeCallIndex).toBeGreaterThan(pulseRootIndex);
+    expect(pulsePageRuntimeCallIndex).toBeGreaterThan(createRootIndex);
+    expect(pulsePageRuntimeCallIndex).toBeLessThan(standardRuntimeCallIndex);
+    expect(standardRuntimeCallIndex).toBeGreaterThan(createRootIndex);
+    expect(standardRuntimeCallIndex).toBeLessThan(pulseRuntimeCallIndex);
+    expect(pulseRuntimeCallIndex).toBeGreaterThan(createRootIndex);
     expect(pulsePageRuntimeCallIndex).toBeLessThan(runtimeBodyIndex);
-    expect(pulseRuntimeCallIndex).toBeGreaterThan(pulseRootIndex);
     expect(pulseRuntimeCallIndex).toBeLessThan(runtimeBodyIndex);
   });
 
@@ -335,7 +336,8 @@ describe("Create agent mode boundaries", () => {
     expect(pageContentSource).toContain('key="standard-create-runtime"');
     expect(pageContentSource).toContain('key="pulse-create-runtime"');
     expect(pageContentSource).toContain('expertCreateMode === "pulse"');
-    expect(pageContentSource).toContain('import("./create/PulseCreatePropertiesPanel")');
+    expect(pageContentSource).toContain('from "./create/PulseCreatePropertiesPanel"');
+    expect(pageContentSource).not.toContain('import("./create/PulseCreatePropertiesPanel")');
     expect(pageContentSource).not.toContain('from "./CreatePropertiesPanel"');
     expect(contractSource).not.toContain('from "../../components/CreatePropertiesPanel"');
     expect(
@@ -479,12 +481,16 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).not.toContain("resolveCreateAgentGenerationHandoff");
     expect(pageSource).toContain("handleStandardCreatePrimarySubmit");
     expect(pageSource).toContain("handlePulseCreatePrimarySubmit");
-    expect(pageSource).toContain("<StandardCreateGenerationCommandRoot shell={shell} />");
-    expect(pageSource).toContain("<PulseCreateGenerationCommandRoot shell={shell} />");
-    expect(pageSource).toContain("const StandardCreateGenerationCommandRoot =");
-    expect(pageSource).toContain("const PulseCreateGenerationCommandRoot =");
+    expect(pageSource).toContain("<CreateGenerationCommandRoot shell={shell} />");
+    expect(pageSource).toContain("const CreateGenerationCommandRoot =");
+    expect(pageSource).not.toContain("<StandardCreateGenerationCommandRoot shell={shell} />");
+    expect(pageSource).not.toContain("<PulseCreateGenerationCommandRoot shell={shell} />");
+    expect(pageSource).not.toContain("const StandardCreateGenerationCommandRoot =");
+    expect(pageSource).not.toContain("const PulseCreateGenerationCommandRoot =");
     expect(pageSource).toContain("const AiStudioPageRuntimePresenter =");
     expect(pageSource).toContain("useAiStudioAgentOutputGenerationBridge({");
+    expect(pageSource).toContain('const isPulseCreateRuntime = expertCreateMode === "pulse"');
+    expect(pageSource).toContain("enabled: !isPulseCreateRuntime");
     expect(pageSource).not.toContain('enabled: expertCreateMode === "standard"');
     expect(pageSource).not.toContain('enabled: expertCreateMode === "pulse"');
     expect(pageSource).not.toContain("const handlePrimarySubmit =");
@@ -496,23 +502,22 @@ describe("Create agent mode boundaries", () => {
     expect(pageSource).toContain("useStandardCreatePrimarySubmit");
     expect(pageSource).toContain("usePulseCreatePrimarySubmit");
     expect(pageSource).toContain("useStandardCreateInlineGenerate");
-    const standardCommandRootIndex = pageSource.indexOf(
-      "const StandardCreateGenerationCommandRoot"
-    );
-    const pulseCommandRootIndex = pageSource.indexOf("const PulseCreateGenerationCommandRoot");
+    const commandRootIndex = pageSource.indexOf("const CreateGenerationCommandRoot");
     const presenterIndex = pageSource.indexOf("const AiStudioPageRuntimePresenter");
+    const runtimeSelectorIndex = pageSource.indexOf("isPulseCreateRuntime");
     const standardPrimarySubmitIndex = pageSource.indexOf("useStandardCreatePrimarySubmit({");
     const standardInlineGenerateIndex = pageSource.indexOf("useStandardCreateInlineGenerate({");
     const outputBridgeIndex = pageSource.indexOf("useAiStudioAgentOutputGenerationBridge({");
     const pulsePrimarySubmitIndex = pageSource.indexOf("usePulseCreatePrimarySubmit({");
 
-    expect(standardPrimarySubmitIndex).toBeGreaterThan(standardCommandRootIndex);
-    expect(standardPrimarySubmitIndex).toBeLessThan(pulseCommandRootIndex);
-    expect(standardInlineGenerateIndex).toBeGreaterThan(standardCommandRootIndex);
-    expect(standardInlineGenerateIndex).toBeLessThan(pulseCommandRootIndex);
-    expect(outputBridgeIndex).toBeGreaterThan(standardCommandRootIndex);
-    expect(outputBridgeIndex).toBeLessThan(pulseCommandRootIndex);
-    expect(pulsePrimarySubmitIndex).toBeGreaterThan(pulseCommandRootIndex);
+    expect(runtimeSelectorIndex).toBeGreaterThan(commandRootIndex);
+    expect(standardPrimarySubmitIndex).toBeGreaterThan(commandRootIndex);
+    expect(standardPrimarySubmitIndex).toBeLessThan(presenterIndex);
+    expect(standardInlineGenerateIndex).toBeGreaterThan(commandRootIndex);
+    expect(standardInlineGenerateIndex).toBeLessThan(presenterIndex);
+    expect(outputBridgeIndex).toBeGreaterThan(commandRootIndex);
+    expect(outputBridgeIndex).toBeLessThan(presenterIndex);
+    expect(pulsePrimarySubmitIndex).toBeGreaterThan(commandRootIndex);
     expect(pulsePrimarySubmitIndex).toBeLessThan(presenterIndex);
     expect(pageSource).not.toContain("const pulsePrompt = resolveChatOffCreatePrompt");
     expect(pageSource).not.toContain("handleAgentSend(pulsePrompt");

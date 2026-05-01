@@ -14,6 +14,7 @@ import { PulseCreateChatPanel } from "../promptStep/PulseCreateChatPanel";
 import type { PromptStepPulseLoadingState } from "../promptStep/types";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { PulseCreatePanelView } from "./PulseCreatePanelView";
+import type { CreatePulsePreferenceRuntimeValue } from "./CreatePulsePreferenceProvider";
 import type {
   CreatePulsePresetId,
   CreatePulsePresetStartResult,
@@ -70,9 +71,11 @@ export type PulseCreatePropertiesPanelProps = {
     preset: CreatePulseResolvedPreset,
     options?: {
       pulseSessionInstanceId?: string | null;
+      deferWorkflowSessionCommit?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   onOpenPresetsLibrary?: () => void;
+  pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
 };
 
 export function PulseCreatePropertiesPanel({
@@ -112,6 +115,7 @@ export function PulseCreatePropertiesPanel({
   onActivePulsePresetIdChange,
   onPulsePresetStart,
   onOpenPresetsLibrary,
+  pulsePreferenceRuntime,
   onGeneratePulseArtifact,
   guardrailReason,
 }: PulseCreatePropertiesPanelProps) {
@@ -228,6 +232,7 @@ export function PulseCreatePropertiesPanel({
       onPulsePresetStart={onPulsePresetStart}
       isPulseActivationBusy={agentIsSending}
       onOpenPresetsLibrary={onOpenPresetsLibrary}
+      pulsePreferenceRuntime={pulsePreferenceRuntime}
     />
   );
 }

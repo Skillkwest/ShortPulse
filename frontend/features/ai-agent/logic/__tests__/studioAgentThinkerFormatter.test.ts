@@ -46,7 +46,7 @@ describe("runThinkerFormatterTurn", () => {
     const result = await runThinkerFormatterTurn({
       apiKey: "test-key",
       openAiUrl: "https://example.com/v1/chat/completions",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       thinkerMessages: [{ role: "system", content: "think" }],
       buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
       parseAgentJson: (raw) => {
@@ -96,7 +96,7 @@ describe("runThinkerFormatterTurn", () => {
     const result = await runThinkerFormatterTurn({
       apiKey: "test-key",
       openAiUrl: "https://example.com/v1/chat/completions",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       thinkerMessages: [{ role: "system", content: "think" }],
       buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
       parseAgentJson: () => null,
@@ -138,7 +138,7 @@ describe("runThinkerFormatterTurn", () => {
     const result = await runThinkerFormatterTurn({
       apiKey: "test-key",
       openAiUrl: "https://example.com/v1/chat/completions",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       thinkerMessages: [{ role: "system", content: "think" }],
       buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
       parseAgentJson: () => null,
@@ -240,7 +240,7 @@ describe("runThinkerFormatterTurn", () => {
     const result = await runThinkerFormatterTurn({
       apiKey: "test-key",
       openAiUrl: "https://example.com/v1/chat/completions",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       thinkerMessages: [{ role: "system", content: "think" }],
       buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
       parseAgentJson: () => null,
@@ -266,7 +266,7 @@ describe("runThinkerFormatterTurn", () => {
     const result = await runThinkerFormatterTurn({
       apiKey: "test-key",
       openAiUrl: "https://example.com/v1/chat/completions",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       thinkerMessages: [{ role: "system", content: "think" }],
       buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
       parseAgentJson: () => null,
@@ -302,7 +302,7 @@ describe("runThinkerFormatterTurn", () => {
     const result = await runThinkerFormatterTurn({
       apiKey: "test-key",
       openAiUrl: "https://example.com/v1/chat/completions",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       thinkerMessages: [{ role: "system", content: "think" }],
       buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
       parseAgentJson: () => null,
@@ -352,7 +352,7 @@ describe("runThinkerFormatterTurn", () => {
     const result = await runThinkerFormatterTurn({
       apiKey: "test-key",
       openAiUrl: "https://example.com/v1/chat/completions",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       thinkerMessages: [{ role: "system", content: "think" }],
       buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
       parseAgentJson: (raw) => JSON.parse(raw),

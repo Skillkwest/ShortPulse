@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DragEvent } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioAgentComposer } from "../useAiStudioAgentComposer";
@@ -33,11 +33,14 @@ const createFindOutputById = (outputs: StudioOutput[]) => {
   return (id: string) => byId.get(id) ?? null;
 };
 
-const makeDragEvent = (data: Record<string, string> = {}) =>
+const originalCreateObjectURL = URL.createObjectURL;
+
+const makeDragEvent = (data: Record<string, string> = {}, files: File[] = []) =>
   ({
     preventDefault: vi.fn(),
     dataTransfer: {
       types: [],
+      files,
       dropEffect: "copy",
       getData: (key: string) => data[key] ?? "",
     },
@@ -46,6 +49,13 @@ const makeDragEvent = (data: Record<string, string> = {}) =>
 describe("useAiStudioAgentComposer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: originalCreateObjectURL,
+    });
   });
 
   it("clears attachment error when input changes", () => {
@@ -179,6 +189,76 @@ describe("useAiStudioAgentComposer", () => {
       "out-2",
       "out-3",
       "out-4",
+    ]);
+  });
+
+  it("defaults desktop image-file drops to a single attachment", () => {
+    const createObjectURLMock = vi.fn((file: File) => `blob:${file.name}`);
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURLMock,
+    });
+    const files = [
+      new File(["one"], "one.png", { type: "image/png" }),
+      new File(["two"], "two.png", { type: "image/png" }),
+    ];
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent({}, files));
+    });
+
+    expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
+    expect(result.current.agentAttachments).toEqual([
+      expect.objectContaining({
+        kind: "image",
+        imageUrl: "blob:one.png",
+      }),
+    ]);
+  });
+
+  it("stages up to the configured image-file drop limit", () => {
+    const ensureAgentSession = vi.fn();
+    const createObjectURLMock = vi.fn((file: File) => `blob:${file.name}`);
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: createObjectURLMock,
+    });
+    const files = [
+      new File(["one"], "one.png", { type: "image/png" }),
+      new File(["two"], "two.png", { type: "image/png" }),
+      new File(["three"], "three.png", { type: "image/png" }),
+      new File(["four"], "four.png", { type: "image/png" }),
+    ];
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: false,
+        ensureAgentSession,
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+        maxImageAttachmentsPerDrop: 3,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent({}, files));
+    });
+
+    expect(ensureAgentSession).toHaveBeenCalledTimes(1);
+    expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
+    expect(result.current.agentAttachments.map((attachment) => attachment.imageUrl)).toEqual([
+      "blob:one.png",
+      "blob:two.png",
+      "blob:three.png",
     ]);
   });
 

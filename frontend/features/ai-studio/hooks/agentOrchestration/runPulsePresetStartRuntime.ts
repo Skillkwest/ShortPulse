@@ -13,6 +13,7 @@ export type PulsePresetStartHandler = (
   preset: CreatePulseResolvedPreset,
   options?: {
     pulseSessionInstanceId?: string | null;
+    deferWorkflowSessionCommit?: boolean;
   }
 ) => Promise<CreatePulsePresetStartResult>;
 
@@ -42,6 +43,7 @@ export type RunPulsePresetStartRuntimeParams = {
   preset: CreatePulseResolvedPreset;
   options?: {
     pulseSessionInstanceId?: string | null;
+    deferWorkflowSessionCommit?: boolean;
   };
   notifyBootstrapPending: () => void;
 };

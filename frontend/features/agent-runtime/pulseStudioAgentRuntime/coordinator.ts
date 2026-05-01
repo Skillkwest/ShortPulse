@@ -666,6 +666,35 @@ export const executeStudioAgentCoordinator = async ({
       });
     }
 
+    const workflowSessionUpdate = buildStudioAgentWorkflowSessionUpdate({
+      pulse: context.pulse,
+      response: finalParsed,
+      semanticStatus,
+      latestUserInput: resolveLatestStudioAgentUserInput(messages),
+    });
+    const pulsePresetId =
+      workflowPulseActive && typeof context.pulse?.presetId === "string"
+        ? context.pulse.presetId.trim() || null
+        : null;
+    const pulseWorkflowStatusBefore = workflowPulseActive
+      ? (context.pulse?.workflowSession?.status ?? null)
+      : null;
+    const isPulseActivationTurn =
+      workflowPulseActive &&
+      messages.some(
+        (message) =>
+          message.role === "user" &&
+          message.content.includes('Pulse "') &&
+          message.content.includes("was just activated.")
+      );
+    const pulseTurnPhase = workflowPulseActive
+      ? isPulseActivationTurn
+        ? "activation"
+        : pulseWorkflowStatusBefore === "completed"
+          ? "completed_followup"
+          : "followup"
+      : null;
+
     emitStudioAgentTurnTelemetry({
       flow: orchestration.flow,
       path,
@@ -679,6 +708,10 @@ export const executeStudioAgentCoordinator = async ({
       reasonCode: finalReasonCode,
       totalLatencyMs: Date.now() - requestStartedAt,
       stageLatencyMs,
+      pulsePresetId,
+      pulseTurnPhase,
+      pulseWorkflowStatusBefore,
+      pulseWorkflowStatusAfter: workflowSessionUpdate?.status ?? null,
       safetyOutcome: safetyOutcome === "pass" ? undefined : safetyOutcome,
       safetySource: safetyOutcome === "pass" ? undefined : "model_output",
       safetyFallback: safetyOutcome === "pass" ? undefined : safetyFallback,
@@ -703,12 +736,7 @@ export const executeStudioAgentCoordinator = async ({
       status: 200,
       payload: {
         ...finalParsed,
-        workflowSession: buildStudioAgentWorkflowSessionUpdate({
-          pulse: context.pulse,
-          response: finalParsed,
-          semanticStatus,
-          latestUserInput: resolveLatestStudioAgentUserInput(messages),
-        }),
+        workflowSession: workflowSessionUpdate,
         ...(usage ? { usage } : {}),
         ...buildAgentMachineOutcome({
           outcomeClass: finalOutcomeClass,

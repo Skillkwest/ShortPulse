@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentContext, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
-import type { CreatePulseResolvedPreset } from "../../components/create/createPulsePresets";
+import {
+  resolveCreatePulsePresetById,
+  type CreatePulseResolvedPreset,
+  type CreatePulseSavedPreset,
+} from "../../components/create/createPulsePresets";
+import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/CreatePulsePreferenceProvider";
 import type { StudioOutput, ToolId } from "../../types";
+import { useCreatePulsePresetPanelPreference } from "../useCreatePulsePresetPanelPreference";
 import type { AiStudioPulsePresetChangeOptions } from "../useAiStudioCreateModeRuntime";
 
 type AgentModeHint = "chat" | "text" | "describe" | "reference";
@@ -18,6 +24,9 @@ type UseCreatePulsePresetPageRuntimeParams = {
   activeCreatePulsePresetId: string | null;
   pulseSessionInstanceId: string | null;
   pulseWorkflowSession: AgentPulseWorkflowSession | null;
+  savedPresets?: readonly CreatePulseSavedPreset[] | null;
+  isSavedPresetCatalogReady?: boolean;
+  loadSavedPresetPreferences?: boolean;
   getAgentContext: GetAgentContext;
   clearPulseRuntime: () => void;
   clearPulsePrompt: () => void;
@@ -34,12 +43,37 @@ export const useCreatePulsePresetPageRuntime = ({
   activeCreatePulsePresetId,
   pulseSessionInstanceId,
   pulseWorkflowSession,
+  savedPresets = null,
+  isSavedPresetCatalogReady = true,
+  loadSavedPresetPreferences = false,
   getAgentContext,
   clearPulseRuntime,
   clearPulsePrompt,
   handleExpertCreateModeChange,
   handleActiveCreatePulsePresetIdChange,
 }: UseCreatePulsePresetPageRuntimeParams) => {
+  const shouldLoadPulsePreferences =
+    loadSavedPresetPreferences &&
+    selectedTool === "create" &&
+    expertCreateMode === "pulse" &&
+    savedPresets == null;
+  const pulsePreference = useCreatePulsePresetPanelPreference({
+    enabled: shouldLoadPulsePreferences,
+  });
+  const pulsePreferenceRuntime = useMemo<CreatePulsePreferenceRuntimeValue>(
+    () => ({
+      presetPanelIds: pulsePreference.presetPanelIds,
+      savedPresets: pulsePreference.savedPresets,
+      setPresetPanelIds: pulsePreference.setPresetPanelIds,
+      setSavedPresets: pulsePreference.setSavedPresets,
+    }),
+    [
+      pulsePreference.presetPanelIds,
+      pulsePreference.savedPresets,
+      pulsePreference.setPresetPanelIds,
+      pulsePreference.setSavedPresets,
+    ]
+  );
   const [activeCreatePulsePresetSnapshotState, setActiveCreatePulsePresetSnapshot] =
     useState<CreatePulseResolvedPreset | null>(null);
 
@@ -63,7 +97,9 @@ export const useCreatePulsePresetPageRuntime = ({
   const handleActiveCreatePulsePresetIdChangeForPage = useCallback(
     (nextPresetId: string | null, options?: AiStudioPulsePresetChangeOptions) => {
       if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
-        setActiveCreatePulsePresetSnapshot(null);
+        if (!options?.preserveWorkflowSession) {
+          setActiveCreatePulsePresetSnapshot(null);
+        }
         clearPulsePrompt();
       }
       return handleActiveCreatePulsePresetIdChange(nextPresetId, options);
@@ -76,16 +112,34 @@ export const useCreatePulsePresetPageRuntime = ({
     expertCreateMode === "pulse" &&
     Boolean(activeCreatePulsePresetId) &&
     Boolean(pulseSessionInstanceId);
+  const resolvedSavedPresets = savedPresets ?? pulsePreference.savedPresets;
+  const resolvedSavedPresetCatalogReady =
+    isSavedPresetCatalogReady && (!shouldLoadPulsePreferences || !pulsePreference.loading);
+  const restoredCreatePulsePresetSnapshot = useMemo(
+    () =>
+      hasActivePulseSession && activeCreatePulsePresetId
+        ? resolveCreatePulsePresetById(activeCreatePulsePresetId, resolvedSavedPresets)
+        : null,
+    [activeCreatePulsePresetId, hasActivePulseSession, resolvedSavedPresets]
+  );
   const activeCreatePulsePresetSnapshot =
     hasActivePulseSession &&
     activeCreatePulsePresetSnapshotState?.presetId === activeCreatePulsePresetId
       ? activeCreatePulsePresetSnapshotState
-      : null;
+      : restoredCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId
+        ? restoredCreatePulsePresetSnapshot
+        : null;
   useEffect(() => {
     if (!hasActivePulseSession || activeCreatePulsePresetSnapshot) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Restored Pulse runtimes without a preset snapshot must fail closed before they can build context.
+    if (!resolvedSavedPresetCatalogReady) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Unknown restored Pulse runtimes without a resolvable preset snapshot must fail closed before they can build context.
     clearPulseRuntimeForPage();
-  }, [activeCreatePulsePresetSnapshot, clearPulseRuntimeForPage, hasActivePulseSession]);
+  }, [
+    activeCreatePulsePresetSnapshot,
+    clearPulseRuntimeForPage,
+    hasActivePulseSession,
+    resolvedSavedPresetCatalogReady,
+  ]);
 
   const getPulseAwareAgentContext = useCallback<GetAgentContext>(
     (params) => {
@@ -111,6 +165,7 @@ export const useCreatePulsePresetPageRuntime = ({
           starterAssistantMessage: resolvedPulsePreset.starterAssistantMessage,
           workflowStageHints: resolvedPulsePreset.workflowStageHints,
           outputMode: resolvedPulsePreset.outputMode,
+          artifactTarget: resolvedPulsePreset.artifactTarget,
           memoryPolicy: resolvedPulsePreset.memoryPolicy,
           source: resolvedPulsePreset.isBuiltIn ? "builtin" : "custom",
           workflowSession: pulseWorkflowSession,
@@ -128,6 +183,7 @@ export const useCreatePulsePresetPageRuntime = ({
 
   return {
     activeCreatePulsePresetSnapshot,
+    pulsePreferenceRuntime,
     setActiveCreatePulsePresetSnapshot,
     clearPulseRuntimeForPage,
     handleExpertCreateModeChangeForPage,

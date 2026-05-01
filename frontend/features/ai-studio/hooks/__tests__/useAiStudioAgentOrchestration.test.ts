@@ -1152,6 +1152,11 @@ describe("useAiStudioAgentOrchestration", () => {
       expect.objectContaining({
         sessionNamespaceOverride: "ai-studio:session-1::pulse:story_builder:pulse-session-1",
         isolateHistory: true,
+        context: expect.objectContaining({
+          pulse: expect.objectContaining({
+            artifactTarget: "image_prompt",
+          }),
+        }),
       })
     );
   });

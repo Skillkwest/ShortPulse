@@ -5,6 +5,7 @@ import type {
   AgentMessage,
 } from "../../../../prefabs/agent";
 import type { PulseCreatePropertiesPanelProps } from "../../components/create/PulseCreatePropertiesPanel";
+import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/CreatePulsePreferenceProvider";
 
 type UsePulseCreatePanelPropsParams = {
   pulsePrompt: string;
@@ -38,6 +39,7 @@ type UsePulseCreatePanelPropsParams = {
   handlePulseCreatePrimarySubmit: () => void;
   savePromptReference: (customPrompt?: string) => void;
   expertCreateUiEligible: boolean;
+  pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
 };
 
 /**
@@ -76,6 +78,7 @@ export const buildPulseCreatePanelProps = ({
   handlePulseCreatePrimarySubmit,
   savePromptReference,
   expertCreateUiEligible,
+  pulsePreferenceRuntime,
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => ({
   pulsePrompt,
   agentEnabled,
@@ -109,4 +112,5 @@ export const buildPulseCreatePanelProps = ({
   onSavePrompt: savePromptReference,
   beginnerMode: false,
   expertCreateUiEligible,
+  pulsePreferenceRuntime,
 });

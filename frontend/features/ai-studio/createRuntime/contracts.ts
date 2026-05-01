@@ -17,6 +17,7 @@ import type {
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
 } from "../components/create/createPulsePresets";
+import type { CreatePulsePreferenceRuntimeValue } from "../components/create/CreatePulsePreferenceProvider";
 import type {
   CreateCharacterLookOption,
   CreateCharacterOption,
@@ -28,6 +29,7 @@ import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioSessionAgentV1 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
+import type { AiStudioPulsePresetChangeOptions } from "../hooks/useAiStudioCreateModeRuntime";
 
 export type NeutralCreateGenerationServices = {
   handleGenerate: (
@@ -199,7 +201,7 @@ export type PulseCreateAgentRuntimeActions = {
   onGenerateArtifact: () => void;
   onPresetStart: (
     preset: CreatePulseResolvedPreset,
-    options?: { pulseSessionInstanceId?: string | null }
+    options?: { pulseSessionInstanceId?: string | null; deferWorkflowSessionCommit?: boolean }
   ) => Promise<CreatePulsePresetStartResult>;
 };
 
@@ -217,9 +219,10 @@ export type PulseCreateRuntimeProps = {
   onPulsePromptChange: (value: string) => void;
   onActivePresetIdChange: (
     nextPresetId: string | null,
-    options?: { forceNewSession?: boolean }
+    options?: AiStudioPulsePresetChangeOptions
   ) => string | null | void;
   onSavePromptReference: (customPrompt?: string) => void;
+  pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
   generationServices: NeutralCreateGenerationServices;
 };
 
@@ -246,7 +249,7 @@ export type PulseCreatePageAgentRuntime = PulseCreateAgentRuntimeState & {
   ) => Promise<{ prompt: string; referenceTitle?: string | null } | void>;
   handlePulsePresetStart: (
     preset: CreatePulseResolvedPreset,
-    options?: { pulseSessionInstanceId?: string | null }
+    options?: { pulseSessionInstanceId?: string | null; deferWorkflowSessionCommit?: boolean }
   ) => Promise<CreatePulsePresetStartResult>;
   handlePulsePresetRestart: (preset: CreatePulseResolvedPreset) => Promise<void>;
   handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;

@@ -224,6 +224,7 @@ export const usePulseCreateAgentRuntime = ({
     ensureAgentSession,
     findOutputById,
     resolveOutputPreviewUrlById: (id) => resolvePanelOutputPreviewUrl(id),
+    maxImageAttachmentsPerDrop: 3,
   });
   const linkedPromptReferenceIds = useMemo(
     () => resolveLinkedPromptReferenceIds(agentAttachments),
@@ -311,8 +312,11 @@ export const usePulseCreateAgentRuntime = ({
   );
 
   const handlePulsePresetStart = useCallback(
-    (preset: CreatePulseResolvedPreset, options?: { pulseSessionInstanceId?: string | null }) =>
-      runPulsePresetStartRuntime({
+    async (
+      preset: CreatePulseResolvedPreset,
+      options?: { pulseSessionInstanceId?: string | null; deferWorkflowSessionCommit?: boolean }
+    ) => {
+      const result = await runPulsePresetStartRuntime({
         runtimePolicy,
         agentBootstrapReady,
         agentIsSending,
@@ -333,18 +337,34 @@ export const usePulseCreateAgentRuntime = ({
         preset,
         options,
         notifyBootstrapPending,
-      }),
+      });
+      if (result.status === "started") {
+        resetAgentComposer({ preserveInput: false, preserveAttachments: false });
+        setPulseCreatePrompt("");
+        if (result.latestAgentPrompt) {
+          setLatestAgentPrompt(result.latestAgentPrompt);
+          setPromptOrigin("agent");
+        } else {
+          setLatestAgentPrompt(null);
+          setPromptOrigin("manual");
+        }
+      }
+      return result;
+    },
     [
       agentBootstrapReady,
       agentIsSending,
       agentSessionEnabled,
       getAgentContext,
       notifyBootstrapPending,
+      resetAgentComposer,
       resolvePulseSessionNamespace,
       runtimePolicy,
       selectedTool,
       sendToAgent,
       setAgentAttachmentError,
+      setLatestAgentPrompt,
+      setPromptOrigin,
       setPulseCreatePrompt,
       setWorkflowSession,
       trackAgentUiEvent,

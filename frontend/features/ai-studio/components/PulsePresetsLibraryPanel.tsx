@@ -6,10 +6,12 @@ import React from "react";
 import { TrashSimple } from "phosphor-react";
 import {
   CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
+  CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET,
   CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
   CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
   createCreatePulseCustomPresetId,
   isCreatePulseBuiltInPresetId,
+  resolveCreatePulsePresetById,
   resolveCreatePulsePresetCatalog,
   upsertCreatePulseSavedPreset,
   type CreatePulsePresetId,
@@ -84,6 +86,9 @@ export function PulsePresetsLibraryPanel({
     setLocalSaveError(null);
     try {
       let saved: boolean | void;
+      const resolvedPreset = resolveCreatePulsePresetById(pendingPresetEdit.presetId, savedPresets);
+      const artifactTarget =
+        resolvedPreset?.artifactTarget ?? CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET;
       if (pendingPresetEdit.mode === "create") {
         saved = await onSavedPresetsChange([
           ...savedPresets,
@@ -97,6 +102,7 @@ export function PulsePresetsLibraryPanel({
             starterAssistantMessage: null,
             workflowStageHints: null,
             outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
+            artifactTarget,
             memoryPolicy: "session",
             createdAt: new Date().toISOString(),
           },
@@ -116,6 +122,7 @@ export function PulsePresetsLibraryPanel({
             starterAssistantMessage: null,
             workflowStageHints: null,
             outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
+            artifactTarget: existingPreset?.artifactTarget ?? artifactTarget,
             memoryPolicy: "session",
             createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
           })

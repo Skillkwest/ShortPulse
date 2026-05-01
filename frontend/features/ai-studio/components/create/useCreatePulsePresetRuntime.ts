@@ -5,6 +5,7 @@
 import React from "react";
 import {
   CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
+  CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET,
   CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
   CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
   CREATE_PULSE_PANEL_MAX,
@@ -24,6 +25,7 @@ import {
   writeCreatePulsePresetDragTransfer,
 } from "./createPulsePresetUtilities";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
+import { createPulseSessionInstanceId } from "../../logic/pulseSessionIdentity";
 
 export const CREATE_PULSE_PRESET_PANEL_LIMIT_TOAST = "Pulse preset panel is full (max 10).";
 
@@ -44,6 +46,7 @@ type UseCreatePulsePresetRuntimeParams = {
     preset: CreatePulseResolvedPreset,
     options?: {
       pulseSessionInstanceId?: string | null;
+      deferWorkflowSessionCommit?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
@@ -125,7 +128,6 @@ export const useCreatePulsePresetRuntime = ({
     async (presetId: CreatePulsePresetId) => {
       const resolvedPreset = resolveCreatePulsePresetById(presetId, savedPresets);
       const presetLabel = resolveCreatePulsePresetLabelById(presetId, savedPresets);
-      const previousActivePresetId = activePresetId;
       if (isActivationBusy) {
         const blockedMessage = "Wait for the current Pulse step to finish before switching.";
         showPersistentStatus(blockedMessage, "warning");
@@ -135,23 +137,28 @@ export const useCreatePulsePresetRuntime = ({
         } satisfies CreatePulsePresetStartResult;
       }
       clearStatusMessage();
-      const pulseSessionInstanceId = setActivePresetId(presetId, { forceNewSession: true }) ?? null;
+      const pulseSessionInstanceId = createPulseSessionInstanceId();
+      const didStartResolvedPreset = Boolean(resolvedPreset && onPresetStart);
       let startResult: CreatePulsePresetStartResult = { status: "started" };
       if (resolvedPreset) {
         startResult = (await onPresetStart?.(resolvedPreset, {
           pulseSessionInstanceId,
+          deferWorkflowSessionCommit: true,
         })) ?? { status: "started" };
       }
       if (startResult.status === "blocked_busy") {
-        setActivePresetId(previousActivePresetId ?? null, { forceNewSession: true });
         showPersistentStatus(startResult.message, "warning");
         return startResult;
       }
       if (startResult.status === "failed") {
-        setActivePresetId(previousActivePresetId ?? null, { forceNewSession: true });
         showPersistentStatus(startResult.message, "warning");
         return startResult;
       }
+      setActivePresetId(presetId, {
+        forceNewSession: true,
+        sessionInstanceIdOverride: pulseSessionInstanceId,
+        preserveWorkflowSession: didStartResolvedPreset,
+      });
       clearStatusMessage();
       showStatusToast(
         activePresetId && activePresetId !== presetId
@@ -197,6 +204,7 @@ export const useCreatePulsePresetRuntime = ({
     ) => {
       const saved = await updateSavedPresets((previous) => {
         const existingPreset = previous.find((preset) => preset.presetId === presetId);
+        const resolvedPreset = resolveCreatePulsePresetById(presetId, previous);
         return upsertCreatePulseSavedPreset(previous, {
           presetId,
           label: draft.label,
@@ -207,6 +215,10 @@ export const useCreatePulsePresetRuntime = ({
           starterAssistantMessage: null,
           workflowStageHints: null,
           outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
+          artifactTarget:
+            existingPreset?.artifactTarget ??
+            resolvedPreset?.artifactTarget ??
+            CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET,
           memoryPolicy: "session",
           createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
         });

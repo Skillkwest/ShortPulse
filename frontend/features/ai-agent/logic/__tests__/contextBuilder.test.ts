@@ -43,6 +43,7 @@ describe("buildAgentContext media filtering", () => {
         presetId: " pulse_story_builder ",
         label: " Story Builder ",
         instructions: " Keep the output focused on a simple hook, escalation, and payoff. ",
+        artifactTarget: "storyboard",
         source: "custom",
         workflowSession: {
           presetId: " pulse_story_builder ",
@@ -67,6 +68,7 @@ describe("buildAgentContext media filtering", () => {
       starterAssistantMessage: null,
       workflowStageHints: null,
       outputMode: "chat_reply",
+      artifactTarget: "storyboard",
       memoryPolicy: "session",
       source: "custom",
       workflowSession: {

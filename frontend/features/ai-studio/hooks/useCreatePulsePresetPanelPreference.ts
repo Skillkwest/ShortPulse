@@ -23,7 +23,7 @@ type CreatePulsePresetPreferenceValue = {
   savedPresets: CreatePulseSavedPreset[];
 };
 
-type UseCreatePulsePresetPanelPreferenceResult = {
+export type UseCreatePulsePresetPanelPreferenceResult = {
   presetPanelIds: CreatePulsePresetId[];
   savedPresets: CreatePulseSavedPreset[];
   loading: boolean;

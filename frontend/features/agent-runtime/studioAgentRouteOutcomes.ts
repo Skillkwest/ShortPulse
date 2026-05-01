@@ -53,6 +53,10 @@ export const emitStudioAgentTurnTelemetry = ({
   reasonCode,
   totalLatencyMs,
   stageLatencyMs,
+  pulsePresetId,
+  pulseTurnPhase,
+  pulseWorkflowStatusBefore,
+  pulseWorkflowStatusAfter,
   fallbackReason,
   safetyOutcome,
   safetySource,
@@ -73,6 +77,10 @@ export const emitStudioAgentTurnTelemetry = ({
   reasonCode?: AgentReasonCode;
   totalLatencyMs: number;
   stageLatencyMs: Record<string, number>;
+  pulsePresetId?: string | null;
+  pulseTurnPhase?: "activation" | "followup" | "completed_followup" | null;
+  pulseWorkflowStatusBefore?: string | null;
+  pulseWorkflowStatusAfter?: string | null;
   fallbackReason?: string;
   safetyOutcome?: StudioAgentSafetyTelemetryOutcome;
   safetySource?: StudioAgentSafetyTelemetrySource;
@@ -102,6 +110,14 @@ export const emitStudioAgentTurnTelemetry = ({
       repair_count: typeof repairCount === "number" ? repairCount : repairUsed ? 1 : 0,
       latency_ms_total: totalLatencyMs,
       latency_ms_stage: stageLatencyMs,
+      ...(pulsePresetId ? { pulse_preset_id: pulsePresetId } : {}),
+      ...(pulseTurnPhase ? { pulse_turn_phase: pulseTurnPhase } : {}),
+      ...(pulseWorkflowStatusBefore
+        ? { pulse_workflow_status_before: pulseWorkflowStatusBefore }
+        : {}),
+      ...(pulseWorkflowStatusAfter
+        ? { pulse_workflow_status_after: pulseWorkflowStatusAfter }
+        : {}),
       ...(fallbackReason ? { fallback_reason: fallbackReason } : {}),
       ...(safetyOutcome ? { safety_outcome: safetyOutcome } : {}),
       ...(safetySource ? { safety_source: safetySource } : {}),

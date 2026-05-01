@@ -596,7 +596,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                           stagedBubbleMedia && stagedBubbleMedia.state !== "idle"
                             ? "agent-message--with-output-thumbnail"
                             : ""
-                        }`.trim()}
+                        } agent-message--prompt-output`.trim()}
                         draggable
                         onDragStart={(event) => handlePromptDragStart(event, stagedPrompt)}
                         onDragEnd={handlePromptDragEnd}
@@ -632,6 +632,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 const isEditingMessage =
                   Boolean(editingMessageId) && editingMessageId === resolvedMessageId;
                 const assistantPromptText = resolveAssistantPromptText(message);
+                const isAssistantPromptOutput = Boolean(assistantPromptText);
                 const canUseMessageAsPrompt =
                   message.role === "assistant" ? Boolean(assistantPromptText) : true;
                 const draggablePromptText =
@@ -673,7 +674,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 return (
                   <div
                     key={key}
-                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${shouldUseOutputGenerateLayout ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${hasMessageAttachments ? " agent-message--with-attachments" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}${resolvedAssistantMessageClassName}`}
+                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${isAssistantPromptOutput ? " agent-message--prompt-output" : ""}${shouldUseOutputGenerateLayout ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${hasMessageAttachments ? " agent-message--with-attachments" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}${resolvedAssistantMessageClassName}`}
                     onClick={
                       isClickable && !isEditingMessage
                         ? () => handleMessageClick(message)

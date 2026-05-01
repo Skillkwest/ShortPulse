@@ -18,6 +18,7 @@ type StartPulsePresetParams = {
   preset: CreatePulseResolvedPreset;
   options?: {
     pulseSessionInstanceId?: string | null;
+    deferWorkflowSessionCommit?: boolean;
   };
   agentBootstrapReady: boolean;
   agentIsSending: boolean;
@@ -106,6 +107,7 @@ export const startPulsePreset = async ({
     starterAssistantMessage: preset.starterAssistantMessage,
     workflowStageHints: preset.workflowStageHints,
     outputMode: preset.outputMode,
+    artifactTarget: preset.artifactTarget,
     memoryPolicy: preset.memoryPolicy,
     source: preset.isBuiltIn ? ("builtin" as const) : ("custom" as const),
   };
@@ -147,7 +149,7 @@ export const startPulsePreset = async ({
     buildPendingPulseWorkflowSessionForStart({
       preset: pulseContext.pulse,
     });
-  if (pendingWorkflowSession) {
+  if (pendingWorkflowSession && !options?.deferWorkflowSessionCommit) {
     setPulseWorkflowSession(pendingWorkflowSession);
   }
 
@@ -166,7 +168,9 @@ export const startPulsePreset = async ({
         skipUserEcho: true,
       });
     if (discarded) {
-      setPulseWorkflowSession(null);
+      if (!options?.deferWorkflowSessionCommit) {
+        setPulseWorkflowSession(null);
+      }
       trackAgentUiEvent("studio_agent_pulse_start_failed", {
         preset_id: preset.presetId,
         reason: "scope_discarded",
@@ -179,7 +183,9 @@ export const startPulsePreset = async ({
     }
 
     if (!response) {
-      setPulseWorkflowSession(null);
+      if (!options?.deferWorkflowSessionCommit) {
+        setPulseWorkflowSession(null);
+      }
       const resolvedReason =
         failureKind === "transport_error" ? "transport_error" : "empty_response";
       trackAgentUiEvent("studio_agent_pulse_start_failed", {
@@ -205,15 +211,16 @@ export const startPulsePreset = async ({
       }
     }
 
-    if (workflowSession) {
-      setPulseWorkflowSession(workflowSession);
+    const nextWorkflowSession = workflowSession ?? pendingWorkflowSession ?? null;
+    if (nextWorkflowSession) {
+      setPulseWorkflowSession(nextWorkflowSession);
     }
     trackAgentUiEvent("studio_agent_pulse_start_succeeded", {
       preset_id: preset.presetId,
       workflow_status: workflowSession?.status ?? null,
       has_apply_prompt: Boolean(appliedPrompt),
     });
-    return { status: "started" };
+    return { status: "started", latestAgentPrompt: appliedPrompt || null };
   } finally {
     agentUiBusyRef.current = false;
     setAgentUiBusy(false);

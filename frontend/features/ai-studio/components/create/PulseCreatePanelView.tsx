@@ -8,6 +8,7 @@ import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
 import {
   CreatePulsePreferenceProvider,
   useCreatePulsePreferenceRuntime,
+  type CreatePulsePreferenceRuntimeValue,
 } from "./CreatePulsePreferenceProvider";
 import type {
   CreatePulsePresetId,
@@ -34,10 +35,12 @@ type PulseCreatePanelViewProps = {
     preset: CreatePulseResolvedPreset,
     options?: {
       pulseSessionInstanceId?: string | null;
+      deferWorkflowSessionCommit?: boolean;
     }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   isPulseActivationBusy?: boolean;
   onOpenPresetsLibrary?: () => void;
+  pulsePreferenceRuntime?: CreatePulsePreferenceRuntimeValue;
 };
 
 const PulseCreatePanelViewContent = ({
@@ -54,13 +57,16 @@ const PulseCreatePanelViewContent = ({
   onPulsePresetStart,
   isPulseActivationBusy = false,
   onOpenPresetsLibrary,
-}: PulseCreatePanelViewProps) => {
+  pulsePreferenceRuntime,
+}: PulseCreatePanelViewProps & {
+  pulsePreferenceRuntime: CreatePulsePreferenceRuntimeValue;
+}) => {
   const {
     presetPanelIds: selectedPulsePresetIds,
     setPresetPanelIds: onSelectedPulsePresetIdsChange,
     savedPresets: savedPulsePresets,
     setSavedPresets: onSavedPulsePresetsChange,
-  } = useCreatePulsePreferenceRuntime();
+  } = pulsePreferenceRuntime;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const isActivePulseSession = hasActivePulseSession;
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
@@ -172,10 +178,23 @@ const PulseCreatePanelViewContent = ({
   );
 };
 
+const PulseCreatePanelViewContentWithProvider = (props: PulseCreatePanelViewProps) => {
+  const pulsePreferenceRuntime = useCreatePulsePreferenceRuntime();
+  return <PulseCreatePanelViewContent {...props} pulsePreferenceRuntime={pulsePreferenceRuntime} />;
+};
+
 export function PulseCreatePanelView(props: PulseCreatePanelViewProps) {
+  if (props.pulsePreferenceRuntime) {
+    return (
+      <PulseCreatePanelViewContent
+        {...props}
+        pulsePreferenceRuntime={props.pulsePreferenceRuntime}
+      />
+    );
+  }
   return (
     <CreatePulsePreferenceProvider>
-      <PulseCreatePanelViewContent {...props} />
+      <PulseCreatePanelViewContentWithProvider {...props} />
     </CreatePulsePreferenceProvider>
   );
 }

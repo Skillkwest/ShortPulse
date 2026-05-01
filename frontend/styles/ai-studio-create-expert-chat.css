@@ -579,7 +579,26 @@
   .agent-chat-panel--latest-assistant-only
   .agent-message.agent-assistant
   .tiny {
-  color: #25a9bf !important;
+  color: #ececf1 !important;
+  font-weight: 400;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--prompt-output,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--prompt-output
+  p,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--prompt-output
+  .tiny,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--prompt-output
+  .agent-message-edit-input {
+  color: var(--agent-output-prompt-text, #57d4ff) !important;
 }
 
 .create-expert-panel
@@ -707,9 +726,9 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-lead {
-  color: #d8f7ff !important;
+  color: #ececf1 !important;
   font-size: 14px;
-  font-weight: 750;
+  font-weight: 500;
   line-height: 1.55;
 }
 
@@ -717,11 +736,11 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-hint {
-  color: rgba(196, 240, 248, 0.9) !important;
+  color: rgba(236, 236, 241, 0.86) !important;
   padding: 0;
   border-color: transparent;
   background: transparent;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .create-expert-panel
@@ -732,9 +751,9 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-list {
-  color: #8cdcee !important;
+  color: #ececf1 !important;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.72;
 }
 
@@ -742,5 +761,47 @@
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-paragraph {
-  font-weight: 700;
+  font-weight: 400;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable {
+  color: #25a9bf !important;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
+  .agent-message-rich-heading,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
+  .agent-message-rich-lead,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
+  .agent-message-rich-paragraph,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
+  .agent-message-rich-hint,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
+  .agent-message-rich-list,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
+  .agent-message-rich-list
+  li,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
+  .agent-message-rich-option-title,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided.is-draggable
+  .agent-message-rich-option-description {
+  color: #25a9bf !important;
 }

@@ -41,14 +41,6 @@
   color: var(--admin-text-strong);
 }
 
-.boardDescription {
-  margin: 0;
-  max-width: 72ch;
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--admin-text-muted);
-}
-
 .boardMeta {
   display: inline-flex;
   align-items: center;

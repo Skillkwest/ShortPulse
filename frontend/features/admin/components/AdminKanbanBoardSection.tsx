@@ -266,10 +266,6 @@ export function AdminKanbanBoardSection() {
           <h2 id="admin-kanban-title" className={styles.boardTitle}>
             Ophestivus
           </h2>
-          <p className={styles.boardDescription}>
-            Track operator to-do items from backlog through published. This board is shared across
-            admins and stores an activity trail for each task.
-          </p>
         </div>
         <div className={styles.boardHeaderActions}>
           <button

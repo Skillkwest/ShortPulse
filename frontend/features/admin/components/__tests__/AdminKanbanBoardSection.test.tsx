@@ -143,4 +143,41 @@ describe("AdminKanbanBoardSection", () => {
       expect.objectContaining({ method: "POST" })
     );
   });
+
+  it("opens the Ophestivus action log from the board header", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(jsonResponse({ items: [] })).mockResolvedValueOnce(
+      jsonResponse({
+        activity: [
+          {
+            id: "activity-1",
+            itemId: "task-1",
+            itemTitle: "Publish billing update",
+            action: "moved",
+            fromStatus: "backlog",
+            toStatus: "complete",
+            note: "Moved during review",
+            actorUserId: "admin-user-1",
+            actorEmail: "admin@example.com",
+            createdAt: "2026-04-30T00:01:00.000Z",
+          },
+        ],
+      })
+    );
+
+    render(<AdminKanbanBoardSection />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Action log" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Ophestivus action log" })).toBeInTheDocument();
+      expect(screen.getByText("Publish billing update")).toBeInTheDocument();
+      expect(screen.getByText("Moved during review")).toBeInTheDocument();
+      expect(screen.getByText("admin@example.com")).toBeInTheDocument();
+      expect(screen.getByText("Backlog -> Complete")).toBeInTheDocument();
+    });
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/admin/kanban/activity",
+      expect.objectContaining({ method: "GET", shortpulseSkipErrorLogging: true })
+    );
+  });
 });

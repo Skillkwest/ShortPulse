@@ -4,6 +4,7 @@ import itemHandler from "../../pages/api/admin/kanban/items/[itemId]";
 import moveHandler from "../../pages/api/admin/kanban/items/[itemId]/move";
 import archiveHandler from "../../pages/api/admin/kanban/items/[itemId]/archive";
 import activityHandler from "../../pages/api/admin/kanban/items/[itemId]/activity";
+import actionLogHandler from "../../pages/api/admin/kanban/activity";
 
 const requireAdminUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
@@ -15,6 +16,7 @@ const updateAdminKanbanItemMock = vi.fn();
 const moveAdminKanbanItemMock = vi.fn();
 const archiveAdminKanbanItemMock = vi.fn();
 const listAdminKanbanActivityMock = vi.fn();
+const listAdminKanbanActionLogMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireAdminUser: (...args: unknown[]) => requireAdminUserMock(...args),
@@ -39,6 +41,7 @@ vi.mock("../../lib/server/api/adminKanbanBoard", async (importOriginal) => {
     moveAdminKanbanItem: (...args: unknown[]) => moveAdminKanbanItemMock(...args),
     archiveAdminKanbanItem: (...args: unknown[]) => archiveAdminKanbanItemMock(...args),
     listAdminKanbanActivity: (...args: unknown[]) => listAdminKanbanActivityMock(...args),
+    listAdminKanbanActionLog: (...args: unknown[]) => listAdminKanbanActionLogMock(...args),
   };
 });
 
@@ -245,6 +248,35 @@ describe("admin kanban API routes", () => {
     expect(listAdminKanbanActivityMock).toHaveBeenCalledWith(
       getSupabaseAdminMock.mock.results[0].value,
       "task-1"
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ activity });
+  });
+
+  it("returns the shared board action log for admins", async () => {
+    const activity = [
+      {
+        id: "activity-1",
+        itemId: "task-1",
+        itemTitle: "Draft launch checklist",
+        action: "moved",
+        fromStatus: "backlog",
+        toStatus: "complete",
+        note: "Draft launch checklist",
+        actorUserId: "admin-1",
+        actorEmail: "admin@example.com",
+        createdAt: "2026-04-30T00:01:00.000Z",
+      },
+    ];
+    listAdminKanbanActionLogMock.mockResolvedValue(activity);
+
+    const req = { method: "GET", query: { limit: "25" }, body: {} };
+    const res = createMockResponse();
+    await actionLogHandler(req as never, res as never);
+
+    expect(listAdminKanbanActionLogMock).toHaveBeenCalledWith(
+      getSupabaseAdminMock.mock.results[0].value,
+      25
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ activity });

@@ -15,7 +15,7 @@ Purpose: operate the shared Ophestivus board safely as the durable task source f
 - UI component: `frontend/features/admin/components/AdminKanbanBoardSection.tsx`
 - Client status model: `frontend/features/admin/data/adminKanbanBoard.ts`
 - Server persistence helper: `frontend/lib/server/api/adminKanbanBoard.ts`
-- API routes: `frontend/pages/api/admin/kanban/items/*`
+- API routes: `frontend/pages/api/admin/kanban/activity.ts`, `frontend/pages/api/admin/kanban/items/*`
 - Persistence migrations: `sql/migrations/110_add_admin_kanban_foundation.sql`, `sql/migrations/111_harden_admin_kanban_audit_integrity.sql`
 - Architecture decision: `docs/adr/0072-admin-kanban-and-ophestivus-foundation.md`
 
@@ -31,7 +31,8 @@ Purpose: operate the shared Ophestivus board safely as the durable task source f
 2. Add new work in `Backlog` with a concise title and useful notes.
 3. Move tasks through `Backlog -> In progress -> Complete -> Published`.
 4. Archive stale or obsolete tasks from the board instead of deleting records.
-5. Use the activity route for future detail/timeline views when audit context is needed.
+5. Use the board header `Action log` control to review recent Ophestivus board activity across tasks.
+6. Use the item activity route for future detail/timeline views when item-specific audit context is needed.
 
 ## Guardrails
 

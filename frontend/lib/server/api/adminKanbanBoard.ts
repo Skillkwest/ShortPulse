@@ -30,6 +30,10 @@ export type AdminKanbanActivity = {
   createdAt: string;
 };
 
+export type AdminKanbanActionLogEntry = AdminKanbanActivity & {
+  itemTitle: string | null;
+};
+
 export type AdminKanbanItemInputValidation = {
   title: string;
   details: string;
@@ -349,4 +353,54 @@ export const listAdminKanbanActivity = async (
   return (Array.isArray(data) ? data : [])
     .map(toActivity)
     .filter((activity): activity is AdminKanbanActivity => Boolean(activity));
+};
+
+/**
+ * Lists recent activity across the shared board for admin review.
+ */
+export const listAdminKanbanActionLog = async (
+  supabaseAdmin: SupabaseAdminClient,
+  limit = 100
+): Promise<AdminKanbanActionLogEntry[]> => {
+  const boundedLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+  const { data, error } = await supabaseAdmin
+    .from("admin_kanban_activity")
+    .select(
+      "id, item_id, action, from_status, to_status, note, actor_user_id, actor_email, created_at"
+    )
+    .order("created_at", { ascending: false })
+    .limit(boundedLimit);
+
+  if (error) {
+    throw new Error(error.message || "Failed to load admin kanban action log.");
+  }
+
+  const activity = (Array.isArray(data) ? data : [])
+    .map(toActivity)
+    .filter((entry): entry is AdminKanbanActivity => Boolean(entry));
+  const itemIds = [...new Set(activity.map((entry) => entry.itemId))];
+  if (itemIds.length === 0) return [];
+
+  const { data: itemRows, error: itemError } = await supabaseAdmin
+    .from("admin_kanban_items")
+    .select("id, title")
+    .in("id", itemIds);
+
+  if (itemError) {
+    throw new Error(itemError.message || "Failed to load admin kanban action log item titles.");
+  }
+
+  const titleByItemId = new Map<string, string>();
+  for (const row of Array.isArray(itemRows) ? itemRows : []) {
+    if (!row || typeof row !== "object") continue;
+    const item = row as { id?: unknown; title?: unknown };
+    if (typeof item.id === "string" && typeof item.title === "string") {
+      titleByItemId.set(item.id, item.title);
+    }
+  }
+
+  return activity.map((entry) => ({
+    ...entry,
+    itemTitle: titleByItemId.get(entry.itemId) ?? null,
+  }));
 };

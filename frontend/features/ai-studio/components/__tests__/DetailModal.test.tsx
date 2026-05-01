@@ -194,6 +194,33 @@ describe("DetailModal", () => {
     expect(screen.getByRole("button", { name: "Saved" })).toBeInTheDocument();
   });
 
+  it("does not close when prompt text selection overextends to the backdrop", () => {
+    const onClose = vi.fn();
+    render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          mode: "text",
+          previewUrl: undefined,
+          prompt: "Original prompt",
+        }}
+        onClose={onClose}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const promptTextarea = screen.getByPlaceholderText("Describe your adjustments...");
+    const backdrop = document.querySelector(".reference-modal-backdrop");
+    expect(backdrop).not.toBeNull();
+
+    fireEvent.pointerDown(promptTextarea, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(backdrop as Element, { button: 0, pointerId: 1 });
+    fireEvent.click(backdrop as Element);
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("routes download button clicks through the provided download callback", () => {
     const onDownloadReference = vi.fn();
     render(

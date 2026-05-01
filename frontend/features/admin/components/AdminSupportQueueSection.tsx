@@ -4,6 +4,7 @@
  */
 import { type CSSProperties, useState } from "react";
 import Link from "next/link";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import {
   ADMIN_DASHBOARD_ADJUSTMENT_PRESETS,
   ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT,
@@ -459,6 +460,8 @@ export function AdminSupportQueueSection({
     setPendingDeleteUser(null);
     setDeleteConfirmationValue("");
   };
+  const deleteModalBackdropDismiss =
+    useGuardedBackdropDismiss<HTMLElement>(closeDeleteModal);
 
   const handleConfirmDelete = async () => {
     if (!pendingDeleteUser || !deleteConfirmationMatches) return;
@@ -1114,11 +1117,11 @@ export function AdminSupportQueueSection({
 
       {pendingDeleteUser ? (
         <section
+          {...deleteModalBackdropDismiss}
           className={styles.adminModalBackdrop}
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-user-title"
-          onClick={closeDeleteModal}
         >
           <div className={styles.adminModalCard} onClick={(event) => event.stopPropagation()}>
             <div className={styles.adminSectionHead}>

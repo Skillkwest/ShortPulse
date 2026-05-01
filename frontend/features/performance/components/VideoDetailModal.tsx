@@ -3,6 +3,7 @@
  * Isolated to keep modal focus/aria handling contained and reusable.
  */
 import Link from "next/link";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { ScoredVideo } from "../types";
 import { formatAgo, formatCompact, formatHandle, formatPercent } from "../utils/formatters";
 
@@ -16,9 +17,12 @@ export type VideoDetailModalProps = {
  * Present modal contents for a scored video; renders nothing when closed.
  */
 export function VideoDetailModal({ video, open, onClose }: VideoDetailModalProps) {
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
+    disabled: !open || !video,
+  });
   if (!open || !video) return null;
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" {...backdropDismiss}>
       <div
         className="modal-shell"
         role="dialog"

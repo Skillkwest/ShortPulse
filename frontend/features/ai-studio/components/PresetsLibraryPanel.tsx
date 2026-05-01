@@ -16,6 +16,7 @@ import {
   type ExpertEditResolvedPreset,
 } from "./edit/expertEditPresets";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 export type PresetsLibraryPanelProps = {
@@ -173,6 +174,7 @@ export function PresetsLibraryPanel({
     "presets-library-modal",
     Boolean(pendingPresetEdit || pendingPresetDelete)
   );
+  const editBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeEditModal);
 
   return (
     <section className="presets-library-panel" aria-label="Presets library">
@@ -275,7 +277,7 @@ export function PresetsLibraryPanel({
       </div>
       {pendingPresetEdit ? (
         <AiStudioModalLayer>
-          <div className="presets-library-edit-modal-backdrop" onClick={closeEditModal}>
+          <div className="presets-library-edit-modal-backdrop" {...editBackdropDismiss}>
             <div
               className="presets-library-edit-modal"
               role="dialog"

@@ -16,6 +16,7 @@ import {
   type CreatePulseSavedPreset,
 } from "./create/createPulsePresets";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type PulsePresetsLibraryPanelProps = {
@@ -178,6 +179,7 @@ export function PulsePresetsLibraryPanel({
     "pulse-presets-library-modal",
     Boolean(pendingPresetEdit || pendingPresetDelete)
   );
+  const editBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeEditModal);
 
   return (
     <section className="pulse-presets-library-panel" aria-label="Pulse presets library">
@@ -280,7 +282,7 @@ export function PulsePresetsLibraryPanel({
       </div>
       {pendingPresetEdit ? (
         <AiStudioModalLayer>
-          <div className="pulse-presets-library-edit-modal-backdrop" onClick={closeEditModal}>
+          <div className="pulse-presets-library-edit-modal-backdrop" {...editBackdropDismiss}>
             <div
               className="pulse-presets-library-edit-modal"
               role="dialog"

@@ -10,6 +10,7 @@ import type { AspectOption, StudioMode } from "../../types";
 import { aspectOptions, modelLogos } from "../../constants";
 import type { ModelModalContext } from "../ModelModal";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
+import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import type {
   AgentAssistantMessageEditRequest,
   AgentAttachment,
@@ -391,6 +392,9 @@ const CharacterPickerModal = ({
     lookOptionsByCharacterId,
   ]);
   useAiStudioModalActivity("create-character-picker-modal", isOpen && characterModeEnabled);
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
+    disabled: !isOpen || !characterModeEnabled,
+  });
 
   if (!isOpen || !characterModeEnabled) {
     return null;
@@ -399,7 +403,7 @@ const CharacterPickerModal = ({
   return (
     <AiStudioModalLayer>
       <>
-        <div className="model-modal-backdrop ai-character-picker-backdrop" onClick={onClose} />
+        <div className="model-modal-backdrop ai-character-picker-backdrop" {...backdropDismiss} />
         <div
           className="model-modal ai-character-picker-modal"
           role="dialog"

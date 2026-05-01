@@ -6,6 +6,7 @@ import React from "react";
 import { Folders, Sparkle, Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type ProjectListRecord = {
@@ -151,6 +152,9 @@ export function ProjectsModal({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [deleteConfirmProject, isOpen, onClose]);
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
+    disabled: !isOpen,
+  });
 
   const handleProjectSelect = React.useCallback(
     async (projectId: string) => {
@@ -221,7 +225,7 @@ export function ProjectsModal({
 
   return (
     <AiStudioModalLayer>
-      <div className="model-modal-backdrop ai-projects-modal-backdrop" onClick={onClose} />
+      <div className="model-modal-backdrop ai-projects-modal-backdrop" {...backdropDismiss} />
       <div
         className="model-modal ai-projects-modal"
         role="dialog"

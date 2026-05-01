@@ -14,6 +14,7 @@ import {
 import { captureStyleDropSnapshot, type ResolveInternalStyleDrop } from "./style-creator/intake";
 import { useStyleCreatorController } from "./style-creator/useStyleCreatorController";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 const NONE_STYLE_ID = "__none_style__";
@@ -106,6 +107,7 @@ export function StylesLibraryPanel({
   const stylePromptAtLimit = stylePromptCharacterCount >= STYLE_PROMPT_MAX_CHARACTERS;
   const isAnyStylesModalOpen = Boolean(pendingStyleEdit || pendingDeleteStyle);
   useAiStudioModalActivity("styles-library-modal", isAnyStylesModalOpen);
+  const editBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeEditModal);
 
   return (
     <section
@@ -259,9 +261,9 @@ export function StylesLibraryPanel({
       {pendingStyleEdit ? (
         <AiStudioModalLayer>
           <div
+            {...editBackdropDismiss}
             className="styles-library-edit-modal-backdrop"
             role="presentation"
-            onClick={closeEditModal}
           >
             <div
               className="styles-library-edit-modal"

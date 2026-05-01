@@ -4,6 +4,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
@@ -83,6 +84,7 @@ export function MediaLibraryModal({
   const openToFirstMediaLoggedRef = useRef(false);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const modalBodyRef = useRef<HTMLDivElement | null>(null);
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose);
   const isOpenRef = useRef(isOpen);
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
     () => new Set()
@@ -361,7 +363,7 @@ export function MediaLibraryModal({
 
   return (
     <AiStudioModalLayer>
-      <div className="media-library-modal-backdrop" onClick={onClose}>
+      <div className="media-library-modal-backdrop" {...backdropDismiss}>
         <div
           className="media-library-modal media-library-modal-packed"
           role="dialog"

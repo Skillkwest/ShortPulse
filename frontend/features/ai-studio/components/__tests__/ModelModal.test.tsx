@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ModelModal } from "../ModelModal";
 import type { ModelOption } from "../../constants";
@@ -37,6 +37,21 @@ const readChipTitles = (_container: HTMLElement): string[] => {
 };
 
 describe("ModelModal", () => {
+  it("does not close when search text selection overextends to the backdrop", () => {
+    const onClose = vi.fn();
+    render(<ModelModal isOpen onClose={onClose} onSelect={vi.fn()} options={baseOptions} />);
+
+    const searchInput = screen.getByPlaceholderText("Search models");
+    const backdrop = document.querySelector(".model-modal-backdrop");
+    expect(backdrop).not.toBeNull();
+
+    fireEvent.pointerDown(searchInput, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(backdrop as Element, { button: 0, pointerId: 1 });
+    fireEvent.click(backdrop as Element);
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("hides Nano Banana chips in text-image context while keeping supported alternatives", () => {
     render(
       <ModelModal

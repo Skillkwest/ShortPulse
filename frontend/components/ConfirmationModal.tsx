@@ -4,6 +4,7 @@
  */
 import type { ReactNode } from "react";
 import { useId } from "react";
+import { useGuardedBackdropDismiss } from "./useGuardedBackdropDismiss";
 
 type ConfirmationModalTone = "danger" | "primary";
 
@@ -43,19 +44,23 @@ export function ConfirmationModal({
   const fallbackTitleId = useId();
   const resolvedTitleId = titleId ?? fallbackTitleId;
   const confirmText = confirmDisabled && confirmBusyLabel ? confirmBusyLabel : confirmLabel;
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(
+    () => {
+      if (!cancelDisabled) {
+        onCancel();
+      }
+    },
+    { disabled: cancelDisabled }
+  );
 
   return (
     <div
+      {...backdropDismiss}
       className="confirm-modal-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby={ariaLabel ? undefined : resolvedTitleId}
       aria-label={ariaLabel}
-      onClick={() => {
-        if (!cancelDisabled) {
-          onCancel();
-        }
-      }}
     >
       <div
         className={`confirm-modal confirm-modal--${tone}`}

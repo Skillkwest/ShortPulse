@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { PencilSimpleLine } from "phosphor-react";
+import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import type { CreatePulsePresetId, CreatePulseResolvedPreset } from "./createPulsePresets";
 
 export type CreatePulsePresetsSurfaceProps = {
@@ -95,6 +96,7 @@ export const CreatePulsePresetsSurface = ({
     setEditorDraft(EMPTY_EDITOR_DRAFT);
     setEditorError(null);
   }, [editorSubmitting]);
+  const editorBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeEditor);
 
   const openEditor = React.useCallback((preset: CreatePulseResolvedPreset) => {
     if (!preset.isEditable) return;
@@ -291,7 +293,7 @@ export const CreatePulsePresetsSurface = ({
         </div>
       </div>
       {editingPresetId ? (
-        <div className="create-expert-presets-custom-editor-overlay" onClick={closeEditor}>
+        <div className="create-expert-presets-custom-editor-overlay" {...editorBackdropDismiss}>
           <div
             ref={editorDialogRef}
             role="dialog"

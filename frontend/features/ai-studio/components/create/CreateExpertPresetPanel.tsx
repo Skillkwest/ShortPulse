@@ -6,6 +6,7 @@ import React from "react";
 import { GearSix, Sliders, X } from "phosphor-react";
 import { PulsePresetsLibraryPanel } from "../PulsePresetsLibraryPanel";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
+import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCreateModeRuntime";
 import { CreatePulsePresetsSurface } from "./CreatePulsePresetsSurface";
 import {
@@ -205,6 +206,8 @@ export function CreateExpertPresetPanel({
   const closePulseLibrary = React.useCallback(() => {
     setIsPulseLibraryOpen(false);
   }, []);
+  const pulseLibraryBackdropDismiss =
+    useGuardedBackdropDismiss<HTMLDivElement>(closePulseLibrary);
 
   const isPulseActivationEnabled = Boolean(onActivePresetIdChange);
 
@@ -292,7 +295,7 @@ export function CreateExpertPresetPanel({
         />
         {isPulseLibraryOpen ? (
           <AiStudioModalLayer>
-            <div className="create-pulse-library-modal-backdrop" onClick={closePulseLibrary}>
+            <div className="create-pulse-library-modal-backdrop" {...pulseLibraryBackdropDismiss}>
               <div
                 className="create-pulse-library-modal"
                 role="dialog"

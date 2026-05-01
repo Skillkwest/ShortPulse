@@ -19,6 +19,7 @@ import { isSeedance2ModelId, isSeedance2UiEnabled } from "../logic/seedance2Avai
 import { stripEditLabel } from "../utils/modelLabels";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 
 export type ModelModalContext =
   | "reference-image"
@@ -395,6 +396,7 @@ function ModelModalContent({
   } | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const tooltipTimerRef = useRef<number | null>(null);
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose);
 
   useEffect(() => {
     if (typeof window === "undefined" || !isOpen) return;
@@ -614,7 +616,7 @@ function ModelModalContent({
 
   return (
     <AiStudioModalLayer>
-      <div className="model-modal-backdrop" onClick={onClose}>
+      <div className="model-modal-backdrop" {...backdropDismiss}>
         <div
           className="model-modal"
           role="dialog"

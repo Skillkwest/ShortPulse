@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { PencilSimpleLine, Sliders } from "phosphor-react";
+import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import type {
   ExpertEditCustomPresetId,
   ExpertEditCustomPresetOverride,
@@ -90,6 +91,7 @@ export const ExpertEditPresetsSurface = ({
     setEditorDraft(EMPTY_EDITOR_DRAFT);
     setEditorError(null);
   }, []);
+  const editorBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeEditor);
 
   const openEditor = React.useCallback((preset: ExpertEditResolvedPreset) => {
     if (!preset.isCustom) return;
@@ -250,7 +252,7 @@ export const ExpertEditPresetsSurface = ({
         </div>
       </div>
       {editingPresetId ? (
-        <div className="edit-expert-presets-custom-editor-overlay" onClick={closeEditor}>
+        <div className="edit-expert-presets-custom-editor-overlay" {...editorBackdropDismiss}>
           <div
             ref={editorDialogRef}
             role="dialog"

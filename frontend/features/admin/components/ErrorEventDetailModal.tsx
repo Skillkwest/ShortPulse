@@ -1,4 +1,5 @@
 import type { AdminErrorEventRow, AdminErrorStatus } from "../types";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { formatDateTime, incidentStatusLabel } from "../logic/errorIncidentViewUtils";
 import styles from "../../../styles/admin.module.css";
 
@@ -25,14 +26,17 @@ export function ErrorEventDetailModal({
   onUpdateErrorStatus,
   onUpdateErrorEventStatus,
 }: ErrorEventDetailModalProps) {
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLElement>(onClose, {
+    disabled: !selectedEvent,
+  });
   if (!selectedEvent) return null;
 
   return (
     <section
+      {...backdropDismiss}
       className={styles.adminModalBackdrop}
       role="dialog"
       aria-modal="true"
-      onClick={onClose}
     >
       <div className={styles.adminModalCard} onClick={(event) => event.stopPropagation()}>
         <div className={styles.adminSectionHead}>

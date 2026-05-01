@@ -3,6 +3,7 @@
  * Keeps modal layout composition separate from ExpertEditPanelView orchestration logic.
  */
 import React from "react";
+import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 
 type ExpertEditMarkupModalShellProps = {
@@ -53,14 +54,17 @@ export const ExpertEditMarkupModalShell = ({
   onStageWheel,
 }: ExpertEditMarkupModalShellProps) => {
   useAiStudioModalActivity("expert-edit-markup-modal", isOpen);
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
+    disabled: !isOpen,
+  });
   if (!isOpen) return null;
 
   return (
     <AiStudioModalLayer>
       <div
+        {...backdropDismiss}
         className="edit-expert-markup-modal-backdrop"
         role="presentation"
-        onClick={onClose}
         onDragEnter={onDragShield}
         onDragOver={onDragShield}
         onDrop={onDragShield}

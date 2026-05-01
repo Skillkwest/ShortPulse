@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { Pause, Play, X } from "phosphor-react";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 
 export type CreateVoiceModalPreview = {
   generatedVoiceId: string;
@@ -94,9 +95,10 @@ export function CreateVoiceModal({
 }: CreateVoiceModalProps) {
   const hasPreviewOptions = voiceDesignPreviews.length > 0;
   const isCloneMode = createMode === "clone";
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose);
 
   return (
-    <div className="voices-create-modal-backdrop" onClick={onClose}>
+    <div className="voices-create-modal-backdrop" {...backdropDismiss}>
       <div
         className={`voices-create-modal${isCloneMode ? " voices-create-modal--clone" : ""}`}
         role="dialog"

@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 
 type DeleteTarget =
@@ -56,6 +57,11 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
   onCloseMoveFolderPicker,
   onMoveFolderToDestination,
 }: MediaLibraryPanelDialogsProps) {
+  const bulkMoveBackdropDismiss =
+    useGuardedBackdropDismiss<HTMLDivElement>(onCloseBulkMoveDialog);
+  const moveFolderBackdropDismiss =
+    useGuardedBackdropDismiss<HTMLDivElement>(onCloseMoveFolderPicker);
+
   return (
     <>
       {pendingBulkDeleteIds ? (
@@ -78,7 +84,7 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
 
       {bulkMoveDialogOpen ? (
         <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" onClick={onCloseBulkMoveDialog}>
+          <div className="art-confirm-backdrop" {...bulkMoveBackdropDismiss}>
             <div
               className="media-library-panel-move-dialog"
               role="dialog"
@@ -136,7 +142,7 @@ export const MediaLibraryPanelDialogs = React.memo(function MediaLibraryPanelDia
 
       {moveFolderPicker ? (
         <AiStudioModalLayer>
-          <div className="art-confirm-backdrop" onClick={onCloseMoveFolderPicker}>
+          <div className="art-confirm-backdrop" {...moveFolderBackdropDismiss}>
             <div
               className="media-library-panel-move-dialog"
               role="dialog"

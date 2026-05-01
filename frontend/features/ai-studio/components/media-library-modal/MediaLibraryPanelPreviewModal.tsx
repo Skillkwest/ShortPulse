@@ -5,6 +5,7 @@
 import React from "react";
 import { X } from "phosphor-react";
 import { isAudioFile, isVideoFile, type MediaFileRow } from "../../logic/mediaLibraryModalModel";
+import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 
 type MediaLibraryPanelPreviewModalProps = {
@@ -40,6 +41,9 @@ export function MediaLibraryPanelPreviewModal({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [file, onClose]);
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
+    disabled: !file,
+  });
 
   if (!file) return null;
 
@@ -50,8 +54,8 @@ export function MediaLibraryPanelPreviewModal({
   return (
     <AiStudioModalLayer>
       <div
+        {...backdropDismiss}
         className="media-library-panel-preview-backdrop"
-        onClick={onClose}
         role="presentation"
         data-testid="media-library-panel-preview-backdrop"
       >

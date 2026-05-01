@@ -3,6 +3,7 @@
  * Renders prompt edit/delete UI while delegating persistence behavior to injected handlers.
  */
 import { CheckCircle } from "phosphor-react";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 
 export type MediaPromptModalRow = {
@@ -47,6 +48,7 @@ export function MediaPromptModal<TRow extends MediaPromptModalRow>({
       prompt_id: focusedPrompt.id,
     },
   });
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closePromptModal);
 
   return (
     <div
@@ -55,7 +57,7 @@ export function MediaPromptModal<TRow extends MediaPromptModalRow>({
       aria-modal="true"
       aria-labelledby="prompt-modal-title"
     >
-      <div className="media-modal-backdrop" onClick={closePromptModal} />
+      <div className="media-modal-backdrop" {...backdropDismiss} />
       <div className="prompt-modal-content">
         <div className="prompt-modal-top-actions">
           <button

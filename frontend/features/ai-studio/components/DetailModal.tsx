@@ -13,6 +13,7 @@ import {
 import { resolveReferenceCardUrls } from "../logic/referenceGridMedia";
 import { downloadUrlToFile } from "../logic/referenceDownload";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
 import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
@@ -578,6 +579,7 @@ function DetailModalContent({
     imagePanDragRef.current = null;
     onClose();
   }, [clearPromptLibrarySavedTimer, clearPromptOnlyCloseTimer, onClose]);
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(handleCloseModal);
 
   const looksLikeFilename = (value?: string | null) => {
     const candidate = value?.trim();
@@ -913,7 +915,7 @@ function DetailModalContent({
 
   return (
     <AiStudioModalLayer>
-      <div className="reference-modal-backdrop" onClick={handleCloseModal}>
+      <div className="reference-modal-backdrop" {...backdropDismiss}>
         {/* Background blurred reflect */}
         {displayPreviewUrl && (
           <div

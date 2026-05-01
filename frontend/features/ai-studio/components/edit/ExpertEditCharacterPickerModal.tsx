@@ -9,6 +9,7 @@ import {
   getCreateCharacterInitials,
   type CreateCharacterOption,
 } from "../create/useCreateCharacterModeController";
+import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 
 export type ExpertEditCharacterPickerModalProps = {
@@ -59,6 +60,9 @@ export const ExpertEditCharacterPickerModal = ({
     void refreshNow();
   }, [characterModeEnabled, isOpen, refreshNow]);
   useAiStudioModalActivity("edit-character-picker-modal", isOpen && characterModeEnabled);
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
+    disabled: !isOpen || !characterModeEnabled,
+  });
 
   if (!isOpen || !characterModeEnabled) {
     return null;
@@ -67,7 +71,7 @@ export const ExpertEditCharacterPickerModal = ({
   return (
     <AiStudioModalLayer>
       <>
-        <div className="model-modal-backdrop ai-character-picker-backdrop" onClick={onClose} />
+        <div className="model-modal-backdrop ai-character-picker-backdrop" {...backdropDismiss} />
         <div
           className="model-modal ai-character-picker-modal"
           role="dialog"

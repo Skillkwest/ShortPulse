@@ -16,6 +16,7 @@ import {
   normalizeAiStudioKlingCharacterToken,
   type AiStudioKlingEntitySourceKind,
 } from "../logic/klingElements";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 export type ElementPickerModalProps = {
@@ -93,13 +94,16 @@ export const ElementPickerModal = ({
   );
 
   useAiStudioModalActivity("video-element-picker-modal", isOpen);
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
+    disabled: !isOpen,
+  });
 
   if (!isOpen) return null;
 
   return (
     <AiStudioModalLayer>
       <>
-        <div className="model-modal-backdrop ai-character-picker-backdrop" onClick={onClose} />
+        <div className="model-modal-backdrop ai-character-picker-backdrop" {...backdropDismiss} />
         <div
           className="model-modal ai-character-picker-modal"
           role="dialog"

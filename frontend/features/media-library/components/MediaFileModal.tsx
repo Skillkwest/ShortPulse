@@ -3,6 +3,7 @@
  * Renders preview, rename, move, and destructive actions while delegating behavior to injected handlers.
  */
 import { CaretDown, CheckCircle } from "phosphor-react";
+import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import type {
   CSSProperties,
@@ -127,10 +128,11 @@ export function MediaFileModal<TRow extends MediaFileModalRow>({
       file_id: focusedFile.id,
     },
   });
+  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeModal);
 
   return (
     <div className="media-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <div className="media-modal-backdrop" onClick={closeModal} />
+      <div className="media-modal-backdrop" {...backdropDismiss} />
       <div className="media-modal-content">
         <div className="modal-body">
           <div

@@ -37,4 +37,31 @@ describe("MediaPromptModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Close prompt editor" }));
     expect(closePromptModal).toHaveBeenCalled();
   });
+
+  it("does not close when prompt text selection overextends to the backdrop", () => {
+    const closePromptModal = vi.fn();
+    render(
+      <MediaPromptModal
+        closePromptModal={closePromptModal}
+        deletePrompt={vi.fn(async () => true)}
+        focusedPrompt={{ id: "prompt-1" }}
+        handlePromptEditChange={vi.fn()}
+        promptEditValue="draft"
+        promptModalError={null}
+        promptSaveSuccess={false}
+        savePromptEdits={vi.fn(async () => {})}
+        savingPromptEdit={false}
+      />
+    );
+
+    const textarea = screen.getByPlaceholderText("Edit your prompt...");
+    const backdrop = document.querySelector(".media-modal-backdrop");
+    expect(backdrop).not.toBeNull();
+
+    fireEvent.pointerDown(textarea, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(backdrop as Element, { button: 0, pointerId: 1 });
+    fireEvent.click(backdrop as Element);
+
+    expect(closePromptModal).not.toHaveBeenCalled();
+  });
 });

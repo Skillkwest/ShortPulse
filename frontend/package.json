@@ -6,6 +6,7 @@
     "dev": "node ./scripts/run_dev_with_generation_worker.mjs",
     "dev:next": "next dev",
     "dev:generation-worker": "node ./scripts/run_generation_control_plane_worker.mjs",
+    "ophestivus:intake": "node ./scripts/ophestivus_intake.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

@@ -131,6 +131,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
 - `docs/sops/sop_billing_credits_operations.md`
 - `docs/sops/sop_admin_ophestivus_board_operations.md`
+- `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
 - `docs/sops/sop_admin_user_health_fleet_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md`
 - `docs/sops/sop_account_health_snapshot.md`

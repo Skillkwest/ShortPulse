@@ -272,7 +272,7 @@ export function AdminKanbanBoardSection() {
                         <span className={styles.dragHandle} aria-hidden="true">
                           <DotsSixVertical size={18} weight="bold" />
                         </span>
-                        <div>
+                        <div className={styles.itemContent}>
                           <h4 className={styles.itemTitle}>{item.title}</h4>
                           {item.details ? (
                             <p className={styles.itemDetails}>{item.details}</p>

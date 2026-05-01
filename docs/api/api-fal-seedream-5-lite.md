@@ -53,5 +53,5 @@ curl --request POST \
 - Resolution options: `auto_2K` (default) and `auto_3K`.
 - Image size behavior: native enums for `1:1`, `4:3`, `3:4`, `16:9`, `9:16`; exact custom dimensions for `5:4`, `4:5`, `3:2`, `2:3`, `21:9`; for `auto_2K` and `auto_3K`, the client sends aspect-locked `{width,height}` objects.
 - Safety checker off by default (`enable_safety_checker: false`).
-- Pricing: Fal base is `$0.035` per image. ShortPulse billing uses shared conversion (`rawCredits = ceil(usd/0.01)`, `credits = ceil(rawCredits/5)*5`), resulting in `5` credits per run.
+- Pricing: Fal base is `$0.035` per image. ShortPulse billing uses shared conversion (`rawCredits = ceil(usd * creditPerDollar * (1 + perModelMarkupBps / 10000))`) and bills `rawCredits` unless a row-specific round-nearest override is configured, resulting in `4` credits per run before per-model overrides.
 - Proxy routes: `/api/fal/seedream-v5-lite-submit` and `/api/fal/seedream-status`.

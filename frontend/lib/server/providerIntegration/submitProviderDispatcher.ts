@@ -9,7 +9,11 @@ import type {
   SubmitTargetAttemptDiagnostic,
 } from "../falIntegration/contracts";
 import { submitSingleTargetWithRetry } from "../falIntegration/submitEngine";
-import { asProviderString, readCanonicalProviderRequestId } from "./canonicalProviderPayload";
+import {
+  asProviderRecord,
+  asProviderString,
+  readCanonicalProviderRequestId,
+} from "./canonicalProviderPayload";
 import { KIE_KLING_30_MODEL_ID } from "./kieModelIds";
 import { normalizeKieSubmitPayloadForModel } from "./kieModelContracts";
 import {
@@ -61,6 +65,66 @@ export class ProviderSubmitValidationError extends Error {
   }
 }
 
+const KIE_SUBMIT_REQUEST_ID_KEYS = [
+  "taskID",
+  "job_id",
+  "jobId",
+  "jobID",
+  "record_id",
+  "recordId",
+] as const;
+
+const collectSubmitPayloadCandidates = (
+  payload: Record<string, unknown>
+): Record<string, unknown>[] => {
+  const data = asProviderRecord(payload.data);
+  const result = asProviderRecord(payload.result);
+  const response = asProviderRecord(payload.response);
+  const rootPayload = asProviderRecord(payload.payload);
+  const meta = asProviderRecord(payload.meta);
+  return [
+    payload,
+    rootPayload,
+    data,
+    result,
+    response,
+    meta,
+    asProviderRecord(data.result),
+    asProviderRecord(result.data),
+    asProviderRecord(response.result),
+    asProviderRecord(rootPayload.result),
+  ].filter((candidate) => Object.keys(candidate).length > 0);
+};
+
+const readFirstSubmitAlias = (
+  payload: Record<string, unknown>,
+  keys: readonly string[]
+): string | null => {
+  for (const candidate of collectSubmitPayloadCandidates(payload)) {
+    for (const key of keys) {
+      const value = asProviderString(candidate[key]);
+      if (value) return value;
+    }
+  }
+  return null;
+};
+
+const readProviderSubmitRequestId = ({
+  payload,
+  includeKieAliases,
+}: {
+  payload: Record<string, unknown>;
+  includeKieAliases: boolean;
+}): string | null => {
+  const canonical = readCanonicalProviderRequestId(payload);
+  if (canonical) return canonical;
+  const kieAlias = includeKieAliases
+    ? readFirstSubmitAlias(payload, KIE_SUBMIT_REQUEST_ID_KEYS)
+    : null;
+  if (kieAlias) return kieAlias;
+  return readCanonicalProviderRequestId(payload, { allowGenericId: true });
+};
+
 const toProviderSubmitResult = (
   result: {
     response: Response;
@@ -69,10 +133,14 @@ const toProviderSubmitResult = (
     targetIndex: number;
     diagnostics?: Record<string, unknown> | null;
   },
-  providerDiagnostics: Record<string, unknown> | null = null
+  providerDiagnostics: Record<string, unknown> | null = null,
+  options: { includeKieAliases?: boolean } = {}
 ): ProviderSubmitResult => ({
   ...result,
-  providerRequestId: readCanonicalProviderRequestId(result.data, { allowGenericId: true }),
+  providerRequestId: readProviderSubmitRequestId({
+    payload: result.data,
+    includeKieAliases: options.includeKieAliases === true,
+  }),
   providerStatusUrl:
     asProviderString(result.data.status_url) ?? asProviderString(result.data.statusUrl),
   providerResponseUrl:
@@ -331,7 +399,7 @@ export const dispatchProviderSubmit = async ({
       requestStartTimeoutSeconds,
       maxAttemptsPerTarget,
     });
-    return toProviderSubmitResult(result, providerDiagnostics);
+    return toProviderSubmitResult(result, providerDiagnostics, { includeKieAliases: true });
   }
 
   throw new Error(`Unsupported provider for submit dispatch: ${provider}`);

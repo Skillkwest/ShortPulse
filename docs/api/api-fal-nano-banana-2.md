@@ -54,9 +54,8 @@ Example payload:
   - `4K` -> `x2`
 - Web search surcharge: `+$0.015` when enabled.
 - Credit conversion:
-  - `markedCredits = usd * 100 * 1.03`
-  - `rawCredits = ceil(markedCredits)`
-  - `credits = ceil(rawCredits / 5) * 5`
+  - `rawCredits = ceil(usd * creditPerDollar * (1 + perModelMarkupBps / 10000))`
+  - `credits = rawCredits` unless a row-specific round-nearest override is configured in `/admin/pricing`
 
 ## Defaults we ship
 - `num_images`: `1`

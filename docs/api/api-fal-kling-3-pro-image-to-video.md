@@ -61,16 +61,15 @@ Example response:
 
 ## Pricing (USD -> credits)
 
-Credits are derived from provider USD with markup and 5-credit quantization:
-- `markedCredits = usd * 100 * 1.03`
-- `rawCredits = ceil(markedCredits)`
-- `credits = ceil(rawCredits / 5) * 5`
+Credits are derived from provider USD with per-model markup and credit ceiling:
+- `rawCredits = ceil(usd * creditPerDollar * (1 + perModelMarkupBps / 10000))`
+- `credits = rawCredits` unless a row-specific round-nearest override is configured in `/admin/pricing`
 
 - Audio off: `$0.112` per second.
 - Audio on: `$0.168` per second.
 - Audio + voice control: `$0.196` per second (only when `voice_ids` are used).
 
-Example: a 5s clip with audio on and voice control costs `$0.98` -> `rawCredits = 101` -> `105` credits billed.
+Example: a 5s clip with audio on and voice control costs `$0.98` -> `98` credits billed before per-model overrides.
 
 ## Example request (provider reference)
 

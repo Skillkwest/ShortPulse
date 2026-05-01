@@ -175,6 +175,25 @@ const asJsonObject = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
+const readProviderSubmitFailureMessage = (payload: Record<string, unknown>): string | null => {
+  const candidates = [
+    payload,
+    asJsonObject(payload.data),
+    asJsonObject(payload.result),
+    asJsonObject(payload.response),
+  ];
+  for (const candidate of candidates) {
+    const message =
+      asProviderString(candidate.error) ??
+      asProviderString(candidate.message) ??
+      asProviderString(candidate.msg) ??
+      asProviderString(candidate.detail);
+    if (message && /^(ok|success|succeeded)$/i.test(message)) continue;
+    if (message) return message;
+  }
+  return null;
+};
+
 const readProjectIdFromShortpulseContext = (context: Record<string, unknown>): string | null =>
   asProviderString(context.project_id);
 
@@ -569,9 +588,7 @@ export const createFalSubmitHandler = ({
 
           if (!submitResult.response.ok || !submitResult.providerRequestId) {
             const upstreamMessage =
-              asProviderString(submitResult.data.error) ??
-              asProviderString(submitResult.data.message) ??
-              asProviderString(submitResult.data.detail) ??
+              readProviderSubmitFailureMessage(submitResult.data) ??
               (submitResult.providerRequestId
                 ? "Provider submit failed."
                 : "Provider submit response missing request id.");
@@ -586,6 +603,10 @@ export const createFalSubmitHandler = ({
             });
             const userFacingMessage = explicitContentFailure?.errorMessage ?? upstreamMessage;
             const userFacingDetail = explicitContentFailure?.errorDetail ?? submitResult.data;
+            const failureStatus =
+              submitResult.response.ok && !submitResult.providerRequestId
+                ? 502
+                : submitResult.response.status || 502;
             await charge.refund("Auto-release: inline provider submit failed.", {
               reason: submitResult.providerRequestId
                 ? "direct_submit_failed"
@@ -600,7 +621,7 @@ export const createFalSubmitHandler = ({
               routeLabel,
               source: "api.fal_submit.direct_submit_failed",
               message: userFacingMessage,
-              statusCode: submitResult.response.status || 502,
+              statusCode: failureStatus,
               userId: charge.userId,
               metadata: {
                 model_id: modelId,
@@ -613,7 +634,7 @@ export const createFalSubmitHandler = ({
                 upstream_message: upstreamMessage,
               },
             });
-            return res.status(submitResult.response.status || 502).json({
+            return res.status(failureStatus).json({
               error: userFacingMessage,
               detail: userFacingDetail,
             });

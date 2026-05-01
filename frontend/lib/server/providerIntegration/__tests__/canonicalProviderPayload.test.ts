@@ -26,6 +26,11 @@ describe("canonicalProviderPayload", () => {
     expect(readCanonicalProviderRequestId(payload)).toBe("task-123");
   });
 
+  it("does not treat provider job or record ids as canonical request ids", () => {
+    expect(readCanonicalProviderRequestId({ data: { jobId: "job-123" } })).toBeNull();
+    expect(readCanonicalProviderRequestId({ result: { record_id: "record-123" } })).toBeNull();
+  });
+
   it("only uses generic id alias when explicitly enabled", () => {
     const payload = { id: "provider-op-1" };
     expect(readCanonicalProviderRequestId(payload)).toBeNull();

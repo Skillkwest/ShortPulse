@@ -52,7 +52,7 @@ curl --request POST \
 ## Defaults we apply (AI Studio)
 - Aspect: `1:1` default; allowed: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`.
 - Image size behavior: native enums for `1:1`, `4:3`, `3:4`, `16:9`, `9:16`; exact custom dimensions for `5:4`, `4:5`, `3:2`, `2:3`, `21:9`; output format `png`; safety checker off by default; `num_images = 1`.
-- Pricing: `seedream-per-image` base is $0.04; billed credits use 5-credit steps (`rawCredits = ceil(usd/0.01)`, `credits = ceil(rawCredits/5)*5`). Current outcomes: base 5 credits, 4K 10 credits.
+- Pricing: `seedream-per-image` base is $0.04; billed credits use shared conversion (`rawCredits = ceil(usd * creditPerDollar * (1 + perModelMarkupBps / 10000))`) and equal `rawCredits` unless a row-specific round-nearest override is configured. Current outcomes before per-model overrides: base 4 credits, 4K 8 credits.
 - Proxy routes: `/api/fal/seedream-submit` and `/api/fal/seedream-status`.
 
 ## Notes

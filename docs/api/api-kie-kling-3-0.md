@@ -79,12 +79,11 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `pro` mode, sound off: `18` Kie credits / second (`$0.09/s`)
   - sound-on rates currently keep a `1.5x` premium on those mode baselines until richer Kie evidence is captured for each lane
 - ShortPulse conversion policy:
-  - `markedCredits = usd * 100 * 1.03`
-  - `rawCredits = ceil(markedCredits)`
-  - `credits = ceil(rawCredits / 5) * 5`
+  - `rawCredits = ceil(usd * creditPerDollar * (1 + perModelMarkupBps / 10000))`
+  - `credits = rawCredits` unless a row-specific round-nearest override is configured in `/admin/pricing`
 - Representative observed outcomes:
-  - `std`, `4s`, sound off: `56` Kie credits -> `$0.28` -> `30` billed credits
-  - `pro`, `4s`, sound off: `72` Kie credits -> `$0.36` -> `40` billed credits
+  - `std`, `4s`, sound off: `56` Kie credits -> `$0.28` -> `28` billed credits before per-model overrides
+  - `pro`, `4s`, sound off: `72` Kie credits -> `$0.36` -> `36` billed credits before per-model overrides
 
 ## Guardrails
 1. Kling 3.0 is always on; this model no longer depends on a rollout enable flag or model allowlist.

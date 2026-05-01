@@ -59,5 +59,5 @@ curl --request POST \
 - Image size behavior mirrors text-to-image: native enums for core ratios, exact custom dimensions for `5:4`, `4:5`, `3:2`, `2:3`, `21:9`, and aspect-locked `{width,height}` output for `auto_2K`/`auto_3K`.
 - Safety checker off by default (`enable_safety_checker: false`).
 - Reference cap: client passes up to 10 `image_urls` (matching API max).
-- Pricing: Fal base is `$0.035` per image. ShortPulse billing conversion yields `5` credits per run after shared rounding.
+- Pricing: Fal base is `$0.035` per image. ShortPulse billing conversion yields `4` credits per run by default before per-model overrides.
 - Proxy routes: `/api/fal/seedream-v5-lite-edit-submit` and `/api/fal/seedream-status`.

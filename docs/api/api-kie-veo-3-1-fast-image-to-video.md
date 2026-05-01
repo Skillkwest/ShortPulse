@@ -45,10 +45,9 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.
 - Runtime pricing basis: fixed `$0.40` per generation (independent of duration/resolution inputs currently exposed in UI).
 - First/last-frame implementation mapping: `generationType=FIRST_AND_LAST_FRAMES_2_VIDEO` in ShortPulse uses the same Fast Veo lane pricing basis (`$0.40` per generation).
 - ShortPulse conversion policy:
-  - `markedCredits = usd * 100 * 1.03`
-  - `rawCredits = ceil(markedCredits)`
-  - `credits = ceil(rawCredits / 5) * 5`
-- Default lane outcome: `$0.40` -> `rawCredits=42` -> `45` billed credits.
+  - `rawCredits = ceil(usd * creditPerDollar * (1 + perModelMarkupBps / 10000))`
+  - `credits = rawCredits` unless a row-specific round-nearest override is configured in `/admin/pricing`
+- Default lane outcome: `$0.40` -> `40` billed credits before per-model overrides.
 
 ## Guardrails
 1. Kie integration remains disabled by default.

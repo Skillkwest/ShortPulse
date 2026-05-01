@@ -21,7 +21,7 @@ describe("openAiCompat", () => {
 
     const response = await fetchOpenAiCompatibleChatCompletion({
       apiKey: "test-key",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       openAiUrl: "https://example.test/v1/chat/completions",
       timeoutMs: 20000,
       env: {
@@ -44,7 +44,7 @@ describe("openAiCompat", () => {
         new Response(
           JSON.stringify({
             id: "resp_1",
-            model: "gpt-5-nano",
+            model: "gpt-5.4-nano",
             output: [
               {
                 content: [{ type: "output_text", text: "Converted response text." }],
@@ -59,7 +59,7 @@ describe("openAiCompat", () => {
 
     const response = await fetchOpenAiCompatibleChatCompletion({
       apiKey: "test-key",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       openAiUrl: "https://example.test/v1/chat/completions",
       timeoutMs: 20000,
       env: {
@@ -113,7 +113,7 @@ describe("openAiCompat", () => {
 
     const response = await fetchOpenAiCompatibleChatCompletion({
       apiKey: "test-key",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       openAiUrl: "https://example.test/v1/chat/completions",
       timeoutMs: 20000,
       env: {
@@ -139,7 +139,7 @@ describe("openAiCompat", () => {
 
     const response = await fetchOpenAiCompatibleChatCompletion({
       apiKey: "test-key",
-      model: "gpt-5-nano",
+      model: "gpt-5.4-nano",
       openAiUrl: "https://example.test/v1/chat/completions",
       timeoutMs: 20000,
       env: {

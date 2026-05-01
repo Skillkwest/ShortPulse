@@ -84,6 +84,27 @@ describe("submitProviderDispatcher", () => {
     );
   });
 
+  it("does not read Kie-only submit aliases from Fal submit results", async () => {
+    submitSingleTargetWithRetryMock.mockResolvedValue({
+      response: new Response(JSON.stringify({ data: { jobId: "fal-job-1" } }), { status: 200 }),
+      data: { data: { jobId: "fal-job-1" } },
+      targetUrl: "https://queue.fal.run/fal-ai/model",
+      targetIndex: 0,
+      diagnostics: null,
+    });
+
+    const result = await dispatchProviderSubmit({
+      provider: "fal",
+      modelId: "fal-ai/nano-banana-pro",
+      targets: [{ submitUrl: "https://queue.fal.run/fal-ai/model" }],
+      payload: { prompt: "hello" },
+      apiKey: "key",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.providerRequestId).toBeNull();
+  });
+
   it("rejects non-canonical fal provider aliases", async () => {
     submitSingleTargetWithRetryMock.mockResolvedValue({
       response: new Response(JSON.stringify({ task_id: "task-1" }), { status: 200 }),
@@ -269,6 +290,74 @@ describe("submitProviderDispatcher", () => {
     );
   });
 
+  it("reads nested Kie job id aliases as provider request ids", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/kling-3.0";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ code: 200, msg: "success", data: { jobId: "job-kling-1" } }),
+          {
+            status: 200,
+          }
+        )
+      )
+    );
+
+    const result = await dispatchProviderSubmit({
+      provider: "kie",
+      modelId: "kie-ai/kling-3.0",
+      targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
+      payload: {
+        prompt: "animate frame",
+        image_url: "https://cdn.example.com/renders/shot-1.png",
+        aspect_ratio: "16:9",
+        duration: 5,
+      },
+      apiKey: "key",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.providerRequestId).toBe("job-kling-1");
+  });
+
+  it("prefers Kie submit aliases over loose generic ids", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/kling-3.0";
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            JSON.stringify({
+              code: 200,
+              id: "generic-response-id",
+              data: { jobId: "job-kling-2" },
+            }),
+            { status: 200 }
+          )
+        )
+    );
+
+    const result = await dispatchProviderSubmit({
+      provider: "kie",
+      modelId: "kie-ai/kling-3.0",
+      targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
+      payload: {
+        prompt: "animate frame",
+        image_url: "https://cdn.example.com/renders/shot-1.png",
+        aspect_ratio: "16:9",
+        duration: 5,
+      },
+      apiKey: "key",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.providerRequestId).toBe("job-kling-2");
+  });
+
   it("falls back to model-catalog kie submit target when env submit urls are unset", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
@@ -395,7 +484,7 @@ describe("submitProviderDispatcher", () => {
     await expect(
       dispatchProviderSubmit({
         provider: "openai",
-        modelId: "gpt-5-nano",
+        modelId: "gpt-5.4-nano",
         targets: [{ submitUrl: "https://api.openai.com/v1/responses" }],
         payload: { input: "hello" },
         apiKey: "key",

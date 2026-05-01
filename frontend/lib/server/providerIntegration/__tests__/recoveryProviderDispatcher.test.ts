@@ -76,7 +76,7 @@ describe("recoveryProviderDispatcher", () => {
       probeGenerationProviderResult({
         provider: "openai",
         requestId: "req-openai",
-        modelId: "gpt-5-nano",
+        modelId: "gpt-5.4-nano",
         apiKey: "test-key",
       })
     ).rejects.toThrow("Unsupported recovery provider");

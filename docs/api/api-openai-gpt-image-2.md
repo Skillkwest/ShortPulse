@@ -150,7 +150,7 @@ Billing is deterministic and request-shape based.
 - Shared conversion policy still applies:
   - `1 credit = $0.01`
   - `+3%` markup
-  - nearest-5 credit rounding
+  - credit ceiling plus any row-specific round-nearest override
 - Raw provider output price table used by the runtime:
   - `1024x1024`: `low $0.006`, `medium $0.053`, `high $0.211`
   - `1024x1536`: `low $0.005`, `medium $0.041`, `high $0.165`

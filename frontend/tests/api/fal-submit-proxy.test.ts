@@ -382,6 +382,91 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
+  it("surfaces Kie provider messages when a 200 response has no request id", async () => {
+    dispatchProviderSubmitMock.mockResolvedValueOnce({
+      response: new Response(
+        JSON.stringify({ code: 200, msg: "Submit accepted without task id", data: {} }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      ),
+      data: { code: 200, msg: "Submit accepted without task id", data: {} },
+      targetUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      targetIndex: 0,
+      providerRequestId: null,
+      providerDiagnostics: null,
+    });
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/kling-3.0",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      routeLabel: "Kie Kling 3.0",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "product reveal", image_urls: ["https://example.test/ref.png"] },
+      headers: {},
+      url: "/api/fal/kie-kling-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: inline provider submit failed.",
+      expect.objectContaining({
+        reason: "direct_submit_missing_request_id",
+        upstream_status: 200,
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Submit accepted without task id",
+        statusCode: 502,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Submit accepted without task id",
+      detail: { code: 200, msg: "Submit accepted without task id", data: {} },
+    });
+  });
+
+  it("keeps generic missing-id text when Kie only reports success without a task id", async () => {
+    dispatchProviderSubmitMock.mockResolvedValueOnce({
+      response: new Response(JSON.stringify({ code: 200, msg: "success", data: {} }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+      data: { code: 200, msg: "success", data: {} },
+      targetUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      targetIndex: 0,
+      providerRequestId: null,
+      providerDiagnostics: null,
+    });
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/kling-3.0",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+      routeLabel: "Kie Kling 3.0",
+    });
+    const req = {
+      method: "POST",
+      body: { prompt: "product reveal", image_urls: ["https://example.test/ref.png"] },
+      headers: {},
+      url: "/api/fal/kie-kling-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Provider submit response missing request id.",
+      detail: { code: 200, msg: "success", data: {} },
+    });
+  });
+
   it("still submits active Fal image routes directly when the durable queue is disabled", async () => {
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",

@@ -1,7 +1,7 @@
 # Responses API Reference
 
 OpenAI's Responses API powers ShortPulse's internal model interaction points (text, images, and tool-assisted flows). This reference captures every endpoint and payload field you need to keep conversations, reasoning, and tool calls under control when integrating generation models.
-Primary ShortPulse baseline model: `gpt-5-nano` (`https://platform.openai.com/docs/models/gpt-5-nano`).
+Primary ShortPulse baseline model: `gpt-5.4-nano` (`https://developers.openai.com/api/docs/pricing`).
 
 ## Endpoint summary
 

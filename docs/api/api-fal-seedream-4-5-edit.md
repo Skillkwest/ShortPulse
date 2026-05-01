@@ -57,7 +57,7 @@ curl --request POST \
 - Image size behavior matches text-to-image: native enums for `1:1`, `4:3`, `3:4`, `16:9`, `9:16`; exact custom dimensions for `5:4`, `4:5`, `3:2`, `2:3`, `21:9`.
 - Safety checker off by default (`enable_safety_checker: false`) to honor the “minimum safety” request.
 - `num_images = 1`; references are passed from the reference grid (up to 4 today, API allows 10).
-- Pricing: `seedream-per-image` base is $0.04; billed credits use 5-credit steps (`rawCredits = ceil(usd/0.01)`, `credits = ceil(rawCredits/5)*5`). Current outcomes: base 5 credits, 4K 10 credits.
+- Pricing: `seedream-per-image` base is $0.04; billed credits use shared conversion (`rawCredits = ceil(usd * creditPerDollar * (1 + perModelMarkupBps / 10000))`) and equal `rawCredits` unless a row-specific round-nearest override is configured. Current outcomes before per-model overrides: base 4 credits, 4K 8 credits.
 - Proxy routes: `/api/fal/seedream-edit-submit` (submit) and `/api/fal/seedream-status` (status/result).
 
 ## Notes

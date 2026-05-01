@@ -18,6 +18,8 @@ Purpose: operate the shared Ophestivus board safely as the durable task source f
 - API routes: `frontend/pages/api/admin/kanban/activity.ts`, `frontend/pages/api/admin/kanban/items/*`
 - Persistence migrations: `sql/migrations/110_add_admin_kanban_foundation.sql`, `sql/migrations/111_harden_admin_kanban_audit_integrity.sql`, `sql/migrations/113_add_admin_kanban_review_status.sql`
 - Architecture decision: `docs/adr/0072-admin-kanban-and-ophestivus-foundation.md`
+- Error-to-review workflow: `docs/sops/sop_admin_error_to_ophestivus_resolution.md`
+- Review-to-complete approval workflow: `docs/sops/sop_admin_ophestivus_review_to_complete.md`
 
 ## Prerequisites
 
@@ -33,11 +35,25 @@ Purpose: operate the shared Ophestivus board safely as the durable task source f
 4. Archive stale or obsolete tasks from the board instead of deleting records.
 5. Use the board header `Action log` control to review recent Ophestivus board activity across tasks.
 6. Use the item activity route for future detail/timeline views when item-specific audit context is needed.
+7. Use `docs/sops/sop_admin_ophestivus_review_to_complete.md` before promoting `Review` tickets to `Complete`.
+
+## Ophestivus Helper Commands
+
+- `cd frontend && npm run ophestivus:intake`: pick the first backlog ticket or create a backlog ticket from the next Admin Errors incident.
+- `cd frontend && npm run ophestivus:error-status -- --incident <incident-id> --after <timestamp>`: verify same-fingerprint incident status and fresh recurrence after a fix timestamp.
+- `cd frontend && npm run ophestivus:compact-ticket-report`: create a board-safe Review report with approval-note space reserved.
+- `cd frontend && npm run ophestivus:complete-error-ticket`: resolve a verified Admin Errors incident, write the compact report, and move the ticket from `In progress` to `Review`.
+- `cd frontend && npm run ophestivus:review`: inspect `Review` tickets, append approval notes, and move approved work to `Complete`.
+- `cd frontend && npm run ophestivus:move-ticket`: move one active ticket between board columns with dry-run and stale-status guards.
+- `cd frontend && npm run ophestivus:append-ticket-note`: append a length-checked note to ticket details.
+- `cd frontend && npm run ophestivus:run-log`: write a local markdown SOP run report under `docs/records/artifacts/agent/ophestivus/reports/`.
 
 ## Guardrails
 
 - Do not use the board as an authorization source; it tracks work only.
 - Do not store secrets, customer private data, or service-role values in task titles or notes.
+- Tickets that Ophestivus cannot handle reliably as one working agent must stay in or return to `Backlog`, use the title prefix `[HUMAN REVIEW]`, and include the Human Review / Escalation Ticket template from `docs/sops/sop_admin_error_to_ophestivus_resolution.md`. If a future board note surface supports styling, render the `*** HUMAN REVIEW REQUIRED ***` banner in the blue theme and bold while preserving the text.
+- Do not create specialized escalation templates until repeated board patterns justify them; keep provider, SQL/migration, product-decision, multi-agent, release-gate, and security/privacy cases inside the general human-review template for now.
 - Keep `Published` human-controlled until a later approved Ophestivus automation phase changes the contract.
 - Keep all reads/writes behind `requireAdminUser` and service-role server helpers/RPCs.
 - Keep normal removal as archive-only so `admin_kanban_activity` stays useful for audit and future agent coordination.

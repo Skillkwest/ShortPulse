@@ -110,6 +110,15 @@ const isFastRefreshNoise = (event: ClientAppErrorEvent): boolean => {
 
   if (looksLikeHookQueueInvariant) return true;
 
+  const route = (normalizeText(event.route, 400) ?? "").toLowerCase();
+  const isAiStudioRoute = route.includes("/ai-studio");
+  const isGenerationScope = (event.scope ?? "app") === "generation";
+  const looksLikeRefreshReferenceMiss = /\bis not defined\b/.test(message);
+
+  if (looksLikeRefreshReferenceMiss && !isAiStudioRoute && !isGenerationScope) {
+    return true;
+  }
+
   // If we have react-refresh frames and the error originates from the refresh runtime file,
   // treat it as non-actionable dev noise.
   if (typeof metaFilename === "string" && /react-refresh|webpack|hot-update/i.test(metaFilename)) {
@@ -119,9 +128,19 @@ const isFastRefreshNoise = (event: ClientAppErrorEvent): boolean => {
   return false;
 };
 
+const isResizeObserverLoopNoise = (event: ClientAppErrorEvent): boolean => {
+  if (!event.source.startsWith("client.")) return false;
+  const message = (normalizeText(event.message) ?? "").toLowerCase();
+  return (
+    message === "resizeobserver loop completed with undelivered notifications." ||
+    message === "resizeobserver loop limit exceeded"
+  );
+};
+
 const shouldSkip = (event: ClientAppErrorEvent): boolean => {
   const scope = event.scope ?? "app";
   if (isFastRefreshNoise(event)) return true;
+  if (isResizeObserverLoopNoise(event)) return true;
 
   const message = normalizeText(event.message) ?? "Unknown runtime error";
   const endpoint = endpointPath(event.endpoint);

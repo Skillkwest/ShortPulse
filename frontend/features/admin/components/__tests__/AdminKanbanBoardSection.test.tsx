@@ -152,6 +152,31 @@ describe("AdminKanbanBoardSection", () => {
     );
   });
 
+  it("surfaces human-review tickets with a visible label", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          makeItem({
+            title: "[HUMAN REVIEW] Provider access blocked",
+            details:
+              "*** HUMAN REVIEW REQUIRED ***\nBlocked by: Vendor/provider access\nHuman action needed: connect provider account",
+          }),
+        ],
+      })
+    );
+
+    render(<AdminKanbanBoardSection />);
+
+    const backlogColumn = await screen.findByLabelText("Backlog tasks");
+    expect(within(backlogColumn).getByText("Human review required")).toBeInTheDocument();
+    expect(
+      within(backlogColumn).getByText(/Blocked by: Vendor\/provider access/)
+    ).toBeInTheDocument();
+    expect(
+      within(backlogColumn).queryByText("*** HUMAN REVIEW REQUIRED ***")
+    ).not.toBeInTheDocument();
+  });
+
   it("opens the Ophestivus action log from the board header", async () => {
     fetchWithAuthMock.mockResolvedValueOnce(jsonResponse({ items: [] })).mockResolvedValueOnce(
       jsonResponse({

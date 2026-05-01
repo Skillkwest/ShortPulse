@@ -88,7 +88,7 @@ describe("GET /api/admin/generation-trace", () => {
     await handler(req as never, res as never);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Provide at least one of generationId, requestId, or traceId.",
+      error: "Provide at least one of generationId, requestId, traceId, or userId.",
     });
   });
 

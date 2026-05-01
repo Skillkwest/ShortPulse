@@ -40,6 +40,16 @@ const formatActionDate = (value: string): string =>
 const formatStatusLabel = (status: AdminKanbanStatus | null): string | null =>
   ADMIN_KANBAN_COLUMNS.find((column) => column.id === status)?.label ?? null;
 
+const HUMAN_REVIEW_TITLE_PREFIX = "[HUMAN REVIEW]";
+const HUMAN_REVIEW_BANNER = "*** HUMAN REVIEW REQUIRED ***";
+
+const isHumanReviewItem = (item: AdminKanbanItem): boolean =>
+  item.title.trim().startsWith(HUMAN_REVIEW_TITLE_PREFIX) ||
+  item.details.includes(HUMAN_REVIEW_BANNER);
+
+const getVisibleItemDetails = (item: AdminKanbanItem): string =>
+  item.details.replace(HUMAN_REVIEW_BANNER, "").trim();
+
 const formatActionLabel = (entry: AdminKanbanActionLogEntry): string => {
   if (entry.action === "created") return "Created item";
   if (entry.action === "updated") return "Updated item";
@@ -357,8 +367,11 @@ export function AdminKanbanBoardSection() {
                         </span>
                         <div className={styles.itemContent}>
                           <h4 className={styles.itemTitle}>{item.title}</h4>
-                          {item.details ? (
-                            <p className={styles.itemDetails}>{item.details}</p>
+                          {isHumanReviewItem(item) ? (
+                            <span className={styles.humanReviewBadge}>Human review required</span>
+                          ) : null}
+                          {getVisibleItemDetails(item) ? (
+                            <p className={styles.itemDetails}>{getVisibleItemDetails(item)}</p>
                           ) : null}
                         </div>
                         <button

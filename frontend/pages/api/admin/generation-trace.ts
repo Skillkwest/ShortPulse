@@ -216,11 +216,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const generationId = asSingleString(req.query.generationId);
   const requestId = asSingleString(req.query.requestId);
   const traceId = asSingleString(req.query.traceId);
+  const userId = asSingleString(req.query.userId);
 
-  if (!generationId && !requestId && !traceId) {
+  if (!generationId && !requestId && !traceId && !userId) {
     return res
       .status(400)
-      .json({ error: "Provide at least one of generationId, requestId, or traceId." });
+      .json({ error: "Provide at least one of generationId, requestId, traceId, or userId." });
   }
 
   try {
@@ -255,6 +256,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
       if (error) {
         warnings.push(`ai_generations.request_id lookup failed: ${readErrorMessage(error)}`);
+      } else {
+        appendObjectRows(generationRows, data);
+      }
+    }
+
+    if (userId) {
+      const { data, error } = await runGenerationQueryWithFallback({
+        warnings,
+        label: "ai_generations.user_id lookup",
+        execute: (selectFields) =>
+          supabaseAdmin
+            .from("ai_generations")
+            .select(selectFields)
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(25),
+      });
+      if (error) {
+        warnings.push(`ai_generations.user_id lookup failed: ${readErrorMessage(error)}`);
       } else {
         appendObjectRows(generationRows, data);
       }
@@ -600,6 +620,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         generationId: generationId ?? null,
         requestId: requestId ?? null,
         traceId: traceId ?? null,
+        userId: userId ?? null,
       },
       summary: {
         generations: generations.length,
@@ -630,6 +651,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         generation_id: generationId ?? null,
         request_id: requestId ?? null,
         trace_id: traceId ?? null,
+        user_id: userId ?? null,
       },
       user: adminUser,
     });

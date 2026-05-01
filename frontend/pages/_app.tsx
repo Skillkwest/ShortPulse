@@ -18,9 +18,6 @@ import "../styles/globals.css";
 const isAiStudioRoutePath = (pathname: string): boolean =>
   pathname.startsWith("/ai-studio") || pathname.startsWith("/creator-studio");
 
-const ROUTE_SCRIPT_LOAD_RELOAD_KEY = "__sp_route_script_load_retry";
-const ROUTE_SCRIPT_LOAD_RETRY_LIMIT = 50;
-
 const toRouteLoadMessage = (value: unknown): string => {
   if (typeof value === "string") return value.trim();
   if (value && typeof value === "object" && "message" in value) {
@@ -41,42 +38,6 @@ const hasFailedScriptLoadText = (value: string): boolean => {
 const extractFailedChunk = (value: string): string | null => {
   const match = value.match(/_next\/static\/chunks\/[^\\s"']+\.js/);
   return match ? match[0] : null;
-};
-
-const buildRetryKey = (url: string, message: string): string => {
-  const chunk = extractFailedChunk(message);
-  return `${url}:${chunk ?? "generic"}`;
-};
-
-const wasRouteScriptErrorRetried = (retryKey: string): boolean => {
-  if (typeof window === "undefined") return false;
-  try {
-    const raw = sessionStorage.getItem(ROUTE_SCRIPT_LOAD_RELOAD_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return false;
-    return parsed.includes(retryKey);
-  } catch {
-    return false;
-  }
-};
-
-const recordRouteScriptErrorRetry = (retryKey: string): void => {
-  if (typeof window === "undefined") return;
-  try {
-    const raw = sessionStorage.getItem(ROUTE_SCRIPT_LOAD_RELOAD_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const list = Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === "string")
-      : [];
-    const nextList = [...new Set([retryKey, ...list])];
-    if (nextList.length > ROUTE_SCRIPT_LOAD_RETRY_LIMIT) {
-      nextList.length = ROUTE_SCRIPT_LOAD_RETRY_LIMIT;
-    }
-    sessionStorage.setItem(ROUTE_SCRIPT_LOAD_RELOAD_KEY, JSON.stringify(nextList));
-  } catch {
-    // best-effort only
-  }
 };
 
 /**
@@ -124,7 +85,7 @@ export default function App({ Component, pageProps }: AppProps) {
       if (routeError?.cancelled) return;
 
       const routeErrorMessage = toRouteLoadMessage(routeError);
-      const routeChangeTarget = redactUrlForTelemetry(url);
+      const telemetryRouteChangeTarget = redactUrlForTelemetry(url);
       const hasScriptLoadFailure = hasFailedScriptLoadText(routeErrorMessage);
 
       addBreadcrumb({
@@ -132,32 +93,27 @@ export default function App({ Component, pageProps }: AppProps) {
         level: "warn",
         message: "route_change_error",
         data: {
-          to: routeChangeTarget,
+          to: telemetryRouteChangeTarget,
         },
       });
 
       if (hasScriptLoadFailure && typeof window !== "undefined") {
-        const retryKey = buildRetryKey(routeChangeTarget, routeErrorMessage);
-        if (!wasRouteScriptErrorRetried(retryKey)) {
-          recordRouteScriptErrorRetry(retryKey);
-          void reportAppError({
-            source: "client.route_change_script_load_failure",
-            scope: "app",
-            severity: "high",
-            message: routeErrorMessage
-              ? `Route change failed: ${routeErrorMessage}`
-              : "Route change failed",
-            stack: routeError?.stack ?? null,
-            route: window.location.pathname,
-            endpoint: routeChangeTarget,
-            metadata: {
-              route_change_target: routeChangeTarget,
-              route_change_script_chunk: extractFailedChunk(routeErrorMessage),
-            },
-          });
-          window.location.assign(routeChangeTarget);
-          return;
-        }
+        void reportAppError({
+          source: "client.route_change_script_load_failure",
+          scope: "app",
+          severity: "high",
+          message: routeErrorMessage
+            ? `Route change failed: ${routeErrorMessage}`
+            : "Route change failed",
+          stack: routeError?.stack ?? null,
+          route: window.location.pathname,
+          endpoint: telemetryRouteChangeTarget,
+          metadata: {
+            route_change_target: telemetryRouteChangeTarget,
+            route_change_script_chunk: extractFailedChunk(routeErrorMessage),
+          },
+        });
+        return;
       }
 
       void reportAppError({
@@ -169,9 +125,9 @@ export default function App({ Component, pageProps }: AppProps) {
           : "Route change failed",
         stack: routeError?.stack ?? null,
         route: typeof window !== "undefined" ? window.location.pathname : null,
-        endpoint: redactUrlForTelemetry(url),
+        endpoint: telemetryRouteChangeTarget,
         metadata: {
-          route_change_target: redactUrlForTelemetry(url),
+          route_change_target: telemetryRouteChangeTarget,
         },
       });
     };

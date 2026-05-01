@@ -36,6 +36,12 @@ type AppErrorWriteResult = {
   id: string | null;
 };
 
+type NormalizedApiException = {
+  message: string;
+  stack: string | null;
+  metadata: JsonObject;
+};
+
 type ApiExceptionOptions = {
   req?: NextApiRequest;
   error: unknown;
@@ -126,6 +132,75 @@ const sanitizeMessage = (value: unknown): string => {
 const sanitizeStack = (value: unknown): string | null => {
   const text = toTrimmedString(value, MAX_STACK_LENGTH);
   return text ?? null;
+};
+
+const safeStringifyException = (value: unknown): string | null => {
+  try {
+    const serialized = JSON.stringify(value);
+    const text = toTrimmedString(serialized, MAX_MESSAGE_LENGTH);
+    if (text && text !== "{}") return text;
+  } catch {
+    // Fall through to String(value) below.
+  }
+
+  const fallback = toTrimmedString(String(value), MAX_MESSAGE_LENGTH);
+  if (!fallback || fallback === "[object Object]") return null;
+  return fallback;
+};
+
+const exceptionObjectField = (value: JsonObject, key: string): string | null => {
+  return toTrimmedString(value[key], MAX_TEXT_FIELD_LENGTH);
+};
+
+/**
+ * Converts unknown catch values into incident-safe text and structured metadata.
+ */
+export const normalizeApiExceptionForLog = (error: unknown): NormalizedApiException => {
+  if (error instanceof Error) {
+    return {
+      message: sanitizeMessage(error.message || error.name || "Unknown API exception"),
+      stack: sanitizeStack(error.stack),
+      metadata: error.name ? { exception_name: error.name } : {},
+    };
+  }
+
+  if (error && typeof error === "object") {
+    const errorObject = error as JsonObject;
+    const objectMessage = exceptionObjectField(errorObject, "message");
+    const details = exceptionObjectField(errorObject, "details");
+    const code = exceptionObjectField(errorObject, "code");
+    const hint = exceptionObjectField(errorObject, "hint");
+    const name = exceptionObjectField(errorObject, "name");
+    const status = exceptionObjectField(errorObject, "status");
+    const statusCode = exceptionObjectField(errorObject, "statusCode");
+    const serialized = safeStringifyException(errorObject);
+    const message = sanitizeMessage(
+      objectMessage ?? details ?? serialized ?? "Object API exception"
+    );
+    const metadata: JsonObject = {
+      exception_type: errorObject.constructor?.name ?? "Object",
+    };
+
+    if (name) metadata.exception_name = name;
+    if (code) metadata.exception_code = code;
+    if (details) metadata.exception_details = details;
+    if (hint) metadata.exception_hint = hint;
+    if (status) metadata.exception_status = status;
+    if (statusCode) metadata.exception_status_code = statusCode;
+    if (!objectMessage && !details && serialized) metadata.exception_payload = serialized;
+
+    return {
+      message,
+      stack: sanitizeStack(errorObject.stack),
+      metadata,
+    };
+  }
+
+  return {
+    message: sanitizeMessage(error ?? "Unknown API exception"),
+    stack: null,
+    metadata: {},
+  };
 };
 
 const sanitizeStatusCode = (value: unknown): number | null => {
@@ -242,6 +317,7 @@ const shouldSkipLog = (params: {
   const hostValues = getMetadataText(metadata.host);
   const appEnvironmentValues = getMetadataText(metadata.app_environment);
   const clientEnvironmentValues = getMetadataText(metadata.client_environment);
+  const visibilityStateValues = getMetadataText(metadata.visibility_state);
   const isLocalHost = hostValues.some(
     (host) => host.includes("localhost") || host.includes("127.0.0.1") || host.includes("0.0.0.0")
   );
@@ -251,6 +327,7 @@ const shouldSkipLog = (params: {
   const isAiStudioRoute = routeText.includes("/ai-studio");
   const isAiStudioClientSource = params.source.startsWith("client.ai_studio.");
   const isServerFailure = params.statusCode !== null && params.statusCode >= 500;
+  const endpointText = (params.endpoint ?? "").toLowerCase();
   const isActionableLocalClientEvent =
     isAiStudioClientSource ||
     isAiStudioRoute ||
@@ -271,6 +348,58 @@ const shouldSkipLog = (params: {
 
   const stackText = (params.stack ?? "").toLowerCase();
   const messageText = params.message.toLowerCase();
+  const isResizeObserverLoopNoise =
+    params.source.startsWith("client.") &&
+    (messageText === "resizeobserver loop completed with undelivered notifications." ||
+      messageText === "resizeobserver loop limit exceeded");
+
+  if (isResizeObserverLoopNoise) {
+    return true;
+  }
+
+  const isHiddenLocalWorkspaceFetchNoise =
+    params.scope === "app" &&
+    params.source === "client.api_network" &&
+    params.statusCode === null &&
+    messageText === "failed to fetch" &&
+    isLocalHost &&
+    isDevelopmentClientEnvironment &&
+    visibilityStateValues.includes("hidden") &&
+    isAiStudioRoute &&
+    /^\/api\/projects\/[^/]+\/workspace(?:\?|$)/.test(endpointText);
+
+  if (isHiddenLocalWorkspaceFetchNoise) {
+    return true;
+  }
+
+  const isHiddenLocalAdminErrorsRefreshNoise =
+    params.scope === "app" &&
+    params.source === "client.api_network" &&
+    params.statusCode === null &&
+    messageText === "failed to fetch" &&
+    isLocalHost &&
+    isDevelopmentClientEnvironment &&
+    visibilityStateValues.includes("hidden") &&
+    /^\/api\/admin\/(?:errors|error-events)(?:\?|$)/.test(endpointText);
+
+  if (isHiddenLocalAdminErrorsRefreshNoise) {
+    return true;
+  }
+
+  const isHiddenLocalAdminBillingDiagnosticsFetchNoise =
+    params.scope === "app" &&
+    params.source === "client.api_network" &&
+    params.statusCode === null &&
+    messageText === "failed to fetch" &&
+    isLocalHost &&
+    isDevelopmentClientEnvironment &&
+    visibilityStateValues.includes("hidden") &&
+    /^\/api\/admin\/billing-diagnostics(?:\?|$)/.test(endpointText);
+
+  if (isHiddenLocalAdminBillingDiagnosticsFetchNoise) {
+    return true;
+  }
+
   const hasReactRefreshFrames =
     stackText.includes("performreactrefresh") ||
     stackText.includes("schedulerefresh") ||
@@ -282,7 +411,7 @@ const shouldSkipLog = (params: {
     isReferenceNameError &&
     hasReactRefreshFrames &&
     (isDevelopmentClientEnvironment || process.env.NODE_ENV === "development") &&
-    !isActionableLocalClientEvent
+    (!isActionableLocalClientEvent || (!isAiStudioRoute && params.scope !== "generation"))
   ) {
     return true;
   }
@@ -630,17 +759,15 @@ export const logApiRouteException = async ({
 }: ApiExceptionOptions): Promise<void> => {
   try {
     const resolvedUser = user ?? (req ? await getOptionalApiUser(req) : null);
-    const message =
-      error instanceof Error ? error.message : String(error ?? "Unknown API exception");
-    const stack = error instanceof Error ? (error.stack ?? null) : null;
+    const exception = normalizeApiExceptionForLog(error);
     const requestId = requestHeaderValue(getRequestHeader(req, "x-shortpulse-request-id"));
 
     await writeAppErrorLog({
       source: "api.exception",
       scope,
       severity: "high",
-      message,
-      stack,
+      message: exception.message,
+      stack: exception.stack,
       route: routeLabel,
       endpoint: req?.url ?? null,
       requestId,
@@ -650,6 +777,7 @@ export const logApiRouteException = async ({
         method: req?.method ?? null,
         route_label: routeLabel,
         ...metadata,
+        ...exception.metadata,
       },
     });
   } catch (loggingError) {

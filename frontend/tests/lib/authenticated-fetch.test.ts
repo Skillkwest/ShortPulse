@@ -77,4 +77,54 @@ describe("fetchWithAuth telemetry", () => {
       })
     );
   });
+
+  it("retries opt-in network failures once before logging an incident", async () => {
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error("Failed to fetch"))
+      .mockResolvedValueOnce(new Response("{}", { status: 200 }));
+
+    const response = await fetchWithAuth("/api/pricing/model-policy", {
+      method: "GET",
+      shortpulseRetryNetworkOnce: true,
+    });
+
+    expect(response.status).toBe(200);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(reportAppErrorMock).not.toHaveBeenCalled();
+    expect(addBreadcrumbMock).toHaveBeenCalledTimes(1);
+    expect(addBreadcrumbMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "fetch",
+      })
+    );
+    expect(fetch).toHaveBeenLastCalledWith(
+      "/api/pricing/model-policy",
+      expect.not.objectContaining({
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+  });
+
+  it("reports an opt-in network failure once when the retry also fails", async () => {
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error("Failed to fetch"))
+      .mockRejectedValueOnce(new Error("still down"));
+
+    await expect(
+      fetchWithAuth("/api/pricing/model-policy", {
+        method: "GET",
+        shortpulseRetryNetworkOnce: true,
+      })
+    ).rejects.toThrow("still down");
+
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(reportAppErrorMock).toHaveBeenCalledTimes(1);
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "client.api_network",
+        endpoint: "/api/pricing/model-policy",
+        message: "still down",
+      })
+    );
+  });
 });

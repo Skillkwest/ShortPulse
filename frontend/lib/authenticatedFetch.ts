@@ -10,6 +10,7 @@ export type ShortPulseFetchInit = RequestInit & {
   shortpulseLogScope?: "app" | "generation";
   shortpulseSkipErrorLogging?: boolean;
   shortpulseAuthTimeoutMs?: number;
+  shortpulseRetryNetworkOnce?: boolean;
 };
 
 export const AUTH_SESSION_TIMEOUT_CODE = "AUTH_SESSION_TIMEOUT" as const;
@@ -134,6 +135,7 @@ export const fetchWithAuth = async (
   const endpoint = normalizeEndpoint(input);
   const scope = init?.shortpulseLogScope ?? "app";
   const skipErrorLogging = Boolean(init?.shortpulseSkipErrorLogging);
+  const retryNetworkOnce = Boolean(init?.shortpulseRetryNetworkOnce);
 
   const headers = asHeaders(init?.headers);
   const callerProvidedAuthorization = headers.has("Authorization");
@@ -149,17 +151,18 @@ export const fetchWithAuth = async (
   delete (requestInit as ShortPulseFetchInit).shortpulseLogScope;
   delete (requestInit as ShortPulseFetchInit).shortpulseSkipErrorLogging;
   delete (requestInit as ShortPulseFetchInit).shortpulseAuthTimeoutMs;
+  delete (requestInit as ShortPulseFetchInit).shortpulseRetryNetworkOnce;
   const startedAt = Date.now();
   const method = (requestInit.method ?? "GET").toString().toUpperCase();
   const breadcrumbEndpoint = redactUrlForTelemetry(endpoint);
 
-  try {
-    const executeRequest = async (requestHeaders: Headers): Promise<Response> =>
-      await fetch(input, {
-        ...requestInit,
-        headers: new Headers(requestHeaders),
-      });
+  const executeRequest = async (requestHeaders: Headers): Promise<Response> =>
+    await fetch(input, {
+      ...requestInit,
+      headers: new Headers(requestHeaders),
+    });
 
+  const executeWithAuthRefresh = async (): Promise<Response> => {
     let response = await executeRequest(headers);
     if (response.status === 401 && !callerProvidedAuthorization) {
       const refreshedToken = await readAccessToken({ timeoutMs, forceRefresh: true });
@@ -168,6 +171,19 @@ export const fetchWithAuth = async (
         retryHeaders.set("Authorization", `Bearer ${refreshedToken}`);
         response = await executeRequest(retryHeaders);
       }
+    }
+    return response;
+  };
+
+  try {
+    let response: Response;
+    try {
+      response = await executeWithAuthRefresh();
+    } catch (error) {
+      if (!retryNetworkOnce) {
+        throw error;
+      }
+      response = await executeWithAuthRefresh();
     }
 
     addBreadcrumb({

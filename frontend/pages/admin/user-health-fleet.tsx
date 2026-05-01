@@ -348,7 +348,10 @@ export default function AdminUserHealthFleetPage() {
                     >
                       User report
                     </Link>
-                    <Link href="/admin/generation-trace" className="ghost-btn mini">
+                    <Link
+                      href={`/admin/generation-trace?userId=${encodeURIComponent(snapshot.userId)}`}
+                      className="ghost-btn mini"
+                    >
                       Trace
                     </Link>
                   </span>

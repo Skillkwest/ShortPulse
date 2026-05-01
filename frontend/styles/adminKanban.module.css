@@ -308,6 +308,16 @@
   overflow-wrap: anywhere;
 }
 
+.humanReviewBadge {
+  display: inline-flex;
+  width: fit-content;
+  color: var(--admin-accent-text);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .itemMeta {
   color: var(--admin-text-faint);
   font-size: 11px;

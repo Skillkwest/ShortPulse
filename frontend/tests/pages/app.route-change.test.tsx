@@ -48,7 +48,7 @@ vi.mock("../../lib/appErrorReporter", () => ({
 
 vi.mock("../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: (...args: unknown[]) => addBreadcrumbMock(...args),
-  redactUrlForTelemetry: (value: string) => value,
+  redactUrlForTelemetry: (value: string) => value.replace(/=([^&]+)/g, ""),
 }));
 
 vi.mock("../../lib/mediaPerfTelemetry", () => ({
@@ -117,7 +117,7 @@ describe("App route-change recovery", () => {
     });
   });
 
-  it("falls back to hard navigation once when a route script load fails", () => {
+  it("reports route script load failures without hard navigation", () => {
     const assignSpy = vi.fn();
     const restoreLocationAssign = withMockedLocationAssign(assignSpy);
     renderApp();
@@ -128,17 +128,16 @@ describe("App route-change recovery", () => {
     const scriptError = new Error(
       "Error: Failed to load script: /_next/static/chunks/a019415c343aa550.js"
     );
-    routeChangeError?.(scriptError, "/dashboard");
+    routeChangeError?.(scriptError, "/ai-studio?projectId=11111111-1111-4111-8111-111111111111");
 
-    expect(assignSpy).toHaveBeenCalledWith("/dashboard");
+    expect(assignSpy).not.toHaveBeenCalled();
     expect(reportAppErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "client.route_change_script_load_failure",
+        endpoint: "/ai-studio?projectId",
         severity: "high",
       })
     );
-    routeChangeError?.(scriptError, "/dashboard");
-    expect(assignSpy).toHaveBeenCalledTimes(1);
 
     restoreLocationAssign();
   });

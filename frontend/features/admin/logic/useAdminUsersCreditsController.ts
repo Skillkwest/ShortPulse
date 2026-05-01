@@ -646,6 +646,7 @@ export const useAdminUsersCreditsController = ({
 
   const handleAdjustmentChange = React.useCallback((value: string) => {
     setAdjustment(sanitizeSignedIntegerInput(value));
+    setAdjustResult(null);
   }, []);
 
   const handleAllowStripeTakeoverChange = React.useCallback((value: boolean) => {

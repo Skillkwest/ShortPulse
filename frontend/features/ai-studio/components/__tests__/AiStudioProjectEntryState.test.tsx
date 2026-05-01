@@ -29,7 +29,7 @@ describe("AiStudioProjectEntryState", () => {
     const handleRetry = vi.fn();
     const handleBack = vi.fn();
 
-    render(
+    const { container } = render(
       <AiStudioProjectEntryState
         variant="error"
         phase="loading-workspace"
@@ -45,6 +45,8 @@ describe("AiStudioProjectEntryState", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Project workspace unavailable");
     expect(screen.getByText("Failed to load project workspace.")).toBeInTheDocument();
+    expect(container.querySelector(".ai-studio-project-entry-loader")).toBeNull();
+    expect(container.querySelector(".reference-spinner")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Retry workspace load" }));
     fireEvent.click(screen.getByRole("button", { name: "Back to dashboard" }));

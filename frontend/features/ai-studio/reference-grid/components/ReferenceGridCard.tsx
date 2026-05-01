@@ -4,7 +4,6 @@
  */
 import React from "react";
 import { ArrowClockwise, CheckCircle, DownloadSimple, FloppyDisk, X } from "phosphor-react";
-import { isVideoUrl } from "../../logic/stateParsers";
 import { canRerollOutput } from "../../logic/generationReplay";
 import { canDragReferenceOutput } from "../../logic/referenceOutputAuthority";
 import {
@@ -38,7 +37,7 @@ export type ReferenceGridCardProps = {
   isImagePreview: boolean;
   isAudioPreview?: boolean;
   canAutoplayVideo: boolean;
-  videoPreload: "metadata" | "none";
+  videoPreload: "auto" | "metadata" | "none";
   isPromptOnly: boolean;
   isLinkedPromptReference: boolean;
   canRetryStatus: boolean;
@@ -171,9 +170,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
   const resolvedVideoPosterUrl = videoPosterUrl?.trim() || null;
   const resolvedHoverVideoUrl =
-    hoverVideoUrl?.trim() ||
-    (isVideoPreview && cardPreviewUrl && isVideoUrl(cardPreviewUrl) ? cardPreviewUrl : "") ||
-    null;
+    hoverVideoUrl?.trim() || (isVideoPreview ? cardPreviewUrl?.trim() : "") || null;
   const hasVideoPosterPreview = Boolean(item.mode === "video" && resolvedVideoPosterUrl);
   const hasPosterBackedVideoPreview = Boolean(hasVideoPosterPreview && resolvedHoverVideoUrl);
   const shouldShowGeneratedVideoSurfaceByDefault = Boolean(
@@ -196,6 +193,46 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     dragPreviewKind === "image" || hasVideoPosterPreview
       ? (primaryImageSrc ?? primaryImageDataSrc ?? undefined)
       : undefined;
+  const startHoverPlayback = React.useCallback(() => {
+    if (!resolvedHoverVideoUrl) return;
+    setIsHoveringVideo(true);
+    const node = videoNodeRef.current;
+    if (!node) {
+      hoverAutoplayStartedRef.current = false;
+      return;
+    }
+    node.muted = true;
+    node.playsInline = true;
+    if (!node.currentSrc && node.readyState === HTMLMediaElement.HAVE_NOTHING) {
+      node.load();
+    }
+    if (node.ended) {
+      try {
+        node.currentTime = 0;
+      } catch {
+        // Ignore seek failures for providers that expose non-seekable preview responses.
+      }
+    }
+    if (!node.paused) {
+      hoverAutoplayStartedRef.current = true;
+      setIsHoverVideoVisible(true);
+      onAutoplayStarted(item.id);
+      return;
+    }
+    if (hoverAutoplayStartedRef.current) return;
+    hoverAutoplayStartedRef.current = true;
+    void node.play().catch(() => {
+      hoverAutoplayStartedRef.current = false;
+      setIsHoveringVideo(false);
+      setIsHoverVideoVisible(false);
+    });
+  }, [item.id, onAutoplayStarted, resolvedHoverVideoUrl]);
+  const stopHoverPlayback = React.useCallback(() => {
+    setIsHoveringVideo(false);
+    if (!hoverAutoplayStartedRef.current || canAutoplayVideo) return;
+    hoverAutoplayStartedRef.current = false;
+    videoNodeRef.current?.pause();
+  }, [canAutoplayVideo]);
   const saveIcon =
     item.saveState === "failed" ? (
       <ArrowClockwise size={16} weight="bold" aria-hidden />
@@ -261,26 +298,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       onDrop={onCardDrop ? (event) => onCardDrop(event, item) : undefined}
       onDragEnter={onCardDragEnter ? (event) => onCardDragEnter(event, item) : undefined}
       onDragLeave={onCardDragLeave ? (event) => onCardDragLeave(event, item) : undefined}
-      onPointerEnter={() => {
-        if (!resolvedHoverVideoUrl) return;
-        setIsHoveringVideo(true);
-        const node = videoNodeRef.current;
-        if (!node || !node.paused || node.ended) {
-          hoverAutoplayStartedRef.current = false;
-          return;
-        }
-        hoverAutoplayStartedRef.current = true;
-        void node.play().catch(() => {
-          hoverAutoplayStartedRef.current = false;
-          setIsHoveringVideo(false);
-        });
-      }}
-      onPointerLeave={() => {
-        setIsHoveringVideo(false);
-        if (!hoverAutoplayStartedRef.current || canAutoplayVideo) return;
-        hoverAutoplayStartedRef.current = false;
-        videoNodeRef.current?.pause();
-      }}
+      onPointerEnter={startHoverPlayback}
+      onMouseEnter={startHoverPlayback}
+      onPointerLeave={stopHoverPlayback}
+      onMouseLeave={stopHoverPlayback}
     >
       {shouldRenderVideoElement ? (
         <video
@@ -295,7 +316,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           loop
           playsInline
           preload={videoPreload}
-          onLoadedData={() => markLoaded(item.id)}
+          onLoadedData={() => {
+            markLoaded(item.id);
+            if (isHoveringVideo && videoNodeRef.current?.paused) {
+              startHoverPlayback();
+            }
+          }}
           onError={() => {
             setIsHoveringVideo(false);
             setIsHoverVideoVisible(false);
@@ -309,7 +335,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
             setIsHoverVideoVisible(false);
             onAutoplayStopped(item.id);
           }}
-        />
+        >
+          {resolvedHoverVideoUrl ? <source src={resolvedHoverVideoUrl} /> : null}
+        </video>
       ) : null}
       {shouldRenderImageElement ? (
         <>

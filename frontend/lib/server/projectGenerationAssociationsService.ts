@@ -15,6 +15,7 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "display_prompt",
   "preview_url",
   "result_urls",
+  "saved_media_ids",
   "preview_storage_path",
   "full_storage_path",
   "task_state",
@@ -44,6 +45,7 @@ type ProjectGenerationProjectionRow = {
   display_prompt?: unknown;
   preview_url?: unknown;
   result_urls?: unknown;
+  saved_media_ids?: unknown;
   preview_storage_path?: unknown;
   full_storage_path?: unknown;
   task_state?: unknown;
@@ -57,6 +59,30 @@ type ProjectGenerationProjectionRow = {
   updated_at?: unknown;
   hidden_in_reference_grid?: unknown;
   reference_grid_visible?: unknown;
+};
+
+type ProjectGenerationPublicationRow = {
+  generation_id?: unknown;
+  owned_media_file_id?: unknown;
+  preview_storage_path?: unknown;
+  full_storage_path?: unknown;
+  created_at?: unknown;
+};
+
+type ProjectGenerationMediaFileRow = {
+  id?: unknown;
+  storage_path?: unknown;
+  preview_storage_path?: unknown;
+  file_type?: unknown;
+  poster_variant_path?: unknown;
+  thumb_variant_path?: unknown;
+  preview_variant_path?: unknown;
+};
+
+type ProjectGenerationMediaDelivery = {
+  previewPosterStoragePath: string | null;
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
 };
 
 const asRecord = (value: unknown): SnapshotRecord =>
@@ -76,6 +102,27 @@ const asTrimmedStringArray = (value: unknown): string[] => {
 };
 
 const asBoolean = (value: unknown): boolean | null => (typeof value === "boolean" ? value : null);
+
+const isLikelyImagePath = (value: string | null): boolean =>
+  Boolean(value && /\.(?:avif|gif|heic|heif|jpe?g|png|webp)(?:$|[?#])/i.test(value));
+
+const isLikelyVideoPath = (value: string | null): boolean =>
+  Boolean(value && /\.(?:m4v|mov|mp4|ogv|webm)(?:$|[?#])/i.test(value));
+
+const resolveVideoPosterStoragePath = ({
+  previewStoragePath,
+  fullStoragePath,
+}: {
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+}): string | null => {
+  if (!previewStoragePath) return null;
+  if (previewStoragePath.includes("/poster_") || previewStoragePath.includes("/thumb_")) {
+    return previewStoragePath;
+  }
+  if (fullStoragePath && previewStoragePath === fullStoragePath) return null;
+  return isLikelyImagePath(previewStoragePath) ? previewStoragePath : null;
+};
 
 const hasSettledSnapshotOutputPayload = (row: SnapshotRecord): boolean => {
   if (
@@ -329,6 +376,177 @@ const buildProjectionByGenerationId = async ({
   );
 };
 
+const readPublishedGenerationRowsByGenerationId = async ({
+  userId,
+  generationIds,
+}: {
+  userId: string;
+  generationIds: string[];
+}): Promise<Map<string, ProjectGenerationPublicationRow>> => {
+  if (!generationIds.length) return new Map();
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("generation_publications")
+    .select(
+      "generation_id, owned_media_file_id, preview_storage_path, full_storage_path, created_at"
+    )
+    .eq("user_id", userId)
+    .in("generation_id", generationIds)
+    .eq("publication_state", "published")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message || "Failed to load project generation publication rows");
+  }
+
+  const byGenerationId = new Map<string, ProjectGenerationPublicationRow>();
+  (Array.isArray(data) ? data : []).forEach((rawRow) => {
+    const row = rawRow as ProjectGenerationPublicationRow;
+    const generationId = asTrimmedString(row.generation_id);
+    if (!generationId || byGenerationId.has(generationId)) return;
+    byGenerationId.set(generationId, row);
+  });
+  return byGenerationId;
+};
+
+const readMediaFileRowsById = async ({
+  userId,
+  mediaFileIds,
+}: {
+  userId: string;
+  mediaFileIds: string[];
+}): Promise<Map<string, ProjectGenerationMediaFileRow>> => {
+  const normalizedMediaFileIds = Array.from(new Set(mediaFileIds.map(asTrimmedString))).filter(
+    (id): id is string => Boolean(id)
+  );
+  if (!normalizedMediaFileIds.length) return new Map();
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("media_files")
+    .select(
+      "id, storage_path, preview_storage_path, file_type, poster_variant_path, thumb_variant_path, preview_variant_path"
+    )
+    .eq("user_id", userId)
+    .in("id", normalizedMediaFileIds);
+
+  if (error) {
+    throw new Error(error.message || "Failed to load project generation media rows");
+  }
+
+  return new Map(
+    (Array.isArray(data) ? data : [])
+      .map((rawRow) => {
+        const row = rawRow as ProjectGenerationMediaFileRow;
+        const mediaFileId = asTrimmedString(row.id);
+        if (!mediaFileId) return null;
+        return [mediaFileId, row] as const;
+      })
+      .filter((entry): entry is readonly [string, ProjectGenerationMediaFileRow] => Boolean(entry))
+  );
+};
+
+const resolveDeliveryFromMediaRows = ({
+  mediaRow,
+  publicationRow,
+}: {
+  mediaRow: ProjectGenerationMediaFileRow | null;
+  publicationRow: ProjectGenerationPublicationRow | null;
+}): ProjectGenerationMediaDelivery | null => {
+  const fileType = asTrimmedString(mediaRow?.file_type)?.toLowerCase() ?? "";
+  const mediaStoragePath = asTrimmedString(mediaRow?.storage_path);
+  const mediaPreviewStoragePath = asTrimmedString(mediaRow?.preview_storage_path);
+  const mediaPreviewVariantPath = asTrimmedString(mediaRow?.preview_variant_path);
+  const publicationPreviewStoragePath = asTrimmedString(publicationRow?.preview_storage_path);
+  const publicationFullStoragePath = asTrimmedString(publicationRow?.full_storage_path);
+  const fullStoragePath = publicationFullStoragePath ?? mediaStoragePath ?? null;
+  const isVideo =
+    fileType.startsWith("video") ||
+    isLikelyVideoPath(fullStoragePath) ||
+    isLikelyVideoPath(mediaStoragePath);
+  if (!isVideo) return null;
+
+  const previewPosterStoragePath =
+    asTrimmedString(mediaRow?.poster_variant_path) ??
+    asTrimmedString(mediaRow?.thumb_variant_path) ??
+    resolveVideoPosterStoragePath({
+      previewStoragePath: publicationPreviewStoragePath,
+      fullStoragePath,
+    }) ??
+    resolveVideoPosterStoragePath({
+      previewStoragePath: mediaPreviewStoragePath,
+      fullStoragePath,
+    }) ??
+    resolveVideoPosterStoragePath({
+      previewStoragePath: mediaPreviewVariantPath,
+      fullStoragePath,
+    });
+  const previewStoragePath =
+    previewPosterStoragePath ??
+    publicationPreviewStoragePath ??
+    mediaPreviewStoragePath ??
+    mediaPreviewVariantPath ??
+    fullStoragePath;
+  if (!previewStoragePath && !fullStoragePath) return null;
+
+  return {
+    previewPosterStoragePath,
+    previewStoragePath,
+    fullStoragePath,
+  };
+};
+
+const buildProjectGenerationMediaDeliveryByGenerationId = async ({
+  userId,
+  projectionByGenerationId,
+}: {
+  userId: string;
+  projectionByGenerationId: Map<string, ProjectGenerationProjectionRow>;
+}): Promise<Map<string, ProjectGenerationMediaDelivery>> => {
+  const videoProjectionEntries = [...projectionByGenerationId.entries()].filter(
+    ([, projection]) => resolveSnapshotOutputMode(projection) === "video"
+  );
+  if (!videoProjectionEntries.length) return new Map();
+
+  const generationIds = videoProjectionEntries.map(([generationId]) => generationId);
+  const publicationByGenerationId = await readPublishedGenerationRowsByGenerationId({
+    userId,
+    generationIds,
+  });
+  const mediaFileIds = new Set<string>();
+  videoProjectionEntries.forEach(([, projection]) => {
+    asTrimmedStringArray(projection.saved_media_ids).forEach((id) => mediaFileIds.add(id));
+  });
+  publicationByGenerationId.forEach((publication) => {
+    const mediaFileId = asTrimmedString(publication.owned_media_file_id);
+    if (mediaFileId) mediaFileIds.add(mediaFileId);
+  });
+  const mediaById = await readMediaFileRowsById({
+    userId,
+    mediaFileIds: [...mediaFileIds],
+  });
+
+  const deliveryByGenerationId = new Map<string, ProjectGenerationMediaDelivery>();
+  videoProjectionEntries.forEach(([generationId, projection]) => {
+    const publicationRow = publicationByGenerationId.get(generationId) ?? null;
+    const publicationMediaId = asTrimmedString(publicationRow?.owned_media_file_id);
+    const savedMediaIds = asTrimmedStringArray(projection.saved_media_ids);
+    const mediaRow =
+      (publicationMediaId ? mediaById.get(publicationMediaId) : null) ??
+      savedMediaIds.map((mediaId) => mediaById.get(mediaId)).find(Boolean) ??
+      null;
+    const delivery = resolveDeliveryFromMediaRows({
+      mediaRow,
+      publicationRow,
+    });
+    if (delivery) {
+      deliveryByGenerationId.set(generationId, delivery);
+    }
+  });
+
+  return deliveryByGenerationId;
+};
+
 /**
  * Associates one owned generation with one owned project.
  * This is used by direct-complete provider lanes that must eagerly persist
@@ -384,15 +602,36 @@ export const associateGenerationWithProjectForUser = async ({
 const patchSnapshotOutputRow = ({
   row,
   projection,
+  mediaDelivery,
 }: {
   row: SnapshotRecord;
   projection: ProjectGenerationProjectionRow;
+  mediaDelivery?: ProjectGenerationMediaDelivery | null;
 }): SnapshotRecord => {
   const nextResultUrls = asTrimmedStringArray(projection.result_urls);
   const nextPreviewUrl = asTrimmedString(projection.preview_url) ?? nextResultUrls[0] ?? null;
-  const nextPreviewStoragePath = asTrimmedString(projection.preview_storage_path);
+  const nextMode = asTrimmedString(row.mode) ?? resolveSnapshotOutputMode(projection);
+  const projectedPreviewStoragePath = asTrimmedString(projection.preview_storage_path);
+  const nextPreviewStoragePath =
+    mediaDelivery?.previewStoragePath ?? projectedPreviewStoragePath ?? null;
   const nextFullStoragePath =
-    asTrimmedString(projection.full_storage_path) ?? nextPreviewStoragePath ?? null;
+    mediaDelivery?.fullStoragePath ??
+    asTrimmedString(projection.full_storage_path) ??
+    nextPreviewStoragePath ??
+    null;
+  const nextPreviewPosterStoragePath =
+    nextMode === "video"
+      ? (mediaDelivery?.previewPosterStoragePath ??
+        asTrimmedString(row.previewPosterStoragePath) ??
+        resolveVideoPosterStoragePath({
+          previewStoragePath: nextPreviewStoragePath,
+          fullStoragePath: nextFullStoragePath,
+        }))
+      : null;
+  const nextPreviewPosterUrl =
+    nextMode === "video" && nextPreviewUrl && isLikelyImagePath(nextPreviewUrl)
+      ? nextPreviewUrl
+      : asTrimmedString(row.previewPosterUrl);
   const nextTaskState = normalizeProjectionTaskState(projection.task_state);
   const nextQueueState = normalizeProjectionQueueState(projection.queue_state);
   const nextErrorMessage = asTrimmedString(projection.error_message);
@@ -421,6 +660,8 @@ const patchSnapshotOutputRow = ({
     errorDetail: nextErrorDetail ?? row.errorDetail ?? null,
     resultUrls: nextResultUrls.length > 0 ? nextResultUrls : (row.resultUrls ?? []),
     previewUrl: nextPreviewUrl ?? row.previewUrl ?? null,
+    previewPosterUrl: nextMode === "video" ? (nextPreviewPosterUrl ?? null) : null,
+    previewPosterStoragePath: nextMode === "video" ? (nextPreviewPosterStoragePath ?? null) : null,
     previewStoragePath: nextPreviewStoragePath ?? row.previewStoragePath ?? null,
     fullStoragePath: nextFullStoragePath ?? row.fullStoragePath ?? null,
     generationReplay:
@@ -452,9 +693,13 @@ const shouldAppendProjectionToSnapshot = (projection: ProjectGenerationProjectio
   return Boolean(asTrimmedString(projection.generation_id));
 };
 
-const createSnapshotOutputRowFromProjection = (
-  projection: ProjectGenerationProjectionRow
-): SnapshotRecord | null => {
+const createSnapshotOutputRowFromProjection = ({
+  projection,
+  mediaDelivery,
+}: {
+  projection: ProjectGenerationProjectionRow;
+  mediaDelivery?: ProjectGenerationMediaDelivery | null;
+}): SnapshotRecord | null => {
   const generationId = asTrimmedString(projection.generation_id);
   if (!generationId || !shouldAppendProjectionToSnapshot(projection)) return null;
   const mode = resolveSnapshotOutputMode(projection);
@@ -484,6 +729,7 @@ const createSnapshotOutputRowFromProjection = (
       hiddenInReferenceGrid: asBoolean(projection.hidden_in_reference_grid) ?? false,
     },
     projection,
+    mediaDelivery,
   });
 };
 
@@ -627,6 +873,13 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
           generationIds: projectionGenerationIds,
         })
       : new Map<string, ProjectGenerationProjectionRow>();
+  const mediaDeliveryByGenerationId =
+    projectionByGenerationId.size > 0
+      ? await buildProjectGenerationMediaDeliveryByGenerationId({
+          userId,
+          projectionByGenerationId,
+        })
+      : new Map<string, ProjectGenerationMediaDelivery>();
   const patchRows = (value: unknown): unknown => {
     if (!Array.isArray(value)) return value;
     return value
@@ -651,6 +904,8 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
             ...normalizedRow,
             resultUrls: [],
             previewUrl: null,
+            previewPosterUrl: null,
+            previewPosterStoragePath: null,
             previewStoragePath: null,
             fullStoragePath: null,
           };
@@ -659,6 +914,7 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
         return patchSnapshotOutputRow({
           row: normalizedRow,
           projection,
+          mediaDelivery: mediaDeliveryByGenerationId.get(generationId) ?? null,
         });
       })
       .filter((row): row is SnapshotRecord => Boolean(row));
@@ -678,7 +934,12 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
     .filter((generationId) => !existingGenerationIds.has(generationId))
     .map((generationId) => {
       const projection = projectionByGenerationId.get(generationId);
-      return projection ? createSnapshotOutputRowFromProjection(projection) : null;
+      return projection
+        ? createSnapshotOutputRowFromProjection({
+            projection,
+            mediaDelivery: mediaDeliveryByGenerationId.get(generationId) ?? null,
+          })
+        : null;
     })
     .filter((row): row is SnapshotRecord => Boolean(row));
 

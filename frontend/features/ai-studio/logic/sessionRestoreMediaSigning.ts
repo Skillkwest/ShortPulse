@@ -51,6 +51,16 @@ const isFingerprintEqual = (
   );
 };
 
+const areStringArraysEqual = (
+  left: readonly string[] | null | undefined,
+  right: readonly string[] | null | undefined
+): boolean => {
+  if (left === right) return true;
+  if (!left || !right) return !left && !right;
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+};
+
 /**
  * Builds a signing fingerprint map keyed by output id for stale-apply guards.
  */
@@ -126,20 +136,29 @@ export const applySessionRestoreSignedUrls = (
       (previewStoragePath ? signedByPath.get(previewStoragePath) : null) ??
       (fullStoragePath ? signedByPath.get(fullStoragePath) : null) ??
       null;
+    const signedFullUrl = fullStoragePath ? (signedByPath.get(fullStoragePath) ?? null) : null;
     const signedPreviewPosterUrl =
       output.mode === "video" && previewPosterStoragePath
         ? (signedByPath.get(previewPosterStoragePath) ?? currentFingerprint.previewPosterUrl)
         : output.mode === "video" && previewStoragePath && previewStoragePath !== fullStoragePath
           ? signedPreviewUrl
           : currentFingerprint.previewPosterUrl;
-    if (!signedPreviewUrl && !signedPreviewPosterUrl) return output;
+    const signedFullVideoUrl = output.mode === "video" ? signedFullUrl : null;
+    const nextResultUrls = signedFullVideoUrl
+      ? [
+          signedFullVideoUrl,
+          ...(output.resultUrls ?? []).filter((url) => url !== signedFullVideoUrl),
+        ]
+      : output.resultUrls;
+    if (!signedPreviewUrl && !signedPreviewPosterUrl && !signedFullVideoUrl) return output;
 
     if (
       currentFingerprint.previewUrl === signedPreviewUrl &&
       currentFingerprint.previewPosterUrl === signedPreviewPosterUrl &&
       currentFingerprint.previewPosterStoragePath === previewPosterStoragePath &&
       currentFingerprint.previewStoragePath === previewStoragePath &&
-      currentFingerprint.fullStoragePath === fullStoragePath
+      currentFingerprint.fullStoragePath === fullStoragePath &&
+      areStringArraysEqual(output.resultUrls, nextResultUrls)
     ) {
       return output;
     }
@@ -152,6 +171,7 @@ export const applySessionRestoreSignedUrls = (
       previewPosterStoragePath,
       previewStoragePath,
       fullStoragePath,
+      resultUrls: nextResultUrls,
     };
   });
   return { outputs: patched, changed };

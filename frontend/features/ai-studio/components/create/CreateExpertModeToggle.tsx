@@ -14,6 +14,13 @@ export function CreateExpertModeToggle({ value, onChange }: CreateExpertModeTogg
       }) as React.CSSProperties,
     [value]
   );
+  const handleModeSelect = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, nextMode: ExpertCreateMode) => {
+      event.preventDefault();
+      onChange?.(nextMode);
+    },
+    [onChange]
+  );
 
   return (
     <div className="create-expert-mode-shell">
@@ -29,7 +36,7 @@ export function CreateExpertModeToggle({ value, onChange }: CreateExpertModeTogg
           role="tab"
           aria-selected={value === "standard"}
           className={`create-expert-mode-tab ${value === "standard" ? "is-active" : ""}`}
-          onClick={() => onChange?.("standard")}
+          onClick={(event) => handleModeSelect(event, "standard")}
         >
           Standard
         </button>
@@ -38,7 +45,7 @@ export function CreateExpertModeToggle({ value, onChange }: CreateExpertModeTogg
           role="tab"
           aria-selected={value === "pulse"}
           className={`create-expert-mode-tab ${value === "pulse" ? "is-active" : ""}`}
-          onClick={() => onChange?.("pulse")}
+          onClick={(event) => handleModeSelect(event, "pulse")}
         >
           Pulse
         </button>

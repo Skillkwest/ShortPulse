@@ -302,6 +302,65 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("ignores stale bootstrap state after leaving and re-entering the same project", () => {
+    const buildSessionSnapshot = vi.fn(() => createSnapshot());
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const applyEmptyProjectState = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({ projectId, projectRouteRequested }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId,
+          projectRouteRequested,
+          sessionId: "session-1",
+          buildSessionSnapshot,
+          hydrateFromSessionSnapshot,
+          applyEmptyProjectState,
+        }),
+      {
+        initialProps: {
+          projectId: "project-1" as string | null,
+          projectRouteRequested: true,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender({
+      projectId: "project-1",
+      projectRouteRequested: true,
+    });
+    expect(result.current.projectBootstrapApplied).toBe(true);
+
+    rerender({
+      projectId: null,
+      projectRouteRequested: false,
+    });
+    expect(result.current.projectBootstrapApplied).toBe(false);
+
+    rerender({
+      projectId: "project-1",
+      projectRouteRequested: true,
+    });
+
+    expect(result.current.projectBootstrapApplied).toBe(false);
+    expect(applyEmptyProjectState).toHaveBeenCalledTimes(2);
+    expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(2);
+    expect(mockedUseAiStudioSessionWriteShadow.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        snapshot: null,
+        enabled: false,
+      })
+    );
+  });
+
   it("fails closed while a project route is pending before projectId resolves", () => {
     const buildSessionSnapshot = vi.fn(() => createSnapshot());
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
@@ -379,5 +438,39 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
       })
     );
     expect(buildSessionSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("stabilizes hydration failure handling so restore can settle into an error state", () => {
+    const buildSessionSnapshot = vi.fn(() => createSnapshot());
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { result, rerender } = renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+      })
+    );
+
+    const firstHydrationArgs = mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    const firstFailureHandler = firstHydrationArgs?.onProjectBootstrapFailed;
+
+    act(() => {
+      firstFailureHandler?.("project-1", new Error("hydrate failed"));
+    });
+    rerender();
+
+    const latestHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls.at(-1)?.[0];
+    expect(latestHydrationArgs?.onProjectBootstrapFailed).toBe(firstFailureHandler);
+    expect(result.current.projectBootstrapApplied).toBe(false);
+    expect(result.current.projectBootstrapError).toBe("hydrate failed");
+    expect(mockedUseAiStudioSessionWriteShadow.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        enabled: false,
+      })
+    );
   });
 });

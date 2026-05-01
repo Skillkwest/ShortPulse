@@ -71,6 +71,7 @@ export type DragDropPayload = {
   fromFile?: boolean;
   width?: number;
   height?: number;
+  mediaKind?: ReferenceDragPreviewKind | null;
 };
 
 export type VideoDragDropPayload = {
@@ -87,12 +88,34 @@ const REFERENCE_TRANSFER_OUTPUT_ID_TYPE = "text/reference-output-id";
 const REFERENCE_TRANSFER_IMAGE_INDEX_TYPE = "text/reference-image-index";
 const REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE = "text/reference-source-surface";
 const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
+const REFERENCE_TRANSFER_MEDIA_KIND_TYPE = "text/reference-media-kind";
 const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
 const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
 const INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY = "internalReferenceDragToken";
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
+
+const parseReferenceMediaKind = (
+  value: string | null | undefined
+): ReferenceDragPreviewKind | null => {
+  const candidate = (value ?? "").trim().toLowerCase();
+  if (
+    candidate === "image" ||
+    candidate === "video" ||
+    candidate === "audio" ||
+    candidate === "text"
+  ) {
+    return candidate;
+  }
+  return null;
+};
+
+const resolveReferenceTransferMediaKind = (
+  transfer: DataTransfer
+): ReferenceDragPreviewKind | null =>
+  extractInternalReferenceDragPayload(transfer)?.mediaKind ??
+  parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
 
 const parseTransferDimension = (value: string | null | undefined): number | undefined => {
   const parsed = Number.parseFloat((value ?? "").trim());
@@ -407,7 +430,7 @@ const resolveDraggedUrl = (
 export const looksLikeImageUrl = (value?: string) => {
   if (!value) return false;
   const normalized = normalizeReferenceTransferUrlCandidate(value) ?? value.trim();
-  if (isVideoUrl(normalized)) return false;
+  if (isVideoUrl(normalized) || isAudioUrl(normalized)) return false;
   return (
     isRenderableAdaptiveUrl(normalized) ||
     imageUrlPattern.test(normalized) ||
@@ -485,6 +508,7 @@ export const resolveReferenceTransferUrl = (
 
 export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload => {
   const imageFile = findImageFile(transfer.files);
+  const mediaKind = resolveReferenceTransferMediaKind(transfer);
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
     transfer.getData("text/reference-url")
   );
@@ -499,6 +523,18 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
       promptText: null,
       referenceId,
       fromFile: true,
+      mediaKind: "image",
+    };
+  }
+
+  if (mediaKind && mediaKind !== "image") {
+    return {
+      imageUrl: null,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+      mediaKind,
+      ...dimensions,
     };
   }
 
@@ -508,6 +544,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
       promptText: extractPromptText(transfer),
       referenceId,
       fromFile: false,
+      mediaKind,
       ...dimensions,
     };
   }
@@ -528,6 +565,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
           promptText: extractPromptText(transfer),
           referenceId,
           fromFile: false,
+          mediaKind,
           ...dimensions,
         };
       }
@@ -547,6 +585,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
         promptText: extractPromptText(transfer),
         referenceId,
         fromFile: false,
+        mediaKind,
         ...dimensions,
       };
     }
@@ -566,6 +605,7 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
         promptText: extractPromptText(transfer),
         referenceId,
         fromFile: false,
+        mediaKind,
         ...dimensions,
       };
     }
@@ -576,12 +616,14 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     promptText: extractPromptText(transfer),
     referenceId,
     fromFile: false,
+    mediaKind,
     ...dimensions,
   };
 };
 
 export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDropPayload => {
   const videoFile = findVideoFile(transfer.files);
+  const mediaKind = resolveReferenceTransferMediaKind(transfer);
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
     transfer.getData("text/reference-url")
   );
@@ -595,6 +637,15 @@ export const extractVideoDragDropPayload = (transfer: DataTransfer): VideoDragDr
       promptText: null,
       referenceId,
       fromFile: true,
+    };
+  }
+
+  if (mediaKind && mediaKind !== "video") {
+    return {
+      videoUrl: null,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
     };
   }
 
@@ -669,7 +720,9 @@ const extractPromptText = (transfer: DataTransfer) => {
   const normalizedPromptUrl = normalizeReferenceTransferUrlCandidate(promptText);
   if (
     normalizedPromptUrl &&
-    (looksLikeImageUrl(normalizedPromptUrl) || looksLikeVideoUrl(normalizedPromptUrl))
+    (looksLikeImageUrl(normalizedPromptUrl) ||
+      looksLikeVideoUrl(normalizedPromptUrl) ||
+      looksLikeAudioUrl(normalizedPromptUrl))
   ) {
     return null;
   }
@@ -677,9 +730,36 @@ const extractPromptText = (transfer: DataTransfer) => {
 };
 
 export const isImageDragTransfer = (transfer: DataTransfer) => {
-  if (transfer.types.includes("Files")) return true;
-  if (hasInternalReferenceDragTypeHints(transfer)) return true;
-  if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) return true;
+  const imageFile = findImageFile(transfer.files);
+  if (imageFile) return true;
+  if (transfer.types.includes("Files")) return !transfer.files?.length;
+  const mediaKind = resolveReferenceTransferMediaKind(transfer);
+  if (mediaKind) return mediaKind === "image";
+  if (hasInternalReferenceDragTypeHints(transfer)) {
+    const referenceUrl = normalizeReferenceTransferUrlCandidate(
+      transfer.getData("text/reference-url")
+    );
+    const renderUrl = normalizeReferenceTransferUrlCandidate(
+      transfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE)
+    );
+    const imageUrl = normalizeReferenceTransferUrlCandidate(transfer.getData("image/url"));
+    if (referenceUrl && !isLikelyImageTransferUrl(referenceUrl)) return false;
+    return Boolean(
+      (referenceUrl && isLikelyImageTransferUrl(referenceUrl)) ||
+      (renderUrl && isLikelyImageTransferUrl(renderUrl)) ||
+      (imageUrl && isLikelyImageTransferUrl(imageUrl)) ||
+      (!referenceUrl && !renderUrl && !imageUrl)
+    );
+  }
+  if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) {
+    const uriList = getFirstUriListValue(transfer.getData("text/uri-list"));
+    const imageUrl = transfer.getData("image/url");
+    return Boolean(
+      (uriList && isLikelyImageTransferUrl(uriList)) ||
+      (imageUrl && isLikelyImageTransferUrl(imageUrl)) ||
+      (!uriList && !imageUrl)
+    );
+  }
   const plainText = normalizeReferenceTransferUrlCandidate(transfer.getData("text/plain"));
   return Boolean(plainText && looksLikeImageUrl(plainText));
 };
@@ -766,6 +846,7 @@ export const prepareReferenceDrag = (
     outputId: output.id?.trim() || null,
     imageIndex,
     mediaId: referenceMediaId ?? null,
+    mediaKind: resolveOutputPreviewKind(output),
     referenceUrl: allowDirectReferenceUrls ? (resolvedReferenceTransferUrl ?? null) : null,
     referenceRenderUrl: allowDirectReferenceUrls ? (resolvedRenderedTransferUrl ?? null) : null,
     sourceSurface,
@@ -795,6 +876,7 @@ export const prepareReferenceDrag = (
   transfer.setData(REFERENCE_TRANSFER_VERSION_TYPE, String(INTERNAL_REFERENCE_DRAG_VERSION));
   transfer.setData(REFERENCE_TRANSFER_IMAGE_INDEX_TYPE, String(imageIndex));
   transfer.setData(REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE, sourceSurface);
+  transfer.setData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE, resolveOutputPreviewKind(output));
   if (naturalWidth > 0 && naturalHeight > 0) {
     transfer.setData(REFERENCE_TRANSFER_WIDTH_TYPE, String(naturalWidth));
     transfer.setData(REFERENCE_TRANSFER_HEIGHT_TYPE, String(naturalHeight));

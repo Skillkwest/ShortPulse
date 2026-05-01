@@ -1362,7 +1362,10 @@ describe("CreatePropertiesPanel", () => {
           presetId: "story_builder",
           label: "DFY Story Builder",
         }),
-        { pulseSessionInstanceId: "pulse-session-harness" }
+        {
+          pulseSessionInstanceId: expect.any(String),
+          deferWorkflowSessionCommit: true,
+        }
       );
       expect(screen.getByRole("button", { name: "DFY Story Builder preset" })).toHaveAttribute(
         "aria-pressed",
@@ -1416,6 +1419,24 @@ describe("CreatePropertiesPanel", () => {
 
     expect(onExpertCreateModeChange).toHaveBeenNthCalledWith(1, "pulse");
     expect(onExpertCreateModeChange).toHaveBeenNthCalledWith(2, "standard");
+  });
+
+  it("keeps expert create mode toggle clicks from submitting an ancestor form", () => {
+    const onExpertCreateModeChange = vi.fn();
+    const onSubmit = vi.fn((event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+
+    render(
+      <form onSubmit={onSubmit}>
+        <CreateExpertModeToggle value="standard" onChange={onExpertCreateModeChange} />
+      </form>
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
+
+    expect(onExpertCreateModeChange).toHaveBeenCalledWith("pulse");
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("does not show a Pulse composer draft after switching back to Standard", () => {

@@ -7374,7 +7374,7 @@ describe("ExpertEditPanelView", () => {
     ).mock.calls;
     const submittedReferences = submissionCalls[0]?.[0] ?? [];
     expect(submittedReferences).toHaveLength(1);
-    expect(submittedReferences[0]).toMatch(/^blob:flatten-/);
+    expect(submittedReferences[0]).toBe("https://example.com/base.png");
   });
 
   it("auto-flatten generate skips markup-composite secondary reference when flag is disabled", async () => {

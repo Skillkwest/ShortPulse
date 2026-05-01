@@ -141,13 +141,15 @@ export const useReferenceGridCardRenderController = ({
         !shouldWarmVideoPreview &&
         !isGenerationLoading &&
         !isLocalVideoPersistenceLoading;
-      const isCardLoading = suppressDormantVideoLoading
+      const isCardLoading = isFailing
         ? false
-        : suppressDuplicateAllRefsLoading
+        : suppressDormantVideoLoading
           ? false
-          : loadingCardIdSet.has(card.item.id);
+          : suppressDuplicateAllRefsLoading
+            ? false
+            : loadingCardIdSet.has(card.item.id);
       const loadingVisual: "none" | "spinner" | "hydrating" =
-        suppressDormantVideoLoading || suppressDuplicateAllRefsLoading
+        isFailing || suppressDormantVideoLoading || suppressDuplicateAllRefsLoading
           ? "none"
           : isGenerationLoading || isLocalVideoPersistenceLoading
             ? "spinner"
@@ -206,7 +208,7 @@ export const useReferenceGridCardRenderController = ({
           isAudioPreview={card.isAudioPreview}
           canAutoplayVideo={canAutoplayVideo}
           videoPreload={
-            shouldWarmVideoPreview || shouldPrimeGeneratedVideoFrame ? "metadata" : "none"
+            shouldPrimeGeneratedVideoFrame ? "auto" : shouldWarmVideoPreview ? "metadata" : "none"
           }
           isPromptOnly={isPromptOnly}
           isLinkedPromptReference={isLinkedPromptReference}

@@ -111,6 +111,25 @@ describe("dragDrop payload extraction", () => {
     expect(payload.promptText).toBeNull();
   });
 
+  it("ignores video references for image-only drops even when a poster image is present", () => {
+    const transfer = makeTransfer({
+      "text/reference-id": "ref-video-1",
+      "text/reference-output-id": "ref-video-1",
+      "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+      "text/reference-media-kind": "video",
+      "text/reference-url": "https://cdn.example.com/reference-video.mp4",
+      "image/url": "https://cdn.example.com/reference-video-poster.jpg",
+      "text/plain": "camera move",
+    });
+
+    const payload = extractDragDropPayload(transfer);
+
+    expect(payload.referenceId).toBe("ref-video-1");
+    expect(payload.imageUrl).toBeNull();
+    expect(payload.mediaKind).toBe("video");
+    expect(payload.promptText).toBe("camera move");
+  });
+
   it("prefers text/reference-url for video drags when URI list points at the current page", () => {
     const transfer = makeTransfer({
       "text/reference-id": "ref-video-1",
@@ -159,6 +178,19 @@ describe("dragDrop payload extraction", () => {
     expect(isImageDragTransfer(transfer)).toBe(true);
   });
 
+  it("rejects internal video reference drags for image targets during dragover", () => {
+    const transfer = makeTransfer({
+      "text/reference-id": "out-video-1",
+      "text/reference-output-id": "out-video-1",
+      "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+      "text/reference-media-kind": "video",
+      "text/reference-url": "https://cdn.example.com/out-video-1.mp4",
+      "image/url": "https://cdn.example.com/out-video-1-poster.jpg",
+    });
+
+    expect(isImageDragTransfer(transfer)).toBe(false);
+  });
+
   it("caches normalized transfer types per transfer object", () => {
     const transfer = {
       types: [" Text/Plain ", "FILES", "text/reference-id"],
@@ -201,6 +233,7 @@ describe("dragDrop payload extraction", () => {
     expect(setData).toHaveBeenCalledWith("text/reference-output-id", "ref-1");
     expect(setData).toHaveBeenCalledWith("text/reference-image-index", "0");
     expect(setData).toHaveBeenCalledWith("text/reference-source-surface", "curated");
+    expect(setData).toHaveBeenCalledWith("text/reference-media-kind", "image");
   });
 
   it("writes internal drag image dimensions when a rendered image is available", () => {
@@ -255,6 +288,7 @@ describe("dragDrop payload extraction", () => {
     );
     expect(setData).toHaveBeenCalledWith("text/uri-list", "https://example.com/ref-video-full.mp4");
     expect(setData).toHaveBeenCalledWith("image/url", "https://example.com/ref-video-poster.jpg");
+    expect(setData).toHaveBeenCalledWith("text/reference-media-kind", "video");
   });
 
   it("writes playable audio reference URLs for audio drags", () => {
@@ -452,6 +486,7 @@ describe("dragDrop payload extraction", () => {
       outputId: "out-token",
       imageIndex: 0,
       mediaId: "media-token",
+      mediaKind: "image",
       referenceUrl: "https://example.com/out-token.png",
       referenceRenderUrl: "https://example.com/out-token.png",
       sourceSurface: "all-refs",
@@ -498,6 +533,7 @@ describe("dragDrop payload extraction", () => {
       outputId: "out-text-token",
       imageIndex: 0,
       mediaId: "media-text-token",
+      mediaKind: "image",
       referenceUrl: "https://example.com/out-text-token.png",
       referenceRenderUrl: "https://example.com/out-text-token.png",
       sourceSurface: "all-refs",

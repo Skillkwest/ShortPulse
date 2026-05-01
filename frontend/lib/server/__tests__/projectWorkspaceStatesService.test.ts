@@ -15,6 +15,9 @@ type SupabaseMockOptions = {
   workspaceSnapshot?: Record<string, unknown>;
   recentGenerationIds?: string[];
   projectionRows?: Array<Record<string, unknown>>;
+  publicationRows?: Array<Record<string, unknown>>;
+  mediaRows?: Array<Record<string, unknown>>;
+  projectionLimitError?: string;
 };
 
 const createSupabaseMock = ({
@@ -37,6 +40,9 @@ const createSupabaseMock = ({
       reference_grid_visible: true,
     },
   ],
+  publicationRows = [],
+  mediaRows = [],
+  projectionLimitError,
 }: SupabaseMockOptions = {}) => {
   const projectionRowsById = new Map<string, Record<string, unknown>>(
     projectionRows
@@ -46,10 +52,20 @@ const createSupabaseMock = ({
       )
       .map((row) => [row.generation_id, row])
   );
+  const mediaRowsById = new Map<string, Record<string, unknown>>(
+    mediaRows
+      .filter(
+        (row): row is Record<string, unknown> & { id: string } =>
+          typeof row.id === "string" && row.id.length > 0
+      )
+      .map((row) => [row.id, row])
+  );
   const mediaSelect = vi.fn(() => ({
     eq: vi.fn(() => ({
       in: vi.fn(async (_column: string, ids: string[]) => ({
-        data: ids.filter((id) => id === "media-1" || id === "media-2").map((id) => ({ id })),
+        data: ids
+          .filter((id) => id === "media-1" || id === "media-2" || mediaRowsById.has(id))
+          .map((id) => mediaRowsById.get(id) ?? { id }),
         error: null,
       })),
     })),
@@ -101,15 +117,30 @@ const createSupabaseMock = ({
       })),
       order: vi.fn(),
       limit: vi.fn(async () => ({
-        data: recentGenerationIds.map((generationId, index) => ({
-          generation_id: generationId,
-          updated_at: new Date(Date.UTC(2026, 3, 18, 16, 13 - index, 0)).toISOString(),
-        })),
-        error: null,
+        data: projectionLimitError
+          ? null
+          : recentGenerationIds.map((generationId, index) => ({
+              generation_id: generationId,
+              updated_at: new Date(Date.UTC(2026, 3, 18, 16, 13 - index, 0)).toISOString(),
+            })),
+        error: projectionLimitError ? { message: projectionLimitError } : null,
       })),
     };
     builder.eq.mockReturnValue(builder);
     builder.order.mockReturnValue(builder);
+    return builder;
+  });
+  const generationPublicationSelect = vi.fn(() => {
+    const builder = {
+      eq: vi.fn(),
+      in: vi.fn(),
+      order: vi.fn(async () => ({
+        data: publicationRows,
+        error: null,
+      })),
+    };
+    builder.eq.mockReturnValue(builder);
+    builder.in.mockReturnValue(builder);
     return builder;
   });
   const workspaceMaybeSingle = vi.fn(async () => ({
@@ -243,6 +274,11 @@ const createSupabaseMock = ({
       if (table === "generation_projection") {
         return {
           select: generationProjectionSelect,
+        };
+      }
+      if (table === "generation_publications") {
+        return {
+          select: generationPublicationSelect,
         };
       }
       if (table === "project_workspace_states") {
@@ -525,6 +561,160 @@ describe("projectWorkspaceStatesService", () => {
     expect("agentRuntimes" in (result?.snapshot ?? {})).toBe(false);
   });
 
+  it("returns the sanitized base workspace when read-time enrichment fails", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    createSupabaseMock({
+      projectionLimitError: "projection unavailable",
+    });
+
+    try {
+      const result = await getProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+      });
+
+      expect(result).toMatchObject({
+        projectId: "project-1",
+        userId: "user-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+          outputs: {
+            active: [
+              {
+                id: "out-1",
+                generationId: "generation-1",
+                previewUrl: "https://expired.example.com/old.png",
+                resultUrls: ["https://expired.example.com/old.png"],
+              },
+            ],
+            archived: [],
+          },
+        },
+      });
+      expect(result?.snapshot.outputs).not.toMatchObject({
+        active: [expect.objectContaining({ id: "out-2" })],
+      });
+      expect("agentRuntimes" in (result?.snapshot ?? {})).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] read enrichment failed; returning sanitized snapshot",
+        expect.objectContaining({
+          projectId: "project-1",
+          error: "projection unavailable",
+        })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("hydrates restored project video outputs with poster storage from saved media rows", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:video",
+        },
+        outputs: {
+          active: [
+            {
+              id: "out-1",
+              generationId: "generation-1",
+              mode: "video",
+              previewUrl: "https://cdn.example.com/generated-video.mp4",
+              resultUrls: ["https://cdn.example.com/generated-video.mp4"],
+            },
+          ],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+      },
+      projectionRows: [
+        {
+          generation_id: "generation-1",
+          request_id: "task-1",
+          preview_url: "https://cdn.example.com/generated-video.mp4",
+          result_urls: ["https://cdn.example.com/generated-video.mp4"],
+          saved_media_ids: ["media-video-1"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: "Restored video",
+          provider: "kie",
+          model_id: "kie-ai/seedance-2-fast",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      publicationRows: [
+        {
+          generation_id: "generation-1",
+          owned_media_file_id: "media-video-1",
+          preview_storage_path: null,
+          full_storage_path: null,
+          publication_state: "published",
+          created_at: "2026-04-23T01:00:00.000Z",
+        },
+      ],
+      mediaRows: [
+        {
+          id: "media-video-1",
+          file_type: "video",
+          storage_path: "user-1/generations/videos/restored-video.mp4",
+          preview_storage_path: null,
+          poster_variant_path: "user-1/variants/videos/restored-video/poster_720.jpg",
+          thumb_variant_path: null,
+          preview_variant_path: null,
+        },
+      ],
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [
+        {
+          id: "out-1",
+          generationId: "generation-1",
+          mode: "video",
+          previewPosterStoragePath: "user-1/variants/videos/restored-video/poster_720.jpg",
+          previewStoragePath: "user-1/variants/videos/restored-video/poster_720.jpg",
+          fullStoragePath: "user-1/generations/videos/restored-video.mp4",
+          taskId: "task-1",
+          taskState: "success",
+          queueState: "dispatched",
+          prompt: "Restored video",
+        },
+      ],
+    });
+  });
+
   it("appends project-associated generated outputs that are absent from the workspace snapshot", async () => {
     createSupabaseMock({
       workspaceSnapshot: {
@@ -558,6 +748,7 @@ describe("projectWorkspaceStatesService", () => {
           request_id: "task-2",
           preview_url: "https://cdn.example.com/generated-video.mp4",
           result_urls: ["https://cdn.example.com/generated-video.mp4"],
+          saved_media_ids: ["media-video-2"],
           preview_storage_path: null,
           full_storage_path: null,
           task_state: "success",
@@ -567,6 +758,27 @@ describe("projectWorkspaceStatesService", () => {
           model_id: "kie-ai/seedance-2-fast",
           hidden_in_reference_grid: false,
           reference_grid_visible: true,
+        },
+      ],
+      publicationRows: [
+        {
+          generation_id: "generation-2",
+          owned_media_file_id: "media-video-2",
+          preview_storage_path: null,
+          full_storage_path: null,
+          publication_state: "published",
+          created_at: "2026-04-23T01:00:00.000Z",
+        },
+      ],
+      mediaRows: [
+        {
+          id: "media-video-2",
+          file_type: "video",
+          storage_path: "user-1/generations/videos/generated-video.mp4",
+          preview_storage_path: null,
+          poster_variant_path: "user-1/variants/videos/generated-video/poster_720.jpg",
+          thumb_variant_path: null,
+          preview_variant_path: null,
         },
       ],
     });
@@ -590,6 +802,9 @@ describe("projectWorkspaceStatesService", () => {
           previewTier: "preview_loop",
           previewUrl: "https://cdn.example.com/generated-video.mp4",
           resultUrls: ["https://cdn.example.com/generated-video.mp4"],
+          previewPosterStoragePath: "user-1/variants/videos/generated-video/poster_720.jpg",
+          previewStoragePath: "user-1/variants/videos/generated-video/poster_720.jpg",
+          fullStoragePath: "user-1/generations/videos/generated-video.mp4",
         },
       ],
       archived: [],

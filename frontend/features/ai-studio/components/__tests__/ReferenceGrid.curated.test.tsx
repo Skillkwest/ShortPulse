@@ -462,7 +462,7 @@ describe("ReferenceGrid curated split", () => {
     expect(card?.querySelector(".reference-loading")).toBeNull();
     expect(videoNode).toBeTruthy();
     expect(videoNode?.getAttribute("src")).toBe("https://example.com/generated-video.mp4");
-    expect(videoNode?.getAttribute("preload")).toBe("metadata");
+    expect(videoNode?.getAttribute("preload")).toBe("auto");
     expect(videoNode?.classList.contains("is-visible")).toBe(true);
 
     fireEvent.doubleClick(card as HTMLDivElement);

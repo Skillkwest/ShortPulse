@@ -10,6 +10,7 @@ import { ReferenceGridCard } from "../ReferenceGridCard";
 
 const playMock = vi.fn();
 const pauseMock = vi.fn();
+const loadMock = vi.fn();
 
 beforeAll(() => {
   vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => {
@@ -18,6 +19,9 @@ beforeAll(() => {
   });
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {
     pauseMock();
+  });
+  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {
+    loadMock();
   });
 });
 
@@ -29,6 +33,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   playMock.mockClear();
   pauseMock.mockClear();
+  loadMock.mockClear();
 });
 
 afterEach(() => {
@@ -94,12 +99,36 @@ describe("ReferenceGridCard", () => {
     );
 
     const card = screen.getByRole("button");
+    const videoNode = document.querySelector(".reference-card-video") as HTMLVideoElement | null;
+    const videoSource = videoNode?.querySelector("source");
+
+    expect(videoNode?.getAttribute("src")).toBe("https://example.com/video.mp4");
+    expect(videoSource?.getAttribute("src")).toBe("https://example.com/video.mp4");
 
     fireEvent.pointerEnter(card);
     expect(playMock).toHaveBeenCalled();
 
     fireEvent.pointerLeave(card);
     expect(pauseMock).toHaveBeenCalled();
+  });
+
+  it("starts video playback from mouse hover fallback", async () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "video" }),
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/video.mp4",
+          canAutoplayVideo: false,
+          videoPreload: "metadata",
+        })}
+      />
+    );
+
+    fireEvent.mouseEnter(screen.getByRole("button"));
+
+    expect(loadMock).toHaveBeenCalled();
+    expect(playMock).toHaveBeenCalled();
   });
 
   it("shows an NSFW pill for provider safety failures", () => {

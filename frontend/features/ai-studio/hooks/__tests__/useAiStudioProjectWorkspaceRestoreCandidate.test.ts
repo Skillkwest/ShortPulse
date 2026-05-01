@@ -154,4 +154,69 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
       projectId: "project-1",
     });
   });
+
+  it("treats malformed non-empty workspace snapshots as restore errors", async () => {
+    getProjectWorkspaceSnapshotMock.mockResolvedValue({
+      snapshot: {
+        schemaVersion: 2,
+        updatedAt: "2026-04-25T18:00:00.000Z",
+        workspace: {},
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioProjectWorkspaceRestoreCandidate({
+        projectId: "project-1",
+        enabled: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("error");
+    });
+
+    expect(result.current.result).toBe("load_failed");
+    expect(result.current.snapshot).toBeNull();
+    expect(result.current.error).toBe("Project workspace snapshot is invalid.");
+  });
+
+  it("keeps a missing workspace row as a fresh project", async () => {
+    getProjectWorkspaceSnapshotMock.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useAiStudioProjectWorkspaceRestoreCandidate({
+        projectId: "project-1",
+        enabled: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+
+    expect(result.current.result).toBe("no_snapshot");
+    expect(result.current.snapshot).toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it("treats an empty saved workspace snapshot row as a restore error", async () => {
+    getProjectWorkspaceSnapshotMock.mockResolvedValue({
+      snapshot: {},
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioProjectWorkspaceRestoreCandidate({
+        projectId: "project-1",
+        enabled: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("error");
+    });
+
+    expect(result.current.result).toBe("load_failed");
+    expect(result.current.snapshot).toBeNull();
+    expect(result.current.error).toBe("Project workspace snapshot is invalid.");
+  });
 });

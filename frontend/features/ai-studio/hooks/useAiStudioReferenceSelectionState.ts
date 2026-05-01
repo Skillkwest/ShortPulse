@@ -40,7 +40,7 @@ const createEmptyReferenceSelectionAuthorityState = (): ReferenceSelectionAuthor
  */
 export const useAiStudioReferenceSelectionState = ({
   activeOutputPreviewUrl,
-  authorityKey = "session:pending::create-mode:standard",
+  authorityKey = "session:pending",
 }: UseAiStudioReferenceSelectionStateParams) => {
   const [selectedTool, setSelectedTool] = useState<ToolId | null>("create");
   const [showCreateTools, setShowCreateTools] = useState<boolean>(false);

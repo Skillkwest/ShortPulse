@@ -432,6 +432,52 @@ const canonicalizeProjectWorkspaceSnapshot = async ({
   });
 };
 
+const canonicalizeProjectWorkspaceSnapshotForRead = async ({
+  userId,
+  projectId,
+  snapshot,
+}: {
+  userId: string;
+  projectId: string;
+  snapshot: Record<string, unknown>;
+}): Promise<Record<string, unknown>> => {
+  let fallbackSnapshot = snapshot;
+  try {
+    const { ownedMediaFileIds, ownedPromptIds, ownedGenerationIds } =
+      await resolveOwnedSnapshotAssociationIds({
+        userId,
+        snapshot,
+      });
+    const sanitizedOutputsSnapshot = sanitizeProjectWorkspaceOutputs({
+      snapshot,
+      ownedMediaFileIds,
+      ownedPromptIds,
+      ownedGenerationIds,
+    });
+    fallbackSnapshot = sanitizedOutputsSnapshot;
+
+    const hydratedSnapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId,
+      projectId,
+      snapshot: sanitizedOutputsSnapshot,
+    });
+    const hydratedGenerationIds = collectSnapshotGenerationIds(hydratedSnapshot);
+
+    return sanitizeProjectWorkspaceOutputs({
+      snapshot: hydratedSnapshot,
+      ownedMediaFileIds,
+      ownedPromptIds,
+      ownedGenerationIds: [...new Set([...ownedGenerationIds, ...hydratedGenerationIds])],
+    });
+  } catch (error) {
+    console.warn("[project-workspace] read enrichment failed; returning sanitized snapshot", {
+      projectId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    return fallbackSnapshot;
+  }
+};
+
 const toProjectWorkspaceStateRecord = (
   row: ProjectWorkspaceStateRow
 ): ProjectWorkspaceStateRecord => ({
@@ -466,11 +512,10 @@ export const getProjectWorkspaceStateForUser = async ({
   const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(record.snapshot);
   return {
     ...record,
-    snapshot: await canonicalizeProjectWorkspaceSnapshot({
+    snapshot: await canonicalizeProjectWorkspaceSnapshotForRead({
       userId,
       projectId,
       snapshot: sanitizedSnapshot,
-      backfillAssociations: false,
     }),
   };
 };

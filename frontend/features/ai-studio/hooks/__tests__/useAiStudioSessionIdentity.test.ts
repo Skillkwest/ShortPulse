@@ -28,6 +28,7 @@ const createRouter = (overrides: Partial<MockRouter> = {}): MockRouter => ({
 describe("useAiStudioSessionIdentity", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState({}, "", "/ai-studio");
   });
 
   it("uses existing valid sid from query without replacing URL", async () => {
@@ -45,67 +46,57 @@ describe("useAiStudioSessionIdentity", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("creates and injects sid when query is missing", async () => {
+  it("creates and injects sid without Next route navigation when query is missing", async () => {
     const router = createRouter();
     mockedUseRouter.mockReturnValue(router as never);
 
-    const { rerender, result } = renderHook(() => useAiStudioSessionIdentity());
+    const { result } = renderHook(() => useAiStudioSessionIdentity());
 
     await waitFor(() => {
-      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(result.current.sessionId).not.toBeNull();
     });
 
-    const [urlArg, asArg, optionsArg] = router.replace.mock.calls[0] ?? [];
-    expect(asArg).toBeUndefined();
-    expect(optionsArg).toEqual(expect.objectContaining({ shallow: true, scroll: false }));
-    expect((urlArg as { pathname?: string }).pathname).toBe("/ai-studio");
-
-    const sidFromReplace = (urlArg as { query?: Record<string, unknown> }).query?.sid;
-    expect(typeof sidFromReplace).toBe("string");
-    expect(isValidAiStudioSessionId(String(sidFromReplace))).toBe(true);
-    expect(result.current.sessionId).toBeNull();
-
-    router.query = { sid: String(sidFromReplace) };
-    rerender();
-    await waitFor(() => {
-      expect(result.current.sessionId).toEqual(String(sidFromReplace));
-    });
+    const sidFromUrl = new URL(window.location.href).searchParams.get("sid");
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(sidFromUrl).toBe(result.current.sessionId);
+    expect(isValidAiStudioSessionId(String(sidFromUrl))).toBe(true);
   });
 
-  it("preserves projectId when injecting sid into the URL", async () => {
+  it("preserves projectId when injecting sid into the URL without route navigation", async () => {
+    window.history.replaceState({}, "", "/ai-studio?projectId=project-1");
     const router = createRouter({
       query: { projectId: "project-1" },
     });
     mockedUseRouter.mockReturnValue(router as never);
 
-    renderHook(() => useAiStudioSessionIdentity());
+    const { result } = renderHook(() => useAiStudioSessionIdentity());
 
     await waitFor(() => {
-      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(result.current.sessionId).not.toBeNull();
     });
 
-    const [urlArg] = router.replace.mock.calls[0] ?? [];
-    expect((urlArg as { query?: Record<string, unknown> }).query).toEqual(
-      expect.objectContaining({
-        projectId: "project-1",
-      })
-    );
+    const url = new URL(window.location.href);
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(url.searchParams.get("projectId")).toBe("project-1");
+    expect(url.searchParams.get("sid")).toBe(result.current.sessionId);
   });
 
   it("replaces invalid sid query values with a new valid session id", async () => {
+    window.history.replaceState({}, "", "/ai-studio?sid=invalid-session-id");
     const router = createRouter({
       query: { sid: "invalid-session-id" },
     });
     mockedUseRouter.mockReturnValue(router as never);
 
-    renderHook(() => useAiStudioSessionIdentity());
+    const { result } = renderHook(() => useAiStudioSessionIdentity());
 
     await waitFor(() => {
-      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(result.current.sessionId).not.toBeNull();
     });
 
-    const [urlArg] = router.replace.mock.calls[0] ?? [];
-    const sidFromReplace = (urlArg as { query?: Record<string, unknown> }).query?.sid;
-    expect(isValidAiStudioSessionId(String(sidFromReplace))).toBe(true);
+    const sidFromUrl = new URL(window.location.href).searchParams.get("sid");
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(sidFromUrl).toBe(result.current.sessionId);
+    expect(isValidAiStudioSessionId(String(sidFromUrl))).toBe(true);
   });
 });

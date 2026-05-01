@@ -104,7 +104,7 @@ describe("sessionRestoreMediaSigning", () => {
     expect(result.changed).toBe(true);
     expect(result.outputs[0]?.previewUrl).toBe("https://signed/poster_720.jpg");
     expect(result.outputs[0]?.previewPosterUrl).toBe("https://signed/poster_720.jpg");
-    expect(result.outputs[0]?.resultUrls).toBeUndefined();
+    expect(result.outputs[0]?.resultUrls).toEqual(["https://signed/video-a.mp4"]);
     expect(result.outputs[0]?.fullStoragePath).toBe("user-1/generations/videos/video-a.mp4");
   });
 
@@ -131,6 +131,33 @@ describe("sessionRestoreMediaSigning", () => {
     expect(result.outputs[0]?.previewPosterStoragePath).toBe(
       "user-1/variants/videos/video-b/poster_720.jpg"
     );
+    expect(result.outputs[0]?.resultUrls).toEqual(["https://signed/video-b.mp4"]);
+  });
+
+  it("keeps restored video hover playback on signed full URLs while preserving provider fallbacks", () => {
+    const rows = [
+      createOutput({
+        id: "video-c",
+        mode: "video",
+        previewStoragePath: "user-1/variants/videos/video-c/poster_720.jpg",
+        fullStoragePath: "user-1/generations/videos/video-c.mp4",
+        resultUrls: ["https://provider.test/video-c.mp4"],
+      }),
+    ];
+    const signedByPath = new Map<string, string | null>([
+      ["user-1/variants/videos/video-c/poster_720.jpg", "https://signed/poster-c.jpg"],
+      ["user-1/generations/videos/video-c.mp4", "https://signed/video-c.mp4"],
+    ]);
+
+    const result = applySessionRestoreSignedUrls(rows, signedByPath);
+
+    expect(result.changed).toBe(true);
+    expect(result.outputs[0]?.previewUrl).toBe("https://signed/poster-c.jpg");
+    expect(result.outputs[0]?.previewPosterUrl).toBe("https://signed/poster-c.jpg");
+    expect(result.outputs[0]?.resultUrls).toEqual([
+      "https://signed/video-c.mp4",
+      "https://provider.test/video-c.mp4",
+    ]);
   });
 
   it("skips apply when baseline fingerprint no longer matches", () => {

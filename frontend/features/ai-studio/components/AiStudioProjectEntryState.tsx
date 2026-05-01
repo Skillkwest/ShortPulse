@@ -174,10 +174,12 @@ export function AiStudioProjectEntryState({
         </div>
 
         <div className="ai-studio-project-entry-body">
-          <div className={`ai-studio-project-entry-loader is-${variant}`} aria-hidden="true">
-            <div className="reference-spinner ai-studio-project-entry-spinner" />
-            <div className="ai-studio-project-entry-loader-bar" />
-          </div>
+          {variant === "loading" ? (
+            <div className={`ai-studio-project-entry-loader is-${variant}`} aria-hidden="true">
+              <div className="reference-spinner ai-studio-project-entry-spinner" />
+              <div className="ai-studio-project-entry-loader-bar" />
+            </div>
+          ) : null}
 
           <ol
             className="ai-studio-project-entry-steps"

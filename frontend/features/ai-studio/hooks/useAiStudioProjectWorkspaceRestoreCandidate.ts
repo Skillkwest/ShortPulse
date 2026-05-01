@@ -3,7 +3,10 @@
  * Loads the persisted project-owned workspace snapshot for the current `projectId`.
  */
 import { useEffect, useState } from "react";
-import { getAiStudioProjectWorkspaceSnapshotViaApi } from "../logic/projectWorkspaceApiClient";
+import {
+  getAiStudioProjectWorkspaceSnapshotViaApi,
+  type AiStudioProjectWorkspaceApiRecord,
+} from "../logic/projectWorkspaceApiClient";
 import {
   parseAiStudioSessionSnapshotForRestore,
   type AiStudioSessionRestoreSource,
@@ -20,6 +23,17 @@ export type AiStudioProjectWorkspaceRestoreCandidateState = {
   source: AiStudioSessionRestoreSource;
   error: string | null;
   retry: () => void;
+};
+
+const resolveProjectWorkspaceSnapshot = (
+  workspace: AiStudioProjectWorkspaceApiRecord | null
+): { snapshot: AiStudioSessionSnapshot | null; invalid: boolean } => {
+  if (!workspace) {
+    return { snapshot: null, invalid: false };
+  }
+  const snapshot = parseAiStudioSessionSnapshotForRestore(workspace.snapshot, null);
+  if (!snapshot) return { snapshot: null, invalid: true };
+  return { snapshot: createAiStudioProjectWorkspaceSnapshot(snapshot), invalid: false };
 };
 
 /**
@@ -48,16 +62,20 @@ export const useAiStudioProjectWorkspaceRestoreCandidate = ({
     void getAiStudioProjectWorkspaceSnapshotViaApi({ projectId })
       .then((workspace) => {
         if (cancelled) return;
+        const resolved = resolveProjectWorkspaceSnapshot(workspace);
+        if (resolved.invalid) {
+          setLoadedCandidate({
+            projectId,
+            status: "error",
+            snapshot: null,
+            error: "Project workspace snapshot is invalid.",
+          });
+          return;
+        }
         setLoadedCandidate({
           projectId,
           status: "ready",
-          snapshot: (() => {
-            const snapshot = parseAiStudioSessionSnapshotForRestore(
-              workspace?.snapshot ?? null,
-              null
-            );
-            return snapshot ? createAiStudioProjectWorkspaceSnapshot(snapshot) : null;
-          })(),
+          snapshot: resolved.snapshot,
           error: null,
         });
       })

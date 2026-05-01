@@ -184,6 +184,39 @@ describe("PromptStep agent actions", () => {
     expect(messageBubble).toHaveClass("agent-message--with-output-thumbnail");
   });
 
+  it("marks only usable assistant prompt outputs for prompt-color styling", () => {
+    render(
+      <PromptStep
+        {...baseProps}
+        agentMessages={[
+          {
+            id: "assistant-conversation",
+            role: "assistant",
+            content: "I can help refine that direction.",
+            canUseAsPrompt: false,
+          },
+          {
+            id: "assistant-prompt",
+            role: "assistant",
+            content: "A cinematic product photo with crisp blue rim light.",
+            outputPrompt: "A cinematic product photo with crisp blue rim light.",
+            canUseAsPrompt: true,
+          },
+        ]}
+      />
+    );
+
+    const conversationBubble = screen
+      .getByText("I can help refine that direction.")
+      .closest(".agent-message");
+    const promptBubble = screen
+      .getByText("A cinematic product photo with crisp blue rim light.")
+      .closest(".agent-message");
+
+    expect(conversationBubble).not.toHaveClass("agent-message--prompt-output");
+    expect(promptBubble).toHaveClass("agent-message--prompt-output");
+  });
+
   it("disables inline generate in chat-off mode when input is empty", () => {
     render(
       <PromptStep

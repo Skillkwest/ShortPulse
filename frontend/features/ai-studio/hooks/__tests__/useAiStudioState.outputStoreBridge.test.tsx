@@ -453,7 +453,7 @@ describe("useAiStudioState output store bridge", () => {
     expect(result.current.pulsePrompt).toBe("Pulse final artifact");
   });
 
-  it("keeps Standard and Pulse output/reference context isolated across mode toggles", async () => {
+  it("keeps Standard and Pulse prompts isolated while sharing output/reference context", async () => {
     const { result } = renderHook(
       () => {
         const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">(
@@ -494,27 +494,30 @@ describe("useAiStudioState output store bridge", () => {
     });
 
     await waitFor(() => {
-      expect(result.current.outputs).toEqual([]);
-      expect(result.current.activeOutputId).toBeNull();
-      expect(result.current.curatedReferenceIds).toEqual([]);
-      expect(getAiStudioOutputSnapshot().outputOrder).toEqual([]);
+      expect(result.current.outputs.map((item) => item.id)).toEqual(["standard-out"]);
+      expect(result.current.activeOutputId).toBe("standard-out");
+      expect(result.current.curatedReferenceIds).toEqual(["standard-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["standard-out"]);
     });
     expect(result.current.activeCreatePrompt).toBe("");
-    expect(result.current.getAgentContext().media).toEqual([]);
+    expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
+      "https://example.com/standard.png"
+    );
 
     act(() => {
       result.current.setPrompt("Pulse artifact");
-      result.current.setOutputs([
+      result.current.setOutputs((previous) => [
         makeOutput("pulse-out", { previewUrl: "https://example.com/pulse.png" }),
+        ...previous,
       ]);
       result.current.setActiveOutputId("pulse-out");
       result.current.addCuratedReference("pulse-out");
     });
 
     await waitFor(() => {
-      expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out"]);
-      expect(result.current.curatedReferenceIds).toEqual(["pulse-out"]);
-      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out"]);
+      expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out", "standard-out"]);
+      expect(result.current.curatedReferenceIds).toEqual(["standard-out", "pulse-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out", "standard-out"]);
     });
     expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
       "https://example.com/pulse.png"
@@ -526,13 +529,13 @@ describe("useAiStudioState output store bridge", () => {
 
     await waitFor(() => {
       expect(result.current.activeCreatePrompt).toBe("Standard draft");
-      expect(result.current.outputs.map((item) => item.id)).toEqual(["standard-out"]);
-      expect(result.current.activeOutputId).toBe("standard-out");
-      expect(result.current.curatedReferenceIds).toEqual(["standard-out"]);
-      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["standard-out"]);
+      expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out", "standard-out"]);
+      expect(result.current.activeOutputId).toBe("pulse-out");
+      expect(result.current.curatedReferenceIds).toEqual(["standard-out", "pulse-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out", "standard-out"]);
     });
     expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
-      "https://example.com/standard.png"
+      "https://example.com/pulse.png"
     );
 
     act(() => {
@@ -541,17 +544,17 @@ describe("useAiStudioState output store bridge", () => {
 
     await waitFor(() => {
       expect(result.current.activeCreatePrompt).toBe("Pulse artifact");
-      expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out"]);
+      expect(result.current.outputs.map((item) => item.id)).toEqual(["pulse-out", "standard-out"]);
       expect(result.current.activeOutputId).toBe("pulse-out");
-      expect(result.current.curatedReferenceIds).toEqual(["pulse-out"]);
-      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out"]);
+      expect(result.current.curatedReferenceIds).toEqual(["standard-out", "pulse-out"]);
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["pulse-out", "standard-out"]);
     });
     expect(result.current.getAgentContext({ includeActiveOutput: true }).media?.[0]?.url).toBe(
       "https://example.com/pulse.png"
     );
   });
 
-  it("restores separate Standard and Pulse prompts across snapshot hydration and mode toggles", async () => {
+  it("restores separate Standard and Pulse prompts while keeping hydrated outputs global", async () => {
     const source = renderHook(
       () => {
         const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">(
@@ -646,8 +649,8 @@ describe("useAiStudioState output store bridge", () => {
     expect(restored.result.current.activeCreatePrompt).toBe("Standard restore draft");
     expect(restored.result.current.standardPrompt).toBe("Standard restore draft");
     expect(restored.result.current.pulsePrompt).toBe("Pulse restored artifact");
-    expect(restored.result.current.outputs).toEqual([]);
-    expect(restored.result.current.activeOutputId).toBeNull();
+    expect(restored.result.current.outputs.map((item) => item.id)).toEqual(["pulse-restored-out"]);
+    expect(restored.result.current.activeOutputId).toBe("pulse-restored-out");
 
     act(() => {
       restored.result.current.setExpertCreateMode("pulse");

@@ -872,7 +872,7 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
     expect(await screen.findByTestId("create-chat-mode")).toHaveTextContent("not-provided");
     expect(screen.getByTestId("create-expert-mode")).toHaveTextContent("pulse");
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
 
     fireEvent.click(screen.getByRole("tab", { name: "Standard" }));
     expect(screen.getByTestId("create-chat-mode")).toHaveTextContent("off");

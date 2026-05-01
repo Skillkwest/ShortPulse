@@ -29,7 +29,11 @@ type CreateExpertPresetPanelProps = {
     options?: AiStudioPulsePresetChangeOptions
   ) => string | null | void;
   onPresetStart?: (
-    preset: CreatePulseResolvedPreset
+    preset: CreatePulseResolvedPreset,
+    options?: {
+      pulseSessionInstanceId?: string | null;
+      deferWorkflowSessionCommit?: boolean;
+    }
   ) => Promise<CreatePulsePresetStartResult | void> | CreatePulsePresetStartResult | void;
   selectedPresetIds?: readonly CreatePulsePresetId[];
   onSelectedPresetIdsChange?: (
@@ -206,8 +210,7 @@ export function CreateExpertPresetPanel({
   const closePulseLibrary = React.useCallback(() => {
     setIsPulseLibraryOpen(false);
   }, []);
-  const pulseLibraryBackdropDismiss =
-    useGuardedBackdropDismiss<HTMLDivElement>(closePulseLibrary);
+  const pulseLibraryBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closePulseLibrary);
 
   const isPulseActivationEnabled = Boolean(onActivePresetIdChange);
 

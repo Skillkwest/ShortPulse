@@ -229,4 +229,39 @@ describe("useAiStudioProjectWorkspaceRestoreHydration", () => {
     expect(hydrateFromSessionSnapshot).not.toHaveBeenCalled();
     expect(onProjectBootstrapSettled).not.toHaveBeenCalled();
   });
+
+  it("reports hydration failures without marking bootstrap complete", async () => {
+    vi.useFakeTimers();
+    const hydrationError = new Error("hydrate failed");
+    const hydrateFromSessionSnapshot = vi.fn(() => {
+      throw hydrationError;
+    });
+    const onProjectBootstrapSettled = vi.fn();
+    const onProjectBootstrapFailed = vi.fn();
+
+    renderHook(() =>
+      useAiStudioProjectWorkspaceRestoreHydration({
+        projectId: "project-1",
+        projectWorkspaceRestoreCandidate: {
+          status: "ready",
+          result: "found_snapshot",
+          snapshot: createSnapshot(),
+          source: "project",
+          error: null,
+          retry: vi.fn(),
+        },
+        hydrateFromSessionSnapshot,
+        onProjectBootstrapSettled,
+        onProjectBootstrapFailed,
+      })
+    );
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(onProjectBootstrapFailed).toHaveBeenCalledWith("project-1", hydrationError);
+    expect(onProjectBootstrapSettled).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });

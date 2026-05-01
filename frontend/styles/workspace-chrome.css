@@ -100,6 +100,14 @@
   letter-spacing: 0.08em;
 }
 
+.header-card-body {
+  min-width: 0;
+}
+
+.header-card-body .status-value {
+  overflow-wrap: anywhere;
+}
+
 .avatar-card {
   border: 1px solid rgba(201, 205, 214, 0.12);
   background: rgba(201, 205, 214, 0.02);

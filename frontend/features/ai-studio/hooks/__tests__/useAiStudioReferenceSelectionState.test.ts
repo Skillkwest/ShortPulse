@@ -39,12 +39,12 @@ describe("useAiStudioReferenceSelectionState", () => {
     );
   });
 
-  it("keeps reference inputs isolated by authority key", () => {
+  it("keeps reference inputs isolated by project/session authority key", () => {
     const { result, rerender } = renderHook(
       ({ authorityKey }: { authorityKey: string }) =>
         useAiStudioReferenceSelectionState({ activeOutputPreviewUrl: null, authorityKey }),
       {
-        initialProps: { authorityKey: "session:test::create-mode:standard" },
+        initialProps: { authorityKey: "session:test" },
       }
     );
 
@@ -54,7 +54,7 @@ describe("useAiStudioReferenceSelectionState", () => {
       result.current.setSelectedTool("video");
     });
 
-    rerender({ authorityKey: "session:test::create-mode:pulse" });
+    rerender({ authorityKey: "project:test" });
 
     expect(result.current.selectedTool).toBe("create");
     expect(result.current.referenceImageUrl).toBeNull();
@@ -65,7 +65,7 @@ describe("useAiStudioReferenceSelectionState", () => {
       result.current.setExtraImageUrl(1, "https://example.com/pulse-extra.png");
     });
 
-    rerender({ authorityKey: "session:test::create-mode:standard" });
+    rerender({ authorityKey: "session:test" });
 
     expect(result.current.selectedTool).toBe("video");
     expect(result.current.referenceImageUrl).toBeNull();
@@ -75,7 +75,7 @@ describe("useAiStudioReferenceSelectionState", () => {
       extraImageUrls: ["https://example.com/standard-extra.png", null, null],
     });
 
-    rerender({ authorityKey: "session:test::create-mode:pulse" });
+    rerender({ authorityKey: "project:test" });
 
     expect(result.current.selectedTool).toBe("create");
     expect(result.current.referenceImageUrl).toBe("https://example.com/pulse-ref.png");

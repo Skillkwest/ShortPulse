@@ -19,6 +19,8 @@ type MockRouter = {
 
 const mockedUseRouter = vi.mocked(useRouter);
 const mockedFetchWithAuth = vi.mocked(fetchWithAuth);
+const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
+const PROJECT_TWO_ID = "22222222-2222-4222-8222-222222222222";
 
 const createRouter = (overrides: Partial<MockRouter> = {}): MockRouter => ({
   isReady: true,
@@ -38,6 +40,8 @@ describe("useAiStudioProjectIdentity", () => {
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
     expect(result.current.projectId).toBeNull();
+    expect(result.current.requestedProjectId).toBeNull();
+    expect(result.current.verifiedProjectId).toBeNull();
     expect(result.current.projectRouteRequested).toBe(false);
     expect(result.current.project).toBeNull();
     expect(result.current.status).toBe("idle");
@@ -45,7 +49,7 @@ describe("useAiStudioProjectIdentity", () => {
   });
 
   it("treats a project route in the URL as pending before router query resolution finishes", () => {
-    window.history.replaceState({}, "", "/ai-studio?projectId=project-1");
+    window.history.replaceState({}, "", `/ai-studio?projectId=${PROJECT_ID}`);
     mockedUseRouter.mockReturnValue(
       createRouter({
         isReady: false,
@@ -55,7 +59,9 @@ describe("useAiStudioProjectIdentity", () => {
 
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
-    expect(result.current.projectId).toBeNull();
+    expect(result.current.projectId).toBe(PROJECT_ID);
+    expect(result.current.requestedProjectId).toBe(PROJECT_ID);
+    expect(result.current.verifiedProjectId).toBeNull();
     expect(result.current.projectRouteRequested).toBe(true);
     expect(result.current.status).toBe("loading");
     expect(mockedFetchWithAuth).not.toHaveBeenCalled();
@@ -64,14 +70,14 @@ describe("useAiStudioProjectIdentity", () => {
   it("loads the owned project record from the project route", async () => {
     mockedUseRouter.mockReturnValue(
       createRouter({
-        query: { projectId: "project-1" },
+        query: { projectId: PROJECT_ID },
       }) as never
     );
     mockedFetchWithAuth.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         project: {
-          id: "project-1",
+          id: PROJECT_ID,
           title: "Project One",
           createdAt: "2026-04-23T00:00:00.000Z",
           updatedAt: "2026-04-23T01:00:00.000Z",
@@ -85,22 +91,42 @@ describe("useAiStudioProjectIdentity", () => {
       expect(result.current.status).toBe("ready");
     });
 
-    expect(mockedFetchWithAuth).toHaveBeenCalledWith("/api/projects/project-1", {
+    expect(mockedFetchWithAuth).toHaveBeenCalledWith(`/api/projects/${PROJECT_ID}`, {
       method: "GET",
       shortpulseAuthTimeoutMs: 5000,
     });
     expect(result.current.project).toEqual({
-      id: "project-1",
+      id: PROJECT_ID,
       title: "Project One",
       createdAt: "2026-04-23T00:00:00.000Z",
       updatedAt: "2026-04-23T01:00:00.000Z",
     });
+    expect(result.current.projectId).toBe(PROJECT_ID);
+    expect(result.current.requestedProjectId).toBe(PROJECT_ID);
+    expect(result.current.verifiedProjectId).toBe(PROJECT_ID);
   });
 
-  it("surfaces a closed failure state for invalid or unauthorized projects", async () => {
+  it("rejects malformed project ids before loading project-owned data", async () => {
     mockedUseRouter.mockReturnValue(
       createRouter({
         query: { projectId: "bad-project" },
+      }) as never
+    );
+
+    const { result } = renderHook(() => useAiStudioProjectIdentity());
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.error).toBe("Project not found.");
+    expect(result.current.errorKind).toBe("invalid_id");
+    expect(result.current.verifiedProjectId).toBeNull();
+    expect(result.current.project).toBeNull();
+    expect(mockedFetchWithAuth).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a closed failure state for missing or unauthorized projects", async () => {
+    mockedUseRouter.mockReturnValue(
+      createRouter({
+        query: { projectId: PROJECT_TWO_ID },
       }) as never
     );
     mockedFetchWithAuth.mockResolvedValueOnce({
@@ -116,13 +142,15 @@ describe("useAiStudioProjectIdentity", () => {
     });
 
     expect(result.current.error).toBe("Project not found.");
+    expect(result.current.errorKind).toBe("not_found");
+    expect(result.current.verifiedProjectId).toBeNull();
     expect(result.current.project).toBeNull();
   });
 
   it("surfaces a retry-oriented message for unauthorized project reads", async () => {
     mockedUseRouter.mockReturnValue(
       createRouter({
-        query: { projectId: "project-1" },
+        query: { projectId: PROJECT_ID },
       }) as never
     );
     mockedFetchWithAuth.mockResolvedValueOnce({
@@ -144,7 +172,7 @@ describe("useAiStudioProjectIdentity", () => {
   it("patches the title through the project route and refreshes local project state", async () => {
     mockedUseRouter.mockReturnValue(
       createRouter({
-        query: { projectId: "project-1" },
+        query: { projectId: PROJECT_ID },
       }) as never
     );
     mockedFetchWithAuth
@@ -152,7 +180,7 @@ describe("useAiStudioProjectIdentity", () => {
         ok: true,
         json: async () => ({
           project: {
-            id: "project-1",
+            id: PROJECT_ID,
             title: "Project One",
             createdAt: "2026-04-23T00:00:00.000Z",
             updatedAt: "2026-04-23T01:00:00.000Z",
@@ -163,7 +191,7 @@ describe("useAiStudioProjectIdentity", () => {
         ok: true,
         json: async () => ({
           project: {
-            id: "project-1",
+            id: PROJECT_ID,
             title: "Renamed Project",
             createdAt: "2026-04-23T00:00:00.000Z",
             updatedAt: "2026-04-23T02:00:00.000Z",
@@ -181,7 +209,7 @@ describe("useAiStudioProjectIdentity", () => {
       await result.current.updateProjectTitle("Renamed Project");
     });
 
-    expect(mockedFetchWithAuth).toHaveBeenLastCalledWith("/api/projects/project-1", {
+    expect(mockedFetchWithAuth).toHaveBeenLastCalledWith(`/api/projects/${PROJECT_ID}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",

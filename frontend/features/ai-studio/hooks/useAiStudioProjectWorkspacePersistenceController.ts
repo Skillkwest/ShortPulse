@@ -10,7 +10,10 @@ import {
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { saveAiStudioProjectWorkspaceSnapshotViaApi } from "../logic/projectWorkspaceApiClient";
 import type { AiStudioSessionPersistenceController } from "./useAiStudioSessionPersistenceController";
-import { useAiStudioSessionWriteShadow } from "./useAiStudioSessionWriteShadow";
+import {
+  useAiStudioSessionWriteShadow,
+  type AiStudioSessionWriteShadowError,
+} from "./useAiStudioSessionWriteShadow";
 import { useAiStudioProjectWorkspaceRestoreCandidate } from "./useAiStudioProjectWorkspaceRestoreCandidate";
 import { useAiStudioProjectWorkspaceRestoreHydration } from "./useAiStudioProjectWorkspaceRestoreHydration";
 import { resetAiStudioOutputStore } from "./aiStudioOutputStore";
@@ -76,13 +79,38 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   resetProjectAgentConversation,
   onPersistenceWarning,
 }: UseAiStudioProjectWorkspacePersistenceControllerParams): AiStudioSessionPersistenceController => {
-  const [bootstrappedProjectId, setBootstrappedProjectId] = useState<string | null>(null);
-  const invalidatedAuthorityRef = useRef<string | null>(null);
+  const [bootstrappedProject, setBootstrappedProject] = useState<{
+    projectId: string;
+    revision: number;
+  } | null>(null);
+  const [bootstrapError, setBootstrapError] = useState<{
+    projectId: string;
+    revision: number;
+    message: string;
+  } | null>(null);
   const projectRuntimeAuthority = projectRouteRequested
     ? projectId
       ? `project:${projectId}`
       : "project:pending"
     : null;
+  const [runtimeAuthorityState, setRuntimeAuthorityState] = useState<{
+    authority: string | null;
+    revision: number;
+  }>(() => ({
+    authority: projectRuntimeAuthority,
+    revision: 0,
+  }));
+  const projectRuntimeRevision =
+    runtimeAuthorityState.authority === projectRuntimeAuthority
+      ? runtimeAuthorityState.revision
+      : runtimeAuthorityState.revision + 1;
+  if (runtimeAuthorityState.authority !== projectRuntimeAuthority) {
+    setRuntimeAuthorityState({
+      authority: projectRuntimeAuthority,
+      revision: projectRuntimeRevision,
+    });
+  }
+  const invalidatedRevisionRef = useRef<number | null>(null);
   const sessionRestoreCandidate = useAiStudioProjectWorkspaceRestoreCandidate({
     projectId,
     enabled: Boolean(projectId),
@@ -90,7 +118,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   const projectBootstrapReady =
     Boolean(projectId) &&
     sessionRestoreCandidate.status === "ready" &&
-    bootstrappedProjectId === projectId;
+    bootstrappedProject?.projectId === projectId &&
+    bootstrappedProject.revision === projectRuntimeRevision;
   const sessionSnapshot = useMemo(
     () =>
       sessionId && projectBootstrapReady
@@ -101,17 +130,46 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
 
   useEffect(() => {
     if (!projectRuntimeAuthority) {
-      invalidatedAuthorityRef.current = null;
-      setBootstrappedProjectId(null);
+      invalidatedRevisionRef.current = null;
       return;
     }
-    if (invalidatedAuthorityRef.current === projectRuntimeAuthority) return;
-    invalidatedAuthorityRef.current = projectRuntimeAuthority;
-    setBootstrappedProjectId(null);
+    if (invalidatedRevisionRef.current === projectRuntimeRevision) return;
+    invalidatedRevisionRef.current = projectRuntimeRevision;
     // Fail closed for decoupled selector-store surfaces before async restore finishes.
     resetAiStudioOutputStore();
     applyEmptyProjectState?.();
-  }, [applyEmptyProjectState, projectRuntimeAuthority]);
+  }, [applyEmptyProjectState, projectRuntimeAuthority, projectRuntimeRevision]);
+
+  const handleProjectBootstrapSettled = useCallback(
+    (activeProjectId: string) => {
+      setBootstrappedProject({
+        projectId: activeProjectId,
+        revision: projectRuntimeRevision,
+      });
+    },
+    [projectRuntimeRevision]
+  );
+
+  const handleProjectBootstrapFailed = useCallback(
+    (activeProjectId: string, error: Error) => {
+      const message = error.message || "Failed to apply project workspace.";
+      setBootstrapError((current) => {
+        if (
+          current?.projectId === activeProjectId &&
+          current.revision === projectRuntimeRevision &&
+          current.message === message
+        ) {
+          return current;
+        }
+        return {
+          projectId: activeProjectId,
+          revision: projectRuntimeRevision,
+          message,
+        };
+      });
+    },
+    [projectRuntimeRevision]
+  );
 
   useAiStudioProjectWorkspaceRestoreHydration({
     projectId,
@@ -121,7 +179,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     hydrateFromSessionExpertEditSnapshot,
     applyEmptyProjectState,
     resetProjectAgentConversation,
-    onProjectBootstrapSettled: setBootstrappedProjectId,
+    onProjectBootstrapSettled: handleProjectBootstrapSettled,
+    onProjectBootstrapFailed: handleProjectBootstrapFailed,
   });
 
   const persistProjectWorkspaceSnapshot = useCallback(
@@ -139,16 +198,22 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     []
   );
 
-  useAiStudioSessionWriteShadow({
-    sessionId: projectId,
-    snapshot: sessionSnapshot,
-    enabled: projectBootstrapReady,
-    persistSnapshot: (activeProjectId, snapshot, options) =>
+  const writeProjectWorkspaceSnapshot = useCallback(
+    (
+      activeProjectId: string,
+      snapshot: AiStudioSessionSnapshot,
+      options?: { keepalive?: boolean }
+    ) =>
       persistProjectWorkspaceSnapshot(activeProjectId, snapshot, {
         keepalive: options?.keepalive,
       }),
-    resolveSnapshotTitle: () => null,
-    onPersistError: (error, details) => {
+    [persistProjectWorkspaceSnapshot]
+  );
+
+  const resolveProjectSnapshotTitle = useCallback(() => null, []);
+
+  const handleProjectPersistError = useCallback(
+    (error: Error, details: AiStudioSessionWriteShadowError) => {
       onPersistenceWarning?.(
         resolveProjectPersistenceWarningMessage({
           reason: details.reason,
@@ -158,7 +223,32 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
         })
       );
     },
+    [onPersistenceWarning]
+  );
+  const activeBootstrapError =
+    bootstrapError?.projectId === projectId && bootstrapError.revision === projectRuntimeRevision
+      ? bootstrapError
+      : null;
+
+  useAiStudioSessionWriteShadow({
+    sessionId: projectId,
+    snapshot: sessionSnapshot,
+    enabled: projectBootstrapReady && !activeBootstrapError,
+    persistSnapshot: writeProjectWorkspaceSnapshot,
+    resolveSnapshotTitle: resolveProjectSnapshotTitle,
+    onPersistError: handleProjectPersistError,
   });
+
+  const retryProjectBootstrap = useCallback(() => {
+    if (projectId) {
+      setBootstrapError((current) =>
+        current?.projectId === projectId && current.revision === projectRuntimeRevision
+          ? null
+          : current
+      );
+    }
+    sessionRestoreCandidate.retry();
+  }, [projectId, projectRuntimeRevision, sessionRestoreCandidate]);
 
   return {
     sessionId,
@@ -167,7 +257,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     setSkipRestoreApplyForSessionId: () => undefined,
     projectBootstrapApplied: projectBootstrapReady,
     projectBootstrapError:
-      sessionRestoreCandidate.status === "error" ? sessionRestoreCandidate.error : null,
-    retryProjectBootstrap: sessionRestoreCandidate.retry,
+      activeBootstrapError?.message ??
+      (sessionRestoreCandidate.status === "error" ? sessionRestoreCandidate.error : null),
+    retryProjectBootstrap,
   };
 };

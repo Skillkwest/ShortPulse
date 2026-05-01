@@ -216,7 +216,7 @@ export const useAiStudioState = ({
         : sessionId
           ? `session:${sessionId}`
           : "session:pending";
-  const runtimeAuthorityKey = `${baseRuntimeAuthorityKey}::create-mode:${expertCreateMode}`;
+  const runtimeAuthorityKey = baseRuntimeAuthorityKey;
 
   const {
     activeOutputState,
@@ -253,7 +253,11 @@ export const useAiStudioState = ({
   const runtimeUiStateByAuthorityKeyRef = useRef<Record<string, AiStudioRuntimeUiState>>({});
 
   const getRuntimeAuthorityKeyForCreateMode = useCallback(
-    (createMode: "standard" | "pulse") => `${baseRuntimeAuthorityKey}::create-mode:${createMode}`,
+    (createMode: "standard" | "pulse") => {
+      // Create mode stays in the call signature for restore APIs; the rail itself is global.
+      void createMode;
+      return baseRuntimeAuthorityKey;
+    },
     [baseRuntimeAuthorityKey]
   );
 

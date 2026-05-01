@@ -1,5 +1,9 @@
 import React from "react";
-import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDrop";
+import {
+  extractDragDropPayload,
+  isImageDragTransfer,
+  looksLikeImageUrl,
+} from "../../utils/dragDrop";
 import { MAX_LAYERS } from "./expertEditPanelViewContract";
 import { cloneBlobObjectUrl } from "./expertEditPanelUtilities";
 import {
@@ -181,6 +185,10 @@ export function useExpertEditPrimaryIngress({
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        event.target.value = "";
+        return;
+      }
       const objectUrl = URL.createObjectURL(file);
       applyPrimaryImageIngress({ url: objectUrl, ownsImageUrl: true });
       event.target.value = "";
@@ -237,16 +245,18 @@ export function useExpertEditPrimaryIngress({
       }
       event.preventDefault();
       setPrimaryDragActive(false);
-      const { imageUrl, fromFile, referenceId, width, height } = extractDragDropPayload(
+      const { imageUrl, fromFile, referenceId, width, height, mediaKind } = extractDragDropPayload(
         event.dataTransfer
       );
       void (async () => {
+        if (mediaKind && mediaKind !== "image") return;
         let nextUrl = imageUrl;
         const resolvePreview = resolvePreviewUrlByIdRef.current;
         if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreview) {
           nextUrl = resolvePreview(referenceId);
         }
         if (!nextUrl) return;
+        if (!looksLikeImageUrl(nextUrl)) return;
         const isBlobUrl = nextUrl.startsWith("blob:");
         const canAcceptBlob = fromFile || Boolean(referenceId);
         if (isBlobUrl && !canAcceptBlob) return;

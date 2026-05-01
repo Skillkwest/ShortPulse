@@ -20,6 +20,7 @@ const REFERENCE_TRANSFER_OUTPUT_ID_TYPE = "text/reference-output-id";
 const REFERENCE_TRANSFER_IMAGE_INDEX_TYPE = "text/reference-image-index";
 const REFERENCE_TRANSFER_SOURCE_SURFACE_TYPE = "text/reference-source-surface";
 const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
+const REFERENCE_TRANSFER_MEDIA_KIND_TYPE = "text/reference-media-kind";
 const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
 const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set([
@@ -43,6 +44,7 @@ export type InternalReferenceDragPayload = {
   outputId: string | null;
   imageIndex: number;
   mediaId: string | null;
+  mediaKind?: "image" | "video" | "audio" | "text" | null;
   referenceUrl: string | null;
   referenceRenderUrl?: string | null;
   sourceSurface: ReferenceDragSourceSurface | null;
@@ -116,6 +118,21 @@ const normalizeReferenceTransferId = (value: string | null | undefined): string 
   return candidate.length ? candidate : null;
 };
 
+const parseReferenceMediaKind = (
+  value: string | null | undefined
+): InternalReferenceDragPayload["mediaKind"] => {
+  const candidate = (value ?? "").trim().toLowerCase();
+  if (
+    candidate === "image" ||
+    candidate === "video" ||
+    candidate === "audio" ||
+    candidate === "text"
+  ) {
+    return candidate;
+  }
+  return null;
+};
+
 /**
  * Normalizes `DataTransfer.types` for drag/drop policy checks.
  */
@@ -169,6 +186,7 @@ export const extractInternalReferenceDragPayload = (
     normalizeReferenceTransferId(transfer.getData(REFERENCE_TRANSFER_OUTPUT_ID_TYPE)) ??
     referenceId;
   const mediaId = normalizeReferenceTransferId(transfer.getData(REFERENCE_TRANSFER_MEDIA_ID_TYPE));
+  const mediaKind = parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
   const width = parseReferenceDimension(transfer.getData(REFERENCE_TRANSFER_WIDTH_TYPE));
   const height = parseReferenceDimension(transfer.getData(REFERENCE_TRANSFER_HEIGHT_TYPE));
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
@@ -193,6 +211,7 @@ export const extractInternalReferenceDragPayload = (
     outputId,
     imageIndex: parseReferenceImageIndex(transfer.getData(REFERENCE_TRANSFER_IMAGE_INDEX_TYPE)),
     mediaId,
+    ...(mediaKind ? { mediaKind } : {}),
     referenceUrl,
     ...(referenceRenderUrl ? { referenceRenderUrl } : {}),
     sourceSurface,

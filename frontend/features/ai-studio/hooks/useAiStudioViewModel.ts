@@ -25,7 +25,7 @@ import {
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
-const TEXT_PROMPT_MODEL_ID = "gpt-5-nano";
+const TEXT_PROMPT_MODEL_ID = "gpt-5.4-nano";
 
 type ViewModelInput = {
   mode: StudioMode;

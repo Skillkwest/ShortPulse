@@ -49,9 +49,13 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("multi_shot", {
-        forceNewSession: true,
-      });
+      expect(onActivePresetIdChange).toHaveBeenCalledWith(
+        "multi_shot",
+        expect.objectContaining({
+          forceNewSession: true,
+          sessionInstanceIdOverride: expect.any(String),
+        })
+      );
     });
   });
 
@@ -71,6 +75,7 @@ describe("CreateExpertPresetPanel", () => {
             activationMode: "activate_and_start",
             starterAssistantMessage: "Upload your image to get the process started :)",
             outputMode: "chat_reply",
+            artifactTarget: "video_prompt",
             memoryPolicy: "session",
             createdAt: null,
           },
@@ -84,16 +89,24 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("image", {
-        forceNewSession: true,
-      });
+      expect(onActivePresetIdChange).toHaveBeenCalledWith(
+        "image",
+        expect.objectContaining({
+          forceNewSession: true,
+          preserveWorkflowSession: true,
+          sessionInstanceIdOverride: expect.any(String),
+        })
+      );
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "image",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
         }),
-        expect.objectContaining({ pulseSessionInstanceId: null })
+        expect.objectContaining({
+          pulseSessionInstanceId: expect.any(String),
+          deferWorkflowSessionCommit: true,
+        })
       );
     });
   });
@@ -113,6 +126,7 @@ describe("CreateExpertPresetPanel", () => {
             activationMode: "activate_and_start",
             starterAssistantMessage: null,
             outputMode: "chat_reply",
+            artifactTarget: "text_artifact",
             memoryPolicy: "session",
             createdAt: null,
           },
@@ -139,21 +153,29 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder", {
-        forceNewSession: true,
-      });
+      expect(onActivePresetIdChange).toHaveBeenCalledWith(
+        "story_builder",
+        expect.objectContaining({
+          forceNewSession: true,
+          preserveWorkflowSession: true,
+          sessionInstanceIdOverride: expect.any(String),
+        })
+      );
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "story_builder",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
         }),
-        expect.objectContaining({ pulseSessionInstanceId: null })
+        expect.objectContaining({
+          pulseSessionInstanceId: expect.any(String),
+          deferWorkflowSessionCommit: true,
+        })
       );
     });
   });
 
-  it("claims pulse ownership before starting an activate-and-start preset", async () => {
+  it("claims pulse ownership only after starting an activate-and-start preset", async () => {
     const onActivePresetIdChange = vi.fn();
     const observedActivePresetIds: Array<string | null | undefined> = [];
     const onPresetStart = vi.fn().mockImplementation(async () => {
@@ -171,22 +193,30 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder", {
-        forceNewSession: true,
-      });
+      expect(onActivePresetIdChange).toHaveBeenCalledWith(
+        "story_builder",
+        expect.objectContaining({
+          forceNewSession: true,
+          preserveWorkflowSession: true,
+          sessionInstanceIdOverride: expect.any(String),
+        })
+      );
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "story_builder",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
         }),
-        expect.objectContaining({ pulseSessionInstanceId: null })
+        expect.objectContaining({
+          pulseSessionInstanceId: expect.any(String),
+          deferWorkflowSessionCommit: true,
+        })
       );
     });
 
-    expect(observedActivePresetIds).toEqual(["story_builder"]);
-    expect(onActivePresetIdChange.mock.invocationCallOrder[0]).toBeLessThan(
-      onPresetStart.mock.invocationCallOrder[0]
+    expect(observedActivePresetIds).toEqual([undefined]);
+    expect(onPresetStart.mock.invocationCallOrder[0]).toBeLessThan(
+      onActivePresetIdChange.mock.invocationCallOrder[0]
     );
   });
 
@@ -212,6 +242,35 @@ describe("CreateExpertPresetPanel", () => {
     );
   });
 
+  it("keeps the previous active pulse when replacement kickoff fails", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn().mockResolvedValue({
+      status: "failed",
+      reason: "transport_error",
+      message: "Unable to start replacement Pulse.",
+    });
+
+    render(
+      <CreateExpertPresetPanel
+        activePresetId="image"
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "DFY Story Builder preset" }));
+
+    expect(await screen.findByText("Unable to start replacement Pulse.")).toBeInTheDocument();
+    expect(onPresetStart).toHaveBeenCalledWith(
+      expect.objectContaining({ presetId: "story_builder" }),
+      expect.objectContaining({
+        pulseSessionInstanceId: expect.any(String),
+        deferWorkflowSessionCommit: true,
+      })
+    );
+    expect(onActivePresetIdChange).not.toHaveBeenCalled();
+  });
+
   it("retries kickoff when the active pulse preset is clicked again", async () => {
     const onActivePresetIdChange = vi.fn(() => null);
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
@@ -227,16 +286,24 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
 
     await waitFor(() => {
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("image", {
-        forceNewSession: true,
-      });
+      expect(onActivePresetIdChange).toHaveBeenCalledWith(
+        "image",
+        expect.objectContaining({
+          forceNewSession: true,
+          preserveWorkflowSession: true,
+          sessionInstanceIdOverride: expect.any(String),
+        })
+      );
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "image",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
         }),
-        expect.objectContaining({ pulseSessionInstanceId: null })
+        expect.objectContaining({
+          pulseSessionInstanceId: expect.any(String),
+          deferWorkflowSessionCommit: true,
+        })
       );
     });
   });
@@ -258,6 +325,7 @@ describe("CreateExpertPresetPanel", () => {
             starterAssistantMessage: "Old hidden starter.",
             workflowStageHints: ["Old", "Hidden", "Hints"],
             outputMode: "chat_reply",
+            artifactTarget: "text_artifact",
             memoryPolicy: "session",
             createdAt: null,
           },
@@ -288,6 +356,7 @@ describe("CreateExpertPresetPanel", () => {
           starterAssistantMessage: null,
           workflowStageHints: null,
           outputMode: "chat_reply",
+          artifactTarget: "text_artifact",
           memoryPolicy: "session",
           createdAt: null,
         },
@@ -330,6 +399,7 @@ describe("CreateExpertPresetPanel", () => {
           starterAssistantMessage: null,
           workflowStageHints: null,
           outputMode: "chat_reply",
+          artifactTarget: "image_prompt",
           memoryPolicy: "session",
           createdAt: expect.any(String),
         },
@@ -386,6 +456,7 @@ describe("CreateExpertPresetPanel", () => {
             activationMode: "activate_and_start",
             starterAssistantMessage: null,
             outputMode: "chat_reply",
+            artifactTarget: "text_artifact",
             memoryPolicy: "session",
             createdAt: null,
           },
@@ -466,16 +537,24 @@ describe("CreateExpertPresetPanel", () => {
 
     await waitFor(() => {
       expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["multi_shot"]);
-      expect(onActivePresetIdChange).toHaveBeenCalledWith("multi_shot", {
-        forceNewSession: true,
-      });
+      expect(onActivePresetIdChange).toHaveBeenCalledWith(
+        "multi_shot",
+        expect.objectContaining({
+          forceNewSession: true,
+          preserveWorkflowSession: true,
+          sessionInstanceIdOverride: expect.any(String),
+        })
+      );
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "multi_shot",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
         }),
-        expect.objectContaining({ pulseSessionInstanceId: null })
+        expect.objectContaining({
+          pulseSessionInstanceId: expect.any(String),
+          deferWorkflowSessionCommit: true,
+        })
       );
     });
 

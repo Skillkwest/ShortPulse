@@ -22,6 +22,7 @@ type UseAiStudioProjectWorkspaceRestoreHydrationParams = {
   applyEmptyProjectState?: () => void;
   resetProjectAgentConversation?: () => void;
   onProjectBootstrapSettled?: (projectId: string) => void;
+  onProjectBootstrapFailed?: (projectId: string, error: Error) => void;
 };
 
 /**
@@ -36,6 +37,7 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
   applyEmptyProjectState,
   resetProjectAgentConversation,
   onProjectBootstrapSettled,
+  onProjectBootstrapFailed,
 }: UseAiStudioProjectWorkspaceRestoreHydrationParams) => {
   const candidateLogKeyRef = useRef<string | null>(null);
   const hydrationAppliedProjectIdRef = useRef<string | null>(null);
@@ -93,13 +95,21 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
       bootstrapSettleTimerRef.current = null;
     }
     const snapshot = projectWorkspaceRestoreCandidate.snapshot;
-    if (snapshot) {
-      resetProjectAgentConversation?.();
-      const payload = hydrateFromSessionSnapshot(snapshot);
-      hydrateFromSessionCanvasSnapshot?.(payload.canvas);
-      hydrateFromSessionExpertEditSnapshot?.(payload.expertEdit);
-    } else {
-      applyEmptyProjectState?.();
+    try {
+      if (snapshot) {
+        resetProjectAgentConversation?.();
+        const payload = hydrateFromSessionSnapshot(snapshot);
+        hydrateFromSessionCanvasSnapshot?.(payload.canvas);
+        hydrateFromSessionExpertEditSnapshot?.(payload.expertEdit);
+      } else {
+        applyEmptyProjectState?.();
+      }
+    } catch (error) {
+      onProjectBootstrapFailed?.(
+        projectId,
+        error instanceof Error ? error : new Error("Failed to apply project workspace.")
+      );
+      return;
     }
     hydrationAppliedProjectIdRef.current = projectId;
     bootstrapSettleTimerRef.current = globalThis.setTimeout(() => {
@@ -129,6 +139,7 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
     hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     hydrateFromSessionSnapshot,
+    onProjectBootstrapFailed,
     onProjectBootstrapSettled,
     projectId,
     projectWorkspaceRestoreCandidate.snapshot,

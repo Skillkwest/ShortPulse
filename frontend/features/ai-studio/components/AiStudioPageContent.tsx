@@ -3,7 +3,6 @@
  * Receives a prepared view model from the page and renders toolbar, panels, previews, and system banners.
  */
 import React from "react";
-import dynamic from "next/dynamic";
 import { Eye, FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import {
@@ -16,7 +15,7 @@ import {
   ComposeSendCard,
   StandardCreatePropertiesPanel,
 } from "./create/StandardCreatePropertiesPanel";
-import type { PulseCreatePropertiesPanelProps } from "./create/PulseCreatePropertiesPanel";
+import { PulseCreatePropertiesPanel } from "./create/PulseCreatePropertiesPanel";
 import { CreateExpertModeToggle } from "./create/CreateExpertModeToggle";
 import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
@@ -120,10 +119,6 @@ type FailureCard = Pick<
   StudioOutput,
   "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorMessageShort" | "errorDetail"
 >;
-
-const PulseCreatePropertiesPanel = dynamic<PulseCreatePropertiesPanelProps>(() =>
-  import("./create/PulseCreatePropertiesPanel").then((module) => module.PulseCreatePropertiesPanel)
-);
 
 type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
@@ -798,14 +793,12 @@ export function AiStudioPageContent({
   React.useEffect(() => {
     onSelectedStyleContextChange?.(selectedStyleContext);
   }, [onSelectedStyleContextChange, selectedStyleContext]);
-  const isPulseCreateMode = showExpertCreatePanel && expertCreateMode === "pulse";
   const isQuickSlotToggleAvailable = Boolean(
     resolvedReferenceGridProps.onAddCuratedReference &&
     resolvedReferenceGridProps.onRemoveCuratedReference &&
     resolvedReferenceGridProps.onReorderCuratedReference
   );
-  const isStylesToggleAvailable =
-    !isPrimaryCharacterPanelOpen && showStylesPanelEligible && !isPulseCreateMode;
+  const isStylesToggleAvailable = !isPrimaryCharacterPanelOpen && showStylesPanelEligible;
   const panelToggleAvailability = React.useMemo(
     () => ({
       quickSlot: isQuickSlotToggleAvailable,

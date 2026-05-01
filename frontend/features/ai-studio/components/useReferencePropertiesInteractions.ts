@@ -9,6 +9,7 @@ import {
   extractVideoDragDropPayload,
   isImageDragTransfer,
   isVideoDragTransfer,
+  looksLikeImageUrl,
   looksLikeVideoUrl,
 } from "../utils/dragDrop";
 import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
@@ -170,6 +171,10 @@ export const useReferencePropertiesInteractions = ({
     (setter: (url: string | null) => void) => (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        event.target.value = "";
+        return;
+      }
       const url = URL.createObjectURL(file);
       setter(url);
       event.target.value = "";
@@ -186,7 +191,10 @@ export const useReferencePropertiesInteractions = ({
   const handleImageDrop =
     (setter: (url: string | null) => void) => (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
-      const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
+      const { imageUrl, fromFile, referenceId, mediaKind } = extractDragDropPayload(
+        event.dataTransfer
+      );
+      if (mediaKind && mediaKind !== "image") return;
       let nextUrl = imageUrl;
 
       if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
@@ -194,6 +202,7 @@ export const useReferencePropertiesInteractions = ({
       }
 
       if (!nextUrl) return;
+      if (!looksLikeImageUrl(nextUrl)) return;
 
       const isBlobUrl = nextUrl.startsWith("blob:");
       const canAcceptBlob = fromFile || Boolean(referenceId);

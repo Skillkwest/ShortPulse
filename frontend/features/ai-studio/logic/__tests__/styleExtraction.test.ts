@@ -34,7 +34,7 @@ describe("styleExtraction helpers", () => {
             "Content-Type": "application/json",
             "x-shortpulse-style-attempt-count": "2",
             "x-shortpulse-style-openai-ms": "513",
-            "x-shortpulse-style-model-used": "gpt-5-nano",
+            "x-shortpulse-style-model-used": "gpt-5.4-nano",
           },
         }
       )
@@ -56,7 +56,7 @@ describe("styleExtraction helpers", () => {
     );
     expect(result.probeMs).toBeNull();
     expect(result.openAiMs).toBe(513);
-    expect(result.modelUsed).toBe("gpt-5-nano");
+    expect(result.modelUsed).toBe("gpt-5.4-nano");
   });
 
   it("allows slow upstream extraction responses within the aligned timeout budget", async () => {

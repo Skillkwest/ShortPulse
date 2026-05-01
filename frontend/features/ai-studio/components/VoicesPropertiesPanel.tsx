@@ -81,6 +81,8 @@ const createVoiceDefaultName = "";
 
 const maxVoicePromptCharacters = 1000;
 const minVoicePromptCharacters = 20;
+const minCloneVoiceSourceDurationMs = 60_000;
+const cloneVoiceSourceDurationErrorMessage = "Voice clone source must be at least 1 minute long.";
 const maxVoiceScriptCharacters = 5000;
 const voiceLoadingSkeletonCount = 12;
 const minTopVoicesPaneHeightPx = 0;
@@ -595,11 +597,19 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     selectedVoiceDesignPreviewId !== null &&
     !isDesigningVoice &&
     !isSavingDesignedVoice;
+  const cloneVoiceSourceDurationError =
+    createVoiceMode === "clone" &&
+    cloneVoiceSource?.status === "ready" &&
+    cloneVoiceSource.durationMs != null &&
+    cloneVoiceSource.durationMs < minCloneVoiceSourceDurationMs
+      ? cloneVoiceSourceDurationErrorMessage
+      : null;
   const isCloneVoiceEnabled =
     createVoiceMode === "clone" &&
     voiceName.trim().length > 0 &&
     cloneVoiceSource?.status === "ready" &&
     Boolean(cloneVoiceSource.storagePath) &&
+    !cloneVoiceSourceDurationError &&
     isCloneConsentChecked &&
     !isCloningVoice;
   const activeSliderDefinitions =
@@ -2110,7 +2120,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             activeDesignedPreviewId={activeDesignedPreviewId}
             voiceDesignError={voiceDesignError}
             saveVoiceError={saveVoiceError}
-            cloneVoiceError={cloneVoiceError}
+            cloneVoiceError={cloneVoiceSourceDurationError ?? cloneVoiceError}
             onClose={handleCloseCreatePanel}
             onCreateModeChange={handleCreateVoiceModeChange}
             onVoiceNameChange={setVoiceName}

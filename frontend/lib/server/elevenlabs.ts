@@ -124,6 +124,29 @@ const normalizeOptionalString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const normalizeProviderErrorMessage = (value: unknown): string | null => {
+  const directMessage = normalizeOptionalString(value);
+  if (directMessage) return directMessage;
+  if (Array.isArray(value)) {
+    const messages = value
+      .map((entry) => normalizeProviderErrorMessage(entry))
+      .filter((entry): entry is string => Boolean(entry));
+    return messages.length ? messages.join(" ") : null;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const message =
+      normalizeOptionalString(record.message) ??
+      normalizeOptionalString(record.msg) ??
+      normalizeOptionalString(record.reason) ??
+      normalizeOptionalString(record.error);
+    if (message) return message;
+    const nested = normalizeProviderErrorMessage(record.detail);
+    if (nested) return nested;
+  }
+  return null;
+};
+
 const associateGeneratedElevenLabsAssetWithProject = async ({
   generationId,
   mediaKind,
@@ -486,7 +509,7 @@ export const createElevenLabsClonedVoice = async ({
   }
   formData.append("remove_background_noise", removeBackgroundNoise ? "true" : "false");
   formData.append(
-    "files",
+    "files[]",
     new Blob([sourceBuffer], { type: sourceMimeType ?? "application/octet-stream" }),
     sourceFilename
   );
@@ -499,17 +522,33 @@ export const createElevenLabsClonedVoice = async ({
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message =
-      normalizeOptionalString((payload as { detail?: unknown } | null)?.detail) ??
-      normalizeOptionalString((payload as { error?: unknown } | null)?.error) ??
+      normalizeProviderErrorMessage((payload as { detail?: unknown } | null)?.detail) ??
+      normalizeProviderErrorMessage((payload as { error?: unknown } | null)?.error) ??
       "ElevenLabs voice clone request failed.";
-    throw new Error(message);
+    const error = new Error(message) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
 
   const normalizedVoice = normalizeElevenLabsVoice(payload as Record<string, unknown>);
-  if (!normalizedVoice) {
+  if (normalizedVoice) {
+    return normalizedVoice;
+  }
+  const clonedVoiceId =
+    normalizeOptionalString(
+      (payload as { voice_id?: unknown; voiceId?: unknown } | null)?.voice_id
+    ) ??
+    normalizeOptionalString((payload as { voice_id?: unknown; voiceId?: unknown } | null)?.voiceId);
+  if (!clonedVoiceId) {
     throw new Error("ElevenLabs returned an invalid cloned voice payload.");
   }
-  return normalizedVoice;
+  return {
+    voiceId: clonedVoiceId,
+    name: voiceName,
+    previewUrl: null,
+    description: voiceDescription?.trim() || null,
+    isFallback: false,
+  };
 };
 
 /**

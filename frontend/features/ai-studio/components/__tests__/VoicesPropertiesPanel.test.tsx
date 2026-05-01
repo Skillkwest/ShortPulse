@@ -1414,6 +1414,7 @@ describe("VoicesPropertiesPanel", () => {
       ".voices-create-modal .voices-properties-voice-changer-file-input"
     ) as HTMLInputElement | null;
     expect(fileInput).not.toBeNull();
+    resolveVoiceChangerMediaDurationMsMock.mockResolvedValueOnce(72_000);
     const file = new File(["audio"], "clone-sample.mp3", { type: "audio/mpeg" });
     fireEvent.change(fileInput as HTMLInputElement, {
       target: { files: [file] },
@@ -1454,6 +1455,35 @@ describe("VoicesPropertiesPanel", () => {
       "aria-pressed",
       "true"
     );
+  });
+
+  it("blocks cloned voice creation when the staged sample is under one minute", async () => {
+    render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Create New Voice" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Clone Voice" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice name" }), {
+      target: { value: "Short Clone" },
+    });
+
+    const fileInput = document.querySelector(
+      ".voices-create-modal .voices-properties-voice-changer-file-input"
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+    resolveVoiceChangerMediaDurationMsMock.mockResolvedValueOnce(5_000);
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [new File(["audio"], "short-sample.mp3", { type: "audio/mpeg" })] },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Voice clone source must be at least 1 minute long.")
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText("I have permission to clone this voice."));
+    expect(screen.getByRole("button", { name: "Create cloned voice" })).toBeDisabled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 
   it("keeps generate previews available while preview generation is running", async () => {

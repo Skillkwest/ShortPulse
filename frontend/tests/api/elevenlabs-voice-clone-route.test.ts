@@ -43,7 +43,7 @@ describe("POST /api/elevenlabs/voices/clone", () => {
       contentType: "audio/mpeg",
       size: 12,
     });
-    probeMediaDurationSecondsMock.mockResolvedValue(12);
+    probeMediaDurationSecondsMock.mockResolvedValue(72);
     createElevenLabsClonedVoiceMock.mockResolvedValue({
       voiceId: "cloned-voice-1",
       name: "Cloned Narrator",
@@ -116,7 +116,7 @@ describe("POST /api/elevenlabs/voices/clone", () => {
   });
 
   it("rejects samples shorter than the clone quality floor", async () => {
-    probeMediaDurationSecondsMock.mockResolvedValue(1.5);
+    probeMediaDurationSecondsMock.mockResolvedValue(5);
     const req = {
       method: "POST",
       body: {
@@ -132,7 +132,32 @@ describe("POST /api/elevenlabs/voices/clone", () => {
     expect(res.status).toHaveBeenCalledWith(422);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid request",
-      details: "Voice clone source must be at least 3 seconds long.",
+      details: "Voice clone source must be at least 1 minute long.",
+    });
+  });
+
+  it("returns provider validation details when ElevenLabs rejects the clone", async () => {
+    const providerError = new Error("Voice clone source audio is too short.") as Error & {
+      status: number;
+    };
+    providerError.status = 422;
+    createElevenLabsClonedVoiceMock.mockRejectedValueOnce(providerError);
+    const req = {
+      method: "POST",
+      body: {
+        voiceName: "Rejected Clone",
+        sourceStoragePath: "user-1/voice-clone/source-audio/source.mp3",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(saveVoiceForUserMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to clone voice",
+      details: "Voice clone source audio is too short.",
     });
   });
 

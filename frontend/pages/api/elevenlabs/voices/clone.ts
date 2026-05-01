@@ -33,7 +33,7 @@ type VoiceCloneErrorResponse = {
 };
 
 const MAX_VOICE_CLONE_SOURCE_BYTES = 100 * 1024 * 1024;
-const MIN_VOICE_CLONE_SOURCE_DURATION_SECONDS = 3;
+const MIN_VOICE_CLONE_SOURCE_DURATION_SECONDS = 60;
 const SUPPORTED_VOICE_CLONE_AUDIO_MIME_TYPES = new Set([
   "audio/aac",
   "audio/flac",
@@ -82,6 +82,13 @@ const isSupportedVoiceCloneAudio = ({
     return true;
   }
   return SUPPORTED_VOICE_CLONE_AUDIO_EXTENSION_PATTERN.test(filename.trim());
+};
+
+const normalizeProviderStatus = (error: unknown): number => {
+  const status = (error as { status?: unknown } | null)?.status;
+  if (typeof status !== "number" || !Number.isInteger(status)) return 500;
+  if (status < 400 || status > 599) return 500;
+  return status;
 };
 
 export default async function handler(
@@ -150,7 +157,7 @@ export default async function handler(
     if (sourceDurationSeconds < MIN_VOICE_CLONE_SOURCE_DURATION_SECONDS) {
       return res.status(422).json({
         error: "Invalid request",
-        details: `Voice clone source must be at least ${MIN_VOICE_CLONE_SOURCE_DURATION_SECONDS} seconds long.`,
+        details: "Voice clone source must be at least 1 minute long.",
       });
     }
 
@@ -201,7 +208,7 @@ export default async function handler(
       user,
     });
 
-    return res.status(500).json({
+    return res.status(normalizeProviderStatus(error)).json({
       error: "Unable to clone voice",
       details: error instanceof Error ? error.message : "Unknown error",
     });

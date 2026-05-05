@@ -4,8 +4,8 @@ Purpose: track Pulse's current workflow references and emerging task-specific SO
 
 ## Active References
 
-- `docs/sops/sop_agent_training_and_nurture.md`
-- `docs/sops/sop_agent_post_run_training_audit.md`
+- `agent-teaching/README.md`
+- `agent-teaching/operations/post-run-performance-analysis-interview.md`
 - `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_pulse_mode.md`
@@ -27,4 +27,3 @@ Purpose: track Pulse's current workflow references and emerging task-specific SO
 - Whether Pulse needs a dedicated implementation SOP beyond the current contract and AI Studio SOPs.
 - Whether Pulse needs a review/approval SOP for completed Create runtime work.
 - Whether helper scripts or eval fixtures are warranted for repeated Standard/Pulse boundary checks.
-

@@ -68,6 +68,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 - SQL/migrations: read `docs/sops/sop_sql_migration_operations.md`, `docs/database-migrations.md`, `docs/security-checklist.md`, and impacted files under `sql/migrations/`.
 - Routes/UI behavior: read `README.md`, `docs/routes.md`, and the relevant SOP(s).
 - Pricing/credits changes: run `skills/skill-pricing-audit/SKILL.md`.
+- New agent creation/training/maintenance: read `agent-teaching/README.md`, `agent-teaching/foundations/how-to-decide-what-your-agent-can-do.md`, `agent-teaching/setup/new-codex-project-setup.md`, `agent-teaching/setup/define-agent-identity.md`, `agent-teaching/operations/post-run-performance-analysis-interview.md`, `agent-teaching/operations/create-baseline-kpi.md`, and `agent-teaching/foundations/agent-maintenance-field-guide.md`; use `agent-teaching/prompts/agent-setup-prompt.md`, `agent-teaching/prompts/agent-contract.md`, and `agent-teaching/prompts/agentic-research-prompt-pattern.md` as needed; create/update the relevant `docs/agents/<agent-name>/` contract and `docs/records/artifacts/agent/<agent-name>/` memory/report area when durable agent state is needed.
 - Docs/index drift: run `skills/skill-doc-index/SKILL.md` or `skills/skill-mvp-docs-sop-governance/SKILL.md`.
 - Audit/inspection/online research: run `skills/skill-subagent-audit-research/SKILL.md`.
 

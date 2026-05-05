@@ -12,7 +12,7 @@ This SOP covers:
 - Logical batch planning.
 - Per-batch review and validation.
 - Staging and committing approved batches.
-- Commit evidence reporting.
+- Commit evidence recording.
 
 This SOP does not cover:
 
@@ -36,7 +36,7 @@ For push, pull request, review-routing, merge queue, auto-merge, merge, and post
 
 ## Required Preconditions
 
-- Confirm implementation mode and that the user has explicitly asked for worktree organization and/or commits.
+- Confirm the current prompt rung/mode: analyze/no-edit, organize/validate, fix, commit, or push.
 - Run the workspace artifact safety check before broad commands.
 - Verify the current branch and allowed branch:
   ```bash
@@ -57,11 +57,21 @@ Treat the user's prompt sequence as an authorization ladder. Do not move to a la
 | Analyze worktree | Inspect branch, status, diffs, staged state, and risk areas. | Edit, stage, commit, push, or open a PR. |
 | Organize/group changes | Produce logical batches, test plan, risk map, and mixed-file warnings; run requested or safe validation. | Stage, commit, or push. |
 | Double-check tests | Run targeted or full validation and report exact failures. | Change product behavior or commit. |
-| Fix failures with constraints | Fix only inside the authorized scope, such as test-only or no UI/UX/behavior changes. | Broaden scope by adjacency or alter user-visible behavior without permission. |
+| Fix failures with constraints | Default to test-only or otherwise non-behavioral fixes. Only make UI/UX/behavior changes when the user explicitly authorizes that broader scope. | Broaden scope by adjacency or alter user-visible behavior without explicit permission. |
 | Commit changes | Stage reviewed batch paths, verify staged diff, and commit logical batches. | Push or open a PR. |
 | Push changes | Push only the current approved branch after push-readiness checks. | Open a PR, merge, deploy, or promote branches unless asked. |
 
 If a prompt is ambiguous, use the safest lower rung and ask before mutating Git state or product behavior.
+
+## Output Discipline
+
+Default to minimal user-facing output.
+
+- Keep the full batch manifest, validation notes, and risk map as internal working state unless the user asks for detail.
+- Do not proactively summarize every batch.
+- For analyze/organize prompts, report only blockers, mixed-file risks, and the next safe action unless the user explicitly asks for the batch list.
+- For commit/push prompts, report only the action taken, validation result, and any intentionally deferred work.
+- Create or update a durable report only when the run is substantial or the SOP already requires one.
 
 ## Batch Principles
 
@@ -137,7 +147,7 @@ Do not include:
 
 ### 3. Build A Batch Plan
 
-Create a short plan before staging:
+Create a short internal plan before staging:
 
 ```text
 Batch 1: <name>
@@ -202,7 +212,7 @@ For a large, mixed, or cross-cutting worktree, full test green is the commit-rea
 1. Run targeted tests for each affected batch.
 2. Run the full suite before declaring the worktree commit-ready.
 3. If tests fail, do not commit. Report exact failing files, tests, expected/actual values, and whether the failures are deterministic.
-4. Fix only within the user's authorized scope.
+4. Default to test-only or otherwise non-behavioral fixes. If green tests appear to require a UI/UX/behavior change, stop and ask unless the user already authorized that broader scope.
 5. Re-run the failing files first.
 6. Re-run the full suite after fixes.
 7. Commit only when tests are green, unless the user explicitly authorizes a known-failing checkpoint commit.
@@ -316,15 +326,12 @@ Repeat batch planning, inspection, validation, staging, and commit steps until:
 
 ## Final Report
 
-After the workflow, report:
+After the workflow, report only the minimum needed for the current rung:
 
-- Current branch and allowed branch.
-- Commit hashes and subjects created.
-- Batch names and file groups.
-- Validation commands and outcomes.
-- Deferred or uncommitted changes.
-- Any skipped validation and why.
-- Any residual risks or required follow-up.
+- Analyze/organize: blockers, mixed-file risks, and next safe action.
+- Commit: commit hashes/subjects, validation result, and deferred work.
+- Push: pushed branch, validation result if rerun, and deferred work.
+- Include skipped validation or residual risk only when it changes the stop/go decision.
 
 For substantial multi-batch worktree operations, also create or update a Gear Ball report under `docs/agents/gear-ball/reports/` using the template in `docs/agents/gear-ball/reports/README.md`. Include:
 
@@ -348,5 +355,6 @@ Stop and ask for human review when:
 - A batch includes secrets, raw env values, customer-private data, or unclear credential material.
 - A database, Vercel, deployment, or production-target action is implied but not explicitly authorized.
 - Validation fails in a way that changes batch risk or product intent.
+- The apparent path to green tests requires a UI/UX/behavior change that the user has not explicitly authorized.
 - Required tests are failing. Continue iterating inside the authorized scope until tests are green, or stop for user approval of a known-failing checkpoint.
 - The only way forward appears to require destructive Git commands, history rewrite, branch switching, force push, or direct push to `main`.

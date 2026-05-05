@@ -31,3 +31,25 @@ Next training focus:
 - Run Pulse on one real Create panel or Standard/Pulse runtime task.
 - Require direct validation of mode isolation, prompt ownership, and artifact routing before marking the run complete.
 
+## 2026-05-01: Create Agent Route Cleanup Implementation
+
+Task: remove fallback, legacy, alternative, and backup agent routes from the AI Studio Create panel for Standard and Pulse modes.
+
+Actions taken:
+
+- Removed Standard direct-bypass request fields, env flags, panel props, and route handling from the active Create agent contract.
+- Forced Standard Create into the route-owned chat-first runtime and removed the persisted chat-off runtime hook from active Create.
+- Converted Standard upstream/provider/contract failures into explicit error payloads instead of success-shaped assistant recovery responses.
+- Collapsed Pulse runtime execution onto the single-stage guided route path and removed legacy V2, text fast-path, and generic route switches from active Create.
+- Removed the generic `/api/ai/studio-agent` route file and updated route/docs references to the Standard/Pulse route pair.
+- Updated Pulse memory and SOP references to preserve the route contract for future work.
+
+Validation:
+
+- `cd frontend && npx tsc --noEmit --pretty false`
+- `cd frontend && npm test -- --run tests/api/studio-agent.runtime.test.ts tests/api/studio-agent.runtime.workflow-bypass.test.ts features/ai-agent/__tests__/createAgentBoundary.test.ts`
+
+Training result:
+
+- Pulse completed its first supervised Create panel / agent-runtime implementation run.
+- Durable lesson added: active Create agent traffic has exactly two valid routes, Standard and Pulse.

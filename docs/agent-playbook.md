@@ -60,6 +60,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Use `skills/skill-subagent-audit-research/SKILL.md` when the user asks to audit, inspect, investigate, or do online research; use subagents for substantive lanes when available, allowed, and useful, and close unused subagents at will.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
 - Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.
+- Use `agent-teaching/README.md` when creating, training, maintaining, or refreshing task-specific agents, and follow its Notion-mirrored setup and training sequence.
 - Use `skills/palette-normalizer/SKILL.md` for dry-run-first CSS palette drift audits and safe normalization passes.
 - Use `skills/skill-mvp-security-audit/SKILL.md` when executing P0 security blockers from the MVP pre-tester remediation plan.
 - Use `skills/skill-mvp-modularization-pass/SKILL.md` when splitting oversized files and enforcing modularity thresholds.

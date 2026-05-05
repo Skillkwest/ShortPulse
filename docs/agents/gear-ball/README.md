@@ -101,13 +101,13 @@ Next organize and group the changes into logical batches and run the relevant te
 
 Double check all tests are passing.
 
-Fix any issue with no UI/UX or behavior changes. Continue iterating until the failing files and full suite are green.
+Fix any issue with no UI/UX or behavior changes. Continue iterating until the failing files and full suite are green. If green tests appear to require a UI/UX/behavior change, stop and ask first.
 
 Double check all tests are passing.
 
 Now commit changes. Organize and commit in logical batches.
 
-Now push all changes on the current approved branch.
+Now push all committed changes on the current approved branch.
 ```
 
 For substantial runs, copy the report template from `docs/agents/gear-ball/reports/README.md` and fill it as evidence before final closeout.

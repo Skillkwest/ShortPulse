@@ -4,9 +4,9 @@ Purpose: store non-authoritative retained artifacts for Pulse's AI Studio Create
 
 ## Status
 
-Pulse is newly established and currently at `Level 1: Supervised`.
+Pulse is currently at `Level 1: Supervised`.
 
-The agent has a durable contract and memory area. It has not yet completed a real supervised Create panel or agent-runtime implementation run.
+The agent has a durable contract and memory area, and has completed one supervised Create panel / agent-runtime implementation run.
 
 ## Artifact Layout
 
@@ -29,4 +29,3 @@ These artifacts support Pulse training and traceability. They do not override ca
 - Pulse mode SOP: `docs/sops/sop_ai_studio_pulse_mode.md`
 - Runtime isolation ADR: `docs/adr/0061-ai-studio-standard-vs-pulse-runtime-isolation-contract.md`
 - Mode-owned roots ADR: `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
-

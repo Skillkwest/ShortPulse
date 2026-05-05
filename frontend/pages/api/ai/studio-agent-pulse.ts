@@ -7,7 +7,10 @@ import { runPulseStudioAgentRuntime } from "../../../features/agent-runtime/puls
 import {
   hasInboundStudioAgentCanonicalPrompt,
   hasStudioAgentPulseContext,
+  isRetiredCreatePulsePresetId,
   isPulseCreateAgentSessionNamespace,
+  readPulsePresetIdFromContext,
+  readPulsePresetIdFromSessionNamespace,
   readStudioAgentClientSessionNamespace,
 } from "../../../features/agent-runtime/studioAgentRouteModeBoundary";
 
@@ -17,21 +20,24 @@ import {
 export default async function pulseStudioAgentHandler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "POST") {
     const clientSessionNamespace = readStudioAgentClientSessionNamespace(req.body);
+    const contextPresetId = readPulsePresetIdFromContext(req.body?.context);
+    const namespacePresetId = readPulsePresetIdFromSessionNamespace(clientSessionNamespace);
     if (
       req.body?.runtimeMode === "standard" ||
       !hasStudioAgentPulseContext(req.body?.context) ||
       !isPulseCreateAgentSessionNamespace(clientSessionNamespace) ||
-      hasInboundStudioAgentCanonicalPrompt(req.body)
+      hasInboundStudioAgentCanonicalPrompt(req.body) ||
+      isRetiredCreatePulsePresetId(contextPresetId) ||
+      isRetiredCreatePulsePresetId(namespacePresetId)
     ) {
       return res.status(400).json({
         code: "INVALID_REQUEST",
-        message: "Pulse agent route requires Pulse runtime context.",
+        message: "Pulse agent route requires an active Pulse runtime context.",
       });
     }
     req.body = {
       ...req.body,
       canonicalPrompt: null,
-      directOpenAiBypass: false,
       runtimeMode: "pulse",
     };
   }

@@ -11,6 +11,5 @@ import { sendStudioAgentTurnToEndpoint } from "./studioAgentTransport";
 export const sendPulseCreateAgentTurn = (body: AgentApiRequest) =>
   sendStudioAgentTurnToEndpoint("/api/ai/studio-agent-pulse", {
     ...body,
-    directOpenAiBypass: false,
     runtimeMode: "pulse",
   });

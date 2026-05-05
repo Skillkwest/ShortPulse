@@ -12,6 +12,8 @@ import type { AgentAttachment, AgentAttachmentDeliveryStatus } from "../../../pr
 
 const MAX_AGENT_ATTACHMENTS = 10;
 const MAX_AGENT_IMAGE_ATTACHMENTS = 3;
+const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
+const RENDERABLE_ATTACHMENT_IMAGE_URL_PATTERN = /^(?:data:image\/|blob:|https?:\/\/|\/)/i;
 
 const attachmentSignature = (attachment: AgentAttachment) =>
   attachment.referenceId
@@ -42,11 +44,33 @@ const normalizeAttachmentImageUrl = (value: string | null) => {
 };
 
 const normalizeDroppedImageCandidate = (value: string | null | undefined) => {
-  const normalizedTransferValue = normalizeReferenceTransferUrlCandidate(value);
+  const rawValue = typeof value === "string" ? value.trim() : "";
+  if (!rawValue || !RENDERABLE_ATTACHMENT_IMAGE_URL_PATTERN.test(rawValue)) {
+    return null;
+  }
+  const normalizedTransferValue = normalizeReferenceTransferUrlCandidate(rawValue, {
+    unwrapNextImage: false,
+  });
   const normalized = normalizeAttachmentImageUrl(normalizedTransferValue ?? value ?? null);
   if (!normalized) return null;
   if (!looksLikeImageUrl(normalized) || looksLikeVideoUrl(normalized)) return null;
   return normalized;
+};
+
+const isDataImageCandidate = (value: string) =>
+  value.trim().toLowerCase().startsWith("data:image/");
+
+const resolveDroppedImageUrls = (candidates: Array<string | null | undefined>) => {
+  const normalizedCandidates = candidates
+    .map((candidate) => normalizeDroppedImageCandidate(candidate))
+    .filter((candidate): candidate is string => Boolean(candidate));
+  const dedupedCandidates = Array.from(new Set(normalizedCandidates));
+  const durableCandidates = dedupedCandidates.filter(
+    (candidate) => !isDataImageCandidate(candidate)
+  );
+  const dataCandidates = dedupedCandidates.filter(isDataImageCandidate);
+
+  return [...durableCandidates, ...dataCandidates];
 };
 
 type UseAiStudioAgentComposerParams = {
@@ -221,17 +245,24 @@ export const useAiStudioAgentComposer = ({
       const transferReferenceUrl =
         normalizeReferenceTransferUrlCandidate(event.dataTransfer.getData("text/reference-url")) ??
         null;
+      const transferRenderUrl =
+        normalizeReferenceTransferUrlCandidate(
+          event.dataTransfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
+          { unwrapNextImage: false }
+        ) ?? null;
       const normalizedPromptText =
         payload.promptText?.trim() ||
         matchedOutput?.prompt?.trim() ||
         matchedOutput?.previewText?.trim() ||
         null;
-      const normalizedImageUrl =
-        normalizeDroppedImageCandidate(resolvedPreviewUrl) ||
-        normalizeDroppedImageCandidate(matchedOutputImageUrl) ||
-        normalizeDroppedImageCandidate(transferReferenceUrl) ||
-        normalizeDroppedImageCandidate(payload.imageUrl) ||
-        null;
+      const normalizedImageUrls = resolveDroppedImageUrls([
+        payload.imageUrl,
+        transferReferenceUrl,
+        matchedOutputImageUrl,
+        resolvedPreviewUrl,
+        transferRenderUrl,
+      ]);
+      const normalizedImageUrl = normalizedImageUrls[0] ?? null;
 
       if (!normalizedImageUrl && !normalizedPromptText) return;
       if (!agentSessionEnabled) {
@@ -245,6 +276,7 @@ export const useAiStudioAgentComposer = ({
           kind: "image",
           referenceId: droppedReferenceId,
           imageUrl: normalizedImageUrl,
+          imageFallbackUrls: normalizedImageUrls.slice(1),
           text: normalizedPromptText,
           aspect: matchedOutput?.aspect ?? null,
         });

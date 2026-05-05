@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  buildStudioAgentInfraFallbackPayload,
   buildStudioAgentSafetyRefusalPayload,
   buildStudioAgentRouteFailurePayload,
   buildStudioAgentUpstreamErrorPayload,
@@ -16,7 +15,7 @@ describe("studioAgentRouteOutcomes", () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     emitStudioAgentTurnTelemetry({
       flow: "TEXT_ONLY",
-      path: "text_fast_path",
+      path: "pulse_agent",
       status: "success",
       model: "gpt-default",
       outcomeClass: "success_prompt",
@@ -215,48 +214,6 @@ describe("studioAgentRouteOutcomes", () => {
       actions: undefined,
       canonicalPrompt: "existing canonical",
       traceId: "trace-refuse",
-    });
-  });
-
-  it("builds infra fallback payload with optional fallback reason label", () => {
-    expect(
-      buildStudioAgentInfraFallbackPayload({
-        traceId: "trace-fallback",
-        canonicalPrompt: "existing canonical",
-        reasonCode: "INFRA_FALLBACK_TIMEOUT",
-        fallbackReason: "timeout",
-      })
-    ).toEqual({
-      decision: "allow",
-      outcome_class: "fallback_infra",
-      reason_code: "INFRA_FALLBACK_TIMEOUT",
-      retryable: true,
-      message: "I can't process that request right now. Please try again.",
-      actions: undefined,
-      fallback_reason: "timeout",
-      canonicalPrompt: "existing canonical",
-      traceId: "trace-fallback",
-    });
-  });
-
-  it("marks output-contract infra fallback payloads as non-retryable", () => {
-    expect(
-      buildStudioAgentInfraFallbackPayload({
-        traceId: "trace-contract-fallback",
-        canonicalPrompt: "existing canonical",
-        reasonCode: "INFRA_FALLBACK_OUTPUT_CONTRACT",
-        fallbackReason: "parse_repair_failed",
-      })
-    ).toEqual({
-      decision: "allow",
-      outcome_class: "fallback_infra",
-      reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
-      retryable: false,
-      message: "I can't process that request right now. Please try again.",
-      actions: undefined,
-      fallback_reason: "parse_repair_failed",
-      canonicalPrompt: "existing canonical",
-      traceId: "trace-contract-fallback",
     });
   });
 });

@@ -3,7 +3,7 @@
  */
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import PerformanceAnalyticsPage from "../../pages/performance";
 
 vi.mock("next/head", () => ({
@@ -33,15 +33,6 @@ vi.mock("../../features/billing/useResolvedAccountPlan", () => ({
 }));
 
 describe("Performance analytics route behavior", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-03-23T19:30:00.000Z"));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("updates the route sort state from the sort menu", () => {
     const { container } = render(<PerformanceAnalyticsPage />);
 
@@ -59,20 +50,26 @@ describe("Performance analytics route behavior", () => {
   });
 
   it("shows a busy refresh state and restores the idle state after the refresh delay", async () => {
-    render(<PerformanceAnalyticsPage />);
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-23T19:30:00.000Z"));
+    try {
+      render(<PerformanceAnalyticsPage />);
 
-    const refreshButton = screen.getByRole("button", { name: /refresh videos/i });
-    fireEvent.click(refreshButton);
+      const refreshButton = screen.getByRole("button", { name: /refresh videos/i });
+      fireEvent.click(refreshButton);
 
-    expect(screen.getByText("Refreshing…")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /refreshing/i })).toBeDisabled();
+      expect(screen.getByText("Refreshing…")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /refreshing/i })).toBeDisabled();
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(500);
-    });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
 
-    expect(screen.getByText("Refresh videos")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /refresh videos/i })).not.toBeDisabled();
+      expect(screen.getByText("Refresh videos")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /refresh videos/i })).not.toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("opens and closes the selected video detail modal", () => {

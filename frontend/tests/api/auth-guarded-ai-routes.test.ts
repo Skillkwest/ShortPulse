@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import extractStyleHandler from "../../pages/api/ai/extract-style";
-import studioAgentHandler from "../../pages/api/ai/studio-agent";
+import standardStudioAgentHandler from "../../pages/api/ai/studio-agent-standard";
 import saveSessionHandler from "../../pages/api/ai/sessions/save";
 import getSessionHandler from "../../pages/api/ai/sessions/[sid]";
 import listSessionsHandler from "../../pages/api/ai/sessions";
@@ -48,14 +48,14 @@ describe("API auth guards: AI routes", () => {
     expect(requireApiUserMock).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects unauthenticated studio-agent requests", async () => {
+  it("rejects unauthenticated Standard studio-agent requests", async () => {
     const req = {
       method: "POST",
       body: { messages: [{ role: "user", content: "refine this prompt" }] },
     };
     const res = createMockResponse();
 
-    await studioAgentHandler(req as never, res as never);
+    await standardStudioAgentHandler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(requireApiUserMock).toHaveBeenCalledTimes(1);

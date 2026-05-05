@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AgentPulseWorkflowSession } from "../../../../../prefabs/agent";
 import {
-  pruneInactivePulseBridgeRuntimeStates,
+  pruneInactivePulseRuntimeStates,
   resolvePulseAgentSessionNamespace,
   resolvePulseWorkflowArtifactPrompt,
-} from "../pulseBridgeRuntimeState";
+} from "../pulseRuntimeState";
 
-describe("pulseBridgeRuntimeState", () => {
+describe("pulseRuntimeState", () => {
   it("builds pending and concrete Pulse agent namespaces", () => {
     expect(
       resolvePulseAgentSessionNamespace({
@@ -32,7 +32,7 @@ describe("pulseBridgeRuntimeState", () => {
     };
 
     expect(
-      pruneInactivePulseBridgeRuntimeStates({
+      pruneInactivePulseRuntimeStates({
         current,
         sessionId: "session-1",
         hasStoredPulseSession: true,

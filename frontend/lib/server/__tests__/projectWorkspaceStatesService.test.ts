@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import {
   getProjectWorkspaceStateForUser,
+  InvalidProjectWorkspaceSnapshotError,
   upsertProjectWorkspaceStateForUser,
 } from "../projectWorkspaceStatesService";
 
@@ -306,6 +307,24 @@ describe("projectWorkspaceStatesService", () => {
     vi.clearAllMocks();
   });
 
+  it("rejects snapshots that fit the size gate but fail the restore-shape contract", async () => {
+    createSupabaseMock();
+
+    await expect(
+      upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-23T01:00:00.000Z",
+          workspace: {},
+        },
+      })
+    ).rejects.toBeInstanceOf(InvalidProjectWorkspaceSnapshotError);
+  });
+
   it("backfills owned media and prompt ids from the workspace snapshot before saving", async () => {
     const {
       mediaAssociationUpsert,
@@ -321,6 +340,33 @@ describe("projectWorkspaceStatesService", () => {
       meta: {
         generatedAt: "2026-04-23T01:00:00.000Z",
         checksum: "fnv1a32:legacy",
+      },
+      workspace: {
+        mode: "image",
+        selectedTool: "create",
+        prompt: "Legacy prompt",
+        standardPrompt: "Legacy prompt",
+        model: "fal-ai/seedream",
+        aspect: "9:16",
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingWorkflowMode: "single",
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
       },
       outputs: {
         active: [

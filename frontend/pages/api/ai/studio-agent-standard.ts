@@ -8,7 +8,6 @@ import {
   hasInboundStudioAgentCanonicalPrompt,
   hasStudioAgentPulseContext,
   isPulseCreateAgentSessionNamespace,
-  isStandardCreateAgentSessionNamespace,
   readStudioAgentClientSessionNamespace,
 } from "../../../features/agent-runtime/studioAgentRouteModeBoundary";
 
@@ -21,10 +20,7 @@ export default async function standardStudioAgentHandler(
 ) {
   if (req.method === "POST") {
     const clientSessionNamespace = readStudioAgentClientSessionNamespace(req.body);
-    const hasCrossModeContinuity =
-      isPulseCreateAgentSessionNamespace(clientSessionNamespace) ||
-      (hasInboundStudioAgentCanonicalPrompt(req.body) &&
-        !isStandardCreateAgentSessionNamespace(clientSessionNamespace));
+    const hasCrossModeContinuity = isPulseCreateAgentSessionNamespace(clientSessionNamespace);
     if (
       req.body?.runtimeMode === "pulse" ||
       hasStudioAgentPulseContext(req.body?.context) ||
@@ -33,6 +29,12 @@ export default async function standardStudioAgentHandler(
       return res.status(400).json({
         code: "INVALID_REQUEST",
         message: "Standard agent route does not accept Pulse runtime payloads.",
+      });
+    }
+    if (hasInboundStudioAgentCanonicalPrompt(req.body)) {
+      return res.status(400).json({
+        code: "INVALID_REQUEST",
+        message: "Standard agent route does not accept canonicalPrompt.",
       });
     }
     req.body = {

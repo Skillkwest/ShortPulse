@@ -235,10 +235,6 @@ export const runStandardCreateAgentSend = async ({
       updateOptimisticAttachmentDelivery(imageAttachmentIds, "ready", null);
     }
 
-    const shouldInjectLatestAgentPrompt = Boolean(latestAgentPrompt) && outboundText.length > 0;
-    if (shouldInjectLatestAgentPrompt) {
-      baseContext.activePrompt = latestAgentPrompt;
-    }
     const requestContext = mergeAttachmentContext({
       baseContext,
       attachments: outboundAttachments,

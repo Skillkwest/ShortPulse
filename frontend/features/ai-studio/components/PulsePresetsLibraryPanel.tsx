@@ -1,6 +1,6 @@
 /**
  * Primary Pulse Presets library panel for AI Studio.
- * Edits the same persisted Pulse catalog and built-in overrides consumed by the Create Pulse rail.
+ * Edits the per-user custom Pulse catalog while built-in Pulse definitions stay admin-owned.
  */
 import React from "react";
 import { TrashSimple } from "phosphor-react";
@@ -13,6 +13,7 @@ import {
   isCreatePulseBuiltInPresetId,
   resolveCreatePulsePresetById,
   resolveCreatePulsePresetCatalog,
+  type CreatePulseBuiltInPresetDefinition,
   upsertCreatePulseSavedPreset,
   type CreatePulsePresetId,
   type CreatePulseSavedPreset,
@@ -22,6 +23,7 @@ import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdro
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type PulsePresetsLibraryPanelProps = {
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
   savedPresets?: readonly CreatePulseSavedPreset[];
   onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => Promise<boolean> | boolean | void;
 };
@@ -40,6 +42,7 @@ type PendingPulsePresetDeleteState = {
 };
 
 export function PulsePresetsLibraryPanel({
+  builtInDefinitions,
   savedPresets = [],
   onSavedPresetsChange,
 }: PulsePresetsLibraryPanelProps) {
@@ -53,13 +56,15 @@ export function PulsePresetsLibraryPanel({
   const [localSaveError, setLocalSaveError] = React.useState<string | null>(null);
 
   const resolvedPresets = React.useMemo(
-    () => resolveCreatePulsePresetCatalog(savedPresets),
-    [savedPresets]
+    () => resolveCreatePulsePresetCatalog(savedPresets, builtInDefinitions),
+    [builtInDefinitions, savedPresets]
   );
   const nextPresetNumber = React.useMemo(
     () =>
-      savedPresets.filter((preset) => !isCreatePulseBuiltInPresetId(preset.presetId)).length + 1,
-    [savedPresets]
+      savedPresets.filter(
+        (preset) => !isCreatePulseBuiltInPresetId(preset.presetId, builtInDefinitions)
+      ).length + 1,
+    [builtInDefinitions, savedPresets]
   );
 
   const closeEditModal = React.useCallback(() => {
@@ -86,7 +91,11 @@ export function PulsePresetsLibraryPanel({
     setLocalSaveError(null);
     try {
       let saved: boolean | void;
-      const resolvedPreset = resolveCreatePulsePresetById(pendingPresetEdit.presetId, savedPresets);
+      const resolvedPreset = resolveCreatePulsePresetById(
+        pendingPresetEdit.presetId,
+        savedPresets,
+        builtInDefinitions
+      );
       const artifactTarget =
         resolvedPreset?.artifactTarget ?? CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET;
       if (pendingPresetEdit.mode === "create") {
@@ -139,7 +148,7 @@ export function PulsePresetsLibraryPanel({
     } finally {
       setEditSubmitting(false);
     }
-  }, [editSubmitting, onSavedPresetsChange, pendingPresetEdit, savedPresets]);
+  }, [builtInDefinitions, editSubmitting, onSavedPresetsChange, pendingPresetEdit, savedPresets]);
 
   const handleDeletePreset = React.useCallback(async () => {
     if (!pendingPresetDelete || deleteSubmitting || !onSavedPresetsChange) return;
@@ -193,8 +202,9 @@ export function PulsePresetsLibraryPanel({
       <header className="pulse-presets-library-header">
         <p className="eyebrow">Pulses</p>
         <p className="tiny subdued helper-text">
-          Manage the shared Pulse catalog here. Activate Pulses from the Create Pulse rail or More
-          Pulses. Switching or deactivating a Pulse starts a fresh guided session.
+          Manage custom Pulses here. Built-in Pulse definitions are shared globally and edited from
+          Admin Agent Instructions. Activate Pulses from the Create Pulse rail or More Pulses.
+          Switching or deactivating a Pulse starts a fresh guided session.
         </p>
       </header>
       <div className="pulse-presets-library-scroll">
@@ -219,6 +229,9 @@ export function PulsePresetsLibraryPanel({
                   onClick={() => {
                     setSelectedPresetId(preset.presetId);
                     setLocalSaveError(null);
+                    if (!preset.isCustom) {
+                      return;
+                    }
                     setPendingPresetEdit({
                       presetId: preset.presetId,
                       presetLabel: preset.label,

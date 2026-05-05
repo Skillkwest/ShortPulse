@@ -1,6 +1,6 @@
 /**
  * Shared route-level machine-outcome telemetry for non-studio-agent OpenAI lanes.
- * Emits deterministic outcome fields so regressions stay visible on retained legacy routes.
+ * Emits deterministic outcome fields so regressions stay visible on retained routes.
  */
 import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
@@ -15,8 +15,7 @@ const resolveOutputContractTelemetryViolation = ({
   retryable?: AgentMachineOutcomeFields["retryable"];
   fallbackReason?: string | null;
 }): string | null => {
-  const isOutputContractReason =
-    reasonCode === "INFRA_FALLBACK_OUTPUT_CONTRACT" || reasonCode === "UPSTREAM_OUTPUT_CONTRACT";
+  const isOutputContractReason = reasonCode === "UPSTREAM_OUTPUT_CONTRACT";
   if (isOutputContractReason && retryable !== false) {
     return "output_contract_reason_retryable_mismatch";
   }

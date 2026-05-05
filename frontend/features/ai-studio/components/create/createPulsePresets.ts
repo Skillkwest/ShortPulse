@@ -38,6 +38,19 @@ export type CreatePulsePresetStartResult =
       message: string;
     };
 export type CreatePulseWorkflowStageHints = string[];
+export type CreatePulseBuiltInPresetDefinition = {
+  presetId: string;
+  label: string;
+  description: string;
+  systemInstructions: string;
+  runtimeMode: CreatePulseRuntimeMode;
+  activationMode: CreatePulseActivationMode;
+  outputMode: CreatePulseOutputMode;
+  memoryPolicy: CreatePulseMemoryPolicy;
+  starterAssistantMessage: string | null;
+  workflowStageHints: CreatePulseWorkflowStageHints | null;
+  artifactTarget: CreatePulseArtifactTarget;
+};
 
 const CREATE_PULSE_DEFAULT_RUNTIME_MODE = "workflow_gpt" as const satisfies CreatePulseRuntimeMode;
 const CREATE_PULSE_DEFAULT_ACTIVATION_MODE =
@@ -385,7 +398,7 @@ const createBuiltInPulseDefinition = ({
   starterAssistantMessage?: string | null;
   workflowStageHints?: readonly string[] | null;
   artifactTarget: CreatePulseArtifactTarget;
-}) => ({
+}): CreatePulseBuiltInPresetDefinition => ({
   presetId,
   label,
   description,
@@ -400,7 +413,7 @@ const createBuiltInPulseDefinition = ({
   artifactTarget,
 });
 
-const CREATE_PULSE_BUILT_IN_DEFINITIONS = [
+export const CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS = [
   createBuiltInPulseDefinition({
     presetId: "image",
     label: "Video Prompt Magic",
@@ -437,7 +450,7 @@ const CREATE_PULSE_BUILT_IN_DEFINITIONS = [
     workflowStageHints: STORY_BUILDER_STAGE_HINTS,
     artifactTarget: "image_prompt",
   }),
-] as const;
+] as const satisfies readonly CreatePulseBuiltInPresetDefinition[];
 
 const CREATE_PULSE_RETIRED_PRESET_IDS = [
   "custom_1",
@@ -451,8 +464,7 @@ const CREATE_PULSE_RETIRED_PRESET_IDS = [
   "lifestyle_scene",
 ] as const;
 
-export type CreatePulseBuiltInPresetId =
-  (typeof CREATE_PULSE_BUILT_IN_DEFINITIONS)[number]["presetId"];
+export type CreatePulseBuiltInPresetId = string;
 export type CreatePulseRetiredPresetId = (typeof CREATE_PULSE_RETIRED_PRESET_IDS)[number];
 export type CreatePulsePresetId = string;
 export type CreatePulseCustomPresetId = string;
@@ -496,15 +508,6 @@ export type CreatePulsePresetDragPayload = {
   source: CreatePulsePresetDragSource;
 };
 
-const CREATE_PULSE_BUILT_IN_PRESET_ID_INDEX = new Map(
-  CREATE_PULSE_BUILT_IN_DEFINITIONS.map(
-    (definition, index) => [definition.presetId, index] as const
-  )
-);
-
-const CREATE_PULSE_BUILT_IN_PRESET_BY_ID = new Map(
-  CREATE_PULSE_BUILT_IN_DEFINITIONS.map((definition) => [definition.presetId, definition] as const)
-);
 const CREATE_PULSE_RETIRED_PRESET_ID_SET = new Set<string>(CREATE_PULSE_RETIRED_PRESET_IDS);
 
 let createPulseCustomPresetFallbackCounter = 0;
@@ -518,8 +521,90 @@ const isCreatePulseArtifactTarget = (value: string): value is CreatePulseArtifac
   value === "storyboard" ||
   value === "text_artifact";
 
+const buildCreatePulseBuiltInPresetIdIndex = (
+  builtInDefinitions: readonly CreatePulseBuiltInPresetDefinition[]
+) => new Map(builtInDefinitions.map((definition, index) => [definition.presetId, index] as const));
+
+const buildCreatePulseBuiltInPresetById = (
+  builtInDefinitions: readonly CreatePulseBuiltInPresetDefinition[]
+) => new Map(builtInDefinitions.map((definition) => [definition.presetId, definition] as const));
+
 export const isCreatePulseRetiredPresetId = (value: string): value is CreatePulseRetiredPresetId =>
   CREATE_PULSE_RETIRED_PRESET_ID_SET.has(value);
+
+const normalizeCreatePulseBuiltInPresetDefinitionRecord = (
+  value: unknown
+): CreatePulseBuiltInPresetDefinition | null => {
+  if (!value || typeof value !== "object") return null;
+  const presetId =
+    typeof (value as { presetId?: unknown }).presetId === "string"
+      ? (value as { presetId: string }).presetId.trim()
+      : "";
+  const label =
+    typeof (value as { label?: unknown }).label === "string"
+      ? (value as { label: string }).label.trim()
+      : "";
+  const description =
+    typeof (value as { description?: unknown }).description === "string"
+      ? (value as { description: string }).description.trim()
+      : "";
+  const systemInstructions =
+    typeof (value as { systemInstructions?: unknown }).systemInstructions === "string"
+      ? (value as { systemInstructions: string }).systemInstructions.trim()
+      : "";
+  const starterAssistantMessage =
+    typeof (value as { starterAssistantMessage?: unknown }).starterAssistantMessage === "string"
+      ? (value as { starterAssistantMessage: string }).starterAssistantMessage.trim()
+      : "";
+  const workflowStageHints = normalizeCreatePulseWorkflowStageHints(
+    (value as { workflowStageHints?: unknown }).workflowStageHints
+  );
+  const artifactTargetRaw =
+    typeof (value as { artifactTarget?: unknown }).artifactTarget === "string"
+      ? (value as { artifactTarget: string }).artifactTarget.trim()
+      : "";
+
+  if (!presetId || !label || !description || !systemInstructions) {
+    return null;
+  }
+  if (isCreatePulseRetiredPresetId(presetId)) {
+    return null;
+  }
+
+  return createBuiltInPulseDefinition({
+    presetId,
+    label,
+    description,
+    systemInstructions,
+    starterAssistantMessage: starterAssistantMessage || null,
+    workflowStageHints,
+    artifactTarget: isCreatePulseArtifactTarget(artifactTargetRaw)
+      ? artifactTargetRaw
+      : CREATE_PULSE_DEFAULT_ARTIFACT_TARGET,
+  });
+};
+
+export const normalizeCreatePulseBuiltInPresetDefinitions = (
+  value: unknown
+): CreatePulseBuiltInPresetDefinition[] => {
+  if (!Array.isArray(value)) return [];
+  const seenPresetIds = new Set<string>();
+  const normalized: CreatePulseBuiltInPresetDefinition[] = [];
+  value.forEach((entry) => {
+    const normalizedEntry = normalizeCreatePulseBuiltInPresetDefinitionRecord(entry);
+    if (!normalizedEntry || seenPresetIds.has(normalizedEntry.presetId)) return;
+    seenPresetIds.add(normalizedEntry.presetId);
+    normalized.push(normalizedEntry);
+  });
+  return normalized;
+};
+
+export const resolveCreatePulseBuiltInPresetDefinitions = (
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
+): CreatePulseBuiltInPresetDefinition[] =>
+  Array.isArray(builtInDefinitions)
+    ? normalizeCreatePulseBuiltInPresetDefinitions(builtInDefinitions)
+    : [...CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS];
 
 const normalizeCreatePulseSavedPresetRecord = (value: unknown): CreatePulseSavedPreset | null => {
   if (!value || typeof value !== "object") return null;
@@ -615,7 +700,7 @@ const buildCustomPresetOrderIndex = (savedPresets: readonly CreatePulseSavedPres
 /**
  * Ordered list of built-in Pulse presets rendered across Create and library surfaces.
  */
-export const CREATE_PULSE_SURFACE_PRESET_IDS = CREATE_PULSE_BUILT_IN_DEFINITIONS.map(
+export const CREATE_PULSE_SURFACE_PRESET_IDS = CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS.map(
   (definition) => definition.presetId
 ) as readonly CreatePulseBuiltInPresetId[];
 
@@ -631,29 +716,49 @@ export const CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS = [
 /**
  * Returns true when a value is a known built-in Pulse preset ID.
  */
-export const isCreatePulseBuiltInPresetId = (value: string): value is CreatePulseBuiltInPresetId =>
-  CREATE_PULSE_BUILT_IN_PRESET_BY_ID.has(value as CreatePulseBuiltInPresetId);
+export const isCreatePulseBuiltInPresetId = (
+  value: string,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
+): value is CreatePulseBuiltInPresetId =>
+  buildCreatePulseBuiltInPresetById(
+    resolveCreatePulseBuiltInPresetDefinitions(builtInDefinitions)
+  ).has(value as CreatePulseBuiltInPresetId);
 
 /**
  * Returns true when a value is a known Pulse preset ID in the merged catalog.
  */
 export const isCreatePulsePresetId = (
   value: string,
-  savedPresets?: readonly CreatePulseSavedPreset[] | null
+  savedPresets?: readonly CreatePulseSavedPreset[] | null,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
 ): value is CreatePulsePresetId =>
-  isCreatePulseBuiltInPresetId(value) ||
+  isCreatePulseBuiltInPresetId(value, builtInDefinitions) ||
   normalizeCreatePulseSavedPresets(savedPresets).some((preset) => preset.presetId === value);
 
 /**
  * Normalizes persisted custom Pulse presets to unique non-empty records.
  */
-export const normalizeCreatePulseSavedPresets = (value: unknown): CreatePulseSavedPreset[] => {
+export const normalizeCreatePulseSavedPresets = (
+  value: unknown,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
+): CreatePulseSavedPreset[] => {
   if (!Array.isArray(value)) return [];
+  const resolvedBuiltInPresetIds = new Set(
+    resolveCreatePulseBuiltInPresetDefinitions(builtInDefinitions).map(
+      (definition) => definition.presetId
+    )
+  );
   const seenPresetIds = new Set<string>();
   const normalized: CreatePulseSavedPreset[] = [];
   value.forEach((entry) => {
     const normalizedEntry = normalizeCreatePulseSavedPresetRecord(entry);
-    if (!normalizedEntry || seenPresetIds.has(normalizedEntry.presetId)) return;
+    if (
+      !normalizedEntry ||
+      resolvedBuiltInPresetIds.has(normalizedEntry.presetId) ||
+      seenPresetIds.has(normalizedEntry.presetId)
+    ) {
+      return;
+    }
     seenPresetIds.add(normalizedEntry.presetId);
     normalized.push(normalizedEntry);
   });
@@ -689,20 +794,22 @@ export const createCreatePulseCustomPresetId = (): CreatePulseCustomPresetId => 
  */
 export const sortCreatePulsePresetIdsByCanonicalOrder = (
   presetIds: readonly string[],
-  savedPresets?: readonly CreatePulseSavedPreset[] | null
+  savedPresets?: readonly CreatePulseSavedPreset[] | null,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
 ): CreatePulsePresetId[] => {
-  const normalizedSavedPresets = normalizeCreatePulseSavedPresets(savedPresets);
+  const resolvedBuiltInDefinitions = resolveCreatePulseBuiltInPresetDefinitions(builtInDefinitions);
+  const builtInPresetIdIndex = buildCreatePulseBuiltInPresetIdIndex(resolvedBuiltInDefinitions);
+  const normalizedSavedPresets = normalizeCreatePulseSavedPresets(
+    savedPresets,
+    resolvedBuiltInDefinitions
+  );
   const customPresetOrderIndex = buildCustomPresetOrderIndex(normalizedSavedPresets);
   const dedupedPresetIds = Array.from(new Set(presetIds)).filter((presetId) =>
-    isCreatePulsePresetId(presetId, normalizedSavedPresets)
+    isCreatePulsePresetId(presetId, normalizedSavedPresets, resolvedBuiltInDefinitions)
   );
   dedupedPresetIds.sort((left, right) => {
-    const leftBuiltInIndex = CREATE_PULSE_BUILT_IN_PRESET_ID_INDEX.get(
-      left as CreatePulseBuiltInPresetId
-    );
-    const rightBuiltInIndex = CREATE_PULSE_BUILT_IN_PRESET_ID_INDEX.get(
-      right as CreatePulseBuiltInPresetId
-    );
+    const leftBuiltInIndex = builtInPresetIdIndex.get(left as CreatePulseBuiltInPresetId);
+    const rightBuiltInIndex = builtInPresetIdIndex.get(right as CreatePulseBuiltInPresetId);
     if (leftBuiltInIndex != null && rightBuiltInIndex != null) {
       return leftBuiltInIndex - rightBuiltInIndex;
     }
@@ -721,9 +828,10 @@ export const sortCreatePulsePresetIdsByCanonicalOrder = (
  */
 export const normalizeCreatePulsePanelPresetIds = (
   presetIds: readonly string[],
-  savedPresets?: readonly CreatePulseSavedPreset[] | null
+  savedPresets?: readonly CreatePulseSavedPreset[] | null,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
 ): CreatePulsePresetId[] =>
-  sortCreatePulsePresetIdsByCanonicalOrder(presetIds, savedPresets).slice(
+  sortCreatePulsePresetIdsByCanonicalOrder(presetIds, savedPresets, builtInDefinitions).slice(
     0,
     CREATE_PULSE_PANEL_MAX
   );
@@ -732,39 +840,40 @@ export const normalizeCreatePulsePanelPresetIds = (
  * Resolves the full merged Pulse preset catalog for the library and Create rail.
  */
 export const resolveCreatePulsePresetCatalog = (
-  savedPresets?: readonly CreatePulseSavedPreset[] | null
+  savedPresets?: readonly CreatePulseSavedPreset[] | null,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
 ): CreatePulseResolvedPreset[] => {
-  const normalizedSavedPresets = normalizeCreatePulseSavedPresets(savedPresets);
-  const savedPresetById = new Map(
-    normalizedSavedPresets.map((preset) => [preset.presetId, preset] as const)
+  const resolvedBuiltInDefinitions = resolveCreatePulseBuiltInPresetDefinitions(builtInDefinitions);
+  const resolvedBuiltInPresetIds = new Set(
+    resolvedBuiltInDefinitions.map((definition) => definition.presetId)
+  );
+  const normalizedSavedPresets = normalizeCreatePulseSavedPresets(savedPresets).filter(
+    (preset) => !resolvedBuiltInPresetIds.has(preset.presetId)
   );
   return [
-    ...CREATE_PULSE_BUILT_IN_DEFINITIONS.map((definition) => {
-      const override = savedPresetById.get(definition.presetId);
+    ...resolvedBuiltInDefinitions.map((definition) => {
       return {
         presetId: definition.presetId,
-        label: override?.label ?? definition.label,
-        description: override ? (override.description ?? null) : definition.description,
-        systemInstructions: override?.systemInstructions ?? definition.systemInstructions,
+        label: definition.label,
+        description: definition.description,
+        systemInstructions: definition.systemInstructions,
         runtimeMode: CREATE_PULSE_GUIDED_BEHAVIOR.runtimeMode,
         activationMode: CREATE_PULSE_GUIDED_BEHAVIOR.activationMode,
-        starterAssistantMessage: override
-          ? (override.starterAssistantMessage ?? null)
-          : definition.starterAssistantMessage,
-        workflowStageHints: override
-          ? (override.workflowStageHints ?? null)
-          : definition.workflowStageHints,
+        starterAssistantMessage: definition.starterAssistantMessage,
+        workflowStageHints: definition.workflowStageHints,
         outputMode: CREATE_PULSE_GUIDED_BEHAVIOR.outputMode,
         artifactTarget: definition.artifactTarget,
-        memoryPolicy: override?.memoryPolicy ?? definition.memoryPolicy,
+        memoryPolicy: definition.memoryPolicy,
         isCustom: false,
         isBuiltIn: true,
-        isEditable: true,
-        hasUserOverride: override != null,
+        isEditable: false,
+        hasUserOverride: false,
       };
     }),
     ...normalizedSavedPresets
-      .filter((preset) => !isCreatePulseBuiltInPresetId(preset.presetId))
+      .filter(
+        (preset) => !isCreatePulseBuiltInPresetId(preset.presetId, resolvedBuiltInDefinitions)
+      )
       .map((preset) => ({
         presetId: preset.presetId,
         label: preset.label,
@@ -790,14 +899,19 @@ export const resolveCreatePulsePresetCatalog = (
  */
 export const resolveCreatePulsePresetLabelById = (
   presetId: CreatePulsePresetId,
-  savedPresets?: readonly CreatePulseSavedPreset[] | null
+  savedPresets?: readonly CreatePulseSavedPreset[] | null,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
 ): string => {
-  const resolvedPreset = resolveCreatePulsePresetCatalog(savedPresets).find(
-    (preset) => preset.presetId === presetId
-  );
+  const resolvedBuiltInDefinitions = resolveCreatePulseBuiltInPresetDefinitions(builtInDefinitions);
+  const resolvedPreset = resolveCreatePulsePresetCatalog(
+    savedPresets,
+    resolvedBuiltInDefinitions
+  ).find((preset) => preset.presetId === presetId);
   return (
     resolvedPreset?.label ??
-    CREATE_PULSE_BUILT_IN_PRESET_BY_ID.get(presetId as CreatePulseBuiltInPresetId)?.label ??
+    buildCreatePulseBuiltInPresetById(resolvedBuiltInDefinitions).get(
+      presetId as CreatePulseBuiltInPresetId
+    )?.label ??
     presetId
   );
 };
@@ -807,21 +921,25 @@ export const resolveCreatePulsePresetLabelById = (
  */
 export const resolveCreatePulsePresetById = (
   presetId: CreatePulsePresetId,
-  savedPresets?: readonly CreatePulseSavedPreset[] | null
+  savedPresets?: readonly CreatePulseSavedPreset[] | null,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
 ): CreatePulseResolvedPreset | null =>
-  resolveCreatePulsePresetCatalog(savedPresets).find((preset) => preset.presetId === presetId) ??
-  null;
+  resolveCreatePulsePresetCatalog(savedPresets, builtInDefinitions).find(
+    (preset) => preset.presetId === presetId
+  ) ?? null;
 
 /**
  * Resolves Pulse system instructions by preset id.
  */
 export const resolveCreatePulsePresetSystemInstructionsById = (
   presetId: CreatePulsePresetId,
-  savedPresets?: readonly CreatePulseSavedPreset[] | null
+  savedPresets?: readonly CreatePulseSavedPreset[] | null,
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null
 ): string =>
-  resolveCreatePulsePresetById(presetId, savedPresets)?.systemInstructions ??
-  CREATE_PULSE_BUILT_IN_PRESET_BY_ID.get(presetId as CreatePulseBuiltInPresetId)
-    ?.systemInstructions ??
+  resolveCreatePulsePresetById(presetId, savedPresets, builtInDefinitions)?.systemInstructions ??
+  buildCreatePulseBuiltInPresetById(
+    resolveCreatePulseBuiltInPresetDefinitions(builtInDefinitions)
+  ).get(presetId as CreatePulseBuiltInPresetId)?.systemInstructions ??
   "";
 
 /**

@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentContext, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import {
+  resolveCreatePulseBuiltInPresetDefinitions,
   resolveCreatePulsePresetById,
+  type CreatePulseBuiltInPresetDefinition,
   type CreatePulseResolvedPreset,
   type CreatePulseSavedPreset,
 } from "../../components/create/createPulsePresets";
 import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/CreatePulsePreferenceProvider";
 import type { StudioOutput, ToolId } from "../../types";
+import { useCreatePulseBuiltInCatalog } from "../useCreatePulseBuiltInCatalog";
 import { useCreatePulsePresetPanelPreference } from "../useCreatePulsePresetPanelPreference";
 import type { AiStudioPulsePresetChangeOptions } from "../useAiStudioCreateModeRuntime";
 
@@ -25,6 +28,7 @@ type UseCreatePulsePresetPageRuntimeParams = {
   pulseSessionInstanceId: string | null;
   pulseWorkflowSession: AgentPulseWorkflowSession | null;
   savedPresets?: readonly CreatePulseSavedPreset[] | null;
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null;
   isSavedPresetCatalogReady?: boolean;
   loadSavedPresetPreferences?: boolean;
   getAgentContext: GetAgentContext;
@@ -44,6 +48,7 @@ export const useCreatePulsePresetPageRuntime = ({
   pulseSessionInstanceId,
   pulseWorkflowSession,
   savedPresets = null,
+  builtInDefinitions = null,
   isSavedPresetCatalogReady = true,
   loadSavedPresetPreferences = false,
   getAgentContext,
@@ -57,17 +62,25 @@ export const useCreatePulsePresetPageRuntime = ({
     selectedTool === "create" &&
     expertCreateMode === "pulse" &&
     savedPresets == null;
+  const builtInCatalog = useCreatePulseBuiltInCatalog({
+    enabled: selectedTool === "create" && expertCreateMode === "pulse",
+  });
   const pulsePreference = useCreatePulsePresetPanelPreference({
     enabled: shouldLoadPulsePreferences,
+    builtInDefinitions: builtInCatalog.builtInDefinitions,
   });
   const pulsePreferenceRuntime = useMemo<CreatePulsePreferenceRuntimeValue>(
     () => ({
       presetPanelIds: pulsePreference.presetPanelIds,
       savedPresets: pulsePreference.savedPresets,
+      builtInDefinitions: builtInCatalog.builtInDefinitions,
+      builtInDefinitionsLoading: builtInCatalog.loading,
       setPresetPanelIds: pulsePreference.setPresetPanelIds,
       setSavedPresets: pulsePreference.setSavedPresets,
     }),
     [
+      builtInCatalog.builtInDefinitions,
+      builtInCatalog.loading,
       pulsePreference.presetPanelIds,
       pulsePreference.savedPresets,
       pulsePreference.setPresetPanelIds,
@@ -113,14 +126,29 @@ export const useCreatePulsePresetPageRuntime = ({
     Boolean(activeCreatePulsePresetId) &&
     Boolean(pulseSessionInstanceId);
   const resolvedSavedPresets = savedPresets ?? pulsePreference.savedPresets;
+  const resolvedBuiltInDefinitions =
+    builtInDefinitions ??
+    builtInCatalog.builtInDefinitions ??
+    resolveCreatePulseBuiltInPresetDefinitions();
   const resolvedSavedPresetCatalogReady =
-    isSavedPresetCatalogReady && (!shouldLoadPulsePreferences || !pulsePreference.loading);
+    isSavedPresetCatalogReady &&
+    (!shouldLoadPulsePreferences || !pulsePreference.loading) &&
+    !builtInCatalog.loading;
   const restoredCreatePulsePresetSnapshot = useMemo(
     () =>
       hasActivePulseSession && activeCreatePulsePresetId
-        ? resolveCreatePulsePresetById(activeCreatePulsePresetId, resolvedSavedPresets)
+        ? resolveCreatePulsePresetById(
+            activeCreatePulsePresetId,
+            resolvedSavedPresets,
+            resolvedBuiltInDefinitions
+          )
         : null,
-    [activeCreatePulsePresetId, hasActivePulseSession, resolvedSavedPresets]
+    [
+      activeCreatePulsePresetId,
+      hasActivePulseSession,
+      resolvedBuiltInDefinitions,
+      resolvedSavedPresets,
+    ]
   );
   const activeCreatePulsePresetSnapshot =
     hasActivePulseSession &&

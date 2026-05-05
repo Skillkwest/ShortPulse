@@ -67,6 +67,8 @@ export const getAiStudioProjectWorkspaceSnapshotViaApi = async ({
   const response = await fetchWithAuth(`/api/projects/${encodeURIComponent(projectId)}/workspace`, {
     method: "GET",
     shortpulseLogScope: "app",
+    shortpulseAuthTimeoutMs: 5000,
+    shortpulseRetryNetworkOnce: true,
   });
 
   let payload: AiStudioProjectWorkspaceApiPayload | null = null;

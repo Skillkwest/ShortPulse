@@ -2,6 +2,7 @@
  * Project workspace persistence helpers.
  * Owns server-authoritative read/write access for user-owned project workspace snapshots.
  */
+import { parseAiStudioSessionSnapshotShape } from "../ai-studio-session/sessionSnapshotShape";
 import { createAiStudioProjectWorkspaceSnapshot } from "../ai-studio-session/projectWorkspaceSnapshot";
 import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
@@ -532,7 +533,7 @@ export const upsertProjectWorkspaceStateForUser = async ({
   snapshot: unknown;
 }): Promise<ProjectWorkspaceStateRecord> => {
   const parsedSnapshot = parseAiStudioSessionSnapshot(snapshot);
-  if (!parsedSnapshot) {
+  if (!parsedSnapshot || !parseAiStudioSessionSnapshotShape(parsedSnapshot)) {
     throw new InvalidProjectWorkspaceSnapshotError();
   }
   const sanitizedSnapshot = sanitizeProjectWorkspaceSnapshot(parsedSnapshot);

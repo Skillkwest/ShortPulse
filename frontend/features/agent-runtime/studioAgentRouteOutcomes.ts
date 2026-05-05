@@ -1,4 +1,3 @@
-import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
 import { buildAgentMachineOutcome } from "./agentMachineOutcome";
 import type { AgentReasonCode } from "../../prefabs/agent/outcomeContract";
 import type { StudioAgentSafetyInputPrecheckField } from "./studioAgentSafetyInputPrecheck";
@@ -15,7 +14,6 @@ export type StudioAgentTelemetryOutcomeClass =
   | "success_message"
   | "refusal_model"
   | "refusal_safety"
-  | "fallback_infra"
   | "upstream_error"
   | "route_error";
 export type StudioAgentSafetyTelemetryOutcome = "pass" | "rewritten" | "refusal";
@@ -293,32 +291,6 @@ export const buildStudioAgentRouteFailurePayload = ({
   }),
   error: "Agent call failed",
   detail,
-  traceId,
-});
-
-export const buildStudioAgentInfraFallbackPayload = ({
-  traceId,
-  canonicalPrompt,
-  reasonCode = "INFRA_FALLBACK_TRANSIENT",
-  fallbackReason,
-}: {
-  traceId: string;
-  canonicalPrompt: string | null;
-  reasonCode?:
-    | "INFRA_FALLBACK_TRANSIENT"
-    | "INFRA_FALLBACK_TIMEOUT"
-    | "INFRA_FALLBACK_RATE_LIMIT"
-    | "INFRA_FALLBACK_OUTPUT_CONTRACT";
-  fallbackReason?: string;
-}) => ({
-  ...buildAgentMachineOutcome({
-    outcomeClass: "fallback_infra",
-    reasonCode,
-  }),
-  message: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
-  actions: undefined,
-  ...(fallbackReason ? { fallback_reason: fallbackReason } : {}),
-  canonicalPrompt,
   traceId,
 });
 

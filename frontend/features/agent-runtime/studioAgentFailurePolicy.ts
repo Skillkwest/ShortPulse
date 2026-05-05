@@ -1,9 +1,9 @@
 /**
  * Shared failure classification and retry helpers for AI Studio agent runtime lanes.
- * Keeps user-lane fallback policy consistent across retained AI Studio agent routes.
+ * Keeps user-lane error policy consistent across retained AI Studio agent routes.
  */
 
-export const STUDIO_AGENT_INFRA_FALLBACK_MESSAGE =
+export const STUDIO_AGENT_UNAVAILABLE_MESSAGE =
   "I can't process that request right now. Please try again.";
 
 export type StudioAgentFailureClass =
@@ -14,10 +14,7 @@ export type StudioAgentFailureClass =
   | "auth_config"
   | "invalid_request";
 
-export type StudioAgentFailureResolution =
-  | "assistant_fallback"
-  | "canonical_refusal"
-  | "hard_error";
+export type StudioAgentFailureResolution = "canonical_refusal" | "hard_error";
 
 const AUTH_STATUS_CODES = new Set([401, 403]);
 const INVALID_REQUEST_STATUS_CODES = new Set([
@@ -97,13 +94,6 @@ export const resolveStudioAgentFailureResolution = ({
   failureClass: StudioAgentFailureClass;
 }): StudioAgentFailureResolution => {
   if (failureClass === "safety_refusal") return "canonical_refusal";
-  if (
-    failureClass === "infra_transient" ||
-    failureClass === "infra_runtime" ||
-    failureClass === "output_contract"
-  ) {
-    return "assistant_fallback";
-  }
   return "hard_error";
 };
 

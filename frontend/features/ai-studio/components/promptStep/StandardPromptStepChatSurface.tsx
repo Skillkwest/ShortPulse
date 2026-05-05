@@ -20,6 +20,7 @@ import type {
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
 import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
+import { AgentComposerAttachmentImage } from "./AgentComposerAttachmentImage";
 import type { PromptStepInlineGenerateConfig } from "./types";
 
 type StandardPromptStepChatSurfaceProps = {
@@ -61,7 +62,6 @@ type StandardPromptStepChatSurfaceProps = {
   chatModeEnabled: boolean;
   onChatModeEnabledChange?: (value: boolean) => void;
   hideChatModeToggle?: boolean;
-  directOpenAiBypassEnabled?: boolean;
   agentBootstrapPending: boolean;
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
@@ -132,7 +132,6 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
   chatModeEnabled,
   onChatModeEnabledChange,
   hideChatModeToggle = false,
-  directOpenAiBypassEnabled = false,
   agentBootstrapPending,
   onAgentSend,
   onGenerateOutputPrompt,
@@ -286,8 +285,10 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
                   className={`agent-attachment-card agent-attachment-card--composer agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`}
                 >
                   {attachment.kind === "image" && attachment.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={attachment.imageUrl} alt="" className="agent-attachment-card-media" />
+                    <AgentComposerAttachmentImage
+                      src={attachment.imageUrl}
+                      fallbackUrls={attachment.imageFallbackUrls}
+                    />
                   ) : (
                     <div className="agent-attachment-card-prompt" aria-hidden="true">
                       <span className="agent-attachment-card-prompt-marker">T</span>
@@ -318,13 +319,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         onChange={(value) => onAgentInputChange?.(value)}
         onFocusChange={setIsAgentInputExpanded}
         onVisualRowCountChange={handleAgentInputVisualRowCountChange}
-        placeholder={
-          chatModeEnabled
-            ? directOpenAiBypassEnabled
-              ? "Ask ShortPulse or write your prompt"
-              : "Message the agent..."
-            : "Write your prompt..."
-        }
+        placeholder={chatModeEnabled ? "Message the agent..." : "Write your prompt..."}
         onKeyDown={handleAgentInputKeyDown}
         className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
         maxHeightPx={agentInputMaxHeightPx}
@@ -336,7 +331,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
           onClick={handleAgentSendClick}
           disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending}
           loading={agentIsSending}
-          ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
+          ariaLabel="Send to agent"
           icon="arrow-up"
           className="agent-send-prefab--inside-input"
         />
@@ -370,7 +365,7 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
         onClick={handleAgentSendClick}
         disabled={agentBootstrapPending || !canSendAgentInput || agentIsSending}
         loading={agentIsSending}
-        ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
+        ariaLabel="Send to agent"
         label="Send"
         className="agent-send-prefab--labeled"
       />

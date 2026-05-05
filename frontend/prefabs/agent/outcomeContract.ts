@@ -1,6 +1,6 @@
 /**
  * Canonical machine-readable outcome contract for AI Studio agent routes.
- * This contract is additive and backward-compatible with legacy response fields.
+ * This contract is additive across active Standard/Pulse route fields.
  */
 export type AgentDecision = "allow" | "refuse" | "error";
 
@@ -9,7 +9,6 @@ export type AgentOutcomeClass =
   | "success_message"
   | "refusal_safety"
   | "refusal_model"
-  | "fallback_infra"
   | "upstream_error"
   | "route_error";
 
@@ -19,10 +18,6 @@ export type AgentReasonCode =
   | "SAFETY_INPUT_REFUSAL"
   | "SAFETY_OUTPUT_REFUSAL"
   | "PROVIDER_SAFETY_REFUSAL"
-  | "INFRA_FALLBACK_TRANSIENT"
-  | "INFRA_FALLBACK_TIMEOUT"
-  | "INFRA_FALLBACK_RATE_LIMIT"
-  | "INFRA_FALLBACK_OUTPUT_CONTRACT"
   | "UPSTREAM_OUTPUT_CONTRACT"
   | "UPSTREAM_ERROR"
   | "ROUTE_ERROR"

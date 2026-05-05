@@ -22,6 +22,8 @@ const makeModelConfig = (
   label: "Test Model",
   provider: "fal",
   mediaType: "video",
+  surfaces: ["runtime"],
+  billable: true,
   defaultAspect: "16:9",
   allowedAspects: ["16:9", "9:16"],
   pricingStrategy: "veo-3-per-second",

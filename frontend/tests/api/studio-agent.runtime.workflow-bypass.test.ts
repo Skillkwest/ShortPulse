@@ -38,13 +38,14 @@ const createPulseRequest = () => ({
   method: "POST",
   body: {
     clientSessionKey: "pulse-bypass-retired",
-    clientSessionNamespace: "ai-studio:pulse-bypass-retired::pulse:product_hero:pulse-session-test",
+    clientSessionNamespace:
+      "ai-studio:pulse-bypass-retired::pulse:story_builder:pulse-session-test",
     messages: [{ role: "user", content: "Start the workflow." }],
     context: {
       pulse: {
-        presetId: "product_hero",
-        label: "Product Hero",
-        instructions: "Guide the user toward a premium product hero prompt.",
+        presetId: "story_builder",
+        label: "DFY Story Builder",
+        instructions: "Guide the user toward a story-circle scene prompt.",
         runtimeMode: "workflow_gpt",
         activationMode: "activate_and_start",
         outputMode: "chat_reply",
@@ -52,19 +53,16 @@ const createPulseRequest = () => ({
         source: "builtin",
       },
     },
-    directOpenAiBypass: true,
   },
 });
 
-describe("Pulse route direct-bypass retirement", () => {
+describe("Pulse route mode isolation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.OPENAI_API_KEY = "test-key";
     process.env.STUDIO_AGENT_ENABLED = "true";
     process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "false";
     process.env.STUDIO_AGENT_SERVER_VISION_ENABLED = "false";
-    process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED = "true";
-    process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "true";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     resolveRuntimeSafetyProfileMock.mockResolvedValue({
       profileId: "prod_safe_v1",
@@ -83,7 +81,7 @@ describe("Pulse route direct-bypass retirement", () => {
               message: {
                 content: JSON.stringify({
                   status: "needs_input",
-                  message: "What product should we feature first?",
+                  message: "What story should we build first?",
                   actions: null,
                 }),
               },
@@ -94,7 +92,7 @@ describe("Pulse route direct-bypass retirement", () => {
     );
   });
 
-  it("ignores directOpenAiBypass on Pulse requests and sends Pulse workflow instructions", async () => {
+  it("sends Pulse workflow instructions", async () => {
     const req = createPulseRequest();
     const res = createMockResponse();
 
@@ -115,9 +113,9 @@ describe("Pulse route direct-bypass retirement", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: "What product should we feature first?",
+        message: "What story should we build first?",
         workflowSession: expect.objectContaining({
-          presetId: "product_hero",
+          presetId: "story_builder",
         }),
       })
     );

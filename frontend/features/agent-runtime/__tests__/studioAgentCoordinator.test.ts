@@ -11,13 +11,13 @@ describe("buildStudioAgentOpenAiMessages", () => {
       context: {
         mode: "text",
         pulse: {
-          presetId: "ad_hook",
+          presetId: "story_builder",
           label: "Ad Hook",
           instructions: "Lead with an instantly readable hook and clear product payoff.",
           source: "builtin",
           workflowStageHints: ["Intake", "Hook", "Payoff"],
           workflowSession: {
-            presetId: "ad_hook",
+            presetId: "story_builder",
             status: "awaiting_input",
             currentStepIndex: 2,
             currentStepLabel: "Hook",
@@ -49,7 +49,7 @@ describe("buildStudioAgentOpenAiMessages", () => {
       }),
       expect.objectContaining({
         role: "system",
-        content: expect.stringContaining('"presetId":"ad_hook"'),
+        content: expect.stringContaining('"presetId":"story_builder"'),
       }),
     ]);
     expect(messages[1]?.content).toContain("workflow_session_state:");

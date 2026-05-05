@@ -8,6 +8,7 @@ import {
   normalizeCreatePulsePanelPresetIds,
   resolveCreatePulsePresetCatalog,
   resolveCreatePulsePresetById,
+  type CreatePulseBuiltInPresetDefinition,
   type CreatePulsePresetId,
   type CreatePulseResolvedPreset,
   normalizeCreatePulseSavedPresets,
@@ -19,6 +20,7 @@ type UseCreatePulseGenerationPresetRuntimeParams = {
   onSelectedPresetIdsChange?:
     | ((value: CreatePulsePresetId[]) => Promise<boolean> | boolean | void)
     | null;
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[] | null;
   controlledSavedPresets?: readonly CreatePulseSavedPreset[] | null;
   onSavedPresetsChange?:
     | ((value: CreatePulseSavedPreset[]) => Promise<boolean> | boolean | void)
@@ -31,13 +33,20 @@ type UseCreatePulseGenerationPresetRuntimeParams = {
 export const useCreatePulseGenerationPresetRuntime = ({
   controlledPresetIds,
   onSelectedPresetIdsChange,
+  builtInDefinitions,
   controlledSavedPresets,
   onSavedPresetsChange,
 }: UseCreatePulseGenerationPresetRuntimeParams) => {
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
   const [internalSelectedPresetIds, setInternalSelectedPresetIds] = React.useState<
     CreatePulsePresetId[]
-  >(() => normalizeCreatePulsePanelPresetIds(CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS));
+  >(() =>
+    normalizeCreatePulsePanelPresetIds(
+      CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS,
+      [],
+      builtInDefinitions
+    )
+  );
   const [internalSavedPresets, setInternalSavedPresets] = React.useState<CreatePulseSavedPreset[]>(
     []
   );
@@ -54,8 +63,8 @@ export const useCreatePulseGenerationPresetRuntime = ({
     () =>
       controlledPresetIds == null
         ? null
-        : normalizeCreatePulsePanelPresetIds(controlledPresetIds, savedPresets),
-    [controlledPresetIds, savedPresets]
+        : normalizeCreatePulsePanelPresetIds(controlledPresetIds, savedPresets, builtInDefinitions),
+    [builtInDefinitions, controlledPresetIds, savedPresets]
   );
   const controlledPresetChangeHandler = onSelectedPresetIdsChange ?? null;
   const isPresetPanelControlled =
@@ -67,25 +76,30 @@ export const useCreatePulseGenerationPresetRuntime = ({
   React.useEffect(() => {
     if (isPresetPanelControlled) return;
     setInternalSelectedPresetIds((previous) =>
-      normalizeCreatePulsePanelPresetIds(previous, savedPresets)
+      normalizeCreatePulsePanelPresetIds(previous, savedPresets, builtInDefinitions)
     );
-  }, [isPresetPanelControlled, savedPresets]);
+  }, [builtInDefinitions, isPresetPanelControlled, savedPresets]);
 
   const updateSelectedPresetIds = React.useCallback(
     async (updater: (previous: CreatePulsePresetId[]) => CreatePulsePresetId[]) => {
       if (isPresetPanelControlled) {
         const saved = await controlledPresetChangeHandler(
-          normalizeCreatePulsePanelPresetIds(updater(normalizedControlledPresetIds), savedPresets)
+          normalizeCreatePulsePanelPresetIds(
+            updater(normalizedControlledPresetIds),
+            savedPresets,
+            builtInDefinitions
+          )
         );
         return saved !== false;
       }
       setInternalSelectedPresetIds((previous) =>
-        normalizeCreatePulsePanelPresetIds(updater(previous), savedPresets)
+        normalizeCreatePulsePanelPresetIds(updater(previous), savedPresets, builtInDefinitions)
       );
       return true;
     },
     [
       controlledPresetChangeHandler,
+      builtInDefinitions,
       isPresetPanelControlled,
       normalizedControlledPresetIds,
       savedPresets,
@@ -108,21 +122,21 @@ export const useCreatePulseGenerationPresetRuntime = ({
 
   const availablePresets = React.useMemo(() => {
     const selectedPresetIdSet = new Set(selectedPresetIds);
-    return resolveCreatePulsePresetCatalog(savedPresets).filter(
+    return resolveCreatePulsePresetCatalog(savedPresets, builtInDefinitions).filter(
       (preset) => !selectedPresetIdSet.has(preset.presetId)
     );
-  }, [savedPresets, selectedPresetIds]);
+  }, [builtInDefinitions, savedPresets, selectedPresetIds]);
 
   const selectedPanelPresets = React.useMemo(
     () =>
       selectedPresetIds.reduce<CreatePulseResolvedPreset[]>((accumulator, presetId) => {
-        const preset = resolveCreatePulsePresetById(presetId, savedPresets);
+        const preset = resolveCreatePulsePresetById(presetId, savedPresets, builtInDefinitions);
         if (preset) {
           accumulator.push(preset);
         }
         return accumulator;
       }, []),
-    [savedPresets, selectedPresetIds]
+    [builtInDefinitions, savedPresets, selectedPresetIds]
   );
 
   const toggleMorePresetsSurface = React.useCallback(() => {

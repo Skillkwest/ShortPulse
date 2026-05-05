@@ -26,7 +26,6 @@ type UseStandardCreatePanelPropsParams = {
   agentMessages: AgentMessage[];
   agentInput: string;
   chatModeEnabled: boolean;
-  directOpenAiBypassEnabled: boolean;
   agentBusy: boolean;
   agentAttachmentError: string | null;
   agentError?: string | null;
@@ -37,7 +36,6 @@ type UseStandardCreatePanelPropsParams = {
   handleAgentInputChange: (value: string) => void;
   setChatModeEnabled: (value: boolean) => void;
   handleAgentSend: () => void;
-  handleAgentEnhanceSend: () => void;
   handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
@@ -108,7 +106,6 @@ export const buildStandardCreatePanelProps = ({
   agentMessages,
   agentInput,
   chatModeEnabled,
-  directOpenAiBypassEnabled,
   agentBusy,
   agentAttachmentError,
   agentError,
@@ -119,7 +116,6 @@ export const buildStandardCreatePanelProps = ({
   handleAgentInputChange,
   setChatModeEnabled,
   handleAgentSend,
-  handleAgentEnhanceSend,
   handleAgentAttachmentDrop,
   handleAgentAttachmentDragOver,
   handleAgentAttachmentDragEnter,
@@ -178,7 +174,6 @@ export const buildStandardCreatePanelProps = ({
   agentMessages,
   agentInput,
   chatModeEnabled,
-  directOpenAiBypassEnabled,
   agentIsSending: agentBusy,
   agentError: agentAttachmentError ?? agentError ?? undefined,
   stagedPrompt: stagedAgentPrompt,
@@ -188,7 +183,6 @@ export const buildStandardCreatePanelProps = ({
   onAgentInputChange: handleAgentInputChange,
   onChatModeEnabledChange: setChatModeEnabled,
   onAgentSend: handleAgentSend,
-  onAgentEnhanceSend: handleAgentEnhanceSend,
   onAgentAttachmentDrop: handleAgentAttachmentDrop,
   onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
   onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,

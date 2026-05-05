@@ -2,9 +2,16 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAiAgentCompat as useAiAgent } from "../legacy/useAiAgentCompat";
-import type { SendResult } from "../useAiAgentTypes";
+import type { AgentRuntimeMode } from "../../../prefabs/agent";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import { resolvePulseCreateAgentTransportSuccess } from "../client/pulseTransportResultResolution";
+import { sendPulseCreateAgentTurn } from "../client/pulseStudioAgentTransport";
+import { resolveStandardCreateAgentTransportSuccess } from "../client/standardTransportResultResolution";
+import { sendStandardCreateAgentTurn } from "../client/standardStudioAgentTransport";
+import type { SendResult, CreateAgentStateOptions } from "../createAgentStateTypes";
+import { buildPulseCreateAgentContext } from "../logic/pulseCreateAgentContextBuilder";
+import { buildStandardCreateAgentContext } from "../logic/standardContextBuilder";
+import { useCreateAgentStateCore } from "../useCreateAgentStateCore";
 
 vi.mock("../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
@@ -12,7 +19,44 @@ vi.mock("../../../lib/authenticatedFetch", () => ({
 
 const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 
-describe("useAiAgent", () => {
+type TestCreateAgentStateOptions = CreateAgentStateOptions & {
+  runtimeMode?: AgentRuntimeMode;
+};
+
+const useCreateAgentStateTestHarness = ({
+  runtimeMode = "standard",
+  sendAgentTurn,
+  resolveTransportSuccess,
+  ...options
+}: TestCreateAgentStateOptions = {}) => {
+  const isPulseRuntime = runtimeMode === "pulse";
+  const resolvedSendAgentTurn =
+    sendAgentTurn ?? (isPulseRuntime ? sendPulseCreateAgentTurn : sendStandardCreateAgentTurn);
+  const resolvedTransportSuccess =
+    resolveTransportSuccess ??
+    (isPulseRuntime
+      ? resolvePulseCreateAgentTransportSuccess
+      : (response) => ({
+          ...resolveStandardCreateAgentTransportSuccess(response),
+          workflowSession: null,
+        }));
+
+  return useCreateAgentStateCore({
+    ...options,
+    requestRuntimeMode: runtimeMode,
+    allowSessionNamespaceOverride: isPulseRuntime,
+    sessionNamespaceOverrideErrorText: !isPulseRuntime
+      ? "Standard agent cannot send to an override session namespace."
+      : undefined,
+    buildAgentContext: isPulseRuntime
+      ? buildPulseCreateAgentContext
+      : buildStandardCreateAgentContext,
+    sendAgentTurn: resolvedSendAgentTurn,
+    resolveTransportSuccess: resolvedTransportSuccess,
+  });
+};
+
+describe("useCreateAgentStateCore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
@@ -21,29 +65,14 @@ describe("useAiAgent", () => {
     delete process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED;
   });
 
-  it("keeps Standard Create hook out of Pulse response parsing modules", () => {
-    const standardHookSource = readFileSync(
-      path.join(process.cwd(), "features/ai-agent/useStandardCreateAgent.ts"),
-      "utf8"
-    );
-    const standardParserSource = readFileSync(
-      path.join(process.cwd(), "features/ai-agent/client/standardTransportResultResolution.ts"),
-      "utf8"
-    );
-
-    expect(standardHookSource).not.toContain("transportResultResolution");
-    expect(standardHookSource).not.toContain("pulseTransportResultResolution");
-    expect(standardHookSource).not.toContain("logic/contextBuilder");
-    expect(standardParserSource).not.toContain("resolveWorkflowSession");
-    expect(standardParserSource).not.toContain("AgentPulseWorkflowSession");
-  });
-
   it("allows image-context-only turns without injecting describe text", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({ message: "Image context received." }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
 
     await act(async () => {
       await result.current.send({
@@ -71,7 +100,9 @@ describe("useAiAgent", () => {
   });
 
   it("still returns early for empty text with no media context", async () => {
-    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
 
     await act(async () => {
       await result.current.send({
@@ -90,7 +121,9 @@ describe("useAiAgent", () => {
       ok: true,
       json: async () => ({ message: "Pulse activated." }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
 
     await act(async () => {
       await result.current.send({
@@ -136,7 +169,7 @@ describe("useAiAgent", () => {
 
     const { result, rerender } = renderHook(
       ({ sessionNamespace }: { sessionNamespace: string }) =>
-        useAiAgent({ enabled: true, sessionNamespace, runtimeMode: "pulse" }),
+        useCreateAgentStateTestHarness({ enabled: true, sessionNamespace, runtimeMode: "pulse" }),
       {
         initialProps: {
           sessionNamespace: "ai-studio:seed:none::pulse:none",
@@ -198,7 +231,7 @@ describe("useAiAgent", () => {
 
     const { result, rerender } = renderHook(
       ({ sessionNamespace }: { sessionNamespace: string }) =>
-        useAiAgent({ enabled: true, sessionNamespace, runtimeMode: "pulse" }),
+        useCreateAgentStateTestHarness({ enabled: true, sessionNamespace, runtimeMode: "pulse" }),
       {
         initialProps: {
           sessionNamespace: "ai-studio:seed:none::pulse:none",
@@ -257,7 +290,9 @@ describe("useAiAgent", () => {
   });
 
   it("refuses explicit input in client precheck without transport call", async () => {
-    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
 
     await act(async () => {
       await result.current.send({
@@ -277,35 +312,12 @@ describe("useAiAgent", () => {
     );
   });
 
-  it("rewrites suggestive input before transport call", async () => {
+  it("sends Standard input through without local rewrite", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({ message: "safe rewrite pass" }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
-
-    await act(async () => {
-      await result.current.send({
-        text: "a sexy topless model in lingerie",
-        payloadText: "a sexy topless model in lingerie",
-      });
-    });
-
-    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
-    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
-    const bodyText = String(requestInit?.body ?? "");
-    expect(bodyText.toLowerCase()).not.toContain("topless");
-    expect(bodyText.toLowerCase()).not.toContain("lingerie");
-    expect(bodyText.toLowerCase()).toContain("fully clothed");
-  });
-
-  it("skips client precheck when disabled and sends original payload", async () => {
-    process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED = "false";
-    fetchWithAuthMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ message: "ok" }),
-    } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
 
     await act(async () => {
       await result.current.send({
@@ -321,28 +333,46 @@ describe("useAiAgent", () => {
     expect(bodyText.toLowerCase()).toContain("lingerie");
   });
 
-  it("includes directOpenAiBypass when the direct bypass option is enabled", async () => {
+  it("skips client precheck when disabled and sends original payload", async () => {
+    process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED = "false";
     fetchWithAuthMock.mockResolvedValue({
       ok: true,
       json: async () => ({ message: "ok" }),
     } as Response);
-    const { result } = renderHook(() =>
-      useAiAgent({ enabled: true, directOpenAiBypassEnabled: true })
-    );
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
 
     await act(async () => {
       await result.current.send({
-        text: "hello direct model",
-        payloadText: "hello direct model",
+        text: "a sexy topless model in lingerie",
+        payloadText: "a sexy topless model in lingerie",
+      });
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
+    const bodyText = String(requestInit?.body ?? "");
+    expect(bodyText.toLowerCase()).toContain("topless");
+    expect(bodyText.toLowerCase()).toContain("lingerie");
+  });
+
+  it("sends Standard requests to the Standard route", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "ok" }),
+    } as Response);
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "hello standard model",
+        payloadText: "hello standard model",
       });
     });
 
     const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
     const body = JSON.parse(String(requestInit?.body ?? "{}")) as {
-      directOpenAiBypass?: boolean;
       runtimeMode?: string;
     };
-    expect(body.directOpenAiBypass).toBe(true);
     expect(body.runtimeMode).toBe("standard");
     expect(fetchWithAuthMock.mock.calls[0]?.[0]).toBe("/api/ai/studio-agent-standard");
   });
@@ -352,7 +382,9 @@ describe("useAiAgent", () => {
       ok: true,
       json: async () => ({ message: "ok" }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
 
     await act(async () => {
       await result.current.send({
@@ -386,7 +418,9 @@ describe("useAiAgent", () => {
         },
       }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
 
     let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
     await act(async () => {
@@ -423,7 +457,7 @@ describe("useAiAgent", () => {
     } as Response);
 
     const { result, unmount } = renderHook(() =>
-      useAiAgent({ enabled: true, sessionNamespace: "ai-studio:test" })
+      useCreateAgentStateTestHarness({ enabled: true, sessionNamespace: "ai-studio:test" })
     );
 
     await act(async () => {
@@ -442,7 +476,7 @@ describe("useAiAgent", () => {
     unmount();
 
     const remounted = renderHook(() =>
-      useAiAgent({ enabled: true, sessionNamespace: "ai-studio:test" })
+      useCreateAgentStateTestHarness({ enabled: true, sessionNamespace: "ai-studio:test" })
     );
     await act(async () => {
       await remounted.result.current.send({
@@ -480,7 +514,8 @@ describe("useAiAgent", () => {
     } as Response);
 
     const hook = renderHook(
-      ({ namespace }) => useAiAgent({ enabled: true, sessionNamespace: namespace }),
+      ({ namespace }) =>
+        useCreateAgentStateTestHarness({ enabled: true, sessionNamespace: namespace }),
       { initialProps: { namespace: "ai-studio:tool-a" } }
     );
 
@@ -529,7 +564,8 @@ describe("useAiAgent", () => {
       } as Response);
 
     const hook = renderHook(
-      ({ namespace }) => useAiAgent({ enabled: true, sessionNamespace: namespace }),
+      ({ namespace }) =>
+        useCreateAgentStateTestHarness({ enabled: true, sessionNamespace: namespace }),
       { initialProps: { namespace: "ai-studio:session-a:create:text" } }
     );
 
@@ -572,7 +608,10 @@ describe("useAiAgent", () => {
     } as Response);
 
     const hook = renderHook(() =>
-      useAiAgent({ enabled: true, sessionNamespace: "ai-studio:session-a::standard" })
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        sessionNamespace: "ai-studio:session-a::standard",
+      })
     );
 
     await act(async () => {
@@ -632,7 +671,10 @@ describe("useAiAgent", () => {
       } as Response);
 
     const standardHook = renderHook(() =>
-      useAiAgent({ enabled: true, sessionNamespace: "ai-studio:session-a::standard" })
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        sessionNamespace: "ai-studio:session-a::standard",
+      })
     );
 
     await act(async () => {
@@ -643,7 +685,7 @@ describe("useAiAgent", () => {
     });
 
     const pulseHook = renderHook(() =>
-      useAiAgent({
+      useCreateAgentStateTestHarness({
         enabled: true,
         sessionNamespace: "ai-studio:session-a::pulse:story_builder",
         runtimeMode: "pulse",
@@ -693,7 +735,8 @@ describe("useAiAgent", () => {
     );
 
     const hook = renderHook(
-      ({ namespace }) => useAiAgent({ enabled: true, sessionNamespace: namespace }),
+      ({ namespace }) =>
+        useCreateAgentStateTestHarness({ enabled: true, sessionNamespace: namespace }),
       { initialProps: { namespace: "ai-studio:session-a:create:pulse-a" } }
     );
 
@@ -738,7 +781,7 @@ describe("useAiAgent", () => {
         headers: { "Content-Type": "application/json" },
       })
     );
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
 
     await act(async () => {
       await result.current.send({
@@ -757,42 +800,7 @@ describe("useAiAgent", () => {
     );
   });
 
-  it("treats infra fallback payloads as assistant responses without setting error", async () => {
-    fetchWithAuthMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          message: "I can't process that request right now. Please try again.",
-          actions: undefined,
-          outcome_class: "fallback_infra",
-          reason_code: "INFRA_FALLBACK_TRANSIENT",
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      )
-    );
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
-
-    await act(async () => {
-      await result.current.send({
-        text: "describe this image",
-        payloadText: "describe this image",
-      });
-    });
-
-    expect(result.current.error).toBeNull();
-    expect(result.current.messages.at(-1)).toEqual(
-      expect.objectContaining({
-        role: "assistant",
-        content: "I can't process that request right now. Please try again.",
-        canUseAsPrompt: false,
-        outcomeClass: "fallback_infra",
-      })
-    );
-  });
-
-  it("marks Standard message-only successes as non-prompt assistant responses", async () => {
+  it("treats Standard message-only successes as reusable prompt outputs", async () => {
     fetchWithAuthMock.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -807,7 +815,9 @@ describe("useAiAgent", () => {
         }
       )
     );
-    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "standard" }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "standard" })
+    );
 
     await act(async () => {
       await result.current.send({
@@ -821,11 +831,69 @@ describe("useAiAgent", () => {
       expect.objectContaining({
         role: "assistant",
         content: "Hello. How can I help?",
-        outputPrompt: null,
-        canUseAsPrompt: false,
+        outputPrompt: "Hello. How can I help?",
+        canUseAsPrompt: true,
         outcomeClass: "success_message",
       })
     );
+  });
+
+  it("keeps Standard assistant chat replies in outbound history", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            message: "Hello. How can I help?",
+            actions: undefined,
+            outcome_class: "success_message",
+            reason_code: "SUCCESS_MESSAGE",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            message: "Following up on your question.",
+            actions: undefined,
+            outcome_class: "success_message",
+            reason_code: "SUCCESS_MESSAGE",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      );
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "standard" })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "hello",
+        payloadText: "hello",
+      });
+    });
+
+    await act(async () => {
+      await result.current.send({
+        text: "follow up",
+        payloadText: "follow up",
+      });
+    });
+
+    const secondBody = JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
+    expect(secondBody.messages).toEqual([
+      { role: "user", content: "hello" },
+      { role: "assistant", content: "Hello. How can I help?" },
+      { role: "user", content: "follow up" },
+    ]);
   });
 
   it("preserves Pulse chat replies that look like prompt metadata", async () => {
@@ -853,7 +921,9 @@ describe("useAiAgent", () => {
         }
       )
     );
-    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "pulse" }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
 
     await act(async () => {
       await result.current.send({
@@ -891,7 +961,9 @@ describe("useAiAgent", () => {
         }
       )
     );
-    const { result } = renderHook(() => useAiAgent({ enabled: true, runtimeMode: "standard" }));
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "standard" })
+    );
 
     await act(async () => {
       await result.current.send({
@@ -928,7 +1000,7 @@ describe("useAiAgent", () => {
         }
       )
     );
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
 
     await act(async () => {
       await result.current.send({
@@ -946,16 +1018,15 @@ describe("useAiAgent", () => {
     );
   });
 
-  it("prioritizes machine fallback fields over non-actionable transport errors", async () => {
+  it("surfaces machine upstream-error transport payloads as errors", async () => {
     fetchWithAuthMock.mockResolvedValue(
       new Response(
         JSON.stringify({
           message: "temporary upstream saturation",
-          decision: "allow",
-          outcome_class: "fallback_infra",
-          reason_code: "INFRA_FALLBACK_TRANSIENT",
+          decision: "error",
+          outcome_class: "upstream_error",
+          reason_code: "UPSTREAM_ERROR",
           retryable: true,
-          fallback_reason: "responses_unavailable",
         }),
         {
           status: 503,
@@ -963,7 +1034,7 @@ describe("useAiAgent", () => {
         }
       )
     );
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
     let sendResult:
       | {
           response: unknown;
@@ -980,20 +1051,16 @@ describe("useAiAgent", () => {
 
     expect(sendResult).toEqual(
       expect.objectContaining({
-        response: expect.objectContaining({
-          outcome_class: "fallback_infra",
-          reason_code: "INFRA_FALLBACK_TRANSIENT",
-          fallback_reason: "responses_unavailable",
-        }),
+        response: null,
+        errorText: "temporary upstream saturation",
+        failureKind: "transport_error",
       })
     );
-    expect(result.current.error).toBeNull();
-    expect(result.current.messages.at(-1)).toEqual(
+    expect(result.current.error).toBe("temporary upstream saturation");
+    expect(result.current.messages.at(-1)).not.toEqual(
       expect.objectContaining({
         role: "assistant",
         content: "temporary upstream saturation",
-        canUseAsPrompt: false,
-        outcomeClass: "fallback_infra",
       })
     );
   });
@@ -1005,7 +1072,7 @@ describe("useAiAgent", () => {
         headers: { "Content-Type": "application/json" },
       })
     );
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
 
     await act(async () => {
       await result.current.send({
@@ -1022,7 +1089,7 @@ describe("useAiAgent", () => {
       ok: true,
       json: async () => ({ message: "assistant output" }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
 
     await act(async () => {
       await result.current.send({
@@ -1046,7 +1113,7 @@ describe("useAiAgent", () => {
         actions: { applyPrompt: "cinematic fragrance bottle with glossy reflections" },
       }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
 
     await act(async () => {
       await result.current.send({
@@ -1072,7 +1139,7 @@ describe("useAiAgent", () => {
       ok: true,
       json: async () => ({ message: "assistant output" }),
     } as Response);
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
 
     await act(async () => {
       await result.current.send({
@@ -1101,7 +1168,7 @@ describe("useAiAgent", () => {
   });
 
   it("replaces chat history when replaceMessages is used", () => {
-    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+    const { result } = renderHook(() => useCreateAgentStateTestHarness({ enabled: true }));
 
     act(() => {
       result.current.replaceMessages([

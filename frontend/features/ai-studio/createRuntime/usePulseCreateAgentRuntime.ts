@@ -20,7 +20,7 @@ import type {
 } from "../../../prefabs/agent";
 import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
-import { pulseCreateAgentRuntimeBinding } from "../hooks/agentBridgeRuntime/pulseCreateAgentRuntimeBinding";
+import { pulseCreateAgentRuntimeBinding } from "../hooks/createAgentRuntime/pulseCreateAgentRuntimeBinding";
 import { resolveCreateAgentOrchestrationRuntimePolicy } from "../hooks/agentOrchestration/createAgentOrchestrationRuntimePolicy";
 import type { AgentModeHint } from "../hooks/agentOrchestration/types";
 import { runPulseCreateAgentSend } from "../hooks/agentOrchestration/runPulseCreateAgentSend";
@@ -36,7 +36,7 @@ import type {
 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
-import { resolvePulseWorkflowArtifactPrompt } from "../hooks/agentBridgeRuntime/pulseBridgeRuntimeState";
+import { resolvePulseWorkflowArtifactPrompt } from "../hooks/createAgentRuntime/pulseRuntimeState";
 import type { PulseCreatePageAgentRuntime } from "./contracts";
 
 type PulseCreateAgentContextResolver = (params: {
@@ -170,7 +170,6 @@ export const usePulseCreateAgentRuntime = ({
   const activeAgent = useCreateAgentStateCore({
     enabled: agentEnabled,
     sessionNamespace: agentSessionNamespace,
-    directOpenAiBypassEnabled: false,
     requestRuntimeMode: "pulse",
     allowSessionNamespaceOverride: true,
     buildAgentContext: pulseCreateAgentRuntimeBinding.buildAgentContext,
@@ -374,7 +373,7 @@ export const usePulseCreateAgentRuntime = ({
   const handlePulsePresetRestart = useCallback(
     async (preset: CreatePulseResolvedPreset) => {
       const { restartCreatePulsePreset } =
-        await import("../hooks/agentBridgeRuntime/pulsePresetRestart");
+        await import("../hooks/createAgentRuntime/pulsePresetRestart");
       await restartCreatePulsePreset({
         preset,
         restartPulse,

@@ -63,8 +63,8 @@ import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibrar
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
-type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
-type RootMediaLibraryTab = "all" | "images" | "videos" | "prompts";
+type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
+type RootMediaLibraryTab = MediaLibraryPanelItemType;
 
 type FolderContextMenuState = {
   folderId: string;
@@ -299,6 +299,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
   const visibleVideoRows = useMemo(
     () => mediaRows.filter((row) => isVideoFile(row.file_type)),
+    [mediaRows]
+  );
+  const visibleAudioRows = useMemo(
+    () => mediaRows.filter((row) => isAudioFile(row.file_type)),
     [mediaRows]
   );
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
@@ -1064,6 +1068,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     ]
   );
 
+  const renderAudioGrid = useCallback(
+    () => renderAllItemsGrid({ gridMediaRows: visibleAudioRows, gridPromptRows: [] }),
+    [renderAllItemsGrid, visibleAudioRows]
+  );
+
   const renderPromptsSection = useCallback(
     ({ showHeading = true }: { showHeading?: boolean } = {}) => (
       <section className="media-library-panel-section">
@@ -1210,6 +1219,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     }
     if (itemType === "images") return visibleImageRows;
     if (itemType === "videos") return visibleVideoRows;
+    if (itemType === "audio") return visibleAudioRows;
     if (itemType === "all") return mediaRows;
     return [];
   }, [
@@ -1218,6 +1228,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     itemType,
     mediaRows,
     shouldShowMedia,
+    visibleAudioRows,
     visibleImageRows,
     visibleVideoRows,
   ]);
@@ -1437,9 +1448,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   visiblePromptRowsLength={visiblePromptRows.length}
                   visibleImageRowsLength={visibleImageRows.length}
                   visibleVideoRowsLength={visibleVideoRows.length}
+                  visibleAudioRowsLength={visibleAudioRows.length}
                   renderAllItemsGrid={() => renderAllItemsGrid()}
                   renderImageGrid={() => renderMediaGrid(visibleImageRows)}
                   renderVideoGrid={() => renderMediaGrid(visibleVideoRows)}
+                  renderAudioGrid={renderAudioGrid}
                   renderPromptsSection={() => renderPromptsSection({ showHeading: false })}
                   mediaHasMore={mediaHasMore}
                   loadMediaPage={loadMediaPage}

@@ -30,6 +30,7 @@ export type AiStudioProjectIdentityStatus = "idle" | "loading" | "ready" | "erro
 export type AiStudioProjectIdentityErrorKind =
   | "invalid_id"
   | "unauthorized"
+  | "forbidden"
   | "not_found"
   | "invalid_payload"
   | "server"
@@ -100,7 +101,13 @@ const resolveProjectLoadError = (
   if (status === 401) {
     return { message: "Session expired. Retry project load.", kind: "unauthorized" };
   }
-  if (status === 400 || status === 403 || status === 404) {
+  if (status === 400) {
+    return { message: "Invalid project link.", kind: "invalid_id" };
+  }
+  if (status === 403) {
+    return { message: "You do not have access to this project.", kind: "forbidden" };
+  }
+  if (status === 404) {
     return { message: "Project not found.", kind: "not_found" };
   }
   return {
@@ -116,7 +123,13 @@ const resolveProjectUpdateError = (
   if (status === 401) {
     return { message: "Session expired. Retry project load.", kind: "unauthorized" };
   }
-  if (status === 400 || status === 403 || status === 404) {
+  if (status === 400) {
+    return { message: "Invalid project link.", kind: "invalid_id" };
+  }
+  if (status === 403) {
+    return { message: "You do not have access to this project.", kind: "forbidden" };
+  }
+  if (status === 404) {
     return { message: "Project not found.", kind: "not_found" };
   }
   return {
@@ -191,6 +204,7 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
     void fetchWithAuth(`/api/projects/${encodeURIComponent(verifiedRouteProjectId)}`, {
       method: "GET",
       shortpulseAuthTimeoutMs: 5000,
+      shortpulseRetryNetworkOnce: true,
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => ({}))) as AiStudioProjectRoutePayload;

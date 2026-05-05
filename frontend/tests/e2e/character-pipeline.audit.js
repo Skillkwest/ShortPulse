@@ -108,7 +108,8 @@ async function main() {
       const url = response.url();
       if (!url.startsWith(BASE_URL) || !url.includes("/api/")) return;
       const keep =
-        url.includes("/api/ai/studio-agent") ||
+        url.includes("/api/ai/studio-agent-standard") ||
+        url.includes("/api/ai/studio-agent-pulse") ||
         url.includes("/api/fal/seedream-edit-submit") ||
         url.includes("/api/fal/seedream-status") ||
         url.includes("/api/upload-image") ||

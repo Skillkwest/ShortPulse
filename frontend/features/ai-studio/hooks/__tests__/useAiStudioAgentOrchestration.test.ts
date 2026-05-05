@@ -583,14 +583,15 @@ describe("useAiStudioAgentOrchestration", () => {
     );
   });
 
-  it("enhances video reference prompt and routes to video setter", async () => {
+  it("disables Standard reference prompt enhancement", async () => {
     const setVideoReferenceText = vi.fn();
     const setEditReferenceText = vi.fn();
-    const setPromptOrigin = vi.fn();
     const sendToAgent = vi.fn(async () => ({
       response: { message: "Refined video prompt" },
       actions: { applyPrompt: "Refined video prompt" },
     }));
+    const setUiNotice = vi.fn();
+    const trackAgentUiEvent = vi.fn();
 
     const params = createParams({
       selectedTool: "video",
@@ -599,7 +600,8 @@ describe("useAiStudioAgentOrchestration", () => {
       sendToAgent,
       setVideoReferenceText,
       setEditReferenceText,
-      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      trackAgentUiEvent,
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -607,18 +609,11 @@ describe("useAiStudioAgentOrchestration", () => {
       await result.current.handleReferencePromptEnhance();
     });
 
-    expect(sendToAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        text: "Base video prompt",
-        payloadText: "Base video prompt",
-        isolateHistory: true,
-        skipUserEcho: true,
-        previousPrompt: "Previous prompt context",
-      })
-    );
-    expect(setVideoReferenceText).toHaveBeenCalledWith("Refined video prompt");
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("This helper is unavailable in Standard mode.");
+    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_standard_helper_disabled");
+    expect(setVideoReferenceText).not.toHaveBeenCalled();
     expect(setEditReferenceText).not.toHaveBeenCalled();
-    expect(setPromptOrigin).toHaveBeenCalledWith("manual");
   });
 
   it("blocks Standard reference prompt enhancement while Pulse runtime is active", async () => {
@@ -668,6 +663,27 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(setUiNotice).toHaveBeenCalledWith("Preparing chat. Try again in a moment.");
   });
 
+  it("disables Standard prompt enhancement when bootstrap is ready", async () => {
+    const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
+    const setUiNotice = vi.fn();
+    const trackAgentUiEvent = vi.fn();
+    const params = createParams({
+      prompt: "Base prompt",
+      sendToAgent,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      trackAgentUiEvent,
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentEnhanceSend();
+    });
+
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("This helper is unavailable in Standard mode.");
+    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_standard_helper_disabled");
+  });
+
   it("blocks reference prompt enhancement while agent bootstrap is still pending", async () => {
     const sendToAgent = vi.fn(async () => ({ response: null, actions: undefined }));
     const setUiNotice = vi.fn();
@@ -688,16 +704,13 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(setUiNotice).toHaveBeenCalledWith("Preparing chat. Try again in a moment.");
   });
 
-  it("describes a reference through the canonical agent path without legacy describe route", async () => {
+  it("disables Standard describe helper", async () => {
     const sendToAgent = vi.fn(async () => ({
       response: { message: "A detailed image prompt" },
       actions: { applyPrompt: "A detailed image prompt" },
     }));
-    const setOutputs = vi.fn();
-    const setSharedPrompt = vi.fn();
-    const setLatestAgentPrompt = vi.fn();
-    const setPromptOrigin = vi.fn();
-    const setActiveOutputId = vi.fn();
+    const setUiNotice = vi.fn();
+    const trackAgentUiEvent = vi.fn();
     const targetOutput = makeOutput("out-1", {
       prompt: "Original output prompt",
       previewUrl: "https://cdn.test/original.png",
@@ -706,13 +719,9 @@ describe("useAiStudioAgentOrchestration", () => {
 
     const params = createParams({
       sendToAgent,
-      setOutputs: asDispatch<StudioOutput[]>(setOutputs),
-      setSharedPrompt,
-      setLatestAgentPrompt: asDispatch<string | null>(setLatestAgentPrompt),
-      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
-      setActiveOutputId: asDispatch<string | null>(setActiveOutputId),
       getOutputById: vi.fn((id: string) => (id === "out-1" ? targetOutput : null)),
-      getAgentContext: vi.fn(() => ({})),
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      trackAgentUiEvent,
     });
     const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
 
@@ -720,29 +729,10 @@ describe("useAiStudioAgentOrchestration", () => {
       await result.current.handleDescribeReference("out-1");
     });
 
-    expect(prepareImageUrlMock).toHaveBeenCalledWith("https://cdn.test/original.png");
-    expect(sendToAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        text: "",
-        payloadText: "",
-        isolateHistory: true,
-        skipUserEcho: true,
-        context: expect.objectContaining({
-          focusedSource: "image",
-          selectedReferenceIds: ["out-1"],
-          media: [
-            expect.objectContaining({
-              id: "out-1",
-              kind: "image",
-              url: "https://cdn.test/prepared-image.png",
-            }),
-          ],
-        }),
-      })
-    );
-    expect(setSharedPrompt).toHaveBeenCalledWith("A detailed image prompt");
-    expect(setLatestAgentPrompt).toHaveBeenCalledWith("A detailed image prompt");
-    expect(setPromptOrigin).toHaveBeenCalledWith("agent");
+    expect(prepareImageUrlMock).not.toHaveBeenCalled();
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith("This helper is unavailable in Standard mode.");
+    expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_standard_helper_disabled");
   });
 
   it("keeps Pulse chat applyPrompt output out of the shared Create prompt", async () => {

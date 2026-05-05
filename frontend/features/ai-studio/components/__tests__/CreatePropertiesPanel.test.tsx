@@ -122,10 +122,8 @@ describe("CreatePropertiesPanel", () => {
     expect(pulsePromptStep).not.toContain("onChatModeEnabledChange");
     expect(pulseChatSurface).not.toContain("chatModeEnabled");
     expect(pulseChatSurface).not.toContain("onChatModeEnabledChange");
-    expect(pulseChatSurface).not.toContain("directOpenAiBypassEnabled");
     expect(pulsePanel).not.toContain("assistantBubbleMedia");
     expect(pulsePanel).not.toContain("chatModeEnabled");
-    expect(pulsePanel).not.toContain("directOpenAiBypassEnabled");
     expect(pulsePanel).not.toContain("ModelModalContext");
     expect(pulsePanel).not.toContain("modelId");
     expect(pulsePanel).not.toContain("modelLabel");

@@ -22,7 +22,6 @@ export function PromptStep({
   agentMessages = [],
   agentInput = "",
   chatModeEnabled = true,
-  directOpenAiBypassEnabled = false,
   agentIsSending = false,
   agentError,
   stagedPrompt = null,
@@ -197,10 +196,20 @@ export function PromptStep({
     onAgentSend?.();
     requestAnimationFrame(() => agentInputRef.current?.focus());
   };
-  const blockHistoryDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
+  const handleComposerAttachmentDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    onAgentAttachmentDragOver?.(event);
+  };
+  const handleComposerAttachmentDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    onAgentAttachmentDragEnter?.(event);
+  };
+  const handleComposerAttachmentDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    onAgentAttachmentDragLeave?.(event);
   };
   const handleComposerAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.stopPropagation();
     const payload = event.dataTransfer ? extractDragDropPayload(event.dataTransfer) : null;
     const droppedPromptText = payload?.promptText?.trim() ?? null;
     const droppedImageUrl = payload?.imageUrl?.trim() ?? null;
@@ -217,10 +226,10 @@ export function PromptStep({
   };
   const historyDropHandlers = dropToInputComposer
     ? {
-        onDrop: blockHistoryDrop,
-        onDragOver: blockHistoryDrop,
-        onDragEnter: undefined,
-        onDragLeave: undefined,
+        onDrop: handleComposerAttachmentDrop,
+        onDragOver: handleComposerAttachmentDragOver,
+        onDragEnter: handleComposerAttachmentDragEnter,
+        onDragLeave: handleComposerAttachmentDragLeave,
       }
     : {
         onDrop: onAgentAttachmentDrop,
@@ -231,13 +240,26 @@ export function PromptStep({
   const inputDropHandlers = dropToInputComposer
     ? {
         onDrop: handleComposerAttachmentDrop,
-        onDragOver: onAgentAttachmentDragOver,
-        onDragEnter: onAgentAttachmentDragEnter,
-        onDragLeave: onAgentAttachmentDragLeave,
+        onDragOver: handleComposerAttachmentDragOver,
+        onDragEnter: handleComposerAttachmentDragEnter,
+        onDragLeave: handleComposerAttachmentDragLeave,
       }
     : {
         onDrop: undefined,
         onDragOver: undefined,
+        onDragEnter: undefined,
+        onDragLeave: undefined,
+      };
+  const rootDropHandlers = dropToInputComposer
+    ? {
+        onDrop: handleComposerAttachmentDrop,
+        onDragOver: handleComposerAttachmentDragOver,
+        onDragEnter: handleComposerAttachmentDragEnter,
+        onDragLeave: handleComposerAttachmentDragLeave,
+      }
+    : {
+        onDrop,
+        onDragOver,
         onDragEnter: undefined,
         onDragLeave: undefined,
       };
@@ -299,8 +321,7 @@ export function PromptStep({
       }}
       role="group"
       aria-label={`${effectiveTitle} section`}
-      onDrop={onDrop}
-      onDragOver={onDragOver}
+      {...rootDropHandlers}
     >
       {!hideHeader ? (
         <PromptStepHeader
@@ -348,7 +369,6 @@ export function PromptStep({
                 chatModeEnabled={chatModeEnabled}
                 onChatModeEnabledChange={onChatModeEnabledChange}
                 hideChatModeToggle={hideChatModeToggle}
-                directOpenAiBypassEnabled={directOpenAiBypassEnabled}
                 agentBootstrapPending={agentBootstrapPending}
                 onAgentSend={onAgentSend}
                 onGenerateOutputPrompt={onGenerateOutputPrompt}

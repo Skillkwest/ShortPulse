@@ -133,7 +133,7 @@ describe("useCreatePulsePresetPanelPreference", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("normalizes remote pulse preferences without backfilling on mount", async () => {
+  it("normalizes remote pulse preferences and drops built-in collisions without backfilling on mount", async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     const maybeSingle = vi.fn().mockResolvedValue({
       data: {
@@ -184,12 +184,6 @@ describe("useCreatePulsePresetPanelPreference", () => {
         presetId: "pulse_custom",
         label: "UGC Director",
         systemInstructions: "Direct the concept like a native UGC performance ad.",
-        createdAt: "2026-04-20T00:00:00.000Z",
-      }),
-      buildExpectedSavedPulse({
-        presetId: "image",
-        label: "Invalid Built-in Collision",
-        systemInstructions: "Should be ignored.",
         createdAt: "2026-04-20T00:00:00.000Z",
       }),
     ]);

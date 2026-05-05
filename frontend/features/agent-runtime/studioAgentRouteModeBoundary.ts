@@ -9,6 +9,18 @@ type StudioAgentRequestBody = {
   canonicalPrompt?: unknown;
 };
 
+const RETIRED_CREATE_PULSE_PRESET_IDS = new Set([
+  "custom_1",
+  "custom_2",
+  "custom_3",
+  "single_shot",
+  "ad_hook",
+  "product_hero",
+  "ugc_style",
+  "before_after",
+  "lifestyle_scene",
+]);
+
 export const hasStudioAgentPulseContext = (value: unknown): boolean =>
   Boolean(
     value &&
@@ -40,6 +52,18 @@ export const readPulsePresetIdFromSessionNamespace = (value: string | null): str
   const presetId = pulseScope.split(":")[0]?.trim() ?? "";
   return presetId || null;
 };
+
+export const readPulsePresetIdFromContext = (context: unknown): string | null => {
+  const pulse =
+    context && typeof context === "object" && !Array.isArray(context)
+      ? (context as { pulse?: { presetId?: unknown } | null }).pulse
+      : null;
+  const presetId = typeof pulse?.presetId === "string" ? pulse.presetId.trim() : "";
+  return presetId || null;
+};
+
+export const isRetiredCreatePulsePresetId = (value: string | null | undefined): boolean =>
+  typeof value === "string" && RETIRED_CREATE_PULSE_PRESET_IDS.has(value.trim());
 
 export const hasInboundStudioAgentCanonicalPrompt = (
   body: StudioAgentRequestBody | null | undefined

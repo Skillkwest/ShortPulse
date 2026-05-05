@@ -4,11 +4,18 @@
  */
 import React, { createContext, useContext } from "react";
 import { useCreatePulsePresetPanelPreference } from "../../hooks/useCreatePulsePresetPanelPreference";
-import type { CreatePulsePresetId, CreatePulseSavedPreset } from "./createPulsePresets";
+import { useCreatePulseBuiltInCatalog } from "../../hooks/useCreatePulseBuiltInCatalog";
+import type {
+  CreatePulseBuiltInPresetDefinition,
+  CreatePulsePresetId,
+  CreatePulseSavedPreset,
+} from "./createPulsePresets";
 
 export type CreatePulsePreferenceRuntimeValue = {
   presetPanelIds: readonly CreatePulsePresetId[];
   savedPresets: readonly CreatePulseSavedPreset[];
+  builtInDefinitions: readonly CreatePulseBuiltInPresetDefinition[];
+  builtInDefinitionsLoading: boolean;
   setPresetPanelIds: (value: CreatePulsePresetId[]) => Promise<boolean>;
   setSavedPresets: (value: CreatePulseSavedPreset[]) => Promise<boolean>;
 };
@@ -23,15 +30,22 @@ type CreatePulsePreferenceProviderProps = {
  * Loads and provides per-user Pulse preferences for mounted Pulse surfaces.
  */
 export const CreatePulsePreferenceProvider = ({ children }: CreatePulsePreferenceProviderProps) => {
-  const preference = useCreatePulsePresetPanelPreference();
+  const builtInCatalog = useCreatePulseBuiltInCatalog();
+  const preference = useCreatePulsePresetPanelPreference({
+    builtInDefinitions: builtInCatalog.builtInDefinitions,
+  });
   const value = React.useMemo<CreatePulsePreferenceRuntimeValue>(
     () => ({
       presetPanelIds: preference.presetPanelIds,
       savedPresets: preference.savedPresets,
+      builtInDefinitions: builtInCatalog.builtInDefinitions,
+      builtInDefinitionsLoading: builtInCatalog.loading,
       setPresetPanelIds: preference.setPresetPanelIds,
       setSavedPresets: preference.setSavedPresets,
     }),
     [
+      builtInCatalog.builtInDefinitions,
+      builtInCatalog.loading,
       preference.presetPanelIds,
       preference.savedPresets,
       preference.setPresetPanelIds,

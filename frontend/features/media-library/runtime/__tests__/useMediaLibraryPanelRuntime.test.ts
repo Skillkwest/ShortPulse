@@ -31,7 +31,7 @@ const makePromptRow = (id: string) => ({
 
 describe("useMediaLibraryPanelRuntime", () => {
   it("normalizes panel media rows while preserving item-type filtering", () => {
-    type PanelItemType = "all" | "images" | "videos" | "prompts";
+    type PanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
     const { result, rerender } = renderHook(
       ({ itemType }: { itemType: PanelItemType }) => useMediaLibraryPanelRuntime({ itemType }),
       {
@@ -78,6 +78,9 @@ describe("useMediaLibraryPanelRuntime", () => {
 
     rerender({ itemType: "videos" });
     expect(result.current.mediaRows.map((row) => row.id)).toEqual(["private-video"]);
+
+    rerender({ itemType: "audio" });
+    expect(result.current.mediaRows.map((row) => row.id)).toEqual(["audio-1"]);
   });
 
   it("stores panel prompt rows in the shared runtime surface", () => {

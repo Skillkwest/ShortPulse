@@ -1,6 +1,6 @@
 /**
  * Shared machine-outcome mapping for AI Studio agent route payload contracts.
- * Keeps additive route fields deterministic across success/refusal/fallback/error lanes.
+ * Keeps additive route fields deterministic across success/refusal/error lanes.
  */
 import type {
   AgentMachineOutcomeFields,
@@ -8,17 +8,6 @@ import type {
   AgentReasonCode,
 } from "../../prefabs/agent/outcomeContract";
 
-const RATE_LIMIT_PATTERNS: RegExp[] = [
-  /\brate\s*limit(?:ed|ing)?\b/i,
-  /\btoo\s+many\s+requests\b/i,
-];
-const TIMEOUT_PATTERNS: RegExp[] = [
-  /\btimeout\b/i,
-  /\btimed\s*out\b/i,
-  /\betimedout\b/i,
-  /\bdeadline\b/i,
-  /\babort(?:error)?\b/i,
-];
 const OUTPUT_CONTRACT_PATTERNS: RegExp[] = [
   /\bparse\/repair\s+failed\b/i,
   /\bcontract\s+violation\b/i,
@@ -52,14 +41,6 @@ const validateReasonCodeForOutcomeClass = ({
     );
   }
   if (outcomeClass === "refusal_model") return reasonCode === "PROVIDER_SAFETY_REFUSAL";
-  if (outcomeClass === "fallback_infra") {
-    return (
-      reasonCode === "INFRA_FALLBACK_TRANSIENT" ||
-      reasonCode === "INFRA_FALLBACK_TIMEOUT" ||
-      reasonCode === "INFRA_FALLBACK_RATE_LIMIT" ||
-      reasonCode === "INFRA_FALLBACK_OUTPUT_CONTRACT"
-    );
-  }
   if (outcomeClass === "upstream_error") {
     return reasonCode === "UPSTREAM_ERROR" || reasonCode === "UPSTREAM_OUTPUT_CONTRACT";
   }
@@ -76,7 +57,6 @@ const resolveDefaultReasonCode = (outcomeClass: AgentOutcomeClass): AgentReasonC
   if (outcomeClass === "success_message") return "SUCCESS_MESSAGE";
   if (outcomeClass === "refusal_safety") return "SAFETY_OUTPUT_REFUSAL";
   if (outcomeClass === "refusal_model") return "PROVIDER_SAFETY_REFUSAL";
-  if (outcomeClass === "fallback_infra") return "INFRA_FALLBACK_TRANSIENT";
   if (outcomeClass === "upstream_error") return "UPSTREAM_ERROR";
   return "ROUTE_ERROR";
 };
@@ -84,11 +64,7 @@ const resolveDefaultReasonCode = (outcomeClass: AgentOutcomeClass): AgentReasonC
 const resolveDecisionForOutcomeClass = (
   outcomeClass: AgentOutcomeClass
 ): AgentMachineOutcomeFields["decision"] => {
-  if (
-    outcomeClass === "success_prompt" ||
-    outcomeClass === "success_message" ||
-    outcomeClass === "fallback_infra"
-  ) {
+  if (outcomeClass === "success_prompt" || outcomeClass === "success_message") {
     return "allow";
   }
   if (outcomeClass === "refusal_model" || outcomeClass === "refusal_safety") return "refuse";
@@ -106,9 +82,6 @@ const resolveRetryable = ({
     return ROUTE_ERROR_REASON_RETRYABLE[
       reasonCode as keyof typeof ROUTE_ERROR_REASON_RETRYABLE
     ] as boolean;
-  }
-  if (outcomeClass === "fallback_infra") {
-    return reasonCode !== "INFRA_FALLBACK_OUTPUT_CONTRACT";
   }
   if (outcomeClass === "upstream_error") return reasonCode !== "UPSTREAM_OUTPUT_CONTRACT";
   return false;
@@ -134,39 +107,6 @@ export const buildAgentMachineOutcome = ({
     reason_code: resolvedReasonCode,
     retryable: resolveRetryable({ outcomeClass, reasonCode: resolvedReasonCode }),
   };
-};
-
-/**
- * Resolves infra fallback reason code for transient assistant-fallback lanes.
- */
-export const resolveInfraFallbackReasonCode = ({
-  status,
-  detail,
-}: {
-  status?: number | null;
-  detail?: string | null;
-}): Extract<
-  AgentReasonCode,
-  | "INFRA_FALLBACK_TRANSIENT"
-  | "INFRA_FALLBACK_TIMEOUT"
-  | "INFRA_FALLBACK_RATE_LIMIT"
-  | "INFRA_FALLBACK_OUTPUT_CONTRACT"
-> => {
-  const normalizedDetail = String(detail ?? "").trim();
-  if (OUTPUT_CONTRACT_PATTERNS.some((pattern) => pattern.test(normalizedDetail))) {
-    return "INFRA_FALLBACK_OUTPUT_CONTRACT";
-  }
-  if (status === 429 || RATE_LIMIT_PATTERNS.some((pattern) => pattern.test(normalizedDetail))) {
-    return "INFRA_FALLBACK_RATE_LIMIT";
-  }
-  if (
-    status === 408 ||
-    status === 504 ||
-    TIMEOUT_PATTERNS.some((pattern) => pattern.test(normalizedDetail))
-  ) {
-    return "INFRA_FALLBACK_TIMEOUT";
-  }
-  return "INFRA_FALLBACK_TRANSIENT";
 };
 
 /**

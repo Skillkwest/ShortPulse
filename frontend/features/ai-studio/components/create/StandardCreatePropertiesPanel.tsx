@@ -48,7 +48,6 @@ export type StandardCreatePropertiesPanelProps = {
   agentMessages?: AgentMessage[];
   agentInput?: string;
   chatModeEnabled?: boolean;
-  directOpenAiBypassEnabled?: boolean;
   agentIsSending?: boolean;
   agentError?: string;
   stagedPrompt?: string | null;
@@ -75,7 +74,6 @@ export type StandardCreatePropertiesPanelProps = {
   onAgentInputChange?: (value: string) => void;
   onChatModeEnabledChange?: (value: boolean) => void;
   onAgentSend?: () => void;
-  onAgentEnhanceSend?: () => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -596,7 +594,6 @@ export function StandardCreatePropertiesPanel({
   agentMessages = [],
   agentInput = "",
   chatModeEnabled = true,
-  directOpenAiBypassEnabled = false,
   agentIsSending = false,
   agentError,
   stagedPrompt = null,
@@ -607,7 +604,6 @@ export function StandardCreatePropertiesPanel({
   onAgentInputChange,
   onChatModeEnabledChange,
   onAgentSend,
-  onAgentEnhanceSend,
   onAgentAttachmentDrop,
   onAgentAttachmentDragOver,
   onAgentAttachmentDragEnter,
@@ -804,9 +800,8 @@ export function StandardCreatePropertiesPanel({
     onAgentInputChange,
     chatModeEnabled,
     onChatModeEnabledChange,
-    directOpenAiBypassEnabled,
+    hideChatModeToggle: true,
     onAgentSend,
-    onAgentEnhanceSend,
     onAgentAttachmentDrop,
     onAgentAttachmentDragOver,
     onAgentAttachmentDragEnter,

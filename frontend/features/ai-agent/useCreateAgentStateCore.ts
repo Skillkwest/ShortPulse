@@ -35,7 +35,7 @@ import {
 } from "./client/messageStore";
 import { resolveStudioAgentTransportFailure } from "./client/transportFailureResolution";
 import { ensureSessionKey, persistSessionKey, randomId } from "./client/sessionController";
-import { EMPTY_MESSAGES, type SendParams, type SendResult } from "./useAiAgentTypes";
+import { EMPTY_MESSAGES, type SendParams, type SendResult } from "./createAgentStateTypes";
 import type { StudioAgentTransportResult } from "./client/studioAgentTransport";
 
 type CreateAgentTransportSuccess = {
@@ -51,7 +51,6 @@ type UseCreateAgentStateCoreOptions = {
   enabled?: boolean;
   conversationId?: string;
   sessionNamespace?: string;
-  directOpenAiBypassEnabled?: boolean;
   requestRuntimeMode: AgentRuntimeMode;
   allowSessionNamespaceOverride: boolean;
   sessionNamespaceOverrideErrorText?: string;
@@ -105,7 +104,6 @@ export const useCreateAgentStateCore = ({
   enabled = true,
   conversationId,
   sessionNamespace = "ai-studio-default",
-  directOpenAiBypassEnabled = false,
   requestRuntimeMode,
   allowSessionNamespaceOverride,
   sessionNamespaceOverrideErrorText = "Agent cannot send to an override session namespace.",
@@ -232,9 +230,11 @@ export const useCreateAgentStateCore = ({
 
       try {
         const payloadCandidate = payloadTrimmed || trimmed;
-        const cleanedUserPayload = payloadCandidate
-          ? (removeAspectRatioLanguage(payloadCandidate) ?? payloadCandidate)
-          : "";
+        const shouldBypassStandardLocalProcessing = requestRuntimeMode === "standard";
+        const cleanedUserPayload =
+          shouldBypassStandardLocalProcessing || !payloadCandidate
+            ? payloadCandidate
+            : (removeAspectRatioLanguage(payloadCandidate) ?? payloadCandidate);
         const userPayloadForApi = cleanedUserPayload || (allowContextOnlyTurn ? " " : trimmed);
         // Canonical prompt is sent separately; avoid duplicating assistant content in the message list.
         void previousPrompt;
@@ -243,28 +243,33 @@ export const useCreateAgentStateCore = ({
           userPayloadForApi,
           skipUserEcho,
           optimisticUserMessageId,
+          excludeNonPromptAssistantHistory: !shouldBypassStandardLocalProcessing,
         });
         const clientSessionKey = ensureSessionKey(requestSessionNamespace, conversationId);
         clientSessionKeyRef.current = clientSessionKey;
         const safeContext = context ? await buildAgentContext(context) : undefined;
         const precheckContext: AgentApiContext = safeContext ?? {};
-        const inputPrecheckResult = runStudioAgentSafetyInputPrecheck({
-          enabled: isClientInputPrecheckEnabled(),
-          messages: apiMessages,
-          context: precheckContext,
-          canonicalPrompt: requestCanonicalPrompt,
-          modality: resolveClientSafetyModality(safeContext),
-          profileId: resolveClientSafetyProfileId(),
-          environment: resolveSafetyEnvironment(process.env.NODE_ENV),
-          devAbsoluteZeroEnabled: isClientDevAbsoluteZeroEnabled(),
-          rewriteRecheckMode: "allow_or_rewrite",
-          fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
-            sharedRawValue: process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
-            scopedRawValue:
-              process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT,
-          }),
-        });
-        if (inputPrecheckResult.outcome === "refusal") {
+        const inputPrecheckResult = shouldBypassStandardLocalProcessing
+          ? null
+          : runStudioAgentSafetyInputPrecheck({
+              enabled: isClientInputPrecheckEnabled(),
+              messages: apiMessages,
+              context: precheckContext,
+              canonicalPrompt: requestCanonicalPrompt,
+              modality: resolveClientSafetyModality(safeContext),
+              profileId: resolveClientSafetyProfileId(),
+              environment: resolveSafetyEnvironment(process.env.NODE_ENV),
+              devAbsoluteZeroEnabled: isClientDevAbsoluteZeroEnabled(),
+              rewriteRecheckMode: "allow_or_rewrite",
+              fieldModes: resolveStudioAgentSafetyInputPrecheckFieldModes({
+                sharedRawValue:
+                  process.env.NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES,
+                scopedRawValue:
+                  process.env
+                    .NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT,
+              }),
+            });
+        if (inputPrecheckResult?.outcome === "refusal") {
           const nextAssistantMessages = appendAssistantMessage(getResponseBaseMessages(), {
             id: createAgentMessageId("assistant"),
             content: SAFETY_REFUSAL_MESSAGE,
@@ -281,28 +286,35 @@ export const useCreateAgentStateCore = ({
             workflowSession: null,
           };
         }
-        const precheckedApiMessages = inputPrecheckResult.messages.map((message) => {
-          const role: "user" | "assistant" = message.role === "assistant" ? "assistant" : "user";
-          return {
-            role,
-            content: message.content,
-          };
-        });
-        const precheckedContext =
-          Object.keys(inputPrecheckResult.context).length > 0
+        const outboundMessages = inputPrecheckResult
+          ? inputPrecheckResult.messages.map((message) => {
+              const role: "user" | "assistant" =
+                message.role === "assistant" ? "assistant" : "user";
+              return {
+                role,
+                content: message.content,
+              };
+            })
+          : apiMessages;
+        const outboundContext = inputPrecheckResult
+          ? Object.keys(inputPrecheckResult.context).length > 0
             ? inputPrecheckResult.context
+            : undefined
+          : safeContext && Object.keys(safeContext).length > 0
+            ? safeContext
             : undefined;
 
         const body: AgentApiRequest = {
-          messages: precheckedApiMessages,
-          context: precheckedContext,
+          messages: outboundMessages,
+          context: outboundContext,
           clientSessionKey,
           clientSessionNamespace: requestSessionNamespace,
           conversationId: clientSessionKey,
           traceId: `agent-${randomId()}`,
           canonicalPrompt:
-            requestRuntimeMode === "pulse" ? null : inputPrecheckResult.canonicalPrompt,
-          directOpenAiBypass: directOpenAiBypassEnabled,
+            shouldBypassStandardLocalProcessing || requestRuntimeMode === "pulse"
+              ? null
+              : (inputPrecheckResult?.canonicalPrompt ?? null),
           runtimeMode: requestRuntimeMode,
         };
         const transportResult = await sendAgentTurn(body);
@@ -354,7 +366,6 @@ export const useCreateAgentStateCore = ({
           const canUseAssistantMessageAsPrompt =
             Boolean(assistantOutputPrompt) &&
             data.decision !== "refuse" &&
-            data.outcome_class !== "fallback_infra" &&
             data.outcome_class !== "refusal_safety" &&
             data.outcome_class !== "refusal_model";
           const nextAssistantMessages = appendAssistantMessage(getResponseBaseMessages(), {
@@ -396,7 +407,6 @@ export const useCreateAgentStateCore = ({
     },
     [
       conversationId,
-      directOpenAiBypassEnabled,
       enabled,
       allowSessionNamespaceOverride,
       buildAgentContext,

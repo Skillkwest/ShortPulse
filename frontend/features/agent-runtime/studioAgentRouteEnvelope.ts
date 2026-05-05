@@ -43,7 +43,6 @@ type StudioAgentRequestEnvelopeSuccess = {
     messages: AgentMessage[];
     context: AgentContext;
     incomingCanonical: string | null;
-    directOpenAiBypass: boolean;
     runtimeMode: AgentRuntimeMode | null;
   };
 };
@@ -217,6 +216,20 @@ export const parseStudioAgentRequestEnvelope = ({
       },
     };
   }
+  if (req.body?.directOpenAiBypass !== undefined) {
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        code: "INVALID_REQUEST",
+        message: "directOpenAiBypass is not supported by Create agent routes",
+        details: {
+          field: "directOpenAiBypass",
+        },
+        traceId,
+      },
+    };
+  }
 
   return {
     ok: true,
@@ -225,7 +238,6 @@ export const parseStudioAgentRequestEnvelope = ({
       messages: parsedMessages.messages,
       context: sanitizeStudioAgentContext(req.body?.context, runtimeMode),
       incomingCanonical,
-      directOpenAiBypass: req.body?.directOpenAiBypass === true,
       runtimeMode,
     },
   };

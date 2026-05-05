@@ -321,6 +321,7 @@ export const buildStudioAgentPulseSystemMessage = (
     "runtime_mode: workflow_gpt",
     "activation_mode: activate_and_start",
     "output_mode: chat_reply",
+    ...(pulse.artifactTarget ? [`artifact_target: ${pulse.artifactTarget}`] : []),
     `memory_policy: ${pulse.memoryPolicy === "session" ? "session" : "session"}`,
     `preset_source: ${pulse.source === "custom" ? "custom" : "builtin"}`,
     ...(pulse.description ? [`preset_description: ${pulse.description}`] : []),

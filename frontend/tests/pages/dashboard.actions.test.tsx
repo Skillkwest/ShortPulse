@@ -268,11 +268,20 @@ describe("Dashboard actions", () => {
     render(<DashboardPage />);
 
     fireEvent.click(await screen.findByRole("button", { name: /New Project:/i }));
+    expect(screen.getByRole("dialog", { name: "Name project" })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Project name"), {
+      target: { value: "Launch Campaign" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith(
         "/api/projects/create",
-        expect.objectContaining({ method: "POST" })
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ title: "Launch Campaign" }),
+        })
       );
       expect(routerPushMock).toHaveBeenCalledWith({
         pathname: "/ai-studio",

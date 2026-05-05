@@ -1,6 +1,6 @@
 /**
  * Standard Create agent runtime.
- * Owns Standard-only chat state, composer state, direct agent transport, prompt
+ * Owns Standard-only chat state, composer state, agent transport, prompt
  * enhancement, and persisted runtime snapshots.
  */
 import {
@@ -19,11 +19,9 @@ import type {
 } from "../../../prefabs/agent";
 import { useCreateAgentStateCore } from "../../ai-agent/useCreateAgentStateCore";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
-import { standardCreateAgentRuntimeBinding } from "../hooks/agentBridgeRuntime/standardCreateAgentRuntimeBinding";
+import { standardCreateAgentRuntimeBinding } from "../hooks/createAgentRuntime/standardCreateAgentRuntimeBinding";
 import type { AgentModeHint } from "../hooks/agentOrchestration/types";
 import { runStandardCreateAgentSend } from "../hooks/agentOrchestration/runStandardCreateAgentSend";
-import { useStandardCreatePromptEnhance } from "../hooks/agentOrchestration/useStandardCreatePromptEnhance";
-import { useStandardCreateChatMode } from "../hooks/standardCreateRuntime/useStandardCreateChatMode";
 import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
@@ -131,10 +129,13 @@ export const useStandardCreateAgentRuntime = ({
   setUiNotice,
   trackAgentUiEvent,
 }: UseStandardCreateAgentRuntimeParams): StandardCreatePageAgentRuntime => {
+  void addAgentPromptReference;
   void editReferenceText;
   void setEditReferenceText;
   void videoReferenceText;
   void setVideoReferenceText;
+  void projectId;
+  void projectRouteRequested;
   void aspect;
   void model;
   void setOutputs;
@@ -142,9 +143,6 @@ export const useStandardCreateAgentRuntime = ({
   const agentFlag =
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === undefined ||
     process.env.NEXT_PUBLIC_ENABLE_STUDIO_AGENT === "true";
-  const directOpenAiBypassEnabledByConfig =
-    process.env.NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED === "true";
-  const directOpenAiBypassEnabled = directOpenAiBypassEnabledByConfig;
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(agentFlag);
   const agentEnabled = agentFlag && agentSessionEnabled;
   const agentBootstrapReady = Boolean(sessionId);
@@ -152,13 +150,8 @@ export const useStandardCreateAgentRuntime = ({
   const agentUiBusyRef = useRef(false);
   const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
   const [promptOrigin, setPromptOrigin] = useState<PromptOrigin>("manual");
-  const {
-    standardChatModeEnabled: chatModeEnabled,
-    setStandardChatModeEnabled: setChatModeEnabled,
-  } = useStandardCreateChatMode({
-    projectId,
-    projectRouteRequested,
-  });
+  const chatModeEnabled = true;
+  const setChatModeEnabled = useCallback<Dispatch<SetStateAction<boolean>>>(() => undefined, []);
   const preparedImageUrlCacheRef = useRef<Map<string, { safeUrl: string; expiresAtMs: number }>>(
     new Map()
   );
@@ -169,7 +162,6 @@ export const useStandardCreateAgentRuntime = ({
   const activeAgent = useCreateAgentStateCore({
     enabled: agentEnabled,
     sessionNamespace: standardAgentSessionNamespace,
-    directOpenAiBypassEnabled: chatModeEnabled && directOpenAiBypassEnabled,
     requestRuntimeMode: "standard",
     allowSessionNamespaceOverride: false,
     sessionNamespaceOverrideErrorText:
@@ -229,20 +221,7 @@ export const useStandardCreateAgentRuntime = ({
   const notifyBootstrapPending = useCallback(() => {
     setUiNotice("Agent is still starting. Try again in a moment.");
   }, [setUiNotice]);
-
-  const { isPromptRefining, handleAgentEnhanceSend } = useStandardCreatePromptEnhance({
-    agentBootstrapReady,
-    prompt,
-    latestAgentPrompt,
-    setLatestAgentPrompt,
-    setSharedPrompt: setStandardCreatePrompt,
-    setPromptOrigin,
-    sendToAgent,
-    getAgentContext,
-    addAgentPromptReference,
-    lastAssistantMessage: latestAssistantMessage,
-    notifyBootstrapPending,
-  });
+  const isPromptRefining = false;
 
   const handleAgentSend = useCallback(
     async (
@@ -366,9 +345,9 @@ export const useStandardCreateAgentRuntime = ({
       input: agentInput,
       latestAgentPrompt,
       promptOrigin,
-      chatModeEnabled,
+      chatModeEnabled: true,
     }),
-    [agentInput, agentMessages, chatModeEnabled, latestAgentPrompt, promptOrigin]
+    [agentInput, agentMessages, latestAgentPrompt, promptOrigin]
   );
 
   const hydrateFromSessionAgentSnapshot = useCallback(
@@ -384,14 +363,12 @@ export const useStandardCreateAgentRuntime = ({
       setAgentAttachmentError(null);
       setLatestAgentPrompt(standardRuntime.latestAgentPrompt);
       setPromptOrigin(standardRuntime.promptOrigin);
-      setChatModeEnabled(standardRuntime.chatModeEnabled);
     },
     [
       replaceMessages,
       setAgentAttachmentError,
       setAgentAttachments,
       setAgentInput,
-      setChatModeEnabled,
       setLatestAgentPrompt,
       setPromptOrigin,
     ]
@@ -421,7 +398,6 @@ export const useStandardCreateAgentRuntime = ({
     kind: "standard",
     agentEnabled,
     agentBootstrapReady,
-    directOpenAiBypassEnabled,
     agentMessages,
     agentError,
     agentIsSending,
@@ -441,11 +417,9 @@ export const useStandardCreateAgentRuntime = ({
     stagedAgentPrompt,
     isPromptRefining,
     isReferencePromptEnhancing: false,
-    describeInFlightCount: isPromptRefining ? 1 : 0,
+    describeInFlightCount: 0,
     handleAgentInputChange,
     handleAgentSend,
-    handleAgentEnhanceSend,
-    handleReferencePromptEnhance: handleAgentEnhanceSend,
     resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
     handleAgentAttachmentDragOver,

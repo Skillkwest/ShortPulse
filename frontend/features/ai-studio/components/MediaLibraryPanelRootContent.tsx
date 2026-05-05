@@ -5,7 +5,7 @@
 import React from "react";
 import { ArrowsInCardinal, ArrowsOutSimple, UploadSimple } from "phosphor-react";
 
-type RootMediaLibraryTab = "all" | "images" | "videos" | "prompts";
+type RootMediaLibraryTab = "all" | "images" | "videos" | "audio" | "prompts";
 
 type MediaLibraryPanelRootContentProps = {
   rootTab: RootMediaLibraryTab;
@@ -18,7 +18,7 @@ type MediaLibraryPanelRootContentProps = {
   onOpenRootUploadPicker: () => void;
   bulkActions: React.ReactNode;
   selectedVisibleMediaCount: number;
-  itemType: "all" | "images" | "videos" | "prompts";
+  itemType: RootMediaLibraryTab;
   isRootFolderDropHover: boolean;
   rootFolderDropZoneProps: React.HTMLAttributes<HTMLElement> | null;
   mediaLoading: boolean;
@@ -27,9 +27,11 @@ type MediaLibraryPanelRootContentProps = {
   visiblePromptRowsLength: number;
   visibleImageRowsLength: number;
   visibleVideoRowsLength: number;
+  visibleAudioRowsLength: number;
   renderAllItemsGrid: () => React.ReactNode;
   renderImageGrid: () => React.ReactNode;
   renderVideoGrid: () => React.ReactNode;
+  renderAudioGrid: () => React.ReactNode;
   renderPromptsSection: () => React.ReactNode;
   mediaHasMore: boolean;
   loadMediaPage: ({ reset }: { reset: boolean }) => Promise<void>;
@@ -58,9 +60,11 @@ export const MediaLibraryPanelRootContent = React.memo(function MediaLibraryPane
   visiblePromptRowsLength,
   visibleImageRowsLength,
   visibleVideoRowsLength,
+  visibleAudioRowsLength,
   renderAllItemsGrid,
   renderImageGrid,
   renderVideoGrid,
+  renderAudioGrid,
   renderPromptsSection,
   mediaHasMore,
   loadMediaPage,
@@ -107,6 +111,16 @@ export const MediaLibraryPanelRootContent = React.memo(function MediaLibraryPane
               onClick={() => setRootTab("videos")}
             >
               Videos
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className={`media-library-panel-root-tab${rootTab === "audio" ? " is-active" : ""}`}
+              aria-selected={rootTab === "audio"}
+              aria-controls="media-library-panel-audio-section"
+              onClick={() => setRootTab("audio")}
+            >
+              Audio
             </button>
             <button
               type="button"
@@ -225,6 +239,26 @@ export const MediaLibraryPanelRootContent = React.memo(function MediaLibraryPane
           ) : null}
           <div id="media-library-panel-videos-section">
             {visibleVideoRowsLength > 0 ? renderVideoGrid() : null}
+          </div>
+        </section>
+      ) : null}
+
+      {itemType === "audio" ? (
+        <section
+          className={`media-library-panel-section${
+            isRootFolderDropHover ? " is-root-drop-hover" : ""
+          }`}
+          data-testid="media-library-panel-root-dropzone"
+          {...(rootFolderDropZoneProps ?? {})}
+        >
+          {mediaLoading && mediaRowsLength === 0 ? (
+            <p className="tiny subdued">Loading audio…</p>
+          ) : null}
+          {!mediaLoading && visibleAudioRowsLength === 0 ? (
+            <p className="tiny subdued">No audio found for this folder.</p>
+          ) : null}
+          <div id="media-library-panel-audio-section">
+            {visibleAudioRowsLength > 0 ? renderAudioGrid() : null}
           </div>
         </section>
       ) : null}

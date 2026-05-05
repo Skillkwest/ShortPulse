@@ -5,7 +5,7 @@ import {
 } from "../providerErrorPolicy";
 
 describe("safetyPolicy providerErrorPolicy", () => {
-  it("maps transient upstream failures to assistant fallback with no client detail", () => {
+  it("maps transient upstream failures to hard errors with normalized client detail", () => {
     const result = resolveProviderErrorHandling({
       status: 503,
       detail: "service unavailable",
@@ -13,7 +13,7 @@ describe("safetyPolicy providerErrorPolicy", () => {
     });
 
     expect(result.failureClass).toBe("infra_transient");
-    expect(result.failureResolution).toBe("assistant_fallback");
+    expect(result.failureResolution).toBe("hard_error");
     expect(result.detailForClient).toBeUndefined();
   });
 

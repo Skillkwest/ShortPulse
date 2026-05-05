@@ -3,7 +3,7 @@ import type { MediaListProfile } from "../../../lib/mediaListProfile";
 import { normalizeMediaSearchTerm } from "./mediaQueryModel";
 
 export type MediaListTab = "uploaded_images" | "uploaded_videos" | "private" | "ai_generations";
-export type MediaListMediaKind = "all" | "images" | "videos";
+export type MediaListMediaKind = "all" | "images" | "videos" | "audio";
 
 export type MediaListSurface =
   | "media-library-route"

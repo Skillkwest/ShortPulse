@@ -304,18 +304,6 @@ vi.mock("../../features/ai-studio/hooks/useEffectiveBeginnerModePreference", () 
   }),
 }));
 
-vi.mock("../../features/ai-agent/useAiAgent", () => ({
-  useAiAgent: () => ({
-    messages: [],
-    isSending: false,
-    error: null,
-    send: vi.fn(async () => ({ response: null, actions: undefined })),
-    appendUserMessage: vi.fn(() => "msg-1"),
-    replaceMessages: vi.fn(),
-    reset: vi.fn(),
-  }),
-}));
-
 vi.mock("../../features/character-manager/logic/characterManagerPersistence", () => ({
   listCharacterManagerCharacters: listCharacterManagerCharactersMock,
   loadCharacterManagerDraftByCharacterId: loadCharacterManagerDraftByCharacterIdMock,

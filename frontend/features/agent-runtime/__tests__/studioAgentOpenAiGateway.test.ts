@@ -30,17 +30,6 @@ describe("studioAgentOpenAiGateway", () => {
     });
   });
 
-  it("keeps agent defaults on OPENAI_MODEL even when direct bypass overrides are present", () => {
-    const config = resolveStudioAgentOpenAiConfig({
-      STUDIO_AGENT_DIRECT_OPENAI_MODEL: "gpt-5.4",
-    } as unknown as NodeJS.ProcessEnv);
-
-    expect(config.openAiModel).toBe("gpt-5.4-nano");
-    expect(config.openAiThinkerModel).toBe("gpt-5.4-nano");
-    expect(config.openAiFormatterModel).toBe("gpt-5.4-nano");
-    expect(config.openAiPulseModel).toBe("gpt-5.4-nano");
-  });
-
   it("clamps timeout/retry config and applies thinker/formatter fallback chain", () => {
     const lowTimeout = resolveStudioAgentOpenAiConfig({
       STUDIO_AGENT_TIMEOUT_MS: "200",
@@ -111,18 +100,6 @@ describe("studioAgentOpenAiGateway", () => {
     expect(defaultPulse.pulseTurnTimeoutMs).toBe(30000);
     expect(customPulse.openAiPulseModel).toBe("gpt-pulse");
     expect(customPulse.pulseTurnTimeoutMs).toBe(45000);
-  });
-
-  it("ignores direct bypass enablement flags when resolving agent defaults", () => {
-    const config = resolveStudioAgentOpenAiConfig({
-      STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED: "true",
-      STUDIO_AGENT_DIRECT_OPENAI_MODEL: "gpt-5.4",
-    } as unknown as NodeJS.ProcessEnv);
-
-    expect(config.openAiModel).toBe("gpt-5.4-nano");
-    expect(config.openAiThinkerModel).toBe("gpt-5.4-nano");
-    expect(config.openAiFormatterModel).toBe("gpt-5.4-nano");
-    expect(config.openAiPulseModel).toBe("gpt-5.4-nano");
   });
 
   it("formats timeout errors deterministically", () => {

@@ -1,6 +1,5 @@
 import type { AgentResponse } from "../../../prefabs/agent";
 import { normalizeErrorText } from "../../../lib/errorText";
-import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "../../agent-runtime/studioAgentFailurePolicy";
 import { SAFETY_REFUSAL_MESSAGE, resolveSafetyRefusalText } from "../agentClientSafety";
 import type { StudioAgentTransportResult } from "./studioAgentTransport";
 
@@ -31,30 +30,6 @@ export const resolveStudioAgentTransportFailure = (
         actions: undefined,
         decision: "refuse",
         outcome_class: machineOutcomeClass ?? "refusal_safety",
-        reason_code: transportResult.parsedError?.reason_code,
-        retryable: transportResult.parsedError?.retryable,
-        fallback_reason: transportResult.parsedError?.fallback_reason,
-      },
-      errorText: null,
-    };
-  }
-  if (machineDecision === "allow" && machineOutcomeClass === "fallback_infra") {
-    const fallbackText = normalizeErrorText(
-      transportResult.parsedError?.message ??
-        transportResult.parsedError?.detail ??
-        transportResult.parsedError?.error,
-      {
-        fallback: STUDIO_AGENT_INFRA_FALLBACK_MESSAGE,
-        maxLength: 160,
-      }
-    );
-    return {
-      assistantMessage: fallbackText,
-      response: {
-        message: fallbackText,
-        actions: undefined,
-        decision: "allow",
-        outcome_class: "fallback_infra",
         reason_code: transportResult.parsedError?.reason_code,
         retryable: transportResult.parsedError?.retryable,
         fallback_reason: transportResult.parsedError?.fallback_reason,

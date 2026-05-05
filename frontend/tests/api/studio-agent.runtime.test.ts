@@ -1,7 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import retiredStudioAgentHandler from "../../pages/api/ai/studio-agent";
 import pulseStudioAgentHandler from "../../pages/api/ai/studio-agent-pulse";
 import standardStudioAgentHandler from "../../pages/api/ai/studio-agent-standard";
 
@@ -11,6 +10,7 @@ const readAgentConversationCanonicalPromptMock = vi.fn();
 const upsertAgentConversationCanonicalPromptMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const resolveRuntimeSafetyProfileMock = vi.fn();
+const resolveRuntimeCreatePulseBuiltInCatalogMock = vi.fn();
 let apiUserCounter = 0;
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -38,6 +38,11 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/agentSafetyPolicyControlPlane", () => ({
   resolveRuntimeSafetyProfile: (...args: unknown[]) => resolveRuntimeSafetyProfileMock(...args),
+}));
+
+vi.mock("../../lib/server/api/createPulseBuiltInControlPlane", () => ({
+  resolveRuntimeCreatePulseBuiltInCatalog: (...args: unknown[]) =>
+    resolveRuntimeCreatePulseBuiltInCatalogMock(...args),
 }));
 
 const createMockResponse = () => {
@@ -73,13 +78,13 @@ const createBaseRequestBody = (
 });
 
 const createPulseRequestBody = () =>
-  createBaseRequestBody("ai-studio:session-runtime-test::pulse:product_hero:pulse-session-test");
+  createBaseRequestBody("ai-studio:session-runtime-test::pulse:story_builder:pulse-session-test");
 
 const createPulseContext = () => ({
   pulse: {
-    presetId: "product_hero",
-    label: "Product Hero",
-    instructions: "Guide the user toward a premium product hero prompt.",
+    presetId: "story_builder",
+    label: "DFY Story Builder",
+    instructions: "Guide the user toward a story-circle scene prompt.",
     runtimeMode: "workflow_gpt",
     activationMode: "activate_and_start",
     outputMode: "chat_reply",
@@ -94,11 +99,6 @@ const resetRuntimeTestState = () => {
   process.env.STUDIO_AGENT_ENABLED = "true";
   process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "false";
   process.env.STUDIO_AGENT_SERVER_VISION_ENABLED = "false";
-  process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "true";
-  process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED = "false";
-  process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "true";
-  delete process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED;
-  delete process.env.STUDIO_AGENT_DIRECT_OPENAI_MODEL;
   delete process.env.STUDIO_AGENT_PULSE_MODEL;
   process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
   process.env.STUDIO_AGENT_SAFETY_DEBUG = "false";
@@ -119,13 +119,41 @@ const resetRuntimeTestState = () => {
     policyVersion: 1,
     source: "env",
   });
+  resolveRuntimeCreatePulseBuiltInCatalogMock.mockResolvedValue({
+    builtInDefinitions: [
+      {
+        presetId: "story_builder",
+        label: "DFY Story Builder",
+        description: "Guided story-circle workflow for scene plans and final image prompts.",
+        starterAssistantMessage:
+          "**Step 1 — Upload your characters.** Please upload 1–3+ character images.",
+        workflowStageHints: [
+          "Upload Characters",
+          "Plot Seed",
+          "Runtime",
+          "Scene Review",
+          "Image Prompts",
+          "Dialogue Story",
+        ],
+        artifactTarget: "image_prompt",
+        systemInstructions: "SERVER STORY BUILDER INSTRUCTIONS",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        outputMode: "chat_reply",
+        memoryPolicy: "session",
+      },
+    ],
+    source: "control_plane",
+    updatedAt: "2026-05-05T18:00:00.000Z",
+    updatedByEmail: "admin@example.com",
+  });
   readAgentConversationCanonicalPromptMock.mockResolvedValue(null);
   upsertAgentConversationCanonicalPromptMock.mockResolvedValue("saved prompt");
   runThinkerFormatterTurnMock.mockResolvedValue({
     ok: true,
     result: {
       parsed: {
-        message: "What product should we feature first?",
+        message: "What story should we build first?",
         actions: undefined,
       },
       nextCanonical: null,
@@ -139,23 +167,6 @@ const resetRuntimeTestState = () => {
 describe("AI Studio Create agent runtime boundaries", () => {
   beforeEach(() => {
     resetRuntimeTestState();
-  });
-
-  it("retires the generic studio-agent route without executing a mode runtime", async () => {
-    const req = { method: "POST", body: createBaseRequestBody() };
-    const res = createMockResponse();
-
-    await retiredStudioAgentHandler(req as never, res as never);
-
-    expect(res.status).toHaveBeenCalledWith(410);
-    expect(fetch).not.toHaveBeenCalled();
-    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: "INVALID_REQUEST",
-        message: expect.stringContaining("generic studio-agent route is retired"),
-      })
-    );
   });
 
   it("rejects Pulse runtime fields on the Standard route before provider execution", async () => {
@@ -191,6 +202,22 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("rejects canonicalPrompt on the Standard route", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(),
+        canonicalPrompt: "stale hidden continuity",
+      },
+    };
+    const res = createMockResponse();
+
+    await standardStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it("rejects Pulse session namespaces on the Standard route", async () => {
     const req = {
       method: "POST",
@@ -206,18 +233,13 @@ describe("AI Studio Create agent runtime boundaries", () => {
   });
 
   it("returns a Standard-only response without workflowSession", async () => {
-    process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED = "true";
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
         choices: [
           {
             message: {
-              content: JSON.stringify({
-                status: "prompt",
-                message: "Premium product hero prompt",
-                actions: { applyPrompt: "Premium product hero prompt" },
-              }),
+              content: "Premium product hero prompt",
             },
           },
         ],
@@ -235,8 +257,8 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(payload).toEqual(
       expect.objectContaining({
         message: "Premium product hero prompt",
-        actions: { applyPrompt: "Premium product hero prompt" },
-        outcome_class: "success_prompt",
+        canonicalPrompt: null,
+        outcome_class: "success_message",
       })
     );
     expect(payload).not.toHaveProperty("workflowSession");
@@ -316,7 +338,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
             message: {
               content: JSON.stringify({
                 status: "needs_input",
-                message: "What product should we feature first?",
+                message: "What story should we build first?",
                 actions: null,
               }),
             },
@@ -361,7 +383,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
               status: "awaiting_input",
               currentStepIndex: 2,
               currentStepLabel: "Mismatched",
-              currentStepPrompt: "This should not steer Product Hero.",
+              currentStepPrompt: "This should not steer DFY Story Builder.",
               collectedInputs: ["stale input"],
               lastArtifact: null,
             },
@@ -378,8 +400,31 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
   });
 
-  it("runs Pulse through the Pulse runtime and does not honor direct bypass", async () => {
-    process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED = "true";
+  it("rejects retired Pulse preset ids at the route boundary", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(
+          "ai-studio:session-runtime-test::pulse:product_hero:pulse-session-test"
+        ),
+        context: {
+          pulse: {
+            ...createPulseContext().pulse,
+            presetId: "product_hero",
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+  });
+
+  it("runs Pulse through the Pulse runtime", async () => {
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -388,7 +433,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
             message: {
               content: JSON.stringify({
                 status: "needs_input",
-                message: "What product should we feature first?",
+                message: "What story should we build first?",
                 actions: null,
               }),
             },
@@ -401,7 +446,6 @@ describe("AI Studio Create agent runtime boundaries", () => {
       body: {
         ...createPulseRequestBody(),
         context: createPulseContext(),
-        directOpenAiBypass: true,
       },
     };
     const res = createMockResponse();
@@ -424,14 +468,58 @@ describe("AI Studio Create agent runtime boundaries", () => {
     const payload = res.json.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(payload).toEqual(
       expect.objectContaining({
-        message: "What product should we feature first?",
+        message: "What story should we build first?",
         outcome_class: "success_message",
         workflowSession: expect.objectContaining({
-          presetId: "product_hero",
+          presetId: "story_builder",
           status: "awaiting_input",
         }),
       })
     );
+  });
+
+  it("overrides built-in Pulse instructions from the server control plane", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                status: "needs_input",
+                message: "What story should we build first?",
+                actions: null,
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        context: {
+          pulse: {
+            ...createPulseContext().pulse,
+            instructions: "CLIENT OVERRIDE SHOULD NOT WIN",
+            label: "Client Drifted Label",
+            source: "builtin",
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    const requestInit = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as
+      | { body?: string }
+      | undefined;
+    const serializedRequest = requestInit?.body ?? "";
+    expect(serializedRequest).toContain("SERVER STORY BUILDER INSTRUCTIONS");
+    expect(serializedRequest).not.toContain("CLIENT OVERRIDE SHOULD NOT WIN");
+    expect(serializedRequest).not.toContain("Client Drifted Label");
   });
 
   it("does not read or write generic canonical prompt persistence from Pulse", async () => {
@@ -469,9 +557,9 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(upsertAgentConversationCanonicalPromptMock).not.toHaveBeenCalled();
   });
 
-  it("keeps route execution out of the retired generic page module", () => {
+  it("keeps route execution out of the removed generic page module", () => {
     const repoRoot = path.resolve(__dirname, "../..");
-    const genericRoute = readFileSync(path.join(repoRoot, "pages/api/ai/studio-agent.ts"), "utf8");
+    const genericRoutePath = path.join(repoRoot, `pages/api/ai/${"studio-agent"}.ts`);
     const standardRoute = readFileSync(
       path.join(repoRoot, "pages/api/ai/studio-agent-standard.ts"),
       "utf8"
@@ -481,8 +569,7 @@ describe("AI Studio Create agent runtime boundaries", () => {
       "utf8"
     );
 
-    expect(genericRoute).not.toContain("runStandardStudioAgentRuntime");
-    expect(genericRoute).not.toContain("runPulseStudioAgentRuntime");
+    expect(existsSync(genericRoutePath)).toBe(false);
     expect(standardRoute).toContain("standardStudioAgentRuntime/runtime");
     expect(pulseRoute).toContain("pulseStudioAgentRuntime/runtime");
     expect(standardRoute).not.toContain("./studio-agent");

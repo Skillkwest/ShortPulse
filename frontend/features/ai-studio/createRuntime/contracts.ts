@@ -46,7 +46,6 @@ export type NeutralCreateGenerationServices = {
 export type StandardCreateAgentRuntimeState = {
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
-  directOpenAiBypassEnabled: boolean;
   agentMessages: AgentMessage[];
   agentInput: string;
   chatModeEnabled: boolean;
@@ -66,7 +65,6 @@ export type StandardCreateAgentRuntimeActions = {
   onAgentInputChange: (value: string) => void;
   onChatModeChange: (value: boolean) => void;
   onAgentSend: () => void;
-  onAgentEnhanceSend: () => void;
   onAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;
@@ -154,8 +152,6 @@ export type StandardCreatePageAgentRuntime = StandardCreateAgentRuntimeState & {
     textOverride?: string,
     options?: { captureResult?: boolean; selectedOverride?: StudioOutput | null }
   ) => Promise<{ prompt: string; referenceTitle?: string | null } | void>;
-  handleAgentEnhanceSend: () => void;
-  handleReferencePromptEnhance: () => void;
   handleAgentAttachmentDrop: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragOver: (event: DragEvent<HTMLDivElement>) => void;
   handleAgentAttachmentDragEnter: (event: DragEvent<HTMLDivElement>) => void;

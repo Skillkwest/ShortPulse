@@ -51,6 +51,7 @@ export type AgentAttachment = {
   referenceId?: string | null;
   text?: string | null;
   imageUrl?: string | null;
+  imageFallbackUrls?: string[];
   aspect?: string | null;
   deliveryStatus?: AgentAttachmentDeliveryStatus;
   deliveryError?: string | null;
@@ -167,7 +168,6 @@ export type AgentApiRequest = {
   clientSessionNamespace?: string | null;
   runtimeMode?: AgentRuntimeMode;
   traceId?: string;
-  directOpenAiBypass?: boolean;
   /**
    * @deprecated Backward-compatibility alias for older clients.
    * Server ignores this when `clientSessionKey` is present.

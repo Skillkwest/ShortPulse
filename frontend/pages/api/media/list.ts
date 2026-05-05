@@ -29,7 +29,7 @@ import {
 } from "../../../lib/server/mediaFoldersService";
 
 type MediaListSurface = "media-library-route" | "media-library-modal" | "media-library-panel";
-type MediaListMediaKind = "all" | "images" | "videos";
+type MediaListMediaKind = "all" | "images" | "videos" | "audio";
 
 type MediaListCursor = {
   createdAt: string;
@@ -145,7 +145,7 @@ const toTab = (value: unknown): MediaQueryDataTab | null => {
 };
 
 const toMediaKind = (value: unknown): MediaListMediaKind | null => {
-  if (value === "all" || value === "images" || value === "videos") {
+  if (value === "all" || value === "images" || value === "videos" || value === "audio") {
     return value;
   }
   return null;
@@ -192,6 +192,7 @@ const withMediaKindFilter = <
 ): T => {
   if (mediaKind === "images") return query.ilike("file_type", "image%");
   if (mediaKind === "videos") return query.ilike("file_type", "video%");
+  if (mediaKind === "audio") return query.ilike("file_type", "audio%");
   return query;
 };
 

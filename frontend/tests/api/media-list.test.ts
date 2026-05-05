@@ -900,6 +900,64 @@ describe("POST /api/media/list", () => {
     expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-image-1"]);
   });
 
+  it("supports audio mediaKind queries without tab", async () => {
+    createSupabaseAdminMock([
+      {
+        id: "media-audio-1",
+        user_id: "user-1",
+        filename: "voice.mp3",
+        storage_path: "user-1/upload/voice.mp3",
+        file_type: "audio/mpeg",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "media-video-1",
+        user_id: "user-1",
+        filename: "clip.mp4",
+        storage_path: "user-1/upload/clip.mp4",
+        file_type: "video/mp4",
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-19T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "audio",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-panel",
+        folderId: "all_items",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0];
+    expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-audio-1"]);
+  });
+
   it("returns 400 for invalid folder id", async () => {
     const req = {
       method: "POST",

@@ -364,7 +364,7 @@ describe("CreateExpertPresetPanel", () => {
     });
   });
 
-  it("edits a built-in preset from the Pulses surface as a saved override", async () => {
+  it("does not expose built-in preset editing from the Pulses surface", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -377,50 +377,42 @@ describe("CreateExpertPresetPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit DFY Story Builder preset" }));
-    fireEvent.change(screen.getByLabelText("Preset name"), {
-      target: { value: "DFY Story Director" },
-    });
-    fireEvent.change(screen.getByLabelText("System instructions"), {
-      target: { value: "Open with a fast paid-social visual hook and a clean benefit reveal." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    await waitFor(() => {
-      expect(onSavedPresetsChange).toHaveBeenCalledWith([
-        {
-          presetId: "story_builder",
-          label: "DFY Story Director",
-          description: null,
-          systemInstructions:
-            "Open with a fast paid-social visual hook and a clean benefit reveal.",
-          runtimeMode: "workflow_gpt",
-          activationMode: "activate_and_start",
-          starterAssistantMessage: null,
-          workflowStageHints: null,
-          outputMode: "chat_reply",
-          artifactTarget: "image_prompt",
-          memoryPolicy: "session",
-          createdAt: expect.any(String),
-        },
-      ]);
-    });
+    expect(
+      screen.queryByRole("button", { name: "Edit DFY Story Builder preset" })
+    ).not.toBeInTheDocument();
+    expect(onSavedPresetsChange).not.toHaveBeenCalled();
   });
 
   it("keeps the More Pulses editor open when saving fails", async () => {
     const onSavedPresetsChange = vi.fn().mockResolvedValue(false);
+    const savedPresets = [
+      {
+        presetId: "custom_storyboard",
+        label: "Storyboard",
+        description: null,
+        systemInstructions: "Build a storyboard-ready pulse sequence.",
+        runtimeMode: "workflow_gpt" as const,
+        activationMode: "activate_and_start" as const,
+        starterAssistantMessage: null,
+        outputMode: "chat_reply" as const,
+        artifactTarget: "text_artifact" as const,
+        memoryPolicy: "session" as const,
+        createdAt: null,
+      },
+    ];
 
     render(
       <CreateExpertPresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={vi.fn()}
-        savedPresets={[]}
+        savedPresets={savedPresets}
         onSavedPresetsChange={onSavedPresetsChange}
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit Video Prompt Magic preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
     fireEvent.change(screen.getByLabelText("System instructions"), {
       target: { value: "Use only these visible instructions." },
     });
@@ -473,17 +465,33 @@ describe("CreateExpertPresetPanel", () => {
   });
 
   it("keeps the More Pulses editor limited to name and system instructions", () => {
+    const savedPresets = [
+      {
+        presetId: "custom_storyboard",
+        label: "Storyboard",
+        description: null,
+        systemInstructions: "Build a storyboard-ready pulse sequence.",
+        runtimeMode: "workflow_gpt" as const,
+        activationMode: "activate_and_start" as const,
+        starterAssistantMessage: null,
+        outputMode: "chat_reply" as const,
+        artifactTarget: "text_artifact" as const,
+        memoryPolicy: "session" as const,
+        createdAt: null,
+      },
+    ];
+
     render(
       <CreateExpertPresetPanel
         selectedPresetIds={[]}
         onSelectedPresetIdsChange={vi.fn()}
-        savedPresets={[]}
+        savedPresets={savedPresets}
         onSavedPresetsChange={vi.fn()}
       />
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    fireEvent.click(screen.getByRole("button", { name: "Edit Video Prompt Magic preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
 
     expect(screen.getByLabelText("System instructions")).toBeInTheDocument();
     expect(

@@ -1,6 +1,6 @@
 import type { AgentContext } from "../../../../prefabs/agent";
 import type { StudioOutput } from "../../types";
-import { resolveCreateAgentModeRuntimeState } from "../agentBridgeRuntime/createAgentModeRuntimeIdentity";
+import { resolveCreateAgentModeRuntimeState } from "../createAgentRuntime/createAgentModeRuntimeIdentity";
 
 type WorkflowPulseContext = NonNullable<AgentContext["pulse"]> & {
   runtimeMode: "workflow_gpt";

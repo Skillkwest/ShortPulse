@@ -11,6 +11,7 @@ import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCr
 import { CreatePulsePresetsSurface } from "./CreatePulsePresetsSurface";
 import {
   CREATE_PULSE_MORE_LABEL,
+  type CreatePulseBuiltInPresetDefinition,
   type CreatePulsePresetId,
   type CreatePulsePresetStartResult,
   type CreatePulseResolvedPreset,
@@ -39,6 +40,7 @@ type CreateExpertPresetPanelProps = {
   onSelectedPresetIdsChange?: (
     presetIds: CreatePulsePresetId[]
   ) => Promise<boolean> | boolean | void;
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
   savedPresets?: readonly CreatePulseSavedPreset[];
   onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => Promise<boolean> | boolean | void;
   onOpenPresetsLibrary?: () => void;
@@ -54,6 +56,7 @@ export function CreateExpertPresetPanel({
   onPresetStart,
   selectedPresetIds,
   onSelectedPresetIdsChange,
+  builtInDefinitions,
   savedPresets,
   onSavedPresetsChange,
   onOpenPresetsLibrary,
@@ -83,6 +86,7 @@ export function CreateExpertPresetPanel({
   } = useCreatePulseGenerationPresetRuntime({
     controlledPresetIds: selectedPresetIds,
     onSelectedPresetIdsChange,
+    builtInDefinitions,
     controlledSavedPresets: savedPresets,
     onSavedPresetsChange,
   });
@@ -173,6 +177,7 @@ export function CreateExpertPresetPanel({
     isPresetsSurfaceDropActive,
   } = useCreatePulsePresetRuntime({
     savedPresets: resolvedSavedPresets,
+    builtInDefinitions,
     activePresetId: activePresetId ?? null,
     updateSelectedPresetIds,
     updateSavedPresets,
@@ -317,6 +322,7 @@ export function CreateExpertPresetPanel({
                 <div className="create-pulse-library-modal-body">
                   <PulsePresetsLibraryPanel
                     savedPresets={resolvedSavedPresets}
+                    builtInDefinitions={builtInDefinitions}
                     onSavedPresetsChange={handlePulseLibrarySavedPresetsChange}
                   />
                 </div>

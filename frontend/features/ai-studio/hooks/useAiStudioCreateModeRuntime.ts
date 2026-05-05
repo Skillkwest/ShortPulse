@@ -7,7 +7,10 @@ import { useCallback, useState, type Dispatch, type SetStateAction } from "react
 import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import type { CreatePulsePresetId } from "../components/create/createPulsePresets";
 import { createPulseSessionInstanceId } from "../logic/pulseSessionIdentity";
-import { normalizePulseSessionInstanceId } from "../logic/pulseSessionState";
+import {
+  normalizePulseSessionInstanceId,
+  resolvePulseRuntimeState,
+} from "../logic/pulseSessionState";
 
 export type AiStudioExpertCreateMode = "standard" | "pulse";
 export type AiStudioPulsePresetChangeOptions = {
@@ -38,15 +41,23 @@ export const useAiStudioCreateModeRuntime = ({
   initialPulseSessionInstanceId = null,
   initialPulseWorkflowSession = null,
 }: UseAiStudioCreateModeRuntimeParams = {}) => {
-  const [expertCreateModeState, setExpertCreateModeState] =
-    useState<AiStudioExpertCreateMode>(initialExpertCreateMode);
+  const initialPulseRuntimeState = resolvePulseRuntimeState({
+    expertCreateMode: initialExpertCreateMode,
+    activePulsePresetId: initialActiveCreatePulsePresetId,
+    pulseSessionInstanceId: initialPulseSessionInstanceId,
+  });
+  const [expertCreateModeState, setExpertCreateModeState] = useState<AiStudioExpertCreateMode>(
+    initialPulseRuntimeState.expertCreateMode
+  );
   const [activeCreatePulsePresetIdState, setActiveCreatePulsePresetIdState] =
-    useState<CreatePulsePresetId | null>(initialActiveCreatePulsePresetId);
+    useState<CreatePulsePresetId | null>(initialPulseRuntimeState.activePulsePresetId);
   const [pulseSessionInstanceIdState, setPulseSessionInstanceIdState] = useState<string | null>(
-    initialPulseSessionInstanceId
+    initialPulseRuntimeState.pulseSessionInstanceId
   );
   const [pulseWorkflowSessionState, setPulseWorkflowSessionState] =
-    useState<AgentPulseWorkflowSession | null>(initialPulseWorkflowSession);
+    useState<AgentPulseWorkflowSession | null>(
+      initialPulseRuntimeState.hasActivePulseSession ? initialPulseWorkflowSession : null
+    );
 
   const setExpertCreateMode: Dispatch<SetStateAction<AiStudioExpertCreateMode>> = useCallback(
     (value) => {
@@ -125,13 +136,19 @@ export const useAiStudioCreateModeRuntime = ({
 
   const handleActiveCreatePulsePresetIdChange = useCallback(
     (nextPresetId: CreatePulsePresetId | null, options?: AiStudioPulsePresetChangeOptions) => {
-      if (!nextPresetId) {
+      const normalizedNextPresetId = resolvePulseRuntimeState({
+        expertCreateMode: "pulse",
+        activePulsePresetId: nextPresetId,
+        pulseSessionInstanceId: options?.sessionInstanceIdOverride ?? pulseSessionInstanceIdState,
+      }).activePulsePresetId as CreatePulsePresetId | null;
+
+      if (!normalizedNextPresetId) {
         deactivatePulse();
         return null;
       }
       if (
         !options?.forceNewSession &&
-        activeCreatePulsePresetIdState === nextPresetId &&
+        activeCreatePulsePresetIdState === normalizedNextPresetId &&
         normalizePulseSessionInstanceId(pulseSessionInstanceIdState)
       ) {
         return null;
@@ -141,14 +158,14 @@ export const useAiStudioCreateModeRuntime = ({
       );
       if (sessionInstanceIdOverride) {
         setExpertCreateModeState("pulse");
-        setActiveCreatePulsePresetIdState(nextPresetId);
+        setActiveCreatePulsePresetIdState(normalizedNextPresetId);
         setPulseSessionInstanceIdState(sessionInstanceIdOverride);
         if (!options?.preserveWorkflowSession) {
           setPulseWorkflowSessionState(options?.workflowSessionOverride ?? null);
         }
         return sessionInstanceIdOverride;
       }
-      return activatePulse(nextPresetId);
+      return activatePulse(normalizedNextPresetId);
     },
     [activatePulse, activeCreatePulsePresetIdState, deactivatePulse, pulseSessionInstanceIdState]
   );

@@ -3,7 +3,7 @@
  */
 
 import { computeCostForModel } from "../pricing";
-import { listModelConfigs } from "../modelRegistry";
+import { listPricingModelConfigs } from "../modelRegistry";
 import {
   OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD,
   OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS,
@@ -35,12 +35,7 @@ const withUndefinedFallback = <T>(values: T[]): Array<T | undefined> => {
 
 describe("model pricing coverage", () => {
   it("returns non-null policy-compliant costs across supported runtime settings", () => {
-    const configs = listModelConfigs().filter(
-      (
-        config
-      ): config is ReturnType<typeof listModelConfigs>[number] & { pricingStrategy: string } =>
-        Boolean(config.pricingStrategy)
-    );
+    const configs = listPricingModelConfigs();
     const failures: string[] = [];
     const matrixCounts: Record<string, number> = {};
 
@@ -137,29 +132,20 @@ describe("model pricing coverage", () => {
   });
 
   it("does not apply global round-nearest quantization by default", () => {
-    listModelConfigs()
-      .filter(
-        (
-          config
-        ): config is ReturnType<typeof listModelConfigs>[number] & { pricingStrategy: string } =>
-          Boolean(config.pricingStrategy)
-      )
-      .forEach((config) => {
-        const estimate = computeCostForModel(config.id, {
-          aspect: "4:3",
-          ...(config.pricingStrategy === "openai-text-token"
-            ? { inputTokens: 500, outputTokens: 700 }
-            : {}),
-          ...(TEXT_CHARACTER_STRATEGIES.has(config.pricingStrategy)
-            ? { textCharacters: 1000 }
-            : {}),
-          ...(SOURCE_DURATION_STRATEGIES.has(config.pricingStrategy)
-            ? { sourceDurationSeconds: 60 }
-            : {}),
-        });
-        expect(estimate).not.toBeNull();
-        expect(estimate?.credits).toBe(estimate?.rawCredits);
+    listPricingModelConfigs().forEach((config) => {
+      const estimate = computeCostForModel(config.id, {
+        aspect: "4:3",
+        ...(config.pricingStrategy === "openai-text-token"
+          ? { inputTokens: 500, outputTokens: 700 }
+          : {}),
+        ...(TEXT_CHARACTER_STRATEGIES.has(config.pricingStrategy) ? { textCharacters: 1000 } : {}),
+        ...(SOURCE_DURATION_STRATEGIES.has(config.pricingStrategy)
+          ? { sourceDurationSeconds: 60 }
+          : {}),
       });
+      expect(estimate).not.toBeNull();
+      expect(estimate?.credits).toBe(estimate?.rawCredits);
+    });
   });
 
   it("uses the gpt-image-2 size matrix and quality tiers for raw pricing", () => {

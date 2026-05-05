@@ -6,7 +6,9 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   getMediaDataTabForRow,
+  isAudioFile,
   isImageFile,
+  isVideoFile,
   type MediaFileRow,
   type PromptRow,
 } from "../../ai-studio/logic/mediaLibraryModalModel";
@@ -23,7 +25,7 @@ import {
 } from "./store";
 import type { MediaLibraryAggregateScopeCacheState, MediaLibraryRuntimeState } from "./types";
 
-type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
+type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
 
 type UseMediaLibraryPanelRuntimeArgs = {
   itemType: MediaLibraryPanelItemType;
@@ -74,9 +76,10 @@ export const useMediaLibraryPanelRuntime = ({
       return sortByCreatedAtDesc(panelRows.filter((row) => isImageFile(row.file_type)));
     }
     if (itemType === "videos") {
-      return sortByCreatedAtDesc(
-        panelRows.filter((row) => row.file_type.toLowerCase().startsWith("video"))
-      );
+      return sortByCreatedAtDesc(panelRows.filter((row) => isVideoFile(row.file_type)));
+    }
+    if (itemType === "audio") {
+      return sortByCreatedAtDesc(panelRows.filter((row) => isAudioFile(row.file_type)));
     }
     if (itemType === "prompts") {
       return [];

@@ -1,5 +1,6 @@
-import { listModelConfigs } from "../modelRegistry";
+import { listModelConfigs, listPickerModelConfigs } from "../modelRegistry";
 import { modelOptions } from "../../constants";
+import { isSeedance2UiEnabled } from "../seedance2Availability";
 
 describe("model options vs registry", () => {
   it("every model option exists in the registry", () => {
@@ -13,6 +14,20 @@ describe("model options vs registry", () => {
     if (missing.length) {
       throw new Error(`Model options missing in registry: ${missing.join(", ")}`);
     }
+  });
+
+  it("derives AI Studio options from active picker-surface catalog models", () => {
+    const expectedIds = listPickerModelConfigs()
+      .filter((config) => {
+        if (!config.visibilityFlag) return true;
+        if (config.visibilityFlag === "NEXT_PUBLIC_KIE_SEEDANCE_2_ENABLED") {
+          return isSeedance2UiEnabled();
+        }
+        return false;
+      })
+      .map((config) => config.id);
+
+    expect(modelOptions.map((option) => option.value)).toEqual(expectedIds);
   });
 
   it("model options exclude retired-provider model ids", () => {

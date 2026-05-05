@@ -21,11 +21,12 @@ export const resolveStandardCreateAgentTransportSuccess = (
     response.canonicalPrompt ?? actions?.applyPrompt ?? null
   );
   const applyPromptText = sanitizeGenerationPromptText(actions?.applyPrompt ?? null) ?? "";
-  const messageText = typeof response.message === "string" ? response.message.trim() : "";
+  const rawMessageText = typeof response.message === "string" ? response.message : "";
+  const hasRawMessageText = rawMessageText.trim().length > 0;
   return {
     actions,
     canonicalPrompt,
-    assistantContent: applyPromptText || messageText,
-    assistantOutputPrompt: applyPromptText || null,
+    assistantContent: applyPromptText || (hasRawMessageText ? rawMessageText : ""),
+    assistantOutputPrompt: applyPromptText || (hasRawMessageText ? rawMessageText : null),
   };
 };

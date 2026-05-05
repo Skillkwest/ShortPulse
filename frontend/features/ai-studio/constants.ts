@@ -5,13 +5,8 @@
 import { AspectOption, PromptTemplate, ToolId } from "./types";
 import { getModelAllowedAspects } from "./logic/modelApiContracts";
 import { isSeedance2UiEnabled } from "./logic/seedance2Availability";
-import {
-  KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
-  KIE_SEEDANCE_2_FAST_MODEL_ID,
-  KIE_SEEDANCE_2_MODEL_ID,
-  KIE_VEO_31_FAST_I2V_MODEL_ID,
-} from "../../lib/model-runtime/providerModelIds";
+import { KIE_KLING_30_MODEL_ID } from "../../lib/model-runtime/providerModelIds";
+import { listPickerModelConfigs, type ModelConfig } from "../../lib/model-runtime/modelRegistry";
 
 export type ModelMediaType = "image" | "video" | "image-to-video" | "edit" | "multi" | "keyframes";
 export type ModelOption = { value: string; label: string; mediaType?: ModelMediaType };
@@ -22,25 +17,44 @@ export const GOOGLE_LOGO_SRC = "/google-logo.png";
 export const KLING_LOGO_SRC = "/kling-logo.png";
 export const SEEDREAM_LOGO_SRC = "/seedream-logo.png";
 
-// Map model ids to their logo assets used in selectors and chips.
-export const modelLogos: Record<string, string> = {
-  "fal-ai/flux-2/klein/9b": FLUX_LOGO_SRC,
-  "fal-ai/nano-banana": GOOGLE_LOGO_SRC,
-  "fal-ai/nano-banana/edit": GOOGLE_LOGO_SRC,
-  "fal-ai/nano-banana-2": GOOGLE_LOGO_SRC,
-  "fal-ai/nano-banana-2/edit": GOOGLE_LOGO_SRC,
-  "fal-ai/nano-banana-pro": GOOGLE_LOGO_SRC,
-  "fal-ai/nano-banana-pro/edit": GOOGLE_LOGO_SRC,
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image": SEEDREAM_LOGO_SRC,
-  "fal-ai/bytedance/seedream/v5/lite/edit": SEEDREAM_LOGO_SRC,
-  "fal-ai/bytedance/seedream/v4.5/text-to-image": SEEDREAM_LOGO_SRC,
-  "fal-ai/bytedance/seedream/v4.5/edit": SEEDREAM_LOGO_SRC,
-  [KIE_VEO_31_FAST_I2V_MODEL_ID]: GOOGLE_LOGO_SRC,
-  [KIE_KLING_30_MODEL_ID]: KLING_LOGO_SRC,
-  [KIE_SEEDANCE_15_PRO_MODEL_ID]: SEEDREAM_LOGO_SRC,
-  [KIE_SEEDANCE_2_MODEL_ID]: SEEDREAM_LOGO_SRC,
-  [KIE_SEEDANCE_2_FAST_MODEL_ID]: SEEDREAM_LOGO_SRC,
+const MODEL_LOGO_SRC_BY_KEY: Partial<Record<NonNullable<ModelConfig["logoKey"]>, string>> = {
+  flux: FLUX_LOGO_SRC,
+  google: GOOGLE_LOGO_SRC,
+  kling: KLING_LOGO_SRC,
+  seedream: SEEDREAM_LOGO_SRC,
 };
+
+const isCatalogModelVisible = (config: ModelConfig): boolean => {
+  if (!config.visibilityFlag) return true;
+  if (config.visibilityFlag === "NEXT_PUBLIC_KIE_SEEDANCE_2_ENABLED") {
+    return isSeedance2UiEnabled();
+  }
+  return false;
+};
+
+const mapCatalogMediaTypeToModelOption = (
+  mediaType: ModelConfig["mediaType"]
+): ModelMediaType | undefined => {
+  if (
+    mediaType === "image" ||
+    mediaType === "video" ||
+    mediaType === "image-to-video" ||
+    mediaType === "multi"
+  ) {
+    return mediaType;
+  }
+  return undefined;
+};
+
+// Map model ids to their logo assets used in selectors and chips.
+export const modelLogos: Record<string, string> = Object.fromEntries(
+  listPickerModelConfigs()
+    .map((config) => {
+      const logoSrc = config.logoKey ? MODEL_LOGO_SRC_BY_KEY[config.logoKey] : undefined;
+      return logoSrc ? [config.id, logoSrc] : null;
+    })
+    .filter((entry): entry is [string, string] => entry !== null)
+);
 
 export const aspectOptions: AspectOption[] = [
   { value: "auto", ratioLabel: "Auto", name: "Auto", orientation: "square" },
@@ -51,62 +65,14 @@ export const aspectOptions: AspectOption[] = [
   { value: "16:9", ratioLabel: "16:9", name: "Landscape", orientation: "widescreen" },
 ];
 
-// When you add/remove image models here, update `docs/sops/sop_image_generation.md` → "Supported image models".
-export const modelOptions: ModelOption[] = [
-  {
-    value: KIE_VEO_31_FAST_I2V_MODEL_ID,
-    label: "Veo 3.1 Fast I2V (Kie)",
-    mediaType: "image-to-video",
-  },
-  {
-    value: KIE_KLING_30_MODEL_ID,
-    label: "Kling 3.0 (Kie)",
-    mediaType: "image-to-video",
-  },
-  {
-    value: KIE_SEEDANCE_15_PRO_MODEL_ID,
-    label: "Seedance 1.5 Pro (Kie)",
-    mediaType: "image-to-video",
-  },
-  ...(isSeedance2UiEnabled()
-    ? ([
-        {
-          value: KIE_SEEDANCE_2_MODEL_ID,
-          label: "Seedance 2.0 (Kie)",
-          mediaType: "image-to-video",
-        },
-        {
-          value: KIE_SEEDANCE_2_FAST_MODEL_ID,
-          label: "Seedance 2.0 Fast (Kie)",
-          mediaType: "image-to-video",
-        },
-      ] satisfies ModelOption[])
-    : []),
-  { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
-  { value: "gpt-image-2", label: "ChatGPT Image 2", mediaType: "image" },
-  { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
-  { value: "fal-ai/nano-banana/edit", label: "Nano Banana", mediaType: "image" },
-  { value: "fal-ai/nano-banana-2", label: "Nano Banana 2", mediaType: "image" },
-  { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2", mediaType: "image" },
-  { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
-  { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro", mediaType: "image" },
-  {
-    value: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-    label: "Seedream 5 Lite",
-    mediaType: "image",
-  },
-  {
-    value: "fal-ai/bytedance/seedream/v5/lite/edit",
-    label: "Seedream 5 Lite",
-    mediaType: "image",
-  },
-  { value: "fal-ai/bytedance/seedream/v4.5/edit", label: "Seedream 4.5", mediaType: "image" },
-  {
-    value: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-    label: "Seedream 4.5",
-    mediaType: "image",
-  },
-];
+// AI Studio picker options are derived from the canonical model catalog's picker surface.
+export const modelOptions: ModelOption[] = listPickerModelConfigs()
+  .filter(isCatalogModelVisible)
+  .map((config) => ({
+    value: config.id,
+    label: config.label.replace(/\s+Edit$/, ""),
+    mediaType: mapCatalogMediaTypeToModelOption(config.mediaType),
+  }));
 
 export const falNanoBananaAllowedAspects = new Set(
   getModelAllowedAspects("fal-ai/nano-banana", [

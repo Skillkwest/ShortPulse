@@ -59,7 +59,6 @@ const parseErrorPayload = (value: unknown): StudioAgentTransportErrorPayload | n
       record.outcome_class === "success_prompt" ||
       record.outcome_class === "refusal_safety" ||
       record.outcome_class === "refusal_model" ||
-      record.outcome_class === "fallback_infra" ||
       record.outcome_class === "upstream_error" ||
       record.outcome_class === "route_error"
         ? record.outcome_class
@@ -69,10 +68,6 @@ const parseErrorPayload = (value: unknown): StudioAgentTransportErrorPayload | n
       record.reason_code === "SAFETY_INPUT_REFUSAL" ||
       record.reason_code === "SAFETY_OUTPUT_REFUSAL" ||
       record.reason_code === "PROVIDER_SAFETY_REFUSAL" ||
-      record.reason_code === "INFRA_FALLBACK_TRANSIENT" ||
-      record.reason_code === "INFRA_FALLBACK_TIMEOUT" ||
-      record.reason_code === "INFRA_FALLBACK_RATE_LIMIT" ||
-      record.reason_code === "INFRA_FALLBACK_OUTPUT_CONTRACT" ||
       record.reason_code === "UPSTREAM_OUTPUT_CONTRACT" ||
       record.reason_code === "UPSTREAM_ERROR" ||
       record.reason_code === "ROUTE_ERROR" ||

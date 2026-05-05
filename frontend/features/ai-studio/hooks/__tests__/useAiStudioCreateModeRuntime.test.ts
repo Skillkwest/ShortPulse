@@ -19,6 +19,23 @@ const buildWorkflowSession = (presetId: string): AgentPulseWorkflowSession => ({
 });
 
 describe("useAiStudioCreateModeRuntime", () => {
+  it("drops retired Pulse preset state during initialization", () => {
+    const workflowSession = buildWorkflowSession("single_shot");
+    const { result } = renderHook(() =>
+      useAiStudioCreateModeRuntime({
+        initialExpertCreateMode: "pulse",
+        initialActiveCreatePulsePresetId: "single_shot",
+        initialPulseSessionInstanceId: TEST_PULSE_SESSION_ID,
+        initialPulseWorkflowSession: workflowSession,
+      })
+    );
+
+    expect(result.current.expertCreateMode).toBe("pulse");
+    expect(result.current.activeCreatePulsePresetId).toBeNull();
+    expect(result.current.pulseSessionInstanceId).toBeNull();
+    expect(result.current.pulseWorkflowSession).toBeNull();
+  });
+
   it("clears Pulse runtime when switching back to standard mode through the UI handler", () => {
     const workflowSession = buildWorkflowSession(ACTIVE_PULSE_ID);
     const { result } = renderHook(() =>
@@ -80,6 +97,27 @@ describe("useAiStudioCreateModeRuntime", () => {
     });
 
     expect(result.current.activeCreatePulsePresetId).toBe(NEXT_PULSE_ID);
+    expect(result.current.pulseWorkflowSession).toBeNull();
+  });
+
+  it("rejects retired Pulse preset ids through the UI handler", () => {
+    const workflowSession = buildWorkflowSession(ACTIVE_PULSE_ID);
+    const { result } = renderHook(() =>
+      useAiStudioCreateModeRuntime({
+        initialExpertCreateMode: "pulse",
+        initialActiveCreatePulsePresetId: ACTIVE_PULSE_ID,
+        initialPulseSessionInstanceId: TEST_PULSE_SESSION_ID,
+        initialPulseWorkflowSession: workflowSession,
+      })
+    );
+
+    act(() => {
+      result.current.handleActiveCreatePulsePresetIdChange("single_shot");
+    });
+
+    expect(result.current.expertCreateMode).toBe("pulse");
+    expect(result.current.activeCreatePulsePresetId).toBeNull();
+    expect(result.current.pulseSessionInstanceId).toBeNull();
     expect(result.current.pulseWorkflowSession).toBeNull();
   });
 

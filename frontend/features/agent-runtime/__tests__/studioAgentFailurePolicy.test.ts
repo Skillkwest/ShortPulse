@@ -20,13 +20,13 @@ describe("studioAgentFailurePolicy", () => {
     expect(resolveStudioAgentFailureResolution({ failureClass })).toBe("canonical_refusal");
   });
 
-  it("classifies transient infra and maps to assistant fallback", () => {
+  it("classifies transient infra and maps to hard error", () => {
     const failureClass = classifyStudioAgentFailure({
       status: 503,
       detail: "service unavailable",
     });
     expect(failureClass).toBe("infra_transient");
-    expect(resolveStudioAgentFailureResolution({ failureClass })).toBe("assistant_fallback");
+    expect(resolveStudioAgentFailureResolution({ failureClass })).toBe("hard_error");
   });
 
   it("classifies parse/repair failures as non-retryable output contract failures", () => {
@@ -35,7 +35,7 @@ describe("studioAgentFailurePolicy", () => {
       detail: "Fast-path output parse/repair failed",
     });
     expect(failureClass).toBe("output_contract");
-    expect(resolveStudioAgentFailureResolution({ failureClass })).toBe("assistant_fallback");
+    expect(resolveStudioAgentFailureResolution({ failureClass })).toBe("hard_error");
     expect(
       shouldRetryStudioAgentFailure({
         failureClass,

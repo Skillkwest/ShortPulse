@@ -297,6 +297,155 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
+  it("ignores raw storage keys and uses the draggable image URL for composer previews", () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: "https://signed.example.com/reference-image.png",
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([
+          makeOutput("out-1", {
+            previewUrl: "user-1/media-library/reference-image.png",
+            fullStoragePath: "user-1/media-library/reference-image-full.png",
+          }),
+        ]),
+        resolveOutputPreviewUrlById: () => "user-1/media-library/reference-image-preview.png",
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(result.current.agentAttachments).toHaveLength(1);
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      referenceId: "out-1",
+      imageUrl: "https://signed.example.com/reference-image.png",
+      text: "Reference note",
+    });
+  });
+
+  it("prefers durable reference URLs before render-only optimizer payloads", () => {
+    const optimizerUrl =
+      "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";
+    const durableReferenceUrl =
+      "http://localhost:3000/storage/v1/object/sign/media_library/user-1/image.png";
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: durableReferenceUrl,
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(
+        makeDragEvent({
+          "text/reference-render-url": optimizerUrl,
+        })
+      );
+    });
+
+    expect(result.current.agentAttachments).toHaveLength(1);
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      referenceId: "out-1",
+      imageUrl: durableReferenceUrl,
+      imageFallbackUrls: [optimizerUrl],
+      text: "Reference note",
+    });
+  });
+
+  it("prefers durable reference URLs over data render snapshots for composer previews", () => {
+    const dataRenderUrl = "data:image/jpeg;base64,generated-render";
+    const signedReferenceUrl = "https://signed.example.com/reference-image.png";
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: dataRenderUrl,
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(
+        makeDragEvent({
+          "text/reference-render-url": dataRenderUrl,
+          "text/reference-url": signedReferenceUrl,
+        })
+      );
+    });
+
+    expect(result.current.agentAttachments).toHaveLength(1);
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      referenceId: "out-1",
+      imageUrl: signedReferenceUrl,
+      imageFallbackUrls: [dataRenderUrl],
+      text: "Reference note",
+    });
+  });
+
+  it("prefers extracted drag image URLs before output preview fallbacks", () => {
+    const renderedDragUrl =
+      "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: renderedDragUrl,
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([
+          makeOutput("out-1", {
+            previewUrl: "user-1/media-library/raw-preview.png",
+            fullStoragePath: "user-1/media-library/raw-full.png",
+          }),
+        ]),
+        resolveOutputPreviewUrlById: () => "user-1/media-library/raw-panel-preview.png",
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(result.current.agentAttachments).toEqual([
+      expect.objectContaining({
+        kind: "image",
+        referenceId: "out-1",
+        imageUrl: renderedDragUrl,
+      }),
+    ]);
+  });
+
   it("stages dropped prompt text as a prompt attachment", () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: null,

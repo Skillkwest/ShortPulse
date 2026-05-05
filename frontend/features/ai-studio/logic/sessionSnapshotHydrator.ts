@@ -136,7 +136,6 @@ const asAgentOutcomeClass = (value: unknown): AgentMessage["outcomeClass"] => {
   if (
     value === "success_prompt" ||
     value === "success_message" ||
-    value === "fallback_infra" ||
     value === "refusal_safety" ||
     value === "refusal_model" ||
     value === "route_error" ||

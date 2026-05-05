@@ -94,6 +94,7 @@ describe("useAiStudioProjectIdentity", () => {
     expect(mockedFetchWithAuth).toHaveBeenCalledWith(`/api/projects/${PROJECT_ID}`, {
       method: "GET",
       shortpulseAuthTimeoutMs: 5000,
+      shortpulseRetryNetworkOnce: true,
     });
     expect(result.current.project).toEqual({
       id: PROJECT_ID,
@@ -124,6 +125,54 @@ describe("useAiStudioProjectIdentity", () => {
   });
 
   it("surfaces a closed failure state for missing or unauthorized projects", async () => {
+    mockedUseRouter.mockReturnValue(
+      createRouter({
+        query: { projectId: PROJECT_TWO_ID },
+      }) as never
+    );
+    mockedFetchWithAuth.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: "Invalid project id" }),
+    } as Response);
+
+    const { result } = renderHook(() => useAiStudioProjectIdentity());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("error");
+    });
+
+    expect(result.current.error).toBe("Invalid project link.");
+    expect(result.current.errorKind).toBe("invalid_id");
+    expect(result.current.verifiedProjectId).toBeNull();
+    expect(result.current.project).toBeNull();
+  });
+
+  it("surfaces an access-denied failure state for forbidden projects", async () => {
+    mockedUseRouter.mockReturnValue(
+      createRouter({
+        query: { projectId: PROJECT_TWO_ID },
+      }) as never
+    );
+    mockedFetchWithAuth.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({ error: "Forbidden" }),
+    } as Response);
+
+    const { result } = renderHook(() => useAiStudioProjectIdentity());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("error");
+    });
+
+    expect(result.current.error).toBe("You do not have access to this project.");
+    expect(result.current.errorKind).toBe("forbidden");
+    expect(result.current.verifiedProjectId).toBeNull();
+    expect(result.current.project).toBeNull();
+  });
+
+  it("surfaces a closed failure state for missing projects", async () => {
     mockedUseRouter.mockReturnValue(
       createRouter({
         query: { projectId: PROJECT_TWO_ID },

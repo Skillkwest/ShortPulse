@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveCreatePulsePresetCatalog } from "../createPulsePresets";
 
 describe("createPulsePresets", () => {
-  it("does not rehydrate hidden built-in workflow metadata after a simple override", () => {
+  it("drops built-in collisions from saved per-user Pulse records", () => {
     const catalog = resolveCreatePulsePresetCatalog([
       {
         presetId: "story_builder",
@@ -24,11 +24,8 @@ describe("createPulsePresets", () => {
 
     expect(storyBuilder).toEqual(
       expect.objectContaining({
-        label: "DFY Story Director",
-        description: null,
-        starterAssistantMessage: null,
-        workflowStageHints: null,
-        hasUserOverride: true,
+        label: "DFY Story Builder",
+        hasUserOverride: false,
         artifactTarget: "image_prompt",
       })
     );

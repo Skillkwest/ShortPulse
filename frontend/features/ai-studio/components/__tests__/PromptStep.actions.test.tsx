@@ -5,6 +5,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PromptStep } from "../PromptStep";
+import { PulsePromptStep } from "../PulsePromptStep";
 
 const baseProps = {
   stepNumber: 1,
@@ -84,11 +85,11 @@ describe("PromptStep agent actions", () => {
     expect(label).not.toHaveClass("helper-text");
   });
 
-  it("uses direct OpenAI copy when the bypass lane is active", () => {
-    render(<PromptStep {...baseProps} directOpenAiBypassEnabled />);
+  it("uses agent copy for the chat composer", () => {
+    render(<PromptStep {...baseProps} />);
 
     expect(screen.queryByText("Agent Assist")).toBeNull();
-    expect(screen.getByPlaceholderText("Ask ShortPulse or write your prompt")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Message the agent...")).toBeInTheDocument();
   });
 
   it("disables send affordances when chat mode is off", () => {
@@ -267,7 +268,7 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByPlaceholderText("Message the agent...")).toBeInTheDocument();
   });
 
-  it("routes attachment drop handlers to the input shell when configured", () => {
+  it("routes attachment drop handlers across the visible input-mode composer surface", () => {
     const onAgentAttachmentDrop = vi.fn();
     const onAgentAttachmentDragOver = vi.fn();
     const onAgentAttachmentDragEnter = vi.fn();
@@ -285,22 +286,98 @@ describe("PromptStep agent actions", () => {
 
     const chatSurface = container.querySelector(".agent-chat-surface");
     const inputShell = container.querySelector(".agent-composer-input-shell");
+    const promptStep = container.querySelector(".prompt-step");
     expect(chatSurface).toBeTruthy();
     expect(inputShell).toBeTruthy();
+    expect(promptStep).toBeTruthy();
 
     fireEvent.dragEnter(chatSurface as Element);
     fireEvent.dragOver(chatSurface as Element);
     fireEvent.dragLeave(chatSurface as Element);
     fireEvent.drop(chatSurface as Element);
-    expect(onAgentAttachmentDragEnter).not.toHaveBeenCalled();
-    expect(onAgentAttachmentDragOver).not.toHaveBeenCalled();
-    expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
-    expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+
+    vi.clearAllMocks();
 
     fireEvent.dragEnter(inputShell as Element);
     fireEvent.dragOver(inputShell as Element);
     fireEvent.dragLeave(inputShell as Element);
     fireEvent.drop(inputShell as Element);
+    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+
+    vi.clearAllMocks();
+
+    fireEvent.dragEnter(promptStep as Element);
+    fireEvent.dragOver(promptStep as Element);
+    fireEvent.dragLeave(promptStep as Element);
+    fireEvent.drop(promptStep as Element);
+    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes Pulse attachment drops across the visible input-mode composer surface", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragOver = vi.fn();
+    const onAgentAttachmentDragEnter = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+    const { container } = render(
+      <PulsePromptStep
+        stepNumber="1"
+        prompt=""
+        onPromptChange={vi.fn()}
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        chatOnly
+        agentEnabled
+        agentAttachmentDropTarget="input"
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        onAgentAttachmentDragOver={onAgentAttachmentDragOver}
+        onAgentAttachmentDragEnter={onAgentAttachmentDragEnter}
+        onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+      />
+    );
+
+    const chatSurface = container.querySelector(".agent-chat-surface");
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    const promptStep = container.querySelector(".prompt-step");
+    expect(chatSurface).toBeTruthy();
+    expect(inputShell).toBeTruthy();
+    expect(promptStep).toBeTruthy();
+
+    fireEvent.dragEnter(chatSurface as Element);
+    fireEvent.dragOver(chatSurface as Element);
+    fireEvent.dragLeave(chatSurface as Element);
+    fireEvent.drop(chatSurface as Element);
+    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+
+    vi.clearAllMocks();
+
+    fireEvent.dragEnter(inputShell as Element);
+    fireEvent.dragOver(inputShell as Element);
+    fireEvent.dragLeave(inputShell as Element);
+    fireEvent.drop(inputShell as Element);
+    expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
+    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+
+    vi.clearAllMocks();
+
+    fireEvent.dragEnter(promptStep as Element);
+    fireEvent.dragOver(promptStep as Element);
+    fireEvent.dragLeave(promptStep as Element);
+    fireEvent.drop(promptStep as Element);
     expect(onAgentAttachmentDragEnter).toHaveBeenCalledTimes(1);
     expect(onAgentAttachmentDragOver).toHaveBeenCalledTimes(1);
     expect(onAgentAttachmentDragLeave).toHaveBeenCalledTimes(1);
@@ -456,6 +533,35 @@ describe("PromptStep agent actions", () => {
 
     expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
     expect(onAgentInputChange).not.toHaveBeenCalled();
+  });
+
+  it("falls back to alternate attachment preview URLs when the first image fails", async () => {
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        agentAttachmentDropTarget="input"
+        stagedAttachments={[
+          {
+            id: "attachment-1",
+            kind: "image",
+            imageUrl: "https://cdn.example.com/stale-preview.png",
+            imageFallbackUrls: ["https://cdn.example.com/signed-preview.png"],
+            referenceId: "out-1",
+          },
+        ]}
+      />
+    );
+
+    const image = container.querySelector(
+      ".agent-attachment-card-media"
+    ) as HTMLImageElement | null;
+    expect(image?.getAttribute("src")).toBe("https://cdn.example.com/stale-preview.png");
+
+    fireEvent.error(image as HTMLImageElement);
+
+    await waitFor(() => {
+      expect(image?.getAttribute("src")).toBe("https://cdn.example.com/signed-preview.png");
+    });
   });
 
   it("renders thinking as a history row below the latest chat bubble", () => {

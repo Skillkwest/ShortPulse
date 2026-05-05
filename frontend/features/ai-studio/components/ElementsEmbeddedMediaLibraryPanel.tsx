@@ -60,7 +60,7 @@ type ElementsEmbeddedMediaLibraryPanelProps = {
 };
 
 const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
-type RootMediaLibraryTab = "all" | "images" | "videos" | "prompts";
+type RootMediaLibraryTab = "all" | "images" | "videos" | "audio" | "prompts";
 
 export function ElementsEmbeddedMediaLibraryPanel({
   projectId = null,
@@ -157,6 +157,10 @@ export function ElementsEmbeddedMediaLibraryPanel({
   );
   const visibleVideoRows = React.useMemo(
     () => mediaRows.filter((row) => isVideoFile(row.file_type)),
+    [mediaRows]
+  );
+  const visibleAudioRows = React.useMemo(
+    () => mediaRows.filter((row) => isAudioFile(row.file_type)),
     [mediaRows]
   );
   const activeMediaTab = React.useMemo<MediaDataTab | null>(() => {
@@ -608,10 +612,16 @@ export function ElementsEmbeddedMediaLibraryPanel({
   );
 
   const renderAllItemsGrid = React.useCallback(
-    () => (
+    ({
+      gridMediaRows = mediaRows,
+      gridPromptRows = visiblePromptRows,
+    }: {
+      gridMediaRows?: MediaFileRow[];
+      gridPromptRows?: PromptRow[];
+    } = {}) => (
       <MediaLibraryAllItemsGrid
-        mediaRows={mediaRows}
-        promptRows={visiblePromptRows}
+        mediaRows={gridMediaRows}
+        promptRows={gridPromptRows}
         selectedIds={combinedSelectedIds}
         optimizerFallbackMediaIds={optimizerFallbackMediaIds}
         adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
@@ -670,6 +680,11 @@ export function ElementsEmbeddedMediaLibraryPanel({
       signedUrlRetryRef,
       visiblePromptRows,
     ]
+  );
+
+  const renderAudioGrid = React.useCallback(
+    () => renderAllItemsGrid({ gridMediaRows: visibleAudioRows, gridPromptRows: [] }),
+    [renderAllItemsGrid, visibleAudioRows]
   );
 
   const renderPromptsSection = React.useCallback(
@@ -734,9 +749,10 @@ export function ElementsEmbeddedMediaLibraryPanel({
     if (!shouldShowMedia) return [] as MediaFileRow[];
     if (itemType === "images") return visibleImageRows;
     if (itemType === "videos") return visibleVideoRows;
+    if (itemType === "audio") return visibleAudioRows;
     if (itemType === "all") return mediaRows;
     return [];
-  }, [itemType, mediaRows, shouldShowMedia, visibleImageRows, visibleVideoRows]);
+  }, [itemType, mediaRows, shouldShowMedia, visibleAudioRows, visibleImageRows, visibleVideoRows]);
 
   const selectedVisibleMediaRows = React.useMemo(() => {
     if (!selectedIds.size) return [] as MediaFileRow[];
@@ -885,9 +901,11 @@ export function ElementsEmbeddedMediaLibraryPanel({
             visiblePromptRowsLength={visiblePromptRows.length}
             visibleImageRowsLength={visibleImageRows.length}
             visibleVideoRowsLength={visibleVideoRows.length}
+            visibleAudioRowsLength={visibleAudioRows.length}
             renderAllItemsGrid={() => renderAllItemsGrid()}
             renderImageGrid={() => renderMediaGrid(visibleImageRows)}
             renderVideoGrid={() => renderMediaGrid(visibleVideoRows)}
+            renderAudioGrid={renderAudioGrid}
             renderPromptsSection={() => renderPromptsSection()}
             mediaHasMore={mediaHasMore}
             loadMediaPage={loadMediaPage}

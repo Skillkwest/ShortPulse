@@ -2,6 +2,7 @@
  * AI Studio session restore-candidate resolver.
  * Chooses the freshest valid snapshot across local shadow storage and optional remote session API.
  */
+import { parseAiStudioSessionSnapshotShape } from "../../../lib/ai-studio-session/sessionSnapshotShape";
 import type { AiStudioSessionSnapshot } from "./sessionSnapshot";
 import { getAiStudioSessionSnapshotViaApi } from "./sessionApiClient";
 import { loadAiStudioSessionShadow } from "./sessionSnapshotStorage";
@@ -11,11 +12,6 @@ export type AiStudioSessionRestoreSource = "none" | "local" | "remote" | "projec
 export type AiStudioSessionRestoreCandidate = {
   snapshot: AiStudioSessionSnapshot | null;
   source: AiStudioSessionRestoreSource;
-};
-
-const asRecord = (value: unknown): Record<string, unknown> | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
 };
 
 const asTimestamp = (value: unknown): number => {
@@ -32,22 +28,8 @@ export const parseAiStudioSessionSnapshotForRestore = (
   value: unknown,
   expectedSessionId: string | null
 ): AiStudioSessionSnapshot | null => {
-  const record = asRecord(value);
-  if (!record) return null;
-  const schemaVersion = record.schemaVersion;
-  if (schemaVersion !== 1 && schemaVersion !== 2) return null;
-  if (expectedSessionId && record.sessionId !== expectedSessionId) return null;
-  if (typeof record.updatedAt !== "string") return null;
-  if (!asRecord(record.workspace)) return null;
-  if (!asRecord(record.outputs)) return null;
-  if (!asRecord(record.agent)) return null;
-  if (schemaVersion === 2) {
-    const canvasValue = (record as { canvas?: unknown }).canvas;
-    if (canvasValue != null && !asRecord(canvasValue)) return null;
-    const metaValue = (record as { meta?: unknown }).meta;
-    if (metaValue != null && !asRecord(metaValue)) return null;
-  }
-  return record as AiStudioSessionSnapshot;
+  const record = parseAiStudioSessionSnapshotShape(value, { expectedSessionId });
+  return record as AiStudioSessionSnapshot | null;
 };
 
 /**

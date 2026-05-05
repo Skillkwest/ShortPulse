@@ -31,9 +31,11 @@ import {
 import {
   hasInboundStudioAgentCanonicalPrompt,
   hasStudioAgentPulseContext,
+  isRetiredCreatePulsePresetId,
   isPulseCreateAgentSessionNamespace,
   readStudioAgentClientSessionNamespace,
   readPulsePresetIdFromSessionNamespace,
+  readPulsePresetIdFromContext,
 } from "../studioAgentRouteModeBoundary";
 import {
   applyStudioAgentVisionSummariesToContext,
@@ -48,6 +50,7 @@ import { isStudioAgentWorkflowPulse } from "../studioAgentPulseRuntime";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
+import { resolveRuntimeCreatePulseBuiltInCatalog } from "../../../lib/server/api/createPulseBuiltInControlPlane";
 
 const PULSE_ROUTE_LABEL = "ai/studio-agent-pulse";
 const PULSE_PROMPT_CACHE_ROUTE = "studio-agent-pulse";
@@ -89,23 +92,26 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
 
   if (req.method === "POST") {
     const clientSessionNamespace = readStudioAgentClientSessionNamespace(req.body);
+    const contextPresetId = readPulsePresetIdFromContext(req.body?.context);
+    const namespacePresetId = readPulsePresetIdFromSessionNamespace(clientSessionNamespace);
     if (
       req.body?.runtimeMode === "standard" ||
       !hasStudioAgentPulseContext(req.body?.context) ||
       !isPulseCreateAgentSessionNamespace(clientSessionNamespace) ||
       hasInboundStudioAgentCanonicalPrompt(req.body) ||
+      isRetiredCreatePulsePresetId(contextPresetId) ||
+      isRetiredCreatePulsePresetId(namespacePresetId) ||
       hasPulseSessionNamespacePresetMismatch(req.body) ||
       hasPulseWorkflowPresetMismatch(req.body)
     ) {
       return sendStudioAgentError(res, 400, {
         code: "INVALID_REQUEST",
-        message: "Pulse agent runtime requires Pulse runtime context.",
+        message: "Pulse agent runtime requires an active Pulse runtime context.",
         traceId,
       });
     }
     req.body = {
       ...req.body,
-      directOpenAiBypass: false,
       runtimeMode: "pulse",
       canonicalPrompt: null,
     };
@@ -166,6 +172,31 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
       traceId,
     });
   }
+  const runtimePulseBuiltIns = await resolveRuntimeCreatePulseBuiltInCatalog();
+  const runtimeBuiltInPreset = runtimePulseBuiltIns.builtInDefinitions.find(
+    (definition) => definition.presetId === context.pulse?.presetId
+  );
+  if (runtimeBuiltInPreset && context.pulse) {
+    context = {
+      ...context,
+      pulse: {
+        ...context.pulse,
+        presetId: runtimeBuiltInPreset.presetId,
+        label: runtimeBuiltInPreset.label,
+        description: runtimeBuiltInPreset.description,
+        instructions: runtimeBuiltInPreset.systemInstructions,
+        runtimeMode: runtimeBuiltInPreset.runtimeMode,
+        activationMode: runtimeBuiltInPreset.activationMode,
+        starterAssistantMessage: runtimeBuiltInPreset.starterAssistantMessage,
+        workflowStageHints: runtimeBuiltInPreset.workflowStageHints,
+        outputMode: runtimeBuiltInPreset.outputMode,
+        artifactTarget: runtimeBuiltInPreset.artifactTarget,
+        memoryPolicy: runtimeBuiltInPreset.memoryPolicy,
+        source: "builtin",
+        workflowSession: context.pulse.workflowSession ?? null,
+      },
+    };
+  }
   context = { ...context, lastAssistantMessage: undefined };
   const safetyInputPrecheckEnabled =
     process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED !== "false";
@@ -187,9 +218,6 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
 
   const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
-  const singleStageEnabled = process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED !== "false";
-  const legacyV2FallbackEnabled = process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED === "true";
-  const textFastPathEnabled = process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED !== "false";
   const envPostprocessMode = String(process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_MODE ?? "")
     .trim()
     .toLowerCase();
@@ -242,8 +270,6 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const {
     openAiModel,
     openAiVisionModel,
-    openAiThinkerModel,
-    openAiFormatterModel,
     openAiPulseModel,
     visionTimeoutMs,
     pulseTurnTimeoutMs,
@@ -404,17 +430,10 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     openAiUrl,
     systemPrompt,
     openAiModel: coordinatorOpenAiModel,
-    openAiThinkerModel,
-    openAiFormatterModel,
-    thinkerPrompt,
-    formatterPrompt,
     turnTimeoutMs: coordinatorTurnTimeoutMs,
     upstreamRetryMaxAttempts,
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,
-    singleStageEnabled,
-    legacyV2FallbackEnabled,
-    textFastPathEnabled,
     orchestration,
     context,
     messages,

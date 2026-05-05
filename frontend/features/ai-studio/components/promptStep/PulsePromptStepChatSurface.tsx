@@ -16,6 +16,7 @@ import type {
   AgentAttachment,
   AgentMessage,
 } from "../../../../prefabs/agent";
+import { AgentComposerAttachmentImage } from "./AgentComposerAttachmentImage";
 import type { PromptStepPulseLoadingState } from "./types";
 
 type PulsePromptStepChatSurfaceProps = {
@@ -257,8 +258,10 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
                   className={`agent-attachment-card agent-attachment-card--composer agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`}
                 >
                   {attachment.kind === "image" && attachment.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={attachment.imageUrl} alt="" className="agent-attachment-card-media" />
+                    <AgentComposerAttachmentImage
+                      src={attachment.imageUrl}
+                      fallbackUrls={attachment.imageFallbackUrls}
+                    />
                   ) : (
                     <div className="agent-attachment-card-prompt" aria-hidden="true">
                       <span className="agent-attachment-card-prompt-marker">T</span>

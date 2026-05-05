@@ -1001,6 +1001,10 @@ const useAiStudioPageBaseRuntime = () => {
 
 type AiStudioPageBaseRuntime = ReturnType<typeof useAiStudioPageBaseRuntime>;
 type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRuntime>;
+type CreateRuntimeRootSharedProps = {
+  base: AiStudioPageBaseRuntime;
+  createPulsePageRuntime: CreatePulsePresetPageRuntime;
+};
 
 export default function AiStudioPage() {
   const base = useAiStudioPageBaseRuntime();
@@ -1025,6 +1029,17 @@ const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
     handleExpertCreateModeChange: base.handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange: base.handleActiveCreatePulsePresetIdChange,
   });
+  if (base.expertCreateMode === "pulse") {
+    return <PulseCreateRuntimeRoot base={base} createPulsePageRuntime={createPulsePageRuntime} />;
+  }
+
+  return <StandardCreateRuntimeRoot base={base} createPulsePageRuntime={createPulsePageRuntime} />;
+};
+
+const StandardCreateRuntimeRoot = ({
+  base,
+  createPulsePageRuntime,
+}: CreateRuntimeRootSharedProps) => {
   const standardCreateAgentRuntime = useStandardCreateAgentRuntime({
     sessionId: base.sessionId,
     mode: base.mode,
@@ -1048,6 +1063,17 @@ const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
     setUiNotice: base.setUiNotice,
     trackAgentUiEvent: base.trackUiEvent,
   });
+
+  return (
+    <AiStudioPageRuntimeBody
+      base={base}
+      createPulsePageRuntime={createPulsePageRuntime}
+      activeCreateAgentRuntime={standardCreateAgentRuntime}
+    />
+  );
+};
+
+const PulseCreateRuntimeRoot = ({ base, createPulsePageRuntime }: CreateRuntimeRootSharedProps) => {
   const pulseCreateAgentRuntime = usePulseCreateAgentRuntime({
     sessionId: base.sessionId,
     mode: base.mode,
@@ -1067,14 +1093,12 @@ const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
     setUiNotice: base.setUiNotice,
     trackAgentUiEvent: base.trackUiEvent,
   });
-  const activeCreateAgentRuntime =
-    base.expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime;
 
   return (
     <AiStudioPageRuntimeBody
       base={base}
       createPulsePageRuntime={createPulsePageRuntime}
-      activeCreateAgentRuntime={activeCreateAgentRuntime}
+      activeCreateAgentRuntime={pulseCreateAgentRuntime}
     />
   );
 };
@@ -1359,12 +1383,9 @@ const useAiStudioPageRuntimeShell = ({
     () => undefined,
     []
   );
-  const noopAction = useCallback(() => undefined, []);
-  const directOpenAiBypassEnabled = standardCreateAgentRuntime?.directOpenAiBypassEnabled ?? false;
   const chatModeEnabled = standardCreateAgentRuntime?.chatModeEnabled ?? true;
   const setChatModeEnabled =
     standardCreateAgentRuntime?.setChatModeEnabled ?? noopSetChatModeEnabled;
-  const handleAgentEnhanceSend = standardCreateAgentRuntime?.handleAgentEnhanceSend ?? noopAction;
   const handlePulsePresetStart = pulseCreateAgentRuntime?.handlePulsePresetStart;
   const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
     () =>
@@ -1832,7 +1853,6 @@ const useAiStudioPageRuntimeShell = ({
     deleteOutput,
     describeInFlightCount,
     detailOutput,
-    directOpenAiBypassEnabled,
     dismissError,
     dismissFailure,
     dismissNotice,
@@ -1856,7 +1876,6 @@ const useAiStudioPageRuntimeShell = ({
     handleAgentAttachmentDragLeave,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDrop,
-    handleAgentEnhanceSend,
     handleAgentInputChange,
     handleAgentSend,
     handleAssistantMessageEdit,
@@ -2273,7 +2292,6 @@ const AiStudioPageRuntimePresenter = ({
     deleteOutput,
     describeInFlightCount,
     detailOutput,
-    directOpenAiBypassEnabled,
     dismissError,
     dismissFailure,
     dismissNotice,
@@ -2297,7 +2315,6 @@ const AiStudioPageRuntimePresenter = ({
     handleAgentAttachmentDragLeave,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDrop,
-    handleAgentEnhanceSend,
     handleAgentInputChange,
     handleAgentSend,
     handleAssistantMessageEdit,
@@ -2619,7 +2636,6 @@ const AiStudioPageRuntimePresenter = ({
       agentRuntime: {
         agentEnabled,
         agentBootstrapReady,
-        directOpenAiBypassEnabled,
         agentMessages,
         agentInput,
         chatModeEnabled,
@@ -2638,7 +2654,6 @@ const AiStudioPageRuntimePresenter = ({
         onAgentInputChange: handleAgentInputChange,
         onChatModeChange: setChatModeEnabled,
         onAgentSend: handleAgentSend,
-        onAgentEnhanceSend: handleAgentEnhanceSend,
         onAgentAttachmentDrop: handleAgentAttachmentDrop,
         onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
         onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
@@ -2681,7 +2696,6 @@ const AiStudioPageRuntimePresenter = ({
     currentCostCredits,
     currentModelLabel,
     describeInFlightCount,
-    directOpenAiBypassEnabled,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
     expertCreateMode,
@@ -2692,7 +2706,6 @@ const AiStudioPageRuntimePresenter = ({
     handleAgentAttachmentDragLeave,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDrop,
-    handleAgentEnhanceSend,
     handleAgentInputChange,
     handleAgentSend,
     handleAssistantMessageEdit,

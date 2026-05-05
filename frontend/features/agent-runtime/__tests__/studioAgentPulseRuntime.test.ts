@@ -58,12 +58,12 @@ describe("studioAgentPulseRuntime", () => {
 
     buildStudioAgentWorkflowSessionUpdate({
       pulse: {
-        presetId: "product_hero",
-        label: "Product Hero",
+        presetId: "story_builder",
+        label: "DFY Story Builder",
         instructions: "Run the workflow one step at a time.",
         outputMode: "chat_reply",
         workflowSession: {
-          presetId: "product_hero",
+          presetId: "story_builder",
           status: "awaiting_input",
           currentStepIndex: 3,
           currentStepLabel: "Lighting",
@@ -82,7 +82,7 @@ describe("studioAgentPulseRuntime", () => {
 
     expect(warnSpy).toHaveBeenCalledWith(
       "[studio-agent][pulse-repeat-risk]",
-      expect.stringContaining('"presetId":"product_hero"')
+      expect.stringContaining('"presetId":"story_builder"')
     );
 
     warnSpy.mockRestore();
@@ -93,6 +93,7 @@ describe("studioAgentPulseRuntime", () => {
       presetId: "image",
       label: "Video Prompt Magic",
       instructions: "Follow the guided video workflow one step at a time.",
+      artifactTarget: "video_prompt",
       starterAssistantMessage: "Upload your image to get the process started :)",
       workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection", "Dialogue"],
       workflowSession: {
@@ -123,6 +124,7 @@ describe("studioAgentPulseRuntime", () => {
     expect(systemMessage).toContain(
       "Do not restart from the first step, substitute a different workflow, or invent a new intake step unless the user explicitly asks to restart."
     );
+    expect(systemMessage).toContain("artifact_target: video_prompt");
   });
 
   it("does not force the starter upload reply when activation already has an image-satisfied workflow session", () => {

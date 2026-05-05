@@ -178,11 +178,11 @@ describe("AgentChatPanel prompt actions", () => {
       <AgentChatPanel
         messages={[
           {
-            id: "fallback-1",
+            id: "upstream-error-1",
             role: "assistant",
             content: "I can't process that request right now. Please try again.",
             canUseAsPrompt: false,
-            outcomeClass: "fallback_infra",
+            outcomeClass: "upstream_error",
           },
         ]}
         input=""

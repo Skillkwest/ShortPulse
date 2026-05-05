@@ -12,7 +12,6 @@ type CanonicalWriteOutcomeClass =
   | "success_message"
   | "refusal_model"
   | "refusal_safety"
-  | "fallback_infra"
   | "upstream_error"
   | "route_error";
 
@@ -88,7 +87,7 @@ export const writeStudioAgentCanonicalPrompt = async ({
   writeFailureStage:
     | "canonical_write_v2"
     | "canonical_write_fast_path"
-    | "canonical_write_single_stage";
+    | "canonical_write_pulse_agent";
   formatErrorMessage: ErrorMessageFormatter;
 }): Promise<void> => {
   if (!(canonicalDbEnabled && conversationId && canonicalPrompt)) return;

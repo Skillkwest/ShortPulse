@@ -13,7 +13,7 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(screen.getByText("Pulses")).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Manage the shared Pulse catalog here\. Activate Pulses from the Create Pulse rail or More Pulses\./
+        /Manage custom Pulses here\. Built-in Pulse definitions are shared globally and edited from Admin Agent Instructions\./
       )
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create new pulse" })).toBeInTheDocument();
@@ -94,7 +94,7 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(screen.queryByLabelText("Role & Goal")).not.toBeInTheDocument();
   });
 
-  it("clicking a built-in pulse preset opens edit and saves a personal override", async () => {
+  it("does not open the editor for a built-in pulse preset", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -104,24 +104,9 @@ describe("PulsePresetsLibraryPanel", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Inspect pulse preset tile: Video Prompt Magic" })
     );
-    fireEvent.change(screen.getByLabelText("Preset Name"), {
-      target: { value: "Image Director" },
-    });
-    fireEvent.change(screen.getByLabelText("System Instructions"), {
-      target: { value: "Lead with a single polished hero image and one unmistakable visual hook." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
-    await waitFor(() => {
-      expect(onSavedPresetsChange).toHaveBeenCalledWith([
-        expect.objectContaining({
-          presetId: "image",
-          label: "Image Director",
-          systemInstructions:
-            "Lead with a single polished hero image and one unmistakable visual hook.",
-        }),
-      ]);
-    });
+    expect(screen.queryByRole("heading", { name: "Edit Preset" })).not.toBeInTheDocument();
+    expect(onSavedPresetsChange).not.toHaveBeenCalled();
   });
 
   it("clears hidden custom pulse metadata when saving from the simple editor", async () => {

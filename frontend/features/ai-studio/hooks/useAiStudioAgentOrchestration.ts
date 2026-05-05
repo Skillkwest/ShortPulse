@@ -1,18 +1,9 @@
-import { useCallback, useRef, useState } from "react";
-import { normalizePromptText } from "../logic/agentPromptOwnership";
-import { describeReferenceOutput } from "./agentOrchestration/describeReference";
+import { useCallback, useRef } from "react";
 import type {
   AgentSendOptions,
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
 import type { PulsePresetStartHandler } from "./agentOrchestration/runPulsePresetStartRuntime";
-import { useStandardCreatePromptEnhance } from "./agentOrchestration/useStandardCreatePromptEnhance";
-
-const extractAgentResponseMessage = (response: unknown): string | null => {
-  if (!response || typeof response !== "object") return null;
-  const message = (response as { message?: unknown }).message;
-  return typeof message === "string" ? message : null;
-};
 
 export const useAiStudioAgentOrchestration = ({
   agentIsSending,
@@ -53,8 +44,19 @@ export const useAiStudioAgentOrchestration = ({
   runtimePolicy,
   resolvePulseSessionNamespace,
 }: UseAiStudioAgentOrchestrationParams) => {
-  const [isReferencePromptEnhancing, setIsReferencePromptEnhancing] = useState(false);
-  const [describeInFlightCount, setDescribeInFlightCount] = useState(0);
+  void addAgentPromptReference;
+  void editReferenceText;
+  void setEditReferenceText;
+  void videoReferenceText;
+  void setVideoReferenceText;
+  void getOutputById;
+  void aspect;
+  void model;
+  void setOutputs;
+  void setActiveOutputId;
+  void lastAssistantMessage;
+  const isReferencePromptEnhancing = false;
+  const describeInFlightCount = 0;
   const preparedImageUrlCacheRef = useRef(
     new Map<string, { safeUrl: string; expiresAtMs: number }>()
   );
@@ -62,12 +64,19 @@ export const useAiStudioAgentOrchestration = ({
     setUiNotice("Preparing chat. Try again in a moment.");
     trackAgentUiEvent("studio_agent_send_blocked_bootstrap_pending");
   }, [setUiNotice, trackAgentUiEvent]);
-  const ensureStandardCreateSessionReady = useCallback(() => {
-    if (runtimePolicy.kind === "standard") return true;
-    setUiNotice("Use the Pulse workflow to continue.");
-    trackAgentUiEvent("studio_agent_standard_action_blocked_in_pulse_mode");
-    return false;
-  }, [runtimePolicy, setUiNotice, trackAgentUiEvent]);
+  const handleDisabledStandardHelperAction = useCallback(async () => {
+    if (!agentBootstrapReady) {
+      notifyBootstrapPending();
+      return;
+    }
+    if (runtimePolicy.kind !== "standard") {
+      setUiNotice("Use the Pulse workflow to continue.");
+      trackAgentUiEvent("studio_agent_standard_action_blocked_in_pulse_mode");
+      return;
+    }
+    setUiNotice("This helper is unavailable in Standard mode.");
+    trackAgentUiEvent("studio_agent_standard_helper_disabled");
+  }, [agentBootstrapReady, notifyBootstrapPending, runtimePolicy, setUiNotice, trackAgentUiEvent]);
   const handlePulsePresetStart = useCallback<PulsePresetStartHandler>(
     async (preset, options) => {
       const { runPulsePresetStartRuntime } =
@@ -219,124 +228,17 @@ export const useAiStudioAgentOrchestration = ({
       updateMessageById,
     ]
   );
-  const { isPromptRefining, handleAgentEnhanceSend } = useStandardCreatePromptEnhance({
-    agentBootstrapReady,
-    prompt,
-    latestAgentPrompt,
-    setLatestAgentPrompt,
-    setSharedPrompt,
-    setPromptOrigin,
-    sendToAgent,
-    getAgentContext,
-    addAgentPromptReference,
-    lastAssistantMessage,
-    notifyBootstrapPending,
-  });
-
-  const handleReferencePromptEnhance = useCallback(async () => {
-    if (!agentBootstrapReady) {
-      notifyBootstrapPending();
-      return;
-    }
-    if (!ensureStandardCreateSessionReady()) {
-      return;
-    }
-    const isVideoPromptTool = selectedTool === "video" || selectedTool === "kling";
-    const currentPrompt =
-      (isVideoPromptTool ? videoReferenceText : editReferenceText)?.trim() ?? "";
-    if (!currentPrompt || isReferencePromptEnhancing) return;
-    setIsReferencePromptEnhancing(true);
-    try {
-      const context = getAgentContext({
-        lastAssistantMessage,
-        selectedOverride: null,
-        includeActiveOutput: false,
-        modeHint: "text",
-      });
-      const { response, actions, discarded } = await sendToAgent({
-        text: currentPrompt,
-        payloadText: currentPrompt,
-        previousPrompt: latestAgentPrompt ?? null,
-        context,
-        isolateHistory: true,
-        skipUserEcho: true,
-      });
-      if (discarded) {
-        return;
-      }
-      const nextPrompt = normalizePromptText(
-        actions?.applyPrompt ?? extractAgentResponseMessage(response)
-      );
-      if (nextPrompt) {
-        if (isVideoPromptTool) {
-          setVideoReferenceText(nextPrompt);
-        } else {
-          setEditReferenceText(nextPrompt);
-        }
-        setPromptOrigin("manual");
-      }
-    } finally {
-      setIsReferencePromptEnhancing(false);
-    }
-  }, [
-    agentBootstrapReady,
-    editReferenceText,
-    getAgentContext,
-    isReferencePromptEnhancing,
-    lastAssistantMessage,
-    latestAgentPrompt,
-    selectedTool,
-    sendToAgent,
-    setEditReferenceText,
-    setPromptOrigin,
-    setVideoReferenceText,
-    videoReferenceText,
-    ensureStandardCreateSessionReady,
-    notifyBootstrapPending,
-  ]);
-
+  const handleAgentEnhanceSend = handleDisabledStandardHelperAction;
+  const handleReferencePromptEnhance = handleDisabledStandardHelperAction;
   const handleDescribeReference = useCallback(
-    async (outputId: string) =>
-      describeReferenceOutput({
-        outputId,
-        agentBootstrapReady,
-        aspect,
-        model,
-        latestAgentPrompt,
-        lastAssistantMessage,
-        notifyBootstrapPending,
-        ensureSessionReady: ensureStandardCreateSessionReady,
-        getOutputById,
-        getAgentContext,
-        sendToAgent,
-        setOutputs,
-        setActiveOutputId,
-        setLatestAgentPrompt,
-        setSharedPrompt,
-        setPromptOrigin,
-        setDescribeInFlightCount,
-      }),
-    [
-      agentBootstrapReady,
-      aspect,
-      getOutputById,
-      model,
-      getAgentContext,
-      lastAssistantMessage,
-      latestAgentPrompt,
-      sendToAgent,
-      setActiveOutputId,
-      setLatestAgentPrompt,
-      setOutputs,
-      setPromptOrigin,
-      setSharedPrompt,
-      ensureStandardCreateSessionReady,
-      notifyBootstrapPending,
-    ]
+    async (_outputId: string) => {
+      await handleDisabledStandardHelperAction();
+    },
+    [handleDisabledStandardHelperAction]
   );
 
   return {
-    isPromptRefining,
+    isPromptRefining: false,
     isReferencePromptEnhancing,
     describeInFlightCount,
     handleAgentSend,

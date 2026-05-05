@@ -42,13 +42,12 @@ describe("studioAgentRouteEnvelope", () => {
     expect(result.payload.traceId).toBe("trace-missing-session");
   });
 
-  it("parses directOpenAiBypass from the request body", () => {
+  it("parses the runtime mode from the request body", () => {
     const result = parseStudioAgentRequestEnvelope({
       req: {
         body: {
           clientSessionKey: "session-123",
           messages: [{ role: "user", content: "hello" }],
-          directOpenAiBypass: true,
           runtimeMode: "standard",
         },
       } as never,
@@ -58,7 +57,6 @@ describe("studioAgentRouteEnvelope", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.directOpenAiBypass).toBe(true);
     expect(result.value.runtimeMode).toBe("standard");
   });
 
@@ -84,6 +82,30 @@ describe("studioAgentRouteEnvelope", () => {
         allowedModes: ["standard", "pulse"],
       })
     );
+  });
+
+  it("rejects removed direct bypass route controls", () => {
+    const result = parseStudioAgentRequestEnvelope({
+      req: {
+        body: {
+          clientSessionKey: "session-123",
+          messages: [{ role: "user", content: "hello" }],
+          runtimeMode: "standard",
+          directOpenAiBypass: true,
+        },
+      } as never,
+      userId: "user-1",
+      traceId: "trace-1",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.status).toBe(400);
+    expect(result.payload.code).toBe("INVALID_REQUEST");
+    expect(result.payload.message).toBe(
+      "directOpenAiBypass is not supported by Create agent routes"
+    );
+    expect(result.payload.details).toEqual({ field: "directOpenAiBypass" });
   });
 
   it("sanitizes pulse runtime metadata from the request context", () => {

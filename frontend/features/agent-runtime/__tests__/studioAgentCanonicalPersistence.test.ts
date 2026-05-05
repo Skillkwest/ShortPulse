@@ -109,7 +109,7 @@ describe("studioAgentCanonicalPersistence", () => {
     expect(
       shouldCommitStudioAgentCanonicalPrompt({
         canonicalPrompt: "safe canonical",
-        outcomeClass: "fallback_infra",
+        outcomeClass: "upstream_error",
       })
     ).toBe(false);
     expect(

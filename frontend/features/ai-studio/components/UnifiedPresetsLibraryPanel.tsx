@@ -151,8 +151,12 @@ export function UnifiedPresetsLibraryPanel({
 }
 
 const UnifiedPulsePresetsLibraryPanel = () => {
-  const { savedPresets, setSavedPresets } = useCreatePulsePreferenceRuntime();
+  const { builtInDefinitions, savedPresets, setSavedPresets } = useCreatePulsePreferenceRuntime();
   return (
-    <PulsePresetsLibraryPanel savedPresets={savedPresets} onSavedPresetsChange={setSavedPresets} />
+    <PulsePresetsLibraryPanel
+      builtInDefinitions={builtInDefinitions}
+      savedPresets={savedPresets}
+      onSavedPresetsChange={setSavedPresets}
+    />
   );
 };

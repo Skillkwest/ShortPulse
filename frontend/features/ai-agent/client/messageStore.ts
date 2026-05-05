@@ -1,5 +1,5 @@
 /**
- * Message-store helpers for `useAiAgent`.
+ * Message-store helpers for the Create agent state engine.
  * Keeps UI/history windowing and API payload shaping behavior centralized.
  */
 import type { AgentApiMessage, AgentMessage } from "../../../prefabs/agent";
@@ -63,11 +63,13 @@ export const buildApiMessagesForTurn = ({
   userPayloadForApi,
   skipUserEcho,
   optimisticUserMessageId,
+  excludeNonPromptAssistantHistory = true,
 }: {
   previousMessages: AgentMessage[];
   userPayloadForApi: string;
   skipUserEcho: boolean;
   optimisticUserMessageId: string | null;
+  excludeNonPromptAssistantHistory?: boolean;
 }): AgentApiMessage[] => {
   const hasOptimisticUserAtTail =
     skipUserEcho &&
@@ -83,7 +85,11 @@ export const buildApiMessagesForTurn = ({
     if (!normalizedContent) {
       return acc;
     }
-    if (message.role === "assistant" && message.canUseAsPrompt === false) {
+    if (
+      excludeNonPromptAssistantHistory &&
+      message.role === "assistant" &&
+      message.canUseAsPrompt === false
+    ) {
       return acc;
     }
     if (message.role === "user" || message.role === "assistant") {

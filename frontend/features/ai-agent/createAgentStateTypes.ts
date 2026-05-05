@@ -1,5 +1,5 @@
 /**
- * Shared hook-local types/constants for useAiAgent.
+ * Shared hook-local types/constants for the Create agent state engine.
  */
 import type {
   AgentActions,
@@ -11,12 +11,11 @@ import type {
 } from "../../prefabs/agent";
 import type { StudioAgentTransportResult } from "./client/studioAgentTransport";
 
-export type UseAiAgentOptions = {
+export type CreateAgentStateOptions = {
   initialMessages?: AgentMessage[];
   enabled?: boolean;
   conversationId?: string;
   sessionNamespace?: string;
-  directOpenAiBypassEnabled?: boolean;
   sendAgentTurn?: (body: AgentApiRequest) => Promise<StudioAgentTransportResult>;
   resolveTransportSuccess?: (response: AgentResponse) => {
     actions: AgentActions | undefined;

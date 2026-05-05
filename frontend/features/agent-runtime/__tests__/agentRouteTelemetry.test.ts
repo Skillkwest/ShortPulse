@@ -45,7 +45,7 @@ describe("emitAgentRouteOutcomeTelemetry", () => {
     infoSpy.mockRestore();
   });
 
-  it("emits contract_violation when parse/repair fallback is not output-contract coded", () => {
+  it("emits contract_violation when parse/repair errors are not output-contract coded", () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
 
     emitAgentRouteOutcomeTelemetry({
@@ -53,9 +53,9 @@ describe("emitAgentRouteOutcomeTelemetry", () => {
       routeLabel: "ai/extract-style",
       statusCode: 200,
       machineOutcome: {
-        decision: "allow",
-        outcome_class: "fallback_infra",
-        reason_code: "INFRA_FALLBACK_TRANSIENT",
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_ERROR",
         retryable: true,
       },
       policyVersion: 1,
@@ -73,7 +73,7 @@ describe("emitAgentRouteOutcomeTelemetry", () => {
     >;
     expect(telemetryPayload).toEqual(
       expect.objectContaining({
-        reason_code: "INFRA_FALLBACK_TRANSIENT",
+        reason_code: "UPSTREAM_ERROR",
         retryable: true,
         fallback_reason: "parse_repair_failed",
         contract_violation: "parse_repair_reason_code_mismatch",

@@ -65,6 +65,7 @@ const PulseCreatePanelViewContent = ({
     presetPanelIds: selectedPulsePresetIds,
     setPresetPanelIds: onSelectedPulsePresetIdsChange,
     savedPresets: savedPulsePresets,
+    builtInDefinitions,
     setSavedPresets: onSavedPulsePresetsChange,
   } = pulsePreferenceRuntime;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
@@ -140,6 +141,7 @@ const PulseCreatePanelViewContent = ({
               onActivePresetIdChange={onActivePulsePresetIdChange}
               onPresetStart={onPulsePresetStart}
               isActivationBusy={isPulseActivationBusy}
+              builtInDefinitions={builtInDefinitions}
               savedPresets={savedPulsePresets}
               onSavedPresetsChange={onSavedPulsePresetsChange}
               onOpenPresetsLibrary={onOpenPresetsLibrary}

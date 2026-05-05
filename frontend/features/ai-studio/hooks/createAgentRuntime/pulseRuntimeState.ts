@@ -1,6 +1,6 @@
 /**
- * Pulse-owned bridge runtime state helpers.
- * Keeps Pulse session namespace, pruning, and artifact-prompt projection out of the shared bridge body.
+ * Pulse-owned runtime state helpers.
+ * Keeps Pulse session namespace, pruning, and artifact-prompt projection localized to the Pulse lane.
  */
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 
@@ -21,7 +21,7 @@ export const resolvePulseAgentSessionNamespace = ({
 /**
  * Returns a state map with stale Pulse runtime entries removed for the active session.
  */
-export const pruneInactivePulseBridgeRuntimeStates = <TRuntimeState>({
+export const pruneInactivePulseRuntimeStates = <TRuntimeState>({
   current,
   sessionId,
   hasStoredPulseSession,

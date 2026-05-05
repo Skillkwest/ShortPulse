@@ -1,5 +1,5 @@
 import { StudioOutput } from "../types";
-import { canExposeDirectReferenceUrls } from "../logic/referenceOutputAuthority";
+import { canExposeDirectReferenceUrls, hasSavedMediaIds } from "../logic/referenceOutputAuthority";
 import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 import {
@@ -251,7 +251,8 @@ const readReferenceDragPreviewDataset = (
   return {
     previewUrl: normalizeReferenceTransferUrlCandidate(node?.dataset.dragPreviewUrl ?? null),
     imageSrc: normalizeReferenceTransferUrlCandidate(
-      renderedImageSrc ?? node?.dataset.dragImageSrc ?? null
+      renderedImageSrc ?? node?.dataset.dragImageSrc ?? null,
+      { unwrapNextImage: false }
     ),
     snapshotSrc: createDragGhostSnapshotSrc(renderedImageElement),
     previewKind,
@@ -272,7 +273,9 @@ const resolveGhostImageUrl = ({
     resolveReferenceTransferUrl(output, "image"),
   ];
   for (const candidate of candidates) {
-    const normalized = normalizeReferenceTransferUrlCandidate(candidate);
+    const normalized = normalizeReferenceTransferUrlCandidate(candidate, {
+      unwrapNextImage: false,
+    });
     if (!normalized) continue;
     if (isLikelyImageTransferUrl(normalized)) return normalized;
   }
@@ -508,13 +511,36 @@ export const resolveReferenceTransferUrl = (
 
 export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload => {
   const imageFile = findImageFile(transfer.files);
-  const mediaKind = resolveReferenceTransferMediaKind(transfer);
+  const internalPayload = extractInternalReferenceDragPayload(transfer);
+  const hasAuthoritativeInternalPayload = Boolean(
+    transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE).trim() ||
+    transfer.getData(INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE).trim() ||
+    transfer.getData(REFERENCE_TRANSFER_ORIGIN_TYPE).trim()
+  );
+  const mediaKind =
+    internalPayload?.mediaKind ??
+    parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
+  const internalRenderUrl = normalizeReferenceTransferUrlCandidate(
+    internalPayload?.referenceRenderUrl,
+    { unwrapNextImage: false }
+  );
+  const internalReferenceUrl = normalizeReferenceTransferUrlCandidate(
+    internalPayload?.referenceUrl,
+    { unwrapNextImage: false }
+  );
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
     transfer.getData("text/reference-url")
   );
-  const referenceId = transfer.getData("text/reference-id") || null;
+  const referenceId =
+    internalPayload?.referenceId ?? (transfer.getData("text/reference-id") || null);
   const normalizedReferenceUrl =
     referenceUrl && isLikelyImageTransferUrl(referenceUrl) ? referenceUrl : null;
+  const normalizedInternalImageUrl = hasAuthoritativeInternalPayload
+    ? ((internalReferenceUrl && isLikelyImageTransferUrl(internalReferenceUrl)
+        ? internalReferenceUrl
+        : null) ??
+      (internalRenderUrl && isLikelyImageTransferUrl(internalRenderUrl) ? internalRenderUrl : null))
+    : null;
   const dimensions = resolveReferenceTransferDimensions(transfer);
 
   if (imageFile) {
@@ -530,6 +556,17 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
   if (mediaKind && mediaKind !== "image") {
     return {
       imageUrl: null,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+      mediaKind,
+      ...dimensions,
+    };
+  }
+
+  if (normalizedInternalImageUrl) {
+    return {
+      imageUrl: normalizedInternalImageUrl,
       promptText: extractPromptText(transfer),
       referenceId,
       fromFile: false,
@@ -806,18 +843,30 @@ export const prepareReferenceDrag = (
   const imagePreviewUrl = allowDirectReferenceUrls
     ? resolveReferenceTransferUrl(output, "image")
     : null;
-  const datasetImageUrl = normalizeReferenceTransferUrlCandidate(previewDataset.imageSrc);
+  const datasetImageUrl = normalizeReferenceTransferUrlCandidate(previewDataset.imageSrc, {
+    unwrapNextImage: false,
+  });
   const datasetPreviewUrl = normalizeReferenceTransferUrlCandidate(previewDataset.previewUrl);
   const datasetSnapshotUrl = normalizeReferenceTransferUrlCandidate(previewDataset.snapshotSrc);
-  const resolvedImageTransferUrl =
-    (datasetImageUrl && isLikelyImageTransferUrl(datasetImageUrl) ? datasetImageUrl : null) ??
-    (datasetPreviewUrl && isLikelyImageTransferUrl(datasetPreviewUrl) ? datasetPreviewUrl : null) ??
-    imagePreviewUrl ??
-    null;
+  const datasetImageTransferUrl =
+    datasetImageUrl && isLikelyImageTransferUrl(datasetImageUrl) ? datasetImageUrl : null;
+  const datasetPreviewTransferUrl =
+    datasetPreviewUrl && isLikelyImageTransferUrl(datasetPreviewUrl) ? datasetPreviewUrl : null;
+  const datasetSnapshotTransferUrl =
+    datasetSnapshotUrl && isLikelyImageTransferUrl(datasetSnapshotUrl) ? datasetSnapshotUrl : null;
+  const resolvedImageTransferUrl = imagePreviewUrl ?? datasetPreviewTransferUrl ?? null;
   const resolvedRenderedTransferUrl =
-    (datasetSnapshotUrl && isLikelyImageTransferUrl(datasetSnapshotUrl)
-      ? datasetSnapshotUrl
-      : null) ?? resolvedImageTransferUrl;
+    datasetSnapshotTransferUrl ?? datasetImageTransferUrl ?? resolvedImageTransferUrl;
+  const savedMediaRenderOnlyUrl =
+    !allowDirectReferenceUrls &&
+    hasSavedMediaIds(output) &&
+    datasetImageTransferUrl &&
+    !datasetImageTransferUrl.startsWith("data:image/")
+      ? datasetImageTransferUrl
+      : null;
+  const exposedRenderedTransferUrl = allowDirectReferenceUrls
+    ? resolvedRenderedTransferUrl
+    : savedMediaRenderOnlyUrl;
   const resolvedReferenceTransferUrl =
     output.mode === "image"
       ? (resolvedImageTransferUrl ?? previewUrl ?? null)
@@ -848,7 +897,7 @@ export const prepareReferenceDrag = (
     mediaId: referenceMediaId ?? null,
     mediaKind: resolveOutputPreviewKind(output),
     referenceUrl: allowDirectReferenceUrls ? (resolvedReferenceTransferUrl ?? null) : null,
-    referenceRenderUrl: allowDirectReferenceUrls ? (resolvedRenderedTransferUrl ?? null) : null,
+    referenceRenderUrl: exposedRenderedTransferUrl ?? null,
     sourceSurface,
     ...(naturalWidth > 0 ? { width: naturalWidth } : {}),
     ...(naturalHeight > 0 ? { height: naturalHeight } : {}),
@@ -865,8 +914,8 @@ export const prepareReferenceDrag = (
   if (allowDirectReferenceUrls && resolvedImageTransferUrl) {
     transfer.setData("image/url", resolvedImageTransferUrl);
   }
-  if (allowDirectReferenceUrls && resolvedRenderedTransferUrl) {
-    transfer.setData(REFERENCE_TRANSFER_RENDER_URL_TYPE, resolvedRenderedTransferUrl);
+  if (exposedRenderedTransferUrl) {
+    transfer.setData(REFERENCE_TRANSFER_RENDER_URL_TYPE, exposedRenderedTransferUrl);
   }
   if (output.id) {
     transfer.setData("text/reference-id", output.id);

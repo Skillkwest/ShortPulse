@@ -124,11 +124,6 @@ export const resetStudioAgentRuntimeTestState = () => {
   process.env.STUDIO_AGENT_ENABLED = "true";
   process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "false";
   process.env.STUDIO_AGENT_SERVER_VISION_ENABLED = "false";
-  process.env.STUDIO_AGENT_SINGLE_STAGE_ENABLED = "true";
-  process.env.STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED = "false";
-  process.env.STUDIO_AGENT_TEXT_FAST_PATH_ENABLED = "true";
-  delete process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED;
-  delete process.env.STUDIO_AGENT_DIRECT_OPENAI_MODEL;
   delete process.env.STUDIO_AGENT_PULSE_MODEL;
   process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
   process.env.STUDIO_AGENT_SAFETY_DEBUG = "false";

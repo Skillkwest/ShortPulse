@@ -19,7 +19,7 @@ import {
   resolveImageDescribeUpstreamFailureSource,
   shouldRetryWithFallbackVisionModel,
 } from "../../lib/server/api/imageDescribeOpenAi";
-import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
+import { STUDIO_AGENT_UNAVAILABLE_MESSAGE } from "./studioAgentFailurePolicy";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
 import { buildAgentMachineOutcome, resolveUpstreamReasonCode } from "./agentMachineOutcome";
 import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReason";
@@ -58,7 +58,7 @@ const normalizeExtractedStylePrompt = (value: string): string | null => {
   const clamped = clampStylePrompt(sanitized);
   if (
     clamped === STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE ||
-    clamped === STUDIO_AGENT_INFRA_FALLBACK_MESSAGE
+    clamped === STUDIO_AGENT_UNAVAILABLE_MESSAGE
   ) {
     return clamped;
   }
@@ -145,7 +145,7 @@ const isRefusalOrFallbackText = (value: string): boolean => {
   const normalized = value.trim();
   return (
     normalized === STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE ||
-    normalized === STUDIO_AGENT_INFRA_FALLBACK_MESSAGE
+    normalized === STUDIO_AGENT_UNAVAILABLE_MESSAGE
   );
 };
 

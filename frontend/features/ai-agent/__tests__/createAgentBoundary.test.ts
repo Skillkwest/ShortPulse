@@ -24,38 +24,30 @@ const collectSourceFiles = (dir: string): string[] => {
 };
 
 describe("Create agent mode boundaries", () => {
-  it("keeps the public useAiAgent compatibility wrapper Standard-only", () => {
-    const source = readFrontendFile("features/ai-agent/useAiAgent.ts");
-    const typesSource = readFrontendFile("features/ai-agent/useAiAgentTypes.ts");
-    const legacyCompatSource = readFrontendFile("features/ai-agent/legacy/useAiAgentCompat.ts");
+  it("removes generic and compatibility Create agent hook wrappers", () => {
+    const removedFiles = [
+      "features/ai-agent/useAiAgent.ts",
+      "features/ai-agent/useStandardCreateAgent.ts",
+      "features/ai-agent/usePulseCreateAgent.ts",
+      "features/ai-agent/useAiAgentTypes.ts",
+      "features/ai-agent/legacy/useAiAgentCompat.ts",
+    ];
+    const packageSource = readFrontendFile("package.json");
 
-    expect(source).not.toContain("pulseTransportResultResolution");
-    expect(source).not.toContain("pulseStudioAgentTransport");
-    expect(source).not.toContain("buildPulseCreateAgentContext");
-    expect(source).not.toContain("logic/contextBuilder");
-    expect(source).toContain('Omit<UseAiAgentOptions, "runtimeMode">');
-    expect(source).toContain('requestRuntimeMode: "standard"');
-    expect(typesSource).not.toContain("runtimeMode?:");
-    expect(legacyCompatSource).toContain("runtimeMode?: AgentRuntimeMode");
-  });
-
-  it("keeps Pulse context serialization behind a Pulse-owned module name", () => {
-    const pulseHook = readFrontendFile("features/ai-agent/usePulseCreateAgent.ts");
-
-    expect(pulseHook).toContain("pulseCreateAgentContextBuilder");
-    expect(pulseHook).not.toContain('"./logic/contextBuilder"');
+    for (const relativePath of removedFiles) {
+      expect(existsSync(path.join(process.cwd(), relativePath))).toBe(false);
+      expect(packageSource).not.toContain(relativePath);
+    }
   });
 
   it("keeps generic client transport helpers out of mode selection and workflow parsing", () => {
     const transportSource = readFrontendFile("features/ai-agent/client/studioAgentTransport.ts");
-    const compatibilityParserSource = readFrontendFile(
-      "features/ai-agent/client/transportResultResolution.ts"
-    );
 
     expect(transportSource).not.toContain("sendStudioAgentTurn =");
     expect(transportSource).not.toContain('runtimeMode === "pulse"');
-    expect(compatibilityParserSource).not.toContain("workflowSession");
-    expect(compatibilityParserSource).not.toContain("resolveStudioAgentTransportSuccess");
+    expect(
+      existsSync(path.join(process.cwd(), "features/ai-agent/client/transportResultResolution.ts"))
+    ).toBe(false);
   });
 
   it("keeps the retired shared expert panel out of source", () => {
@@ -67,88 +59,46 @@ describe("Create agent mode boundaries", () => {
     expect(sourceReferences).toEqual([]);
   });
 
-  it("keeps legacy mode-switching useAiAgent out of production imports", () => {
+  it("keeps removed compatibility agent surfaces out of production imports", () => {
     const frontendRoot = process.cwd();
     const sourceFiles = [
       ...collectSourceFiles(path.join(frontendRoot, "features")),
       ...collectSourceFiles(path.join(frontendRoot, "pages")),
     ];
-    const productionImporters = sourceFiles
-      .filter(
-        (filePath) =>
-          !filePath.includes(`${path.sep}features${path.sep}ai-agent${path.sep}legacy${path.sep}`)
-      )
-      .filter((filePath) => {
-        const source = readFileSync(filePath, "utf8");
-        return source.includes("legacy/useAiAgentCompat");
-      });
+    const productionImporters = sourceFiles.filter((filePath) => {
+      const source = readFileSync(filePath, "utf8");
+      return (
+        source.includes("useAiAgent") ||
+        source.includes("legacy/useAiAgentCompat") ||
+        source.includes("useAiStudioAgentBridge") ||
+        source.includes("useCreateAgentBridgeActiveAgent") ||
+        source.includes("createAgentBridgeRuntime") ||
+        source.includes("createAgentBridgePersistenceRuntime")
+      );
+    });
 
     expect(productionImporters).toEqual([]);
   });
 
-  it("keeps the Create bridge from instantiating both mode-owned agent hooks", () => {
-    const bridgeSource = readFrontendFile("features/ai-studio/hooks/useAiStudioAgentBridge.ts");
-    const bridgeRuntimeSource = readFrontendFile(
-      "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgeRuntime.ts"
-    );
-    const bridgeActiveAgentSource = readFrontendFile(
-      "features/ai-studio/hooks/agentBridgeRuntime/useCreateAgentBridgeActiveAgent.ts"
-    );
+  it("removes the legacy Create bridge runtime", () => {
+    const removedFiles = [
+      "features/ai-studio/hooks/useAiStudioAgentBridge.ts",
+      "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgeRuntime.ts",
+      "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgePersistenceRuntime.ts",
+      "features/ai-studio/hooks/agentBridgeRuntime/useCreateAgentBridgeActiveAgent.ts",
+    ];
+    const packageSource = readFrontendFile("package.json");
     const standardRuntimeBindingSource = readFrontendFile(
-      "features/ai-studio/hooks/agentBridgeRuntime/standardCreateAgentRuntimeBinding.ts"
+      "features/ai-studio/hooks/createAgentRuntime/standardCreateAgentRuntimeBinding.ts"
     );
     const orchestrationPolicySource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/createAgentOrchestrationRuntimePolicy.ts"
     );
 
-    expect(bridgeSource).not.toContain("useStandardCreateAgent");
-    expect(bridgeSource).not.toContain("usePulseCreateAgent");
-    expect(bridgeSource).not.toContain("const standardAgent");
-    expect(bridgeSource).not.toContain("const pulseAgent");
-    expect(bridgeSource).not.toContain("activeAgent = isPulseCreateMode ? pulseAgent");
-    expect(bridgeSource).not.toContain("sendPulseActivationToAgent");
-    expect(bridgeSource).not.toContain("import { sendPulseCreateAgentTurn");
-    expect(bridgeSource).not.toContain("import { resolvePulseCreateAgentTransportSuccess");
-    expect(bridgeSource).not.toContain("import { buildPulseCreateAgentContext");
-    expect(bridgeSource).not.toContain("import { sendStandardCreateAgentTurn");
-    expect(bridgeSource).not.toContain("import { resolveStandardCreateAgentTransportSuccess");
-    expect(bridgeSource).not.toContain("import { buildStandardCreateAgentContext");
-    expect(bridgeSource).not.toContain("pulseStudioAgentTransport");
-    expect(bridgeSource).not.toContain("pulseTransportResultResolution");
-    expect(bridgeSource).not.toContain("pulseCreateAgentContextBuilder");
-    expect(bridgeSource).not.toContain("standardStudioAgentTransport");
-    expect(bridgeSource).not.toContain("standardTransportResultResolution");
-    expect(bridgeSource).not.toContain("standardContextBuilder");
-    expect(bridgeSource).not.toContain("createPulsePresets");
-    expect(bridgeSource).not.toContain("pulseCreateAgentRuntimeBinding");
-    expect(bridgeSource).not.toContain("standardCreateAgentRuntimeBinding");
-    expect(bridgeSource).not.toContain("useCreateAgentStateCore");
-    expect(bridgeSource).not.toContain("loadCreateAgentRuntimeBinding");
-    expect(bridgeSource).not.toContain("requestRuntimeMode:");
-    expect(bridgeSource).not.toContain("allowSessionNamespaceOverride:");
-    expect(bridgeSource).not.toContain("sessionNamespace:");
-    expect(bridgeSource).not.toContain("workspace.expertCreateMode");
-    expect(bridgeSource).toContain("type StandardCreateAgentBridgeRuntimeConfig");
-    expect(bridgeSource).toContain("type PulseCreateAgentBridgeRuntimeConfig");
-    expect(bridgeSource).toContain("createAgentRuntime: CreateAgentBridgeRuntimeConfig");
-    expect(bridgeSource).not.toContain("standardPrompt: string;");
-    expect(bridgeSource).not.toContain("pulsePrompt: string;");
-    expect(bridgeSource).not.toContain(
-      "const activeCreatePrompt = isPulseCreateMode ? pulsePrompt : standardPrompt"
-    );
-    expect(bridgeSource).toContain("const activeCreatePrompt = createAgentRuntime.prompt");
-    expect(bridgeSource).toContain("prompt: activeCreatePrompt");
-    expect(bridgeSource).toContain("./agentBridgeRuntime/useCreateAgentBridgeActiveAgent");
-    expect(bridgeSource).toContain("./agentBridgeRuntime/createAgentBridgePersistenceRuntime");
-    expect(bridgeActiveAgentSource).not.toContain("./createAgentRuntimeBindingLoader");
-    expect(bridgeActiveAgentSource).toContain("standardCreateAgentRuntimeBinding");
-    expect(bridgeActiveAgentSource).toContain('import("./pulseCreateAgentRuntimeBinding")');
-    expect(bridgeActiveAgentSource).toContain("useCreateAgentStateCore");
-    expect(bridgeSource).not.toContain('} from "./agentBridgeRuntime/pulsePresetRestart"');
-    expect(bridgeSource).not.toContain("type RestartCreatePulsePresetParams");
-    expect(bridgeSource).not.toContain("studio_agent_pulse_restart_requested");
-    expect(bridgeSource).not.toContain("studio_agent_pulse_restart_blocked_missing_session");
-    expect(bridgeRuntimeSource).not.toContain("pulseSessionState");
+    for (const relativePath of removedFiles) {
+      expect(existsSync(path.join(process.cwd(), relativePath))).toBe(false);
+      expect(packageSource).not.toContain(relativePath);
+    }
     expect(orchestrationPolicySource).not.toContain("pulseSessionState");
     expect(standardRuntimeBindingSource).not.toContain("workflowSession");
     expect(standardRuntimeBindingSource).not.toContain("Pulse");
@@ -181,7 +131,6 @@ describe("Create agent mode boundaries", () => {
     expect(standardRuntimeBuilder).not.toContain("activePreset");
     expect(pulseRuntimeBuilder).not.toContain("StandardCreate");
     expect(pulseRuntimeBuilder).not.toContain("chatModeEnabled");
-    expect(pulseRuntimeBuilder).not.toContain("directOpenAiBypassEnabled");
     expect(pulseRuntimeBuilder).not.toContain("handleChatOffInlineGenerate");
   });
 
@@ -220,11 +169,6 @@ describe("Create agent mode boundaries", () => {
     expect(pulseAgentRuntime).not.toContain("standardCreateAgentRuntimeBinding");
     expect(pulseAgentRuntime).not.toContain("onChatModeChange");
     expect(pulseAgentRuntime).not.toContain("setChatModeEnabled");
-    expect(pulseAgentRuntime).not.toContain("directOpenAiBypassEnabledByConfig");
-    expect(pulseAgentRuntime).not.toContain(
-      "NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED"
-    );
-    expect(pulseAgentRuntime).not.toContain("directOpenAiBypassEnabled: true");
   });
 
   it("keeps Pulse workflow implementation helpers out of page-root static imports", () => {
@@ -251,16 +195,17 @@ describe("Create agent mode boundaries", () => {
     expect(pulsePageRuntimeSource).toContain("pulseCreateAgentContextResolver");
     expect(pageSource).toContain("return <CreateRuntimeRoot base={base} />;");
     expect(pageSource).toContain("const CreateRuntimeRoot =");
-    expect(pageSource).not.toContain("<PulseCreateRuntimeRoot base={base} />");
-    expect(pageSource).not.toContain("<StandardCreateRuntimeRoot base={base} />");
-    expect(pageSource).not.toContain("const StandardCreateRuntimeRoot =");
-    expect(pageSource).not.toContain("const PulseCreateRuntimeRoot =");
+    expect(pageSource).toContain("const StandardCreateRuntimeRoot =");
+    expect(pageSource).toContain("const PulseCreateRuntimeRoot =");
     expect(pageSource).toContain("const AiStudioPageRuntimeBody =");
     expect(pageSource).toContain("pendingCreateRuntimeAgentHydrationRef");
     expect(pageSource).toContain("shouldApplySessionAgentHydrationToRuntime");
-    expect(pageSource).toContain("const activeCreateAgentRuntime =");
+    expect(pageSource).toContain('if (base.expertCreateMode === "pulse")');
     expect(pageSource).toContain(
-      'base.expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime'
+      "<PulseCreateRuntimeRoot base={base} createPulsePageRuntime={createPulsePageRuntime} />"
+    );
+    expect(pageSource).toContain(
+      "<StandardCreateRuntimeRoot base={base} createPulsePageRuntime={createPulsePageRuntime} />"
     );
     expect(pageSource).toContain("getAgentContext: base.getAgentContext");
     expect(pageSource).toContain(
@@ -268,6 +213,9 @@ describe("Create agent mode boundaries", () => {
     );
     expect(pageSource).toContain("setStandardCreatePrompt: base.setStandardCreatePrompt");
     expect(pageSource).toContain("setPulseCreatePrompt: base.setPulseCreatePrompt");
+    expect(pageSource).toContain("activeCreateAgentRuntime={standardCreateAgentRuntime}");
+    expect(pageSource).toContain("activeCreateAgentRuntime={pulseCreateAgentRuntime}");
+    expect(pageSource).not.toContain("activeCreateAgentRuntime =");
     expect(pageSource).not.toContain("setSharedPrompt: base.setSharedPrompt");
     expect(pageSource).toContain("setSharedPrompt: setActiveCreatePrompt");
     expect(pageSource).not.toContain("\n    setSharedPrompt,\n");
@@ -410,6 +358,7 @@ describe("Create agent mode boundaries", () => {
     expect(editVideoPanelPropsSource).not.toContain("handlePulsePromptChange");
     expect(standardCreatePanelPropsSource).not.toContain("Pulse");
     expect(standardCreatePanelPropsSource).not.toContain("pulseWorkflowSession");
+    expect(standardCreatePanelPropsSource).not.toContain("onAgentEnhanceSend");
     expect(pulseCreatePanelPropsSource).not.toContain("Standard");
     expect(pulseCreatePanelPropsSource).not.toContain("onAgentEnhanceSend");
     expect(pulseCreatePanelPropsSource).not.toContain("onChatModeEnabledChange");
@@ -570,11 +519,24 @@ describe("Create agent mode boundaries", () => {
     const pulseSendSource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/runPulseCreateAgentSend.ts"
     );
-    const standardPromptEnhanceSource = readFrontendFile(
-      "features/ai-studio/hooks/agentOrchestration/useStandardCreatePromptEnhance.ts"
-    );
     const pulsePresetStartRuntimeSource = readFrontendFile(
       "features/ai-studio/hooks/agentOrchestration/runPulsePresetStartRuntime.ts"
+    );
+    const standardPromptEnhancePath = path.join(
+      process.cwd(),
+      "features",
+      "ai-studio",
+      "hooks",
+      "agentOrchestration",
+      "useStandardCreatePromptEnhance.ts"
+    );
+    const describeReferencePath = path.join(
+      process.cwd(),
+      "features",
+      "ai-studio",
+      "hooks",
+      "agentOrchestration",
+      "describeReference.ts"
     );
     const orchestrationRuntimeAdapterPath = path.join(
       process.cwd(),
@@ -611,7 +573,11 @@ describe("Create agent mode boundaries", () => {
     expect(orchestrationSource).not.toContain("const handlePulseAgentSend");
     expect(orchestrationSource).toContain("runStandardCreateAgentSend");
     expect(orchestrationSource).toContain("runPulseCreateAgentSend");
-    expect(orchestrationSource).toContain("./agentOrchestration/useStandardCreatePromptEnhance");
+    expect(orchestrationSource).not.toContain(
+      "./agentOrchestration/useStandardCreatePromptEnhance"
+    );
+    expect(existsSync(standardPromptEnhancePath)).toBe(false);
+    expect(existsSync(describeReferencePath)).toBe(false);
     expect(orchestrationSource).toContain('runtimePolicy.kind === "standard"');
     expect(orchestrationSource).not.toContain("./agentOrchestration/pulsePresetStart");
     expect(pulsePresetStartRuntimeSource).toContain("./pulsePresetStart");
@@ -622,10 +588,6 @@ describe("Create agent mode boundaries", () => {
     expect(pulseSendSource).not.toContain("previousPrompt: latestAgentPrompt");
     expect(pulseSendSource).not.toContain("baseContext.activePrompt = latestAgentPrompt");
     expect(pulseSendSource).toContain("stripGenericPromptContinuity");
-    expect(standardPromptEnhanceSource).not.toContain("runtimePolicy");
-    expect(standardPromptEnhanceSource).not.toContain("Pulse");
-    expect(standardPromptEnhanceSource).not.toContain("WorkflowSession");
-    expect(standardPromptEnhanceSource).not.toContain("pulseSendRuntime");
   });
 
   it("keeps generic agent interactions free of mode branches", () => {
@@ -676,16 +638,12 @@ describe("Create agent mode boundaries", () => {
     }
   });
 
-  it("keeps retired expanded-chat state out of the Create agent bridge", () => {
-    const bridgeSource = readFrontendFile("features/ai-studio/hooks/useAiStudioAgentBridge.ts");
+  it("keeps retired expanded-chat state out of active Create agent helpers", () => {
     const interactionsSource = readFrontendFile(
       "features/ai-studio/hooks/useAiStudioAgentInteractions.ts"
     );
-    const persistenceRuntimeSource = readFrontendFile(
-      "features/ai-studio/hooks/agentBridgeRuntime/createAgentBridgePersistenceRuntime.ts"
-    );
 
-    for (const source of [bridgeSource, interactionsSource, persistenceRuntimeSource]) {
+    for (const source of [interactionsSource]) {
       expect(source).not.toContain("isAgentChatOpen");
       expect(source).not.toContain("setIsAgentChatOpen");
       expect(source).not.toContain("handleExpandChat");
@@ -694,26 +652,24 @@ describe("Create agent mode boundaries", () => {
     }
   });
 
-  it("keeps Standard chat-mode preference ownership out of the shared bridge", () => {
+  it("keeps Standard chat-off preference storage out of active Create", () => {
     const pageSource = readFrontendFile("pages/ai-studio.tsx");
-    const bridgeSource = readFrontendFile("features/ai-studio/hooks/useAiStudioAgentBridge.ts");
     const standardRuntimeSource = readFrontendFile(
       "features/ai-studio/createRuntime/useStandardCreateAgentRuntime.ts"
     );
-    const standardChatModeSource = readFrontendFile(
-      "features/ai-studio/hooks/standardCreateRuntime/useStandardCreateChatMode.ts"
+    const standardChatModeHookName = ["useStandard", "CreateChatMode"].join("");
+    const standardChatModePath = path.join(
+      process.cwd(),
+      `features/ai-studio/hooks/standardCreateRuntime/${standardChatModeHookName}.ts`
     );
 
-    expect(pageSource).not.toContain("useStandardCreateChatMode");
+    expect(pageSource).not.toContain(standardChatModeHookName);
     expect(pageSource).not.toContain("standardChatModeEnabled");
     expect(pageSource).not.toContain("setStandardChatModeEnabled");
-    expect(standardRuntimeSource).toContain("useStandardCreateChatMode");
-    expect(standardRuntimeSource).toContain("standardChatModeEnabled");
-    expect(standardRuntimeSource).toContain("setStandardChatModeEnabled");
-    expect(bridgeSource).not.toContain("readChatModeFromStorage");
-    expect(bridgeSource).not.toContain("writeChatModeToStorage");
-    expect(standardChatModeSource).toContain("readChatModeFromStorage");
-    expect(standardChatModeSource).toContain("writeChatModeToStorage");
+    expect(standardRuntimeSource).not.toContain(standardChatModeHookName);
+    expect(standardRuntimeSource).not.toContain("standardChatModeEnabled");
+    expect(standardRuntimeSource).not.toContain("setStandardChatModeEnabled");
+    expect(existsSync(standardChatModePath)).toBe(false);
   });
 
   it("keeps page persistence from accepting loose active agent fields", () => {

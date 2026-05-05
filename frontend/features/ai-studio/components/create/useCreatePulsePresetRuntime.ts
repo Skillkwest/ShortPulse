@@ -9,6 +9,7 @@ import {
   CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
   CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
   CREATE_PULSE_PANEL_MAX,
+  type CreatePulseBuiltInPresetDefinition,
   resolveCreatePulsePresetById,
   resolveCreatePulsePresetLabelById,
   sortCreatePulsePresetIdsByCanonicalOrder,
@@ -30,6 +31,7 @@ import { createPulseSessionInstanceId } from "../../logic/pulseSessionIdentity";
 export const CREATE_PULSE_PRESET_PANEL_LIMIT_TOAST = "Pulse preset panel is full (max 10).";
 
 type UseCreatePulsePresetRuntimeParams = {
+  builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
   savedPresets: CreatePulseSavedPreset[];
   activePresetId: CreatePulsePresetId | null;
   updateSelectedPresetIds: (
@@ -59,6 +61,7 @@ type UseCreatePulsePresetRuntimeParams = {
  * Returns Create Pulse interaction handlers for the inline rail and More Presets surface.
  */
 export const useCreatePulsePresetRuntime = ({
+  builtInDefinitions,
   savedPresets,
   activePresetId,
   updateSelectedPresetIds,
@@ -93,14 +96,24 @@ export const useCreatePulsePresetRuntime = ({
           showStatusToast(CREATE_PULSE_PRESET_PANEL_LIMIT_TOAST, "warning");
           return previous;
         }
-        return sortCreatePulsePresetIdsByCanonicalOrder([...previous, presetId], savedPresets);
+        return sortCreatePulsePresetIdsByCanonicalOrder(
+          [...previous, presetId],
+          savedPresets,
+          builtInDefinitions
+        );
       });
       if (!saved) {
         showPersistentStatus("Unable to save the Pulse rail right now.", "warning");
       }
       return saved;
     },
-    [savedPresets, showPersistentStatus, showStatusToast, updateSelectedPresetIds]
+    [
+      builtInDefinitions,
+      savedPresets,
+      showPersistentStatus,
+      showStatusToast,
+      updateSelectedPresetIds,
+    ]
   );
 
   const removePresetFromPanel = React.useCallback(
@@ -126,8 +139,16 @@ export const useCreatePulsePresetRuntime = ({
 
   const handlePanelPresetApply = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
-      const resolvedPreset = resolveCreatePulsePresetById(presetId, savedPresets);
-      const presetLabel = resolveCreatePulsePresetLabelById(presetId, savedPresets);
+      const resolvedPreset = resolveCreatePulsePresetById(
+        presetId,
+        savedPresets,
+        builtInDefinitions
+      );
+      const presetLabel = resolveCreatePulsePresetLabelById(
+        presetId,
+        savedPresets,
+        builtInDefinitions
+      );
       if (isActivationBusy) {
         const blockedMessage = "Wait for the current Pulse step to finish before switching.";
         showPersistentStatus(blockedMessage, "warning");
@@ -172,6 +193,7 @@ export const useCreatePulsePresetRuntime = ({
       clearStatusMessage,
       isActivationBusy,
       onPresetStart,
+      builtInDefinitions,
       savedPresets,
       setActivePresetId,
       showPersistentStatus,
@@ -204,7 +226,7 @@ export const useCreatePulsePresetRuntime = ({
     ) => {
       const saved = await updateSavedPresets((previous) => {
         const existingPreset = previous.find((preset) => preset.presetId === presetId);
-        const resolvedPreset = resolveCreatePulsePresetById(presetId, previous);
+        const resolvedPreset = resolveCreatePulsePresetById(presetId, previous, builtInDefinitions);
         return upsertCreatePulseSavedPreset(previous, {
           presetId,
           label: draft.label,
@@ -230,7 +252,7 @@ export const useCreatePulsePresetRuntime = ({
       clearStatusMessage();
       return true;
     },
-    [clearStatusMessage, showPersistentStatus, updateSavedPresets]
+    [builtInDefinitions, clearStatusMessage, showPersistentStatus, updateSavedPresets]
   );
 
   const beginPresetDragSession = React.useCallback(
@@ -267,10 +289,10 @@ export const useCreatePulsePresetRuntime = ({
       beginPresetDragSession(
         event,
         { presetId, source: "surface" },
-        resolveCreatePulsePresetLabelById(presetId, savedPresets)
+        resolveCreatePulsePresetLabelById(presetId, savedPresets, builtInDefinitions)
       );
     },
-    [beginPresetDragSession, savedPresets]
+    [beginPresetDragSession, builtInDefinitions, savedPresets]
   );
 
   const handlePanelPresetDragStart = React.useCallback(
@@ -278,10 +300,10 @@ export const useCreatePulsePresetRuntime = ({
       beginPresetDragSession(
         event,
         { presetId, source: "panel" },
-        resolveCreatePulsePresetLabelById(presetId, savedPresets)
+        resolveCreatePulsePresetLabelById(presetId, savedPresets, builtInDefinitions)
       );
     },
-    [beginPresetDragSession, savedPresets]
+    [beginPresetDragSession, builtInDefinitions, savedPresets]
   );
 
   const handlePresetDragEnd = React.useCallback(() => {

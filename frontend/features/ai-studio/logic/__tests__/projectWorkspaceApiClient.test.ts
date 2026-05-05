@@ -108,5 +108,12 @@ describe("projectWorkspaceApiClient", () => {
         projectId: "project-1",
       })
     ).rejects.toThrow("Failed to load project workspace snapshot: HTTP 404 text/html");
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1/workspace", {
+      method: "GET",
+      shortpulseLogScope: "app",
+      shortpulseAuthTimeoutMs: 5000,
+      shortpulseRetryNetworkOnce: true,
+    });
   });
 });

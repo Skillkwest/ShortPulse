@@ -38,7 +38,6 @@ export type PromptStepProps = {
   agentMessages?: AgentMessage[];
   agentInput?: string;
   chatModeEnabled?: boolean;
-  directOpenAiBypassEnabled?: boolean;
   agentIsSending?: boolean;
   agentError?: string;
   stagedPrompt?: string | null;

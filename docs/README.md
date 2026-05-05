@@ -23,9 +23,15 @@ Start here for all repository documentation.
 
 Use these docs when creating, nurturing, or training a new task-specific agent:
 
-- `docs/sops/sop_agent_training_and_nurture.md`: step-by-step SOP for turning one real task into a trained workflow.
-- `docs/sops/sop_agent_post_run_training_audit.md`: reusable post-run audit SOP for improving prompts, tools, templates, and workflow reliability after real runs.
-- `docs/agents/generic-agent-training-template.md`: fill-in template with prompt patterns, state mapping, training history, and run log sections.
+- `agent-teaching/README.md`: local mirror of the final Notion "Building AI Employees" teaching system.
+- `agent-teaching/foundations/how-to-decide-what-your-agent-can-do.md`: gate for deciding whether a workflow is ready to become an agent.
+- `agent-teaching/setup/new-codex-project-setup.md`: step-by-step new-project bootstrap for Codex local work.
+- `agent-teaching/setup/codex-app-settings.md`: required Codex app and session settings before training.
+- `agent-teaching/setup/define-agent-identity.md`: identity, guardrails, artifact area, and training-history setup.
+- `agent-teaching/operations/post-run-performance-analysis-interview.md`: reusable post-run review and hardening interview.
+- `agent-teaching/operations/create-baseline-kpi.md`: guidance for freezing the baseline KPI after stable runs.
+- `agent-teaching/operations/agent-management.md`: how to retire training-only runtime context and move the agent into automation and maintenance.
+- `agent-teaching/foundations/agent-maintenance-field-guide.md`: generic drift and long-term maintenance reference.
 - `docs/agents/README.md`: index of agent contracts, memory entrypoints, and training helpers.
 - `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract.
 
@@ -38,8 +44,13 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/AGENTS.md`
 - `docs/developer-analytics-stat-sheet.md`
 - `docs/agents/README.md`
+- `agent-teaching/README.md`
+- `agent-teaching/foundations/how-to-decide-what-your-agent-can-do.md`
+- `agent-teaching/setup/new-codex-project-setup.md`
+- `agent-teaching/setup/define-agent-identity.md`
+- `agent-teaching/operations/create-baseline-kpi.md`
+- `agent-teaching/foundations/agent-maintenance-field-guide.md`
 - `docs/agents/change-impact-auditor.md`
-- `docs/agents/generic-agent-training-template.md`
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
@@ -65,6 +76,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
 - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
 - `docs/adr/0072-admin-kanban-and-ophestivus-foundation.md`
+- `docs/adr/0073-create-pulse-built-in-control-plane.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
@@ -151,8 +163,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_admin_ophestivus_review_to_complete.md`
 - `docs/sops/sop_admin_ophestivus_complete_regression_audit.md`
 - `docs/sops/sop_admin_ophestivus_post_run_training_audit.md`
-- `docs/sops/sop_agent_training_and_nurture.md`
-- `docs/sops/sop_agent_post_run_training_audit.md`
 - `docs/sops/sop_gear_ball_worktree_batch_commit_operations.md`
 - `docs/sops/sop_gear_ball_github_pr_merge_operations.md`
 - `docs/sops/sop_admin_user_health_fleet_operations.md`
@@ -440,6 +450,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
 - `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
 - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
+- `docs/adr/0072-admin-kanban-and-ophestivus-foundation.md`
+- `docs/adr/0073-create-pulse-built-in-control-plane.md`
 
 ## Archive
 

@@ -87,7 +87,6 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Mode-owned route labels are part of the monitoring contract:
   - Standard Create: `/api/ai/studio-agent-standard`, `runtime_scope_key` rooted in `studio-agent-standard`.
   - Pulse Create: `/api/ai/studio-agent-pulse`, `runtime_scope_key` rooted in `route:studio-agent-pulse`.
-  - Generic `/api/ai/studio-agent` is retired compatibility only and should not emit successful work telemetry.
 - Treat these as high-signal boundary regressions:
   - Pulse telemetry or `workflowSession` fields appearing on Standard route responses,
   - Standard traffic carrying `context.pulse`,
@@ -105,7 +104,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Pulse-specific interpretation:
   - `outcome_class=success_message` is the expected success class for guided `workflow_gpt` turns that ask the next question or return a final chat artifact.
   - `outcome_class=success_prompt` should be treated as a backward-compatibility artifact path, not the normal Pulse runtime contract.
-  - `outcome_class=fallback_infra`, `upstream_error`, `route_error`, `refusal_model`, and `refusal_safety` are the primary failure/fallback classes to monitor for Pulse regressions.
+  - `outcome_class=upstream_error`, `route_error`, `refusal_model`, and `refusal_safety` are the primary failure classes to monitor for Pulse regressions.
 - Activation, progression, and completion are tracked through authoritative `pulseWorkflowSession` state, not inferred from UI-only transcript parsing. The session object persists:
   - `presetId`
   - `status`
@@ -116,7 +115,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `lastArtifact`
   - `finalArtifactSource`
 - Operationally, use Pulse runtime telemetry and workflow-session state together:
-  - route telemetry tells you whether a Pulse turn succeeded, fell back, refused, or failed,
+  - route telemetry tells you whether a Pulse turn succeeded, refused, or failed,
   - workflow session state tells you whether a workflow Pulse is active, awaiting input, still running, or completed with a reusable artifact.
 
 ## AI Studio Pulse eval posture

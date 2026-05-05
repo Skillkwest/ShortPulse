@@ -55,26 +55,26 @@ Generated: April 29, 2026
 
 | Rank | File | System | Lines | Nonblank Lines |
 | ---: | --- | --- | ---: | ---: |
-| 1 | `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx` | Frontend Tests | 7,977 | 7,076 |
-| 2 | `frontend/styles/ai-studio-edit-expert.css` | Frontend Styles | 5,972 | 5,254 |
-| 3 | `frontend/styles/ai-studio-voices-properties.css` | Frontend Styles | 3,159 | 2,802 |
-| 4 | `frontend/features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx` | Frontend Tests | 3,118 | 2,728 |
-| 5 | `frontend/styles/character-manager.css` | Frontend Styles | 2,858 | 2,480 |
-| 6 | `frontend/features/ai-studio/hooks/__tests__/useAiStudioTaskSubmission.test.ts` | Frontend Tests | 2,790 | 2,606 |
-| 7 | `frontend/styles/ai-studio-layout.css` | Frontend Styles | 2,493 | 2,199 |
-| 8 | `frontend/features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx` | Frontend Tests | 2,387 | 2,164 |
-| 9 | `docs/supabase_full_schema.sql` | Database Schema Reference | 2,385 | 2,101 |
-| 10 | `frontend/features/ai-studio/hooks/__tests__/useAiStudioAgentBridge.test.ts` | Frontend Tests | 2,317 | 2,154 |
-| 11 | `frontend/tests/api/fal-status-proxy.test.ts` | Frontend Tests | 2,277 | 2,080 |
-| 12 | `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx` | Frontend Tests | 2,264 | 2,049 |
-| 13 | `frontend/styles/ai-studio-video-theme.css` | Frontend Styles | 2,230 | 1,971 |
-| 14 | `frontend/features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx` | Frontend Tests | 2,205 | 1,930 |
-| 15 | `frontend/features/ai-studio/hooks/__tests__/useAiStudioTasks.test.ts` | Frontend Tests | 2,197 | 1,914 |
-| 16 | `frontend/styles/admin.module.css` | Frontend Styles | 2,058 | 1,766 |
-| 17 | `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx` | Frontend Feature Modules | 1,897 | 1,775 |
-| 18 | `frontend/features/ai-studio/components/__tests__/VoicesPropertiesPanel.test.tsx` | Frontend Tests | 1,870 | 1,601 |
-| 19 | `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx` | Frontend Feature Modules | 1,824 | 1,776 |
-| 20 | `frontend/styles/workspace-media.css` | Frontend Styles | 1,818 | 1,563 |
+| 1 | `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx` | Frontend Tests | 8,067 | 7,158 |
+| 2 | `frontend/styles/ai-studio-edit-expert.css` | Frontend Styles | 5,973 | 5,254 |
+| 3 | `docs/change_log.md` | Documentation | 3,363 | 3,085 |
+| 4 | `frontend/styles/ai-studio-voices-properties.css` | Frontend Styles | 3,202 | 2,836 |
+| 5 | `frontend/pages/ai-studio.tsx` | Frontend Pages | 3,149 | 3,102 |
+| 6 | `frontend/features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx` | Frontend Tests | 3,119 | 2,728 |
+| 7 | `frontend/styles/character-manager.css` | Frontend Styles | 2,859 | 2,480 |
+| 8 | `frontend/features/ai-studio/hooks/__tests__/useAiStudioTaskSubmission.test.ts` | Frontend Tests | 2,791 | 2,606 |
+| 9 | `docs/supabase_full_schema.sql` | Database Schema Reference | 2,779 | 2,449 |
+| 10 | `frontend/features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx` | Frontend Tests | 2,526 | 2,288 |
+| 11 | `frontend/styles/admin.module.css` | Frontend Styles | 2,515 | 2,160 |
+| 12 | `frontend/styles/ai-studio-layout.css` | Frontend Styles | 2,494 | 2,199 |
+| 13 | `frontend/features/ai-studio/hooks/__tests__/useAiStudioTasks.test.ts` | Frontend Tests | 2,284 | 1,993 |
+| 14 | `frontend/tests/api/fal-status-proxy.test.ts` | Frontend Tests | 2,273 | 2,075 |
+| 15 | `frontend/features/ai-studio/components/__tests__/ReferenceGrid.curated.test.tsx` | Frontend Tests | 2,265 | 2,049 |
+| 16 | `frontend/styles/ai-studio-video-theme.css` | Frontend Styles | 2,231 | 1,971 |
+| 17 | `frontend/features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx` | Frontend Tests | 2,206 | 1,930 |
+| 18 | `frontend/features/ai-studio/components/VoicesPropertiesPanel.tsx` | Frontend Feature Modules | 2,148 | 2,007 |
+| 19 | `frontend/features/ai-studio/components/__tests__/VoicesPropertiesPanel.test.tsx` | Frontend Tests | 1,989 | 1,703 |
+| 20 | `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx` | Frontend Feature Modules | 1,825 | 1,776 |
 
 ## Notes
 

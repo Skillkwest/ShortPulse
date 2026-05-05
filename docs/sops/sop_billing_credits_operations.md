@@ -160,6 +160,7 @@ Primary path:
 Operational rules:
 
 - Treat catalog pricing and runtime model pricing as separate domains even though they share `/admin/pricing`.
+- Treat the `/admin/pricing` truth grid as the only promotable runtime pricing calculator. Plan economics, usage mix, and summary modules are downstream analysis only and must never become a second pricing authority.
 - Treat ElevenLabs sound-generation rows on `/admin/pricing` as `Shared policy` models once they are wired through shared runtime pricing and server debits. These rows should expose live previews and shared-policy override controls.
 - Treat remaining ElevenLabs `Metadata only` rows as informational supporting/provider-preview inventory. They are not billable through the shared model-pricing control plane.
 - `Create new plan` is a new tier-identity flow. It creates the `billing_plans` row, first current monthly and annual public `billing_plan_offers` rows, the Stripe product, and the Stripe recurring prices together.
@@ -178,7 +179,7 @@ Recommended operator sequence:
 1. Open `/admin/pricing` and inspect state warnings first.
 2. For a brand-new plan, use `Create new plan` so ShortPulse and Stripe are created together.
 3. For existing plan/storage/top-up changes, create or attach the correct Stripe Price before activating the catalog update.
-4. For model-pricing changes, review the effective credit conversion, per-model markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
+4. For model-pricing changes, edit the truth grid, review the compact plan/usage support modules, then verify the effective credit conversion, per-model markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
 5. After any pricing change, verify the customer-facing catalog on `/profile?section=credits` and `/profile?section=storage`.
 6. Verify `/profile?section=subscription` still routes each plan card to the intended self-serve flow:
    - free/internal-comp to paid should open Stripe Checkout for the selected target plan

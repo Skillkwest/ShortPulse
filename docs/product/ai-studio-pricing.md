@@ -3,8 +3,9 @@
 Short version: models declare metadata in runtime catalog/registry, pricing strategies compute provider USD, and one shared versioned model-pricing policy applies credit conversion plus per-model markup/rounding so UI estimates and server debits stay in parity.
 
 ## Where things live
-- `frontend/lib/model-runtime/modelCatalog.ts` — canonical provider/model API contracts (submit/status aliases, defaults, validated fields, docs source + verification date).
-- `frontend/lib/model-runtime/modelRegistry.ts` — runtime model metadata (labels, media type, pricing strategy).
+
+- `frontend/lib/model-runtime/modelCatalog.ts` — canonical provider/model API contracts and product intent (submit/status aliases, defaults, validated fields, docs source + verification date, lifecycle, surfaces, billable flag, display family/order).
+- `frontend/lib/model-runtime/modelRegistry.ts` — catalog-derived runtime model metadata and surface helpers (`listPickerModelConfigs()`, `listPricingModelConfigs()`, `listRuntimeModelConfigs()`).
 - `frontend/lib/model-runtime/modelSizes.ts` — reusable aspect → size maps.
 - `frontend/lib/model-runtime/pricingStrategies.ts` — per-strategy USD calculators.
 - `frontend/lib/model-runtime/pricingCredits.ts` — shared USD→credits conversion with per-model markup and optional row-specific round-nearest behavior.
@@ -16,7 +17,9 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `sql/migrations/096_add_model_pricing_control_plane.sql` — persistent policy versions/runtime pointers/audit events + service-role RPCs.
 
 ## Contract
-- Model config includes `pricingStrategy` and optional `sizeMap` for dimension-aware strategies.
+
+- Model config includes lifecycle/surface metadata, `pricingStrategy`, and optional `sizeMap` for dimension-aware strategies.
+- AI Studio picker options are derived from active catalog models with the `picker` surface; `/admin/pricing` model rows are derived from active, billable catalog models with the `pricing` surface.
 - `computeCostForModel(modelId, params, pricingPolicy?)` returns `{ credits, usd, rawCredits, usdRaw, megapixels, width, height } | null`.
 - Defaults for duration/resolution/audio come from catalog/registry and drive both UI estimate chips and server charge inputs.
 - Active model-pricing policy document fields:
@@ -44,6 +47,7 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `metadata_only` ElevenLabs rows remain informational only for supporting/provider-preview models that are not user-billable through the shared runtime pricing policy.
 
 ## Current strategies
+
 - `fal-economy-image-per-mp`: `fal-ai/flux-2/klein/9b` uses `$0.006/MP`; `fal-ai/bria/background/remove` uses fixed `$0.018` per generation. Any model-specific billed result now comes from the shared credit conversion plus explicit per-model markup/rounding in the admin pricing panel.
 - `fal-fill-per-mp`: `fal-ai/flux-pro/v1/fill` uses raw output megapixels at `$0.05/MP`.
 - `google-nano-banana-per-image`: `$0.039` flat per image.
@@ -59,6 +63,7 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `openai-text-token`: OpenAI standard short-context token rates for `gpt-5.4` (`$2.50`/M input, `$0.25`/M cached input, `$15.00`/M output), `gpt-5.4-mini` (`$0.75`/M input, `$0.075`/M cached input, `$4.50`/M output), and `gpt-5.4-nano` (`$0.20`/M input, `$0.02`/M cached input, `$1.25`/M output), then shared credit conversion plus any per-model markup and row-specific round-nearest override.
 
 ## Tests
+
 - `frontend/lib/model-runtime/__tests__/pricingCredits.test.ts` covers conversion policy (credit ceiling, legacy-policy normalization, boundary behavior, per-model markup, and row-specific round-nearest behavior).
 - `frontend/features/ai-studio/logic/__tests__/pricing.test.ts` covers strategy formulas including Kie Kling and Kie Veo calculations.
 - `frontend/features/ai-studio/logic/__tests__/modelPricingCoverage.test.ts` runs matrix coverage over supported runtime settings and verifies no global round-nearest behavior is applied by default.

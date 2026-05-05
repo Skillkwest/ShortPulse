@@ -87,3 +87,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0070-project-workspace-conversational-runtime-exclusion.md`
 - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
 - `docs/adr/0072-admin-kanban-and-ophestivus-foundation.md`
+- `docs/adr/0073-create-pulse-built-in-control-plane.md`

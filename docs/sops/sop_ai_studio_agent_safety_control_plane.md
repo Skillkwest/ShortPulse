@@ -3,7 +3,7 @@
 Purpose: operational guide for safety profile tuning, activation, rollback, cooldown handling, and validation for AI Studio agent safety behavior.
 
 ## Scope
-- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent-standard`, `/api/ai/studio-agent-pulse`, and Fal submit routes, image preflight gating for retained image-analysis routes, client pre-send gating for studio-agent chat UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions.
+- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent-pulse` and Fal submit routes, image preflight gating for retained image-analysis routes, client pre-send gating for guided studio-agent UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions. The Standard Create agent route is intentionally exempt from the local Standard precheck path and forwards raw conversation turns.
 - Out of scope: model prompt authoring, provider onboarding, and non-agent route behavior.
 
 ## Control Surface Summary
@@ -16,7 +16,6 @@ The safety control surface has six layers:
 2. Runtime input precheck (server-authoritative, pre-provider).
 - Files:
   - `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts`
-  - `frontend/pages/api/ai/studio-agent-standard.ts`
   - `frontend/pages/api/ai/studio-agent-pulse.ts`
 - Evaluates provider-bound request text before any OpenAI call.
 - Actions:
@@ -24,11 +23,12 @@ The safety control surface has six layers:
   - `rewrite`: deterministic sanitize, then continue
   - `refuse`: return canonical refusal payload with `200` and skip provider call
 
-3. Client pre-send precheck (UX mirror, server-authoritative fallback still applies).
-- Files: `frontend/features/ai-agent/useStandardCreateAgent.ts`, `frontend/features/ai-agent/usePulseCreateAgent.ts`, and the shared `useCreateAgentStateCore` safety precheck core.
+3. Client pre-send precheck (UX mirror, server-authoritative enforcement still applies for guided lanes).
+- Files: `frontend/features/ai-studio/createRuntime/useStandardCreateAgentRuntime.ts`, `frontend/features/ai-studio/createRuntime/usePulseCreateAgentRuntime.ts`, and the shared `useCreateAgentStateCore` safety precheck core.
 - Uses the same runtime evaluator/rewrite logic before transport.
 - `rewrite`: sends sanitized payload.
 - `refuse`: appends refusal locally and skips network call.
+ - Current Create contract: Pulse uses this gate. Standard bypasses it and sends raw user/assistant turns.
 
 4. Runtime output post-process (defense-in-depth).
 - File: `frontend/features/agent-runtime/studioAgentSafetyPostProcess.ts`
@@ -54,10 +54,10 @@ Current runtime-binding note:
   - `frontend/pages/api/ai/studio-agent-standard.ts`
   - `frontend/pages/api/ai/studio-agent-pulse.ts`
   - `frontend/features/agent-runtime/styleExtractionService.ts`
-- The mode-owned studio-agent routes enforce input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
+- The Pulse route enforces input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default). Standard is a raw pass-through lane by design.
 - Retained image-analysis routes run local image safety preflight before OpenAI vision calls.
 - Fal submit routes enforce prompt precheck before provider dispatch when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED=true` (default).
-- Studio-agent client chat paths now run a pre-send mirror gate when `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
+- Guided studio-agent client chat paths now run a pre-send mirror gate when `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default). Standard bypasses the local pre-send gate.
 - Server remains the source of truth for enforcement decisions.
 - Output post-process mode is controlled by `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (`enforce|shadow|off`) with `enforce` default.
 - Runtime can sync profile selection from control-plane active state when

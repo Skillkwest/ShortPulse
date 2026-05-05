@@ -176,7 +176,7 @@ Admission-control action map:
 
 ### OpenAI prompt/agent failures
 Primary signals:
-- Errors from `/api/ai/studio-agent` and retained image-analysis routes such as `/api/ai/extract-style`.
+- Errors from `/api/ai/studio-agent-standard`, `/api/ai/studio-agent-pulse`, and retained image-analysis routes such as `/api/ai/extract-style`.
 - Large spike in failed prompt refine/describe interactions.
 
 Checks:

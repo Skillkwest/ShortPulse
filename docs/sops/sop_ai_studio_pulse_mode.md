@@ -297,14 +297,13 @@ Guided Pulse model/runtime config:
 - Agent orchestration helpers:
   - `frontend/features/ai-studio/hooks/agentOrchestration/runPulseCreateAgentSend.ts`
   - `frontend/features/ai-studio/hooks/agentOrchestration/runPulsePresetStartRuntime.ts`
-  - `frontend/features/ai-agent/usePulseCreateAgent.ts`
+  - `frontend/features/ai-studio/createRuntime/usePulseCreateAgentRuntime.ts`
 - Server/runtime contract:
   - `frontend/pages/api/ai/studio-agent-standard.ts`
   - `frontend/features/agent-runtime/standardStudioAgentRuntime/runtime.ts`
   - `frontend/pages/api/ai/studio-agent-pulse.ts`
   - `frontend/features/agent-runtime/pulseStudioAgentRuntime/runtime.ts`
   - `frontend/features/agent-runtime/studioAgentPulseRuntime.ts`
-  - `frontend/pages/api/ai/studio-agent.ts` (retired compatibility route only)
 - Workflow-state helpers:
   - `frontend/features/ai-studio/logic/pulseWorkflowSession.ts`
   - `frontend/features/ai-studio/logic/pulseSessionState.ts`
@@ -344,7 +343,7 @@ Guided Pulse model/runtime config:
 3. Clicking a Pulse calls the Create Pulse runtime handler.
 4. That handler creates a fresh Pulse session instance and starts the hidden kickoff before committing the new active Pulse id.
 5. The agent orchestration layer builds hidden Pulse context and a hidden activation seed.
-6. The agent transport sends the kickoff turn to `/api/ai/studio-agent-pulse` using an isolated Pulse session namespace owned by the Pulse agent hook.
+6. The agent transport sends the kickoff turn to `/api/ai/studio-agent-pulse` using an isolated Pulse session namespace owned by the Pulse create runtime.
 7. On kickoff success, the page commits the active Pulse id, preset snapshot, session instance, and workflow session.
 8. The server applies the Pulse runtime system behavior and returns the first workflow response.
 9. The Pulse workflow session becomes the authoritative source for guided status and artifact completion.
@@ -354,11 +353,11 @@ Guided Pulse model/runtime config:
 - Active Create may keep Standard and Pulse agent runtimes mounted under one stable page root to prevent route-level flashes/remounts.
 - Only the selected mode may own the active Create command runtime, panel contract, submit path, and agent context.
 - Pulse composer input, prompt state, transcript, attachments, workflow session, telemetry route label, and persistence payload must never be passed into Standard runtime contracts.
-- Standard chat mode is Standard-owned. Pulse must not read or write the Standard chat-mode preference.
+- Standard composer state is Standard-owned. Pulse must not read or write Standard composer preferences or transcript state.
 - Pulse artifact generation reads `pulseWorkflowSession.lastArtifact` only; it must not fall back to Standard composer input.
 - Pulse artifact generation routes by the resolved Pulse `artifactTarget`; it must not hard-code Standard Create image generation.
 - `/api/ai/studio-agent-pulse` rejects requests when `clientSessionNamespace` does not carry a Pulse namespace or when that namespace's preset segment differs from `context.pulse.presetId`.
-- The retired generic `/api/ai/studio-agent` route is compatibility-only and must not execute Standard or Pulse work.
+- Active Create agent calls must use only `/api/ai/studio-agent-standard` or `/api/ai/studio-agent-pulse`.
 
 ## Iteration guardrails
 

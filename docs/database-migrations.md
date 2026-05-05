@@ -231,7 +231,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 114.  `sql/migrations/114_add_dashboard_offers.sql`
 115.  `sql/migrations/115_remove_global_model_pricing_rounding.sql`
 116.  `sql/migrations/116_add_atomic_admin_pricing_offer_activation_rpcs.sql`
-117.  Rollback files:
+117.  `sql/migrations/117_add_create_pulse_builtin_control_plane.sql`
+118.  Rollback files:
 
 
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
@@ -258,6 +259,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/057_add_user_preferences_ai_studio_deleted_style_ids_rollback.sql`
     - `sql/migrations/rollback/058_add_user_preferences_ai_studio_style_details_overrides_rollback.sql`
     - `sql/migrations/rollback/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden_rollback.sql`
+    - `sql/migrations/rollback/117_add_create_pulse_builtin_control_plane_rollback.sql`
     - `sql/migrations/rollback/082_add_user_preferences_ai_studio_saved_voices_rollback.sql`
     - `sql/migrations/rollback/085_add_billing_plan_offers_and_subscription_contracts_rollback.sql`
     - `sql/migrations/rollback/086_add_internal_comp_billing_contract_support_rollback.sql`

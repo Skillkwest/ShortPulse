@@ -716,7 +716,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `expert_edit_preset_panel_ids` (text[], default `{'selfie','side_profile','enhance_realism'}`): Canonical per-user Expert Edit preset panel allocation stored by preset ID (current client normalization caps the active panel at 10).
 - `expert_edit_custom_presets` (jsonb, default `{}`): Per-user preset override map keyed by canonical preset id (`selfie`, `side_profile`, `custom_1..custom_18`, etc.) storing `{ label, prompt }` values.
 - `ai_studio_create_pulse_panel_ids` (text[], default `{'image','multi_shot','story_builder'}`): Canonical per-user Create Pulse rail allocation storing the curated left-rail Pulse IDs shown in Expert Create `Pulse` mode.
-- `ai_studio_saved_pulses` (jsonb, default `[]`): Per-user Pulse library records stored as ordered `{ presetId, label, description, systemInstructions, runtimeMode, activationMode, starterAssistantMessage, workflowStageHints, outputMode, memoryPolicy, createdAt }` objects. Built-in starter Pulses use stable seeded ids and save personal overrides into the same structure, while custom user-authored Pulses persist as fully user-owned records. The shared catalog is consumed by the unified Presets Library (`Pulses` section) and the Expert Create Pulse rail.
+- `ai_studio_saved_pulses` (jsonb, default `[]`): Per-user custom Pulse library records stored as ordered `{ presetId, label, description, systemInstructions, runtimeMode, activationMode, starterAssistantMessage, workflowStageHints, outputMode, memoryPolicy, createdAt }` objects. This column is for user-authored custom Pulses only; global built-in Pulse definitions are not stored here and must not be treated as per-user overrides. The unified Presets Library (`Pulses` section) and the Expert Create Pulse rail merge these custom records with the shared built-in catalog at runtime.
 - `ai_studio_style_panel_ids` (text[], default `{}`): Canonical per-user Styles Library order storing the shared tile sequence consumed by the primary Styles Library panel and the right-rail Styles chooser.
 - `ai_studio_deleted_style_ids` (text[], default `{}`): Per-user style ID denylist used by the primary Styles Library panel to persist deletions across sessions/devices.
 - `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing the editable core style fields `{ style, title, referenceImageName, stylePrompt, previewImageUrl }`.
@@ -725,6 +725,16 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now, maintained by trigger)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### create_pulse_builtin_runtime
+
+- `singleton` (boolean, pk, default `true`): Singleton row guard for the active built-in Create Pulse catalog.
+- `pulse_definitions` (jsonb): Ordered built-in Pulse definition array stored as `{ presetId, label, description, systemInstructions, starterAssistantMessage, workflowStageHints, artifactTarget }` records.
+- `updated_at` (timestamptz, default `timezone('utc', now())`): Last control-plane write timestamp.
+- `updated_by_user_id` (uuid, nullable): Admin user id that last saved the catalog.
+- `updated_by_email` (text, nullable): Admin email captured with the last save for operator traceability.
+- Runtime role: global source of truth for built-in Create Pulse definitions consumed by `/api/ai/create-pulse-builtins` and enforced by `/api/ai/studio-agent-pulse` when a built-in preset id is active.
+- Access model: service-role-only direct reads/writes. Browser sessions must go through trusted authenticated routes; customer sessions must never query this table directly.
 
 ### user_media_compliance_acceptances
 

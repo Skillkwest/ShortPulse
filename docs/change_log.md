@@ -264,8 +264,8 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - clicking a pinned `workflow_gpt` Pulse with `activate_and_start` immediately sends a hidden activation seed through `/api/ai/studio-agent`,
   - workflow Pulse turns are now allowed to return message-only assistant steps before a final prompt artifact,
   - legacy `applyPrompt`-style Pulse metadata is treated as compatibility input rather than the active Pulse contract.
-- Pulse Presets Library built-in starter tiles are now editable directly by click instead of being treated as read-only.
-- Built-in Pulse edits persist as per-user overrides on the seeded preset ids and flow through the shared Create Pulse catalog, so renamed/reworded defaults show up immediately in the library, `More Presets`, and the pinned Create Pulse rail.
+- Pulse Presets Library built-in starter tiles are no longer the editing authority. Built-in Pulse authoring now lives under `/admin/agent-instructions`, while user Pulse surfaces are limited to custom Pulse editing.
+- Built-in Pulse definitions now persist in the shared `create_pulse_builtin_runtime` control plane and flow through `/api/ai/create-pulse-builtins` plus `/api/ai/studio-agent-pulse`, so admin-updated defaults show up consistently in the library, `More Presets`, the pinned Create Pulse rail, and runtime execution.
 - Persisted AI Studio Create Pulse runtime shell state in session snapshots:
   - page-owned Expert Create mode and active pinned Pulse preset id now flow through session snapshot build/hydrate,
   - restoring a saved AI Studio session returns Create to the prior `Standard` or `Pulse` shell mode and reapplies the active pinned Pulse id,

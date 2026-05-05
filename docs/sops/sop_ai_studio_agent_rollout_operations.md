@@ -4,7 +4,7 @@ Purpose: define the operational runbook for progressive rollout of AI Studio age
 
 ## Scope
 - In scope: staging soak, production canary rings (5/25/50/100), freeze decisions, rollback execution, and evidence capture.
-- Out of scope: net-new product features, non-agent route changes, and legacy-route decommission execution.
+- Out of scope: net-new product features and non-agent route changes.
 
 Remediation-scope precedence:
 1. For the 2026-03-20 OpenAI prompt-compiler remediation stream, this SOP maps rollout evidence and closeout to:
@@ -61,8 +61,7 @@ Compiler-native threshold binding (mandatory for remediation lanes):
 1. Latency regression: disable latest rollout flag tier and revert to prior ring (target <= 15 minutes).
 2. Contract break: route to last-known-good compatibility adapter (target <= 15 minutes).
 3. Refusal spike: revert prompt/runtime policy flags (target <= 30 minutes).
-4. Continuity failure: disable stable-session write path and use last-good fallback (target <= 30 minutes).
-5. Legacy wrapper failure: bypass wrapper to canonical endpoint for first-party callers (target <= 30 minutes).
+4. Continuity failure: disable stable-session write path and pause ring promotion until the mode-owned route is fixed (target <= 30 minutes for mitigation decision).
 
 Rollback-first posture is mandatory unless explicitly waived by incident command.
 
@@ -71,12 +70,10 @@ Execute and attach a rollback drill packet before advancing rings for remediatio
 
 Checklist:
 1. Confirm current ring baseline snapshot is archived (metrics + active flags + runtime scope key lineage).
-2. Trigger rollback lever sequence in staging:
-   - `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`
-   - if needed, `STUDIO_AGENT_SINGLE_STAGE_ENABLED=false`
+2. Trigger rollback lever sequence in staging by reverting the rollout commit or disabling the release flag that introduced the defective change.
 3. Verify contracts after rollback:
    - `Agent-Contract-Version` unchanged
-   - refusal/fallback reason-code contract unchanged
+   - refusal/error reason-code contract unchanged
    - canonical continuity guard behavior unchanged
 4. Run required validation bundle:
    - `npm -C frontend run test -- tests/api/studio-agent.runtime.test.ts`
@@ -91,15 +88,11 @@ Checklist:
    - pass/fail and follow-up actions.
 
 ## Prompt-Only Runtime Ring Controls
-For the prompt-only single-stage release, ring operators must apply flags in this order:
+For Create agent releases, ring operators must preserve the mode-owned route contract:
 
-1. Promotion defaults:
-   - `STUDIO_AGENT_SINGLE_STAGE_ENABLED=true`
-   - `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=false`
-2. First rollback lever (no contract change):
-   - set `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED=true`
-3. Second rollback lever:
-   - set `STUDIO_AGENT_SINGLE_STAGE_ENABLED=false`
+1. Standard traffic stays on `/api/ai/studio-agent-standard`.
+2. Pulse traffic stays on `/api/ai/studio-agent-pulse`.
+3. Removed fallback, legacy, generic, and bypass flags are not rollback controls.
 4. Preserve external contract:
    - keep `Agent-Contract-Version: 1`
    - do not alter response envelope during ring mitigation

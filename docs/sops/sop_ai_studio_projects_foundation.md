@@ -7,7 +7,7 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 - Out of scope: project-scoped `All Media`, full live generated-output authority cutover outside the shipped project route seams, and full legacy session cleanup.
 
 ## Current shipped contract
-1. The dashboard `New Project` action creates a real user-owned `projects` row before routing into AI Studio.
+1. The dashboard `New Project` action asks for an initial project name, creates a real user-owned `projects` row with that normalized title, then routes into AI Studio.
 2. Project creation is server-authoritative through authenticated API routes; the dashboard does not insert directly into Supabase.
 3. AI Studio currently accepts `?projectId=<uuid>` as the top-level project handoff boundary while legacy `sid` session identity still coexists during migration.
 4. When `projectId` is present, AI Studio resolves the owned project record before restore continues.
@@ -160,7 +160,7 @@ Behavior:
 
 ## Dashboard handoff workflow
 1. User clicks `New Project` or `Open Projects` on `/dashboard`.
-2. `New Project` calls `POST /api/projects/create`.
+2. `New Project` opens a naming modal, then calls `POST /api/projects/create` with the entered title.
 3. `Open Projects` opens the shared saved-project modal, which loads the full caller-owned catalog through `GET /api/projects?limit=all`.
 4. On project selection from that modal, the dashboard routes to `/ai-studio?projectId=<uuid>`.
 5. On create failure, the dashboard keeps the user on `/dashboard` and surfaces a create-project error message.

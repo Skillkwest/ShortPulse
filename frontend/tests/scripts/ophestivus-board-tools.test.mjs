@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { buildAppendedDetails, buildNote } from "../../scripts/ophestivus_append_ticket_note.mjs";
 import { DEFAULT_ALLOWED_TARGETS, normalizeStatus } from "../../scripts/ophestivus_move_ticket.mjs";
+import {
+  buildApprovalNote,
+  inferResidualRiskFromDetails,
+} from "../../scripts/ophestivus_review.mjs";
 import { buildRunLogMarkdown, slugify } from "../../scripts/ophestivus_run_log.mjs";
 
 describe("ophestivus board helpers", () => {
@@ -32,6 +36,32 @@ describe("ophestivus board helpers", () => {
     expect(normalizeStatus("review", "--status")).toBe("review");
     expect(DEFAULT_ALLOWED_TARGETS.has("published")).toBe(false);
     expect(() => normalizeStatus("bad", "--status")).toThrow(/must be one of/);
+  });
+
+  it("carries ticket residual risk into review approval notes", () => {
+    const ticketDetails = [
+      "Incident: inc-1",
+      "Residual risk: monitor - Visible and production failures remain actionable.",
+      "Report: docs/records/artifacts/agent/ophestivus/reports/run.md",
+    ].join("\n");
+
+    expect(inferResidualRiskFromDetails(ticketDetails)).toBe(
+      "monitor - Visible and production failures remain actionable."
+    );
+    expect(buildApprovalNote({ ticketDetails })).toContain(
+      "Residual risk: monitor - Visible and production failures remain actionable."
+    );
+  });
+
+  it("supports two-line residual risk summary templates", () => {
+    const ticketDetails = [
+      "Residual risk classification: Follow-up",
+      "Residual risk: Needs a separate cleanup ticket.",
+    ].join("\n");
+
+    expect(inferResidualRiskFromDetails(ticketDetails)).toBe(
+      "Follow-up - Needs a separate cleanup ticket."
+    );
   });
 
   it("builds local run log markdown", () => {

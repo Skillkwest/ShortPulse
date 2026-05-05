@@ -5,6 +5,14 @@
 
 export const TELEMETRY_SOURCE_PREFIX = "telemetry.";
 export const TELEMETRY_SOURCE_LIKE_PATTERN = `${TELEMETRY_SOURCE_PREFIX}%`;
+export const GROWTH_TELEMETRY_SOURCE_PREFIXES = [
+  "telemetry.marketing.",
+  "telemetry.auth.",
+  "telemetry.billing.",
+] as const;
+export const GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS = GROWTH_TELEMETRY_SOURCE_PREFIXES.map(
+  (prefix) => `${prefix}%`
+);
 
 export const SYNTHETIC_TEST_SOURCE_PREFIX = "admin.synthetic_test.";
 export const SYNTHETIC_TEST_SOURCE_LIKE_PATTERN = `${SYNTHETIC_TEST_SOURCE_PREFIX}%`;
@@ -28,4 +36,12 @@ export const GENERATION_RECOVERY_MEDIA_VISIBLE_EVENT = "media_visible";
  */
 export const isTelemetrySource = (source: string): boolean => {
   return source.startsWith(TELEMETRY_SOURCE_PREFIX);
+};
+
+/**
+ * Growth attribution/funnel telemetry is useful in raw event views, but should
+ * not be treated as operator-actionable error work.
+ */
+export const isGrowthTelemetrySource = (source: string): boolean => {
+  return GROWTH_TELEMETRY_SOURCE_PREFIXES.some((prefix) => source.startsWith(prefix));
 };

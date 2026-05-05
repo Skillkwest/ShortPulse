@@ -73,6 +73,44 @@ describe("appErrorLogs skip rules", () => {
     expect(result).toEqual({ ok: false, skipped: false, id: null });
   });
 
+  it("skips hidden-tab local project identity fetch noise", async () => {
+    const result = await writeAppErrorLog({
+      source: "client.api_network",
+      scope: "app",
+      severity: "high",
+      message: "Failed to fetch",
+      route: "/ai-studio",
+      endpoint: "/api/projects/4518af3f-b8b2-4c2c-95ed-4251d7218408",
+      stack: "TypeError: Failed to fetch\n    at executeRequest",
+      metadata: {
+        host: "localhost:3000",
+        client_environment: "development",
+        visibility_state: "hidden",
+      },
+    });
+
+    expect(result).toEqual({ ok: true, skipped: true, id: null });
+  });
+
+  it("keeps visible local project identity fetch failures actionable", async () => {
+    const result = await writeAppErrorLog({
+      source: "client.api_network",
+      scope: "app",
+      severity: "high",
+      message: "Failed to fetch",
+      route: "/ai-studio",
+      endpoint: "/api/projects/4518af3f-b8b2-4c2c-95ed-4251d7218408",
+      stack: "TypeError: Failed to fetch\n    at executeRequest",
+      metadata: {
+        host: "localhost:3000",
+        client_environment: "development",
+        visibility_state: "visible",
+      },
+    });
+
+    expect(result).toEqual({ ok: false, skipped: false, id: null });
+  });
+
   it("skips hidden-tab local admin errors refresh fetch noise", async () => {
     const result = await writeAppErrorLog({
       source: "client.api_network",

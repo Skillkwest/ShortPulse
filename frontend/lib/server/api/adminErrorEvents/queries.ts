@@ -228,10 +228,12 @@ export const fetchActionableErrorEvents = async (params: {
   const openFilters: EventFilterInput = {
     ...params.filters,
     incident: "open",
+    excludeGrowthTelemetrySources: true,
   };
   const unlinkedFilters: EventFilterInput = {
     ...params.filters,
     incident: "unlinked",
+    excludeGrowthTelemetrySources: true,
   };
 
   const [openEventsResult, unlinkedEventsResult, openCountResult, unlinkedCountResult] =

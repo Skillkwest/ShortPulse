@@ -111,7 +111,9 @@ const emit = (payload, { jsonOnly }) => {
   }
   if (payload.approval) {
     console.log(`Approval note length: ${payload.approval.note.length}`);
-    console.log(`Details length after note: ${payload.approval.nextDetailsLength}/${DETAILS_MAX_LENGTH}`);
+    console.log(
+      `Details length after note: ${payload.approval.nextDetailsLength}/${DETAILS_MAX_LENGTH}`
+    );
   }
   if (payload.activity?.length) {
     console.log(`Activity entries: ${payload.activity.length}`);
@@ -166,16 +168,42 @@ const appendApprovalNote = (details, note) => {
   return nextDetails;
 };
 
-const buildApprovalNote = ({ reviewedBy, validation, incidentVerification, residualRisk }) =>
-  [
+const firstDetailLineValue = (details, label) => {
+  const pattern = new RegExp(`^${label}:\\s*(.+)$`, "i");
+  for (const line of String(details ?? "").split(/\r?\n/)) {
+    const match = line.trim().match(pattern);
+    if (match?.[1]) return match[1].trim();
+  }
+  return null;
+};
+
+const inferResidualRiskFromDetails = (details) => {
+  const riskClassification = firstDetailLineValue(details, "Residual risk classification");
+  const residualRiskText = firstDetailLineValue(details, "Residual risk");
+  const riskText = residualRiskText ?? firstDetailLineValue(details, "Risk");
+  if (riskClassification && riskText) return `${riskClassification} - ${riskText}`;
+  return riskClassification ?? residualRiskText ?? riskText;
+};
+
+const buildApprovalNote = ({
+  reviewedBy,
+  validation,
+  incidentVerification,
+  residualRisk,
+  ticketDetails,
+}) => {
+  const resolvedResidualRisk =
+    residualRisk ?? inferResidualRiskFromDetails(ticketDetails) ?? "None identified in review.";
+  return [
     "Approval:",
     `Reviewed by: ${truncate(reviewedBy || "Ophestivus", 120)}`,
     "What was checked: Ticket details, latest activity, claimed validation, and applicable incident/data evidence.",
     `Validation: ${truncate(validation || "Review evidence accepted.", 180)}`,
     `Incident/data verification: ${truncate(incidentVerification || "No unresolved issue found in review evidence.", 180)}`,
-    `Residual risk: ${truncate(residualRisk || "None identified in review.", 180)}`,
+    `Residual risk: ${truncate(resolvedResidualRisk, 180)}`,
     "Decision: moved to Complete.",
   ].join("\n");
+};
 
 const updateTicketDetails = async (supabase, ticket, details) => {
   const { data, error } = await supabase.rpc("update_admin_kanban_item", {
@@ -205,12 +233,18 @@ const moveTicketToComplete = async (supabase, ticketId) => {
 const assertTicketStillPromotable = (initialTicket, currentTicket) => {
   if (!currentTicket) throw new Error("Ticket no longer exists.");
   if (currentTicket.archivedAt) throw new Error("Ticket was archived during review.");
-  if (currentTicket.id !== initialTicket.id) throw new Error("Ticket identity changed during review.");
+  if (currentTicket.id !== initialTicket.id)
+    throw new Error("Ticket identity changed during review.");
   if (currentTicket.status !== "review") {
     throw new Error(`Ticket is no longer in Review; current status is ${currentTicket.status}.`);
   }
-  if (currentTicket.title !== initialTicket.title || currentTicket.details !== initialTicket.details) {
-    throw new Error("Ticket title or details changed during review; restart from the current state.");
+  if (
+    currentTicket.title !== initialTicket.title ||
+    currentTicket.details !== initialTicket.details
+  ) {
+    throw new Error(
+      "Ticket title or details changed during review; restart from the current state."
+    );
   }
 };
 
@@ -239,7 +273,9 @@ const run = async () => {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  const ticket = ticketId ? await readTicket(supabase, ticketId) : await readFirstReviewTicket(supabase);
+  const ticket = ticketId
+    ? await readTicket(supabase, ticketId)
+    : await readFirstReviewTicket(supabase);
   if (!ticket) {
     emit(
       {
@@ -276,6 +312,7 @@ const run = async () => {
     validation: readOption("--validation"),
     incidentVerification: readOption("--incident"),
     residualRisk: readOption("--risk"),
+    ticketDetails: ticket.details,
   });
   let nextDetails = null;
   let approvalError = null;
@@ -322,7 +359,11 @@ const run = async () => {
   assertTicketStillPromotable(ticket, freshBeforeUpdate);
 
   const updatedTicket = await updateTicketDetails(supabase, ticket, nextDetails);
-  if (!updatedTicket || updatedTicket.status !== "review" || !updatedTicket.details.includes("Decision: moved to Complete.")) {
+  if (
+    !updatedTicket ||
+    updatedTicket.status !== "review" ||
+    !updatedTicket.details.includes("Decision: moved to Complete.")
+  ) {
     throw new Error("Approval note was not confirmed on the Review ticket.");
   }
 
@@ -339,7 +380,8 @@ const run = async () => {
         note: approvalNote,
         nextDetailsLength: updatedTicket.details.length,
       },
-      nextAction: "Ticket moved to Complete. Leave Published untouched unless explicitly instructed.",
+      nextAction:
+        "Ticket moved to Complete. Leave Published untouched unless explicitly instructed.",
     },
     { jsonOnly }
   );
@@ -361,4 +403,10 @@ if (isDirectRun) {
   });
 }
 
-export { appendApprovalNote, buildApprovalNote, readFirstReviewTicket, readTicket };
+export {
+  appendApprovalNote,
+  buildApprovalNote,
+  inferResidualRiskFromDetails,
+  readFirstReviewTicket,
+  readTicket,
+};

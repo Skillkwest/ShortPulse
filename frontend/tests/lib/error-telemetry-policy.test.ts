@@ -8,8 +8,10 @@ import {
   GENERATION_RECOVERY_MEDIA_VISIBLE_TELEMETRY_SOURCE,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
+  GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS,
   SYNTHETIC_TEST_SOURCE_LIKE_PATTERN,
   TELEMETRY_SOURCE_LIKE_PATTERN,
+  isGrowthTelemetrySource,
   isTelemetrySource,
 } from "../../lib/server/api/errorTelemetryPolicy";
 
@@ -19,8 +21,20 @@ describe("error telemetry source policy", () => {
     expect(isTelemetrySource("api.exception")).toBe(false);
   });
 
+  it("classifies growth telemetry as non-actionable telemetry", () => {
+    expect(isGrowthTelemetrySource("telemetry.marketing.page_view")).toBe(true);
+    expect(isGrowthTelemetrySource("telemetry.auth.signup_submitted")).toBe(true);
+    expect(isGrowthTelemetrySource("telemetry.billing.checkout_started")).toBe(true);
+    expect(isGrowthTelemetrySource("telemetry.character_mode")).toBe(false);
+  });
+
   it("exposes stable query patterns and known telemetry source constants", () => {
     expect(TELEMETRY_SOURCE_LIKE_PATTERN).toBe("telemetry.%");
+    expect(GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS).toEqual([
+      "telemetry.marketing.%",
+      "telemetry.auth.%",
+      "telemetry.billing.%",
+    ]);
     expect(SYNTHETIC_TEST_SOURCE_LIKE_PATTERN).toBe("admin.synthetic_test.%");
     expect(ADMISSION_LIMITED_TELEMETRY_SOURCE).toBe("telemetry.api.fal_submit.admission_limited");
     expect(CHARACTER_MODE_TELEMETRY_SOURCE).toBe("telemetry.character_mode");

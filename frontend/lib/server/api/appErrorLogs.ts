@@ -372,6 +372,21 @@ const shouldSkipLog = (params: {
     return true;
   }
 
+  const isHiddenLocalProjectIdentityFetchNoise =
+    params.scope === "app" &&
+    params.source === "client.api_network" &&
+    params.statusCode === null &&
+    messageText === "failed to fetch" &&
+    isLocalHost &&
+    isDevelopmentClientEnvironment &&
+    visibilityStateValues.includes("hidden") &&
+    isAiStudioRoute &&
+    /^\/api\/projects\/[^/?]+(?:\?|$)/.test(endpointText);
+
+  if (isHiddenLocalProjectIdentityFetchNoise) {
+    return true;
+  }
+
   const isHiddenLocalAdminErrorsRefreshNoise =
     params.scope === "app" &&
     params.source === "client.api_network" &&

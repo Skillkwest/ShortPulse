@@ -8,6 +8,7 @@ import {
   CHARACTER_MODE_TELEMETRY_SOURCE,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
+  GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS,
   SYNTHETIC_TEST_SOURCE_LIKE_PATTERN,
   TELEMETRY_SOURCE_LIKE_PATTERN,
 } from "../errorTelemetryPolicy";
@@ -31,6 +32,11 @@ export const applyEventFilters = (query: EventQuery, filters: EventFilterInput):
   }
   if (filters.excludeTelemetrySources) {
     next = next.not("source", "like", TELEMETRY_SOURCE_LIKE_PATTERN);
+  }
+  if (filters.excludeGrowthTelemetrySources) {
+    for (const pattern of GROWTH_TELEMETRY_SOURCE_LIKE_PATTERNS) {
+      next = next.not("source", "like", pattern);
+    }
   }
   if (filters.signal === "character_mode_reference_refresh_empty") {
     next = next

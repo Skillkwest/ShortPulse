@@ -16,8 +16,12 @@ import type {
 import {
   buildDefaultPricingParams,
   computeCostForModel,
-  listModelConfigs,
 } from "../../../../lib/model-runtime/pricing";
+import {
+  listModelConfigs,
+  listPricingModelConfigs,
+  type ModelConfig,
+} from "../../../../lib/model-runtime/modelRegistry";
 import { getAdminModelWorkflowType } from "../../../../lib/model-runtime/modelWorkflowType";
 import { getAdminPricingStrategyLabel } from "../../../../lib/model-runtime/modelPricingStrategyLabel";
 import {
@@ -175,10 +179,7 @@ const mapPricingPreview = (
 };
 
 const mapPricingPreviewVariants = (
-  model: Pick<
-    NonNullable<ReturnType<typeof listModelConfigs>[number]>,
-    "id" | "mediaType" | "supportsTextToImage" | "supportsImageToImage"
-  >,
+  model: Pick<ModelConfig, "id" | "mediaType" | "supportsTextToImage" | "supportsImageToImage">,
   pricingPolicy: Parameters<typeof computeCostForModel>[2]
 ): AdminPricingPreviewVariant[] => {
   if (model.mediaType !== "image") {
@@ -227,14 +228,60 @@ const mapPricingPreviewVariants = (
   return breakdown ? [{ id: "default", label: "Default", breakdown }] : [];
 };
 
+const buildModelPolicyHealthWarnings = (
+  perModelPolicy: Record<string, unknown>,
+  models: ModelConfig[]
+): string[] => {
+  const warnings: string[] = [];
+  const modelById = new Map(models.map((model) => [model.id, model]));
+  const pricingModelIds = new Set(listPricingModelConfigs().map((model) => model.id));
+  const unknownOverrideIds: string[] = [];
+  const nonPricingOverrideIds: string[] = [];
+  const inactiveOverrideIds: string[] = [];
+
+  Object.keys(perModelPolicy).forEach((modelId) => {
+    const model = modelById.get(modelId);
+    if (!model) {
+      unknownOverrideIds.push(modelId);
+      return;
+    }
+    if (model.lifecycle !== "active") {
+      inactiveOverrideIds.push(modelId);
+    }
+    if (!pricingModelIds.has(modelId)) {
+      nonPricingOverrideIds.push(modelId);
+    }
+  });
+
+  if (unknownOverrideIds.length) {
+    warnings.push(
+      `${unknownOverrideIds.length} model pricing override${unknownOverrideIds.length === 1 ? "" : "s"} target unknown catalog ids: ${unknownOverrideIds.join(", ")}.`
+    );
+  }
+  if (inactiveOverrideIds.length) {
+    warnings.push(
+      `${inactiveOverrideIds.length} model pricing override${inactiveOverrideIds.length === 1 ? "" : "s"} target inactive catalog models: ${inactiveOverrideIds.join(", ")}.`
+    );
+  }
+  if (nonPricingOverrideIds.length) {
+    warnings.push(
+      `${nonPricingOverrideIds.length} model pricing override${nonPricingOverrideIds.length === 1 ? "" : "s"} target models outside the pricing surface: ${nonPricingOverrideIds.join(", ")}.`
+    );
+  }
+
+  return warnings;
+};
+
 const buildHealthSummary = ({
   plans,
   creditPackages,
   storageAddons,
+  modelPolicyWarnings = [],
 }: {
   plans: AdminPricingPlanRow[];
   creditPackages: AdminPricingCreditPackageRow[];
   storageAddons: AdminPricingStorageAddonRow[];
+  modelPolicyWarnings?: string[];
 }): AdminPricingHealthSummary => {
   const activePlanOffersMissingStripePriceIds = plans.reduce((count, row) => {
     const intervalOffers = [row.monthlyOffer, row.annualOffer];
@@ -250,13 +297,14 @@ const buildHealthSummary = ({
     );
   }, 0);
   const creditPackagesMissingStripePriceIds = creditPackages.filter(
-    (row) => !row.stripePriceId
+    (row) => row.isActive && !row.stripePriceId
   ).length;
+  const storageAddonsMissingCurrentOffer = storageAddons.filter((row) => !row.offerId).length;
   const storageOffersMissingStripePriceIds = storageAddons.filter(
-    (row) => !row.stripePriceId
+    (row) => Boolean(row.offerId) && row.recurringPriceCents > 0 && !row.stripePriceId
   ).length;
 
-  const warnings: string[] = [];
+  const warnings: string[] = [...modelPolicyWarnings];
   if (activePlanOffersMissingStripePriceIds > 0) {
     warnings.push(
       `${activePlanOffersMissingStripePriceIds} active public plan offer${activePlanOffersMissingStripePriceIds === 1 ? "" : "s"} missing Stripe price ids.`
@@ -270,6 +318,11 @@ const buildHealthSummary = ({
   if (storageOffersMissingStripePriceIds > 0) {
     warnings.push(
       `${storageOffersMissingStripePriceIds} active storage add-on offer${storageOffersMissingStripePriceIds === 1 ? "" : "s"} missing Stripe price ids.`
+    );
+  }
+  if (storageAddonsMissingCurrentOffer > 0) {
+    warnings.push(
+      `${storageAddonsMissingCurrentOffer} active storage add-on${storageAddonsMissingCurrentOffer === 1 ? "" : "s"} missing a current public offer.`
     );
   }
 
@@ -319,7 +372,6 @@ export default async function handler(
         .select(
           "id, display_name, credit_amount_cents, price_cents, stripe_price_id, sort_order, is_active"
         )
-        .eq("is_active", true)
         .order("sort_order", { ascending: true }),
       supabaseAdmin
         .from("billing_storage_addons")
@@ -518,62 +570,54 @@ export default async function handler(
       }
     }
 
-    const storageAddons: AdminPricingStorageAddonRow[] = [...latestStorageOfferByAddonId.values()]
-      .map((offer) => {
-        const metadata = storageMetadata.get(offer.storage_addon_id);
-        if (!metadata) return null;
+    const storageAddons: AdminPricingStorageAddonRow[] = [...storageMetadata.values()]
+      .map((metadata) => {
+        const offer = latestStorageOfferByAddonId.get(metadata.id) ?? null;
         return {
-          storageAddonId: offer.storage_addon_id,
+          storageAddonId: metadata.id,
           displayName: metadata.display_name,
-          offerId: offer.id,
-          storageLimitBytes: Number(offer.storage_limit_bytes ?? 0),
-          recurringPriceCents: Number(offer.recurring_price_cents ?? 0),
-          stripePriceId: offer.stripe_price_id,
-          acquisitionEnabled: Boolean(offer.acquisition_enabled),
-          isActive: Boolean(metadata.is_active && offer.is_active),
-          effectiveStartAt: offer.effective_start_at,
+          offerId: offer?.id ?? null,
+          storageLimitBytes: Number(offer?.storage_limit_bytes ?? 0),
+          recurringPriceCents: Number(offer?.recurring_price_cents ?? 0),
+          stripePriceId: offer?.stripe_price_id ?? null,
+          acquisitionEnabled: Boolean(offer?.acquisition_enabled),
+          isActive: Boolean(metadata.is_active && offer?.is_active),
+          effectiveStartAt: offer?.effective_start_at ?? null,
           sortOrder: Number(metadata.sort_order ?? 0),
         } satisfies AdminPricingStorageAddonRow;
       })
-      .filter((row): row is AdminPricingStorageAddonRow => row !== null)
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
-    const models: AdminPricingModelRow[] = listModelConfigs()
-      .slice()
-      .filter(
-        (
-          model
-        ): model is ReturnType<typeof listModelConfigs>[number] & { pricingStrategy: string } =>
-          Boolean(model.pricingStrategy)
-      )
-      // Preserve catalog order so related model families stay grouped in the workbook.
-      .map((model) => {
-        const pricingPreviewVariants = mapPricingPreviewVariants(
-          model,
-          runtimePricingPolicy.policy
-        );
-        return {
-          id: model.id,
-          label: model.label,
-          provider: model.provider,
-          sourceUrl: model.sourceUrl ?? "",
-          workflowType: getAdminModelWorkflowType(model),
-          pricingStrategy: model.pricingStrategy,
-          pricingStrategyLabel: getAdminPricingStrategyLabel(model.id, model.pricingStrategy),
-          defaultAspect: model.defaultAspect,
-          defaultResolution: model.defaultResolution ?? null,
-          defaultDurationSeconds: model.defaultDurationSeconds ?? null,
-          defaultSourceDurationSeconds: model.defaultSourceDurationSeconds ?? null,
-          minDurationSeconds: model.minDurationSeconds ?? null,
-          maxDurationSeconds: model.maxDurationSeconds ?? null,
-          allowedDurations: model.allowedDurations ?? [],
-          roundingIncrement: resolveModelPricingForModel(runtimePricingPolicy.policy, model.id)
-            .roundingIncrement,
-          pricingAuthority: model.pricingAuthority ?? "shared_policy",
-          pricingPreview: pricingPreviewVariants[0]?.breakdown ?? null,
-          pricingPreviewVariants,
-        } satisfies AdminPricingModelRow;
-      });
+    const allModels = listModelConfigs();
+    const models: AdminPricingModelRow[] = listPricingModelConfigs().map((model) => {
+      const pricingPreviewVariants = mapPricingPreviewVariants(model, runtimePricingPolicy.policy);
+      return {
+        id: model.id,
+        label: model.label,
+        provider: model.provider,
+        sourceUrl: model.sourceUrl ?? "",
+        workflowType: getAdminModelWorkflowType(model),
+        pricingStrategy: model.pricingStrategy,
+        pricingStrategyLabel: getAdminPricingStrategyLabel(model.id, model.pricingStrategy),
+        lifecycle: model.lifecycle ?? null,
+        surfaces: model.surfaces,
+        displayFamily: model.displayFamily ?? null,
+        pricingFamily: model.pricingFamily ?? null,
+        surfaceNote: model.surfaceNote ?? null,
+        defaultAspect: model.defaultAspect,
+        defaultResolution: model.defaultResolution ?? null,
+        defaultDurationSeconds: model.defaultDurationSeconds ?? null,
+        defaultSourceDurationSeconds: model.defaultSourceDurationSeconds ?? null,
+        minDurationSeconds: model.minDurationSeconds ?? null,
+        maxDurationSeconds: model.maxDurationSeconds ?? null,
+        allowedDurations: model.allowedDurations ?? [],
+        roundingIncrement: resolveModelPricingForModel(runtimePricingPolicy.policy, model.id)
+          .roundingIncrement,
+        pricingAuthority: model.pricingAuthority ?? "shared_policy",
+        pricingPreview: pricingPreviewVariants[0]?.breakdown ?? null,
+        pricingPreviewVariants,
+      } satisfies AdminPricingModelRow;
+    });
 
     const payload: AdminPricingStateResponse = {
       generatedAt: new Date().toISOString(),
@@ -587,7 +631,15 @@ export default async function handler(
       plans,
       creditPackages,
       storageAddons,
-      health: buildHealthSummary({ plans, creditPackages, storageAddons }),
+      health: buildHealthSummary({
+        plans,
+        creditPackages,
+        storageAddons,
+        modelPolicyWarnings: buildModelPolicyHealthWarnings(
+          runtimePricingPolicy.policy.perModel,
+          allModels
+        ),
+      }),
     };
 
     return res.status(200).json(payload);

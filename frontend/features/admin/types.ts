@@ -587,6 +587,11 @@ export type AdminPricingModelRow = {
   workflowType: AdminModelWorkflowType;
   pricingStrategy: string;
   pricingStrategyLabel: string;
+  lifecycle?: "active" | "deprecated" | "disabled" | "retired" | null;
+  surfaces?: string[];
+  displayFamily?: string | null;
+  pricingFamily?: string | null;
+  surfaceNote?: string | null;
   defaultAspect: string;
   defaultResolution: string | null;
   defaultDurationSeconds: number | null;
@@ -650,7 +655,7 @@ export type AdminPricingCreditPackageRow = {
 export type AdminPricingStorageAddonRow = {
   storageAddonId: string;
   displayName: string;
-  offerId: string;
+  offerId: string | null;
   storageLimitBytes: number;
   recurringPriceCents: number;
   stripePriceId: string | null;

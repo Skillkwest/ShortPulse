@@ -248,6 +248,7 @@ export const buildStorageOfferConfirmationIntent = ({
   const draftPrice = parseIntegerInput(storageDraft.recurringPriceCents);
   const draftStorageBytes = parseIntegerInput(storageDraft.storageLimitBytes);
   const stripePriceId = storageDraft.stripePriceId.trim();
+  const hasCurrentOffer = Boolean(currentOffer?.offerId);
   const hasInvalidDraft =
     isBlank(storageDraft.storageAddonId) ||
     isBlank(storageDraft.offerName) ||
@@ -265,18 +266,24 @@ export const buildStorageOfferConfirmationIntent = ({
     rows: [
       {
         label: "Current offer",
-        before: currentOffer?.offerId ?? "none",
+        before: hasCurrentOffer ? (currentOffer?.offerId ?? "none") : "none",
         after: storageDraft.offerName.trim() || "invalid",
       },
       {
         label: "Monthly price",
-        before: currentOffer ? formatCurrencyFromCents(currentOffer.recurringPriceCents) : "none",
+        before:
+          hasCurrentOffer && currentOffer
+            ? formatCurrencyFromCents(currentOffer.recurringPriceCents)
+            : "none",
         after:
           draftPrice == null || draftPrice <= 0 ? "invalid" : formatCurrencyFromCents(draftPrice),
       },
       {
         label: "Storage",
-        before: currentOffer ? formatStorageBytes(currentOffer.storageLimitBytes) : "none",
+        before:
+          hasCurrentOffer && currentOffer
+            ? formatStorageBytes(currentOffer.storageLimitBytes)
+            : "none",
         after:
           draftStorageBytes == null || draftStorageBytes <= 0
             ? "invalid"
@@ -284,7 +291,7 @@ export const buildStorageOfferConfirmationIntent = ({
       },
       {
         label: "Stripe price",
-        before: currentOffer?.stripePriceId ?? "none",
+        before: hasCurrentOffer ? (currentOffer?.stripePriceId ?? "none") : "none",
         after: stripePriceId || "invalid",
       },
     ],

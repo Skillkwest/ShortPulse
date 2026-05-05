@@ -55,12 +55,25 @@ describe("errorIncidentViewUtils", () => {
     const openLinked = baseEvent({ incidentId: "inc-1", incidentStatus: "open" });
     const resolvedLinked = baseEvent({ incidentId: "inc-1", incidentStatus: "resolved" });
     const unlinked = baseEvent({ incidentId: null, incidentStatus: null });
+    const unlinkedGrowthTelemetry = baseEvent({
+      incidentId: null,
+      incidentStatus: null,
+      source: "telemetry.marketing.page_view",
+    });
+    const unlinkedOperationalTelemetry = baseEvent({
+      incidentId: null,
+      incidentStatus: null,
+      source: "telemetry.character_mode",
+    });
 
     expect(eventMatchesIncidentFilter(openLinked, "all")).toBe(true);
     expect(eventMatchesIncidentFilter(openLinked, "open")).toBe(true);
     expect(eventMatchesIncidentFilter(resolvedLinked, "resolved")).toBe(true);
     expect(eventMatchesIncidentFilter(unlinked, "unlinked")).toBe(true);
     expect(eventMatchesIncidentFilter(unlinked, "actionable")).toBe(true);
+    expect(eventMatchesIncidentFilter(unlinkedGrowthTelemetry, "unlinked")).toBe(true);
+    expect(eventMatchesIncidentFilter(unlinkedGrowthTelemetry, "actionable")).toBe(false);
+    expect(eventMatchesIncidentFilter(unlinkedOperationalTelemetry, "actionable")).toBe(true);
     expect(eventMatchesIncidentFilter(resolvedLinked, "actionable")).toBe(false);
   });
 

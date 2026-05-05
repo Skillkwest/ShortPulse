@@ -1,0 +1,702 @@
+import React from "react";
+import type { PricingConfirmationIntent, PricingWorkspaceState } from "../PricingPageChrome";
+import type {
+  AdminPricingModelRow,
+  AdminPricingPolicySnapshot,
+  AdminPricingPreviewVariant,
+  AdminPricingStateResponse,
+} from "../types";
+import {
+  buildDefaultPlanEconomicsDraft,
+  buildDefaultUsageMixDraftRows,
+  buildModelEconomicsRows,
+  describeDraftPolicyDiff,
+  type PlanEconomicsDraft,
+  type UsageMixDraftRow,
+} from "../pricingAnalysis";
+import {
+  formatCredits,
+  getCostDocsPosition,
+  getModelTypeLabel,
+  getProviderPricingDocs,
+  parseIntegerInput,
+  parsePercentToBps,
+  parsePositiveDecimalInput,
+  sortAdminPricingModels,
+  type CostDocsPopover,
+  type CreditScaleDraftByModelId,
+  type DurationDraftByModelId,
+  type MarkupDraftByModelId,
+  type ModelPricingSortOption,
+  type RoundingDraftByModelId,
+} from "../pricingPageUtils";
+import { useAdminPricingCatalogState } from "./useAdminPricingCatalogState";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import {
+  compactModelPricingPolicyDocument,
+  getDefaultModelPricingPolicyDocument,
+  modelPricingPolicyDocumentsEqual,
+  type ModelPricingPolicyDocument,
+} from "../../../lib/model-runtime/pricingPolicy";
+
+const planEconomicsDraftsEqual = (
+  left: PlanEconomicsDraft | null | undefined,
+  right: PlanEconomicsDraft | null | undefined
+) =>
+  (left?.priceUsd ?? "") === (right?.priceUsd ?? "") &&
+  (left?.includedCredits ?? "") === (right?.includedCredits ?? "") &&
+  (left?.discountPct ?? "") === (right?.discountPct ?? "") &&
+  (left?.affiliatePct ?? "") === (right?.affiliatePct ?? "") &&
+  (left?.processorPct ?? "") === (right?.processorPct ?? "") &&
+  (left?.processorFlatUsd ?? "") === (right?.processorFlatUsd ?? "");
+
+type ModelPolicyApplyResponse = {
+  ok?: boolean;
+  error?: string;
+  message?: string | null;
+  status?: string;
+  activePolicy?: ModelPricingPolicyDocument | null;
+  activePolicyVersion?: number | null;
+  activePolicyVersionId?: number | null;
+};
+
+export function useAdminPricingPageState({
+  pricingState,
+  pricingLoading,
+  pricingError,
+  refreshPricingState,
+}: {
+  pricingState: AdminPricingStateResponse | null;
+  pricingLoading: boolean;
+  pricingError: string | null;
+  refreshPricingState: () => Promise<unknown>;
+}) {
+  const [durationDrafts, setDurationDrafts] = React.useState<DurationDraftByModelId>({});
+  const [creditScaleDrafts, setCreditScaleDrafts] = React.useState<CreditScaleDraftByModelId>({});
+  const [markupDrafts, setMarkupDrafts] = React.useState<MarkupDraftByModelId>({});
+  const [roundingDrafts, setRoundingDrafts] = React.useState<RoundingDraftByModelId>({});
+
+  const [modelPolicyDraft, setModelPolicyDraft] = React.useState<ModelPricingPolicyDocument | null>(
+    null
+  );
+  const [modelPolicyDirty, setModelPolicyDirty] = React.useState(false);
+  const [modelPolicySaving, setModelPolicySaving] = React.useState(false);
+  const [modelPolicyRollbackLoading, setModelPolicyRollbackLoading] = React.useState(false);
+  const [modelPolicyMessage, setModelPolicyMessage] = React.useState<string | null>(null);
+  const [modelPolicyError, setModelPolicyError] = React.useState<string | null>(null);
+  const [selectedModelOverrideId, setSelectedModelOverrideId] = React.useState<string | null>(null);
+  const [modelSearchQuery, setModelSearchQuery] = React.useState("");
+  const [modelSortOption, setModelSortOption] = React.useState<ModelPricingSortOption>("type");
+  const [globalCreditScaleDraft, setGlobalCreditScaleDraft] = React.useState("");
+  const [globalCreditUsdAmountDraft, setGlobalCreditUsdAmountDraft] = React.useState("1");
+  const [costDocsPopover, setCostDocsPopover] = React.useState<CostDocsPopover | null>(null);
+  const [pendingConfirmation, setPendingConfirmation] =
+    React.useState<PricingConfirmationIntent | null>(null);
+  const [planEconomicsDrafts, setPlanEconomicsDrafts] = React.useState<
+    Record<string, PlanEconomicsDraft>
+  >({});
+  const [selectedUsagePlanId, setSelectedUsagePlanId] = React.useState("");
+  const [usageMixRowsByPlanId, setUsageMixRowsByPlanId] = React.useState<
+    Record<string, UsageMixDraftRow[]>
+  >({});
+  const planEconomicsSeedByPlanIdRef = React.useRef<Record<string, PlanEconomicsDraft>>({});
+  const modelPolicyDirtyRef = React.useRef(modelPolicyDirty);
+  const catalogState = useAdminPricingCatalogState({
+    pricingState,
+    refreshPricingState,
+    setPendingConfirmation,
+  });
+
+  React.useEffect(() => {
+    modelPolicyDirtyRef.current = modelPolicyDirty;
+  }, [modelPolicyDirty]);
+
+  const showCostDocsPopover = React.useCallback(
+    (
+      clientX: number,
+      clientY: number,
+      model: AdminPricingModelRow,
+      variant: AdminPricingPreviewVariant | null
+    ) => {
+      const position = getCostDocsPosition(clientX, clientY);
+      setCostDocsPopover({
+        ...getProviderPricingDocs(model, variant),
+        ...position,
+      });
+    },
+    []
+  );
+
+  const hideCostDocsPopover = React.useCallback(() => {
+    setCostDocsPopover(null);
+  }, []);
+
+  const modelPolicySnapshot: AdminPricingPolicySnapshot | null = pricingState?.modelPolicy ?? null;
+  const activeModelPolicyDocument = React.useMemo(
+    () =>
+      compactModelPricingPolicyDocument(
+        modelPolicySnapshot?.document ?? getDefaultModelPricingPolicyDocument()
+      ),
+    [modelPolicySnapshot]
+  );
+
+  React.useEffect(() => {
+    if (!pricingState || modelPolicyDirtyRef.current) return;
+    setModelPolicyDraft(activeModelPolicyDocument);
+    setCreditScaleDrafts({});
+    setMarkupDrafts({});
+    setRoundingDrafts({});
+  }, [activeModelPolicyDocument, pricingState]);
+
+  const effectiveModelPolicyDraft = modelPolicyDraft ?? activeModelPolicyDocument;
+
+  React.useEffect(() => {
+    if (modelPolicyDirty) return;
+    setGlobalCreditScaleDraft(String(effectiveModelPolicyDraft.global.creditUsdScale));
+    setGlobalCreditUsdAmountDraft("1");
+  }, [effectiveModelPolicyDraft.global.creditUsdScale, modelPolicyDirty]);
+
+  const selectedModelRow = React.useMemo(
+    () => pricingState?.models.find((model) => model.id === selectedModelOverrideId) ?? null,
+    [pricingState?.models, selectedModelOverrideId]
+  );
+  const filteredModels = React.useMemo(() => {
+    const models = pricingState?.models ?? [];
+    const query = modelSearchQuery.trim().toLowerCase();
+    if (!query) return models;
+    return models.filter((model) =>
+      [
+        model.label,
+        model.id,
+        model.provider,
+        getModelTypeLabel(model),
+        model.workflowType,
+        model.pricingStrategy,
+        model.pricingStrategyLabel,
+        model.pricingAuthority,
+      ].some((value) => value.toLowerCase().includes(query))
+    );
+  }, [modelSearchQuery, pricingState?.models]);
+  const displayedModels = React.useMemo(
+    () =>
+      sortAdminPricingModels({
+        models: filteredModels,
+        sortOption: modelSortOption,
+        pricingPolicy: effectiveModelPolicyDraft,
+        durationDrafts,
+      }),
+    [durationDrafts, effectiveModelPolicyDraft, filteredModels, modelSortOption]
+  );
+
+  const modelEconomicsRows = React.useMemo(
+    () =>
+      buildModelEconomicsRows({
+        models: pricingState?.models ?? [],
+        pricingPolicy: effectiveModelPolicyDraft,
+        durationDrafts,
+      }),
+    [durationDrafts, effectiveModelPolicyDraft, pricingState?.models]
+  );
+
+  const buildPlanEconomicsDefaults = React.useCallback(
+    () =>
+      Object.fromEntries(
+        (pricingState?.plans ?? []).map((plan) => [
+          plan.planId,
+          buildDefaultPlanEconomicsDraft(plan),
+        ])
+      ) as Record<string, PlanEconomicsDraft>,
+    [pricingState?.plans]
+  );
+
+  const buildUsageMixDefaults = React.useCallback(
+    () =>
+      Object.fromEntries(
+        (pricingState?.plans ?? []).map((plan) => [
+          plan.planId,
+          buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null),
+        ])
+      ) as Record<string, UsageMixDraftRow[]>,
+    [modelEconomicsRows, pricingState?.plans]
+  );
+
+  React.useEffect(() => {
+    const plans = pricingState?.plans ?? [];
+    if (!plans.length) return;
+    const nextDefaultDrafts = buildPlanEconomicsDefaults();
+    const previousSeedDrafts = planEconomicsSeedByPlanIdRef.current;
+    setPlanEconomicsDrafts((current) => {
+      const next: Record<string, PlanEconomicsDraft> = {};
+      let changed = false;
+      for (const plan of plans) {
+        const existingDraft = current[plan.planId];
+        const nextDefault = nextDefaultDrafts[plan.planId];
+        const previousSeed = previousSeedDrafts[plan.planId];
+        const shouldReseed =
+          !existingDraft || planEconomicsDraftsEqual(existingDraft, previousSeed);
+        next[plan.planId] = shouldReseed ? nextDefault : existingDraft;
+        if (shouldReseed && !planEconomicsDraftsEqual(existingDraft, nextDefault)) changed = true;
+      }
+      if (Object.keys(current).some((planId) => !next[planId])) changed = true;
+      return changed ? next : current;
+    });
+    planEconomicsSeedByPlanIdRef.current = nextDefaultDrafts;
+    setSelectedUsagePlanId((current) =>
+      current && plans.some((plan) => plan.planId === current) ? current : (plans[0]?.planId ?? "")
+    );
+    setUsageMixRowsByPlanId((current) => {
+      const next: Record<string, UsageMixDraftRow[]> = {};
+      let changed = false;
+      for (const plan of plans) {
+        const existingRows = current[plan.planId];
+        next[plan.planId] =
+          existingRows && existingRows.length > 0
+            ? existingRows
+            : buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null);
+        if (!existingRows || existingRows.length === 0) changed = true;
+      }
+      if (Object.keys(current).some((planId) => !next[planId])) changed = true;
+      return changed ? next : current;
+    });
+  }, [buildPlanEconomicsDefaults, modelEconomicsRows, pricingState?.plans]);
+
+  const selectedUsagePlan = React.useMemo(
+    () => pricingState?.plans.find((plan) => plan.planId === selectedUsagePlanId) ?? null,
+    [pricingState?.plans, selectedUsagePlanId]
+  );
+  const selectedUsageMixRows = React.useMemo(
+    () =>
+      selectedUsagePlanId
+        ? (usageMixRowsByPlanId[selectedUsagePlanId] ??
+          buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null))
+        : buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null),
+    [modelEconomicsRows, selectedUsagePlanId, usageMixRowsByPlanId]
+  );
+
+  const updatePlanEconomicsDraft = React.useCallback(
+    (planId: string, field: keyof PlanEconomicsDraft, value: string) => {
+      setPlanEconomicsDrafts((current) => {
+        const fallbackPlan = pricingState?.plans.find((plan) => plan.planId === planId) ?? null;
+        const existing = current[planId] ?? buildDefaultPlanEconomicsDraft(fallbackPlan);
+        return {
+          ...current,
+          [planId]: {
+            ...existing,
+            [field]: value,
+          },
+        };
+      });
+    },
+    [pricingState?.plans]
+  );
+
+  const updateUsageMixRow = React.useCallback(
+    (rowId: string, patch: Partial<UsageMixDraftRow>) => {
+      if (!selectedUsagePlanId) return;
+      setUsageMixRowsByPlanId((current) => {
+        const currentRows =
+          current[selectedUsagePlanId] ??
+          buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null);
+        return {
+          ...current,
+          [selectedUsagePlanId]: currentRows.map((row) =>
+            row.id === rowId ? { ...row, ...patch } : row
+          ),
+        };
+      });
+    },
+    [modelEconomicsRows, selectedUsagePlanId]
+  );
+
+  const addUsageMixRow = React.useCallback(() => {
+    if (!selectedUsagePlanId) return;
+    setUsageMixRowsByPlanId((current) => {
+      const currentRows =
+        current[selectedUsagePlanId] ??
+        buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null);
+      return {
+        ...current,
+        [selectedUsagePlanId]: [
+          ...currentRows,
+          ...buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null),
+        ],
+      };
+    });
+  }, [modelEconomicsRows, selectedUsagePlanId]);
+
+  const removeUsageMixRow = React.useCallback(
+    (rowId: string) => {
+      if (!selectedUsagePlanId) return;
+      setUsageMixRowsByPlanId((current) => {
+        const currentRows =
+          current[selectedUsagePlanId] ??
+          buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null);
+        if (currentRows.length <= 1) return current;
+        return {
+          ...current,
+          [selectedUsagePlanId]: currentRows.filter((row) => row.id !== rowId),
+        };
+      });
+    },
+    [modelEconomicsRows, selectedUsagePlanId]
+  );
+
+  const canApplyModelPolicy = modelPolicyDirty;
+  const draftPolicyDiffDescriptions = React.useMemo(
+    () =>
+      describeDraftPolicyDiff({
+        livePolicy: activeModelPolicyDocument,
+        draftPolicy: effectiveModelPolicyDraft,
+      }),
+    [activeModelPolicyDocument, effectiveModelPolicyDraft]
+  );
+
+  const hasInvalidModelPolicyDraft = React.useMemo(() => {
+    const parsedGlobalCredits = parseIntegerInput(globalCreditScaleDraft);
+    const parsedGlobalUsd = parsePositiveDecimalInput(globalCreditUsdAmountDraft);
+    if (parsedGlobalCredits == null || parsedGlobalCredits <= 0 || parsedGlobalUsd == null) {
+      return true;
+    }
+
+    const hasInvalidCreditScaleDraft = Object.values(creditScaleDrafts).some((value) => {
+      if (value.trim() === "") return false;
+      const parsed = parseIntegerInput(value);
+      return parsed == null || parsed <= 0;
+    });
+    if (hasInvalidCreditScaleDraft) return true;
+
+    const hasInvalidMarkupDraft = Object.values(markupDrafts).some((value) => {
+      if (value.trim() === "") return false;
+      const parsed = parsePercentToBps(value);
+      return parsed == null || parsed < 0;
+    });
+    if (hasInvalidMarkupDraft) return true;
+
+    return Object.values(roundingDrafts).some((value) => {
+      if (value.trim() === "") return false;
+      const parsed = parseIntegerInput(value);
+      return parsed == null || parsed <= 0;
+    });
+  }, [
+    creditScaleDrafts,
+    globalCreditScaleDraft,
+    globalCreditUsdAmountDraft,
+    markupDrafts,
+    roundingDrafts,
+  ]);
+
+  const pricingWorkspaceState: PricingWorkspaceState | null = !pricingState
+    ? pricingLoading
+      ? {
+          eyebrow: "Loading pricing state",
+          title: "Loading pricing workspace",
+          description:
+            "Fetching the current model policy, public catalog rows, and Stripe linkage health.",
+          helper:
+            "The pricing workspace will open once the latest control-plane snapshot and active catalog rows arrive.",
+          actionLabel: "Refreshing…",
+        }
+      : pricingError
+        ? {
+            eyebrow: "Pricing sync failed",
+            title: "Pricing state is unavailable",
+            description: pricingError,
+            helper:
+              "Retry the pricing sync before making policy or catalog edits. We only show this route once there is a trustworthy snapshot to work from.",
+            actionLabel: "Retry sync",
+          }
+        : {
+            eyebrow: "No pricing snapshot",
+            title: "Pricing state has not loaded yet",
+            description: "There is no pricing snapshot available for this admin route right now.",
+            helper:
+              "Retry the pricing sync to load the current model policy, plan offers, and credit packages.",
+            actionLabel: "Load pricing",
+          }
+    : null;
+
+  const pricingRefreshWarning =
+    pricingState && pricingError
+      ? `${pricingError} Showing the last loaded pricing snapshot while refresh recovers.`
+      : null;
+
+  const updateModelPolicyDraft = React.useCallback(
+    (updater: (current: ModelPricingPolicyDocument) => ModelPricingPolicyDocument) => {
+      setModelPolicyDraft((current) => {
+        const next = updater(current ?? activeModelPolicyDocument);
+        const nextDraft = compactModelPricingPolicyDocument(next);
+        setModelPolicyDirty(
+          !modelPricingPolicyDocumentsEqual(nextDraft, activeModelPolicyDocument)
+        );
+        return nextDraft;
+      });
+      setModelPolicyMessage(null);
+      setModelPolicyError(null);
+    },
+    [activeModelPolicyDocument]
+  );
+
+  const updateGlobalConversionDraft = React.useCallback(
+    (creditsValue: string, usdValue: string) => {
+      const parsedCredits = parseIntegerInput(creditsValue);
+      const parsedUsd = parsePositiveDecimalInput(usdValue);
+      if (parsedCredits == null || parsedCredits <= 0 || parsedUsd == null) return;
+      const parsed = Math.max(1, Math.round(parsedCredits / parsedUsd));
+      if (parsed === effectiveModelPolicyDraft.global.creditUsdScale) return;
+      updateModelPolicyDraft((current) =>
+        compactModelPricingPolicyDocument({
+          ...current,
+          global: {
+            ...current.global,
+            creditUsdScale: parsed,
+          },
+        })
+      );
+    },
+    [effectiveModelPolicyDraft.global.creditUsdScale, updateModelPolicyDraft]
+  );
+
+  const updateGlobalCreditScaleDraft = React.useCallback(
+    (value: string) => {
+      setGlobalCreditScaleDraft(value);
+      updateGlobalConversionDraft(value, globalCreditUsdAmountDraft);
+    },
+    [globalCreditUsdAmountDraft, updateGlobalConversionDraft]
+  );
+
+  const updateGlobalCreditUsdAmountDraft = React.useCallback(
+    (value: string) => {
+      setGlobalCreditUsdAmountDraft(value);
+      updateGlobalConversionDraft(globalCreditScaleDraft, value);
+    },
+    [globalCreditScaleDraft, updateGlobalConversionDraft]
+  );
+
+  const resetInvalidGlobalConversionDraft = React.useCallback(() => {
+    const parsedCredits = parseIntegerInput(globalCreditScaleDraft);
+    const parsedUsd = parsePositiveDecimalInput(globalCreditUsdAmountDraft);
+    if (parsedCredits == null || parsedCredits <= 0 || parsedUsd == null) {
+      setGlobalCreditScaleDraft(String(effectiveModelPolicyDraft.global.creditUsdScale));
+      setGlobalCreditUsdAmountDraft("1");
+    }
+  }, [
+    effectiveModelPolicyDraft.global.creditUsdScale,
+    globalCreditScaleDraft,
+    globalCreditUsdAmountDraft,
+  ]);
+
+  const resetModelPolicyDraft = React.useCallback(() => {
+    setModelPolicyDraft(activeModelPolicyDocument);
+    setCreditScaleDrafts({});
+    setMarkupDrafts({});
+    setRoundingDrafts({});
+    setPlanEconomicsDrafts(buildPlanEconomicsDefaults());
+    setUsageMixRowsByPlanId(buildUsageMixDefaults());
+    setModelPolicyDirty(false);
+    setModelPolicyMessage(null);
+    setModelPolicyError(null);
+  }, [activeModelPolicyDocument, buildPlanEconomicsDefaults, buildUsageMixDefaults]);
+
+  const applyModelPolicy = React.useCallback(async () => {
+    const policy = compactModelPricingPolicyDocument(effectiveModelPolicyDraft);
+    setModelPolicySaving(true);
+    setModelPolicyError(null);
+    setModelPolicyMessage(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/pricing/model-policy/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          policy,
+          reason: "",
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as ModelPolicyApplyResponse;
+      if (!response.ok) {
+        throw new Error(
+          payload.error || payload.message || "Failed to apply model pricing policy."
+        );
+      }
+      if (!modelPricingPolicyDocumentsEqual(policy, payload.activePolicy)) {
+        throw new Error(
+          payload.message ||
+            "The pricing policy was not confirmed as the active runtime policy. Refresh and retry."
+        );
+      }
+      await refreshPricingState();
+      setModelPolicyDraft(compactModelPricingPolicyDocument(payload.activePolicy));
+      setModelPolicyDirty(false);
+      setModelPolicyMessage(
+        payload.message ??
+          (payload.activePolicyVersion != null
+            ? `Model pricing policy v${payload.activePolicyVersion} saved.`
+            : "Model pricing policy saved.")
+      );
+    } catch (error) {
+      setModelPolicyError(
+        error instanceof Error ? error.message : "Failed to apply model pricing policy."
+      );
+    } finally {
+      setModelPolicySaving(false);
+    }
+  }, [effectiveModelPolicyDraft, refreshPricingState]);
+
+  const rollbackModelPolicy = React.useCallback(async () => {
+    setModelPolicyRollbackLoading(true);
+    setModelPolicyError(null);
+    setModelPolicyMessage(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/pricing/model-policy/rollback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "" }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as ModelPolicyApplyResponse;
+      if (!response.ok)
+        throw new Error(payload.error || "Failed to rollback model pricing policy.");
+      await refreshPricingState();
+      setModelPolicyDirty(false);
+      setModelPolicyMessage(payload.message ?? "Model pricing policy rolled back.");
+    } catch (error) {
+      setModelPolicyError(
+        error instanceof Error ? error.message : "Failed to rollback model pricing policy."
+      );
+    } finally {
+      setModelPolicyRollbackLoading(false);
+    }
+  }, [refreshPricingState]);
+
+  const confirmPendingPricingAction = React.useCallback(() => {
+    const confirmation = pendingConfirmation;
+    if (!confirmation) return;
+    setPendingConfirmation(null);
+    confirmation.onConfirm();
+  }, [pendingConfirmation]);
+
+  const cancelPendingPricingAction = React.useCallback(() => {
+    setPendingConfirmation(null);
+  }, []);
+
+  const openModelPolicyApplyConfirmation = React.useCallback(() => {
+    const policy = compactModelPricingPolicyDocument(effectiveModelPolicyDraft);
+    setPendingConfirmation({
+      title: "Save model pricing changes",
+      description:
+        "This saves the pending grid edits and activates runtime credit debits for model generations. Review the active policy and proposed draft before saving.",
+      confirmLabel: "Save",
+      hasInvalidDraft: hasInvalidModelPolicyDraft,
+      rows: [
+        {
+          label: "Active policy version",
+          before: modelPolicySnapshot?.activePolicyVersion
+            ? `v${modelPolicySnapshot.activePolicyVersion}`
+            : "unversioned",
+          after: "new active version",
+        },
+        {
+          label: "Credit conversion",
+          before: `1 USD = ${formatCredits(activeModelPolicyDocument.global.creditUsdScale)} credits`,
+          after: `1 USD = ${formatCredits(policy.global.creditUsdScale)} credits`,
+        },
+        {
+          label: "Default rounding",
+          before: formatCredits(activeModelPolicyDocument.global.defaultRoundingIncrement),
+          after: formatCredits(policy.global.defaultRoundingIncrement),
+        },
+        {
+          label: "Model overrides",
+          before: formatCredits(Object.keys(activeModelPolicyDocument.perModel).length),
+          after: formatCredits(Object.keys(policy.perModel).length),
+        },
+      ],
+      onConfirm: () => void applyModelPolicy(),
+    });
+  }, [
+    activeModelPolicyDocument,
+    applyModelPolicy,
+    effectiveModelPolicyDraft,
+    hasInvalidModelPolicyDraft,
+    modelPolicySnapshot,
+  ]);
+
+  const openModelPolicyRollbackConfirmation = React.useCallback(() => {
+    setPendingConfirmation({
+      title: "Rollback active pricing policy",
+      description:
+        "This changes runtime credit debits back to the previous active policy selected by the rollback API.",
+      confirmLabel: "Rollback policy",
+      hasInvalidDraft: false,
+      rows: [
+        {
+          label: "Current active version",
+          before: modelPolicySnapshot?.activePolicyVersion
+            ? `v${modelPolicySnapshot.activePolicyVersion}`
+            : "unversioned",
+          after: "previous active version",
+        },
+        {
+          label: "Current credit conversion",
+          before: `1 USD = ${formatCredits(activeModelPolicyDocument.global.creditUsdScale)} credits`,
+          after: "from previous active policy",
+        },
+      ],
+      onConfirm: () => void rollbackModelPolicy(),
+    });
+  }, [activeModelPolicyDocument, modelPolicySnapshot, rollbackModelPolicy]);
+
+  return {
+    ...catalogState,
+    durationDrafts,
+    setDurationDrafts,
+    creditScaleDrafts,
+    setCreditScaleDrafts,
+    markupDrafts,
+    setMarkupDrafts,
+    roundingDrafts,
+    setRoundingDrafts,
+    effectiveModelPolicyDraft,
+    selectedModelRow,
+    displayedModels,
+    canApplyModelPolicy,
+    modelPolicySaving,
+    modelPolicyRollbackLoading,
+    modelPolicyMessage,
+    modelPolicyError,
+    modelSortOption,
+    setModelSortOption,
+    modelSearchQuery,
+    setModelSearchQuery,
+    globalCreditScaleDraft,
+    updateGlobalCreditScaleDraft,
+    globalCreditUsdAmountDraft,
+    updateGlobalCreditUsdAmountDraft,
+    resetInvalidGlobalConversionDraft,
+    pricingWorkspaceState,
+    pricingRefreshWarning,
+    costDocsPopover,
+    pendingConfirmation,
+    showCostDocsPopover,
+    hideCostDocsPopover,
+    setSelectedModelOverrideId,
+    updateModelPolicyDraft,
+    openModelPolicyApplyConfirmation,
+    openModelPolicyRollbackConfirmation,
+    resetModelPolicyDraft,
+    confirmPendingPricingAction,
+    cancelPendingPricingAction,
+    hasInvalidModelPolicyDraft,
+    activeModelPolicyDocument,
+    modelPolicySnapshot,
+    modelEconomicsRows,
+    draftPolicyDiffDescriptions,
+    planEconomicsDrafts,
+    updatePlanEconomicsDraft,
+    selectedUsagePlanId,
+    setSelectedUsagePlanId,
+    selectedUsagePlan,
+    usageMixRows: selectedUsageMixRows,
+    updateUsageMixRow,
+    addUsageMixRow,
+    removeUsageMixRow,
+  };
+}

@@ -18,6 +18,7 @@ type AdminRouteShellProps = {
   pageDescription: string;
   userEmail: string | null | undefined;
   currentPath: string;
+  mainClassName?: string;
   children: ReactNode;
 };
 
@@ -76,6 +77,7 @@ export function AdminRouteShell({
   pageDescription,
   userEmail,
   currentPath,
+  mainClassName,
   children,
 }: AdminRouteShellProps) {
   if (loading) {
@@ -154,7 +156,9 @@ export function AdminRouteShell({
         <title>{documentTitle}</title>
         <meta name="description" content={metaDescription} />
       </Head>
-      <main className={`page page-wide ${styles.adminPage}`}>
+      <main
+        className={["page", "page-wide", styles.adminPage, mainClassName].filter(Boolean).join(" ")}
+      >
         <AdminPageHeader
           title={pageTitle}
           description={pageDescription}

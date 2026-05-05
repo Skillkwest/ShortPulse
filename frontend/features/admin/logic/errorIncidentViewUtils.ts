@@ -10,6 +10,16 @@ import type {
   AdminErrorStatus,
 } from "../types";
 
+const GROWTH_TELEMETRY_SOURCE_PREFIXES = [
+  "telemetry.marketing.",
+  "telemetry.auth.",
+  "telemetry.billing.",
+] as const;
+
+const isGrowthTelemetrySource = (source: string): boolean => {
+  return GROWTH_TELEMETRY_SOURCE_PREFIXES.some((prefix) => source.startsWith(prefix));
+};
+
 /**
  * Formats ISO-ish timestamps for display in the operator panel.
  */
@@ -66,7 +76,10 @@ export const eventMatchesIncidentFilter = (
 ): boolean => {
   if (filter === "all") return true;
   if (filter === "actionable") {
-    return row.incidentStatus === "open" || row.incidentId === null;
+    return (
+      row.incidentStatus === "open" ||
+      (row.incidentId === null && !isGrowthTelemetrySource(row.source))
+    );
   }
   if (filter === "unlinked") {
     return row.incidentId === null;

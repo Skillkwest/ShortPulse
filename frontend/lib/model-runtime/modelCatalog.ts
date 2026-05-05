@@ -41,6 +41,17 @@ export type GenerationWorkflowLane =
   | "text";
 export type GenerationExecutionMode = "queued" | "direct" | "none";
 export type GenerationSubmitHandler = "default" | "image" | "video" | "audio" | "unsupported";
+export type ModelLifecycle = "active" | "deprecated" | "disabled" | "retired";
+export type ModelSurface =
+  | "picker"
+  | "pricing"
+  | "runtime"
+  | "hidden_tool"
+  | "internal_helper"
+  | "audio_tool"
+  | "metadata";
+export type ModelLogoKey = "flux" | "google" | "kling" | "seedream" | "openai" | "elevenlabs";
+export type ModelVisibilityFlag = "NEXT_PUBLIC_KIE_SEEDANCE_2_ENABLED";
 
 export type ModelPayloadValidationSpec = {
   allowedTopLevelFields?: string[];
@@ -62,6 +73,17 @@ export type ModelCatalogEntry = {
   mediaType?: ModelCatalogMediaType;
   pricingStrategy?: PricingStrategyId;
   pricingAuthority?: "shared_policy" | ElevenLabsModelPricingAuthority;
+  lifecycle?: ModelLifecycle;
+  surfaces?: ModelSurface[];
+  billable?: boolean;
+  displayFamily?: string;
+  displayOrder?: number;
+  pricingFamily?: string;
+  surfaceNote?: string;
+  visibilityFlag?: ModelVisibilityFlag;
+  logoKey?: ModelLogoKey;
+  providerModelId?: string;
+  providerVariants?: string[];
   sizeMapId?: "fal-image";
   submitAspectField: ModelAspectSubmitField;
   defaultAspect: string;
@@ -99,13 +121,24 @@ export type ModelCatalogEntry = {
 const VERIFIED_AT = "2026-04-30";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 const GPT_IMAGE_2_VERIFIED_AT = "2026-04-27";
-const ELEVENLABS_VERIFIED_AT = "2026-04-27";
+const ELEVENLABS_VERIFIED_AT = "2026-05-01";
 type ModelCatalogRuntimeMetadata = Pick<
   ModelCatalogEntry,
   | "label"
   | "mediaType"
   | "pricingStrategy"
   | "pricingAuthority"
+  | "lifecycle"
+  | "surfaces"
+  | "billable"
+  | "displayFamily"
+  | "displayOrder"
+  | "pricingFamily"
+  | "surfaceNote"
+  | "visibilityFlag"
+  | "logoKey"
+  | "providerModelId"
+  | "providerVariants"
   | "sizeMapId"
   | "defaultAudio"
   | "supportsTextToImage"
@@ -883,6 +916,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     submitAspectField: "none",
     defaultAspect: "audio",
     allowedAspects: [],
+    defaultDurationSeconds: 5,
     defaultGenerationCount: 1,
     minDurationSeconds: 0.5,
     maxDurationSeconds: 30,
@@ -944,11 +978,60 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     gridEligible: false,
   },
 };
+const activePickerPricingRuntime = (
+  metadata: ModelCatalogRuntimeMetadata
+): ModelCatalogRuntimeMetadata => ({
+  lifecycle: "active",
+  surfaces: ["picker", "pricing", "runtime"],
+  billable: true,
+  ...metadata,
+});
+
+const activeHiddenPricingRuntime = (
+  metadata: ModelCatalogRuntimeMetadata
+): ModelCatalogRuntimeMetadata => ({
+  lifecycle: "active",
+  surfaces: ["hidden_tool", "pricing", "runtime"],
+  billable: true,
+  ...metadata,
+});
+
+const activeInternalPricingRuntime = (
+  metadata: ModelCatalogRuntimeMetadata
+): ModelCatalogRuntimeMetadata => ({
+  lifecycle: "active",
+  surfaces: ["internal_helper", "pricing", "runtime"],
+  billable: true,
+  ...metadata,
+});
+
+const activeAudioPricingRuntime = (
+  metadata: ModelCatalogRuntimeMetadata
+): ModelCatalogRuntimeMetadata => ({
+  lifecycle: "active",
+  surfaces: ["audio_tool", "pricing", "runtime"],
+  billable: true,
+  ...metadata,
+});
+
+const activeMetadataRuntime = (
+  metadata: ModelCatalogRuntimeMetadata
+): ModelCatalogRuntimeMetadata => ({
+  lifecycle: "active",
+  surfaces: ["metadata", "runtime"],
+  billable: false,
+  ...metadata,
+});
+
 const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
-  "fal-ai/flux-2/klein/9b": {
+  "fal-ai/flux-2/klein/9b": activePickerPricingRuntime({
     label: "FLUX.2 Lite",
     mediaType: "image",
     pricingStrategy: "fal-economy-image-per-mp",
+    displayFamily: "Image",
+    displayOrder: 100,
+    pricingFamily: "Image",
+    logoKey: "flux",
     sizeMapId: "fal-image",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
@@ -956,11 +1039,16 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "image",
     gridEligible: true,
     apiRouteSlug: "flux2klein",
-  },
-  "fal-ai/flux-pro/v1/fill": {
+  }),
+  "fal-ai/flux-pro/v1/fill": activeHiddenPricingRuntime({
     label: "FLUX Pro Fill",
     mediaType: "image",
     pricingStrategy: "fal-fill-per-mp",
+    displayFamily: "Image tools",
+    displayOrder: 210,
+    pricingFamily: "Image tools",
+    logoKey: "flux",
+    surfaceNote: "Internal image fill tool.",
     sizeMapId: "fal-image",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
@@ -968,11 +1056,16 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "image",
     gridEligible: true,
     apiRouteSlug: "flux-pro-fill",
-  },
-  "fal-ai/flux-kontext-lora/inpaint": {
+  }),
+  "fal-ai/flux-kontext-lora/inpaint": activeHiddenPricingRuntime({
     label: "FLUX Kontext Inpaint",
     mediaType: "image",
     pricingStrategy: "fal-flux-kontext-inpaint-per-mp",
+    displayFamily: "Image tools",
+    displayOrder: 220,
+    pricingFamily: "Image tools",
+    logoKey: "flux",
+    surfaceNote: "Internal inpaint tool.",
     sizeMapId: "fal-image",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
@@ -980,11 +1073,15 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "image",
     gridEligible: true,
     apiRouteSlug: "flux-kontext-inpaint",
-  },
-  "fal-ai/bria/background/remove": {
+  }),
+  "fal-ai/bria/background/remove": activeHiddenPricingRuntime({
     label: "Bria Background Remove",
     mediaType: "image",
     pricingStrategy: "fal-economy-image-per-mp",
+    displayFamily: "Image tools",
+    displayOrder: 230,
+    pricingFamily: "Image tools",
+    surfaceNote: "Internal background removal tool.",
     sizeMapId: "fal-image",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
@@ -992,132 +1089,180 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "image",
     gridEligible: false,
     apiRouteSlug: "bria-background-remove",
-  },
-  "gpt-image-2": {
+  }),
+  "gpt-image-2": activePickerPricingRuntime({
     label: "ChatGPT Image 2",
     mediaType: "image",
     pricingStrategy: "gpt-image-2-per-image",
+    displayFamily: "Image",
+    displayOrder: 110,
+    pricingFamily: "Image",
+    logoKey: "openai",
     supportsTextToImage: true,
     supportsImageToImage: true,
     generationLanes: ["text-to-image", "image-to-image"],
     executionMode: "direct",
     submitHandler: "default",
     gridEligible: true,
-  },
-  "fal-ai/nano-banana": {
+  }),
+  "fal-ai/nano-banana": activePickerPricingRuntime({
     label: "Nano Banana",
     mediaType: "image",
     pricingStrategy: "google-nano-banana-per-image",
+    displayFamily: "Image",
+    displayOrder: 120,
+    pricingFamily: "Image",
+    logoKey: "google",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "default",
     gridEligible: true,
     apiRouteSlug: "nano-banana",
-  },
-  "fal-ai/nano-banana/edit": {
+  }),
+  "fal-ai/nano-banana/edit": activePickerPricingRuntime({
     label: "Nano Banana Edit",
     mediaType: "image",
     pricingStrategy: "google-nano-banana-per-image",
+    displayFamily: "Image",
+    displayOrder: 130,
+    pricingFamily: "Image",
+    logoKey: "google",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
     gridEligible: true,
     apiRouteSlug: "nano-banana-edit",
-  },
-  "fal-ai/nano-banana-2": {
+  }),
+  "fal-ai/nano-banana-2": activePickerPricingRuntime({
     label: "Nano Banana 2",
     mediaType: "image",
     pricingStrategy: "nano-banana-2-per-image",
+    displayFamily: "Image",
+    displayOrder: 140,
+    pricingFamily: "Image",
+    logoKey: "google",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "default",
     gridEligible: true,
     apiRouteSlug: "nano-banana-2",
-  },
-  "fal-ai/nano-banana-2/edit": {
+  }),
+  "fal-ai/nano-banana-2/edit": activePickerPricingRuntime({
     label: "Nano Banana 2 Edit",
     mediaType: "image",
     pricingStrategy: "nano-banana-2-per-image",
+    displayFamily: "Image",
+    displayOrder: 150,
+    pricingFamily: "Image",
+    logoKey: "google",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
     gridEligible: true,
     apiRouteSlug: "nano-banana-2-edit",
-  },
-  "fal-ai/nano-banana-pro": {
+  }),
+  "fal-ai/nano-banana-pro": activePickerPricingRuntime({
     label: "Nano Banana Pro",
     mediaType: "image",
     pricingStrategy: "nano-banana-per-image",
+    displayFamily: "Image",
+    displayOrder: 160,
+    pricingFamily: "Image",
+    logoKey: "google",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "default",
     gridEligible: true,
     apiRouteSlug: "nano-banana-pro",
-  },
-  "fal-ai/nano-banana-pro/edit": {
+  }),
+  "fal-ai/nano-banana-pro/edit": activePickerPricingRuntime({
     label: "Nano Banana Pro Edit",
     mediaType: "image",
     pricingStrategy: "nano-banana-per-image",
+    displayFamily: "Image",
+    displayOrder: 170,
+    pricingFamily: "Image",
+    logoKey: "google",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
     gridEligible: true,
     apiRouteSlug: "nano-banana-pro-edit",
-  },
-  "fal-ai/bytedance/seedream/v4.5/text-to-image": {
+  }),
+  "fal-ai/bytedance/seedream/v4.5/text-to-image": activePickerPricingRuntime({
     label: "Seedream 4.5",
     mediaType: "image",
     pricingStrategy: "seedream-per-image",
+    displayFamily: "Image",
+    displayOrder: 210,
+    pricingFamily: "Image",
+    logoKey: "seedream",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "default",
     gridEligible: true,
     apiRouteSlug: "seedream",
-  },
-  "fal-ai/bytedance/seedream/v4.5/edit": {
+  }),
+  "fal-ai/bytedance/seedream/v4.5/edit": activePickerPricingRuntime({
     label: "Seedream 4.5 Edit",
     mediaType: "image",
     pricingStrategy: "seedream-per-image",
+    displayFamily: "Image",
+    displayOrder: 200,
+    pricingFamily: "Image",
+    logoKey: "seedream",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
     gridEligible: true,
     apiRouteSlug: "seedream-edit",
-  },
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
+  }),
+  "fal-ai/bytedance/seedream/v5/lite/text-to-image": activePickerPricingRuntime({
     label: "Seedream 5 Lite",
     mediaType: "image",
     pricingStrategy: "seedream-5-lite-per-image",
+    displayFamily: "Image",
+    displayOrder: 180,
+    pricingFamily: "Image",
+    logoKey: "seedream",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "default",
     gridEligible: true,
     apiRouteSlug: "seedream-v5-lite",
-  },
-  "fal-ai/bytedance/seedream/v5/lite/edit": {
+  }),
+  "fal-ai/bytedance/seedream/v5/lite/edit": activePickerPricingRuntime({
     label: "Seedream 5 Lite Edit",
     mediaType: "image",
     pricingStrategy: "seedream-5-lite-per-image",
+    displayFamily: "Image",
+    displayOrder: 190,
+    pricingFamily: "Image",
+    logoKey: "seedream",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
     gridEligible: true,
     apiRouteSlug: "seedream-v5-lite-edit",
-  },
-  [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
+  }),
+  [KIE_VEO_31_FAST_I2V_MODEL_ID]: activePickerPricingRuntime({
     label: "Veo 3.1 Fast I2V (Kie)",
     mediaType: "image-to-video",
     pricingStrategy: "veo-3-per-second",
+    displayFamily: "Video",
+    displayOrder: 10,
+    pricingFamily: "Video",
+    logoKey: "google",
     minDurationSeconds: 5,
     maxDurationSeconds: 8,
     defaultAudio: true,
@@ -1127,11 +1272,15 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "video",
     gridEligible: true,
     apiRouteSlug: "kie-veo",
-  },
-  [KIE_KLING_30_MODEL_ID]: {
+  }),
+  [KIE_KLING_30_MODEL_ID]: activePickerPricingRuntime({
     label: "Kling 3.0 (Kie)",
     mediaType: "image-to-video",
     pricingStrategy: "kling-3-per-second",
+    displayFamily: "Video",
+    displayOrder: 20,
+    pricingFamily: "Video",
+    logoKey: "kling",
     minDurationSeconds: 5,
     maxDurationSeconds: 15,
     defaultAudio: true,
@@ -1141,11 +1290,15 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "video",
     gridEligible: true,
     apiRouteSlug: "kie-kling",
-  },
-  [KIE_SEEDANCE_15_PRO_MODEL_ID]: {
+  }),
+  [KIE_SEEDANCE_15_PRO_MODEL_ID]: activePickerPricingRuntime({
     label: "Seedance 1.5 Pro (Kie)",
     mediaType: "image-to-video",
     pricingStrategy: "seedance-1.5-per-second",
+    displayFamily: "Video",
+    displayOrder: 30,
+    pricingFamily: "Video",
+    logoKey: "seedream",
     minDurationSeconds: 4,
     maxDurationSeconds: 12,
     defaultAudio: true,
@@ -1155,11 +1308,16 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "video",
     gridEligible: true,
     apiRouteSlug: "kie-seedance",
-  },
-  [KIE_SEEDANCE_2_MODEL_ID]: {
+  }),
+  [KIE_SEEDANCE_2_MODEL_ID]: activePickerPricingRuntime({
     label: "Seedance 2.0 (Kie)",
     mediaType: "image-to-video",
     pricingStrategy: "seedance-2-per-second",
+    displayFamily: "Video",
+    displayOrder: 40,
+    pricingFamily: "Video",
+    visibilityFlag: "NEXT_PUBLIC_KIE_SEEDANCE_2_ENABLED",
+    logoKey: "seedream",
     minDurationSeconds: 5,
     maxDurationSeconds: 15,
     defaultAudio: true,
@@ -1169,11 +1327,16 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "video",
     gridEligible: true,
     apiRouteSlug: "kie-seedance-2",
-  },
-  [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
+  }),
+  [KIE_SEEDANCE_2_FAST_MODEL_ID]: activePickerPricingRuntime({
     label: "Seedance 2.0 Fast (Kie)",
     mediaType: "image-to-video",
     pricingStrategy: "seedance-2-fast-per-second",
+    displayFamily: "Video",
+    displayOrder: 50,
+    pricingFamily: "Video",
+    visibilityFlag: "NEXT_PUBLIC_KIE_SEEDANCE_2_ENABLED",
+    logoKey: "seedream",
     minDurationSeconds: 5,
     maxDurationSeconds: 15,
     defaultAudio: true,
@@ -1183,34 +1346,77 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submitHandler: "video",
     gridEligible: true,
     apiRouteSlug: "kie-seedance-2-fast",
-  },
-  "gpt-5.4": {
+  }),
+  "gpt-5.4": activeInternalPricingRuntime({
     label: "GPT-5.4",
     mediaType: "text",
     pricingStrategy: "openai-text-token",
+    displayFamily: "Text",
+    displayOrder: 300,
+    pricingFamily: "Text",
+    logoKey: "openai",
     generationLanes: ["text"],
     executionMode: "none",
     submitHandler: "unsupported",
     gridEligible: false,
-  },
-  "gpt-5.4-mini": {
+  }),
+  "gpt-5.4-mini": activeInternalPricingRuntime({
     label: "GPT-5.4 Mini",
     mediaType: "text",
     pricingStrategy: "openai-text-token",
+    displayFamily: "Text",
+    displayOrder: 310,
+    pricingFamily: "Text",
+    logoKey: "openai",
     generationLanes: ["text"],
     executionMode: "none",
     submitHandler: "unsupported",
     gridEligible: false,
-  },
-  "gpt-5.4-nano": {
+  }),
+  "gpt-5.4-nano": activeInternalPricingRuntime({
     label: "GPT-5.4 Nano",
     mediaType: "text",
     pricingStrategy: "openai-text-token",
+    displayFamily: "Text",
+    displayOrder: 320,
+    pricingFamily: "Text",
+    logoKey: "openai",
     generationLanes: ["text"],
     executionMode: "none",
     submitHandler: "unsupported",
     gridEligible: false,
-  },
+  }),
+  [ELEVENLABS_MUSIC_MODEL_ID]: activeAudioPricingRuntime({
+    displayFamily: "Audio",
+    displayOrder: 400,
+    pricingFamily: "Audio",
+    logoKey: "elevenlabs",
+  }),
+  [ELEVENLABS_SOUND_EFFECTS_MODEL_ID]: activeAudioPricingRuntime({
+    displayFamily: "Audio",
+    displayOrder: 410,
+    pricingFamily: "Audio",
+    logoKey: "elevenlabs",
+  }),
+  [ELEVENLABS_VOICEOVER_MODEL_ID]: activeAudioPricingRuntime({
+    displayFamily: "Audio",
+    displayOrder: 420,
+    pricingFamily: "Audio",
+    logoKey: "elevenlabs",
+  }),
+  [ELEVENLABS_VOICE_CHANGER_MODEL_ID]: activeAudioPricingRuntime({
+    displayFamily: "Audio",
+    displayOrder: 430,
+    pricingFamily: "Audio",
+    logoKey: "elevenlabs",
+  }),
+  [ELEVENLABS_VOICE_DESIGN_MODEL_ID]: activeMetadataRuntime({
+    displayFamily: "Audio",
+    displayOrder: 440,
+    pricingFamily: "Audio",
+    logoKey: "elevenlabs",
+    surfaceNote: "Metadata-only voice design model; debit happens through generated speech output.",
+  }),
 };
 
 export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = Object.fromEntries(

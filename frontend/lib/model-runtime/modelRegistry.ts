@@ -10,7 +10,11 @@ import {
   type GenerationWorkflowLane,
   type ModelCatalogEntry,
   type ModelCatalogMediaType,
+  type ModelLifecycle,
+  type ModelLogoKey,
   type ModelProvider,
+  type ModelSurface,
+  type ModelVisibilityFlag,
 } from "./modelCatalog";
 import { type AspectSize, falImageSizeMap } from "./modelSizes";
 import type { PricingStrategyId } from "./pricingTypes";
@@ -23,6 +27,17 @@ export type ModelConfig = {
   provider: ModelProvider | "other";
   sourceUrl?: string;
   mediaType: ModelCatalogMediaType;
+  lifecycle?: ModelLifecycle;
+  surfaces: ModelSurface[];
+  billable: boolean;
+  displayFamily?: string;
+  displayOrder?: number;
+  pricingFamily?: string;
+  surfaceNote?: string;
+  visibilityFlag?: ModelVisibilityFlag;
+  logoKey?: ModelLogoKey;
+  providerModelId?: string;
+  providerVariants?: string[];
   defaultAspect: string;
   allowedAspects: string[];
   pricingStrategy?: PricingStrategyId;
@@ -74,6 +89,17 @@ const buildModelConfig = (entry: RegistryReadyCatalogEntry): ModelConfig => ({
   provider: entry.provider,
   sourceUrl: entry.sourceUrl,
   mediaType: entry.mediaType,
+  lifecycle: entry.lifecycle,
+  surfaces: entry.surfaces ?? [],
+  billable: entry.billable ?? false,
+  displayFamily: entry.displayFamily,
+  displayOrder: entry.displayOrder,
+  pricingFamily: entry.pricingFamily,
+  surfaceNote: entry.surfaceNote,
+  visibilityFlag: entry.visibilityFlag,
+  logoKey: entry.logoKey,
+  providerModelId: entry.providerModelId,
+  providerVariants: entry.providerVariants,
   defaultAspect: entry.defaultAspect,
   allowedAspects: entry.allowedAspects,
   pricingStrategy: entry.pricingStrategy,
@@ -121,3 +147,39 @@ export const getModelConfigByApiRouteSlug = (slug: string): ModelConfig | null =
   registryByApiRouteSlug[slug] ?? null;
 
 export const listModelConfigs = (): ModelConfig[] => Object.values(registry);
+
+export const listCatalogModelConfigs = (): ModelConfig[] => listModelConfigs();
+
+const hasSurface = (config: ModelConfig, surface: ModelSurface): boolean =>
+  config.surfaces.includes(surface);
+
+const byDisplayOrderThenLabel = (a: ModelConfig, b: ModelConfig): number => {
+  const orderDelta =
+    (a.displayOrder ?? Number.MAX_SAFE_INTEGER) - (b.displayOrder ?? Number.MAX_SAFE_INTEGER);
+  if (orderDelta !== 0) return orderDelta;
+  return a.label.localeCompare(b.label);
+};
+
+export const listActiveModelConfigs = (): ModelConfig[] =>
+  listModelConfigs().filter((config) => config.lifecycle === "active");
+
+export const listPickerModelConfigs = (): ModelConfig[] =>
+  listActiveModelConfigs()
+    .filter((config) => hasSurface(config, "picker"))
+    .sort(byDisplayOrderThenLabel);
+
+export const listPricingModelConfigs = (): Array<
+  ModelConfig & { pricingStrategy: PricingStrategyId }
+> =>
+  listActiveModelConfigs()
+    .filter(
+      (config): config is ModelConfig & { pricingStrategy: PricingStrategyId } =>
+        config.billable === true && hasSurface(config, "pricing") && Boolean(config.pricingStrategy)
+    )
+    .sort(byDisplayOrderThenLabel);
+
+export const listBillableModelConfigs = (): ModelConfig[] =>
+  listActiveModelConfigs().filter((config) => config.billable === true);
+
+export const listRuntimeModelConfigs = (): ModelConfig[] =>
+  listActiveModelConfigs().filter((config) => hasSurface(config, "runtime"));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeCostForModel } from "../pricing";
+import { buildDefaultPricingParams, computeCostForModel } from "../pricing";
 
 describe("ElevenLabs runtime pricing", () => {
   it("prices voiceover from billed character count", () => {
@@ -28,6 +28,18 @@ describe("ElevenLabs runtime pricing", () => {
     const breakdown = computeCostForModel("eleven_text_to_sound_v2", {
       generationCount: 1,
     });
+
+    expect(breakdown).toMatchObject({
+      credits: 12,
+      usdRaw: 0.12,
+    });
+  });
+
+  it("prices sound effects from the 5s explicit-duration catalog default", () => {
+    const breakdown = computeCostForModel(
+      "eleven_text_to_sound_v2",
+      buildDefaultPricingParams("eleven_text_to_sound_v2")
+    );
 
     expect(breakdown).toMatchObject({
       credits: 12,

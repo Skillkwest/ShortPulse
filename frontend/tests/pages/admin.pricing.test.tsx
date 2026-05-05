@@ -120,6 +120,93 @@ const buildPricingState = (): AdminPricingStateResponse => ({
   },
 });
 
+const buildPricingStateWithPlans = (): AdminPricingStateResponse => ({
+  ...buildPricingState(),
+  plans: [
+    {
+      planId: "studio",
+      displayName: "Studio",
+      offerId: "studio__current",
+      sortOrder: 30,
+      accountCount: 4,
+      status: "active",
+      recurringPriceCents: 3900,
+      monthlyCreditsCents: 3000,
+      storageLimitBytes: 107374182400,
+      stripeProductId: "prod_studio",
+      stripePriceId: "price_studio_current",
+      acquisitionEnabled: true,
+      isActive: true,
+      effectiveStartAt: "2026-04-24T12:00:00.000Z",
+      monthlyOffer: {
+        offerId: "studio__current",
+        recurringPriceCents: 3900,
+        monthlyCreditsCents: 3000,
+        storageLimitBytes: 107374182400,
+        stripePriceId: "price_studio_current",
+        acquisitionEnabled: true,
+        isActive: true,
+        effectiveStartAt: "2026-04-24T12:00:00.000Z",
+      },
+      annualOffer: {
+        offerId: "studio__year_current",
+        recurringPriceCents: 39000,
+        monthlyCreditsCents: 3000,
+        storageLimitBytes: 107374182400,
+        stripePriceId: "price_studio_year_current",
+        acquisitionEnabled: true,
+        isActive: true,
+        effectiveStartAt: "2026-04-24T12:00:00.000Z",
+      },
+    },
+    {
+      planId: "business",
+      displayName: "Business",
+      offerId: "business__current",
+      sortOrder: 40,
+      accountCount: 2,
+      status: "active",
+      recurringPriceCents: 9900,
+      monthlyCreditsCents: 8000,
+      storageLimitBytes: 214748364800,
+      stripeProductId: "prod_business",
+      stripePriceId: "price_business_current",
+      acquisitionEnabled: true,
+      isActive: true,
+      effectiveStartAt: "2026-04-24T12:00:00.000Z",
+      monthlyOffer: {
+        offerId: "business__current",
+        recurringPriceCents: 9900,
+        monthlyCreditsCents: 8000,
+        storageLimitBytes: 214748364800,
+        stripePriceId: "price_business_current",
+        acquisitionEnabled: true,
+        isActive: true,
+        effectiveStartAt: "2026-04-24T12:00:00.000Z",
+      },
+      annualOffer: {
+        offerId: "business__year_current",
+        recurringPriceCents: 99000,
+        monthlyCreditsCents: 8000,
+        storageLimitBytes: 214748364800,
+        stripePriceId: "price_business_year_current",
+        acquisitionEnabled: true,
+        isActive: true,
+        effectiveStartAt: "2026-04-24T12:00:00.000Z",
+      },
+    },
+  ],
+});
+
+const openCatalogTools = () => {
+  const toggle = screen.getByRole("button", {
+    name: /Show catalog tools|Hide catalog tools/,
+  });
+  if (toggle.textContent?.includes("Show")) {
+    fireEvent.click(toggle);
+  }
+};
+
 describe("Admin pricing page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -203,6 +290,98 @@ describe("Admin pricing page", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps usage-mix assumptions scoped to the selected plan", () => {
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: buildPricingStateWithPlans(),
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminPricingPage />);
+
+    fireEvent.change(screen.getByLabelText("Runs / month"), {
+      target: { value: "99" },
+    });
+
+    fireEvent.change(screen.getByLabelText("Plan"), {
+      target: { value: "business" },
+    });
+    expect(screen.getByLabelText("Runs / month")).toHaveValue("10");
+
+    fireEvent.change(screen.getByLabelText("Runs / month"), {
+      target: { value: "5" },
+    });
+
+    fireEvent.change(screen.getByLabelText("Plan"), {
+      target: { value: "studio" },
+    });
+    expect(screen.getByLabelText("Runs / month")).toHaveValue("99");
+  });
+
+  it("resets support-module plan inputs back to live-derived defaults when resetting the pricing draft", () => {
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: buildPricingStateWithPlans(),
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminPricingPage />);
+
+    fireEvent.change(screen.getByLabelText("Plan price ($)"), {
+      target: { value: "49.00" },
+    });
+
+    fireEvent.change(screen.getByLabelText("Model markup for FLUX.2 Lite"), {
+      target: { value: "50" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Reset draft" }));
+
+    expect(screen.getByLabelText("Plan price ($)")).toHaveValue("39.00");
+  });
+
+  it("reseeds untouched plan analysis drafts when live plan pricing refreshes", () => {
+    const initialState = buildPricingStateWithPlans();
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: initialState,
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    const { rerender } = render(<AdminPricingPage />);
+
+    expect(screen.getByLabelText("Plan price ($)")).toHaveValue("39.00");
+
+    const refreshedState = buildPricingStateWithPlans();
+    refreshedState.plans[0] = {
+      ...refreshedState.plans[0],
+      recurringPriceCents: 4900,
+      monthlyCreditsCents: 3500,
+      monthlyOffer: {
+        ...refreshedState.plans[0].monthlyOffer!,
+        recurringPriceCents: 4900,
+        monthlyCreditsCents: 3500,
+      },
+    };
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: refreshedState,
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    rerender(<AdminPricingPage />);
+
+    expect(screen.getByLabelText("Plan price ($)")).toHaveValue("49.00");
+    expect(screen.getByLabelText("Included credits")).toHaveValue("3500");
+  });
+
   it("renders catalog health warnings from the pricing state", () => {
     const state = buildPricingState();
     state.health = {
@@ -225,13 +404,58 @@ describe("Admin pricing page", () => {
 
     render(<AdminPricingPage />);
 
-    expect(screen.getByRole("heading", { name: "Pricing needs attention" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Catalog warnings" })).toBeInTheDocument();
     expect(
       screen.getByText("1 active public plan offer missing Stripe price ids.")
     ).toBeInTheDocument();
     expect(
       screen.getByText("1 active storage add-on offer missing Stripe price ids.")
     ).toBeInTheDocument();
+  });
+
+  it("keeps inactive credit packages and unconfigured storage add-ons visible", () => {
+    const state = buildPricingState();
+    state.creditPackages = [
+      {
+        id: "starter_500",
+        displayName: "Starter 500",
+        creditAmountCents: 500,
+        priceCents: 900,
+        stripePriceId: null,
+        sortOrder: 30,
+        isActive: false,
+      },
+    ];
+    state.storageAddons = [
+      {
+        storageAddonId: "storage_100gb",
+        displayName: "Extra 100 GB",
+        offerId: null,
+        storageLimitBytes: 0,
+        recurringPriceCents: 0,
+        stripePriceId: null,
+        acquisitionEnabled: false,
+        isActive: false,
+        effectiveStartAt: null,
+        sortOrder: 20,
+      },
+    ];
+    useAdminPricingControllerMock.mockReturnValue({
+      pricingState: state,
+      pricingLoading: false,
+      pricingRefreshing: false,
+      pricingError: null,
+      refreshPricingState: refreshPricingStateMock,
+    });
+
+    render(<AdminPricingPage />);
+    openCatalogTools();
+
+    expect(screen.getByText("Starter 500")).toBeInTheDocument();
+    expect(screen.getAllByText("inactive").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Extra 100 GB")).toBeInTheDocument();
+    expect(screen.getAllByText("Not configured").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole("button", { name: "Create first offer" })).toBeInTheDocument();
   });
 
   it("renders model type and margin columns in the workbook", () => {
@@ -246,14 +470,14 @@ describe("Admin pricing page", () => {
     render(<AdminPricingPage />);
 
     expect(screen.getAllByText("Type").length).toBeGreaterThan(0);
-    expect(screen.getByText("Margin")).toBeInTheDocument();
-    expect(screen.getByText("Round Nearest")).toBeInTheDocument();
-    expect(screen.getByText("text → image")).toBeInTheDocument();
+    expect(screen.getAllByText("Margin").length).toBeGreaterThan(0);
+    expect(screen.getByText("Round")).toBeInTheDocument();
+    expect(screen.getAllByText("text → image").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Round nearest for FLUX.2 Lite")).toHaveValue("");
     expect(screen.getAllByText("0.648").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("$0.0065").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("$0.0100")).not.toBeInTheDocument();
-    expect(screen.getByText("$0.00")).toBeInTheDocument();
+    expect(screen.getAllByText("$0.00").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("0%")).toBeInTheDocument();
   });
 
@@ -426,8 +650,8 @@ describe("Admin pricing page", () => {
 
     expect(screen.getByText("Create / model_default / 4:3")).toBeInTheDocument();
     expect(screen.getByText("Edit / model_default / 4:3")).toBeInTheDocument();
-    expect(screen.getByText("text → image")).toBeInTheDocument();
-    expect(screen.getByText("image → image")).toBeInTheDocument();
+    expect(screen.getAllByText("text → image").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("image → image").length).toBeGreaterThan(0);
     expect(screen.getByLabelText("Model markup for ChatGPT Image 2 Create")).toBeInTheDocument();
     expect(screen.getByLabelText("Model markup for ChatGPT Image 2 Edit")).toBeInTheDocument();
   });
@@ -479,12 +703,12 @@ describe("Admin pricing page", () => {
     expect(screen.getAllByText(expectedCreditsAtCost).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("does not render a duration input for ElevenLabs Voice Changer", () => {
+  it("renders a source-duration input for ElevenLabs Voice Changer", () => {
     const state = buildPricingState();
     state.models = [
       {
         ...state.models[0],
-        id: "elevenlabs/voice-changer",
+        id: "eleven_multilingual_sts_v2",
         label: "ElevenLabs Voice Changer",
         provider: "elevenlabs",
         workflowType: "Text",
@@ -510,8 +734,22 @@ describe("Admin pricing page", () => {
     render(<AdminPricingPage />);
 
     expect(screen.getByText("ElevenLabs Voice Changer")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Duration seconds for ElevenLabs Voice Changer")).toBeNull();
-    expect(screen.queryByText("60")).not.toBeInTheDocument();
+    const durationInput = screen.getByLabelText("Duration seconds for ElevenLabs Voice Changer");
+    expect(durationInput).toHaveValue(60);
+
+    fireEvent.change(durationInput, { target: { value: "30" } });
+
+    const expectedCost = computeCostForModel(
+      "eleven_multilingual_sts_v2",
+      buildDefaultPricingParams("eleven_multilingual_sts_v2", { sourceDurationSeconds: 30 }),
+      state.modelPolicy.document as ModelPricingPolicyDocument
+    );
+    const expectedRawCreditsAtCost = (expectedCost?.usdRaw ?? 0) * 100;
+    const expectedCreditsAtCost = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: Number.isInteger(expectedRawCreditsAtCost) ? 0 : 2,
+      maximumFractionDigits: expectedRawCreditsAtCost > 0 && expectedRawCreditsAtCost < 1 ? 4 : 2,
+    }).format(expectedRawCreditsAtCost);
+    expect(screen.getAllByText(expectedCreditsAtCost).length).toBeGreaterThanOrEqual(2);
   });
 
   it("recalculates workbook pricing from the global credit conversion draft", () => {
@@ -531,35 +769,9 @@ describe("Admin pricing page", () => {
 
     fireEvent.change(conversionInput, { target: { value: "30" } });
 
-    expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save draft live" })).not.toBeDisabled();
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
     expect(screen.getAllByText("0.1944").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("$0.0065").length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("recalculates workbook pricing from the global conversion dollar draft", () => {
-    const state = buildPricingState();
-    useAdminPricingControllerMock.mockReturnValue({
-      pricingState: state,
-      pricingLoading: false,
-      pricingRefreshing: false,
-      pricingError: null,
-      refreshPricingState: refreshPricingStateMock,
-    });
-
-    render(<AdminPricingPage />);
-
-    const creditsInput = screen.getByLabelText("Global credit conversion");
-    const dollarsInput = screen.getByLabelText("Global conversion dollar amount");
-    expect(creditsInput).toHaveValue("100");
-    expect(dollarsInput).toHaveValue("1");
-
-    fireEvent.change(creditsInput, { target: { value: "30" } });
-    fireEvent.change(dollarsInput, { target: { value: "2" } });
-
-    expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
-    expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
-    expect(screen.getAllByText("0.0972").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("$0.0065").length).toBeGreaterThanOrEqual(2);
   });
 
@@ -598,7 +810,7 @@ describe("Admin pricing page", () => {
       }
     )?.credits;
 
-    expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save draft live" })).not.toBeDisabled();
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
     expect(screen.getAllByText(String(expectedCredits)).length).toBeGreaterThan(0);
     expect(screen.getByText("$0.0500")).toBeInTheDocument();
@@ -651,9 +863,9 @@ describe("Admin pricing page", () => {
     fireEvent.change(rowMarkupInput, { target: { value: "" } });
 
     expect(rowMarkupInput).toHaveValue("");
-    expect(screen.getAllByText("$0.0065")).toHaveLength(2);
+    expect(screen.getAllByText("$0.0065").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("$0.0100")).not.toBeInTheDocument();
-    expect(screen.getByText("$0.00")).toBeInTheDocument();
+    expect(screen.getAllByText("$0.00").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("0%")).toBeInTheDocument();
   });
 
@@ -671,9 +883,9 @@ describe("Admin pricing page", () => {
     fireEvent.change(screen.getByLabelText("Model markup for FLUX.2 Lite"), {
       target: { value: "." },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save draft live" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Save draft live" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("shows provider pricing docs when hovering the cost unit", () => {
@@ -772,6 +984,7 @@ describe("Admin pricing page", () => {
     });
 
     render(<AdminPricingPage />);
+    openCatalogTools();
 
     fireEvent.click(screen.getByRole("button", { name: "Edit monthly" }));
     fireEvent.change(screen.getByLabelText("Recurring price (cents)"), {
@@ -845,6 +1058,7 @@ describe("Admin pricing page", () => {
     });
 
     render(<AdminPricingPage />);
+    openCatalogTools();
 
     fireEvent.click(screen.getByRole("button", { name: "Create annual" }));
 
@@ -886,6 +1100,7 @@ describe("Admin pricing page", () => {
     });
 
     render(<AdminPricingPage />);
+    openCatalogTools();
 
     fireEvent.click(screen.getByRole("button", { name: "Create new plan" }));
     fireEvent.change(screen.getByLabelText("Plan id"), {
@@ -935,6 +1150,7 @@ describe("Admin pricing page", () => {
     });
 
     render(<AdminPricingPage />);
+    openCatalogTools();
 
     fireEvent.click(screen.getByRole("button", { name: "Create new plan" }));
     fireEvent.change(screen.getByLabelText("Plan id"), {
@@ -995,6 +1211,7 @@ describe("Admin pricing page", () => {
     });
 
     render(<AdminPricingPage />);
+    openCatalogTools();
 
     fireEvent.click(screen.getByRole("button", { name: "Edit monthly" }));
     fireEvent.change(screen.getByLabelText("Stripe price id"), {
@@ -1017,6 +1234,7 @@ describe("Admin pricing page", () => {
     });
 
     render(<AdminPricingPage />);
+    openCatalogTools();
 
     fireEvent.click(screen.getByRole("button", { name: "Create new plan" }));
     fireEvent.change(screen.getByLabelText("Plan id"), {
@@ -1066,7 +1284,7 @@ describe("Admin pricing page", () => {
     fireEvent.change(screen.getByLabelText("Model markup for FLUX.2 Lite"), {
       target: { value: "12.5" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save draft live" }));
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
@@ -1131,7 +1349,7 @@ describe("Admin pricing page", () => {
     fireEvent.change(screen.getByLabelText("Model markup for FLUX.2 Lite"), {
       target: { value: "200" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save draft live" }));
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
@@ -1185,7 +1403,7 @@ describe("Admin pricing page", () => {
     fireEvent.change(screen.getByLabelText("Model markup for FLUX.2 Lite"), {
       target: { value: "12.5" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save draft live" }));
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Save" }));
 
     expect(
@@ -1194,7 +1412,9 @@ describe("Admin pricing page", () => {
       )
     ).toBeInTheDocument();
     expect(refreshPricingStateMock).not.toHaveBeenCalled();
-    await waitFor(() => expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled());
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save draft live" })).not.toBeDisabled()
+    );
   });
 
   it("updates current model credit previews from the row draft policy", () => {

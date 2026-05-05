@@ -37,6 +37,12 @@
   color: var(--admin-text);
 }
 
+.adminPricingPageWide {
+  max-width: min(1800px, calc(100vw - 32px));
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
 .adminPage :global(.eyebrow) {
   color: var(--admin-text-faint);
 }
@@ -303,6 +309,238 @@
   border: 1px solid var(--admin-border-soft);
   background: var(--admin-surface-1);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.agentInstructionsSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.agentInstructionSummaryLabel {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
+.agentInstructionSummaryValue {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: var(--admin-text-strong);
+}
+
+.agentInstructionWorkspace {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.agentInstructionModeSection {
+  display: grid;
+  gap: 14px;
+}
+
+.agentInstructionModeHeader {
+  display: grid;
+  gap: 6px;
+}
+
+.agentInstructionModeEyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-accent-text);
+}
+
+.agentInstructionModeTitle {
+  margin: 0;
+  font-size: 18px;
+  color: var(--admin-text-strong);
+}
+
+.agentInstructionModeDescription {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--admin-text-muted);
+}
+
+.agentInstructionCardList {
+  display: grid;
+  gap: 14px;
+}
+
+.agentInstructionCard {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.agentInstructionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.agentInstructionTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agentInstructionTitle {
+  margin: 0;
+  font-size: 17px;
+  color: var(--admin-text-strong);
+}
+
+.agentInstructionDescription {
+  margin: 6px 0 0;
+  max-width: 78ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--admin-text-muted);
+}
+
+.agentInstructionActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.agentInstructionFormGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.agentInstructionField {
+  display: grid;
+  gap: 8px;
+}
+
+.agentInstructionMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.agentInstructionMetaItem {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-1);
+}
+
+.agentInstructionMetaItem dt {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
+.agentInstructionMetaItem dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--admin-text);
+}
+
+.agentInstructionLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--admin-text-strong);
+}
+
+.agentInstructionInput,
+.agentInstructionSelect,
+.agentInstructionSubTextarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border);
+  background: #0f1317;
+  color: var(--admin-text-strong);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.agentInstructionInput::placeholder,
+.agentInstructionSubTextarea::placeholder {
+  color: var(--admin-text-faint);
+}
+
+.agentInstructionSelect {
+  appearance: none;
+}
+
+.agentInstructionSubTextarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.agentInstructionTextarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border);
+  background: #0f1317;
+  color: var(--admin-text-strong);
+  font:
+    12px/1.6 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    "Liberation Mono",
+    "Courier New",
+    monospace;
+}
+
+.agentInstructionTextarea::placeholder {
+  color: var(--admin-text-faint);
+}
+
+.agentInstructionTextarea:focus,
+.agentInstructionTextarea:focus-visible,
+.agentInstructionInput:focus,
+.agentInstructionInput:focus-visible,
+.agentInstructionSelect:focus,
+.agentInstructionSelect:focus-visible,
+.agentInstructionSubTextarea:focus,
+.agentInstructionSubTextarea:focus-visible {
+  outline: 2px solid var(--admin-focus);
+  outline-offset: 2px;
+  border-color: var(--admin-accent-border-strong);
+}
+
+.agentInstructionNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--admin-text-muted);
 }
 
 .adminStatePanel {
@@ -1040,6 +1278,117 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 12px;
+}
+
+.pricingCalculatorSupportStrip {
+  display: grid;
+  gap: 16px;
+}
+
+.pricingCalculatorSupportGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.pricingSupportPanel {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-2);
+}
+
+.pricingSupportHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pricingSupportTitle {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--admin-text-strong);
+}
+
+.pricingSupportSelect {
+  min-width: 160px;
+}
+
+.pricingSupportFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pricingSupportLabel {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pricingSupportMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pricingSupportMetric {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-3);
+}
+
+.pricingSupportMetricLabel {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pricingSupportMetric strong {
+  color: var(--admin-text-strong);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pricingSupportMetricStack {
+  display: grid;
+  gap: 8px;
+}
+
+.pricingSupportMetricRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--admin-border-soft);
+  color: var(--admin-text-muted);
+  font-size: 13px;
+}
+
+.pricingSupportMetricRow:last-child {
+  border-bottom: none;
+}
+
+.pricingSupportMetricRow strong {
+  color: var(--admin-text-strong);
+  font-size: 15px;
+}
+
+.pricingSupportWarning {
+  margin: 0;
+  color: var(--admin-warning-text);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .pricingMetaList {
@@ -2175,6 +2524,207 @@
   font-size: 14px;
   line-height: 1.42;
   color: var(--admin-text-muted);
+}
+
+.pricingPolicyStatusBar {
+  display: grid;
+  gap: 14px;
+}
+
+.pricingPolicyStatusMeta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.pricingPolicyStatusGroup {
+  display: grid;
+  gap: 6px;
+}
+
+.pricingPolicyStatusRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pricingPolicyDiffList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.pricingPolicyStatusActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pricingAnalysisTable {
+  min-width: 1220px;
+  gap: 6px;
+}
+
+.pricingAnalysisHead,
+.pricingAnalysisRow {
+  display: grid;
+  grid-template-columns:
+    minmax(72px, 0.5fr)
+    minmax(160px, 1.1fr)
+    minmax(108px, 0.8fr)
+    minmax(180px, 1.15fr)
+    minmax(62px, 0.45fr)
+    minmax(84px, 0.6fr)
+    minmax(84px, 0.6fr)
+    minmax(92px, 0.68fr)
+    minmax(84px, 0.55fr)
+    minmax(72px, 0.45fr)
+    minmax(96px, 0.7fr)
+    minmax(80px, 0.6fr)
+    minmax(138px, 0.95fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.pricingAnalysisRow {
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: var(--admin-surface-3);
+  border: 1px solid var(--admin-border-soft);
+}
+
+.pricingPlanSimulatorList {
+  display: grid;
+  gap: 16px;
+}
+
+.pricingPlanSimulatorCard,
+.pricingUsageMixCard {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-2);
+}
+
+.pricingPlanSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.pricingPlanProjectionTable {
+  min-width: 760px;
+  gap: 6px;
+}
+
+.pricingPlanProjectionHead,
+.pricingPlanProjectionTable .pricingAnalysisRow {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) 0.7fr 0.7fr 0.9fr 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.pricingUsageToolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.pricingUsageToolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pricingUsageMixList {
+  display: grid;
+  gap: 12px;
+}
+
+.pricingUsageMixInputs {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.3fr) minmax(110px, 0.5fr) minmax(110px, 0.5fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.pricingUsageMixMiniTable {
+  display: grid;
+  grid-template-columns: minmax(108px, 1fr) minmax(70px, 0.6fr) repeat(3, minmax(72px, 0.72fr));
+  gap: 8px;
+  align-items: center;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.pricingUsageMixMiniHead {
+  display: grid;
+  grid-template-columns: minmax(108px, 1fr) minmax(70px, 0.6fr) repeat(3, minmax(72px, 0.72fr));
+  gap: 8px;
+  align-items: center;
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pricingUsageMixMiniTable span:last-child,
+.pricingUsageMixMiniTable span:nth-last-child(2),
+.pricingUsageMixMiniTable span:nth-last-child(3) {
+  color: var(--admin-text-strong);
+}
+
+@media (max-width: 900px) {
+  .pricingSupportFormGrid,
+  .pricingSupportMetricGrid,
+  .pricingUsageMixInputs {
+    grid-template-columns: 1fr;
+  }
+
+  .pricingUsageMixMiniHead,
+  .pricingUsageMixMiniTable {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.pricingUsageMixResultTable {
+  gap: 6px;
+}
+
+.pricingUsageMixResultHead,
+.pricingUsageMixResultRow {
+  display: grid;
+  grid-template-columns:
+    minmax(104px, 0.7fr)
+    minmax(84px, 0.55fr)
+    minmax(88px, 0.6fr)
+    minmax(94px, 0.66fr)
+    minmax(94px, 0.66fr)
+    minmax(88px, 0.6fr)
+    minmax(94px, 0.66fr)
+    minmax(94px, 0.66fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.pricingUsageMixResultRow {
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: var(--admin-surface-3);
+  border: 1px solid var(--admin-border-soft);
 }
 
 .searchInput {

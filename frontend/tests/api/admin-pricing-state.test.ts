@@ -5,6 +5,7 @@ const requireAdminUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const listModelConfigsMock = vi.fn();
+const listPricingModelConfigsMock = vi.fn();
 const buildDefaultPricingParamsMock = vi.fn();
 const computeCostForModelMock = vi.fn();
 const getModelPricingPolicySnapshotMock = vi.fn();
@@ -29,9 +30,13 @@ vi.mock("../../lib/server/api/modelPricingControlPlane", () => ({
 }));
 
 vi.mock("../../lib/model-runtime/pricing", () => ({
-  listModelConfigs: (...args: unknown[]) => listModelConfigsMock(...args),
   buildDefaultPricingParams: (...args: unknown[]) => buildDefaultPricingParamsMock(...args),
   computeCostForModel: (...args: unknown[]) => computeCostForModelMock(...args),
+}));
+
+vi.mock("../../lib/model-runtime/modelRegistry", () => ({
+  listModelConfigs: (...args: unknown[]) => listModelConfigsMock(...args),
+  listPricingModelConfigs: (...args: unknown[]) => listPricingModelConfigsMock(...args),
 }));
 
 vi.mock("../../lib/model-runtime/pricingPolicy", () => ({
@@ -64,6 +69,7 @@ describe("GET /api/admin/pricing/state", () => {
         defaultDurationSeconds: undefined,
       },
     ]);
+    listPricingModelConfigsMock.mockImplementation(() => listModelConfigsMock());
     buildDefaultPricingParamsMock.mockImplementation((modelId: string, overrides = {}) => ({
       aspect: "1:1",
       resolution: "medium",
@@ -249,21 +255,28 @@ describe("GET /api/admin/pricing/state", () => {
         if (table === "billing_credit_packages") {
           return {
             select: () => ({
-              eq: () => ({
-                order: async () => ({
-                  data: [
-                    {
-                      id: "growth_2000",
-                      display_name: "Growth 2,000",
-                      credit_amount_cents: 2000,
-                      price_cents: 2600,
-                      stripe_price_id: null,
-                      sort_order: 20,
-                      is_active: true,
-                    },
-                  ],
-                  error: null,
-                }),
+              order: async () => ({
+                data: [
+                  {
+                    id: "growth_2000",
+                    display_name: "Growth 2,000",
+                    credit_amount_cents: 2000,
+                    price_cents: 2600,
+                    stripe_price_id: null,
+                    sort_order: 20,
+                    is_active: true,
+                  },
+                  {
+                    id: "starter_500",
+                    display_name: "Starter 500",
+                    credit_amount_cents: 500,
+                    price_cents: 900,
+                    stripe_price_id: null,
+                    sort_order: 30,
+                    is_active: false,
+                  },
+                ],
+                error: null,
               }),
             }),
           };
@@ -278,6 +291,12 @@ describe("GET /api/admin/pricing/state", () => {
                     id: "storage_25gb",
                     display_name: "Extra 25 GB",
                     sort_order: 10,
+                    is_active: true,
+                  },
+                  {
+                    id: "storage_100gb",
+                    display_name: "Extra 100 GB",
+                    sort_order: 20,
                     is_active: true,
                   },
                 ],
@@ -414,25 +433,41 @@ describe("GET /api/admin/pricing/state", () => {
             id: "growth_2000",
             stripePriceId: null,
           }),
+          expect.objectContaining({
+            id: "starter_500",
+            isActive: false,
+          }),
         ],
         storageAddons: [
           expect.objectContaining({
             storageAddonId: "storage_25gb",
             stripePriceId: "price_storage_25",
           }),
+          expect.objectContaining({
+            storageAddonId: "storage_100gb",
+            offerId: null,
+            stripePriceId: null,
+          }),
         ],
         health: expect.objectContaining({
           planOffersMissingStripePriceIds: 1,
           creditPackagesMissingStripePriceIds: 1,
-          totalWarnings: 2,
+          storageOffersMissingStripePriceIds: 0,
+          totalWarnings: 3,
         }),
       })
     );
-    const payload = res.json.mock.calls[0]?.[0] as { models: Array<{ id: string }> };
+    const payload = res.json.mock.calls[0]?.[0] as {
+      models: Array<{ id: string }>;
+      health: { warnings: string[] };
+    };
     expect(payload.models.map((model) => model.id)).toEqual([
       "kie-kling-3",
       "bria-background-remove",
       "gpt-image-2",
     ]);
+    expect(payload.health.warnings).toContain(
+      "1 active storage add-on missing a current public offer."
+    );
   });
 });

@@ -31,8 +31,12 @@ const FAL_ROUTES_DIR = path.join(FRONTEND_ROOT, "pages", "api", "fal");
 const DOCS_API_DIR = path.join(REPO_ROOT, "docs", "api");
 const DOCS_API_INDEX = path.join(DOCS_API_DIR, "README.md");
 const DOCS_ROOT_INDEX = path.join(REPO_ROOT, "docs", "README.md");
-const MAX_STALE_DAYS = Number(process.env.SHORTPULSE_MODEL_CATALOG_MAX_STALE_DAYS || 45);
-const STALE_MODE_RAW = String(process.env.SHORTPULSE_MODEL_CATALOG_STALE_MODE || "warn")
+const MAX_STALE_DAYS = Number(
+  process.env.SHORTPULSE_MODEL_CATALOG_MAX_STALE_DAYS || 45,
+);
+const STALE_MODE_RAW = String(
+  process.env.SHORTPULSE_MODEL_CATALOG_STALE_MODE || "warn",
+)
   .trim()
   .toLowerCase();
 const STALE_MODE = STALE_MODE_RAW === "enforce" ? "enforce" : "warn";
@@ -41,6 +45,21 @@ const PROVIDER_SOURCE_HOST_ALLOWLIST = {
   kie: ["docs.kie.ai", "kie.ai"],
   openai: ["platform.openai.com", "openai.com"],
 };
+const VALID_MODEL_LIFECYCLES = new Set([
+  "active",
+  "deprecated",
+  "disabled",
+  "retired",
+]);
+const VALID_MODEL_SURFACES = new Set([
+  "picker",
+  "pricing",
+  "runtime",
+  "hidden_tool",
+  "internal_helper",
+  "audio_tool",
+  "metadata",
+]);
 
 const RETIRED_FAL_SUBMIT_ROUTE_MODEL_IDS = new Set([
   "fal-ai/kling-video/v3/pro/text-to-video",
@@ -65,15 +84,20 @@ const MODEL_DOC_MAP = {
   "fal-ai/nano-banana-pro/edit": "api-fal-nano-banana-pro-edit.md",
   "fal-ai/bytedance/seedream/v4.5/text-to-image": "api-fal-seedream-4-5.md",
   "fal-ai/bytedance/seedream/v4.5/edit": "api-fal-seedream-4-5-edit.md",
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image": "api-fal-seedream-5-lite.md",
+  "fal-ai/bytedance/seedream/v5/lite/text-to-image":
+    "api-fal-seedream-5-lite.md",
   "fal-ai/bytedance/seedream/v5/lite/edit": "api-fal-seedream-5-lite-edit.md",
-  "fal-ai/kling-video/v3/pro/text-to-video": "api-fal-kling-3-pro-text-to-video.md",
-  "fal-ai/kling-video/v3/pro/image-to-video": "api-fal-kling-3-pro-image-to-video.md",
+  "fal-ai/kling-video/v3/pro/text-to-video":
+    "api-fal-kling-3-pro-text-to-video.md",
+  "fal-ai/kling-video/v3/pro/image-to-video":
+    "api-fal-kling-3-pro-image-to-video.md",
   "fal-ai/veo3.1": "api-fal-veo3.md",
   "fal-ai/veo3.1/image-to-video": "api-fal-veo3-image-to-video.md",
   "fal-ai/veo3.1/first-last-frame-to-video": "api-fal-veo3-first-last-frame.md",
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": "api-fal-seedance-1-5-pro.md",
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": "api-fal-seedance-1-5-pro-i2v.md",
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video":
+    "api-fal-seedance-1-5-pro.md",
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video":
+    "api-fal-seedance-1-5-pro-i2v.md",
   "kie-ai/veo-3.1-fast-i2v": "api-kie-veo-3-1-fast-image-to-video.md",
   "kie-ai/kling-3.0": "api-kie-kling-3-0.md",
   "kie-ai/seedance-1.5-pro": "api-kie-seedance-1-5-pro.md",
@@ -132,7 +156,9 @@ function loadTsModule(filePath) {
     if (typeof requestPath === "string" && requestPath.startsWith(".")) {
       const resolved = resolveLocalModule(normalizedPath, requestPath);
       if (!resolved) {
-        throw new Error(`Cannot resolve module '${requestPath}' from '${normalizedPath}'`);
+        throw new Error(
+          `Cannot resolve module '${requestPath}' from '${normalizedPath}'`,
+        );
       }
       if (resolved.endsWith(".ts")) {
         return loadTsModule(resolved);
@@ -152,7 +178,9 @@ function loadTsModule(filePath) {
     console,
   };
 
-  new vm.Script(transpiled, { filename: normalizedPath }).runInNewContext(sandbox);
+  new vm.Script(transpiled, { filename: normalizedPath }).runInNewContext(
+    sandbox,
+  );
   tsModuleCache.set(normalizedPath, sandbox.module.exports);
   return sandbox.module.exports;
 }
@@ -165,7 +193,9 @@ function daysBetween(startIso, endIso) {
 function parseSourceHost(sourceUrl) {
   try {
     const parsed = new URL(sourceUrl);
-    return String(parsed.hostname || "").toLowerCase().trim();
+    return String(parsed.hostname || "")
+      .toLowerCase()
+      .trim();
   } catch {
     return null;
   }
@@ -173,8 +203,12 @@ function parseSourceHost(sourceUrl) {
 
 function hostMatchesAllowlist(hostname, allowedHosts) {
   return allowedHosts.some((allowedHost) => {
-    const normalizedHost = String(allowedHost || "").toLowerCase().trim();
-    return hostname === normalizedHost || hostname.endsWith(`.${normalizedHost}`);
+    const normalizedHost = String(allowedHost || "")
+      .toLowerCase()
+      .trim();
+    return (
+      hostname === normalizedHost || hostname.endsWith(`.${normalizedHost}`)
+    );
   });
 }
 
@@ -201,16 +235,20 @@ function listFalSubmitRouteDefinitions() {
   return files.map((fileName) => {
     const content = readText(path.join(FAL_ROUTES_DIR, fileName));
     const modelIdMatch = content.match(/modelId:\s*"([^"]+)"/);
-    const validatePayloadMatch = content.match(/validatePayload\s*:\s*([A-Za-z0-9_()."'\s-]+)/);
+    const validatePayloadMatch = content.match(
+      /validatePayload\s*:\s*([A-Za-z0-9_()."'\s-]+)/,
+    );
     const helperValidatorMatch = content.match(
-      /validatePayload\s*:\s*validateFalPayloadForModel\("([^"]+)"\)/
+      /validatePayload\s*:\s*validateFalPayloadForModel\("([^"]+)"\)/,
     );
 
     return {
       fileName,
       modelId: modelIdMatch ? modelIdMatch[1] : null,
       hasValidatePayload: Boolean(validatePayloadMatch),
-      helperValidatorModelId: helperValidatorMatch ? helperValidatorMatch[1] : null,
+      helperValidatorModelId: helperValidatorMatch
+        ? helperValidatorMatch[1]
+        : null,
     };
   });
 }
@@ -220,7 +258,11 @@ function run() {
   const warnings = [];
   const today = new Date();
 
-  if (STALE_MODE_RAW && STALE_MODE_RAW !== "warn" && STALE_MODE_RAW !== "enforce") {
+  if (
+    STALE_MODE_RAW &&
+    STALE_MODE_RAW !== "warn" &&
+    STALE_MODE_RAW !== "enforce"
+  ) {
     warnings.push(
       `Unknown SHORTPULSE_MODEL_CATALOG_STALE_MODE='${STALE_MODE_RAW}', defaulting to 'warn'.`,
     );
@@ -231,17 +273,35 @@ function run() {
   const providerModelIdsModule = loadTsModule(PROVIDER_MODEL_IDS_PATH);
   const listModelCatalogEntries = modelCatalogModule.listModelCatalogEntries;
   const listModelConfigs = modelRegistryModule.listModelConfigs;
+  const listPickerModelConfigs = modelRegistryModule.listPickerModelConfigs;
+  const listPricingModelConfigs = modelRegistryModule.listPricingModelConfigs;
   if (typeof listModelCatalogEntries !== "function") {
-    throw new Error("listModelCatalogEntries export missing from modelCatalog.ts");
+    throw new Error(
+      "listModelCatalogEntries export missing from modelCatalog.ts",
+    );
   }
   if (typeof listModelConfigs !== "function") {
     throw new Error("listModelConfigs export missing from modelRegistry.ts");
   }
-  const kieSupportedModelIds = Array.isArray(providerModelIdsModule.KIE_SUPPORTED_MODEL_IDS)
+  if (typeof listPickerModelConfigs !== "function") {
+    throw new Error(
+      "listPickerModelConfigs export missing from modelRegistry.ts",
+    );
+  }
+  if (typeof listPricingModelConfigs !== "function") {
+    throw new Error(
+      "listPricingModelConfigs export missing from modelRegistry.ts",
+    );
+  }
+  const kieSupportedModelIds = Array.isArray(
+    providerModelIdsModule.KIE_SUPPORTED_MODEL_IDS,
+  )
     ? providerModelIdsModule.KIE_SUPPORTED_MODEL_IDS
     : null;
   if (!kieSupportedModelIds || !kieSupportedModelIds.length) {
-    throw new Error("KIE_SUPPORTED_MODEL_IDS export missing from providerModelIds.ts");
+    throw new Error(
+      "KIE_SUPPORTED_MODEL_IDS export missing from providerModelIds.ts",
+    );
   }
 
   const entries = listModelCatalogEntries();
@@ -270,8 +330,13 @@ function run() {
 
     const registryEntry = registryById.get(modelId);
     if (!registryEntry) {
-      errors.push(`Catalog model missing from runtime model registry: ${modelId}`);
-    } else if (String(registryEntry.provider || "").trim() !== String(entry.provider || "").trim()) {
+      errors.push(
+        `Catalog model missing from runtime model registry: ${modelId}`,
+      );
+    } else if (
+      String(registryEntry.provider || "").trim() !==
+      String(entry.provider || "").trim()
+    ) {
       errors.push(
         `Provider mismatch between catalog and registry for ${modelId}: catalog='${entry.provider}' registry='${registryEntry.provider}'`,
       );
@@ -283,7 +348,9 @@ function run() {
     } else {
       const sourceHost = parseSourceHost(sourceUrl);
       if (!sourceHost) {
-        errors.push(`Catalog sourceUrl hostname is invalid for ${modelId}: ${sourceUrl}`);
+        errors.push(
+          `Catalog sourceUrl hostname is invalid for ${modelId}: ${sourceUrl}`,
+        );
       } else {
         const allowedHosts = PROVIDER_SOURCE_HOST_ALLOWLIST[entry.provider];
         if (Array.isArray(allowedHosts) && allowedHosts.length > 0) {
@@ -302,7 +369,9 @@ function run() {
     } else {
       const parsed = new Date(`${verifiedAt}T00:00:00Z`);
       if (Number.isNaN(parsed.getTime())) {
-        errors.push(`verifiedAt is not a valid date for ${modelId}: ${verifiedAt}`);
+        errors.push(
+          `verifiedAt is not a valid date for ${modelId}: ${verifiedAt}`,
+        );
       } else {
         const ageDays = daysBetween(parsed, today);
         if (ageDays > MAX_STALE_DAYS) {
@@ -317,22 +386,75 @@ function run() {
     }
 
     const defaultAspect = String(entry.defaultAspect || "").trim();
-    const allowedAspects = Array.isArray(entry.allowedAspects) ? entry.allowedAspects : [];
+    const allowedAspects = Array.isArray(entry.allowedAspects)
+      ? entry.allowedAspects
+      : [];
+    const lifecycle = String(entry.lifecycle || "").trim();
+    const surfaces = Array.isArray(entry.surfaces) ? entry.surfaces : [];
+    const surfaceSet = new Set(surfaces.map((surface) => String(surface)));
+    if (!VALID_MODEL_LIFECYCLES.has(lifecycle)) {
+      errors.push(`lifecycle missing/invalid for ${modelId}`);
+    }
+    if (!surfaces.length) {
+      errors.push(`surfaces missing for ${modelId}`);
+    } else {
+      for (const surface of surfaceSet) {
+        if (!VALID_MODEL_SURFACES.has(surface)) {
+          errors.push(`Unknown model surface '${surface}' for ${modelId}`);
+        }
+      }
+    }
+    if (typeof entry.billable !== "boolean") {
+      errors.push(`billable missing/invalid for ${modelId}`);
+    }
+    if (surfaceSet.has("picker") && lifecycle !== "active") {
+      errors.push(`Picker model must be active: ${modelId}`);
+    }
+    if (surfaceSet.has("pricing")) {
+      if (entry.billable !== true) {
+        errors.push(`Pricing-surface model must be billable: ${modelId}`);
+      }
+      if (!String(entry.pricingStrategy || "").trim()) {
+        errors.push(
+          `Pricing-surface model missing pricingStrategy: ${modelId}`,
+        );
+      }
+    }
+    if (
+      entry.billable === true &&
+      !String(entry.pricingStrategy || "").trim()
+    ) {
+      errors.push(`Billable model missing pricingStrategy: ${modelId}`);
+    }
+    if (entry.billable === true && !surfaceSet.has("pricing")) {
+      errors.push(`Billable model missing pricing surface: ${modelId}`);
+    }
+    if (surfaceSet.has("picker") && !surfaceSet.has("runtime")) {
+      errors.push(`Picker model must also declare runtime surface: ${modelId}`);
+    }
     if (entry.submitAspectField !== "none") {
       if (!allowedAspects.length) {
         errors.push(`allowedAspects missing for ${modelId}`);
       } else if (!allowedAspects.includes(defaultAspect)) {
-        errors.push(`defaultAspect is not included in allowedAspects for ${modelId}`);
+        errors.push(
+          `defaultAspect is not included in allowedAspects for ${modelId}`,
+        );
       }
     }
 
-    const allowedDurations = Array.isArray(entry.allowedDurations) ? entry.allowedDurations : [];
+    const allowedDurations = Array.isArray(entry.allowedDurations)
+      ? entry.allowedDurations
+      : [];
     if (allowedDurations.length) {
       const defaultDuration = Number(entry.defaultDurationSeconds);
       if (!Number.isFinite(defaultDuration)) {
-        errors.push(`defaultDurationSeconds missing/invalid when allowedDurations is set for ${modelId}`);
+        errors.push(
+          `defaultDurationSeconds missing/invalid when allowedDurations is set for ${modelId}`,
+        );
       } else if (!allowedDurations.includes(defaultDuration)) {
-        errors.push(`defaultDurationSeconds must be present in allowedDurations for ${modelId}`);
+        errors.push(
+          `defaultDurationSeconds must be present in allowedDurations for ${modelId}`,
+        );
       }
     }
 
@@ -340,7 +462,10 @@ function run() {
       if (!String(entry.falSubmitUrl || "").trim()) {
         errors.push(`falSubmitUrl missing for Fal model ${modelId}`);
       }
-      if (!Array.isArray(entry.falStatusBaseUrls) || entry.falStatusBaseUrls.length === 0) {
+      if (
+        !Array.isArray(entry.falStatusBaseUrls) ||
+        entry.falStatusBaseUrls.length === 0
+      ) {
         errors.push(`falStatusBaseUrls missing for Fal model ${modelId}`);
       }
       if (!entry.payloadValidation) {
@@ -357,7 +482,10 @@ function run() {
       if (!String(entry.kieSubmitUrl || "").trim()) {
         errors.push(`kieSubmitUrl missing for Kie model ${modelId}`);
       }
-      if (!Array.isArray(entry.kieStatusBaseUrls) || entry.kieStatusBaseUrls.length === 0) {
+      if (
+        !Array.isArray(entry.kieStatusBaseUrls) ||
+        entry.kieStatusBaseUrls.length === 0
+      ) {
         errors.push(`kieStatusBaseUrls missing for Kie model ${modelId}`);
       }
     }
@@ -370,7 +498,9 @@ function run() {
 
     const docPath = path.join(DOCS_API_DIR, mappedDoc);
     if (!fs.existsSync(docPath)) {
-      errors.push(`Missing mapped API doc for ${modelId}: docs/api/${mappedDoc}`);
+      errors.push(
+        `Missing mapped API doc for ${modelId}: docs/api/${mappedDoc}`,
+      );
       continue;
     }
 
@@ -386,7 +516,9 @@ function run() {
   const falSubmitRouteDefinitions = listFalSubmitRouteDefinitions();
   for (const modelId of falSubmitModelIds) {
     if (!seenIds.has(modelId)) {
-      errors.push(`Fal submit route references unknown catalog model id: ${modelId}`);
+      errors.push(
+        `Fal submit route references unknown catalog model id: ${modelId}`,
+      );
     }
   }
 
@@ -395,13 +527,15 @@ function run() {
       (entry) =>
         entry.provider === "fal" &&
         String(entry.falSubmitUrl || "").trim().length > 0 &&
-        !RETIRED_FAL_SUBMIT_ROUTE_MODEL_IDS.has(String(entry.modelId || ""))
+        !RETIRED_FAL_SUBMIT_ROUTE_MODEL_IDS.has(String(entry.modelId || "")),
     )
     .map((entry) => entry.modelId);
 
   for (const modelId of falCatalogModelIds) {
     if (!falSubmitModelIds.has(modelId)) {
-      errors.push(`Catalog Fal model missing submit route coverage: ${modelId}`);
+      errors.push(
+        `Catalog Fal model missing submit route coverage: ${modelId}`,
+      );
     }
   }
 
@@ -412,62 +546,126 @@ function run() {
       continue;
     }
     if (!seenIds.has(modelId)) {
-      errors.push(`Runtime model registry model missing from catalog: ${modelId}`);
+      errors.push(
+        `Runtime model registry model missing from catalog: ${modelId}`,
+      );
     }
   }
 
-  const kieModelIdSet = new Set(kieSupportedModelIds.map((modelId) => String(modelId)));
+  const pickerModelIds = new Set(
+    listPickerModelConfigs().map((entry) => String(entry.id || "")),
+  );
+  const pricingModelIds = new Set(
+    listPricingModelConfigs().map((entry) => String(entry.id || "")),
+  );
+  for (const entry of entries) {
+    const modelId = String(entry.modelId || "");
+    const surfaces = new Set(
+      (Array.isArray(entry.surfaces) ? entry.surfaces : []).map(String),
+    );
+    if (surfaces.has("picker") && !pickerModelIds.has(modelId)) {
+      errors.push(
+        `Picker-surface catalog model missing from listPickerModelConfigs(): ${modelId}`,
+      );
+    }
+    if (surfaces.has("pricing") && !pricingModelIds.has(modelId)) {
+      errors.push(
+        `Pricing-surface catalog model missing from listPricingModelConfigs(): ${modelId}`,
+      );
+    }
+    if (!surfaces.has("picker") && pickerModelIds.has(modelId)) {
+      errors.push(
+        `Non-picker catalog model returned by listPickerModelConfigs(): ${modelId}`,
+      );
+    }
+    if (!surfaces.has("pricing") && pricingModelIds.has(modelId)) {
+      errors.push(
+        `Non-pricing catalog model returned by listPricingModelConfigs(): ${modelId}`,
+      );
+    }
+  }
+
+  const kieModelIdSet = new Set(
+    kieSupportedModelIds.map((modelId) => String(modelId)),
+  );
   const kieCatalogEntries = entries.filter((entry) => entry.provider === "kie");
-  const kieCatalogModelIds = new Set(kieCatalogEntries.map((entry) => String(entry.modelId || "")));
-  const kieRegistryEntries = registryEntries.filter((entry) => entry.provider === "kie");
-  const kieRegistryModelIds = new Set(kieRegistryEntries.map((entry) => String(entry.id || "")));
+  const kieCatalogModelIds = new Set(
+    kieCatalogEntries.map((entry) => String(entry.modelId || "")),
+  );
+  const kieRegistryEntries = registryEntries.filter(
+    (entry) => entry.provider === "kie",
+  );
+  const kieRegistryModelIds = new Set(
+    kieRegistryEntries.map((entry) => String(entry.id || "")),
+  );
 
   for (const modelId of kieModelIdSet) {
     if (!seenIds.has(modelId)) {
-      errors.push(`Canonical Kie model id missing from model catalog: ${modelId}`);
+      errors.push(
+        `Canonical Kie model id missing from model catalog: ${modelId}`,
+      );
       continue;
     }
     if (!kieCatalogModelIds.has(modelId)) {
-      errors.push(`Canonical Kie model id is not marked provider='kie' in catalog: ${modelId}`);
+      errors.push(
+        `Canonical Kie model id is not marked provider='kie' in catalog: ${modelId}`,
+      );
     }
     if (!MODEL_DOC_MAP[modelId]) {
-      errors.push(`Canonical Kie model id missing MODEL_DOC_MAP entry: ${modelId}`);
+      errors.push(
+        `Canonical Kie model id missing MODEL_DOC_MAP entry: ${modelId}`,
+      );
     }
     if (!kieRegistryModelIds.has(modelId)) {
-      errors.push(`Canonical Kie model id missing from model registry: ${modelId}`);
+      errors.push(
+        `Canonical Kie model id missing from model registry: ${modelId}`,
+      );
     }
   }
 
   for (const modelId of kieCatalogModelIds) {
     if (!kieModelIdSet.has(modelId)) {
-      errors.push(`Catalog Kie model id missing from canonical KIE_SUPPORTED_MODEL_IDS: ${modelId}`);
+      errors.push(
+        `Catalog Kie model id missing from canonical KIE_SUPPORTED_MODEL_IDS: ${modelId}`,
+      );
     }
   }
 
   for (const modelId of Object.keys(MODEL_DOC_MAP)) {
     if (!modelId.startsWith("kie-ai/")) continue;
     if (!kieModelIdSet.has(modelId)) {
-      errors.push(`Kie MODEL_DOC_MAP entry missing canonical KIE_SUPPORTED_MODEL_IDS mapping: ${modelId}`);
+      errors.push(
+        `Kie MODEL_DOC_MAP entry missing canonical KIE_SUPPORTED_MODEL_IDS mapping: ${modelId}`,
+      );
     }
   }
 
   for (const modelId of kieRegistryModelIds) {
     if (!kieModelIdSet.has(modelId)) {
-      errors.push(`Model registry Kie model id missing from canonical KIE_SUPPORTED_MODEL_IDS: ${modelId}`);
+      errors.push(
+        `Model registry Kie model id missing from canonical KIE_SUPPORTED_MODEL_IDS: ${modelId}`,
+      );
     }
   }
 
   for (const route of falSubmitRouteDefinitions) {
     const routeLabel = `frontend/pages/api/fal/${route.fileName}`;
     if (!route.modelId) {
-      errors.push(`${routeLabel} missing modelId in createFalSubmitHandler config.`);
+      errors.push(
+        `${routeLabel} missing modelId in createFalSubmitHandler config.`,
+      );
       continue;
     }
     if (!route.hasValidatePayload) {
-      errors.push(`${routeLabel} missing validatePayload in createFalSubmitHandler config.`);
+      errors.push(
+        `${routeLabel} missing validatePayload in createFalSubmitHandler config.`,
+      );
       continue;
     }
-    if (route.helperValidatorModelId && route.helperValidatorModelId !== route.modelId) {
+    if (
+      route.helperValidatorModelId &&
+      route.helperValidatorModelId !== route.modelId
+    ) {
       errors.push(
         `${routeLabel} validateFalPayloadForModel id mismatch: modelId='${route.modelId}' validate='${route.helperValidatorModelId}'.`,
       );

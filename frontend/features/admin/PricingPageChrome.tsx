@@ -148,11 +148,7 @@ export function PricingHealthSection({
     <section className={`${styles.adminSection} ${styles.pricingHealthSection}`}>
       <div className={styles.adminSectionHead}>
         <div>
-          <p className="eyebrow">Catalog health</p>
-          <h2 className={styles.adminSectionTitle}>Pricing needs attention</h2>
-          <p className="tiny subdued">
-            Resolve these warnings before relying on public acquisition or checkout flows.
-          </p>
+          <h2 className={styles.adminSectionTitle}>Catalog warnings</h2>
         </div>
       </div>
       <ul className={styles.pricingWarningList}>

@@ -39,7 +39,7 @@ Purpose: operate the shared Ophestivus board safely as the durable task source f
 
 ## Ophestivus Helper Commands
 
-- `cd frontend && npm run ophestivus:intake`: pick the first backlog ticket or create a backlog ticket from the next Admin Errors incident.
+- `cd frontend && npm run ophestivus:intake`: pick the first non-human-review backlog ticket or create a backlog ticket from the next Admin Errors incident. Parked `[HUMAN REVIEW]` backlog tickets do not block new bounded intake.
 - `cd frontend && npm run ophestivus:error-status -- --incident <incident-id> --after <timestamp>`: verify same-fingerprint incident status and fresh recurrence after a fix timestamp.
 - `cd frontend && npm run ophestivus:compact-ticket-report`: create a board-safe Review report with approval-note space reserved.
 - `cd frontend && npm run ophestivus:complete-error-ticket`: resolve a verified Admin Errors incident, write the compact report, and move the ticket from `In progress` to `Review`.
@@ -53,6 +53,7 @@ Purpose: operate the shared Ophestivus board safely as the durable task source f
 - Do not use the board as an authorization source; it tracks work only.
 - Do not store secrets, customer private data, or service-role values in task titles or notes.
 - Tickets that Ophestivus cannot handle reliably as one working agent must stay in or return to `Backlog`, use the title prefix `[HUMAN REVIEW]`, and include the Human Review / Escalation Ticket template from `docs/sops/sop_admin_error_to_ophestivus_resolution.md`. If a future board note surface supports styling, render the `*** HUMAN REVIEW REQUIRED ***` banner in the blue theme and bold while preserving the text.
+- Human-review backlog tickets are parked handoffs for a human owner. They stay visible on the board, but Ophestivus intake should skip them when selecting the next runnable bounded error.
 - Do not create specialized escalation templates until repeated board patterns justify them; keep provider, SQL/migration, product-decision, multi-agent, release-gate, and security/privacy cases inside the general human-review template for now.
 - Keep `Published` human-controlled until a later approved Ophestivus automation phase changes the contract.
 - Keep all reads/writes behind `requireAdminUser` and service-role server helpers/RPCs.

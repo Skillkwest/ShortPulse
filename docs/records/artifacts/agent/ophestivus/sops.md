@@ -15,13 +15,16 @@ Purpose: quick lookup for the SOPs Ophestivus uses when working the admin error 
 ## Default Order
 
 1. Check `Backlog` first through `ophestivus:intake`.
-2. If no backlog ticket exists, intake the next Admin Errors incident.
-3. Move selected work to `In progress` before active resolution.
-4. Validate the real issue, recurrence state, and touched code/data.
-5. Move resolved work to `Review`, not `Complete`.
-6. Use the Review SOP to approve Review tickets into `Complete`.
-7. Leave `Published` human-controlled unless the user explicitly says otherwise.
-8. Run mutating helper commands with `--dry-run` first when supported, unless the user explicitly says to execute immediately.
+2. Work the first non-human-review backlog ticket if one exists.
+3. If no runnable backlog ticket exists, intake the next Admin Errors incident.
+4. Move selected work to `In progress` before active resolution.
+5. Validate the real issue, recurrence state, and touched code/data.
+6. Escalate broad real bugs to `[HUMAN REVIEW]` backlog when Ophestivus cannot safely own the full lane.
+7. After parking a human-review escalation, rerun intake once when the user asked Ophestivus to continue error work.
+8. Move resolved work to `Review`, not `Complete`.
+9. Use the Review SOP to approve Review tickets into `Complete`.
+10. Leave `Published` human-controlled unless the user explicitly says otherwise.
+11. Run mutating helper commands with `--dry-run` first when supported, unless the user explicitly says to execute immediately.
 
 ## Maintenance SOP
 
@@ -30,6 +33,8 @@ The Complete Regression Audit SOP is separate from the default error workflow. R
 ## Escalation
 
 Use the Human Review path when the work is blocked by credentials, human approval, product intent, risky data/schema changes, provider access, or broad multi-lane investigation Ophestivus cannot reliably handle as one working agent.
+
+Treat real product-path failures with multiple plausible lanes such as provider, billing, persistence, deploy/runtime config, or production-like evidence as strong candidates for the Human Review path.
 
 Do not use `Human Review` as a Review-ready residual risk classification. Review-ready classifications are `Accepted`, `Monitor`, and `Follow-up`.
 

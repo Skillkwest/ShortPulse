@@ -44,7 +44,8 @@ Purpose: triage an Admin Errors incident into the Ophestivus board, work the iss
 
 - Start with the Ophestivus board before creating new work.
 - Preferred no-click intake: `cd frontend && npm run ophestivus:intake`.
-- If `Backlog` contains one or more active Ophestivus tickets, choose the first backlog ticket by board order.
+- If `Backlog` contains one or more active Ophestivus tickets, choose the first non-human-review backlog ticket by board order.
+- Treat backlog tickets already marked `[HUMAN REVIEW]` and/or `*** HUMAN REVIEW REQUIRED ***` as parked handoffs, not active runnable intake work.
 - Only inspect `/admin/errors` for a new incident when there are no active `Backlog` tickets, or when the user explicitly asks for a specific Admin Errors incident.
 - If the user names a specific incident or ticket, use that target.
 - If the backlog is empty and no specific incident is named, select the first open incident by this order:
@@ -71,6 +72,7 @@ Purpose: triage an Admin Errors incident into the Ophestivus board, work the iss
    - For runtime/UI/client incidents, run `ophestivus:error-event-detail` when possible to capture redacted stack frames, environment, visibility, build id, route, endpoint, and breadcrumb summary.
    - Load relevant repo instructions and scoped docs before editing.
    - Inspect the code path, API route, database access, migration history, recent runtime evidence, recurrence pattern, related endpoints, tests, and docs.
+   - Make an early scope call: decide whether the incident looks like a bounded defect/noise class Ophestivus can safely own, or a broader product-path failure that should be escalated for human review.
 
 4. Move the ticket to `In progress`.
    - Move the board item only after the intake gate is clean.
@@ -91,6 +93,7 @@ Purpose: triage an Admin Errors incident into the Ophestivus board, work the iss
 7. Choose the closeout path.
    - If blocked or unresolved, move the ticket back to `Backlog` with the blocked ticket template.
    - If the work is too broad or unreliable for Ophestivus to handle as one working agent, escalate it for human review, keep or move it to `Backlog`, and use the human-review banner below.
+   - After a human-review escalation is parked correctly, rerun intake once when the user asked Ophestivus to continue error work; continue with the next smaller bounded incident if one exists.
    - If fully resolved and verified, use `npm run ophestivus:complete-error-ticket -- --dry-run` first, then run it without `--dry-run` to write the full local report, resolve the incident, write the compact ticket summary with report path, and move the ticket to `Review`.
    - Use a manual closeout only when the helper is unavailable or the ticket is not an Admin Errors incident; write the full local report first, then write a compact ticket summary with the report path before moving the ticket to `Review`.
    - Leave `Published` untouched unless explicitly instructed by the user.
@@ -154,6 +157,7 @@ Stop and use the blocked path when any of these are true:
 - Two reasonable fix attempts fail validation.
 - Ophestivus spends 45-60 minutes without finding new evidence, a narrower root cause, or a viable next test.
 - The task needs multiple broad investigation lanes, parallel implementation owners, or cross-domain authority that Ophestivus cannot reliably coordinate as one working agent.
+- The incident appears to be a real product-path failure whose safe resolution depends on multiple lanes such as provider behavior, billing, persistence, deployment/runtime config, or production-like environment evidence.
 - The issue is blocked by credentials, admin login, production approval, vendor/provider access, missing external account access, or unclear product intent.
 - The likely fix requires risky production data/schema changes without explicit approval.
 - The root cause remains unclear after checking the relevant logs, code path, recent events, and focused tests.
@@ -169,6 +173,7 @@ When the stop rule triggers:
 - Rename the ticket with the title prefix `[HUMAN REVIEW]`.
 - Add the human-review banner and Human Review / Escalation Ticket template below with a plain-language handoff.
 - Include what was checked, what was tried, what remains unresolved, why continuing is unsafe or low value, the escalation needed, and the resume condition.
+- If the user asked Ophestivus to keep working errors after the escalation, rerun intake and select the next smaller bounded incident instead of stopping on the parked human-review ticket.
 - The current board renders details as plain text. Use the exact text banner below for clarity. If a future board surface supports styled notes, render the banner in the blue theme and bold, but do not depend on styling for meaning.
 
 Use one of these escalation labels when possible:
@@ -259,6 +264,7 @@ The local report is the durable audit record. Include incident data, investigati
 - Resolution cannot be proven: do not move the ticket to `Review`. Record what was checked, what remains uncertain, and the next required verification step.
 - Partial fix only: do not move the ticket to `Review`. Record the unresolved portion and either keep active work in `In progress` or move the ticket back to `Backlog` with the blocked ticket template.
 - Fix is risky or requires rollback: stop broad changes, document the risk, use the least destructive rollback path available, and keep the ticket out of `Review` until the incident and validation are clean.
+- Real broad bug found during intake: escalate it to `[HUMAN REVIEW]` backlog with the full handoff template, then rerun intake for the next smaller bounded incident when the user asked Ophestivus to continue.
 - Unrelated incidents discovered: do not resolve or ignore unrelated incidents as part of this SOP unless the user authorizes that scope.
 
 ## Validation
@@ -278,6 +284,7 @@ The local report is the durable audit record. Include incident data, investigati
 
 - Target incident identified and recorded on the ticket.
 - Ticket created in `Backlog`.
+- Parked `[HUMAN REVIEW]` backlog tickets did not block intake of a new bounded incident.
 - Newly ticketed Admin Errors incident and same-fingerprint open duplicates removed from the open error page with a board-tracking note.
 - Ticket moved to `In progress` before active resolution work.
 - Root cause inspected with supporting evidence.

@@ -4,7 +4,13 @@ import type {
   AspectDraftByModelId,
   ResolutionDraftByModelId,
 } from "./pricingDrafts";
-import { parseAudioDraft, shouldShowAudioSpecControl } from "./pricingDrafts";
+import {
+  getModelUsageControl,
+  getModelUsageDisplayValue,
+  getModelUsageValue,
+  parseAudioDraft,
+  shouldShowAudioSpecControl,
+} from "./pricingDrafts";
 
 export const formatUsd = (value: number): string => `$${value.toFixed(2)}`;
 
@@ -121,9 +127,15 @@ export const getModelDefaultDurationSeconds = (model: AdminPricingModelRow): num
   model.defaultDurationSeconds ?? model.defaultSourceDurationSeconds ?? null;
 
 export const getModelDurationSummary = (model: AdminPricingModelRow): string => {
-  const durationSeconds = getModelDefaultDurationSeconds(model);
-  return durationSeconds != null ? String(durationSeconds) : "";
+  const usageValue = getModelUsageValue(model, undefined);
+  return getModelUsageDisplayValue(model, usageValue);
 };
+
+export const getModelUsageLabel = (model: AdminPricingModelRow): string =>
+  getModelUsageControl(model).label;
+
+export const getModelUsageUnitLabel = (model: AdminPricingModelRow): string =>
+  getModelUsageControl(model).unitLabel;
 
 export const getVariantSpecSummary = (
   model: AdminPricingModelRow,

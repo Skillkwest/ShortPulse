@@ -32,7 +32,11 @@ import {
   type DurationDraftByModelId,
   type MarkupDraftByModelId,
   type ModelPricingSortOption,
-  type RoundingDraftByModelId,
+  type VariantMarkupDraftByVariantKey,
+  type ProviderCostDraftByModelId,
+  type ProviderCostPerSecondDraftByModelId,
+  type VariantProviderCostDraftByVariantKey,
+  type VariantProviderCostPerSecondDraftByVariantKey,
 } from "../pricingPageUtils";
 import { useAdminPricingCatalogState } from "./useAdminPricingCatalogState";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
@@ -42,6 +46,10 @@ import {
   modelPricingPolicyDocumentsEqual,
   type ModelPricingPolicyDocument,
 } from "../../../lib/model-runtime/pricingPolicy";
+import {
+  readAdminPricingWorkspaceDraft,
+  writeAdminPricingWorkspaceDraft,
+} from "./pricingWorkspacePersistence";
 
 const planEconomicsDraftsEqual = (
   left: PlanEconomicsDraft | null | undefined,
@@ -81,7 +89,17 @@ export function useAdminPricingPageState({
   const [audioDrafts, setAudioDrafts] = React.useState<AudioDraftByModelId>({});
   const [creditScaleDrafts, setCreditScaleDrafts] = React.useState<CreditScaleDraftByModelId>({});
   const [markupDrafts, setMarkupDrafts] = React.useState<MarkupDraftByModelId>({});
-  const [roundingDrafts, setRoundingDrafts] = React.useState<RoundingDraftByModelId>({});
+  const [variantMarkupDrafts, setVariantMarkupDrafts] =
+    React.useState<VariantMarkupDraftByVariantKey>({});
+  const [providerCostDrafts, setProviderCostDrafts] = React.useState<ProviderCostDraftByModelId>(
+    {}
+  );
+  const [providerCostPerSecondDrafts, setProviderCostPerSecondDrafts] =
+    React.useState<ProviderCostPerSecondDraftByModelId>({});
+  const [variantProviderCostDrafts, setVariantProviderCostDrafts] =
+    React.useState<VariantProviderCostDraftByVariantKey>({});
+  const [variantProviderCostPerSecondDrafts, setVariantProviderCostPerSecondDrafts] =
+    React.useState<VariantProviderCostPerSecondDraftByVariantKey>({});
 
   const [modelPolicyDraft, setModelPolicyDraft] = React.useState<ModelPricingPolicyDocument | null>(
     null
@@ -91,7 +109,6 @@ export function useAdminPricingPageState({
   const [modelPolicyRollbackLoading, setModelPolicyRollbackLoading] = React.useState(false);
   const [modelPolicyMessage, setModelPolicyMessage] = React.useState<string | null>(null);
   const [modelPolicyError, setModelPolicyError] = React.useState<string | null>(null);
-  const [selectedModelOverrideId, setSelectedModelOverrideId] = React.useState<string | null>(null);
   const [modelSearchQuery, setModelSearchQuery] = React.useState("");
   const [modelSortOption, setModelSortOption] = React.useState<ModelPricingSortOption>("type");
   const [globalCreditScaleDraft, setGlobalCreditScaleDraft] = React.useState("");
@@ -107,16 +124,12 @@ export function useAdminPricingPageState({
     Record<string, UsageMixDraftRow[]>
   >({});
   const planEconomicsSeedByPlanIdRef = React.useRef<Record<string, PlanEconomicsDraft>>({});
-  const modelPolicyDirtyRef = React.useRef(modelPolicyDirty);
+  const [pricingWorkspaceHydrated, setPricingWorkspaceHydrated] = React.useState(false);
   const catalogState = useAdminPricingCatalogState({
     pricingState,
     refreshPricingState,
     setPendingConfirmation,
   });
-
-  React.useEffect(() => {
-    modelPolicyDirtyRef.current = modelPolicyDirty;
-  }, [modelPolicyDirty]);
 
   const showCostDocsPopover = React.useCallback(
     (
@@ -148,12 +161,50 @@ export function useAdminPricingPageState({
   );
 
   React.useEffect(() => {
-    if (!pricingState || modelPolicyDirtyRef.current) return;
+    if (!pricingState || pricingWorkspaceHydrated) return;
+    const restoredWorkspace = readAdminPricingWorkspaceDraft();
+    if (restoredWorkspace) {
+      const restoredPolicyDraft = restoredWorkspace.modelPolicyDraft ?? activeModelPolicyDocument;
+      const nextModelPolicyDraft = compactModelPricingPolicyDocument(restoredPolicyDraft);
+      const nextModelPolicyDirty =
+        restoredWorkspace.modelPolicyDirty ||
+        !modelPricingPolicyDocumentsEqual(nextModelPolicyDraft, activeModelPolicyDocument);
+
+      setDurationDrafts(restoredWorkspace.durationDrafts);
+      setAspectDrafts(restoredWorkspace.aspectDrafts);
+      setResolutionDrafts(restoredWorkspace.resolutionDrafts);
+      setAudioDrafts(restoredWorkspace.audioDrafts);
+      setCreditScaleDrafts(restoredWorkspace.creditScaleDrafts);
+      setMarkupDrafts(restoredWorkspace.markupDrafts);
+      setVariantMarkupDrafts(restoredWorkspace.variantMarkupDrafts);
+      setProviderCostDrafts(restoredWorkspace.providerCostDrafts);
+      setProviderCostPerSecondDrafts(restoredWorkspace.providerCostPerSecondDrafts);
+      setVariantProviderCostDrafts(restoredWorkspace.variantProviderCostDrafts);
+      setVariantProviderCostPerSecondDrafts(restoredWorkspace.variantProviderCostPerSecondDrafts);
+      setModelPolicyDraft(nextModelPolicyDraft);
+      setModelPolicyDirty(nextModelPolicyDirty);
+      setModelSearchQuery(restoredWorkspace.modelSearchQuery);
+      setModelSortOption(restoredWorkspace.modelSortOption);
+      setGlobalCreditScaleDraft(restoredWorkspace.globalCreditScaleDraft);
+      setGlobalCreditUsdAmountDraft(restoredWorkspace.globalCreditUsdAmountDraft);
+      setPlanEconomicsDrafts(restoredWorkspace.planEconomicsDrafts);
+      setSelectedUsagePlanId(restoredWorkspace.selectedUsagePlanId);
+      setUsageMixRowsByPlanId(restoredWorkspace.usageMixRowsByPlanId);
+    }
+    setPricingWorkspaceHydrated(true);
+  }, [activeModelPolicyDocument, pricingState, pricingWorkspaceHydrated]);
+
+  React.useEffect(() => {
+    if (!pricingState || modelPolicyDirty || !pricingWorkspaceHydrated) return;
     setModelPolicyDraft(activeModelPolicyDocument);
     setCreditScaleDrafts({});
     setMarkupDrafts({});
-    setRoundingDrafts({});
-  }, [activeModelPolicyDocument, pricingState]);
+    setVariantMarkupDrafts({});
+    setProviderCostDrafts({});
+    setProviderCostPerSecondDrafts({});
+    setVariantProviderCostDrafts({});
+    setVariantProviderCostPerSecondDrafts({});
+  }, [activeModelPolicyDocument, modelPolicyDirty, pricingState, pricingWorkspaceHydrated]);
 
   const effectiveModelPolicyDraft = modelPolicyDraft ?? activeModelPolicyDocument;
 
@@ -163,10 +214,59 @@ export function useAdminPricingPageState({
     setGlobalCreditUsdAmountDraft("1");
   }, [effectiveModelPolicyDraft.global.creditUsdScale, modelPolicyDirty]);
 
-  const selectedModelRow = React.useMemo(
-    () => pricingState?.models.find((model) => model.id === selectedModelOverrideId) ?? null,
-    [pricingState?.models, selectedModelOverrideId]
-  );
+  React.useEffect(() => {
+    if (!pricingState || !pricingWorkspaceHydrated) return;
+    writeAdminPricingWorkspaceDraft({
+      version: 1,
+      savedAt: new Date().toISOString(),
+      sourceActivePolicyVersion: modelPolicySnapshot?.activePolicyVersion ?? null,
+      modelPolicyDirty,
+      modelPolicyDraft: effectiveModelPolicyDraft,
+      durationDrafts,
+      aspectDrafts,
+      resolutionDrafts,
+      audioDrafts,
+      creditScaleDrafts,
+      markupDrafts,
+      variantMarkupDrafts,
+      providerCostDrafts,
+      providerCostPerSecondDrafts,
+      variantProviderCostDrafts,
+      variantProviderCostPerSecondDrafts,
+      modelSearchQuery,
+      modelSortOption,
+      globalCreditScaleDraft,
+      globalCreditUsdAmountDraft,
+      selectedUsagePlanId,
+      planEconomicsDrafts,
+      usageMixRowsByPlanId,
+    });
+  }, [
+    aspectDrafts,
+    audioDrafts,
+    creditScaleDrafts,
+    durationDrafts,
+    effectiveModelPolicyDraft,
+    globalCreditScaleDraft,
+    globalCreditUsdAmountDraft,
+    markupDrafts,
+    modelPolicyDirty,
+    modelSearchQuery,
+    modelSortOption,
+    modelPolicySnapshot?.activePolicyVersion,
+    planEconomicsDrafts,
+    pricingState,
+    pricingWorkspaceHydrated,
+    providerCostDrafts,
+    providerCostPerSecondDrafts,
+    resolutionDrafts,
+    selectedUsagePlanId,
+    usageMixRowsByPlanId,
+    variantMarkupDrafts,
+    variantProviderCostDrafts,
+    variantProviderCostPerSecondDrafts,
+  ]);
+
   const filteredModels = React.useMemo(() => {
     const models = pricingState?.models ?? [];
     const query = modelSearchQuery.trim().toLowerCase();
@@ -451,17 +551,54 @@ export function useAdminPricingPageState({
     });
     if (hasInvalidMarkupDraft) return true;
 
-    return Object.values(roundingDrafts).some((value) => {
+    const hasInvalidVariantMarkupDraft = Object.values(variantMarkupDrafts).some((value) => {
       if (value.trim() === "") return false;
-      const parsed = parseIntegerInput(value);
-      return parsed == null || parsed <= 0;
+      const parsed = parsePercentToBps(value);
+      return parsed == null || parsed < 0;
     });
+    if (hasInvalidVariantMarkupDraft) return true;
+
+    const hasInvalidProviderCostDraft = Object.values(providerCostDrafts).some((value) => {
+      if (value.trim() === "") return false;
+      return parsePositiveDecimalInput(value) == null;
+    });
+    if (hasInvalidProviderCostDraft) return true;
+
+    const hasInvalidProviderCostPerSecondDraft = Object.values(providerCostPerSecondDrafts).some(
+      (value) => {
+        if (value.trim() === "") return false;
+        return parsePositiveDecimalInput(value) == null;
+      }
+    );
+    if (hasInvalidProviderCostPerSecondDraft) return true;
+
+    const hasInvalidVariantProviderCostDraft = Object.values(variantProviderCostDrafts).some(
+      (value) => {
+        if (value.trim() === "") return false;
+        return parsePositiveDecimalInput(value) == null;
+      }
+    );
+    if (hasInvalidVariantProviderCostDraft) return true;
+
+    const hasInvalidVariantProviderCostPerSecondDraft = Object.values(
+      variantProviderCostPerSecondDrafts
+    ).some((value) => {
+      if (value.trim() === "") return false;
+      return parsePositiveDecimalInput(value) == null;
+    });
+    if (hasInvalidVariantProviderCostPerSecondDraft) return true;
+
+    return false;
   }, [
     creditScaleDrafts,
     globalCreditScaleDraft,
     globalCreditUsdAmountDraft,
     markupDrafts,
-    roundingDrafts,
+    providerCostDrafts,
+    providerCostPerSecondDrafts,
+    variantMarkupDrafts,
+    variantProviderCostDrafts,
+    variantProviderCostPerSecondDrafts,
   ]);
 
   const pricingWorkspaceState: PricingWorkspaceState | null = !pricingState
@@ -571,7 +708,11 @@ export function useAdminPricingPageState({
     setAudioDrafts({});
     setCreditScaleDrafts({});
     setMarkupDrafts({});
-    setRoundingDrafts({});
+    setVariantMarkupDrafts({});
+    setProviderCostDrafts({});
+    setProviderCostPerSecondDrafts({});
+    setVariantProviderCostDrafts({});
+    setVariantProviderCostPerSecondDrafts({});
     setPlanEconomicsDrafts(buildPlanEconomicsDefaults());
     setUsageMixRowsByPlanId(buildUsageMixDefaults());
     setModelPolicyDirty(false);
@@ -740,10 +881,17 @@ export function useAdminPricingPageState({
     setCreditScaleDrafts,
     markupDrafts,
     setMarkupDrafts,
-    roundingDrafts,
-    setRoundingDrafts,
+    variantMarkupDrafts,
+    setVariantMarkupDrafts,
+    providerCostDrafts,
+    setProviderCostDrafts,
+    providerCostPerSecondDrafts,
+    setProviderCostPerSecondDrafts,
+    variantProviderCostDrafts,
+    setVariantProviderCostDrafts,
+    variantProviderCostPerSecondDrafts,
+    setVariantProviderCostPerSecondDrafts,
     effectiveModelPolicyDraft,
-    selectedModelRow,
     displayedModels,
     canApplyModelPolicy,
     modelPolicySaving,
@@ -765,7 +913,6 @@ export function useAdminPricingPageState({
     pendingConfirmation,
     showCostDocsPopover,
     hideCostDocsPopover,
-    setSelectedModelOverrideId,
     updateModelPolicyDraft,
     openModelPolicyApplyConfirmation,
     openModelPolicyRollbackConfirmation,

@@ -4,7 +4,8 @@ import type {
   AdminPricingPreviewVariant,
 } from "./types";
 import { buildDefaultPricingParams, computeCostForModel } from "../../lib/model-runtime/pricing";
-import { shouldShowAudioSpecControl } from "./pricingDrafts";
+import { buildModelUsagePricingOverrides, shouldShowAudioSpecControl } from "./pricingDrafts";
+import { buildModelPricingVariantId } from "../../lib/model-runtime/modelPricingVariants";
 
 export type CostDocsPopover = {
   x: number;
@@ -213,6 +214,7 @@ const shouldExpandAspectPricingVariants = (model: AdminPricingModelRow): boolean
 const shouldExpandResolutionPricingVariants = (model: AdminPricingModelRow): boolean =>
   [
     "gpt-image-2-per-image",
+    "kling-3-per-second",
     "nano-banana-2-per-image",
     "nano-banana-per-image",
     "seedream-per-image",
@@ -256,29 +258,11 @@ const buildAudioOptions = (
   return orderWithDefaultFirst([true, false], model.defaultAudio ?? true);
 };
 
-const buildVariantId = ({
-  baseVariantId,
-  aspect,
-  resolution,
-  audio,
-}: {
-  baseVariantId: string;
-  aspect: string;
-  resolution: string | null;
-  audio: boolean | null;
-}): string => {
-  const idParts = [baseVariantId];
-  if (resolution) idParts.push(`res:${resolution}`);
-  if (aspect) idParts.push(`aspect:${aspect}`);
-  if (audio != null) idParts.push(`audio:${audio ? "on" : "off"}`);
-  return idParts.join("|");
-};
-
 export const buildDraftPricingPreviewVariants = (
   model: AdminPricingModelRow,
   pricingPolicy: Parameters<typeof computeCostForModel>[2],
   options: {
-    durationSeconds?: number | null;
+    usageAmount?: number | null;
     aspect?: string | null;
     resolution?: string | null;
     audio?: boolean | null;
@@ -304,25 +288,22 @@ export const buildDraftPricingPreviewVariants = (
       resolutionOptions.flatMap((resolution) =>
         aspectOptions.flatMap((aspect) =>
           audioOptions.map((audio): AdminPricingPreviewVariant | null => {
-            const durationSeconds = options.durationSeconds ?? null;
-            const durationOverrides =
-              durationSeconds != null
-                ? model.pricingStrategy === "elevenlabs-voice-changer-per-minute"
-                  ? { sourceDurationSeconds: durationSeconds }
-                  : { durationSeconds }
-                : {};
+            const usageOverrides = buildModelUsagePricingOverrides(
+              model,
+              options.usageAmount ?? null
+            );
             const params = buildDefaultPricingParams(model.id, {
               ...(aspect ? { aspect } : {}),
               ...(resolution ? { resolution } : {}),
               ...(audio != null ? { audio } : {}),
-              ...durationOverrides,
+              ...usageOverrides,
               ...(variant.id === "edit" ? { inputImageCount: 1, inputFidelity: "high" } : {}),
             });
             const breakdown =
               mapDraftPricingBreakdown(model.id, params, pricingPolicy) ?? variant.breakdown;
             if (!breakdown) return null;
             return {
-              id: buildVariantId({
+              id: buildModelPricingVariantId({
                 baseVariantId: variant.id,
                 aspect,
                 resolution,

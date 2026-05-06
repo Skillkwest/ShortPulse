@@ -19,6 +19,7 @@ import {
   KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "./providerModelIds";
+import { resolveModelPricingVariantId } from "./modelPricingVariants";
 
 const FAL_COST_PER_MP_USD = 0.025;
 const ECONOMY_IMAGE_COST_PER_MP_USD = 0.006;
@@ -29,9 +30,9 @@ const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
 const ELEVENLABS_TEXT_TO_SPEECH_USD_PER_1K_CHARACTERS = 0.1;
 const ELEVENLABS_VOICE_CHANGER_USD_PER_MINUTE = 0.12;
-const ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION = 0.12;
-// ElevenLabs documents explicit-duration sound effects as 20 internal credits / second and
-// auto-duration as 100 credits / generation. We normalize both onto the published USD basis.
+const ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION = 0.01;
+// ElevenLabs API pricing documents sound effects at 100 credits / generation for auto-duration
+// and 20 credits / second when duration is explicitly requested.
 const ELEVENLABS_SOUND_EFFECT_EXPLICIT_USD_PER_SECOND =
   ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION / 5;
 const ELEVENLABS_MUSIC_USD_PER_MINUTE = 0.3;
@@ -74,6 +75,9 @@ const resolvePositiveFiniteNumber = (value: number | undefined): number | null =
   return value;
 };
 
+const resolveOutputCount = (generationCount: number | undefined): number =>
+  Math.max(1, Math.round(resolvePositiveFiniteNumber(generationCount) ?? 1));
+
 const toCostBreakdown = ({
   modelId,
   usdRaw,
@@ -82,6 +86,7 @@ const toCostBreakdown = ({
   height,
   applyMarkup,
   policy,
+  variantId = null,
 }: {
   modelId: string;
   usdRaw: number;
@@ -90,12 +95,14 @@ const toCostBreakdown = ({
   height: number;
   applyMarkup?: boolean;
   policy?: PricingParams["pricingPolicy"];
+  variantId?: string | null;
 }): CostBreakdown => {
   const quantized = convertUsdToCredits({
     usdRaw,
     modelId,
     applyMarkup: applyMarkup ?? true,
     policy,
+    variantId,
   });
   return {
     credits: quantized.credits,
@@ -164,13 +171,14 @@ const computeFalPerMpCost: StrategyFn = ({
   aspect,
   imageWidth,
   imageHeight,
+  generationCount,
   pricingPolicy,
 }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw = megapixels * FAL_COST_PER_MP_USD;
+  const usdRaw = megapixels * FAL_COST_PER_MP_USD * resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -178,6 +186,13 @@ const computeFalPerMpCost: StrategyFn = ({
     width: size.width,
     height: size.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      aspect,
+      imageWidth,
+      imageHeight,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -186,16 +201,18 @@ const computeEconomyFalImageCost: StrategyFn = ({
   aspect,
   imageWidth,
   imageHeight,
+  generationCount,
   pricingPolicy,
 }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
+  const outputCount = resolveOutputCount(generationCount);
   const usdRaw =
     modelId === "fal-ai/bria/background/remove"
-      ? BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD
-      : megapixels * ECONOMY_IMAGE_COST_PER_MP_USD;
+      ? BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD * outputCount
+      : megapixels * ECONOMY_IMAGE_COST_PER_MP_USD * outputCount;
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -203,6 +220,13 @@ const computeEconomyFalImageCost: StrategyFn = ({
     width: size.width,
     height: size.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      aspect,
+      imageWidth,
+      imageHeight,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -211,13 +235,14 @@ const computeFalFillPerMpCost: StrategyFn = ({
   aspect,
   imageWidth,
   imageHeight,
+  generationCount,
   pricingPolicy,
 }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw = megapixels * FLUX_PRO_FILL_COST_PER_MP_USD;
+  const usdRaw = megapixels * FLUX_PRO_FILL_COST_PER_MP_USD * resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -225,6 +250,13 @@ const computeFalFillPerMpCost: StrategyFn = ({
     width: size.width,
     height: size.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      aspect,
+      imageWidth,
+      imageHeight,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -233,13 +265,15 @@ const computeFluxKontextInpaintPerMpCost: StrategyFn = ({
   aspect,
   imageWidth,
   imageHeight,
+  generationCount,
   pricingPolicy,
 }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw = megapixels * FLUX_KONTEXT_INPAINT_COST_PER_MP_USD;
+  const usdRaw =
+    megapixels * FLUX_KONTEXT_INPAINT_COST_PER_MP_USD * resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -247,17 +281,29 @@ const computeFluxKontextInpaintPerMpCost: StrategyFn = ({
     width: size.width,
     height: size.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      aspect,
+      imageWidth,
+      imageHeight,
+      pricingPolicy,
+    }),
   });
 };
 
-const computeGoogleNanoBananaPerImageCost: StrategyFn = ({ modelId, pricingPolicy }) => {
+const computeGoogleNanoBananaPerImageCost: StrategyFn = ({
+  modelId,
+  generationCount,
+  pricingPolicy,
+}) => {
   return toCostBreakdown({
     modelId,
-    usdRaw: GOOGLE_NANO_BANANA_PER_IMAGE_USD,
+    usdRaw: GOOGLE_NANO_BANANA_PER_IMAGE_USD * resolveOutputCount(generationCount),
     megapixels: 0,
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, pricingPolicy }),
   });
 };
 
@@ -273,7 +319,7 @@ const computeGptImage2PerImageCost: StrategyFn = ({
   const size = resolveGptImage2Size(params);
   const quality = resolveGptImage2Quality(params);
   const outputUsdPerImage = OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD[size][quality];
-  const outputCount = Math.max(1, Math.round(resolvePositiveFiniteNumber(generationCount) ?? 1));
+  const outputCount = resolveOutputCount(generationCount);
   const dimensions = OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS[size];
   const megapixels = (dimensions.width * dimensions.height) / 1_000_000;
   const normalizedInputImageCount = Math.max(
@@ -299,6 +345,16 @@ const computeGptImage2PerImageCost: StrategyFn = ({
     width: dimensions.width,
     height: dimensions.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      inputImageCount,
+      inputFidelity,
+      maskPresent,
+      size,
+      quality,
+      resolution: quality,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -322,6 +378,7 @@ const computeOpenAiTextTokenCost: StrategyFn = ({
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, pricingPolicy }),
   });
 };
 
@@ -341,6 +398,7 @@ const computeElevenLabsTextToSpeechCost: StrategyFn = ({
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, textCharacters, pricingPolicy }),
   });
 };
 
@@ -359,6 +417,11 @@ const computeElevenLabsVoiceChangerCost: StrategyFn = ({
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      sourceDurationSeconds,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -385,6 +448,12 @@ const computeElevenLabsSoundEffectCost: StrategyFn = ({
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      durationSeconds,
+      generationCount,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -401,30 +470,43 @@ const computeElevenLabsMusicCost: StrategyFn = ({ durationSeconds, modelId, pric
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, durationSeconds, pricingPolicy }),
   });
 };
 
-const computeSeedreamPerImageCost: StrategyFn = ({ modelId, resolution, pricingPolicy }) => {
+const computeSeedreamPerImageCost: StrategyFn = ({
+  modelId,
+  resolution,
+  generationCount,
+  pricingPolicy,
+}) => {
   const baseUsd = 0.04;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
+  const outputCount = resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
-    usdRaw: baseUsd * resolutionMultiplier,
+    usdRaw: baseUsd * resolutionMultiplier * outputCount,
     megapixels: 0,
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, resolution, pricingPolicy }),
   });
 };
 
-const computeSeedream5LitePerImageCost: StrategyFn = ({ modelId, pricingPolicy }) => {
+const computeSeedream5LitePerImageCost: StrategyFn = ({
+  modelId,
+  generationCount,
+  pricingPolicy,
+}) => {
   return toCostBreakdown({
     modelId,
-    usdRaw: 0.035,
+    usdRaw: 0.035 * resolveOutputCount(generationCount),
     megapixels: 0,
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, pricingPolicy }),
   });
 };
 
@@ -432,6 +514,7 @@ const computeNanoBanana2PerImageCost: StrategyFn = ({
   modelId,
   resolution,
   webSearch,
+  generationCount,
   pricingPolicy,
 }) => {
   const baseUsd = 0.08;
@@ -445,13 +528,20 @@ const computeNanoBanana2PerImageCost: StrategyFn = ({
           ? 0.75
           : 1;
   const webSearchUsd = webSearch ? 0.015 : 0;
+  const outputCount = resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
-    usdRaw: baseUsd * resolutionMultiplier + webSearchUsd,
+    usdRaw: (baseUsd * resolutionMultiplier + webSearchUsd) * outputCount,
     megapixels: 0,
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      resolution,
+      webSearch,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -459,18 +549,26 @@ const computeNanoBananaPerImageCost: StrategyFn = ({
   modelId,
   resolution,
   webSearch,
+  generationCount,
   pricingPolicy,
 }) => {
   const baseUsd = 0.15;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
   const webSearchUsd = webSearch ? 0.015 : 0;
+  const outputCount = resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
-    usdRaw: baseUsd * resolutionMultiplier + webSearchUsd,
+    usdRaw: (baseUsd * resolutionMultiplier + webSearchUsd) * outputCount,
     megapixels: 0,
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      resolution,
+      webSearch,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -522,6 +620,7 @@ const computeKling3PerSecondCost: StrategyFn = (params) => {
     width: 0,
     height: 0,
     policy: params.pricingPolicy,
+    variantId: resolveModelPricingVariantId(params),
   });
 };
 
@@ -534,6 +633,7 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
       width: 0,
       height: 0,
       policy: params.pricingPolicy,
+      variantId: resolveModelPricingVariantId(params),
     });
   }
 
@@ -556,6 +656,7 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
     width: 0,
     height: 0,
     policy: params.pricingPolicy,
+    variantId: resolveModelPricingVariantId(params),
   });
 };
 
@@ -600,6 +701,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
       width: resolution.width,
       height: resolution.height,
       policy: params.pricingPolicy,
+      variantId: resolveModelPricingVariantId(params),
     });
   }
 
@@ -626,6 +728,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
     width: resolution.width,
     height: resolution.height,
     policy: params.pricingPolicy,
+    variantId: resolveModelPricingVariantId(params),
   });
 };
 

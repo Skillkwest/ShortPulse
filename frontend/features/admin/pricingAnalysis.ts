@@ -5,12 +5,15 @@ import {
 import { buildDraftPricingPreviewVariants } from "./pricingCostDocs";
 import {
   formatCredits,
-  getModelDefaultDurationSeconds,
+  getModelUsageLabel,
   getModelTypeLabel,
   getVariantSpecSummary,
 } from "./pricingFormatting";
 import {
-  parseDurationSecondsInput,
+  getModelDurationSecondsForUsage,
+  getModelUsageDisplayValue,
+  getModelUsageRateMultiplier,
+  getModelUsageValue,
   type AudioDraftByModelId,
   type AspectDraftByModelId,
   type ResolutionDraftByModelId,
@@ -20,6 +23,8 @@ import {
   CALCULATOR_REFERENCE_PLAN_PRICE_USD,
 } from "./pricingReferenceDefaults";
 import {
+  getEffectiveProviderCostUsd,
+  getEffectiveProviderCostUsdPerSecond,
   getCreditsAtProviderCost,
   getPricingMargin,
   getWorkbookBillableCredits,
@@ -49,6 +54,8 @@ export type ModelEconomicsRow = {
   provider: AdminPricingModelRow["provider"];
   typeLabel: string;
   specLabel: string;
+  usageLabel: string;
+  usageValueLabel: string;
   durationSeconds: number | null;
   providerCostUsd: number | null;
   costPerSecondUsd: number | null;
@@ -128,39 +135,57 @@ const buildModelEconomicsRow = ({
   resolutionDrafts?: ResolutionDraftByModelId;
   audioDrafts?: AudioDraftByModelId;
 }): ModelEconomicsRow => {
-  const resolvedPolicy = resolveModelPricingForModel(pricingPolicy, model.id);
+  const resolvedPolicy = resolveModelPricingForModel(pricingPolicy, model.id, variant.id);
   const isSharedPolicyModel = model.pricingAuthority === "shared_policy";
-  const creditsAtCost =
-    variant.breakdown.rawCredits ??
-    (isSharedPolicyModel
-      ? getCreditsAtProviderCost(variant.breakdown, resolvedPolicy.creditUsdScale)
-      : null);
+  const usageValue = durationSecondsOverride ?? getModelUsageValue(model, undefined);
+  const durationSeconds = getModelDurationSecondsForUsage(model, usageValue);
+  const usageRateMultiplier = getModelUsageRateMultiplier(model, usageValue);
+  const providerCostUsd = isSharedPolicyModel
+    ? getEffectiveProviderCostUsd({
+        breakdown: variant.breakdown,
+        providerUsdOverride: resolvedPolicy.providerUsdOverride,
+        providerUsdPerSecondOverride: resolvedPolicy.providerUsdPerSecondOverride,
+        durationSeconds,
+        usageRateMultiplier,
+      })
+    : variant.breakdown.usdRaw;
+  const costPerSecondUsd = isSharedPolicyModel
+    ? getEffectiveProviderCostUsdPerSecond({
+        providerCostUsd,
+        providerUsdPerSecondOverride: resolvedPolicy.providerUsdPerSecondOverride,
+        durationSeconds,
+      })
+    : durationSeconds != null && durationSeconds > 0 && providerCostUsd != null
+      ? providerCostUsd / durationSeconds
+      : null;
+  const creditsAtCost = isSharedPolicyModel
+    ? getCreditsAtProviderCost(variant.breakdown, resolvedPolicy.creditUsdScale, {
+        preferRuntimeCredits: false,
+        providerCostUsd,
+      })
+    : (variant.breakdown.rawCredits ?? null);
   const billedCredits =
-    variant.breakdown.billedCredits ??
-    (isSharedPolicyModel && creditsAtCost != null
+    isSharedPolicyModel && creditsAtCost != null
       ? getWorkbookBillableCredits({
           breakdown: variant.breakdown,
           creditsAtCost,
           markupBps: resolvedPolicy.markupBps,
           roundingIncrement: resolvedPolicy.roundingIncrement,
+          preferRuntimeBilledCredits: false,
         })
-      : null);
+      : (variant.breakdown.billedCredits ?? null);
   const billedUsd =
-    variant.breakdown.billedUsd ??
-    (isSharedPolicyModel && billedCredits != null
+    isSharedPolicyModel && billedCredits != null
       ? getWorkbookBillableUsd(
           billedCredits,
           resolvedPolicy.creditUsdScale,
-          variant.breakdown.billedUsd
+          variant.breakdown.billedUsd,
+          {
+            preferRuntimeBilledUsd: false,
+          }
         )
-      : null);
-  const margin = getPricingMargin(variant.breakdown, billedUsd);
-  const durationSeconds = durationSecondsOverride ?? getModelDefaultDurationSeconds(model);
-  const providerCostUsd = variant.breakdown.usdRaw;
-  const costPerSecondUsd =
-    durationSeconds != null && durationSeconds > 0 && providerCostUsd != null
-      ? providerCostUsd / durationSeconds
-      : null;
+      : (variant.breakdown.billedUsd ?? null);
+  const margin = getPricingMargin(variant.breakdown, billedUsd, providerCostUsd);
 
   return {
     key: `${model.id}:${variant.id}`,
@@ -174,6 +199,8 @@ const buildModelEconomicsRow = ({
       resolutionDrafts,
       audioDrafts,
     }),
+    usageLabel: getModelUsageLabel(model),
+    usageValueLabel: getModelUsageDisplayValue(model, usageValue),
     durationSeconds,
     providerCostUsd,
     costPerSecondUsd,
@@ -205,9 +232,9 @@ export const buildModelEconomicsRows = ({
   audioDrafts?: AudioDraftByModelId;
 }): ModelEconomicsRow[] =>
   models.flatMap((model) => {
-    const parsedDuration = parseDurationSecondsInput(durationDrafts[model.id] ?? "");
+    const parsedDuration = getModelUsageValue(model, durationDrafts[model.id]);
     const variants = buildDraftPricingPreviewVariants(model, pricingPolicy, {
-      durationSeconds: parsedDuration,
+      usageAmount: parsedDuration,
     });
     return variants.map((variant) =>
       buildModelEconomicsRow({
@@ -245,9 +272,9 @@ export const buildSelectedModelEconomicsRow = ({
   const model = models.find((candidate) => candidate.id === modelId);
   if (!model) return null;
   const parsedDuration =
-    durationSeconds == null ? null : parseDurationSecondsInput(String(durationSeconds));
+    durationSeconds == null ? null : getModelUsageValue(model, String(durationSeconds));
   const variants = buildDraftPricingPreviewVariants(model, pricingPolicy, {
-    durationSeconds: parsedDuration,
+    usageAmount: parsedDuration,
   });
   const selectedVariant =
     variants.find((candidate) => candidate.id === variantId) ?? variants[0] ?? null;
@@ -485,11 +512,7 @@ export const describeDraftPolicyDiff = ({
   const changedModels = Array.from(modelIds).filter((modelId) => {
     const liveOverride = livePolicy.perModel[modelId] ?? {};
     const draftOverride = draftPolicy.perModel[modelId] ?? {};
-    return (
-      liveOverride.creditUsdScale !== draftOverride.creditUsdScale ||
-      liveOverride.markupBps !== draftOverride.markupBps ||
-      liveOverride.roundingIncrement !== draftOverride.roundingIncrement
-    );
+    return JSON.stringify(liveOverride) !== JSON.stringify(draftOverride);
   });
 
   if (changedModels.length > 0) {

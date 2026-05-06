@@ -98,7 +98,6 @@ export default function AdminPricingPage() {
           <PricingModelWorkbook
             pricingState={pricingState}
             displayedModels={pageState.displayedModels}
-            selectedModelRow={pageState.selectedModelRow}
             effectiveModelPolicyDraft={pageState.effectiveModelPolicyDraft}
             durationDrafts={pageState.durationDrafts}
             setDurationDrafts={pageState.setDurationDrafts}
@@ -112,8 +111,16 @@ export default function AdminPricingPage() {
             setCreditScaleDrafts={pageState.setCreditScaleDrafts}
             markupDrafts={pageState.markupDrafts}
             setMarkupDrafts={pageState.setMarkupDrafts}
-            roundingDrafts={pageState.roundingDrafts}
-            setRoundingDrafts={pageState.setRoundingDrafts}
+            variantMarkupDrafts={pageState.variantMarkupDrafts}
+            setVariantMarkupDrafts={pageState.setVariantMarkupDrafts}
+            providerCostDrafts={pageState.providerCostDrafts}
+            setProviderCostDrafts={pageState.setProviderCostDrafts}
+            providerCostPerSecondDrafts={pageState.providerCostPerSecondDrafts}
+            setProviderCostPerSecondDrafts={pageState.setProviderCostPerSecondDrafts}
+            variantProviderCostDrafts={pageState.variantProviderCostDrafts}
+            setVariantProviderCostDrafts={pageState.setVariantProviderCostDrafts}
+            variantProviderCostPerSecondDrafts={pageState.variantProviderCostPerSecondDrafts}
+            setVariantProviderCostPerSecondDrafts={pageState.setVariantProviderCostPerSecondDrafts}
             modelSortOption={pageState.modelSortOption}
             setModelSortOption={pageState.setModelSortOption}
             modelSearchQuery={pageState.modelSearchQuery}
@@ -128,7 +135,6 @@ export default function AdminPricingPage() {
             canApplyModelPolicy={pageState.canApplyModelPolicy}
             showCostDocsPopover={pageState.showCostDocsPopover}
             hideCostDocsPopover={pageState.hideCostDocsPopover}
-            setSelectedModelOverrideId={pageState.setSelectedModelOverrideId}
             updateModelPolicyDraft={pageState.updateModelPolicyDraft}
           />
 

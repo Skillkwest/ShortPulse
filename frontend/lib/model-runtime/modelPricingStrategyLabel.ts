@@ -1,4 +1,5 @@
 import type { PricingStrategyId } from "./pricingTypes";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "./providerModelIds";
 
 export const getAdminPricingStrategyLabel = (
   modelId: string,
@@ -9,7 +10,7 @@ export const getAdminPricingStrategyLabel = (
     case "elevenlabs-voice-changer-per-minute":
       return "Per minute";
     case "elevenlabs-sound-effect":
-      return "Per generated sound";
+      return "Per second";
     case "elevenlabs-text-to-speech-per-kchar":
       return "Per 1K characters";
     case "fal-per-mp":
@@ -30,6 +31,7 @@ export const getAdminPricingStrategyLabel = (
     case "openai-text-token":
       return "Per 1M input tokens";
     case "veo-3-per-second":
+      return modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ? "Per video (flat)" : "Per output second";
     case "kling-3-per-second":
     case "seedance-1.5-per-second":
     case "seedance-2-per-second":

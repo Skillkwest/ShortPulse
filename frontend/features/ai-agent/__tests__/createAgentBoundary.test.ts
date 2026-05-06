@@ -195,17 +195,15 @@ describe("Create agent mode boundaries", () => {
     expect(pulsePageRuntimeSource).toContain("pulseCreateAgentContextResolver");
     expect(pageSource).toContain("return <CreateRuntimeRoot base={base} />;");
     expect(pageSource).toContain("const CreateRuntimeRoot =");
-    expect(pageSource).toContain("const StandardCreateRuntimeRoot =");
-    expect(pageSource).toContain("const PulseCreateRuntimeRoot =");
+    expect(pageSource).toContain("const CreateAgentRuntimeHost =");
     expect(pageSource).toContain("const AiStudioPageRuntimeBody =");
     expect(pageSource).toContain("pendingCreateRuntimeAgentHydrationRef");
     expect(pageSource).toContain("shouldApplySessionAgentHydrationToRuntime");
-    expect(pageSource).toContain('if (base.expertCreateMode === "pulse")');
     expect(pageSource).toContain(
-      "<PulseCreateRuntimeRoot base={base} createPulsePageRuntime={createPulsePageRuntime} />"
+      'base.expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime'
     );
     expect(pageSource).toContain(
-      "<StandardCreateRuntimeRoot base={base} createPulsePageRuntime={createPulsePageRuntime} />"
+      "return <CreateAgentRuntimeHost base={base} createPulsePageRuntime={createPulsePageRuntime} />;"
     );
     expect(pageSource).toContain("getAgentContext: base.getAgentContext");
     expect(pageSource).toContain(
@@ -213,9 +211,8 @@ describe("Create agent mode boundaries", () => {
     );
     expect(pageSource).toContain("setStandardCreatePrompt: base.setStandardCreatePrompt");
     expect(pageSource).toContain("setPulseCreatePrompt: base.setPulseCreatePrompt");
-    expect(pageSource).toContain("activeCreateAgentRuntime={standardCreateAgentRuntime}");
-    expect(pageSource).toContain("activeCreateAgentRuntime={pulseCreateAgentRuntime}");
-    expect(pageSource).not.toContain("activeCreateAgentRuntime =");
+    expect(pageSource).toContain("const activeCreateAgentRuntime =");
+    expect(pageSource).toContain("activeCreateAgentRuntime={activeCreateAgentRuntime}");
     expect(pageSource).not.toContain("setSharedPrompt: base.setSharedPrompt");
     expect(pageSource).toContain("setSharedPrompt: setActiveCreatePrompt");
     expect(pageSource).not.toContain("\n    setSharedPrompt,\n");

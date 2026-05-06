@@ -1029,17 +1029,10 @@ const CreateRuntimeRoot = ({ base }: { base: AiStudioPageBaseRuntime }) => {
     handleExpertCreateModeChange: base.handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange: base.handleActiveCreatePulsePresetIdChange,
   });
-  if (base.expertCreateMode === "pulse") {
-    return <PulseCreateRuntimeRoot base={base} createPulsePageRuntime={createPulsePageRuntime} />;
-  }
-
-  return <StandardCreateRuntimeRoot base={base} createPulsePageRuntime={createPulsePageRuntime} />;
+  return <CreateAgentRuntimeHost base={base} createPulsePageRuntime={createPulsePageRuntime} />;
 };
 
-const StandardCreateRuntimeRoot = ({
-  base,
-  createPulsePageRuntime,
-}: CreateRuntimeRootSharedProps) => {
+const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeRootSharedProps) => {
   const standardCreateAgentRuntime = useStandardCreateAgentRuntime({
     sessionId: base.sessionId,
     mode: base.mode,
@@ -1063,17 +1056,6 @@ const StandardCreateRuntimeRoot = ({
     setUiNotice: base.setUiNotice,
     trackAgentUiEvent: base.trackUiEvent,
   });
-
-  return (
-    <AiStudioPageRuntimeBody
-      base={base}
-      createPulsePageRuntime={createPulsePageRuntime}
-      activeCreateAgentRuntime={standardCreateAgentRuntime}
-    />
-  );
-};
-
-const PulseCreateRuntimeRoot = ({ base, createPulsePageRuntime }: CreateRuntimeRootSharedProps) => {
   const pulseCreateAgentRuntime = usePulseCreateAgentRuntime({
     sessionId: base.sessionId,
     mode: base.mode,
@@ -1093,12 +1075,14 @@ const PulseCreateRuntimeRoot = ({ base, createPulsePageRuntime }: CreateRuntimeR
     setUiNotice: base.setUiNotice,
     trackAgentUiEvent: base.trackUiEvent,
   });
+  const activeCreateAgentRuntime =
+    base.expertCreateMode === "pulse" ? pulseCreateAgentRuntime : standardCreateAgentRuntime;
 
   return (
     <AiStudioPageRuntimeBody
       base={base}
       createPulsePageRuntime={createPulsePageRuntime}
-      activeCreateAgentRuntime={pulseCreateAgentRuntime}
+      activeCreateAgentRuntime={activeCreateAgentRuntime}
     />
   );
 };

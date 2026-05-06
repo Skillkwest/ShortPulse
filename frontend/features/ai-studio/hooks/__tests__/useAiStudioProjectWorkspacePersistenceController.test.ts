@@ -302,6 +302,73 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     );
   });
 
+  it("keeps bootstrap settled when runtime-facing callbacks change for the same project", () => {
+    const buildSessionSnapshot = vi.fn(() => createSnapshot());
+    const nextBuildSessionSnapshot = vi.fn(() => createSnapshot());
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const nextHydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const applyEmptyProjectState = vi.fn();
+    const nextApplyEmptyProjectState = vi.fn();
+    const resetProjectAgentConversation = vi.fn();
+    const nextResetProjectAgentConversation = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({
+        buildSnapshot,
+        hydrateSnapshot,
+        applyEmptyState,
+        resetConversation,
+      }: {
+        buildSnapshot: typeof buildSessionSnapshot;
+        hydrateSnapshot: typeof hydrateFromSessionSnapshot;
+        applyEmptyState: typeof applyEmptyProjectState;
+        resetConversation: typeof resetProjectAgentConversation;
+      }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildSessionSnapshot: buildSnapshot,
+          hydrateFromSessionSnapshot: hydrateSnapshot,
+          applyEmptyProjectState: applyEmptyState,
+          resetProjectAgentConversation: resetConversation,
+        }),
+      {
+        initialProps: {
+          buildSnapshot: buildSessionSnapshot,
+          hydrateSnapshot: hydrateFromSessionSnapshot,
+          applyEmptyState: applyEmptyProjectState,
+          resetConversation: resetProjectAgentConversation,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender({
+      buildSnapshot: nextBuildSessionSnapshot,
+      hydrateSnapshot: nextHydrateFromSessionSnapshot,
+      applyEmptyState: nextApplyEmptyProjectState,
+      resetConversation: nextResetProjectAgentConversation,
+    });
+
+    expect(result.current.projectBootstrapApplied).toBe(true);
+    expect(applyEmptyProjectState).toHaveBeenCalledTimes(1);
+    expect(nextApplyEmptyProjectState).not.toHaveBeenCalled();
+    expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(1);
+    expect(mockedUseAiStudioSessionWriteShadow.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        enabled: true,
+      })
+    );
+    expect(nextBuildSessionSnapshot).toHaveBeenCalledWith("session-1");
+  });
+
   it("ignores stale bootstrap state after leaving and re-entering the same project", () => {
     const buildSessionSnapshot = vi.fn(() => createSnapshot());
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());

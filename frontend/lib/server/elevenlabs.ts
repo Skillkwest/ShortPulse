@@ -41,6 +41,8 @@ const OUTPUT_CONTENT_TYPE_BY_FORMAT_PREFIX: Record<string, string> = {
   pcm: "audio/wav",
   ulaw: "audio/basic",
 };
+const ELEVENLABS_TRANSIENT_UPSTREAM_STATUSES = new Set([502, 503, 504]);
+const ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS = 2;
 
 export type ElevenLabsVoice = {
   voiceId: string;
@@ -218,6 +220,21 @@ const getElevenLabsApiKey = (): string => {
 const buildElevenLabsHeaders = (): HeadersInit => ({
   "xi-api-key": getElevenLabsApiKey(),
 });
+
+const isTransientElevenLabsUpstreamResponse = (response: Response): boolean =>
+  ELEVENLABS_TRANSIENT_UPSTREAM_STATUSES.has(response.status);
+
+const readElevenLabsErrorMessage = async (
+  response: Response,
+  fallbackMessage: string
+): Promise<string> => {
+  const payload = await response.json().catch(() => null);
+  return (
+    normalizeOptionalString((payload as { detail?: unknown } | null)?.detail) ??
+    normalizeOptionalString((payload as { error?: unknown } | null)?.error) ??
+    fallbackMessage
+  );
+};
 
 const readProviderRequestId = (headers: Headers): string | null =>
   normalizeOptionalString(headers.get("request-id")) ??
@@ -630,35 +647,46 @@ export const generateElevenLabsSoundEffect = async ({
   contentType: string;
   providerRequestId: string | null;
 }> => {
-  const response = await fetch(
-    `${ELEVENLABS_BASE_URL}/v1/sound-generation?output_format=${encodeURIComponent(outputFormat)}`,
-    {
-      method: "POST",
-      headers: {
-        ...buildElevenLabsHeaders(),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        text,
-        ...body,
-      }),
+  let lastErrorMessage = "ElevenLabs sound effects request failed.";
+  for (let attempt = 1; attempt <= ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS; attempt += 1) {
+    const response = await fetch(
+      `${ELEVENLABS_BASE_URL}/v1/sound-generation?output_format=${encodeURIComponent(outputFormat)}`,
+      {
+        method: "POST",
+        headers: {
+          ...buildElevenLabsHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text,
+          ...body,
+        }),
+      }
+    );
+    if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer();
+      return {
+        buffer: Buffer.from(arrayBuffer),
+        contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
+        characterCost: parseOptionalNumber(response.headers.get("character-cost")),
+        providerRequestId: readProviderRequestId(response.headers),
+      };
     }
-  );
-  if (!response.ok) {
-    const payload = await response.json().catch(() => null);
-    const message =
-      normalizeOptionalString((payload as { detail?: unknown } | null)?.detail) ??
-      normalizeOptionalString((payload as { error?: unknown } | null)?.error) ??
-      "ElevenLabs sound effects request failed.";
-    throw new Error(message);
+
+    lastErrorMessage = await readElevenLabsErrorMessage(
+      response,
+      "ElevenLabs sound effects request failed."
+    );
+    if (
+      attempt < ELEVENLABS_SOUND_EFFECT_MAX_ATTEMPTS &&
+      isTransientElevenLabsUpstreamResponse(response)
+    ) {
+      continue;
+    }
+    throw new Error(lastErrorMessage);
   }
-  const arrayBuffer = await response.arrayBuffer();
-  return {
-    buffer: Buffer.from(arrayBuffer),
-    contentType: resolveOutputContentType(outputFormat, response.headers.get("content-type")),
-    characterCost: parseOptionalNumber(response.headers.get("character-cost")),
-    providerRequestId: readProviderRequestId(response.headers),
-  };
+
+  throw new Error(lastErrorMessage);
 };
 
 export const generateElevenLabsMusic = async ({

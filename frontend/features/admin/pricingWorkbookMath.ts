@@ -68,7 +68,7 @@ export const getPricingMargin = (
   ) {
     return null;
   }
-  const marginUsd = Math.max(0, billedUsd - breakdown.usdRaw);
+  const marginUsd = billedUsd - breakdown.usdRaw;
   return {
     usd: marginUsd,
     percent: billedUsd > 0 ? (marginUsd / billedUsd) * 100 : null,

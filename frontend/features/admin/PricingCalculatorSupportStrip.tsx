@@ -88,11 +88,7 @@ export function PricingCalculatorSupportStrip({
   );
   const effectiveMonthlyRevenue =
     totalMonthlyRevenue > 0 ? totalMonthlyRevenue : (planSummary.netRevenueUsd ?? 0);
-  const totalMonthlyProfit = usageRows.reduce((sum, row) => sum + (row.profitPerMonthUsd ?? 0), 0);
-  const effectiveMonthlyProfit =
-    usageRows.length > 0 && totalMonthlyRevenue > 0
-      ? totalMonthlyProfit
-      : effectiveMonthlyRevenue - totalMonthlyCost;
+  const effectiveMonthlyProfit = effectiveMonthlyRevenue - totalMonthlyCost;
   const effectiveMarginPercent =
     effectiveMonthlyRevenue > 0 ? (effectiveMonthlyProfit / effectiveMonthlyRevenue) * 100 : null;
 
@@ -110,161 +106,55 @@ export function PricingCalculatorSupportStrip({
       <div className={styles.pricingCalculatorSupportGrid}>
         <article className={styles.pricingSupportPanel}>
           <div className={styles.pricingSupportHeader}>
-            <h3 className={styles.pricingSupportTitle}>Plan Economics</h3>
-            <label className={styles.manualAdjustField}>
-              <span className="sr-only">Plan</span>
-              <select
-                aria-label="Plan"
-                className={`${styles.searchInput} ${styles.pricingSupportSelect}`}
-                value={selectedPlan?.planId ?? ""}
-                onChange={(event) => setSelectedPlanId(event.target.value)}
-              >
-                {plans.map((plan) => (
-                  <option key={plan.planId} value={plan.planId}>
-                    {plan.displayName}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {selectedPlan ? (
-            <div className={styles.pricingSupportFormGrid}>
-              <label className={styles.manualAdjustField}>
-                <span className={styles.pricingSupportLabel}>Plan price ($)</span>
-                <input
-                  aria-label="Plan price ($)"
-                  className={styles.searchInput}
-                  value={selectedPlanDraft?.priceUsd ?? ""}
-                  onChange={(event) =>
-                    updatePlanDraft(selectedPlan.planId, "priceUsd", event.target.value)
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className={styles.pricingSupportLabel}>Included credits</span>
-                <input
-                  aria-label="Included credits"
-                  className={styles.searchInput}
-                  value={selectedPlanDraft?.includedCredits ?? ""}
-                  onChange={(event) =>
-                    updatePlanDraft(selectedPlan.planId, "includedCredits", event.target.value)
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className={styles.pricingSupportLabel}>Discount %</span>
-                <input
-                  aria-label="Discount %"
-                  className={styles.searchInput}
-                  value={selectedPlanDraft?.discountPct ?? ""}
-                  onChange={(event) =>
-                    updatePlanDraft(selectedPlan.planId, "discountPct", event.target.value)
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className={styles.pricingSupportLabel}>Affiliate %</span>
-                <input
-                  aria-label="Affiliate %"
-                  className={styles.searchInput}
-                  value={selectedPlanDraft?.affiliatePct ?? ""}
-                  onChange={(event) =>
-                    updatePlanDraft(selectedPlan.planId, "affiliatePct", event.target.value)
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className={styles.pricingSupportLabel}>Processor %</span>
-                <input
-                  aria-label="Processor %"
-                  className={styles.searchInput}
-                  value={selectedPlanDraft?.processorPct ?? ""}
-                  onChange={(event) =>
-                    updatePlanDraft(selectedPlan.planId, "processorPct", event.target.value)
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className={styles.pricingSupportLabel}>Processor flat ($)</span>
-                <input
-                  aria-label="Processor flat ($)"
-                  className={styles.searchInput}
-                  value={selectedPlanDraft?.processorFlatUsd ?? ""}
-                  onChange={(event) =>
-                    updatePlanDraft(selectedPlan.planId, "processorFlatUsd", event.target.value)
-                  }
-                />
-              </label>
-            </div>
-          ) : null}
-
-          <div className={styles.pricingSupportMetricGrid}>
-            <div className={styles.pricingSupportMetric}>
-              <span className={styles.pricingSupportMetricLabel}>Net revenue</span>
-              <strong>{formatProviderCostUsd(planSummary.netRevenueUsd)}</strong>
-            </div>
-            <div className={styles.pricingSupportMetric}>
-              <span className={styles.pricingSupportMetricLabel}>$ / credit</span>
-              <strong>{formatProviderCostUsd(planSummary.dollarPerCredit)}</strong>
-            </div>
-            <div className={styles.pricingSupportMetric}>
-              <span className={styles.pricingSupportMetricLabel}>Processor fee</span>
-              <strong>{formatProviderCostUsd(planSummary.processorFeeUsd)}</strong>
-            </div>
-            <div className={styles.pricingSupportMetric}>
-              <span className={styles.pricingSupportMetricLabel}>Included credits</span>
-              <strong>
-                {planSummary.includedCredits != null
-                  ? formatCredits(Math.round(planSummary.includedCredits))
-                  : "—"}
-              </strong>
-            </div>
-          </div>
-        </article>
-
-        <article className={styles.pricingSupportPanel}>
-          <div className={styles.pricingSupportHeader}>
-            <h3 className={styles.pricingSupportTitle}>Usage Mix</h3>
+            <h3 className={styles.pricingSupportTitle}>Models</h3>
             <button type="button" className="ghost-btn mini" onClick={addUsageMixRow}>
               Add row
             </button>
           </div>
 
-          <div className={styles.pricingSupportMetricGrid}>
-            <div className={styles.pricingSupportMetric}>
-              <span className={styles.pricingSupportMetricLabel}>Runs / month</span>
-              <strong>{formatFractionalCredits(totalMonthlyRuns)}</strong>
-            </div>
-            <div className={styles.pricingSupportMetric}>
-              <span className={styles.pricingSupportMetricLabel}>Billed credits</span>
-              <strong>{formatFractionalCredits(totalBilledCredits)}</strong>
-            </div>
-            <div className={styles.pricingSupportMetric}>
-              <span className={styles.pricingSupportMetricLabel}>Provider cost</span>
-              <strong>{formatProviderCostUsd(totalMonthlyCost)}</strong>
+          <div className={styles.adminTableScroller}>
+            <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
+              <div className={`${styles.adminTableHead} ${styles.pricingSupportUsageTotalsHead}`}>
+                <span>Runs / month</span>
+                <span>Billed credits</span>
+                <span>Provider cost / month</span>
+              </div>
+              <div className={`${styles.adminTableRow} ${styles.pricingSupportUsageTotalsRow}`}>
+                <span>{formatFractionalCredits(totalMonthlyRuns)}</span>
+                <span>{formatFractionalCredits(totalBilledCredits)}</span>
+                <span>{formatProviderCostUsd(totalMonthlyCost)}</span>
+              </div>
             </div>
           </div>
 
-          <div className={styles.pricingUsageMixMiniHead}>
-            <span>Type</span>
-            <span>Share</span>
-            <span>$ / run</span>
-            <span>Rev / run</span>
-            <span>Profit / run</span>
-          </div>
-
-          <div className={styles.pricingUsageMixList}>
-            {usageMixRows.map((row) => {
-              const analysisRow = usageRows.find((candidate) => candidate.id === row.id) ?? null;
-              return (
-                <div key={row.id} className={styles.pricingUsageMixCard}>
-                  <div className={styles.pricingUsageMixInputs}>
-                    <label className={styles.manualAdjustField}>
-                      <span className={styles.pricingSupportLabel}>Model / spec</span>
+          <div className={styles.adminTableScroller}>
+            <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
+              <div className={`${styles.adminTableHead} ${styles.pricingSupportUsageHead}`}>
+                <span>Model / spec</span>
+                <span>Type</span>
+                <span>Duration (s)</span>
+                <span>Runs / month</span>
+                <span>Share</span>
+                <span>Billed credits</span>
+                <span>$ / run</span>
+                <span>Rev / run</span>
+                <span>Profit / run</span>
+                <span>Cost / month</span>
+                <span>Rev / month</span>
+                <span>Profit / month</span>
+                <span>Action</span>
+              </div>
+              {usageMixRows.map((row) => {
+                const analysisRow = usageRows.find((candidate) => candidate.id === row.id) ?? null;
+                return (
+                  <div
+                    key={row.id}
+                    className={`${styles.adminTableRow} ${styles.pricingSupportUsageRow}`}
+                  >
+                    <span>
                       <select
                         aria-label="Model / spec"
-                        className={styles.searchInput}
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
                         value={`${row.modelId}:${row.variantId}`}
                         onChange={(event) => {
                           const [modelId, variantId = "default"] = event.target.value.split(":");
@@ -292,57 +182,194 @@ export function PricingCalculatorSupportStrip({
                           </option>
                         ))}
                       </select>
-                    </label>
-
-                    <label className={styles.manualAdjustField}>
-                      <span className={styles.pricingSupportLabel}>Duration (s)</span>
+                    </span>
+                    <span>{analysisRow?.typeLabel ?? "—"}</span>
+                    <span>
                       <input
                         aria-label="Duration (s)"
-                        className={styles.searchInput}
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
                         value={row.durationSeconds}
                         onChange={(event) =>
                           updateUsageMixRow(row.id, { durationSeconds: event.target.value })
                         }
                       />
-                    </label>
-
-                    <label className={styles.manualAdjustField}>
-                      <span className={styles.pricingSupportLabel}>Runs / month</span>
+                    </span>
+                    <span>
                       <input
                         aria-label="Runs / month"
-                        className={styles.searchInput}
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
                         value={row.runsPerMonth}
                         onChange={(event) =>
                           updateUsageMixRow(row.id, { runsPerMonth: event.target.value })
                         }
                       />
-                    </label>
-
-                    <button
-                      type="button"
-                      className="ghost-btn mini"
-                      onClick={() => removeUsageMixRow(row.id)}
-                      disabled={usageMixRows.length <= 1}
-                    >
-                      Remove
-                    </button>
-                  </div>
-
-                  <div className={styles.pricingUsageMixMiniTable}>
-                    <span>{analysisRow?.typeLabel ?? "—"}</span>
+                    </span>
                     <span>
                       {analysisRow?.runSharePercent != null
                         ? formatPercent(analysisRow.runSharePercent)
                         : "—"}
                     </span>
+                    <span>
+                      {formatFractionalCredits(analysisRow?.billedCreditsPerRun ?? Number.NaN)}
+                    </span>
                     <span>{formatProviderCostUsd(analysisRow?.providerCostPerRunUsd)}</span>
                     <span>{formatProviderCostUsd(analysisRow?.revenuePerRunUsd)}</span>
                     <span>{formatProviderCostUsd(analysisRow?.profitPerRunUsd)}</span>
+                    <span>{formatProviderCostUsd(analysisRow?.providerCostPerMonthUsd)}</span>
+                    <span>{formatProviderCostUsd(analysisRow?.revenuePerMonthUsd)}</span>
+                    <span>{formatProviderCostUsd(analysisRow?.profitPerMonthUsd)}</span>
+                    <span>
+                      <button
+                        type="button"
+                        className="ghost-btn mini"
+                        onClick={() => removeUsageMixRow(row.id)}
+                        disabled={usageMixRows.length <= 1}
+                      >
+                        Remove
+                      </button>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </article>
+
+        <article className={styles.pricingSupportPanel}>
+          <div className={styles.pricingSupportHeader}>
+            <h3 className={styles.pricingSupportTitle}>Plans</h3>
+          </div>
+
+          {selectedPlan ? (
+            <>
+              <div className={styles.adminTableScroller}>
+                <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
+                  <div className={`${styles.adminTableHead} ${styles.pricingSupportPlanInputHead}`}>
+                    <span>Plan</span>
+                    <span>Price ($)</span>
+                    <span>Included credits</span>
+                    <span>Discount %</span>
+                    <span>Affiliate %</span>
+                    <span>Processor %</span>
+                    <span>Processor flat ($)</span>
+                  </div>
+                  <div className={`${styles.adminTableRow} ${styles.pricingSupportPlanInputRow}`}>
+                    <span>
+                      <select
+                        aria-label="Plan"
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
+                        value={selectedPlan.planId}
+                        onChange={(event) => setSelectedPlanId(event.target.value)}
+                      >
+                        {plans.map((plan) => (
+                          <option key={plan.planId} value={plan.planId}>
+                            {plan.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                    <span>
+                      <input
+                        aria-label="Plan price ($)"
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
+                        value={selectedPlanDraft?.priceUsd ?? ""}
+                        onChange={(event) =>
+                          updatePlanDraft(selectedPlan.planId, "priceUsd", event.target.value)
+                        }
+                      />
+                    </span>
+                    <span>
+                      <input
+                        aria-label="Included credits"
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
+                        value={selectedPlanDraft?.includedCredits ?? ""}
+                        onChange={(event) =>
+                          updatePlanDraft(
+                            selectedPlan.planId,
+                            "includedCredits",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </span>
+                    <span>
+                      <input
+                        aria-label="Discount %"
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
+                        value={selectedPlanDraft?.discountPct ?? ""}
+                        onChange={(event) =>
+                          updatePlanDraft(selectedPlan.planId, "discountPct", event.target.value)
+                        }
+                      />
+                    </span>
+                    <span>
+                      <input
+                        aria-label="Affiliate %"
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
+                        value={selectedPlanDraft?.affiliatePct ?? ""}
+                        onChange={(event) =>
+                          updatePlanDraft(selectedPlan.planId, "affiliatePct", event.target.value)
+                        }
+                      />
+                    </span>
+                    <span>
+                      <input
+                        aria-label="Processor %"
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
+                        value={selectedPlanDraft?.processorPct ?? ""}
+                        onChange={(event) =>
+                          updatePlanDraft(selectedPlan.planId, "processorPct", event.target.value)
+                        }
+                      />
+                    </span>
+                    <span>
+                      <input
+                        aria-label="Processor flat ($)"
+                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
+                        value={selectedPlanDraft?.processorFlatUsd ?? ""}
+                        onChange={(event) =>
+                          updatePlanDraft(
+                            selectedPlan.planId,
+                            "processorFlatUsd",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+
+              <div className={styles.adminTableScroller}>
+                <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
+                  <div
+                    className={`${styles.adminTableHead} ${styles.pricingSupportPlanOutputHead}`}
+                  >
+                    <span>Gross</span>
+                    <span>Discount</span>
+                    <span>Processor fee</span>
+                    <span>Affiliate cost</span>
+                    <span>Net revenue</span>
+                    <span>$ / credit</span>
+                    <span>Included credits</span>
+                  </div>
+                  <div className={`${styles.adminTableRow} ${styles.pricingSupportPlanOutputRow}`}>
+                    <span>{formatProviderCostUsd(planSummary.grossUsd)}</span>
+                    <span>{formatProviderCostUsd(planSummary.discountAmountUsd)}</span>
+                    <span>{formatProviderCostUsd(planSummary.processorFeeUsd)}</span>
+                    <span>{formatProviderCostUsd(planSummary.affiliateCostUsd)}</span>
+                    <span>{formatProviderCostUsd(planSummary.netRevenueUsd)}</span>
+                    <span>{formatProviderCostUsd(planSummary.dollarPerCredit)}</span>
+                    <span>
+                      {planSummary.includedCredits != null
+                        ? formatCredits(Math.round(planSummary.includedCredits))
+                        : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
         </article>
 
         <article className={styles.pricingSupportPanel}>
@@ -350,28 +377,24 @@ export function PricingCalculatorSupportStrip({
             <h3 className={styles.pricingSupportTitle}>Summary</h3>
           </div>
 
-          <div className={styles.pricingSupportMetricStack}>
-            <div className={styles.pricingSupportMetricRow}>
-              <span>Plan</span>
-              <strong>{selectedPlan?.displayName ?? "—"}</strong>
-            </div>
-            <div className={styles.pricingSupportMetricRow}>
-              <span>Revenue / month</span>
-              <strong>{formatProviderCostUsd(effectiveMonthlyRevenue)}</strong>
-            </div>
-            <div className={styles.pricingSupportMetricRow}>
-              <span>Cost / month</span>
-              <strong>{formatProviderCostUsd(totalMonthlyCost)}</strong>
-            </div>
-            <div className={styles.pricingSupportMetricRow}>
-              <span>Profit / month</span>
-              <strong>{formatProviderCostUsd(effectiveMonthlyProfit)}</strong>
-            </div>
-            <div className={styles.pricingSupportMetricRow}>
-              <span>Margin</span>
-              <strong>
-                {effectiveMarginPercent != null ? formatPercent(effectiveMarginPercent) : "—"}
-              </strong>
+          <div className={styles.adminTableScroller}>
+            <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
+              <div className={`${styles.adminTableHead} ${styles.pricingSupportSummaryHead}`}>
+                <span>Plan</span>
+                <span>Revenue / month</span>
+                <span>Cost / month</span>
+                <span>Profit / month</span>
+                <span>Margin</span>
+              </div>
+              <div className={`${styles.adminTableRow} ${styles.pricingSupportSummaryRow}`}>
+                <span>{selectedPlan?.displayName ?? "—"}</span>
+                <span>{formatProviderCostUsd(effectiveMonthlyRevenue)}</span>
+                <span>{formatProviderCostUsd(totalMonthlyCost)}</span>
+                <span>{formatProviderCostUsd(effectiveMonthlyProfit)}</span>
+                <span>
+                  {effectiveMarginPercent != null ? formatPercent(effectiveMarginPercent) : "—"}
+                </span>
+              </div>
             </div>
           </div>
 

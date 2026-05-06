@@ -48,6 +48,27 @@ const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingMo
   }) as AdminPricingModelRow;
 
 describe("pricingAnalysis", () => {
+  it("computes plan economics after discount, processor fees, and affiliate share", () => {
+    const summary = computePlanEconomicsSummary({
+      priceUsd: "49.00",
+      includedCredits: "1500",
+      discountPct: "10",
+      affiliatePct: "20",
+      processorPct: "2.9",
+      processorFlatUsd: "0.30",
+    });
+
+    expect(summary.grossUsd).toBeCloseTo(49, 6);
+    expect(summary.discountAmountUsd).toBeCloseTo(4.9, 6);
+    expect(summary.afterDiscountUsd).toBeCloseTo(44.1, 6);
+    expect(summary.processorFeeUsd).toBeCloseTo(1.5789, 6);
+    expect(summary.effectiveRevenueUsd).toBeCloseTo(42.5211, 6);
+    expect(summary.affiliateCostUsd).toBeCloseTo(8.50422, 6);
+    expect(summary.netRevenueUsd).toBeCloseTo(34.01688, 6);
+    expect(summary.dollarPerCredit).toBeCloseTo(34.01688 / 1500, 6);
+    expect(summary.includedCredits).toBe(1500);
+  });
+
   it("keeps usage-mix monthly revenue capped to the plan net revenue", () => {
     const pricingPolicy = getDefaultModelPricingPolicyDocument();
     const models = [buildModelRow({})];

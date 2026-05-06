@@ -1293,9 +1293,9 @@
 
 .pricingSupportPanel {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   align-content: start;
-  padding: 14px;
+  padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--admin-border);
   background: var(--admin-surface-2);
@@ -1316,79 +1316,179 @@
   color: var(--admin-text-strong);
 }
 
-.pricingSupportSelect {
-  min-width: 160px;
-}
-
-.pricingSupportFormGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.pricingSupportLabel {
-  color: var(--admin-text-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.pricingSupportMetricGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.pricingSupportMetric {
-  display: grid;
-  gap: 4px;
-  padding: 11px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--admin-border-soft);
-  background: var(--admin-surface-3);
-}
-
-.pricingSupportMetricLabel {
-  color: var(--admin-text-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.pricingSupportMetric strong {
-  color: var(--admin-text-strong);
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.pricingSupportMetricStack {
-  display: grid;
-  gap: 8px;
-}
-
-.pricingSupportMetricRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--admin-border-soft);
-  color: var(--admin-text-muted);
-  font-size: 13px;
-}
-
-.pricingSupportMetricRow:last-child {
-  border-bottom: none;
-}
-
-.pricingSupportMetricRow strong {
-  color: var(--admin-text-strong);
-  font-size: 15px;
-}
-
 .pricingSupportWarning {
   margin: 0;
   color: var(--admin-warning-text);
   font-size: 12px;
   font-weight: 700;
+}
+
+.pricingSupportTable {
+  gap: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(180, 190, 204, 0.16);
+  border-radius: 12px;
+  background: transparent;
+}
+
+.pricingSupportTable .adminTableHead,
+.pricingSupportTable .adminTableRow {
+  gap: 0;
+  align-items: stretch;
+}
+
+.pricingSupportTable .adminTableHead span,
+.pricingSupportTable .adminTableRow > span {
+  display: grid;
+  align-content: center;
+  min-height: 100%;
+  padding: 7px 10px;
+  border-right: 1px solid rgba(210, 220, 232, 0.065);
+}
+
+.pricingSupportTable .adminTableHead span {
+  font-size: 11px;
+  line-height: 1.15;
+}
+
+.pricingSupportTable .adminTableRow > span {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.pricingSupportTable .adminTableHead span:last-child,
+.pricingSupportTable .adminTableRow > span:last-child {
+  border-right: 0;
+}
+
+.pricingSupportTable .adminTableHead {
+  min-height: 40px;
+  border-bottom: 1px solid rgba(180, 190, 204, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pricingSupportTable .adminTableRow {
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  border-top: 1px solid rgba(210, 220, 232, 0.075);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.pricingSupportTable .adminTableRow:first-of-type {
+  border-top: 0;
+}
+
+.pricingSupportTable .adminTableRow:hover {
+  background: rgba(232, 242, 248, 0.055);
+}
+
+.pricingSupportPlanInputHead,
+.pricingSupportPlanInputRow,
+.pricingSupportPlanOutputHead,
+.pricingSupportPlanOutputRow {
+  grid-template-columns:
+    168px
+    repeat(6, 120px);
+}
+
+.pricingSupportUsageTotalsHead,
+.pricingSupportUsageTotalsRow {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.pricingSupportUsageHead,
+.pricingSupportUsageRow {
+  grid-template-columns:
+    320px
+    136px
+    96px
+    116px
+    84px
+    112px
+    96px
+    116px
+    116px
+    116px
+    116px
+    124px
+    96px;
+}
+
+.pricingSupportSummaryHead,
+.pricingSupportSummaryRow {
+  grid-template-columns:
+    168px
+    repeat(4, 148px);
+}
+
+.pricingSupportCellInput {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.pricingSupportUsageHead span:nth-child(n + 5):nth-child(-n + 12),
+.pricingSupportUsageRow > span:nth-child(n + 5):nth-child(-n + 12),
+.pricingSupportUsageTotalsHead span,
+.pricingSupportUsageTotalsRow > span,
+.pricingSupportPlanOutputHead span,
+.pricingSupportPlanOutputRow > span,
+.pricingSupportSummaryHead span:nth-child(n + 2),
+.pricingSupportSummaryRow > span:nth-child(n + 2) {
+  justify-items: end;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pricingSupportPlanInputHead span:nth-child(n + 2),
+.pricingSupportPlanInputRow > span:nth-child(n + 2) {
+  justify-items: end;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pricingSupportUsageHead span:first-child,
+.pricingSupportUsageRow > span:first-child,
+.pricingSupportPlanInputHead span:first-child,
+.pricingSupportPlanInputRow > span:first-child,
+.pricingSupportSummaryHead span:first-child,
+.pricingSupportSummaryRow > span:first-child {
+  justify-items: start;
+  text-align: left;
+}
+
+.pricingSupportUsageHead span:last-child,
+.pricingSupportUsageRow > span:last-child {
+  justify-items: center;
+  text-align: center;
+}
+
+.pricingSupportUsageRow > span:last-child .ghost-btn,
+.pricingSupportTable .ghost-btn.mini {
+  min-height: 36px;
+  padding-inline: 12px;
+}
+
+.pricingSupportUsageRow > span,
+.pricingSupportPlanInputRow > span,
+.pricingSupportPlanOutputRow > span,
+.pricingSupportSummaryRow > span,
+.pricingSupportUsageTotalsRow > span {
+  align-self: stretch;
+}
+
+.pricingSupportUsageRow > span:first-child select,
+.pricingSupportUsageRow > span:nth-child(3) input,
+.pricingSupportUsageRow > span:nth-child(4) input,
+.pricingSupportPlanInputRow > span select,
+.pricingSupportPlanInputRow > span input {
+  align-self: stretch;
 }
 
 .pricingMetaList {

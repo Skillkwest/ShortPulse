@@ -63,6 +63,17 @@ const sanitizeStringRecord = (value: unknown): Record<string, string> => {
   ) as Record<string, string>;
 };
 
+const sanitizeAudioDraftRecord = (value: unknown): AudioDraftByModelId => {
+  if (!isPlainObject(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([key, entryValue]) =>
+        typeof key === "string" &&
+        (entryValue === "default" || entryValue === "on" || entryValue === "off")
+    )
+  ) as AudioDraftByModelId;
+};
+
 const sanitizePlanEconomicsDraft = (value: unknown): PlanEconomicsDraft | null => {
   if (!isPlainObject(value)) return null;
   const fields = [
@@ -74,13 +85,14 @@ const sanitizePlanEconomicsDraft = (value: unknown): PlanEconomicsDraft | null =
     "processorFlatUsd",
   ] as const;
   if (!fields.every((field) => typeof value[field] === "string")) return null;
+  const draft = value as Record<(typeof fields)[number], string>;
   return {
-    priceUsd: value.priceUsd,
-    includedCredits: value.includedCredits,
-    discountPct: value.discountPct,
-    affiliatePct: value.affiliatePct,
-    processorPct: value.processorPct,
-    processorFlatUsd: value.processorFlatUsd,
+    priceUsd: draft.priceUsd,
+    includedCredits: draft.includedCredits,
+    discountPct: draft.discountPct,
+    affiliatePct: draft.affiliatePct,
+    processorPct: draft.processorPct,
+    processorFlatUsd: draft.processorFlatUsd,
   };
 };
 
@@ -98,12 +110,13 @@ const sanitizeUsageMixDraftRow = (value: unknown): UsageMixDraftRow | null => {
   if (!isPlainObject(value)) return null;
   const fields = ["id", "modelId", "variantId", "durationSeconds", "runsPerMonth"] as const;
   if (!fields.every((field) => typeof value[field] === "string")) return null;
+  const row = value as Record<(typeof fields)[number], string>;
   return {
-    id: value.id,
-    modelId: value.modelId,
-    variantId: value.variantId,
-    durationSeconds: value.durationSeconds,
-    runsPerMonth: value.runsPerMonth,
+    id: row.id,
+    modelId: row.modelId,
+    variantId: row.variantId,
+    durationSeconds: row.durationSeconds,
+    runsPerMonth: row.runsPerMonth,
   };
 };
 
@@ -150,7 +163,7 @@ const sanitizeWorkspaceDraftSnapshot = (
     durationDrafts: sanitizeStringRecord(value.durationDrafts),
     aspectDrafts: sanitizeStringRecord(value.aspectDrafts),
     resolutionDrafts: sanitizeStringRecord(value.resolutionDrafts),
-    audioDrafts: sanitizeStringRecord(value.audioDrafts),
+    audioDrafts: sanitizeAudioDraftRecord(value.audioDrafts),
     creditScaleDrafts: sanitizeStringRecord(value.creditScaleDrafts),
     markupDrafts: sanitizeStringRecord(value.markupDrafts),
     variantMarkupDrafts: sanitizeStringRecord(value.variantMarkupDrafts),

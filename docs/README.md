@@ -80,6 +80,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
+- `docs/sops/sop_local_dev_startup.md`
 - `docs/deployment.md`
 - `docs/database-migrations.md`
 - `docs/supabase_auth_setup.md`

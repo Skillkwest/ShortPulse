@@ -85,13 +85,13 @@ export function PricingModelWorkbookTable({
           <span>Provider</span>
           <span>Model</span>
           <span>Type</span>
-          <span>Dur</span>
+          <span>Duration</span>
           <span>Spec</span>
-          <span>Cost unit</span>
+          <span>Rate source</span>
           <span>$ at cost</span>
           <span>Credits at cost</span>
-          <span>Model markup</span>
-          <span>Round</span>
+          <span>Markup</span>
+          <span>Round up</span>
           <span>Billed credits</span>
           <span>$ billed</span>
           <span>Margin</span>
@@ -169,13 +169,15 @@ export function PricingModelWorkbookTable({
                   resolvedModelPolicy.creditUsdScale
                 );
                 const workbookBillableCredits = getWorkbookBillableCredits({
+                  breakdown: activePreview,
                   creditsAtCost: activeCreditsAtCost,
                   markupBps: previewMarkupBps,
                   roundingIncrement: previewRoundingIncrement,
                 });
                 const workbookBillableUsd = getWorkbookBillableUsd(
                   workbookBillableCredits,
-                  resolvedModelPolicy.creditUsdScale
+                  resolvedModelPolicy.creditUsdScale,
+                  activePreview?.billedUsd
                 );
                 const activeMargin = getPricingMargin(activePreview, workbookBillableUsd);
                 const markupLabel =
@@ -376,6 +378,10 @@ export function PricingModelWorkbookTable({
               {isSelected ? (
                 <div className={styles.pricingInlineEditorCard}>
                   <p className="eyebrow">Edit model pricing policy</p>
+                  <p className={styles.pricingInlineNotice}>
+                    Blank override fields keep inheriting the current shared policy values shown in
+                    the grid.
+                  </p>
                   {model.pricingAuthority !== "shared_policy" ? (
                     <p className={styles.pricingInlineNotice}>
                       Metadata-only lane. Grid overrides do not control billing here.
@@ -425,7 +431,7 @@ export function PricingModelWorkbookTable({
                             />
                           </label>
                           <label className={styles.manualAdjustField}>
-                            <span className="tiny subdued">Roundup increment override</span>
+                            <span className="tiny subdued">Round up to credits</span>
                             <input
                               className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
                               value={roundingInputValue}

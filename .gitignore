@@ -24,6 +24,8 @@ vercel_staging_env_*.txt
 .tmp/
 .playwright-mcp/
 .claude/
+node-v*-win-x64/
+node-v*-win-x64.zip
 admin-support-state-pass.png
 # Frontend app/source modules are TypeScript-first; do not commit transpiled JS sidecars.
 frontend/features/**/*.js

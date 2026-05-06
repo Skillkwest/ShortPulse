@@ -53,12 +53,18 @@ Short-form analytics and creative workspace surfaces built on Next.js with Supab
    - `STRIPE_WEBHOOK_SECRET`
    - optional provider key for Kie routes: `KIE_API_KEY` (or `SHORTPULSE_KIE_API_KEY`)
 2. Install and run the frontend:
+   Recommended on this Windows/Codex machine:
+   ```bash
+   powershell -ExecutionPolicy Bypass -File scripts/start_pulse_local.ps1
+   ```
+
+   Generic fallback on machines with working `node`/`npm` on `PATH`:
    ```bash
    cd frontend
    npm install
    npm run dev
    ```
-   This starts the Next.js app, server API routes under `frontend/pages/api/*`, and the local generation control-plane worker that drains provider-accepted jobs into the canonical output/projection tables.
+   The launcher makes `http://127.0.0.1:3000/` the success target and avoids the Windows `PATH` / blocked `node` issues seen in the Codex desktop shell. The generic fallback starts the Next.js app, server API routes under `frontend/pages/api/*`, and the local generation control-plane worker that drains provider-accepted jobs into the canonical output/projection tables.
 
 ## Optional Supabase bootstrap
 

@@ -92,6 +92,10 @@ export const PricingModelWorkbook = ({
       <div className={`${styles.adminSectionHead} ${styles.pricingWorkbookActionsHead}`}>
         <div>
           <h2 className={styles.adminSectionTitle}>Pricing Grid</h2>
+          <p className="tiny subdued">
+            Runtime preview values stay aligned with the same draft policy used for live model
+            debits.
+          </p>
         </div>
         {canApplyModelPolicy ? (
           <span className={styles.pricingUnsavedCue} role="status">
@@ -104,7 +108,7 @@ export const PricingModelWorkbook = ({
         <>
           <div className={styles.searchRow}>
             <label className={styles.pricingConversionControl}>
-              <span className={styles.pricingConversionLabel}>credit per $</span>
+              <span className={styles.pricingConversionLabel}>Credit conversion</span>
               <input
                 aria-label="Global credit conversion"
                 className={`${styles.searchInput} ${styles.pricingConversionInput}`}

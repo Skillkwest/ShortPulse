@@ -10,6 +10,11 @@ This folder contains the active ShortPulse product repo.
 ## Commands
 From `ShortPulse/`:
 ```bash
+powershell -ExecutionPolicy Bypass -File scripts/start_pulse_local.ps1
+```
+
+Portable fallback on machines where `node`/`npm` already work normally:
+```bash
 cd frontend
 npm run dev
 ```
@@ -67,6 +72,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 3. **Task classification + targeted context load**
 - SQL/migrations: read `docs/sops/sop_sql_migration_operations.md`, `docs/database-migrations.md`, `docs/security-checklist.md`, and impacted files under `sql/migrations/`.
 - Routes/UI behavior: read `README.md`, `docs/routes.md`, and the relevant SOP(s).
+- Local runtime / app startup / "start pulse": read `docs/local-development.md` and `docs/sops/sop_local_dev_startup.md`, then use `scripts/start_pulse_local.ps1`.
 - Pricing/credits changes: run `skills/skill-pricing-audit/SKILL.md`.
 - New agent creation/training/maintenance: read `agent-teaching/README.md`, `agent-teaching/foundations/how-to-decide-what-your-agent-can-do.md`, `agent-teaching/setup/new-codex-project-setup.md`, `agent-teaching/setup/define-agent-identity.md`, `agent-teaching/operations/post-run-performance-analysis-interview.md`, `agent-teaching/operations/create-baseline-kpi.md`, and `agent-teaching/foundations/agent-maintenance-field-guide.md`; use `agent-teaching/prompts/agent-setup-prompt.md`, `agent-teaching/prompts/agent-contract.md`, and `agent-teaching/prompts/agentic-research-prompt-pattern.md` as needed; create/update the relevant `docs/agents/<agent-name>/` contract and `docs/records/artifacts/agent/<agent-name>/` memory/report area when durable agent state is needed.
 - Docs/index drift: run `skills/skill-doc-index/SKILL.md` or `skills/skill-mvp-docs-sop-governance/SKILL.md`.
@@ -84,6 +90,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 - Keep diffs minimal and scoped to the request.
 - Do not continue by adjacency or momentum alone; each new lane must have a concrete repo-backed problem statement and better ROI than stopping.
 - Stay on the current user-approved branch for all edits, commits, and pushes unless the user explicitly authorizes a different branch action in the current thread.
+- When the user says `start pulse`, `run pulse`, `start the app`, `run the app`, or asks to launch local ShortPulse, treat that as a request to make `http://127.0.0.1:3000/` healthy. Use `powershell -ExecutionPolicy Bypass -File scripts/start_pulse_local.ps1` first instead of raw `npm run dev`, `npm run dev:next`, or PATH-dependent `node`.
 - Before changing the working branch by instruction, update `git config --local shortpulse.allowedBranch <branch>` first so local hooks keep enforcing the active branch contract.
 - Do not push to `main` directly under any circumstances unless the user explicitly changes this rule.
 - Run relevant validation checks for touched areas.

@@ -137,7 +137,9 @@ describe("PricingCalculatorSupportStrip", () => {
       />
     );
 
-    const summaryPanel = screen.getByRole("heading", { name: "Summary" }).closest("article");
+    const summaryPanel = screen
+      .getByRole("heading", { name: "Projected Margin" })
+      .closest("article");
     expect(summaryPanel).not.toBeNull();
     const summary = within(summaryPanel!);
 

@@ -97,6 +97,9 @@ export function PricingCalculatorSupportStrip({
       <div className={styles.adminSectionHead}>
         <div>
           <h2 className={styles.adminSectionTitle}>Plan Calculator</h2>
+          <p className="tiny subdued">
+            Pressure-test usage mix, plan revenue, and margin against the current pricing grid.
+          </p>
         </div>
         <span className={`${styles.pill} ${isDraftDirty ? styles.pillWarn : styles.pillOk}`}>
           {isDraftDirty ? "Using draft grid" : "Using live grid"}
@@ -106,7 +109,12 @@ export function PricingCalculatorSupportStrip({
       <div className={styles.pricingCalculatorSupportGrid}>
         <article className={styles.pricingSupportPanel}>
           <div className={styles.pricingSupportHeader}>
-            <h3 className={styles.pricingSupportTitle}>Models</h3>
+            <div>
+              <h3 className={styles.pricingSupportTitle}>Usage Mix</h3>
+              <p className="tiny subdued">
+                Model the runs you expect this plan to absorb each month.
+              </p>
+            </div>
             <button type="button" className="ghost-btn mini" onClick={addUsageMixRow}>
               Add row
             </button>
@@ -237,7 +245,12 @@ export function PricingCalculatorSupportStrip({
 
         <article className={styles.pricingSupportPanel}>
           <div className={styles.pricingSupportHeader}>
-            <h3 className={styles.pricingSupportTitle}>Plans</h3>
+            <div>
+              <h3 className={styles.pricingSupportTitle}>Plan Inputs</h3>
+              <p className="tiny subdued">
+                Tune credits, discounts, and fees without mutating the live catalog rows below.
+              </p>
+            </div>
           </div>
 
           {selectedPlan ? (
@@ -374,7 +387,13 @@ export function PricingCalculatorSupportStrip({
 
         <article className={styles.pricingSupportPanel}>
           <div className={styles.pricingSupportHeader}>
-            <h3 className={styles.pricingSupportTitle}>Summary</h3>
+            <div>
+              <h3 className={styles.pricingSupportTitle}>Projected Margin</h3>
+              <p className="tiny subdued">
+                Compare estimated plan revenue against the modeled provider cost from your usage
+                mix.
+              </p>
+            </div>
           </div>
 
           <div className={styles.adminTableScroller}>

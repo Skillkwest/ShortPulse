@@ -85,7 +85,15 @@ Local cleanup policy:
 
 ## Run the app
 
-From the repo root:
+Recommended on this Windows/Codex machine:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts/start_pulse_local.ps1
+```
+
+The launcher downloads a portable Node runtime into the repo when needed, installs frontend dependencies if they are missing, and starts ShortPulse directly on `http://127.0.0.1:3000/` without relying on the machine `PATH`.
+
+Generic fallback on machines where `node` and `npm` work normally:
 
 ```bash
 cd frontend

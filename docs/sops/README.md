@@ -33,6 +33,7 @@ Reusable cross-agent onboarding and training guidance lives under `agent-teachin
 ## Active SOPs
 
 - `docs/sops/sop_character_manager_operations.md` (canonical `/character` runbook)
+- `docs/sops/sop_local_dev_startup.md` (canonical local "start pulse" launcher runbook for Codex/Windows)
 - `docs/sops/sop_ai_studio_index.md`
 - `docs/sops/sop_ai_studio_agent.md`
 - `docs/sops/sop_ai_studio_agent_chat_ops.md`

@@ -19,19 +19,27 @@ export const getCreditsAtProviderCost = (
   breakdown: AdminCreditPricingBreakdown | null | undefined,
   creditUsdScale: number
 ): number | null => {
+  if (breakdown?.rawCredits != null && Number.isFinite(breakdown.rawCredits)) {
+    return Math.max(0, breakdown.rawCredits);
+  }
   if (breakdown?.usdRaw == null || !Number.isFinite(breakdown.usdRaw)) return null;
   return Math.max(0, breakdown.usdRaw) * creditUsdScale;
 };
 
 export const getWorkbookBillableCredits = ({
+  breakdown,
   creditsAtCost,
   markupBps,
   roundingIncrement,
 }: {
+  breakdown?: AdminCreditPricingBreakdown | null;
   creditsAtCost: number | null;
   markupBps: number | null | undefined;
   roundingIncrement: number | null | undefined;
 }): number | null => {
+  if (breakdown?.billedCredits != null && Number.isFinite(breakdown.billedCredits)) {
+    return Math.max(0, breakdown.billedCredits);
+  }
   if (creditsAtCost == null || !Number.isFinite(creditsAtCost)) return null;
   const markedCredits = creditsAtCost * (1 + Math.max(0, markupBps ?? 0) / 10_000);
   if (roundingIncrement == null || !Number.isFinite(roundingIncrement) || roundingIncrement <= 0) {
@@ -42,8 +50,12 @@ export const getWorkbookBillableCredits = ({
 
 export const getWorkbookBillableUsd = (
   billableCredits: number | null,
-  creditUsdScale: number
+  creditUsdScale: number,
+  billedUsdOverride?: number | null
 ): number | null => {
+  if (billedUsdOverride != null && Number.isFinite(billedUsdOverride)) {
+    return Math.max(0, billedUsdOverride);
+  }
   if (
     billableCredits == null ||
     !Number.isFinite(billableCredits) ||

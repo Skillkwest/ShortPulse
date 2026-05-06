@@ -10,6 +10,7 @@ Inherit the root startup contract in `../AGENTS.md` first, then apply the scoped
 - Keep `pages/` thin (composition + orchestration only); push logic into `features/*/logic` or `features/*/utils`.
 - Use modular CSS under `styles/` and keep `styles/globals.css` as an import-only aggregator (see `../docs/styles-structure.md`).
 - See `../docs/agent-playbook.md` for the one-page checklist.
+- For local app startup on this Windows/Codex machine, prefer `../scripts/start_pulse_local.ps1` from repo root instead of raw `npm run dev` or `npm run dev:next`.
 
 ## Don’ts
 
@@ -21,3 +22,4 @@ Inherit the root startup contract in `../AGENTS.md` first, then apply the scoped
 ## Validation
 
 - Prefer `npm run lint` and `npm run build` from `ShortPulse/frontend/` before finalizing changes.
+- If the task is only to launch local ShortPulse, success means `http://127.0.0.1:3000/` responds and the frontend is backed by the portable launcher path from `../scripts/start_pulse_local.ps1`.

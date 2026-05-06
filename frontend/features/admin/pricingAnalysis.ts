@@ -128,6 +128,7 @@ const buildModelEconomicsRow = ({
     variant.breakdown.billedCredits ??
     (isSharedPolicyModel && creditsAtCost != null
       ? getWorkbookBillableCredits({
+          breakdown: variant.breakdown,
           creditsAtCost,
           markupBps: resolvedPolicy.markupBps,
           roundingIncrement: resolvedPolicy.roundingIncrement,
@@ -136,7 +137,11 @@ const buildModelEconomicsRow = ({
   const billedUsd =
     variant.breakdown.billedUsd ??
     (isSharedPolicyModel && billedCredits != null
-      ? getWorkbookBillableUsd(billedCredits, resolvedPolicy.creditUsdScale)
+      ? getWorkbookBillableUsd(
+          billedCredits,
+          resolvedPolicy.creditUsdScale,
+          variant.breakdown.billedUsd
+        )
       : null);
   const margin = getPricingMargin(variant.breakdown, billedUsd);
   const durationSeconds = durationSecondsOverride ?? getModelDefaultDurationSeconds(model);

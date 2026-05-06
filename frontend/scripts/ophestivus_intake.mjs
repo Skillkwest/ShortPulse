@@ -16,6 +16,8 @@ import { createClient } from "@supabase/supabase-js";
 import { loadLocalEnv } from "../../scripts/lib/load_local_env.mjs";
 
 const ACTOR_EMAIL = "ophestivus@local.agent";
+const HUMAN_REVIEW_TITLE_PREFIX = "[HUMAN REVIEW]";
+const HUMAN_REVIEW_BANNER = "*** HUMAN REVIEW REQUIRED ***";
 const INCIDENT_SELECT_COLUMNS =
   "id,fingerprint,source,scope,severity,status,message,route,endpoint,first_seen_at,last_seen_at,occurrences_count";
 const INCIDENT_ID_PATTERN =
@@ -98,6 +100,12 @@ const toTicket = (item) => ({
   updatedAt: item.updated_at,
 });
 
+const isHumanReviewTicket = (ticket) => {
+  const title = String(ticket?.title ?? "").trim();
+  const details = String(ticket?.details ?? "");
+  return title.startsWith(HUMAN_REVIEW_TITLE_PREFIX) || details.includes(HUMAN_REVIEW_BANNER);
+};
+
 const toIncident = (incident) => ({
   id: incident.id,
   fingerprint: incident.fingerprint,
@@ -130,10 +138,11 @@ const readBacklogTicket = async (supabase) => {
     .is("archived_at", null)
     .order("sort_order", { ascending: true })
     .order("updated_at", { ascending: false })
-    .limit(1);
+    .limit(200);
 
   if (error) throw error;
-  return data?.[0] ? toTicket(data[0]) : null;
+  const tickets = (data ?? []).map(toTicket);
+  return tickets.find((ticket) => !isHumanReviewTicket(ticket)) ?? null;
 };
 
 const readIncident = async (supabase, incidentId) => {
@@ -469,7 +478,9 @@ if (isDirectRun) {
 
 export {
   completeOpenIncidentHandoff,
+  isHumanReviewTicket,
   readNextOpenIncident,
   readOpenIncidentsByFingerprint,
   removeIncidentsFromOpenErrors,
+  readBacklogTicket,
 };

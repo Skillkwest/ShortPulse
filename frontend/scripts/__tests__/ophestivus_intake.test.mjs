@@ -4,6 +4,8 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import {
+  isHumanReviewTicket,
+  readBacklogTicket,
   readNextOpenIncident,
   removeIncidentsFromOpenErrors,
 } from "../ophestivus_intake.mjs";
@@ -29,6 +31,7 @@ class FakeQuery {
     this.supabase = supabase;
     this.table = table;
     this.filters = [];
+    this.isFilters = [];
     this.notFilters = [];
     this.orders = [];
   }
@@ -39,6 +42,11 @@ class FakeQuery {
 
   eq(column, value) {
     this.filters.push({ column, value });
+    return this;
+  }
+
+  is(column, value) {
+    this.isFilters.push({ column, value });
     return this;
   }
 
@@ -70,6 +78,9 @@ class FakeQuery {
   applyFilters() {
     let rows = [...(this.supabase.tables[this.table] ?? [])];
     for (const filter of this.filters) {
+      rows = rows.filter((row) => row[filter.column] === filter.value);
+    }
+    for (const filter of this.isFilters) {
       rows = rows.filter((row) => row[filter.column] === filter.value);
     }
     for (const filter of this.notFilters) {
@@ -137,6 +148,79 @@ describe("ophestivus intake script", () => {
       ],
       limit: 1,
     });
+  });
+
+  it("treats human-review backlog tickets as parked handoffs", async () => {
+    expect(
+      isHumanReviewTicket({
+        title: "[HUMAN REVIEW] Unable to generate sound effect",
+        details: "Escalation details",
+      })
+    ).toBe(true);
+    expect(
+      isHumanReviewTicket({
+        title: "Ophestivus: refresh failure",
+        details: "*** HUMAN REVIEW REQUIRED ***\nEscalation details",
+      })
+    ).toBe(true);
+    expect(
+      isHumanReviewTicket({
+        title: "Ophestivus: hidden fetch retry",
+        details: "Incident: abc\nInitial theory: needs audit.",
+      })
+    ).toBe(false);
+  });
+
+  it("skips human-review backlog tickets and returns the next runnable backlog item", async () => {
+    const supabase = createSupabase({
+      admin_kanban_items: [
+        {
+          id: "ticket-human",
+          title: "[HUMAN REVIEW] Unable to generate sound effect",
+          details: "*** HUMAN REVIEW REQUIRED ***\nEscalation details",
+          status: "backlog",
+          sort_order: 0,
+          updated_at: "2026-05-05T23:00:00.000Z",
+          created_at: "2026-05-05T22:00:00.000Z",
+          archived_at: null,
+        },
+        {
+          id: "ticket-runnable",
+          title: "Ophestivus: hidden fetch retry",
+          details: "Incident: incident-2\nInitial theory: needs audit.",
+          status: "backlog",
+          sort_order: 1,
+          updated_at: "2026-05-05T23:05:00.000Z",
+          created_at: "2026-05-05T22:05:00.000Z",
+          archived_at: null,
+        },
+      ],
+    });
+
+    const ticket = await readBacklogTicket(supabase);
+
+    expect(ticket?.id).toBe("ticket-runnable");
+  });
+
+  it("returns null when backlog contains only parked human-review tickets", async () => {
+    const supabase = createSupabase({
+      admin_kanban_items: [
+        {
+          id: "ticket-human",
+          title: "[HUMAN REVIEW] Generation pipeline bug",
+          details: "*** HUMAN REVIEW REQUIRED ***\nEscalation details",
+          status: "backlog",
+          sort_order: 0,
+          updated_at: "2026-05-05T23:00:00.000Z",
+          created_at: "2026-05-05T22:00:00.000Z",
+          archived_at: null,
+        },
+      ],
+    });
+
+    const ticket = await readBacklogTicket(supabase);
+
+    expect(ticket).toBeNull();
   });
 
   it("removes all open same-fingerprint incidents during handoff", async () => {

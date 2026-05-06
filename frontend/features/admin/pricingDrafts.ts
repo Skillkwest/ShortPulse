@@ -55,6 +55,9 @@ export type DurationDraftByModelId = Record<string, string>;
 export type CreditScaleDraftByModelId = Record<string, string>;
 export type MarkupDraftByModelId = Record<string, string>;
 export type RoundingDraftByModelId = Record<string, string>;
+export type AspectDraftByModelId = Record<string, string>;
+export type ResolutionDraftByModelId = Record<string, string>;
+export type AudioDraftByModelId = Record<string, "default" | "on" | "off">;
 
 export const PRICING_VIEW_TABS: Array<{ id: PricingView; label: string }> = [
   { id: "grid", label: "Pricing Grid" },
@@ -172,3 +175,21 @@ export const getDurationInputStep = (model: AdminPricingModelRow): string => {
   }
   return "1";
 };
+
+export const parseAudioDraft = (
+  value: AudioDraftByModelId[string] | undefined,
+  model: AdminPricingModelRow
+): boolean => {
+  if (value === "on") return true;
+  if (value === "off") return false;
+  return model.defaultAudio ?? true;
+};
+
+export const shouldShowAspectSpecControl = (model: AdminPricingModelRow): boolean =>
+  model.allowedAspects.length > 1;
+
+export const shouldShowResolutionSpecControl = (model: AdminPricingModelRow): boolean =>
+  model.allowedResolutions.length > 1;
+
+export const shouldShowAudioSpecControl = (model: AdminPricingModelRow): boolean =>
+  model.defaultAudio != null && model.workflowType.toLowerCase().includes("video");

@@ -11,8 +11,11 @@ import { buildDraftPricingPreviewVariants } from "./pricingCostDocs";
 import { getModelTypeLabel } from "./pricingFormatting";
 import {
   parseDurationSecondsInput,
+  type AudioDraftByModelId,
+  type AspectDraftByModelId,
   type DurationDraftByModelId,
   type ModelPricingSortOption,
+  type ResolutionDraftByModelId,
 } from "./pricingDrafts";
 
 export const getCreditsAtProviderCost = (
@@ -131,12 +134,17 @@ const getModelRawCostSortValue = (
   model: AdminPricingModelRow,
   pricingPolicy: ModelPricingPolicyDocument,
   durationDrafts: DurationDraftByModelId,
+  aspectDrafts: AspectDraftByModelId,
+  resolutionDrafts: ResolutionDraftByModelId,
+  audioDrafts: AudioDraftByModelId,
   direction: "asc" | "desc"
 ): number | null => {
   const durationDraftValue = durationDrafts[model.id];
   const draftDurationSeconds =
     durationDraftValue !== undefined ? parseDurationSecondsInput(durationDraftValue) : null;
-  const costs = buildDraftPricingPreviewVariants(model, pricingPolicy, draftDurationSeconds)
+  const costs = buildDraftPricingPreviewVariants(model, pricingPolicy, {
+    durationSeconds: draftDurationSeconds,
+  })
     .map((variant) => variant.breakdown?.usdRaw ?? null)
     .filter((value): value is number => value != null && Number.isFinite(value));
   if (!costs.length) return null;
@@ -148,11 +156,17 @@ export const sortAdminPricingModels = ({
   sortOption,
   pricingPolicy,
   durationDrafts,
+  aspectDrafts = {},
+  resolutionDrafts = {},
+  audioDrafts = {},
 }: {
   models: AdminPricingModelRow[];
   sortOption: ModelPricingSortOption;
   pricingPolicy: ModelPricingPolicyDocument;
   durationDrafts: DurationDraftByModelId;
+  aspectDrafts?: AspectDraftByModelId;
+  resolutionDrafts?: ResolutionDraftByModelId;
+  audioDrafts?: AudioDraftByModelId;
 }): AdminPricingModelRow[] => {
   const sorted = [...models];
   sorted.sort((left, right) => {
@@ -171,8 +185,24 @@ export const sortAdminPricingModels = ({
     const direction = sortOption === "cost_asc" ? "asc" : "desc";
     return (
       compareFiniteNumber(
-        getModelRawCostSortValue(left, pricingPolicy, durationDrafts, direction),
-        getModelRawCostSortValue(right, pricingPolicy, durationDrafts, direction),
+        getModelRawCostSortValue(
+          left,
+          pricingPolicy,
+          durationDrafts,
+          aspectDrafts,
+          resolutionDrafts,
+          audioDrafts,
+          direction
+        ),
+        getModelRawCostSortValue(
+          right,
+          pricingPolicy,
+          durationDrafts,
+          aspectDrafts,
+          resolutionDrafts,
+          audioDrafts,
+          direction
+        ),
         direction
       ) || compareText(left.label, right.label, "asc")
     );

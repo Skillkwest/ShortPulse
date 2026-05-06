@@ -18,12 +18,15 @@ const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingMo
     pricingStrategy: "fal-economy-image-per-mp",
     pricingStrategyLabel: "fal-economy-image-per-mp",
     defaultAspect: "4:3",
+    allowedAspects: ["1:1", "4:3", "16:9"],
     defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     defaultDurationSeconds: null,
     defaultSourceDurationSeconds: null,
     minDurationSeconds: null,
     maxDurationSeconds: null,
     allowedDurations: [],
+    defaultAudio: null,
     roundingIncrement: 5,
     pricingAuthority: "shared_policy",
     pricingPreview: {
@@ -193,5 +196,47 @@ describe("pricingAnalysis", () => {
     expect(liveRow?.durationSeconds).toBe(60);
     expect(draftRow?.durationSeconds).toBe(30);
     expect(draftRow?.creditsAtCost).not.toBe(liveRow?.creditsAtCost);
+  });
+
+  it("expands shared-policy image models into separate price-variant rows", () => {
+    const pricingPolicy = getDefaultModelPricingPolicyDocument();
+    const model = buildModelRow({
+      id: "fal-ai/nano-banana-2",
+      label: "Nano Banana 2",
+      sourceUrl: "https://fal.ai/models/fal-ai/nano-banana-2/api",
+      pricingStrategy: "nano-banana-2-per-image",
+      pricingStrategyLabel: "nano-banana-2-per-image",
+      defaultAspect: "auto",
+      allowedAspects: ["auto"],
+      defaultResolution: "1K",
+      allowedResolutions: ["1K", "2K", "4K"],
+      pricingPreview: {
+        usdRaw: 0.08,
+        rawCredits: 8,
+        billedCredits: 8,
+        billedUsd: 0.08,
+      },
+      pricingPreviewVariants: [
+        {
+          id: "default",
+          label: "Default",
+          breakdown: {
+            usdRaw: 0.08,
+            rawCredits: 8,
+            billedCredits: 8,
+            billedUsd: 0.08,
+          },
+        },
+      ],
+    });
+
+    const rows = buildModelEconomicsRows({
+      models: [model],
+      pricingPolicy,
+    });
+
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => row.specLabel)).toEqual(["1K / auto", "2K / auto", "4K / auto"]);
+    expect(rows.map((row) => row.providerCostUsd)).toEqual([0.08, 0.12, 0.16]);
   });
 });

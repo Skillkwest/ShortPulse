@@ -19,9 +19,13 @@ import {
   getCostDocsPosition,
   getModelTypeLabel,
   getProviderPricingDocs,
+  type AudioDraftByModelId,
+  type AspectDraftByModelId,
   parseIntegerInput,
   parsePercentToBps,
   parsePositiveDecimalInput,
+  parseAudioDraft,
+  type ResolutionDraftByModelId,
   sortAdminPricingModels,
   type CostDocsPopover,
   type CreditScaleDraftByModelId,
@@ -72,6 +76,9 @@ export function useAdminPricingPageState({
   refreshPricingState: () => Promise<unknown>;
 }) {
   const [durationDrafts, setDurationDrafts] = React.useState<DurationDraftByModelId>({});
+  const [aspectDrafts, setAspectDrafts] = React.useState<AspectDraftByModelId>({});
+  const [resolutionDrafts, setResolutionDrafts] = React.useState<ResolutionDraftByModelId>({});
+  const [audioDrafts, setAudioDrafts] = React.useState<AudioDraftByModelId>({});
   const [creditScaleDrafts, setCreditScaleDrafts] = React.useState<CreditScaleDraftByModelId>({});
   const [markupDrafts, setMarkupDrafts] = React.useState<MarkupDraftByModelId>({});
   const [roundingDrafts, setRoundingDrafts] = React.useState<RoundingDraftByModelId>({});
@@ -184,8 +191,19 @@ export function useAdminPricingPageState({
         sortOption: modelSortOption,
         pricingPolicy: effectiveModelPolicyDraft,
         durationDrafts,
+        aspectDrafts,
+        resolutionDrafts,
+        audioDrafts,
       }),
-    [durationDrafts, effectiveModelPolicyDraft, filteredModels, modelSortOption]
+    [
+      aspectDrafts,
+      audioDrafts,
+      durationDrafts,
+      effectiveModelPolicyDraft,
+      filteredModels,
+      modelSortOption,
+      resolutionDrafts,
+    ]
   );
 
   const modelEconomicsRows = React.useMemo(
@@ -194,8 +212,18 @@ export function useAdminPricingPageState({
         models: pricingState?.models ?? [],
         pricingPolicy: effectiveModelPolicyDraft,
         durationDrafts,
+        aspectDrafts,
+        resolutionDrafts,
+        audioDrafts,
       }),
-    [durationDrafts, effectiveModelPolicyDraft, pricingState?.models]
+    [
+      aspectDrafts,
+      audioDrafts,
+      durationDrafts,
+      effectiveModelPolicyDraft,
+      pricingState?.models,
+      resolutionDrafts,
+    ]
   );
 
   const buildPlanEconomicsDefaults = React.useCallback(
@@ -271,6 +299,57 @@ export function useAdminPricingPageState({
           buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null))
         : buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null),
     [modelEconomicsRows, selectedUsagePlanId, usageMixRowsByPlanId]
+  );
+
+  const updateAspectDraft = React.useCallback((modelId: string, value: string) => {
+    setAspectDrafts((current) => {
+      if (!value.trim()) {
+        const next = { ...current };
+        delete next[modelId];
+        return next;
+      }
+      return {
+        ...current,
+        [modelId]: value,
+      };
+    });
+  }, []);
+
+  const updateResolutionDraft = React.useCallback((modelId: string, value: string) => {
+    setResolutionDrafts((current) => {
+      if (!value.trim()) {
+        const next = { ...current };
+        delete next[modelId];
+        return next;
+      }
+      return {
+        ...current,
+        [modelId]: value,
+      };
+    });
+  }, []);
+
+  const updateAudioDraft = React.useCallback(
+    (modelId: string, value: AudioDraftByModelId[string], model: AdminPricingModelRow) => {
+      const normalizedValue = value === "default" ? "default" : value;
+      setAudioDrafts((current) => {
+        const resolvedDefaultAudio = parseAudioDraft(undefined, model);
+        if (
+          normalizedValue === "default" ||
+          (normalizedValue === "on" && resolvedDefaultAudio) ||
+          (normalizedValue === "off" && !resolvedDefaultAudio)
+        ) {
+          const next = { ...current };
+          delete next[modelId];
+          return next;
+        }
+        return {
+          ...current,
+          [modelId]: normalizedValue,
+        };
+      });
+    },
+    []
   );
 
   const updatePlanEconomicsDraft = React.useCallback(
@@ -487,6 +566,9 @@ export function useAdminPricingPageState({
 
   const resetModelPolicyDraft = React.useCallback(() => {
     setModelPolicyDraft(activeModelPolicyDocument);
+    setAspectDrafts({});
+    setResolutionDrafts({});
+    setAudioDrafts({});
     setCreditScaleDrafts({});
     setMarkupDrafts({});
     setRoundingDrafts({});
@@ -648,6 +730,12 @@ export function useAdminPricingPageState({
     ...catalogState,
     durationDrafts,
     setDurationDrafts,
+    aspectDrafts,
+    updateAspectDraft,
+    resolutionDrafts,
+    updateResolutionDraft,
+    audioDrafts,
+    updateAudioDraft,
     creditScaleDrafts,
     setCreditScaleDrafts,
     markupDrafts,

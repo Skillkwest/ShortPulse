@@ -17,6 +17,11 @@ import {
   formatPercent,
   formatProviderCostUsd,
 } from "./pricingFormatting";
+import type {
+  AudioDraftByModelId,
+  AspectDraftByModelId,
+  ResolutionDraftByModelId,
+} from "./pricingDrafts";
 import type { AdminPricingModelRow, AdminPricingPlanRow } from "./types";
 import type { ModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
 import styles from "../../styles/admin.module.css";
@@ -34,6 +39,9 @@ type PricingCalculatorSupportStripProps = {
   models: AdminPricingModelRow[];
   modelRows: ModelEconomicsRow[];
   pricingPolicy: ModelPricingPolicyDocument;
+  aspectDrafts: AspectDraftByModelId;
+  resolutionDrafts: ResolutionDraftByModelId;
+  audioDrafts: AudioDraftByModelId;
   isDraftDirty: boolean;
 };
 
@@ -50,6 +58,9 @@ export function PricingCalculatorSupportStrip({
   models,
   modelRows,
   pricingPolicy,
+  aspectDrafts,
+  resolutionDrafts,
+  audioDrafts,
   isDraftDirty,
 }: PricingCalculatorSupportStripProps) {
   const selectedPlan = React.useMemo(
@@ -69,8 +80,11 @@ export function PricingCalculatorSupportStrip({
         models,
         pricingPolicy,
         planSummary,
+        aspectDrafts,
+        resolutionDrafts,
+        audioDrafts,
       }),
-    [models, planSummary, pricingPolicy, usageMixRows]
+    [aspectDrafts, audioDrafts, models, planSummary, pricingPolicy, resolutionDrafts, usageMixRows]
   );
 
   const totalMonthlyRuns = usageRows.reduce((sum, row) => sum + (row.runsPerMonth ?? 0), 0);
@@ -154,6 +168,14 @@ export function PricingCalculatorSupportStrip({
               </div>
               {usageMixRows.map((row) => {
                 const analysisRow = usageRows.find((candidate) => candidate.id === row.id) ?? null;
+                const selectedModelOption =
+                  modelRows.find(
+                    (candidate) =>
+                      candidate.modelId === row.modelId && candidate.variantId === row.variantId
+                  ) ??
+                  modelRows.find((candidate) => candidate.modelId === row.modelId) ??
+                  modelRows[0] ??
+                  null;
                 return (
                   <div
                     key={row.id}
@@ -163,7 +185,11 @@ export function PricingCalculatorSupportStrip({
                       <select
                         aria-label="Model / spec"
                         className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={`${row.modelId}:${row.variantId}`}
+                        value={
+                          selectedModelOption
+                            ? `${selectedModelOption.modelId}:${selectedModelOption.variantId}`
+                            : ""
+                        }
                         onChange={(event) => {
                           const [modelId, variantId = "default"] = event.target.value.split(":");
                           const selectedRow =

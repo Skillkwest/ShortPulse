@@ -9,7 +9,12 @@ import {
   getModelTypeLabel,
   getVariantSpecSummary,
 } from "./pricingFormatting";
-import { parseDurationSecondsInput } from "./pricingDrafts";
+import {
+  parseDurationSecondsInput,
+  type AudioDraftByModelId,
+  type AspectDraftByModelId,
+  type ResolutionDraftByModelId,
+} from "./pricingDrafts";
 import {
   CALCULATOR_REFERENCE_INCLUDED_CREDITS,
   CALCULATOR_REFERENCE_PLAN_PRICE_USD,
@@ -110,12 +115,18 @@ const buildModelEconomicsRow = ({
   pricingPolicy,
   durationSecondsOverride = null,
   variantCount = 1,
+  aspectDrafts = {},
+  resolutionDrafts = {},
+  audioDrafts = {},
 }: {
   model: AdminPricingModelRow;
   variant: NonNullable<ReturnType<typeof buildDraftPricingPreviewVariants>[number]>;
   pricingPolicy: ModelPricingPolicyDocument;
   durationSecondsOverride?: number | null;
   variantCount?: number;
+  aspectDrafts?: AspectDraftByModelId;
+  resolutionDrafts?: ResolutionDraftByModelId;
+  audioDrafts?: AudioDraftByModelId;
 }): ModelEconomicsRow => {
   const resolvedPolicy = resolveModelPricingForModel(pricingPolicy, model.id);
   const isSharedPolicyModel = model.pricingAuthority === "shared_policy";
@@ -158,7 +169,11 @@ const buildModelEconomicsRow = ({
     modelLabel: model.label,
     provider: model.provider,
     typeLabel: getModelTypeLabel(model, variant),
-    specLabel: getVariantSpecSummary(model, variant, variantCount),
+    specLabel: getVariantSpecSummary(model, variant, variantCount, {
+      aspectDrafts,
+      resolutionDrafts,
+      audioDrafts,
+    }),
     durationSeconds,
     providerCostUsd,
     costPerSecondUsd,
@@ -178,14 +193,22 @@ export const buildModelEconomicsRows = ({
   models,
   pricingPolicy,
   durationDrafts = {},
+  aspectDrafts = {},
+  resolutionDrafts = {},
+  audioDrafts = {},
 }: {
   models: AdminPricingModelRow[];
   pricingPolicy: ModelPricingPolicyDocument;
   durationDrafts?: Record<string, string>;
+  aspectDrafts?: AspectDraftByModelId;
+  resolutionDrafts?: ResolutionDraftByModelId;
+  audioDrafts?: AudioDraftByModelId;
 }): ModelEconomicsRow[] =>
   models.flatMap((model) => {
     const parsedDuration = parseDurationSecondsInput(durationDrafts[model.id] ?? "");
-    const variants = buildDraftPricingPreviewVariants(model, pricingPolicy, parsedDuration);
+    const variants = buildDraftPricingPreviewVariants(model, pricingPolicy, {
+      durationSeconds: parsedDuration,
+    });
     return variants.map((variant) =>
       buildModelEconomicsRow({
         model,
@@ -193,6 +216,9 @@ export const buildModelEconomicsRows = ({
         pricingPolicy,
         durationSecondsOverride: parsedDuration,
         variantCount: variants.length,
+        aspectDrafts,
+        resolutionDrafts,
+        audioDrafts,
       })
     );
   });
@@ -203,18 +229,26 @@ export const buildSelectedModelEconomicsRow = ({
   modelId,
   variantId,
   durationSeconds,
+  aspectDrafts = {},
+  resolutionDrafts = {},
+  audioDrafts = {},
 }: {
   models: AdminPricingModelRow[];
   pricingPolicy: ModelPricingPolicyDocument;
   modelId: string;
   variantId: string;
   durationSeconds?: string | null;
+  aspectDrafts?: AspectDraftByModelId;
+  resolutionDrafts?: ResolutionDraftByModelId;
+  audioDrafts?: AudioDraftByModelId;
 }): ModelEconomicsRow | null => {
   const model = models.find((candidate) => candidate.id === modelId);
   if (!model) return null;
   const parsedDuration =
     durationSeconds == null ? null : parseDurationSecondsInput(String(durationSeconds));
-  const variants = buildDraftPricingPreviewVariants(model, pricingPolicy, parsedDuration);
+  const variants = buildDraftPricingPreviewVariants(model, pricingPolicy, {
+    durationSeconds: parsedDuration,
+  });
   const selectedVariant =
     variants.find((candidate) => candidate.id === variantId) ?? variants[0] ?? null;
   if (!selectedVariant) return null;
@@ -224,6 +258,9 @@ export const buildSelectedModelEconomicsRow = ({
     pricingPolicy,
     durationSecondsOverride: parsedDuration,
     variantCount: variants.length,
+    aspectDrafts,
+    resolutionDrafts,
+    audioDrafts,
   });
 };
 
@@ -324,11 +361,17 @@ export const buildUsageMixAnalysisRows = ({
   models,
   pricingPolicy,
   planSummary,
+  aspectDrafts = {},
+  resolutionDrafts = {},
+  audioDrafts = {},
 }: {
   rows: UsageMixDraftRow[];
   models: AdminPricingModelRow[];
   pricingPolicy: ModelPricingPolicyDocument;
   planSummary: PlanEconomicsSummary;
+  aspectDrafts?: AspectDraftByModelId;
+  resolutionDrafts?: ResolutionDraftByModelId;
+  audioDrafts?: AudioDraftByModelId;
 }): UsageMixAnalysisRow[] => {
   const rawRows = rows.map((row) => {
     const selectedModelRow = buildSelectedModelEconomicsRow({
@@ -337,6 +380,9 @@ export const buildUsageMixAnalysisRows = ({
       modelId: row.modelId,
       variantId: row.variantId,
       durationSeconds: row.durationSeconds,
+      aspectDrafts,
+      resolutionDrafts,
+      audioDrafts,
     });
     const runsPerMonth = clampNonNegative(parseNumericInput(row.runsPerMonth));
 

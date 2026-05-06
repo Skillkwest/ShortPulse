@@ -8,11 +8,14 @@ import type {
   AdminPricingStateResponse,
 } from "./types";
 import {
+  type AudioDraftByModelId,
+  type AspectDraftByModelId,
   MODEL_PRICING_SORT_OPTIONS,
   type CreditScaleDraftByModelId,
   type DurationDraftByModelId,
   type MarkupDraftByModelId,
   type ModelPricingSortOption,
+  type ResolutionDraftByModelId,
   type RoundingDraftByModelId,
 } from "./pricingPageUtils";
 import { PricingModelWorkbookTable } from "./PricingModelWorkbookTable";
@@ -26,6 +29,16 @@ type PricingModelWorkbookProps = {
   effectiveModelPolicyDraft: ModelPricingPolicyDocument;
   durationDrafts: DurationDraftByModelId;
   setDurationDrafts: React.Dispatch<React.SetStateAction<DurationDraftByModelId>>;
+  aspectDrafts: AspectDraftByModelId;
+  updateAspectDraft: (modelId: string, value: string) => void;
+  resolutionDrafts: ResolutionDraftByModelId;
+  updateResolutionDraft: (modelId: string, value: string) => void;
+  audioDrafts: AudioDraftByModelId;
+  updateAudioDraft: (
+    modelId: string,
+    value: AudioDraftByModelId[string],
+    model: AdminPricingModelRow
+  ) => void;
   creditScaleDrafts: CreditScaleDraftByModelId;
   setCreditScaleDrafts: React.Dispatch<React.SetStateAction<CreditScaleDraftByModelId>>;
   markupDrafts: MarkupDraftByModelId;
@@ -64,6 +77,12 @@ export const PricingModelWorkbook = ({
   effectiveModelPolicyDraft,
   durationDrafts,
   setDurationDrafts,
+  aspectDrafts,
+  updateAspectDraft,
+  resolutionDrafts,
+  updateResolutionDraft,
+  audioDrafts,
+  updateAudioDraft,
   creditScaleDrafts,
   setCreditScaleDrafts,
   markupDrafts,
@@ -168,6 +187,12 @@ export const PricingModelWorkbook = ({
             effectiveModelPolicyDraft={effectiveModelPolicyDraft}
             durationDrafts={durationDrafts}
             setDurationDrafts={setDurationDrafts}
+            aspectDrafts={aspectDrafts}
+            updateAspectDraft={updateAspectDraft}
+            resolutionDrafts={resolutionDrafts}
+            updateResolutionDraft={updateResolutionDraft}
+            audioDrafts={audioDrafts}
+            updateAudioDraft={updateAudioDraft}
             creditScaleDrafts={creditScaleDrafts}
             setCreditScaleDrafts={setCreditScaleDrafts}
             markupDrafts={markupDrafts}

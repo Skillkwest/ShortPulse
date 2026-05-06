@@ -28,6 +28,11 @@ import {
   type ModelPricingSortOption,
   type RoundingDraftByModelId,
 } from "./pricingPageUtils";
+import type {
+  AudioDraftByModelId,
+  AspectDraftByModelId,
+  ResolutionDraftByModelId,
+} from "./pricingDrafts";
 import {
   resolveModelPricingForModel,
   type ModelPricingPolicyDocument,
@@ -40,6 +45,16 @@ type PricingModelWorkbookTableProps = {
   effectiveModelPolicyDraft: ModelPricingPolicyDocument;
   durationDrafts: DurationDraftByModelId;
   setDurationDrafts: React.Dispatch<React.SetStateAction<DurationDraftByModelId>>;
+  aspectDrafts: AspectDraftByModelId;
+  updateAspectDraft: (modelId: string, value: string) => void;
+  resolutionDrafts: ResolutionDraftByModelId;
+  updateResolutionDraft: (modelId: string, value: string) => void;
+  audioDrafts: AudioDraftByModelId;
+  updateAudioDraft: (
+    modelId: string,
+    value: AudioDraftByModelId[string],
+    model: AdminPricingModelRow
+  ) => void;
   creditScaleDrafts: CreditScaleDraftByModelId;
   setCreditScaleDrafts: React.Dispatch<React.SetStateAction<CreditScaleDraftByModelId>>;
   markupDrafts: MarkupDraftByModelId;
@@ -66,6 +81,12 @@ export function PricingModelWorkbookTable({
   effectiveModelPolicyDraft,
   durationDrafts,
   setDurationDrafts,
+  aspectDrafts,
+  updateAspectDraft,
+  resolutionDrafts,
+  updateResolutionDraft,
+  audioDrafts,
+  updateAudioDraft,
   creditScaleDrafts,
   setCreditScaleDrafts,
   markupDrafts,
@@ -115,7 +136,9 @@ export function PricingModelWorkbookTable({
           const previewVariants = buildDraftPricingPreviewVariants(
             model,
             effectiveModelPolicyDraft,
-            draftDurationSeconds
+            {
+              durationSeconds: draftDurationSeconds,
+            }
           );
           const isSelected = selectedModelRow?.id === model.id;
           const draftOverride = effectiveModelPolicyDraft.perModel[model.id] ?? null;

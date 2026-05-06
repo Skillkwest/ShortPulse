@@ -15,12 +15,15 @@ const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingMo
     pricingStrategy: "fal-economy-image-per-mp",
     pricingStrategyLabel: "fal-economy-image-per-mp",
     defaultAspect: "4:3",
+    allowedAspects: ["1:1", "4:3", "16:9"],
     defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
     defaultDurationSeconds: null,
     defaultSourceDurationSeconds: null,
     minDurationSeconds: null,
     maxDurationSeconds: null,
     allowedDurations: [],
+    defaultAudio: null,
     roundingIncrement: 5,
     pricingAuthority: "shared_policy",
     pricingPreview: {
@@ -133,6 +136,9 @@ describe("PricingCalculatorSupportStrip", () => {
         models={models}
         modelRows={modelRows}
         pricingPolicy={pricingPolicy}
+        aspectDrafts={{}}
+        resolutionDrafts={{}}
+        audioDrafts={{}}
         isDraftDirty={false}
       />
     );

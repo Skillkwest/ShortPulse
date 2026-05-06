@@ -4,6 +4,7 @@ import type {
   AdminPricingPreviewVariant,
 } from "./types";
 import { buildDefaultPricingParams, computeCostForModel } from "../../lib/model-runtime/pricing";
+import { shouldShowAudioSpecControl } from "./pricingDrafts";
 
 export type CostDocsPopover = {
   x: number;
@@ -182,10 +183,106 @@ const mapDraftPricingBreakdown = (
   };
 };
 
+const orderWithDefaultFirst = <T extends string | boolean | null>(
+  values: T[],
+  defaultValue: T
+): T[] => {
+  const ordered: T[] = [];
+  if (values.some((value) => value === defaultValue)) {
+    ordered.push(defaultValue);
+  }
+  values.forEach((value) => {
+    if (!ordered.some((existing) => existing === value)) {
+      ordered.push(value);
+    }
+  });
+  return ordered.length ? ordered : [defaultValue];
+};
+
+const shouldExpandAspectPricingVariants = (model: AdminPricingModelRow): boolean =>
+  [
+    "fal-per-mp",
+    "fal-economy-image-per-mp",
+    "fal-fill-per-mp",
+    "fal-flux-kontext-inpaint-per-mp",
+    "gpt-image-2-per-image",
+    "seedance-2-per-second",
+    "seedance-2-fast-per-second",
+  ].includes(model.pricingStrategy);
+
+const shouldExpandResolutionPricingVariants = (model: AdminPricingModelRow): boolean =>
+  [
+    "gpt-image-2-per-image",
+    "nano-banana-2-per-image",
+    "nano-banana-per-image",
+    "seedream-per-image",
+    "seedream-5-lite-per-image",
+    "veo-3-per-second",
+    "seedance-1.5-per-second",
+    "seedance-2-per-second",
+    "seedance-2-fast-per-second",
+  ].includes(model.pricingStrategy);
+
+const buildAspectOptions = (
+  model: AdminPricingModelRow,
+  options: { aspect?: string | null }
+): string[] => {
+  if (options.aspect) return [options.aspect];
+  if (!shouldExpandAspectPricingVariants(model)) return [model.defaultAspect];
+  return orderWithDefaultFirst(
+    model.allowedAspects.length ? model.allowedAspects : [model.defaultAspect],
+    model.defaultAspect
+  );
+};
+
+const buildResolutionOptions = (
+  model: AdminPricingModelRow,
+  options: { resolution?: string | null }
+): Array<string | null> => {
+  if (options.resolution !== undefined) return [options.resolution ?? null];
+  if (!shouldExpandResolutionPricingVariants(model)) return [model.defaultResolution ?? null];
+  return orderWithDefaultFirst(
+    model.allowedResolutions.length ? model.allowedResolutions : [model.defaultResolution ?? null],
+    model.defaultResolution ?? null
+  );
+};
+
+const buildAudioOptions = (
+  model: AdminPricingModelRow,
+  options: { audio?: boolean | null }
+): Array<boolean | null> => {
+  if (options.audio !== undefined) return [options.audio];
+  if (!shouldShowAudioSpecControl(model)) return [null];
+  return orderWithDefaultFirst([true, false], model.defaultAudio ?? true);
+};
+
+const buildVariantId = ({
+  baseVariantId,
+  aspect,
+  resolution,
+  audio,
+}: {
+  baseVariantId: string;
+  aspect: string;
+  resolution: string | null;
+  audio: boolean | null;
+}): string => {
+  const idParts = [baseVariantId];
+  if (resolution) idParts.push(`res:${resolution}`);
+  if (aspect) idParts.push(`aspect:${aspect}`);
+  if (audio != null) idParts.push(`audio:${audio ? "on" : "off"}`);
+  return idParts.join("|");
+};
+
 export const buildDraftPricingPreviewVariants = (
   model: AdminPricingModelRow,
   pricingPolicy: Parameters<typeof computeCostForModel>[2],
-  durationSeconds: number | null = null
+  options: {
+    durationSeconds?: number | null;
+    aspect?: string | null;
+    resolution?: string | null;
+    audio?: boolean | null;
+  } = {}
 ): AdminPricingPreviewVariant[] => {
   const serverVariants = model.pricingPreviewVariants.length
     ? model.pricingPreviewVariants
@@ -198,24 +295,49 @@ export const buildDraftPricingPreviewVariants = (
   const variants = serverVariants.length
     ? serverVariants
     : [{ id: "default", label: "Default", breakdown: null }];
+  const aspectOptions = buildAspectOptions(model, { aspect: options.aspect });
+  const resolutionOptions = buildResolutionOptions(model, { resolution: options.resolution });
+  const audioOptions = buildAudioOptions(model, { audio: options.audio });
 
   const draftVariants = variants
-    .map((variant) => {
-      const durationOverrides =
-        durationSeconds != null
-          ? model.pricingStrategy === "elevenlabs-voice-changer-per-minute"
-            ? { sourceDurationSeconds: durationSeconds }
-            : { durationSeconds }
-          : {};
-      const params = buildDefaultPricingParams(model.id, {
-        ...durationOverrides,
-        ...(variant.id === "edit" ? { inputImageCount: 1, inputFidelity: "high" } : {}),
-      });
-      const breakdown =
-        mapDraftPricingBreakdown(model.id, params, pricingPolicy) ?? variant.breakdown;
-      if (!breakdown) return null;
-      return { id: variant.id, label: variant.label, breakdown };
-    })
+    .flatMap((variant) =>
+      resolutionOptions.flatMap((resolution) =>
+        aspectOptions.flatMap((aspect) =>
+          audioOptions.map((audio): AdminPricingPreviewVariant | null => {
+            const durationSeconds = options.durationSeconds ?? null;
+            const durationOverrides =
+              durationSeconds != null
+                ? model.pricingStrategy === "elevenlabs-voice-changer-per-minute"
+                  ? { sourceDurationSeconds: durationSeconds }
+                  : { durationSeconds }
+                : {};
+            const params = buildDefaultPricingParams(model.id, {
+              ...(aspect ? { aspect } : {}),
+              ...(resolution ? { resolution } : {}),
+              ...(audio != null ? { audio } : {}),
+              ...durationOverrides,
+              ...(variant.id === "edit" ? { inputImageCount: 1, inputFidelity: "high" } : {}),
+            });
+            const breakdown =
+              mapDraftPricingBreakdown(model.id, params, pricingPolicy) ?? variant.breakdown;
+            if (!breakdown) return null;
+            return {
+              id: buildVariantId({
+                baseVariantId: variant.id,
+                aspect,
+                resolution,
+                audio,
+              }),
+              label: variant.label,
+              aspect,
+              resolution,
+              audio,
+              breakdown,
+            } satisfies AdminPricingPreviewVariant;
+          })
+        )
+      )
+    )
     .filter((variant): variant is AdminPricingPreviewVariant => variant !== null);
 
   return draftVariants.length ? draftVariants : serverVariants;

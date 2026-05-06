@@ -1,4 +1,10 @@
 import type { AdminPricingModelRow, AdminPricingPreviewVariant } from "./types";
+import type {
+  AudioDraftByModelId,
+  AspectDraftByModelId,
+  ResolutionDraftByModelId,
+} from "./pricingDrafts";
+import { parseAudioDraft, shouldShowAudioSpecControl } from "./pricingDrafts";
 
 export const formatUsd = (value: number): string => `$${value.toFixed(2)}`;
 
@@ -78,10 +84,36 @@ export const getPricingAuthorityLabel = (
   return "Metadata only";
 };
 
-export const getModelSpecSummary = (model: AdminPricingModelRow): string => {
+export type ModelSpecDraftContext = {
+  aspectDrafts?: AspectDraftByModelId;
+  resolutionDrafts?: ResolutionDraftByModelId;
+  audioDrafts?: AudioDraftByModelId;
+};
+
+export const getResolvedModelSpec = (
+  model: AdminPricingModelRow,
+  draftContext: ModelSpecDraftContext = {}
+): {
+  aspect: string;
+  resolution: string | null;
+  audio: boolean | null;
+} => ({
+  aspect: draftContext.aspectDrafts?.[model.id] ?? model.defaultAspect,
+  resolution: draftContext.resolutionDrafts?.[model.id] ?? model.defaultResolution,
+  audio: shouldShowAudioSpecControl(model)
+    ? parseAudioDraft(draftContext.audioDrafts?.[model.id], model)
+    : null,
+});
+
+export const getModelSpecSummary = (
+  model: AdminPricingModelRow,
+  draftContext: ModelSpecDraftContext = {}
+): string => {
+  const resolvedSpec = getResolvedModelSpec(model, draftContext);
   const parts: string[] = [];
-  if (model.defaultResolution) parts.push(model.defaultResolution);
-  if (model.defaultAspect) parts.push(model.defaultAspect);
+  if (resolvedSpec.resolution) parts.push(resolvedSpec.resolution);
+  if (resolvedSpec.aspect) parts.push(resolvedSpec.aspect);
+  if (resolvedSpec.audio != null) parts.push(resolvedSpec.audio ? "audio on" : "audio off");
   return parts.length ? parts.join(" / ") : model.workflowType;
 };
 
@@ -96,9 +128,25 @@ export const getModelDurationSummary = (model: AdminPricingModelRow): string => 
 export const getVariantSpecSummary = (
   model: AdminPricingModelRow,
   variant: AdminPricingPreviewVariant | null,
-  variantCount: number
+  variantCount: number,
+  draftContext: ModelSpecDraftContext = {}
 ): string => {
-  const baseSpec = getModelSpecSummary(model);
-  if (!variant || variantCount <= 1 || variant.id === "default") return baseSpec;
+  const resolvedSpec = getResolvedModelSpec(model, draftContext);
+  const parts: string[] = [];
+  const resolution = variant?.resolution ?? resolvedSpec.resolution;
+  const aspect = variant?.aspect ?? resolvedSpec.aspect;
+  const audio = variant?.audio ?? resolvedSpec.audio;
+  if (resolution) parts.push(resolution);
+  if (aspect) parts.push(aspect);
+  if (audio != null) parts.push(audio ? "audio on" : "audio off");
+  const baseSpec = parts.length ? parts.join(" / ") : model.workflowType;
+  if (
+    !variant ||
+    variantCount <= 1 ||
+    variant.id === "default" ||
+    variant.label.toLowerCase() === "default"
+  ) {
+    return baseSpec;
+  }
   return `${variant.label} / ${baseSpec}`;
 };

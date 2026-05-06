@@ -102,6 +102,12 @@ export default function AdminPricingPage() {
             effectiveModelPolicyDraft={pageState.effectiveModelPolicyDraft}
             durationDrafts={pageState.durationDrafts}
             setDurationDrafts={pageState.setDurationDrafts}
+            aspectDrafts={pageState.aspectDrafts}
+            updateAspectDraft={pageState.updateAspectDraft}
+            resolutionDrafts={pageState.resolutionDrafts}
+            updateResolutionDraft={pageState.updateResolutionDraft}
+            audioDrafts={pageState.audioDrafts}
+            updateAudioDraft={pageState.updateAudioDraft}
             creditScaleDrafts={pageState.creditScaleDrafts}
             setCreditScaleDrafts={pageState.setCreditScaleDrafts}
             markupDrafts={pageState.markupDrafts}
@@ -143,6 +149,9 @@ export default function AdminPricingPage() {
             models={pricingState?.models ?? []}
             modelRows={pageState.modelEconomicsRows}
             pricingPolicy={pageState.effectiveModelPolicyDraft}
+            aspectDrafts={pageState.aspectDrafts}
+            resolutionDrafts={pageState.resolutionDrafts}
+            audioDrafts={pageState.audioDrafts}
             isDraftDirty={pageState.canApplyModelPolicy}
           />
 

@@ -5,7 +5,7 @@
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiStudioPageShell } from "../features/ai-studio/components/AiStudioPageShell";
-import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
+import type { AiStudioPageContentProps } from "../features/ai-studio/components/AiStudioPageContent";
 import {
   normalizeAiStudioProjectName,
   resolveProjectEntryPhase,
@@ -40,6 +40,7 @@ import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAi
 import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudioPageUiNotices";
 import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/useAiStudioPageCreditDerivations";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
+import { useAiStudioPageContentRuntime } from "../features/ai-studio/hooks/useAiStudioPageContentRuntime";
 import { useAiStudioPageGenerationRuntime } from "../features/ai-studio/hooks/useAiStudioPageGenerationRuntime";
 import { useAiStudioPageMediaReferenceRuntime } from "../features/ai-studio/hooks/useAiStudioPageMediaReferenceRuntime";
 import { useAiStudioPageProjectSessionRuntime } from "../features/ai-studio/hooks/useAiStudioPageProjectSessionRuntime";
@@ -703,11 +704,11 @@ type CreateRuntimeRootSharedProps = {
   base: AiStudioPageBaseRuntime;
   createPulsePageRuntime: CreatePulsePresetPageRuntime;
 };
-type CreatePanelProps = React.ComponentProps<typeof AiStudioPageContent>["propertiesCreate"];
-type EditPanelProps = React.ComponentProps<typeof AiStudioPageContent>["propertiesEditExpert"];
-type VideoPanelProps = React.ComponentProps<typeof AiStudioPageContent>["propertiesVideo"];
+type CreatePanelProps = AiStudioPageContentProps["propertiesCreate"];
+type EditPanelProps = AiStudioPageContentProps["propertiesEditExpert"];
+type VideoPanelProps = AiStudioPageContentProps["propertiesVideo"];
 type PageContentRuntimeProps = ReturnType<typeof mapHookContractsToPageContentProps>;
-type ModelModalState = React.ComponentProps<typeof AiStudioPageContent>["modelModalState"];
+type ModelModalState = AiStudioPageContentProps["modelModalState"];
 type CreatePanelGenerateOptions = {
   modeOverride?: StudioMode;
   toolOverride?: ToolId | null;
@@ -2121,7 +2122,7 @@ const AiStudioPageRuntimeBody = ({
     handleSelectModelFromModal,
   });
 
-  const pageContentProps = {
+  const pageContentProps = useAiStudioPageContentRuntime({
     sessionId,
     referenceGridFileInputRef,
     onFileBrowserSelection: handleFileBrowserSelection,
@@ -2196,7 +2197,7 @@ const AiStudioPageRuntimeBody = ({
     resolveVoiceChangerInternalReferenceSource,
     onSelectedStylePromptChange: setSelectedStylePrompt,
     onSelectedStyleContextChange: setSelectedStyleContext,
-  } satisfies React.ComponentProps<typeof AiStudioPageContent>;
+  });
 
   return (
     <AiStudioPageShell

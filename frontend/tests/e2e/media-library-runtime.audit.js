@@ -542,10 +542,7 @@ function isModalAuditTopologyAvailable() {
   if (process.env.PLAYWRIGHT_MEDIA_LIBRARY_FORCE_MODAL_AUDIT === "true") {
     return true;
   }
-  if (MODAL_BASE_URL !== PANEL_BASE_URL) {
-    return true;
-  }
-  return process.env.NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED === "false";
+  return MODAL_BASE_URL !== PANEL_BASE_URL;
 }
 
 function createSkippedModalAuditResult() {
@@ -554,7 +551,7 @@ function createSkippedModalAuditResult() {
     ok: true,
     skipped: true,
     skipReason:
-      "Modal audit requires a modal-only server. Set PLAYWRIGHT_MODAL_BASE_URL to a separate server or disable NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED there.",
+      "Modal audit requires a separate modal-only server. Set PLAYWRIGHT_MODAL_BASE_URL to a different base URL.",
     baseUrl: MODAL_BASE_URL,
     tabClicks: [],
     loadMoreClicks: 0,

@@ -1,15 +1,8 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { StudioOutput } from "../types";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
-import { abandonGenerationOutput } from "../logic/generationAbandonment";
 import { useAiStudioCreationState } from "./useAiStudioCreationState";
+import { useAiStudioClearGenerationOutput } from "./useAiStudioClearGenerationOutput";
 import { useAiStudioOutputDerivations } from "./useAiStudioOutputDerivations";
 import { useAiStudioReferenceGridStateActions } from "./useAiStudioReferenceGridStateActions";
 import { useAiStudioReferenceSelectionState } from "./useAiStudioReferenceSelectionState";
@@ -553,18 +546,11 @@ export const useAiStudioState = ({
     ensureGenerationRecord,
   });
 
-  const clearGenerationOutput = useCallback(
-    (outputId: string) => {
-      const output = findOutputById(outputId);
-      abandonTaskOutput(outputId);
-      forceDeleteOutput(outputId);
-      if (!output) return;
-      void abandonGenerationOutput({ output }).catch((error) => {
-        console.warn("[ai-studio] failed to persist generation abandonment", error);
-      });
-    },
-    [abandonTaskOutput, findOutputById, forceDeleteOutput]
-  );
+  const clearGenerationOutput = useAiStudioClearGenerationOutput({
+    abandonTaskOutput,
+    findOutputById,
+    forceDeleteOutput,
+  });
 
   const {
     addAgentPromptReference,

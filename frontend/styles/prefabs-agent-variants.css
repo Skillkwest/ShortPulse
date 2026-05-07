@@ -142,6 +142,17 @@
   transform: translateY(1px);
   cursor: pointer;
 }
+.agent-generate-prefab.is-busy:not(:disabled),
+.agent-generate-prefab[aria-busy="true"]:not(:disabled) {
+  cursor: progress;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 0 0 3px rgba(52, 200, 255, 0.18);
+}
+.agent-generate-prefab.is-busy:not(:disabled) .agent-generate-label,
+.agent-generate-prefab[aria-busy="true"]:not(:disabled) .agent-generate-label {
+  opacity: 0.92;
+}
 .agent-generate-prefab:disabled {
   cursor: not-allowed;
   box-shadow: none;

@@ -14,10 +14,9 @@ Runtime v2 required server-authoritative lifecycle control, but three gaps remai
 These gaps increased duplicate side-effect risk and made rollout gates harder to enforce.
 
 ## Decision
-1. Adopt Fal webhook verification cutover controls:
-   - `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE=dual|fal_only|hmac_only`
+1. Adopt Fal webhook verification on the Fal JWKS/Ed25519 path:
    - `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`
-   - Keep `SHORTPULSE_FAL_WEBHOOK_SECRET` as temporary legacy fallback only.
+   - historical dual/HMAC cutover support is retired from the active runtime contract.
 2. Add durable webhook inbox table (`fal_webhook_events`) keyed by provider `event_id`.
 3. Register webhook callback at submit time using Fal queue `fal_webhook` parameter.
 4. Use one shared recovery execution engine for terminal processing and recovery side effects:
@@ -35,10 +34,9 @@ Positive:
 - Recovery completion from `terminal_success_no_media` is explicitly guarded.
 
 Tradeoffs:
-- Temporary dual-verify complexity during cutover.
 - Additional schema/runtime migration requirements (`024`-`026`).
+- Historical webhook rows may still retain pre-cutover verification metadata.
 
 ## Rollback/mitigation
 - Keep polling fallback active.
-- If signature cutover causes regressions, set `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE=hmac_only` temporarily.
 - If runtime reliability gates regress, set `SHORTPULSE_FAL_INTEGRATION_MODE=legacy` while triaging.

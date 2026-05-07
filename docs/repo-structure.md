@@ -22,6 +22,7 @@ This document describes the canonical layout of the ShortPulse product repo and 
 - `docs/api/`: API/provider references.
 - `docs/sops/`: SOP runbooks.
 - `docs/product/`: product/domain source-of-truth docs.
+- `docs/systems/`: authoritative systems catalog and rating docs.
 - `docs/planning/`: active planning and backlog docs.
 - `docs/adr/`: architecture decision records.
 - `docs/design/`: design rationale.

@@ -28,7 +28,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
   - `frontend/features/ai-studio/components/MediaLibraryModal.tsx`
 - AI Studio Media Library panel:
   - `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
-  - `frontend/features/ai-studio/logic/mediaLibraryPanelPreviewResolver.ts`
+  - `frontend/features/media-library/logic/mediaLibraryAdaptivePreview.ts`
 - Shared route/modal virtualization math:
   - `frontend/features/media-library/logic/mediaGridVirtualization.ts`
 - Reference Grid autoplay budget:
@@ -59,7 +59,7 @@ Operate and troubleshoot Media Library and AI Studio Reference Grid performance 
 1. Open Media Library route and AI Studio modal.
 2. Confirm media cards render quickly with placeholders first, then preview hydration.
 3. Confirm pagination/search remains responsive with large tabs.
-4. Confirm `POST /api/media/list` is active when `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED=true`.
+4. Confirm `POST /api/media/list` is active as the canonical Media Library list route.
 5. Confirm stale refresh is non-blocking in the AI Studio modal:
    - Existing cards remain visible while refresh is in-flight.
    - `Loading media library…` appears only when there are zero visible media rows.
@@ -148,19 +148,14 @@ Key indicators:
 - Route/modal fetch-transition rules:
   - `resolveMediaFetchTransition` in `frontend/features/media-library/logic/mediaFetchTransition.ts`
   - fetch reasons: `initial`, `tab_or_query_reset`, `stale_refresh`, `load_more`
-- Media list/runtime rollout gates:
-  - `SHORTPULSE_MEDIA_LIST_API_ENABLED`
-  - `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED`
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED`
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED`
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED`
+- Media list/runtime contract:
+  - canonical Media Library list/signing runtime (`/api/media/list`, virtualization, video budget, sign prefetch)
 - Reference Grid autoplay caps:
   - `REFERENCE_AUTOPLAY_MAX_*` in `frontend/features/ai-studio/components/ReferenceGrid.tsx`
 - Reference Grid active/archived caps:
   - `NEXT_PUBLIC_REFERENCE_GRID_ACTIVE_LIMIT` (default `500`)
   - `NEXT_PUBLIC_REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT` (default `120`)
 - Reference Grid feature flags:
-  - `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE` (`stable` default, `legacy` rollback profile)
   - `NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE`
   - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW`
   - `NEXT_PUBLIC_REFERENCE_GRID_CURATED_SPLIT`
@@ -183,18 +178,11 @@ Key indicators:
   - Effective adaptive preview routing requires both:
     - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW=true`
     - `NEXT_PUBLIC_REFERENCE_GRID_ADAPTIVE_PREVIEW_QUALITY=true`
-- Adaptive Media V2 rollout flags:
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED`
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SHADOW_COMPARE`
+- Adaptive media controls:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY`
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (csv allowlist)
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY` (global kill switch)
-- `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED` (AI Studio panel compression gate; no Next optimizer wrapping for signed object URLs)
-  - Panel compaction activation behavior:
-    - AI Studio Media Library panel preview compaction is active when either surface is enabled:
-      - `media-library-grid`
-      - `media-library-modal-grid`
-    - When `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` is unset/blank, fallback defaults include both media-library surfaces.
+  - AI Studio Media Library panel preview compaction follows the shared adaptive resolver when `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-panel-grid`.
 - AI Studio shell performance flags:
   - `NEXT_PUBLIC_AI_STUDIO_SHELL_DECOUPLE`
   - `NEXT_PUBLIC_AI_STUDIO_DND_BACKPRESSURE`
@@ -225,22 +213,15 @@ Adjust only after telemetry review; keep desktop/mobile/constrained profiles dis
   - original-fallback drift, or
   - materially higher sign-batch latency/churn than the current baseline.
 
-## Adaptive Media V2 Runbook
+## Adaptive Media Runbook
 Use this runbook together with `docs/sops/sop_adaptive_media_change_control.md` for PR gating and regression-control requirements.
 
-1. Shadow compare (no rendering change):
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED=true`
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SHADOW_COMPARE=true`
+1. Canonical parity defaults:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=false`
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES=reference-grid`
-2. Cutover in parity mode:
-  - keep same values above
-  - set `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SHADOW_COMPARE=false`
-3. Tuned policy rollout:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES=reference-grid,quick-slot,media-library-grid,media-library-modal-grid,media-library-panel-grid,character-grid,detail-modal`
+2. Tuned policy rollout:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY=true`
-4. Surface expansion example:
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES=reference-grid,quick-slot,media-library-grid,media-library-modal-grid,character-grid`
-5. Emergency rollback:
+3. Emergency rollback:
   - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_FORCE_FULL_QUALITY=true`
 
 Monitor these events during rollout:
@@ -251,9 +232,7 @@ Monitor these events during rollout:
 - `media.adaptive.detail.full_quality_used`
 - `media.adaptive.error`
 
-## Stable Performance Profile (Current Default)
-- Profile selector:
-  - `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE=stable`
+## Stable Performance Defaults
 - Reference Grid:
   - `NEXT_PUBLIC_REFERENCE_GRID_UPDATE_BACKPRESSURE=true`
   - `NEXT_PUBLIC_REFERENCE_GRID_DECODE_BUDGET=true`
@@ -301,10 +280,8 @@ Monitor these events during rollout:
   - Verify autoplay budget constants and viewport gating behavior.
   - Confirm constrained profile budget is active when expected.
 - Symptom: `All Media` `generations_images` cards fill slowly in AI Studio panel.
-  - Verify panel compaction gates:
-    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED=true`
-    - `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED=true`
-    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes either `media-library-grid` or `media-library-modal-grid` (recommended: include both).
+  - Verify adaptive surfaces include the active panel/grid surfaces:
+    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid`, `media-library-modal-grid`, and `media-library-panel-grid`.
   - Run diagnostics script:
     - `sql/check_media_preview_variant_coverage_and_size.sql`
   - If `ai_studio` image rows show low variant coverage and high p50/p90 bytes, enable and verify derivative worker rollout:
@@ -346,7 +323,7 @@ Monitor these events during rollout:
 ## Release Checklist
 1. `npm -C frontend run lint`
 2. `npm -C frontend run type-check`
-3. When adaptive paths are touched: `npm -C frontend run test:adaptive-v2-gate`
+3. When adaptive paths are touched: `npm -C frontend run test:adaptive-media-runtime`
 4. `npm -C frontend run build`
 5. `npm -C frontend run check:architecture-boundary`
 6. `npm -C frontend run check:size-budget`

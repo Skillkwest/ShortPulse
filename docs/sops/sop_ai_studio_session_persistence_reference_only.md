@@ -1,4 +1,4 @@
-# SOP: AI Studio Session Persistence (Full Canvas Durability)
+# SOP: AI Studio Session Persistence (Retired Legacy Lane)
 
 ## Scope
 Historical runbook for the retired AI Studio legacy session persistence system with former durability across:
@@ -6,7 +6,7 @@ Historical runbook for the retired AI Studio legacy session persistence system w
    including Expert Create Pulse mode plus active pinned Pulse preset id,
 2. outputs/reference projections,
 3. agent transcript/input state,
-   including derived Pulse workflow session state for active `workflow_gpt` Pulses (`status`, current step label/prompt, collected user inputs, last artifact when present),
+   including derived Pulse workflow session state for active built-in `workflow_gpt` guided workflows (`status`, current step label/prompt, collected user inputs, last artifact when present),
 4. canvas scene + main/rail viewport cameras + transient text edit state.
 
 This SOP governs the retired legacy AI Studio session persistence system. That system is no longer available in the shipped product. `sid` remains runtime identity only and no longer restores or saves durable session snapshots.
@@ -38,29 +38,18 @@ Legacy flags:
    - max serialized snapshot size: `~900KB`.
 6. Non-durable canvas image sources (`blob:`/`data:`) are excluded from durable snapshot writes.
 
-## Workflow
-### Write Path
-1. Ensure `sid` is present (`/ai-studio?sid=<uuid>`).
-2. Build V2 snapshot from workspace + outputs + agent + canvas state.
-   - agent state now also carries a derived Pulse workflow session snapshot when a `workflow_gpt` Pulse is active in Expert Create `Pulse` mode.
-3. Persist local IndexedDB shadow immediately (debounced write controller).
-4. Mirror to `/api/ai/sessions/save` for durable remote persistence.
-5. On `visibilitychange/pagehide`, perform best-effort flush (keepalive is fallback, not primary path).
-
-### Restore Path
-1. Load local and optional remote candidate for current `sid`.
-2. Select freshest candidate by `updatedAt` (remote wins ties).
-3. Apply hydration once per `sid` lifecycle:
-   - workspace/output state,
-   - agent transcript/input plus any persisted Pulse workflow session state (unless agent gate disabled),
-   - canvas scene first, then viewport states, then transient draft/edit state.
+## Runtime Status
+1. The shipped product no longer performs durable `sid` session autosave or restore.
+2. `/api/ai/sessions/save`, `/api/ai/sessions/:sid`, and `/api/ai/sessions` are retired endpoints.
+3. Non-project `sid` values remain runtime identity only.
+4. Durable AI Studio persistence now lives on project routes through `/api/projects/:projectId/workspace`.
 
 ## Validation Matrix
 1. Targeted tests:
    - `sessionSnapshot*.test.ts`
-   - `sessionRestoreCandidate.test.ts`
-   - `useAiStudioSessionWriteShadow.test.ts`
-   - `useAiStudioSessionRestoreHydration.test.ts`
+   - `sessionSnapshot*.test.ts`
+   - `useAiStudioSessionAutosave.test.ts`
+   - `useAiStudioProjectWorkspaceRestoreCandidate.test.ts`
    - canvas interaction/drop tests including hard-cap coverage.
 2. `npm -C frontend run build`
 3. Manual smoke:
@@ -71,31 +60,16 @@ Legacy flags:
    - validate cap messaging at 300 items,
    - verify oversize snapshot warning behavior.
 
-## Error Handling
-1. Remote save failures:
-   - keep local shadow intact,
-   - show non-blocking retry warning,
-   - retry via write-shadow controller.
-2. Oversize snapshot:
-   - skip remote write,
-   - show deterministic warning with current vs max size,
-   - require state reduction before retry.
-3. Partial/invalid canvas payload:
-   - restore non-canvas state safely,
-   - skip invalid canvas sub-sections without crash.
+## Operator Guidance
+1. Do not use this SOP as runtime product guidance for current AI Studio persistence behavior.
+2. For live project-owned persistence, use the project workspace docs and routes:
+   - `docs/adr/0063-project-workspace-authority.md`
+   - `docs/sops/sop_ai_studio_projects_foundation.md`
+   - `docs/routes.md`
 
 ## Rollback
-Emergency full rollback:
-1. `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED=false`
-2. `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=false`
-3. `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED=false`
-4. `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED=false`
-5. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED=false`
-6. `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED=false`
-7. Restart frontend runtime and re-run smoke checks.
+This retired lane has no supported runtime rollback path. If historical investigation needs to inspect the old implementation, use source history rather than re-enabling retired session endpoints.
 
 ## Maintenance
-1. Keep this SOP aligned with:
-   - `docs/adr/0031-ai-studio-full-canvas-session-persistence.md`
-   - `docs/api/api-internal-routes.md`
-2. Record production-impacting persistence incidents in `docs/change_log.md`.
+1. Keep this SOP clearly marked as retired historical reference only.
+2. Keep `docs/api/api-internal-routes.md` aligned with the retired endpoint status.

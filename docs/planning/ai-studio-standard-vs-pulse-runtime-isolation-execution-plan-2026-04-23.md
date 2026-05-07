@@ -87,7 +87,7 @@ This scope is not complete until each item below has one explicit owner:
 1. Existing saved Pulses using legacy activation semantics must migrate or be interpreted safely under the new click-to-start contract.
 2. Older snapshots must either hydrate safely into the new mode/runtime controller or fail closed with an explicit fallback posture.
 3. Transitional duplicate semantics must be deleted once the new controller is authoritative.
-4. Legacy persisted Pulse metadata (`prompt_editor`, `activate_only`, `apply_prompt`) is compatibility input only; every active runtime boundary must normalize those values to `workflow_gpt`, `activate_and_start`, and `chat_reply`.
+4. Legacy persisted Pulse metadata (`prompt_editor`, `activate_only`, `apply_prompt`) is compatibility input only; active runtime boundaries must normalize user-authored custom records to the minimal `custom_gpt` contract while keeping built-in preset ids on the guided `workflow_gpt` compatibility path.
 
 ## Failure Policy Requirements
 1. Pulse kickoff failure must produce a deterministic UI/runtime fallback instead of silently leaving a half-active Pulse.
@@ -202,7 +202,7 @@ Completed or substantially complete:
 5. One controller owns Create mode, active Pulse id, and Pulse workflow session state.
 6. Mode-switch-adjacent Create chat restoration is page/runtime-owned now; `AiStudioPageContent` no longer forces Pulse chat transitions itself.
 7. Custom Pulse authoring now follows the custom-GPT mental model (`Name + System Instructions`, advanced settings secondary).
-8. Active submission/runtime boundaries now normalize onto the same guided Pulse contract, including legacy metadata compatibility input.
+8. Active submission/runtime boundaries now normalize custom user-owned records onto the `custom_gpt` contract while preserving the guided built-in compatibility path for admin-owned workflows.
 9. Built-in workflow Pulses have deterministic activation/progression/completion handling with persistence coverage.
 10. Backward compatibility posture is resolved at the runtime boundary for saved Pulses and snapshots.
 

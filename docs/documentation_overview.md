@@ -7,7 +7,9 @@ Purpose: define the documentation information architecture, ownership rules, and
 - `docs/api/`: provider/API integration references.
 - `docs/sops/`: operational runbooks and workflows.
 - `docs/product/`: product/domain source-of-truth documents.
+- `docs/systems/`: authoritative architecture/risk catalog for current systems, boundaries, and ratings.
 - `docs/planning/`: active plans, backlogs, and stabilization tracks only.
+  - `docs/planning/execution-authority.md`: authoritative execution entrypoint for active programs, lane-entry rules, and planning reading priority.
   - `docs/planning/policies/`: machine-checkable policy artifacts for planning/governance enforcement.
   - `docs/planning/evidence/`: temporary physical location for retained evidence namespaces during the current cleanup transition; keep this namespace out of the primary reading path.
 - `docs/records/`: retained records/evidence governance entrypoint and target namespace for evidence packets, templates, and raw artifacts.
@@ -23,7 +25,7 @@ Purpose: define the documentation information architecture, ownership rules, and
 
 ## Document authority levels
 1. Authoritative:
-- ADRs, SOPs, schema/security docs, route maps, deployment/migration runbooks.
+- ADRs, SOPs, schema/security docs, route maps, deployment/migration runbooks, and the systems catalog.
 
 2. Working:
 - Planning docs and backlogs under `docs/planning/`.
@@ -40,6 +42,7 @@ Purpose: define the documentation information architecture, ownership rules, and
 ## Lifecycle states and archive policy
 - `Active`: current source-of-truth docs used for implementation/operations.
 - `Working`: in-flight plans and execution artifacts under `docs/planning/`.
+  - Default readers should start with `docs/planning/execution-authority.md` and `docs/planning/backlog.md`, not the full planning corpus.
 - `Archived`: superseded or historical docs under `docs/archive/` only.
 
 Working-doc metadata:
@@ -63,6 +66,7 @@ A docs cleanup is complete when all are true:
 - Every doc is in the correct category folder.
 - `docs/README.md` and any section README indexes are updated.
 - `docs/planning/` contains only genuinely active working docs.
+- `docs/systems/` remains indexed and aligned with `docs/operator-map.md` and the active docs taxonomy.
 - The top-level reading path points readers to records entrypoints instead of raw retained evidence payloads.
 - Cross-doc links point to existing files.
 - Durable decisions are captured in ADRs, not only planning docs.
@@ -73,12 +77,15 @@ A docs cleanup is complete when all are true:
 - Supabase schema/storage/policy changes: update `docs/supabase_full_schema.sql`, `docs/data-dictionary.md`, `docs/security-checklist.md`, and migration docs.
 - Model/pricing/provider changes: update `docs/product/ai-studio-pricing.md`, relevant `docs/api/` references, and relevant `docs/sops/` tables.
 - Architecture changes: add or update ADRs in `docs/adr/`.
+- System boundary or rating-model changes: update `docs/systems/`, `docs/documentation_overview.md`, and `docs/README.md`.
 - Planning readiness-governance changes (state model, gate semantics, immediate-start SLA): update `docs/planning/README.md`, `docs/documentation_overview.md`, and `docs/change_log.md`.
+- Planning portfolio or lane-entry changes: update `docs/planning/execution-authority.md`, `docs/planning/README.md`, and `docs/planning/backlog.md`.
 - Behavior-changing planning programs: require and index a readiness-state doc plus implementation-entry checklist before implementation starts.
 
 ## Current coverage status
 Covered after this cleanup:
 - Structured taxonomy for API/SOP/Product/Planning/Archive docs.
+- Structured taxonomy for API/SOP/Product/Systems/Planning/Archive docs.
 - Unique ADR numbering with index parity.
 - Monitoring, disaster recovery, and performance operations baseline docs.
 

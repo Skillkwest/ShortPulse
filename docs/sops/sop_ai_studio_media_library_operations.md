@@ -1,12 +1,12 @@
 # SOP: AI Studio Media Library Panel Operations
 
 ## Purpose
-Define the authoritative AI Studio Media Library panel UX contract (`toolId: media-library`) and document current implementation deltas while rollout is in progress.
+Define the authoritative AI Studio Media Library panel UX contract (`toolId: media-library`) and document the current canonical runtime notes.
 
 ## Authority Model
-- This SOP uses `Target Contract + Current Runtime Delta`.
+- This SOP uses `Target Contract + Current Runtime Notes`.
 - `Target Contract` is the intended user experience and is the product source of truth.
-- `Current Runtime Delta` tracks implementation drift that still exists in code.
+- `Current Runtime Notes` record the live implementation details that still matter operationally.
 
 ## Scope
 - In scope:
@@ -83,7 +83,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 2. Audio is a first-class saved media type and renders inside the mixed `All Media` tab plus custom-folder mixed views instead of using a dedicated root tab.
 3. Search and pagination apply consistently to the active tab through shared list APIs.
 4. `All Media` media tabs auto-load the next page when scrolling near the bottom, with one global footer control retained as manual fallback.
-5. Panel card previews may use balanced-fast image compaction for browse speed when adaptive media + panel compression flags are enabled; detail modal stays full-quality.
+5. Panel card previews use the canonical adaptive browse-speed compaction path when those panel surfaces are included in the adaptive-media allowlist; detail modal stays full-quality.
 6. In the aggregate `All Media` tab, video cards should remain poster-first and only attach/play hover previews on pointer hover; they should not begin live autoplay just from entering the mixed masonry viewport.
 
 ### 5) Drag/drop and ingest contract
@@ -162,7 +162,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - customer quota counts canonical `media_files.file_size` only, not derivative poster/thumb/preview assets
   - over-limit accounts keep read/delete access but new canonical saves fail closed until usage drops or capacity increases
 
-## Current Runtime Delta (as of 2026-04-25)
+## Current Runtime Notes (as of 2026-05-06)
 1. `All Media` inline-tab layout:
    - Status: Aligned.
    - Current: `All Media`, `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved images, videos, audio, and prompts in one mixed feed, while `Prompts` remains the prompt-only view.
@@ -201,8 +201,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Status: Aligned.
    - Current: Custom folders expose a `Move to...` picker from the context menu. Destination options render as explicit ancestry paths, keep `All Media` at the top, and exclude self, descendants, and the current parent.
 13. `All Media` completeness backfill:
-   - Status: Pending rollout.
-   - Current: Backfill and diagnostics exist in SQL (`064` + drift check) but require environment application/runbook execution to converge legacy missing rows.
+   - Status: Operational prerequisite.
+   - Current: Backfill and diagnostics exist in SQL (`064` + drift check) and must be applied or run when older environments still need durable-row convergence.
 14. `All Media` panel preview compaction activation:
    - Status: Aligned.
    - Current: Adaptive panel compaction activates when either `media-library-grid` or `media-library-modal-grid` adaptive surface is enabled, with default surface fallback including both media-library surfaces when the allowlist env is unset/blank.
@@ -214,8 +214,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Status: Aligned.
    - Current: Route/modal/panel card previews use Supabase signed URLs with surface-aware preview-profile telemetry, do not route signed object URLs through `/_next/image`, and keep signed transforms dual-flag gated (disabled by default). The AI Studio panel now owns a panel-specific signing budget (`4/4/4` desktop, `3/3/3` small-screen, `2/2/2` constrained) instead of borrowing the modal budget. `/api/media/sign-batch` now batches untransformed paths through Supabase multi-signing while preserving per-item signing for transform-backed image paths.
 17. Derivative worker pipeline for image thumbs:
-   - Status: In rollout.
-   - Current: `065`/`066` add media derivative retry/lease controls and service-role claim/update RPCs, with worker route `POST /api/internal/media-derivatives/run` generating `thumb_240`/`thumb_480` variant rows and promoting `media_files.thumb_variant_path` on success.
+   - Status: Operational.
+   - Current: `065`/`066` add media derivative retry/lease controls and service-role claim/update RPCs, with worker route `POST /api/internal/media-derivatives/run` generating `thumb_240`/`thumb_480` variant rows and promoting `media_files.thumb_variant_path` on success when the worker is enabled.
 18. Character-scope containment in Media Library APIs:
    - Status: Aligned.
    - Current: `POST /api/media/list` excludes character-scoped rows by default (`SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`) and folder membership/move routes reject character-scoped media ids with deterministic `409` responses.

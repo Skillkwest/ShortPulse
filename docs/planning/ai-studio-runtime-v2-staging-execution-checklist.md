@@ -2,7 +2,12 @@
 
 Status: active  
 Owner: AI Studio Engineering  
-Last updated: 2026-02-21
+Last updated: 2026-05-06
+
+## Current Branch Note (2026-05-07)
+This checklist is an operational staging-rollout artifact. It is not the authority for current-branch runtime cleanup on `working-development`.
+
+Read it as release history and future-hosted execution guidance only. For the current branch-local live-path cleanup lane, use [current-branch-canonical-runtime-convergence-2026-05-07.md](./current-branch-canonical-runtime-convergence-2026-05-07.md).
 
 ## Purpose
 Execute Runtime V2 rollout in staging with deterministic ordering and verifiable gates.
@@ -173,10 +178,13 @@ Interpretation:
 ### 4. Set staging env vars before deploy
 Required for Runtime V2 staging:
 
+Historical rollout note:
+- the env posture below records the staged rollout procedure that existed for hosted execution
+- it should not be treated as the current branch-local runtime contract
+
 - `SHORTPULSE_FAL_INTEGRATION_MODE=shadow`
 - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST=fal-ai/bytedance/seedream/*`
 - `SHORTPULSE_FAL_WEBHOOK_ENABLED=true`
-- `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE=dual`
 - `SHORTPULSE_FAL_WEBHOOK_JWKS_URL=https://rest.alpha.fal.ai/.well-known/jwks.json`
 - `SHORTPULSE_PUBLIC_API_BASE_URL=<your-staging-origin>`
 - `SHORTPULSE_FAL_RECONCILER_ENABLED=true`
@@ -185,7 +193,6 @@ Required for Runtime V2 staging:
 - `SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS=5`
 - `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS=120`
 - `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS=120`
-- `SHORTPULSE_FAL_WEBHOOK_SECRET=<set only during dual-mode cutover window>`
 
 ### 5. Deploy staging app
 Deploy code after migration and env updates are complete.
@@ -312,9 +319,8 @@ After clean shadow results:
 2. Keep allowlist scoped to Seedream only
 3. Hold for 72 hours with gate checks above
 
-### 10. Complete signature cutover
+### 10. Finalize Fal-only verification posture
 After stable canary:
-1. Set `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE=fal_only`
-2. Keep monitoring webhook verification failures
-3. Remove deprecated legacy fallback secret in follow-up release:
+1. Keep monitoring webhook verification failures on the Fal JWKS/Ed25519 path.
+2. Ensure deprecated legacy fallback secret is unset:
    - `SHORTPULSE_FAL_WEBHOOK_SECRET`

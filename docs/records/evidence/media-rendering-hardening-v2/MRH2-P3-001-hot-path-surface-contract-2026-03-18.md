@@ -16,12 +16,11 @@
 - [flags.ts](../../../../frontend/lib/adaptive-media/flags.ts)
 - [policy.ts](../../../../frontend/lib/adaptive-media/policy.ts)
 - [mediaLibraryAdaptivePreview.ts](../../../../frontend/features/media-library/logic/mediaLibraryAdaptivePreview.ts)
-- [mediaLibraryPanelPreviewResolver.ts](../../../../frontend/features/ai-studio/logic/mediaLibraryPanelPreviewResolver.ts)
 - [MediaLibraryPanel.tsx](../../../../frontend/features/ai-studio/components/MediaLibraryPanel.tsx)
 - [referenceGridMedia.ts](../../../../frontend/features/ai-studio/logic/referenceGridMedia.ts)
 
 ## Targeted Tests
-- `npm test -- --run lib/adaptive-media/__tests__/flags.test.ts features/media-library/logic/__tests__/mediaLibraryAdaptivePreview.test.ts features/ai-studio/logic/__tests__/mediaLibraryPanelPreviewResolver.test.ts features/ai-studio/logic/__tests__/referenceGridMedia.test.ts features/ai-studio/logic/__tests__/referenceGridMedia.parity.test.ts features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx`
+- `npm test -- --run lib/adaptive-media/__tests__/flags.test.ts features/media-library/logic/__tests__/mediaLibraryAdaptivePreview.test.ts features/ai-studio/logic/__tests__/referenceGridMedia.test.ts features/ai-studio/logic/__tests__/referenceGridMedia.parity.test.ts features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx`
 
 ## Full Gates
 - `npm run test:adaptive-v2-gate`

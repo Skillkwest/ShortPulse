@@ -15,14 +15,18 @@ We need a no-regression path to isolate Character panel media without a broad pl
 Adopt Character Media Isolation V2 with a minimal durable model:
 
 1. Add one canonical character-owned asset table: `character_media_assets`.
-2. Extend existing linkage tables (`character_reference_images`, `character_quick_swap_items`) with `character_media_id` while preserving legacy `media_file_id` compatibility reads.
-3. Gate rollout with independent write/read flags:
-   - `SHORTPULSE_CHARACTER_MEDIA_V2_WRITES_ENABLED`
-   - `SHORTPULSE_CHARACTER_MEDIA_V2_READS_ENABLED`
-4. Enforce containment on Media Library surfaces:
+2. Extend existing linkage tables (`character_reference_images`, `character_quick_swap_items`) with `character_media_id`.
+3. Enforce containment on Media Library surfaces:
    - Exclude `<uid>/characters/%` rows from list APIs by default.
    - Reject character-scoped media ids in folder membership/move APIs.
-5. Use copy semantics for internal Media Library/Reference Grid drops into Character Sheet/QuickSwap (no direct attach-by-`media_files.id` in V2).
+4. Use copy semantics for internal Media Library/Reference Grid drops into Character Sheet/QuickSwap (no direct attach-by-`media_files.id`).
+
+## Current Runtime Status
+
+- Character Media Isolation V2 is now the canonical Character Manager persistence model.
+- Character Manager writes persist to `character_media_assets` only.
+- The earlier rollout flags have been retired from active runtime/config.
+- Compatibility reads for older `media_file_id` records may remain temporarily so existing character data continues to load while historical rows normalize.
 
 ## Consequences
 
@@ -30,18 +34,18 @@ Adopt Character Media Isolation V2 with a minimal durable model:
 
 - Character panel assets become lifecycle-isolated from Media Library organization and deletion semantics.
 - Duplicate/cross-surface drift risk is reduced by explicit character namespace ownership.
-- Rollout is reversible via flags without immediate destructive cleanup.
+- Character Manager now has one real persisted media path instead of a flag-driven fork.
 
 ### Tradeoffs
 
-- Transitional dual-reference handling (`media_file_id` + `character_media_id`) increases short-term code path complexity.
-- Backfill/diagnostics are required to validate migration completeness before legacy path removal.
+- Transitional dual-reference handling (`media_file_id` + `character_media_id`) still exists on some read paths while historical records normalize.
+- Backfill/diagnostics remain useful until legacy persisted records are fully retired.
 
 ### Operational Guardrails
 
-- Keep containment filter enabled during rollout.
-- Validate with `sql/check_character_media_isolation_backfill.sql` before forcing V2-read-only posture.
-- Do not remove legacy compatibility columns/reads until fallback hit-rate is effectively zero.
+- Keep containment filter enabled.
+- Validate with `sql/check_character_media_isolation_backfill.sql` before removing any remaining compatibility reads.
+- Do not remove legacy compatibility columns/reads until historical persisted records are fully normalized.
 
 ## Implementation Notes
 
@@ -52,5 +56,3 @@ Adopt Character Media Isolation V2 with a minimal durable model:
   - `frontend/pages/api/media/list.ts`
   - `frontend/lib/server/mediaFoldersService.ts`
   - `frontend/lib/server/mediaMoveService.ts`
-- Character panel runtime flags:
-  - `frontend/features/character-manager/logic/characterMediaIsolationFlags.ts`

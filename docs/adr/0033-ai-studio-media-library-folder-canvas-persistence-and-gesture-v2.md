@@ -39,6 +39,11 @@ Positive:
 2. Folder-canvas durability can evolve independently (schema/API/versioning).
 3. Gesture rollout can be canaryed separately from folder-canvas rollout.
 
+## Current Runtime Status
+
+- Folder-canvas persistence remains the active architecture decision from this ADR.
+- Gesture V2 is no longer a rollout lane; its drag-ghost, right-click ingest, and root delete behavior are now part of the canonical Media Library panel runtime.
+
 Tradeoffs:
 1. Additional API/table lifecycle for folder-canvas persistence.
 2. Larger QA matrix for canvas gestures and membership reconciliation.

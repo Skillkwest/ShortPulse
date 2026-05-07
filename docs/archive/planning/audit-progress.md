@@ -1,3 +1,5 @@
+> Archived on 2026-05-06. Retained as a historical automation-audit progress note; current execution priorities are tracked in `docs/planning/backlog.md`.
+
 # ShortPulse Automation Audit Progress
 
 Status: draft

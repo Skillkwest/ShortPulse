@@ -3,7 +3,7 @@
 Purpose: operational guide for safety profile tuning, activation, rollback, cooldown handling, and validation for AI Studio agent safety behavior.
 
 ## Scope
-- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent-pulse` and Fal submit routes, image preflight gating for retained image-analysis routes, client pre-send gating for guided studio-agent UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions. The Standard Create agent route is intentionally exempt from the local Standard precheck path and forwards raw conversation turns.
+- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent-pulse` and Fal submit routes, image preflight gating for retained image-analysis routes, client pre-send gating for guided studio-agent UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions. The Standard Create agent route is intentionally exempt from the local Standard precheck path, forwards raw conversation turns, and remains out of scope for safety convergence until a future dedicated product decision.
 - Out of scope: model prompt authoring, provider onboarding, and non-agent route behavior.
 
 ## Control Surface Summary
@@ -54,12 +54,12 @@ Current runtime-binding note:
   - `frontend/pages/api/ai/studio-agent-standard.ts`
   - `frontend/pages/api/ai/studio-agent-pulse.ts`
   - `frontend/features/agent-runtime/styleExtractionService.ts`
-- The Pulse route enforces input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default). Standard is a raw pass-through lane by design.
+- The Pulse route enforces input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default). Standard is a raw pass-through lane by explicit product decision for the current system.
 - Retained image-analysis routes run local image safety preflight before OpenAI vision calls.
 - Fal submit routes enforce prompt precheck before provider dispatch when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED=true` (default).
 - Guided studio-agent client chat paths now run a pre-send mirror gate when `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default). Standard bypasses the local pre-send gate.
 - Server remains the source of truth for enforcement decisions.
-- Output post-process mode is controlled by `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (`enforce|shadow|off`) with `enforce` default.
+- Output post-process mode is controlled by `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (`enforce|off`) with `enforce` default.
 - Runtime can sync profile selection from control-plane active state when
   `STUDIO_AGENT_SAFETY_RUNTIME_CONTROL_PLANE_SYNC_ENABLED=true` (default).
 - Admin control-plane state remains the operational/audit store for activation, rollback, and cooldown events.
@@ -84,9 +84,9 @@ Primary knobs:
 | Knob | Default | Effect | Safe usage |
 | --- | --- | --- | --- |
 | `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` | `prod_safe_v1` | Selects active profile for policy decisions. | Use `prod_safe_v1` in production unless explicitly running controlled canary/incident procedure. |
-| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables server pre-provider safety gate on the mode-owned studio-agent routes. | Keep `true` in production. Disable only as emergency rollback while keeping output post-process enabled. |
+| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables server pre-provider safety gate on guided/server-owned lanes such as `/api/ai/studio-agent-pulse`. | Keep `true` in production. Disable only as emergency rollback while keeping output post-process enabled. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` | `true` | Enables pre-provider prompt gate for Fal submit routes. | Keep enabled in production. |
-| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES` | unset | Shared JSON override for precheck field modes (`latest_user_turn`, `history_user_turn`, `active_prompt`, `last_assistant_message`, `reference_prompt_snippet`, `reference_caption`, `canonical_prompt`) with values `enforce`, `rewrite_only`, `shadow`, `off`. | Keep unset unless running controlled tuning. Prefer route-scoped overrides for narrow changes. |
+| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES` | unset | Shared JSON override for precheck field modes (`latest_user_turn`, `history_user_turn`, `active_prompt`, `last_assistant_message`, `reference_prompt_snippet`, `reference_caption`, `canonical_prompt`) with values `enforce`, `rewrite_only`, `off`. | Keep unset unless running controlled tuning. Prefer route-scoped overrides for narrow changes. |
 | `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` | `true` | Enables local image safety preflight before retained image-analysis vision calls. | Keep enabled in production. |
 | `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` | `prod_closed_nonprod_open` | Classifier-unavailable behavior (`prod_closed_nonprod_open`, `always_closed`, `always_open`). | Keep `prod_closed_nonprod_open` in production. |
 | `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` | `false` | In non-production only, forces allow behavior (`absolute_zero` source). | Keep `false` in production always. Use only in dev for debugging classifier/rewrite paths. |
@@ -100,25 +100,27 @@ Supporting knobs:
 
 | Knob | Default | Effect |
 | --- | --- | --- |
-| `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables client pre-send safety gate in Standard/Pulse studio-agent chat paths. |
-| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT` | unset | Route-scoped JSON field-mode override for the mode-owned studio-agent routes; merged over shared field-mode config. |
+| `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables client pre-send safety gate in guided studio-agent chat paths such as Pulse. |
+| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT` | unset | Route-scoped JSON field-mode override for guided studio-agent routes such as Pulse; merged over shared field-mode config. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT` | unset | Route-scoped JSON field-mode override for Fal submit routes; merged over shared field-mode config. |
 | `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES` | unset | Shared JSON field-mode override for client pre-send mirror checks. |
 | `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT` | unset | Client route-scoped JSON field-mode override for studio-agent pre-send checks. |
 | `STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED` | `true` | Enables runtime safety post-process gate. |
-| `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` | `enforce` | Postprocess behavior mode (`enforce`, `shadow`, `off`). |
+| `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` | `enforce` | Postprocess behavior mode (`enforce`, `off`). |
 | `STUDIO_AGENT_SAFETY_DEBUG` | `false` | Emits debug reasons with telemetry paths. |
 
-## Consistency Rollout Defaults (Current Pass)
-Use this baseline while tuning rewrite consistency without additional stress traffic.
+## Consistency Tuning Guidance
+Use this only during controlled rewrite-tuning windows.
 
-1. Runtime mode defaults:
-- `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE=shadow`
+1. Baseline runtime posture:
 - Keep pre-provider gates enabled for all covered routes.
+- Prefer `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE=enforce` for normal operation.
+- Use `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE=off` only as an explicit emergency rollback posture.
+- Repository local development defaults should mirror this safe posture unless a time-boxed debugging window explicitly documents why local has been made more permissive.
 
 2. Rewrite recheck scope:
 - The mode-owned studio-agent routes use `allow_or_rewrite` for rewrite-lane precheck continuation.
-- Fal submit routes remain on default `allow_only` behavior during this phase.
+- Fal submit routes remain on default `allow_only` behavior unless a narrower tuning plan is approved.
 
 3. Safety boundary reminder:
 - `allow_or_rewrite` is constrained to suggestive sexual/violence rewrite lanes.

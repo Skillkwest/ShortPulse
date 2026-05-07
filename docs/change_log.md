@@ -3,6 +3,21 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Current-branch canonical runtime convergence:
+  - froze the live branch runtime contract in `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`,
+  - removed dead rollout posture from active env, deployment, local-development, SOP, and operator guidance,
+  - demoted legacy queue/shadow/webhook-toggle framing to historical-only context in the runtime ADR/planning surfaces,
+  - and removed the last active `NEXT_PUBLIC_AGENT_V2` test-support residue without changing the live runtime path.
+- Pulse contract cleanup:
+  - aligned the live docs and reference SOPs around the shipped Pulse split: custom Pulses are saved-instruction presets, while built-in admin-owned records remain guided workflows on the `workflow_gpt` compatibility path,
+  - corrected route, monitoring, data-dictionary, security, and AI Studio SOP language so user-owned Pulse persistence no longer claims hidden workflow metadata as the active contract,
+  - and clarified that built-in workflow instructions are server-resolved from the admin control plane rather than authored from user Pulse surfaces.
+- Runtime V2 closeout evidence:
+  - added `docs/planning/evidence/runtime-v2/` as an active Program 1 evidence namespace,
+  - published the Seedream shadow parity packet with current repo-backed readiness evidence and the explicit staging-shadow evidence gap,
+  - recorded the first staging preflight env-inventory note for the Seedream shadow lane,
+  - added a concise operator-ready handoff checklist for the live Seedream staging shadow execution,
+  - and marked the shadow parity report backlog/deliverable items complete without claiming the 72-hour canary gate.
 - Documentation governance:
   - corrected the `docs/routes.md` auth vocabulary so handler-authenticated GPT Image 2 routes no longer falsely claim shared runtime auth-guard coverage,
   - updated the semantic-drift checker to distinguish shared runtime-protected routes from route-level bearer-authenticated routes,
@@ -670,7 +685,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Added migration `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql` and documented it as required in `docs/database-migrations.md` to prevent reservation RPC failures (`column reference "source_ref" is ambiguous`) in Fal submit paths.
 - Hardened billing API error exposure so generation credit failures now return a safe user-facing message while preserving server-side diagnostic logs (`frontend/lib/server/api/generationBilling.ts` + `frontend/tests/api/generation-billing.reservations.test.ts`).
 - Added Playwright-backed E2E audit baseline for auth -> Character Manager -> AI Studio character mode submit (`frontend/tests/e2e/character-pipeline.audit.js`) and wired `npm run test:e2e:character`.
-- Updated operations/testing docs to include the new migration + audit command (`docs/sops/sop_billing_credits_operations.md`, `docs/testing-guide.md`, `docs/planning/audit-progress.md`).
+- Updated operations/testing docs to include the new migration + audit command (`docs/sops/sop_billing_credits_operations.md`, `docs/testing-guide.md`, `docs/archive/planning/audit-progress.md`).
 
 ## 2026-02-14 (MVP pre-tester full audit remediation plan)
 - Added `docs/planning/mvp-pretester-full-audit-remediation-plan.md` as the execution runbook for security hardening, reliability gates, modularization, performance, and docs/SOP alignment before external tester rollout.
@@ -984,7 +999,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   and `docs/sops/sop_text_generation.md`.
 
 ## 2026-02-17 (documentation governance + backlog recovery)
-- Completed a docs-only governance pass and added `docs/planning/documentation-audit-2026-02-17.md` as the audit artifact (planning classification matrix, contradiction-detection method, and strict backlog evidence matrix).
+- Completed a docs-only governance pass and added `docs/archive/planning/documentation-audit-2026-02-17.md` as the audit artifact (planning classification matrix, contradiction-detection method, and strict backlog evidence matrix).
 - Created `docs/archive/planning/` and moved completed/superseded plans out of active planning:
   `docs/archive/planning/ai-studio-character-mode-injection-plan.md`,
   `docs/archive/planning/media-library-move-tabs-plan.md`,
@@ -3228,7 +3243,7 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - updated `scripts/verify_deployment_route_parity.mjs` default required routes,
   - updated deployment/troubleshooting route parity docs to include `/api/internal/admin-user-health-fleet/run`.
 - Added fleet operations documentation package:
-  - `docs/planning/admin-user-health-fleet-implementation-plan-2026-03-14.md`,
+  - `docs/archive/planning/admin-user-health-fleet-implementation-plan-2026-03-14.md`,
   - `docs/sops/sop_admin_user_health_fleet_operations.md`,
   - and updated README, routes map, monitoring, internal API inventory, migration docs, SQL SOPs, billing/recovery SOP cross-links, docs indexes, and security checklist.
 

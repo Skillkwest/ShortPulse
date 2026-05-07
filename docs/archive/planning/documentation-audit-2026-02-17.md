@@ -1,3 +1,5 @@
+> Archived on 2026-05-06. Retained as a historical governance audit artifact; current planning authority now lives in `docs/planning/execution-authority.md`.
+
 # Documentation Governance Audit — 2026-02-17
 
 Status: draft

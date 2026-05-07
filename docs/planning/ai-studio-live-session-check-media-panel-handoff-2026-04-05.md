@@ -246,7 +246,8 @@ Implication:
 
 Relevant code:
 
-- [mediaLibraryPanelPreviewResolver.ts](../../frontend/features/ai-studio/logic/mediaLibraryPanelPreviewResolver.ts)
+- [mediaLibraryAdaptivePreview.ts](../../frontend/features/media-library/logic/mediaLibraryAdaptivePreview.ts)
+- [MediaLibraryPanel.tsx](../../frontend/features/ai-studio/components/MediaLibraryPanel.tsx)
 - [mediaSignedTransformPolicy.ts](../../frontend/lib/mediaSignedTransformPolicy.ts)
 - [mediaSignedUrlCache.ts](../../frontend/lib/mediaSignedUrlCache.ts)
 

@@ -16,7 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SHORTPULSE_OPENAI_RESPONSES_ENABLED`, `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`.
-- For Fal/Kie generation reliability, also verify: `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual bearer), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`, `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX`.
+- For Fal/Kie generation reliability, also verify: `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual bearer), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`, `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_ADMISSION_MODE`, `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX`, `SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON`, `SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -104,10 +104,10 @@ Fal reliability controls:
    - route verification/parsing stays in `frontend/pages/api/fal/webhook.ts`
    - durable event insert, duplicate handling, ignore outcomes, and shared recovery handoff live in `frontend/lib/server/falIntegration/falWebhookIngress.ts`
    - treat failures in that service as provider-event ingress issues, not as a second lifecycle engine
-7. For controlled webhook canary:
-   - keep `SHORTPULSE_FAL_WEBHOOK_ENABLED=true`,
+7. For webhook ingress verification on this branch:
    - confirm webhook registration is enabled on the active Fal submit targets,
-   - keep allowlists empty for full cohort only after canary windows are green.
+   - confirm `/api/fal/webhook` is mounted and signature failures are not spiking,
+   - use accepted-job recovery and admin replay as the safety path if webhook delivery is degraded.
 
 ### Capacity backlog triage and guarded cleanup
 When accepted-job recovery is healthy but users still hit repeated `429` due stale provider-attached holds, follow `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical workflow.
@@ -122,6 +122,15 @@ When accepted-job recovery is healthy but users still hit repeated `429` due sta
 6. If admission pressure is rising, run `sql/check_generation_admission_metrics.sql` and separate:
    - `admission_scope = 'shared_provider'`: shared Fal-account saturation; do not solve by raising per-user limits.
    - `admission_scope = 'per_user'`: one-user burst pressure; evaluate UI batching, fairness, or per-user cap tuning first.
+7. If `telemetry.api.fal_submit.recovery_backpressure_applied` is appearing, treat it as a live recovery-lag safeguard rather than a provider outage by default:
+   - `backpressure_level = 1` means shared-provider headroom was reduced by `1`
+   - `backpressure_level = 2` means shared-provider headroom was reduced by `2`
+   - correlate the event with:
+     - stale provider-attached reserved rows older than `2h`
+     - queued/recovering generation rows older than `2h`
+     - recent `QUEUE_WAIT_TIMEOUT` exhaustions
+     - `p95_provider_terminal_to_media_visible_ms`
+   - fix the stale/recovery pressure first; do not raise per-user caps to “work around” backpressure.
 
 Failure-code action map (Fal reliability rollout):
 | `failure_reason_code` | Primary action |
@@ -173,6 +182,7 @@ Admission-control action map:
 | --- | --- |
 | `429 GENERATION_ADMISSION_LIMIT` | Expected limiter behavior under load; monitor tier distribution and user retry friction. |
 | `503 GENERATION_ADMISSION_UNAVAILABLE` | Admission safeguard tripped due reservation-mode unavailability in enforce mode; investigate the canonical reservation RPC before changing admission mode. |
+| `telemetry.api.fal_submit.recovery_backpressure_applied` | Recovery-lag safeguard reduced shared-provider headroom; inspect stale holds, queued/recovering backlog, `QUEUE_WAIT_TIMEOUT`, and recovery-visibility latency before changing admission caps. |
 
 ### OpenAI prompt/agent failures
 Primary signals:

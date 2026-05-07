@@ -8,6 +8,7 @@ Start here for all repository documentation.
 - API references live in `docs/api/`.
 - SOP runbooks live in `docs/sops/`.
 - Product/domain docs live in `docs/product/`.
+- Systems catalog docs live in `docs/systems/`.
 - Active planning docs live in `docs/planning/`.
 - Archived planning docs live in `docs/archive/planning/`.
 - Records/evidence governance lives in `docs/records/`, with migrated namespaces indexed under `docs/records/evidence/` and `docs/records/artifacts/`.
@@ -55,6 +56,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
 - `docs/agents/pulse/README.md`
+- `docs/agents/system-catalog-agent/README.md`
 - `docs/agents/ophestivus.md`
 - `docs/repo-structure.md`
 - `docs/architecture-overview.md`
@@ -77,8 +79,14 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0071-ai-studio-create-mode-owned-runtime-roots.md`
 - `docs/adr/0072-admin-kanban-and-ophestivus-foundation.md`
 - `docs/adr/0073-create-pulse-built-in-control-plane.md`
+- `docs/adr/0074-pulse-custom-vs-guided-workflow-terminology.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
+- `docs/systems/README.md`
+- `docs/systems/catalog.md`
+- `docs/systems/rating-rubric.md`
+- `docs/systems/rating-pass-template.md`
+- `docs/systems/next-agent-handoff-generation-recovery-hardening.md`
 - `docs/local-development.md`
 - `docs/deployment.md`
 - `docs/database-migrations.md`
@@ -190,6 +198,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 ## Planning And History
 
 - `docs/planning/README.md`
+- `docs/planning/execution-authority.md`
 - `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-persistence-inventory-2026-04-23.md`
@@ -244,7 +253,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/lane-c-tracker-spec-2026-03-16.md`
 - `docs/planning/lane-c-execution-plan-2026-03-16.md`
 - `docs/planning/media-library-ui-redesign-plan-2026-03-28.md`
-- `docs/planning/ai-architecture-follow-on-revisit-report-2026-03-29.md`
+- `docs/archive/planning/ai-architecture-follow-on-revisit-report-2026-03-29.md`
 - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`
@@ -315,9 +324,9 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/planning/media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md`
 - `docs/planning/media-rendering-hardening-v2-foundation-p0-inventory-telemetry-closure-plan-2026-03-18.md`
 - `mini-ecosystem/README.md` (standalone operational system, outside `docs/`)
-- `docs/planning/documentation-audit-2026-02-17.md`
-- `docs/planning/audit-progress.md`
-- `docs/planning/admin-user-health-fleet-implementation-plan-2026-03-14.md`
+- `docs/archive/planning/documentation-audit-2026-02-17.md`
+- `docs/archive/planning/audit-progress.md`
+- `docs/archive/planning/admin-user-health-fleet-implementation-plan-2026-03-14.md`
 - `docs/planning/mvp-pretester-full-audit-remediation-plan.md`
 - `docs/planning/mvp-ui-ux-stabilization-remediation-plan.md`
 - `docs/planning/mvp-ui-ux-pass-execution-plan-2026-03-16.md`
@@ -395,6 +404,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/records/evidence/README.md`
 - `docs/records/evidence-migration-classification-2026-04-27.md`
 - `docs/planning/evidence/README.md` (transition-era physical evidence index; use through the records contract, not as part of the main reading path)
+- `docs/planning/evidence/runtime-v2/README.md` (active Runtime V2 closeout evidence namespace for the Seedream shadow/canary lane)
 - `docs/planning/archive/original-plans/manifest.json` (controlled checksum-backed source-plan exception)
 
 ## ADRs

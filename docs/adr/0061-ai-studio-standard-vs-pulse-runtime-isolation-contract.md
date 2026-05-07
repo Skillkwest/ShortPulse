@@ -37,7 +37,7 @@ Repo-backed inspection confirmed that the main risk is not missing model autonom
 8. Custom Pulses default to a single lead agent/profile session, not a multi-agent system.
 9. Built-in Pulses may use deterministic workflow wrappers and bounded internal specialist workers when needed, but that remains an implementation detail rather than the primary product mental model.
 10. Any available submission path used by Pulse must obey the same Pulse runtime contract or be disabled while Pulse is active.
-11. Retired Pulse persistence fields such as `prompt_editor`, `activate_only`, and `apply_prompt` are discarded from Pulse preferences; active runtime behavior only uses the guided Pulse contract: `workflow_gpt`, `activate_and_start`, and `chat_reply`.
+11. Retired Pulse persistence fields such as `prompt_editor`, `activate_only`, and `apply_prompt` are discarded from Pulse preferences; active custom Pulse behavior resolves to the minimal `custom_gpt` contract, while built-in preset ids remain on the guided `workflow_gpt` compatibility path.
 
 ## Consequences
 Positive:

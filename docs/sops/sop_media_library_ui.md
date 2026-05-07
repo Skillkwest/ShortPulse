@@ -78,8 +78,8 @@ For operational runbooks and tuning procedures, see `docs/sops/sop_media_perform
 
 ## AI Studio Media Library Panel Contract
 - AI Studio uses a first-class left-panel `media-library` tool surface (not modal-only by default).
-- Runtime fallback: `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` restores legacy modal open behavior.
-- Exact runtime behavior for folder/list/drag-drop operations is documented in `docs/sops/sop_ai_studio_media_library_operations.md` using the `Target Contract + Current Runtime Delta` model.
+- AI Studio Media Library opens through the left-panel tool path as the canonical runtime.
+- Exact runtime behavior for folder/list/drag-drop operations is documented in `docs/sops/sop_ai_studio_media_library_operations.md` using the `Target Contract + Current Runtime Notes` model.
 - Folder model:
   - Virtual root folder id `all_items` is immutable and always first.
   - `All Media` is the master media/prompt set for the user.

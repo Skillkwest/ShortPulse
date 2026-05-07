@@ -15,7 +15,7 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 - When a PR touches environment/release-governance surfaces in Lane F, preserve canonical GitHub Environment names (`staging`, `production`) and keep current-vs-planned protection posture explicit in `docs/deployment.md`
 - When closing or converging Lane F governance, run `npm -C frontend run validate:lane-f-governance`
 - When a PR touches Lane D runtime-safety seams, run `npm -C frontend run validate:lane-d-runtime`
-- When that Lane D PR also touches adaptive/reference-grid/canvas protected surfaces, also run `npm -C frontend run test:adaptive-v2-gate`
+- When that Lane D PR also touches adaptive/reference-grid/canvas protected surfaces, also run `npm -C frontend run test:adaptive-media-runtime`
 - No secrets added/changed (`.env*` stays uncommitted; only `.env.example` changes are acceptable)
 - Optional (post-format-baseline): `npm -C frontend run format:check`
 - Optional dead-code audit report (non-blocking): `npm -C frontend run deadcode:check:full`

@@ -12,6 +12,12 @@ The near-term goal is overload protection with minimal regression risk while pre
 - existing `/api/fal/*` route contracts and recovery flows,
 - immediate rollback via runtime flags.
 
+## Current Active Contract (2026-05-06)
+1. Standard Fal/Kie submit paths now use the lean direct-submit architecture; the old ShortPulse pre-provider queue is not part of the normal runtime path.
+2. Active admission mode parsing is `off | enforce`; older `shadow` rollout framing in this ADR is historical context, not the live contract.
+3. `GET /api/fal/queue-status` remains compatibility read support for already-persisted queue rows, not a primary submit lane.
+4. Shared-provider admission and recovery-lag backpressure are the live overload controls layered on top of per-user admission caps.
+
 ## Decision
 1. Implement server-side admission control in `falSubmitProxy` immediately after reservation creation and before Fal submit.
 2. Use hard rejection (`429` + `Retry-After`) in `enforce` mode; do not introduce a persistent FIFO queue in phase 1.

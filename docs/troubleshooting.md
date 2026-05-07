@@ -166,9 +166,8 @@ Checklist:
 - Confirm transformed signing profile headers are present:
   - `/api/media/sign-batch` -> `x-shortpulse-media-sign-preview-profile`
   - `/api/media/resolve-previews` -> `x-shortpulse-media-resolve-preview-profile`
-- Confirm Adaptive V2 panel surfaces are enabled when expected:
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED=true`
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid` and/or `media-library-modal-grid`.
+- Confirm adaptive media surfaces are enabled when expected:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid`, `media-library-modal-grid`, and `media-library-panel-grid` when those surfaces should use adaptive preview routing.
 
 Mitigation:
 - Keep media-library preview delivery on Supabase signed URLs (do not re-wrap signed URLs through Next image optimizer).
@@ -582,7 +581,7 @@ Checklist:
   );
   ```
 - If `failed_ratio` is elevated or `p95_duration_ms` is high, verify:
-  - `/api/media/list` returns `200` for authenticated users when list API rollout is enabled,
+  - `/api/media/list` returns `200` for authenticated users,
   - `/api/media/sign-batch` returns `200` with a `urls` map for authenticated users,
   - signed URL requests are only for visible/buffered cards,
   - variant paths (`thumb_variant_path`, `poster_variant_path`, `preview_variant_path`) are populated,
@@ -592,17 +591,13 @@ Checklist:
   - review `ai_studio` + `image` rows for:
     - low thumb/preview variant coverage
     - large `p50_bytes` / `p90_bytes`
-  - verify panel compaction flags:
-    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED=true`
-    - `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED=true`
-    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid` or `media-library-modal-grid`
+  - verify adaptive media surfaces include the active panel/grid surfaces:
+    - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` includes `media-library-grid`, `media-library-modal-grid`, and `media-library-panel-grid`
 - Inspect open-to-first-media attribution events:
   - `media.route.open_to_first_media`
   - `media.modal.open_to_first_media`
-- If modal/route grids stutter at higher counts, verify rollout flags:
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED=true`
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED=true`
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED=true`
+- If modal/route grids stutter at higher counts, verify the canonical Media Library runtime is intact:
+  - Media Library route/modal/panel are using the default virtualization, video-budget, and sign-prefetch behavior.
 - If Reference Grid interactions degrade in long sessions, verify:
   - soft archive is active (`NEXT_PUBLIC_REFERENCE_GRID_SOFT_ARCHIVE` not set to `false`),
   - adaptive preview routing is active:
@@ -713,7 +708,7 @@ Checklist:
 - Confirm warning includes current size vs max limit.
 - Retry after reducing state size and verify the active persistence surface succeeds:
   - project routes: `PUT /api/projects/:projectId/workspace`
-  - non-project routes: runtime-local shadow only (legacy `/api/ai/sessions/*` is retired)
+  - non-project routes: no resumable persistence; `sid` is runtime identity only
 
 ## AI Studio safety behavior differs from expected mode
 Checklist:
@@ -874,11 +869,7 @@ Checklist:
 
 ## Beginner mode toggle is missing or expert mode is always on
 Checklist:
-- Verify `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF` and `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_TOGGLE_VISIBLE` in `frontend/.env.local`.
-- Precedence is strict: when `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF=true`, beginner mode is forced OFF and toggle controls are hidden even if `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_TOGGLE_VISIBLE=true`.
-- To temporarily restore UI controls without DB rollback, set:
-  - `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF=false`
-  - `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_TOGGLE_VISIBLE=true`
+- Beginner mode is retired from the live runtime, so expert mode is always on.
 - Remember the DB default after migration `049_enforce_expert_default_beginner_mode.sql` is `user_preferences.beginner_mode=false` for new rows.
 
 ## “It works in dev but not in build”

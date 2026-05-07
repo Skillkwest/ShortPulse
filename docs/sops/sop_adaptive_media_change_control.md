@@ -3,7 +3,7 @@
 Purpose: prevent regressions while continuing development in other AI Studio and media-related pipelines.
 
 ## Scope
-- Adaptive Media V2 module and policy/resolver paths.
+- Adaptive media module and policy/resolver paths.
 - AI Studio Reference Grid + Quick Slot rendering paths.
 - AI Studio Media Library modal grid and Character Manager grid/detail usage of adaptive delivery.
 
@@ -32,7 +32,7 @@ Run this command for any PR touching protected paths:
 
 ```bash
 cd frontend
-npm run test:adaptive-v2-gate
+npm run test:adaptive-media-runtime
 ```
 
 This gate currently includes:
@@ -83,7 +83,7 @@ This gate currently includes:
 4. Treat one-off visual flashes as separate stabilization work unless reproducible/blocking.
 
 ## PR Requirements
-- Include test evidence for `test:adaptive-v2-gate`.
+- Include test evidence for `test:adaptive-media-runtime`.
 - Include evidence for `check:architecture-boundary` and `check:size-budget` when touching protected paths.
 - Note active adaptive flags used during QA.
 - Include any known low-severity issues and whether they are blocking or deferred.

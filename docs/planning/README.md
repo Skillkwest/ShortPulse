@@ -1,224 +1,70 @@
 # Planning Docs
 
-Purpose: active planning artifacts and current execution backlogs.
+Purpose: provide the active execution entrypoint for planning work without forcing readers through the full historical planning corpus.
 
 ## Active-Surface Contract
-- This index is for active planning and current execution backlogs only.
-- Superseded, completed, historical, dormant, or reference-only planning docs belong in `docs/archive/planning/`.
-- `docs/planning/evidence/` remains the retained evidence namespace during the current cleanup transition, but it is not part of the primary reading path through active planning.
-- `docs/records/README.md` is the policy entrypoint for retained records and the target namespace for future evidence migration.
+- This index is for the current execution reading path only.
+- `docs/planning/` still contains older working history, trackers, and phase plans, but they are not all active entrypoints.
+- Retained evidence belongs in `docs/records/` or `docs/planning/evidence/` during the current transition and is not part of the primary planning reading path.
+- Superseded or dormant planning docs should move to `docs/archive/planning/` only through a bounded cleanup lane; this index changes reading priority first.
 
-## Contents
-- `master-rollout-proposal.md`: canonical staged rollout contract (`STG-00` through `STG-08`).
-- `shortpulse-unified-buildout-master-plan.md`: unified multi-track execution plan (`Phase 00` through `Phase 13`) covering security, runtime hardening, modularization, billing/admin, provider migration, and cross-plan consolidation.
-- `shortpulse-unified-buildout-tracker.md`: authoritative status tracker for unified phase progression and exit gates.
-- `shortpulse-unified-overlap-matrix.md`: cross-plan overlap register and anti-duplication resolution map.
-- `shortpulse-unified-decision-log.md`: locked execution decisions and sequencing constraints.
-- `migration-number-reservation-map.md`: centralized migration-number reservation and collision-prevention map for concurrent plan streams.
-- `implementation-tracker.md`: stage-by-stage status, ownership, and compliance evidence tracking.
-- `ci-policy-checks.md`: CI job inventory, governance checks, and branch-protection mapping.
-- `trunk-safety-contract.md`: canonical source-of-truth contract for high-concurrency AI trunk governance (required check model, worktree policy, provenance, exceptions, and rollback rules).
-- `final-validation-summary.md`: closeout validation matrix and signoff checklist.
-- `policies/README.md`: planning policy artifacts and machine-checkable governance policy surfaces.
-- `backlog.md`: active and upcoming work.
-- `generation-pipeline-continuation-master-plan-2026-04-05.md`: removal-led continuation plan for the generation pipeline with bucketed authority cutover, client demotion, compatibility retirement, and Reference Grid read-model simplification.
-- `generation-pipeline-continuation-tracker-2026-04-05.md`: index for the bucket-specific continuation subplans.
-- `generation-pipeline-continuation-server-authority-cutover-2026-04-05.md`: bucket subplan for server-owned lifecycle authority cutover.
-- `generation-pipeline-continuation-server-authority-execution-checklist-2026-04-05.md`: execution checklist for the server-authority bucket with file order, cutover gates, and rollback sequencing.
-- `generation-pipeline-continuation-client-demotion-2026-04-05.md`: bucket subplan for removing client lifecycle authority.
-- `generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`: bucket subplan for fallback deletion and compatibility retirement.
-- `generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`: bucket subplan for Reference Grid read-model simplification.
-- `ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`: execution-oriented handoff for the staging AI Studio Media Library panel lag investigation, including trusted evidence, decision gates, and the ordered remediation plan for follow-on agents.
-- `ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`: fresh-start, live-repo-audit-backed roadmap for making the Expert Edit properties panel leaner without changing behavior, layout, or current interaction semantics.
-- `ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`: new-scope execution plan for fully isolating Standard and Pulse mode, simplifying Pulse into the intended custom-GPT model, and enforcing an explicit done state and stop rule after the completed Pulse runtime program.
-- `ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md`: active stabilization contract for making Reference Grid, Quick Slots, and canvas/workspace state strictly project-specific by fixing project-route bootstrap gating, empty-project apply, and project autosave startup timing.
-- `ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`: Phase 0 plan for locking the project-persistence contract and producing the field-by-field persistence inventory and leak-path map.
-- `ai-studio-project-persistence-phase-0-persistence-inventory-2026-04-23.md`: executed Phase 0 persistence inventory with the exact empty-project definition, saved-project restore envelope, current persistence authorities, field classification, and migration-critical leak paths.
-- `ai-studio-project-persistence-phase-1-projects-foundation-hardening-plan-2026-04-23.md`: Phase 1 plan for hardening the `projects` domain, dashboard create/open surfaces, and project lifecycle APIs without carrying forward old folder assumptions.
-- `ai-studio-project-persistence-phase-2-project-runtime-entry-and-title-authority-plan-2026-04-23.md`: Phase 2 plan for making AI Studio resolve project identity first and moving visible project-title ownership onto the real project record.
-- `ai-studio-project-persistence-phase-3-project-workspace-authority-plan-2026-04-23.md`: Phase 3 plan for introducing one authoritative project-owned workspace snapshot and demoting legacy `sid` snapshot writes.
-- `ai-studio-project-persistence-phase-4-project-asset-association-plan-2026-04-23.md`: Phase 4 plan for associating restore-relevant media and prompts with the active project without making the global asset inventory project-local.
-- `ai-studio-project-persistence-phase-5-project-folder-cutover-plan-2026-04-23.md`: Phase 5 plan for replacing the visible user-global custom-folder authority with project-scoped folders while keeping `All Media` global.
-- `ai-studio-project-persistence-phase-6-dashboard-saved-project-surfaces-plan-2026-04-23.md`: Phase 6 plan for replacing the dashboard placeholder session area with real saved-project cards and project-open behavior.
-- `ai-studio-project-persistence-phase-7-legacy-session-demotion-and-cleanup-plan-2026-04-23.md`: Phase 7 plan for retiring legacy session persistence as the primary user-facing authority once project restore is authoritative.
-- `billing-internal-comp-contracts-and-admin-exempt-renewals-plan-2026-04-23.md`: repo-backed execution plan for non-public internal comp billing contracts, admin grant/revoke controls, renewal ownership, and stop rules.
-- `ai-studio-inpaint-reference-contract-master-plan-2026-04-14.md`: canonical master plan for resolving the inpaint token/payload/mask/UI contract mismatch in Expert Edit.
-- `ai-studio-inpaint-reference-contract-tracker-2026-04-14.md`: operational tracker for the inpaint-reference contract program with phase gates, rollback notes, and planning-task done state.
-- `ai-studio-inpaint-reference-contract-phase-1-target-contract-plan-2026-04-14.md`: Phase 1 plan for locking the supported inpaint token set, mask contract, and provider-lane direction.
-- `ai-studio-inpaint-reference-contract-phase-2-current-state-audit-and-guardrails-plan-2026-04-14.md`: Phase 2 plan for reconciling the chosen contract against the current runtime seams and implementation guardrails.
-- `ai-studio-inpaint-reference-contract-phase-3-lane-and-payload-alignment-plan-2026-04-14.md`: Phase 3 plan for aligning prompt-link behavior, preflight work, and provider payload transmission.
-- `ai-studio-inpaint-reference-contract-phase-4-mask-and-ui-contract-hardening-plan-2026-04-14.md`: Phase 4 plan for hardening mask invariants and effective-model-driven Edit panel behavior.
-- `ai-studio-inpaint-reference-contract-phase-5-validation-and-doc-closeout-plan-2026-04-14.md`: Phase 5 plan for validation, durable docs updates, and program closeout.
-- `ai-studio-inpaint-live-preview-master-plan-2026-04-14.md`: canonical master plan for making Expert Edit inpaint drawing feel immediate by separating transient preview from committed-mask analysis.
-- `ai-studio-inpaint-live-preview-phase-1-stage-preview-layer-plan-2026-04-14.md`: Phase 1 plan for adding the shared transient inpaint preview layer to the stage scene.
-- `ai-studio-inpaint-live-preview-phase-2-immediate-pointer-preview-plan-2026-04-14.md`: Phase 2 plan for driving immediate brush and lasso preview from live pointer input.
-- `ai-studio-inpaint-live-preview-phase-3-committed-mask-contract-preservation-plan-2026-04-14.md`: Phase 3 plan for preserving committed-mask, export, history, and submission behavior while the preview path changes.
-- `ai-studio-inpaint-live-preview-phase-4-inline-modal-parity-plan-2026-04-14.md`: Phase 4 plan for tightening inline/modal preview coordinate parity.
-- `ai-studio-inpaint-live-preview-phase-5-validation-and-stop-rule-plan-2026-04-14.md`: Phase 5 plan for targeted validation, done-state confirmation, and explicit stop-rule enforcement.
-- `ai-studio-inpaint-live-preview-tracker-2026-04-14.md`: operational tracker for the inpaint live-preview program with phase gates, rollback posture, and the explicit done state.
-- `ai-studio-master-stage-rebuild-spec-2026-04-12.md`: canonical rebuild spec for the new AI Studio master stage, including the target editor model, delete list, and rebuild-program done state.
-- `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
-- `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
-- `foundation-rebuild-playbook-2026-03-16.md`: mandatory rebuild method contract (entry criteria, explicit do-not-rebuild criteria, strangler cutover model, and rollback/evidence rules).
-- `lane-c-master-plan-2026-03-16.md`: Lane C regression-armor plan for characterization-first fragile-path coverage, contract locks, and deterministic no-regression test gates.
-- `lane-c-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Lane C regression-armor slices.
-- `lane-c-execution-plan-2026-03-16.md`: concrete Lane C slice sequencing with explicit command bundles, acceptance criteria, and evidence packet outputs.
-- `generation-pipeline-rebuild-blueprint-2026-03-27.md`: branch-aware target architecture and migration path for the canonical request/output rebuild on `working-development`.
-- `generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`: source-of-truth current-state matrix for request, attempt, output, and billing identities in Lane 1.
-- `generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`: legal transition and mutation-ownership matrix for the future request/attempt state machine in Lane 1.
-- `generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`: target request/attempt schema delta and explicit transition posture for `ai_generations`, queue rows, outputs, reservations, and webhook rows.
-- `generation-pipeline-rebuild-lane-1-billing-replay-provider-event-contract-2026-03-27.md`: explicit billing ownership, replay/idempotency, and provider-event durability contract completing Lane 1.
-- `generation-pipeline-rebuild-state-machine-runtime-transition-contract-2026-03-27.md`: concrete runtime transition API, legal post-submit transition table, helper fate map, and reader posture contract completing `GPR-SM-S1`.
-- `generation-pipeline-rebuild-state-machine-read-model-posture-2026-03-27.md`: explicit queue-status and persisted-status reader classification completing `GPR-SM-S4`.
-- `generation-pipeline-rebuild-lifecycle-read-model-control-plane-contract-2026-03-27.md`: repo-backed contract for observer/control-plane posture and shared recovery-engine boundaries completing `GPR-RM-S1`.
-- `generation-pipeline-rebuild-recovery-control-plane-stage-contract-2026-03-27.md`: stage map and ownership contract for the background recovery control plane, completing `GPR-CP-S1`.
-- `generation-pipeline-rebuild-provider-event-replay-contract-2026-03-27.md`: ingress/replay contract for `fal_webhook_events`, duplicate semantics, and route-vs-recovery ownership completing `GPR-PE-S1`.
-- `generation-pipeline-rebuild-admin-trace-health-alignment-contract-2026-03-27.md`: canonical-vs-compatibility contract for admin generation trace and health surfaces, completing `GPR-AH-S1`.
-- `generation-pipeline-rebuild-generated-reuse-dragdrop-authority-contract-2026-03-27.md`: reusable/tracked/preview-only authority contract for generated resolved-media and drag/drop direct URL exposure.
-- `generation-pipeline-rebuild-generated-reuse-authority-cutover-plan-2026-03-27.md`: larger cross-surface generated reuse cutover plan for internal drop resolvers, media-library intake, style intake, canvas, and character consumers.
-- `generation-pipeline-rebuild-generated-reuse-authority-cutover-contract-2026-03-27.md`: identity-first contract for generated internal drops, media-library resolution, style intake, and downstream reusable/tracked/preview-only posture.
-- `generation-pipeline-rebuild-compatibility-retirement-evidence-plan-2026-03-27.md`: closeout-oriented Lane 4 plan for compatibility-path inventory, retirement posture classification, rollback evidence, and rebuild done-state decisioning.
-- `generation-pipeline-rebuild-compatibility-retirement-inventory-2026-03-27.md`: repo-backed inventory of the remaining runtime, user-facing, and diagnostic compatibility paths relevant to rebuild closeout.
-- `generation-pipeline-rebuild-compatibility-retirement-classification-2026-03-27.md`: retention posture and rebuild-done classification for the remaining compatibility paths at closeout.
-- `generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`: required row classes, inconsistency buckets, and evidence gates before historical backfill and fallback retirement.
-- `generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`: concrete Lane 2 execution plan for historical row classification, canonical backfill, quarantine handling, and fallback-retirement order.
-- `generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`: baseline Lane 2 query set for historical row classes, inconsistency checks, and the bounded legacy fallback-reader inventory.
-- `generation-pipeline-rebuild-lane-3-cutover-gates-2026-03-27.md`: explicit cutover gates protecting drag/drop, reuse, and delivery contracts before broad read-model migration.
-- `generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`: active execution tracker for additive canonical output schema introduction and server-read cutover.
-- `generation-reliability-hardening-master-plan-2026-03-20.md`: reliability hardening program contract focused on scheduler/control-plane health, bounded recovery behavior, and operations governance.
-- `generation-reliability-hardening-master-roadmap-2026-03-20.md`: canonical sequencing/dependency roadmap for reliability workstreams (`WR-1` through `WR-7`).
-- `generation-reliability-hardening-master-tracker-2026-03-20.md`: master tracker for reliability planning gates, workstream status, and row-level evidence readiness.
-- `generation-reliability-hardening-tracker-spec-2026-03-20.md`: required tracker schema and evidence contract for reliability phase trackers and execution slices.
-- `generation-reliability-hardening-phase-r0-execution-plan-2026-03-20.md`: Phase `R0` execution-ready planning for governance locks, SLO/SLI baseline, and escalation policy.
-- `generation-reliability-hardening-phase-r1-execution-plan-2026-03-20.md`: Phase `R1` execution-ready planning for `pg_cron`/`pg_net` control-plane observability contracts.
-- `generation-reliability-hardening-phase-r2-execution-plan-2026-03-20.md`: Phase `R2` scheduler policy hardening plan for fleet cadence, recovery non-regression, and route-parity safety.
-- `generation-reliability-hardening-phase-r3-execution-plan-2026-03-20.md`: Phase `R3` deterministic state-transition and idempotency-governance planning.
-- `generation-reliability-hardening-phase-r4-execution-plan-2026-03-20.md`: Phase `R4` retry/timeout/lease/quarantine policy planning.
-- `generation-reliability-hardening-phase-r5-execution-plan-2026-03-20.md`: Phase `R5` fairness, jitter, and load-management policy planning.
-- `generation-reliability-hardening-phase-r6-execution-plan-2026-03-20.md`: Phase `R6` game-day readiness, pass/fail closeout, and residual-risk signoff planning.
-- `generation-reliability-hardening-provider-contract-matrix-2026-03-20.md`: canonical provider contract matrix for callback, retry, signature, retention, and throttling semantics.
-- `generation-reliability-hardening-decision-log-2026-03-20.md`: durable decision ledger for reliability planning and implementation gate policy.
-- `generation-reliability-hardening-risk-register-2026-03-20.md`: risk register for planning and rollout hazards with mitigations and ownership.
-- `generation-reliability-hardening-evidence-packet-template.md`: reusable packet template for all reliability evidence artifacts.
-- `generation-reliability-hardening-implementation-entry-checklist-2026-03-20.md`: explicit go/no-go checklist before implementation starts.
-- `generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`: current hourly fleet scheduler cadence contract with daily rollback baseline and promote/hold/rollback criteria.
-- `generation-reliability-hardening-readiness-state-2026-03-20.md`: canonical readiness-state decision register (`hold_with_blockers`, `planning_complete_pending_owner_go`, `ready_for_implementation`).
-- `media-library-ui-redesign-plan-2026-03-28.md`: next-lane redesign contract for `/media-library`, the AI Studio Media Library modal, and the AI Studio Media Library panel on top of the completed runtime rebuild.
-- `media-rendering-hardening-v2-master-plan-2026-03-16.md`: canonical no-regression/no-bloat master plan for media rendering hardening (`P0` through `P9`) with locked constraints, contracts, and exit criteria.
-- `media-rendering-hardening-v2-master-roadmap-2026-03-16.md`: canonical sequencing/dependency roadmap for media rendering hardening workstreams and rollout rings.
-- `media-rendering-hardening-v2-execution-tracker-2026-03-16.md`: required tracker schema and seeded slice backlog for media rendering hardening execution.
-- `media-rendering-hardening-v2-risk-register-2026-03-16.md`: severity-based risk register with mitigation and rollback triggers for media rendering hardening slices.
-- `media-rendering-hardening-v2-decision-log-2026-03-16.md`: durable decision ledger for contract and architecture decisions in media rendering hardening.
-- `media-rendering-hardening-v2-qa-release-checklist-2026-03-16.md`: per-slice QA, ring-rollout, rollback threshold, and decommission readiness checklist for media rendering hardening.
-- `media-rendering-hardening-v2-foundation-lane-master-plan-2026-03-18.md`: decision-complete Foundation lane plan covering inventory closure, telemetry truth, per-surface policy lock, ADR reconciliation, and stop/go ownership.
-- `media-rendering-hardening-v2-foundation-lane-execution-plan-2026-03-18.md`: concrete Foundation lane slice plan wired to the master tracker and evidence namespace with no user-visible media-delivery changes.
-- `media-rendering-hardening-v2-pipeline-lane-master-plan-2026-03-18.md`: decision-complete Pipeline lane plan for metadata authority, list/query hardening, canonical upload migration, and server-contract readiness before Surface cutover.
-- `media-rendering-hardening-v2-pipeline-lane-execution-plan-2026-03-18.md`: concrete Pipeline lane slice plan wired to the master tracker rows for metadata, list profile, folder query, and upload-adapter work.
-- `media-rendering-hardening-v2-surface-lane-master-plan-2026-03-18.md`: decision-complete Surface lane plan for cross-surface render adoption, render-cost work, long-tail consistency, and rollout/decommission closeout.
-- `media-rendering-hardening-v2-surface-lane-execution-plan-2026-03-18.md`: concrete Surface lane slice plan wired to the master tracker rows for hot-path parity, character/detail inclusion, render-cost work, long-tail sweep, and rollout.
-- `media-rendering-hardening-v2-contract-matrix-2026-03-16.md`: source-of-truth producer/consumer contract matrix for list/upload/sign/resolve/adaptive media domains.
-- `media-rendering-hardening-v2-image-surface-inventory-lock-2026-03-16.md`: authoritative image-surface inventory lock with hot-path classification and ownership fields.
-- `media-rendering-hardening-v2-api-list-profile-spec-2026-03-16.md`: `/api/media/list` profile contract (`minimal` default, `expanded` optional) and compatibility requirements.
-- `media-rendering-hardening-v2-folder-query-scalability-spec-2026-03-16.md`: folder-query scalability design and benchmark gate contract.
-- `media-rendering-hardening-v2-legacy-adapter-sunset-spec-2026-03-16.md`: compatibility adapter lifecycle and sunset gates for `/api/upload-image` and `/api/upload-video`.
-- `media-rendering-hardening-v2-metadata-authority-spec-2026-03-16.md`: canonical metadata/dimension authority and fallback policy contract.
-- `media-rendering-hardening-v2-surface-policy-matrix-2026-03-18.md`: per-surface renderer/optimizer/signing/fallback decision matrix that must be locked before behavior-changing work.
-- `media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md`: trustworthy-vs-blocked telemetry contract for baseline capture, rollout evidence, and performance parity decisions.
-- `media-rendering-hardening-v2-test-realignment-matrix-2026-03-18.md`: classification of characterization locks versus drift-locking tests for media rendering hardening.
-- `media-rendering-hardening-v2-pre-implementation-stop-go-checklist-2026-03-18.md`: readiness gate that must pass before behavior-changing implementation begins.
-- `media-rendering-hardening-v2-foundation-p0-inventory-telemetry-closure-plan-2026-03-18.md`: focused Foundation `P0` planning-support doc for inventory closure, telemetry truth closure, and stop/go completion criteria before implementation work begins.
-- `../../mini-ecosystem/README.md`: standalone operational system (outside `docs/planning`) for role-based delivery and performable-core contracts.
-- `documentation-audit-2026-02-17.md`: documentation governance audit artifact (classification matrix, contradiction method, backlog evidence matrix).
-- `audit-progress.md`: automation/docs audit status.
-- `admin-user-health-fleet-implementation-plan-2026-03-14.md`: implementation contract for daily active-user fleet health triage (set-based scan pipeline, bounded runtime, persistence, and operator workflows).
-- `mvp-pretester-full-audit-remediation-plan.md`: full-app audit remediation runbook for pre-tester release hardening.
-- `mvp-ui-ux-stabilization-remediation-plan.md`: standalone UI/UX stabilization and remediation runbook for pre-tester quality hardening.
-- `mvp-ui-ux-pass-execution-plan-2026-03-16.md`: tactical pass-by-pass execution checklist (2026-03-16 to 2026-03-27) for closing remaining responsive, accessibility, and navigation UX tickets.
-- `mvp-ui-ux-sprint-ticket-breakdown.md`: sprint-ready ticket register (one ticket per UI/UX remediation checklist item, with owner and estimate).
-- `mvp-ui-ux-issue-board.md`: owner-assigned execution board with ticket status, reviewer, and acceptance evidence.
-- `mvp-ui-ux-phase0-baseline-qa-checklist.md`: runbook checklist for UX-0 baseline capture and keyboard/accessibility verification.
-- `mvp-ui-ux-phase0-baseline-capture-template.md`: fill-in template for per-route baseline evidence and sign-off.
-- `mvp-ui-ux-phase0-baseline-report-2026-02-14-full.md`: full UX-0 baseline report for all priority routes plus first-pass keyboard baseline.
-- `ai-studio-generation-runtime-v2-locked-execution.md`: authoritative locked execution plan for server-authoritative runtime v2.
-- `ai-studio-full-recovery-program.md`: phased AI Studio stabilization and recovery program covering core stability, payload hardening, and UX consistency gates.
-- `ai-studio-reference-grid-reliability-master-plan-2026-03-21.md`: canonical program contract for resolving reference-grid missing/delayed card reliability gaps.
-- `ai-studio-reference-grid-reliability-master-roadmap-2026-03-21.md`: canonical sequencing/dependency roadmap for Reference Grid reliability workstreams (`WG-1` through `WG-5`).
-- `ai-studio-reference-grid-reliability-master-tracker-2026-03-21.md`: live tracker for workstream status, master rows, and evidence gate progression.
-- `ai-studio-reference-grid-reliability-tracker-spec-2026-03-21.md`: required tracker schema and evidence contract for `P0` through `P4` slices.
-- `ai-studio-reference-grid-reliability-phase-p0-execution-plan-2026-03-21.md`: Phase `P0` execution plan for recovery/dispatch correctness, slice sequencing, validation bundle, and exit gates.
-- `ai-studio-reference-grid-reliability-phase-p1-execution-plan-2026-03-21.md`: Phase `P1` execution plan for output-authority and selector-store parity in decoupled mode.
-- `ai-studio-reference-grid-reliability-phase-p2-execution-plan-2026-03-21.md`: Phase `P2` execution plan for hydration timeout/fallback convergence and loading-state telemetry split.
-- `ai-studio-reference-grid-reliability-phase-p3-execution-plan-2026-03-21.md`: Phase `P3` execution plan for queue-status precedence, status-proxy recovery timing semantics, and overdue-running reconciliation policy.
-- `ai-studio-reference-grid-reliability-phase-p4-execution-plan-2026-03-21.md`: Phase `P4` execution plan for final reliability matrix hardening, canary rollout governance, and residual-risk closeout.
-- `ai-studio-reference-grid-reliability-decision-log-2026-03-21.md`: durable decision ledger for execution policy and sequencing locks.
-- `ai-studio-reference-grid-reliability-risk-register-2026-03-21.md`: risk register with severity, mitigations, and escalation triggers.
-- `ai-studio-reference-grid-reliability-implementation-entry-checklist-2026-03-21.md`: go/no-go checklist required before behavior-changing phase execution.
-- `ai-studio-reference-grid-reliability-readiness-state-2026-03-21.md`: canonical readiness-state register (`hold_with_blockers`, `planning_ready_pending_implementation_gates`, `implementation_ready`) with promotion/reversion criteria and immediate implementation-start SLA.
-- `ai-studio-reference-grid-reliability-evidence-packet-template-2026-03-21.md`: standardized packet template for reliability slice evidence.
-- `ai-architecture-follow-on-revisit-report-2026-03-29.md`: consolidated handoff + defer/revisit report for external design-AI architecture takeaways, with an earliest revisit date of `2026-04-12`.
-- `ai-studio-session-persistence-reference-only-plan-2026-03-04.md`: decision-complete rebuild plan for reference-only AI Studio session persistence.
-- `ai-studio-session-persistence-reference-only-tracker-2026-03-04.md`: execution tracker for reference-only session persistence slices and gates.
-- `ai-studio-expert-edit-coordinate-parity-master-roadmap-2026-03-20.md`: decision-locked master roadmap for canonical coordinate/interaction parity across Expert Edit inline + modal markup/inpaint workflows.
-- `ai-studio-expert-edit-coordinate-parity-master-tracker-2026-03-20.md`: master execution tracker with phase gates, risk controls, and evidence requirements for coordinate parity hardening.
-- `ai-studio-expert-edit-coordinate-parity-phase-1-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 1 coordinate core unification (`CP-101`, `CP-102`, `CP-103`).
-- `ai-studio-expert-edit-coordinate-parity-phase-2-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 2 tool geometry parity (`CP-201`, `CP-202`, `CP-203`).
-- `ai-studio-expert-edit-coordinate-parity-phase-5-execution-plan-2026-03-20.md`: implementation-ready execution plan for Phase 5 controlled rollout and closeout (`CP-501`, `CP-502`, `CP-503`).
-- `ai-studio-create-character-mode-hardening-plan.md`: hardening plan for Create Character Mode model mapping and submit invariants.
-- `ai-studio-runtime-v2-recovery-execution-phase.md`: shared recovery execution phase tracker (webhook inbox, verify cutover, reconciler leases, guarded transitions).
-- `ai-studio-runtime-v2-staging-execution-checklist.md`: operator checklist with ordered staging migration/env/deploy/smoke-test commands and runtime gates.
-- `ai-studio-generation-admission-rollout-plan.md`: staged rollout for generation admission policy and validation gates.
-- `ai-studio-agent-tooling-phased-plan.md`: phased rollout for media analysis, prompt optimization, evaluation, and MCP adoption gates.
-- `ai-studio-agent-pipeline-hardening-plan.md`: quality-first hardening plan for deterministic routing, server-owned vision summaries, durable canonical state, and no-question action contracts.
-- `ai-studio-agent-modularization-program.md`: decision-complete hardening and modularization program plan (v3) with architecture invariants, gates, budgets, and rollback policy.
-- `ai-studio-agent-modularization-tracker.md`: execution tracker for phase checklists, risks, blockers, rollout rings, and evidence links.
-- `ai-studio-agent-safety-control-plane-plan.md`: Wave F safety policy control-plane implementation plan (modality profiles, hard floors, admin operations, rollback/cooldown).
-- `ai-studio-agent-safety-control-plane-tracker.md`: Wave F execution tracker for safety control-plane phases, validation gates, and evidence.
-- `ai-studio-agent-pipeline-regression-remediation-roadmap-2026-03-20.md`: master prompt-compiler hardening roadmap that locks architecture, safety, continuity, and rollout-governance decisions before phase planning.
-- `ai-studio-agent-pipeline-regression-remediation-tracker-2026-03-20.md`: master workstream tracker for pre-phase decision gates, validation criteria, and evidence linkage.
-- `ai-studio-agent-pipeline-regression-phase-1-openai-execution-plan-2026-03-20.md`: rebaselined Phase 1 OpenAI execution plan for deterministic outcome contracts and cross-route policy parity.
-- `ai-studio-agent-pipeline-regression-phase-1-openai-route-outcome-contract-2026-03-20.md`: canonical additive machine-readable route outcome contract (`decision`, `outcome_class`, `reason_code`, `retryable`) for Phase 1 OpenAI lanes.
-- `ai-studio-agent-pipeline-regression-phase-4-openai-execution-plan-2026-03-20.md`: rebaselined Phase 4 OpenAI execution plan for controlled production activation, stabilization, and operational closeout.
-- `ai-studio-agent-pipeline-regression-threshold-contract-2026-03-20.md`: canonical numeric threshold contract for promote/hold/rollback decisions and ring windows.
-- `ai-studio-agent-pipeline-regression-authority-precedence-addendum-2026-03-20.md`: authority order and conflict-resolution rules across overlapping active agent programs.
-- `ai-studio-agent-pipeline-regression-tracker-gate-clarification-2026-03-20.md`: master-vs-phase gate semantics and phase closeout row contract.
-- `ai-studio-agent-pipeline-regression-environment-label-normalization-2026-03-20.md`: canonical environment label taxonomy and packet mapping rules.
-- `ai-studio-agent-pipeline-regression-supporting-docs-plan-2026-03-20.md`: supporting-doc inventory and sequencing for remediation execution artifacts and closeout packet governance.
-- `ai-studio-ux-prompt-adjacency-rollout-plan.md`: Wave G consolidated UX + prompt-adjacency rollout plan (scope, gates, rollback posture).
-- `ai-studio-ux-prompt-adjacency-rollout-tracker.md`: Wave G execution tracker for prompt-adjacent contract consolidation and UX rollout gates.
-- `ai-studio-reference-grid-stabilization-v4-plan.md`: decision-complete stabilization plan for 50-60 reference sessions (decoupling, adaptive delivery, hydration/decode budgets, virtualization, watchdog degrade levels).
-- `ai-studio-reference-grid-modularization-program.md`: documentation-first foundation program for no-regression reference-grid modularization (domain contracts, strangler phases, rollback policy, guardrails).
-- `ai-studio-reference-grid-modularization-tracker.md`: phase tracker for reference-grid modularization status, gates, blockers, and evidence links.
-- `naming-canonicalization-program.md`: zero-regression naming canonicalization program (expand/migrate/contract phases, controls, and stop-points).
-- `naming-canonical-map.md`: canonical naming source-of-truth map and compatibility window policy.
-- `naming-decision-log.md`: stop-point approvals and canonical naming decision log.
-- `naming-canonicalization-tracker.md`: phase and slice tracker for naming canonicalization execution.
-- `naming-phase-7-entry-readiness.md`: alias-sunset contract entry checklist, release-window tracker, and compatibility alias inventory.
-- `media-library-reference-grid-optimization-plan.md`: near-instant media loading architecture plan (Media Library + AI Studio Reference Grid).
-- `adaptive-media-v2-migration-checklist.md`: staged migration checklist for adaptive-media v2 parity cutover across AI Studio, Media Library, and Character surfaces.
-- `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
-- `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
-- `ai-studio-primary-character-panel-build-plan.md`: execution plan for making the AI Studio Character panel the primary management surface, with Media Library-informed image-performance guidance.
-- `tooling-audit-2026-02-16.md`: comprehensive tooling and framework audit with prioritized recommendations for masonry layout, image optimization, DnD, toasts, lightbox, date formatting, state management, and schema validation.
-- `stages/stage-00-governance-contract-lock.md` through `stages/stage-08-final-validation-signoff.md`: decision-complete stage execution docs.
-- `stages/unified-phase-00-baseline-stabilization-and-incident-hygiene.md` through `stages/unified-phase-13-cross-plan-master-rollout.md`: decision-complete execution docs for the unified build-out program.
-- `archive/original-plans/manifest.json`: machine-checkable inventory for verbatim source-plan preservation.
-- `archive/original-plans/shortpulse-governance-realignment-master-rollout-plan-2026-02-20.md`: verbatim archived source copy of the master rollout plan text.
-- `archive/original-plans/plan-01-foundational-cleanup.md`: verbatim source-plan archive copy.
-- `archive/original-plans/plan-02-kei-removal-v2.md`: verbatim source-plan archive copy.
-- `archive/original-plans/plan-03-doc-governance-realignment-v2.md`: verbatim source-plan archive copy.
-- `archive/original-plans/plan-04-decoupling-modularization-audited.md`: verbatim source-plan archive copy.
+## Start Here
+1. `docs/planning/execution-authority.md`
+2. `docs/planning/backlog.md`
+3. `docs/known-issues.md`
+4. `docs/systems/catalog.md`
+
+## Active Program Reading Path
+
+### Program 0: Execution Authority
+- `docs/planning/execution-authority.md`
+- `docs/planning/backlog.md`
+- `docs/documentation_overview.md`
+
+### Program 1: Runtime And Money
+- `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
+- `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
+- `docs/planning/evidence/runtime-v2/README.md`
+- `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
+- `docs/planning/generation-pipeline-continuation-tracker-2026-04-05.md`
+- `docs/planning/ai-studio-generation-admission-rollout-plan.md`
+- `docs/planning/billing-internal-comp-contracts-and-admin-exempt-renewals-plan-2026-04-23.md`
+
+### Program 2: Media And Reference Integrity
+- `docs/known-issues.md`
+- `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
+- `docs/planning/media-library-reference-grid-optimization-plan.md`
+- `docs/sops/sop_ai_studio_style_creator.md`
+
+### Program 3: Structural Decomposition
+- `docs/planning/ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`
+- `docs/planning/ai-studio-agent-modularization-program.md`
+- `docs/planning/ai-studio-agent-modularization-tracker.md`
+- `docs/planning/ai-studio-reference-grid-modularization-program.md`
+- `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
+
+### Program 4: Workflows And Product Surfaces
+- `docs/product/shortpulse_ai_studio.md`
+- `docs/sops/sop_character_manager_operations.md`
+- `docs/sops/sop_saved_creators.md`
+- `docs/routes.md`
+
+### Program 5: Release Confidence And Research
+- `docs/testing-guide.md`
+- `docs/release-checklist.md`
+- `docs/planning/tooling-audit-2026-02-16.md`
+
+## Interpretation Rules
+- A planning file is an active entrypoint only if it is linked from `docs/planning/execution-authority.md` or explicitly named in the active program reading path above.
+- Other files under `docs/planning/` should be treated as working history or supporting context until a live lane reactivates them.
+- Do not start implementation from retained evidence or dormant plans without a current problem statement backed by the systems catalog, known issues, or a failing test/live repro.
 
 ## Retained Records
-- `docs/records/README.md`: retained-records policy, target namespace shape, and reader workflow.
-- `evidence/README.md`: current physical planning-evidence index during the transition to the records namespace.
-- `evidence/unified-buildout/README.md`: canonical evidence namespace index for the unified build-out program.
-- `evidence/reference-grid-modularization/README.md`: canonical evidence namespace index for the reference-grid modularization program.
-- `evidence/ai-studio-reference-grid-reliability/README.md`: evidence namespace index and packet requirements for Reference Grid reliability slices.
+- `docs/records/README.md`: retained-records policy and target namespace
+- `docs/planning/evidence/README.md`: transition index for planning evidence that has not moved yet
 
 ## Maintenance
-- Keep plans actionable and current.
-- Move obsolete plans to `docs/archive/planning/` when superseded.
-- Controlled exception: user-provided source-plan evidence remains under `docs/planning/archive/original-plans/` per `docs/documentation_overview.md`.
-- Route retained evidence discoverability through `docs/records/README.md` and namespace READMEs instead of adding raw packet inventories to the active reading path.
-- Superseded UX-0 partial baseline report moved to `docs/archive/mvp-ui-ux-phase0-baseline-report-2026-02-14-dashboard-ai-studio.md`.
-- Log notable plan outcomes in `docs/change_log.md`.
+- Keep this README short and current.
+- Update `docs/planning/execution-authority.md` first when program boundaries or lane-entry rules change.
+- Update `docs/planning/backlog.md` when current work priorities change.
+- Move superseded planning docs to `docs/archive/planning/` through a bounded cleanup lane instead of silently leaving them in the active reading path.

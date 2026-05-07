@@ -1,3 +1,5 @@
+> Archived on 2026-05-06. Retained as historical architecture-research context; active execution authority now starts from `docs/planning/execution-authority.md`.
+
 # AI Architecture Follow-On Revisit Report (2026-03-29)
 
 Status: draft
@@ -32,10 +34,10 @@ The useful takeaway from external architecture research is not to copy external 
 ShortPulse already treats image/video generation as asynchronous infrastructure instead of synchronous UI work.
 
 Evidence:
-- [README.md](../../README.md)
-- [frontend/lib/server/generationControlPlane/runCycle.ts](../../frontend/lib/server/generationControlPlane/runCycle.ts)
-- [docs/archive/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md](../archive/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md)
-- [docs/monitoring.md](../monitoring.md)
+- [README.md](../../../README.md)
+- [frontend/lib/server/generationControlPlane/runCycle.ts](../../../frontend/lib/server/generationControlPlane/runCycle.ts)
+- [docs/archive/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md](./generation-pipeline-rebuild-master-roadmap-2026-03-27.md)
+- [docs/monitoring.md](../../monitoring.md)
 
 Signals already present:
 - queued submit + recovery
@@ -48,10 +50,10 @@ Signals already present:
 ShortPulse already has the important media-system behaviors the external reports emphasized.
 
 Evidence:
-- [README.md](../../README.md)
-- [frontend/pages/api/media/list.ts](../../frontend/pages/api/media/list.ts)
-- [frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts](../../frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts)
-- [docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](../archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md)
+- [README.md](../../../README.md)
+- [frontend/pages/api/media/list.ts](../../../frontend/pages/api/media/list.ts)
+- [frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts](../../../frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts)
+- [docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](./media-library-runtime-rebuild-master-plan-2026-03-28.md)
 
 Signals already present:
 - server-authoritative uploads
@@ -65,9 +67,9 @@ Signals already present:
 The repo already has intentional surface separation rather than one overloaded shell.
 
 Evidence:
-- [docs/routes.md](../routes.md)
-- [docs/product/shortpulse_ai_studio.md](../product/shortpulse_ai_studio.md)
-- [README.md](../../README.md)
+- [docs/routes.md](../../routes.md)
+- [docs/product/shortpulse_ai_studio.md](../../product/shortpulse_ai_studio.md)
+- [README.md](../../../README.md)
 
 Signals already present:
 - workspace hub
@@ -81,10 +83,10 @@ Signals already present:
 ShortPulse is already ahead of what most external architecture summaries can usefully teach on these topics.
 
 Evidence:
-- [docs/monitoring.md](../monitoring.md)
-- [docs/security-checklist.md](../security-checklist.md)
-- [frontend/lib/appErrorReporter.ts](../../frontend/lib/appErrorReporter.ts)
-- [frontend/lib/authGuard.ts](../../frontend/lib/authGuard.ts)
+- [docs/monitoring.md](../../monitoring.md)
+- [docs/security-checklist.md](../../security-checklist.md)
+- [frontend/lib/appErrorReporter.ts](../../../frontend/lib/appErrorReporter.ts)
+- [frontend/lib/authGuard.ts](../../../frontend/lib/authGuard.ts)
 
 Signals already present:
 - authenticated client/server incident telemetry
@@ -100,8 +102,8 @@ Problem:
 - AI Studio still mixes too much workspace/editor state with generation job state and persistence concerns.
 
 Primary evidence:
-- [frontend/pages/ai-studio.tsx](../../frontend/pages/ai-studio.tsx)
-- [frontend/features/ai-studio/hooks/useAiStudioState.ts](../../frontend/features/ai-studio/hooks/useAiStudioState.ts)
+- [frontend/pages/ai-studio.tsx](../../../frontend/pages/ai-studio.tsx)
+- [frontend/features/ai-studio/hooks/useAiStudioState.ts](../../../frontend/features/ai-studio/hooks/useAiStudioState.ts)
 
 Why it matters:
 - the external reports reinforce separating interactive workspace concerns from slower AI job orchestration
@@ -119,8 +121,8 @@ Recommended direction:
 This is not a new idea from external research. It is a repo-confirmed lane that should be finished instead of reopened conceptually.
 
 Primary evidence:
-- [docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](../archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md)
-- [frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts](../../frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts)
+- [docs/archive/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md](./media-library-runtime-rebuild-master-plan-2026-03-28.md)
+- [frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts](../../../frontend/features/media-library/runtime/useMediaLibraryRouteRuntime.ts)
 
 Why it matters:
 - the design-app reports correctly treat media delivery and preview readiness as their own subsystem
@@ -135,9 +137,9 @@ Recommended direction:
 The operational lesson here is valuable as instrumentation/governance work rather than infrastructure imitation.
 
 Primary evidence:
-- [docs/performance.md](../performance.md)
-- [docs/monitoring.md](../monitoring.md)
-- [frontend/lib/appErrorReporter.ts](../../frontend/lib/appErrorReporter.ts)
+- [docs/performance.md](../../performance.md)
+- [docs/monitoring.md](../../monitoring.md)
+- [frontend/lib/appErrorReporter.ts](../../../frontend/lib/appErrorReporter.ts)
 
 Why it matters:
 - current performance guidance is directionally correct but still generic

@@ -22,7 +22,7 @@ Provide a deterministic rollback procedure for naming-only slices when regressio
 2. Revert the slice commit(s) with non-interactive git commands.
 3. Re-run required gates:
 - `npm -C frontend run validate`
-- `npm -C frontend run test:adaptive-v2-gate`
+- `npm -C frontend run test:adaptive-media-runtime`
 - `npm -C frontend run perf:ai-studio:release-check`
 - `npm -C frontend run docs:check`
 4. Log rollback details in:

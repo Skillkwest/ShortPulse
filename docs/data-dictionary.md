@@ -87,7 +87,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `metadata` (jsonb, default `{}`)
   - Character profile image linkage keys:
     - `profile_image_storage_path` (text path in `media_library`)
-    - `profile_image_media_file_id` (uuid of linked `media_files` row)
+    - `profile_image_character_media_id` (canonical uuid of linked `character_media_assets` row)
     - `profile_image_zoom` (number; persisted profile crop zoom)
     - `profile_image_offset_x` (number; persisted profile crop horizontal offset)
     - `profile_image_offset_y` (number; persisted profile crop vertical offset)
@@ -102,7 +102,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
       - `tab_labels`: display label map keyed by preset id (`1..10`)
       - `tab_descriptions`: per-preset character-description map keyed by preset id (`1..10`, max 150 chars each)
       - Each preset stores `portrait | close_up | front_shot`
-      - Each zone is `null` or `{ media_file_id, storage_path }`
+      - Each zone is `null` or `{ character_media_id, storage_path }`
       - Preset references are user-scoped and used by AI Studio Character Mode injection.
       - Character Mode description injection uses active preset `tab_descriptions[active_preset_id]`; falls back to legacy `characters.description` when active preset description is empty.
 - `created_at` / `updated_at` (timestamptz)
@@ -183,7 +183,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `reference_pack_id` (uuid): Legacy alias kept in sync for backward compatibility.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `slot_key` (text): Fixed character reference slot key.
-- `media_file_id` (uuid): Linked `media_files` row.
+- `character_media_id` (uuid): Required linked `character_media_assets` row.
 - `storage_path` (text): Canonical private object path under `<user_id>/characters/<character_id>/<character_sheet_id>/<slot_key>/...`.
 - `validation_status` (text): pending | pass | warn | fail.
 - `validation_notes` (jsonb, default `{}`)
@@ -191,14 +191,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Integrity:
   - `storage_path` must match the character/pack/slot path convention.
-  - Trigger `trg_character_reference_images_media_integrity` enforces that linked `media_files` row stays user-owned, uses `source = character_reference`, and has matching path/metadata.
+  - Trigger `trg_character_reference_images_media_integrity` enforces that linked `character_media_assets` row stays user-owned, uses `asset_kind = sheet_slot`, and has matching character/path linkage.
 
 ### character_quick_swap_items
 
 - `id` (uuid, pk)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `character_id` (uuid): Parent character.
-- `media_file_id` (uuid): Linked `media_files` row.
+- `character_media_id` (uuid): Required linked `character_media_assets` row.
 - `storage_path` (text): Canonical private object path under `<user_id>/characters/<character_id>/quickswap/...`.
 - `status` (text): active | archived.
 - `created_at` (timestamptz): Insertion timestamp used for active/archive ordering.
@@ -207,6 +207,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - Notes:
   - QuickSwap Deck keeps newest 500 rows active; overflow rows are archived.
   - Legacy `character_reference_images` remains compatibility data for fixed-slot fallback only.
+  - Trigger `trg_character_quick_swap_items_media_integrity` enforces that linked `character_media_assets` row stays user-owned, uses `asset_kind = quickswap`, and matches the stored character/path linkage.
 
 ### character_generation_jobs
 
@@ -492,7 +493,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `fal_user_id` (text, nullable): Provider user id header snapshot.
 - `headers` (jsonb): Canonical verified Fal header values.
 - `payload` (jsonb): Raw webhook payload snapshot.
-- `verification_method` (text, nullable): `fal` or `hmac` during dual cutover.
+- `verification_method` (text, nullable): active rows use `fal`; older rows may still contain historical `hmac` values from the retired cutover window.
 - `payload_hash` (text, nullable): SHA-256 hash used in Fal signature validation.
 - `processing_status` (text): received | recovered | exhausted | ignored\_\* | failed.
 - `processing_error` (text, nullable): Processing failure detail when applicable.
@@ -716,7 +717,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `expert_edit_preset_panel_ids` (text[], default `{'selfie','side_profile','enhance_realism'}`): Canonical per-user Expert Edit preset panel allocation stored by preset ID (current client normalization caps the active panel at 10).
 - `expert_edit_custom_presets` (jsonb, default `{}`): Per-user preset override map keyed by canonical preset id (`selfie`, `side_profile`, `custom_1..custom_18`, etc.) storing `{ label, prompt }` values.
 - `ai_studio_create_pulse_panel_ids` (text[], default `{'image','multi_shot','story_builder'}`): Canonical per-user Create Pulse rail allocation storing the curated left-rail Pulse IDs shown in Expert Create `Pulse` mode.
-- `ai_studio_saved_pulses` (jsonb, default `[]`): Per-user custom Pulse library records stored as ordered `{ presetId, label, description, systemInstructions, runtimeMode, activationMode, starterAssistantMessage, workflowStageHints, outputMode, memoryPolicy, createdAt }` objects. This column is for user-authored custom Pulses only; global built-in Pulse definitions are not stored here and must not be treated as per-user overrides. The unified Presets Library (`Pulses` section) and the Expert Create Pulse rail merge these custom records with the shared built-in catalog at runtime.
+- `ai_studio_saved_pulses` (jsonb, default `[]`): Per-user custom Pulse library records stored as ordered minimal `{ presetId, label, description, systemInstructions, pulseKind, createdAt, schemaVersion }` objects. This column is for user-authored custom Pulses only; global built-in guided-workflow records are not stored here and must not be treated as per-user overrides. Legacy workflow fields may still appear in older saved payloads, but client/runtime normalization strips them and resolves user-owned records back to the minimal custom Pulse contract before use. The unified Presets Library (`Pulses` section) and the Expert Create Pulse rail merge these custom records with the shared built-in catalog at runtime.
 - `ai_studio_style_panel_ids` (text[], default `{}`): Canonical per-user Styles Library order storing the shared tile sequence consumed by the primary Styles Library panel and the right-rail Styles chooser.
 - `ai_studio_deleted_style_ids` (text[], default `{}`): Per-user style ID denylist used by the primary Styles Library panel to persist deletions across sessions/devices.
 - `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing the editable core style fields `{ style, title, referenceImageName, stylePrompt, previewImageUrl }`.
@@ -729,11 +730,11 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 ### create_pulse_builtin_runtime
 
 - `singleton` (boolean, pk, default `true`): Singleton row guard for the active built-in Create Pulse catalog.
-- `pulse_definitions` (jsonb): Ordered built-in Pulse definition array stored as `{ presetId, label, description, systemInstructions, starterAssistantMessage, workflowStageHints, artifactTarget }` records.
+- `pulse_definitions` (jsonb): Ordered built-in guided-workflow definition array stored as `{ presetId, label, description, systemInstructions, starterAssistantMessage, workflowStageHints, artifactTarget }` records.
 - `updated_at` (timestamptz, default `timezone('utc', now())`): Last control-plane write timestamp.
 - `updated_by_user_id` (uuid, nullable): Admin user id that last saved the catalog.
 - `updated_by_email` (text, nullable): Admin email captured with the last save for operator traceability.
-- Runtime role: global source of truth for built-in Create Pulse definitions consumed by `/api/ai/create-pulse-builtins` and enforced by `/api/ai/studio-agent-pulse` when a built-in preset id is active.
+- Runtime role: global source of truth for built-in guided workflows consumed by `/api/ai/create-pulse-builtins` and enforced by `/api/ai/studio-agent-pulse` when a built-in preset id is active.
 - Access model: service-role-only direct reads/writes. Browser sessions must go through trusted authenticated routes; customer sessions must never query this table directly.
 
 ### user_media_compliance_acceptances

@@ -2,7 +2,7 @@
 
 Status: active  
 Owner: AI Studio Engineering  
-Last updated: 2026-04-09
+Last updated: 2026-05-06
 
 ## Objective
 Roll out server-side generation admission control with minimal regression risk:
@@ -14,19 +14,26 @@ Roll out server-side generation admission control with minimal regression risk:
 
 ## Runtime controls
 Current-state context for the existing admission system:
-- `SHORTPULSE_FAL_ADMISSION_MODE=off|shadow|enforce`
+- `SHORTPULSE_FAL_ADMISSION_MODE=off|enforce`
 - `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX` (default `4`)
 - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED` (default `false`)
 - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX` (defaults to `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX`)
 - `SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON` (default `{"video_long":2,"image_heavy":3,"image_standard":4}`)
 - `SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS` (default `20`)
 
+## Active runtime posture
+- Standard Fal/Kie submit paths use the lean direct-submit architecture; they do not enter an active ShortPulse pre-provider queue lane.
+- Admission enforcement is server-authoritative and currently supports only `off` and `enforce`.
+- Shared-provider admission remains optional and layers on top of the existing per-user caps.
+- Recovery-lag backpressure is part of the live server/runtime path and can reduce effective shared-provider headroom without changing the client payload contract.
+- `GET /api/fal/queue-status` remains compatibility read support for already-persisted queue rows; it is not part of the normal direct-submit architecture.
+
 ## Adaptive backpressure contract
 Purpose:
 - keep new intake from outrunning scheduled recovery when stale `running` or provider-attached `reserved` work starts to accumulate
 
 Policy:
-- keep the existing static queue and admission caps as the base safety layer
+- keep the existing shared-provider and per-user admission caps as the base safety layer
 - add a second control loop that lowers effective shared-provider intake only when recovery lag exceeds explicit thresholds
 - prefer reducing shared-provider headroom before changing per-user caps
 - never use this control loop to force-fail genuinely live work
@@ -58,7 +65,7 @@ Exit behavior:
 Implementation guardrails:
 - no new UI, UX, or interaction-surface changes are in scope for this lane
 - no new client-side lifecycle authority is allowed
-- keep existing admission payloads, retry guidance, and queue-status UX contracts unless a separate artifact explicitly approves a client-facing change
+- keep existing admission payloads, retry guidance, and the compatibility `queue-status` read contract unless a separate artifact explicitly approves a client-facing change
 - keep the implementation minimal; do not widen this lane into queue redesign, polling redesign, or presentation cleanup
 - do not add new flags or toggles for adaptive backpressure behavior
 
@@ -104,7 +111,7 @@ Rationale:
 
 ## Rollout sequence
 Note:
-- the historical admission framework still documents current runtime controls such as `SHORTPULSE_FAL_ADMISSION_MODE`, but the adaptive-backpressure lane itself should not add any new flags or rely on staged toggle rollout
+- the historical admission framework still documents current runtime controls such as `SHORTPULSE_FAL_ADMISSION_MODE`, but the adaptive-backpressure lane itself should not add new flags or reintroduce retired `shadow`/pre-provider queue posture
 
 1. Preflight
    - Keep current per-user caps unchanged.

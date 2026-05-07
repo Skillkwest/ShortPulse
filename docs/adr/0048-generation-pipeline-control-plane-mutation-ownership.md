@@ -8,6 +8,13 @@
   - `docs/adr/0043-generation-pipeline-shared-payload-contract-and-queue-fail-closed-boundaries.md`
   - `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
 
+## Current Branch Note (2026-05-07)
+This ADR captures a queue-era ownership cleanup decision. It remains useful history, but some of its route-specific examples are no longer the active branch contract.
+
+In particular:
+- `GET /api/fal/queue-status` should be read here as historical queue-era context
+- current branch authority for runtime cleanup and active-path interpretation lives in [current-branch-canonical-runtime-convergence-2026-05-07.md](../planning/current-branch-canonical-runtime-convergence-2026-05-07.md)
+
 ## Context
 The generation pipeline accumulated multiple overlapping mutation surfaces across submit, queue polling, recovery, and fleet health:
 1. `GET /api/fal/queue-status` could dispatch queued work and trigger recovery side effects.
@@ -23,7 +30,7 @@ That shape increased regression risk. The pipeline needed clearer ownership so c
    - enqueue or dispatch upstream work
    - compensate when accepted work cannot be durably tracked
 2. Status surfaces are read-only:
-   - `GET /api/fal/queue-status` reports queue state only
+   - historical queue-era posture: `GET /api/fal/queue-status` reports queue state only
    - user polling must not dispatch queued work or claim recovery
 3. Recovery execution owns repair, retry, and cleanup:
    - the internal recovery runner is the steady-state mutation owner for generation repair and stale-reservation cleanup
@@ -32,6 +39,12 @@ That shape increased regression risk. The pipeline needed clearer ownership so c
    - fleet scans report and escalate
    - fleet drainage is not part of normal automated reconciliation
 5. Transitional queue-status kick paths and runtime flags are retired once the read-only status contract is in place.
+
+Current branch interpretation:
+- the underlying ownership rule still stands
+- submit paths mutate submit-time state
+- recovery paths own repair and cleanup
+- status surfaces should not regain hidden mutation side effects
 
 ## Consequences
 - Positive:

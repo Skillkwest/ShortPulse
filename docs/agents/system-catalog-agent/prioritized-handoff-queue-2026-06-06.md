@@ -1,0 +1,65 @@
+# Prioritized System-By-System Handoff Queue
+
+Purpose: define the ordered execution queue the Catalog Agent should hand to specialist agents during the current production-readiness window.
+
+## Queue Rules
+
+- Higher rows should be worked before lower rows unless fresh evidence changes the order.
+- Queue position is based on ship impact, not on how easy the work looks.
+- A row can move down only when the current blocker above it is genuinely reduced.
+
+## Queue
+
+| Priority | System | Current | Ship floor | Lane | Recommended agent profile | Current handoff |
+| --- | --- | ---: | ---: | --- | --- | --- |
+| 1 | `Generation recovery / settlement` | 4 | 7 | Shared runtime hardening | runtime reliability + billing invariants | `docs/systems/next-agent-handoff-generation-recovery-hardening.md` |
+| 2 | `Reference Grid` | 6 | 7 | AI Studio workflow stability | AI Studio runtime + reference surfaces | `docs/agents/system-catalog-agent/handoffs/2026-05-06-reference-grid-styles-drop-blocker.md` |
+| 3 | `Edit workflow` | 5 | 7 | AI Studio workflow stability | AI Studio workflow modularization | `docs/agents/system-catalog-agent/handoffs/2026-05-06-edit-workflow.md` |
+| 4 | `Project / workspace persistence` | 6 | 7 | AI Studio workflow stability | persistence contracts + restore boundaries | `docs/agents/system-catalog-agent/handoffs/2026-05-06-project-workspace-persistence.md` |
+| 5 | `Billing / credits` | 6 | 7 | Shared runtime hardening | billing runtime + reconciliation | `queue-only` |
+| 6 | `Security boundaries` | 6 | 7 | Platform trust and release safety | security boundary + route/RLS audit | `queue-only` |
+| 7 | `Characters workflow` | 5 | 6 | Secondary workflow confidence | workflow modularization + persistence cleanup | `docs/agents/system-catalog-agent/handoffs/2026-05-06-characters-workflow.md` |
+| 8 | `Elements workflow` | 5 | 6 | Secondary workflow confidence | workflow modularization + persistence cleanup | `docs/agents/system-catalog-agent/handoffs/2026-05-06-elements-workflow.md` |
+| 9 | `Generation submission / polling` | 6 | 7 | Shared runtime hardening | provider submit/status contracts | `queue-only` |
+| 10 | `Media ingest / save` | 6 | 7 | Platform trust and release safety | media persistence + upload authority | `queue-only` |
+| 11 | `Core data persistence` | 6 | 7 | Platform trust and release safety | schema/persistence contract audit | `queue-only` |
+| 12 | `Storage / file delivery` | 6 | 7 | Platform trust and release safety | storage scope + signed delivery | `queue-only` |
+| 13 | `Create workflow` | 6 | 7 | AI Studio workflow stability | create-mode runtime steward | `queue-only` |
+| 14 | `Provider integrations` | 6 | 7 | Shared runtime hardening | provider contract normalization | `queue-only` |
+| 15 | `Media Library workflow` | 6 | 6 | Secondary workflow confidence | media UX and workflow semantics | `queue-only` |
+| 16 | `Media delivery / signing / preview resolution` | 6 | 6 | Platform trust and release safety | preview delivery performance | `queue-only` |
+| 17 | `Media derivatives / variants` | 6 | 6 | Platform trust and release safety | derivative worker reliability | `queue-only` |
+| 18 | `Video workflow` | 6 | 6 | Secondary workflow confidence | video generation workflow validation | `queue-only` |
+| 19 | `Sound workflow` | 6 | 6 | Secondary workflow confidence | sound workflow validation | `queue-only` |
+| 20 | `Observability / incident triage` | 6 | 6 | Platform trust and release safety | telemetry and operator visibility | `queue-only` |
+| 21 | `Admin operations` | 6 | 6 | Platform trust and release safety | admin support surface integrity | `queue-only` |
+| 22 | `Pricing / entitlements` | 7 | 7 | Platform trust and release safety | control-plane validation | `queue-only` |
+| 23 | `Auth / identity` | 7 | 7 | Platform trust and release safety | auth boundary validation | `queue-only` |
+
+## Queue Interpretation
+
+- Priorities `1..6` are the current ship-critical execution set.
+- Priorities `7..12` are the next ship-relevant confidence and boundary set.
+- Priorities `13..23` should generally be validated and selectively hardened, not expanded by momentum alone.
+
+## Immediate Handoff Set
+
+The Catalog Agent should treat these as the current active handoff packet set:
+
+1. `Generation recovery / settlement`
+2. `Reference Grid`
+3. `Edit workflow`
+4. `Project / workspace persistence`
+5. `Characters workflow`
+6. `Elements workflow`
+
+## Current Dispatch Snapshot
+
+As of `2026-05-07`:
+
+- completed externally, pending Catalog Agent review before rerating:
+  - `Generation recovery / settlement`
+- dispatched and running:
+  - `Reference Grid`
+- ready next:
+  - `Edit workflow`

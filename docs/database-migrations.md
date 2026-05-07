@@ -109,7 +109,7 @@ If enabling admin fleet health automation (daily active-user triage snapshots), 
 
 17. `sql/migrations/067_add_admin_user_health_fleet_automation.sql`
 
-If enabling Character Panel Media Isolation V2 (character-owned assets decoupled from Media Library), also apply:
+Character Panel Media Isolation (canonical character-owned assets decoupled from Media Library) requires:
 
 18. `sql/migrations/068_add_character_media_assets_isolation.sql`
 
@@ -232,7 +232,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 115.  `sql/migrations/115_remove_global_model_pricing_rounding.sql`
 116.  `sql/migrations/116_add_atomic_admin_pricing_offer_activation_rpcs.sql`
 117.  `sql/migrations/117_add_create_pulse_builtin_control_plane.sql`
-118.  Rollback files:
+118.  `sql/migrations/118_canonicalize_character_metadata_media_ids.sql`
+119.  `sql/migrations/119_require_character_media_id_on_character_links.sql`
+120.  Rollback files:
 
 
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
@@ -260,6 +262,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/058_add_user_preferences_ai_studio_style_details_overrides_rollback.sql`
     - `sql/migrations/rollback/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden_rollback.sql`
     - `sql/migrations/rollback/117_add_create_pulse_builtin_control_plane_rollback.sql`
+    - `sql/migrations/rollback/118_canonicalize_character_metadata_media_ids_rollback.sql`
+    - `sql/migrations/rollback/119_require_character_media_id_on_character_links_rollback.sql`
     - `sql/migrations/rollback/082_add_user_preferences_ai_studio_saved_voices_rollback.sql`
     - `sql/migrations/rollback/085_add_billing_plan_offers_and_subscription_contracts_rollback.sql`
     - `sql/migrations/rollback/086_add_internal_comp_billing_contract_support_rollback.sql`
@@ -376,6 +380,9 @@ Billing safety note:
 - Migration `066_add_media_derivative_processing_rpcs.sql` adds service-role-only derivative claim/update RPCs (`claim_media_derivative_batch`, `mark_media_derivative_ready`, `mark_media_derivative_failed`) using `SKIP LOCKED` claim semantics.
 - Migration `067_add_admin_user_health_fleet_automation.sql` adds scheduled admin fleet-risk snapshot persistence and service-role maintenance RPC posture for the admin-user-health control plane.
 - Migration `068_add_character_media_assets_isolation.sql` adds `character_media_assets`, dual-reference compatibility columns (`character_media_id`) on Character Manager linkage tables, containment-safe integrity checks, and backfill for slot/quickswap/profile/preset character assets.
+- Migration `118_canonicalize_character_metadata_media_ids.sql` rewrites `characters.metadata` profile-image and preset references onto canonical `character_media_id` keys and strips legacy metadata linkage keys.
+- Migration `119_require_character_media_id_on_character_links.sql` backfills any remaining slot/QuickSwap row linkage onto `character_media_assets`, retires row-level `media_file_id` coupling from the live Character Manager path, and hardens slot/QuickSwap integrity around required `character_media_id`.
+- Migration `119_require_character_media_id_on_character_links.sql` backfills remaining slot and QuickSwap linkage rows onto `character_media_assets`, removes legacy `media_file_id` dependence on those tables, and requires `character_media_id` going forward.
 - Migration `069_harden_provider_attached_stale_cleanup_execute_grants.sql` hardens `release_stale_provider_attached_generation_reservations` execute posture to service-role-only.
 - Migration `095_add_project_media_folder_canvas_states.sql` adds `project_media_folder_canvas_states` so Media Library custom-folder canvas snapshots can persist by `user_id + project_id + folder_id` on project routes while the legacy user-scoped folder canvas table remains in place for non-project surfaces.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.

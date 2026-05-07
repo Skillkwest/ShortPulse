@@ -21,8 +21,7 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `FAL_KEY` (required for Fal API routes)
 3. Set optional production/ops values when needed:
    - `APP_BASE_URL`
-   - `SHORTPULSE_STAGING_BASE_URL` (optional helper for protected-route latency capture script)
-   - `SHORTPULSE_STAGING_BEARER_TOKEN` (optional helper for protected-route latency capture script; prefer temporary tokens)
+   - `SHORTPULSE_PUBLIC_API_BASE_URL` (optional canonical external origin for server routes that need a public base URL)
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `SHORTPULSE_ADMIN_EMAILS`
    - `KIE_API_KEY` (or `SHORTPULSE_KIE_API_KEY`) for Kie routes
@@ -43,7 +42,6 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `STUDIO_AGENT_THINKER`
    - `STUDIO_AGENT_FORMATTER`
    - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
-   - `NEXT_PUBLIC_AGENT_V2`
    - AI Studio legacy `sid` session persistence is retired; do not add the old `NEXT_PUBLIC_AI_STUDIO_SESSION_*` or `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` flags to local runtime config.
    - `SHORTPULSE_RELEASE` (optional explicit release/build tag for error incidents)
    - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client release tag for error incidents)
@@ -59,6 +57,11 @@ Never commit `.env.local`.
 For local script automation, you can optionally create a root-level `.env.agent.local` (gitignored) using `.env.agent.local.example`. Probe helpers auto-load this file.
 
 `.env.agent.local` is for local probe/audit tooling only. Keep staging helper URLs, localhost script base URLs, Vercel API tokens, protection bypass tokens, and similar operator-only values there instead of in Vercel project envs.
+
+Examples that belong in `.env.agent.local`, not `frontend/.env.local`:
+- `SHORTPULSE_STAGING_BASE_URL`
+- `SHORTPULSE_STAGING_BEARER_TOKEN`
+- Vercel operator/protection-bypass tokens
 
 ## Local Runtime Contract
 
@@ -78,6 +81,7 @@ Local cleanup policy:
 
 - Do not keep a flag in `frontend/.env.local` when the code already defaults to the intended local posture and the flag is not being actively used as a local rollout control.
 - Current default posture is the lean Fal direct-submit path. Do not add deprecated pre-provider queue env overrides such as `SHORTPULSE_FAL_QUEUE_ENABLED` back into `frontend/.env.local`. Keep reconciler and admission settings scoped to accepted-job recovery and overload control only.
+- Do not add dead rollout flags back into `frontend/.env.local`. On this branch, examples include `NEXT_PUBLIC_AGENT_V2`, `SHORTPULSE_FAL_INTEGRATION_MODE`, and Fal webhook mode/secret toggles that are no longer part of the live runtime contract.
 - Do not leave client/server mirror flags intentionally divergent unless a doc explicitly calls out that split.
 - Do not leave half-enabled rollout lanes in local env. For example, avoid enabling a client path while the matching API route or worker remains disabled.
 - Legacy AI Studio session persistence is not a default local requirement. Only opt it in intentionally for controlled testing.

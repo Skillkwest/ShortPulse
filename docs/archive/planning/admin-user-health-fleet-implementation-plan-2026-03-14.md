@@ -1,3 +1,5 @@
+> Archived on 2026-05-06. Retained as implementation-complete planning history after the fleet health routes, UI, SQL, tests, and SOPs became the active source of truth.
+
 # Admin User Health Fleet Implementation Plan (2026-03-14)
 
 Status: draft

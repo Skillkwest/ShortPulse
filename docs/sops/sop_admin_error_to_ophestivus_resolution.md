@@ -34,6 +34,7 @@ Purpose: triage an Admin Errors incident into the Ophestivus board, work the iss
 - Preferred closeout path after validation: run `cd frontend && npm run ophestivus:complete-error-ticket -- --ticket <ticket-id> --incident <incident-id> --after <verification-timestamp> --resolution-type <type> --issue <text> --repo-changes <text> --validation <text> --verification-class <class> --risk-class <class> --risk <text>`.
 - Preferred local report path: let `ophestivus:complete-error-ticket` write the full report under `docs/records/artifacts/agent/ophestivus/reports/`, or pass `--report-output <path>` when a specific report filename is needed.
 - Preferred closeout helper includes a pre-Review evidence validator. It must confirm the compact ticket summary includes the full local report path, leaves approval-note room, and has non-empty local report content before moving a ticket to `Review`.
+- Preferred Human Review path: run `cd frontend && npm run ophestivus:escalate-ticket -- --dry-run ...` first, then rerun without `--dry-run` to prefix the title, write the compact handoff, and move the ticket back to `Backlog`.
 - Run mutating helper commands with `--dry-run` first when the helper supports it, unless the user explicitly says to execute immediately.
 - If browser access is blocked by login or admin session state, use the no-click intake path or code/API path only when local server credentials allow it safely.
 - Never print, paste, or store service-role keys, bearer tokens, private customer data, or temporary env values in tickets or docs.
@@ -92,7 +93,7 @@ Purpose: triage an Admin Errors incident into the Ophestivus board, work the iss
 
 7. Choose the closeout path.
    - If blocked or unresolved, move the ticket back to `Backlog` with the blocked ticket template.
-   - If the work is too broad or unreliable for Ophestivus to handle as one working agent, escalate it for human review, keep or move it to `Backlog`, and use the human-review banner below.
+   - If the work is too broad or unreliable for Ophestivus to handle as one working agent, escalate it for human review. Prefer `ophestivus:escalate-ticket` over manual board edits when available.
    - After a human-review escalation is parked correctly, rerun intake once when the user asked Ophestivus to continue error work; continue with the next smaller bounded incident if one exists.
    - If fully resolved and verified, use `npm run ophestivus:complete-error-ticket -- --dry-run` first, then run it without `--dry-run` to write the full local report, resolve the incident, write the compact ticket summary with report path, and move the ticket to `Review`.
    - Use a manual closeout only when the helper is unavailable or the ticket is not an Admin Errors incident; write the full local report first, then write a compact ticket summary with the report path before moving the ticket to `Review`.
@@ -172,6 +173,7 @@ When the stop rule triggers:
 - Keep or move the ticket back to `Backlog`.
 - Rename the ticket with the title prefix `[HUMAN REVIEW]`.
 - Add the human-review banner and Human Review / Escalation Ticket template below with a plain-language handoff.
+- Prefer the dedicated escalation helper when available so the title, note compaction, and backlog move stay consistent.
 - Include what was checked, what was tried, what remains unresolved, why continuing is unsafe or low value, the escalation needed, and the resume condition.
 - If the user asked Ophestivus to keep working errors after the escalation, rerun intake and select the next smaller bounded incident instead of stopping on the parked human-review ticket.
 - The current board renders details as plain text. Use the exact text banner below for clarity. If a future board surface supports styled notes, render the banner in the blue theme and bold, but do not depend on styling for meaning.

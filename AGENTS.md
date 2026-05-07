@@ -38,6 +38,7 @@ npm run build
 - When adding routes, update `README.md` and the relevant SOP/architecture doc under `docs/`.
 - For durable architecture decisions, add an ADR under `docs/adr/`.
 - Prefer existing references first: `docs/README.md`, `docs/troubleshooting.md`, and `docs/glossary.md`.
+- For system inventory, system rating, workflow-boundary, or panel-to-system mapping questions, use `docs/systems/README.md`, `docs/systems/catalog.md`, and `docs/systems/rating-rubric.md` as the primary references.
 - Mini Ecosystem isolation policy: treat `mini-ecosystem/` as a separate entity and exclude it from default audits, inspections, and build-planning context unless the user explicitly requests Mini Ecosystem scope.
 - Subagent audit/research policy: when the user asks to audit, inspect, investigate, or do online research, run `skills/skill-subagent-audit-research/SKILL.md` and use subagents for substantive audit/research lanes when they are available, allowed, and useful. The agent may decide subagents are unnecessary for narrow scopes and may close unused subagents at will.
 - After completing a task, always audit your work to see if you have missed anything. Make any new high value changes you see fit. Then provide high level suggested next steps upon completion of your task.
@@ -69,6 +70,7 @@ Follow this startup sequence at the start of every new task/session in this repo
 - Routes/UI behavior: read `README.md`, `docs/routes.md`, and the relevant SOP(s).
 - Pricing/credits changes: run `skills/skill-pricing-audit/SKILL.md`.
 - New agent creation/training/maintenance: read `agent-teaching/README.md`, `agent-teaching/foundations/how-to-decide-what-your-agent-can-do.md`, `agent-teaching/setup/new-codex-project-setup.md`, `agent-teaching/setup/define-agent-identity.md`, `agent-teaching/operations/post-run-performance-analysis-interview.md`, `agent-teaching/operations/create-baseline-kpi.md`, and `agent-teaching/foundations/agent-maintenance-field-guide.md`; use `agent-teaching/prompts/agent-setup-prompt.md`, `agent-teaching/prompts/agent-contract.md`, and `agent-teaching/prompts/agentic-research-prompt-pattern.md` as needed; create/update the relevant `docs/agents/<agent-name>/` contract and `docs/records/artifacts/agent/<agent-name>/` memory/report area when durable agent state is needed.
+- System inventory/rating/workflow-boundary work: read `docs/systems/README.md`, `docs/systems/catalog.md`, `docs/systems/rating-rubric.md`, plus the relevant product/route/operator docs for the system being rated.
 - Docs/index drift: run `skills/skill-doc-index/SKILL.md` or `skills/skill-mvp-docs-sop-governance/SKILL.md`.
 - Audit/inspection/online research: run `skills/skill-subagent-audit-research/SKILL.md`.
 

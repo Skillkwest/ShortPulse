@@ -102,8 +102,8 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `STUDIO_AGENT_PULSE_MODEL` inherits `OPENAI_MODEL` when unset.
   - `STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS` inherits `STUDIO_AGENT_TURN_TIMEOUT_MS` when unset.
 - Pulse-specific interpretation:
-  - `outcome_class=success_message` is the expected success class for guided `workflow_gpt` turns that ask the next question or return a final chat artifact.
-  - `outcome_class=success_prompt` should be treated as a backward-compatibility artifact path, not the normal Pulse runtime contract.
+  - `outcome_class=success_message` is the expected success class for custom Pulse turns and for guided `workflow_gpt` turns that ask the next question or return a final chat artifact.
+  - `outcome_class=success_prompt` should be treated as a backward-compatibility artifact path, not the default custom Pulse runtime contract.
   - `outcome_class=upstream_error`, `route_error`, `refusal_model`, and `refusal_safety` are the primary failure classes to monitor for Pulse regressions.
 - Activation, progression, and completion are tracked through authoritative `pulseWorkflowSession` state, not inferred from UI-only transcript parsing. The session object persists:
   - `presetId`
@@ -130,7 +130,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Those suites cover the Pulse-specific closeout expectations:
   - activation reaches a Pulse-aware runtime,
   - direct-bypass and orchestrated paths are both Pulse-aware,
-  - `workflow_gpt` turns can succeed as `success_message`,
+  - `workflow_gpt` built-in turns can succeed as `success_message`,
   - completed workflow sessions persist and hydrate with `lastArtifact` and `finalArtifactSource`
     in the session/runtime lanes that still carry conversational state,
   - Create surfaces render authoritative workflow session state rather than local transcript heuristics.
@@ -178,6 +178,10 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `telemetry.generation.recovery.media_visible` events are present during the validation run,
   - `p95_provider_terminal_to_media_visible_ms` trends materially below the prior symptom window,
   - worst-case rows identify whether lag clusters around a specific model, provider, or recovery actor.
+- Shared-provider backpressure interpretation:
+  - `telemetry.api.fal_submit.recovery_backpressure_applied` means the live runtime reduced shared-provider admission headroom because recovery lag crossed threshold inputs.
+  - Treat it as a recovery/admission coupling signal, not a standalone outage signal.
+  - Correlate it with stale provider-attached reserved rows, queued/recovering age buckets, `QUEUE_WAIT_TIMEOUT`, and `p95_provider_terminal_to_media_visible_ms`.
 
 ### Admin fleet health monitoring
 

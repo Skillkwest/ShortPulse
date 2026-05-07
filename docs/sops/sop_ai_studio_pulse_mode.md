@@ -4,7 +4,7 @@ Purpose: define how AI Studio Pulse Mode is supposed to work, identify the curre
 
 ## Scope
 
-- In scope: AI Studio Create -> Expert -> `Pulse` mode, Pulse activation, guided workflow runtime behavior, Pulse session state, persistence boundaries, and operator/developer validation.
+- In scope: AI Studio Create -> Expert -> `Pulse` mode, Pulse activation, custom Pulse runtime behavior, built-in guided workflow behavior, Pulse session state, persistence boundaries, and operator/developer validation.
 - Out of scope: generic Standard Create behavior, non-Create AI Studio workflows, billing/pricing policy, and broad agent-system redesign outside the Pulse contract.
 
 ## Status
@@ -14,13 +14,19 @@ Purpose: define how AI Studio Pulse Mode is supposed to work, identify the curre
 
 ## Core definition
 
-Pulse Mode is the guided, agent-first Create lane inside AI Studio.
+Pulse Mode is the agent-first Create lane inside AI Studio.
 
-The closest user-facing mental model is ChatGPT custom GPTs: each Pulse is a named,
-purpose-built agent profile with hidden system instructions. The user chooses the
-Pulse they want, that Pulse starts immediately, and the agent guides the user
-through the workflow described by that Pulse's system instructions until it has
-enough input to produce a final artifact.
+It currently contains two distinct contracts behind one surface:
+
+- `custom Pulses`: per-user saved instruction presets whose saved system instructions are the behavioral source of truth for that run.
+- `built-in guided workflows`: admin-owned presets that still run on the richer guided workflow compatibility path.
+
+The closest user-facing mental model for custom Pulses is ChatGPT custom GPTs:
+the user chooses a Pulse, it starts immediately, and the agent follows that
+Pulse's saved instructions without rewriting the visible Create composer.
+
+Built-in guided workflows remain available inside the same surface for now, but
+they are not the same behavioral contract as custom Pulses.
 
 It is not:
 
@@ -28,7 +34,8 @@ It is not:
 - a cosmetic variant of Standard chat,
 - a shared transcript with Standard mode,
 - a default multi-agent system,
-- a freeform preset system with ambiguous activation semantics.
+- a freeform preset system with ambiguous activation semantics,
+- one uniform guided-workflow contract for every Pulse.
 
 Pulse Mode is:
 
@@ -36,34 +43,29 @@ Pulse Mode is:
 - one active Pulse at a time,
 - hidden runtime instructions owned by code/server context,
 - immediate click-to-start activation,
-- guided step-by-step workflow behavior until the Pulse emits its final artifact,
-- a fast, focused assistant experience where the Pulse asks for only the next
-  useful input and avoids unnecessary explanation.
+- a fast, focused assistant experience where the active Pulse drives the turn behavior,
+- a merged surface that hosts both custom instruction presets and built-in guided workflows.
 
 ## Desired product behavior
 
-A Pulse should behave like a custom GPT for a specific creative workflow.
+Custom Pulses should behave like user-authored GPT profiles. Built-ins may still
+behave like guided workflow tools.
 
-- The Pulse system instructions define the agent's role, workflow, questions,
-  constraints, and final output format.
+- The active Pulse system instructions define the agent's role, workflow,
+  questions, constraints, and output expectations.
 - The user should not need to understand runtime modes, namespaces, model routing,
   workflow sessions, or internal orchestration.
 - Starting a Pulse should feel immediate: click the Pulse, see the first useful
-  assistant step, then continue through the guided conversation.
-- The agent should respond quickly and effectively. Prefer short, direct workflow
-  turns over broad explanations, especially while collecting inputs.
-- The agent should ask one clear question or request one clear input at a time
-  unless the Pulse instructions explicitly require a compact choice list.
+  assistant response, then continue in the active Pulse conversation.
+- The agent should respond quickly and effectively. Prefer short, direct turns
+  over broad explanations unless the instructions call for longer structure.
 - The agent should carry forward collected user inputs and uploaded media without
-  restarting the workflow or asking already-answered questions.
-- The agent should produce a final artifact only when the Pulse workflow is
-  complete. Intermediate assistant messages are guidance, not generation prompts.
-- The completed artifact should be ready to use as the target output for that
-  Pulse type, such as an image prompt, video prompt, storyboard, or future
-  supported artifact type.
-- A completed text artifact shown in the Pulse transcript should be visually
-  distinct from guidance and draggable into the global Reference Grid as a text
-  reference.
+  restarting or asking already-answered questions.
+- A custom Pulse may remain chat-first until it intentionally emits a reusable
+  prompt or other output. It must not be forced into guided workflow framing by
+  hidden runtime behavior.
+- A built-in guided workflow may ask one narrow question at a time and may use
+  workflow session state to track progress toward a final artifact.
 
 ## Locked product contract
 
@@ -99,9 +101,13 @@ A Pulse should behave like a custom GPT for a specific creative workflow.
 - Any prior active Pulse workflow session is discarded only after the new Pulse
   kickoff succeeds.
 - The app sends a hidden activation turn to `/api/ai/studio-agent-pulse`.
-- The first assistant step should appear immediately as the beginning of the guided workflow.
-- The first assistant step should come from the Pulse workflow contract, not from
-  visible prompt insertion or Standard composer rewriting.
+- The first assistant response should appear immediately.
+- For a custom Pulse, that first response should follow the saved Pulse
+  instructions without hidden guided-workflow scaffolding.
+- For a built-in guided workflow, that first response may be the first step of
+  the guided workflow.
+- The first assistant response should come from the active Pulse contract, not
+  from visible prompt insertion or Standard composer rewriting.
 - If kickoff fails or is blocked, the rail should show a durable inline status message until the user retries, dismisses it, or successfully starts a Pulse.
 - When switching from an active Pulse to another Pulse, the prior Pulse id,
   preset snapshot, session instance, transcript, draft input, workflow session,
@@ -110,21 +116,21 @@ A Pulse should behave like a custom GPT for a specific creative workflow.
   available exactly as it was before the attempted switch, plus a durable inline
   status explaining the failed switch.
 
-### 3. Guided session behavior
+### 3. Active session behavior
 
-- A Pulse can ask one narrow question at a time.
-- A Pulse should answer in the shortest form that still advances the workflow.
-- A Pulse should follow its own system instructions as the authority for step
-  order, input requirements, safety constraints, and final artifact shape.
-- A Pulse may return message-only workflow turns while collecting inputs.
-- Guided status and step progression still come from the authoritative Pulse workflow session, but the chat surface should rely on the assistant turns rather than a separate Pulse session banner.
-- The Pulse completes when it intentionally returns its final artifact, usually through the normalized guided contract.
-- The Pulse must not mark a workflow complete just because it produced a helpful
-  intermediate reply.
+- Every Pulse should follow its own saved instructions as the authority for turn
+  order, input requirements, safety constraints, and output shape.
+- A custom Pulse may ask questions, answer directly, or produce reusable prompt
+  output according to its saved instructions. It must not be coerced into
+  step-by-step workflow behavior unless the instructions themselves call for it.
+- A built-in guided workflow may ask one narrow question at a time and may use
+  workflow session state as the authoritative progress record.
+- A helpful intermediate assistant reply must not be treated as a completed
+  artifact by accident.
 - First-step and follow-up turns should prefer the fastest Pulse-safe runtime
   path available. If the fast path fails, fallback behavior should preserve
-  workflow state and return a retryable user-facing status rather than silently
-  clearing the active Pulse.
+  active Pulse state and return a retryable user-facing status rather than
+  silently clearing the active Pulse.
 
 ### 4. Switching, restarting, clearing, deactivating
 
@@ -140,69 +146,44 @@ A Pulse should behave like a custom GPT for a specific creative workflow.
 - Standard-owned prompt/chat state remains Standard-owned.
 - Active Pulse ownership, transcript state, draft input, workflow session state, and latest artifact/prompt state are cleared.
 - Hidden Pulse runtime must not leak into Standard surfaces.
+- Leaving the Create tool entirely must also clear active Pulse runtime and return the hidden Create-mode state to `Standard`; Pulse mode does not remain active behind non-Create panels.
 
 ## Pulse preset model
 
-Pulse definitions are stored as saved Pulse records and normalized to the guided contract.
+Pulse Mode now has two preset contracts.
 
-Current active runtime normalization:
+### Custom Pulse contract
 
-- `runtimeMode`: `workflow_gpt`
-- `activationMode`: `activate_and_start`
-- `outputMode`: `chat_reply`
-- `memoryPolicy`: `session`
-- `artifactTarget`: explicit per resolved Pulse preset
+Custom Pulse records are per-user saved instruction presets. The active custom
+runtime contract is intentionally minimal:
 
-Retired Pulse metadata such as `prompt_editor`, `activate_only`, and `apply_prompt` is not part of the active product contract.
+- `presetId`
+- `label`
+- `systemInstructions`
+- optional `description`
+- runtime envelope fields such as `pulseKind`, `source`, and `schemaVersion`
+  when needed for transport validation
 
-### Artifact target contract
+Custom Pulses must not rely on persisted workflow metadata such as
+`artifactTarget`, `starterAssistantMessage`, `workflowStageHints`, or legacy
+guided runtime fields. If a user wants reusable prompt or artifact behavior, the
+Pulse instructions must ask for it directly.
 
-`outputMode` describes how the agent returns the final artifact to the Pulse
-chat runtime. It does not describe where that artifact should be submitted.
+### Built-in guided workflow contract
 
-Every Pulse must resolve to an artifact target before the final artifact can be
-generated or exported. The target is owned by the Pulse preset/runtime contract,
-not by Standard Create defaults.
+Built-in guided workflows remain admin-owned compatibility-path presets. They
+may still carry richer workflow metadata internally, including artifact target
+and workflow session semantics.
 
-Current allowed artifact targets:
+Retired Pulse metadata such as `prompt_editor`, `activate_only`, and
+`apply_prompt` is not part of the active custom Pulse contract.
 
-- `image_prompt`: the final artifact is submitted to image generation.
-- `video_prompt`: the final artifact is submitted to video generation.
-- `storyboard`: the final artifact is displayed/exported as a structured
-  storyboard unless a later explicit generation target is selected.
-- `text_artifact`: the final artifact is displayed/exported as text and is not
-  automatically submitted to image or video generation.
+### Built-in artifact routing
 
-Default behavior:
+Built-in guided workflows may declare explicit artifact targets so their final
+outputs route into the correct generation/export path.
 
-- Built-in Pulses must declare their artifact target explicitly.
-- Custom Pulses default to `text_artifact` until the product adds a simple,
-  user-facing target selector.
-- Pulse primary submit must route from the artifact target, not hard-code image
-  generation.
-- If no valid target can be resolved, generation/export should be disabled with
-  a clear status message instead of falling back to Standard Create behavior.
-
-Implementation field shape:
-
-```ts
-type CreatePulseArtifactTarget =
-  | "image_prompt"
-  | "video_prompt"
-  | "storyboard"
-  | "text_artifact";
-
-type CreatePulseResolvedPreset = {
-  artifactTarget: CreatePulseArtifactTarget;
-};
-```
-
-The field may be added to the persisted preset record or resolved from built-in
-catalog metadata, but runtime code should consume it from the resolved Pulse
-preset. The artifact target must be included in any active Pulse context needed
-by generation/export code, but it must not be sent to Standard Create runtimes.
-
-## Built-in Pulses
+## Built-in guided workflows
 
 The current built-in starter set includes:
 
@@ -210,7 +191,7 @@ The current built-in starter set includes:
 - `Multi Sequence Video Prompt`
 - `DFY Story Builder`
 
-Built-in Pulses may carry richer workflow metadata internally, but the user-facing mental model remains simple:
+Built-in guided workflows may carry richer workflow metadata internally, but the user-facing mental model remains simple:
 
 - choose a Pulse,
 - it starts,
@@ -239,8 +220,8 @@ but it must preserve these observable states and transitions.
 | --- | --- | --- |
 | `inactive` | Pulse mode is open with no active Pulse. | Start Pulse, switch to Standard. |
 | `starting` | A Pulse was selected and kickoff is in flight with no prior active Pulse fallback. | `active.awaiting_input`, `active.completed`, `failed_retryable`, `inactive`. |
-| `active.awaiting_input` | The active Pulse has started and is collecting workflow input. | Continue turn, complete, restart, switch Pulse, deactivate, switch to Standard. |
-| `active.completed` | The active Pulse has a final artifact and can generate/export by artifact target. | Generate/export, restart, switch Pulse, deactivate, switch to Standard. |
+| `active.awaiting_input` | The active Pulse has started and is collecting input or continuing its custom conversation/workflow. | Continue turn, complete, restart, switch Pulse, deactivate, switch to Standard. |
+| `active.completed` | The active Pulse has emitted a final reusable output or guided-workflow artifact. | Generate/export when supported, restart, switch Pulse, deactivate, switch to Standard. |
 | `switching` | A replacement Pulse kickoff is in flight while a previous active Pulse remains the fallback state. | New `active.awaiting_input` or `active.completed` on success; previous active state plus `failed_retryable` status on failure. |
 | `failed_retryable` | Startup, switch, or turn failed without destroying the last valid Pulse state. | Retry, dismiss status, restart, switch Pulse, deactivate. |
 | `deactivated` | User explicitly cleared active Pulse runtime while staying in Pulse mode. | `inactive`, start Pulse. |
@@ -259,11 +240,11 @@ Lifecycle rules:
 
 Pulse Mode currently spans several implementation seams. These are the key source-of-truth files for the shipped behavior:
 
-Guided Pulse model/runtime config:
+Pulse runtime config:
 
-- `STUDIO_AGENT_PULSE_MODEL` pins workflow Pulse turns independently of generic `OPENAI_MODEL`.
-- `STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS` pins the workflow Pulse turn timeout independently of generic `STUDIO_AGENT_TURN_TIMEOUT_MS`.
-- Workflow Pulse turns should request structured JSON output with `status`, `message`, and `actions.applyPrompt` so message-only intake steps do not get promoted into final prompt artifacts by accident.
+- `STUDIO_AGENT_PULSE_MODEL` pins Pulse turns independently of generic `OPENAI_MODEL`.
+- `STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS` pins the Pulse turn timeout independently of generic `STUDIO_AGENT_TURN_TIMEOUT_MS`.
+- Guided workflows still use structured status/artifact semantics. Custom Pulses should remain compatible with the Pulse route envelope without inheriting hidden guided behavior.
 - Pulse turn latency should be monitored separately from Standard Create agent
   latency. Track at least activation first-step latency, follow-up turn latency,
   timeout/fallback rate, retry count, schema repair count, and workflow
@@ -304,7 +285,7 @@ Guided Pulse model/runtime config:
   - `frontend/pages/api/ai/studio-agent-pulse.ts`
   - `frontend/features/agent-runtime/pulseStudioAgentRuntime/runtime.ts`
   - `frontend/features/agent-runtime/studioAgentPulseRuntime.ts`
-- Workflow-state helpers:
+- Workflow-state helpers for the guided compatibility path:
   - `frontend/features/ai-studio/logic/pulseWorkflowSession.ts`
   - `frontend/features/ai-studio/logic/pulseSessionState.ts`
   - `frontend/features/ai-studio/logic/pulseSessionIdentity.ts`
@@ -345,8 +326,8 @@ Guided Pulse model/runtime config:
 5. The agent orchestration layer builds hidden Pulse context and a hidden activation seed.
 6. The agent transport sends the kickoff turn to `/api/ai/studio-agent-pulse` using an isolated Pulse session namespace owned by the Pulse create runtime.
 7. On kickoff success, the page commits the active Pulse id, preset snapshot, session instance, and workflow session.
-8. The server applies the Pulse runtime system behavior and returns the first workflow response.
-9. The Pulse workflow session becomes the authoritative source for guided status and artifact completion.
+8. The server applies the Pulse runtime system behavior and returns the first Pulse response.
+9. For built-in guided workflows, the Pulse workflow session becomes the authoritative source for guided status and artifact completion. Custom Pulses do not require that richer contract to behave correctly.
 
 ## Standard/Pulse separation guardrails
 
@@ -354,8 +335,8 @@ Guided Pulse model/runtime config:
 - Only the selected mode may own the active Create command runtime, panel contract, submit path, and agent context.
 - Pulse composer input, prompt state, transcript, attachments, workflow session, telemetry route label, and persistence payload must never be passed into Standard runtime contracts.
 - Standard composer state is Standard-owned. Pulse must not read or write Standard composer preferences or transcript state.
-- Pulse artifact generation reads `pulseWorkflowSession.lastArtifact` only; it must not fall back to Standard composer input.
-- Pulse artifact generation routes by the resolved Pulse `artifactTarget`; it must not hard-code Standard Create image generation.
+- Built-in workflow artifact generation reads `pulseWorkflowSession.lastArtifact` only; it must not fall back to Standard composer input.
+- Built-in workflow artifact generation routes by the resolved `artifactTarget`; it must not hard-code Standard Create image generation.
 - `/api/ai/studio-agent-pulse` rejects requests when `clientSessionNamespace` does not carry a Pulse namespace or when that namespace's preset segment differs from `context.pulse.presetId`.
 - Active Create agent calls must use only `/api/ai/studio-agent-standard` or `/api/ai/studio-agent-pulse`.
 
@@ -369,15 +350,16 @@ Future Pulse changes should preserve these rules:
 4. Prefer one explicit owner for mode/runtime behavior over spreading logic across UI surfaces.
 5. Treat “click a Pulse and nothing happens” as a failure of the current contract, not a product-definition change.
 6. Keep custom Pulse authoring centered on `Name` plus `System Instructions`; do not expose advanced workflow metadata in the preset editors.
-7. Preserve the custom-GPT-like mental model: a Pulse is a named guided agent,
-   not a visible prompt template or an alternate Standard composer.
+7. Preserve the custom-GPT-like mental model for custom Pulses: a custom Pulse
+   is a saved instruction preset, not a visible prompt template or an alternate
+   Standard composer.
 8. Optimize for fast useful turns. Add orchestration, retries, or model
    complexity only when they measurably improve workflow completion quality or
    latency.
 9. Treat active Pulse switching as an atomic operation. Do not clear the current
    Pulse until the replacement Pulse has a confirmed active session and first
    workflow response, or until the user explicitly deactivates/restarts.
-10. Route completed artifacts by explicit Pulse artifact target. Do not infer
+10. Route built-in workflow artifacts by explicit artifact target. Do not infer
     image generation from the fact that Pulse runs inside Create.
 
 ## Validation checklist
@@ -386,11 +368,13 @@ Future Pulse changes should preserve these rules:
 - Click a pinned Pulse and confirm:
   - the Pulse becomes active,
   - a fresh Pulse session starts,
-  - the first guided assistant step appears,
+  - the first assistant response appears,
   - the visible Create composer is not rewritten with system instructions.
-- Complete a guided Pulse and confirm intermediate assistant replies are not
-  treated as final artifacts before the workflow is actually complete.
-- Complete each built-in Pulse and confirm its final artifact routes to the
+- Start a custom Pulse and confirm it follows its saved instructions without
+  hidden guided-step behavior.
+- Complete a guided workflow Pulse and confirm intermediate assistant replies are
+  not treated as final artifacts before the workflow is actually complete.
+- Complete each built-in guided workflow and confirm its final artifact routes to the
   intended generation target or artifact surface.
 - Force a Pulse kickoff failure and confirm:
   - the active Pulse selection is reverted when startup fails,
@@ -421,25 +405,28 @@ A Pulse turn is acceptable when it:
 
 - follows the active Pulse system instructions rather than generic Standard agent
   behavior,
-- asks for one useful next input or gives the next required workflow instruction,
+- asks for one useful next input, gives the next required workflow instruction,
+  or answers directly when that is what the active Pulse instructions call for,
 - stays concise unless the Pulse instructions require a longer structured output,
 - carries forward prior answers, uploaded media, and workflow stage without
   restarting,
 - does not ask for information already collected in the active workflow session,
-- keeps intermediate assistant turns message-only unless the workflow is complete,
-- emits a final artifact only when the Pulse instructions say the workflow has
-  enough input,
-- routes the completed artifact according to `artifactTarget`,
+- keeps intermediate assistant turns from being mistaken for final artifacts,
+- emits a final reusable output only when the Pulse instructions say enough input
+  has been collected,
+- routes built-in workflow artifacts according to `artifactTarget`,
 - preserves active Pulse state across retryable failures,
 - refuses or redirects unsafe requests without losing workflow state.
 
 Minimum eval scenarios before major Pulse runtime changes:
 
-- Start each built-in Pulse from an empty session and verify the first assistant
-  step matches the Pulse instructions.
-- Complete the happy path for each built-in Pulse and verify final artifact
+- Start a custom Pulse from an empty session and verify the first response
+  follows the saved instructions without guided scaffolding.
+- Start each built-in guided workflow from an empty session and verify the first
+  assistant step matches the workflow instructions.
+- Complete the happy path for each built-in guided workflow and verify final artifact
   target routing.
-- Interrupt each built-in Pulse mid-workflow with an unrelated message and verify
+- Interrupt each built-in guided workflow mid-workflow with an unrelated message and verify
   it returns to the next useful workflow step.
 - Retry after simulated timeout, transport failure, and schema repair failure.
 - Switch active Pulses with both successful and failed kickoff outcomes.
@@ -464,4 +451,4 @@ These should be answered explicitly before broadening Pulse scope:
 1. Which Pulse behaviors are contract-level and which are implementation details?
 2. What minimum end-to-end test coverage is required for preset click activation?
 3. Whether a future explicit "resume prior Pulse" affordance is product-justified, and how it would remain inaccessible from Standard mode.
-4. How much custom Pulse authoring complexity is actually product-justified beyond the current guided contract?
+4. Whether built-in guided workflows should remain under the outer `Pulse` label or move to a separately named surface later.

@@ -12,6 +12,17 @@ Purpose: outline how to test the ShortPulse app (client UI plus internal API rou
   - `cd frontend && npm run test:e2e`
   - Character pipeline audit: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character`
     - Safety: this audit now refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and will reject `@example.com` addresses to prevent accidental user creation.
+  - Custom Pulse contract audit:
+  - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:pulse-custom-contract`
+    Verifies the custom Pulse transport contract and that leaving Create clears the active Pulse session before returning to Create.
+    - Signs in to the live app, creates a custom Pulse through the real Pulse Library UI, activates it from Pulse Catalog, intercepts `/api/ai/studio-agent-pulse`, and verifies the outgoing request keeps the minimal custom-Pulse contract without guided-workflow metadata.
+  - Custom Pulse contract release check:
+  - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:pulse-custom-contract:release-check`
+    Runs the same audit against a temporary production server.
+    - Builds production, starts a temporary local server, runs the browser audit against that clean bundle, and tears the server down automatically.
+    - Optional overrides:
+      - `PULSE_CUSTOM_CONTRACT_SKIP_BUILD=true` to reuse an existing production build.
+      - `PULSE_CUSTOM_CONTRACT_PORT=<port>` to choose a different local server port.
   - Project workspace persistence audit:
     - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:project-persistence`
     - Uses the real project create/save/read/delete APIs plus an authenticated `/ai-studio?projectId=...` reopen to verify legacy orphan output payloads are stripped before persistence and do not leak back into the UI.

@@ -89,6 +89,7 @@ Purpose: canonical operator runbook for accepted-job recovery, settlement integr
 4. Run `sql/check_generation_convergence_defect_classes.sql`.
 5. Capture:
    - admission-limited events by scope (`per_user` vs `shared_provider`) from `sql/check_generation_admission_metrics.sql`
+   - any `telemetry.api.fal_submit.recovery_backpressure_applied` events with `backpressure_level`, `requested_global_max`, and `effective_global_max`
    - provider-terminal-to-media-visible latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_recovery_media_visible_latency.sql`
    - convergence defect-class counts and worst-case rows from `sql/check_generation_convergence_defect_classes.sql`
    - provider-attached reserved holds by age bucket
@@ -139,6 +140,11 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
    - expect events to appear for recovered-success validation runs,
    - inspect `p95_provider_terminal_to_media_visible_ms` before changing recovery internals again,
    - use the bucketed rows to identify whether lag is clustering by `model_id`, `provider`, or `recovery_actor`.
+7. Treat `telemetry.api.fal_submit.recovery_backpressure_applied` as the admission-side lag signal:
+   - `backpressure_level = 1` means shared-provider headroom was reduced by `1`
+   - `backpressure_level = 2` means shared-provider headroom was reduced by `2`
+   - the signal is expected only for Fal/Kie shared-provider lanes
+   - if it persists while stale counts and latency are improving, re-check threshold inputs before changing admission caps.
 
 ### 2A) Bounded convergence backlog replay
 Use this path when `sql/check_generation_convergence_defect_classes.sql` shows `outputs_without_publications > 0` on rows that are already `status='success'` and therefore invisible to normal reconciler claiming.
@@ -190,6 +196,7 @@ Use this path when `sql/check_generation_convergence_defect_classes.sql` shows `
 ## Failure Mode Map
 | Signal / state | Primary interpretation | Required action |
 | --- | --- | --- |
+| `telemetry.api.fal_submit.recovery_backpressure_applied` repeats while `shared_provider` admission denies rise | recovery-lag safeguard is intentionally squeezing shared-provider intake | inspect stale provider-attached holds, queued/recovering age buckets, `QUEUE_WAIT_TIMEOUT`, and recovery-visibility latency before raising admission limits |
 | `telemetry.generation.recovery.media_visible` p95 stays high while recovery metrics are healthy | provider-terminal recovery/media persistence is still slow after upstream completion | inspect bucketed latency rows for model/provider/actor concentration before touching recovery or admission controls |
 | `terminal_success_no_media` or `no_media` retry loops | provider terminal payload missing media URLs | continue bounded recovery retries; replay residual outliers; verify provider payload adapters |
 | provider `running` beyond age windows | long-running or stranded provider job | enforce age/attempt policy, then exhaust + release when thresholds are reached |

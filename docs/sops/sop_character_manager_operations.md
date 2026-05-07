@@ -81,10 +81,10 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Emit `character_drop_resolved` when resolver yields a usable internal reference (`mediaId` or trusted preview URL fallback) and assignment succeeds.
    - Emit `character_drop_rejected` on malformed payloads, unsupported targets, or policy rejection.
    - Emit `character_drop_failed_autosave` when the internal resolver path throws before assignment can proceed.
-12. Character panel media isolation contract (V2 rollout):
-   - Character panel uploads persist to `character_media_assets` when `SHORTPULSE_CHARACTER_MEDIA_V2_WRITES_ENABLED=true`.
+12. Character panel media isolation contract:
+   - Character panel uploads persist to `character_media_assets`.
    - Character Sheet and QuickSwap internal Media Library/Reference Grid drops use copy semantics (ingest/upload) rather than direct attach-by-`media_files.id`.
-   - Legacy `media_file_id` compatibility reads remain during transition; `character_media_id` is canonical when V2 reads are enabled.
+   - `character_media_id` is the required persisted reference for Character Manager assets. Legacy metadata keys and row-level `media_file_id` linkage are retired from the live runtime path.
 
 ## Architecture Map
 - Shell/UI orchestration: `frontend/features/character-manager/components/CharacterManagerShell.tsx`
@@ -93,7 +93,6 @@ Define the operational contract for the `/character` Character Manager surface, 
 - Draft state + persistence orchestration: `frontend/features/character-manager/hooks/useCharacterManagerDraft.ts`
 - Supabase persistence primitives: `frontend/features/character-manager/logic/characterManagerPersistence.ts`
 - QuickSwap persistence primitives: `frontend/features/character-manager/logic/characterQuickSwapPersistence.ts`
-- V2 rollout flags: `frontend/features/character-manager/logic/characterMediaIsolationFlags.ts`
 - QuickSwap state orchestration: `frontend/features/character-manager/hooks/useCharacterQuickSwapDeck.ts`
 - QuickSwap UI section: `frontend/features/character-manager/components/CharacterQuickSwapDeckSection.tsx`
 - File validation rules: `frontend/features/character-manager/logic/referenceValidation.ts`
@@ -147,7 +146,7 @@ Use this when Character Sheet data looks inconsistent across environments or aft
 
 2. Run drift diagnostics:
 - Execute `sql/check_character_sheet_alias_drift.sql`.
-- Execute `sql/check_character_media_isolation_backfill.sql` (V2 rollout environments).
+- Execute `sql/check_character_media_isolation_backfill.sql` when auditing historical Character Manager rows for legacy-link normalization.
 
 3. Evaluate output:
 - Expected steady-state: every `mismatch_count` is `0`.

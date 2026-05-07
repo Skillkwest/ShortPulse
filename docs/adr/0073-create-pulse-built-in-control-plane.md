@@ -8,7 +8,7 @@ Accepted
 
 Create Pulse previously mixed two different ownership models:
 
-- built-in Pulse definitions were seeded in code,
+- built-in guided-workflow definitions were seeded in code,
 - user Pulse surfaces could save built-in-id overrides into `user_preferences.ai_studio_saved_pulses`,
 - runtime requests depended on browser-supplied Pulse metadata.
 
@@ -30,7 +30,7 @@ That model no longer fits the admin-owned `Agent Instructions` workspace. The bu
 
 ## Consequences
 
-- Admin operators get one authoritative editing surface for built-in Pulse definitions.
+- Admin operators get one authoritative editing surface for built-in guided-workflow definitions.
 - Pulse runtime, the Create rail, and the Pulse library can all render the same built-in catalog without code-local drift.
 - Existing stale per-user built-in collisions are normalized away from user Pulse persistence.
 - Built-in Pulse ids, labels, descriptions, and instructions can change without shipping a code edit, as long as the control-plane catalog remains valid.
@@ -39,5 +39,5 @@ That model no longer fits the admin-owned `Agent Instructions` workspace. The bu
 
 - Standard-mode agent instructions remain scaffold-only UI until Standard intentionally adopts a control-plane contract.
 - Customer sessions must never read `create_pulse_builtin_runtime` directly.
-- Built-in Pulse execution must fail closed to the server-resolved catalog, not fall back to user override payloads.
+- Built-in guided-workflow execution must fail closed to the server-resolved catalog, not fall back to user override payloads.
 - Built-in catalog writes must validate unique preset ids plus non-empty labels, descriptions, and system instructions before persistence.

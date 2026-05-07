@@ -77,9 +77,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SUPABASE_DB_URL` (GitHub Environment secret for `staging` and `production`, used by `.github/workflows/media-storage-deploy-gate.yml`, `.github/workflows/reliability-control-plane-diagnostics.yml`)
   - `SHORTPULSE_VERCEL_API_TOKEN` (required by `scripts/verify_deployment_route_parity.mjs`; fallback supports `VERCEL_API_TOKEN`)
 - Optional agent/runtime toggles:
-  - `NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI` (defaults to off in production; set `true` for the current Expert Create UI)
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
-  - `NEXT_PUBLIC_AGENT_V2`
   - AI Studio legacy `sid` session persistence is retired; do not configure the old `NEXT_PUBLIC_AI_STUDIO_SESSION_*` or `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` flags.
   - `SHORTPULSE_RELEASE` (optional explicit release/build tag for incident logs)
   - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client bundle release tag for incident logs)
@@ -104,28 +102,17 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (defaults to `false`; keep aligned with server value)
   - `SHORTPULSE_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; server-authoritative Media Library upload route gate)
   - `NEXT_PUBLIC_MEDIA_UPLOAD_API_ENABLED` (defaults to `true`; client upload-controller migration gate)
-  - `SHORTPULSE_MEDIA_LIST_API_ENABLED` (defaults to `true`; server-authoritative Media Library list route gate)
-  - `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED` (defaults to `true`; client list-controller migration gate)
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED` (defaults to `true`; route/modal virtualization gate)
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED` (defaults to `true`; route/modal autoplay budget gate)
-  - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED` (defaults to `true`; route/modal sign-prefetch gate)
-  - `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED` (defaults to `true`; first-class Media Library tool gate)
-  - `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED` (defaults to `false`; rollout gate for drag-ghost/right-click/delete gesture behavior)
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED` (defaults to `false`; current adaptive-media rollout gate)
-  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (comma-separated surfaces such as `reference-grid,media-library-grid,media-library-modal-grid`)
+  - Media Library route/modal/panel now ship with one canonical list runtime: `/api/media/list` plus the default virtualization, video-budget, sign-prefetch, and gesture behaviors.
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (comma-separated adaptive preview surfaces such as `reference-grid,quick-slot,media-library-grid,media-library-modal-grid,media-library-panel-grid,character-grid,detail-modal`)
   - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; server half of dual-flag signed-transform policy)
   - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; client half of dual-flag signed-transform policy)
   - AI Studio legacy `sid` session-persistence env flags are retired and should not be configured. `sid` remains runtime identity only, and durable restore authority now belongs to project workspace persistence.
   - `OPENAI_PROMPT_SYSTEM`
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)
-  - `SHORTPULSE_FAL_WEBHOOK_ENABLED`
-  - `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE` (`fal_only`)
-  - `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`
-  - `SHORTPULSE_FAL_WEBHOOK_TOLERANCE_SECONDS`
   - `SHORTPULSE_PUBLIC_API_BASE_URL` (or `APP_BASE_URL` fallback) for Fal `fal_webhook` submit registration
   - `SHORTPULSE_FAL_RECONCILER_ENABLED`
   - `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`
-  - `CRON_SECRET` (optional manual invocation fallback; keep aligned with reconciler secret when used)
+  - `CRON_SECRET` (optional manual invocation bearer secret; keep aligned with reconciler secret when used)
   - `SHORTPULSE_FAL_RECONCILER_BATCH_SIZE`
   - `SHORTPULSE_FAL_RECONCILER_MAX_ATTEMPTS`
   - `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS`
@@ -138,8 +125,6 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE`
-  - `SHORTPULSE_FAL_CIRCUIT_BREAKER_ENABLED`
-  - `SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M`
   - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED` (defaults to `false`; enables shared Fal-account admission alongside per-user caps)
   - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX` (defaults to `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX`; shared-provider active-generation ceiling)
 
@@ -178,7 +163,7 @@ node scripts/check_vercel_env_file.mjs \
 
 Notes:
 - `core` profile validates baseline deploy keys.
-- `phase04` adds queue/reconciler/read-only rollout keys used by current program phase.
+- Use a profile aligned to the current live runtime contract rather than old queue/shadow rollout windows.
 
 ### Live Vercel env contract parity (required)
 
@@ -209,7 +194,7 @@ Behavior:
 - Hard-fails when local/tooling-only keys are stored in Vercel project envs.
 - Hard-fails when environment-specific deploy keys are shared across `development`, `preview`, and `production`.
 - When both `preview` and `production` are audited, hard-fails when they resolve the same values for the Supabase/base-URL keys that must remain environment-specific.
-- Hard-fails when mirrored client/server rollout flags diverge.
+- Hard-fails when mirrored client/server live runtime flags diverge.
 
 ### Deployment route parity gate (required)
 

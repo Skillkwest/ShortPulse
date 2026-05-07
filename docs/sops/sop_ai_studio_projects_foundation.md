@@ -46,7 +46,7 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 | `frontend/pages/ai-studio.tsx` | Current AI Studio page entry where `projectId` coexists with legacy `sid`, gates restore on project resolution, routes visible title edits through project authority, and switches project routes onto project-owned workspace persistence. |
 | `frontend/features/ai-studio/components/ProjectsModal.tsx` | Saved-project picker modal used by the AI Studio left rail to reopen owned projects without leaving AI Studio. |
 | `frontend/features/ai-studio/hooks/useAiStudioProjectIdentity.ts` | Canonical client hook for `projectId` query resolution, owned-project fetch, and AI Studio title updates. |
-| `frontend/features/ai-studio/hooks/useAiStudioProjectWorkspacePersistenceController.ts` | Canonical client controller for project-owned workspace restore/apply and debounced save shadow. |
+| `frontend/features/ai-studio/hooks/useAiStudioProjectWorkspacePersistenceController.ts` | Canonical client controller for project-owned workspace restore/apply and debounced autosave. |
 | `frontend/lib/server/projectMediaFoldersService.ts` | Canonical server helper for project-owned Media Library custom folders and saved media/prompt membership operations. |
 | `frontend/lib/server/projectMediaFolderCanvasService.ts` | Canonical server helper for project-owned Media Library folder canvas read/write operations. |
 | `frontend/pages/api/media/list.ts` | Shared Media Library media list route that now accepts optional `projectId` for project-folder membership resolution while keeping `All Media` global. |
@@ -224,7 +224,6 @@ Behavior:
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioProjectWorkspaceRestoreCandidate.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioPersistenceActions.identity.test.ts`
-- `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioWorkflowSettings.test.ts`
 - `npm -C frontend run test -- features/ai-studio/logic/__tests__/mediaLibraryPersistence.test.ts`
 - `npm -C frontend run test -- tests/api/media-list.test.ts`

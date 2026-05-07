@@ -38,6 +38,7 @@ Tradeoffs:
 - Requires strict migration discipline (schema convergence first, then fallback deletion).
 
 ## Required controls
+Original rollout controls at acceptance time:
 - Runtime flags:
   - `SHORTPULSE_FAL_INTEGRATION_MODE=legacy|shadow|on`
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST`
@@ -49,9 +50,24 @@ Tradeoffs:
   - `/api/fal/webhook` is signature-verified webhook exception.
   - `/api/internal/generation-recovery/run` requires `x-shortpulse-cron-secret`.
 
+Current branch note (2026-05-07):
+- The current branch no longer treats `SHORTPULSE_FAL_INTEGRATION_MODE` or webhook-enable toggles as the live runtime contract.
+- The active branch contract is documented in `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`.
+- Canonical runtime controls on the current branch center on:
+  - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST`
+  - `SHORTPULSE_FAL_RECONCILER_ENABLED`
+  - `SHORTPULSE_FAL_RECONCILER_*`
+  - `SHORTPULSE_FAL_ADMISSION_*`
+  - route-level Fal signature verification at `/api/fal/webhook`
+
 ## Rollback criteria
-Revert to `SHORTPULSE_FAL_INTEGRATION_MODE=legacy` if any occur:
-- duplicate capture/refund for the same provider request,
-- duplicate media persistence for same generation output index,
-- stuck-running SLA regression,
-- unresolved terminal-no-media backlog growth beyond gates.
+Original rollout rollback criteria at acceptance time:
+- revert to `SHORTPULSE_FAL_INTEGRATION_MODE=legacy` if any occur:
+  - duplicate capture/refund for the same provider request,
+  - duplicate media persistence for same generation output index,
+  - stuck-running SLA regression,
+  - unresolved terminal-no-media backlog growth beyond gates.
+
+Current branch note (2026-05-07):
+- treat the rollback section above as historical rollout context, not as the active branch operating instruction.
+- Current branch runtime handling should follow `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md` and the live recovery/admission runbooks instead of reintroducing integration-mode switching.

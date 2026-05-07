@@ -8,7 +8,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 ## UI entry points
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
-- Standard Create composer: always chat-first and route-owned by `/api/ai/studio-agent-standard`.
+- Standard Create composer: always chat-first and route-owned by `/api/ai/studio-agent-standard`. Its raw-pass runtime contract is intentionally frozen until a future dedicated change.
 - Standard chat response color semantics: Standard is now a raw assistant-text lane. Ordinary replies remain in the neutral chat text treatment and stay in outbound Standard history. Prompt application must happen through explicit UI actions, not hidden Standard route shaping.
 - Retired expanded column: the right-side Agent Chat rail is removed. Agent conversation UI now stays inside the active Create composer so Standard/Pulse runtime state does not leave the mode-owned Create surface.
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
@@ -21,7 +21,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (Standard studio-agent default `gpt-5.4-nano`), optional `STUDIO_AGENT_PULSE_MODEL` (guided Pulse workflow model; inherits `OPENAI_MODEL` when unset), optional `OPENAI_API_BASE`.
 - Timeout budgets: `STUDIO_AGENT_TIMEOUT_MS` as shared default; optional `STUDIO_AGENT_VISION_TIMEOUT_MS`, `STUDIO_AGENT_TURN_TIMEOUT_MS`, and `STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS` split vision-summary, generic generation-turn, and guided Pulse generation-turn budgets. Unset split values inherit the nearest shared budget.
 - Runtime path: Standard and Pulse each use one mode-owned route. The removed direct-bypass, generic-route, text fast-path, and legacy V2 fallback switches are not valid controls for Create agents.
-- Safety precheck flags: `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on for guided/server-owned lanes such as Pulse), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (default on for retained image-analysis lanes), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (default `prod_closed_nonprod_open`), `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (default `enforce`; optional `shadow|off`), and `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on for guided client pre-send lanes). Standard bypasses the local Standard precheck path.
+- Safety precheck flags: `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on for guided/server-owned lanes such as Pulse), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (default on for retained image-analysis lanes), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (default `prod_closed_nonprod_open`), `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (default `enforce`; optional `off`), and `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on for guided client pre-send lanes). Standard bypasses the local Standard precheck path.
 - Flags: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` controls UI and baseline server enablement (`undefined` or `true` = enabled, `false` = disabled); `STUDIO_AGENT_ENABLED=true|false` explicitly overrides server enablement.
 - Payload guardrails: max 3 images, HTTPS-only media URLs, request body cap 512 KB (text) / 1.5 MB (mixed/image), API parser cap `2mb`.
 - Media transport rule: client now prefers signed/public `https://` URLs for agent vision calls. Local blob/data previews are uploaded through `/api/upload-image` before send.
@@ -36,7 +36,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
    - image attachments become both `context.references` + `context.media` (up to 3),
    - `selectedReferenceIds` are merged, `focusedSource` is set based on staged kind, and `modeHint` defaults to `"reference"` when attachments are present.
 5) `contextBuilder` + API `safeContext` filter to safe media/refs and enforce caps before provider calls.
-6) Standard sends raw user/assistant turns through the Standard transport with no local Standard rewrite/precheck/canonical loop. Pulse still runs the guided pre-send/runtime safety pipeline.
+6) Standard sends raw user/assistant turns through the Standard transport with no local Standard rewrite/precheck/canonical loop. That is an explicit current product decision, not an accidental gap. Pulse still runs the guided pre-send/runtime safety pipeline.
 7) The runtime-specific studio-agent route validates message roles (`user|assistant`) and requires `clientSessionKey`. Standard uses the Standard-owned Create runtime and never returns Pulse workflow fields. Pulse uses the Pulse-owned guided runtime, classifies turns into `TEXT_ONLY`, `IMAGE_ONLY`, or `MIXED`, and owns workflow-session updates.
 8) Pulse runs server-authoritative pre-provider safety precheck before any vision/coordinator/provider call. Standard bypasses the local Standard precheck path by design.
 9) Mixed/image Pulse turns use the vision timeout budget for summary calls and preserve the full turn timeout budget for generation.
@@ -61,10 +61,10 @@ Prompt ownership rule:
   - Always uses the chat lane, even if Standard mode was previously set to chat-off raw mode.
   - Hides the inline chat-mode toggle while Pulse is active, then restores the prior Standard-mode chat preference when the user switches back.
   - Clicking a pinned Pulse activates hidden Pulse runtime metadata on `/api/ai/studio-agent-pulse` without mutating the visible Create composer.
-  - Active Pulse behavior is normalized to the guided contract: `workflow_gpt`, `activate_and_start`, and `chat_reply`.
+  - Active custom Pulse behavior is normalized to the custom GPT contract: `custom_gpt`, `activate_and_start`, and `chat_reply`.
   - Pulse bootstrap sends use the Pulse hook and route so Standard transcript or canonical state does not bleed into the first hidden Pulse turn.
-  - Retired `prompt_editor` / `activate_only` / `apply_prompt` Pulse metadata is discarded from saved state; active Pulse runtime uses only `workflow_gpt`, `activate_and_start`, and `chat_reply`.
-  - Guided Pulses auto-start on click and may ask structured follow-up questions before emitting a final artifact.
+  - Retired `prompt_editor` / `activate_only` / `apply_prompt` Pulse metadata is discarded from saved custom state; custom runtime keeps only the minimal saved-instructions contract.
+  - Built-in guided workflows auto-start on click and may ask structured follow-up questions before emitting a final artifact.
   - Switching back to `Standard` clears the active hidden Pulse runtime. Returning to `Pulse` starts with no active Pulse until the user starts one.
 - **Describe a reference:**
   - Uses `/api/ai/studio-agent-standard` with isolated history, focused image context, and `modeHint="describe"`.

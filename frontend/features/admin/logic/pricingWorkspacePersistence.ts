@@ -46,6 +46,7 @@ export type AdminPricingWorkspaceDraftSnapshot = {
   modelSortOption: ModelPricingSortOption;
   globalCreditScaleDraft: string;
   globalCreditUsdAmountDraft: string;
+  simulatorPlanIds: string[] | null;
   selectedUsagePlanId: string;
   planEconomicsDrafts: Record<string, PlanEconomicsDraft>;
   usageMixRowsByPlanId: Record<string, UsageMixDraftRow[]>;
@@ -63,6 +64,12 @@ const sanitizeStringRecord = (value: unknown): Record<string, string> => {
   ) as Record<string, string>;
 };
 
+const sanitizeStringArray = (value: unknown): string[] | null => {
+  if (typeof value === "undefined") return null;
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === "string");
+};
+
 const sanitizeAudioDraftRecord = (value: unknown): AudioDraftByModelId => {
   if (!isPlainObject(value)) return {};
   return Object.fromEntries(
@@ -76,7 +83,7 @@ const sanitizeAudioDraftRecord = (value: unknown): AudioDraftByModelId => {
 
 const sanitizePlanEconomicsDraft = (value: unknown): PlanEconomicsDraft | null => {
   if (!isPlainObject(value)) return null;
-  const fields = [
+  const requiredFields = [
     "priceUsd",
     "includedCredits",
     "discountPct",
@@ -84,9 +91,10 @@ const sanitizePlanEconomicsDraft = (value: unknown): PlanEconomicsDraft | null =
     "processorPct",
     "processorFlatUsd",
   ] as const;
-  if (!fields.every((field) => typeof value[field] === "string")) return null;
-  const draft = value as Record<(typeof fields)[number], string>;
+  if (!requiredFields.every((field) => typeof value[field] === "string")) return null;
+  const draft = value as Record<string, string>;
   return {
+    simulatedName: typeof value.simulatedName === "string" ? draft.simulatedName : "",
     priceUsd: draft.priceUsd,
     includedCredits: draft.includedCredits,
     discountPct: draft.discountPct,
@@ -179,6 +187,7 @@ const sanitizeWorkspaceDraftSnapshot = (
       typeof value.globalCreditScaleDraft === "string" ? value.globalCreditScaleDraft : "",
     globalCreditUsdAmountDraft:
       typeof value.globalCreditUsdAmountDraft === "string" ? value.globalCreditUsdAmountDraft : "1",
+    simulatorPlanIds: sanitizeStringArray(value.simulatorPlanIds),
     selectedUsagePlanId:
       typeof value.selectedUsagePlanId === "string" ? value.selectedUsagePlanId : "",
     planEconomicsDrafts: sanitizePlanEconomicsDrafts(value.planEconomicsDrafts),

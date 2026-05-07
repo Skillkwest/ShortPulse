@@ -7,7 +7,6 @@ import {
   PricingWorkspaceNotice,
 } from "../../features/admin/PricingPageChrome";
 import { PricingCalculatorSupportStrip } from "../../features/admin/PricingCalculatorSupportStrip";
-import { PricingCatalogSections } from "../../features/admin/PricingCatalogSections";
 import { PricingModelWorkbook } from "../../features/admin/PricingModelWorkbook";
 import { PricingPolicyStatusBar } from "../../features/admin/PricingPolicyStatusBar";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
@@ -140,56 +139,19 @@ export default function AdminPricingPage() {
 
           <PricingCalculatorSupportStrip
             plans={pricingState?.plans ?? []}
-            selectedPlanId={pageState.selectedUsagePlanId}
-            setSelectedPlanId={pageState.setSelectedUsagePlanId}
-            selectedPlanDraft={
-              pageState.selectedUsagePlan
-                ? pageState.planEconomicsDrafts[pageState.selectedUsagePlan.planId]
-                : null
-            }
-            updatePlanDraft={pageState.updatePlanEconomicsDraft}
-            usageMixRows={pageState.usageMixRows}
-            updateUsageMixRow={pageState.updateUsageMixRow}
-            addUsageMixRow={pageState.addUsageMixRow}
-            removeUsageMixRow={pageState.removeUsageMixRow}
-            models={pricingState?.models ?? []}
-            modelRows={pageState.modelEconomicsRows}
-            pricingPolicy={pageState.effectiveModelPolicyDraft}
+            displayedModels={pageState.displayedModels}
+            effectiveModelPolicyDraft={pageState.effectiveModelPolicyDraft}
+            durationDrafts={pageState.durationDrafts}
             aspectDrafts={pageState.aspectDrafts}
             resolutionDrafts={pageState.resolutionDrafts}
             audioDrafts={pageState.audioDrafts}
+            modelSortOption={pageState.modelSortOption}
+            planDraftsByPlanId={pageState.planEconomicsDrafts}
+            simulatorPlanIds={pageState.simulatorPlanIds}
+            updatePlanDraft={pageState.updatePlanEconomicsDraft}
+            addSimulatorPlan={pageState.addSimulatorPlan}
+            removeSimulatorPlan={pageState.removeSimulatorPlan}
             isDraftDirty={pageState.canApplyModelPolicy}
-          />
-
-          <PricingCatalogSections
-            pricingState={pricingState}
-            planDraft={pageState.planDraft}
-            setPlanDraft={pageState.setPlanDraft}
-            planOfferDraft={pageState.planOfferDraft}
-            setPlanOfferDraft={pageState.setPlanOfferDraft}
-            planSaving={pageState.planSaving}
-            planMessage={pageState.planMessage}
-            planError={pageState.planError}
-            setPlanMessage={pageState.setPlanMessage}
-            setPlanError={pageState.setPlanError}
-            onConfirmPlanCreate={pageState.openPlanCreateConfirmation}
-            onConfirmPlanOffer={pageState.openPlanOfferConfirmation}
-            creditDraft={pageState.creditDraft}
-            setCreditDraft={pageState.setCreditDraft}
-            creditSaving={pageState.creditSaving}
-            creditMessage={pageState.creditMessage}
-            creditError={pageState.creditError}
-            setCreditMessage={pageState.setCreditMessage}
-            setCreditError={pageState.setCreditError}
-            onConfirmCreditPackage={pageState.openCreditPackageConfirmation}
-            storageDraft={pageState.storageDraft}
-            setStorageDraft={pageState.setStorageDraft}
-            storageSaving={pageState.storageSaving}
-            storageMessage={pageState.storageMessage}
-            storageError={pageState.storageError}
-            setStorageMessage={pageState.setStorageMessage}
-            setStorageError={pageState.setStorageError}
-            onConfirmStorageOffer={pageState.openStorageOfferConfirmation}
           />
 
           <PricingCostDocsPopover popover={pageState.costDocsPopover} />

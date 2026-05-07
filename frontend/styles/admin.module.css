@@ -2950,6 +2950,324 @@
   border: 1px solid var(--admin-border-soft);
 }
 
+.pricingPlanMarginList {
+  display: grid;
+  gap: 16px;
+}
+
+.pricingPlanMarginToolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.pricingPlanMarginEmptyState {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 1px dashed var(--admin-border-soft);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.pricingPlanMarginEmptyState strong {
+  color: var(--admin-text-strong);
+}
+
+.pricingPlanMarginEmptyState span {
+  color: var(--admin-text-muted);
+  font-size: 13px;
+}
+
+.pricingPlanMarginCard {
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface-2);
+  overflow: hidden;
+}
+
+.pricingPlanMarginSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.pricingPlanMarginSummary::-webkit-details-marker {
+  display: none;
+}
+
+.pricingPlanMarginSummaryTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--admin-text-strong);
+}
+
+.pricingPlanMarginSummaryEditor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pricingPlanMarginSummaryNameInput {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pricingPlanMarginSummaryNameInput {
+  min-height: 0;
+  height: 34px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  width: 280px;
+}
+
+.pricingPlanMarginSummaryMeta {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pricingPlanMarginSummaryActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pricingPlanMarginBody {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 18px 18px;
+  border-top: 1px solid var(--admin-border-soft);
+}
+
+.pricingPlanMarginSidebar {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.pricingPlanMarginField {
+  display: grid;
+  gap: 6px;
+}
+
+.pricingPlanMarginField span {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.pricingPlanMarginInputWrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.pricingPlanMarginInputWrap span {
+  color: var(--admin-text-faint);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pricingPlanMarginSummaryCard {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-1);
+}
+
+.pricingPlanMarginSummaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pricingPlanMarginSummaryRow span {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.pricingPlanMarginSummaryRow strong {
+  color: var(--admin-text-strong);
+}
+
+.pricingPlanMarginSummaryNote {
+  margin: 0;
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.pricingPlanMarginMain {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pricingPlanMarginTableHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pricingPlanMarginTable {
+  min-width: 1320px;
+  gap: 6px;
+}
+
+.pricingPlanMarginStickyHeadViewport {
+  border-radius: 12px 12px 0 0;
+}
+
+.pricingPlanMarginStickyHeadTrack {
+  min-width: 1320px;
+}
+
+.pricingPlanMarginBodyTable {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.pricingPlanMarginHead,
+.pricingPlanMarginTable .pricingModelsRow {
+  gap: 0;
+}
+
+.pricingPlanMarginHead {
+  min-height: 38px;
+  border-bottom: 1px solid rgba(180, 190, 204, 0.2);
+  background: rgba(17, 22, 28, 0.96);
+}
+
+.pricingPlanMarginHead span,
+.pricingPlanMarginTable .pricingModelsRow > span {
+  display: grid;
+  align-content: center;
+  min-height: 100%;
+  padding: 7px 8px;
+  border-right: 1px solid rgba(210, 220, 232, 0.065);
+}
+
+.pricingPlanMarginHead span {
+  color: var(--admin-text-muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pricingPlanMarginTable .pricingModelsRow > span {
+  font-size: 12px;
+}
+
+.pricingPlanMarginTable .pricingModelsRow > span:last-child,
+.pricingPlanMarginHead span:last-child {
+  border-right: 0;
+}
+
+.pricingPlanMarginTable .pricingModelsRow {
+  min-height: 50px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(210, 220, 232, 0.075);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.pricingPlanMarginTable .pricingModelsRow:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pricingPlanMarginTable .pricingModelsRow:hover {
+  background: rgba(232, 242, 248, 0.07);
+}
+
+.pricingPlanMarginTable .pricingModelSummaryRow {
+  background: linear-gradient(
+    90deg,
+    rgba(37, 169, 191, 0.16),
+    rgba(37, 169, 191, 0.04) 28%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+}
+
+.pricingPlanMarginTable .pricingModelSummaryRow:hover {
+  background: linear-gradient(
+    90deg,
+    rgba(37, 169, 191, 0.22),
+    rgba(37, 169, 191, 0.08) 28%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+}
+
+.pricingPlanMarginTable .pricingVariantRow {
+  min-height: 42px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.pricingPlanMarginTable .pricingVariantRow:hover {
+  background: rgba(232, 242, 248, 0.05);
+}
+
+.pricingPlanMarginTable .pricingVariantRow > span {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.pricingPlanMarginTable .pricingPrimaryCell {
+  gap: 3px;
+}
+
+.pricingPlanMarginTable .pricingPrimaryCell strong {
+  line-height: 1.2;
+}
+
+.pricingPlanMarginGrid {
+  display: grid;
+  grid-template-columns:
+    minmax(72px, 0.52fr)
+    minmax(110px, 0.9fr)
+    minmax(104px, 0.8fr)
+    minmax(86px, 0.54fr)
+    minmax(138px, 1fr)
+    minmax(82px, 0.58fr)
+    minmax(94px, 0.7fr)
+    minmax(74px, 0.54fr)
+    minmax(102px, 0.8fr)
+    minmax(92px, 0.7fr)
+    minmax(108px, 0.84fr)
+    minmax(118px, 0.9fr)
+    minmax(74px, 0.54fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.pricingPlanMarginProfitCell {
+  color: #8af2d7;
+  font-weight: 700;
+}
+
+.pricingPlanMarginMarginCell strong {
+  font-weight: 700;
+}
+
+.pricingPlanMarginProviderCell strong {
+  font-weight: 400;
+}
+
 .pricingPlanSimulatorList {
   display: grid;
   gap: 16px;
@@ -3039,6 +3357,10 @@
 }
 
 @media (max-width: 900px) {
+  .pricingPlanMarginBody {
+    grid-template-columns: 1fr;
+  }
+
   .pricingSupportFormGrid,
   .pricingSupportMetricGrid,
   .pricingUsageMixInputs {

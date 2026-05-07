@@ -14,6 +14,7 @@ import {
   getModelUsageDisplayValue,
   getModelUsageRateMultiplier,
   getModelUsageValue,
+  type ModelPricingSortOption,
   type AudioDraftByModelId,
   type AspectDraftByModelId,
   type ResolutionDraftByModelId,
@@ -29,6 +30,7 @@ import {
   getPricingMargin,
   getWorkbookBillableCredits,
   getWorkbookBillableUsd,
+  sortAdminPricingPreviewVariants,
 } from "./pricingWorkbookMath";
 import type { AdminPricingModelRow, AdminPricingPlanRow } from "./types";
 
@@ -71,6 +73,7 @@ export type ModelEconomicsRow = {
 };
 
 export type PlanEconomicsDraft = {
+  simulatedName: string;
   priceUsd: string;
   includedCredits: string;
   discountPct: string;
@@ -89,6 +92,38 @@ export type PlanEconomicsSummary = {
   netRevenueUsd: number | null;
   dollarPerCredit: number | null;
   includedCredits: number | null;
+};
+
+export type PlanMarginSummary = {
+  grossUsd: number | null;
+  discountAmountUsd: number | null;
+  afterDiscountUsd: number | null;
+  affiliateCostUsd: number | null;
+  moneyKeptUsd: number | null;
+  dollarPerCredit: number | null;
+  includedCredits: number | null;
+};
+
+export type PlanMarginModelRow = {
+  key: string;
+  modelId: string;
+  variantId: string;
+  providerLabel: string;
+  modelLabel: string;
+  typeLabel: string;
+  usageLabel: string;
+  usageValueLabel: string;
+  specLabel: string;
+  durationSeconds: number | null;
+  providerCostUsd: number | null;
+  costPerSecondUsd: number | null;
+  creditsAtCost: number | null;
+  markupPercent: number | null;
+  creditsWithMarkup: number | null;
+  afterMarkupUsd: number | null;
+  afterDiscountAffiliateUsd: number | null;
+  profitAfterDiscountAffiliateUsd: number | null;
+  marginPercent: number | null;
 };
 
 export type UsageMixDraftRow = {
@@ -223,6 +258,7 @@ export const buildModelEconomicsRows = ({
   aspectDrafts = {},
   resolutionDrafts = {},
   audioDrafts = {},
+  sortOption,
 }: {
   models: AdminPricingModelRow[];
   pricingPolicy: ModelPricingPolicyDocument;
@@ -230,24 +266,35 @@ export const buildModelEconomicsRows = ({
   aspectDrafts?: AspectDraftByModelId;
   resolutionDrafts?: ResolutionDraftByModelId;
   audioDrafts?: AudioDraftByModelId;
+  sortOption?: ModelPricingSortOption;
 }): ModelEconomicsRow[] =>
   models.flatMap((model) => {
     const parsedDuration = getModelUsageValue(model, durationDrafts[model.id]);
     const variants = buildDraftPricingPreviewVariants(model, pricingPolicy, {
       usageAmount: parsedDuration,
     });
-    return variants.map((variant) =>
-      buildModelEconomicsRow({
-        model,
-        variant,
-        pricingPolicy,
-        durationSecondsOverride: parsedDuration,
-        variantCount: variants.length,
-        aspectDrafts,
-        resolutionDrafts,
-        audioDrafts,
-      })
-    );
+    if (!variants.length) return [];
+    const sortedVariants = sortOption
+      ? sortAdminPricingPreviewVariants({
+          model,
+          variants,
+          sortOption,
+        })
+      : variants;
+    return sortedVariants
+      .filter((variant): variant is NonNullable<(typeof sortedVariants)[number]> => variant != null)
+      .map((variant) =>
+        buildModelEconomicsRow({
+          model,
+          variant,
+          pricingPolicy,
+          durationSecondsOverride: parsedDuration,
+          variantCount: variants.length,
+          aspectDrafts,
+          resolutionDrafts,
+          audioDrafts,
+        })
+      );
   });
 
 export const buildSelectedModelEconomicsRow = ({
@@ -304,6 +351,7 @@ export const buildDefaultPlanEconomicsDraft = (
     Number(CALCULATOR_REFERENCE_INCLUDED_CREDITS);
 
   return {
+    simulatedName: `$${(livePriceCents / 100).toFixed(2)}/mo ${plan?.displayName ?? "Plan"}`,
     priceUsd: (livePriceCents / 100).toFixed(2),
     includedCredits: String(liveCredits),
     discountPct: "0",
@@ -365,6 +413,92 @@ export const computePlanEconomicsSummary = (
     includedCredits,
   };
 };
+
+export const computePlanMarginSummary = (
+  draft: PlanEconomicsDraft | null | undefined
+): PlanMarginSummary => {
+  const grossUsd = clampNonNegative(parseNumericInput(draft?.priceUsd ?? ""));
+  const includedCredits = clampNonNegative(parseNumericInput(draft?.includedCredits ?? ""));
+  const discountPct = clampNonNegative(parseNumericInput(draft?.discountPct ?? ""));
+  const affiliatePct = clampNonNegative(parseNumericInput(draft?.affiliatePct ?? ""));
+
+  if (grossUsd == null || includedCredits == null || discountPct == null || affiliatePct == null) {
+    return {
+      grossUsd: null,
+      discountAmountUsd: null,
+      afterDiscountUsd: null,
+      affiliateCostUsd: null,
+      moneyKeptUsd: null,
+      dollarPerCredit: null,
+      includedCredits: null,
+    };
+  }
+
+  const discountAmountUsd = grossUsd * (discountPct / 100);
+  const afterDiscountUsd = grossUsd - discountAmountUsd;
+  const affiliateCostUsd = grossUsd * (affiliatePct / 100);
+  const moneyKeptUsd = Math.max(0, grossUsd - discountAmountUsd - affiliateCostUsd);
+  const dollarPerCredit = includedCredits > 0 ? moneyKeptUsd / includedCredits : null;
+
+  return {
+    grossUsd,
+    discountAmountUsd,
+    afterDiscountUsd,
+    affiliateCostUsd,
+    moneyKeptUsd,
+    dollarPerCredit,
+    includedCredits,
+  };
+};
+
+export const buildPlanMarginModelRows = ({
+  modelRows,
+  planSummary,
+}: {
+  modelRows: ModelEconomicsRow[];
+  planSummary: PlanMarginSummary;
+}): PlanMarginModelRow[] =>
+  modelRows.map((row) => {
+    const markupPercent = row.markupBps != null ? row.markupBps / 100 : null;
+    const afterMarkupUsd = row.billedUsd;
+    const creditsWithMarkup = row.billedCredits;
+    const afterDiscountAffiliateUsd =
+      creditsWithMarkup != null && planSummary.dollarPerCredit != null
+        ? creditsWithMarkup * planSummary.dollarPerCredit
+        : null;
+    const profitAfterDiscountAffiliateUsd =
+      afterDiscountAffiliateUsd != null && row.providerCostUsd != null
+        ? afterDiscountAffiliateUsd - row.providerCostUsd
+        : null;
+    const marginPercent =
+      afterDiscountAffiliateUsd != null &&
+      afterDiscountAffiliateUsd > 0 &&
+      profitAfterDiscountAffiliateUsd != null
+        ? (profitAfterDiscountAffiliateUsd / afterDiscountAffiliateUsd) * 100
+        : null;
+
+    return {
+      key: row.key,
+      modelId: row.modelId,
+      variantId: row.variantId,
+      providerLabel: row.provider.charAt(0).toUpperCase() + row.provider.slice(1),
+      modelLabel: row.modelLabel,
+      typeLabel: row.typeLabel,
+      usageLabel: row.usageLabel,
+      usageValueLabel: row.usageValueLabel,
+      specLabel: row.specLabel,
+      durationSeconds: row.durationSeconds,
+      providerCostUsd: row.providerCostUsd,
+      costPerSecondUsd: row.costPerSecondUsd,
+      creditsAtCost: row.creditsAtCost,
+      markupPercent,
+      creditsWithMarkup,
+      afterMarkupUsd,
+      afterDiscountAffiliateUsd,
+      profitAfterDiscountAffiliateUsd,
+      marginPercent,
+    };
+  });
 
 export const buildDefaultUsageMixDraftRow = (
   modelRow: ModelEconomicsRow | null | undefined

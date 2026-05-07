@@ -165,6 +165,36 @@ const asObjectMetadata = (value: unknown): Record<string, unknown> => {
   return value as Record<string, unknown>;
 };
 
+const normalizeOwnedStoragePathHint = ({
+  value,
+  userId,
+  label,
+}: {
+  value: unknown;
+  userId: string;
+  label: string;
+}): { ok: true; path: string | null } | { ok: false; error: string } => {
+  const parsed = asCanonicalStoragePath(asOptionalString(value));
+  if (!parsed) {
+    return { ok: true, path: null };
+  }
+  try {
+    return {
+      ok: true,
+      path: assertUserScopedMediaStoragePath({
+        path: parsed,
+        userId,
+        label,
+      }),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : `${label}: invalid storage path.`,
+    };
+  }
+};
+
 const parseSource = (value: unknown): "upload" | "ai_studio" =>
   asOptionalString(value) === "ai_studio" ? "ai_studio" : "upload";
 
@@ -752,34 +782,45 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     }
   }
 
-  const { data, error } = await getSupabaseAdmin()
-    .from("media_files")
-    .select(
-      "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
-    )
-    .eq("user_id", userId)
-    .eq("source", "ai_studio")
-    .eq("source_ref", generationId)
-    .contains("metadata", { generation_output_index: index })
-    .limit(1)
-    .maybeSingle();
-  if (error || !data) return null;
-  const id = asOptionalString(data.id);
-  if (!id) return null;
-  return {
-    id,
-    storagePath: asCanonicalStoragePath(asOptionalString(data.storage_path)),
-    fileType: (() => {
-      const fileTypeRaw = asOptionalString(data.file_type)?.toLowerCase();
-      if (fileTypeRaw === "video") return "video" as const;
-      if (fileTypeRaw === "audio") return "audio" as const;
-      return "image" as const;
-    })(),
-    metadata: asObjectMetadata(data.metadata),
-    thumbVariantPath: asCanonicalStoragePath(asOptionalString(data.thumb_variant_path)),
-    posterVariantPath: asCanonicalStoragePath(asOptionalString(data.poster_variant_path)),
-    previewVariantPath: asCanonicalStoragePath(asOptionalString(data.preview_variant_path)),
+  const readByMetadataField = async (
+    metadataField: "generation_output_index" | "index"
+  ): Promise<ExistingMediaRow | null> => {
+    const { data, error } = await getSupabaseAdmin()
+      .from("media_files")
+      .select(
+        "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
+      )
+      .eq("user_id", userId)
+      .eq("source", "ai_studio")
+      .eq("source_ref", generationId)
+      .contains("metadata", { [metadataField]: index })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const id = asOptionalString(data.id);
+    if (!id) return null;
+    return {
+      id,
+      storagePath: asCanonicalStoragePath(asOptionalString(data.storage_path)),
+      fileType: (() => {
+        const fileTypeRaw = asOptionalString(data.file_type)?.toLowerCase();
+        if (fileTypeRaw === "video") return "video" as const;
+        if (fileTypeRaw === "audio") return "audio" as const;
+        return "image" as const;
+      })(),
+      metadata: asObjectMetadata(data.metadata),
+      thumbVariantPath: asCanonicalStoragePath(asOptionalString(data.thumb_variant_path)),
+      posterVariantPath: asCanonicalStoragePath(asOptionalString(data.poster_variant_path)),
+      previewVariantPath: asCanonicalStoragePath(asOptionalString(data.preview_variant_path)),
+    };
   };
+
+  const legacyIndexedRow =
+    (await readByMetadataField("generation_output_index")) ?? (await readByMetadataField("index"));
+  if (legacyIndexedRow) {
+    return legacyIndexedRow;
+  }
+  return null;
 };
 
 const signStoragePath = async (storagePath: string | null): Promise<string | null> => {
@@ -894,8 +935,30 @@ export default async function handler(
   const index = parseIndex(input.index);
   const generationId = asOptionalString(input.generationId);
   const promptId = asOptionalString(input.promptId);
-  const previewStoragePathHint = asOptionalString(input.previewStoragePathHint);
-  const fullStoragePathHint = asOptionalString(input.fullStoragePathHint);
+  const previewStoragePathHintResult = normalizeOwnedStoragePathHint({
+    value: input.previewStoragePathHint,
+    userId: user.id,
+    label: "Preview storage path hint",
+  });
+  if (!previewStoragePathHintResult.ok) {
+    return res.status(422).json({
+      error: "Invalid preview storage path hint.",
+      details: previewStoragePathHintResult.error,
+    });
+  }
+  const fullStoragePathHintResult = normalizeOwnedStoragePathHint({
+    value: input.fullStoragePathHint,
+    userId: user.id,
+    label: "Full storage path hint",
+  });
+  if (!fullStoragePathHintResult.ok) {
+    return res.status(422).json({
+      error: "Invalid full storage path hint.",
+      details: fullStoragePathHintResult.error,
+    });
+  }
+  const previewStoragePathHint = previewStoragePathHintResult.path;
+  const fullStoragePathHint = fullStoragePathHintResult.path;
   const previewUrlHint = asOptionalString(input.previewUrlHint);
   const fullUrlHint = asOptionalString(input.fullUrlHint);
   const posterUrlHint = normalizePosterSourceUrl(mode, input.posterUrlHint);

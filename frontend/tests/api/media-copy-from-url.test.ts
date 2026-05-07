@@ -291,6 +291,7 @@ const createSupabaseAdmin = (options?: {
     mediaAssetVariantUpsertMock,
     generationPublicationUpsertMock,
     generationProjectionUpsertMock,
+    mediaMaybeSingleMock: maybeSingleMock,
     admin: {
       from: fromMock,
       storage: {
@@ -370,6 +371,29 @@ describe("POST /api/media/copy-from-url", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Generated media is missing durable generation tracking.",
+    });
+  });
+
+  it("rejects out-of-scope storage path hints before signing or persistence", async () => {
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference.png",
+        previewStoragePathHint: "user-2/generations/images/foreign-preview.png",
+      },
+    };
+    const res = createMockResponse();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid preview storage path hint.",
+      details: "Preview storage path hint: must start with 'user-1/'.",
     });
   });
 
@@ -577,7 +601,7 @@ describe("POST /api/media/copy-from-url", () => {
         id: "media-existing-1",
         storage_path: "user-1/generations/images/existing.png",
         file_type: "image",
-        metadata: { generation_output_index: 0 },
+        metadata: { index: 0 },
         thumb_variant_path: null,
         poster_variant_path: null,
         preview_variant_path: null,
@@ -658,7 +682,7 @@ describe("POST /api/media/copy-from-url", () => {
     );
   });
 
-  it("falls back to legacy metadata-index lookup when canonical output media linkage is absent", async () => {
+  it("falls back to legacy generation_output_index lookup when canonical output media linkage is absent", async () => {
     const supabase = createSupabaseAdmin({
       existingRow: {
         id: "media-existing-legacy-1",
@@ -683,8 +707,7 @@ describe("POST /api/media/copy-from-url", () => {
       },
     });
     getSupabaseAdminMock.mockReturnValue(supabase.admin);
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("fetch", vi.fn());
 
     const req = {
       method: "POST",
@@ -700,17 +723,61 @@ describe("POST /api/media/copy-from-url", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(supabase.uploadMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         mediaFileId: "media-existing-legacy-1",
       })
     );
-    expect(supabase.generationOutputUpdateMock).toHaveBeenCalledWith(
+    expect(supabase.mediaMaybeSingleMock).toHaveBeenCalled();
+  });
+
+  it("also reuses index-only ai_studio rows created during the regression window", async () => {
+    const supabase = createSupabaseAdmin({
+      existingRow: {
+        id: "media-existing-index-only-1",
+        storage_path: "user-1/generations/images/existing-index-only.png",
+        file_type: "image",
+        metadata: { index: 0 },
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+      },
+      canonicalOutputMediaFileId: null,
+      generationOutputRows: [
+        {
+          id: "gen-output-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/reference.png",
+          media_file_id: null,
+        },
+      ],
+      signedUrls: {
+        "user-1/generations/images/existing-index-only.png":
+          "https://signed.test/existing-index-only.png",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    vi.stubGlobal("fetch", vi.fn());
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference.png",
+        source: "ai_studio",
+        generationId: "gen-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        media_file_id: "media-existing-legacy-1",
+        mediaFileId: "media-existing-index-only-1",
       })
     );
   });

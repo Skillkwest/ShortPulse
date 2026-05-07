@@ -121,7 +121,7 @@ describe("generationAdmissionService", () => {
     expect(result.backpressure).toBeNull();
   });
 
-  it("allows in shadow mode while still marking would-limit state", async () => {
+  it("denies on tier-only overage in enforce mode", async () => {
     readActiveProviderCapacitySnapshotMock.mockResolvedValueOnce({
       tier: "image_heavy",
       globalActive: 3,
@@ -135,7 +135,7 @@ describe("generationAdmissionService", () => {
       provider: "fal",
       modelId: "fal-ai/nano-banana-pro/edit",
       config: {
-        mode: "shadow",
+        mode: "enforce",
         globalMax: 4,
         tierLimits: {
           video_long: 2,
@@ -152,8 +152,8 @@ describe("generationAdmissionService", () => {
       orphanGraceSeconds: 60,
     });
 
-    expect(result.decision.allowed).toBe(true);
-    expect(result.decision.enforced).toBe(false);
+    expect(result.decision.allowed).toBe(false);
+    expect(result.decision.enforced).toBe(true);
     expect(result.decision.wouldLimit).toBe(true);
     expect(result.decision.reason).toBe("tier_limit");
     expect(result.decision.snapshot.tier).toBe("image_heavy");

@@ -265,7 +265,7 @@ describe("recoveryMediaPersistence", () => {
     process.env = { ...ORIGINAL_ENV };
   });
 
-  it("reads existing recovery media rows with parsed output indexes", async () => {
+  it("reads existing recovery media rows with parsed legacy and current indexes", async () => {
     const scenario = createSupabaseScenario({
       storageLookupRows: [
         { id: "media-1", storage_path: "user-1/generations/images/media-1.png" },
@@ -288,9 +288,9 @@ describe("recoveryMediaPersistence", () => {
         {
           data: [
             { id: "legacy-media-1", metadata: { generation_output_index: 0 } },
-            { id: "media-2", metadata: { generation_output_index: "2" } },
-            { id: "media-3", metadata: { generation_output_index: "NaN" } },
-            { id: null, metadata: { generation_output_index: 4 } },
+            { id: "media-2", metadata: { index: "2" } },
+            { id: "media-3", metadata: { index: "NaN" } },
+            { id: null, metadata: { index: 4 } },
           ],
           error: null,
         },
@@ -563,6 +563,7 @@ describe("recoveryMediaPersistence", () => {
         file_type: "image",
         metadata: expect.objectContaining({
           generation_output_index: 0,
+          index: 0,
           generation_trace_id: "trace-1",
           submission_trace_id: "sub-1",
         }),
@@ -574,6 +575,7 @@ describe("recoveryMediaPersistence", () => {
         file_type: "video",
         metadata: expect.objectContaining({
           generation_output_index: 1,
+          index: 1,
         }),
       })
     );

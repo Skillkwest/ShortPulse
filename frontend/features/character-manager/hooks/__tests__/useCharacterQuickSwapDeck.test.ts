@@ -2,7 +2,6 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCharacterQuickSwapDeck } from "../useCharacterQuickSwapDeck";
 import {
-  appendQuickSwapExistingMediaReference,
   countQuickSwapArchived,
   listQuickSwapActive,
   listQuickSwapArchived,
@@ -13,7 +12,6 @@ import type { CharacterQuickSwapItem } from "../../types";
 
 vi.mock("../../logic/characterQuickSwapPersistence", () => ({
   appendQuickSwapFiles: vi.fn(),
-  appendQuickSwapExistingMediaReference: vi.fn(),
   countQuickSwapArchived: vi.fn(),
   listQuickSwapActive: vi.fn(),
   listQuickSwapArchived: vi.fn(),
@@ -24,7 +22,6 @@ vi.mock("../../logic/characterQuickSwapPersistence", () => ({
 const listQuickSwapActiveMock = vi.mocked(listQuickSwapActive);
 const listQuickSwapArchivedMock = vi.mocked(listQuickSwapArchived);
 const countQuickSwapArchivedMock = vi.mocked(countQuickSwapArchived);
-const appendQuickSwapExistingMediaReferenceMock = vi.mocked(appendQuickSwapExistingMediaReference);
 const removeQuickSwapItemMock = vi.mocked(removeQuickSwapItem);
 const restoreQuickSwapItemMock = vi.mocked(restoreQuickSwapItem);
 
@@ -33,7 +30,7 @@ const createQuickSwapItem = (
   overrides: Partial<CharacterQuickSwapItem> = {}
 ): CharacterQuickSwapItem => ({
   id,
-  mediaFileId: `media-${id}`,
+  characterMediaId: `media-${id}`,
   storagePath: `user-1/characters/char-1/quickswap/${id}.png`,
   previewUrl: `https://signed.example/${id}.png`,
   status: "active",
@@ -117,43 +114,6 @@ describe("useCharacterQuickSwapDeck", () => {
     expect(restoreQuickSwapItemMock).toHaveBeenCalledWith({
       characterId: "char-1",
       itemId: "item-3",
-    });
-    expect(result.current.activeItems.map((item) => item.id)).toEqual(["item-3", "item-1"]);
-    expect(result.current.archivedItems.map((item) => item.id)).toEqual(["item-4"]);
-    expect(result.current.archivedCount).toBe(1);
-  });
-
-  it("reactivates dropped archived media without resetting the archive panel", async () => {
-    listQuickSwapActiveMock
-      .mockResolvedValueOnce([createQuickSwapItem("item-1")])
-      .mockResolvedValueOnce([
-        createQuickSwapItem("item-3", {
-          mediaFileId: "media-item-3",
-          status: "active",
-          archivedAt: null,
-        }),
-        createQuickSwapItem("item-1"),
-      ]);
-    countQuickSwapArchivedMock.mockResolvedValueOnce(2).mockResolvedValueOnce(1);
-
-    const { result } = renderHook(() => useCharacterQuickSwapDeck({ characterId: "char-1" }));
-
-    await waitFor(() => {
-      expect(result.current.loading).toBe(false);
-    });
-
-    await act(async () => {
-      await result.current.loadMoreArchived();
-    });
-
-    await act(async () => {
-      const ok = await result.current.appendExistingMediaReference("media-item-3");
-      expect(ok).toBe(true);
-    });
-
-    expect(appendQuickSwapExistingMediaReferenceMock).toHaveBeenCalledWith({
-      characterId: "char-1",
-      mediaFileId: "media-item-3",
     });
     expect(result.current.activeItems.map((item) => item.id)).toEqual(["item-3", "item-1"]);
     expect(result.current.archivedItems.map((item) => item.id)).toEqual(["item-4"]);

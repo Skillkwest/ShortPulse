@@ -336,7 +336,7 @@ export function CharacterManagerShell({
     [quickSwapActiveItems]
   );
   const quickSwapItemByMediaFileId = useMemo(
-    () => new Map(quickSwapActiveItems.map((item) => [item.mediaFileId, item])),
+    () => new Map(quickSwapActiveItems.map((item) => [item.characterMediaId, item])),
     [quickSwapActiveItems]
   );
   const quickSwapItemByLegacySlotKey = useMemo(

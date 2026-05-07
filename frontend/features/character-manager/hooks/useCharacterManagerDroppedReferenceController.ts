@@ -116,13 +116,13 @@ const resolveDroppedStorageCandidates = async (
     candidates.push(urlCandidate);
   }
 
-  if (reference.mediaFileId) {
+  if (reference.characterMediaId) {
     try {
       const supabase = ensureSupabaseQueryClient();
       const { data, error } = await supabase
         .from("media_files")
         .select("storage_path")
-        .eq("id", reference.mediaFileId)
+        .eq("id", reference.characterMediaId)
         .maybeSingle();
       if (!error) {
         const mediaRow = data as { storage_path: string | null } | null;
@@ -423,7 +423,7 @@ export const useCharacterManagerDroppedReferenceController = ({
           metadata: {
             target: "character_sheet",
             drop_zone_key: zoneKey,
-            reference_media_file_id: reference.mediaFileId,
+            reference_media_file_id: reference.characterMediaId,
             reason: errorMessage,
           },
         });
@@ -456,7 +456,7 @@ export const useCharacterManagerDroppedReferenceController = ({
             message: "quickswap_drop_reference_failed",
             metadata: {
               target: "quickswap",
-              reference_media_file_id: reference.mediaFileId,
+              reference_media_file_id: reference.characterMediaId,
               reason: errorMessage,
             },
           });
@@ -517,7 +517,7 @@ export const useCharacterManagerDroppedReferenceController = ({
           await ingestCharacterSheetDroppedReference(zoneKey, {
             url: previewUrl,
             mimeType: null,
-            mediaFileId: resolvedMediaId || null,
+            characterMediaId: resolvedMediaId || null,
             storagePath: resolvedReference.storagePath ?? null,
           });
           return;
@@ -598,7 +598,7 @@ export const useCharacterManagerDroppedReferenceController = ({
             {
               url: previewUrl,
               mimeType: null,
-              mediaFileId: mediaId || null,
+              characterMediaId: mediaId || null,
               storagePath: resolvedReference.storagePath ?? null,
             },
             {

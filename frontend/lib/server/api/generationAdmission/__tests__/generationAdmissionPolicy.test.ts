@@ -14,7 +14,7 @@ import {
 describe("generationAdmissionPolicy", () => {
   it("parses admission mode with safe fallback", () => {
     expect(parseGenerationAdmissionMode(undefined)).toBe(DEFAULT_GENERATION_ADMISSION_MODE);
-    expect(parseGenerationAdmissionMode("shadow")).toBe("shadow");
+    expect(parseGenerationAdmissionMode("shadow")).toBe(DEFAULT_GENERATION_ADMISSION_MODE);
     expect(parseGenerationAdmissionMode("ENFORCE")).toBe("enforce");
     expect(parseGenerationAdmissionMode("invalid")).toBe(DEFAULT_GENERATION_ADMISSION_MODE);
   });
@@ -97,7 +97,7 @@ describe("generationAdmissionPolicy", () => {
 
     expect(
       evaluateGenerationAdmissionDecision({
-        mode: "shadow",
+        mode: "off",
         retryAfterSeconds: 20,
         snapshot: {
           globalActive: 6,

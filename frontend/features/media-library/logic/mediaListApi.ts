@@ -71,8 +71,8 @@ const clampLimit = (surface: MediaListSurface, limit: number): number => {
 };
 
 /**
- * Fetches one paged media-list slice from `/api/media/list`.
- * Returns `null` when the request cannot be fulfilled so callers can fallback to legacy direct queries.
+ * Fetches one paged media-list slice from the canonical `/api/media/list` route.
+ * Returns `null` when the request cannot be fulfilled so callers can surface a deterministic load failure.
  */
 export const fetchMediaListPage = async <TRow>({
   tab,

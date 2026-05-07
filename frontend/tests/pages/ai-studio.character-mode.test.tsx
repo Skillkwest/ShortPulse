@@ -470,7 +470,6 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioWorkspaceActions", () => ({
   useAiStudioWorkspaceActions: () => ({
     handleToolSelect: vi.fn(),
     handleOpenMediaLibrary: vi.fn(),
-    handleCloseMediaLibrary: vi.fn(),
     handleFileBrowserSelection: vi.fn(),
     handleReferenceGridFiles: vi.fn(),
     handleSelectOutput: vi.fn(),
@@ -492,20 +491,6 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioPreviewDetailProps", () => ({
     onDetailSaveReference: vi.fn(),
     onDetailSavePrompt: vi.fn(),
     onOpenMediaLibrary: vi.fn(),
-  }),
-}));
-
-vi.mock("../../features/ai-studio/hooks/useAiStudioSessionPersistenceController", () => ({
-  useAiStudioSessionPersistenceController: () => ({
-    sessionId: "test-session-id",
-    sessionSnapshot: null,
-    sessionRestoreCandidate: {
-      snapshot: null,
-      status: "idle",
-      warning: null,
-      error: null,
-    },
-    setSkipRestoreApplyForSessionId: vi.fn(),
   }),
 }));
 
@@ -542,9 +527,11 @@ const createCharacterSnapshot = (
   (() => {
     const defaultPresetState = createDefaultCharacterSheetPresetState();
     return {
+      userId: "user-1",
       characterId: "char-1",
       characterSheetId: "sheet-1",
       characterName: "Taylor",
+      legacyCharacterDescription: description,
       characterDescription: description,
       characterSheetAssignments: {
         portrait: "portrait_close",
@@ -556,7 +543,7 @@ const createCharacterSnapshot = (
         ...defaultPresetState.presets,
         "1": {
           portrait: {
-            mediaFileId: "media-portrait",
+            characterMediaId: "media-portrait",
             storagePath,
             previewUrl: url,
           },
@@ -566,9 +553,13 @@ const createCharacterSnapshot = (
       },
       visibleCharacterSheetPresetIds: ["1"],
       characterSheetPresetLabels: defaultPresetState.tabLabels,
+      characterSheetPresetDescriptions: {
+        ...defaultPresetState.tabDescriptions,
+        "1": description,
+      },
       characterSheetPresetAssignments: {
         portrait: {
-          mediaFileId: "media-portrait",
+          characterMediaId: "media-portrait",
           storagePath,
           previewUrl: url,
         },
@@ -586,7 +577,27 @@ const createCharacterSnapshot = (
         front_right_34: null,
         back_left_34: null,
         back_right_34: null,
-        portrait_close: { storagePath, previewUrl: url },
+        portrait_close: {
+          characterMediaId: "media-portrait",
+          storagePath,
+          validationStatus: "pass",
+          validationNotes: {
+            validatorVersion: 1,
+            mimeType: "image/png",
+            width: 1024,
+            height: 1024,
+            aspectRatio: 1,
+            sha256: "hash",
+            hardErrors: [],
+            warnings: [],
+            evaluatedAt: "2026-01-01T00:00:00.000Z",
+          },
+          name: "portrait.png",
+          size: 1024,
+          type: "image/png",
+          previewUrl: url,
+          updatedAt: "2026-01-01T00:00:00.000Z",
+        },
         fullbody_wide: null,
       },
     };

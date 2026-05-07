@@ -577,6 +577,15 @@ export const executeGenerationRecovery = async ({
         persistedOutputRows,
         recoveredUrls: persistedOutputRows.map((row) => row.resultUrl),
       });
+      await settleRecoveryOutcome({
+        outcome: "success",
+        reason: "Recovered generation media already persisted.",
+        detail: {
+          actor,
+          generation_id: generation.id,
+          existing_media_count: existingRows.length,
+        },
+      });
       await applyRecoveryTransition({
         generation,
         attemptTransition: {

@@ -47,7 +47,6 @@ const MEDIA_BUCKET = "media_library";
 export const DEFAULT_CHARACTER_NAME = "New Character";
 export const CHARACTER_REFERENCE_SOURCE = "character_reference";
 export const CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY = "profile_image_storage_path";
-export const CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY = "profile_image_media_file_id";
 export const CHARACTER_PROFILE_IMAGE_CHARACTER_MEDIA_ID_KEY = "profile_image_character_media_id";
 export const CHARACTER_PROFILE_IMAGE_ZOOM_KEY = "profile_image_zoom";
 export const CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY = "profile_image_offset_x";
@@ -80,8 +79,7 @@ type CharacterCharacterSheetRow = {
 type CharacterReferenceImageRow = {
   id: string;
   slot_key: string;
-  media_file_id: string | null;
-  character_media_id?: string | null;
+  character_media_id: string | null;
   storage_path: string;
   validation_status: CharacterSlotValidationStatus;
   validation_notes: unknown;
@@ -121,7 +119,7 @@ export type CharacterManagerListItem = {
   characterStatus: "draft" | "active" | "archived";
   characterSheetId: string;
   profileImageUrl: string | null;
-  profileImageMediaFileId?: string | null;
+  profileImageCharacterMediaId?: string | null;
   profileImageStoragePath?: string | null;
   profileImagePreviewStoragePath?: string | null;
   profileImageTransform: CharacterProfileImageTransform | null;
@@ -235,19 +233,14 @@ const toCharacterSheetPresetMediaReference = (
   value: unknown
 ): CharacterSheetPresetMediaReference | null => {
   const record = toObjectRecord(value);
-  const mediaFileId =
-    asText(record.character_media_id) ??
-    asText(record.characterMediaId) ??
-    asText(record.media_file_id) ??
-    asText(record.mediaFileId) ??
-    asText(record.media_fileId) ??
-    null;
+  const characterMediaId =
+    asText(record.character_media_id) ?? asText(record.characterMediaId) ?? null;
   const storagePath = asText(record.storage_path) ?? asText(record.storagePath) ?? null;
-  if (!mediaFileId || !storagePath) {
+  if (!characterMediaId || !storagePath) {
     return null;
   }
   return {
-    mediaFileId,
+    characterMediaId,
     storagePath,
     previewStoragePath:
       asText(record.preview_storage_path) ?? asText(record.previewStoragePath) ?? null,
@@ -415,12 +408,11 @@ export const createCharacterMediaAsset = async ({
  */
 export const getCharacterProfileImageMetadata = (
   metadata: unknown
-): { storagePath: string | null; mediaFileId: string | null } => {
+): { storagePath: string | null; characterMediaId: string | null } => {
   const record = toObjectRecord(metadata);
-  const characterMediaId = asText(record[CHARACTER_PROFILE_IMAGE_CHARACTER_MEDIA_ID_KEY]);
   return {
     storagePath: asText(record[CHARACTER_PROFILE_IMAGE_STORAGE_PATH_KEY]),
-    mediaFileId: characterMediaId ?? asText(record[CHARACTER_PROFILE_IMAGE_MEDIA_FILE_ID_KEY]),
+    characterMediaId: asText(record[CHARACTER_PROFILE_IMAGE_CHARACTER_MEDIA_ID_KEY]),
   };
 };
 
@@ -569,8 +561,7 @@ export const serializeCharacterSheetPresetState = (
           return [
             zone.key,
             {
-              character_media_id: reference.mediaFileId,
-              media_file_id: reference.mediaFileId,
+              character_media_id: reference.characterMediaId,
               storage_path: reference.storagePath,
               ...(reference.previewStoragePath
                 ? { preview_storage_path: reference.previewStoragePath }
@@ -588,7 +579,7 @@ export const serializeCharacterSheetPresetState = (
  */
 export const listCharacterSheetPresetMediaReferences = (
   metadata: unknown
-): Array<{ mediaFileId: string; storagePath: string }> => {
+): Array<{ characterMediaId: string; storagePath: string }> => {
   const presetState = getCharacterSheetPresetState(metadata);
   if (!presetState) {
     return [];
@@ -599,9 +590,9 @@ export const listCharacterSheetPresetMediaReferences = (
         .flatMap((assignments) => Object.values(assignments))
         .filter((reference): reference is CharacterSheetPresetMediaReference => Boolean(reference))
         .map((reference) => [
-          reference.mediaFileId,
+          reference.characterMediaId,
           {
-            mediaFileId: reference.mediaFileId,
+            characterMediaId: reference.characterMediaId,
             storagePath: reference.storagePath,
           },
         ])
@@ -831,69 +822,34 @@ const createOrLoadLatestCharacterSheetForList = async ({
  * Delete the backing media row/storage object only when no slot references remain.
  */
 export const cleanupOrphanedMedia = async ({
-  mediaFileId,
+  characterMediaId,
   storagePath,
 }: {
-  mediaFileId: string;
+  characterMediaId: string;
   storagePath: string | null;
 }) => {
   const { supabase, userId } = await resolveSupabaseContext();
-  let quickSwapCount = 0;
-  const quickSwapReferencePredicate = `media_file_id.eq.${mediaFileId},character_media_id.eq.${mediaFileId}`;
-  const { count: quickSwapCountWithCharacterMedia, error: quickSwapRefError } = await supabase
+  const { count: quickSwapCount, error: quickSwapRefError } = await supabase
     .from("character_quick_swap_items")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .or(quickSwapReferencePredicate);
-  if (quickSwapRefError && isMissingColumnError(quickSwapRefError)) {
-    const { count: legacyQuickSwapCount, error: legacyQuickSwapRefError } = await supabase
-      .from("character_quick_swap_items")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("media_file_id", mediaFileId);
-    if (legacyQuickSwapRefError && !isMissingRelationError(legacyQuickSwapRefError)) {
-      throw new Error(
-        asErrorMessage(legacyQuickSwapRefError, "Failed to validate quick swap references.")
-      );
-    }
-    quickSwapCount = Number(legacyQuickSwapCount ?? 0);
-  } else {
-    quickSwapCount = Number(quickSwapCountWithCharacterMedia ?? 0);
-  }
-  if (
-    quickSwapRefError &&
-    !isMissingRelationError(quickSwapRefError) &&
-    !isMissingColumnError(quickSwapRefError)
-  ) {
+    .eq("character_media_id", characterMediaId);
+  if (quickSwapRefError && !isMissingRelationError(quickSwapRefError)) {
     throw new Error(asErrorMessage(quickSwapRefError, "Failed to validate quick swap references."));
   }
-  if (quickSwapCount > 0) {
+  if (Number(quickSwapCount ?? 0) > 0) {
     return;
   }
 
-  let referenceCount = 0;
-  const referencePredicate = `media_file_id.eq.${mediaFileId},character_media_id.eq.${mediaFileId}`;
-  const { count, error: refCheckError } = await supabase
+  const { count: referenceCount, error: refCheckError } = await supabase
     .from("character_reference_images")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .or(referencePredicate);
-  if (refCheckError && isMissingColumnError(refCheckError)) {
-    const { count: legacyReferenceCount, error: legacyRefCheckError } = await supabase
-      .from("character_reference_images")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("media_file_id", mediaFileId);
-    if (legacyRefCheckError) {
-      throw new Error(asErrorMessage(legacyRefCheckError, "Failed to validate image references."));
-    }
-    referenceCount = Number(legacyReferenceCount ?? 0);
-  } else if (refCheckError) {
+    .eq("character_media_id", characterMediaId);
+  if (refCheckError) {
     throw new Error(asErrorMessage(refCheckError, "Failed to validate image references."));
-  } else {
-    referenceCount = Number(count ?? 0);
   }
-  if (referenceCount > 0) {
+  if (Number(referenceCount ?? 0) > 0) {
     return;
   }
 
@@ -909,7 +865,7 @@ export const cleanupOrphanedMedia = async ({
   }
   const presetReferenced = (characterRows ?? []).some((row) =>
     listCharacterSheetPresetMediaReferences((row as { metadata: unknown }).metadata).some(
-      (reference) => reference.mediaFileId === mediaFileId
+      (reference) => reference.characterMediaId === characterMediaId
     )
   );
   if (presetReferenced) {
@@ -920,7 +876,7 @@ export const cleanupOrphanedMedia = async ({
     .from("character_media_assets")
     .delete()
     .eq("user_id", userId)
-    .eq("id", mediaFileId)
+    .eq("id", characterMediaId)
     .select("id");
   if (deleteCharacterMediaError && !isMissingRelationError(deleteCharacterMediaError)) {
     throw new Error(
@@ -933,7 +889,7 @@ export const cleanupOrphanedMedia = async ({
       .from("media_files")
       .delete()
       .eq("user_id", userId)
-      .eq("id", mediaFileId);
+      .eq("id", characterMediaId);
     if (deleteMediaError) {
       throw new Error(asErrorMessage(deleteMediaError, "Failed to clean up unused media file."));
     }
@@ -952,7 +908,7 @@ export const cleanupOrphanedMedia = async ({
 
 const mapSlotRowsToSlotFileMap = async (
   imageRows: CharacterReferenceImageRow[],
-  mediaRows: Array<MediaFileRow | CharacterMediaAssetRow>,
+  mediaRows: CharacterMediaAssetRow[],
   userId?: string | null
 ): Promise<CharacterSlotFileMap> => {
   const slots = createEmptyCharacterSlotMap();
@@ -964,11 +920,7 @@ const mapSlotRowsToSlotFileMap = async (
   const previewPathByRowId = new Map<string, string>();
   const storagePaths = imageRows
     .map((row) => {
-      const mediaReferenceId = (
-        row.character_media_id?.trim() ||
-        row.media_file_id?.trim() ||
-        ""
-      ).trim();
+      const mediaReferenceId = row.character_media_id?.trim() ?? "";
       const mediaRow = mediaReferenceId ? mediaById.get(mediaReferenceId) : null;
       const previewPath = resolveSignedPreviewCandidatePath(mediaRow, row.storage_path, userId);
       previewPathByRowId.set(row.id, previewPath);
@@ -983,11 +935,7 @@ const mapSlotRowsToSlotFileMap = async (
 
   for (const imageRow of imageRows) {
     if (!isCharacterReferenceSlotKey(imageRow.slot_key)) continue;
-    const mediaReferenceId = (
-      imageRow.character_media_id?.trim() ||
-      imageRow.media_file_id?.trim() ||
-      ""
-    ).trim();
+    const mediaReferenceId = imageRow.character_media_id?.trim() ?? "";
     if (!mediaReferenceId) continue;
     const mediaRow = mediaById.get(mediaReferenceId);
     if (!mediaRow) continue;
@@ -997,7 +945,7 @@ const mapSlotRowsToSlotFileMap = async (
     if (!signedUrl) continue;
 
     const slot: CharacterSlotFile = {
-      mediaFileId: mediaReferenceId,
+      characterMediaId: mediaReferenceId,
       storagePath: imageRow.storage_path,
       previewStoragePath,
       validationStatus: imageRow.validation_status,
@@ -1021,44 +969,24 @@ export const loadSlotFilesForCharacterSheet = async (
   characterSheetId: string
 ): Promise<CharacterSlotFileMap> => {
   const { supabase, userId } = await resolveSupabaseContext();
-  let imageRows: unknown[] = [];
-  let imagesError: unknown = null;
   const imageRowsResponse = await supabase
     .from("character_reference_images")
     .select(
-      "id, slot_key, media_file_id, character_media_id, storage_path, validation_status, validation_notes, updated_at"
+      "id, slot_key, character_media_id, storage_path, validation_status, validation_notes, updated_at"
     )
     .eq("user_id", userId)
     .eq("character_sheet_id", characterSheetId);
-  imageRows = imageRowsResponse.data ?? [];
-  imagesError = imageRowsResponse.error ?? null;
-  if (imagesError && isMissingColumnError(imagesError)) {
-    const legacyImageRowsResponse = await supabase
-      .from("character_reference_images")
-      .select(
-        "id, slot_key, media_file_id, storage_path, validation_status, validation_notes, updated_at"
-      )
-      .eq("user_id", userId)
-      .eq("character_sheet_id", characterSheetId);
-    imageRows = legacyImageRowsResponse.data ?? [];
-    imagesError = legacyImageRowsResponse.error ?? null;
-  }
-  if (imagesError) {
-    throw new Error(asErrorMessage(imagesError, "Failed to load character reference images."));
+  if (imageRowsResponse.error) {
+    throw new Error(
+      asErrorMessage(imageRowsResponse.error, "Failed to load character reference images.")
+    );
   }
 
-  const typedImageRows = (imageRows ?? []) as CharacterReferenceImageRow[];
+  const typedImageRows = (imageRowsResponse.data ?? []) as CharacterReferenceImageRow[];
   if (!typedImageRows.length) {
     return createEmptyCharacterSlotMap();
   }
 
-  const mediaIds = Array.from(
-    new Set(
-      typedImageRows
-        .map((row) => row.media_file_id?.trim() ?? "")
-        .filter((value): value is string => Boolean(value))
-    )
-  );
   const characterMediaIds = Array.from(
     new Set(
       typedImageRows
@@ -1067,42 +995,20 @@ export const loadSlotFilesForCharacterSheet = async (
     )
   );
 
-  let combinedRows: Array<MediaFileRow | CharacterMediaAssetRow> = [];
-  if (mediaIds.length) {
-    const { data: mediaRows, error: mediaError } = await supabase
-      .from("media_files")
-      .select(
-        "id, filename, storage_path, file_type, file_size, metadata, thumb_variant_path, poster_variant_path, preview_variant_path, created_at"
-      )
-      .eq("user_id", userId)
-      .in("id", mediaIds);
-    if (mediaError) {
-      throw new Error(asErrorMessage(mediaError, "Failed to load character media files."));
-    }
-    combinedRows = (mediaRows ?? []) as MediaFileRow[];
-  }
+  let characterMediaRows: CharacterMediaAssetRow[] = [];
   if (characterMediaIds.length) {
-    const { data: characterMediaRows, error: characterMediaError } = await supabase
+    const { data, error } = await supabase
       .from("character_media_assets")
       .select("id, filename, storage_path, file_type, file_size, created_at")
       .eq("user_id", userId)
       .in("id", characterMediaIds);
-    if (characterMediaError && !isMissingRelationError(characterMediaError)) {
-      throw new Error(
-        asErrorMessage(characterMediaError, "Failed to load character media assets.")
-      );
+    if (error && !isMissingRelationError(error)) {
+      throw new Error(asErrorMessage(error, "Failed to load character media assets."));
     }
-    if (characterMediaRows?.length) {
-      const existingIds = new Set(combinedRows.map((row) => row.id));
-      for (const row of characterMediaRows as CharacterMediaAssetRow[]) {
-        if (!existingIds.has(row.id)) {
-          combinedRows.push(row);
-        }
-      }
-    }
+    characterMediaRows = (data ?? []) as CharacterMediaAssetRow[];
   }
 
-  return mapSlotRowsToSlotFileMap(typedImageRows, combinedRows, userId);
+  return mapSlotRowsToSlotFileMap(typedImageRows, characterMediaRows, userId);
 };
 
 /**
@@ -1176,8 +1082,8 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
       profilePathByCharacter.set(row.id, profileMetadata.storagePath);
       profileTransformByCharacter.set(row.id, getCharacterProfileImageTransform(row.metadata));
     }
-    if (profileMetadata.mediaFileId) {
-      profileMediaIdByCharacter.set(row.id, profileMetadata.mediaFileId);
+    if (profileMetadata.characterMediaId) {
+      profileMediaIdByCharacter.set(row.id, profileMetadata.characterMediaId);
     }
   }
 
@@ -1266,7 +1172,7 @@ export const fetchCharacterManagerList = async (): Promise<CharacterManagerListI
         characterStatus: row.status,
         characterSheetId: latestCharacterSheet.id,
         profileImageUrl: avatarUrlByCharacter.get(row.id) ?? null,
-        profileImageMediaFileId: profileMediaIdByCharacter.get(row.id) ?? null,
+        profileImageCharacterMediaId: profileMediaIdByCharacter.get(row.id) ?? null,
         profileImageStoragePath: avatarPathByCharacter.get(row.id) ?? null,
         profileImagePreviewStoragePath: avatarPreviewPathByCharacter.get(row.id) ?? null,
         profileImageTransform: profileTransformByCharacter.get(row.id) ?? null,

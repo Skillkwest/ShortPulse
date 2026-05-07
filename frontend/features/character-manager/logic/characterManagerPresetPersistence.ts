@@ -43,16 +43,16 @@ const toMetadataRecord = (value: unknown): Record<string, unknown> =>
 
 export const listPresetReferencesFromState = (
   state: CharacterSheetPresetState
-): Array<{ mediaFileId: string; storagePath: string }> =>
+): Array<{ characterMediaId: string; storagePath: string }> =>
   Array.from(
     new Map(
       Object.values(state.presets)
         .flatMap((assignments) => Object.values(assignments))
         .filter((reference): reference is CharacterSheetPresetMediaReference => Boolean(reference))
         .map((reference) => [
-          reference.mediaFileId,
+          reference.characterMediaId,
           {
-            mediaFileId: reference.mediaFileId,
+            characterMediaId: reference.characterMediaId,
             storagePath: reference.storagePath,
           },
         ])

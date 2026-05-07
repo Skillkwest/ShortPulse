@@ -37,7 +37,7 @@ import { useMediaSingleMoveController } from "../features/media-library/hooks/us
 import { useMediaAdaptivePressure } from "../features/media-library/hooks/useMediaAdaptivePressure";
 import { useMediaTabDataController } from "../features/media-library/hooks/useMediaTabDataController";
 import { useMediaUploadController } from "../features/media-library/hooks/useMediaUploadController";
-import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../features/media-library/logic/mediaLibraryFeatureFlags";
+import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../features/media-library/logic/mediaLibraryRuntimeConfig";
 import {
   getMediaLibrarySurfaceConfig,
   useMediaLibraryRouteRuntime,

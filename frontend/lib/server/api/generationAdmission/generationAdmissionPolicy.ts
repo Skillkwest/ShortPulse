@@ -42,7 +42,7 @@ export const parseGenerationAdmissionMode = (
   value: string | undefined
 ): GenerationAdmissionMode => {
   const normalized = value?.trim().toLowerCase();
-  if (normalized === "off" || normalized === "shadow" || normalized === "enforce") {
+  if (normalized === "off" || normalized === "enforce") {
     return normalized;
   }
   return DEFAULT_GENERATION_ADMISSION_MODE;

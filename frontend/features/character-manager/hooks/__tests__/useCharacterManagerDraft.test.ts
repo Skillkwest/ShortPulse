@@ -112,7 +112,7 @@ const validateCharacterReferenceFileMock = vi.mocked(validateCharacterReferenceF
 type DraftSnapshot = NonNullable<Awaited<ReturnType<typeof loadLatestCharacterManagerDraft>>>;
 
 const createPresetMedia = (id: string, previewUrl: string | null) => ({
-  mediaFileId: `media-${id}`,
+  characterMediaId: `media-${id}`,
   storagePath: `user/presets/${id}.png`,
   previewUrl,
 });
@@ -430,7 +430,7 @@ describe("useCharacterManagerDraft", () => {
       slots: {
         ...createEmptyCharacterSlotMap(),
         front_full: {
-          mediaFileId: "media-front-full",
+          characterMediaId: "media-front-full",
           storagePath: "characters/char-saved/front-full.png",
           validationStatus: "pass",
           validationNotes: {
@@ -462,7 +462,7 @@ describe("useCharacterManagerDraft", () => {
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(hydratedSnapshot as never);
     saveCharacterManagerProfileImageMock.mockResolvedValue({
       signedUrl: "https://signed.example/profile-saved.png",
-      mediaFileId: "media-profile-saved",
+      characterMediaId: "media-profile-saved",
       previewStoragePath: "user-1/characters/char-saved/profile/profile-saved.png",
       storagePath: "user-1/characters/char-saved/profile/profile-saved.png",
     } as never);
@@ -751,7 +751,7 @@ describe("useCharacterManagerDraft", () => {
       ] as never);
     saveCharacterManagerProfileImageMock.mockResolvedValue({
       signedUrl: "https://signed.example/profile.png",
-      mediaFileId: "media-profile-1",
+      characterMediaId: "media-profile-1",
       previewStoragePath: "user-1/characters/char-1/profile/profile.png",
       storagePath: "user-1/characters/char-1/profile/profile.png",
     } as never);
@@ -806,7 +806,7 @@ describe("useCharacterManagerDraft", () => {
       notes: validationNotes,
     } as never);
     saveCharacterManagerSlotMock.mockResolvedValue({
-      mediaFileId: "slot-1",
+      characterMediaId: "slot-1",
       storagePath: "user-1/char-1/front-full.png",
       validationStatus: "pass",
       validationNotes,

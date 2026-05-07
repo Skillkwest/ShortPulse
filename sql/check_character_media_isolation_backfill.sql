@@ -15,8 +15,8 @@ order by asset_kind asc;
 with reference_rows as (
     select
         count(*) as total_rows,
-        count(*) filter (where media_file_id is not null) as with_media_file_id,
         count(*) filter (where character_media_id is not null) as with_character_media_id,
+        count(*) filter (where media_file_id is not null) as with_legacy_media_file_id,
         count(*) filter (where media_file_id is null and character_media_id is null) as invalid_rows
     from public.character_reference_images
 )
@@ -26,8 +26,8 @@ from reference_rows;
 with quickswap_rows as (
     select
         count(*) as total_rows,
-        count(*) filter (where media_file_id is not null) as with_media_file_id,
         count(*) filter (where character_media_id is not null) as with_character_media_id,
+        count(*) filter (where media_file_id is not null) as with_legacy_media_file_id,
         count(*) filter (where media_file_id is null and character_media_id is null) as invalid_rows
     from public.character_quick_swap_items
 )
@@ -74,8 +74,8 @@ with profile_refs as (
         c.id as character_id,
         c.user_id,
         nullif(trim(coalesce(c.metadata->>'profile_image_storage_path', '')), '') as profile_image_storage_path,
-        nullif(trim(coalesce(c.metadata->>'profile_image_media_file_id', '')), '') as profile_image_media_file_id,
-        nullif(trim(coalesce(c.metadata->>'profile_image_character_media_id', '')), '') as profile_image_character_media_id
+        nullif(trim(coalesce(c.metadata->>'profile_image_character_media_id', '')), '') as profile_image_character_media_id,
+        nullif(trim(coalesce(c.metadata->>'profile_image_media_file_id', '')), '') as legacy_profile_image_media_file_id
     from public.characters c
 )
 select
@@ -87,7 +87,10 @@ select
     count(*) filter (
         where profile_image_storage_path is not null
           and profile_image_character_media_id is null
-    ) as profile_rows_missing_character_media_id
+    ) as profile_rows_missing_character_media_id,
+    count(*) filter (
+        where legacy_profile_image_media_file_id is not null
+    ) as profile_rows_with_legacy_media_file_id
 from profile_refs;
 
 with preset_rows as (
@@ -95,16 +98,18 @@ with preset_rows as (
         c.id as character_id,
         c.user_id,
         nullif(trim(coalesce(zone_ref.value->>'storage_path', '')), '') as storage_path,
+        nullif(trim(coalesce(zone_ref.value->>'character_media_id', '')), '') as character_media_id,
         nullif(
             trim(
                 coalesce(
-                    zone_ref.value->>'character_media_id',
                     zone_ref.value->>'media_file_id',
+                    zone_ref.value->>'mediaFileId',
+                    zone_ref.value->>'media_fileId',
                     ''
                 )
             ),
             ''
-        ) as reference_media_id
+        ) as legacy_media_file_id
     from public.characters c
     cross join lateral jsonb_each(
         coalesce(c.metadata->'character_sheet_presets_v1'->'presets', '{}'::jsonb)
@@ -117,10 +122,13 @@ select
     count(*) filter (where storage_path is not null) as preset_rows_with_storage,
     count(*) filter (
         where storage_path is not null
-          and reference_media_id is not null
+          and character_media_id is not null
     ) as preset_rows_with_media_id,
     count(*) filter (
         where storage_path is not null
-          and reference_media_id is null
-    ) as preset_rows_missing_media_id
+          and character_media_id is null
+    ) as preset_rows_missing_media_id,
+    count(*) filter (
+        where legacy_media_file_id is not null
+    ) as preset_rows_with_legacy_media_file_id
 from preset_rows;

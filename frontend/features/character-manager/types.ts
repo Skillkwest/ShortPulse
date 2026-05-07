@@ -36,7 +36,7 @@ export type CharacterSheetAssignments = Record<
 export type CharacterSheetPresetId = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10";
 
 export type CharacterSheetPresetMediaReference = {
-  mediaFileId: string;
+  characterMediaId: string;
   storagePath: string;
   // Keep panel surfaces on durable preview variants instead of original uploads.
   previewStoragePath?: string | null;
@@ -79,7 +79,7 @@ export type CharacterSlotValidationNotes = {
 };
 
 export type CharacterSlotFile = {
-  mediaFileId: string;
+  characterMediaId: string;
   storagePath: string;
   // Keep panel surfaces on durable preview variants instead of original uploads.
   previewStoragePath?: string | null;
@@ -98,7 +98,7 @@ export type CharacterQuickSwapStatus = "active" | "archived";
 
 export type CharacterQuickSwapItem = {
   id: string;
-  mediaFileId: string;
+  characterMediaId: string;
   storagePath: string;
   // Keep panel surfaces on durable preview variants instead of original uploads.
   previewStoragePath?: string | null;

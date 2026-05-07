@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   appendQuickSwapFiles,
-  appendQuickSwapExistingMediaReference,
   countQuickSwapArchived,
   listQuickSwapActive,
   listQuickSwapArchived,
@@ -30,10 +29,6 @@ type UseCharacterQuickSwapDeckResult = {
   error: string | null;
   hasMoreArchived: boolean;
   appendFiles: (files: File[]) => Promise<boolean>;
-  appendExistingMediaReference: (
-    mediaFileId: string,
-    options?: { suppressError?: boolean }
-  ) => Promise<boolean>;
   removeItem: (itemId: string) => Promise<boolean>;
   restoreItem: (itemId: string) => Promise<boolean>;
   loadMoreArchived: () => Promise<void>;
@@ -134,15 +129,10 @@ export const useCharacterQuickSwapDeck = ({
         countQuickSwapArchived(trimmedCharacterId),
       ]);
       const nextActiveIds = new Set(nextActive.map((item) => item.id));
-      const nextActiveMediaIds = new Set(nextActive.map((item) => item.mediaFileId));
+      const nextActiveMediaIds = new Set(nextActive.map((item) => item.characterMediaId));
       const removedItemId = options?.removedItemId?.trim() ?? "";
       const overflowArchivedItems = activeItemsRef.current
-        .filter(
-          (item) =>
-            item.id !== removedItemId &&
-            !item.id.startsWith("legacy:") &&
-            !nextActiveIds.has(item.id)
-        )
+        .filter((item) => item.id !== removedItemId && !nextActiveIds.has(item.id))
         .map((item) => ({
           ...item,
           status: "archived" as const,
@@ -155,7 +145,7 @@ export const useCharacterQuickSwapDeck = ({
           (item) =>
             item.id !== removedItemId &&
             !nextActiveIds.has(item.id) &&
-            !nextActiveMediaIds.has(item.mediaFileId)
+            !nextActiveMediaIds.has(item.characterMediaId)
         ),
       ]).filter(
         (item, index, collection) => collection.findIndex((entry) => entry.id === item.id) === index
@@ -194,37 +184,6 @@ export const useCharacterQuickSwapDeck = ({
         return true;
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to add files to QuickSwap deck."));
-        return false;
-      } finally {
-        setMutating(false);
-      }
-    },
-    [characterId, disabled, syncAfterActiveMutation]
-  );
-
-  const appendExistingMediaReference = useCallback(
-    async (mediaFileId: string, options?: { suppressError?: boolean }) => {
-      const trimmedCharacterId = characterId?.trim() ?? "";
-      const trimmedMediaFileId = mediaFileId.trim();
-      if (disabled || !trimmedMediaFileId) return false;
-      if (!trimmedCharacterId) {
-        if (!options?.suppressError) {
-          setError("Save this character before adding QuickSwap references.");
-        }
-        return false;
-      }
-      setMutating(true);
-      try {
-        await appendQuickSwapExistingMediaReference({
-          characterId: trimmedCharacterId,
-          mediaFileId: trimmedMediaFileId,
-        });
-        await syncAfterActiveMutation();
-        return true;
-      } catch (nextError) {
-        if (!options?.suppressError) {
-          setError(toErrorMessage(nextError, "Failed to add dropped media to QuickSwap deck."));
-        }
         return false;
       } finally {
         setMutating(false);
@@ -342,7 +301,6 @@ export const useCharacterQuickSwapDeck = ({
     error,
     hasMoreArchived,
     appendFiles,
-    appendExistingMediaReference,
     removeItem,
     restoreItem,
     loadMoreArchived,

@@ -1,0 +1,3 @@
+-- No-op rollback for 118_canonicalize_character_metadata_media_ids.sql.
+-- The forward migration removes legacy JSON keys from characters.metadata in place.
+-- Rehydrating deleted legacy keys is intentionally unsupported; prefer a forward fix.

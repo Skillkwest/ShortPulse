@@ -15,7 +15,7 @@ import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../logic/mediaLibrary
 import {
   MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
   MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
-} from "../logic/mediaLibraryFeatureFlags";
+} from "../logic/mediaLibraryRuntimeConfig";
 
 type MediaAssetRow = {
   id: string;

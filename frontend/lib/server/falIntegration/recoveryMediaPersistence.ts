@@ -49,6 +49,13 @@ const MEDIA_PERSIST_CONCURRENCY = 3;
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
 
+const resolveMetadataOutputIndex = (metadata: unknown): number | null => {
+  const record = asObject(metadata);
+  const indexedValue = record.index ?? record.generation_output_index ?? null;
+  const parsed = Number.parseInt(String(indexedValue ?? ""), 10);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 const runWithConcurrency = async <TItem>(
   items: TItem[],
   concurrency: number,
@@ -178,11 +185,7 @@ export const readExistingRecoveryMediaRows = async (
     const row = asObject(rawRow);
     const id = asString(row.id);
     if (!id) continue;
-    const rawIndex = Number.parseInt(
-      String(asObject(row.metadata).generation_output_index ?? ""),
-      10
-    );
-    const index = Number.isFinite(rawIndex) ? rawIndex : null;
+    const index = resolveMetadataOutputIndex(row.metadata);
     if (index !== null && rowsByIndex.has(index)) continue;
     rowsByIndex.set(index ?? rowsByIndex.size + 1000, {
       id,
@@ -287,6 +290,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
         model_id: generation.model_id,
         prompt: generation.prompt_text,
         generation_output_index: index,
+        index,
         task_id: generation.request_id,
         generation_trace_id: generationTraceId,
         submission_trace_id: submissionTraceId,
@@ -317,14 +321,22 @@ export const persistRecoveryMediaFilesForGeneration = async ({
           .toLowerCase()
           .includes("duplicate");
       if (duplicateError) {
-        const { data: existingData } = await supabaseAdmin
-          .from("media_files")
-          .select("id")
-          .eq("source_ref", generation.id)
-          .eq("source", "ai_studio")
-          .contains("metadata", { generation_output_index: index })
-          .limit(1)
-          .maybeSingle();
+        const lookupExistingData = async (
+          metadataField: "generation_output_index" | "index"
+        ): Promise<{ id?: unknown } | null> => {
+          const { data: existingData } = await supabaseAdmin
+            .from("media_files")
+            .select("id")
+            .eq("source_ref", generation.id)
+            .eq("source", "ai_studio")
+            .contains("metadata", { [metadataField]: index })
+            .limit(1)
+            .maybeSingle();
+          return (existingData as { id?: unknown } | null) ?? null;
+        };
+        const existingData =
+          (await lookupExistingData("generation_output_index")) ??
+          (await lookupExistingData("index"));
         const existingRowId = asString(asObject(existingData).id);
         if (existingRowId) {
           try {
@@ -344,6 +356,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
                 generated_by: "recovery_media_persistence_duplicate",
                 generation_id: generation.id,
                 generation_output_index: index,
+                index,
               },
             }).catch(() => null);
           }
@@ -384,6 +397,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
             generated_by: "recovery_media_persistence",
             generation_id: generation.id,
             generation_output_index: index,
+            index,
           },
         }).catch(() => null);
       }

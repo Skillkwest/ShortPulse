@@ -4,7 +4,7 @@
  */
 import type { GenerationAdmissionTier } from "../../../model-runtime/generationAdmissionTiers";
 
-export type GenerationAdmissionMode = "off" | "shadow" | "enforce";
+export type GenerationAdmissionMode = "off" | "enforce";
 
 export type GenerationAdmissionReason =
   | "global_limit"

@@ -1,7 +1,7 @@
 import type { AdaptiveSurface } from "./types";
 
 const DEFAULT_ADAPTIVE_SURFACES =
-  "reference-grid,media-library-grid,media-library-modal-grid,media-library-panel-grid";
+  "reference-grid,quick-slot,media-library-grid,media-library-modal-grid,media-library-panel-grid,character-grid,detail-modal";
 
 const asBool = (value: string | undefined, fallback: boolean): boolean => {
   if (value === "true") return true;
@@ -37,16 +37,6 @@ const parseSurfaceCsv = (value: string | undefined): Set<AdaptiveSurface> => {
 
 const enabledSurfaces = parseSurfaceCsv(process.env.NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES);
 
-export const ADAPTIVE_MEDIA_V2_ENABLED = asBool(
-  process.env.NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED,
-  false
-);
-
-export const ADAPTIVE_MEDIA_V2_SHADOW_COMPARE = asBool(
-  process.env.NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SHADOW_COMPARE,
-  false
-);
-
 export const ADAPTIVE_MEDIA_V2_TUNED_POLICY = asBool(
   process.env.NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_TUNED_POLICY,
   false
@@ -63,9 +53,5 @@ export const REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION = asBool(
 );
 
 export const isAdaptiveSurfaceEnabled = (surface: AdaptiveSurface): boolean => {
-  if (!ADAPTIVE_MEDIA_V2_ENABLED) return false;
   return enabledSurfaces.has(surface);
 };
-
-export const isAdaptiveShadowCompareEnabled = (): boolean =>
-  ADAPTIVE_MEDIA_V2_ENABLED && ADAPTIVE_MEDIA_V2_SHADOW_COMPARE;

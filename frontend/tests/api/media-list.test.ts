@@ -795,8 +795,7 @@ describe("POST /api/media/list", () => {
     );
   });
 
-  it("returns 503 when list API flag is disabled", async () => {
-    vi.stubEnv("SHORTPULSE_MEDIA_LIST_API_ENABLED", "false");
+  it("keeps the canonical list route available without an env gate", async () => {
     createSupabaseAdminMock([]);
 
     const req = {
@@ -813,7 +812,13 @@ describe("POST /api/media/list", () => {
 
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.status).not.toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [],
+        hasMore: false,
+      })
+    );
   });
 
   it("returns 400 for invalid profile values", async () => {

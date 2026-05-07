@@ -238,7 +238,19 @@ describe("executeGenerationRecovery", () => {
       processed: false,
     });
     expect(scenario.updatePayloads).toHaveLength(0);
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        providerRequestId: "req-1",
+        outcome: "success",
+        reason: "Recovered generation media already persisted.",
+        detail: expect.objectContaining({
+          actor: "reconciler",
+          generation_id: "gen-1",
+          existing_media_count: 1,
+        }),
+      })
+    );
     expect(probeGenerationProviderResultMock).not.toHaveBeenCalled();
     expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
       expect.objectContaining({

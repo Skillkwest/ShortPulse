@@ -93,7 +93,7 @@ export const useCharacterManagerCharacterSheetInteractions = ({
       const nextAssignments = {
         ...resolvedCharacterSheetPresetAssignments,
         [characterSheetSlotKey]: {
-          mediaFileId: referenceEntry.mediaFileId,
+          characterMediaId: referenceEntry.characterMediaId,
           storagePath: referenceEntry.storagePath,
           previewStoragePath: referenceEntry.previewStoragePath ?? null,
           previewUrl: referenceEntry.previewUrl,

@@ -98,8 +98,6 @@ const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean 
   return fallback;
 };
 
-const isMediaListApiEnabled = (): boolean =>
-  parseBooleanEnv(process.env.SHORTPULSE_MEDIA_LIST_API_ENABLED, true);
 const isCharacterScopeExclusionEnabled = (): boolean =>
   parseBooleanEnv(process.env.SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE, true);
 
@@ -462,13 +460,6 @@ export default async function handler(
 
   const user = await requireApiUser(req, res);
   if (!user) return;
-
-  if (!isMediaListApiEnabled()) {
-    return res.status(503).json({
-      error: "Media list API is disabled",
-      details: "Enable SHORTPULSE_MEDIA_LIST_API_ENABLED to use this route.",
-    });
-  }
 
   try {
     const requestBody = asRecord(req.body);

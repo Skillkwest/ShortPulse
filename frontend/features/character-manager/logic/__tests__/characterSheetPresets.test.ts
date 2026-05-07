@@ -36,11 +36,11 @@ describe("characterSheetPresets metadata helpers", () => {
   it("normalizes malformed preset assignments to a shape-stable record", () => {
     const normalized = normalizeCharacterSheetPresetAssignments({
       portrait: {
-        media_file_id: "media-1",
+        character_media_id: "media-1",
         storage_path: "user/chars/presets/p1.png",
-      } as unknown as { mediaFileId: string; storagePath: string; previewUrl: string | null },
+      } as unknown as { characterMediaId: string; storagePath: string; previewUrl: string | null },
       close_up: {
-        mediaFileId: "media-2",
+        characterMediaId: "media-2",
         storagePath: "user/chars/presets/p2.png",
         previewUrl: null,
       },
@@ -48,13 +48,13 @@ describe("characterSheetPresets metadata helpers", () => {
     });
 
     expect(normalized.portrait).toEqual({
-      mediaFileId: "media-1",
+      characterMediaId: "media-1",
       storagePath: "user/chars/presets/p1.png",
       previewUrl: null,
       previewStoragePath: null,
     });
     expect(normalized.close_up).toEqual({
-      mediaFileId: "media-2",
+      characterMediaId: "media-2",
       storagePath: "user/chars/presets/p2.png",
       previewUrl: null,
       previewStoragePath: null,
@@ -85,7 +85,7 @@ describe("characterSheetPresets metadata helpers", () => {
           },
           "2": {
             portrait: {
-              media_file_id: "media-portrait",
+              character_media_id: "media-portrait",
               storage_path: "user/chars/presets/portrait.png",
             },
           },
@@ -95,7 +95,7 @@ describe("characterSheetPresets metadata helpers", () => {
 
     expect(parsed?.activePresetId).toBe("3");
     expect(parsed?.presets["2"].portrait).toEqual({
-      mediaFileId: "media-portrait",
+      characterMediaId: "media-portrait",
       storagePath: "user/chars/presets/portrait.png",
       previewUrl: null,
       previewStoragePath: null,
@@ -215,15 +215,15 @@ describe("characterSheetPresets metadata helpers", () => {
         presets: {
           "1": {
             portrait: {
-              media_file_id: "media-shared",
+              character_media_id: "media-shared",
               storage_path: "user/chars/presets/shared.png",
             },
             close_up: {
-              media_file_id: "media-shared",
+              character_media_id: "media-shared",
               storage_path: "user/chars/presets/shared.png",
             },
             front_shot: {
-              media_file_id: "media-front",
+              character_media_id: "media-front",
               storage_path: "user/chars/presets/front.png",
             },
           },
@@ -233,11 +233,11 @@ describe("characterSheetPresets metadata helpers", () => {
 
     expect(references).toEqual([
       {
-        mediaFileId: "media-shared",
+        characterMediaId: "media-shared",
         storagePath: "user/chars/presets/shared.png",
       },
       {
-        mediaFileId: "media-front",
+        characterMediaId: "media-front",
         storagePath: "user/chars/presets/front.png",
       },
     ]);
@@ -284,7 +284,7 @@ describe("characterSheetPresets metadata helpers", () => {
                           presets: {
                             "1": {
                               portrait: {
-                                media_file_id: "media-shared",
+                                character_media_id: "media-shared",
                                 storage_path: "user/chars/presets/shared.png",
                               },
                               close_up: null,
@@ -320,7 +320,7 @@ describe("characterSheetPresets metadata helpers", () => {
     } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     await cleanupOrphanedMedia({
-      mediaFileId: "media-shared",
+      characterMediaId: "media-shared",
       storagePath: "user/chars/presets/shared.png",
     });
 

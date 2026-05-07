@@ -10,7 +10,7 @@ const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)
 export type DroppedImageReference = {
   url: string;
   mimeType: string | null;
-  mediaFileId: string | null;
+  characterMediaId: string | null;
   storagePath?: string | null;
 };
 
@@ -100,7 +100,7 @@ export const resolveDroppedImageReference = (
   transfer: DataTransfer | null | undefined
 ): DroppedImageReference | null => {
   if (!transfer) return null;
-  const mediaFileId =
+  const characterMediaId =
     parseDropMediaFileId(transfer.getData("text/reference-media-id")) ??
     parseDropMediaFileId(transfer.getData("text/reference-id")) ??
     parseDropMediaFileId(transfer.getData("application/x-shortpulse-media-id"));
@@ -110,7 +110,7 @@ export const resolveDroppedImageReference = (
     return {
       url: explicitReferenceUrl,
       mimeType: inferMimeTypeFromUrl(explicitReferenceUrl),
-      mediaFileId,
+      characterMediaId,
     } satisfies DroppedImageReference;
   }
 
@@ -124,7 +124,7 @@ export const resolveDroppedImageReference = (
     return {
       url: uriListUrl,
       mimeType: inferMimeTypeFromUrl(uriListUrl),
-      mediaFileId,
+      characterMediaId,
     } satisfies DroppedImageReference;
   }
 
@@ -133,7 +133,7 @@ export const resolveDroppedImageReference = (
     return {
       url: imageUrl,
       mimeType: inferMimeTypeFromUrl(imageUrl),
-      mediaFileId,
+      characterMediaId,
     } satisfies DroppedImageReference;
   }
 
@@ -146,7 +146,7 @@ export const resolveDroppedImageReference = (
     return {
       url: plainTextUrl,
       mimeType: inferMimeTypeFromUrl(plainTextUrl),
-      mediaFileId,
+      characterMediaId,
     } satisfies DroppedImageReference;
   }
 

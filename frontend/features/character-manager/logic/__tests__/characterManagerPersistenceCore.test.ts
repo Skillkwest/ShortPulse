@@ -65,7 +65,7 @@ describe("characterManagerPersistenceCore", () => {
                   updated_at: "2026-04-25T00:00:00.000Z",
                   metadata: {
                     profile_image_storage_path: "user-1/characters/char-1/profile/original.png",
-                    profile_image_media_file_id: "media-profile-1",
+                    profile_image_character_media_id: "media-profile-1",
                   },
                 },
                 {
@@ -147,7 +147,7 @@ describe("characterManagerPersistenceCore", () => {
         characterId: "char-1",
         characterSheetId: "sheet-1",
         profileImageUrl: "https://signed.example/thumb.webp",
-        profileImageMediaFileId: "media-profile-1",
+        profileImageCharacterMediaId: "media-profile-1",
         profileImageStoragePath: "user-1/characters/char-1/profile/original.png",
         profileImagePreviewStoragePath: "user-1/variants/images/media-profile-1/thumb_240",
       }),

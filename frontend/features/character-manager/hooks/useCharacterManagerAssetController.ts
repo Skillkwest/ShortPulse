@@ -168,7 +168,7 @@ export const useCharacterManagerAssetController = ({
         patchCharacterListItem(characterId, (item) => ({
           ...item,
           profileImageUrl: savedProfileImage.signedUrl,
-          profileImageMediaFileId: savedProfileImage.mediaFileId,
+          profileImageCharacterMediaId: savedProfileImage.characterMediaId,
           profileImagePreviewStoragePath: savedProfileImage.previewStoragePath,
           profileImageStoragePath: savedProfileImage.storagePath,
           profileImageTransform: defaultProfileImageTransform,
@@ -381,7 +381,7 @@ export const useCharacterManagerAssetController = ({
         return await saveCharacterSheetPresetAssignments({
           ...currentAssignments,
           [zoneKey]: {
-            mediaFileId: `local-${activePresetId}-${zoneKey}`,
+            characterMediaId: `local-${activePresetId}-${zoneKey}`,
             storagePath: "",
             previewUrl,
           },
@@ -452,7 +452,7 @@ export const useCharacterManagerAssetController = ({
             const next = {
               ...prev,
               [slotKey]: {
-                mediaFileId: `local-${slotKey}`,
+                characterMediaId: `local-${slotKey}`,
                 storagePath: "",
                 validationStatus: validation.status,
                 validationNotes: validation.notes,

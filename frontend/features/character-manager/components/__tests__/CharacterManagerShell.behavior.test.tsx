@@ -35,7 +35,7 @@ type MockCharacterReferenceSlotKey =
   | "fullbody_wide";
 
 type MockCharacterSlotFile = {
-  mediaFileId: string;
+  characterMediaId: string;
   storagePath: string;
   validationStatus: "pass";
   validationNotes: {
@@ -101,7 +101,7 @@ const createMockSlotFile = (
   slotKey: MockCharacterReferenceSlotKey,
   previewUrl: string
 ): MockCharacterSlotFile => ({
-  mediaFileId: `media-${slotKey}`,
+  characterMediaId: `media-${slotKey}`,
   storagePath: `${slotKey}.png`,
   validationStatus: "pass",
   validationNotes: {
@@ -130,7 +130,7 @@ const createInitialSlots = (): MockCharacterSlotFileMap => ({
 
 type MockQuickSwapItem = {
   id: string;
-  mediaFileId: string;
+  characterMediaId: string;
   storagePath: string;
   previewUrl: string;
   status: "active" | "archived";
@@ -142,7 +142,7 @@ type MockQuickSwapItem = {
 const createInitialQuickSwapItems = (): MockQuickSwapItem[] => [
   {
     id: "qs-1",
-    mediaFileId: "media-front-full",
+    characterMediaId: "media-front-full",
     storagePath: "quick/front-full.png",
     previewUrl: "https://example.com/front-full-initial.png",
     status: "active",
@@ -152,7 +152,7 @@ const createInitialQuickSwapItems = (): MockQuickSwapItem[] => [
   },
   {
     id: "qs-2",
-    mediaFileId: "media-side-profile",
+    characterMediaId: "media-side-profile",
     storagePath: "quick/side-profile.png",
     previewUrl: "https://example.com/side-profile-initial.png",
     status: "active",
@@ -165,7 +165,7 @@ const createInitialQuickSwapItems = (): MockQuickSwapItem[] => [
 const createQuickSwapItems = (count: number): MockQuickSwapItem[] =>
   Array.from({ length: count }, (_, index) => ({
     id: `qs-${index + 1}`,
-    mediaFileId: `media-qs-${index + 1}`,
+    characterMediaId: `media-qs-${index + 1}`,
     storagePath: `quick/qs-${index + 1}.png`,
     previewUrl: `https://example.com/qs-${index + 1}.png`,
     status: "active",
@@ -246,7 +246,6 @@ const characterManagerMockState = vi.hoisted(() => ({
 
 const quickSwapDeckMockState = vi.hoisted(() => ({
   initialActiveItems: null as MockQuickSwapItem[] | null,
-  appendExistingMediaReferenceImpl: null as null | ((mediaFileId: string) => Promise<boolean>),
   loading: false,
 }));
 
@@ -527,7 +526,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
           const nextAssignments = {
             ...(presetMapRef.current[activePreset] ?? createEmptyCharacterSheetPresetAssignments()),
             [zoneKey]: {
-              mediaFileId: `preset-media-${activePreset}-${zoneKey}-${uploadIndex}`,
+              characterMediaId: `preset-media-${activePreset}-${zoneKey}-${uploadIndex}`,
               storagePath: `user/chars/presets/${activePreset}/${zoneKey}-${uploadIndex}.png`,
               previewUrl: `https://example.com/preset-${activePreset}-${zoneKey}-${uploadIndex}.png`,
             },
@@ -599,7 +598,7 @@ vi.mock("../../hooks/useCharacterQuickSwapDeck", async () => {
             ...previous,
             ...files.map((file, index) => ({
               id: `qs-upload-${uploadCounterRef.current}-${index + 1}-${crypto.randomUUID()}`,
-              mediaFileId: `media-upload-${uploadCounterRef.current}-${index + 1}`,
+              characterMediaId: `media-upload-${uploadCounterRef.current}-${index + 1}`,
               storagePath: `quick/upload-${uploadCounterRef.current}-${index + 1}.png`,
               previewUrl: `https://example.com/upload-${uploadCounterRef.current}-${index + 1}.png`,
               status: "active" as const,
@@ -608,33 +607,6 @@ vi.mock("../../hooks/useCharacterQuickSwapDeck", async () => {
               legacySlotKey: null,
             })),
           ]);
-          return true;
-        },
-        appendExistingMediaReference: async (mediaFileId: string) => {
-          if (quickSwapDeckMockState.appendExistingMediaReferenceImpl) {
-            return quickSwapDeckMockState.appendExistingMediaReferenceImpl(mediaFileId);
-          }
-          const trimmedMediaFileId = mediaFileId.trim();
-          if (!trimmedMediaFileId) return false;
-          setActiveItems((previous) => {
-            if (previous.some((item) => item.mediaFileId === trimmedMediaFileId)) {
-              return previous;
-            }
-            const nextIndex = previous.length + 1;
-            return [
-              ...previous,
-              {
-                id: `qs-existing-${nextIndex}`,
-                mediaFileId: trimmedMediaFileId,
-                storagePath: `quick/existing-${nextIndex}.png`,
-                previewUrl: `https://example.com/existing-${nextIndex}.png`,
-                status: "active" as const,
-                createdAt: new Date().toISOString(),
-                archivedAt: null,
-                legacySlotKey: null,
-              },
-            ];
-          });
           return true;
         },
         removeItem: async (itemId: string) => {
@@ -688,7 +660,6 @@ describe("CharacterManagerShell behavior", () => {
       error: { message: "not found" },
     });
     quickSwapDeckMockState.initialActiveItems = null;
-    quickSwapDeckMockState.appendExistingMediaReferenceImpl = null;
     quickSwapDeckMockState.loading = false;
     quickSwapTipPreferenceMockState.hidden = false;
     quickSwapTipPreferenceMockState.markQuickSwapTipHidden.mockReset();

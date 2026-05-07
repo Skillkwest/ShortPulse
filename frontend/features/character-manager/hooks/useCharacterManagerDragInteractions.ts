@@ -104,13 +104,13 @@ export const useCharacterManagerDragInteractions = ({
         quickSwapMimeType,
         JSON.stringify({
           id: item.id,
-          mediaFileId: item.mediaFileId,
+          characterMediaId: item.characterMediaId,
           storagePath: item.storagePath,
           previewUrl: item.previewUrl,
         })
       );
-      event.dataTransfer.setData(referenceSlotMimeType, item.mediaFileId);
-      event.dataTransfer.setData("text/plain", item.mediaFileId);
+      event.dataTransfer.setData(referenceSlotMimeType, item.characterMediaId);
+      event.dataTransfer.setData("text/plain", item.characterMediaId);
       setDraggedQuickSwapItemId(item.id);
       setDraggedCharacterSheetZoneKey(null);
       applyDragGhost(event);
@@ -140,8 +140,8 @@ export const useCharacterManagerDragInteractions = ({
       }
       event.dataTransfer.effectAllowed = "move";
       event.dataTransfer.setData(characterSheetZoneMimeType, characterSheetSlotKey);
-      event.dataTransfer.setData(referenceSlotMimeType, assignedReference.mediaFileId);
-      event.dataTransfer.setData("text/plain", assignedReference.mediaFileId);
+      event.dataTransfer.setData(referenceSlotMimeType, assignedReference.characterMediaId);
+      event.dataTransfer.setData("text/plain", assignedReference.characterMediaId);
       setDraggedCharacterSheetZoneKey(characterSheetSlotKey);
       setDraggedQuickSwapItemId(null);
       applyDragGhost(event);

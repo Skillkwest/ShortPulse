@@ -10,7 +10,7 @@ const createQuickSwapItems = (
 ): CharacterQuickSwapItem[] =>
   Array.from({ length: count }, (_, index) => ({
     id: `${status}-${index + 1}`,
-    mediaFileId: `media-${status}-${index + 1}`,
+    characterMediaId: `media-${status}-${index + 1}`,
     storagePath: `user-1/characters/char-1/quickswap/${status}-${index + 1}.png`,
     previewUrl: `https://example.com/${status}-${index + 1}.png`,
     status,

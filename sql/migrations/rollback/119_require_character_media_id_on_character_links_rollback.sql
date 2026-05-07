@@ -1,0 +1,4 @@
+-- Rollback note:
+-- Migration 119 intentionally retires legacy row-level media_file_id linkage for Character Manager slot/QuickSwap rows.
+-- A safe automatic rollback is not provided because it would need to reconstruct legacy media_file_id values from historical asset metadata.
+-- Preferred rollback: restore a pre-migration database snapshot or apply a targeted corrective forward migration.

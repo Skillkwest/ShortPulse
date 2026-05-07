@@ -46,7 +46,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         presets: {
           "1": {
             portrait: {
-              media_file_id: "media-portrait",
+              character_media_id: "media-portrait",
               storage_path: "user/chars/presets/portrait.png",
             },
             close_up: null,
@@ -54,7 +54,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
           },
           "2": {
             portrait: {
-              media_file_id: "media-alt-portrait",
+              character_media_id: "media-alt-portrait",
               storage_path: "user/chars/presets/alt-portrait.png",
             },
             close_up: null,
@@ -159,7 +159,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         presets: {
           "1": {
             portrait: {
-              media_file_id: "media-portrait",
+              character_media_id: "media-portrait",
               storage_path: "user/chars/presets/portrait.png",
             },
             close_up: null,
@@ -221,7 +221,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         presets: {
           "1": {
             portrait: {
-              media_file_id: "media-portrait",
+              character_media_id: "media-portrait",
               storage_path: "user/chars/presets/portrait.png",
               preview_storage_path: "user-1/variants/images/media-portrait/thumb_240",
             },
@@ -348,7 +348,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         presets: {
           "1": {
             portrait: {
-              media_file_id: "media-portrait",
+              character_media_id: "media-portrait",
               storage_path: "user/chars/presets/portrait.png",
             },
             close_up: null,
@@ -513,7 +513,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
           "1": { portrait: null, close_up: null, front_shot: null },
           "2": {
             portrait: {
-              media_file_id: "media-delete-me",
+              character_media_id: "media-delete-me",
               storage_path: "user/chars/presets/delete-me.png",
             },
             close_up: null,

@@ -13,6 +13,7 @@ import type { PlanEconomicsDraft } from "./pricingAnalysis";
 export const CALCULATOR_REFERENCE_CREDIT_USD_SCALE = 30;
 export const CALCULATOR_REFERENCE_MARKUP_BPS = 8_000;
 export const CALCULATOR_REFERENCE_DURATION_SECONDS = "15";
+export const CALCULATOR_REFERENCE_PLAN_NAME = "Reference Plan";
 export const CALCULATOR_REFERENCE_PLAN_PRICE_USD = "49.00";
 export const CALCULATOR_REFERENCE_INCLUDED_CREDITS = "1500";
 export const CALCULATOR_REFERENCE_DISCOUNT_PCT = "0";
@@ -28,6 +29,7 @@ export const CALCULATOR_REFERENCE_MODEL_IDS = [
 
 /** Build the small-calculator plan defaults used for analysis-only tabs. */
 export const buildCalculatorReferencePlanDraft = (): PlanEconomicsDraft => ({
+  simulatedName: CALCULATOR_REFERENCE_PLAN_NAME,
   priceUsd: CALCULATOR_REFERENCE_PLAN_PRICE_USD,
   includedCredits: CALCULATOR_REFERENCE_INCLUDED_CREDITS,
   discountPct: CALCULATOR_REFERENCE_DISCOUNT_PCT,

@@ -1,3 +1,7 @@
+/**
+ * Admin pricing page state.
+ * Hydrates the pricing workspace draft, keeps simulator cards stable, and owns draft-only edits.
+ */
 import React from "react";
 import type { PricingConfirmationIntent, PricingWorkspaceState } from "../PricingPageChrome";
 import type {
@@ -401,6 +405,7 @@ export function useAdminPricingPageState({
       const availableIds = new Set([
         ...Object.keys(nextDefaultDrafts),
         ...Object.keys(planEconomicsDrafts),
+        ...current.filter((planId) => isCustomSimulatorPlanId(planId)),
       ]);
       const filtered = current.filter((planId) => availableIds.has(planId));
       if (filtered.length !== current.length) return filtered;

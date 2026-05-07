@@ -330,7 +330,7 @@ describe("referenceGridMedia", () => {
     expect(resolved.previewUrl).toBe(sourceUrl);
   });
 
-  it("does not compact legacy long-edge target when heavy-load compaction flag is off", async () => {
+  it("does not compact adaptive long-edge target when heavy-load compaction flag is off", async () => {
     vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION", "false");
     const resolver = await importResolver();
 
@@ -354,7 +354,7 @@ describe("referenceGridMedia", () => {
     expect(resolved.previewUrl).toContain("quality=34");
   });
 
-  it("compacts legacy long-edge target at pressure level 2 when flag is enabled", async () => {
+  it("compacts adaptive long-edge target at pressure level 2 when flag is enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION", "true");
     const resolver = await importResolver();
 
@@ -378,7 +378,7 @@ describe("referenceGridMedia", () => {
     expect(resolved.previewUrl).toContain("quality=34");
   });
 
-  it("uses quick-slot compaction policy in legacy path at pressure level 2 when flag is enabled", async () => {
+  it("uses quick-slot compaction policy at pressure level 2 when flag is enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_REFERENCE_GRID_HEAVY_LOAD_LONG_EDGE_COMPACTION", "true");
     const resolver = await importResolver();
 
@@ -398,8 +398,8 @@ describe("referenceGridMedia", () => {
       }
     );
 
-    expect(resolved.targetLongEdgePx).toBe(403);
-    expect(resolved.previewUrl).toContain("width=403");
+    expect(resolved.targetLongEdgePx).toBe(346);
+    expect(resolved.previewUrl).toContain("width=346");
     expect(resolved.previewUrl).toContain("quality=34");
   });
 });

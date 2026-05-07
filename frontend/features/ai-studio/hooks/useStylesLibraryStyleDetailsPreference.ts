@@ -13,6 +13,12 @@ import {
 } from "../logic/styleDetailsNormalization";
 
 const STYLE_DETAILS_STORAGE_KEY = "shortpulse.ai_studio.style_details_overrides";
+const STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS = 4_000;
+const STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_CODE = "STYLE_DETAILS_REMOTE_SYNC_TIMEOUT";
+const STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MESSAGE =
+  "Saved locally. Cloud sync timed out; retry later if this style must sync across devices.";
+const STYLE_DETAILS_REMOTE_SYNC_FAILED_MESSAGE =
+  "Saved locally. Cloud sync failed; retry later if this style must sync across devices.";
 
 export type StylesLibraryStyleDetailsSyncState = "loading" | "ready" | "saving" | "error";
 
@@ -23,6 +29,11 @@ type UseStylesLibraryStyleDetailsPreferenceResult = {
   syncState: StylesLibraryStyleDetailsSyncState;
   upsertStyleDetails: (styleId: string, details: StylesLibraryStyleDetails) => Promise<boolean>;
   deleteStyleDetails: (styleId: string) => Promise<boolean>;
+};
+
+type StyleDetailsRemoteSyncTimeoutError = Error & {
+  code: typeof STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_CODE;
+  timeoutMs: number;
 };
 
 const readLocalStyleDetails = (): StylesLibraryStyleDetailsMap => {
@@ -40,6 +51,40 @@ const writeLocalStyleDetails = (value: StylesLibraryStyleDetailsMap): void => {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STYLE_DETAILS_STORAGE_KEY, JSON.stringify(value));
 };
+
+const createStyleDetailsRemoteSyncTimeoutError = (
+  timeoutMs: number
+): StyleDetailsRemoteSyncTimeoutError => {
+  const error = new Error(
+    `Timed out syncing style details after ${Math.max(0, Math.trunc(timeoutMs))}ms.`
+  ) as StyleDetailsRemoteSyncTimeoutError;
+  error.code = STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_CODE;
+  error.timeoutMs = Math.max(0, Math.trunc(timeoutMs));
+  return error;
+};
+
+const isStyleDetailsRemoteSyncTimeoutError = (
+  error: unknown
+): error is StyleDetailsRemoteSyncTimeoutError => {
+  if (!error || typeof error !== "object") return false;
+  return (error as { code?: unknown }).code === STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_CODE;
+};
+
+const withRemoteSyncTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
+  await new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(createStyleDetailsRemoteSyncTimeoutError(timeoutMs));
+    }, timeoutMs);
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 
 const isMissingStyleDetailsStorageError = (error: unknown): boolean => {
   if (!error || typeof error !== "object") return false;
@@ -177,12 +222,15 @@ export const useStylesLibraryStyleDetailsPreference =
         }
 
         try {
-          const { error: upsertError } = await supabaseQueryClient
-            .from("user_preferences")
-            .upsert(
-              { user_id: userId, ai_studio_style_details_overrides: nextValue },
-              { onConflict: "user_id" }
-            );
+          const { error: upsertError } = await withRemoteSyncTimeout(
+            supabaseQueryClient
+              .from("user_preferences")
+              .upsert(
+                { user_id: userId, ai_studio_style_details_overrides: nextValue },
+                { onConflict: "user_id" }
+              ),
+            STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS
+          );
           if (upsertError) throw upsertError;
           if (requestVersion !== writeVersionRef.current) return true;
           setError(null);
@@ -196,10 +244,13 @@ export const useStylesLibraryStyleDetailsPreference =
             setSyncState("ready");
             return true;
           }
-          updateLocalValue(previousValue);
-          setError(err instanceof Error ? err.message : "Unable to save style details.");
+          setError(
+            isStyleDetailsRemoteSyncTimeoutError(err)
+              ? STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MESSAGE
+              : STYLE_DETAILS_REMOTE_SYNC_FAILED_MESSAGE
+          );
           setSyncState("error");
-          return false;
+          return true;
         }
       },
       [updateLocalValue, userId]
@@ -230,12 +281,15 @@ export const useStylesLibraryStyleDetailsPreference =
         }
 
         try {
-          const { error: upsertError } = await supabaseQueryClient
-            .from("user_preferences")
-            .upsert(
-              { user_id: userId, ai_studio_style_details_overrides: nextValue },
-              { onConflict: "user_id" }
-            );
+          const { error: upsertError } = await withRemoteSyncTimeout(
+            supabaseQueryClient
+              .from("user_preferences")
+              .upsert(
+                { user_id: userId, ai_studio_style_details_overrides: nextValue },
+                { onConflict: "user_id" }
+              ),
+            STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS
+          );
           if (upsertError) throw upsertError;
           if (requestVersion !== writeVersionRef.current) return true;
           setError(null);
@@ -249,10 +303,13 @@ export const useStylesLibraryStyleDetailsPreference =
             setSyncState("ready");
             return true;
           }
-          updateLocalValue(previousValue);
-          setError(err instanceof Error ? err.message : "Unable to delete style details.");
+          setError(
+            isStyleDetailsRemoteSyncTimeoutError(err)
+              ? STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MESSAGE
+              : STYLE_DETAILS_REMOTE_SYNC_FAILED_MESSAGE
+          );
           setSyncState("error");
-          return false;
+          return true;
         }
       },
       [updateLocalValue, userId]

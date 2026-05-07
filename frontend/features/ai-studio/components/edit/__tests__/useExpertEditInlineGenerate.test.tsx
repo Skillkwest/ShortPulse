@@ -107,7 +107,7 @@ describe("useExpertEditInlineGenerate", () => {
     revokeExpertEditSubmissionObjectUrlsMock.mockReturnValue(undefined);
   });
 
-  it("creates an optimistic placeholder for each valid click and tracks pending work", async () => {
+  it("ignores duplicate inline generate clicks while a submission is already in flight", async () => {
     const exportResolvers: Array<(value: MockExportResult) => void> = [];
     exportExpertEditStageArtifactsMock.mockImplementation(
       () =>
@@ -115,10 +115,7 @@ describe("useExpertEditInlineGenerate", () => {
           exportResolvers.push(resolve);
         })
     );
-    const insertOptimisticGenerationPlaceholder = vi
-      .fn()
-      .mockReturnValueOnce("out-optimistic-1")
-      .mockReturnValueOnce("out-optimistic-2");
+    const insertOptimisticGenerationPlaceholder = vi.fn().mockReturnValue("out-optimistic-1");
     const onRegenerateWithReferenceInputs = vi.fn(async () => undefined);
 
     const { result } = renderHook(() =>
@@ -135,7 +132,7 @@ describe("useExpertEditInlineGenerate", () => {
       result.current.handleInlineGenerate();
     });
 
-    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledTimes(2);
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledTimes(1);
     await waitFor(() => {
       expect(result.current.isInlineGeneratePending).toBe(true);
     });
@@ -158,30 +155,10 @@ describe("useExpertEditInlineGenerate", () => {
         })
       );
     });
-    expect(result.current.isInlineGeneratePending).toBe(true);
-
-    act(() => {
-      exportResolvers[1]?.({
-        flattenedBlob: null,
-        flattenedMarkupReferenceBlob: null,
-        inpaintMaskBlob: null,
-        reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
-      });
-    });
-
-    await waitFor(() => {
-      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledWith(
-        ["https://cdn.test/reusable-primary.png"],
-        expect.objectContaining({
-          outputIdOverride: "out-optimistic-2",
-          referenceInputsMode: "replace",
-        })
-      );
-    });
     await waitFor(() => {
       expect(result.current.isInlineGeneratePending).toBe(false);
     });
-    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(2);
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
     expect(prepareExpertEditSubmissionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         editSubmitIntent: "standard",
@@ -255,6 +232,40 @@ describe("useExpertEditInlineGenerate", () => {
     });
     expect(removeOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
     expect(showStatusToast).toHaveBeenCalledWith("Select a layer mask before inpainting.");
+  });
+
+  it("reports submit handler failures with the submission error instead of a flatten fallback", async () => {
+    const removeOptimisticGenerationPlaceholder = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const showStatusToast = vi.fn();
+    const onRegenerateWithReferenceInputs = vi.fn(async () => {
+      throw new Error("Credits check failed.");
+    });
+
+    const { result } = renderHook(() =>
+      useExpertEditInlineGenerate(
+        createArgs({
+          onRegenerateWithReferenceInputs,
+          removeOptimisticGenerationPlaceholder,
+          notifyGenerationFailure,
+          showStatusToast,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleInlineGenerate();
+    });
+
+    await waitFor(() => {
+      expect(notifyGenerationFailure).toHaveBeenCalledWith(
+        "out-optimistic",
+        "Credits check failed.",
+        "Credits check failed."
+      );
+    });
+    expect(removeOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(showStatusToast).toHaveBeenCalledWith("Credits check failed.");
   });
 
   it("allows valid clicks while the shared edit generation state is already busy", async () => {

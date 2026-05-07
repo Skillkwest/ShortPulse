@@ -1,4 +1,11 @@
-import { useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
 import { StudioMode } from "../types";
 import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
 import {
@@ -32,6 +39,9 @@ export type UseAiStudioCreationStateResult = {
   setVideoReferenceTextState: Dispatch<SetStateAction<string>>;
   expertEditSessionState: ExpertEditSessionState | null;
   setExpertEditSessionState: Dispatch<SetStateAction<ExpertEditSessionState | null>>;
+  publishExpertEditSessionState: Dispatch<SetStateAction<ExpertEditSessionState | null>>;
+  getExpertEditSessionState: () => ExpertEditSessionState | null;
+  expertEditSessionRevision: number;
   videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   setVideoReferenceMode: Dispatch<
     SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
@@ -101,6 +111,8 @@ export const useAiStudioCreationState = ({
 }: {
   projectRouteRequested?: boolean;
 } = {}): UseAiStudioCreationStateResult => {
+  const resolveStateAction = <T>(current: T, action: SetStateAction<T>): T =>
+    typeof action === "function" ? (action as (value: T) => T)(current) : action;
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [mode, setMode] = useState<StudioMode>("text");
@@ -110,8 +122,10 @@ export const useAiStudioCreationState = ({
   const [pulsePrompt, setPulsePrompt] = useState<string>("");
   const [editReferenceText, setEditReferenceTextState] = useState<string>("");
   const [videoReferenceText, setVideoReferenceTextState] = useState<string>("");
-  const [expertEditSessionState, setExpertEditSessionState] =
+  const [expertEditSessionState, setExpertEditSessionStateState] =
     useState<ExpertEditSessionState | null>(null);
+  const expertEditSessionStateRef = useRef<ExpertEditSessionState | null>(expertEditSessionState);
+  const [expertEditSessionRevision, setExpertEditSessionRevision] = useState<number>(0);
   const [videoReferenceMode, setVideoReferenceMode] = useState<
     "standard" | "modify" | "keyframes" | "kling3" | "motion"
   >("standard");
@@ -182,6 +196,50 @@ export const useAiStudioCreationState = ({
     });
   };
 
+  const updateExpertEditSessionState = useCallback(
+    (
+      action: SetStateAction<ExpertEditSessionState | null>,
+      options?: { updateSeedState?: boolean }
+    ) => {
+      const nextState = resolveStateAction(expertEditSessionStateRef.current, action);
+      const liveStateChanged = !Object.is(expertEditSessionStateRef.current, nextState);
+      if (liveStateChanged) {
+        expertEditSessionStateRef.current = nextState;
+        setExpertEditSessionRevision((current) => current + 1);
+      }
+      if (options?.updateSeedState !== false) {
+        setExpertEditSessionStateState((current) =>
+          Object.is(current, nextState) ? current : nextState
+        );
+      }
+    },
+    []
+  );
+
+  const setExpertEditSessionState = useCallback<
+    Dispatch<SetStateAction<ExpertEditSessionState | null>>
+  >(
+    (action) => {
+      updateExpertEditSessionState(action, {
+        updateSeedState: true,
+      });
+    },
+    [updateExpertEditSessionState]
+  );
+
+  const publishExpertEditSessionState = useCallback<
+    Dispatch<SetStateAction<ExpertEditSessionState | null>>
+  >(
+    (action) => {
+      updateExpertEditSessionState(action, {
+        updateSeedState: false,
+      });
+    },
+    [updateExpertEditSessionState]
+  );
+
+  const getExpertEditSessionState = useCallback(() => expertEditSessionStateRef.current, []);
+
   return {
     promptRef,
     mode,
@@ -200,6 +258,9 @@ export const useAiStudioCreationState = ({
     setVideoReferenceTextState,
     expertEditSessionState,
     setExpertEditSessionState,
+    publishExpertEditSessionState,
+    getExpertEditSessionState,
+    expertEditSessionRevision,
     videoReferenceMode,
     setVideoReferenceMode,
     videoDurationSeconds,

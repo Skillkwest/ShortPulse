@@ -1,13 +1,10 @@
 /**
- * AI Studio write-shadow persistence hook.
- * Debounces session snapshot writes, enforces payload-size guardrails, and flushes on lifecycle exits.
+ * AI Studio workspace autosave hook.
+ * Debounces snapshot writes, enforces payload-size guardrails, and flushes on lifecycle exits.
  */
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
-import { resolveAiStudioSessionSnapshotTitle } from "../logic/sessionSnapshotTitle";
 import { AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES } from "../logic/sessionSnapshotCanvas";
-import { saveAiStudioSessionShadow } from "../logic/sessionSnapshotStorage";
-import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
 
 type PersistSnapshotFn = (
   sessionId: string,
@@ -17,7 +14,7 @@ type PersistSnapshotFn = (
 
 type PersistErrorReason = "snapshot_too_large" | "snapshot_serialize_failed" | "persist_failed";
 
-export type AiStudioSessionWriteShadowError = {
+export type AiStudioSessionAutosaveError = {
   reason: PersistErrorReason;
   sessionId: string | null;
   snapshotBytes?: number;
@@ -25,16 +22,16 @@ export type AiStudioSessionWriteShadowError = {
   keepalive?: boolean;
 };
 
-type UseAiStudioSessionWriteShadowArgs = {
+type UseAiStudioSessionAutosaveArgs = {
   sessionId: string | null;
   snapshot: AiStudioSessionSnapshot | null;
-  enabled?: boolean;
+  enabled: boolean;
+  persistSnapshot: PersistSnapshotFn;
   debounceMs?: number;
   maxDirtyMs?: number;
   maxSnapshotBytes?: number;
-  persistSnapshot?: PersistSnapshotFn;
   resolveSnapshotTitle?: (snapshot: AiStudioSessionSnapshot) => string | null;
-  onPersistError?: (error: Error, details: AiStudioSessionWriteShadowError) => void;
+  onPersistError?: (error: Error, details: AiStudioSessionAutosaveError) => void;
 };
 
 type PendingSnapshotState = {
@@ -79,21 +76,19 @@ const stripVolatileSnapshotFields = (
 };
 
 /**
- * Persists `snapshot` for the active `sessionId` in debounced write-shadow mode.
+ * Persists `snapshot` for the active workspace identity in debounced autosave mode.
  */
-export const useAiStudioSessionWriteShadow = ({
+export const useAiStudioSessionAutosave = ({
   sessionId,
   snapshot,
-  enabled: enabledProp,
+  enabled,
+  persistSnapshot,
   debounceMs = DEFAULT_DEBOUNCE_MS,
   maxDirtyMs = DEFAULT_MAX_DIRTY_MS,
   maxSnapshotBytes = AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
-  persistSnapshot = saveAiStudioSessionShadow,
-  resolveSnapshotTitle = resolveAiStudioSessionSnapshotTitle,
+  resolveSnapshotTitle = () => null,
   onPersistError,
-}: UseAiStudioSessionWriteShadowArgs): void => {
-  const { writeShadowEnabled } = readAiStudioSessionPersistencePolicy();
-  const enabled = enabledProp ?? writeShadowEnabled;
+}: UseAiStudioSessionAutosaveArgs): void => {
   const pendingRef = useRef<PendingSnapshotState | null>(null);
   const inFlightRef = useRef<SnapshotPersistIdentity | null>(null);
   const lastSavedHashRef = useRef<string | null>(null);
@@ -103,7 +98,7 @@ export const useAiStudioSessionWriteShadow = ({
   const maxTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
 
   const reportPersistError = useCallback(
-    (error: Error, details: AiStudioSessionWriteShadowError) => {
+    (error: Error, details: AiStudioSessionAutosaveError) => {
       onPersistError?.(error, details);
     },
     [onPersistError]

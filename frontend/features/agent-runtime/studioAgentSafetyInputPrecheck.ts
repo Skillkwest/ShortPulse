@@ -29,7 +29,7 @@ export type StudioAgentSafetyInputPrecheckField =
   | "reference_caption"
   | "canonical_prompt";
 
-export type StudioAgentSafetyInputPrecheckFieldMode = "enforce" | "rewrite_only" | "shadow" | "off";
+export type StudioAgentSafetyInputPrecheckFieldMode = "enforce" | "rewrite_only" | "off";
 
 const DEFAULT_SAFETY_INPUT_PRECHECK_FIELD_MODES: Record<
   StudioAgentSafetyInputPrecheckField,
@@ -57,7 +57,6 @@ const PRECHECK_FIELD_NAMES: StudioAgentSafetyInputPrecheckField[] = [
 const PRECHECK_FIELD_MODES = new Set<StudioAgentSafetyInputPrecheckFieldMode>([
   "enforce",
   "rewrite_only",
-  "shadow",
   "off",
 ]);
 
@@ -223,11 +222,6 @@ const evaluateInputField = ({
     state.refusalField = field;
     return { ok: false };
   }
-  if (mode === "shadow") {
-    state.nonBlockingSignalCount += 1;
-    return { ok: true, value };
-  }
-
   const rewritten = rewriteStudioAgentSafetyTextDeterministic(initial.normalizedText);
   const rewrittenEvaluation = evaluateStudioAgentSafetyText({
     text: rewritten,

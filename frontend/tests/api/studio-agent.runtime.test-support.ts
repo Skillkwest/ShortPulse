@@ -122,7 +122,6 @@ export const resetStudioAgentRuntimeTestState = () => {
   vi.clearAllMocks();
   process.env.OPENAI_API_KEY = "test-key";
   process.env.STUDIO_AGENT_ENABLED = "true";
-  process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "false";
   process.env.STUDIO_AGENT_SERVER_VISION_ENABLED = "false";
   delete process.env.STUDIO_AGENT_PULSE_MODEL;
   process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
@@ -131,7 +130,6 @@ export const resetStudioAgentRuntimeTestState = () => {
   delete process.env.STUDIO_AGENT_VISION_TIMEOUT_MS;
   delete process.env.STUDIO_AGENT_TURN_TIMEOUT_MS;
   delete process.env.STUDIO_AGENT_PULSE_TURN_TIMEOUT_MS;
-  process.env.NEXT_PUBLIC_AGENT_V2 = "false";
   delete process.env.SHORTPULSE_OPENAI_RESPONSES_ENABLED;
   delete process.env.SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED;
   delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED;

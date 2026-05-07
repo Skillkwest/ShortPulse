@@ -1,5 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import {
+  CREATE_PULSE_CUSTOM_AUTHORING_KIND,
+  CREATE_PULSE_SCHEMA_VERSION,
+} from "../../../components/create/createPulsePresets";
 import { useCreatePulsePresetPageRuntime } from "../useCreatePulsePresetPageRuntime";
 
 const createParams = (
@@ -60,14 +64,9 @@ describe("useCreatePulsePresetPageRuntime", () => {
               label: "Custom Video Pulse",
               description: "Guided custom video prompt.",
               systemInstructions: "Guide the user through a custom video prompt workflow.",
-              runtimeMode: "workflow_gpt",
-              activationMode: "activate_and_start",
-              starterAssistantMessage: "Start with an image.",
-              workflowStageHints: ["Image", "Motion", "Final"],
-              outputMode: "chat_reply",
-              artifactTarget: "video_prompt",
-              memoryPolicy: "session",
+              pulseKind: "custom_gpt",
               createdAt: "2026-05-01T00:00:00.000Z",
+              schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
             },
           ],
         })
@@ -80,7 +79,8 @@ describe("useCreatePulsePresetPageRuntime", () => {
 
     expect(result.current.activeCreatePulsePresetSnapshot?.presetId).toBe("pulse_custom_video");
     expect(context.pulse?.presetId).toBe("pulse_custom_video");
-    expect(context.pulse?.artifactTarget).toBe("video_prompt");
+    expect(context.pulse?.runtimeMode).toBeUndefined();
+    expect(context.pulse?.artifactTarget).toBeUndefined();
     expect(context.pulse?.source).toBe("custom");
   });
 
@@ -174,6 +174,26 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(handleExpertCreateModeChange).toHaveBeenCalledWith("standard");
   });
 
+  it("fails closed when Pulse mode leaves the Create tool", async () => {
+    const clearPulsePrompt = vi.fn();
+    const handleExpertCreateModeChange = vi.fn();
+
+    renderHook(() =>
+      useCreatePulsePresetPageRuntime(
+        createParams({
+          selectedTool: "presets",
+          clearPulsePrompt,
+          handleExpertCreateModeChange,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(clearPulsePrompt).toHaveBeenCalledTimes(1);
+      expect(handleExpertCreateModeChange).toHaveBeenCalledWith("standard");
+    });
+  });
+
   it("clears Pulse prompt state when changing or deactivating the active Pulse", () => {
     const clearPulsePrompt = vi.fn();
     const handleActiveCreatePulsePresetIdChange = vi.fn();
@@ -225,13 +245,14 @@ describe("useCreatePulsePresetPageRuntime", () => {
       label: "Custom Video Pulse",
       description: null,
       systemInstructions: "Guide a custom video workflow.",
-      runtimeMode: "workflow_gpt" as const,
+      pulseKind: CREATE_PULSE_CUSTOM_AUTHORING_KIND,
+      runtimeMode: "custom_gpt" as const,
       activationMode: "activate_and_start" as const,
       starterAssistantMessage: null,
       workflowStageHints: null,
       outputMode: "chat_reply" as const,
-      artifactTarget: "video_prompt" as const,
       memoryPolicy: "session" as const,
+      schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
       isCustom: true,
       isBuiltIn: false,
       isEditable: true,

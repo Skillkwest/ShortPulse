@@ -15,7 +15,9 @@ type GeneratePulseArtifact = (
 
 type UsePulseCreatePrimarySubmitParams = {
   hasActivePulseSession: boolean;
+  pulseKind: "guided_workflow" | "custom_gpt" | null;
   pulseWorkflowSession: AgentPulseWorkflowSession | null;
+  latestAgentPrompt: string | null;
   artifactTarget: CreatePulseArtifactTarget | null;
   effectiveGenerationGuardrail: string | null;
   promptReferenceGenerateCostCredits: number | null;
@@ -25,6 +27,8 @@ type UsePulseCreatePrimarySubmitParams = {
 };
 
 const PULSE_INCOMPLETE_GENERATION_GUARDRAIL = "Complete the active Pulse before generating.";
+const PULSE_CUSTOM_PROMPT_GENERATION_GUARDRAIL =
+  "This Pulse has not produced a generation-ready prompt yet.";
 const PULSE_TEXT_ARTIFACT_GENERATION_GUARDRAIL =
   "This Pulse creates a text artifact. Generation is not available for this artifact target yet.";
 const PULSE_STORYBOARD_GENERATION_GUARDRAIL =
@@ -32,7 +36,7 @@ const PULSE_STORYBOARD_GENERATION_GUARDRAIL =
 const PULSE_MISSING_ARTIFACT_TARGET_GUARDRAIL =
   "This Pulse does not have a valid artifact target. Restart the Pulse or choose another Pulse.";
 
-const resolvePulseArtifactGenerationRoute = (
+export const resolvePulseArtifactGenerationRoute = (
   artifactTarget: CreatePulseArtifactTarget | null
 ): { modeOverride: StudioMode; toolOverride: ToolId } | null => {
   if (artifactTarget === "image_prompt") {
@@ -42,6 +46,21 @@ const resolvePulseArtifactGenerationRoute = (
     return { modeOverride: "video", toolOverride: "video" };
   }
   return null;
+};
+
+export const resolvePulseArtifactCostOverrideCredits = ({
+  artifactTarget,
+  promptReferenceGenerateCostCredits,
+  currentCostCredits,
+}: {
+  artifactTarget: CreatePulseArtifactTarget | null;
+  promptReferenceGenerateCostCredits: number | null;
+  currentCostCredits: number | null;
+}): number | null => {
+  if (artifactTarget === "image_prompt") {
+    return promptReferenceGenerateCostCredits ?? currentCostCredits;
+  }
+  return currentCostCredits;
 };
 
 const resolvePulseArtifactTargetGuardrail = (
@@ -59,7 +78,9 @@ const resolvePulseArtifactTargetGuardrail = (
  */
 export const usePulseCreatePrimarySubmit = ({
   hasActivePulseSession,
+  pulseKind,
   pulseWorkflowSession,
+  latestAgentPrompt,
   artifactTarget,
   effectiveGenerationGuardrail,
   promptReferenceGenerateCostCredits,
@@ -69,31 +90,61 @@ export const usePulseCreatePrimarySubmit = ({
 }: UsePulseCreatePrimarySubmitParams) => {
   const pulseWorkflowLastArtifact = pulseWorkflowSession?.lastArtifact ?? null;
   const pulseCompletedArtifactPrompt = useMemo(() => {
-    if (!hasActivePulseSession || pulseWorkflowSession?.status !== "completed") return null;
-    if (typeof pulseWorkflowLastArtifact !== "string") return null;
-    const artifact = pulseWorkflowLastArtifact.trim();
-    return artifact.length > 0 ? artifact : null;
-  }, [hasActivePulseSession, pulseWorkflowLastArtifact, pulseWorkflowSession?.status]);
+    if (!hasActivePulseSession) return null;
+    if (pulseKind === "guided_workflow") {
+      if (pulseWorkflowSession?.status !== "completed") return null;
+      if (typeof pulseWorkflowLastArtifact !== "string") return null;
+      const artifact = pulseWorkflowLastArtifact.trim();
+      return artifact.length > 0 ? artifact : null;
+    }
+    const prompt = typeof latestAgentPrompt === "string" ? latestAgentPrompt.trim() : "";
+    return prompt.length > 0 ? prompt : null;
+  }, [
+    hasActivePulseSession,
+    latestAgentPrompt,
+    pulseKind,
+    pulseWorkflowLastArtifact,
+    pulseWorkflowSession?.status,
+  ]);
   const pulseArtifactGenerationRoute = useMemo(
-    () => resolvePulseArtifactGenerationRoute(artifactTarget),
-    [artifactTarget]
+    () =>
+      pulseKind === "guided_workflow" ? resolvePulseArtifactGenerationRoute(artifactTarget) : null,
+    [artifactTarget, pulseKind]
   );
-  const unsupportedArtifactTargetGuardrail = pulseCompletedArtifactPrompt
-    ? resolvePulseArtifactTargetGuardrail(artifactTarget)
-    : null;
+  const pulseArtifactCostOverrideCredits = useMemo(
+    () =>
+      pulseKind === "guided_workflow"
+        ? resolvePulseArtifactCostOverrideCredits({
+            artifactTarget,
+            promptReferenceGenerateCostCredits,
+            currentCostCredits,
+          })
+        : currentCostCredits,
+    [artifactTarget, currentCostCredits, promptReferenceGenerateCostCredits, pulseKind]
+  );
+  const unsupportedArtifactTargetGuardrail =
+    pulseKind === "guided_workflow" && pulseCompletedArtifactPrompt
+      ? resolvePulseArtifactTargetGuardrail(artifactTarget)
+      : null;
   const pulseArtifactGenerateGuardrail = pulseCompletedArtifactPrompt
     ? (effectiveGenerationGuardrail ?? unsupportedArtifactTargetGuardrail)
-    : PULSE_INCOMPLETE_GENERATION_GUARDRAIL;
+    : pulseKind === "guided_workflow"
+      ? PULSE_INCOMPLETE_GENERATION_GUARDRAIL
+      : PULSE_CUSTOM_PROMPT_GENERATION_GUARDRAIL;
   const pulseArtifactGenerateDisabled =
     Boolean(effectiveGenerationGuardrail) ||
     Boolean(unsupportedArtifactTargetGuardrail) ||
     !pulseCompletedArtifactPrompt;
   const handlePulseCreatePrimarySubmit = useCallback(() => {
     if (!pulseCompletedArtifactPrompt) {
-      setUiNotice(PULSE_INCOMPLETE_GENERATION_GUARDRAIL);
+      setUiNotice(
+        pulseKind === "guided_workflow"
+          ? PULSE_INCOMPLETE_GENERATION_GUARDRAIL
+          : PULSE_CUSTOM_PROMPT_GENERATION_GUARDRAIL
+      );
       return;
     }
-    if (!pulseArtifactGenerationRoute) {
+    if (pulseKind === "guided_workflow" && !pulseArtifactGenerationRoute) {
       setUiNotice(
         unsupportedArtifactTargetGuardrail ??
           "This Pulse artifact target is not available for generation yet."
@@ -101,17 +152,17 @@ export const usePulseCreatePrimarySubmit = ({
       return;
     }
     void handleGenerate(pulseCompletedArtifactPrompt, {
-      modeOverride: pulseArtifactGenerationRoute.modeOverride,
-      toolOverride: pulseArtifactGenerationRoute.toolOverride,
-      costOverrideCredits: promptReferenceGenerateCostCredits ?? currentCostCredits,
+      modeOverride: pulseArtifactGenerationRoute?.modeOverride,
+      toolOverride: pulseArtifactGenerationRoute?.toolOverride,
+      costOverrideCredits: pulseArtifactCostOverrideCredits,
       suppressStyle: true,
     });
   }, [
-    currentCostCredits,
     handleGenerate,
+    pulseArtifactCostOverrideCredits,
     pulseArtifactGenerationRoute,
     pulseCompletedArtifactPrompt,
-    promptReferenceGenerateCostCredits,
+    pulseKind,
     setUiNotice,
     unsupportedArtifactTargetGuardrail,
   ]);

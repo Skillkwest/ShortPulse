@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
   normalizeCreatePulseBuiltInPresetDefinitions,
   resolveCreatePulseBuiltInPresetDefinitions,
@@ -17,7 +18,7 @@ export type UseCreatePulseBuiltInCatalogResult = {
 };
 
 const loadCreatePulseBuiltInCatalog = async (): Promise<CreatePulseBuiltInPresetDefinition[]> => {
-  const response = await fetch("/api/ai/create-pulse-builtins", {
+  const response = await fetchWithAuth("/api/ai/create-pulse-builtins", {
     method: "GET",
     headers: {
       Accept: "application/json",

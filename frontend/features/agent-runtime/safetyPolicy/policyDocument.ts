@@ -18,7 +18,7 @@ const SAFETY_MODALITIES: SafetyModality[] = ["text", "image", "video"];
 const GENERATION_MODALITIES: Array<Exclude<SafetyModality, "text">> = ["image", "video"];
 const TEXT_LEVELS: SafetyTextLevel[] = ["allow", "rewrite", "refuse"];
 const GENERATION_LEVELS: SafetyGenerationLevel[] = ["off", "moderate", "strict"];
-const POSTPROCESS_MODES: SafetyPostprocessMode[] = ["enforce", "shadow", "off"];
+const POSTPROCESS_MODES: SafetyPostprocessMode[] = ["enforce", "off"];
 
 const DEFAULT_IMAGE_PREFLIGHT_THRESHOLDS: Record<SafetyFamily, number> = {
   sexual: 0.75,
@@ -234,7 +234,9 @@ const normalizePolicyDocumentV2 = ({
   }
 
   const postprocess = asObjectRecord(raw.postprocess);
-  const mode = asPostprocessMode(postprocess?.mode);
+  const rawMode =
+    typeof postprocess?.mode === "string" ? postprocess.mode.trim().toLowerCase() : null;
+  const mode = asPostprocessMode(rawMode);
   if (mode) {
     next.postprocess.mode = mode;
   }
@@ -268,6 +270,19 @@ export const validateSafetyPolicyDocument = (
   }
   if (raw.schemaVersion !== 2) {
     return { ok: false, errors: ["schemaVersion must be 2"] };
+  }
+
+  const postprocess = asObjectRecord(raw.postprocess);
+  const rawPostprocessMode =
+    typeof postprocess?.mode === "string" ? postprocess.mode.trim().toLowerCase() : null;
+  if (
+    rawPostprocessMode &&
+    !POSTPROCESS_MODES.includes(rawPostprocessMode as SafetyPostprocessMode)
+  ) {
+    return {
+      ok: false,
+      errors: [`postprocess.mode must be one of: ${POSTPROCESS_MODES.join(", ")}`],
+    };
   }
 
   const normalized = normalizePolicyDocumentV2({

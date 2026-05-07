@@ -57,20 +57,14 @@ const normalizeDroppedImageCandidate = (value: string | null | undefined) => {
   return normalized;
 };
 
-const isDataImageCandidate = (value: string) =>
-  value.trim().toLowerCase().startsWith("data:image/");
-
 const resolveDroppedImageUrls = (candidates: Array<string | null | undefined>) => {
-  const normalizedCandidates = candidates
-    .map((candidate) => normalizeDroppedImageCandidate(candidate))
-    .filter((candidate): candidate is string => Boolean(candidate));
-  const dedupedCandidates = Array.from(new Set(normalizedCandidates));
-  const durableCandidates = dedupedCandidates.filter(
-    (candidate) => !isDataImageCandidate(candidate)
+  return Array.from(
+    new Set(
+      candidates
+        .map((candidate) => normalizeDroppedImageCandidate(candidate))
+        .filter((candidate): candidate is string => Boolean(candidate))
+    )
   );
-  const dataCandidates = dedupedCandidates.filter(isDataImageCandidate);
-
-  return [...durableCandidates, ...dataCandidates];
 };
 
 type UseAiStudioAgentComposerParams = {
@@ -257,10 +251,10 @@ export const useAiStudioAgentComposer = ({
         null;
       const normalizedImageUrls = resolveDroppedImageUrls([
         payload.imageUrl,
+        transferRenderUrl,
         transferReferenceUrl,
         matchedOutputImageUrl,
         resolvedPreviewUrl,
-        transferRenderUrl,
       ]);
       const normalizedImageUrl = normalizedImageUrls[0] ?? null;
 

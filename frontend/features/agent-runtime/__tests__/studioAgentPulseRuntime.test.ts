@@ -23,6 +23,7 @@ describe("studioAgentPulseRuntime", () => {
         presetId: "story_builder",
         label: "Story Builder",
         instructions: "Run the workflow one step at a time.",
+        pulseKind: "guided_workflow",
         workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
         outputMode: "chat_reply",
         workflowSession: {
@@ -61,6 +62,7 @@ describe("studioAgentPulseRuntime", () => {
         presetId: "story_builder",
         label: "DFY Story Builder",
         instructions: "Run the workflow one step at a time.",
+        pulseKind: "guided_workflow",
         outputMode: "chat_reply",
         workflowSession: {
           presetId: "story_builder",
@@ -93,6 +95,7 @@ describe("studioAgentPulseRuntime", () => {
       presetId: "image",
       label: "Video Prompt Magic",
       instructions: "Follow the guided video workflow one step at a time.",
+      pulseKind: "guided_workflow",
       artifactTarget: "video_prompt",
       starterAssistantMessage: "Upload your image to get the process started :)",
       workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection", "Dialogue"],
@@ -124,6 +127,7 @@ describe("studioAgentPulseRuntime", () => {
     expect(systemMessage).toContain(
       "Do not restart from the first step, substitute a different workflow, or invent a new intake step unless the user explicitly asks to restart."
     );
+    expect(systemMessage).toContain("pulse_kind: guided_workflow");
     expect(systemMessage).toContain("artifact_target: video_prompt");
   });
 
@@ -132,6 +136,7 @@ describe("studioAgentPulseRuntime", () => {
       presetId: "image",
       label: "Video Prompt Magic",
       instructions: "Follow the guided video workflow.",
+      pulseKind: "guided_workflow",
       starterAssistantMessage: "Upload your image to get the process started :)",
       workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection"],
       workflowSession: {
@@ -156,6 +161,7 @@ describe("studioAgentPulseRuntime", () => {
       presetId: "custom",
       label: "Custom Pulse",
       instructions: "Ask one focused setup question before producing the final result.",
+      pulseKind: "custom_gpt",
       starterAssistantMessage: null,
       workflowStageHints: null,
       outputMode: "chat_reply",
@@ -165,21 +171,35 @@ describe("studioAgentPulseRuntime", () => {
       presetId: "custom",
       label: "Custom Pulse",
       instructions: "Ask one focused setup question before producing the final result.",
+      pulseKind: "custom_gpt",
       starterAssistantMessage: null,
       workflowStageHints: null,
       outputMode: "chat_reply",
       source: "custom",
     });
 
-    expect(activationSeed).toContain("Start the workflow now.");
-    expect(activationSeed).toContain(
-      "Reply with only the first required assistant step or question."
+    expect(activationSeed).toContain("Reply according to the active Pulse instructions.");
+    expect(activationSeed).not.toContain(
+      "Begin the conversation according to the active Pulse instructions."
     );
+    expect(activationSeed).not.toContain("Start the workflow now.");
     expect(systemMessage).toContain("preset_source: custom");
+    expect(systemMessage).toContain("pulse_kind: custom_gpt");
     expect(systemMessage).toContain(
       "Ask one focused setup question before producing the final result."
     );
+    expect(systemMessage).toContain(
+      "Treat the saved pulse instructions below as the behavioral source of truth for this run."
+    );
+    expect(systemMessage).toContain(
+      "Do not impose a workflow shell, forced step order, or hidden artifact contract unless the pulse instructions themselves require it."
+    );
+    expect(systemMessage).not.toContain("runtime_mode:");
+    expect(systemMessage).not.toContain("activation_mode:");
+    expect(systemMessage).not.toContain("output_mode:");
+    expect(systemMessage).not.toContain("artifact_target:");
     expect(systemMessage).not.toContain("starter_assistant_message:");
     expect(systemMessage).not.toContain("workflow_stage_hints:");
+    expect(systemMessage).not.toContain("Use a polished rich-guided layout");
   });
 });

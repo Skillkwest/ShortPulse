@@ -264,7 +264,7 @@ export function CreateExpertPresetPanel({
                 aria-label="Empty pulse preset drop target"
                 onClick={() => setIsMorePresetsSurfaceOpen(true)}
               >
-                Add pulses here
+                Open pulse catalog
               </button>
             )}
           </div>
@@ -308,13 +308,13 @@ export function CreateExpertPresetPanel({
                 className="create-pulse-library-modal"
                 role="dialog"
                 aria-modal="true"
-                aria-label="Pulses"
+                aria-label="Pulse Library"
                 onClick={(event) => event.stopPropagation()}
               >
                 <button
                   type="button"
                   className="ghost-btn mini create-pulse-library-modal-close"
-                  aria-label="Close Pulses"
+                  aria-label="Close Pulse Library"
                   onClick={closePulseLibrary}
                 >
                   <X size={16} weight="bold" />

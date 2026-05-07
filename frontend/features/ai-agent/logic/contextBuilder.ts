@@ -15,6 +15,8 @@ const MAX_MEDIA_ITEMS = 3;
 const GUIDED_PULSE_RUNTIME_MODE = "workflow_gpt" as const;
 const GUIDED_PULSE_ACTIVATION_MODE = "activate_and_start" as const;
 const GUIDED_PULSE_OUTPUT_MODE = "chat_reply" as const;
+const GUIDED_PULSE_KIND = "guided_workflow" as const;
+const CUSTOM_PULSE_KIND = "custom_gpt" as const;
 
 const normalizePulseArtifactTarget = (
   value: AgentPulseRuntimeContext["artifactTarget"]
@@ -111,13 +113,41 @@ const pickPulseRuntime = (
               : null,
         } satisfies AgentPulseWorkflowSession)
       : null;
+  const pulseKind =
+    pulse.pulseKind === GUIDED_PULSE_KIND || pulse.pulseKind === CUSTOM_PULSE_KIND
+      ? pulse.pulseKind
+      : pulse.runtimeMode === "custom_gpt"
+        ? CUSTOM_PULSE_KIND
+        : pulse.runtimeMode === GUIDED_PULSE_RUNTIME_MODE ||
+            starterAssistantMessage != null ||
+            workflowStageHints != null ||
+            pulse.source === "builtin"
+          ? GUIDED_PULSE_KIND
+          : CUSTOM_PULSE_KIND;
+  const source = pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined;
+  const schemaVersion =
+    typeof pulse.schemaVersion === "number" && Number.isFinite(pulse.schemaVersion)
+      ? Math.trunc(pulse.schemaVersion)
+      : undefined;
   if (!presetId || !label || !instructions) return undefined;
   const artifactTarget = normalizePulseArtifactTarget(pulse.artifactTarget);
+  if (pulseKind === CUSTOM_PULSE_KIND) {
+    return {
+      presetId,
+      label,
+      description,
+      instructions,
+      pulseKind,
+      ...(source ? { source } : {}),
+      ...(schemaVersion != null ? { schemaVersion } : {}),
+    };
+  }
   return {
     presetId,
     label,
     description,
     instructions,
+    pulseKind,
     runtimeMode: GUIDED_PULSE_RUNTIME_MODE,
     activationMode: GUIDED_PULSE_ACTIVATION_MODE,
     starterAssistantMessage,
@@ -125,8 +155,9 @@ const pickPulseRuntime = (
     outputMode: GUIDED_PULSE_OUTPUT_MODE,
     ...(artifactTarget ? { artifactTarget } : {}),
     memoryPolicy: "session",
-    source: pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined,
+    ...(source ? { source } : {}),
     workflowSession,
+    ...(schemaVersion != null ? { schemaVersion } : {}),
   };
 };
 

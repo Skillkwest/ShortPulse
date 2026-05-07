@@ -8,9 +8,13 @@ import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agen
 
 const MAX_MESSAGES = 24;
 export const STUDIO_AGENT_MAX_MEDIA = 3;
+const GUIDED_PULSE_KIND = "guided_workflow" as const;
+const CUSTOM_PULSE_KIND = "custom_gpt" as const;
 const GUIDED_PULSE_RUNTIME_MODE = "workflow_gpt" as const;
-const GUIDED_PULSE_ACTIVATION_MODE = "activate_and_start" as const;
-const GUIDED_PULSE_OUTPUT_MODE = "chat_reply" as const;
+const CUSTOM_PULSE_RUNTIME_MODE = "custom_gpt" as const;
+const DEFAULT_PULSE_ACTIVATION_MODE = "activate_and_start" as const;
+const DEFAULT_PULSE_OUTPUT_MODE = "chat_reply" as const;
+const DEFAULT_PULSE_SCHEMA_VERSION = 2 as const;
 
 export const STUDIO_AGENT_MAX_TEXT_REQUEST_BYTES = 512 * 1024;
 export const STUDIO_AGENT_MAX_MIXED_REQUEST_BYTES = 1536 * 1024;
@@ -153,6 +157,24 @@ const normalizePulseArtifactTarget = (
     ? value
     : undefined;
 
+const normalizePulseKind = (
+  pulse?: AgentContext["pulse"] | null
+): NonNullable<AgentContext["pulse"]>["pulseKind"] | undefined => {
+  if (!pulse) return undefined;
+  if (pulse.pulseKind === GUIDED_PULSE_KIND || pulse.pulseKind === CUSTOM_PULSE_KIND) {
+    return pulse.pulseKind;
+  }
+  const hasGuidedMetadata =
+    (typeof pulse.starterAssistantMessage === "string" &&
+      pulse.starterAssistantMessage.trim().length > 0) ||
+    (Array.isArray(pulse.workflowStageHints) &&
+      pulse.workflowStageHints.some(
+        (entry) => typeof entry === "string" && entry.trim().length > 0
+      )) ||
+    pulse.source === "builtin";
+  return hasGuidedMetadata ? GUIDED_PULSE_KIND : CUSTOM_PULSE_KIND;
+};
+
 const sanitizeStudioAgentPulseContext = (
   pulse?: AgentContext["pulse"] | null
 ): AgentContext["pulse"] | undefined => {
@@ -223,23 +245,61 @@ const sanitizeStudioAgentPulseContext = (
         } satisfies AgentPulseWorkflowSession)
       : null;
   if (!presetId || !label || !instructions) return undefined;
+  const pulseKind = normalizePulseKind(pulse);
+  if (!pulseKind) return undefined;
   const presetBoundWorkflowSession =
-    workflowSession?.presetId === presetId ? workflowSession : null;
+    pulseKind === GUIDED_PULSE_KIND && workflowSession?.presetId === presetId
+      ? workflowSession
+      : null;
   const artifactTarget = normalizePulseArtifactTarget(pulse.artifactTarget);
+  const activationMode =
+    pulse.activationMode === "activate_only" || pulse.activationMode === "activate_and_start"
+      ? pulse.activationMode
+      : DEFAULT_PULSE_ACTIVATION_MODE;
+  const outputMode =
+    pulse.outputMode === "apply_prompt" || pulse.outputMode === "chat_reply"
+      ? pulse.outputMode
+      : DEFAULT_PULSE_OUTPUT_MODE;
+  const runtimeMode =
+    pulseKind === GUIDED_PULSE_KIND
+      ? GUIDED_PULSE_RUNTIME_MODE
+      : pulse.runtimeMode === CUSTOM_PULSE_RUNTIME_MODE
+        ? pulse.runtimeMode
+        : CUSTOM_PULSE_RUNTIME_MODE;
+  const schemaVersion =
+    typeof pulse.schemaVersion === "number" &&
+    Number.isFinite(pulse.schemaVersion) &&
+    pulse.schemaVersion > 0
+      ? Math.trunc(pulse.schemaVersion)
+      : DEFAULT_PULSE_SCHEMA_VERSION;
+  const source = pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined;
+  if (pulseKind === CUSTOM_PULSE_KIND) {
+    return {
+      presetId,
+      label,
+      description,
+      instructions,
+      pulseKind,
+      ...(source ? { source } : {}),
+      schemaVersion,
+    };
+  }
   return {
     presetId,
     label,
     description,
     instructions,
-    runtimeMode: GUIDED_PULSE_RUNTIME_MODE,
-    activationMode: GUIDED_PULSE_ACTIVATION_MODE,
+    pulseKind,
+    runtimeMode,
+    activationMode,
     starterAssistantMessage,
     workflowStageHints,
-    outputMode: GUIDED_PULSE_OUTPUT_MODE,
+    outputMode,
     ...(artifactTarget ? { artifactTarget } : {}),
     memoryPolicy: "session",
-    source: pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined,
+    ...(source ? { source } : {}),
     workflowSession: presetBoundWorkflowSession,
+    schemaVersion,
   };
 };
 

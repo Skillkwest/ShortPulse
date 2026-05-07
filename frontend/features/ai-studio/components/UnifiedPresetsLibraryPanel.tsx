@@ -1,6 +1,6 @@
 /**
  * Unified Presets library shell for AI Studio.
- * Combines Pulse and Prompt Preset libraries behind one left-rail surface while keeping their editors separate.
+ * Combines the Pulse catalog and Prompt Preset libraries behind one left-rail surface while keeping their editors separate.
  */
 import React from "react";
 import { Selection, Sparkle } from "phosphor-react";
@@ -36,12 +36,12 @@ const FILTER_OPTIONS: ReadonlyArray<{
   label: string;
 }> = [
   { id: "all", label: "All" },
-  { id: "pulses", label: "Pulses" },
+  { id: "pulses", label: "Pulse Catalog" },
   { id: "prompt-presets", label: "Prompt Presets" },
 ];
 
 /**
- * Renders the combined Presets library with internal sections for Pulses and Prompt Presets.
+ * Renders the combined Presets library with internal sections for the Pulse catalog and Prompt Presets.
  */
 export function UnifiedPresetsLibraryPanel({
   promptPresets,
@@ -97,7 +97,7 @@ export function UnifiedPresetsLibraryPanel({
                   </span>
                 </button>
                 <h3 id="presets-pulses-title" className="merged-presets-library-section-title">
-                  Pulses
+                  Pulse Catalog
                 </h3>
               </div>
             </div>

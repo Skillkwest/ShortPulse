@@ -20,10 +20,13 @@ import {
   type ExpertEditSessionState,
 } from "./expertEditSessionState";
 import {
+  clearWindowTimeoutRef,
   clearWindowAnimationFrameRef,
   scheduleWindowAnimationFrame,
 } from "./expertEditInteractionUtils";
 import type { MarkupStroke } from "./markupStrokeController";
+
+const SESSION_STATE_DISPATCH_INTERVAL_MS = 300;
 
 type UseExpertEditSessionHostSyncArgs = {
   foundationLayerId: string | null;
@@ -39,6 +42,8 @@ type UseExpertEditSessionHostSyncArgs = {
   lastDispatchedSessionStateRef: React.MutableRefObject<ExpertEditSessionState | null>;
   pendingSessionStateRef: React.MutableRefObject<ExpertEditSessionState | null>;
   sessionDispatchFrameRef: React.MutableRefObject<number | null>;
+  sessionDispatchTimeoutRef: React.MutableRefObject<number | null>;
+  lastSessionDispatchAtRef: React.MutableRefObject<number>;
   lastDispatchedPrimaryRef: React.MutableRefObject<string | null>;
   previousPrimaryPropRef: React.MutableRefObject<string | null>;
   removeBackgroundPendingSourceUrlRef: React.MutableRefObject<string | null>;
@@ -63,6 +68,8 @@ export function useExpertEditSessionHostSync({
   lastDispatchedSessionStateRef,
   pendingSessionStateRef,
   sessionDispatchFrameRef,
+  sessionDispatchTimeoutRef,
+  lastSessionDispatchAtRef,
   lastDispatchedPrimaryRef,
   previousPrimaryPropRef,
   removeBackgroundPendingSourceUrlRef,
@@ -109,6 +116,7 @@ export function useExpertEditSessionHostSync({
     if (!onSessionStateChange) {
       pendingSessionStateRef.current = null;
       clearWindowAnimationFrameRef(sessionDispatchFrameRef);
+      clearWindowTimeoutRef(sessionDispatchTimeoutRef);
       return;
     }
     const nextState = buildCurrentSessionState();
@@ -118,6 +126,8 @@ export function useExpertEditSessionHostSync({
     }
     pendingSessionStateRef.current = nextState;
     const dispatch = () => {
+      clearWindowAnimationFrameRef(sessionDispatchFrameRef);
+      clearWindowTimeoutRef(sessionDispatchTimeoutRef);
       const pendingState = pendingSessionStateRef.current;
       pendingSessionStateRef.current = null;
       if (!pendingState) return;
@@ -127,18 +137,38 @@ export function useExpertEditSessionHostSync({
       }
       const clonedState = cloneExpertEditSessionState(pendingState);
       lastDispatchedSessionStateRef.current = clonedState;
+      lastSessionDispatchAtRef.current = Date.now();
       onSessionStateChange(clonedState);
     };
-    scheduleWindowAnimationFrame({
-      frameRef: sessionDispatchFrameRef,
-      callback: dispatch,
-    });
+    const msSinceLastDispatch = Date.now() - lastSessionDispatchAtRef.current;
+    if (
+      lastSessionDispatchAtRef.current <= 0 ||
+      msSinceLastDispatch >= SESSION_STATE_DISPATCH_INTERVAL_MS
+    ) {
+      scheduleWindowAnimationFrame({
+        frameRef: sessionDispatchFrameRef,
+        callback: dispatch,
+      });
+      return;
+    }
+    if (sessionDispatchTimeoutRef.current != null) {
+      return;
+    }
+    sessionDispatchTimeoutRef.current = window.setTimeout(
+      () => {
+        sessionDispatchTimeoutRef.current = null;
+        dispatch();
+      },
+      Math.max(0, SESSION_STATE_DISPATCH_INTERVAL_MS - msSinceLastDispatch)
+    );
   }, [
     buildCurrentSessionState,
     lastDispatchedSessionStateRef,
+    lastSessionDispatchAtRef,
     onSessionStateChange,
     pendingSessionStateRef,
     sessionDispatchFrameRef,
+    sessionDispatchTimeoutRef,
   ]);
 
   React.useEffect(() => {

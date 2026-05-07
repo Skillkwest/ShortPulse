@@ -4,7 +4,6 @@ import { exportExpertEditStageArtifacts } from "../expertEditStageExport";
 
 const composePrimaryStageLayersToBlobMock = vi.fn();
 const composeFlattenedMarkupReferenceBlobMock = vi.fn();
-const isMarkupStrokeSecondaryReferenceEnabledMock = vi.fn();
 
 vi.mock("../../../logic/expertEditStageFlatten", () => ({
   composePrimaryStageLayersToBlob: (...args: unknown[]) =>
@@ -17,7 +16,7 @@ vi.mock("../../../logic/expertEditMarkupReference", () => ({
 }));
 
 vi.mock("../../../logic/inpaintSubmission", () => ({
-  isMarkupStrokeSecondaryReferenceEnabled: () => isMarkupStrokeSecondaryReferenceEnabledMock(),
+  isMarkupStrokeSecondaryReferenceEnabled: () => true,
 }));
 
 describe("exportExpertEditStageArtifacts", () => {
@@ -29,7 +28,6 @@ describe("exportExpertEditStageArtifacts", () => {
     composeFlattenedMarkupReferenceBlobMock.mockResolvedValue(
       new Blob(["markup"], { type: "image/png" })
     );
-    isMarkupStrokeSecondaryReferenceEnabledMock.mockReturnValue(false);
   });
 
   it("reuses a durable primary source url for standard mode and skips flatten export", async () => {
@@ -58,8 +56,7 @@ describe("exportExpertEditStageArtifacts", () => {
     expect(exportSelectedLayerMaskBlob).not.toHaveBeenCalled();
   });
 
-  it("exports flattened and markup reference blobs for markup mode when the feature flag is enabled", async () => {
-    isMarkupStrokeSecondaryReferenceEnabledMock.mockReturnValue(true);
+  it("exports flattened and markup reference blobs for markup mode", async () => {
     const resolveBlobDimensions = vi.fn(async () => ({ width: 1024, height: 1024 }));
 
     const result = await exportExpertEditStageArtifacts({

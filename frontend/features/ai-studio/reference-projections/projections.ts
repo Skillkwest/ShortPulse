@@ -187,14 +187,13 @@ export const selectAllRefsProjection = (
 };
 
 /**
- * Resolves all-refs projection with legacy hidden-flag fallback for transitional consumers.
+ * Resolves the canonical visible All Refs projection from active outputs.
  */
-export const selectAllRefsProjectionWithLegacyFallback = (
+export const selectVisibleAllRefsProjection = (
   outputs: StudioOutput[],
   state: ReferenceProjectionState
 ): StudioOutput[] => {
   const explicitProjection = selectAllRefsProjection(outputs, state);
-  if (state.removedFromAllRefsIds.length > 0) return explicitProjection;
   return explicitProjection.filter((item) => item.hiddenInReferenceGrid !== true);
 };
 
@@ -210,29 +209,4 @@ export const selectQuickSlotProjection = (
   return state.quickSlotIds
     .map((id) => byId.get(id))
     .filter((item): item is StudioOutput => Boolean(item));
-};
-
-/**
- * Applies compatibility mirror for legacy hidden-flag consumers.
- */
-export const applyAllRefsSuppressionCompatibility = (
-  outputs: StudioOutput[],
-  state: ReferenceProjectionState
-): StudioOutput[] => {
-  if (!outputs.length) return outputs;
-  const removedSet = new Set(state.removedFromAllRefsIds);
-  let changed = false;
-  const next = outputs.map((item) => {
-    const shouldHide = removedSet.has(item.id);
-    const isHidden = item.hiddenInReferenceGrid === true;
-    if (isHidden === shouldHide) {
-      return item;
-    }
-    changed = true;
-    return {
-      ...item,
-      hiddenInReferenceGrid: shouldHide ? true : undefined,
-    };
-  });
-  return changed ? next : outputs;
 };

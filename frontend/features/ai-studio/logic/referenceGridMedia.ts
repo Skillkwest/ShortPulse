@@ -3,14 +3,12 @@
  * Centralizes preview/full URL resolution so card rendering can prefer lightweight variants safely.
  */
 import {
-  isAdaptiveShadowCompareEnabled,
   isAdaptiveSurfaceEnabled,
   resolveAdaptiveMedia,
   resolveAdaptiveSourceKind,
   isRenderableAdaptiveUrl,
   asCanonicalStoragePath,
   logAdaptivePolicyApplied,
-  logAdaptiveResolveMismatch,
   type AdaptiveSurface,
 } from "../../../lib/adaptive-media";
 import {
@@ -52,6 +50,45 @@ const hasDistinctDurablePreviewAsset = (
   return previewPath !== fullPath;
 };
 
+const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp|svg)(?:$|[?#])/i;
+const AUDIO_EXTENSION_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:$|[?#])/i;
+const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
+const RELATIVE_IMAGE_PREVIEW_ROUTE_PATTERN = /^\/api\/media\/preview(?:\/|\?|$)/i;
+
+const inferReferenceMediaKind = ({
+  mode,
+  previewStoragePath,
+  fullStoragePath,
+  previewUrl,
+  resultUrls,
+}: {
+  mode?: StudioOutput["mode"] | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  previewUrl?: string | null;
+  resultUrls?: string[] | null;
+}): ReferenceGridMediaKindHint => {
+  if (mode === "image" || mode === "video" || mode === "audio") {
+    return mode;
+  }
+
+  const candidates = [previewStoragePath, fullStoragePath, previewUrl, ...(resultUrls ?? [])];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    if (AUDIO_EXTENSION_PATTERN.test(candidate)) return "audio";
+    if (VIDEO_EXTENSION_PATTERN.test(candidate)) return "video";
+    if (RELATIVE_IMAGE_PREVIEW_ROUTE_PATTERN.test(candidate)) return "image";
+    if (
+      IMAGE_EXTENSION_PATTERN.test(candidate) ||
+      candidate.includes("/storage/v1/render/image/")
+    ) {
+      return "image";
+    }
+  }
+
+  return null;
+};
+
 const resolveReferenceCardUrlsLegacy = (
   output: Pick<
     StudioOutput,
@@ -79,14 +116,7 @@ const resolveReferenceCardUrlsLegacy = (
   const shouldApplyAdaptivePreviewQuality =
     adaptivePreviewQuality && !hasDistinctDurablePreviewAsset(output);
   const pressureLevel = options?.pressureLevel ?? 0;
-  const mediaKindHint: ReferenceGridMediaKindHint =
-    output.mode === "video"
-      ? "video"
-      : output.mode === "image"
-        ? "image"
-        : output.mode === "audio"
-          ? "audio"
-          : null;
+  const mediaKindHint = inferReferenceMediaKind(output);
   const { qualityBand, targetLongEdgePx } = resolvePreviewQualityTarget({
     pressureLevel,
     surface: options?.surface ?? "reference-grid",
@@ -176,22 +206,13 @@ export const resolveReferenceCardUrls = (
   const shouldApplyAdaptivePreviewQuality =
     options?.adaptivePreviewQuality === true && !hasDistinctDurablePreviewAsset(output);
   const shouldUseV2 = isAdaptiveSurfaceEnabled(surface);
-  const shouldShadowCompare = isAdaptiveShadowCompareEnabled();
-  const shouldRenderV2 = shouldUseV2 && !shouldShadowCompare;
   const legacy = resolveReferenceCardUrlsLegacy(output, options);
 
-  if (!shouldUseV2 && !shouldShadowCompare) {
+  if (!shouldUseV2) {
     return legacy;
   }
 
-  const mediaKind =
-    output.mode === "video"
-      ? "video"
-      : output.mode === "image"
-        ? "image"
-        : output.mode === "audio"
-          ? "audio"
-          : "unknown";
+  const mediaKind = inferReferenceMediaKind(output) ?? "unknown";
   const source = resolveAdaptiveSourceKind(output.previewUrl ?? output.resultUrls?.[0] ?? null);
 
   const v2Resolved = resolveAdaptiveMedia({
@@ -227,28 +248,8 @@ export const resolveReferenceCardUrls = (
       : 960,
   };
 
-  if (shouldRenderV2) {
-    logAdaptivePolicyApplied({ result: v2Resolved });
-  }
-
-  if (shouldShadowCompare) {
-    if (
-      legacy.previewUrl !== resolved.previewUrl ||
-      legacy.fullUrl !== resolved.fullUrl ||
-      legacy.previewQualityBand !== resolved.previewQualityBand ||
-      legacy.targetLongEdgePx !== resolved.targetLongEdgePx
-    ) {
-      logAdaptiveResolveMismatch({
-        surface,
-        mediaKind,
-        pressureLevel: options?.pressureLevel ?? 0,
-        oldPreviewUrl: legacy.previewUrl,
-        newPreviewUrl: resolved.previewUrl,
-      });
-    }
-  }
-
-  return shouldRenderV2 ? resolved : legacy;
+  logAdaptivePolicyApplied({ result: v2Resolved });
+  return resolved;
 };
 
 /**

@@ -4,16 +4,10 @@ import {
   isMarkupModelLockEnabled,
 } from "../../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
-import type { ExpertEditPanelViewProps } from "./expertEditPanelViewContract";
-import type { ExpertEditSubmissionPromptOverrideOptions } from "./expertEditSubmissionPreparation";
-
-type RegenerateWithReferenceInputsHandler = NonNullable<
-  ExpertEditPanelViewProps["onRegenerateWithReferenceInputs"]
->;
-
-export type ExpertEditSubmitDispatchOptions = NonNullable<
-  Parameters<RegenerateWithReferenceInputsHandler>[1]
->;
+import type {
+  ExpertEditCompiledPromptOverrides,
+  ExpertEditRegenerateOptions,
+} from "./expertEditSubmissionContract";
 
 export type ResolveExpertEditSubmissionDispatchResult =
   | {
@@ -26,7 +20,7 @@ export type ResolveExpertEditSubmissionDispatchResult =
   | {
       status: "ready";
       referenceInputs: string[];
-      options: ExpertEditSubmitDispatchOptions;
+      options: ExpertEditRegenerateOptions;
     };
 
 export const resolveExpertEditSubmissionDispatch = ({
@@ -48,7 +42,7 @@ export const resolveExpertEditSubmissionDispatch = ({
   inpaintModelId?: string | null;
   inpaintReferenceImageInput?: string | null;
   referenceInputs: string[];
-  promptOverrideOptions?: ExpertEditSubmissionPromptOverrideOptions;
+  promptOverrideOptions?: ExpertEditCompiledPromptOverrides;
 }): ResolveExpertEditSubmissionDispatchResult => {
   const isInpaintSubmitSelected = editSubmitIntent === "inpaint";
   const isMarkupSubmitSelected = editSubmitIntent === "markup";

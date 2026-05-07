@@ -28,7 +28,7 @@ const createSnapshot = (
       ...defaultPresetState.presets,
       "1": {
         portrait: {
-          mediaFileId: "media-look-1",
+          characterMediaId: "media-look-1",
           storagePath: "user/chars/look-1.png",
           previewUrl: "https://example.com/look-1.png",
         },
@@ -37,7 +37,7 @@ const createSnapshot = (
       },
       "2": {
         portrait: {
-          mediaFileId: "media-look-2",
+          characterMediaId: "media-look-2",
           storagePath: "user/chars/look-2.png",
           previewUrl: "https://example.com/look-2.png",
         },
@@ -58,7 +58,7 @@ const createSnapshot = (
     },
     characterSheetPresetAssignments: {
       portrait: {
-        mediaFileId: "media-look-2",
+        characterMediaId: "media-look-2",
         storagePath: "user/chars/look-2.png",
         previewUrl: "https://example.com/look-2.png",
       },

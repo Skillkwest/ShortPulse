@@ -137,12 +137,13 @@ describe("studioAgentSafetyInputPrecheck", () => {
 
   it("resolves field-mode overrides from shared and scoped JSON values", () => {
     const overrides = resolveStudioAgentSafetyInputPrecheckFieldModes({
-      sharedRawValue: '{"history_user_turn":"shadow","canonical_prompt":"off","unknown":"enforce"}',
+      sharedRawValue:
+        '{"history_user_turn":"rewrite_only","canonical_prompt":"off","unknown":"enforce"}',
       scopedRawValue: '{"canonical_prompt":"enforce","reference_caption":"rewrite_only"}',
     });
 
     expect(overrides).toEqual({
-      history_user_turn: "shadow",
+      history_user_turn: "rewrite_only",
       canonical_prompt: "enforce",
       reference_caption: "rewrite_only",
     });

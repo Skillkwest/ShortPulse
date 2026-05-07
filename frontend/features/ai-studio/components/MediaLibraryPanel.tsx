@@ -11,10 +11,8 @@ import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry"
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import { useMediaSurfacePreviewSigning } from "../../media-library/hooks/useMediaSurfacePreviewSigning";
 import { useMediaSurfacePreviewRuntime } from "../../media-library/hooks/useMediaSurfacePreviewRuntime";
-import {
-  MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
-  MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
-} from "../../media-library/logic/mediaLibraryFeatureFlags";
+import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../../media-library/logic/mediaLibraryRuntimeConfig";
+import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../media-library/logic/mediaLibraryAdaptivePreview";
 import {
   BUCKET,
   getMediaDataTabForRow,
@@ -38,7 +36,6 @@ import {
   clearMediaLibraryDragGhost,
 } from "../logic/mediaLibraryDragGhost";
 import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
-import { resolveMediaLibraryPanelCardPreviewUrl } from "../logic/mediaLibraryPanelPreviewResolver";
 import { downloadBlobToFile } from "../logic/referenceDownload";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
@@ -915,7 +912,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       cardLongEdgePx?: number;
       devicePixelRatio?: number;
     }) =>
-      resolveMediaLibraryPanelCardPreviewUrl({
+      resolveMediaLibraryAdaptiveCardPreviewUrl({
+        surface: "media-library-panel-grid",
         signedUrl,
         fileType,
         pressureLevel,
@@ -923,7 +921,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         shouldBypassAdaptivePreview,
         cardLongEdgePx,
         devicePixelRatio,
-        constantCompressionEnabled: MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
       }),
     []
   );

@@ -131,18 +131,4 @@ describe("studioAgentSafetyPostProcess", () => {
       })
     );
   });
-
-  it("records shadow-mode blocks without mutating output", async () => {
-    const result = await postProcessStudioAgentSafetyText({
-      text: "A sexy portrait of a topless model in lingerie.",
-      route: "studio-agent",
-      flow: "TEXT_ONLY",
-      source: "model_output",
-      mode: "shadow",
-    });
-
-    expect(result.outcome).toBe("pass");
-    expect(result.text).toContain("topless");
-    expect(result.shadowWouldBlock).toBe(true);
-  });
 });

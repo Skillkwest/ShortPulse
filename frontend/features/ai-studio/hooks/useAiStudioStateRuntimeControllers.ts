@@ -1,17 +1,16 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+/**
+ * AI Studio runtime controller composition.
+ * Bridges generation/runtime authority with session snapshot authority for the state hook.
+ */
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import { resolvePulseRuntimeState } from "../logic/pulseSessionState";
 import type { ReferenceProjectionState } from "../reference-projections";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
-import { getDefaultDurationSecondsForModel } from "./aiStudioStateConfig";
-import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
-import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
+import { useAiStudioGenerationRuntimeControllers } from "./useAiStudioGenerationRuntimeControllers";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
-import { useAiStudioRerollController } from "./useAiStudioRerollController";
 import { useAiStudioSessionSnapshotController } from "./useAiStudioSessionSnapshotController";
-import { useAiStudioSubmissionReferenceResolver } from "./useAiStudioSubmissionReferenceResolver";
-import { useAiStudioTaskOrchestration } from "./useAiStudioTaskOrchestration";
 
 type UseAiStudioStateRuntimeControllersParams = {
   activeOutputId: string | null;
@@ -234,100 +233,70 @@ export const useAiStudioStateRuntimeControllers = ({
   videoResolution,
   ensureGenerationRecord,
 }: UseAiStudioStateRuntimeControllersParams) => {
-  const { resolveSubmissionReferenceInputsForTool } = useAiStudioSubmissionReferenceResolver({
-    resolveReferenceInputsForTool,
-  });
   const pulseWorkspaceState = resolvePulseRuntimeState({
     expertCreateMode: createRuntime.kind,
     activePulsePresetId: createRuntime.activePulsePresetId,
     pulseSessionInstanceId: createRuntime.pulseSessionInstanceId,
   });
 
-  const { submitTask, onReferenceOutputMediaLoaded, retryOutputStatus, abandonTaskOutput } =
-    useAiStudioTaskOrchestration({
-      taskSubmissionConfig: {
-        aspect,
-        mode,
-        projectId,
-        model,
-        prompt: createRuntime.prompt,
-        selectedTool,
-        imageResolution,
-        videoDurationSeconds,
-        videoResolution,
-        videoGenerateAudio,
-        videoReferenceMode,
-        videoReferenceImageUrl,
-        motionReferenceVideoUrl,
-        videoCameraFixed,
-        videoAutoFix,
-        seedance2InputMode,
-        seedance2ReferenceImageUrls,
-        seedance2ReferenceVideoUrls,
-        seedance2ReferenceAudioUrls,
-        seedance2ReturnLastFrame,
-        seedance2WebSearch,
-        klingNegativePrompt,
-        klingCfgScale,
-        klingWorkflowMode,
-        klingShotType,
-        klingVoiceIds,
-        klingMultiPrompts,
-        klingElements,
-        setPanelGenerating,
-        setUiError,
-        setUiNotice,
-        setOutputs,
-        setSaved,
-        getDefaultDurationSeconds: getDefaultDurationSecondsForModel,
-        notifyGenerationFailure,
-        updateOutputById,
-        ensureGenerationRecord,
-      },
-      outputs,
-      findOutputById,
-      setPrimaryEditReferenceImageUrl: setImageReferenceImageUrl,
-      projectId,
-    });
-
-  const handleReferenceOutputMediaLoaded = useCallback(
-    (outputId: string) => {
-      onReferenceOutputMediaLoaded(outputId);
-      markReferenceGridReady(outputId);
-    },
-    [markReferenceGridReady, onReferenceOutputMediaLoaded]
-  );
-
-  const { generateOutput, regenerateOutput } = useAiStudioGenerationPromptComposer({
-    model,
-    prompt: createRuntime.prompt,
-    editReferenceText,
-    videoReferenceText,
-    selectedStylePrompt,
-    selectedStyleContext,
-    selectedTool,
-    videoReferenceMode,
-    useReferenceImageIndicator,
+  const {
+    handleReferenceOutputMediaLoaded,
+    generateOutput,
+    regenerateOutput,
+    rerollOutputFromReplay,
+    insertOptimisticGenerationPlaceholder,
+    removeOptimisticGenerationPlaceholder,
+    retryOutputStatus,
+    abandonTaskOutput,
+  } = useAiStudioGenerationRuntimeControllers({
     activeOutputPreviewUrl,
-    resolveReferenceInputsForTool: resolveSubmissionReferenceInputsForTool,
-    submitTask,
-  });
-
-  const { rerollOutputFromReplay } = useAiStudioRerollController({
+    aspect,
+    editReferenceText,
     findOutputById,
+    imageResolution,
+    klingCfgScale,
+    klingElements,
+    klingMultiPrompts,
+    klingNegativePrompt,
+    klingShotType,
+    klingVoiceIds,
+    klingWorkflowMode,
+    markReferenceGridReady,
+    mode,
+    model,
+    motionReferenceVideoUrl,
+    notifyGenerationFailure,
+    outputs,
+    projectId,
+    prompt: createRuntime.prompt,
+    resolveReferenceInputsForTool,
+    seedance2InputMode,
+    seedance2ReferenceAudioUrls,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
+    selectedStyleContext,
+    selectedStylePrompt,
+    selectedTool,
+    setImageReferenceImageUrl,
+    setOutputs,
+    setPanelGenerating,
+    setSaved,
+    setUiError,
     setUiNotice,
-    submitTask,
+    updateOutputById,
+    useReferenceImageIndicator,
+    videoAutoFix,
+    videoCameraFixed,
+    videoDurationSeconds,
+    videoGenerateAudio,
+    videoReferenceImageUrl,
+    videoReferenceMode,
+    videoReferenceText,
+    videoResolution,
+    ensureGenerationRecord,
   });
-
-  const { insertOptimisticGenerationPlaceholder, removeOptimisticGenerationPlaceholder } =
-    useAiStudioOptimisticPlaceholderActions({
-      mode,
-      selectedTool,
-      aspect,
-      model,
-      setOutputs,
-      setSaved,
-    });
 
   const { hydrateFromSessionSnapshot, buildSessionSnapshot } = useAiStudioSessionSnapshotController(
     {

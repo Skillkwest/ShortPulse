@@ -72,7 +72,7 @@ const createSnapshotWithLookReference = (
         ...defaultPresetState.presets,
         "1": {
           portrait: {
-            mediaFileId: "media-portrait",
+            characterMediaId: "media-portrait",
             storagePath: input.storagePath ?? "user/chars/ref.png",
             previewUrl: input.previewUrl ?? "https://example.com/ref-stale.png",
           },
@@ -88,7 +88,7 @@ const createSnapshotWithLookReference = (
       },
       characterSheetPresetAssignments: {
         portrait: {
-          mediaFileId: "media-portrait",
+          characterMediaId: "media-portrait",
           storagePath: input.storagePath ?? "user/chars/ref.png",
           previewUrl: input.previewUrl ?? "https://example.com/ref-stale.png",
         },
@@ -228,7 +228,7 @@ describe("useAiStudioCharacterModeController", () => {
         ...defaultPresetState.presets,
         "1": {
           portrait: {
-            mediaFileId: "media-look-1",
+            characterMediaId: "media-look-1",
             storagePath: "user/chars/look-1.png",
             previewUrl: "https://example.com/look-1.png",
           },
@@ -237,7 +237,7 @@ describe("useAiStudioCharacterModeController", () => {
         },
         "2": {
           portrait: {
-            mediaFileId: "media-look-2",
+            characterMediaId: "media-look-2",
             storagePath: "user/chars/look-2.png",
             previewUrl: "https://example.com/look-2.png",
           },

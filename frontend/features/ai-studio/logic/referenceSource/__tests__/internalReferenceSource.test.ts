@@ -2,7 +2,7 @@
  * Unit tests for the shared internal reference source contract.
  * Verifies app-owned references resolve to lazy blob authority without relying on preview URLs.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import type { InternalReferenceDragPayload } from "../../../utils/dragDrop";
 import { resolveInternalReferenceSource } from "../internalReferenceSource";
@@ -51,6 +51,10 @@ describe("resolveInternalReferenceSource", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSignedMediaUrlMock.mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("resolves app-owned output state into a shared authoritative source contract", async () => {
@@ -237,6 +241,52 @@ describe("resolveInternalReferenceSource", () => {
     });
 
     expect(resolved).toBeNull();
+  });
+
+  it("keeps rendered internal preview urls as the final fallback for tracked generated references", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(["rendered-fallback"], { type: "image/png" }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload({
+        outputId: "out-render-fallback",
+        mediaId: null,
+        referenceRenderUrl:
+          "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75",
+      }),
+      getOutputById: () => null,
+      getOutputSnapshot: () => ({
+        outputOrder: [],
+        archivedOutputOrder: [],
+        outputById: {},
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+    });
+
+    expect(resolved).toEqual(
+      expect.objectContaining({
+        kind: "internal",
+        sourceId: "out-render-fallback",
+        outputId: "out-render-fallback",
+        mediaId: null,
+      })
+    );
+    expect(resolved?.provenance.resolutionReason).toBe("payload_render_url");
+    await expect(resolved?.loadBlob()).resolves.toBeInstanceOf(Blob);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75",
+      { credentials: "include" }
+    );
   });
 
   it("keeps compatibility fallback for unresolved media-library-backed references", async () => {

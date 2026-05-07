@@ -102,14 +102,20 @@ export const startPulsePreset = async ({
     label: preset.label,
     description: preset.description,
     instructions: preset.systemInstructions,
-    runtimeMode: preset.runtimeMode,
-    activationMode: preset.activationMode,
-    starterAssistantMessage: preset.starterAssistantMessage,
-    workflowStageHints: preset.workflowStageHints,
-    outputMode: preset.outputMode,
-    artifactTarget: preset.artifactTarget,
-    memoryPolicy: preset.memoryPolicy,
+    pulseKind: preset.pulseKind,
     source: preset.isBuiltIn ? ("builtin" as const) : ("custom" as const),
+    schemaVersion: preset.schemaVersion,
+    ...(preset.pulseKind === "guided_workflow"
+      ? {
+          runtimeMode: preset.runtimeMode,
+          activationMode: preset.activationMode,
+          starterAssistantMessage: preset.starterAssistantMessage,
+          workflowStageHints: preset.workflowStageHints,
+          outputMode: preset.outputMode,
+          artifactTarget: preset.artifactTarget,
+          memoryPolicy: preset.memoryPolicy,
+        }
+      : {}),
   };
   const imageSatisfiedWorkflowSession = hasPulseImageContext(baseContext)
     ? buildImageSatisfiedPulseWorkflowSession(pulseRuntimeContext)

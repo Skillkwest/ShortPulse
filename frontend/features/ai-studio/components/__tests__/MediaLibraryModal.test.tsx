@@ -123,8 +123,7 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: mockGetSignedMediaUrlsBatch,
 }));
 
-vi.mock("../../../media-library/logic/mediaLibraryFeatureFlags", () => ({
-  MEDIA_LIST_API_ENABLED: false,
+vi.mock("../../../media-library/logic/mediaLibraryRuntimeConfig", () => ({
   MEDIA_LIBRARY_VIRTUALIZATION_ENABLED: false,
   MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED: false,
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED: true,

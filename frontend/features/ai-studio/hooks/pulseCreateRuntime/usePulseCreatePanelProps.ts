@@ -4,11 +4,13 @@ import type {
   AgentAttachment,
   AgentMessage,
 } from "../../../../prefabs/agent";
+import type { CreatePulsePresetKind } from "../../components/create/createPulsePresets";
 import type { PulseCreatePropertiesPanelProps } from "../../components/create/PulseCreatePropertiesPanel";
 import type { CreatePulsePreferenceRuntimeValue } from "../../components/create/CreatePulsePreferenceProvider";
 
 type UsePulseCreatePanelPropsParams = {
   pulsePrompt: string;
+  activePulsePresetKind: CreatePulsePresetKind | null;
   agentEnabled: boolean;
   agentBootstrapReady: boolean;
   agentMessages: AgentMessage[];
@@ -44,10 +46,11 @@ type UsePulseCreatePanelPropsParams = {
 
 /**
  * Pulse Create panel props.
- * Keeps guided workflow composer controls out of the shared page prop builder.
+ * Keeps Pulse-mode composer controls out of the shared page prop builder.
  */
 export const buildPulseCreatePanelProps = ({
   pulsePrompt,
+  activePulsePresetKind,
   agentEnabled,
   agentBootstrapReady,
   agentMessages,
@@ -81,6 +84,7 @@ export const buildPulseCreatePanelProps = ({
   pulsePreferenceRuntime,
 }: UsePulseCreatePanelPropsParams): PulseCreatePropertiesPanelProps => ({
   pulsePrompt,
+  activePulsePresetKind,
   agentEnabled,
   agentBootstrapPending: !agentBootstrapReady,
   agentMessages,

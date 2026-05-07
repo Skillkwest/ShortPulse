@@ -308,7 +308,7 @@ describe("CreateExpertPresetPanel", () => {
     });
   });
 
-  it("opens the Pulses surface and saves a custom preset override", async () => {
+  it("opens the Pulse Catalog surface and saves a custom preset override without hidden workflow metadata", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -320,21 +320,22 @@ describe("CreateExpertPresetPanel", () => {
             description: "Old hidden description.",
             systemInstructions:
               "Map the concept as a visual storyboard with scene intent for each beat.",
-            runtimeMode: "workflow_gpt",
+            pulseKind: "custom_gpt",
+            runtimeMode: "custom_gpt",
             activationMode: "activate_and_start",
             starterAssistantMessage: "Old hidden starter.",
             workflowStageHints: ["Old", "Hidden", "Hints"],
             outputMode: "chat_reply",
-            artifactTarget: "text_artifact",
             memoryPolicy: "session",
             createdAt: null,
+            schemaVersion: 2,
           },
         ]}
         onSavedPresetsChange={onSavedPresetsChange}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
     fireEvent.change(screen.getByLabelText("Preset name"), {
       target: { value: "Hook Builder" },
@@ -351,20 +352,15 @@ describe("CreateExpertPresetPanel", () => {
           label: "Hook Builder",
           description: null,
           systemInstructions: "Start with a fast visual hook and one unmistakable product payoff.",
-          runtimeMode: "workflow_gpt",
-          activationMode: "activate_and_start",
-          starterAssistantMessage: null,
-          workflowStageHints: null,
-          outputMode: "chat_reply",
-          artifactTarget: "text_artifact",
-          memoryPolicy: "session",
+          pulseKind: "custom_gpt",
           createdAt: null,
+          schemaVersion: 2,
         },
       ]);
     });
   });
 
-  it("does not expose built-in preset editing from the Pulses surface", async () => {
+  it("does not expose built-in preset editing from the Pulse Catalog surface", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -376,7 +372,7 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
 
     expect(
       screen.queryByRole("button", { name: "Edit DFY Story Builder preset" })
@@ -384,7 +380,7 @@ describe("CreateExpertPresetPanel", () => {
     expect(onSavedPresetsChange).not.toHaveBeenCalled();
   });
 
-  it("keeps the More Pulses editor open when saving fails", async () => {
+  it("keeps the Pulse Catalog editor open when saving fails", async () => {
     const onSavedPresetsChange = vi.fn().mockResolvedValue(false);
     const savedPresets = [
       {
@@ -392,13 +388,9 @@ describe("CreateExpertPresetPanel", () => {
         label: "Storyboard",
         description: null,
         systemInstructions: "Build a storyboard-ready pulse sequence.",
-        runtimeMode: "workflow_gpt" as const,
-        activationMode: "activate_and_start" as const,
-        starterAssistantMessage: null,
-        outputMode: "chat_reply" as const,
-        artifactTarget: "text_artifact" as const,
-        memoryPolicy: "session" as const,
+        pulseKind: "custom_gpt" as const,
         createdAt: null,
+        schemaVersion: 2,
       },
     ];
 
@@ -411,7 +403,7 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
     fireEvent.change(screen.getByLabelText("System instructions"), {
       target: { value: "Use only these visible instructions." },
@@ -422,20 +414,20 @@ describe("CreateExpertPresetPanel", () => {
     expect(screen.getByRole("dialog", { name: "Edit pulse preset" })).toBeInTheDocument();
   });
 
-  it("opens the Pulse Library modal from the More Pulses surface", () => {
+  it("opens the Pulse Library modal from the Pulse Catalog surface", () => {
     const onOpenPresetsLibrary = vi.fn();
 
     render(<CreateExpertPresetPanel onOpenPresetsLibrary={onOpenPresetsLibrary} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
     fireEvent.click(screen.getByRole("button", { name: /pulse library/i }));
 
     expect(onOpenPresetsLibrary).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("region", { name: "Pulses" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Pulses" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Pulse Catalog" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Pulse Library" })).not.toBeInTheDocument();
   });
 
-  it("hides built-in ownership badges in the More Pulses activation surface", () => {
+  it("hides built-in ownership badges in the Pulse Catalog activation surface", () => {
     render(
       <CreateExpertPresetPanel
         savedPresets={[
@@ -444,40 +436,57 @@ describe("CreateExpertPresetPanel", () => {
             label: "Storyboard",
             description: null,
             systemInstructions: "Build a storyboard-ready pulse sequence.",
-            runtimeMode: "workflow_gpt",
-            activationMode: "activate_and_start",
-            starterAssistantMessage: null,
-            outputMode: "chat_reply",
-            artifactTarget: "text_artifact",
-            memoryPolicy: "session",
+            pulseKind: "custom_gpt",
             createdAt: null,
+            schemaVersion: 2,
           },
         ]}
         onSavedPresetsChange={vi.fn()}
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
-    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
 
     expect(within(pulsesSurface).queryByText("Built-in")).not.toBeInTheDocument();
     expect(within(pulsesSurface).getByText("Custom")).toBeInTheDocument();
   });
 
-  it("keeps the More Pulses editor limited to name and system instructions", () => {
+  it("groups custom Pulses and built-in guided workflows separately in the Pulse Catalog", () => {
+    render(
+      <CreateExpertPresetPanel
+        savedPresets={[
+          {
+            presetId: "custom_storyboard",
+            label: "Storyboard",
+            description: null,
+            systemInstructions: "Build a storyboard-ready pulse sequence.",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
+
+    expect(within(pulsesSurface).getByText("Custom Pulses")).toBeInTheDocument();
+    expect(within(pulsesSurface).getByText("Built-in Guided Workflows")).toBeInTheDocument();
+  });
+
+  it("keeps the Pulse Catalog editor limited to name and system instructions", () => {
     const savedPresets = [
       {
         presetId: "custom_storyboard",
         label: "Storyboard",
         description: null,
         systemInstructions: "Build a storyboard-ready pulse sequence.",
-        runtimeMode: "workflow_gpt" as const,
-        activationMode: "activate_and_start" as const,
-        starterAssistantMessage: null,
-        outputMode: "chat_reply" as const,
-        artifactTarget: "text_artifact" as const,
-        memoryPolicy: "session" as const,
+        pulseKind: "custom_gpt" as const,
         createdAt: null,
+        schemaVersion: 2,
       },
     ];
 
@@ -490,10 +499,11 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
 
     expect(screen.getByLabelText("System instructions")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Pulse type")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Show advanced settings" })
     ).not.toBeInTheDocument();
@@ -502,7 +512,7 @@ describe("CreateExpertPresetPanel", () => {
     expect(screen.queryByLabelText("Role & Goal")).not.toBeInTheDocument();
   });
 
-  it("pins a preset from the Pulses surface into the panel via drag and drop", async () => {
+  it("pins a preset from the Pulse Catalog surface into the panel via drag and drop", async () => {
     const onSelectedPresetIdsChange = vi.fn();
     const transfer = new MockDataTransfer();
 
@@ -513,7 +523,7 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
     const surfaceChip = screen.getByRole("button", { name: "Multi Sequence Video Prompt" });
     const panelDropzone = screen.getByLabelText("Pulse preset panel list");
 
@@ -526,7 +536,7 @@ describe("CreateExpertPresetPanel", () => {
     });
   });
 
-  it("activates and pins a pulse directly from the More Pulses surface", async () => {
+  it("activates and pins a pulse directly from the Pulse Catalog surface", async () => {
     const onActivePresetIdChange = vi.fn();
     const onSelectedPresetIdsChange = vi.fn();
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
@@ -540,7 +550,7 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
     fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt" }));
 
     await waitFor(() => {
@@ -566,10 +576,10 @@ describe("CreateExpertPresetPanel", () => {
       );
     });
 
-    expect(screen.queryByRole("region", { name: "Pulses" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Pulse Catalog" })).not.toBeInTheDocument();
   });
 
-  it("surfaces Pulse rail save failures when pinning from the More Pulses surface", async () => {
+  it("surfaces Pulse rail save failures when pinning from the Pulse Catalog surface", async () => {
     const onSelectedPresetIdsChange = vi.fn().mockResolvedValue(false);
     const onActivePresetIdChange = vi.fn();
     const onPresetStart = vi.fn();
@@ -583,7 +593,7 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
     fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Prompt" }));
 
     expect(await screen.findByText("Unable to save the Pulse rail right now.")).toBeInTheDocument();

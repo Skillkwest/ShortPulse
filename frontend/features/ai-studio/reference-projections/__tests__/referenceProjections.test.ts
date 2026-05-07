@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
   addQuickSlotReference,
-  applyAllRefsSuppressionCompatibility,
   createEmptyReferenceProjectionState,
   isReferenceSuppressedFromAllRefs,
   markReferenceRemovedFromAllRefs,
@@ -13,8 +12,8 @@ import {
   removeQuickSlotReference,
   reorderQuickSlotReference,
   selectAllRefsProjection,
-  selectAllRefsProjectionWithLegacyFallback,
   selectQuickSlotProjection,
+  selectVisibleAllRefsProjection,
   shouldFinalizeRemovalOnQuickSlotDetach,
 } from "../index";
 
@@ -53,19 +52,6 @@ describe("reference-projections", () => {
     expect(selectQuickSlotProjection(outputs, suppressed).map((item) => item.id)).toEqual(["a"]);
   });
 
-  it("mirrors suppression to legacy hidden flag only when necessary", () => {
-    const outputs = [makeOutput("a"), makeOutput("b")];
-    const withQuickSlot = addQuickSlotReference(createEmptyReferenceProjectionState(), "a");
-    const suppressed = markReferenceRemovedFromAllRefs(withQuickSlot, "a");
-
-    const firstPass = applyAllRefsSuppressionCompatibility(outputs, suppressed);
-    const secondPass = applyAllRefsSuppressionCompatibility(firstPass, suppressed);
-
-    expect(firstPass[0]?.hiddenInReferenceGrid).toBe(true);
-    expect(firstPass[1]?.hiddenInReferenceGrid).toBeUndefined();
-    expect(secondPass).toBe(firstPass);
-  });
-
   it("prunes stale projection ids", () => {
     const base = {
       quickSlotIds: ["a", "missing"],
@@ -91,18 +77,23 @@ describe("reference-projections", () => {
     expect(shouldFinalizeRemovalOnQuickSlotDetach(withQuickSlot, "a")).toBe(false);
   });
 
-  it("falls back to legacy hidden flag only when explicit suppression is absent", () => {
-    const outputs = [makeOutput("a", { hiddenInReferenceGrid: true }), makeOutput("b")];
+  it("keeps hidden outputs and explicit suppression out of the visible all-refs projection", () => {
+    const outputs = [
+      makeOutput("a", { hiddenInReferenceGrid: true }),
+      makeOutput("b"),
+      makeOutput("c"),
+    ];
     const state = createEmptyReferenceProjectionState();
 
-    expect(
-      selectAllRefsProjectionWithLegacyFallback(outputs, state).map((item) => item.id)
-    ).toEqual(["b"]);
+    expect(selectVisibleAllRefsProjection(outputs, state).map((item) => item.id)).toEqual([
+      "b",
+      "c",
+    ]);
 
-    const withQuickSlot = addQuickSlotReference(state, "a");
-    const suppressed = markReferenceRemovedFromAllRefs(withQuickSlot, "a");
-    expect(
-      selectAllRefsProjectionWithLegacyFallback(outputs, suppressed).map((item) => item.id)
-    ).toEqual(["b"]);
+    const withQuickSlot = addQuickSlotReference(state, "c");
+    const suppressed = markReferenceRemovedFromAllRefs(withQuickSlot, "c");
+    expect(selectVisibleAllRefsProjection(outputs, suppressed).map((item) => item.id)).toEqual([
+      "b",
+    ]);
   });
 });

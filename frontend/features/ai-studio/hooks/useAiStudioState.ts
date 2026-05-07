@@ -1,19 +1,12 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type Dispatch,
   type SetStateAction,
 } from "react";
 import { StudioOutput } from "../types";
-import {
-  listVisibleGeneratedOutputs,
-  resolveVisibleGenerationReconcile,
-} from "../logic/generatedMediaAuthority";
-import { mergeCanonicalGeneratedOutputs } from "../logic/generatedOutputHydration";
-import { resolveVideoPosterRepairsForOutputs } from "../logic/videoPosterRepair";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
 import { abandonGenerationOutput } from "../logic/generationAbandonment";
 import { useAiStudioCreationState } from "./useAiStudioCreationState";
@@ -35,75 +28,16 @@ import {
   VIDEO_DURATION_STORAGE_KEY,
   VIDEO_RESOLUTION_STORAGE_KEY,
 } from "./aiStudioStateConfig";
-import { useAiStudioStableTextSetters } from "./useAiStudioStableTextSetters";
+import { useAiStudioCreateRuntimePromptState } from "./useAiStudioCreateRuntimePromptState";
 import { useAiStudioStateOutputControllers } from "./useAiStudioStateOutputControllers";
+import { useAiStudioGeneratedOutputMaintenance } from "./useAiStudioGeneratedOutputMaintenance";
+import { useAiStudioRuntimeAuthorityUiState } from "./useAiStudioRuntimeAuthorityUiState";
 import { useAiStudioStateRuntimeControllers } from "./useAiStudioStateRuntimeControllers";
 import { useAiStudioStateSupportControllers } from "./useAiStudioStateSupportControllers";
 import {
   createEmptyReferenceProjectionState,
   type ReferenceProjectionState,
 } from "../reference-projections";
-
-type AiStudioRuntimeUiState = {
-  activeOutputId: string | null;
-  referenceProjectionState: ReferenceProjectionState;
-  saved: boolean;
-};
-
-const isPlainSessionGeneratedOutputHydrationEnabled = (): boolean =>
-  process.env.NEXT_PUBLIC_AI_STUDIO_PLAIN_SESSION_GENERATED_OUTPUT_HYDRATION_ENABLED === "true";
-
-const CANONICAL_GENERATED_OUTPUT_SYNC_INTERVAL_MS = 5_000;
-const CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS = 120_000;
-const GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE = 4;
-const STORAGE_VIDEO_POSTER_REPAIR_BATCH_SIZE = 12;
-
-const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean => {
-  const hasGenerationIdentity = Boolean(output.generationId || output.taskId);
-  if (output.mediaSource !== "generated" && !hasGenerationIdentity) return false;
-  if (output.taskState === "success" || output.taskState === "fail") return false;
-  return hasGenerationIdentity || Boolean(output.sourceRef);
-};
-
-const isGeneratedVideoPosterRepairCandidate = (output: StudioOutput): boolean => {
-  if (output.mode !== "video") return false;
-  if (output.taskState && output.taskState !== "success") return false;
-  if (output.previewPosterUrl?.trim()) return false;
-  if (output.mediaSource !== "generated" && !output.generationId && !output.taskId) return false;
-  return Boolean(output.generationId || output.taskId);
-};
-
-const buildGeneratedVideoPosterRepairKey = (output: StudioOutput): string =>
-  [
-    output.id,
-    output.generationId ?? "",
-    output.taskId ?? "",
-    output.previewUrl ?? "",
-    output.previewPosterStoragePath ?? "",
-    output.previewStoragePath ?? "",
-    output.fullStoragePath ?? "",
-    output.resultUrls?.join("|") ?? "",
-  ].join("::");
-
-const isStorageVideoPosterRepairCandidate = (output: StudioOutput): boolean => {
-  if (output.mode !== "video") return false;
-  if (output.previewPosterUrl?.trim()) return false;
-  if (output.previewPosterStoragePath?.trim()) return true;
-  if (output.savedMediaIds?.some((id) => id.trim().length > 0)) return true;
-  return Boolean(output.previewStoragePath?.trim() || output.fullStoragePath?.trim());
-};
-
-const buildStorageVideoPosterRepairKey = (output: StudioOutput): string =>
-  [
-    output.id,
-    output.previewPosterUrl ?? "",
-    output.previewPosterStoragePath ?? "",
-    output.previewStoragePath ?? "",
-    output.fullStoragePath ?? "",
-    output.previewUrl ?? "",
-    output.resultUrls?.join("|") ?? "",
-    output.savedMediaIds?.join("|") ?? "",
-  ].join("::");
 
 export const useAiStudioState = ({
   projectId = null,
@@ -150,6 +84,9 @@ export const useAiStudioState = ({
     setVideoReferenceTextState,
     expertEditSessionState,
     setExpertEditSessionState,
+    publishExpertEditSessionState,
+    getExpertEditSessionState,
+    expertEditSessionRevision,
     videoReferenceMode,
     setVideoReferenceMode,
     videoDurationSeconds,
@@ -243,87 +180,24 @@ export const useAiStudioState = ({
   const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
   const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
   const sessionHydrationSigningRevisionRef = useRef(0);
-  const canonicalGeneratedHydrationStartedRef = useRef(false);
-  const canonicalGeneratedOutputSyncInFlightRef = useRef(false);
-  const canonicalGeneratedOutputSyncLastActiveAtRef = useRef<number | null>(null);
-  const generatedVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
-  const storageVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
-  const activeBaseRuntimeAuthorityKeyRef = useRef(baseRuntimeAuthorityKey);
-  const activeRuntimeAuthorityKeyRef = useRef(runtimeAuthorityKey);
-  const runtimeUiStateByAuthorityKeyRef = useRef<Record<string, AiStudioRuntimeUiState>>({});
-
-  const getRuntimeAuthorityKeyForCreateMode = useCallback(
-    (createMode: "standard" | "pulse") => {
-      // Create mode stays in the call signature for restore APIs; the rail itself is global.
-      void createMode;
-      return baseRuntimeAuthorityKey;
-    },
-    [baseRuntimeAuthorityKey]
-  );
-
-  const setRuntimeUiStateForCreateMode = useCallback(
-    (createMode: "standard" | "pulse", nextState: AiStudioRuntimeUiState) => {
-      const targetAuthorityKey = getRuntimeAuthorityKeyForCreateMode(createMode);
-      runtimeUiStateByAuthorityKeyRef.current[targetAuthorityKey] = nextState;
-      if (activeRuntimeAuthorityKeyRef.current !== targetAuthorityKey) return;
-      setActiveOutputId(nextState.activeOutputId);
-      setReferenceProjectionState(nextState.referenceProjectionState);
-      setSaved(nextState.saved);
-    },
-    [getRuntimeAuthorityKeyForCreateMode]
-  );
-
-  const setOutputCollectionsForCreateMode = useCallback(
-    (
-      createMode: "standard" | "pulse",
-      activeRows: StudioOutput[],
-      archivedRows: StudioOutput[]
-    ) => {
-      setOutputCollectionsForAuthority(
-        getRuntimeAuthorityKeyForCreateMode(createMode),
-        activeRows,
-        archivedRows
-      );
-    },
-    [getRuntimeAuthorityKeyForCreateMode, setOutputCollectionsForAuthority]
-  );
+  const { setOutputCollectionsForCreateMode, setRuntimeUiStateForCreateMode } =
+    useAiStudioRuntimeAuthorityUiState({
+      activeOutputId,
+      baseRuntimeAuthorityKey,
+      referenceProjectionState,
+      runtimeAuthorityKey,
+      saved,
+      sessionHydrationSigningRevisionRef,
+      setActiveOutputId,
+      setOutputCollectionsForAuthority,
+      setReferenceProjectionState,
+      setSaved,
+    });
 
   useEffect(() => {
-    if (activeRuntimeAuthorityKeyRef.current === runtimeAuthorityKey) return;
-    const previousRuntimeAuthorityKey = activeRuntimeAuthorityKeyRef.current;
-    runtimeUiStateByAuthorityKeyRef.current[previousRuntimeAuthorityKey] = {
-      activeOutputId,
-      referenceProjectionState,
-      saved,
-    };
-    const baseAuthorityChanged =
-      activeBaseRuntimeAuthorityKeyRef.current !== baseRuntimeAuthorityKey;
-    if (baseAuthorityChanged) {
-      activeBaseRuntimeAuthorityKeyRef.current = baseRuntimeAuthorityKey;
-      canonicalGeneratedHydrationStartedRef.current = false;
-      generatedVideoPosterRepairKeySetRef.current.clear();
-      storageVideoPosterRepairKeySetRef.current.clear();
-    }
-    activeRuntimeAuthorityKeyRef.current = runtimeAuthorityKey;
-    const restoredState = baseAuthorityChanged
-      ? null
-      : (runtimeUiStateByAuthorityKeyRef.current[runtimeAuthorityKey] ?? null);
-
-    setActiveOutputId(restoredState?.activeOutputId ?? null);
-    setReferenceProjectionState(
-      restoredState?.referenceProjectionState ?? createEmptyReferenceProjectionState()
-    );
     pendingAutoSavesRef.current = {};
     pendingFinalizeRemovalIdsRef.current = new Set();
-    sessionHydrationSigningRevisionRef.current += 1;
-    setSaved(restoredState?.saved ?? false);
-  }, [
-    activeOutputId,
-    baseRuntimeAuthorityKey,
-    referenceProjectionState,
-    runtimeAuthorityKey,
-    saved,
-  ]);
+  }, [runtimeAuthorityKey]);
 
   const {
     activeOutput,
@@ -434,43 +308,25 @@ export const useAiStudioState = ({
     setKlingElements,
   });
   const {
+    activeCreatePrompt,
+    createStatePrompts,
+    createStateRuntime,
     setSharedPrompt,
     setStandardCreatePrompt,
     setPulseCreatePrompt,
     setEditReferenceText,
     setVideoReferenceText,
-  } = useAiStudioStableTextSetters({
+  } = useAiStudioCreateRuntimePromptState({
+    activePulsePresetId,
     expertCreateMode,
-    setStandardPromptState: setStandardPrompt,
-    setPulsePromptState: setPulsePrompt,
+    pulsePrompt,
+    pulseSessionInstanceId,
     setEditReferenceTextState,
+    setPulsePromptState: setPulsePrompt,
+    setStandardPromptState: setStandardPrompt,
     setVideoReferenceTextState,
+    standardPrompt,
   });
-  const createStateRuntime = useMemo(
-    () =>
-      expertCreateMode === "pulse"
-        ? {
-            kind: "pulse" as const,
-            prompt: pulsePrompt,
-            activePulsePresetId,
-            pulseSessionInstanceId,
-          }
-        : {
-            kind: "standard" as const,
-            prompt: standardPrompt,
-            activePulsePresetId: null,
-            pulseSessionInstanceId: null,
-          },
-    [activePulsePresetId, expertCreateMode, pulsePrompt, pulseSessionInstanceId, standardPrompt]
-  );
-  const activeCreatePrompt = createStateRuntime.prompt;
-  const createStatePrompts = useMemo(
-    () => ({
-      standard: standardPrompt,
-      pulse: pulsePrompt,
-    }),
-    [pulsePrompt, standardPrompt]
-  );
   const {
     archiveOlderOutputs,
     restoreArchivedOutput,
@@ -548,227 +404,15 @@ export const useAiStudioState = ({
     curatedReferenceIds,
     setActiveOutputState,
     setArchivedOutputState,
-    setOutputs,
   });
-
-  useEffect(() => {
-    const shouldHydrateProjectGeneratedOutputs = Boolean(projectId) && !hasPendingWorkflowRestore;
-    const shouldHydratePlainSessionGeneratedOutputs =
-      !projectRouteRequested && !projectId && isPlainSessionGeneratedOutputHydrationEnabled();
-    if (
-      canonicalGeneratedHydrationStartedRef.current ||
-      (!shouldHydrateProjectGeneratedOutputs && !shouldHydratePlainSessionGeneratedOutputs)
-    ) {
-      return;
-    }
-    canonicalGeneratedHydrationStartedRef.current = true;
-    let cancelled = false;
-
-    void (async () => {
-      const hydratedOutputs = await listVisibleGeneratedOutputs({
-        projectId: projectId ?? null,
-      });
-      if (cancelled || hydratedOutputs.length === 0) return;
-      setOutputsState((currentOutputs) =>
-        mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)
-      );
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [hasPendingWorkflowRestore, projectId, projectRouteRequested, setOutputsState]);
-
-  useEffect(() => {
-    if (!projectId || hasPendingWorkflowRestore) {
-      canonicalGeneratedOutputSyncLastActiveAtRef.current = null;
-      return;
-    }
-
-    const hasActiveGeneratedOutput = outputs.some(isCanonicalGeneratedOutputSyncCandidate);
-    if (hasActiveGeneratedOutput) {
-      canonicalGeneratedOutputSyncLastActiveAtRef.current = Date.now();
-    }
-  }, [hasPendingWorkflowRestore, outputs, projectId]);
-
-  useEffect(() => {
-    if (!projectId || hasPendingWorkflowRestore) return;
-    let cancelled = false;
-
-    const syncCanonicalGeneratedOutputs = async () => {
-      if (cancelled || canonicalGeneratedOutputSyncInFlightRef.current) return;
-      const lastActiveAt = canonicalGeneratedOutputSyncLastActiveAtRef.current;
-      const withinIdleGrace =
-        lastActiveAt != null &&
-        Date.now() - lastActiveAt <= CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS;
-      if (!withinIdleGrace) return;
-
-      canonicalGeneratedOutputSyncInFlightRef.current = true;
-      try {
-        const hydratedOutputs = await listVisibleGeneratedOutputs({ projectId });
-        if (cancelled || hydratedOutputs.length === 0) return;
-        setOutputsState((currentOutputs) =>
-          mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)
-        );
-      } finally {
-        canonicalGeneratedOutputSyncInFlightRef.current = false;
-      }
-    };
-
-    const intervalId = globalThis.setInterval(
-      syncCanonicalGeneratedOutputs,
-      CANONICAL_GENERATED_OUTPUT_SYNC_INTERVAL_MS
-    );
-    void syncCanonicalGeneratedOutputs();
-
-    return () => {
-      cancelled = true;
-      globalThis.clearInterval(intervalId);
-    };
-  }, [hasPendingWorkflowRestore, projectId, setOutputsState]);
-
-  useEffect(() => {
-    if (hasPendingWorkflowRestore) return;
-    const repairCandidates = outputs
-      .filter(isGeneratedVideoPosterRepairCandidate)
-      .map((output) => ({
-        output,
-        repairKey: buildGeneratedVideoPosterRepairKey(output),
-      }))
-      .filter(({ repairKey }) => !generatedVideoPosterRepairKeySetRef.current.has(repairKey))
-      .slice(0, GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE);
-    if (!repairCandidates.length) return;
-
-    repairCandidates.forEach(({ repairKey }) => {
-      generatedVideoPosterRepairKeySetRef.current.add(repairKey);
-    });
-
-    let cancelled = false;
-    void (async () => {
-      const repairs = await Promise.all(
-        repairCandidates.map(async ({ output, repairKey }) => {
-          const reconcile = await resolveVisibleGenerationReconcile({
-            generationId: output.generationId ?? null,
-            requestId: output.taskId ?? null,
-            projectId: projectId ?? null,
-          });
-          return {
-            outputId: output.id,
-            generationId: output.generationId ?? null,
-            taskId: output.taskId ?? null,
-            repairKey,
-            reconcile,
-          };
-        })
-      );
-      if (cancelled) return;
-
-      const repairByOutputId = new Map(
-        repairs
-          .filter((repair) => repair.reconcile?.previewPosterUrl)
-          .map((repair) => [repair.outputId, repair])
-      );
-      if (repairByOutputId.size === 0) return;
-
-      setOutputsState((currentOutputs) => {
-        let changed = false;
-        const patchedOutputs = currentOutputs.map((output) => {
-          const repair = repairByOutputId.get(output.id);
-          if (!repair?.reconcile?.previewPosterUrl) return output;
-          if (output.previewPosterUrl?.trim()) return output;
-          if (repair.generationId && output.generationId !== repair.generationId) return output;
-          if (!repair.generationId && repair.taskId && output.taskId !== repair.taskId)
-            return output;
-          changed = true;
-          return {
-            ...output,
-            previewPosterUrl: repair.reconcile.previewPosterUrl,
-            previewPosterStoragePath:
-              repair.reconcile.previewPosterStoragePath ?? output.previewPosterStoragePath ?? null,
-            previewStoragePath:
-              repair.reconcile.previewStoragePath ?? output.previewStoragePath ?? null,
-            fullStoragePath: repair.reconcile.fullStoragePath ?? output.fullStoragePath ?? null,
-            previewUrl: repair.reconcile.previewUrl ?? output.previewUrl,
-            resultUrls:
-              repair.reconcile.resultUrls.length > 0
-                ? repair.reconcile.resultUrls
-                : output.resultUrls,
-          };
-        });
-        return changed ? patchedOutputs : currentOutputs;
-      });
-    })().catch(() => {
-      repairCandidates.forEach(({ repairKey }) => {
-        generatedVideoPosterRepairKeySetRef.current.delete(repairKey);
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [hasPendingWorkflowRestore, outputs, projectId, setOutputsState]);
-
-  useEffect(() => {
-    if (hasPendingWorkflowRestore) return;
-    const repairCandidates = outputs
-      .filter(isStorageVideoPosterRepairCandidate)
-      .map((output) => ({
-        output,
-        repairKey: buildStorageVideoPosterRepairKey(output),
-      }))
-      .filter(({ repairKey }) => !storageVideoPosterRepairKeySetRef.current.has(repairKey))
-      .slice(0, STORAGE_VIDEO_POSTER_REPAIR_BATCH_SIZE);
-    if (!repairCandidates.length) return;
-
-    repairCandidates.forEach(({ repairKey }) => {
-      storageVideoPosterRepairKeySetRef.current.add(repairKey);
-    });
-
-    let cancelled = false;
-    void (async () => {
-      const repairs = await resolveVideoPosterRepairsForOutputs(
-        repairCandidates.map(({ output }) => output)
-      );
-      if (cancelled || repairs.size === 0) return;
-
-      const repairKeyByOutputId = new Map(
-        repairCandidates.map(({ output, repairKey }) => [output.id, repairKey])
-      );
-
-      setOutputsState((currentOutputs) => {
-        let changed = false;
-        const patchedOutputs = currentOutputs.map((output) => {
-          const repair = repairs.get(output.id);
-          if (!repair) return output;
-          if (output.previewPosterUrl?.trim()) return output;
-          const baselineRepairKey = repairKeyByOutputId.get(output.id);
-          if (baselineRepairKey && buildStorageVideoPosterRepairKey(output) !== baselineRepairKey) {
-            return output;
-          }
-
-          changed = true;
-          return {
-            ...output,
-            previewPosterUrl: repair.previewPosterUrl,
-            previewPosterStoragePath: repair.previewPosterStoragePath,
-            previewStoragePath: repair.previewStoragePath,
-            fullStoragePath: repair.fullStoragePath ?? output.fullStoragePath ?? null,
-            previewUrl: repair.previewUrl ?? output.previewUrl,
-            resultUrls: repair.resultUrls ?? output.resultUrls,
-          };
-        });
-        return changed ? patchedOutputs : currentOutputs;
-      });
-    })().catch(() => {
-      repairCandidates.forEach(({ repairKey }) => {
-        storageVideoPosterRepairKeySetRef.current.delete(repairKey);
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [hasPendingWorkflowRestore, outputs, setOutputsState]);
+  useAiStudioGeneratedOutputMaintenance({
+    baseRuntimeAuthorityKey,
+    hasPendingWorkflowRestore,
+    outputs,
+    projectId,
+    projectRouteRequested,
+    setOutputsState,
+  });
 
   const {
     deleteOutput,
@@ -1058,6 +702,9 @@ export const useAiStudioState = ({
     setVideoReferenceText,
     expertEditSessionState,
     setExpertEditSessionState,
+    publishExpertEditSessionState,
+    getExpertEditSessionState,
+    expertEditSessionRevision,
     setSharedPrompt,
     resolvePreviewUrlById,
     useReferenceImageIndicator,

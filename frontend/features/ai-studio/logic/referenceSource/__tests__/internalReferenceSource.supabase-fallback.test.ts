@@ -149,7 +149,7 @@ const createSupabaseMock = () => ({
 
 describe("resolveInternalReferenceSource schema-cache fallback", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     ensureSupabaseClientMock.mockReturnValue(createSupabaseMock());
     ensureSupabaseQueryClientMock.mockReturnValue(createSupabaseMock());
     mediaMaybeSingleMock.mockResolvedValue({ data: null, error: null });
@@ -197,18 +197,23 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
     expect(resolved?.provenance.resolutionReason).toBe("saved_media_lookup");
   });
 
-  it("falls back to storage_path-only lookup for generated output resolution when preview_storage_path is unavailable", async () => {
+  it("falls back to storage_path-only lookup for legacy generated output metadata when preview_storage_path is unavailable", async () => {
     const output = makeImageOutput({
       generationId: "gen-1",
       taskId: "task-1",
     });
     mediaMaybeSingleMock
       .mockResolvedValueOnce({ data: null, error: schemaCacheError })
-      .mockResolvedValueOnce({ data: null, error: null })
-      .mockResolvedValueOnce({
-        data: { storage_path: "user-1/generations/images/from-generation.png" },
-        error: null,
-      });
+      .mockResolvedValueOnce({ data: null, error: null });
+    mediaListMock.mockResolvedValueOnce({
+      data: [
+        {
+          metadata: { generation_output_index: 0 },
+          storage_path: "user-1/generations/images/from-generation.png",
+        },
+      ],
+      error: null,
+    });
 
     const resolved = await resolveInternalReferenceSource({
       payload: makePayload(),
@@ -233,7 +238,7 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
     expect(resolved?.provenance.resolutionReason).toBe("generation_index_lookup");
   });
 
-  it("prefers canonical generation output media linkage before legacy metadata scans", async () => {
+  it("prefers canonical generation output media linkage before metadata scans", async () => {
     const output = makeImageOutput({
       generationId: "gen-1",
       taskId: "task-1",

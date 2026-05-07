@@ -1,6 +1,6 @@
 /**
  * Pulse PromptStep chat-mode surface.
- * Owns Pulse flow composer layout and guided loading history chrome.
+ * Owns Pulse flow composer layout and Pulse-mode loading history chrome.
  */
 import React from "react";
 import { Trash } from "phosphor-react";
@@ -296,7 +296,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
           isPulseLoading
             ? pulseLoadingState.phase === "starting_pulse"
               ? "Pulse is starting..."
-              : "Pulse is generating the next step..."
+              : "Pulse is generating the next response..."
             : "Message the agent..."
         }
         onKeyDown={handleAgentInputKeyDown}

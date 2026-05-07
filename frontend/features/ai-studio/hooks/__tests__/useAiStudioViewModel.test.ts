@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
@@ -60,14 +60,6 @@ const baseInput = {
   balanceCredits: null,
   costParamsForModel: makeCostParamsForModel(KIE_KLING_30_MODEL_ID),
 };
-
-beforeEach(() => {
-  vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "false");
-});
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
 
 describe("useAiStudioViewModel motion guardrails", () => {
   it("uses active video settings for prompt-reference generate cost", () => {
@@ -774,8 +766,16 @@ describe("useAiStudioViewModel edit guardrails", () => {
         resolution: "model_default",
       })
     )?.credits;
+    const markupCostCredits = computeCostForModel(
+      MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
+      editCostParamsForModel(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID, {
+        aspect: "1:1",
+        resolution: "model_default",
+      })
+    )?.credits;
     expect(standardCostCredits).not.toBeNull();
     expect(inpaintCostCredits).not.toBeNull();
+    expect(markupCostCredits).not.toBeNull();
     expect(inpaintCostCredits).toBeGreaterThan(standardCostCredits ?? 0);
     const balanceCredits = standardCostCredits ?? 0;
 
@@ -808,9 +808,9 @@ describe("useAiStudioViewModel edit guardrails", () => {
 
     rerender({ intent: "markup" });
 
-    expect(result.current.currentCostCredits).toBe(standardCostCredits);
-    expect(result.current.isCreditGuardrail).toBe(false);
-    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.currentCostCredits).toBe(markupCostCredits);
+    expect(result.current.isCreditGuardrail).toBe(true);
+    expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
   });
 
   it("switches inpaint cost to the reference inpaint model when exactly one linked secondary reference is active", () => {
@@ -851,8 +851,7 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.currentCostCredits).not.toBe(fillCostCredits);
   });
 
-  it("switches edit cost and credit guardrail to Pulse Markup v1 when markup lock flag is enabled", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "true");
+  it("switches edit cost and credit guardrail to Pulse Markup v1 for markup intent", () => {
     const selectedModelId = "fal-ai/flux-2/klein/9b";
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const standardCostCredits = computeCostForModel(

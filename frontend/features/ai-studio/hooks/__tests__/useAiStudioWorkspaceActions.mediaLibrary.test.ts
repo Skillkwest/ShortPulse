@@ -27,7 +27,6 @@ const createParams = (overrides: Record<string, unknown> = {}): Record<string, u
 
 describe("useAiStudioWorkspaceActions media-library routing", () => {
   afterEach(() => {
-    vi.unstubAllEnvs();
     vi.resetModules();
   });
 
@@ -50,35 +49,7 @@ describe("useAiStudioWorkspaceActions media-library routing", () => {
       result.current.handleOpenMediaLibrary();
     });
 
-    expect(result.current.isMediaLibraryPanelEnabled).toBe(true);
-    expect(result.current.isMediaLibraryOpen).toBe(false);
     expect(setSelectedTool).toHaveBeenCalledWith("media-library");
     expect(setShowCreateTools).not.toHaveBeenCalled();
-  });
-
-  it("keeps modal fallback behavior when panel flag is disabled", async () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED", "false");
-    vi.resetModules();
-    const { useAiStudioWorkspaceActions } = await import("../useAiStudioWorkspaceActions");
-
-    const setSelectedTool = vi.fn();
-    const setShowCreateTools = vi.fn();
-    const { result } = renderHook(() =>
-      useAiStudioWorkspaceActions(
-        createParams({
-          setSelectedTool,
-          setShowCreateTools: asDispatch<boolean>(setShowCreateTools),
-        }) as Parameters<typeof useAiStudioWorkspaceActions>[0]
-      )
-    );
-
-    act(() => {
-      result.current.handleOpenMediaLibrary();
-    });
-
-    expect(result.current.isMediaLibraryPanelEnabled).toBe(false);
-    expect(result.current.isMediaLibraryOpen).toBe(true);
-    expect(setShowCreateTools).toHaveBeenCalledWith(false);
-    expect(setSelectedTool).not.toHaveBeenCalledWith("media-library");
   });
 });

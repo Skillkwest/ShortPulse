@@ -7,20 +7,18 @@ import {
   getAiStudioProjectWorkspaceSnapshotViaApi,
   type AiStudioProjectWorkspaceApiRecord,
 } from "../logic/projectWorkspaceApiClient";
-import {
-  parseAiStudioSessionSnapshotForRestore,
-  type AiStudioSessionRestoreSource,
-} from "../logic/sessionRestoreCandidate";
+import { parseAiStudioSessionSnapshotForRestore } from "../logic/sessionSnapshotRestore";
 import {
   createAiStudioProjectWorkspaceSnapshot,
   type AiStudioSessionSnapshot,
 } from "../logic/sessionSnapshot";
+import type { AiStudioWorkspaceRestoreSource } from "./aiStudioPersistenceControllerContract";
 
 export type AiStudioProjectWorkspaceRestoreCandidateState = {
   status: "idle" | "loading" | "ready" | "error";
   result: "idle" | "loading" | "found_snapshot" | "no_snapshot" | "load_failed";
   snapshot: AiStudioSessionSnapshot | null;
-  source: AiStudioSessionRestoreSource;
+  source: AiStudioWorkspaceRestoreSource;
   error: string | null;
   retry: () => void;
 };

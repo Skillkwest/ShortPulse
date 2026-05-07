@@ -11,11 +11,11 @@ import {
   StackSimple,
 } from "phosphor-react";
 import type { AspectOption } from "../../types";
-import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import type { ModelModalContext } from "../ModelModal";
 import type { CreateCharacterOption } from "../create/useCreateCharacterModeController";
 import type { ExpertEditCustomPresetOverrides, ExpertEditPresetId } from "./expertEditPresets";
+import type { ExpertEditRegenerateWithReferenceInputsHandler } from "./expertEditSubmissionContract";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import type {
   ExpertEditInpaintHistoryState,
@@ -47,19 +47,7 @@ export type ExpertEditPanelViewProps = {
   onPromptTextChange: (value: string) => void;
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   onRegenerate: () => void;
-  onRegenerateWithReferenceInputs?: (
-    referenceInputs: string[],
-    options?: {
-      inpaintOverride?: InpaintSubmissionOverride | null;
-      modelIdOverride?: string | null;
-      outputIdOverride?: string;
-      costOverrideCredits?: number | null;
-      hideOutputFromReferenceGrid?: boolean;
-      displayPromptOverride?: string | null;
-      submissionPromptOverride?: string | null;
-      referenceInputsMode?: "merge" | "replace";
-    }
-  ) => void | Promise<void>;
+  onRegenerateWithReferenceInputs?: ExpertEditRegenerateWithReferenceInputsHandler;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;

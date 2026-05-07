@@ -61,7 +61,6 @@ describe("Pulse route mode isolation", () => {
     vi.clearAllMocks();
     process.env.OPENAI_API_KEY = "test-key";
     process.env.STUDIO_AGENT_ENABLED = "true";
-    process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "false";
     process.env.STUDIO_AGENT_SERVER_VISION_ENABLED = "false";
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     resolveRuntimeSafetyProfileMock.mockResolvedValue({

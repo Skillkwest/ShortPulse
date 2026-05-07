@@ -17,15 +17,14 @@ export function AgentGenerateButton({
   isBusy = false,
   cost,
 }: AgentGenerateButtonProps) {
-  void isBusy;
-
   return (
     <button
       type="button"
-      className="agent-generate-prefab"
+      className={`agent-generate-prefab ${isBusy ? "is-busy" : ""}`.trim()}
       onClick={onClick}
       disabled={disabled}
       aria-label="Generate"
+      aria-busy={isBusy || undefined}
     >
       <span className="agent-generate-label">Generate</span>
       <span className="model-chip-pill generate-pill">

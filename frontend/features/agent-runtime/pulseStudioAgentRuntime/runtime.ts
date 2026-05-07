@@ -1,6 +1,7 @@
 /**
  * Pulse Create agent runtime for AI Studio.
- * Owns guided Pulse orchestration, workflow prompt loading, persistence, and telemetry.
+ * Owns Pulse-route orchestration, built-in workflow prompt loading, persistence,
+ * and telemetry.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { loadAgentPrompt } from "../../../lib/agentPromptLoader";
@@ -46,7 +47,6 @@ import {
   buildPromptCompilerCacheScopeKey,
   resolvePromptTemplateVersion,
 } from "../promptCompilerCacheScopeKey";
-import { isStudioAgentWorkflowPulse } from "../studioAgentPulseRuntime";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafetyPolicyControlPlane";
@@ -185,6 +185,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
         label: runtimeBuiltInPreset.label,
         description: runtimeBuiltInPreset.description,
         instructions: runtimeBuiltInPreset.systemInstructions,
+        pulseKind: runtimeBuiltInPreset.pulseKind,
         runtimeMode: runtimeBuiltInPreset.runtimeMode,
         activationMode: runtimeBuiltInPreset.activationMode,
         starterAssistantMessage: runtimeBuiltInPreset.starterAssistantMessage,
@@ -194,6 +195,7 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
         memoryPolicy: runtimeBuiltInPreset.memoryPolicy,
         source: "builtin",
         workflowSession: context.pulse.workflowSession ?? null,
+        schemaVersion: runtimeBuiltInPreset.schemaVersion,
       },
     };
   }
@@ -215,16 +217,14 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     process.env.STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED === "true";
   const openAiConfig = resolveStudioAgentOpenAiConfig(process.env);
   const { openAiUrl, turnTimeoutMs } = openAiConfig;
-  const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
+  const pulseRouteActive = Boolean(context.pulse);
 
   const serverVisionEnabled = process.env.STUDIO_AGENT_SERVER_VISION_ENABLED !== "false";
   const envPostprocessMode = String(process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_MODE ?? "")
     .trim()
     .toLowerCase();
   const safetyPostProcessMode =
-    envPostprocessMode === "enforce" ||
-    envPostprocessMode === "shadow" ||
-    envPostprocessMode === "off"
+    envPostprocessMode === "enforce" || envPostprocessMode === "off"
       ? envPostprocessMode
       : process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED === "false"
         ? "off"
@@ -277,8 +277,8 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
     upstreamRetryBaseDelayMs,
     upstreamRetryMaxDelayMs,
   } = openAiConfig;
-  const coordinatorOpenAiModel = workflowPulseActive ? openAiPulseModel : openAiModel;
-  const coordinatorTurnTimeoutMs = workflowPulseActive ? pulseTurnTimeoutMs : turnTimeoutMs;
+  const coordinatorOpenAiModel = pulseRouteActive ? openAiPulseModel : openAiModel;
+  const coordinatorTurnTimeoutMs = pulseRouteActive ? pulseTurnTimeoutMs : turnTimeoutMs;
 
   let effectiveCanonical: string | null = null;
 

@@ -16,6 +16,7 @@ import type { AiStudioPulsePresetChangeOptions } from "../../hooks/useAiStudioCr
 import { PulseCreatePanelView } from "./PulseCreatePanelView";
 import type { CreatePulsePreferenceRuntimeValue } from "./CreatePulsePreferenceProvider";
 import type {
+  CreatePulsePresetKind,
   CreatePulsePresetId,
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
@@ -61,6 +62,7 @@ export type PulseCreatePropertiesPanelProps = {
   createModeToggle?: React.ReactNode;
   activePulsePresetId?: CreatePulsePresetId | null;
   activePulsePresetLabel?: string | null;
+  activePulsePresetKind?: CreatePulsePresetKind | null;
   hasActivePulseSession?: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   onActivePulsePresetIdChange?: (
@@ -110,6 +112,7 @@ export function PulseCreatePropertiesPanel({
   createModeToggle = null,
   activePulsePresetId,
   activePulsePresetLabel = null,
+  activePulsePresetKind = null,
   hasActivePulseSession = Boolean(activePulsePresetId),
   pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
@@ -119,6 +122,7 @@ export function PulseCreatePropertiesPanel({
   onGeneratePulseArtifact,
   guardrailReason,
 }: PulseCreatePropertiesPanelProps) {
+  const isGuidedWorkflowPulse = activePulsePresetKind === "guided_workflow";
   const pulseLoadingState = React.useMemo<PromptStepPulseLoadingState | null>(() => {
     if (!activePulsePresetId) {
       return null;
@@ -135,7 +139,9 @@ export function PulseCreatePropertiesPanel({
       return {
         phase: "starting_pulse",
         title: PULSE_LOADING_TITLE,
-        message: "Preparing your guided workflow...",
+        message: isGuidedWorkflowPulse
+          ? "Preparing your guided workflow..."
+          : "Preparing your Pulse...",
         presetLabel,
         stepLabel,
       };
@@ -144,9 +150,11 @@ export function PulseCreatePropertiesPanel({
       return {
         phase: "generating_step",
         title: PULSE_LOADING_TITLE,
-        message: stepLabel
-          ? `Building the next instruction for ${stepLabel}.`
-          : "Building the next instruction for your workflow.",
+        message: isGuidedWorkflowPulse
+          ? stepLabel
+            ? `Building the next instruction for ${stepLabel}.`
+            : "Building the next instruction for your workflow."
+          : "Preparing the next Pulse response.",
         presetLabel,
         stepLabel,
       };
@@ -158,6 +166,7 @@ export function PulseCreatePropertiesPanel({
     agentMessages,
     agentTransportSending,
     agentUiBusy,
+    isGuidedWorkflowPulse,
     pulseWorkflowSession?.currentStepLabel,
     pulseWorkflowSession?.status,
   ]);

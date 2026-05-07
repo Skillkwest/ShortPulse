@@ -1,7 +1,7 @@
 /**
  * Pulse Create agent runtime.
- * Owns guided workflow chat state, workflow-session capture, preset kickoff,
- * artifact prompt exposure, and Pulse transport binding.
+ * Owns Pulse-mode chat state, guided-workflow session capture when applicable,
+ * preset kickoff, reusable prompt exposure, and Pulse transport binding.
  */
 import {
   useCallback,

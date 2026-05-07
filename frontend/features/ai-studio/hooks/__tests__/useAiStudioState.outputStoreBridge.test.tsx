@@ -1078,10 +1078,10 @@ describe("useAiStudioState output store bridge", () => {
     expect(mockDeleteOutputFromLifecycle).not.toHaveBeenCalledWith("out-1");
     expect(mockUpdateOutputById).not.toHaveBeenCalledWith("out-1", expect.any(Function));
     await waitFor(() => {
+      expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
       expect(
         result.current.outputs.find((item) => item.id === "out-1")?.hiddenInReferenceGrid
-      ).toBe(true);
-      expect(result.current.removedFromAllRefsIds).toEqual(["out-1"]);
+      ).not.toBe(true);
     });
   });
 

@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import {
@@ -175,5 +175,82 @@ describe("ReferenceGrid selector-store bridge", () => {
     });
 
     expect(container.querySelector(".reference-loading")).toBeNull();
+  });
+
+  it("keeps explicitly suppressed curated references in quick slots while excluding them from all refs", () => {
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        curatedReferenceIds={["prompt-1"]}
+        removedFromAllRefsIds={["prompt-1"]}
+        onAddCuratedReference={() => undefined}
+        onRemoveCuratedReference={() => undefined}
+        onReorderCuratedReference={() => undefined}
+      />
+    );
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["prompt-1", "prompt-2"],
+        outputById: {
+          "prompt-1": makeOutput("prompt-1", { previewText: "Suppressed quick-slot ref" }),
+          "prompt-2": makeOutput("prompt-2", { previewText: "Visible all-refs ref" }),
+        },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    expect(allRefsSection).toBeTruthy();
+
+    const curatedQueries = within(curatedSection);
+    const allRefsQueries = within(allRefsSection);
+    expect(curatedQueries.getByText("Suppressed quick-slot ref")).toBeInTheDocument();
+    expect(allRefsQueries.queryByText("Suppressed quick-slot ref")).toBeNull();
+    expect(allRefsQueries.getByText("Visible all-refs ref")).toBeInTheDocument();
+  });
+
+  it("keeps hidden outputs out of all refs even when explicit suppression is active elsewhere", () => {
+    const { container } = render(
+      <ReferenceGrid
+        {...baseProps}
+        curatedReferenceIds={["prompt-1"]}
+        removedFromAllRefsIds={["prompt-1"]}
+        onAddCuratedReference={() => undefined}
+        onRemoveCuratedReference={() => undefined}
+        onReorderCuratedReference={() => undefined}
+      />
+    );
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["prompt-1", "prompt-2", "prompt-3"],
+        outputById: {
+          "prompt-1": makeOutput("prompt-1", { previewText: "Suppressed quick-slot ref" }),
+          "prompt-2": makeOutput("prompt-2", {
+            previewText: "Still hidden from all refs",
+            hiddenInReferenceGrid: true,
+          }),
+          "prompt-3": makeOutput("prompt-3", { previewText: "Visible all-refs ref" }),
+        },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    const curatedSection = container.querySelector(".reference-curated-section") as HTMLElement;
+    const allRefsSection = container.querySelector(".reference-all-refs-section") as HTMLElement;
+    expect(curatedSection).toBeTruthy();
+    expect(allRefsSection).toBeTruthy();
+
+    const curatedQueries = within(curatedSection);
+    const allRefsQueries = within(allRefsSection);
+    expect(curatedQueries.getByText("Suppressed quick-slot ref")).toBeInTheDocument();
+    expect(allRefsQueries.queryByText("Suppressed quick-slot ref")).toBeNull();
+    expect(allRefsQueries.queryByText("Still hidden from all refs")).toBeNull();
+    expect(allRefsQueries.getByText("Visible all-refs ref")).toBeInTheDocument();
   });
 });

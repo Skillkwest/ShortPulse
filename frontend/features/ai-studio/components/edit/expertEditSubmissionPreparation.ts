@@ -4,11 +4,7 @@ import {
   compileExpertEditSubmissionPrompt,
 } from "../../logic/expertEditPromptReferences";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
-
-export type ExpertEditSubmissionPromptOverrideOptions = {
-  displayPromptOverride: string;
-  submissionPromptOverride: string;
-};
+import type { ExpertEditCompiledPromptOverrides } from "./expertEditSubmissionContract";
 
 export type ValidateExpertEditSubmissionPromptResult =
   | {
@@ -28,7 +24,7 @@ export type PrepareExpertEditSubmissionResult =
       status: "ready";
       referenceInputs: string[];
       linkedSecondaryReferenceInputs: string[];
-      promptOverrideOptions?: ExpertEditSubmissionPromptOverrideOptions;
+      promptOverrideOptions?: ExpertEditCompiledPromptOverrides;
     };
 
 const resolvePopulatedSecondarySlotIndexes = (

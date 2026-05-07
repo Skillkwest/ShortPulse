@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useAiStudioSessionWriteShadow } from "../useAiStudioSessionWriteShadow";
+import { useAiStudioSessionAutosave } from "../useAiStudioSessionAutosave";
 import type {
   AiStudioSessionSnapshotV1,
   AiStudioSessionSnapshotV2,
@@ -70,7 +70,7 @@ const createSnapshotV2 = (
   ...overrides,
 });
 
-describe("useAiStudioSessionWriteShadow", () => {
+describe("useAiStudioSessionAutosave", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
@@ -80,7 +80,7 @@ describe("useAiStudioSessionWriteShadow", () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshot();
     renderHook(() =>
-      useAiStudioSessionWriteShadow({
+      useAiStudioSessionAutosave({
         sessionId: snapshot.sessionId,
         snapshot,
         enabled: true,
@@ -110,7 +110,7 @@ describe("useAiStudioSessionWriteShadow", () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshot();
     renderHook(() =>
-      useAiStudioSessionWriteShadow({
+      useAiStudioSessionAutosave({
         sessionId: snapshot.sessionId,
         snapshot,
         enabled: true,
@@ -141,7 +141,7 @@ describe("useAiStudioSessionWriteShadow", () => {
     const persistSnapshot = vi.fn().mockResolvedValue(undefined);
     const snapshot = createSnapshot();
     renderHook(() =>
-      useAiStudioSessionWriteShadow({
+      useAiStudioSessionAutosave({
         sessionId: snapshot.sessionId,
         snapshot,
         enabled: true,
@@ -169,7 +169,7 @@ describe("useAiStudioSessionWriteShadow", () => {
     const sid = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
     const { rerender } = renderHook(
       ({ snapshot }: { snapshot: AiStudioSessionSnapshotV1 }) =>
-        useAiStudioSessionWriteShadow({
+        useAiStudioSessionAutosave({
           sessionId: sid,
           snapshot,
           enabled: true,
@@ -194,7 +194,7 @@ describe("useAiStudioSessionWriteShadow", () => {
     const sid = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
     const { rerender } = renderHook(
       ({ snapshot }: { snapshot: AiStudioSessionSnapshotV2 }) =>
-        useAiStudioSessionWriteShadow({
+        useAiStudioSessionAutosave({
           sessionId: sid,
           snapshot,
           enabled: true,
@@ -243,7 +243,7 @@ describe("useAiStudioSessionWriteShadow", () => {
     const sid = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
     const { rerender } = renderHook(
       ({ snapshot }: { snapshot: AiStudioSessionSnapshotV2 }) =>
-        useAiStudioSessionWriteShadow({
+        useAiStudioSessionAutosave({
           sessionId: sid,
           snapshot,
           enabled: true,
@@ -294,7 +294,7 @@ describe("useAiStudioSessionWriteShadow", () => {
     });
 
     renderHook(() =>
-      useAiStudioSessionWriteShadow({
+      useAiStudioSessionAutosave({
         sessionId: snapshot.sessionId,
         snapshot,
         enabled: true,
@@ -323,7 +323,7 @@ describe("useAiStudioSessionWriteShadow", () => {
     const snapshot = createSnapshot();
     const { rerender } = renderHook(
       ({ resolveSnapshotTitle }: { resolveSnapshotTitle: () => string | null }) =>
-        useAiStudioSessionWriteShadow({
+        useAiStudioSessionAutosave({
           sessionId: snapshot.sessionId,
           snapshot,
           enabled: true,

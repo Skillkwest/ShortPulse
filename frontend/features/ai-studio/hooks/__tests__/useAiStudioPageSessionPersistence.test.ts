@@ -1,10 +1,12 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { AiStudioSessionAgentV1, AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
+import type {
+  AiStudioSessionAgentV1,
+  AiStudioSessionSnapshotV2,
+} from "../../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import { useAiStudioPageSessionPersistence } from "../useAiStudioPageSessionPersistence";
 import { useAiStudioProjectWorkspacePersistenceController } from "../useAiStudioProjectWorkspacePersistenceController";
-import { useAiStudioSessionPersistenceController } from "../useAiStudioSessionPersistenceController";
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
 import type { AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 
@@ -27,28 +29,6 @@ vi.mock("../useAiStudioProjectWorkspacePersistenceController", () => ({
   })),
 }));
 
-vi.mock("../useAiStudioSessionPersistenceController", () => ({
-  useAiStudioSessionPersistenceController: vi.fn(() => ({
-    sessionId: "session-1",
-    sessionSnapshot: null,
-    sessionRestoreCandidate: {
-      status: "idle",
-      result: "idle",
-      snapshot: null,
-      source: "none",
-      error: null,
-      retry: vi.fn(),
-    },
-    setSkipRestoreApplyForSessionId: vi.fn(),
-    projectBootstrapApplied: true,
-    projectBootstrapError: null,
-    retryProjectBootstrap: vi.fn(),
-  })),
-}));
-
-const mockedUseAiStudioSessionPersistenceController = vi.mocked(
-  useAiStudioSessionPersistenceController
-);
 const mockedUseAiStudioProjectWorkspacePersistenceController = vi.mocked(
   useAiStudioProjectWorkspacePersistenceController
 );
@@ -83,21 +63,21 @@ describe("useAiStudioPageSessionPersistence", () => {
   };
 
   beforeEach(() => {
-    mockedUseAiStudioSessionPersistenceController.mockClear();
     mockedUseAiStudioProjectWorkspacePersistenceController.mockClear();
   });
 
-  it("passes the page-owned snapshot bridge into the shared persistence controller", () => {
-    const buildSessionSnapshot = vi.fn(
-      (args): AiStudioSessionSnapshot =>
+  it("returns an inert non-project persistence bridge when project workspace is absent", () => {
+    const buildBaseSessionSnapshot = vi.fn(
+      (args): AiStudioSessionSnapshotV2 =>
         ({
           schemaVersion: 2,
           sessionId: args.sessionId,
           updatedAt: "2026-03-23T00:00:00.000Z",
-          workspace: {} as AiStudioSessionSnapshot["workspace"],
-          outputs: {} as AiStudioSessionSnapshot["outputs"],
-          agent: {} as AiStudioSessionSnapshot["agent"],
-        }) as AiStudioSessionSnapshot
+          workspace: {} as AiStudioSessionSnapshotV2["workspace"],
+          outputs: {} as AiStudioSessionSnapshotV2["outputs"],
+          agent: {} as AiStudioSessionSnapshotV2["agent"],
+          meta: {} as AiStudioSessionSnapshotV2["meta"],
+        }) as AiStudioSessionSnapshotV2
     );
     const hydrateFromSessionSnapshot = vi.fn(
       (): AiStudioSessionHydrationPayload => ({
@@ -139,10 +119,10 @@ describe("useAiStudioPageSessionPersistence", () => {
     const hydrateFromSessionExpertEditSnapshot = vi.fn();
     const setUiNotice = vi.fn();
 
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useAiStudioPageSessionPersistence({
         sessionId: "session-1",
-        buildSessionSnapshot,
+        buildBaseSessionSnapshot,
         createPersistenceRuntime: {
           kind: "standard",
           agentRuntime: createAgentRuntime({
@@ -150,7 +130,6 @@ describe("useAiStudioPageSessionPersistence", () => {
             latestAgentPrompt: "latest",
           }),
         },
-        expertEditSessionState,
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
         hydrateFromSessionCanvasSnapshot,
@@ -159,39 +138,39 @@ describe("useAiStudioPageSessionPersistence", () => {
       })
     );
 
-    expect(mockedUseAiStudioSessionPersistenceController).toHaveBeenCalledTimes(1);
-    const params = mockedUseAiStudioSessionPersistenceController.mock.calls[0]?.[0];
-    expect(params?.sessionId).toBe("session-1");
-
-    params?.buildSessionSnapshot("session-2");
-    expect(buildSessionSnapshot).toHaveBeenCalledWith({
-      sessionId: "session-2",
-      agentRuntime: createAgentRuntime({
-        input: "plan next shot",
-        latestAgentPrompt: "latest",
-      }),
-      expertEditSessionState,
+    expect(mockedUseAiStudioProjectWorkspacePersistenceController).toHaveBeenCalledTimes(1);
+    expect(mockedUseAiStudioProjectWorkspacePersistenceController.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        projectId: null,
+        projectRouteRequested: false,
+        sessionId: "session-1",
+      })
+    );
+    expect(result.current.sessionId).toBe("session-1");
+    expect(result.current.sessionSnapshot).toBeNull();
+    expect(result.current.sessionRestoreCandidate).toMatchObject({
+      status: "idle",
+      result: "idle",
+      snapshot: null,
+      source: "none",
+      error: null,
     });
-
-    params?.onPersistenceWarning?.("autosave warning");
-    expect(setUiNotice).toHaveBeenCalledWith("autosave warning");
-    expect(params?.hydrateFromSessionSnapshot).toBe(hydrateFromSessionSnapshot);
-    expect(params?.hydrateFromSessionAgentSnapshot).toBe(hydrateFromSessionAgentSnapshot);
-    expect(params?.hydrateFromSessionCanvasSnapshot).toBe(hydrateFromSessionCanvasSnapshot);
-    expect(params?.hydrateFromSessionExpertEditSnapshot).toBe(hydrateFromSessionExpertEditSnapshot);
+    expect(buildBaseSessionSnapshot).not.toHaveBeenCalled();
+    expect(setUiNotice).not.toHaveBeenCalled();
   });
 
   it("preserves completed Pulse artifact state when the page builds persistence snapshots", () => {
-    const buildSessionSnapshot = vi.fn(
-      (args): AiStudioSessionSnapshot =>
+    const buildBaseSessionSnapshot = vi.fn(
+      (args): AiStudioSessionSnapshotV2 =>
         ({
           schemaVersion: 2,
           sessionId: args.sessionId,
           updatedAt: "2026-03-23T00:00:00.000Z",
-          workspace: {} as AiStudioSessionSnapshot["workspace"],
-          outputs: {} as AiStudioSessionSnapshot["outputs"],
-          agent: {} as AiStudioSessionSnapshot["agent"],
-        }) as AiStudioSessionSnapshot
+          workspace: {} as AiStudioSessionSnapshotV2["workspace"],
+          outputs: {} as AiStudioSessionSnapshotV2["outputs"],
+          agent: {} as AiStudioSessionSnapshotV2["agent"],
+          meta: {} as AiStudioSessionSnapshotV2["meta"],
+        }) as AiStudioSessionSnapshotV2
     );
     const hydrateFromSessionSnapshot = vi.fn(
       (): AiStudioSessionHydrationPayload => ({
@@ -243,8 +222,9 @@ describe("useAiStudioPageSessionPersistence", () => {
 
     renderHook(() =>
       useAiStudioPageSessionPersistence({
+        projectId: "project-1",
         sessionId: "session-1",
-        buildSessionSnapshot,
+        buildBaseSessionSnapshot,
         createPersistenceRuntime: {
           kind: "pulse",
           agentRuntime: createAgentRuntime({
@@ -282,10 +262,10 @@ describe("useAiStudioPageSessionPersistence", () => {
       })
     );
 
-    const params = mockedUseAiStudioSessionPersistenceController.mock.calls.at(-1)?.[0];
-    params?.buildSessionSnapshot("session-2");
+    const params = mockedUseAiStudioProjectWorkspacePersistenceController.mock.calls.at(-1)?.[0];
+    params?.buildBaseSessionSnapshot("session-2");
 
-    expect(buildSessionSnapshot).toHaveBeenCalledWith({
+    expect(buildBaseSessionSnapshot).toHaveBeenCalledWith({
       sessionId: "session-2",
       agentRuntime: createAgentRuntime({
         messages: [
@@ -315,21 +295,121 @@ describe("useAiStudioPageSessionPersistence", () => {
           pulseWorkflowSession: completedPulseWorkflowSession,
         }),
       },
-      expertEditSessionState: undefined,
     });
   });
 
-  it("routes project-backed sessions through the project workspace controller", () => {
-    const buildSessionSnapshot = vi.fn(
-      (args): AiStudioSessionSnapshot =>
+  it("patches the latest Expert Edit snapshot onto the base project snapshot", () => {
+    const buildBaseSessionSnapshot = vi.fn(
+      (args): AiStudioSessionSnapshotV2 =>
         ({
           schemaVersion: 2,
           sessionId: args.sessionId,
           updatedAt: "2026-03-23T00:00:00.000Z",
-          workspace: {} as AiStudioSessionSnapshot["workspace"],
-          outputs: {} as AiStudioSessionSnapshot["outputs"],
-          agent: {} as AiStudioSessionSnapshot["agent"],
-        }) as AiStudioSessionSnapshot
+          workspace: {} as AiStudioSessionSnapshotV2["workspace"],
+          outputs: {} as AiStudioSessionSnapshotV2["outputs"],
+          agent: {} as AiStudioSessionSnapshotV2["agent"],
+          meta: {} as AiStudioSessionSnapshotV2["meta"],
+        }) as AiStudioSessionSnapshotV2
+    );
+    const hydrateFromSessionSnapshot = vi.fn(
+      (): AiStudioSessionHydrationPayload => ({
+        workspace: {} as never,
+        outputs: {} as never,
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: null,
+          pulse: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+        },
+        canvas: null,
+        expertEdit: null,
+      })
+    );
+    const updatedExpertEditSessionState: ExpertEditSessionState = {
+      ...expertEditSessionState,
+      markup: {
+        strokes: [...expertEditSessionState.markup.strokes],
+      },
+    };
+    let currentExpertEditSessionState: ExpertEditSessionState | null = expertEditSessionState;
+
+    renderHook(() =>
+      useAiStudioPageSessionPersistence({
+        projectId: "project-1",
+        sessionId: "session-1",
+        buildBaseSessionSnapshot,
+        patchSessionSnapshot: (snapshot) => ({
+          ...snapshot,
+          expertEdit:
+            currentExpertEditSessionState === null
+              ? undefined
+              : ({
+                  schemaVersion: 1,
+                  state: currentExpertEditSessionState,
+                } as NonNullable<AiStudioSessionSnapshotV2["expertEdit"]>),
+        }),
+        createPersistenceRuntime: {
+          kind: "standard",
+          agentRuntime: createAgentRuntime(),
+        },
+        hydrateFromSessionSnapshot,
+        hydrateFromSessionAgentSnapshot: vi.fn(),
+        setUiNotice: vi.fn(),
+      })
+    );
+
+    currentExpertEditSessionState = updatedExpertEditSessionState;
+    const params = mockedUseAiStudioProjectWorkspacePersistenceController.mock.calls.at(-1)?.[0];
+    const baseSnapshot = params?.buildBaseSessionSnapshot("session-2");
+    const patchedSnapshot = baseSnapshot ? params?.patchSessionSnapshot?.(baseSnapshot) : null;
+
+    expect(buildBaseSessionSnapshot).toHaveBeenCalledWith({
+      sessionId: "session-2",
+      agentRuntime: createAgentRuntime(),
+    });
+    expect(patchedSnapshot).toEqual(
+      expect.objectContaining({
+        expertEdit: {
+          schemaVersion: 1,
+          state: updatedExpertEditSessionState,
+        },
+      })
+    );
+  });
+
+  it("routes project-backed sessions through the project workspace controller", () => {
+    const buildBaseSessionSnapshot = vi.fn(
+      (args): AiStudioSessionSnapshotV2 =>
+        ({
+          schemaVersion: 2,
+          sessionId: args.sessionId,
+          updatedAt: "2026-03-23T00:00:00.000Z",
+          workspace: {} as AiStudioSessionSnapshotV2["workspace"],
+          outputs: {} as AiStudioSessionSnapshotV2["outputs"],
+          agent: {} as AiStudioSessionSnapshotV2["agent"],
+          meta: {} as AiStudioSessionSnapshotV2["meta"],
+        }) as AiStudioSessionSnapshotV2
     );
     const hydrateFromSessionSnapshot = vi.fn(
       (): AiStudioSessionHydrationPayload => ({
@@ -374,7 +454,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       useAiStudioPageSessionPersistence({
         projectId: "project-1",
         sessionId: "session-1",
-        buildSessionSnapshot,
+        buildBaseSessionSnapshot,
         createPersistenceRuntime: {
           kind: "standard",
           agentRuntime: createAgentRuntime(),
@@ -394,24 +474,20 @@ describe("useAiStudioPageSessionPersistence", () => {
         resetProjectAgentConversation,
       })
     );
-    expect(mockedUseAiStudioSessionPersistenceController.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        sessionId: null,
-      })
-    );
   });
 
   it("disables the legacy session lane while a project route is still pending bootstrap", () => {
-    const buildSessionSnapshot = vi.fn(
-      (args): AiStudioSessionSnapshot =>
+    const buildBaseSessionSnapshot = vi.fn(
+      (args): AiStudioSessionSnapshotV2 =>
         ({
           schemaVersion: 2,
           sessionId: args.sessionId,
           updatedAt: "2026-03-23T00:00:00.000Z",
-          workspace: {} as AiStudioSessionSnapshot["workspace"],
-          outputs: {} as AiStudioSessionSnapshot["outputs"],
-          agent: {} as AiStudioSessionSnapshot["agent"],
-        }) as AiStudioSessionSnapshot
+          workspace: {} as AiStudioSessionSnapshotV2["workspace"],
+          outputs: {} as AiStudioSessionSnapshotV2["outputs"],
+          agent: {} as AiStudioSessionSnapshotV2["agent"],
+          meta: {} as AiStudioSessionSnapshotV2["meta"],
+        }) as AiStudioSessionSnapshotV2
     );
     const hydrateFromSessionSnapshot = vi.fn(
       (): AiStudioSessionHydrationPayload => ({
@@ -456,7 +532,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       useAiStudioPageSessionPersistence({
         projectRouteRequested: true,
         sessionId: "session-1",
-        buildSessionSnapshot,
+        buildBaseSessionSnapshot,
         createPersistenceRuntime: {
           kind: "standard",
           agentRuntime: createAgentRuntime(),
@@ -474,11 +550,6 @@ describe("useAiStudioPageSessionPersistence", () => {
         projectId: null,
         sessionId: "session-1",
         resetProjectAgentConversation,
-      })
-    );
-    expect(mockedUseAiStudioSessionPersistenceController.mock.calls[0]?.[0]).toEqual(
-      expect.objectContaining({
-        sessionId: null,
       })
     );
   });

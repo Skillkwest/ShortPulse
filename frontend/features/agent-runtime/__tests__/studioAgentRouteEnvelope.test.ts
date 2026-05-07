@@ -108,7 +108,7 @@ describe("studioAgentRouteEnvelope", () => {
     expect(result.payload.details).toEqual({ field: "directOpenAiBypass" });
   });
 
-  it("sanitizes pulse runtime metadata from the request context", () => {
+  it("sanitizes legacy custom Pulse runtime metadata from the request context", () => {
     const result = parseStudioAgentRequestEnvelope({
       req: {
         body: {
@@ -144,23 +144,9 @@ describe("studioAgentRouteEnvelope", () => {
       label: "Story Builder",
       description: null,
       instructions: "Keep the structure easy to follow.",
-      runtimeMode: "workflow_gpt",
-      activationMode: "activate_and_start",
-      starterAssistantMessage: null,
-      outputMode: "chat_reply",
-      memoryPolicy: "session",
-      workflowStageHints: null,
+      pulseKind: "custom_gpt",
       source: "custom",
-      workflowSession: {
-        presetId: "pulse_story",
-        status: "awaiting_input",
-        currentStepIndex: 2,
-        currentStepLabel: "Action",
-        currentStepPrompt: "Step 2 — Action",
-        collectedInputs: ["Upload your image"],
-        lastArtifact: null,
-        finalArtifactSource: null,
-      },
+      schemaVersion: 2,
     });
   });
 });

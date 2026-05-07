@@ -1,6 +1,6 @@
 /**
  * AI Studio session snapshot schema + serializer.
- * Builds durable write-shadow payloads while excluding transient/local-only fields.
+ * Builds durable workspace snapshot payloads while excluding transient/local-only fields.
  */
 import type {
   AgentAttachment,
@@ -842,6 +842,40 @@ export const patchAiStudioSessionSnapshotCanvas = (
 
   if (!canvasState && "canvas" in patchedSnapshot) {
     delete (patchedSnapshot as Partial<AiStudioSessionSnapshotV2>).canvas;
+  }
+
+  return {
+    ...patchedSnapshot,
+    meta: {
+      generatedAt: snapshot.updatedAt,
+      checksum: computeChecksum(patchedSnapshot),
+    },
+  };
+};
+
+/**
+ * Applies or removes durable Expert Edit state on a v2 snapshot and recomputes metadata checksum.
+ * This lets project/session persistence patch the Edit document onto a cached base snapshot
+ * without rebuilding the entire non-Edit workspace payload.
+ */
+export const patchAiStudioSessionSnapshotExpertEdit = (
+  snapshot: AiStudioSessionSnapshotV2,
+  expertEditSessionState: ExpertEditSessionState | null | undefined
+): AiStudioSessionSnapshotV2 => {
+  const { meta, ...baseSnapshot } = snapshot;
+  void meta;
+
+  const patchedSnapshot = {
+    ...baseSnapshot,
+    ...(expertEditSessionState
+      ? {
+          expertEdit: serializeAiStudioSessionExpertEditState(expertEditSessionState),
+        }
+      : {}),
+  };
+
+  if (!expertEditSessionState && "expertEdit" in patchedSnapshot) {
+    delete (patchedSnapshot as Partial<AiStudioSessionSnapshotV2>).expertEdit;
   }
 
   return {

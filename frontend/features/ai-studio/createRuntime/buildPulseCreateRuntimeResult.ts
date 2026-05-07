@@ -1,6 +1,6 @@
 /**
  * Pulse Create runtime result composer.
- * Converts Pulse-owned workflow state/actions into Pulse panel props without
+ * Converts Pulse-owned state/actions into Pulse panel props without
  * accepting Standard chat-mode or direct-generation controls.
  */
 import type {
@@ -28,6 +28,7 @@ export const buildPulseCreateRuntimeResult = ({
   actions,
   panelProps: buildPulseCreatePanelProps({
     pulsePrompt: props.pulsePrompt,
+    activePulsePresetKind: props.activePresetKind,
     agentEnabled: agentRuntime.agentEnabled,
     agentBootstrapReady: agentRuntime.agentBootstrapReady,
     agentMessages: agentRuntime.agentMessages,

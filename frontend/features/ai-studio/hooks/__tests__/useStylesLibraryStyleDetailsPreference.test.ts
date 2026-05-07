@@ -13,6 +13,7 @@ vi.mock("../../../../lib/supabaseClient", () => ({
 
 describe("useStylesLibraryStyleDetailsPreference", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.mocked(readSupabaseUserId).mockReset();
     supabaseQueryClientMock.from = vi.fn();
     window.localStorage.clear();
@@ -74,4 +75,71 @@ describe("useStylesLibraryStyleDetailsPreference", () => {
       },
     });
   });
+
+  it("keeps the local style when remote sync times out", async () => {
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-123");
+    supabaseQueryClientMock.from = vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        })),
+      })),
+      upsert: vi.fn(() => new Promise(() => undefined)),
+    }));
+
+    const { result } = renderHook(() => useStylesLibraryStyleDetailsPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    let savePromise: Promise<boolean> | null = null;
+    await act(async () => {
+      savePromise = result.current.upsertStyleDetails("style-library-custom-1", {
+        style: "Custom Style 1",
+        title: "Custom Style 1",
+        referenceImageName: "Custom Style 1",
+        stylePrompt: "cinematic glow",
+        previewImageUrl: "data:image/jpeg;base64,preview",
+      });
+    });
+
+    expect(result.current.styleDetailsById["style-library-custom-1"]).toEqual({
+      style: "Custom Style 1",
+      title: "Custom Style 1",
+      referenceImageName: "Custom Style 1",
+      stylePrompt: "cinematic glow",
+      previewImageUrl: "data:image/jpeg;base64,preview",
+    });
+    expect(result.current.syncState).toBe("saving");
+
+    let saveResult = false;
+    await act(async () => {
+      saveResult = await (savePromise as Promise<boolean>);
+    });
+
+    expect(saveResult).toBe(true);
+    expect(result.current.styleDetailsById["style-library-custom-1"]).toEqual({
+      style: "Custom Style 1",
+      title: "Custom Style 1",
+      referenceImageName: "Custom Style 1",
+      stylePrompt: "cinematic glow",
+      previewImageUrl: "data:image/jpeg;base64,preview",
+    });
+    expect(result.current.syncState).toBe("error");
+    expect(result.current.error).toContain("Saved locally. Cloud sync timed out");
+    expect(
+      JSON.parse(
+        window.localStorage.getItem("shortpulse.ai_studio.style_details_overrides") ?? "{}"
+      )
+    ).toEqual({
+      "style-library-custom-1": {
+        style: "Custom Style 1",
+        title: "Custom Style 1",
+        referenceImageName: "Custom Style 1",
+        stylePrompt: "cinematic glow",
+        previewImageUrl: "data:image/jpeg;base64,preview",
+      },
+    });
+  }, 10_000);
 });

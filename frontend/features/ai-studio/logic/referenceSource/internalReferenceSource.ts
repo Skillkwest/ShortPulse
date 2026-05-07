@@ -51,6 +51,7 @@ type InternalReferenceSourceResolutionDebugEntry = {
     | "storage_download"
     | "signed_storage_url"
     | "local_object_url"
+    | "rendered_hint_url"
     | "compatibility_hint_url"
     | null;
   loadBlobOutcome: "pending" | "success" | "error" | null;
@@ -81,6 +82,7 @@ export type ReferenceSourceResolutionReason =
   | "saved_media_lookup"
   | "generation_index_lookup"
   | "local_object_url"
+  | "payload_render_url"
   | "payload_reference_url"
   | null;
 
@@ -230,8 +232,8 @@ const resolveMetadataOutputIndex = (metadata: unknown): number | null => {
   if (!metadata || typeof metadata !== "object") return null;
   const metadataRecord = metadata as Record<string, unknown>;
   return (
-    asFiniteOutputIndex(metadataRecord.generation_output_index) ??
-    asFiniteOutputIndex(metadataRecord.index)
+    asFiniteOutputIndex(metadataRecord.index) ??
+    asFiniteOutputIndex(metadataRecord.generation_output_index)
   );
 };
 
@@ -266,10 +268,10 @@ const resolveStoragePathByGenerationAndIndex = async ({
     return resolveCanonicalMediaStoragePath(data);
   };
 
-  const generationIndexPath = await lookupByIndex({ generation_output_index: imageIndex });
-  if (generationIndexPath) return generationIndexPath;
   const indexPath = await lookupByIndex({ index: imageIndex });
   if (indexPath) return indexPath;
+  const generationIndexPath = await lookupByIndex({ generation_output_index: imageIndex });
+  if (generationIndexPath) return generationIndexPath;
 
   const data = await runMultiMediaStorageQuery({
     runSelect: async (columns) =>
@@ -512,6 +514,7 @@ export const resolveInternalReferenceSource = async ({
       fullStoragePath ||
       asTrimmedString(resolvedOutput?.generationId)
     );
+  const renderHintUrl = asTrimmedString(payload.referenceRenderUrl) ?? null;
   const compatibilityHintUrl =
     !hasInternalIdentity || missingDurableGeneratedIdentity
       ? null
@@ -519,9 +522,7 @@ export const resolveInternalReferenceSource = async ({
         asTrimmedString(resolvedOutput?.previewUrl) ??
         null);
   const previewUrl =
-    asTrimmedString(resolvedOutput?.previewUrl) ??
-    asTrimmedString(payload.referenceRenderUrl) ??
-    compatibilityHintUrl;
+    asTrimmedString(resolvedOutput?.previewUrl) ?? renderHintUrl ?? compatibilityHintUrl;
   debugEntry.localObjectUrlPresent = Boolean(localObjectUrl);
   debugEntry.compatibilityHintUrlPresent = Boolean(compatibilityHintUrl);
   debugEntry.previewUrlPresent = Boolean(previewUrl);
@@ -529,7 +530,13 @@ export const resolveInternalReferenceSource = async ({
   debugEntry.fullStoragePath = fullStoragePath ?? null;
   debugEntry.resolutionReason =
     resolutionReason ??
-    (localObjectUrl ? "local_object_url" : compatibilityHintUrl ? "payload_reference_url" : null);
+    (localObjectUrl
+      ? "local_object_url"
+      : renderHintUrl
+        ? "payload_render_url"
+        : compatibilityHintUrl
+          ? "payload_reference_url"
+          : null);
 
   const preparedImageUrl =
     (await getSignedMediaUrl({
@@ -559,12 +566,31 @@ export const resolveInternalReferenceSource = async ({
           debugEntry.loadBlobOutcome = "success";
           return blob;
         }
+        if (renderHintUrl) {
+          debugEntry.loadBlobStrategy = "rendered_hint_url";
+          const blob = await downloadBlobFromUrl(renderHintUrl);
+          debugEntry.loadBlobOutcome = "success";
+          return blob;
+        }
+        if (compatibilityHintUrl) {
+          debugEntry.loadBlobStrategy = "compatibility_hint_url";
+          const blob = await downloadBlobFromUrl(compatibilityHintUrl);
+          debugEntry.loadBlobOutcome = "success";
+          return blob;
+        }
         throw error ?? new Error("Unable to download internal reference source.");
       }
       if (localObjectUrl) {
         debugEntry.loadBlobStrategy = "local_object_url";
         debugEntry.loadBlobOutcome = "pending";
         const blob = await downloadBlobFromUrl(localObjectUrl);
+        debugEntry.loadBlobOutcome = "success";
+        return blob;
+      }
+      if (renderHintUrl) {
+        debugEntry.loadBlobStrategy = "rendered_hint_url";
+        debugEntry.loadBlobOutcome = "pending";
+        const blob = await downloadBlobFromUrl(renderHintUrl);
         debugEntry.loadBlobOutcome = "success";
         return blob;
       }
@@ -583,7 +609,13 @@ export const resolveInternalReferenceSource = async ({
     }
   };
 
-  if (!previewStoragePath && !fullStoragePath && !localObjectUrl && !compatibilityHintUrl) {
+  if (
+    !previewStoragePath &&
+    !fullStoragePath &&
+    !localObjectUrl &&
+    !renderHintUrl &&
+    !compatibilityHintUrl
+  ) {
     debugEntry.returnedNull = true;
     return null;
   }
@@ -607,9 +639,11 @@ export const resolveInternalReferenceSource = async ({
         resolutionReason ??
         (localObjectUrl
           ? "local_object_url"
-          : compatibilityHintUrl
-            ? "payload_reference_url"
-            : null),
+          : renderHintUrl
+            ? "payload_render_url"
+            : compatibilityHintUrl
+              ? "payload_reference_url"
+              : null),
     },
     outputId: resolvedOutputId || null,
     mediaId: resolvedMediaId || null,

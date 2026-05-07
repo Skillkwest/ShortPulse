@@ -1,6 +1,5 @@
 import React from "react";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import { AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED } from "../../media-library/logic/mediaLibraryFeatureFlags";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
   isAudioFile,
@@ -100,7 +99,6 @@ export const useMediaLibraryPanelSelectionController = ({
   );
 
   const handleSelectMediaFile = React.useCallback((file: MediaFileRow) => {
-    if (AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) return;
     void file;
   }, []);
 
@@ -160,7 +158,6 @@ export const useMediaLibraryPanelSelectionController = ({
 
   const handleMediaCardContextMenu = React.useCallback(
     (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => {
-      if (!AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) return;
       if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
       event.preventDefault();
       event.stopPropagation();

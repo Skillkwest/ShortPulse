@@ -15,7 +15,7 @@ import {
 } from "../characterModePayload";
 
 const createSlotFile = (previewUrl: string): CharacterSlotFile => ({
-  mediaFileId: `media-${previewUrl}`,
+  characterMediaId: `media-${previewUrl}`,
   storagePath: previewUrl,
   validationStatus: "pass",
   validationNotes: {
@@ -87,17 +87,17 @@ describe("characterModePayload", () => {
   it("resolves look references in canonical zone order and deduplicates", () => {
     const lookAssignments: CharacterSheetPresetAssignments = {
       portrait: {
-        mediaFileId: "media-portrait",
+        characterMediaId: "media-portrait",
         storagePath: "user/characters/presets/portrait.png",
         previewUrl: "https://cdn.test/portrait.png",
       },
       close_up: {
-        mediaFileId: "media-portrait",
+        characterMediaId: "media-portrait",
         storagePath: "user/characters/presets/portrait.png",
         previewUrl: "https://cdn.test/portrait.png",
       },
       front_shot: {
-        mediaFileId: "media-front",
+        characterMediaId: "media-front",
         storagePath: "user/characters/presets/front.png",
         previewUrl: "https://cdn.test/front.png",
       },

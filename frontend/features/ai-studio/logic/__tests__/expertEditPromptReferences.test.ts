@@ -146,6 +146,22 @@ describe("expertEditPromptReferences", () => {
     );
   });
 
+  it("appends the primary figure mapping when only @main is referenced", () => {
+    const compiled = compileExpertEditSubmissionPrompt({
+      displayPrompt: "Use @main for pose.",
+      secondarySlots: [null, null, null],
+      referenceInputs: ["https://example.com/primary.png"],
+    });
+
+    expect(compiled.hasTokenReferences).toBe(true);
+    expect(compiled.submissionPrompt).toContain("Use Figure 1 for pose.");
+    expect(compiled.submissionPrompt).toContain("Reference map:");
+    expect(compiled.submissionPrompt).toContain("Figure 1 = primary base image.");
+    expect(compiled.submissionPrompt).not.toContain(
+      "Treat all secondary references as edits to Figure 1 unless explicitly overridden."
+    );
+  });
+
   it("builds submission reference inputs from the primary image and explicitly linked secondary slots only", () => {
     const inputs = buildExpertEditSubmissionReferenceInputs({
       flattenedPrimaryUrl: "https://example.com/flattened-primary.png",

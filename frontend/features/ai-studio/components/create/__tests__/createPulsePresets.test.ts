@@ -26,12 +26,13 @@ describe("createPulsePresets", () => {
       expect.objectContaining({
         label: "DFY Story Builder",
         hasUserOverride: false,
+        pulseKind: "guided_workflow",
         artifactTarget: "image_prompt",
       })
     );
   });
 
-  it("resolves explicit built-in artifact targets and defaults custom Pulses to text artifacts", () => {
+  it("resolves explicit built-in artifact targets and strips legacy custom artifact metadata", () => {
     const catalog = resolveCreatePulsePresetCatalog([
       {
         presetId: "pulse_custom",
@@ -40,10 +41,10 @@ describe("createPulsePresets", () => {
         systemInstructions: "Guide the user through a text-only workflow.",
         runtimeMode: "workflow_gpt",
         activationMode: "activate_and_start",
-        starterAssistantMessage: null,
-        workflowStageHints: null,
+        starterAssistantMessage: "Legacy hidden starter.",
+        workflowStageHints: ["Legacy", "Workflow"],
         outputMode: "chat_reply",
-        artifactTarget: "text_artifact",
+        artifactTarget: "video_prompt",
         memoryPolicy: "session",
         createdAt: "2026-04-28T00:00:00.000Z",
       },
@@ -58,8 +59,52 @@ describe("createPulsePresets", () => {
     expect(catalog.find((preset) => preset.presetId === "story_builder")?.artifactTarget).toBe(
       "image_prompt"
     );
-    expect(catalog.find((preset) => preset.presetId === "pulse_custom")?.artifactTarget).toBe(
-      "text_artifact"
+    expect(catalog.find((preset) => preset.presetId === "pulse_custom")).toEqual(
+      expect.objectContaining({
+        pulseKind: "custom_gpt",
+        runtimeMode: "custom_gpt",
+        activationMode: "activate_and_start",
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        outputMode: "chat_reply",
+      })
     );
+    expect(catalog.find((preset) => preset.presetId === "pulse_custom")?.artifactTarget).toBe(
+      undefined
+    );
+  });
+
+  it("normalizes legacy saved workflow records into custom Pulse presets", () => {
+    const catalog = resolveCreatePulsePresetCatalog([
+      {
+        presetId: "legacy_custom_workflow",
+        label: "Legacy Custom Workflow",
+        description: null,
+        systemInstructions: "Only these instructions should remain active.",
+        pulseKind: "guided_workflow",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_only",
+        starterAssistantMessage: "Legacy starter.",
+        workflowStageHints: ["Legacy", "Steps"],
+        outputMode: "apply_prompt",
+        artifactTarget: "image_prompt",
+        memoryPolicy: "session",
+        createdAt: "2026-04-28T00:00:00.000Z",
+      },
+    ]);
+
+    expect(catalog.find((preset) => preset.presetId === "legacy_custom_workflow")).toEqual(
+      expect.objectContaining({
+        pulseKind: "custom_gpt",
+        runtimeMode: "custom_gpt",
+        activationMode: "activate_and_start",
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        outputMode: "chat_reply",
+      })
+    );
+    expect(
+      catalog.find((preset) => preset.presetId === "legacy_custom_workflow")?.artifactTarget
+    ).toBe(undefined);
   });
 });

@@ -4,13 +4,16 @@
  */
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
-import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../logic/editSubmitIntent";
 import type { AiStudioEditExpertPanelContract } from "./contracts/pageContentContracts";
 import type {
   ExpertEditCustomPresetOverrides,
   ExpertEditPresetId,
 } from "../components/edit/expertEditPresets";
+import type {
+  ExpertEditRegenerateOptions,
+  ExpertEditRegenerateWithReferenceInputsHandler,
+} from "../components/edit/expertEditSubmissionContract";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
 type UseAiStudioEditExpertPanelPropsParams = {
@@ -38,17 +41,9 @@ type UseAiStudioEditExpertPanelPropsParams = {
   setReferenceImageUrl: (url: string | null) => void;
   setExtraImageUrl: (index: number, url: string | null) => void;
   handleEditPromptTextChange: (value: string) => void;
-  handleImageRegenerateWithDebit: (options?: {
-    referenceInputsOverride?: string[];
-    referenceInputsMode?: "merge" | "replace";
-    inpaintOverride?: InpaintSubmissionOverride | null;
-    modelIdOverride?: string | null;
-    outputIdOverride?: string;
-    costOverrideCredits?: number | null;
-    hideOutputFromReferenceGrid?: boolean;
-    displayPromptOverride?: string | null;
-    submissionPromptOverride?: string | null;
-  }) => void | Promise<void>;
+  handleImageRegenerateWithDebit: (
+    options?: ExpertEditRegenerateOptions & { referenceInputsOverride?: string[] }
+  ) => void | Promise<void>;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
@@ -151,18 +146,9 @@ export const useAiStudioEditExpertPanelProps = ({
       insertOptimisticGenerationPlaceholder,
       removeOptimisticGenerationPlaceholder,
       notifyGenerationFailure,
-      onRegenerateWithReferenceInputs: (
+      onRegenerateWithReferenceInputs: ((
         referenceInputs: string[],
-        options?: {
-          inpaintOverride?: InpaintSubmissionOverride | null;
-          modelIdOverride?: string | null;
-          outputIdOverride?: string;
-          costOverrideCredits?: number | null;
-          hideOutputFromReferenceGrid?: boolean;
-          displayPromptOverride?: string | null;
-          submissionPromptOverride?: string | null;
-          referenceInputsMode?: "merge" | "replace";
-        }
+        options?: ExpertEditRegenerateOptions
       ) =>
         handleImageRegenerateWithDebit({
           referenceInputsOverride: referenceInputs,
@@ -176,7 +162,7 @@ export const useAiStudioEditExpertPanelProps = ({
           ...(options?.referenceInputsMode
             ? { referenceInputsMode: options.referenceInputsMode }
             : {}),
-        }),
+        })) as ExpertEditRegenerateWithReferenceInputsHandler,
       onAddSessionMediaReference: addSessionMediaReference,
       costCredits: currentCostCredits,
       isGenerateDisabled,

@@ -1,17 +1,13 @@
 /**
  * Primary Pulse Presets library panel for AI Studio.
- * Edits the per-user custom Pulse catalog while built-in Pulse definitions stay admin-owned.
+ * Edits the per-user custom Pulse catalog while built-in guided workflows stay admin-owned.
  */
 import React from "react";
 import { TrashSimple } from "phosphor-react";
 import {
-  CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
-  CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET,
-  CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
-  CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
   createCreatePulseCustomPresetId,
+  createCreatePulseCustomSavedPreset,
   isCreatePulseBuiltInPresetId,
-  resolveCreatePulsePresetById,
   resolveCreatePulsePresetCatalog,
   type CreatePulseBuiltInPresetDefinition,
   upsertCreatePulseSavedPreset,
@@ -59,6 +55,14 @@ export function PulsePresetsLibraryPanel({
     () => resolveCreatePulsePresetCatalog(savedPresets, builtInDefinitions),
     [builtInDefinitions, savedPresets]
   );
+  const customPresets = React.useMemo(
+    () => resolvedPresets.filter((preset) => preset.isCustom),
+    [resolvedPresets]
+  );
+  const builtInWorkflowPresets = React.useMemo(
+    () => resolvedPresets.filter((preset) => preset.isBuiltIn),
+    [resolvedPresets]
+  );
   const nextPresetNumber = React.useMemo(
     () =>
       savedPresets.filter(
@@ -91,50 +95,30 @@ export function PulsePresetsLibraryPanel({
     setLocalSaveError(null);
     try {
       let saved: boolean | void;
-      const resolvedPreset = resolveCreatePulsePresetById(
-        pendingPresetEdit.presetId,
-        savedPresets,
-        builtInDefinitions
-      );
-      const artifactTarget =
-        resolvedPreset?.artifactTarget ?? CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET;
       if (pendingPresetEdit.mode === "create") {
         saved = await onSavedPresetsChange([
           ...savedPresets,
-          {
+          createCreatePulseCustomSavedPreset({
             presetId: pendingPresetEdit.presetId,
             label: nextLabel,
-            description: null,
             systemInstructions: nextSystemInstructions,
-            runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
-            activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
-            starterAssistantMessage: null,
-            workflowStageHints: null,
-            outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
-            artifactTarget,
-            memoryPolicy: "session",
             createdAt: new Date().toISOString(),
-          },
+          }),
         ]);
       } else {
         const existingPreset = savedPresets.find(
           (preset) => preset.presetId === pendingPresetEdit.presetId
         );
         saved = await onSavedPresetsChange(
-          upsertCreatePulseSavedPreset(savedPresets, {
-            presetId: pendingPresetEdit.presetId,
-            label: nextLabel,
-            description: null,
-            systemInstructions: nextSystemInstructions,
-            runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
-            activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
-            starterAssistantMessage: null,
-            workflowStageHints: null,
-            outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
-            artifactTarget: existingPreset?.artifactTarget ?? artifactTarget,
-            memoryPolicy: "session",
-            createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
-          })
+          upsertCreatePulseSavedPreset(
+            savedPresets,
+            createCreatePulseCustomSavedPreset({
+              presetId: pendingPresetEdit.presetId,
+              label: nextLabel,
+              systemInstructions: nextSystemInstructions,
+              createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
+            })
+          )
         );
       }
       if (saved === false) {
@@ -148,7 +132,7 @@ export function PulsePresetsLibraryPanel({
     } finally {
       setEditSubmitting(false);
     }
-  }, [builtInDefinitions, editSubmitting, onSavedPresetsChange, pendingPresetEdit, savedPresets]);
+  }, [editSubmitting, onSavedPresetsChange, pendingPresetEdit, savedPresets]);
 
   const handleDeletePreset = React.useCallback(async () => {
     if (!pendingPresetDelete || deleteSubmitting || !onSavedPresetsChange) return;
@@ -198,60 +182,57 @@ export function PulsePresetsLibraryPanel({
   const editBackdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeEditModal);
 
   return (
-    <section className="pulse-presets-library-panel" aria-label="Pulse presets library">
+    <section className="pulse-presets-library-panel" aria-label="Pulse Library">
       <header className="pulse-presets-library-header">
-        <p className="eyebrow">Pulses</p>
+        <p className="eyebrow">Pulse Library</p>
         <p className="tiny subdued helper-text">
-          Manage custom Pulses here. Built-in Pulse definitions are shared globally and edited from
-          Admin Agent Instructions. Activate Pulses from the Create Pulse rail or More Pulses.
-          Switching or deactivating a Pulse starts a fresh guided session.
+          Manage custom Pulses here. Built-in guided workflows are shared globally and edited from
+          the Admin Agent Instructions guided-workflows section. Activate any Pulse from the Create
+          Pulse rail or Pulse Catalog. Switching or deactivating a Pulse starts a fresh Pulse
+          session.
         </p>
       </header>
       <div className="pulse-presets-library-scroll">
-        <div
-          className="pulse-presets-library-grid"
-          role="list"
-          aria-label="Pulse presets library tiles"
-        >
-          {resolvedPresets.map((preset) => {
-            const isSelected = selectedPresetId === preset.presetId;
-            return (
-              <article
-                key={preset.presetId}
-                className={`pulse-presets-library-tile ${isSelected ? "is-selected" : ""}`.trim()}
-                role="listitem"
-              >
-                <button
-                  type="button"
-                  className="pulse-presets-library-tile-select"
-                  aria-pressed={isSelected}
-                  aria-label={`Inspect pulse preset tile: ${preset.label}`}
-                  onClick={() => {
-                    setSelectedPresetId(preset.presetId);
-                    setLocalSaveError(null);
-                    if (!preset.isCustom) {
-                      return;
-                    }
-                    setPendingPresetEdit({
-                      presetId: preset.presetId,
-                      presetLabel: preset.label,
-                      label: preset.label,
-                      systemInstructions: preset.systemInstructions,
-                      mode: "edit",
-                    });
-                  }}
+        <section aria-label="Custom Pulses">
+          <p className="eyebrow">Custom Pulses</p>
+          <div
+            className="pulse-presets-library-grid"
+            role="list"
+            aria-label="Custom pulse presets library tiles"
+          >
+            {customPresets.map((preset) => {
+              const isSelected = selectedPresetId === preset.presetId;
+              return (
+                <article
+                  key={preset.presetId}
+                  className={`pulse-presets-library-tile ${isSelected ? "is-selected" : ""}`.trim()}
+                  role="listitem"
                 >
-                  <span className="pulse-presets-library-tile-head">
-                    <span className="pulse-presets-library-tile-title">{preset.label}</span>
-                    {preset.isCustom ? (
+                  <button
+                    type="button"
+                    className="pulse-presets-library-tile-select"
+                    aria-pressed={isSelected}
+                    aria-label={`Inspect pulse preset tile: ${preset.label}`}
+                    onClick={() => {
+                      setSelectedPresetId(preset.presetId);
+                      setLocalSaveError(null);
+                      setPendingPresetEdit({
+                        presetId: preset.presetId,
+                        presetLabel: preset.label,
+                        label: preset.label,
+                        systemInstructions: preset.systemInstructions,
+                        mode: "edit",
+                      });
+                    }}
+                  >
+                    <span className="pulse-presets-library-tile-head">
+                      <span className="pulse-presets-library-tile-title">{preset.label}</span>
                       <span className="pulse-presets-library-custom-pill is-custom">Custom</span>
-                    ) : null}
-                  </span>
-                  <span className="pulse-presets-library-tile-prompt">
-                    {preset.description?.trim() || preset.systemInstructions}
-                  </span>
-                </button>
-                {preset.isCustom ? (
+                    </span>
+                    <span className="pulse-presets-library-tile-prompt">
+                      {preset.description?.trim() || preset.systemInstructions}
+                    </span>
+                  </button>
                   <button
                     type="button"
                     className="pulse-presets-library-tile-delete"
@@ -266,39 +247,77 @@ export function PulsePresetsLibraryPanel({
                   >
                     <TrashSimple size={11} weight="bold" aria-hidden="true" />
                   </button>
-                ) : null}
-              </article>
-            );
-          })}
-          <button
-            type="button"
-            className="pulse-presets-library-tile pulse-presets-library-create-tile"
-            aria-label="Create new pulse"
-            onClick={() => {
-              const nextPresetId = createCreatePulseCustomPresetId();
-              const defaultLabel = `Pulse ${nextPresetNumber}`;
-              setSelectedPresetId(nextPresetId);
-              setLocalSaveError(null);
-              setPendingPresetEdit({
-                presetId: nextPresetId,
-                presetLabel: defaultLabel,
-                label: defaultLabel,
-                systemInstructions: "",
-                mode: "create",
-              });
-            }}
+                </article>
+              );
+            })}
+            <button
+              type="button"
+              className="pulse-presets-library-tile pulse-presets-library-create-tile"
+              aria-label="Create new pulse"
+              onClick={() => {
+                const nextPresetId = createCreatePulseCustomPresetId();
+                const defaultLabel = `Pulse ${nextPresetNumber}`;
+                setSelectedPresetId(nextPresetId);
+                setLocalSaveError(null);
+                setPendingPresetEdit({
+                  presetId: nextPresetId,
+                  presetLabel: defaultLabel,
+                  label: defaultLabel,
+                  systemInstructions: "",
+                  mode: "create",
+                });
+              }}
+            >
+              <span className="pulse-presets-library-create-plus" aria-hidden="true">
+                +
+              </span>
+              <span className="pulse-presets-library-tile-head">
+                <span className="pulse-presets-library-tile-title">Create New Pulse</span>
+              </span>
+              <span className="pulse-presets-library-tile-prompt">
+                Add a saved-instructions Pulse that will be available from the Create Pulse rail and
+                Pulse Catalog.
+              </span>
+            </button>
+          </div>
+        </section>
+        <section aria-label="Built-in Guided Workflows">
+          <p className="eyebrow">Built-in Guided Workflows</p>
+          <div
+            className="pulse-presets-library-grid"
+            role="list"
+            aria-label="Built-in guided workflow library tiles"
           >
-            <span className="pulse-presets-library-create-plus" aria-hidden="true">
-              +
-            </span>
-            <span className="pulse-presets-library-tile-head">
-              <span className="pulse-presets-library-tile-title">Create New Pulse</span>
-            </span>
-            <span className="pulse-presets-library-tile-prompt">
-              Add a custom Pulse that will be available from the Create Pulse rail and More Pulses.
-            </span>
-          </button>
-        </div>
+            {builtInWorkflowPresets.map((preset) => {
+              const isSelected = selectedPresetId === preset.presetId;
+              return (
+                <article
+                  key={preset.presetId}
+                  className={`pulse-presets-library-tile ${isSelected ? "is-selected" : ""}`.trim()}
+                  role="listitem"
+                >
+                  <button
+                    type="button"
+                    className="pulse-presets-library-tile-select"
+                    aria-pressed={isSelected}
+                    aria-label={`Inspect pulse preset tile: ${preset.label}`}
+                    onClick={() => {
+                      setSelectedPresetId(preset.presetId);
+                      setLocalSaveError(null);
+                    }}
+                  >
+                    <span className="pulse-presets-library-tile-head">
+                      <span className="pulse-presets-library-tile-title">{preset.label}</span>
+                    </span>
+                    <span className="pulse-presets-library-tile-prompt">
+                      {preset.description?.trim() || preset.systemInstructions}
+                    </span>
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
       </div>
       {pendingPresetEdit ? (
         <AiStudioModalLayer>
@@ -339,6 +358,10 @@ export function PulsePresetsLibraryPanel({
                   if (localSaveError) setLocalSaveError(null);
                 }}
               />
+              <p className="tiny subdued helper-text">
+                A custom Pulse is just saved system instructions. If you want it to produce a
+                reusable prompt or artifact, say that directly in the instructions.
+              </p>
               <label
                 className="pulse-presets-library-edit-label"
                 htmlFor="pulse-preset-library-prompt-input"

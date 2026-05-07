@@ -28,7 +28,6 @@ const createArgs = (
     curatedReferenceIds: overrides.curatedReferenceIds ?? runningIds.slice(0, 3),
     setActiveOutputState: overrides.setActiveOutputState ?? vi.fn(),
     setArchivedOutputState: overrides.setArchivedOutputState ?? vi.fn(),
-    setOutputs: overrides.setOutputs ?? vi.fn(),
   };
 };
 

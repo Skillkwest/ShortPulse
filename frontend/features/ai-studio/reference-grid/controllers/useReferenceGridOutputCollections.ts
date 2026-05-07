@@ -2,7 +2,7 @@ import React from "react";
 import type { StudioOutput } from "../../types";
 import { useOutputSelector, useOutputsByIds } from "../../hooks/aiStudioOutputStore";
 import {
-  selectAllRefsProjectionWithLegacyFallback,
+  selectVisibleAllRefsProjection,
   selectQuickSlotProjection,
 } from "../../reference-projections";
 import { areOutputListsEqual, EMPTY_OUTPUTS } from "../referenceGridConfig";
@@ -32,20 +32,36 @@ export const useReferenceGridOutputCollections = ({
     React.useCallback(
       (snapshot) => {
         if (outputsProp) return [];
-        if (!removedFromAllRefsIds.length) {
-          return snapshot.outputOrder.filter(
-            (id) => snapshot.outputById[id]?.hiddenInReferenceGrid !== true
-          );
-        }
-        const removedIdSet = new Set(removedFromAllRefsIds);
-        return snapshot.outputOrder.filter((id) => {
-          const item = snapshot.outputById[id];
-          if (!item) return false;
-          if (removedIdSet.has(id)) return false;
-          return item.hiddenInReferenceGrid !== true;
-        });
+        return selectVisibleAllRefsProjection(
+          snapshot.outputOrder
+            .map((id) => snapshot.outputById[id])
+            .filter((item): item is StudioOutput => Boolean(item)),
+          {
+            quickSlotIds: [...curatedReferenceIds],
+            removedFromAllRefsIds: [...removedFromAllRefsIds],
+          }
+        ).map((item) => item.id);
       },
-      [outputsProp, removedFromAllRefsIds]
+      [curatedReferenceIds, outputsProp, removedFromAllRefsIds]
+    ),
+    (left, right) =>
+      left.length === right.length && left.every((item, index) => item === right[index])
+  );
+  const selectorCuratedOutputIds = useOutputSelector(
+    React.useCallback(
+      (snapshot) => {
+        if (outputsProp) return [];
+        return selectQuickSlotProjection(
+          snapshot.outputOrder
+            .map((id) => snapshot.outputById[id])
+            .filter((item): item is StudioOutput => Boolean(item)),
+          {
+            quickSlotIds: [...curatedReferenceIds],
+            removedFromAllRefsIds: [...removedFromAllRefsIds],
+          }
+        ).map((item) => item.id);
+      },
+      [curatedReferenceIds, outputsProp, removedFromAllRefsIds]
     ),
     (left, right) =>
       left.length === right.length && left.every((item, index) => item === right[index])
@@ -57,7 +73,7 @@ export const useReferenceGridOutputCollections = ({
       .filter((item): item is StudioOutput => Boolean(item));
   }, areOutputListsEqual);
   const allOutputIds = outputsProp
-    ? selectAllRefsProjectionWithLegacyFallback(outputsProp, {
+    ? selectVisibleAllRefsProjection(outputsProp, {
         quickSlotIds: [...curatedReferenceIds],
         removedFromAllRefsIds: [...removedFromAllRefsIds],
       }).map((item) => item.id)
@@ -71,7 +87,6 @@ export const useReferenceGridOutputCollections = ({
     });
     return map;
   }, [archivedOutputs, outputsProp]);
-  const allOutputIdSet = React.useMemo(() => new Set(allOutputIds), [allOutputIds]);
   const directCuratedOutputs = React.useMemo(
     () =>
       outputsProp
@@ -83,11 +98,8 @@ export const useReferenceGridOutputCollections = ({
     [curatedReferenceIds, outputsProp, removedFromAllRefsIds]
   );
   const curatedOutputIds = React.useMemo(
-    () =>
-      outputsProp
-        ? directCuratedOutputs.map((item) => item.id)
-        : curatedReferenceIds.filter((id) => allOutputIdSet.has(id)),
-    [allOutputIdSet, curatedReferenceIds, directCuratedOutputs, outputsProp]
+    () => (outputsProp ? directCuratedOutputs.map((item) => item.id) : selectorCuratedOutputIds),
+    [directCuratedOutputs, outputsProp, selectorCuratedOutputIds]
   );
   const selectorCuratedOutputs = useOutputsByIds(curatedOutputIds);
   const curatedOutputs = outputsProp ? directCuratedOutputs : selectorCuratedOutputs;

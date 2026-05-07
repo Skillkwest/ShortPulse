@@ -371,7 +371,7 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
-  it("prefers durable reference URLs over data render snapshots for composer previews", () => {
+  it("keeps drag-provided render snapshots ahead of weaker durable fallbacks for composer previews", () => {
     const dataRenderUrl = "data:image/jpeg;base64,generated-render";
     const signedReferenceUrl = "https://signed.example.com/reference-image.png";
     extractDragDropPayloadMock.mockReturnValue({
@@ -403,8 +403,52 @@ describe("useAiStudioAgentComposer", () => {
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
       referenceId: "out-1",
-      imageUrl: signedReferenceUrl,
-      imageFallbackUrls: [dataRenderUrl],
+      imageUrl: dataRenderUrl,
+      imageFallbackUrls: [signedReferenceUrl],
+      text: "Reference note",
+    });
+  });
+
+  it("keeps drag-provided snapshots ahead of output preview fallbacks", () => {
+    const dataRenderUrl = "data:image/jpeg;base64,generated-render";
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: dataRenderUrl,
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([
+          makeOutput("out-1", {
+            previewUrl: "https://cdn.example.com/stale-preview.png",
+            fullStoragePath: "https://cdn.example.com/stale-full.png",
+          }),
+        ]),
+        resolveOutputPreviewUrlById: () => "https://cdn.example.com/panel-preview.png",
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(
+        makeDragEvent({
+          "text/reference-render-url": dataRenderUrl,
+        })
+      );
+    });
+
+    expect(result.current.agentAttachments).toHaveLength(1);
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      referenceId: "out-1",
+      imageUrl: dataRenderUrl,
+      imageFallbackUrls: [
+        "https://cdn.example.com/stale-full.png",
+        "https://cdn.example.com/panel-preview.png",
+      ],
       text: "Reference note",
     });
   });

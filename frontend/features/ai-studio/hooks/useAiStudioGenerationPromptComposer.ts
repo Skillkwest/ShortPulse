@@ -12,30 +12,19 @@ import {
   appendStylePromptToSubmission,
   isStylePromptFamilyAdapterEnabled,
 } from "../logic/stylePromptAdapter";
-import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type {
+  AiStudioGenerateOutputOptions,
+  AiStudioGenerateSubmissionOverrides,
+  ReferenceInputsMode,
+} from "./contracts/generationSubmissionContracts";
+import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContracts";
+import type { StudioOutput, ToolId } from "../types";
 
-export type ReferenceInputsMode = "merge" | "replace";
-
-export type AiStudioGenerateSubmissionOverrides = {
-  selectedToolOverride?: ToolId | null;
-  submissionPromptOverride?: string | null;
-  displayPromptOverride?: string | null;
-  referenceInputsOverride?: string[];
-  referenceInputsMode?: ReferenceInputsMode;
-  characterContextOverride?: StudioOutput["characterContext"];
-  styleContextOverride?: StudioOutput["styleContext"];
-  outputIdOverride?: string;
-  modelIdOverride?: string | null;
-  inpaintOverride?: InpaintSubmissionOverride | null;
-  hideOutputFromReferenceGrid?: boolean;
-  suppressStyle?: boolean;
-};
-
-type GenerateOutputOptions = {
-  modeOverride?: StudioMode;
-  selectedToolOverride?: ToolId | null;
-} & AiStudioGenerateSubmissionOverrides;
+export type {
+  AiStudioGenerateOutputOptions,
+  AiStudioGenerateSubmissionOverrides,
+  ReferenceInputsMode,
+} from "./contracts/generationSubmissionContracts";
 
 type UseAiStudioGenerationPromptComposerParams = {
   model: string | null;
@@ -55,17 +44,7 @@ type UseAiStudioGenerationPromptComposerParams = {
   submitTask: (
     promptText: string,
     imageInputs: string[],
-    options?: {
-      modeOverride?: StudioMode;
-      selectedToolOverride?: ToolId | null;
-      displayPromptOverride?: string | null;
-      characterContextOverride?: StudioOutput["characterContext"];
-      styleContextOverride?: StudioOutput["styleContext"];
-      outputIdOverride?: string;
-      modelIdOverride?: string | null;
-      inpaintOverride?: InpaintSubmissionOverride | null;
-      hideOutputFromReferenceGrid?: boolean;
-    }
+    options?: AiStudioTaskSubmitOptions
   ) => void;
 };
 
@@ -131,7 +110,7 @@ export const useAiStudioGenerationPromptComposer = ({
   );
 
   const generateOutput = useCallback(
-    (promptOverride?: string | null, options?: GenerateOutputOptions) => {
+    (promptOverride?: string | null, options?: AiStudioGenerateOutputOptions) => {
       const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const defaultPromptForTool = resolvePromptForTool({
         tool: effectiveTool,

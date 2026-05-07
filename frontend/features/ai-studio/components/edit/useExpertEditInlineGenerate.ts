@@ -1,11 +1,9 @@
 import React from "react";
 import type { ExpertEditStageFlattenLayer } from "../../logic/expertEditStageFlatten";
-import {
-  resolveInpaintPromptReferencePolicy,
-  type InpaintSubmissionOverride,
-} from "../../logic/inpaintSubmission";
+import { resolveInpaintPromptReferencePolicy } from "../../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { exportExpertEditStageArtifacts } from "./expertEditStageExport";
+import type { ExpertEditRegenerateWithReferenceInputsHandler } from "./expertEditSubmissionContract";
 import { resolveExpertEditSubmissionDispatch } from "./expertEditSubmissionDispatch";
 import {
   cleanupExpertEditSubmissionObjectUrls,
@@ -17,18 +15,6 @@ import {
   validateExpertEditSubmissionPrompt,
 } from "./expertEditSubmissionPreparation";
 import type { MarkupStroke } from "./markupStrokeController";
-
-type RegenerateWithReferenceInputsHandler = (
-  referenceInputs: string[],
-  options?: {
-    inpaintOverride?: InpaintSubmissionOverride | null;
-    modelIdOverride?: string | null;
-    outputIdOverride?: string;
-    displayPromptOverride?: string | null;
-    submissionPromptOverride?: string | null;
-    referenceInputsMode?: "merge" | "replace";
-  }
-) => void | Promise<void>;
 
 type ExportSelectedLayerMaskBlob = (params: {
   targetWidth: number;
@@ -51,7 +37,7 @@ type UseExpertEditInlineGenerateParams = {
   hasSelectedLayerMask: boolean;
   exportSelectedLayerMaskBlob: ExportSelectedLayerMaskBlob;
   onRegenerate: () => void;
-  onRegenerateWithReferenceInputs?: RegenerateWithReferenceInputsHandler;
+  onRegenerateWithReferenceInputs?: ExpertEditRegenerateWithReferenceInputsHandler;
   scheduleTransientObjectUrlRevoke: (url: string) => void;
   revokeObjectUrlSafe: (url: string) => void;
   resolveBlobDimensions: (blob: Blob) => Promise<{ width: number; height: number }>;
@@ -78,6 +64,12 @@ const resolveFlattenFailureToastMessage = (error: unknown): string => {
   return "Unable to flatten layers.";
 };
 
+const resolveSubmissionFailureToastMessage = (error: unknown): string => {
+  if (!(error instanceof Error)) return "Unable to submit edit generation.";
+  const errorMessage = error.message?.trim() ?? "";
+  return errorMessage.length > 0 ? errorMessage : "Unable to submit edit generation.";
+};
+
 export const useExpertEditInlineGenerate = ({
   layers,
   promptText,
@@ -101,6 +93,7 @@ export const useExpertEditInlineGenerate = ({
   notifyGenerationFailure,
 }: UseExpertEditInlineGenerateParams) => {
   const [inlineGeneratePendingCount, setInlineGeneratePendingCount] = React.useState(0);
+  const inlineGenerateInFlightRef = React.useRef(false);
   const inpaintPromptReferencePolicy = React.useMemo(
     () =>
       editSubmitIntent === "inpaint"
@@ -113,6 +106,9 @@ export const useExpertEditInlineGenerate = ({
   );
   const handleInlineGenerate = React.useCallback(() => {
     const run = async () => {
+      if (inlineGenerateInFlightRef.current) {
+        return;
+      }
       const allowSecondaryReferenceTokens =
         editSubmitIntent === "inpaint"
           ? (inpaintPromptReferencePolicy?.allowSecondaryReferenceTokens ?? false)
@@ -136,6 +132,7 @@ export const useExpertEditInlineGenerate = ({
         return;
       }
 
+      inlineGenerateInFlightRef.current = true;
       setInlineGeneratePendingCount((currentCount) => currentCount + 1);
       let optimisticOutputId = insertOptimisticGenerationPlaceholder?.(promptText) ?? null;
       const markOptimisticGenerationFailure = (message: string, detail: string = message) => {
@@ -153,54 +150,69 @@ export const useExpertEditInlineGenerate = ({
         inpaintMaskUrl: null,
       };
       try {
-        const exportArtifacts = await exportExpertEditStageArtifacts({
-          layers,
-          reusablePrimarySourceUrl,
-          markupStrokes,
-          editSubmitIntent,
-          hasSelectedLayerMask,
-          exportSelectedLayerMaskBlob,
-          resolveBlobDimensions,
-          resolveStageFlattenSnapshot,
-        });
-        const flattenedBlob = exportArtifacts.flattenedBlob;
-        Object.assign(
-          objectUrls,
-          createExpertEditSubmissionObjectUrls({
-            flattenedBlob,
-            flattenedMarkupReferenceBlob: exportArtifacts.flattenedMarkupReferenceBlob,
-            inpaintMaskBlob: exportArtifacts.inpaintMaskBlob,
-          })
-        );
-        const primaryReferenceUrl =
-          exportArtifacts.reusablePrimarySourceUrl || objectUrls.flattenedUrl;
-        const preparedSubmission = prepareExpertEditSubmission({
-          promptText,
-          extraImageUrls,
-          flattenedPrimaryUrl: primaryReferenceUrl,
-          flattenedMarkupReferenceUrl: objectUrls.flattenedMarkupReferenceUrl,
-          editSubmitIntent,
-          allowSecondaryReferenceTokens,
-          maxSecondaryReferenceTokens,
-        });
-        if (preparedSubmission.status === "invalid_tokens") {
-          markOptimisticGenerationFailure(preparedSubmission.message);
-          onInvalidPromptReferenceToken?.(preparedSubmission.message);
+        let submitDispatch: ReturnType<typeof resolveExpertEditSubmissionDispatch> | null = null;
+        try {
+          const exportArtifacts = await exportExpertEditStageArtifacts({
+            layers,
+            reusablePrimarySourceUrl,
+            markupStrokes,
+            editSubmitIntent,
+            hasSelectedLayerMask,
+            exportSelectedLayerMaskBlob,
+            resolveBlobDimensions,
+            resolveStageFlattenSnapshot,
+          });
+          const flattenedBlob = exportArtifacts.flattenedBlob;
+          Object.assign(
+            objectUrls,
+            createExpertEditSubmissionObjectUrls({
+              flattenedBlob,
+              flattenedMarkupReferenceBlob: exportArtifacts.flattenedMarkupReferenceBlob,
+              inpaintMaskBlob: exportArtifacts.inpaintMaskBlob,
+            })
+          );
+          const primaryReferenceUrl =
+            exportArtifacts.reusablePrimarySourceUrl || objectUrls.flattenedUrl;
+          const preparedSubmission = prepareExpertEditSubmission({
+            promptText,
+            extraImageUrls,
+            flattenedPrimaryUrl: primaryReferenceUrl,
+            flattenedMarkupReferenceUrl: objectUrls.flattenedMarkupReferenceUrl,
+            editSubmitIntent,
+            allowSecondaryReferenceTokens,
+            maxSecondaryReferenceTokens,
+          });
+          if (preparedSubmission.status === "invalid_tokens") {
+            markOptimisticGenerationFailure(preparedSubmission.message);
+            onInvalidPromptReferenceToken?.(preparedSubmission.message);
+            return;
+          }
+          const { linkedSecondaryReferenceInputs, promptOverrideOptions, referenceInputs } =
+            preparedSubmission;
+          submitDispatch = resolveExpertEditSubmissionDispatch({
+            editSubmitIntent,
+            hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
+            hasSelectedLayerMask,
+            flattenedUrl: objectUrls.flattenedUrl,
+            inpaintMaskUrl: objectUrls.inpaintMaskUrl,
+            inpaintModelId: inpaintPromptReferencePolicy?.modelId,
+            inpaintReferenceImageInput: linkedSecondaryReferenceInputs[0] ?? null,
+            referenceInputs,
+            promptOverrideOptions,
+          });
+        } catch (error) {
+          const failureMessage = resolveFlattenFailureToastMessage(error);
+          markOptimisticGenerationFailure(failureMessage);
+          revokeExpertEditSubmissionObjectUrls({
+            objectUrls,
+            revokeObjectUrlSafe,
+          });
+          showStatusToast(failureMessage);
           return;
         }
-        const { linkedSecondaryReferenceInputs, promptOverrideOptions, referenceInputs } =
-          preparedSubmission;
-        const submitDispatch = resolveExpertEditSubmissionDispatch({
-          editSubmitIntent,
-          hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
-          hasSelectedLayerMask,
-          flattenedUrl: objectUrls.flattenedUrl,
-          inpaintMaskUrl: objectUrls.inpaintMaskUrl,
-          inpaintModelId: inpaintPromptReferencePolicy?.modelId,
-          inpaintReferenceImageInput: linkedSecondaryReferenceInputs[0] ?? null,
-          referenceInputs,
-          promptOverrideOptions,
-        });
+        if (!submitDispatch) {
+          return;
+        }
         if (submitDispatch.status === "error") {
           markOptimisticGenerationFailure(submitDispatch.message);
           showStatusToast(submitDispatch.message);
@@ -214,20 +226,23 @@ export const useExpertEditInlineGenerate = ({
           onRegenerate();
           return;
         }
-        await onRegenerateWithReferenceInputs?.(submitDispatch.referenceInputs, {
-          ...submitDispatch.options,
-          ...(optimisticOutputId ? { outputIdOverride: optimisticOutputId } : {}),
-        });
-        optimisticOutputId = null;
-      } catch (error) {
-        const failureMessage = resolveFlattenFailureToastMessage(error);
-        markOptimisticGenerationFailure(failureMessage);
-        revokeExpertEditSubmissionObjectUrls({
-          objectUrls,
-          revokeObjectUrlSafe,
-        });
-        showStatusToast(failureMessage);
+        try {
+          await onRegenerateWithReferenceInputs?.(submitDispatch.referenceInputs, {
+            ...submitDispatch.options,
+            ...(optimisticOutputId ? { outputIdOverride: optimisticOutputId } : {}),
+          });
+          optimisticOutputId = null;
+        } catch (error) {
+          const failureMessage = resolveSubmissionFailureToastMessage(error);
+          markOptimisticGenerationFailure(failureMessage, failureMessage);
+          revokeExpertEditSubmissionObjectUrls({
+            objectUrls,
+            revokeObjectUrlSafe,
+          });
+          showStatusToast(failureMessage);
+        }
       } finally {
+        inlineGenerateInFlightRef.current = false;
         setInlineGeneratePendingCount((currentCount) => Math.max(0, currentCount - 1));
         cleanupExpertEditSubmissionObjectUrls({
           objectUrls,

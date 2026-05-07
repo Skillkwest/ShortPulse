@@ -3,8 +3,10 @@ import {
   buildAiStudioSessionSnapshot,
   createAiStudioProjectWorkspaceSnapshot,
   patchAiStudioSessionSnapshotCanvas,
+  patchAiStudioSessionSnapshotExpertEdit,
   patchAiStudioSessionSnapshotWorkspace,
 } from "../sessionSnapshot";
+import type { AiStudioSessionSnapshotV2 } from "../sessionSnapshot";
 import type { StudioOutput } from "../../types";
 import type { AiStudioSessionCanvasState } from "../sessionSnapshotCanvas";
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
@@ -246,6 +248,58 @@ describe("sessionSnapshot", () => {
     expect(snapshot.outputs.active[0]?.previewPosterStoragePath).toBe(
       "user-1/variants/videos/out-1/poster_720.jpg"
     );
+  });
+
+  it("patches durable Expert Edit state without rebuilding the base snapshot shape", () => {
+    const baseSnapshot = createAiStudioProjectWorkspaceSnapshot(
+      buildAiStudioSessionSnapshot({
+        sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+        updatedAt: "2026-03-02T12:00:00.000Z",
+        mode: "image",
+        selectedTool: "create",
+        prompt: "A cinematic portrait",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        aspect: "9:16",
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+        editReferenceText: "",
+        videoReferenceText: "",
+        videoReferenceMode: "standard",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        imageResolution: "model_default",
+        videoGenerateAudio: false,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        motionReferenceVideoUrl: null,
+        outputs: [createOutput()],
+        archivedOutputs: [],
+        activeOutputId: "out-1",
+        curatedReferenceIds: ["out-1"],
+        removedFromAllRefsIds: [],
+        agentMessages: [],
+        agentInput: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+      })
+    ) as AiStudioSessionSnapshotV2;
+    const patchedSnapshot = patchAiStudioSessionSnapshotExpertEdit(
+      baseSnapshot,
+      createExpertEditSessionState()
+    );
+
+    expect(baseSnapshot.expertEdit).toBeUndefined();
+    expect(patchedSnapshot.expertEdit?.state.markup.strokes).toHaveLength(1);
+    expect(patchedSnapshot.workspace).toEqual(baseSnapshot.workspace);
+    expect(patchedSnapshot.outputs).toEqual(baseSnapshot.outputs);
+    expect(patchedSnapshot.meta.checksum).not.toBe(baseSnapshot.meta?.checksum);
   });
 
   it("serializes Standard and Pulse create prompts separately when both are provided", () => {

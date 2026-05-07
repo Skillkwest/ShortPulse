@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { useAiStudioProjectWorkspacePersistenceController } from "../useAiStudioProjectWorkspacePersistenceController";
 import { useAiStudioProjectWorkspaceRestoreCandidate } from "../useAiStudioProjectWorkspaceRestoreCandidate";
 import { useAiStudioProjectWorkspaceRestoreHydration } from "../useAiStudioProjectWorkspaceRestoreHydration";
-import { useAiStudioSessionWriteShadow } from "../useAiStudioSessionWriteShadow";
+import { useAiStudioSessionAutosave } from "../useAiStudioSessionAutosave";
 import {
   createAiStudioProjectWorkspaceSnapshot,
   type AiStudioSessionSnapshot,
@@ -27,9 +27,9 @@ vi.mock("../useAiStudioProjectWorkspaceRestoreHydration", () => ({
   useAiStudioProjectWorkspaceRestoreHydration: vi.fn((params) => restoreHydrationMock(params)),
 }));
 
-const sessionWriteShadowMock = vi.fn();
-vi.mock("../useAiStudioSessionWriteShadow", () => ({
-  useAiStudioSessionWriteShadow: vi.fn((params) => sessionWriteShadowMock(params)),
+const sessionAutosaveMock = vi.fn();
+vi.mock("../useAiStudioSessionAutosave", () => ({
+  useAiStudioSessionAutosave: vi.fn((params) => sessionAutosaveMock(params)),
 }));
 
 vi.mock("../aiStudioOutputStore", () => ({
@@ -42,7 +42,7 @@ const mockedUseAiStudioProjectWorkspaceRestoreCandidate = vi.mocked(
 const mockedUseAiStudioProjectWorkspaceRestoreHydration = vi.mocked(
   useAiStudioProjectWorkspaceRestoreHydration
 );
-const mockedUseAiStudioSessionWriteShadow = vi.mocked(useAiStudioSessionWriteShadow);
+const mockedUseAiStudioSessionAutosave = vi.mocked(useAiStudioSessionAutosave);
 const mockedResetAiStudioOutputStore = vi.mocked(resetAiStudioOutputStore);
 
 const createSnapshot = (): AiStudioSessionSnapshot =>
@@ -141,13 +141,13 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
   beforeEach(() => {
     mockedUseAiStudioProjectWorkspaceRestoreCandidate.mockClear();
     mockedUseAiStudioProjectWorkspaceRestoreHydration.mockClear();
-    mockedUseAiStudioSessionWriteShadow.mockClear();
+    mockedUseAiStudioSessionAutosave.mockClear();
     mockedResetAiStudioOutputStore.mockClear();
     restoreHydrationMock.mockClear();
-    sessionWriteShadowMock.mockClear();
+    sessionAutosaveMock.mockClear();
   });
 
-  it("keeps project write shadow disabled until bootstrap settles", () => {
+  it("keeps project autosave disabled until bootstrap settles", () => {
     const buildSessionSnapshot = vi.fn(() => createSnapshot());
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
 
@@ -156,13 +156,13 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         projectId: "project-1",
         projectRouteRequested: true,
         sessionId: "session-1",
-        buildSessionSnapshot,
+        buildBaseSessionSnapshot: buildSessionSnapshot,
         hydrateFromSessionSnapshot,
       })
     );
 
-    expect(mockedUseAiStudioSessionWriteShadow).toHaveBeenCalledTimes(1);
-    expect(mockedUseAiStudioSessionWriteShadow.mock.calls[0]?.[0]).toEqual(
+    expect(mockedUseAiStudioSessionAutosave).toHaveBeenCalledTimes(1);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
         snapshot: null,
@@ -174,7 +174,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(result.current.projectBootstrapError).toBeNull();
   });
 
-  it("enables project write shadow after bootstrap settles for the active project", () => {
+  it("enables project autosave after bootstrap settles for the active project", () => {
     const snapshot = createSnapshot();
     const buildSessionSnapshot = vi.fn(() => snapshot);
     const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
@@ -187,7 +187,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
           projectId,
           projectRouteRequested: true,
           sessionId: "session-1",
-          buildSessionSnapshot,
+          buildBaseSessionSnapshot: buildSessionSnapshot,
           hydrateFromSessionSnapshot,
           applyEmptyProjectState,
           resetProjectAgentConversation,
@@ -211,8 +211,8 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     rerender({ projectId: "project-1" });
 
     const lastWriteShadowArgs =
-      mockedUseAiStudioSessionWriteShadow.mock.calls[
-        mockedUseAiStudioSessionWriteShadow.mock.calls.length - 1
+      mockedUseAiStudioSessionAutosave.mock.calls[
+        mockedUseAiStudioSessionAutosave.mock.calls.length - 1
       ]?.[0];
     expect(lastWriteShadowArgs).toEqual(
       expect.objectContaining({
@@ -234,7 +234,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         projectId: "project-1",
         projectRouteRequested: true,
         sessionId: "session-1",
-        buildSessionSnapshot,
+        buildBaseSessionSnapshot: buildSessionSnapshot,
         hydrateFromSessionSnapshot,
         applyEmptyProjectState,
       })
@@ -243,7 +243,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(applyEmptyProjectState).toHaveBeenCalledTimes(1);
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(1);
     expect(buildSessionSnapshot).not.toHaveBeenCalled();
-    expect(mockedUseAiStudioSessionWriteShadow.mock.calls[0]?.[0]).toEqual(
+    expect(mockedUseAiStudioSessionAutosave.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
         snapshot: null,
@@ -263,7 +263,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
           projectId,
           projectRouteRequested: true,
           sessionId: "session-1",
-          buildSessionSnapshot,
+          buildBaseSessionSnapshot: buildSessionSnapshot,
           hydrateFromSessionSnapshot,
           applyEmptyProjectState,
         }),
@@ -290,8 +290,8 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(2);
     expect(result.current.projectBootstrapApplied).toBe(false);
     const lastWriteShadowArgs =
-      mockedUseAiStudioSessionWriteShadow.mock.calls[
-        mockedUseAiStudioSessionWriteShadow.mock.calls.length - 1
+      mockedUseAiStudioSessionAutosave.mock.calls[
+        mockedUseAiStudioSessionAutosave.mock.calls.length - 1
       ]?.[0];
     expect(lastWriteShadowArgs).toEqual(
       expect.objectContaining({
@@ -328,7 +328,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
           projectId: "project-1",
           projectRouteRequested: true,
           sessionId: "session-1",
-          buildSessionSnapshot: buildSnapshot,
+          buildBaseSessionSnapshot: buildSnapshot,
           hydrateFromSessionSnapshot: hydrateSnapshot,
           applyEmptyProjectState: applyEmptyState,
           resetProjectAgentConversation: resetConversation,
@@ -360,13 +360,66 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(applyEmptyProjectState).toHaveBeenCalledTimes(1);
     expect(nextApplyEmptyProjectState).not.toHaveBeenCalled();
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(1);
-    expect(mockedUseAiStudioSessionWriteShadow.mock.calls.at(-1)?.[0]).toEqual(
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
         enabled: true,
       })
     );
     expect(nextBuildSessionSnapshot).toHaveBeenCalledWith("session-1");
+  });
+
+  it("reuses the base project snapshot when only the patch callback changes", () => {
+    const snapshot = createSnapshot();
+    const buildSessionSnapshot = vi.fn(() => snapshot);
+    const firstPatchSessionSnapshot = vi.fn((value: AiStudioSessionSnapshot) => value);
+    const secondPatchSessionSnapshot = vi.fn((value: AiStudioSessionSnapshot) => ({
+      ...value,
+      updatedAt: "2026-04-24T19:00:00.000Z",
+    }));
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+
+    const { rerender } = renderHook(
+      ({ patchSessionSnapshot }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId: "project-1",
+          projectRouteRequested: true,
+          sessionId: "session-1",
+          buildBaseSessionSnapshot: buildSessionSnapshot,
+          patchSessionSnapshot,
+          hydrateFromSessionSnapshot,
+        }),
+      {
+        initialProps: {
+          patchSessionSnapshot: firstPatchSessionSnapshot as (
+            snapshot: AiStudioSessionSnapshot
+          ) => AiStudioSessionSnapshot,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender({ patchSessionSnapshot: firstPatchSessionSnapshot });
+    expect(buildSessionSnapshot).toHaveBeenCalledTimes(1);
+
+    rerender({ patchSessionSnapshot: secondPatchSessionSnapshot });
+
+    expect(buildSessionSnapshot).toHaveBeenCalledTimes(1);
+    expect(firstPatchSessionSnapshot).toHaveBeenCalledTimes(1);
+    expect(secondPatchSessionSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({
+        enabled: true,
+        snapshot: expect.objectContaining({
+          updatedAt: "2026-04-24T19:00:00.000Z",
+        }),
+      })
+    );
   });
 
   it("ignores stale bootstrap state after leaving and re-entering the same project", () => {
@@ -380,7 +433,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
           projectId,
           projectRouteRequested,
           sessionId: "session-1",
-          buildSessionSnapshot,
+          buildBaseSessionSnapshot: buildSessionSnapshot,
           hydrateFromSessionSnapshot,
           applyEmptyProjectState,
         }),
@@ -419,7 +472,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(result.current.projectBootstrapApplied).toBe(false);
     expect(applyEmptyProjectState).toHaveBeenCalledTimes(2);
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(2);
-    expect(mockedUseAiStudioSessionWriteShadow.mock.calls.at(-1)?.[0]).toEqual(
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: "project-1",
         snapshot: null,
@@ -439,7 +492,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
           projectId,
           projectRouteRequested,
           sessionId: "session-1",
-          buildSessionSnapshot,
+          buildBaseSessionSnapshot: buildSessionSnapshot,
           hydrateFromSessionSnapshot,
           applyEmptyProjectState,
         }),
@@ -463,7 +516,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(mockedResetAiStudioOutputStore).toHaveBeenCalledTimes(1);
     expect(result.current.projectBootstrapApplied).toBe(false);
     expect(result.current.projectBootstrapError).toBeNull();
-    expect(mockedUseAiStudioSessionWriteShadow.mock.calls.at(-1)?.[0]).toEqual(
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         sessionId: null,
         snapshot: null,
@@ -473,7 +526,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(buildSessionSnapshot).not.toHaveBeenCalled();
   });
 
-  it("surfaces restore errors and keeps write shadow disabled", () => {
+  it("surfaces restore errors and keeps project autosave disabled", () => {
     mockedUseAiStudioProjectWorkspaceRestoreCandidate.mockReturnValueOnce({
       status: "error",
       result: "load_failed",
@@ -491,14 +544,14 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         projectId: "project-1",
         projectRouteRequested: true,
         sessionId: "session-1",
-        buildSessionSnapshot,
+        buildBaseSessionSnapshot: buildSessionSnapshot,
         hydrateFromSessionSnapshot,
       })
     );
 
     expect(result.current.projectBootstrapApplied).toBe(false);
     expect(result.current.projectBootstrapError).toBe("Failed to load project workspace.");
-    expect(mockedUseAiStudioSessionWriteShadow.mock.calls[0]?.[0]).toEqual(
+    expect(mockedUseAiStudioSessionAutosave.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         enabled: false,
         snapshot: null,
@@ -516,7 +569,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
         projectId: "project-1",
         projectRouteRequested: true,
         sessionId: "session-1",
-        buildSessionSnapshot,
+        buildBaseSessionSnapshot: buildSessionSnapshot,
         hydrateFromSessionSnapshot,
       })
     );
@@ -534,7 +587,7 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(latestHydrationArgs?.onProjectBootstrapFailed).toBe(firstFailureHandler);
     expect(result.current.projectBootstrapApplied).toBe(false);
     expect(result.current.projectBootstrapError).toBe("hydrate failed");
-    expect(mockedUseAiStudioSessionWriteShadow.mock.calls.at(-1)?.[0]).toEqual(
+    expect(mockedUseAiStudioSessionAutosave.mock.calls.at(-1)?.[0]).toEqual(
       expect.objectContaining({
         enabled: false,
       })

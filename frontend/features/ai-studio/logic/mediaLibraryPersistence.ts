@@ -541,33 +541,50 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     }
   }
 
-  const { data, error } = await supabase
-    .from("media_files")
-    .select("id, storage_path, file_type, poster_variant_path, preview_variant_path")
-    .eq("user_id", userId)
-    .eq("source", "ai_studio")
-    .eq("source_ref", generationId)
-    .contains("metadata", { generation_output_index: index })
-    .limit(1)
-    .maybeSingle();
-  if (error || !data) return null;
-  const id = typeof data.id === "string" ? data.id : null;
-  if (!id) return null;
-  const storagePath = typeof data.storage_path === "string" ? data.storage_path : null;
-  const fileTypeRaw = String(data.file_type ?? "").toLowerCase();
-  const fileType =
-    fileTypeRaw === "video"
-      ? ("video" as const)
-      : fileTypeRaw === "audio"
-        ? ("audio" as const)
-        : ("image" as const);
-  return {
-    id,
-    storagePath,
-    fileType,
-    posterVariantPath: asOptionalString(data.poster_variant_path),
-    previewVariantPath: asOptionalString(data.preview_variant_path),
+  const readByMetadataField = async (
+    metadataField: "generation_output_index" | "index"
+  ): Promise<{
+    id: string;
+    storagePath: string | null;
+    fileType: MediaLibraryFileType;
+    posterVariantPath: string | null;
+    previewVariantPath: string | null;
+  } | null> => {
+    const { data, error } = await supabase
+      .from("media_files")
+      .select("id, storage_path, file_type, poster_variant_path, preview_variant_path")
+      .eq("user_id", userId)
+      .eq("source", "ai_studio")
+      .eq("source_ref", generationId)
+      .contains("metadata", { [metadataField]: index })
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+    const id = typeof data.id === "string" ? data.id : null;
+    if (!id) return null;
+    const storagePath = typeof data.storage_path === "string" ? data.storage_path : null;
+    const fileTypeRaw = String(data.file_type ?? "").toLowerCase();
+    const fileType =
+      fileTypeRaw === "video"
+        ? ("video" as const)
+        : fileTypeRaw === "audio"
+          ? ("audio" as const)
+          : ("image" as const);
+    return {
+      id,
+      storagePath,
+      fileType,
+      posterVariantPath: asOptionalString(data.poster_variant_path),
+      previewVariantPath: asOptionalString(data.preview_variant_path),
+    };
   };
+
+  const legacyIndexedRow =
+    (await readByMetadataField("generation_output_index")) ?? (await readByMetadataField("index"));
+  if (legacyIndexedRow) {
+    return legacyIndexedRow;
+  }
+  return null;
 };
 
 const normalizePosterSourceUrl = (

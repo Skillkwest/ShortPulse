@@ -5,21 +5,13 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { canRerollOutput, isGenerationReplayConfigV1 } from "../logic/generationReplay";
-import type { StudioOutput, ToolId } from "../types";
+import type { AiStudioImageRerollSubmitOptions } from "./contracts/taskSubmissionContracts";
+import type { StudioOutput } from "../types";
 
 type SubmitTask = (
   prompt: string,
   referenceInputs: string[],
-  options: {
-    modeOverride: "image";
-    selectedToolOverride: ToolId | null;
-    displayPromptOverride: string;
-    characterContextOverride?: StudioOutput["characterContext"];
-    modelIdOverride: string;
-    aspectOverride: string;
-    imageResolutionOverride: string;
-    styleContextOverride?: StudioOutput["styleContext"];
-  }
+  options: AiStudioImageRerollSubmitOptions
 ) => Promise<unknown>;
 
 type UseAiStudioRerollControllerParams = {

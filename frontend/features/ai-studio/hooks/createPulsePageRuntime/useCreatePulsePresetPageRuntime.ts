@@ -107,6 +107,19 @@ export const useCreatePulsePresetPageRuntime = ({
     [clearPulsePrompt, handleExpertCreateModeChange]
   );
 
+  useEffect(() => {
+    if (selectedTool === "create") return;
+    if (expertCreateMode !== "pulse") return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      handleExpertCreateModeChangeForPage("standard");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [expertCreateMode, handleExpertCreateModeChangeForPage, selectedTool]);
+
   const handleActiveCreatePulsePresetIdChangeForPage = useCallback(
     (nextPresetId: string | null, options?: AiStudioPulsePresetChangeOptions) => {
       if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
@@ -188,15 +201,21 @@ export const useCreatePulsePresetPageRuntime = ({
           label: resolvedPulsePreset.label,
           description: resolvedPulsePreset.description,
           instructions,
-          runtimeMode: resolvedPulsePreset.runtimeMode,
-          activationMode: resolvedPulsePreset.activationMode,
-          starterAssistantMessage: resolvedPulsePreset.starterAssistantMessage,
-          workflowStageHints: resolvedPulsePreset.workflowStageHints,
-          outputMode: resolvedPulsePreset.outputMode,
-          artifactTarget: resolvedPulsePreset.artifactTarget,
-          memoryPolicy: resolvedPulsePreset.memoryPolicy,
+          pulseKind: resolvedPulsePreset.pulseKind,
           source: resolvedPulsePreset.isBuiltIn ? "builtin" : "custom",
-          workflowSession: pulseWorkflowSession,
+          schemaVersion: resolvedPulsePreset.schemaVersion,
+          ...(resolvedPulsePreset.pulseKind === "guided_workflow"
+            ? {
+                runtimeMode: resolvedPulsePreset.runtimeMode,
+                activationMode: resolvedPulsePreset.activationMode,
+                starterAssistantMessage: resolvedPulsePreset.starterAssistantMessage,
+                workflowStageHints: resolvedPulsePreset.workflowStageHints,
+                outputMode: resolvedPulsePreset.outputMode,
+                artifactTarget: resolvedPulsePreset.artifactTarget,
+                memoryPolicy: resolvedPulsePreset.memoryPolicy,
+                workflowSession: pulseWorkflowSession,
+              }
+            : {}),
         },
       };
     },

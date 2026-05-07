@@ -1,21 +1,24 @@
 /**
  * Shared Pulse preset catalog and helpers for AI Studio.
- * Merges seeded built-in pulses with persisted Pulse definitions used by the library and Create rail.
+ * Merges built-in guided workflows with persisted custom Pulse definitions used by the library and
+ * Create rail.
  */
-export const CREATE_PULSE_MORE_LABEL = "More Pulses" as const;
+export const CREATE_PULSE_MORE_LABEL = "Pulse Catalog" as const;
 export const CREATE_PULSE_PANEL_MAX = 10;
 export const CREATE_PULSE_PRESET_DRAG_MIME =
   "application/x-shortpulse-create-pulse-preset" as const;
 
-export type CreatePulseRuntimeMode = "workflow_gpt";
-export type CreatePulseActivationMode = "activate_and_start";
-export type CreatePulseOutputMode = "chat_reply";
+export type CreatePulsePresetKind = "guided_workflow" | "custom_gpt";
+export type CreatePulseRuntimeMode = "workflow_gpt" | "custom_gpt";
+export type CreatePulseActivationMode = "activate_and_start" | "activate_only";
+export type CreatePulseOutputMode = "chat_reply" | "apply_prompt";
 export type CreatePulseMemoryPolicy = "session";
 export type CreatePulseArtifactTarget =
   | "image_prompt"
   | "video_prompt"
   | "storyboard"
   | "text_artifact";
+export const CREATE_PULSE_SCHEMA_VERSION = 2 as const;
 export type CreatePulsePresetStartFailureReason =
   | "bootstrap_pending"
   | "activation_seed_missing"
@@ -43,6 +46,7 @@ export type CreatePulseBuiltInPresetDefinition = {
   label: string;
   description: string;
   systemInstructions: string;
+  pulseKind: CreatePulsePresetKind;
   runtimeMode: CreatePulseRuntimeMode;
   activationMode: CreatePulseActivationMode;
   outputMode: CreatePulseOutputMode;
@@ -50,32 +54,27 @@ export type CreatePulseBuiltInPresetDefinition = {
   starterAssistantMessage: string | null;
   workflowStageHints: CreatePulseWorkflowStageHints | null;
   artifactTarget: CreatePulseArtifactTarget;
+  schemaVersion: number;
 };
 
-const CREATE_PULSE_DEFAULT_RUNTIME_MODE = "workflow_gpt" as const satisfies CreatePulseRuntimeMode;
-const CREATE_PULSE_DEFAULT_ACTIVATION_MODE =
-  "activate_and_start" as const satisfies CreatePulseActivationMode;
-const CREATE_PULSE_DEFAULT_OUTPUT_MODE = "chat_reply" as const satisfies CreatePulseOutputMode;
 const CREATE_PULSE_DEFAULT_MEMORY_POLICY = "session" as const satisfies CreatePulseMemoryPolicy;
 const CREATE_PULSE_DEFAULT_ARTIFACT_TARGET =
   "text_artifact" as const satisfies CreatePulseArtifactTarget;
+export const CREATE_PULSE_CUSTOM_AUTHORING_KIND =
+  "custom_gpt" as const satisfies CreatePulsePresetKind;
+export const CREATE_PULSE_GUIDED_AUTHORING_KIND =
+  "guided_workflow" as const satisfies CreatePulsePresetKind;
 export const CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE =
-  "workflow_gpt" as const satisfies CreatePulseRuntimeMode;
+  "custom_gpt" as const satisfies CreatePulseRuntimeMode;
 export const CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE =
   "activate_and_start" as const satisfies CreatePulseActivationMode;
 export const CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE =
   "chat_reply" as const satisfies CreatePulseOutputMode;
-export const CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET =
-  "text_artifact" as const satisfies CreatePulseArtifactTarget;
+const CREATE_PULSE_BUILT_IN_KIND = "guided_workflow" as const satisfies CreatePulsePresetKind;
 const CREATE_PULSE_BUILT_IN_RUNTIME_MODE = "workflow_gpt" as const satisfies CreatePulseRuntimeMode;
 const CREATE_PULSE_BUILT_IN_ACTIVATION_MODE =
   "activate_and_start" as const satisfies CreatePulseActivationMode;
 const CREATE_PULSE_BUILT_IN_OUTPUT_MODE = "chat_reply" as const satisfies CreatePulseOutputMode;
-const CREATE_PULSE_GUIDED_BEHAVIOR = {
-  runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
-  activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
-  outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
-} as const;
 const VIDEO_PROMPT_MAGIC_STARTER_MESSAGE = "Upload your image to get the process started :)";
 const MULTI_SEQUENCE_VIDEO_PROMPT_STARTER_MESSAGE =
   "Step 1 — Upload: Please upload the image you want to base the scene on.";
@@ -403,6 +402,7 @@ const createBuiltInPulseDefinition = ({
   label,
   description,
   systemInstructions,
+  pulseKind: CREATE_PULSE_BUILT_IN_KIND,
   runtimeMode,
   activationMode,
   outputMode,
@@ -411,6 +411,7 @@ const createBuiltInPulseDefinition = ({
   workflowStageHints:
     workflowStageHints?.map((entry) => entry.trim()).filter((entry) => entry.length > 0) ?? null,
   artifactTarget,
+  schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
 });
 
 export const CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS = [
@@ -474,14 +475,16 @@ export type CreatePulseSavedPreset = {
   label: string;
   description?: string | null;
   systemInstructions: string;
-  runtimeMode: CreatePulseRuntimeMode;
-  activationMode: CreatePulseActivationMode;
+  pulseKind?: CreatePulsePresetKind;
+  runtimeMode?: CreatePulseRuntimeMode;
+  activationMode?: CreatePulseActivationMode;
   starterAssistantMessage?: string | null;
   workflowStageHints?: CreatePulseWorkflowStageHints | null;
-  outputMode: CreatePulseOutputMode;
+  outputMode?: CreatePulseOutputMode;
   artifactTarget?: CreatePulseArtifactTarget;
-  memoryPolicy: CreatePulseMemoryPolicy;
+  memoryPolicy?: CreatePulseMemoryPolicy;
   createdAt: string | null;
+  schemaVersion?: number | null;
 };
 
 export type CreatePulseResolvedPreset = {
@@ -489,13 +492,15 @@ export type CreatePulseResolvedPreset = {
   label: string;
   description: string | null;
   systemInstructions: string;
+  pulseKind: CreatePulsePresetKind;
   runtimeMode: CreatePulseRuntimeMode;
   activationMode: CreatePulseActivationMode;
   starterAssistantMessage: string | null;
   workflowStageHints: CreatePulseWorkflowStageHints | null;
   outputMode: CreatePulseOutputMode;
-  artifactTarget: CreatePulseArtifactTarget;
+  artifactTarget?: CreatePulseArtifactTarget;
   memoryPolicy: CreatePulseMemoryPolicy;
+  schemaVersion: number;
   isCustom: boolean;
   isBuiltIn: boolean;
   isEditable: boolean;
@@ -514,6 +519,32 @@ let createPulseCustomPresetFallbackCounter = 0;
 
 const isValidCreatePulseDragSource = (value: string): value is CreatePulsePresetDragSource =>
   value === "surface" || value === "panel";
+
+export const resolveCreatePulseRuntimeModeForKind = (
+  pulseKind: CreatePulsePresetKind
+): CreatePulseRuntimeMode => (pulseKind === "guided_workflow" ? "workflow_gpt" : "custom_gpt");
+
+export const createCreatePulseCustomSavedPreset = ({
+  presetId,
+  label,
+  systemInstructions,
+  createdAt,
+  description = null,
+}: {
+  presetId: CreatePulsePresetId;
+  label: string;
+  systemInstructions: string;
+  createdAt: string | null;
+  description?: string | null;
+}): CreatePulseSavedPreset => ({
+  presetId,
+  label,
+  description,
+  systemInstructions,
+  pulseKind: CREATE_PULSE_CUSTOM_AUTHORING_KIND,
+  createdAt,
+  schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
+});
 
 const isCreatePulseArtifactTarget = (value: string): value is CreatePulseArtifactTarget =>
   value === "image_prompt" ||
@@ -626,67 +657,31 @@ const normalizeCreatePulseSavedPresetRecord = (value: unknown): CreatePulseSaved
       : typeof (value as { prompt?: unknown }).prompt === "string"
         ? (value as { prompt: string }).prompt.trim()
         : "";
-  const runtimeModeRaw =
-    typeof (value as { runtimeMode?: unknown }).runtimeMode === "string"
-      ? (value as { runtimeMode: string }).runtimeMode.trim()
-      : "";
-  const activationModeRaw =
-    typeof (value as { activationMode?: unknown }).activationMode === "string"
-      ? (value as { activationMode: string }).activationMode.trim()
-      : "";
-  const starterAssistantMessage =
-    typeof (value as { starterAssistantMessage?: unknown }).starterAssistantMessage === "string"
-      ? (value as { starterAssistantMessage: string }).starterAssistantMessage.trim()
-      : "";
-  const workflowStageHints = normalizeCreatePulseWorkflowStageHints(
-    (value as { workflowStageHints?: unknown }).workflowStageHints
-  );
-  const outputModeRaw =
-    typeof (value as { outputMode?: unknown }).outputMode === "string"
-      ? (value as { outputMode: string }).outputMode.trim()
-      : "";
-  const artifactTargetRaw =
-    typeof (value as { artifactTarget?: unknown }).artifactTarget === "string"
-      ? (value as { artifactTarget: string }).artifactTarget.trim()
-      : "";
-  const memoryPolicyRaw =
-    typeof (value as { memoryPolicy?: unknown }).memoryPolicy === "string"
-      ? (value as { memoryPolicy: string }).memoryPolicy.trim()
-      : "";
   const createdAtRaw = (value as { createdAt?: unknown }).createdAt;
   const createdAt =
     typeof createdAtRaw === "string" && createdAtRaw.trim().length > 0 ? createdAtRaw.trim() : null;
+  const schemaVersionRaw = (value as { schemaVersion?: unknown }).schemaVersion;
   if (!presetId || !label || !systemInstructions) {
     return null;
   }
   if (isCreatePulseRetiredPresetId(presetId)) {
     return null;
   }
+  const schemaVersion =
+    typeof schemaVersionRaw === "number" &&
+    Number.isFinite(schemaVersionRaw) &&
+    schemaVersionRaw > 0
+      ? Math.trunc(schemaVersionRaw)
+      : CREATE_PULSE_SCHEMA_VERSION;
+
   return {
     presetId,
     label,
     description: description || null,
     systemInstructions,
-    runtimeMode:
-      runtimeModeRaw === CREATE_PULSE_DEFAULT_RUNTIME_MODE
-        ? runtimeModeRaw
-        : CREATE_PULSE_DEFAULT_RUNTIME_MODE,
-    activationMode:
-      activationModeRaw === CREATE_PULSE_DEFAULT_ACTIVATION_MODE
-        ? activationModeRaw
-        : CREATE_PULSE_DEFAULT_ACTIVATION_MODE,
-    starterAssistantMessage: starterAssistantMessage || null,
-    workflowStageHints,
-    outputMode:
-      outputModeRaw === CREATE_PULSE_DEFAULT_OUTPUT_MODE
-        ? outputModeRaw
-        : CREATE_PULSE_DEFAULT_OUTPUT_MODE,
-    artifactTarget: isCreatePulseArtifactTarget(artifactTargetRaw)
-      ? artifactTargetRaw
-      : CREATE_PULSE_DEFAULT_ARTIFACT_TARGET,
-    memoryPolicy:
-      memoryPolicyRaw === "session" ? memoryPolicyRaw : CREATE_PULSE_DEFAULT_MEMORY_POLICY,
+    pulseKind: CREATE_PULSE_CUSTOM_AUTHORING_KIND,
     createdAt,
+    schemaVersion,
   };
 };
 
@@ -857,13 +852,15 @@ export const resolveCreatePulsePresetCatalog = (
         label: definition.label,
         description: definition.description,
         systemInstructions: definition.systemInstructions,
-        runtimeMode: CREATE_PULSE_GUIDED_BEHAVIOR.runtimeMode,
-        activationMode: CREATE_PULSE_GUIDED_BEHAVIOR.activationMode,
+        pulseKind: definition.pulseKind,
+        runtimeMode: definition.runtimeMode,
+        activationMode: definition.activationMode,
         starterAssistantMessage: definition.starterAssistantMessage,
         workflowStageHints: definition.workflowStageHints,
-        outputMode: CREATE_PULSE_GUIDED_BEHAVIOR.outputMode,
+        outputMode: definition.outputMode,
         artifactTarget: definition.artifactTarget,
         memoryPolicy: definition.memoryPolicy,
+        schemaVersion: definition.schemaVersion,
         isCustom: false,
         isBuiltIn: true,
         isEditable: false,
@@ -879,13 +876,14 @@ export const resolveCreatePulsePresetCatalog = (
         label: preset.label,
         description: preset.description ?? null,
         systemInstructions: preset.systemInstructions,
-        runtimeMode: CREATE_PULSE_GUIDED_BEHAVIOR.runtimeMode,
-        activationMode: CREATE_PULSE_GUIDED_BEHAVIOR.activationMode,
-        starterAssistantMessage: preset.starterAssistantMessage ?? null,
-        workflowStageHints: preset.workflowStageHints ?? null,
-        outputMode: CREATE_PULSE_GUIDED_BEHAVIOR.outputMode,
-        artifactTarget: preset.artifactTarget ?? CREATE_PULSE_DEFAULT_ARTIFACT_TARGET,
-        memoryPolicy: preset.memoryPolicy,
+        pulseKind: CREATE_PULSE_CUSTOM_AUTHORING_KIND,
+        runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
+        activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
+        memoryPolicy: CREATE_PULSE_DEFAULT_MEMORY_POLICY,
+        schemaVersion: preset.schemaVersion ?? CREATE_PULSE_SCHEMA_VERSION,
         isCustom: true,
         isBuiltIn: false,
         isEditable: true,

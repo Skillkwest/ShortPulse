@@ -1,6 +1,6 @@
 /**
  * Pulse Create chat presentation.
- * Keeps guided Pulse message rendering out of the shared agent prefab.
+ * Keeps Pulse message rendering out of the shared agent prefab.
  */
 import React from "react";
 import {

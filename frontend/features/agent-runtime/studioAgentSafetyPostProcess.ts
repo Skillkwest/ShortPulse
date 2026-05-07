@@ -23,7 +23,6 @@ export type StudioAgentSafetyPostProcessResult = {
   outcome: StudioAgentSafetyPostProcessOutcome;
   text: string;
   fallbackUsed: boolean;
-  shadowWouldBlock?: boolean;
   debugReason?: string;
   decision?: StudioAgentSafetyDecisionMeta;
 };
@@ -146,16 +145,6 @@ export const postProcessStudioAgentSafetyText = async ({
     };
   }
   if (initialDecisionMeta.action === "refuse") {
-    if (mode === "shadow") {
-      return {
-        outcome: "pass",
-        text: normalized,
-        fallbackUsed: false,
-        shadowWouldBlock: true,
-        debugReason: debug ? "shadow_classification_refusal" : undefined,
-        decision: initialDecisionMeta,
-      };
-    }
     return {
       outcome: "refusal",
       text: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
@@ -192,16 +181,6 @@ export const postProcessStudioAgentSafetyText = async ({
   });
   const rewrittenDecisionMeta = rewrittenEvaluation.decision;
   if (rewrittenDecisionMeta.action === "allow") {
-    if (mode === "shadow") {
-      return {
-        outcome: "pass",
-        text: normalized,
-        fallbackUsed,
-        shadowWouldBlock: true,
-        debugReason: debug ? "shadow_rewritten_safe" : undefined,
-        decision: rewrittenDecisionMeta,
-      };
-    }
     return {
       outcome: "rewritten",
       text: rewritten,
@@ -225,31 +204,11 @@ export const postProcessStudioAgentSafetyText = async ({
     });
     const secondDecisionMeta = secondEvaluation.decision;
     if (secondDecisionMeta.action === "allow") {
-      if (mode === "shadow") {
-        return {
-          outcome: "pass",
-          text: normalized,
-          fallbackUsed,
-          shadowWouldBlock: true,
-          debugReason: debug ? "shadow_rewritten_safe_second_pass" : undefined,
-          decision: secondDecisionMeta,
-        };
-      }
       return {
         outcome: "rewritten",
         text: secondPass,
         fallbackUsed,
         debugReason: debug ? "rewritten_safe_second_pass" : undefined,
-        decision: secondDecisionMeta,
-      };
-    }
-    if (mode === "shadow") {
-      return {
-        outcome: "pass",
-        text: normalized,
-        fallbackUsed: true,
-        shadowWouldBlock: true,
-        debugReason: debug ? "shadow_rewrite_refusal_fallback" : undefined,
         decision: secondDecisionMeta,
       };
     }
@@ -259,17 +218,6 @@ export const postProcessStudioAgentSafetyText = async ({
       fallbackUsed: true,
       debugReason: debug ? "rewrite_refusal_fallback" : undefined,
       decision: secondDecisionMeta,
-    };
-  }
-
-  if (mode === "shadow") {
-    return {
-      outcome: "pass",
-      text: normalized,
-      fallbackUsed: true,
-      shadowWouldBlock: true,
-      debugReason: debug ? "shadow_rewrite_refusal_fallback" : undefined,
-      decision: rewrittenDecisionMeta,
     };
   }
   return {

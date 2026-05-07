@@ -36,13 +36,14 @@ describe("buildAgentContext media filtering", () => {
     expect(context.media?.map((item) => item.id)).toEqual(["1", "2", "3"]);
   });
 
-  it("passes through valid pulse runtime metadata", () => {
+  it("passes through guided workflow pulse metadata", () => {
     const context = buildAgentContext({
       mode: "text",
       pulse: {
         presetId: " pulse_story_builder ",
         label: " Story Builder ",
         instructions: " Keep the output focused on a simple hook, escalation, and payoff. ",
+        pulseKind: "guided_workflow",
         artifactTarget: "storyboard",
         source: "custom",
         workflowSession: {
@@ -63,6 +64,7 @@ describe("buildAgentContext media filtering", () => {
       label: "Story Builder",
       description: null,
       instructions: "Keep the output focused on a simple hook, escalation, and payoff.",
+      pulseKind: "guided_workflow",
       runtimeMode: "workflow_gpt",
       activationMode: "activate_and_start",
       starterAssistantMessage: null,
@@ -81,6 +83,47 @@ describe("buildAgentContext media filtering", () => {
         lastArtifact: null,
         finalArtifactSource: "chat_reply",
       },
+    });
+  });
+
+  it("keeps custom pulse payloads minimal and strips guided workflow fields", () => {
+    const context = buildAgentContext({
+      mode: "text",
+      pulse: {
+        presetId: " pulse_custom ",
+        label: " Custom Pulse ",
+        instructions: ' Reply with "CUSTOM" and nothing else. ',
+        pulseKind: "custom_gpt",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        starterAssistantMessage: "Legacy starter",
+        workflowStageHints: ["Legacy Step"],
+        outputMode: "chat_reply",
+        artifactTarget: "storyboard",
+        memoryPolicy: "session",
+        source: "custom",
+        workflowSession: {
+          presetId: "pulse_custom",
+          status: "awaiting_input",
+          currentStepIndex: 2,
+          currentStepLabel: "Legacy",
+          currentStepPrompt: "Legacy prompt",
+          collectedInputs: ["stale"],
+          lastArtifact: null,
+          finalArtifactSource: "chat_reply",
+        },
+        schemaVersion: 3,
+      },
+    });
+
+    expect(context.pulse).toEqual({
+      presetId: "pulse_custom",
+      label: "Custom Pulse",
+      description: null,
+      instructions: 'Reply with "CUSTOM" and nothing else.',
+      pulseKind: "custom_gpt",
+      source: "custom",
+      schemaVersion: 3,
     });
   });
 });

@@ -857,16 +857,15 @@ export const prepareReferenceDrag = (
   const resolvedImageTransferUrl = imagePreviewUrl ?? datasetPreviewTransferUrl ?? null;
   const resolvedRenderedTransferUrl =
     datasetSnapshotTransferUrl ?? datasetImageTransferUrl ?? resolvedImageTransferUrl;
-  const savedMediaRenderOnlyUrl =
+  const internalRenderOnlyUrl =
     !allowDirectReferenceUrls &&
-    hasSavedMediaIds(output) &&
-    datasetImageTransferUrl &&
-    !datasetImageTransferUrl.startsWith("data:image/")
-      ? datasetImageTransferUrl
+    (hasSavedMediaIds(output) || Boolean(output.generationId?.trim())) &&
+    resolvedRenderedTransferUrl
+      ? resolvedRenderedTransferUrl
       : null;
   const exposedRenderedTransferUrl = allowDirectReferenceUrls
     ? resolvedRenderedTransferUrl
-    : savedMediaRenderOnlyUrl;
+    : internalRenderOnlyUrl;
   const resolvedReferenceTransferUrl =
     output.mode === "image"
       ? (resolvedImageTransferUrl ?? previewUrl ?? null)

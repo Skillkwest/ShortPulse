@@ -71,14 +71,6 @@ vi.mock("../../../media-library/hooks/useMediaPreviewRecoveryController", () => 
   }),
 }));
 
-vi.mock("../../../media-library/logic/mediaLibraryFeatureFlags", async () => {
-  const actual = await vi.importActual("../../../media-library/logic/mediaLibraryFeatureFlags");
-  return {
-    ...actual,
-    AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED: true,
-  };
-});
-
 vi.mock("../../../media-library/logic/mediaLibraryDataEffects", async () => {
   const actual = await vi.importActual("../../../media-library/logic/mediaLibraryDataEffects");
   return {

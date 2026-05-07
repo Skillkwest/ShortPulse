@@ -9,29 +9,13 @@ export const INPAINT_REFERENCE_MODEL_ID = "fal-ai/flux-kontext-lora/inpaint";
 export const INPAINT_REFERENCE_MODEL_LABEL = "Pulse Reference Inpaint v1";
 export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID = "fal-ai/nano-banana-pro/edit";
 export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL = "Pulse Markup v1";
-export const MARKUP_MODEL_LOCK_ENV_KEY = "NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED";
-export const MARKUP_COLLAPSED_OPEN_MODAL_ENV_KEY =
-  "NEXT_PUBLIC_AI_STUDIO_MARKUP_COLLAPSED_OPEN_MODAL_ENABLED";
-export const MARKUP_STROKE_SECONDARY_REFERENCE_ENV_KEY =
-  "NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED";
-export const EDIT_GENERATION_MODE_TOGGLE_ENV_KEY =
-  "NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED";
+export const isMarkupModelLockEnabled = (): boolean => true;
 
-export const isMarkupModelLockEnabled = (
-  rawValue: string | undefined = process.env[MARKUP_MODEL_LOCK_ENV_KEY]
-): boolean => rawValue === "true";
+export const isMarkupCollapsedOpenModalEnabled = (): boolean => false;
 
-export const isMarkupCollapsedOpenModalEnabled = (
-  rawValue: string | undefined = process.env[MARKUP_COLLAPSED_OPEN_MODAL_ENV_KEY]
-): boolean => rawValue === "true";
+export const isMarkupStrokeSecondaryReferenceEnabled = (): boolean => true;
 
-export const isMarkupStrokeSecondaryReferenceEnabled = (
-  rawValue: string | undefined = process.env[MARKUP_STROKE_SECONDARY_REFERENCE_ENV_KEY]
-): boolean => rawValue === "true";
-
-export const isEditGenerationModeToggleEnabled = (
-  rawValue: string | undefined = process.env[EDIT_GENERATION_MODE_TOGGLE_ENV_KEY]
-): boolean => rawValue === "true";
+export const isEditGenerationModeToggleEnabled = (): boolean => true;
 
 export const MAX_INPAINT_SECONDARY_REFERENCE_IMAGES = 1;
 

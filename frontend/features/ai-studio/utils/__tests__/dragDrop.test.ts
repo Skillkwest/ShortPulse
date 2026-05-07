@@ -634,7 +634,7 @@ describe("dragDrop payload extraction", () => {
 
     expect(payload?.outputId).toBe("out-generated-tracked");
     expect(payload?.referenceUrl).toBeNull();
-    expect(payload?.referenceRenderUrl).toBeNull();
+    expect(payload?.referenceRenderUrl).toBe("data:image/jpeg;base64,generated-render");
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
@@ -682,6 +682,147 @@ describe("dragDrop payload extraction", () => {
     expect(payload?.referenceRenderUrl).toBeNull();
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("keeps same-origin rendered previews available for tracked generated drags without exporting provider urls", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    dragNode.dataset.dragImageSrc =
+      "/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75";
+
+    prepareReferenceDrag(
+      event,
+      {
+        id: "out-generated-render-only",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        mediaSource: "generated",
+        generationId: "gen-render-only",
+        previewUrl: "https://provider.example.com/generated-render-only.png",
+      },
+      { sourceSurface: "all-refs" }
+    );
+
+    expect(setData).not.toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://provider.example.com/generated-render-only.png"
+    );
+    expect(setData).not.toHaveBeenCalledWith("image/url", expect.any(String));
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-render-url",
+      "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75"
+    );
+
+    const dragSessionToken = setData.mock.calls.find(
+      ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+    )?.[1];
+    const payload = extractInternalReferenceDragPayload({
+      files: emptyFileList,
+      types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+      getData: (type: string) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+    } as unknown as DataTransfer);
+
+    expect(payload?.outputId).toBe("out-generated-render-only");
+    expect(payload?.referenceUrl).toBeNull();
+    expect(payload?.referenceRenderUrl).toBe(
+      "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75"
+    );
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("keeps rendered snapshot data urls available for tracked generated drags when no durable url can be exported", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    const image = document.createElement("img");
+    image.className = "reference-card-image";
+    image.setAttribute("src", "/reference.png");
+    Object.defineProperty(image, "complete", {
+      configurable: true,
+      value: true,
+    });
+    Object.defineProperty(image, "naturalWidth", {
+      configurable: true,
+      value: 1024,
+    });
+    Object.defineProperty(image, "naturalHeight", {
+      configurable: true,
+      value: 768,
+    });
+    dragNode.appendChild(image);
+
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalToDataUrl = HTMLCanvasElement.prototype.toDataURL;
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () =>
+        ({
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      writable: true,
+      value: () => "data:image/jpeg;base64,tracked-generated-snapshot",
+    });
+
+    try {
+      prepareReferenceDrag(
+        event,
+        {
+          id: "out-generated-data-render",
+          prompt: "Prompt",
+          mode: "image",
+          aspect: "1:1",
+          model: "Model",
+          status: "ready",
+          timestamp: "Now",
+          mediaSource: "generated",
+          generationId: "gen-data-render",
+          previewUrl: "https://provider.example.com/generated-data-render.png",
+        },
+        { sourceSurface: "all-refs" }
+      );
+
+      expect(setData).not.toHaveBeenCalledWith(
+        "text/reference-url",
+        "https://provider.example.com/generated-data-render.png"
+      );
+      expect(setData).toHaveBeenCalledWith(
+        "text/reference-render-url",
+        "data:image/jpeg;base64,tracked-generated-snapshot"
+      );
+
+      const dragSessionToken = setData.mock.calls.find(
+        ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+      )?.[1];
+      const payload = extractInternalReferenceDragPayload({
+        files: emptyFileList,
+        types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+        getData: (type: string) =>
+          type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+      } as unknown as DataTransfer);
+
+      expect(payload?.referenceRenderUrl).toBe("data:image/jpeg;base64,tracked-generated-snapshot");
+    } finally {
+      Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+        configurable: true,
+        writable: true,
+        value: originalGetContext,
+      });
+      Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+        configurable: true,
+        writable: true,
+        value: originalToDataUrl,
+      });
+      clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+    }
   });
 
   it("keeps saved-media render urls available after project reload without exporting provider urls", () => {

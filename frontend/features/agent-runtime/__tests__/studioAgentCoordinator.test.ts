@@ -14,6 +14,7 @@ describe("buildStudioAgentOpenAiMessages", () => {
           presetId: "story_builder",
           label: "Ad Hook",
           instructions: "Lead with an instantly readable hook and clear product payoff.",
+          pulseKind: "guided_workflow",
           source: "builtin",
           workflowStageHints: ["Intake", "Hook", "Payoff"],
           workflowSession: {

@@ -1,23 +1,8 @@
 /**
- * AI Studio performance profile defaults with explicit env override support.
- * `NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE=stable|legacy` controls fallback behavior
- * when individual flags are not set.
+ * AI Studio performance defaults with explicit per-flag env override support.
+ * Stable behavior is the only supported profile.
  */
-type PerfProfileName = "stable" | "legacy";
-
-const PERF_PROFILE_RAW = (process.env.NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE ?? "stable")
-  .trim()
-  .toLowerCase();
-const PERF_PROFILE_VALID = PERF_PROFILE_RAW === "stable" || PERF_PROFILE_RAW === "legacy";
-
-export const AI_STUDIO_PERF_PROFILE: PerfProfileName =
-  PERF_PROFILE_RAW === "legacy" ? "legacy" : "stable";
-
-if (!PERF_PROFILE_VALID && process.env.NODE_ENV !== "test") {
-  console.warn(
-    `[ai-studio][perf-profile] Unknown NEXT_PUBLIC_AI_STUDIO_PERF_PROFILE="${PERF_PROFILE_RAW}". Falling back to "stable".`
-  );
-}
+export const AI_STUDIO_PERF_PROFILE = "stable" as const;
 
 const resolveBooleanFlag = (rawValue: string | undefined, fallback: boolean): boolean => {
   if (rawValue === "true") return true;
@@ -25,7 +10,7 @@ const resolveBooleanFlag = (rawValue: string | undefined, fallback: boolean): bo
   return fallback;
 };
 
-const STABLE_DEFAULTS = {
+const PROFILE_DEFAULTS = {
   outputSelectorStore: true,
   selectorCallbacks: true,
   pageOutputDecouple: true,
@@ -55,39 +40,6 @@ const STABLE_DEFAULTS = {
   referenceGridUpdateBackpressure: true,
   rafStatusFlush: true,
 } as const;
-
-const LEGACY_DEFAULTS = {
-  outputSelectorStore: true,
-  selectorCallbacks: true,
-  pageOutputDecouple: true,
-  referenceGridPreconnectHints: false,
-  perfAuditRuntime: false,
-  shellDecouple: true,
-  shellDndBackpressure: true,
-  shellPanelMemoization: true,
-  shellBoundarySplit: true,
-  shellHighDensityMode: true,
-  referenceGridAdaptivePreview: true,
-  referenceGridCuratedSplit: true,
-  referenceGridStrictPreviewLadder: true,
-  referenceGridDecodeBudget: true,
-  referenceGridDynamicVirtualization: true,
-  referenceGridDenseVisualSimplify: true,
-  referenceGridMemoryGuard: true,
-  referenceGridPerfWatchdog: true,
-  referenceGridHardViewportCap: false,
-  referenceGridCssContainment: false,
-  referenceGridLoadingPlaceholderTimeout: false,
-  referenceGridGlobalMediaBudget: false,
-  referenceGridAdaptivePreviewQuality: false,
-  referenceGridTelemetryBackpressure: false,
-  referenceGridTransitionNonUrgent: false,
-  referenceGridRenderCommitTelemetry: false,
-  referenceGridUpdateBackpressure: false,
-  rafStatusFlush: false,
-} as const;
-
-const PROFILE_DEFAULTS = AI_STUDIO_PERF_PROFILE === "legacy" ? LEGACY_DEFAULTS : STABLE_DEFAULTS;
 
 export const PERF_FLAG_OUTPUT_SELECTOR_STORE = resolveBooleanFlag(
   process.env.NEXT_PUBLIC_AI_STUDIO_OUTPUT_SELECTOR_STORE,

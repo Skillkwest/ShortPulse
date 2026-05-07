@@ -34,7 +34,7 @@ import { useMediaSurfacePreviewSigning } from "../../media-library/hooks/useMedi
 import { useMediaSurfacePreviewRuntime } from "../../media-library/hooks/useMediaSurfacePreviewRuntime";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import { useMediaTabDataController } from "../../media-library/hooks/useMediaTabDataController";
-import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../../media-library/logic/mediaLibraryFeatureFlags";
+import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import { resolveVisibleMediaRows } from "../../media-library/logic/resolveVisibleMediaRows";
 import { getMediaLibrarySurfaceConfig } from "../../media-library/runtime";

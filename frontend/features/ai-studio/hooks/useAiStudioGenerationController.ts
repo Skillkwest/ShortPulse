@@ -12,8 +12,11 @@ import { trackAiStudioGenerateClicked } from "../logic/generationUsageTelemetry"
 import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
 import { buildImageReferenceInputs } from "../logic/referenceInputs";
 import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
-import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
-import type { ReferenceInputsMode } from "./useAiStudioGenerationPromptComposer";
+import type { ExpertEditRegenerateOptions } from "../components/edit/expertEditSubmissionContract";
+import type {
+  AiStudioGenerateOutputOptions,
+  AiStudioGenerateSubmissionOverrides,
+} from "./contracts/generationSubmissionContracts";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 type CharacterModeFallbackSummary<TFallbackCode extends string> = {
@@ -45,23 +48,38 @@ type GenerateResult = {
   optimisticOutputId: string | null;
 };
 
-type RegenerateWithDebitOptions = {
-  referenceInputsOverride?: string[];
-  referenceInputsMode?: ReferenceInputsMode;
-  inpaintOverride?: InpaintSubmissionOverride | null;
-  modelIdOverride?: string | null;
-  outputIdOverride?: string;
-  costOverrideCredits?: number | null;
-  hideOutputFromReferenceGrid?: boolean;
-  displayPromptOverride?: string | null;
-  submissionPromptOverride?: string | null;
-  styleContextOverride?: StudioOutput["styleContext"];
-  suppressStyle?: boolean;
-};
+type RegenerateWithDebitOptions = ExpertEditRegenerateOptions &
+  Pick<
+    AiStudioGenerateSubmissionOverrides,
+    "referenceInputsOverride" | "styleContextOverride" | "suppressStyle"
+  >;
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
+const CREATE_CHARACTER_MODE_LOADING_ERROR =
+  "Character Mode context is still loading. Please wait before generating.";
+const CREATE_CHARACTER_MODE_BUNDLE_UNAVAILABLE_ERROR =
+  "Selected character context could not be loaded. Please reselect the character and retry.";
+const CREATE_CHARACTER_MODE_SELECTION_REQUIRED_ERROR =
+  "Select a character before generating with Character Mode.";
+
+const resolveCreateCharacterModeFallbackBlockMessage = <TFallbackCode extends string>(
+  tool: ToolId | null,
+  overrides: CharacterModeSubmissionOverrides<TFallbackCode>
+): string | null => {
+  if (!isCreateTool(tool) || !overrides?.fallbackCode) return null;
+  switch (overrides.fallbackCode) {
+    case "bundle_loading":
+      return CREATE_CHARACTER_MODE_LOADING_ERROR;
+    case "bundle_unavailable":
+      return CREATE_CHARACTER_MODE_BUNDLE_UNAVAILABLE_ERROR;
+    case "no_character_selected":
+      return CREATE_CHARACTER_MODE_SELECTION_REQUIRED_ERROR;
+    default:
+      return null;
+  }
+};
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
   mode: StudioMode;
@@ -121,38 +139,8 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     selectedToolOverride?: ToolId | null;
   }) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
-  generateOutput: (
-    promptOverride?: string | null,
-    options?: {
-      modeOverride?: StudioMode;
-      selectedToolOverride?: ToolId | null;
-      submissionPromptOverride?: string | null;
-      displayPromptOverride?: string | null;
-      referenceInputsOverride?: string[];
-      referenceInputsMode?: ReferenceInputsMode;
-      characterContextOverride?: StudioOutput["characterContext"];
-      styleContextOverride?: StudioOutput["styleContext"];
-      outputIdOverride?: string;
-      modelIdOverride?: string | null;
-      inpaintOverride?: InpaintSubmissionOverride | null;
-      hideOutputFromReferenceGrid?: boolean;
-      suppressStyle?: boolean;
-    }
-  ) => void;
-  regenerateOutput: (options?: {
-    selectedToolOverride?: ToolId | null;
-    submissionPromptOverride?: string | null;
-    displayPromptOverride?: string | null;
-    referenceInputsOverride?: string[];
-    referenceInputsMode?: ReferenceInputsMode;
-    characterContextOverride?: StudioOutput["characterContext"];
-    styleContextOverride?: StudioOutput["styleContext"];
-    outputIdOverride?: string;
-    modelIdOverride?: string | null;
-    inpaintOverride?: InpaintSubmissionOverride | null;
-    hideOutputFromReferenceGrid?: boolean;
-    suppressStyle?: boolean;
-  }) => void;
+  generateOutput: (promptOverride?: string | null, options?: AiStudioGenerateOutputOptions) => void;
+  regenerateOutput: (options?: AiStudioGenerateSubmissionOverrides) => void;
   activeOutputId?: string | null;
 };
 
@@ -392,6 +380,22 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 
       const hasCharacterModeReferences =
         (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
+      const createCharacterModeFallbackBlockMessage =
+        resolveCreateCharacterModeFallbackBlockMessage(effectiveTool, characterModeOverrides);
+      if (createCharacterModeFallbackBlockMessage) {
+        trackCharacterModeFallback(characterModeOverrides, effectiveTool);
+        trackCharacterModeEvent?.("character_mode_submit_blocked_fallback", {
+          tool: effectiveTool,
+          fallback_code: characterModeOverrides?.fallbackCode ?? null,
+          has_character_description: characterModeOverrides?.hasCharacterDescription ?? false,
+          character_reference_count: characterModeOverrides?.characterReferenceCount ?? 0,
+        });
+        if (optimisticOutputId) {
+          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+        }
+        setUiError(createCharacterModeFallbackBlockMessage);
+        return { accepted: false, optimisticOutputId: null };
+      }
       const characterModeDecision =
         characterModeOverrides &&
         resolveGenerationStartDecision({

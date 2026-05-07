@@ -2,11 +2,10 @@
  * AI Studio workspace page.
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
-import Head from "next/head";
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AiStudioPageShell } from "../features/ai-studio/components/AiStudioPageShell";
 import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
-import { AiStudioProjectEntryState } from "../features/ai-studio/components/AiStudioProjectEntryState";
 import {
   normalizeAiStudioProjectName,
   resolveProjectEntryPhase,
@@ -17,36 +16,22 @@ import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
 import { useActiveModelPricingPolicy } from "../features/ai-studio/hooks/useActiveModelPricingPolicy";
 import { useAiStudioEditSubmitIntent } from "../features/ai-studio/hooks/useAiStudioEditSubmitIntent";
-import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
-import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/useExpertEditPresetPanelPreference";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
-import {
-  CHARACTER_LOADING_GENERATION_GUARDRAIL,
-  shouldDisableGenerateWhileCharacterLoading,
-} from "../features/ai-studio/logic/createGenerationGuards";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
-import {
-  hasUsableCharacterModeInjectionBundle,
-  useAiStudioCharacterModeController,
-  type CharacterModeInjectionBundle,
-} from "../features/ai-studio/hooks/useAiStudioCharacterModeController";
-import { useAiStudioCharacterModeLifecycle } from "../features/ai-studio/hooks/useAiStudioCharacterModeLifecycle";
+import { type CharacterModeInjectionBundle } from "../features/ai-studio/hooks/useAiStudioCharacterModeController";
 import { useAiStudioReferenceAssetActions } from "../features/ai-studio/hooks/useAiStudioReferenceAssetActions";
-import { useAiStudioOptimisticDebitReconciliation } from "../features/ai-studio/hooks/useAiStudioOptimisticDebitReconciliation";
 import { useAiStudioWorkspaceActions } from "../features/ai-studio/hooks/useAiStudioWorkspaceActions";
 import { useAiStudioPageDerivations } from "../features/ai-studio/hooks/useAiStudioPageDerivations";
-import { useAiStudioEditVideoPanelProps } from "../features/ai-studio/hooks/useAiStudioEditVideoPanelProps";
+import { useAiStudioEditExpertPanelProps } from "../features/ai-studio/hooks/useAiStudioEditExpertPanelProps";
 import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAiStudioReferenceGridProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
-import {
-  resolveSavedMediaIdFromOutput,
-  useAiStudioInternalDropResolvers,
-} from "../features/ai-studio/hooks/useAiStudioInternalDropResolvers";
+import { useAiStudioVideoPanelProps } from "../features/ai-studio/hooks/useAiStudioVideoPanelProps";
+import { useAiStudioInternalDropResolvers } from "../features/ai-studio/hooks/useAiStudioInternalDropResolvers";
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
 import { useAiStudioProjectIdentity } from "../features/ai-studio/hooks/useAiStudioProjectIdentity";
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
@@ -55,56 +40,30 @@ import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAi
 import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudioPageUiNotices";
 import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/useAiStudioPageCreditDerivations";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
-import { useAiStudioAudioGeneration } from "../features/ai-studio/hooks/useAiStudioAudioGeneration";
-import { useAiStudioCreateCharacterLookState } from "../features/ai-studio/hooks/useAiStudioCreateCharacterLookState";
-import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
+import { useAiStudioPageGenerationRuntime } from "../features/ai-studio/hooks/useAiStudioPageGenerationRuntime";
+import { useAiStudioPageMediaReferenceRuntime } from "../features/ai-studio/hooks/useAiStudioPageMediaReferenceRuntime";
+import { useAiStudioPageProjectSessionRuntime } from "../features/ai-studio/hooks/useAiStudioPageProjectSessionRuntime";
+import { useAiStudioPageCharacterRuntime } from "../features/ai-studio/hooks/useAiStudioPageCharacterRuntime";
 import { createWorkflowBeginnerModePolicy } from "../features/ai-studio/logic/beginnerWorkflowPolicy";
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
 import { useCreatePulsePresetPageRuntime } from "../features/ai-studio/hooks/createPulsePageRuntime/useCreatePulsePresetPageRuntime";
 import { buildPulseCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildPulseCreateRuntimeResult";
 import { buildStandardCreateRuntimeResult } from "../features/ai-studio/createRuntime/buildStandardCreateRuntimeResult";
-import type { CreatePageAgentRuntime } from "../features/ai-studio/createRuntime/contracts";
-import {
-  shouldApplySessionAgentHydrationToRuntime,
-  type CreateRuntimeAgentHydrationPayload,
-} from "../features/ai-studio/createRuntime/sessionAgentHydrationBoundary";
+import type {
+  CreatePageAgentRuntime,
+  PulseCreatePageAgentRuntime,
+} from "../features/ai-studio/createRuntime/contracts";
+import type { CreateRuntimeAgentHydrationPayload } from "../features/ai-studio/createRuntime/sessionAgentHydrationBoundary";
 import { usePulseCreateAgentRuntime } from "../features/ai-studio/createRuntime/usePulseCreateAgentRuntime";
 import { useStandardCreateAgentRuntime } from "../features/ai-studio/createRuntime/useStandardCreateAgentRuntime";
-import { usePulseCreatePrimarySubmit } from "../features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit";
+import {
+  resolvePulseArtifactGenerationRoute,
+  usePulseCreatePrimarySubmit,
+} from "../features/ai-studio/hooks/pulseCreateRuntime/usePulseCreatePrimarySubmit";
 import { useStandardCreateInlineGenerate } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateInlineGenerate";
 import { useStandardCreatePrimarySubmit } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit";
-import type {
-  CanvasDropResolution,
-  PrepareCanvasMediaLibraryDrop,
-  ResolveCanvasDropReference,
-} from "../features/ai-studio/components/canvas/canvasTypes";
-import {
-  CANVAS_AUDIO_ITEM_HEIGHT,
-  CANVAS_AUDIO_ITEM_WIDTH,
-} from "../features/ai-studio/components/canvas/canvasGeometry";
-import {
-  createVoiceChangerSourceFromFile,
-  createVoiceChangerSourceFromReference,
-  type ResolveVoiceChangerInternalReferenceSource,
-} from "../features/ai-studio/components/VoiceChangerSourceDropzone";
-import {
-  normalizeOptionalText,
-  resolveVoiceChangerBlobFilename,
-  resolveVoiceChangerOutputLocalUrl,
-  resolveVoiceChangerOutputRemoteUrl,
-  resolveVoiceChangerOutputStoragePath,
-} from "../features/ai-studio/logic/voiceChangerReferenceSource";
-import {
-  createEmptyAiStudioSessionAgentState,
-  createEmptyAiStudioSessionSnapshot,
-  patchAiStudioSessionSnapshotCanvas,
-  patchAiStudioSessionSnapshotWorkspace,
-  type AiStudioSessionAgentV1,
-  type AiStudioSessionAgentRuntimesV2,
-} from "../features/ai-studio/logic/sessionSnapshot";
-import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
-import type { StudioOutput, ToolId } from "../features/ai-studio/types";
+import type { StudioMode, StudioOutput, ToolId } from "../features/ai-studio/types";
 import {
   PERF_FLAG_AUDIT_RUNTIME,
   PERF_FLAG_OUTPUT_SELECTOR_STORE,
@@ -112,7 +71,6 @@ import {
   PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
   PERF_FLAG_SELECTOR_CALLBACKS,
 } from "../features/ai-studio/logic/perfProfileFlags";
-const CHARACTER_MODE_BUNDLE_STALE_AFTER_MS = 45 * 60 * 1000;
 const FLAG_OUTPUT_SELECTOR_STORE = PERF_FLAG_OUTPUT_SELECTOR_STORE;
 const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
@@ -294,6 +252,9 @@ const useAiStudioPageBaseRuntime = () => {
     createIsGenerating,
     editIsGenerating,
     expertEditSessionState,
+    expertEditSessionRevision,
+    publishExpertEditSessionState,
+    getExpertEditSessionState,
     setExpertEditSessionState,
     useReferenceImageIndicator,
     detailOutput,
@@ -355,56 +316,6 @@ const useAiStudioPageBaseRuntime = () => {
     setActivePulsePresetId: setActiveCreatePulsePresetId,
     setPulseSessionInstanceId,
   });
-  const handleQuickSlotLibraryMediaDrop = useCallback(
-    async (
-      payload: Parameters<typeof addLibraryMediaReferenceToQuickSlot>[0],
-      options?: {
-        targetId: string | null;
-        placement: "before" | "after" | "end";
-      }
-    ) => {
-      const insertedId = await addLibraryMediaReferenceToQuickSlot(payload, options);
-      if (!insertedId) return null;
-      addCuratedReference(insertedId);
-      if (options?.targetId || options?.placement === "end") {
-        reorderCuratedReference(insertedId, options?.targetId ?? null, options?.placement ?? "end");
-      }
-      setActiveOutputId(insertedId);
-      return insertedId;
-    },
-    [
-      addCuratedReference,
-      addLibraryMediaReferenceToQuickSlot,
-      reorderCuratedReference,
-      setActiveOutputId,
-    ]
-  );
-
-  const handleQuickSlotLibraryPromptDrop = useCallback(
-    (
-      payload: Parameters<typeof addLibraryPromptReferenceToQuickSlot>[0],
-      options?: {
-        targetId: string | null;
-        placement: "before" | "after" | "end";
-      }
-    ) => {
-      const insertedId = addLibraryPromptReferenceToQuickSlot(payload, options);
-      if (!insertedId) return null;
-      addCuratedReference(insertedId);
-      if (options?.targetId || options?.placement === "end") {
-        reorderCuratedReference(insertedId, options?.targetId ?? null, options?.placement ?? "end");
-      }
-      setActiveOutputId(insertedId);
-      return insertedId;
-    },
-    [
-      addCuratedReference,
-      addLibraryPromptReferenceToQuickSlot,
-      reorderCuratedReference,
-      setActiveOutputId,
-    ]
-  );
-
   useEffect(() => {
     setExpertEditSessionState(null);
   }, [sessionId, setExpertEditSessionState]);
@@ -421,17 +332,6 @@ const useAiStudioPageBaseRuntime = () => {
     },
     [resetEditSubmitIntent, selectedTool, setSelectedTool]
   );
-  const handleOpenCharacterCreate = useCallback(() => {
-    setSelectedToolWithEditIntentReset("character");
-    setCharacterCreateRequestKey((current) => current + 1);
-  }, [setSelectedToolWithEditIntentReset]);
-  const handleOpenCharacterLibrary = useCallback(() => {
-    setSelectedToolWithEditIntentReset("character");
-  }, [setSelectedToolWithEditIntentReset]);
-  const handleOpenElementCreate = useCallback(() => {
-    setSelectedToolWithEditIntentReset("elements");
-    setElementCreateRequestKey((current) => current + 1);
-  }, [setSelectedToolWithEditIntentReset]);
   const {
     resolveCharacterDropReference,
     resolveMediaLibraryInternalDropItem,
@@ -442,192 +342,21 @@ const useAiStudioPageBaseRuntime = () => {
     getOutputSnapshot,
     ensureOutputPersisted,
   });
-  const resolveCanvasDropReference = useCallback<ResolveCanvasDropReference>(
-    (payload) => {
-      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
-      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
-      const output = outputId ? getOutputById(outputId) : null;
-      if (!output) return null;
-      if (output.mode === "text") {
-        const text = (output.prompt || output.previewText || "").trim();
-        if (!text) return null;
-        return {
-          kind: "text",
-          outputId: outputId || null,
-          text,
-          sourceSurface: payload.sourceSurface ?? null,
-        };
-      }
-      if (output.mode === "audio") {
-        const audioUrl =
-          output.resultUrls?.[0] ?? output.previewUrl ?? payload.referenceUrl ?? null;
-        if (!audioUrl) return null;
-        return {
-          kind: "audio",
-          outputId: outputId || null,
-          mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
-          audioUrl,
-          title: (output.prompt || output.previewText || "Canvas audio").trim() || null,
-          durationMs: output.durationMs ?? null,
-          waveformPeaks: output.waveformPeaks ?? null,
-          width: CANVAS_AUDIO_ITEM_WIDTH,
-          height: CANVAS_AUDIO_ITEM_HEIGHT,
-          sourceSurface: payload.sourceSurface ?? null,
-        };
-      }
-      if (output.mode !== "image") return null;
-      const sourceUrl =
-        output.resultUrls?.[imageIndex] ?? output.previewUrl ?? payload.referenceUrl ?? null;
-      if (!sourceUrl) return null;
-      return {
-        kind: "image",
-        outputId: outputId || null,
-        mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
-        src: sourceUrl,
-        alt: (output.prompt || output.previewText || "Canvas reference").trim(),
-        sourceSurface: payload.sourceSurface ?? null,
-      };
-    },
-    [getOutputById]
-  );
-  const resolveVoiceChangerInternalReferenceSource =
-    useCallback<ResolveVoiceChangerInternalReferenceSource>(
-      async (payload) => {
-        const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
-        const output = outputId ? getOutputById(outputId) : null;
-        if (!output || (output.mode !== "audio" && output.mode !== "video")) return null;
-
-        const kind = output.mode;
-        const referenceMediaId =
-          payload.mediaId?.trim() || resolveSavedMediaIdFromOutput(output, payload.imageIndex ?? 0);
-        const storagePath = resolveVoiceChangerOutputStoragePath(output);
-        const remoteUrl = resolveVoiceChangerOutputRemoteUrl({
-          output,
-          kind,
-          payloadReferenceUrl: payload.referenceUrl,
-        });
-        const displayName =
-          normalizeOptionalText(output.prompt || output.previewText) ?? `Reference Grid ${kind}`;
-
-        if (storagePath || remoteUrl) {
-          return createVoiceChangerSourceFromReference({
-            kind,
-            origin: "reference-grid",
-            name: displayName,
-            mimeType: output.mimeType ?? null,
-            sourceUrl: remoteUrl,
-            previewUrl: kind === "video" ? remoteUrl : null,
-            storagePath,
-            durationMs: output.durationMs ?? null,
-            referenceOutputId: outputId || null,
-            referenceMediaId,
-          });
-        }
-
-        const localUrl = resolveVoiceChangerOutputLocalUrl(output);
-        if (!localUrl) return null;
-
-        try {
-          const response = await fetch(localUrl);
-          if (!response.ok) return null;
-          const blob = await response.blob();
-          if (!(blob instanceof Blob) || blob.size <= 0) return null;
-          const mimeType =
-            blob.type || output.mimeType || (kind === "audio" ? "audio/mpeg" : "video/mp4");
-          const file = new File(
-            [blob],
-            resolveVoiceChangerBlobFilename({ output, kind, mimeType }),
-            { type: mimeType }
-          );
-          return createVoiceChangerSourceFromFile(file, {
-            origin: "reference-grid",
-            referenceOutputId: outputId || null,
-            referenceMediaId,
-            durationMs: output.durationMs ?? null,
-          });
-        } catch (error) {
-          addBreadcrumb({
-            type: "ui",
-            level: "warn",
-            message: "voice_changer.internal_reference_resolve_failed",
-            data: {
-              outputId,
-              mediaId: referenceMediaId,
-              mode: output.mode,
-              errorMessage: error instanceof Error ? error.message : String(error),
-            },
-          });
-          return null;
-        }
-      },
-      [getOutputById]
-    );
-  const prepareCanvasMediaLibraryDrop = useCallback<PrepareCanvasMediaLibraryDrop>(
-    async (payload): Promise<CanvasDropResolution | null> => {
-      if (payload.kind === "libraryMedia") {
-        const outputId = await addLibraryMediaReferenceToQuickSlot(payload.payload);
-        if (!outputId) return null;
-        const previewSrc =
-          (payload.payload.fullUrl ?? "").trim() ||
-          (payload.payload.previewUrl ?? "").trim() ||
-          (payload.payload.url ?? "").trim();
-        if (!previewSrc) return null;
-        if (payload.payload.fileType === "audio") {
-          return {
-            kind: "audio",
-            outputId,
-            mediaId: payload.payload.id,
-            audioUrl: previewSrc,
-            title:
-              (payload.payload.filename || payload.payload.promptText || "Canvas audio").trim() ||
-              null,
-            width: CANVAS_AUDIO_ITEM_WIDTH,
-            height: CANVAS_AUDIO_ITEM_HEIGHT,
-          };
-        }
-        const width =
-          typeof payload.payload.width === "number" &&
-          Number.isFinite(payload.payload.width) &&
-          payload.payload.width > 0
-            ? payload.payload.width
-            : undefined;
-        const height =
-          typeof payload.payload.height === "number" &&
-          Number.isFinite(payload.payload.height) &&
-          payload.payload.height > 0
-            ? payload.payload.height
-            : undefined;
-        return {
-          kind: "image",
-          outputId,
-          mediaId: payload.payload.id,
-          src: previewSrc,
-          alt: (payload.payload.filename || payload.payload.promptText || "Canvas media").trim(),
-          width,
-          height,
-        };
-      }
-
-      const promptText = payload.payload.promptText.trim();
-      if (!promptText) return null;
-      const outputId = addLibraryPromptReferenceToQuickSlot(payload.payload);
-      if (!outputId) return null;
-      return {
-        kind: "text",
-        outputId,
-        text: promptText,
-      };
-    },
-    [addLibraryMediaReferenceToQuickSlot, addLibraryPromptReferenceToQuickSlot]
-  );
   const {
+    canvasSessionState,
+    handleQuickSlotLibraryMediaDrop,
+    handleQuickSlotLibraryPromptDrop,
+    hydrateCanvasSessionState,
     railCanvasProps,
-    sessionState: canvasSessionState,
-    hydrateSessionState: hydrateCanvasSessionState,
-  } = useAiStudioDualCanvasWorkspaceState({
-    resolveCanvasDropReference,
-    prepareCanvasMediaLibraryDrop,
-    onPinTextReference: addPastedPromptReference,
+    resolveVoiceChangerInternalReferenceSource,
+  } = useAiStudioPageMediaReferenceRuntime({
+    addCuratedReference,
+    addLibraryMediaReferenceToQuickSlot,
+    addLibraryPromptReferenceToQuickSlot,
+    addPastedPromptReference,
+    getOutputById,
+    reorderCuratedReference,
+    setActiveOutputId,
   });
   useAiStudioMediaAutosaveOrchestrator({
     outputs,
@@ -688,78 +417,44 @@ const useAiStudioPageBaseRuntime = () => {
   }, []);
   const {
     characterOptions,
-    selectedCharacterId: createSelectedCharacterId,
-    setSelectedCharacterId: setCreateSelectedCharacterId,
+    createSelectedCharacterId,
+    handleCreateCharacterSelection,
+    handleOpenCharacterCreate,
+    handleOpenCharacterLibrary,
+    handleOpenElementCreate,
     isCharacterOptionsLoading,
+    loadCreateCharacterLookOptions,
+    refreshCharacterModeInjectionBundleForSubmission,
     refreshCharacterOptions,
-    resolveCharacterOptionById,
-  } = useAiStudioCharacterModeLifecycle({
+    resolveCharacterAvatarUrlById,
+    resolveCharacterModeSubmissionOverrides,
+    resolveIsCharacterModeEnabledForTool,
+    resolveSelectedCharacterIdForTool,
+    selectedCreateCharacterLookLabel,
+    setCreateSelectedCharacterId,
+    trackCharacterModeFallback,
+  } = useAiStudioPageCharacterRuntime({
+    createCharacterModeInjectionBundle,
+    createSelectedCharacterLookId,
+    editCharacterModeInjectionBundle,
+    editSelectedCharacterId,
+    isCreateCharacterBundleLoading,
+    isCreateCharacterModeEnabled,
+    isEditCharacterBundleLoading,
+    isEditCharacterModeEnabled,
     projectId,
     projectRouteRequested,
     selectedTool,
-    selectedCharacterLookId: createSelectedCharacterLookId,
-    setUiError,
-    setCharacterModeInjectionBundle: setCreateCharacterModeInjectionBundle,
-    setIsCharacterBundleLoading: setIsCreateCharacterBundleLoading,
-  });
-  const {
-    handleCreateCharacterSelection,
-    loadCreateCharacterLookOptions,
-    selectedCreateCharacterLookLabel,
-  } = useAiStudioCreateCharacterLookState({
-    createSelectedCharacterId,
-    setCreateSelectedCharacterId,
-    createSelectedCharacterLookId,
+    setCharacterCreateRequestKey,
+    setCreateCharacterModeInjectionBundle,
     setCreateSelectedCharacterLookId,
-    createCharacterModeInjectionBundle,
-  });
-  const resolveIsCharacterModeEnabledForTool = useCallback(
-    (tool: ToolId | null): boolean => {
-      if (tool === "create" || tool === "text") return isCreateCharacterModeEnabled;
-      if (tool === "edit" || tool === "image") return isEditCharacterModeEnabled;
-      return false;
-    },
-    [isCreateCharacterModeEnabled, isEditCharacterModeEnabled]
-  );
-  const resolveSelectedCharacterIdForTool = useCallback(
-    (tool: ToolId | null): string | null => {
-      if (tool === "create" || tool === "text") {
-        return createSelectedCharacterId?.trim() || null;
-      }
-      if (tool === "edit" || tool === "image") {
-        return editSelectedCharacterId?.trim() || null;
-      }
-      return null;
-    },
-    [createSelectedCharacterId, editSelectedCharacterId]
-  );
-  const resolveCharacterAvatarUrlById = useCallback(
-    (characterId: string | null | undefined): string | null => {
-      return resolveCharacterOptionById(characterId)?.profileImageUrl?.trim() ?? null;
-    },
-    [resolveCharacterOptionById]
-  );
-  const {
-    refreshCharacterModeInjectionBundleForSubmission,
-    resolveCharacterModeSubmissionOverrides,
-    trackCharacterModeFallback,
-  } = useAiStudioCharacterModeController({
-    isCharacterModeEnabled: isCreateCharacterModeEnabled,
-    selectedCharacterId: createSelectedCharacterId,
-    selectedCharacterLookId: createSelectedCharacterLookId,
-    characterModeInjectionBundle: createCharacterModeInjectionBundle,
-    isCharacterBundleLoading: isCreateCharacterBundleLoading,
-    editCharacterModeEnabled: isEditCharacterModeEnabled,
-    editSelectedCharacterId,
-    editCharacterModeInjectionBundle,
-    isEditCharacterBundleLoading,
-    characterOptions,
-    setCharacterModeInjectionBundle: setCreateCharacterModeInjectionBundle,
-    setIsCharacterBundleLoading: setIsCreateCharacterBundleLoading,
     setEditCharacterModeInjectionBundle,
+    setElementCreateRequestKey,
+    setIsCreateCharacterBundleLoading,
     setIsEditCharacterBundleLoading,
+    setSelectedToolWithEditIntentReset,
+    setUiError,
     trackCharacterModeEvent: trackUiEvent,
-    bundleStaleAfterMs: CHARACTER_MODE_BUNDLE_STALE_AFTER_MS,
   });
   const pendingCreateRuntimeAgentHydrationRef = useRef<CreateRuntimeAgentHydrationPayload | null>(
     null
@@ -790,13 +485,13 @@ const useAiStudioPageBaseRuntime = () => {
     canvasSessionState,
     characterCreateRequestKey,
     characterError,
-    characterOptions,
     clearCharacterError,
     clearGenerationOutput,
     clearPulseRuntime,
     closeModelModal,
     createCharacterModeInjectionBundle,
     createIsGenerating,
+    characterOptions,
     createSelectedCharacterId,
     createSelectedCharacterLookId,
     curatedReferenceIds,
@@ -812,9 +507,11 @@ const useAiStudioPageBaseRuntime = () => {
     expertCreateMode,
     expertEditCustomPresetOverrides,
     expertEditSessionState,
+    expertEditSessionRevision,
     extraImageUrls,
     findOutputById,
     generateOutput,
+    getExpertEditSessionState,
     getAgentContext,
     getDefaultDurationSeconds,
     handleActiveCreatePulsePresetIdChange,
@@ -866,6 +563,7 @@ const useAiStudioPageBaseRuntime = () => {
     outputs,
     pendingCreateRuntimeAgentHydrationRef,
     pendingHoldCredits,
+    publishExpertEditSessionState,
     project,
     projectError,
     projectId,
@@ -1005,6 +703,891 @@ type CreateRuntimeRootSharedProps = {
   base: AiStudioPageBaseRuntime;
   createPulsePageRuntime: CreatePulsePresetPageRuntime;
 };
+type CreatePanelProps = React.ComponentProps<typeof AiStudioPageContent>["propertiesCreate"];
+type EditPanelProps = React.ComponentProps<typeof AiStudioPageContent>["propertiesEditExpert"];
+type VideoPanelProps = React.ComponentProps<typeof AiStudioPageContent>["propertiesVideo"];
+type PageContentRuntimeProps = ReturnType<typeof mapHookContractsToPageContentProps>;
+type ModelModalState = React.ComponentProps<typeof AiStudioPageContent>["modelModalState"];
+type CreatePanelGenerateOptions = {
+  modeOverride?: StudioMode;
+  toolOverride?: ToolId | null;
+  costOverrideCredits?: number | null;
+  suppressStyle?: boolean;
+};
+type CreatePanelGenerateResult = {
+  accepted: boolean;
+  optimisticOutputId: string | null;
+};
+type CreatePanelHandleGenerate = (
+  promptOverride?: string | null,
+  options?: CreatePanelGenerateOptions
+) => Promise<CreatePanelGenerateResult>;
+type CreatePanelHandlePulsePresetStart = NonNullable<
+  PulseCreatePageAgentRuntime["handlePulsePresetStart"]
+>;
+type UseAiStudioCreatePanelRuntimeParams = {
+  base: AiStudioPageBaseRuntime;
+  createPulsePageRuntime: CreatePulsePresetPageRuntime;
+  activeCreateAgentRuntime: CreatePageAgentRuntime;
+  workflowBeginnerPolicy: ReturnType<typeof createWorkflowBeginnerModePolicy>;
+  currentCostCredits: number | null;
+  promptReferenceGenerateCostCredits: number | null;
+  hasSufficientCreditsForPromptReferenceGenerate: boolean;
+  effectiveGenerationGuardrail: string | null;
+  effectiveIsGenerateDisabled: boolean;
+  pulseArtifactTarget: Parameters<typeof resolvePulseArtifactGenerationRoute>[0];
+  pulseCurrentCostCredits: number | null;
+  pulsePromptReferenceGenerateCostCredits: number | null;
+  pulseGenerationGuardrail: string | null;
+  pulseGenerateCostCredits: number | null;
+  handleStandardCreatePromptChange: (value: string) => void;
+  handlePulseCreatePromptChange: (value: string) => void;
+  handleExpertCreateModeChangeForPage: (value: "standard" | "pulse") => void;
+  handleActiveCreatePulsePresetIdChangeForPage: (
+    presetId: string | null,
+    options?: Parameters<
+      CreatePulsePresetPageRuntime["handleActiveCreatePulsePresetIdChangeForPage"]
+    >[1]
+  ) => string | null | void;
+  handleCreatePulsePresetStart: CreatePanelHandlePulsePresetStart;
+  handleGenerate: CreatePanelHandleGenerate;
+  handleOpenModelModal: ReturnType<typeof useAiStudioWorkspaceActions>["handleOpenModelModal"];
+  handleStandardAgentCaptureResult: (promptText: string, referenceTitle?: string | null) => void;
+};
+type UseAiStudioEditVideoPanelRuntimesParams = {
+  base: AiStudioPageBaseRuntime;
+  workflowBeginnerPolicy: ReturnType<typeof createWorkflowBeginnerModePolicy>;
+  currentCostCredits: number | null;
+  effectiveGenerationGuardrail: string | null;
+  effectiveIsGenerateDisabled: boolean;
+  referenceImageWarning: string | null;
+  handleOpenModelModal: ReturnType<typeof useAiStudioWorkspaceActions>["handleOpenModelModal"];
+  handleEditPromptTextChange: ReturnType<
+    typeof useAiStudioWorkspaceActions
+  >["handleEditPromptTextChange"];
+  handleVideoPromptTextChange: ReturnType<
+    typeof useAiStudioWorkspaceActions
+  >["handleVideoPromptTextChange"];
+  handleImageRegenerateWithDebit: ReturnType<
+    typeof useAiStudioGenerationController
+  >["handleImageRegenerateWithDebit"];
+  handleRegenerateWithDebit: ReturnType<
+    typeof useAiStudioGenerationController
+  >["handleRegenerateWithDebit"];
+};
+type UseAiStudioReferenceExperienceRuntimeParams = {
+  base: AiStudioPageBaseRuntime;
+  linkedPromptReferenceIds: string[];
+  propertiesCreate: CreatePanelProps;
+  propertiesEditExpert: EditPanelProps;
+  propertiesVideo: VideoPanelProps;
+  handleSelectOutput: ReturnType<typeof useAiStudioWorkspaceActions>["handleSelectOutput"];
+  handleManualPromptChange: ReturnType<
+    typeof useAiStudioWorkspaceActions
+  >["handleManualPromptChange"];
+  handleRegenerateWithDebit: ReturnType<
+    typeof useAiStudioGenerationController
+  >["handleRegenerateWithDebit"];
+  handleOpenMediaLibrary: ReturnType<typeof useAiStudioWorkspaceActions>["handleOpenMediaLibrary"];
+};
+type UseAiStudioShellRuntimeParams = {
+  base: AiStudioPageBaseRuntime;
+  sessionRestoreCandidate: ReturnType<
+    typeof useAiStudioPageSessionPersistence
+  >["sessionRestoreCandidate"];
+  projectBootstrapApplied: boolean;
+  filteredModelOptions: ReturnType<typeof useAiStudioPageDerivations>["filteredModelOptions"];
+  resolveModelPickerCredits: ReturnType<typeof useAiStudioViewModel>["resolveModelPickerCredits"];
+  handleSelectModelFromModal: ReturnType<
+    typeof useAiStudioWorkspaceActions
+  >["handleSelectModelFromModal"];
+};
+
+const useAiStudioCreatePanelRuntime = ({
+  base,
+  createPulsePageRuntime,
+  activeCreateAgentRuntime,
+  workflowBeginnerPolicy,
+  currentCostCredits,
+  promptReferenceGenerateCostCredits,
+  hasSufficientCreditsForPromptReferenceGenerate,
+  effectiveGenerationGuardrail,
+  effectiveIsGenerateDisabled,
+  pulseArtifactTarget,
+  pulseCurrentCostCredits,
+  pulsePromptReferenceGenerateCostCredits,
+  pulseGenerationGuardrail,
+  pulseGenerateCostCredits,
+  handleStandardCreatePromptChange,
+  handlePulseCreatePromptChange,
+  handleExpertCreateModeChangeForPage,
+  handleActiveCreatePulsePresetIdChangeForPage,
+  handleCreatePulsePresetStart,
+  handleGenerate,
+  handleOpenModelModal,
+  handleStandardAgentCaptureResult,
+}: UseAiStudioCreatePanelRuntimeParams): CreatePanelProps => {
+  const {
+    activeCreatePulsePresetId,
+    aspect,
+    characterOptions,
+    createIsGenerating,
+    createSelectedCharacterId,
+    createSelectedCharacterLookId,
+    currentModelLabel,
+    expertCreateMode,
+    handleCreateCharacterSelection,
+    handleOpenCharacterLibrary,
+    imageResolution,
+    isCharacterOptionsLoading,
+    isCreateCharacterModeEnabled,
+    mode,
+    model,
+    modelModalAnchor,
+    pulsePrompt,
+    refreshCharacterOptions,
+    resolveCharacterAvatarUrlById,
+    savePromptReference,
+    selectedCreateCharacterLookLabel,
+    selectedTool,
+    setAspect,
+    setImageResolution,
+    setIsCreateCharacterModeEnabled,
+    setMode,
+    setSelectedToolWithEditIntentReset,
+    setStandardCreatePrompt,
+    setUiNotice,
+    setVideoReferenceText,
+    standardPrompt,
+    useReferenceImageIndicator,
+  } = base;
+  const {
+    agentAttachmentError,
+    agentAttachments,
+    agentBootstrapReady,
+    agentBusy,
+    agentEnabled,
+    agentError,
+    agentInput,
+    agentIsSending,
+    agentMessages,
+    agentUiBusy,
+    handleAgentAttachmentDragEnter,
+    handleAgentAttachmentDragLeave,
+    handleAgentAttachmentDragOver,
+    handleAgentAttachmentDrop,
+    handleAgentInputChange,
+    handleAgentSend,
+    handleAssistantMessageEdit,
+    isPromptRefining,
+    describeInFlightCount,
+    handleClearAgentAttachments,
+    handleClearAgentChat,
+    handleRemoveAgentAttachment,
+    isAgentDropActive,
+    persistedAgentRuntime,
+    setPromptOrigin,
+    stagedAgentPrompt,
+  } = activeCreateAgentRuntime;
+  const standardCreateAgentRuntime =
+    activeCreateAgentRuntime.kind === "standard" ? activeCreateAgentRuntime : null;
+  const pulseCreateAgentRuntime =
+    activeCreateAgentRuntime.kind === "pulse" ? activeCreateAgentRuntime : null;
+  const noopSetChatModeEnabled = useCallback<React.Dispatch<React.SetStateAction<boolean>>>(
+    () => undefined,
+    []
+  );
+  const chatModeEnabled = standardCreateAgentRuntime?.chatModeEnabled ?? true;
+  const setChatModeEnabled =
+    standardCreateAgentRuntime?.setChatModeEnabled ?? noopSetChatModeEnabled;
+  const handleProviderPrimarySubmit = useCallback(() => {
+    void handleGenerate();
+  }, [handleGenerate]);
+  const handleStandardCreatePrimarySubmit = useStandardCreatePrimarySubmit({
+    mode,
+    selectedTool,
+    chatModeEnabled,
+    agentInput,
+    prompt: standardPrompt,
+    currentCostCredits,
+    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
+    handleAgentSend,
+    handleGenerate,
+    handleProviderPrimarySubmit,
+    handleStandardAgentCaptureResult,
+    setPromptOrigin,
+  });
+  const handleChatOffInlineGenerate = useStandardCreateInlineGenerate({
+    agentInput,
+    prompt: standardPrompt,
+    currentCostCredits,
+    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
+    handleGenerate,
+    setPromptOrigin,
+  });
+  const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt } =
+    useAiStudioAgentOutputGenerationBridge({
+      enabled: expertCreateMode !== "pulse",
+      outputs: base.outputs,
+      referenceGridReadyOutputIds: base.referenceGridReadyOutputIds,
+      mode,
+      selectedTool,
+      isGenerateDisabled: effectiveIsGenerateDisabled,
+      hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
+      model,
+      characterModeEnabled: isCreateCharacterModeEnabled,
+      selectedCharacterId: createSelectedCharacterId,
+      currentCostCredits,
+      promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
+      setVideoReferenceText,
+      setEditReferenceText: base.setEditReferenceText,
+      setSharedPrompt: setStandardCreatePrompt,
+      setSelectedToolWithEditIntentReset,
+      setMode,
+      setPromptOrigin,
+      handleGenerate,
+    });
+  const pulsePrimarySubmitGuardrail =
+    pulseArtifactTarget != null ? pulseGenerationGuardrail : effectiveGenerationGuardrail;
+  const pulsePrimarySubmitCostCredits =
+    pulseArtifactTarget != null ? pulseCurrentCostCredits : currentCostCredits;
+  const {
+    pulseArtifactGenerateGuardrail,
+    pulseArtifactGenerateDisabled,
+    handlePulseCreatePrimarySubmit,
+  } = usePulseCreatePrimarySubmit({
+    hasActivePulseSession: createPulsePageRuntime.hasActivePulseSession,
+    pulseKind: createPulsePageRuntime.activeCreatePulsePresetSnapshot?.pulseKind ?? null,
+    pulseWorkflowSession: base.pulseWorkflowSession,
+    latestAgentPrompt: pulseCreateAgentRuntime?.latestAgentPrompt ?? null,
+    artifactTarget: pulseArtifactTarget,
+    effectiveGenerationGuardrail: pulsePrimarySubmitGuardrail,
+    promptReferenceGenerateCostCredits: pulsePromptReferenceGenerateCostCredits ?? null,
+    currentCostCredits: pulsePrimarySubmitCostCredits,
+    handleGenerate,
+    setUiNotice,
+  });
+  const createGenerateCostCredits =
+    mode === "text" && !chatModeEnabled
+      ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
+      : currentCostCredits;
+  const expertCreatePolicy = workflowBeginnerPolicy.create;
+  const { pulsePreferenceRuntime, activeCreatePulsePresetSnapshot, hasActivePulseSession } =
+    createPulsePageRuntime;
+
+  return useMemo<CreatePanelProps>(() => {
+    if (expertCreateMode === "pulse") {
+      const pulseRuntime = buildPulseCreateRuntimeResult({
+        props: {
+          pulsePrompt,
+          hasActiveSession: hasActivePulseSession,
+          activePresetId: activeCreatePulsePresetId,
+          activePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
+          activePresetKind: activeCreatePulsePresetSnapshot?.pulseKind ?? null,
+          workflowSession: base.pulseWorkflowSession,
+          createIsGenerating,
+          currentCostCredits: pulseGenerateCostCredits,
+          isGenerateDisabled: pulseArtifactGenerateDisabled,
+          generationGuardrail: pulseArtifactGenerateGuardrail,
+          expertCreateUiEligible: expertCreatePolicy.expertCreateEligible,
+          onPulsePromptChange: handlePulseCreatePromptChange,
+          onActivePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
+          onSavePromptReference: savePromptReference,
+          pulsePreferenceRuntime,
+          generationServices: { handleGenerate },
+        },
+        agentRuntime: {
+          agentEnabled,
+          agentBootstrapReady,
+          agentMessages,
+          agentInput,
+          agentBusy,
+          agentIsSending,
+          agentUiBusy,
+          agentAttachmentError,
+          agentError,
+          stagedAgentPrompt,
+          agentAttachments,
+          isAgentDropActive,
+          workflowSession: base.pulseWorkflowSession,
+          persistedAgentRuntime,
+        },
+        actions: {
+          onAgentInputChange: handleAgentInputChange,
+          onAgentSend: handleAgentSend,
+          onAgentAttachmentDrop: handleAgentAttachmentDrop,
+          onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
+          onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
+          onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
+          onRemoveAgentAttachment: handleRemoveAgentAttachment,
+          onClearAgentAttachments: handleClearAgentAttachments,
+          onAssistantMessageEdit: handleAssistantMessageEdit,
+          onClearAgentChat: handleClearAgentChat,
+          onGenerateArtifact: handlePulseCreatePrimarySubmit,
+          onPresetStart: handleCreatePulsePresetStart,
+        },
+      });
+      return {
+        expertCreateMode: "pulse",
+        onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
+        pulse: {
+          ...pulseRuntime.panelProps,
+          hasActivePulseSession,
+          pulseWorkflowSession: base.pulseWorkflowSession,
+          activePulsePresetId: activeCreatePulsePresetId,
+          activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
+          activePulsePresetKind: activeCreatePulsePresetSnapshot?.pulseKind ?? null,
+          onActivePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
+          onPulsePresetStart: handleCreatePulsePresetStart,
+        },
+      };
+    }
+
+    const standardRuntime = buildStandardCreateRuntimeResult({
+      props: {
+        prompt: standardPrompt,
+        mode,
+        selectedTool,
+        aspect,
+        model,
+        currentModelLabel,
+        createIsGenerating,
+        isPromptRefining,
+        describeInFlightCount,
+        createGenerateCostCredits,
+        promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
+        hasSufficientCreditsForPromptReferenceGenerate,
+        isGenerateDisabled: effectiveIsGenerateDisabled,
+        generationGuardrail: effectiveGenerationGuardrail,
+        useReferenceImageIndicator,
+        isModelModalOpen: base.isModelModalOpen,
+        modelModalAnchor,
+        characterOptions,
+        selectedCharacterId: createSelectedCharacterId,
+        selectedCharacterLookId: createSelectedCharacterLookId,
+        selectedCharacterLookLabel: selectedCreateCharacterLookLabel,
+        isCharacterOptionsLoading,
+        isCharacterModeEnabled: isCreateCharacterModeEnabled,
+        imageResolution,
+        beginnerCreateMode: expertCreatePolicy.beginnerMode,
+        expertCreateUiEligible: expertCreatePolicy.expertCreateEligible,
+        onPromptChange: handleStandardCreatePromptChange,
+        onAspectChange: setAspect,
+        onModelPickerOpen: handleOpenModelModal,
+        onSavePromptReference: savePromptReference,
+        onSelectedCharacterChange: handleCreateCharacterSelection,
+        onOpenCharacterLibrary: handleOpenCharacterLibrary,
+        onCharacterModeChange: setIsCreateCharacterModeEnabled,
+        onRefreshCharacterOptions: refreshCharacterOptions,
+        onLoadCharacterLookOptions: base.loadCreateCharacterLookOptions,
+        resolveCharacterAvatarUrlById,
+        onImageResolutionChange: setImageResolution,
+        generationServices: { handleGenerate },
+      },
+      agentRuntime: {
+        agentEnabled,
+        agentBootstrapReady,
+        agentMessages,
+        agentInput,
+        chatModeEnabled,
+        agentBusy,
+        agentIsSending,
+        agentUiBusy,
+        agentAttachmentError,
+        agentError,
+        stagedAgentPrompt,
+        assistantBubbleMedia,
+        agentAttachments,
+        isAgentDropActive,
+        persistedAgentRuntime,
+      },
+      actions: {
+        onAgentInputChange: handleAgentInputChange,
+        onChatModeChange: setChatModeEnabled,
+        onAgentSend: handleAgentSend,
+        onAgentAttachmentDrop: handleAgentAttachmentDrop,
+        onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
+        onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
+        onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
+        onRemoveAgentAttachment: handleRemoveAgentAttachment,
+        onClearAgentAttachments: handleClearAgentAttachments,
+        onAssistantMessageEdit: handleAssistantMessageEdit,
+        onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
+        onClearAgentChat: handleClearAgentChat,
+        onPrimarySubmit: handleStandardCreatePrimarySubmit,
+        onChatOffInlineGenerate: handleChatOffInlineGenerate,
+      },
+    });
+    return {
+      expertCreateMode: "standard",
+      onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
+      standard: standardRuntime.panelProps,
+    };
+  }, [
+    activeCreatePulsePresetId,
+    activeCreatePulsePresetSnapshot?.label,
+    activeCreatePulsePresetSnapshot?.pulseKind,
+    agentAttachmentError,
+    agentAttachments,
+    agentBootstrapReady,
+    agentBusy,
+    agentEnabled,
+    agentError,
+    agentInput,
+    agentIsSending,
+    agentMessages,
+    agentUiBusy,
+    aspect,
+    assistantBubbleMedia,
+    base,
+    characterOptions,
+    chatModeEnabled,
+    createGenerateCostCredits,
+    createIsGenerating,
+    createSelectedCharacterId,
+    createSelectedCharacterLookId,
+    currentModelLabel,
+    describeInFlightCount,
+    effectiveGenerationGuardrail,
+    effectiveIsGenerateDisabled,
+    expertCreateMode,
+    expertCreatePolicy.beginnerMode,
+    expertCreatePolicy.expertCreateEligible,
+    handleActiveCreatePulsePresetIdChangeForPage,
+    handleAgentAttachmentDragEnter,
+    handleAgentAttachmentDragLeave,
+    handleAgentAttachmentDragOver,
+    handleAgentAttachmentDrop,
+    handleAgentInputChange,
+    handleAgentSend,
+    handleAssistantMessageEdit,
+    handleChatOffInlineGenerate,
+    handleClearAgentAttachments,
+    handleClearAgentChat,
+    handleCreateCharacterSelection,
+    handleGenerate,
+    handleGenerateFromAgentOutputPrompt,
+    handleOpenCharacterLibrary,
+    handleOpenModelModal,
+    handlePulseCreatePromptChange,
+    handlePulseCreatePrimarySubmit,
+    handleRemoveAgentAttachment,
+    handleStandardCreatePromptChange,
+    handleStandardCreatePrimarySubmit,
+    handleCreatePulsePresetStart,
+    handleExpertCreateModeChangeForPage,
+    hasActivePulseSession,
+    hasSufficientCreditsForPromptReferenceGenerate,
+    imageResolution,
+    isAgentDropActive,
+    isCharacterOptionsLoading,
+    isCreateCharacterModeEnabled,
+    isPromptRefining,
+    mode,
+    model,
+    modelModalAnchor,
+    persistedAgentRuntime,
+    promptReferenceGenerateCostCredits,
+    pulseArtifactGenerateDisabled,
+    pulseArtifactGenerateGuardrail,
+    pulseGenerateCostCredits,
+    pulsePreferenceRuntime,
+    pulsePrompt,
+    refreshCharacterOptions,
+    resolveCharacterAvatarUrlById,
+    savePromptReference,
+    selectedCreateCharacterLookLabel,
+    selectedTool,
+    setAspect,
+    setChatModeEnabled,
+    setImageResolution,
+    setIsCreateCharacterModeEnabled,
+    stagedAgentPrompt,
+    standardPrompt,
+    useReferenceImageIndicator,
+  ]);
+};
+
+const useAiStudioEditVideoPanelRuntimes = ({
+  base,
+  workflowBeginnerPolicy,
+  currentCostCredits,
+  effectiveGenerationGuardrail,
+  effectiveIsGenerateDisabled,
+  referenceImageWarning,
+  handleOpenModelModal,
+  handleEditPromptTextChange,
+  handleVideoPromptTextChange,
+  handleImageRegenerateWithDebit,
+  handleRegenerateWithDebit,
+}: UseAiStudioEditVideoPanelRuntimesParams) => {
+  const expertEditEligible = workflowBeginnerPolicy.edit.expertEditEligible;
+  const editExpertPanelProps = useAiStudioEditExpertPanelProps({
+    expertEditEligible,
+    aspect: base.aspect,
+    model: base.model,
+    currentModelLabel: base.currentModelLabel,
+    referenceImageUrl: base.imageReferenceImageUrl,
+    extraImageUrls: base.imageExtraImageUrls,
+    editReferenceText: base.editReferenceText,
+    isModelModalOpen: base.isModelModalOpen,
+    modelModalAnchor: base.modelModalAnchor,
+    setAspect: base.setAspect,
+    handleOpenModelModal,
+    setReferenceImageUrl: base.setImageReferenceImageUrl,
+    setExtraImageUrl: base.setImageExtraImageUrl,
+    handleEditPromptTextChange,
+    handleImageRegenerateWithDebit,
+    insertOptimisticGenerationPlaceholder: (promptText: string) =>
+      base.insertOptimisticGenerationPlaceholder({
+        prompt: promptText,
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+      }),
+    removeOptimisticGenerationPlaceholder: base.removeOptimisticGenerationPlaceholder,
+    notifyGenerationFailure: base.notifyGenerationFailure,
+    onEditSubmitIntentChange: base.setEditSubmitIntent,
+    addSessionMediaReference: base.addPastedMediaReference,
+    currentCostCredits,
+    isGenerateDisabled: effectiveIsGenerateDisabled,
+    isGenerateBusy: base.editIsGenerating,
+    generationGuardrail: effectiveGenerationGuardrail,
+    isPrimaryStageGenerating: base.isPrimaryEditStageGenerating,
+    referenceImageWarning,
+    resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
+    imageResolution: base.imageResolution,
+    setImageResolution: base.setImageResolution,
+    characterOptions: base.characterOptions,
+    selectedCharacterId: base.editSelectedCharacterId,
+    setSelectedCharacterId: base.setEditSelectedCharacterId,
+    isCharacterOptionsLoading: base.isCharacterOptionsLoading,
+    isCharacterModeEnabled: base.isEditCharacterModeEnabled,
+    setIsCharacterModeEnabled: base.setIsEditCharacterModeEnabled,
+    refreshCharacterOptions: base.refreshCharacterOptions,
+    resolveCharacterAvatarUrlById: base.resolveCharacterAvatarUrlById,
+    selectedPresetIds: base.selectedExpertEditPresetIds,
+    onSelectedPresetIdsChange: base.setSelectedExpertEditPresetIds,
+    customPresetOverrides: base.expertEditCustomPresetOverrides,
+    onCustomPresetOverridesChange: base.setExpertEditCustomPresetOverrides,
+    sessionState: base.expertEditSessionState,
+    onSessionStateChange: base.publishExpertEditSessionState,
+  });
+  const handleVideoPromptSave = useCallback(() => {
+    base.savePromptReference(base.videoReferenceText ?? "");
+  }, [base]);
+  const handleKlingVoiceIdChange = useCallback(
+    (index: number, value: string) => {
+      base.setKlingVoiceIds((prev) => {
+        const next: [string, string] = [...prev] as [string, string];
+        next[index] = value;
+        return next;
+      });
+    },
+    [base]
+  );
+  const videoPanelProps = useAiStudioVideoPanelProps({
+    aspect: base.aspect,
+    model: base.model,
+    currentModelLabel: base.currentModelLabel,
+    referenceImageUrl: base.videoReferenceImageUrl,
+    extraImageUrls: base.videoExtraImageUrls,
+    videoReferenceMode: base.videoReferenceMode,
+    setVideoReferenceMode: base.setVideoReferenceMode,
+    videoDurationSeconds: base.videoDurationSeconds,
+    videoResolution: base.videoResolution,
+    videoGenerateAudio: base.videoGenerateAudio,
+    videoCameraFixed: base.videoCameraFixed,
+    videoAutoFix: base.videoAutoFix,
+    seedance2InputMode: base.seedance2InputMode,
+    seedance2ReferenceImageUrls: base.seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls: base.seedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrls: base.seedance2ReferenceAudioUrls,
+    seedance2ReturnLastFrame: base.seedance2ReturnLastFrame,
+    seedance2WebSearch: base.seedance2WebSearch,
+    setAspect: base.setAspect,
+    setVideoDurationSeconds: base.setVideoDurationSeconds,
+    setVideoResolution: base.setVideoResolution,
+    setVideoGenerateAudio: base.setVideoGenerateAudio,
+    setVideoCameraFixed: base.setVideoCameraFixed,
+    setVideoAutoFix: base.setVideoAutoFix,
+    setSeedance2InputMode: base.setSeedance2InputMode,
+    setSeedance2ReferenceImageUrls: base.setSeedance2ReferenceImageUrls,
+    setSeedance2ReferenceVideoUrls: base.setSeedance2ReferenceVideoUrls,
+    setSeedance2ReferenceAudioUrls: base.setSeedance2ReferenceAudioUrls,
+    setSeedance2ReturnLastFrame: base.setSeedance2ReturnLastFrame,
+    setSeedance2WebSearch: base.setSeedance2WebSearch,
+    videoReferenceText: base.videoReferenceText,
+    klingNegativePrompt: base.klingNegativePrompt,
+    klingCfgScale: base.klingCfgScale,
+    klingWorkflowMode: base.klingWorkflowMode,
+    klingShotType: base.klingShotType,
+    klingVoiceIds: base.klingVoiceIds,
+    klingMultiPrompts: base.klingMultiPrompts,
+    klingElements: base.klingElements,
+    setKlingNegativePrompt: base.setKlingNegativePrompt,
+    setKlingCfgScale: base.setKlingCfgScale,
+    setKlingWorkflowMode: base.setKlingWorkflowMode,
+    setKlingShotType: base.setKlingShotType,
+    handleKlingVoiceIdChange,
+    setKlingMultiPrompts: base.setKlingMultiPrompts,
+    setKlingElements: base.setKlingElements,
+    motionReferenceVideoUrl: base.motionReferenceVideoUrl,
+    isModelModalOpen: base.isModelModalOpen,
+    modelModalAnchor: base.modelModalAnchor,
+    handleOpenModelModal,
+    setReferenceImageUrl: base.setVideoReferenceImageUrl,
+    setExtraImageUrl: base.setVideoExtraImageUrl,
+    setMotionReferenceVideoUrl: base.setMotionReferenceVideoUrl,
+    handleVideoPromptTextChange,
+    handleVideoPromptSave,
+    handleRegenerateWithDebit,
+    currentCostCredits,
+    referenceImageWarning,
+    resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
+    isGenerateDisabled: effectiveIsGenerateDisabled,
+    generationGuardrail: effectiveGenerationGuardrail,
+    beginnerMode: workflowBeginnerPolicy.video.beginnerMode,
+    onCreateCharacter: base.handleOpenCharacterCreate,
+    onCreateElement: base.handleOpenElementCreate,
+  });
+  return { editExpertPanelProps, videoPanelProps };
+};
+
+const useAiStudioReferenceExperienceRuntime = ({
+  base,
+  linkedPromptReferenceIds,
+  propertiesCreate,
+  propertiesEditExpert,
+  propertiesVideo,
+  handleSelectOutput,
+  handleManualPromptChange,
+  handleRegenerateWithDebit,
+  handleOpenMediaLibrary,
+}: UseAiStudioReferenceExperienceRuntimeParams): PageContentRuntimeProps => {
+  const {
+    activeOutput,
+    activeOutputId,
+    addCuratedReference,
+    addPastedMediaReference,
+    addPastedPromptReference,
+    archivedOutputs,
+    clearGenerationOutput,
+    curatedReferenceIds,
+    deleteOutput,
+    detailOutput,
+    editReferenceText,
+    findOutputById,
+    handleQuickSlotLibraryMediaDrop,
+    handleQuickSlotLibraryPromptDrop,
+    onReferenceOutputMediaLoaded,
+    outputs,
+    projectId,
+    railCanvasProps,
+    referenceGridReadyOutputIds,
+    referenceImageUrl,
+    removedFromAllRefsIds,
+    removeCuratedReference,
+    reorderCuratedReference,
+    rerollOutputFromReplay,
+    restoreAllArchivedOutputs,
+    restoreArchivedOutput,
+    retryOutputStatus,
+    savePromptToLibrary,
+    saveReferenceToLibrary,
+    selectedTool,
+    setDetailOutputId,
+    setReferenceImageUrl,
+    setUiError,
+    updateOutputPrompt,
+    videoReferenceText,
+  } = base;
+  const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
+    projectId,
+    findOutputById,
+    saveReferenceToLibrary,
+    setUiError,
+  });
+  const referenceGridHookProps = useAiStudioReferenceGridProps({
+    outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
+    archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
+    activeOutputId,
+    topNotice: null,
+    curatedReferenceIds,
+    removedFromAllRefsIds,
+    onReferenceOutputMediaLoaded,
+    linkedPromptReferenceIds,
+    handleSelectOutput,
+    setDetailOutputId,
+    handleSaveReference,
+    handleDownloadReference,
+    handlePasteTextReference: addPastedPromptReference,
+    handlePasteMediaReference: addPastedMediaReference,
+    retryOutputStatus,
+    handleRerollOutput: rerollOutputFromReplay,
+    deleteOutput,
+    clearGenerationOutput,
+    addCuratedReference,
+    removeCuratedReference,
+    reorderCuratedReference,
+    restoreArchivedOutput,
+    restoreAllArchivedOutputs,
+  });
+  const referenceGridPageProps = useMemo(
+    () => ({
+      ...referenceGridHookProps,
+      railCanvasProps,
+      onAddLibraryMediaReferenceToQuickSlot: handleQuickSlotLibraryMediaDrop,
+      onAddLibraryPromptReferenceToQuickSlot: handleQuickSlotLibraryPromptDrop,
+    }),
+    [
+      handleQuickSlotLibraryMediaDrop,
+      handleQuickSlotLibraryPromptDrop,
+      railCanvasProps,
+      referenceGridHookProps,
+    ]
+  );
+  const previewDetailProps = useAiStudioPreviewDetailProps({
+    activeOutput,
+    referenceGridReadyOutputIds,
+    referenceImageUrl,
+    selectedTool,
+    videoReferenceText,
+    editReferenceText,
+    setReferenceImageUrl,
+    handleManualPromptChange,
+    handleRegenerateWithDebit,
+    detailOutput,
+    setDetailOutputId,
+    updateOutputPrompt,
+    deleteOutput,
+    handleSaveReference,
+    handleDownloadReference,
+    savePromptToLibrary,
+    handleOpenMediaLibrary,
+  });
+
+  return mapHookContractsToPageContentProps({
+    panelProps: {
+      propertiesCreate,
+      propertiesEditExpert,
+      propertiesVideo,
+    },
+    referenceGridProps: referenceGridPageProps,
+    previewDetailProps,
+  });
+};
+
+const useAiStudioShellRuntime = ({
+  base,
+  sessionRestoreCandidate,
+  projectBootstrapApplied,
+  filteredModelOptions,
+  resolveModelPickerCredits,
+  handleSelectModelFromModal,
+}: UseAiStudioShellRuntimeParams) => {
+  const {
+    closeModelModal,
+    isModelModalOpen,
+    localSessionTitleOverride,
+    modelModalContext,
+    project,
+    projectId,
+    projectRouteRequested,
+    projectStatus,
+    router,
+    sessionId,
+    setIsProjectsModalOpen,
+    setSelectedToolWithEditIntentReset,
+    setSessionTitleOverrideState,
+    setShowCreateTools,
+    setUiError,
+    updateProjectTitle,
+  } = base;
+  const effectiveProjectName = useMemo(
+    () => project?.title ?? localSessionTitleOverride ?? null,
+    [localSessionTitleOverride, project?.title]
+  );
+  const handleProjectNameCommit = useCallback(
+    async (value: string) => {
+      if (projectId) {
+        try {
+          await updateProjectTitle(value);
+        } catch (error) {
+          setUiError(error instanceof Error ? error.message : "Failed to update project title.");
+        }
+        return;
+      }
+      if (!sessionId) return;
+      setSessionTitleOverrideState({
+        sessionId,
+        title: normalizeAiStudioProjectName(value),
+      });
+    },
+    [projectId, sessionId, setSessionTitleOverrideState, setUiError, updateProjectTitle]
+  );
+  const handleOpenProjectsModal = useCallback(() => {
+    setIsProjectsModalOpen(true);
+  }, [setIsProjectsModalOpen]);
+  const handleCloseProjectsModal = useCallback(() => {
+    setIsProjectsModalOpen(false);
+  }, [setIsProjectsModalOpen]);
+  const handleSelectProjectFromModal = useCallback(
+    async (nextProjectId: string) => {
+      if (nextProjectId === projectId) return;
+      const didNavigate = await router.push({
+        pathname: "/ai-studio",
+        query: { projectId: nextProjectId },
+      });
+      if (!didNavigate) {
+        throw new Error("Failed to open project.");
+      }
+    },
+    [projectId, router]
+  );
+  const handleOpenMediaLibraryPanelOnly = useCallback(() => {
+    setShowCreateTools(false);
+    setSelectedToolWithEditIntentReset("media-library");
+  }, [setSelectedToolWithEditIntentReset, setShowCreateTools]);
+  const shouldGateProjectBootstrap =
+    projectRouteRequested &&
+    (projectStatus !== "ready" || (Boolean(projectId) && !projectBootstrapApplied));
+  const projectEntryPhase = resolveProjectEntryPhase({
+    projectStatus,
+    projectRouteRequested,
+    projectBootstrapApplied,
+    workspaceRestoreCandidate: sessionRestoreCandidate,
+  });
+  const modelModalState = useMemo<ModelModalState>(
+    () => ({
+      isOpen: isModelModalOpen,
+      options: filteredModelOptions,
+      resolveCreditsForModel: resolveModelPickerCredits,
+      context: modelModalContext,
+      onClose: closeModelModal,
+      onSelect: handleSelectModelFromModal,
+    }),
+    [
+      closeModelModal,
+      filteredModelOptions,
+      handleSelectModelFromModal,
+      isModelModalOpen,
+      modelModalContext,
+      resolveModelPickerCredits,
+    ]
+  );
+
+  return {
+    effectiveProjectName,
+    handleProjectNameCommit,
+    handleOpenProjectsModal,
+    handleCloseProjectsModal,
+    handleSelectProjectFromModal,
+    handleOpenMediaLibraryPanelOnly,
+    shouldGateProjectBootstrap,
+    projectEntryPhase,
+    modelModalState,
+  };
+};
 
 export default function AiStudioPage() {
   const base = useAiStudioPageBaseRuntime();
@@ -1087,7 +1670,7 @@ const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeR
   );
 };
 
-const useAiStudioPageRuntimeShell = ({
+const AiStudioPageRuntimeBody = ({
   base,
   createPulsePageRuntime,
   activeCreateAgentRuntime,
@@ -1104,13 +1687,9 @@ const useAiStudioPageRuntimeShell = ({
     activeSessionPersistenceSessionId,
     addAgentPromptReference,
     addCharacterReferences,
-    addCuratedReference,
     addLibraryMediaReference,
     addLibraryPromptReference,
     addOutputsFromFiles,
-    addPastedMediaReference,
-    addPastedPromptReference,
-    archivedOutputs,
     aspect,
     balanceCredits,
     balanceLoading,
@@ -1122,72 +1701,41 @@ const useAiStudioPageRuntimeShell = ({
     canvasSessionState,
     characterCreateRequestKey,
     characterError,
-    characterOptions,
     clearCharacterError,
-    clearGenerationOutput,
     closeModelModal,
     createCharacterModeInjectionBundle,
-    createIsGenerating,
     createSelectedCharacterId,
     createSelectedCharacterLookId,
-    curatedReferenceIds,
-    currentModelLabel,
-    deleteOutput,
-    detailOutput,
-    editIsGenerating,
     editReferenceText,
-    editSelectedCharacterId,
     editSubmitIntent,
     effectiveBalanceCredits,
     elementCreateRequestKey,
     expertCreateMode,
-    expertEditCustomPresetOverrides,
-    expertEditSessionState,
+    expertEditSessionRevision,
     extraImageUrls,
-    findOutputById,
     generateOutput,
+    getExpertEditSessionState,
     getDefaultDurationSeconds,
-    handleCreateCharacterSelection,
-    handleOpenCharacterCreate,
-    handleOpenCharacterLibrary,
-    handleOpenElementCreate,
-    handleQuickSlotLibraryMediaDrop,
-    handleQuickSlotLibraryPromptDrop,
     hydrateCanvasSessionState,
     hydrateFromSessionSnapshot,
-    imageExtraImageUrls,
-    imageReferenceImageUrl,
     imageResolution,
     insertOptimisticGenerationPlaceholder,
-    isCharacterOptionsLoading,
     isCreateCharacterBundleLoading,
     isCreateCharacterModeEnabled,
-    isEditCharacterModeEnabled,
-    isModelModalOpen,
-    isPrimaryEditStageGenerating,
     isProjectsModalOpen,
-    klingCfgScale,
     klingElements,
     klingMultiPrompts,
-    klingNegativePrompt,
-    klingShotType,
-    klingVoiceIds,
     klingWorkflowMode,
-    loadCreateCharacterLookOptions,
-    localSessionTitleOverride,
     mediaAutosaveError,
     mediaAutosaveSyncState,
     mode,
     model,
-    modelModalAnchor,
-    modelModalContext,
     modelPricingPolicy,
     modelPricingPolicyError,
     modelPricingPolicyLoading,
     modelPricingPolicyReady,
     motionReferenceVideoUrl,
     notifyGenerationFailure,
-    onReferenceOutputMediaLoaded,
     openModelModal,
     optimisticDebitEntries,
     optimisticUncoveredDebitCredits,
@@ -1200,123 +1748,63 @@ const useAiStudioPageRuntimeShell = ({
     projectStatus,
     pulsePrompt,
     pulseWorkflowSession,
-    railCanvasProps,
     referenceGridFileInputRef,
     referenceGridPreconnectOrigin,
-    referenceGridReadyOutputIds,
     referenceImageUrl,
     refreshBalance,
     refreshCharacterModeInjectionBundleForSubmission,
     refreshCharacterOptions,
     refreshProject,
     regenerateOutput,
-    removeCuratedReference,
     removeOptimisticGenerationPlaceholder,
-    removedFromAllRefsIds,
-    reorderCuratedReference,
-    rerollOutputFromReplay,
     resolveCharacterAvatarUrlById,
     resolveCharacterDropReference,
     resolveCharacterModeSubmissionOverrides,
     resolveElementProfileImageDropSource,
     resolveIsCharacterModeEnabledForTool,
     resolveMediaLibraryInternalDropItem,
-    resolvePanelOutputPreviewUrl,
     resolveReferenceInputsForTool,
     resolveSelectedCharacterIdForTool,
     resolveStyleLibraryInternalDrop,
     resolveVoiceChangerInternalReferenceSource,
-    restoreAllArchivedOutputs,
-    restoreArchivedOutput,
-    retryOutputStatus,
-    router,
-    savePromptReference,
-    savePromptToLibrary,
-    saveReferenceToLibrary,
     seedance2InputMode,
     seedance2ReferenceAudioUrls,
     seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrls,
-    seedance2ReturnLastFrame,
-    seedance2WebSearch,
-    selectedCreateCharacterLookLabel,
-    selectedExpertEditPresetIds,
     selectedStyleContext,
     selectedTool,
     sessionId,
     sessionPersistenceTitleOverride,
     setActiveOutputId,
-    setAspect,
     setBeginnerMode,
     setCreateSelectedCharacterId,
     setCreateSelectedCharacterLookId,
     setDetailOutputId,
     setEditReferenceText,
-    setEditSelectedCharacterId,
-    setEditSubmitIntent,
-    setExpertEditCustomPresetOverrides,
     setExpertEditSessionState,
-    setImageExtraImageUrl,
-    setImageReferenceImageUrl,
-    setImageResolution,
-    setIsCreateCharacterModeEnabled,
-    setIsEditCharacterModeEnabled,
-    setIsProjectsModalOpen,
-    setKlingCfgScale,
-    setKlingElements,
-    setKlingMultiPrompts,
-    setKlingNegativePrompt,
-    setKlingShotType,
-    setKlingVoiceIds,
-    setKlingWorkflowMode,
     setMode,
     setModel,
-    setMotionReferenceVideoUrl,
     setOptimisticDebitEntries,
     setOutputs,
     setPulseCreatePrompt,
-    setReferenceImageUrl,
-    setSeedance2InputMode,
-    setSeedance2ReferenceAudioUrls,
-    setSeedance2ReferenceImageUrls,
-    setSeedance2ReferenceVideoUrls,
-    setSeedance2ReturnLastFrame,
-    setSeedance2WebSearch,
-    setSelectedExpertEditPresetIds,
     setSelectedStyleContext,
     setSelectedStylePrompt,
     setSelectedToolWithEditIntentReset,
-    setSessionTitleOverrideState,
     setShowCreateTools,
     setStandardCreatePrompt,
     setUiError,
     setUiNotice,
-    setVideoAutoFix,
-    setVideoCameraFixed,
-    setVideoDurationSeconds,
-    setVideoExtraImageUrl,
-    setVideoGenerateAudio,
-    setVideoReferenceImageUrl,
-    setVideoReferenceMode,
     setVideoReferenceText,
-    setVideoResolution,
     showBeginnerModeToggle,
     showCreateTools,
-    standardPrompt,
     trackCharacterModeFallback,
     trackUiEvent,
     uiError,
     uiNotice,
     updateOutputById,
-    updateOutputPrompt,
-    updateProjectTitle,
     useReferenceImageIndicator,
-    videoAutoFix,
-    videoCameraFixed,
     videoDurationSeconds,
-    videoExtraImageUrls,
     videoGenerateAudio,
-    videoReferenceImageUrl,
     videoReferenceMode,
     videoReferenceText,
     videoResolution,
@@ -1324,100 +1812,18 @@ const useAiStudioPageRuntimeShell = ({
   const {
     activeCreatePulsePresetSnapshot,
     setActiveCreatePulsePresetSnapshot,
-    handleExpertCreateModeChangeForPage,
-    handleActiveCreatePulsePresetIdChangeForPage,
     hasActivePulseSession,
   } = createPulsePageRuntime;
   const {
-    agentEnabled,
-    agentBootstrapReady,
-    agentMessages,
-    agentError,
-    agentIsSending,
-    agentUiBusy,
-    agentBusy,
-    agentInput,
-    agentAttachmentError,
-    agentAttachments,
     linkedPromptReferenceIds,
-    isAgentDropActive,
     setPromptOrigin,
-    stagedAgentPrompt,
-    isPromptRefining,
-    describeInFlightCount,
-    handleAgentInputChange,
-    handleAgentSend,
-    handleAgentAttachmentDragOver,
-    handleAgentAttachmentDragEnter,
-    handleAgentAttachmentDragLeave,
-    handleAgentAttachmentDrop,
-    handleRemoveAgentAttachment,
-    handleClearAgentAttachments,
-    handleAssistantMessageEdit,
-    handleClearAgentChat,
     persistedAgentRuntime,
     resetProjectAgentConversation: resetActiveProjectAgentConversation,
     hydrateFromSessionAgentSnapshot: hydrateActiveFromSessionAgentSnapshot,
   } = activeCreateAgentRuntime;
-  const standardCreateAgentRuntime =
-    activeCreateAgentRuntime.kind === "standard" ? activeCreateAgentRuntime : null;
   const pulseCreateAgentRuntime =
     activeCreateAgentRuntime.kind === "pulse" ? activeCreateAgentRuntime : null;
-  const noopSetChatModeEnabled = useCallback<React.Dispatch<React.SetStateAction<boolean>>>(
-    () => undefined,
-    []
-  );
-  const chatModeEnabled = standardCreateAgentRuntime?.chatModeEnabled ?? true;
-  const setChatModeEnabled =
-    standardCreateAgentRuntime?.setChatModeEnabled ?? noopSetChatModeEnabled;
   const handlePulsePresetStart = pulseCreateAgentRuntime?.handlePulsePresetStart;
-  const persistedAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(
-    () =>
-      activeCreateAgentRuntime.kind === "pulse"
-        ? {
-            standard: createEmptyAiStudioSessionAgentState(),
-            pulsePresetId: activeCreatePulsePresetId,
-            pulse: persistedAgentRuntime,
-          }
-        : {
-            standard: persistedAgentRuntime,
-            pulsePresetId: null,
-            pulse: createEmptyAiStudioSessionAgentState(),
-          },
-    [activeCreateAgentRuntime.kind, activeCreatePulsePresetId, persistedAgentRuntime]
-  );
-  const resetProjectAgentConversation = useCallback(() => {
-    resetActiveProjectAgentConversation();
-  }, [resetActiveProjectAgentConversation]);
-  const { pendingCreateRuntimeAgentHydrationRef } = base;
-  const hydrateFromSessionAgentSnapshot = useCallback(
-    (payload: CreateRuntimeAgentHydrationPayload) => {
-      if (!shouldApplySessionAgentHydrationToRuntime(payload, activeCreateAgentRuntime.kind)) {
-        pendingCreateRuntimeAgentHydrationRef.current = payload;
-        return;
-      }
-      pendingCreateRuntimeAgentHydrationRef.current = null;
-      hydrateActiveFromSessionAgentSnapshot(payload);
-    },
-    [
-      activeCreateAgentRuntime.kind,
-      hydrateActiveFromSessionAgentSnapshot,
-      pendingCreateRuntimeAgentHydrationRef,
-    ]
-  );
-  useEffect(() => {
-    const pendingPayload = pendingCreateRuntimeAgentHydrationRef.current;
-    if (!pendingPayload) return;
-    if (!shouldApplySessionAgentHydrationToRuntime(pendingPayload, activeCreateAgentRuntime.kind)) {
-      return;
-    }
-    pendingCreateRuntimeAgentHydrationRef.current = null;
-    hydrateActiveFromSessionAgentSnapshot(pendingPayload);
-  }, [
-    activeCreateAgentRuntime.kind,
-    hydrateActiveFromSessionAgentSnapshot,
-    pendingCreateRuntimeAgentHydrationRef,
-  ]);
   const handleStandardCreatePromptChange = useCallback(
     (value: string) => {
       setStandardCreatePrompt(value);
@@ -1460,155 +1866,38 @@ const useAiStudioPageRuntimeShell = ({
     },
     [activeCreatePulsePresetSnapshot, handlePulsePresetStart, setActiveCreatePulsePresetSnapshot]
   );
-
-  const buildProjectAwareSessionSnapshot = useCallback(
-    (args: Parameters<typeof buildSessionSnapshot>[0]) =>
-      patchAiStudioSessionSnapshotCanvas(
-        patchAiStudioSessionSnapshotWorkspace(buildSessionSnapshot(args), {
-          selectedCharacterId: createSelectedCharacterId || null,
-          selectedCharacterLookId: createSelectedCharacterLookId || null,
-        }),
-        canvasSessionState
-      ),
-    [
-      buildSessionSnapshot,
-      canvasSessionState,
-      createSelectedCharacterId,
-      createSelectedCharacterLookId,
-    ]
-  );
-
-  const hydrateProjectAwareSessionSnapshot = useCallback(
-    (snapshot: Parameters<typeof hydrateFromSessionSnapshot>[0]) => {
-      const payload = hydrateFromSessionSnapshot(snapshot);
-      setCreateSelectedCharacterId(payload.workspace.selectedCharacterId ?? "");
-      setCreateSelectedCharacterLookId(payload.workspace.selectedCharacterLookId ?? "");
-      return payload;
-    },
-    [hydrateFromSessionSnapshot, setCreateSelectedCharacterId, setCreateSelectedCharacterLookId]
-  );
-
-  const applyEmptyProjectState = useCallback(() => {
-    const payload = hydrateProjectAwareSessionSnapshot(createEmptyAiStudioSessionSnapshot());
-    resetProjectAgentConversation();
-    setExpertEditSessionState(payload.expertEdit);
-    hydrateCanvasSessionState(payload.canvas);
-  }, [
-    hydrateCanvasSessionState,
-    hydrateProjectAwareSessionSnapshot,
-    resetProjectAgentConversation,
-    setExpertEditSessionState,
-  ]);
-
-  const sessionAgentRuntimes = useMemo<AiStudioSessionAgentRuntimesV2>(() => {
-    if (expertCreateMode === "pulse" && hasActivePulseSession) {
-      return {
-        ...persistedAgentRuntimes,
-        pulsePresetId: activeCreatePulsePresetId,
-        pulse: {
-          ...persistedAgentRuntimes.pulse,
-          pulseWorkflowSession: pulseWorkflowSession ?? null,
-        },
-      };
-    }
-    return {
-      standard: persistedAgentRuntimes.standard,
-      pulsePresetId: null,
-      pulse: createEmptyAiStudioSessionAgentState(),
-    };
-  }, [
-    activeCreatePulsePresetId,
-    expertCreateMode,
-    hasActivePulseSession,
-    persistedAgentRuntimes,
-    pulseWorkflowSession,
-  ]);
-  const sessionAgentRuntime = useMemo<AiStudioSessionAgentV1>(() => {
-    if (expertCreateMode === "pulse") {
-      return hasActivePulseSession
-        ? sessionAgentRuntimes.pulse
-        : createEmptyAiStudioSessionAgentState();
-    }
-    return sessionAgentRuntimes.standard;
-  }, [expertCreateMode, hasActivePulseSession, sessionAgentRuntimes]);
-  const createPersistenceRuntime = useMemo(
-    () =>
-      expertCreateMode === "pulse"
-        ? {
-            kind: "pulse" as const,
-            agentRuntime: sessionAgentRuntime,
-            agentRuntimes: sessionAgentRuntimes,
-          }
-        : {
-            kind: "standard" as const,
-            agentRuntime: sessionAgentRuntime,
-          },
-    [expertCreateMode, sessionAgentRuntime, sessionAgentRuntimes]
-  );
-
   const {
     sessionRestoreCandidate,
     projectBootstrapApplied,
     projectBootstrapError,
     retryProjectBootstrap,
-  } = useAiStudioPageSessionPersistence({
+  } = useAiStudioPageProjectSessionRuntime({
+    activeCreateAgentKind: activeCreateAgentRuntime.kind,
+    activeCreatePulsePresetId,
+    activeSessionPersistenceSessionId,
+    buildSessionSnapshot,
+    canvasSessionState,
+    createSelectedCharacterId,
+    createSelectedCharacterLookId,
+    expertCreateMode,
+    expertEditSessionRevision,
+    getExpertEditSessionState,
+    hasActivePulseSession,
+    hydrateActiveFromSessionAgentSnapshot,
+    hydrateCanvasSessionState,
+    hydrateFromSessionSnapshot,
+    pendingCreateRuntimeAgentHydrationRef: base.pendingCreateRuntimeAgentHydrationRef,
+    persistedAgentRuntime,
     projectId,
     projectRouteRequested,
-    sessionId: activeSessionPersistenceSessionId,
-    sessionTitleOverride: sessionPersistenceTitleOverride,
-    buildSessionSnapshot: buildProjectAwareSessionSnapshot,
-    createPersistenceRuntime,
-    expertEditSessionState,
-    hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
-    hydrateFromSessionAgentSnapshot,
-    hydrateFromSessionCanvasSnapshot: hydrateCanvasSessionState,
-    hydrateFromSessionExpertEditSnapshot: setExpertEditSessionState,
-    applyEmptyProjectState,
-    resetProjectAgentConversation,
+    pulseWorkflowSession,
+    resetActiveProjectAgentConversation,
+    sessionPersistenceTitleOverride,
+    setCreateSelectedCharacterId,
+    setCreateSelectedCharacterLookId,
+    setExpertEditSessionState,
     setUiNotice,
   });
-
-  const effectiveProjectName = useMemo(
-    () => project?.title ?? localSessionTitleOverride ?? null,
-    [localSessionTitleOverride, project?.title]
-  );
-  const handleProjectNameCommit = useCallback(
-    async (value: string) => {
-      if (projectId) {
-        try {
-          await updateProjectTitle(value);
-        } catch (error) {
-          setUiError(error instanceof Error ? error.message : "Failed to update project title.");
-        }
-        return;
-      }
-      if (!sessionId) return;
-      setSessionTitleOverrideState({
-        sessionId,
-        title: normalizeAiStudioProjectName(value),
-      });
-    },
-    [projectId, sessionId, setSessionTitleOverrideState, setUiError, updateProjectTitle]
-  );
-  const handleOpenProjectsModal = useCallback(() => {
-    setIsProjectsModalOpen(true);
-  }, [setIsProjectsModalOpen]);
-  const handleCloseProjectsModal = useCallback(() => {
-    setIsProjectsModalOpen(false);
-  }, [setIsProjectsModalOpen]);
-  const handleSelectProjectFromModal = useCallback(
-    async (nextProjectId: string) => {
-      if (nextProjectId === projectId) return;
-      const didNavigate = await router.push({
-        pathname: "/ai-studio",
-        query: { projectId: nextProjectId },
-      });
-      if (!didNavigate) {
-        throw new Error("Failed to open project.");
-      }
-    },
-    [projectId, router]
-  );
   const triggerFilePicker = useCallback(() => {
     referenceGridFileInputRef.current?.click();
   }, [referenceGridFileInputRef]);
@@ -1624,135 +1913,121 @@ const useAiStudioPageRuntimeShell = ({
     mediaAutosaveError,
     mediaAutosaveSyncState,
   });
-
-  const { visibleFailures, dismissFailure, focusFailure } =
-    useAiStudioOptimisticDebitReconciliation({
-      outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
-      optimisticDebitEntries,
-      setOptimisticDebitEntries,
-      refreshBalance,
-      setDetailOutputId,
-    });
-  const {
-    isTemplateView,
-    costParamsForModel,
-    filteredModelOptions,
-    resolveDefaultPromptForTool,
-    promptForViewModel,
-  } = useAiStudioPageDerivations({
-    mode,
-    selectedTool,
-    model,
-    aspect,
-    createPrompt: activeCreatePrompt,
-    editReferenceText,
-    videoReferenceText,
-    videoReferenceMode,
-    referenceImageUrl,
-    extraImageUrls,
-    isCharacterModeEnabled: isCreateCharacterModeEnabled,
-  });
-
   const {
     currentCostCredits,
-    promptReferenceGenerateCostCredits,
-    resolveModelPickerCredits,
-    hasSufficientCreditsForPromptReferenceGenerate,
-    isCreditGuardrail,
-    generationGuardrail,
-    referenceImageWarning,
-  } = useAiStudioViewModel({
-    mode,
-    model,
-    aspect,
-    prompt: promptForViewModel,
-    referenceImageUrl,
-    activeOutput,
-    selectedTool,
-    useReferenceImageIndicator,
-    getDefaultDurationSeconds,
-    videoDurationSeconds,
-    videoResolution,
-    videoReferenceMode,
-    motionReferenceVideoUrl,
-    extraImageUrls,
-    imageResolution,
-    videoGenerateAudio,
-    klingWorkflowMode,
-    klingMultiPrompts,
-    klingElements,
-    seedance2InputMode,
-    seedance2ReferenceImageUrls,
-    seedance2ReferenceVideoUrls,
-    seedance2ReferenceAudioUrls,
-    balanceCredits: effectiveBalanceCredits,
-    editSubmitIntent,
-    costParamsForModel,
-    pricingPolicy: modelPricingPolicy,
-    pricingPolicyReady: modelPricingPolicyReady,
-    pricingPolicyLoading: modelPricingPolicyLoading,
-    pricingPolicyError: modelPricingPolicyError,
-  });
-  const isCharacterLoadingGenerateDisabled = useMemo(() => {
-    const hasUsableCreateCharacterBundle = hasUsableCharacterModeInjectionBundle({
-      selectedCharacterId: createSelectedCharacterId,
-      bundle: createCharacterModeInjectionBundle,
-    });
-    return shouldDisableGenerateWhileCharacterLoading({
-      selectedTool,
-      characterModeEnabled: isCreateCharacterModeEnabled,
-      selectedCharacterId: createSelectedCharacterId,
-      isCharacterBundleLoading: isCreateCharacterBundleLoading,
-      hasUsableCharacterBundle: hasUsableCreateCharacterBundle,
-    });
-  }, [
-    createCharacterModeInjectionBundle,
-    createSelectedCharacterId,
-    isCreateCharacterBundleLoading,
-    isCreateCharacterModeEnabled,
-    selectedTool,
-  ]);
-  const effectiveGenerationGuardrail =
-    generationGuardrail ??
-    (isCharacterLoadingGenerateDisabled ? CHARACTER_LOADING_GENERATION_GUARDRAIL : null);
-  const effectiveIsGenerateDisabled = Boolean(effectiveGenerationGuardrail);
-
-  const {
-    isMediaLibraryOpen,
-    isMediaLibraryPanelEnabled,
-    handleOpenModelModal,
-    handleSelectModelFromModal,
-    handleManualPromptChange,
+    dismissFailure,
+    effectiveGenerationGuardrail,
+    effectiveIsGenerateDisabled,
+    filteredModelOptions,
+    focusFailure,
     handleEditPromptTextChange,
-    handleVideoPromptTextChange,
-    handleToolSelect,
-    handleOpenMediaLibrary,
-    handleCloseMediaLibrary,
     handleFileBrowserSelection,
+    handleGenerate,
+    handleImageRegenerateWithDebit,
+    handleManualPromptChange,
+    handleMusicGenerate,
+    handleOpenMediaLibrary,
+    handleOpenModelModal,
     handleReferenceGridFiles,
+    handleRegenerateWithDebit,
+    handleSelectModelFromModal,
     handleSelectOutput,
-  } = useAiStudioWorkspaceActions({
-    selectedTool,
-    setSelectedTool: setSelectedToolWithEditIntentReset,
-    setMode,
-    setShowCreateTools,
-    setVideoReferenceText,
-    setEditReferenceText,
-    setSharedPrompt: setActiveCreatePrompt,
-    setPromptOrigin,
-    openModelModal,
-    closeModelModal,
-    setModel,
+    handleSoundEffectsGenerate,
+    handleToolSelect,
+    handleVideoPromptTextChange,
+    handleVoicesGenerate,
+    hasSufficientCreditsForPromptReferenceGenerate,
+    isTemplateView,
+    musicIsGenerating,
+    promptReferenceGenerateCostCredits,
+    pulseArtifactTarget,
+    pulseCurrentCostCredits,
+    pulseGenerateCostCredits,
+    pulseGenerationGuardrail,
+    pulsePromptReferenceGenerateCostCredits,
+    referenceImageWarning,
+    resolveModelPickerCredits,
+    soundEffectsIsGenerating,
+    visibleFailures,
+    voicesIsGenerating,
+  } = useAiStudioPageGenerationRuntime({
+    activeCreatePrompt,
+    activeCreatePulsePresetSnapshot,
+    activeOutput,
+    activeOutputId,
     addCharacterReferences,
     addOutputsFromFiles,
+    aspect,
+    balanceCredits,
+    closeModelModal,
+    createCharacterModeInjectionBundle,
+    createSelectedCharacterId,
+    editReferenceText,
+    editSubmitIntent,
+    effectiveBalanceCredits,
+    extraImageUrls,
+    generateOutput,
+    getDefaultDurationSeconds,
+    imageResolution,
+    insertOptimisticGenerationPlaceholder,
+    isCreateCharacterBundleLoading,
+    isCreateCharacterModeEnabled,
+    klingElements,
+    klingMultiPrompts,
+    klingWorkflowMode,
+    mode,
+    model,
+    modelPricingPolicy,
+    modelPricingPolicyError,
+    modelPricingPolicyLoading,
+    modelPricingPolicyReady,
+    motionReferenceVideoUrl,
+    notifyGenerationFailure,
+    optimisticDebitEntries,
+    optimisticUncoveredDebitCredits,
+    outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
+    openModelModal,
+    projectId,
+    pulsePrompt,
+    referenceImageUrl,
+    refreshBalance,
+    refreshCharacterModeInjectionBundleForSubmission,
+    regenerateOutput,
+    removeOptimisticGenerationPlaceholder,
+    resolveCharacterModeSubmissionOverrides,
+    resolveIsCharacterModeEnabledForTool,
+    resolveReferenceInputsForTool,
+    resolveSelectedCharacterIdForTool,
+    seedance2InputMode,
+    seedance2ReferenceAudioUrls,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    selectedStyleContext,
+    selectedTool,
     setActiveOutputId,
+    setDetailOutputId,
+    setEditReferenceText,
+    setMode,
+    setModel,
+    setOptimisticDebitEntries,
+    setOutputs,
+    setPromptOrigin,
+    setSharedPrompt: setActiveCreatePrompt,
+    setShowCreateTools,
+    setUiError,
+    setUiNotice,
+    setVideoReferenceText,
+    setSelectedToolWithEditIntentReset,
+    trackCharacterModeFallback,
+    trackUiEvent,
+    updateOutputById,
+    useReferenceImageIndicator,
+    videoDurationSeconds,
+    videoGenerateAudio,
+    videoReferenceMode,
+    videoReferenceText,
+    videoResolution,
   });
-
-  useEffect(() => {
-    if (isMediaLibraryPanelEnabled) return;
-    if (selectedTool !== "media-library") return;
-    setSelectedToolWithEditIntentReset(null);
-  }, [isMediaLibraryPanelEnabled, selectedTool, setSelectedToolWithEditIntentReset]);
 
   const handleStandardAgentCaptureResult = useCallback(
     (promptText: string, referenceTitle?: string | null) => {
@@ -1761,1155 +2036,50 @@ const useAiStudioPageRuntimeShell = ({
     },
     [addAgentPromptReference, setPromptOrigin]
   );
-  const { handleGenerate, handleRegenerateWithDebit, handleImageRegenerateWithDebit } =
-    useAiStudioGenerationController({
-      mode,
-      selectedTool,
-      model,
-      setModel,
-      projectId,
-      isCharacterModeEnabled: resolveIsCharacterModeEnabledForTool(selectedTool),
-      resolveIsCharacterModeEnabledForTool,
-      resolveSelectedCharacterIdForTool,
-      selectedStyleContext,
-      currentCostCredits,
-      resolveCostCreditsForModel: resolveModelPickerCredits,
-      isGenerateDisabled: effectiveIsGenerateDisabled,
-      isCreditGuardrail,
-      generationGuardrail: effectiveGenerationGuardrail,
-      effectiveBalanceCredits,
-      balanceCredits,
-      optimisticUncoveredDebitTotal: optimisticUncoveredDebitCredits,
-      setUiError,
-      setUiNotice,
-      setOptimisticDebitEntries,
-      refreshBalance,
-      resolveDefaultPromptForTool,
-      refreshCharacterModeInjectionBundleForSubmission,
-      resolveCharacterModeSubmissionOverrides,
-      resolveReferenceInputsForTool,
-      trackCharacterModeFallback,
-      trackCharacterModeEvent: trackUiEvent,
-      insertOptimisticGenerationPlaceholder,
-      removeOptimisticGenerationPlaceholder,
-      generateOutput,
-      regenerateOutput,
-      activeOutputId,
-    });
-  return {
-    activeCreatePulsePresetId,
-    activeCreatePulsePresetSnapshot,
-    activeOutput,
-    activeOutputId,
-    addCuratedReference,
-    addLibraryMediaReference,
-    addLibraryPromptReference,
-    addPastedMediaReference,
-    addPastedPromptReference,
-    agentAttachmentError,
-    agentAttachments,
-    agentBootstrapReady,
-    agentBusy,
-    agentEnabled,
-    agentError,
-    agentInput,
-    agentIsSending,
-    agentMessages,
-    agentUiBusy,
-    archivedOutputs,
-    aspect,
-    balanceLoading,
-    beginnerMode,
-    characterCreateRequestKey,
-    characterError,
-    characterOptions,
-    chatModeEnabled,
-    clearCharacterError,
-    clearGenerationOutput,
-    closeModelModal,
-    createPulsePageRuntime,
-    createIsGenerating,
-    createSelectedCharacterId,
-    createSelectedCharacterLookId,
-    curatedReferenceIds,
+  const workflowBeginnerPolicy = useMemo(
+    () => createWorkflowBeginnerModePolicy(beginnerMode, true),
+    [beginnerMode]
+  );
+  const { editExpertPanelProps, videoPanelProps } = useAiStudioEditVideoPanelRuntimes({
+    base,
+    workflowBeginnerPolicy,
     currentCostCredits,
-    currentModelLabel,
-    deleteOutput,
-    describeInFlightCount,
-    detailOutput,
-    dismissError,
-    dismissFailure,
-    dismissNotice,
-    editIsGenerating,
-    editReferenceText,
-    editSelectedCharacterId,
-    effectiveBalanceCredits,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
-    effectiveProjectName,
-    effectiveUiNotice,
-    elementCreateRequestKey,
-    expertCreateMode,
-    expertEditCustomPresetOverrides,
-    expertEditSessionState,
-    filteredModelOptions,
-    findOutputById,
-    focusFailure,
-    handleActiveCreatePulsePresetIdChangeForPage,
-    handleAgentAttachmentDragEnter,
-    handleAgentAttachmentDragLeave,
-    handleAgentAttachmentDragOver,
-    handleAgentAttachmentDrop,
-    handleAgentInputChange,
-    handleAgentSend,
-    handleAssistantMessageEdit,
-    handleBeginnerModeChange,
-    handleClearAgentAttachments,
-    handleClearAgentChat,
-    handleCloseMediaLibrary,
-    handleCloseProjectsModal,
-    handleCreateCharacterSelection,
-    handleCreatePulsePresetStart,
-    handleEditPromptTextChange,
-    handleExpertCreateModeChangeForPage,
-    handleFileBrowserSelection,
-    handleGenerate,
-    handleImageRegenerateWithDebit,
-    handleManualPromptChange,
-    handleOpenCharacterCreate,
-    handleOpenCharacterLibrary,
-    handleOpenElementCreate,
-    handleOpenMediaLibrary,
-    handleOpenModelModal,
-    handleOpenProjectsModal,
-    handleProjectNameCommit,
-    handlePulseCreatePromptChange,
-    handleQuickSlotLibraryMediaDrop,
-    handleQuickSlotLibraryPromptDrop,
-    handleReferenceGridFiles,
-    handleRegenerateWithDebit,
-    handleRemoveAgentAttachment,
-    handleSelectModelFromModal,
-    handleSelectOutput,
-    handleSelectProjectFromModal,
-    handleStandardAgentCaptureResult,
-    handleStandardCreatePromptChange,
-    handleToolSelect,
-    handleVideoPromptTextChange,
-    hasActivePulseSession,
-    hasSufficientCreditsForPromptReferenceGenerate,
-    imageExtraImageUrls,
-    imageReferenceImageUrl,
-    imageResolution,
-    insertOptimisticGenerationPlaceholder,
-    isAgentDropActive,
-    isCharacterOptionsLoading,
-    isCreateCharacterModeEnabled,
-    isEditCharacterModeEnabled,
-    isMediaLibraryOpen,
-    isMediaLibraryPanelEnabled,
-    isModelModalOpen,
-    isPrimaryEditStageGenerating,
-    isProjectsModalOpen,
-    isPromptRefining,
-    isTemplateView,
-    klingCfgScale,
-    klingElements,
-    klingMultiPrompts,
-    klingNegativePrompt,
-    klingShotType,
-    klingVoiceIds,
-    klingWorkflowMode,
-    linkedPromptReferenceIds,
-    loadCreateCharacterLookOptions,
-    mode,
-    model,
-    modelModalAnchor,
-    modelModalContext,
-    modelPricingPolicy,
-    motionReferenceVideoUrl,
-    notifyGenerationFailure,
-    onReferenceOutputMediaLoaded,
-    outputs,
-    pendingHoldCredits,
-    project,
-    projectBootstrapApplied,
-    projectBootstrapError,
-    projectError,
-    projectId,
-    projectRouteRequested,
-    projectStatus,
-    promptReferenceGenerateCostCredits,
-    pulsePrompt,
-    pulseWorkflowSession,
-    railCanvasProps,
-    referenceGridFileInputRef,
-    referenceGridPreconnectOrigin,
-    referenceGridReadyOutputIds,
-    referenceImageUrl,
     referenceImageWarning,
-    refreshCharacterOptions,
-    refreshProject,
-    removeCuratedReference,
-    removeOptimisticGenerationPlaceholder,
-    removedFromAllRefsIds,
-    reorderCuratedReference,
-    rerollOutputFromReplay,
-    resolveCharacterAvatarUrlById,
-    resolveCharacterDropReference,
-    resolveElementProfileImageDropSource,
-    resolveMediaLibraryInternalDropItem,
-    resolveModelPickerCredits,
-    resolvePanelOutputPreviewUrl,
-    resolveStyleLibraryInternalDrop,
-    resolveVoiceChangerInternalReferenceSource,
-    restoreAllArchivedOutputs,
-    restoreArchivedOutput,
-    retryOutputStatus,
-    retryProjectBootstrap,
-    savePromptReference,
-    savePromptToLibrary,
-    saveReferenceToLibrary,
-    seedance2InputMode,
-    seedance2ReferenceAudioUrls,
-    seedance2ReferenceImageUrls,
-    seedance2ReferenceVideoUrls,
-    seedance2ReturnLastFrame,
-    seedance2WebSearch,
-    selectedCreateCharacterLookLabel,
-    selectedExpertEditPresetIds,
-    selectedTool,
-    sessionAgentRuntime,
-    sessionId,
-    sessionRestoreCandidate,
-    setAspect,
-    setChatModeEnabled,
-    setDetailOutputId,
-    setEditReferenceText,
-    setEditSelectedCharacterId,
-    setEditSubmitIntent,
-    setExpertEditCustomPresetOverrides,
-    setExpertEditSessionState,
-    setImageExtraImageUrl,
-    setImageReferenceImageUrl,
-    setImageResolution,
-    setIsCreateCharacterModeEnabled,
-    setIsEditCharacterModeEnabled,
-    setKlingCfgScale,
-    setKlingElements,
-    setKlingMultiPrompts,
-    setKlingNegativePrompt,
-    setKlingShotType,
-    setKlingVoiceIds,
-    setKlingWorkflowMode,
-    setMode,
-    setMotionReferenceVideoUrl,
-    setOutputs,
-    setPromptOrigin,
-    setReferenceImageUrl,
-    setSeedance2InputMode,
-    setSeedance2ReferenceAudioUrls,
-    setSeedance2ReferenceImageUrls,
-    setSeedance2ReferenceVideoUrls,
-    setSeedance2ReturnLastFrame,
-    setSeedance2WebSearch,
-    setSelectedExpertEditPresetIds,
-    setSelectedStyleContext,
-    setSelectedStylePrompt,
-    setSelectedToolWithEditIntentReset,
-    setShowCreateTools,
-    setStandardCreatePrompt,
-    setUiError,
-    setUiNotice,
-    setVideoAutoFix,
-    setVideoCameraFixed,
-    setVideoDurationSeconds,
-    setVideoExtraImageUrl,
-    setVideoGenerateAudio,
-    setVideoReferenceImageUrl,
-    setVideoReferenceMode,
-    setVideoReferenceText,
-    setVideoResolution,
-    showBeginnerModeToggle,
-    showCreateTools,
-    stagedAgentPrompt,
-    standardPrompt,
-    triggerFilePicker,
-    uiError,
-    updateOutputById,
-    updateOutputPrompt,
-    useReferenceImageIndicator,
-    videoAutoFix,
-    videoCameraFixed,
-    videoDurationSeconds,
-    videoExtraImageUrls,
-    videoGenerateAudio,
-    videoReferenceImageUrl,
-    videoReferenceMode,
-    videoReferenceText,
-    videoResolution,
-    visibleFailures,
-  };
-};
-
-type AiStudioPageRuntimeShell = ReturnType<typeof useAiStudioPageRuntimeShell>;
-
-type CreateGenerationCommandRuntime = {
-  assistantBubbleMedia: ReturnType<
-    typeof useAiStudioAgentOutputGenerationBridge
-  >["assistantBubbleMedia"];
-  createGenerateCostCredits: number | null;
-  handleChatOffInlineGenerate: () => void;
-  handleGenerateFromAgentOutputPrompt: ReturnType<
-    typeof useAiStudioAgentOutputGenerationBridge
-  >["handleGenerateFromAgentOutputPrompt"];
-  handlePulseCreatePrimarySubmit: () => void;
-  handleStandardCreatePrimarySubmit: () => void;
-  pulseArtifactGenerateDisabled: boolean;
-  pulseArtifactGenerateGuardrail: string | null;
-};
-
-const EMPTY_ASSISTANT_BUBBLE_MEDIA: ReturnType<
-  typeof useAiStudioAgentOutputGenerationBridge
->["assistantBubbleMedia"] = {};
-
-const noopCreateCommand = () => undefined;
-
-const noopGenerateFromAgentOutputPrompt: ReturnType<
-  typeof useAiStudioAgentOutputGenerationBridge
->["handleGenerateFromAgentOutputPrompt"] = (request) => {
-  void request;
-};
-
-const AiStudioPageRuntimeBody = ({
-  base,
-  createPulsePageRuntime,
-  activeCreateAgentRuntime,
-}: {
-  base: AiStudioPageBaseRuntime;
-  createPulsePageRuntime: CreatePulsePresetPageRuntime;
-  activeCreateAgentRuntime: CreatePageAgentRuntime;
-}) => {
-  const shell = useAiStudioPageRuntimeShell({
+    handleOpenModelModal,
+    handleEditPromptTextChange,
+    handleVideoPromptTextChange,
+    handleImageRegenerateWithDebit,
+    handleRegenerateWithDebit,
+  });
+  const propertiesCreate = useAiStudioCreatePanelRuntime({
     base,
     createPulsePageRuntime,
     activeCreateAgentRuntime,
-  });
-  return <CreateGenerationCommandRoot shell={shell} />;
-};
-
-const CreateGenerationCommandRoot = ({ shell }: { shell: AiStudioPageRuntimeShell }) => {
-  const {
-    agentInput,
-    activeCreatePulsePresetSnapshot,
-    chatModeEnabled,
-    createSelectedCharacterId,
+    workflowBeginnerPolicy,
     currentCostCredits,
-    effectiveGenerationGuardrail,
-    effectiveIsGenerateDisabled,
-    expertCreateMode,
-    handleAgentSend,
-    handleGenerate,
-    handleStandardAgentCaptureResult,
-    hasActivePulseSession,
-    hasSufficientCreditsForPromptReferenceGenerate,
-    isCreateCharacterModeEnabled,
-    mode,
-    model,
-    outputs,
     promptReferenceGenerateCostCredits,
-    pulseWorkflowSession,
-    referenceGridReadyOutputIds,
-    selectedTool,
-    setEditReferenceText,
-    setMode,
-    setPromptOrigin,
-    setSelectedToolWithEditIntentReset,
-    setStandardCreatePrompt,
-    setUiNotice,
-    setVideoReferenceText,
-    standardPrompt,
-  } = shell;
-
-  const isPulseCreateRuntime = expertCreateMode === "pulse";
-  const handleProviderPrimarySubmit = useCallback(() => {
-    void handleGenerate();
-  }, [handleGenerate]);
-  const handleStandardCreatePrimarySubmit = useStandardCreatePrimarySubmit({
-    mode,
-    selectedTool,
-    chatModeEnabled,
-    agentInput,
-    prompt: standardPrompt,
-    currentCostCredits,
-    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
-    handleAgentSend,
-    handleGenerate,
-    handleProviderPrimarySubmit,
-    handleStandardAgentCaptureResult,
-    setPromptOrigin,
-  });
-  const handleChatOffInlineGenerate = useStandardCreateInlineGenerate({
-    agentInput,
-    prompt: standardPrompt,
-    currentCostCredits,
-    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
-    handleGenerate,
-    setPromptOrigin,
-  });
-  const { assistantBubbleMedia, handleGenerateFromAgentOutputPrompt } =
-    useAiStudioAgentOutputGenerationBridge({
-      enabled: !isPulseCreateRuntime,
-      outputs,
-      referenceGridReadyOutputIds,
-      mode,
-      selectedTool,
-      isGenerateDisabled: effectiveIsGenerateDisabled,
-      hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
-      model,
-      characterModeEnabled: isCreateCharacterModeEnabled,
-      selectedCharacterId: createSelectedCharacterId,
-      currentCostCredits,
-      promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
-      setVideoReferenceText,
-      setEditReferenceText,
-      setSharedPrompt: setStandardCreatePrompt,
-      setSelectedToolWithEditIntentReset,
-      setMode,
-      setPromptOrigin,
-      handleGenerate,
-    });
-  const {
-    pulseArtifactGenerateGuardrail,
-    pulseArtifactGenerateDisabled,
-    handlePulseCreatePrimarySubmit,
-  } = usePulseCreatePrimarySubmit({
-    hasActivePulseSession,
-    pulseWorkflowSession,
-    artifactTarget: activeCreatePulsePresetSnapshot?.artifactTarget ?? null,
-    effectiveGenerationGuardrail,
-    promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
-    currentCostCredits,
-    handleGenerate,
-    setUiNotice,
-  });
-  const createGenerateCostCredits =
-    mode === "text" && !chatModeEnabled
-      ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
-      : currentCostCredits;
-
-  return (
-    <AiStudioPageRuntimePresenter
-      shell={shell}
-      commandRuntime={
-        isPulseCreateRuntime
-          ? {
-              assistantBubbleMedia: EMPTY_ASSISTANT_BUBBLE_MEDIA,
-              createGenerateCostCredits: currentCostCredits,
-              handleChatOffInlineGenerate: noopCreateCommand,
-              handleGenerateFromAgentOutputPrompt: noopGenerateFromAgentOutputPrompt,
-              handlePulseCreatePrimarySubmit,
-              handleStandardCreatePrimarySubmit: noopCreateCommand,
-              pulseArtifactGenerateDisabled,
-              pulseArtifactGenerateGuardrail,
-            }
-          : {
-              assistantBubbleMedia,
-              createGenerateCostCredits,
-              handleChatOffInlineGenerate,
-              handleGenerateFromAgentOutputPrompt,
-              handlePulseCreatePrimarySubmit: noopCreateCommand,
-              handleStandardCreatePrimarySubmit,
-              pulseArtifactGenerateDisabled: Boolean(effectiveGenerationGuardrail),
-              pulseArtifactGenerateGuardrail: effectiveGenerationGuardrail,
-            }
-      }
-    />
-  );
-};
-
-const AiStudioPageRuntimePresenter = ({
-  shell,
-  commandRuntime,
-}: {
-  shell: AiStudioPageRuntimeShell;
-  commandRuntime: CreateGenerationCommandRuntime;
-}) => {
-  const {
-    activeCreatePulsePresetId,
-    activeCreatePulsePresetSnapshot,
-    activeOutput,
-    activeOutputId,
-    addCuratedReference,
-    addLibraryMediaReference,
-    addLibraryPromptReference,
-    addPastedMediaReference,
-    addPastedPromptReference,
-    agentAttachmentError,
-    agentAttachments,
-    agentBootstrapReady,
-    agentBusy,
-    agentEnabled,
-    agentError,
-    agentInput,
-    agentIsSending,
-    agentMessages,
-    agentUiBusy,
-    archivedOutputs,
-    aspect,
-    balanceLoading,
-    beginnerMode,
-    characterCreateRequestKey,
-    characterError,
-    characterOptions,
-    chatModeEnabled,
-    clearCharacterError,
-    clearGenerationOutput,
-    closeModelModal,
-    createPulsePageRuntime,
-    createIsGenerating,
-    createSelectedCharacterId,
-    createSelectedCharacterLookId,
-    curatedReferenceIds,
-    currentCostCredits,
-    currentModelLabel,
-    deleteOutput,
-    describeInFlightCount,
-    detailOutput,
-    dismissError,
-    dismissFailure,
-    dismissNotice,
-    editIsGenerating,
-    editReferenceText,
-    editSelectedCharacterId,
-    effectiveBalanceCredits,
+    hasSufficientCreditsForPromptReferenceGenerate,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
-    effectiveProjectName,
-    effectiveUiNotice,
-    elementCreateRequestKey,
-    expertCreateMode,
-    expertEditCustomPresetOverrides,
-    expertEditSessionState,
-    filteredModelOptions,
-    findOutputById,
-    focusFailure,
-    handleActiveCreatePulsePresetIdChangeForPage,
-    handleAgentAttachmentDragEnter,
-    handleAgentAttachmentDragLeave,
-    handleAgentAttachmentDragOver,
-    handleAgentAttachmentDrop,
-    handleAgentInputChange,
-    handleAgentSend,
-    handleAssistantMessageEdit,
-    handleBeginnerModeChange,
-    handleClearAgentAttachments,
-    handleClearAgentChat,
-    handleCloseMediaLibrary,
-    handleCloseProjectsModal,
-    handleCreateCharacterSelection,
-    handleCreatePulsePresetStart,
-    handleEditPromptTextChange,
-    handleExpertCreateModeChangeForPage,
-    handleFileBrowserSelection,
-    handleGenerate,
-    handleImageRegenerateWithDebit,
-    handleManualPromptChange,
-    handleOpenCharacterCreate,
-    handleOpenCharacterLibrary,
-    handleOpenElementCreate,
-    handleOpenMediaLibrary,
-    handleOpenModelModal,
-    handleOpenProjectsModal,
-    handleProjectNameCommit,
-    handlePulseCreatePromptChange,
-    handleQuickSlotLibraryMediaDrop,
-    handleQuickSlotLibraryPromptDrop,
-    handleReferenceGridFiles,
-    handleRegenerateWithDebit,
-    handleRemoveAgentAttachment,
-    handleSelectModelFromModal,
-    handleSelectOutput,
-    handleSelectProjectFromModal,
+    pulseArtifactTarget,
+    pulseCurrentCostCredits,
+    pulsePromptReferenceGenerateCostCredits,
+    pulseGenerationGuardrail,
+    pulseGenerateCostCredits,
     handleStandardCreatePromptChange,
-    handleToolSelect,
-    handleVideoPromptTextChange,
-    hasActivePulseSession,
-    hasSufficientCreditsForPromptReferenceGenerate,
-    imageExtraImageUrls,
-    imageReferenceImageUrl,
-    imageResolution,
-    insertOptimisticGenerationPlaceholder,
-    isAgentDropActive,
-    isCharacterOptionsLoading,
-    isCreateCharacterModeEnabled,
-    isEditCharacterModeEnabled,
-    isMediaLibraryOpen,
-    isMediaLibraryPanelEnabled,
-    isModelModalOpen,
-    isPrimaryEditStageGenerating,
-    isProjectsModalOpen,
-    isPromptRefining,
-    isTemplateView,
-    klingCfgScale,
-    klingElements,
-    klingMultiPrompts,
-    klingNegativePrompt,
-    klingShotType,
-    klingVoiceIds,
-    klingWorkflowMode,
-    linkedPromptReferenceIds,
-    loadCreateCharacterLookOptions,
-    mode,
-    model,
-    modelModalAnchor,
-    modelModalContext,
-    modelPricingPolicy,
-    motionReferenceVideoUrl,
-    notifyGenerationFailure,
-    onReferenceOutputMediaLoaded,
-    outputs,
-    pendingHoldCredits,
-    project,
-    projectBootstrapApplied,
-    projectBootstrapError,
-    projectError,
-    projectId,
-    projectRouteRequested,
-    projectStatus,
-    promptReferenceGenerateCostCredits,
-    pulsePrompt,
-    pulseWorkflowSession,
-    railCanvasProps,
-    referenceGridFileInputRef,
-    referenceGridPreconnectOrigin,
-    referenceGridReadyOutputIds,
-    referenceImageUrl,
-    referenceImageWarning,
-    refreshCharacterOptions,
-    refreshProject,
-    removeCuratedReference,
-    removeOptimisticGenerationPlaceholder,
-    removedFromAllRefsIds,
-    reorderCuratedReference,
-    rerollOutputFromReplay,
-    resolveCharacterAvatarUrlById,
-    resolveCharacterDropReference,
-    resolveElementProfileImageDropSource,
-    resolveMediaLibraryInternalDropItem,
-    resolveModelPickerCredits,
-    resolvePanelOutputPreviewUrl,
-    resolveStyleLibraryInternalDrop,
-    resolveVoiceChangerInternalReferenceSource,
-    restoreAllArchivedOutputs,
-    restoreArchivedOutput,
-    retryOutputStatus,
-    retryProjectBootstrap,
-    savePromptReference,
-    savePromptToLibrary,
-    saveReferenceToLibrary,
-    seedance2InputMode,
-    seedance2ReferenceAudioUrls,
-    seedance2ReferenceImageUrls,
-    seedance2ReferenceVideoUrls,
-    seedance2ReturnLastFrame,
-    seedance2WebSearch,
-    selectedCreateCharacterLookLabel,
-    selectedExpertEditPresetIds,
-    selectedTool,
-    sessionAgentRuntime,
-    sessionId,
-    sessionRestoreCandidate,
-    setAspect,
-    setChatModeEnabled,
-    setDetailOutputId,
-    setEditSelectedCharacterId,
-    setEditSubmitIntent,
-    setExpertEditCustomPresetOverrides,
-    setExpertEditSessionState,
-    setImageExtraImageUrl,
-    setImageReferenceImageUrl,
-    setImageResolution,
-    setIsCreateCharacterModeEnabled,
-    setIsEditCharacterModeEnabled,
-    setKlingCfgScale,
-    setKlingElements,
-    setKlingMultiPrompts,
-    setKlingNegativePrompt,
-    setKlingShotType,
-    setKlingVoiceIds,
-    setKlingWorkflowMode,
-    setMotionReferenceVideoUrl,
-    setOutputs,
-    setReferenceImageUrl,
-    setSeedance2InputMode,
-    setSeedance2ReferenceAudioUrls,
-    setSeedance2ReferenceImageUrls,
-    setSeedance2ReferenceVideoUrls,
-    setSeedance2ReturnLastFrame,
-    setSeedance2WebSearch,
-    setSelectedExpertEditPresetIds,
-    setSelectedStyleContext,
-    setSelectedStylePrompt,
-    setSelectedToolWithEditIntentReset,
-    setShowCreateTools,
-    setUiError,
-    setVideoAutoFix,
-    setVideoCameraFixed,
-    setVideoDurationSeconds,
-    setVideoExtraImageUrl,
-    setVideoGenerateAudio,
-    setVideoReferenceImageUrl,
-    setVideoReferenceMode,
-    setVideoResolution,
-    showBeginnerModeToggle,
-    showCreateTools,
-    stagedAgentPrompt,
-    standardPrompt,
-    triggerFilePicker,
-    uiError,
-    updateOutputById,
-    updateOutputPrompt,
-    useReferenceImageIndicator,
-    videoAutoFix,
-    videoCameraFixed,
-    videoDurationSeconds,
-    videoExtraImageUrls,
-    videoGenerateAudio,
-    videoReferenceImageUrl,
-    videoReferenceMode,
-    videoReferenceText,
-    videoResolution,
-    visibleFailures,
-  } = shell;
-  const {
-    assistantBubbleMedia,
-    createGenerateCostCredits,
-    handleChatOffInlineGenerate,
-    handleGenerateFromAgentOutputPrompt,
-    handlePulseCreatePrimarySubmit,
-    handleStandardCreatePrimarySubmit,
-    pulseArtifactGenerateDisabled,
-    pulseArtifactGenerateGuardrail,
-  } = commandRuntime;
-  const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
-    projectId,
-    findOutputById,
-    saveReferenceToLibrary,
-    setUiError,
-  });
-  const expertCreatePolicy = useMemo(() => {
-    const explicitExpertCreateUiFlag = process.env.NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI;
-    const normalizedExpertCreateUiFlag = explicitExpertCreateUiFlag?.trim().toLowerCase();
-    const isExpertCreateUiEnabledByEnv =
-      normalizedExpertCreateUiFlag === "true"
-        ? true
-        : normalizedExpertCreateUiFlag === "false"
-          ? false
-          : process.env.NODE_ENV === "development";
-    return createWorkflowBeginnerModePolicy(beginnerMode, isExpertCreateUiEnabledByEnv).create;
-  }, [beginnerMode]);
-  const { pulsePreferenceRuntime } = createPulsePageRuntime;
-  const createRuntimePanelContract = useMemo(() => {
-    if (expertCreateMode === "pulse") {
-      const pulseRuntime = buildPulseCreateRuntimeResult({
-        props: {
-          pulsePrompt,
-          hasActiveSession: hasActivePulseSession,
-          activePresetId: activeCreatePulsePresetId,
-          activePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
-          workflowSession: pulseWorkflowSession,
-          createIsGenerating,
-          currentCostCredits,
-          isGenerateDisabled: pulseArtifactGenerateDisabled,
-          generationGuardrail: pulseArtifactGenerateGuardrail,
-          expertCreateUiEligible: expertCreatePolicy.expertCreateEligible,
-          onPulsePromptChange: handlePulseCreatePromptChange,
-          onActivePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
-          onSavePromptReference: savePromptReference,
-          pulsePreferenceRuntime,
-          generationServices: { handleGenerate },
-        },
-        agentRuntime: {
-          agentEnabled,
-          agentBootstrapReady,
-          agentMessages,
-          agentInput,
-          agentBusy,
-          agentIsSending,
-          agentUiBusy,
-          agentAttachmentError,
-          agentError,
-          stagedAgentPrompt,
-          agentAttachments,
-          isAgentDropActive,
-          workflowSession: pulseWorkflowSession,
-          persistedAgentRuntime: sessionAgentRuntime,
-        },
-        actions: {
-          onAgentInputChange: handleAgentInputChange,
-          onAgentSend: handleAgentSend,
-          onAgentAttachmentDrop: handleAgentAttachmentDrop,
-          onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
-          onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
-          onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
-          onRemoveAgentAttachment: handleRemoveAgentAttachment,
-          onClearAgentAttachments: handleClearAgentAttachments,
-          onAssistantMessageEdit: handleAssistantMessageEdit,
-          onClearAgentChat: handleClearAgentChat,
-          onGenerateArtifact: handlePulseCreatePrimarySubmit,
-          onPresetStart: handleCreatePulsePresetStart,
-        },
-      });
-      return {
-        expertCreateMode: "pulse" as const,
-        onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
-        pulse: {
-          ...pulseRuntime.panelProps,
-          hasActivePulseSession,
-          pulseWorkflowSession,
-          activePulsePresetId: activeCreatePulsePresetId,
-          activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
-          onActivePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
-          onPulsePresetStart: handleCreatePulsePresetStart,
-        },
-      };
-    }
-
-    const standardRuntime = buildStandardCreateRuntimeResult({
-      props: {
-        prompt: standardPrompt,
-        mode,
-        selectedTool,
-        aspect,
-        model,
-        currentModelLabel,
-        createIsGenerating,
-        isPromptRefining,
-        describeInFlightCount,
-        createGenerateCostCredits,
-        promptReferenceGenerateCostCredits: promptReferenceGenerateCostCredits ?? null,
-        hasSufficientCreditsForPromptReferenceGenerate,
-        isGenerateDisabled: effectiveIsGenerateDisabled,
-        generationGuardrail: effectiveGenerationGuardrail,
-        useReferenceImageIndicator,
-        isModelModalOpen,
-        modelModalAnchor,
-        characterOptions,
-        selectedCharacterId: createSelectedCharacterId,
-        selectedCharacterLookId: createSelectedCharacterLookId,
-        selectedCharacterLookLabel: selectedCreateCharacterLookLabel,
-        isCharacterOptionsLoading,
-        isCharacterModeEnabled: isCreateCharacterModeEnabled,
-        imageResolution,
-        beginnerCreateMode: expertCreatePolicy.beginnerMode,
-        expertCreateUiEligible: expertCreatePolicy.expertCreateEligible,
-        onPromptChange: handleStandardCreatePromptChange,
-        onAspectChange: setAspect,
-        onModelPickerOpen: handleOpenModelModal,
-        onSavePromptReference: savePromptReference,
-        onSelectedCharacterChange: handleCreateCharacterSelection,
-        onOpenCharacterLibrary: handleOpenCharacterLibrary,
-        onCharacterModeChange: setIsCreateCharacterModeEnabled,
-        onRefreshCharacterOptions: refreshCharacterOptions,
-        onLoadCharacterLookOptions: loadCreateCharacterLookOptions,
-        resolveCharacterAvatarUrlById,
-        onImageResolutionChange: setImageResolution,
-        generationServices: { handleGenerate },
-      },
-      agentRuntime: {
-        agentEnabled,
-        agentBootstrapReady,
-        agentMessages,
-        agentInput,
-        chatModeEnabled,
-        agentBusy,
-        agentIsSending,
-        agentUiBusy,
-        agentAttachmentError,
-        agentError,
-        stagedAgentPrompt,
-        assistantBubbleMedia,
-        agentAttachments,
-        isAgentDropActive,
-        persistedAgentRuntime: sessionAgentRuntime,
-      },
-      actions: {
-        onAgentInputChange: handleAgentInputChange,
-        onChatModeChange: setChatModeEnabled,
-        onAgentSend: handleAgentSend,
-        onAgentAttachmentDrop: handleAgentAttachmentDrop,
-        onAgentAttachmentDragOver: handleAgentAttachmentDragOver,
-        onAgentAttachmentDragEnter: handleAgentAttachmentDragEnter,
-        onAgentAttachmentDragLeave: handleAgentAttachmentDragLeave,
-        onRemoveAgentAttachment: handleRemoveAgentAttachment,
-        onClearAgentAttachments: handleClearAgentAttachments,
-        onAssistantMessageEdit: handleAssistantMessageEdit,
-        onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
-        onClearAgentChat: handleClearAgentChat,
-        onPrimarySubmit: handleStandardCreatePrimarySubmit,
-        onChatOffInlineGenerate: handleChatOffInlineGenerate,
-      },
-    });
-    return {
-      expertCreateMode: "standard" as const,
-      onExpertCreateModeChange: handleExpertCreateModeChangeForPage,
-      standard: standardRuntime.panelProps,
-    };
-  }, [
-    activeCreatePulsePresetId,
-    activeCreatePulsePresetSnapshot?.label,
-    agentAttachmentError,
-    agentAttachments,
-    agentBootstrapReady,
-    agentBusy,
-    agentEnabled,
-    agentError,
-    agentInput,
-    agentIsSending,
-    agentMessages,
-    agentUiBusy,
-    aspect,
-    assistantBubbleMedia,
-    characterOptions,
-    chatModeEnabled,
-    createGenerateCostCredits,
-    createIsGenerating,
-    createSelectedCharacterId,
-    createSelectedCharacterLookId,
-    currentCostCredits,
-    currentModelLabel,
-    describeInFlightCount,
-    effectiveGenerationGuardrail,
-    effectiveIsGenerateDisabled,
-    expertCreateMode,
-    expertCreatePolicy.beginnerMode,
-    expertCreatePolicy.expertCreateEligible,
-    handleActiveCreatePulsePresetIdChangeForPage,
-    handleAgentAttachmentDragEnter,
-    handleAgentAttachmentDragLeave,
-    handleAgentAttachmentDragOver,
-    handleAgentAttachmentDrop,
-    handleAgentInputChange,
-    handleAgentSend,
-    handleAssistantMessageEdit,
-    handleChatOffInlineGenerate,
-    handleClearAgentAttachments,
-    handleClearAgentChat,
-    handleCreateCharacterSelection,
-    handleCreatePulsePresetStart,
-    handleExpertCreateModeChangeForPage,
-    handleGenerate,
-    handleGenerateFromAgentOutputPrompt,
-    handleOpenCharacterLibrary,
-    handleOpenModelModal,
-    handlePulseCreatePrimarySubmit,
     handlePulseCreatePromptChange,
-    handleRemoveAgentAttachment,
-    handleStandardCreatePrimarySubmit,
-    handleStandardCreatePromptChange,
-    hasActivePulseSession,
-    hasSufficientCreditsForPromptReferenceGenerate,
-    imageResolution,
-    isAgentDropActive,
-    isCharacterOptionsLoading,
-    isCreateCharacterModeEnabled,
-    isModelModalOpen,
-    isPromptRefining,
-    loadCreateCharacterLookOptions,
-    mode,
-    model,
-    modelModalAnchor,
-    promptReferenceGenerateCostCredits,
-    pulseArtifactGenerateDisabled,
-    pulseArtifactGenerateGuardrail,
-    pulsePreferenceRuntime,
-    pulsePrompt,
-    pulseWorkflowSession,
-    refreshCharacterOptions,
-    resolveCharacterAvatarUrlById,
-    savePromptReference,
-    selectedCreateCharacterLookLabel,
-    selectedTool,
-    sessionAgentRuntime,
-    setAspect,
-    setChatModeEnabled,
-    setImageResolution,
-    setIsCreateCharacterModeEnabled,
-    stagedAgentPrompt,
-    standardPrompt,
-    useReferenceImageIndicator,
-  ]);
-
-  const editVideoPanelProps = useAiStudioEditVideoPanelProps({
-    aspect,
-    model,
-    currentModelLabel,
-    editIsGenerating,
-    isPrimaryEditStageGenerating,
-    currentCostCredits,
-    isGenerateDisabled: effectiveIsGenerateDisabled,
-    generationGuardrail: effectiveGenerationGuardrail,
-    savePromptReference,
-    characterOptions,
-    selectedCharacterId: createSelectedCharacterId,
-    isCharacterOptionsLoading,
-    isCharacterModeEnabled: isCreateCharacterModeEnabled,
-    setIsCharacterModeEnabled: setIsCreateCharacterModeEnabled,
-    editSelectedCharacterId,
-    setEditSelectedCharacterId,
-    editCharacterModeEnabled: isEditCharacterModeEnabled,
-    setEditCharacterModeEnabled: setIsEditCharacterModeEnabled,
-    refreshCharacterOptions,
-    resolveCharacterAvatarUrlById,
-    selectedExpertEditPresetIds,
-    onSelectedExpertEditPresetIdsChange: setSelectedExpertEditPresetIds,
-    expertEditCustomPresetOverrides,
-    onExpertEditCustomPresetOverridesChange: setExpertEditCustomPresetOverrides,
-    expertEditSessionState,
-    onExpertEditSessionStateChange: setExpertEditSessionState,
-    videoDurationSeconds,
-    videoResolution,
-    imageResolution,
-    videoGenerateAudio,
-    videoCameraFixed,
-    videoAutoFix,
-    seedance2InputMode,
-    seedance2ReferenceImageUrls,
-    seedance2ReferenceVideoUrls,
-    seedance2ReferenceAudioUrls,
-    seedance2ReturnLastFrame,
-    seedance2WebSearch,
-    setAspect,
-    setVideoDurationSeconds,
-    setVideoResolution,
-    setImageResolution,
-    setVideoGenerateAudio,
-    setVideoCameraFixed,
-    setVideoAutoFix,
-    setSeedance2InputMode,
-    setSeedance2ReferenceImageUrls,
-    setSeedance2ReferenceVideoUrls,
-    setSeedance2ReferenceAudioUrls,
-    setSeedance2ReturnLastFrame,
-    setSeedance2WebSearch,
-    beginnerMode,
-    editReferenceImageUrl: imageReferenceImageUrl,
-    editExtraImageUrls: imageExtraImageUrls,
-    editReferenceText,
-    handleImageRegenerateWithDebit,
-    insertOptimisticGenerationPlaceholder: (promptText: string) =>
-      insertOptimisticGenerationPlaceholder({
-        prompt: promptText,
-        modeOverride: "image",
-        selectedToolOverride: "edit",
-      }),
-    removeOptimisticGenerationPlaceholder,
-    notifyGenerationFailure,
-    onEditSubmitIntentChange: setEditSubmitIntent,
-    addSessionMediaReference: addPastedMediaReference,
-    referenceImageWarning,
-    resolveOutputPreviewUrl: resolvePanelOutputPreviewUrl,
-    setEditReferenceImageUrl: setImageReferenceImageUrl,
-    setEditExtraImageUrl: setImageExtraImageUrl,
-    handleEditPromptTextChange,
-    videoReferenceText,
-    videoReferenceImageUrl,
-    videoExtraImageUrls,
-    videoReferenceMode,
-    setVideoReferenceMode,
-    klingNegativePrompt,
-    klingCfgScale,
-    klingWorkflowMode,
-    klingShotType,
-    klingVoiceIds,
-    klingMultiPrompts,
-    klingElements,
-    setKlingNegativePrompt,
-    setKlingCfgScale,
-    setKlingWorkflowMode,
-    setKlingShotType,
-    setKlingVoiceIds,
-    setKlingMultiPrompts,
-    setKlingElements,
-    motionReferenceVideoUrl,
-    isModelModalOpen,
-    modelModalAnchor,
+    handleExpertCreateModeChangeForPage: createPulsePageRuntime.handleExpertCreateModeChangeForPage,
+    handleActiveCreatePulsePresetIdChangeForPage:
+      createPulsePageRuntime.handleActiveCreatePulsePresetIdChangeForPage,
+    handleCreatePulsePresetStart,
+    handleGenerate,
     handleOpenModelModal,
-    setVideoReferenceImageUrl,
-    setVideoExtraImageUrl,
-    setMotionReferenceVideoUrl,
-    handleVideoPromptTextChange,
-    handleRegenerateWithDebit,
-    onCreateCharacter: handleOpenCharacterCreate,
-    onCreateElement: handleOpenElementCreate,
-  });
-  const panelPropsWithCreateModeRuntime = useMemo(() => {
-    return {
-      ...editVideoPanelProps,
-      propertiesCreate: createRuntimePanelContract,
-    };
-  }, [createRuntimePanelContract, editVideoPanelProps]);
-  const referenceGridHookProps = useAiStudioReferenceGridProps({
-    outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
-    archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
-    activeOutputId,
-    topNotice: null,
-    curatedReferenceIds,
-    removedFromAllRefsIds,
-    onReferenceOutputMediaLoaded,
-    linkedPromptReferenceIds,
-    handleSelectOutput,
-    setDetailOutputId,
-    handleSaveReference,
-    handleDownloadReference,
-    handlePasteTextReference: addPastedPromptReference,
-    handlePasteMediaReference: addPastedMediaReference,
-    retryOutputStatus,
-    handleRerollOutput: rerollOutputFromReplay,
-    deleteOutput,
-    clearGenerationOutput,
-    addCuratedReference,
-    removeCuratedReference,
-    reorderCuratedReference,
-    restoreArchivedOutput,
-    restoreAllArchivedOutputs,
-  });
-  const referenceGridPageProps = useMemo(
-    () => ({
-      ...referenceGridHookProps,
-      railCanvasProps,
-      onAddLibraryMediaReferenceToQuickSlot: handleQuickSlotLibraryMediaDrop,
-      onAddLibraryPromptReferenceToQuickSlot: handleQuickSlotLibraryPromptDrop,
-    }),
-    [
-      handleQuickSlotLibraryMediaDrop,
-      handleQuickSlotLibraryPromptDrop,
-      railCanvasProps,
-      referenceGridHookProps,
-    ]
-  );
-  const previewDetailProps = useAiStudioPreviewDetailProps({
-    activeOutput,
-    referenceGridReadyOutputIds,
-    referenceImageUrl,
-    selectedTool,
-    videoReferenceText,
-    editReferenceText,
-    setReferenceImageUrl,
-    handleManualPromptChange,
-    handleRegenerateWithDebit,
-    detailOutput,
-    setDetailOutputId,
-    updateOutputPrompt,
-    deleteOutput,
-    handleSaveReference,
-    handleDownloadReference,
-    savePromptToLibrary,
-    handleOpenMediaLibrary,
+    handleStandardAgentCaptureResult,
   });
   const {
-    propertiesCreate,
+    propertiesCreate: pagePropertiesCreate,
     propertiesEditExpert,
     propertiesVideo,
     referenceGridProps,
@@ -2921,201 +2091,129 @@ const AiStudioPageRuntimePresenter = ({
     onDetailDownload,
     onDetailSaveReference,
     onDetailSavePrompt,
-  } = mapHookContractsToPageContentProps({
-    panelProps: panelPropsWithCreateModeRuntime,
-    referenceGridProps: referenceGridPageProps,
-    previewDetailProps,
+  } = useAiStudioReferenceExperienceRuntime({
+    base,
+    linkedPromptReferenceIds,
+    propertiesCreate,
+    propertiesEditExpert: editExpertPanelProps,
+    propertiesVideo: videoPanelProps,
+    handleSelectOutput,
+    handleManualPromptChange,
+    handleRegenerateWithDebit,
+    handleOpenMediaLibrary,
   });
-  const handleOpenMediaLibraryPanelOnly = useCallback(() => {
-    handleCloseMediaLibrary();
-    setShowCreateTools(false);
-    setSelectedToolWithEditIntentReset("media-library");
-  }, [handleCloseMediaLibrary, setSelectedToolWithEditIntentReset, setShowCreateTools]);
   const {
-    musicIsGenerating,
-    voicesIsGenerating,
-    soundEffectsIsGenerating,
-    handleVoicesGenerate,
-    handleMusicGenerate,
-    handleSoundEffectsGenerate,
-  } = useAiStudioAudioGeneration({
-    setUiError,
-    insertOptimisticGenerationPlaceholder,
-    notifyGenerationFailure,
-    updateOutputById,
-    setOutputs,
-  });
-
-  const shouldGateProjectBootstrap =
-    projectRouteRequested &&
-    (projectStatus !== "ready" || (Boolean(projectId) && !projectBootstrapApplied));
-  const projectEntryPhase = resolveProjectEntryPhase({
-    projectStatus,
-    projectRouteRequested,
+    effectiveProjectName,
+    handleProjectNameCommit,
+    handleOpenProjectsModal,
+    handleCloseProjectsModal,
+    handleSelectProjectFromModal,
+    handleOpenMediaLibraryPanelOnly,
+    shouldGateProjectBootstrap,
+    projectEntryPhase,
+    modelModalState,
+  } = useAiStudioShellRuntime({
+    base,
+    sessionRestoreCandidate,
     projectBootstrapApplied,
-    workspaceRestoreCandidate: sessionRestoreCandidate,
+    filteredModelOptions,
+    resolveModelPickerCredits,
+    handleSelectModelFromModal,
   });
-  const modelModalState = useMemo(
-    () => ({
-      isOpen: isModelModalOpen,
-      options: filteredModelOptions,
-      resolveCreditsForModel: resolveModelPickerCredits,
-      context: modelModalContext,
-      onClose: closeModelModal,
-      onSelect: handleSelectModelFromModal,
-    }),
-    [
-      closeModelModal,
-      filteredModelOptions,
-      handleSelectModelFromModal,
-      isModelModalOpen,
-      modelModalContext,
-      resolveModelPickerCredits,
-    ]
-  );
 
-  if (shouldGateProjectBootstrap) {
-    return (
-      <AiStudioModalActivityProvider>
-        <Head>
-          <title>ShortPulse · AI Studio</title>
-          <meta name="description" content="AI Studio — prompt, generate, preview, save." />
-        </Head>
-        {projectStatus === "error" || projectBootstrapError ? (
-          <AiStudioProjectEntryState
-            variant="error"
-            phase={projectEntryPhase}
-            projectTitle={project?.title ?? null}
-            errorTitle={
-              projectStatus === "error" ? "Project unavailable" : "Project workspace unavailable"
-            }
-            errorMessage={
-              projectStatus === "error"
-                ? (projectError ?? "Failed to load project.")
-                : (projectBootstrapError ?? "Failed to load project workspace.")
-            }
-            primaryActionLabel={
-              projectStatus === "error" ? "Retry project load" : "Retry workspace load"
-            }
-            onPrimaryAction={projectStatus === "error" ? refreshProject : retryProjectBootstrap}
-            secondaryActionLabel="Back to dashboard"
-            onSecondaryAction={() => {
-              window.location.assign("/dashboard");
-            }}
-          />
-        ) : (
-          <AiStudioProjectEntryState
-            variant="loading"
-            phase={projectEntryPhase}
-            projectTitle={project?.title ?? null}
-          />
-        )}
-      </AiStudioModalActivityProvider>
-    );
-  }
+  const pageContentProps = {
+    sessionId,
+    referenceGridFileInputRef,
+    onFileBrowserSelection: handleFileBrowserSelection,
+    uiError,
+    uiNotice: effectiveUiNotice,
+    characterError,
+    onDismissUiError: dismissError,
+    onDismissUiNotice: dismissNotice,
+    onDismissCharacterError: clearCharacterError,
+    beginnerMode,
+    showBeginnerModeToggle,
+    onBeginnerModeChange: handleBeginnerModeChange,
+    balanceCredits: effectiveBalanceCredits,
+    pendingHoldCredits: pendingHoldCredits > 0 ? pendingHoldCredits : null,
+    balanceLoading,
+    visibleFailures,
+    onDismissFailure: dismissFailure,
+    onInspectFailure: focusFailure,
+    selectedTool,
+    characterCreateRequestKey,
+    elementCreateRequestKey,
+    showCreateTools,
+    onOpenProjects: handleOpenProjectsModal,
+    onSelectTool: handleToolSelect,
+    onToggleCreateTools: setShowCreateTools,
+    propertiesCreate: pagePropertiesCreate,
+    propertiesEditExpert,
+    propertiesVideo,
+    propertiesMusic: {
+      balanceCredits: effectiveBalanceCredits,
+      isGenerating: musicIsGenerating,
+      onGenerate: handleMusicGenerate,
+      pricingPolicy: modelPricingPolicy,
+    },
+    propertiesSoundEffects: {
+      balanceCredits: effectiveBalanceCredits,
+      isGenerating: soundEffectsIsGenerating,
+      onGenerate: handleSoundEffectsGenerate,
+      pricingPolicy: modelPricingPolicy,
+    },
+    propertiesVoices: {
+      balanceCredits: effectiveBalanceCredits,
+      isGenerating: voicesIsGenerating,
+      onGenerate: handleVoicesGenerate,
+      pricingPolicy: modelPricingPolicy,
+    },
+    refreshCharacterOptions,
+    resolveCharacterAvatarUrlById,
+    isTemplateView,
+    referenceGridProps,
+    studioPreviewProps,
+    detailModalOutput,
+    onDetailClose,
+    onUpdateOutputPrompt,
+    onDeleteOutput,
+    onDetailDownload,
+    onDetailSaveReference,
+    onDetailSavePrompt,
+    onAddLibraryMediaReference: addLibraryMediaReference,
+    onAddLibraryPromptReference: addLibraryPromptReference,
+    projectId,
+    projectName: effectiveProjectName,
+    onProjectNameCommit: handleProjectNameCommit,
+    resolveMediaLibraryInternalDropItem,
+    resolveStyleLibraryInternalDrop,
+    onOpenMediaLibrary: handleOpenMediaLibraryPanelOnly,
+    modelModalState,
+    handleReferenceGridFiles,
+    triggerFilePicker,
+    resolveCharacterDropReference,
+    resolveElementProfileImageDropSource,
+    resolveVoiceChangerInternalReferenceSource,
+    onSelectedStylePromptChange: setSelectedStylePrompt,
+    onSelectedStyleContextChange: setSelectedStyleContext,
+  } satisfies React.ComponentProps<typeof AiStudioPageContent>;
 
   return (
-    <AiStudioModalActivityProvider>
-      <Head>
-        <title>ShortPulse · AI Studio</title>
-        <meta name="description" content="AI Studio — prompt, generate, preview, save." />
-        {referenceGridPreconnectOrigin ? (
-          <>
-            <link rel="preconnect" href={referenceGridPreconnectOrigin} crossOrigin="anonymous" />
-            <link rel="dns-prefetch" href={referenceGridPreconnectOrigin} />
-          </>
-        ) : null}
-      </Head>
-      <AiStudioPageContent
-        sessionId={sessionId}
-        referenceGridFileInputRef={referenceGridFileInputRef}
-        onFileBrowserSelection={handleFileBrowserSelection}
-        uiError={uiError}
-        uiNotice={effectiveUiNotice}
-        characterError={characterError}
-        onDismissUiError={dismissError}
-        onDismissUiNotice={dismissNotice}
-        onDismissCharacterError={clearCharacterError}
-        beginnerMode={beginnerMode}
-        showBeginnerModeToggle={showBeginnerModeToggle}
-        onBeginnerModeChange={handleBeginnerModeChange}
-        balanceCredits={effectiveBalanceCredits}
-        pendingHoldCredits={pendingHoldCredits > 0 ? pendingHoldCredits : null}
-        balanceLoading={balanceLoading}
-        visibleFailures={visibleFailures}
-        onDismissFailure={dismissFailure}
-        onInspectFailure={focusFailure}
-        selectedTool={selectedTool}
-        characterCreateRequestKey={characterCreateRequestKey}
-        elementCreateRequestKey={elementCreateRequestKey}
-        showCreateTools={showCreateTools}
-        onOpenProjects={handleOpenProjectsModal}
-        onSelectTool={handleToolSelect}
-        onToggleCreateTools={setShowCreateTools}
-        propertiesCreate={propertiesCreate}
-        propertiesEditExpert={propertiesEditExpert}
-        propertiesVideo={propertiesVideo}
-        propertiesMusic={{
-          balanceCredits: effectiveBalanceCredits,
-          isGenerating: musicIsGenerating,
-          onGenerate: handleMusicGenerate,
-          pricingPolicy: modelPricingPolicy,
-        }}
-        propertiesSoundEffects={{
-          balanceCredits: effectiveBalanceCredits,
-          isGenerating: soundEffectsIsGenerating,
-          onGenerate: handleSoundEffectsGenerate,
-          pricingPolicy: modelPricingPolicy,
-        }}
-        propertiesVoices={{
-          balanceCredits: effectiveBalanceCredits,
-          isGenerating: voicesIsGenerating,
-          onGenerate: handleVoicesGenerate,
-          pricingPolicy: modelPricingPolicy,
-        }}
-        refreshCharacterOptions={refreshCharacterOptions}
-        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
-        isTemplateView={isTemplateView}
-        referenceGridProps={referenceGridProps}
-        studioPreviewProps={studioPreviewProps}
-        detailModalOutput={detailModalOutput}
-        onDetailClose={onDetailClose}
-        onUpdateOutputPrompt={onUpdateOutputPrompt}
-        onDeleteOutput={onDeleteOutput}
-        onDetailDownload={onDetailDownload}
-        onDetailSaveReference={onDetailSaveReference}
-        onDetailSavePrompt={onDetailSavePrompt}
-        onAddLibraryMediaReference={addLibraryMediaReference}
-        onAddLibraryPromptReference={addLibraryPromptReference}
-        projectId={projectId}
-        projectName={effectiveProjectName}
-        onProjectNameCommit={handleProjectNameCommit}
-        resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
-        resolveStyleLibraryInternalDrop={resolveStyleLibraryInternalDrop}
-        onOpenMediaLibrary={handleOpenMediaLibraryPanelOnly}
-        modelModalState={modelModalState}
-        handleReferenceGridFiles={handleReferenceGridFiles}
-        triggerFilePicker={triggerFilePicker}
-        resolveCharacterDropReference={resolveCharacterDropReference}
-        resolveElementProfileImageDropSource={resolveElementProfileImageDropSource}
-        resolveVoiceChangerInternalReferenceSource={resolveVoiceChangerInternalReferenceSource}
-        onSelectedStylePromptChange={setSelectedStylePrompt}
-        onSelectedStyleContextChange={setSelectedStyleContext}
-      />
-      {!isMediaLibraryPanelEnabled ? (
-        <MediaLibraryModal
-          isOpen={isMediaLibraryOpen}
-          onClose={handleCloseMediaLibrary}
-          onSelectMedia={(payload) => addLibraryMediaReference(payload)}
-          onSelectPrompt={(payload) => addLibraryPromptReference(payload)}
-        />
-      ) : null}
-      <ProjectsModal
-        isOpen={isProjectsModalOpen}
-        currentProjectId={projectId}
-        onClose={handleCloseProjectsModal}
-        onSelectProject={handleSelectProjectFromModal}
-      />
-    </AiStudioModalActivityProvider>
+    <AiStudioPageShell
+      shouldGateProjectBootstrap={shouldGateProjectBootstrap}
+      projectStatus={projectStatus}
+      projectBootstrapError={projectBootstrapError}
+      projectError={projectError}
+      projectEntryPhase={projectEntryPhase}
+      projectTitle={project?.title ?? null}
+      referenceGridPreconnectOrigin={referenceGridPreconnectOrigin}
+      pageContentProps={pageContentProps}
+      projectsModalOpen={isProjectsModalOpen}
+      projectId={projectId}
+      refreshProject={refreshProject}
+      retryProjectBootstrap={retryProjectBootstrap}
+      onCloseProjectsModal={handleCloseProjectsModal}
+      onSelectProjectFromModal={handleSelectProjectFromModal}
+    />
   );
 };

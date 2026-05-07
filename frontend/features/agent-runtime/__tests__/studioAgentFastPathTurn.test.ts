@@ -285,10 +285,12 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(result.result.parsed).toEqual(
       expect.objectContaining({
         message: "What product should anchor the first shot?",
-        actions: undefined,
+        actions: {
+          applyPrompt: "What product should anchor the first shot?",
+        },
       })
     );
-    expect(result.result.semanticStatus).toBe("needs_input");
+    expect(result.result.semanticStatus).toBe("ready");
     expect(result.result.repairUsed).toBe(false);
   });
 

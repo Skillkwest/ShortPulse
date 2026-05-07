@@ -4,6 +4,15 @@ import { readFileSync } from "node:fs";
 import { useCreatePulsePresetPanelPreference } from "../useCreatePulsePresetPanelPreference";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 
+const CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY =
+  "shortpulse.ai_studio.create_pulse_preset_panel_ids";
+const CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY = "shortpulse.ai_studio.saved_pulses";
+
+const scopedCreatePulsePresetPanelIdsStorageKey = (userId: string) =>
+  `${CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY}:${userId}`;
+const scopedCreatePulseSavedPresetsStorageKey = (userId: string) =>
+  `${CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY}:${userId}`;
+
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
 
@@ -27,14 +36,9 @@ const buildExpectedSavedPulse = ({
   label,
   description: null,
   systemInstructions,
-  runtimeMode: "workflow_gpt" as const,
-  activationMode: "activate_and_start" as const,
-  starterAssistantMessage: null,
-  outputMode: "chat_reply" as const,
-  artifactTarget: "text_artifact" as const,
-  memoryPolicy: "session" as const,
-  workflowStageHints: null,
+  pulseKind: "custom_gpt" as const,
   createdAt,
+  schemaVersion: 2,
 });
 
 describe("useCreatePulsePresetPanelPreference", () => {
@@ -46,7 +50,7 @@ describe("useCreatePulsePresetPanelPreference", () => {
 
   it("does not load custom Pulse preferences while disabled", async () => {
     window.localStorage.setItem(
-      "shortpulse.ai_studio.saved_pulses",
+      CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY,
       JSON.stringify([
         {
           presetId: "pulse_custom",
@@ -90,11 +94,11 @@ describe("useCreatePulsePresetPanelPreference", () => {
 
   it("drops retired local pulse ids without legacy custom-slot migration", async () => {
     window.localStorage.setItem(
-      "shortpulse.ai_studio.create_pulse_preset_panel_ids",
+      CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY,
       JSON.stringify(["single_shot", "pulse_custom"])
     );
     window.localStorage.setItem(
-      "shortpulse.ai_studio.saved_pulses",
+      CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY,
       JSON.stringify([
         {
           presetId: "pulse_custom",
@@ -190,13 +194,61 @@ describe("useCreatePulsePresetPanelPreference", () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it("keeps local Pulse values when the remote preference row is empty", async () => {
+  it("does not hydrate signed-in Pulse preferences from global localStorage fallback", async () => {
     window.localStorage.setItem(
-      "shortpulse.ai_studio.create_pulse_preset_panel_ids",
+      CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY,
       JSON.stringify(["image", "pulse_product"])
     );
     window.localStorage.setItem(
-      "shortpulse.ai_studio.saved_pulses",
+      CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY,
+      JSON.stringify([
+        {
+          presetId: "pulse_product",
+          label: "Product Director",
+          systemInstructions:
+            "Treat the product like a premium hero with one decisive benefit frame.",
+          createdAt: null,
+        },
+      ])
+    );
+
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue("user-keep-local");
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "user_preferences") throw new Error("Unexpected table");
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle,
+            })),
+          })),
+          upsert,
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => useCreatePulsePresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.syncState).toBe("ready");
+    });
+
+    expect(result.current.presetPanelIds).toEqual(["image", "multi_shot", "story_builder"]);
+    expect(result.current.savedPresets).toEqual([]);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("keeps signed-in Pulse values in user-scoped localStorage when the remote preference row is empty", async () => {
+    window.localStorage.setItem(
+      scopedCreatePulsePresetPanelIdsStorageKey("user-keep-local"),
+      JSON.stringify(["image", "pulse_product"])
+    );
+    window.localStorage.setItem(
+      scopedCreatePulseSavedPresetsStorageKey("user-keep-local"),
       JSON.stringify([
         {
           presetId: "pulse_product",

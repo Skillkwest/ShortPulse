@@ -6,15 +6,12 @@ import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { isAuthSessionTimeoutError } from "../../../lib/authenticatedFetch";
-import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import type { FalSubmitResponse } from "../../../lib/falClient";
 import { buildGenerationSubmissionTraceId, randomId } from "../logic/ids";
 import { getModelConfig } from "../logic/pricing";
 import {
   clampImageResolutionForModel,
   isModelDefaultImageResolution,
 } from "../logic/imageResolution";
-import { buildGenerationReplayConfigV1 } from "../logic/generationReplay";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import {
   BRIA_BACKGROUND_REMOVE_MODEL_ID,
@@ -25,35 +22,32 @@ import {
   resolveAutoVideoModelForLane,
   resolveVideoGenerationLaneFromInputs,
 } from "../logic/referenceInputs";
-import { DeadlineExceededError, withAbortableDeadline } from "../logic/withDeadline";
-import { prepareImageUrlForSubmission, type PrepareImageStageEvent } from "../utils/imageUpload";
+import { DeadlineExceededError } from "../logic/withDeadline";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { dispatchSubmissionByRoute } from "./taskSubmission/routeDispatch";
+import { applySubmissionFailureToOutputs } from "./taskSubmission/outputLifecyclePatches";
 import {
-  handleDefaultModelSubmission,
-  handleImageModelSubmission,
-  handleVideoModelSubmission,
-  resolveSubmissionHandlerRoute,
-} from "./taskSubmissionHandlers";
-import {
-  applyCompletedSubmissionPatch,
-  applyDispatchedSubmissionPatch,
-  applySubmissionFailureToOutputs,
-} from "./taskSubmission/outputLifecyclePatches";
+  attachGenerationReplayToOutput,
+  buildPendingSubmissionOutput,
+  buildSubmissionReplaySnapshot,
+  reconcilePendingSubmissionOutput,
+} from "./taskSubmission/outputBootstrap";
 import {
   CREATE_TEXT_MODE_SUBMIT_BLOCK_ERROR,
   normalizeSubmissionTool,
   resolveSubmissionStartUiError,
   shouldSkipTextCreateSubmission,
 } from "./taskSubmission/submitInvariants";
-import { resolvePrepareReferenceTimeoutBudget } from "./taskSubmission/preflightTimeout";
+import { prepareSubmissionReferenceInputs } from "./taskSubmission/preflightPreparation";
+import { createSubmissionLifecycleCallbacks } from "./taskSubmission/submissionLifecycle";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
-import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "./useAiStudioTasks";
 import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
+import type { AiStudioTaskSubmitOptions } from "./contracts/taskSubmissionContracts";
 
 type GenerationMetadata = Record<string, unknown>;
 type SubmissionInvariantError = Error & {
@@ -65,18 +59,15 @@ const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
-
-const preflightStageLevel = (
-  status: PrepareImageStageEvent["status"]
-): "info" | "warn" | "error" => {
-  if (status === "error") return "warn";
-  return "info";
-};
 const submitNotStartedError = (detail: string): SubmissionInvariantError => {
   const error = new Error("Provider task did not start.") as SubmissionInvariantError;
   error.code = "SUBMIT_NOT_STARTED";
   error.detail = detail;
   return error;
+};
+
+type AiStudioTaskSubmissionOptions = AiStudioTaskSubmitOptions & {
+  submissionOwner?: AiStudioSubmitPanelKey;
 };
 
 type EnsureGenerationRecordInput = {
@@ -188,20 +179,7 @@ export const useAiStudioTaskSubmission = ({
     async (
       promptArg: string | null | undefined,
       imageInputs: string[],
-      options?: {
-        modeOverride?: StudioMode;
-        selectedToolOverride?: ToolId | null;
-        displayPromptOverride?: string | null;
-        characterContextOverride?: StudioOutput["characterContext"];
-        styleContextOverride?: StudioOutput["styleContext"];
-        outputIdOverride?: string;
-        modelIdOverride?: string | null;
-        aspectOverride?: string;
-        imageResolutionOverride?: string;
-        inpaintOverride?: InpaintSubmissionOverride | null;
-        hideOutputFromReferenceGrid?: boolean;
-        submissionOwner?: AiStudioSubmitPanelKey;
-      }
+      options?: AiStudioTaskSubmissionOptions
     ) => {
       setUiError(null);
       setUiNotice(null);
@@ -324,161 +302,38 @@ export const useAiStudioTaskSubmission = ({
               ? "image"
               : effectiveMode;
 
-        const buildReplaySnapshot = (referenceInputs: string[]) =>
-          buildGenerationReplayConfigV1({
-            mode: outputMode,
-            submitTool: effectiveTool,
-            modelId: finalModel,
-            displayPrompt: cleanedDisplayPrompt,
-            submissionPrompt: cleanedSubmissionPrompt,
-            aspect: effectiveAspect,
-            imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
-            referenceInputs,
-            characterContext: options?.characterContextOverride,
-            styleContext: options?.styleContextOverride,
-          });
-        const nextOutput: StudioOutput = {
-          mode: outputMode,
+        const nextOutput = buildPendingSubmissionOutput({
           id,
+          outputMode,
           prompt: cleanedDisplayPrompt,
           aspect: effectiveAspect,
-          model: modelLabel,
+          modelLabel,
           modelId: finalModel,
-          status: "ready",
-          taskState: "pending",
-          timestamp: "Submitting...",
-          errorMessage: null,
-          errorMessageShort: null,
-          errorDetail: null,
-          mediaSource: "generated",
-          previewTier: outputMode === "video" ? "preview_loop" : "full",
-          archivedAt: null,
-          archiveReason: null,
-          saveState: "idle",
-          saveError: null,
           characterContext: options?.characterContextOverride,
+          styleContext: options?.styleContextOverride,
           submissionTraceId,
           sourceRef,
-          ...(options?.styleContextOverride ? { styleContext: options.styleContextOverride } : {}),
           hiddenInReferenceGrid:
-            finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID || options?.hideOutputFromReferenceGrid
-              ? true
-              : undefined,
-        };
+            finalModel === BRIA_BACKGROUND_REMOVE_MODEL_ID || options?.hideOutputFromReferenceGrid,
+        });
 
         // Render or reconcile the spinner placeholder before URL prep/submission work begins.
-        setOutputs((prev) => {
-          const existingIndex = prev.findIndex((item) => item.id === id);
-          if (existingIndex === -1) return [nextOutput, ...prev];
-          return prev.map((item) => (item.id === id ? { ...item, ...nextOutput } : item));
-        });
+        setOutputs((prev) => reconcilePendingSubmissionOutput(prev, nextOutput));
         setSaved(false);
 
         let preparedImageInputs: string[] = [];
         let preparedInpaintOverride: InpaintSubmissionOverride | null = null;
-        const shouldPrepareStandardReferences = !options?.inpaintOverride;
-        const preflightTimeoutBudget = resolvePrepareReferenceTimeoutBudget({
-          imageInputs,
-          inpaintOverride: options?.inpaintOverride,
-        });
-        const emitPreflightStage = (
-          event: PrepareImageStageEvent,
-          inputRole: "reference" | "inpaint_base" | "inpaint_mask",
-          inputIndex: number
-        ) => {
-          addBreadcrumb({
-            type: "ui",
-            level: preflightStageLevel(event.status),
-            message: "generation_preflight_prepare_stage",
-            data: {
-              output_id: id,
-              model_id: finalModel,
-              tool: effectiveTool,
-              input_role: inputRole,
-              input_index: inputIndex,
-              stage: event.stage,
-              stage_status: event.status,
-              source_kind: event.sourceKind,
-              elapsed_ms: event.elapsedMs,
-              timeout_ms: event.timeoutMs ?? null,
-              detail: event.detail ?? null,
-            },
-          });
-        };
         try {
-          addBreadcrumb({
-            type: "ui",
-            level: "info",
-            message: "generation_preflight_started",
-            data: {
-              output_id: id,
-              model_id: finalModel,
-              tool: effectiveTool,
-            },
-          });
-          const preflightPrepared = await withAbortableDeadline({
-            timeoutMs: preflightTimeoutBudget.timeoutMs,
+          const prepared = await prepareSubmissionReferenceInputs({
+            outputId: id,
+            modelId: finalModel,
+            tool: effectiveTool,
+            imageInputs,
+            inpaintOverride: options?.inpaintOverride,
             timeoutMessage: PREPARE_REFERENCE_TIMEOUT_ERROR,
-            run: async (abortSignal) => {
-              const preparedReferences = shouldPrepareStandardReferences
-                ? (
-                    await Promise.all(
-                      imageInputs.map(async (url, index) => {
-                        const normalized = await prepareImageUrlForSubmission(url, {
-                          abortSignal,
-                          onStage: (event) => {
-                            emitPreflightStage(event, "reference", index);
-                          },
-                        });
-                        return normalized ?? null;
-                      })
-                    )
-                  ).filter((url): url is string => Boolean(url))
-                : [];
-              const inpaintOverride = options?.inpaintOverride;
-              if (!inpaintOverride) {
-                return {
-                  preparedReferences,
-                  preparedInpaint: null as InpaintSubmissionOverride | null,
-                };
-              }
-              const [preparedBaseImageInput, preparedMaskInput, preparedReferenceImageInput] =
-                await Promise.all([
-                  prepareImageUrlForSubmission(inpaintOverride.baseImageInput, {
-                    abortSignal,
-                    onStage: (event) => {
-                      emitPreflightStage(event, "inpaint_base", 0);
-                    },
-                  }),
-                  prepareImageUrlForSubmission(inpaintOverride.maskInput, {
-                    abortSignal,
-                    onStage: (event) => {
-                      emitPreflightStage(event, "inpaint_mask", 0);
-                    },
-                  }),
-                  inpaintOverride.referenceImageInput
-                    ? prepareImageUrlForSubmission(inpaintOverride.referenceImageInput, {
-                        abortSignal,
-                        onStage: (event) => {
-                          emitPreflightStage(event, "reference", 0);
-                        },
-                      })
-                    : Promise.resolve(null),
-                ]);
-              return {
-                preparedReferences,
-                preparedInpaint: {
-                  modelId: inpaintOverride.modelId ?? null,
-                  baseImageInput: preparedBaseImageInput ?? "",
-                  maskInput: preparedMaskInput ?? "",
-                  referenceImageInput: preparedReferenceImageInput,
-                  outputFormat: inpaintOverride.outputFormat,
-                } satisfies InpaintSubmissionOverride,
-              };
-            },
           });
-          preparedImageInputs = preflightPrepared.preparedReferences;
-          preparedInpaintOverride = preflightPrepared.preparedInpaint;
+          preparedImageInputs = prepared.preparedImageInputs;
+          preparedInpaintOverride = prepared.preparedInpaintOverride;
         } catch (error) {
           const isPreflightTimeout = error instanceof DeadlineExceededError;
           const detail = isPreflightTimeout
@@ -486,23 +341,6 @@ export const useAiStudioTaskSubmission = ({
             : error instanceof Error
               ? error.message
               : "Unable to prepare reference media.";
-          if (isPreflightTimeout) {
-            void reportAppError({
-              source: "generation_preflight_timeout",
-              scope: "generation",
-              severity: "medium",
-              message: "Generation preflight timed out before submission.",
-              metadata: {
-                output_id: id,
-                model_id: finalModel,
-                tool: effectiveTool,
-                duration_ms: error.timeoutMs,
-                preflight_work_units: preflightTimeoutBudget.workUnitCount,
-                preflight_timeout_ms: preflightTimeoutBudget.timeoutMs,
-                reason_code: "PREFLIGHT_TIMEOUT",
-              },
-            });
-          }
           applySubmissionFailure(id, {
             timestamp: "Failed",
             errorMessage: detail,
@@ -555,12 +393,24 @@ export const useAiStudioTaskSubmission = ({
         }
         const generationReplay = options?.inpaintOverride
           ? null
-          : buildReplaySnapshot(preparedImageInputs.slice(0, 8));
+          : buildSubmissionReplaySnapshot({
+              mode: outputMode,
+              submitTool: effectiveTool,
+              modelId: finalModel,
+              displayPrompt: cleanedDisplayPrompt,
+              submissionPrompt: cleanedSubmissionPrompt,
+              aspect: effectiveAspect,
+              imageResolution: isImageGeneration ? (requestedResolution ?? null) : null,
+              referenceInputs: preparedImageInputs.slice(0, 8),
+              characterContext: options?.characterContextOverride,
+              styleContext: options?.styleContextOverride,
+            });
         if (generationReplay) {
-          updateOutputById(id, (item) => ({
-            ...item,
+          attachGenerationReplayToOutput({
+            id,
             generationReplay,
-          }));
+            updateOutputById,
+          });
         }
         const shortpulseContext = {
           selected_tool: effectiveTool,
@@ -645,259 +495,75 @@ export const useAiStudioTaskSubmission = ({
             submissionFailureSignaled = true;
             notifyGenerationFailure(outputId, message, detail);
           };
-          const startPollingWithGeneration = (
-            taskId: string | undefined,
-            provider: Provider,
-            patch: Partial<StudioOutput> = {},
-            submitResponse?: FalSubmitResponse
-          ) => {
-            const submitGenerationId =
-              submitResponse &&
-              "request_id" in submitResponse &&
-              typeof submitResponse.generationId === "string" &&
-              submitResponse.generationId.trim().length > 0
-                ? submitResponse.generationId.trim()
-                : null;
-            const effectivePatch =
-              submitGenerationId && !patch.generationId
-                ? {
-                    ...patch,
-                    generationId: submitGenerationId,
-                  }
-                : patch;
-            const normalizedTaskId = taskId?.trim();
-            if (!normalizedTaskId) throw new Error("Provider returned an empty request id.");
-            taskStarted = true;
-            startedTaskId = normalizedTaskId;
-            startedProvider = provider;
-            if (isOutputAbandoned?.(id)) return;
-            updateOutputById(id, (item) =>
-              applyDispatchedSubmissionPatch({
-                item,
-                patch: effectivePatch,
-                provider,
-                taskId: normalizedTaskId,
-              })
-            );
-            startPollingTask(normalizedTaskId, id, 0, provider, Date.now(), 0, undefined, {
-              initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
-            });
-            void ensureGenerationRecord({
+          const { startPollingWithGeneration, completeGenerationImmediately } =
+            createSubmissionLifecycleCallbacks({
               outputId: id,
-              provider,
-              taskId: normalizedTaskId,
-              durationSeconds: requestedDurationSeconds,
-              resolution: requestedResolution ?? null,
-              metadata: {
-                tool: effectiveTool,
-                audio: requestedAudio,
-                source_ref: sourceRef,
-                requested_aspect: requestedAspect,
-                effective_aspect: effectiveAspect,
-                resolution: requestedResolution ?? null,
-                duration_seconds: requestedDurationSeconds,
-                submission_trace_id: submissionTraceId,
-                generation_trace_id: normalizedTaskId,
-              },
-            }).then((resolvedGenerationId) => {
-              if (
-                typeof resolvedGenerationId !== "string" ||
-                resolvedGenerationId.trim().length === 0
-              ) {
-                return;
-              }
-              const normalizedGenerationId = resolvedGenerationId.trim();
-              updateOutputById(id, (item) => {
-                if (item.generationId === normalizedGenerationId) return item;
-                return {
-                  ...item,
-                  generationId: normalizedGenerationId,
-                };
-              });
-            });
-            addBreadcrumb({
-              type: "ui",
-              level: "info",
-              message: "fal_submit_dispatched",
-              data: {
-                output_id: id,
-                model_id: finalModel,
-                provider,
-                task_id: normalizedTaskId,
-                tool: effectiveTool,
+              modelId: finalModel,
+              tool: effectiveTool,
+              requestedDurationSeconds,
+              requestedResolution,
+              requestedAudio,
+              sourceRef,
+              requestedAspect,
+              effectiveAspect,
+              submissionTraceId,
+              isOutputAbandoned,
+              updateOutputById,
+              startPollingTask,
+              ensureGenerationRecord,
+              markStarted: (taskId, provider) => {
+                const normalizedTaskId = taskId.trim();
+                if (!normalizedTaskId) {
+                  throw new Error("Provider returned an empty request id.");
+                }
+                taskStarted = true;
+                startedTaskId = normalizedTaskId;
+                startedProvider = provider;
               },
             });
-          };
-          const completeGenerationImmediately = ({
-            provider,
-            generationId,
-            requestId,
-            previewUrl,
-            resultUrls,
-            previewStoragePath,
-            fullStoragePath,
-            mimeType,
-            savedMediaIds = [],
-          }: {
-            provider: Provider;
-            generationId: string;
-            requestId: string;
-            previewUrl: string;
-            resultUrls: string[];
-            previewStoragePath?: string | null;
-            fullStoragePath?: string | null;
-            mimeType?: string | null;
-            savedMediaIds?: string[];
-          }) => {
-            taskStarted = true;
-            startedTaskId = requestId;
-            startedProvider = provider;
-            if (isOutputAbandoned?.(id)) return;
-            updateOutputById(id, (item) =>
-              applyCompletedSubmissionPatch({
-                item,
-                provider,
-                generationId,
-                requestId,
-                previewUrl,
-                resultUrls,
-                previewStoragePath,
-                fullStoragePath,
-                mimeType,
-                savedMediaIds,
-              })
-            );
-            void ensureGenerationRecord({
-              outputId: id,
-              provider,
-              taskId: requestId,
-              durationSeconds: requestedDurationSeconds,
-              resolution: requestedResolution ?? null,
-              metadata: {
-                tool: effectiveTool,
-                audio: requestedAudio,
-                source_ref: sourceRef,
-                requested_aspect: requestedAspect,
-                effective_aspect: effectiveAspect,
-                resolution: requestedResolution ?? null,
-                duration_seconds: requestedDurationSeconds,
-                submission_trace_id: submissionTraceId,
-                generation_trace_id: requestId,
-                completion_mode: "direct",
-              },
-            }).then((resolvedGenerationId) => {
-              if (
-                typeof resolvedGenerationId !== "string" ||
-                resolvedGenerationId.trim().length === 0
-              ) {
-                return;
-              }
-              const normalizedGenerationId = resolvedGenerationId.trim();
-              updateOutputById(id, (item) => {
-                if (item.generationId === normalizedGenerationId) return item;
-                return {
-                  ...item,
-                  generationId: normalizedGenerationId,
-                };
-              });
-            });
-          };
 
-          const route = resolveSubmissionHandlerRoute(finalModel);
-          if (route === "unsupported") {
-            throw submitNotStartedError(
-              `Model '${finalModel}' is not registered for AI Studio generation submission.`
-            );
-          }
-          if (route === "video") {
-            await handleVideoModelSubmission({
-              id,
-              finalModel,
-              cleanedPrompt: cleanedSubmissionPrompt,
-              aspect: effectiveAspect,
-              requestedDurationSeconds,
-              requestedResolution,
-              requestedAudio,
-              preparedImageInputs,
-              modelConfig,
-              notifyGenerationFailure: notifyGenerationFailureForSubmit,
-              updateOutputById,
-              generationReplay,
-              characterContext: options?.characterContextOverride,
-              styleContext: options?.styleContextOverride,
-              shortpulseContext,
-              startPollingWithGeneration,
-              completeGenerationImmediately,
-              videoReferenceMode,
-              videoReferenceImageUrl,
-              motionReferenceVideoUrl,
-              videoAutoFix,
-              videoCameraFixed,
-              seedance2InputMode,
-              seedance2ReferenceImageUrls,
-              seedance2ReferenceVideoUrls,
-              seedance2ReferenceAudioUrls,
-              seedance2ReturnLastFrame,
-              seedance2WebSearch,
-              klingNegativePrompt,
-              klingCfgScale,
-              klingShotType,
-              klingVoiceIds,
-              klingMultiPrompts,
-              klingElements,
-            });
-          } else if (route === "image") {
-            const handled = await handleImageModelSubmission({
-              id,
-              projectId,
-              finalModel,
-              cleanedPrompt: cleanedSubmissionPrompt,
-              aspect: effectiveAspect,
-              requestedDurationSeconds,
-              requestedResolution,
-              requestedAudio,
-              preparedImageInputs,
-              modelConfig,
-              notifyGenerationFailure: notifyGenerationFailureForSubmit,
-              updateOutputById,
-              generationReplay,
-              characterContext: options?.characterContextOverride,
-              styleContext: options?.styleContextOverride,
-              shortpulseContext,
-              startPollingWithGeneration,
-              completeGenerationImmediately,
-              falReferencePayload,
-              inpaintOverride: preparedInpaintOverride,
-            });
-            if (!handled) {
-              throw submitNotStartedError(
-                `Image submission route did not handle model '${finalModel}'.`
-              );
-            }
-          } else {
-            await handleDefaultModelSubmission({
-              id,
-              projectId,
-              finalModel,
-              cleanedPrompt: cleanedSubmissionPrompt,
-              aspect: effectiveAspect,
-              requestedDurationSeconds,
-              requestedResolution,
-              requestedAudio,
-              preparedImageInputs,
-              modelConfig,
-              notifyGenerationFailure: notifyGenerationFailureForSubmit,
-              updateOutputById,
-              generationReplay,
-              characterContext: options?.characterContextOverride,
-              styleContext: options?.styleContextOverride,
-              shortpulseContext,
-              startPollingWithGeneration,
-              completeGenerationImmediately,
-              falReferencePayload,
-              inpaintOverride: preparedInpaintOverride,
-            });
-          }
+          await dispatchSubmissionByRoute({
+            id,
+            projectId,
+            finalModel,
+            cleanedPrompt: cleanedSubmissionPrompt,
+            effectiveTool,
+            outputMode,
+            effectiveAspect,
+            requestedDurationSeconds,
+            requestedResolution,
+            requestedAudio,
+            preparedImageInputs,
+            modelConfig,
+            generationReplay,
+            characterContext: options?.characterContextOverride,
+            styleContext: options?.styleContextOverride,
+            shortpulseContext,
+            falReferencePayload,
+            inpaintOverride: preparedInpaintOverride,
+            videoReferenceMode,
+            videoReferenceImageUrl,
+            motionReferenceVideoUrl,
+            videoAutoFix,
+            videoCameraFixed,
+            seedance2InputMode,
+            seedance2ReferenceImageUrls,
+            seedance2ReferenceVideoUrls,
+            seedance2ReferenceAudioUrls,
+            seedance2ReturnLastFrame,
+            seedance2WebSearch,
+            klingNegativePrompt,
+            klingCfgScale,
+            klingShotType,
+            klingVoiceIds,
+            klingMultiPrompts,
+            klingElements,
+            notifyGenerationFailure: notifyGenerationFailureForSubmit,
+            updateOutputById,
+            startPollingWithGeneration,
+            completeGenerationImmediately,
+            createSubmitNotStartedError: submitNotStartedError,
+          });
           if (submissionFailureSignaled) {
             return;
           }

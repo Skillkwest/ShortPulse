@@ -31,7 +31,7 @@ export type SafetyTextLevel = "allow" | "rewrite" | "refuse";
 
 export type SafetyGenerationLevel = "off" | "moderate" | "strict";
 
-export type SafetyPostprocessMode = "enforce" | "shadow" | "off";
+export type SafetyPostprocessMode = "enforce" | "off";
 
 export type ModalitySafetyProfile = Record<
   SafetyModality,

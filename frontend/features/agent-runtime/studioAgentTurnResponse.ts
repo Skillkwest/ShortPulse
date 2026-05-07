@@ -5,7 +5,6 @@ import {
   ensureStudioAgentApplyPromptContract,
   isStudioAgentRefusalResponse,
 } from "./studioAgentResponseNormalization";
-import { isStudioAgentWorkflowPulse } from "./studioAgentPulseRuntime";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
 
 export const resolveStudioAgentTurnResponse = ({
@@ -31,13 +30,14 @@ export const resolveStudioAgentTurnResponse = ({
     status: semanticStatus,
     response: parsed,
   });
+  const pulseActive = Boolean(context.pulse);
 
   if (refusal) {
     parsed = {
       message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
       actions: undefined,
     };
-  } else if (isStudioAgentWorkflowPulse(context.pulse)) {
+  } else if (pulseActive) {
     const displayMessage = typeof parsed.message === "string" ? parsed.message.trim() : "";
     parsed.message =
       displayMessage ||
@@ -57,7 +57,7 @@ export const resolveStudioAgentTurnResponse = ({
 
   const resolvedCanonical = refusal
     ? effectiveCanonical
-    : isStudioAgentWorkflowPulse(context.pulse)
+    : pulseActive
       ? resolveCanonicalPrompt(parsed.actions?.applyPrompt ?? null, null, effectiveCanonical)
       : resolveCanonicalPrompt(parsed.actions?.applyPrompt, nextCanonical, effectiveCanonical);
 

@@ -4,11 +4,9 @@ import {
   syncCuratedPinnedOutputsByOrder,
 } from "../logic/curatedReferences";
 import {
-  applyAllRefsSuppressionCompatibility,
   pruneReferenceProjectionState,
   type ReferenceProjectionState,
 } from "../reference-projections";
-import type { StudioOutput } from "../types";
 import type { StudioOutputCollectionState } from "../reference-domain";
 
 type UseAiStudioReferenceProjectionEffectsArgs = {
@@ -20,7 +18,6 @@ type UseAiStudioReferenceProjectionEffectsArgs = {
   curatedReferenceIds: string[];
   setActiveOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
   setArchivedOutputState: Dispatch<SetStateAction<StudioOutputCollectionState>>;
-  setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
 };
 
 export const useAiStudioReferenceProjectionEffects = ({
@@ -32,7 +29,6 @@ export const useAiStudioReferenceProjectionEffects = ({
   curatedReferenceIds,
   setActiveOutputState,
   setArchivedOutputState,
-  setOutputs,
 }: UseAiStudioReferenceProjectionEffectsArgs) => {
   useEffect(() => {
     referenceProjectionStateRef.current = referenceProjectionState;
@@ -81,8 +77,4 @@ export const useAiStudioReferenceProjectionEffects = ({
     setActiveOutputState(syncPinnedState);
     setArchivedOutputState(syncPinnedState);
   }, [curatedReferenceIds, setActiveOutputState, setArchivedOutputState]);
-
-  useEffect(() => {
-    setOutputs((prev) => applyAllRefsSuppressionCompatibility(prev, referenceProjectionState));
-  }, [referenceProjectionState, setOutputs]);
 };

@@ -1074,7 +1074,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByRole("heading", { name: "Sound Effects" })).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "music" })} />);
-    expect(screen.getByRole("heading", { name: "Music" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Music properties")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "character" })} />);
     expect(screen.getByTestId("character-panel")).toBeInTheDocument();

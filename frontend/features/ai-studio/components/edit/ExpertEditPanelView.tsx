@@ -670,7 +670,8 @@ export function ExpertEditPanelView({
     notifyGenerationFailure,
   });
   const resolvedInlineGenerateBusy = isGenerateBusy || isInlineGeneratePending;
-  const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
+  const inlineGenerateDisabled =
+    isGenerateDisabled || isInlineGeneratePending || populatedLayerCount <= 0 || !hasPromptText;
   const isPrimaryStageBusy =
     isFlattenPending ||
     isRemoveBackgroundPending ||

@@ -347,16 +347,17 @@ const appendFigureMap = ({
   secondarySlots: [string | null, string | null, string | null];
   referenceInputs: string[];
 }): string => {
-  const validDiagnostics = diagnostics.filter(
+  const hasPrimaryReference = diagnostics.some((item) => item.isValid && item.kind === "primary");
+  const validSecondaryDiagnostics = diagnostics.filter(
     (item): item is ExpertEditPromptTokenDiagnostic & { slotIndex: number } =>
       item.isValid && item.slotIndex != null
   );
-  if (!validDiagnostics.length) return prompt;
+  if (!hasPrimaryReference && !validSecondaryDiagnostics.length) return prompt;
 
   const mapLines = new Map<string, string>();
   mapLines.set("figure1", "- Figure 1 = primary base image.");
 
-  validDiagnostics.forEach((diagnostic) => {
+  validSecondaryDiagnostics.forEach((diagnostic) => {
     const figureNumber = resolveFigureNumberBySlotIndex(
       diagnostic.slotIndex,
       secondarySlots,
@@ -370,11 +371,13 @@ const appendFigureMap = ({
     );
   });
 
-  const mapBlock = [
-    "Reference map:",
-    ...Array.from(mapLines.values()),
-    "- Treat all secondary references as edits to Figure 1 unless explicitly overridden.",
-  ].join("\n");
+  const mapBlockLines = ["Reference map:", ...Array.from(mapLines.values())];
+  if (validSecondaryDiagnostics.length > 0) {
+    mapBlockLines.push(
+      "- Treat all secondary references as edits to Figure 1 unless explicitly overridden."
+    );
+  }
+  const mapBlock = mapBlockLines.join("\n");
 
   return `${prompt}\n\n${mapBlock}`;
 };

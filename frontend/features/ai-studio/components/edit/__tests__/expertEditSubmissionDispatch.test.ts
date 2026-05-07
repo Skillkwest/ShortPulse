@@ -2,18 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveExpertEditSubmissionDispatch } from "../expertEditSubmissionDispatch";
 
-const isMarkupModelLockEnabledMock = vi.fn();
-
 vi.mock("../../../logic/inpaintSubmission", () => ({
   INPAINT_FLUX_FILL_MODEL_ID: "flux-fill",
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID: "nano-banana",
-  isMarkupModelLockEnabled: () => isMarkupModelLockEnabledMock(),
+  isMarkupModelLockEnabled: () => true,
 }));
 
 describe("resolveExpertEditSubmissionDispatch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    isMarkupModelLockEnabledMock.mockReturnValue(false);
   });
 
   it("falls back to regenerate for standard mode when no submission handler exists", () => {
@@ -78,9 +75,7 @@ describe("resolveExpertEditSubmissionDispatch", () => {
     });
   });
 
-  it("adds markup model override only when the lock is enabled", () => {
-    isMarkupModelLockEnabledMock.mockReturnValue(true);
-
+  it("always adds the canonical markup model override for markup submissions", () => {
     expect(
       resolveExpertEditSubmissionDispatch({
         editSubmitIntent: "markup",

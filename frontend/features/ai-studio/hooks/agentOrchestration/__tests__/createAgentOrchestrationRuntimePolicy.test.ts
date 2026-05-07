@@ -14,10 +14,7 @@ describe("resolveCreateAgentOrchestrationRuntimePolicy", () => {
         presetId: "custom-pulse",
         label: "Custom Pulse",
         instructions: "custom user instructions",
-        runtimeMode: "workflow_gpt",
-        activationMode: "activate_and_start",
-        outputMode: "chat_reply",
-        memoryPolicy: "session",
+        pulseKind: "custom_gpt",
         source: "custom",
       },
     };

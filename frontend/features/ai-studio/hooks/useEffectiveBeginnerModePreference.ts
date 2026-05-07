@@ -1,6 +1,6 @@
 /**
  * Wrapper around persisted beginner-mode preference that applies runtime policy overrides.
- * Keeps storage sync behavior intact while enforcing temporary force-off/toggle-visibility rules.
+ * Keeps storage sync behavior intact while enforcing the retired beginner-mode runtime contract.
  */
 import { useCallback, useEffect, useRef } from "react";
 import {
@@ -32,7 +32,7 @@ export const useEffectiveBeginnerModePreference = (): UseEffectiveBeginnerModePr
   const beginnerMode = resolveEffectiveBeginnerMode(storedBeginnerMode);
   const hasIssuedForceOffSyncRef = useRef<boolean>(false);
 
-  // Ensure persisted preference converges to `false` when force-off policy is active.
+  // Keep persisted state aligned with the retired beginner-mode runtime contract.
   useEffect(() => {
     if (!BEGINNER_MODE_FORCE_OFF || loading) return;
     if (!storedBeginnerMode) {

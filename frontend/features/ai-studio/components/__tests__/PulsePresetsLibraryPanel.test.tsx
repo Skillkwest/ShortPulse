@@ -10,12 +10,14 @@ describe("PulsePresetsLibraryPanel", () => {
   it("renders the pulse presets library header", () => {
     render(<PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={() => undefined} />);
 
-    expect(screen.getByText("Pulses")).toBeInTheDocument();
+    expect(screen.getByText("Pulse Library")).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Manage custom Pulses here\. Built-in Pulse definitions are shared globally and edited from Admin Agent Instructions\./
+        /Manage custom Pulses here\. Built-in guided workflows are shared globally and edited from the Admin Agent Instructions guided-workflows section\./
       )
     ).toBeInTheDocument();
+    expect(screen.getByText("Custom Pulses")).toBeInTheDocument();
+    expect(screen.getByText("Built-in Guided Workflows")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create new pulse" })).toBeInTheDocument();
   });
 
@@ -28,13 +30,8 @@ describe("PulsePresetsLibraryPanel", () => {
             label: "Storyboard",
             description: null,
             systemInstructions: "Build a storyboard-ready pulse sequence.",
-            runtimeMode: "workflow_gpt",
-            activationMode: "activate_and_start",
-            starterAssistantMessage: null,
-            outputMode: "chat_reply",
-            artifactTarget: "text_artifact",
-            memoryPolicy: "session",
             createdAt: null,
+            schemaVersion: 2,
           },
         ]}
         onSavedPresetsChange={vi.fn()}
@@ -68,10 +65,8 @@ describe("PulsePresetsLibraryPanel", () => {
         expect.objectContaining({
           label: "Storyboard",
           systemInstructions: "Build a storyboard-ready pulse sequence.",
-          runtimeMode: "workflow_gpt",
-          activationMode: "activate_and_start",
-          outputMode: "chat_reply",
-          artifactTarget: "text_artifact",
+          pulseKind: "custom_gpt",
+          schemaVersion: 2,
         }),
       ]);
     });
@@ -83,8 +78,9 @@ describe("PulsePresetsLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create new pulse" }));
 
     expect(screen.getByLabelText("System Instructions")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Pulse Type")).not.toBeInTheDocument();
     expect(
-      screen.queryByText(/Activate it later from the Create Pulse rail or More Pulses/)
+      screen.queryByText(/Activate it later from the Create Pulse rail or Pulse Catalog/)
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Show advanced settings" })
@@ -120,14 +116,15 @@ describe("PulsePresetsLibraryPanel", () => {
             label: "Storyboard",
             description: "Old hidden description.",
             systemInstructions: "Old instructions.",
-            runtimeMode: "workflow_gpt",
+            pulseKind: "custom_gpt",
+            runtimeMode: "custom_gpt",
             activationMode: "activate_and_start",
             starterAssistantMessage: "Old hidden starter.",
             workflowStageHints: ["Old", "Hidden", "Hints"],
             outputMode: "chat_reply",
-            artifactTarget: "text_artifact",
             memoryPolicy: "session",
             createdAt: null,
+            schemaVersion: 2,
           },
         ]}
         onSavedPresetsChange={onSavedPresetsChange}
@@ -146,8 +143,8 @@ describe("PulsePresetsLibraryPanel", () => {
           presetId: "pulse_storyboard",
           description: null,
           systemInstructions: "Use only these visible instructions.",
-          starterAssistantMessage: null,
-          workflowStageHints: null,
+          pulseKind: "custom_gpt",
+          schemaVersion: 2,
         }),
       ]);
     });
@@ -184,13 +181,8 @@ describe("PulsePresetsLibraryPanel", () => {
             label: "Storyboard",
             description: null,
             systemInstructions: "Build a storyboard-ready pulse sequence.",
-            runtimeMode: "workflow_gpt",
-            activationMode: "activate_and_start",
-            starterAssistantMessage: null,
-            outputMode: "chat_reply",
-            artifactTarget: "text_artifact",
-            memoryPolicy: "session",
             createdAt: null,
+            schemaVersion: 2,
           },
         ]}
         onSavedPresetsChange={onSavedPresetsChange}

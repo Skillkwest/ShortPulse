@@ -232,6 +232,14 @@ const mockElementRect = (element: Element, rect: DOMRect) => {
   });
 };
 
+const flushReactTurn = async (callback?: () => void) => {
+  await act(async () => {
+    callback?.();
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+};
+
 const dragStagePointer = ({
   currentTarget,
   downTarget,
@@ -442,6 +450,37 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generate");
   });
 
+  it("disables the inline generate button while an inline expert edit submission is pending", async () => {
+    let deferredResolve!: () => void;
+    const deferredPromise = new Promise<void>((resolve) => {
+      deferredResolve = () => resolve();
+    });
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(() => deferredPromise);
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Adjust the jacket."
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "pending-inline-submit.png");
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+    });
+
+    deferredResolve();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+    });
+  });
+
   const renderControlledPromptPanel = ({
     initialPrompt = "",
     extraImageUrls = [null, null, null] as [string | null, string | null, string | null],
@@ -478,10 +517,6 @@ describe("ExpertEditPanelView", () => {
   };
 
   beforeEach(() => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "false");
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_COLLAPSED_OPEN_MODAL_ENABLED", "false");
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED", "false");
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "false");
     objectUrlCounter = 0;
     composePrimaryStageLayersToBlobMock.mockClear();
     composeFlattenedMarkupReferenceBlobMock.mockClear();
@@ -574,7 +609,6 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("collapses the sidebar layers panel and flatten action in Inpaint and Markup modes", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
     const sidebarLayersPanel = container.querySelector(
       ".edit-expert-layers-toolbar--sidebar"
@@ -1125,18 +1159,19 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("slot 2");
   });
 
-  it("shows populated secondary refs in the inpaint prompt token picker", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+  it("shows populated secondary refs in the inpaint prompt token picker", async () => {
     const { container, promptInput } = renderControlledPromptPanel({
       initialPrompt: "Blend scene",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
-    uploadPrimaryFile(container, "primary-layer.png");
-    fireEvent.click(screen.getByRole("tab", { name: /^inpaint$/i }));
-    promptInput.focus();
-    promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "Tab" });
+    await flushReactTurn(() => {
+      uploadPrimaryFile(container, "primary-layer.png");
+      fireEvent.click(screen.getByRole("tab", { name: /^inpaint$/i }));
+      promptInput.focus();
+      promptInput.setSelectionRange(6, 6);
+      fireEvent.keyDown(promptInput, { key: "Tab" });
+    });
 
     const picker = screen.getByRole("group", { name: /reference image picker/i });
     expect(within(picker).getByLabelText("Primary edit image")).toBeInTheDocument();
@@ -1148,7 +1183,6 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("routes inpaint generate to the single-reference masked lane when the prompt links one secondary reference", async () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async () => {});
@@ -1241,7 +1275,6 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("clamps the inpaint resolution selector to the effective FLUX Fill model", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(
       <ExpertEditPanelView
         {...baseProps}
@@ -1484,17 +1517,19 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("opens the anchored reference picker and selects @main after typing @", () => {
+  it("opens the anchored reference picker and selects @main after typing @", async () => {
     const { container, promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
       initialPrompt: "Blend ",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
-    uploadPrimaryFile(container, "primary-layer.png");
-    promptInput.focus();
-    promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
-    fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    await flushReactTurn(() => {
+      uploadPrimaryFile(container, "primary-layer.png");
+      promptInput.focus();
+      promptInput.setSelectionRange(6, 6);
+      fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
+      fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    });
 
     expect(onPromptTextChangeSpy).toHaveBeenCalledWith("Blend @");
     expect(screen.getByRole("group", { name: /reference image picker/i })).toBeInTheDocument();
@@ -1502,34 +1537,40 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByLabelText("Secondary edit image 1").className).not.toContain("is-selected");
   });
 
-  it("opens the anchored reference picker on Tab when populated references exist", () => {
+  it("opens the anchored reference picker on Tab when populated references exist", async () => {
     const { container, promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
       initialPrompt: "Blend scene",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
-    uploadPrimaryFile(container, "primary-layer.png");
-    promptInput.focus();
-    promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "Tab" });
+    await flushReactTurn(() => {
+      uploadPrimaryFile(container, "primary-layer.png");
+      promptInput.focus();
+      promptInput.setSelectionRange(6, 6);
+      fireEvent.keyDown(promptInput, { key: "Tab" });
+    });
 
     expect(onPromptTextChangeSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("group", { name: /reference image picker/i })).toBeInTheDocument();
     expect(screen.getByLabelText("Primary edit image").className).toContain("is-selected");
   });
 
-  it("cycles the anchored reference picker selection from @main to the first secondary slot", () => {
+  it("cycles the anchored reference picker selection from @main to the first secondary slot", async () => {
     const { container, promptInput } = renderControlledPromptPanel({
       initialPrompt: "Blend ",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
-    uploadPrimaryFile(container, "primary-layer.png");
-    promptInput.focus();
-    promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "@" });
-    fireEvent.change(promptInput, { target: { value: "Blend @" } });
-    fireEvent.keyDown(promptInput, { key: "Tab" });
+    await flushReactTurn(() => {
+      uploadPrimaryFile(container, "primary-layer.png");
+      promptInput.focus();
+      promptInput.setSelectionRange(6, 6);
+      fireEvent.keyDown(promptInput, { key: "@" });
+      fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    });
+    await flushReactTurn(() => {
+      fireEvent.keyDown(promptInput, { key: "Tab" });
+    });
 
     expect(screen.getByLabelText("Primary edit image").className).not.toContain("is-selected");
     expect(screen.getByLabelText("Secondary edit image 1").className).toContain(
@@ -1537,7 +1578,7 @@ describe("ExpertEditPanelView", () => {
     );
   });
 
-  it("cycles the anchored reference picker selection with Tab", () => {
+  it("cycles the anchored reference picker selection with Tab", async () => {
     const { container, promptInput } = renderControlledPromptPanel({
       initialPrompt: "Blend ",
       extraImageUrls: [
@@ -1547,11 +1588,15 @@ describe("ExpertEditPanelView", () => {
       ],
     });
 
-    uploadPrimaryFile(container, "primary-layer.png");
-    promptInput.focus();
-    promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "Tab" });
-    fireEvent.keyDown(promptInput, { key: "Tab" });
+    await flushReactTurn(() => {
+      uploadPrimaryFile(container, "primary-layer.png");
+      promptInput.focus();
+      promptInput.setSelectionRange(6, 6);
+      fireEvent.keyDown(promptInput, { key: "Tab" });
+    });
+    await flushReactTurn(() => {
+      fireEvent.keyDown(promptInput, { key: "Tab" });
+    });
 
     expect(screen.getByLabelText("Primary edit image").className).not.toContain("is-selected");
     expect(screen.getByLabelText("Secondary edit image 1").className).toContain(
@@ -1559,71 +1604,91 @@ describe("ExpertEditPanelView", () => {
     );
   });
 
-  it("inserts the selected picker token on Enter after opening with Tab", () => {
+  it("inserts the selected picker token on Enter after opening with Tab", async () => {
     const { container, promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
       initialPrompt: "Blend scene",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
-    uploadPrimaryFile(container, "primary-layer.png");
-    promptInput.focus();
-    promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "Tab" });
-    fireEvent.keyDown(promptInput, { key: "Tab" });
-    fireEvent.keyDown(promptInput, { key: "Enter" });
+    await flushReactTurn(() => {
+      uploadPrimaryFile(container, "primary-layer.png");
+      promptInput.focus();
+      promptInput.setSelectionRange(6, 6);
+      fireEvent.keyDown(promptInput, { key: "Tab" });
+    });
+    await flushReactTurn(() => {
+      fireEvent.keyDown(promptInput, { key: "Tab" });
+    });
+    await flushReactTurn(() => {
+      fireEvent.keyDown(promptInput, { key: "Enter" });
+    });
 
     expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @img1 scene");
     expect(promptInput.value).toBe("Blend @img1 scene");
     expect(screen.queryByRole("group", { name: /reference image picker/i })).toBeNull();
   });
 
-  it("inserts @main on Enter when the picker is opened and not cycled", () => {
+  it("inserts @main on Enter when the picker is opened and not cycled", async () => {
     const { container, promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
       initialPrompt: "Blend scene",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
-    uploadPrimaryFile(container, "primary-layer.png");
-    promptInput.focus();
-    promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "Tab" });
-    fireEvent.keyDown(promptInput, { key: "Enter" });
+    await flushReactTurn(() => {
+      uploadPrimaryFile(container, "primary-layer.png");
+      promptInput.focus();
+      promptInput.setSelectionRange(6, 6);
+      fireEvent.keyDown(promptInput, { key: "Tab" });
+    });
+    await flushReactTurn(() => {
+      fireEvent.keyDown(promptInput, { key: "Enter" });
+    });
 
     expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @main scene");
     expect(promptInput.value).toBe("Blend @main scene");
     expect(screen.queryByRole("group", { name: /reference image picker/i })).toBeNull();
   });
 
-  it("inserts the selected picker token on Enter and closes the picker", () => {
+  it("inserts the selected picker token on Enter and closes the picker", async () => {
     const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
       initialPrompt: "Blend ",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
-    promptInput.focus();
-    promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
-    fireEvent.change(promptInput, { target: { value: "Blend @" } });
-    fireEvent.keyDown(promptInput, { key: "Tab" });
-    fireEvent.keyDown(promptInput, { key: "Enter" });
+    await flushReactTurn(() => {
+      promptInput.focus();
+      promptInput.setSelectionRange(6, 6);
+      fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
+      fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    });
+    await flushReactTurn(() => {
+      fireEvent.keyDown(promptInput, { key: "Tab" });
+    });
+    await flushReactTurn(() => {
+      fireEvent.keyDown(promptInput, { key: "Enter" });
+    });
 
     expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @img2 ");
     expect(promptInput.value).toBe("Blend @img2 ");
     expect(screen.queryByRole("group", { name: /reference image picker/i })).toBeNull();
   });
 
-  it("closes the picker on regular typing and preserves manual token entry", () => {
+  it("closes the picker on regular typing and preserves manual token entry", async () => {
     const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
       initialPrompt: "Blend ",
       extraImageUrls: ["https://example.com/slot-1.png", null, null],
     });
 
-    promptInput.focus();
-    promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
-    fireEvent.change(promptInput, { target: { value: "Blend @" } });
-    fireEvent.keyDown(promptInput, { key: "a" });
-    fireEvent.change(promptInput, { target: { value: "Blend @a" } });
+    await flushReactTurn(() => {
+      promptInput.focus();
+      promptInput.setSelectionRange(6, 6);
+      fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
+      fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    });
+    await flushReactTurn(() => {
+      fireEvent.keyDown(promptInput, { key: "a" });
+      fireEvent.change(promptInput, { target: { value: "Blend @a" } });
+    });
 
     expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @a");
     expect(promptInput.value).toBe("Blend @a");
@@ -2146,36 +2211,20 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("opens expanded markup modal from collapsed tools when prototype flag is enabled and re-collapses on close", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_COLLAPSED_OPEN_MODAL_ENABLED", "true");
+  it("keeps collapsed tools on the inline expand path instead of auto-opening the markup modal", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
     const collapsedButton = screen.getByRole("button", { name: /expand inpaint controls/i });
     expect(collapsedButton).toHaveAttribute("aria-expanded", "false");
 
     fireEvent.click(collapsedButton);
-    const expandedModal = screen.getByRole("dialog", { name: /expanded markup canvas/i });
-    expect(expandedModal).toBeInTheDocument();
-    expect(screen.queryByLabelText("Inpaint action tools")).toBeNull();
-    expect(screen.queryByRole("button", { name: /collapse inpaint controls/i })).toBeNull();
-    expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveAttribute(
-      "aria-expanded",
-      "false"
-    );
-    fireEvent.click(within(expandedModal).getByRole("button", { name: /^brush$/i }));
-
-    fireEvent.click(
-      within(expandedModal).getByRole("button", { name: /close expanded markup canvas/i })
-    );
     expect(screen.queryByRole("dialog", { name: /expanded markup canvas/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: /collapse inpaint controls/i })).toBeNull();
-    expect(screen.getByRole("button", { name: /expand inpaint controls/i })).toHaveAttribute(
+    expect(screen.getByLabelText("Inpaint action tools")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /collapse inpaint controls/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /collapse inpaint controls/i })).toHaveAttribute(
       "aria-expanded",
-      "false"
+      "true"
     );
-    expect(
-      within(screen.getByRole("button", { name: /expand inpaint controls/i })).getByText("Move")
-    ).toBeInTheDocument();
   });
 
   it("renders Move/Inpaint/Markup rail buttons with Move selected by default", async () => {
@@ -2275,7 +2324,7 @@ describe("ExpertEditPanelView", () => {
     expect(moveSettingsPanelAgain).toHaveClass("is-themed-move");
   });
 
-  it("publishes edit submit intent when the rail tool changes", async () => {
+  it("keeps submit intent pinned to the selected generation mode when the rail tool changes", async () => {
     const onEditSubmitIntentChange = vi.fn();
     render(
       <ExpertEditPanelView {...baseProps} onEditSubmitIntentChange={onEditSubmitIntentChange} />
@@ -2290,17 +2339,16 @@ describe("ExpertEditPanelView", () => {
     expect(onEditSubmitIntentChange).toHaveBeenCalledWith("standard");
 
     fireEvent.click(inpaintButton);
-    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("inpaint");
+    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("standard");
 
     fireEvent.click(markupButton);
-    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("markup");
+    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("standard");
 
     fireEvent.click(moveButton);
     expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("standard");
   });
 
   it("shows generation mode tabs at the top of the left sidebar and publishes intent when toggle flag is enabled", async () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     const onEditSubmitIntentChange = vi.fn();
     const { container } = render(
       <ExpertEditPanelView {...baseProps} onEditSubmitIntentChange={onEditSubmitIntentChange} />
@@ -2343,7 +2391,6 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("does not render a generation-mode clear button in the sidebar toggle row", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
@@ -2361,7 +2408,6 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("shows the reference-images and styles row in Standard, Inpaint, and Markup", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
@@ -2390,7 +2436,6 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("keeps the default canvas layout height across generation modes", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
     const panel = screen.getByRole("group", { name: /expert edit composer/i });
@@ -2412,7 +2457,6 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("swaps the left rail selected mode panel as generation mode tabs change", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
     const presetToolbar = screen.getByLabelText("Edit preset toolbar");
@@ -3568,7 +3612,7 @@ describe("ExpertEditPanelView", () => {
     const modalColorButton = within(modalToolbar).getByRole("button", { name: /markup color/i });
     fireEvent.click(modalColorButton);
 
-    expect(screen.getByText("#F43F5E")).toBeInTheDocument();
+    expect(within(expandedModal).getByText("#F43F5E")).toBeInTheDocument();
     const modalDefaultSwatch = screen.getByRole("button", {
       name: /select #f43f5e color/i,
     });
@@ -4121,17 +4165,15 @@ describe("ExpertEditPanelView", () => {
   it("locks the model picker to FLUX Pro Fill while Inpaint is selected", async () => {
     const onModelPickerOpen = vi.fn();
     render(<ExpertEditPanelView {...baseProps} onModelPickerOpen={onModelPickerOpen} />);
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-
-    const rail = screen.getByLabelText("Inpaint action tools");
-    const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
-    const inpaintButton = await within(rail).findByRole("button", { name: /^inpaint$/i });
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
     const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
 
     expect(modelPickerButton).not.toBeDisabled();
     expect(modelPickerButton).toHaveTextContent("Nano Banana");
 
-    fireEvent.click(inpaintButton);
+    fireEvent.click(inpaintTab);
     expect(modelPickerButton).toBeDisabled();
     expect(modelPickerButton).toHaveTextContent(INPAINT_FLUX_FILL_MODEL_LABEL);
     expect(modelPickerButton.querySelector(".model-chip-logo-img")).toHaveAttribute(
@@ -4144,7 +4186,7 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(modelPickerButton);
     expect(onModelPickerOpen).not.toHaveBeenCalled();
 
-    fireEvent.click(moveButton);
+    fireEvent.click(standardTab);
     expect(modelPickerButton).not.toBeDisabled();
     expect(modelPickerButton).toHaveTextContent("Nano Banana");
   });
@@ -4177,21 +4219,18 @@ describe("ExpertEditPanelView", () => {
     expect(modelPickerButton).toHaveTextContent("Nano Banana");
   });
 
-  it("locks the model picker to Pulse Markup v1 while Markup is selected when lock flag is enabled", async () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "true");
+  it("locks the model picker to Pulse Markup v1 while Markup is selected", async () => {
     const onModelPickerOpen = vi.fn();
     render(<ExpertEditPanelView {...baseProps} onModelPickerOpen={onModelPickerOpen} />);
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-
-    const rail = screen.getByLabelText("Inpaint action tools");
-    const moveButton = await within(rail).findByRole("button", { name: /^move$/i });
-    const markupButton = await within(rail).findByRole("button", { name: /^markup$/i });
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
+    const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
     const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
 
     expect(modelPickerButton).not.toBeDisabled();
     expect(modelPickerButton).toHaveTextContent("Nano Banana");
 
-    fireEvent.click(markupButton);
+    fireEvent.click(markupTab);
     expect(modelPickerButton).toBeDisabled();
     expect(modelPickerButton).toHaveTextContent(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL);
     expect(modelPickerButton.querySelector(".model-chip-logo-img")).toHaveAttribute(
@@ -4201,14 +4240,12 @@ describe("ExpertEditPanelView", () => {
     fireEvent.click(modelPickerButton);
     expect(onModelPickerOpen).not.toHaveBeenCalled();
 
-    fireEvent.click(moveButton);
+    fireEvent.click(standardTab);
     expect(modelPickerButton).not.toBeDisabled();
     expect(modelPickerButton).toHaveTextContent("Nano Banana");
   });
 
-  it("locks the model picker from selector-row generation mode tabs when mode toggle is enabled", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "true");
+  it("locks the model picker from selector-row markup mode tabs", () => {
     render(<ExpertEditPanelView {...baseProps} />);
 
     const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
@@ -7241,8 +7278,7 @@ describe("ExpertEditPanelView", () => {
     expect(submittedReferences).not.toContain("https://example.com/unlinked-extra.png");
   });
 
-  it("auto-flatten generate includes a markup-composite secondary reference when flag is enabled and strokes exist", async () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED", "true");
+  it("auto-flatten generate includes a markup-composite secondary reference when markup mode is selected and strokes exist", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
@@ -7258,9 +7294,8 @@ describe("ExpertEditPanelView", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    fireEvent.click(within(modeTabs).getByRole("tab", { name: /^markup$/i }));
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
@@ -7294,7 +7329,6 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("keeps the primary image first in markup submissions before the markup composite and linked secondary refs", async () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED", "true");
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
@@ -7315,9 +7349,8 @@ describe("ExpertEditPanelView", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    fireEvent.click(within(modeTabs).getByRole("tab", { name: /^markup$/i }));
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
@@ -7343,7 +7376,6 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("auto-flatten generate skips markup-composite secondary reference when Markup mode is not selected", async () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED", "true");
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
@@ -7377,46 +7409,7 @@ describe("ExpertEditPanelView", () => {
     expect(submittedReferences[0]).toBe("https://example.com/base.png");
   });
 
-  it("auto-flatten generate skips markup-composite secondary reference when flag is disabled", async () => {
-    const onRegenerateWithReferenceInputs: NonNullable<
-      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
-    > = vi.fn(async (referenceInputs, options) => {
-      void referenceInputs;
-      void options;
-    });
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceText="Add annotation refinements."
-        sessionState={createSessionStateWithMarkupStroke()}
-        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
-      await Promise.resolve();
-    });
-
-    expect(composeFlattenedMarkupReferenceBlobMock).not.toHaveBeenCalled();
-    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
-    const submissionCalls = (
-      onRegenerateWithReferenceInputs as unknown as {
-        mock: {
-          calls: Array<[string[]]>;
-        };
-      }
-    ).mock.calls;
-    const submittedReferences = submissionCalls[0]?.[0] ?? [];
-    expect(submittedReferences).toHaveLength(1);
-    expect(submittedReferences[0]).toMatch(/^blob:flatten-/);
-  });
-
-  it("auto-flatten generate does not force model override while Markup is selected by default", async () => {
+  it("auto-flatten generate forces Nano Banana Pro edit model while Markup is selected", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async (referenceInputs, options) => {
@@ -7432,56 +7425,8 @@ describe("ExpertEditPanelView", () => {
     );
 
     uploadPrimaryFile(container, "layer-1.png");
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
-      await Promise.resolve();
-    });
-
-    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
-    const submissionCalls = (
-      onRegenerateWithReferenceInputs as unknown as {
-        mock: {
-          calls: Array<
-            [
-              string[],
-              {
-                modelIdOverride?: string | null;
-                inpaintOverride?: unknown;
-              }?,
-            ]
-          >;
-        };
-      }
-    ).mock.calls;
-    const submitOptions = submissionCalls[0]?.[1];
-    expect(submitOptions?.modelIdOverride).toBeUndefined();
-    expect(submitOptions?.inpaintOverride).toBeUndefined();
-  });
-
-  it("auto-flatten generate forces Nano Banana Pro edit model while Markup is selected when lock flag is enabled", async () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_MODEL_LOCK_ENABLED", "true");
-    const onRegenerateWithReferenceInputs: NonNullable<
-      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
-    > = vi.fn(async (referenceInputs, options) => {
-      void referenceInputs;
-      void options;
-    });
-    const { container } = render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceText="Add hand-drawn annotations."
-        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
-      />
-    );
-
-    uploadPrimaryFile(container, "layer-1.png");
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    fireEvent.click(within(modeTabs).getByRole("tab", { name: /^markup$/i }));
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
@@ -7831,6 +7776,8 @@ describe("ExpertEditPanelView", () => {
         />
       );
       uploadPrimaryFile(container, "layer-1.png");
+      const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+      fireEvent.click(within(modeTabs).getByRole("tab", { name: /^inpaint$/i }));
       fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
       const rail = screen.getByLabelText("Inpaint action tools");
       fireEvent.click(within(rail).getByRole("button", { name: /^move$/i }));
@@ -7946,6 +7893,8 @@ describe("ExpertEditPanelView", () => {
         />
       );
       uploadPrimaryFile(container, "layer-1.png");
+      const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+      fireEvent.click(within(modeTabs).getByRole("tab", { name: /^inpaint$/i }));
       fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
       const rail = screen.getByLabelText("Inpaint action tools");
       fireEvent.click(within(rail).getByRole("button", { name: /^move$/i }));
@@ -8049,9 +7998,8 @@ describe("ExpertEditPanelView", () => {
         />
       );
       uploadPrimaryFile(container, "layer-1.png");
-      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-      const rail = screen.getByLabelText("Inpaint action tools");
-      fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
+      const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+      fireEvent.click(within(modeTabs).getByRole("tab", { name: /^inpaint$/i }));
       await act(async () => {
         fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
         await Promise.resolve();

@@ -1,6 +1,6 @@
 /**
  * AI Studio project-workspace persistence controller.
- * Orchestrates project-owned restore/apply and debounced write shadow against project workspace authority.
+ * Orchestrates project-owned restore/apply and debounced autosave against project workspace authority.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -9,21 +9,22 @@ import {
 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { saveAiStudioProjectWorkspaceSnapshotViaApi } from "../logic/projectWorkspaceApiClient";
-import type { AiStudioSessionPersistenceController } from "./useAiStudioSessionPersistenceController";
 import {
-  useAiStudioSessionWriteShadow,
-  type AiStudioSessionWriteShadowError,
-} from "./useAiStudioSessionWriteShadow";
+  useAiStudioSessionAutosave,
+  type AiStudioSessionAutosaveError,
+} from "./useAiStudioSessionAutosave";
 import { useAiStudioProjectWorkspaceRestoreCandidate } from "./useAiStudioProjectWorkspaceRestoreCandidate";
 import { useAiStudioProjectWorkspaceRestoreHydration } from "./useAiStudioProjectWorkspaceRestoreHydration";
 import { resetAiStudioOutputStore } from "./aiStudioOutputStore";
 import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
+import type { AiStudioPersistenceController } from "./aiStudioPersistenceControllerContract";
 
 type UseAiStudioProjectWorkspacePersistenceControllerParams = {
   projectId: string | null;
   projectRouteRequested?: boolean;
   sessionId: string | null;
-  buildSessionSnapshot: (sessionId: string) => AiStudioSessionSnapshot;
+  buildBaseSessionSnapshot: (sessionId: string) => AiStudioSessionSnapshot;
+  patchSessionSnapshot?: (snapshot: AiStudioSessionSnapshot) => AiStudioSessionSnapshot;
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
@@ -71,14 +72,15 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   projectId,
   projectRouteRequested = false,
   sessionId,
-  buildSessionSnapshot,
+  buildBaseSessionSnapshot,
+  patchSessionSnapshot,
   hydrateFromSessionSnapshot,
   hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   applyEmptyProjectState,
   resetProjectAgentConversation,
   onPersistenceWarning,
-}: UseAiStudioProjectWorkspacePersistenceControllerParams): AiStudioSessionPersistenceController => {
+}: UseAiStudioProjectWorkspacePersistenceControllerParams): AiStudioPersistenceController => {
   const [bootstrappedProject, setBootstrappedProject] = useState<{
     projectId: string;
     revision: number;
@@ -120,12 +122,19 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     sessionRestoreCandidate.status === "ready" &&
     bootstrappedProject?.projectId === projectId &&
     bootstrappedProject.revision === projectRuntimeRevision;
-  const sessionSnapshot = useMemo(
+  const baseSessionSnapshot = useMemo(
     () =>
       sessionId && projectBootstrapReady
-        ? createAiStudioProjectWorkspaceSnapshot(buildSessionSnapshot(sessionId))
+        ? createAiStudioProjectWorkspaceSnapshot(buildBaseSessionSnapshot(sessionId))
         : null,
-    [buildSessionSnapshot, projectBootstrapReady, sessionId]
+    [buildBaseSessionSnapshot, projectBootstrapReady, sessionId]
+  );
+  const sessionSnapshot = useMemo(
+    () =>
+      baseSessionSnapshot && patchSessionSnapshot
+        ? patchSessionSnapshot(baseSessionSnapshot)
+        : baseSessionSnapshot,
+    [baseSessionSnapshot, patchSessionSnapshot]
   );
 
   useEffect(() => {
@@ -213,7 +222,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   const resolveProjectSnapshotTitle = useCallback(() => null, []);
 
   const handleProjectPersistError = useCallback(
-    (error: Error, details: AiStudioSessionWriteShadowError) => {
+    (error: Error, details: AiStudioSessionAutosaveError) => {
       onPersistenceWarning?.(
         resolveProjectPersistenceWarningMessage({
           reason: details.reason,
@@ -230,7 +239,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
       ? bootstrapError
       : null;
 
-  useAiStudioSessionWriteShadow({
+  useAiStudioSessionAutosave({
     sessionId: projectId,
     snapshot: sessionSnapshot,
     enabled: projectBootstrapReady && !activeBootstrapError,

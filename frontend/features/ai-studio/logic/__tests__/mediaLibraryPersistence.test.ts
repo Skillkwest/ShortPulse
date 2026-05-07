@@ -448,7 +448,7 @@ describe("saveMediaUrlToLibrary", () => {
     );
   });
 
-  it("falls back to legacy metadata-index lookup when canonical output media linkage is absent", async () => {
+  it("falls back to legacy generation_output_index lookup when canonical output media linkage is absent", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: {
         id: "media-existing",
@@ -508,6 +508,74 @@ describe("saveMediaUrlToLibrary", () => {
 
     expect(result.mediaFileId).toBe("media-existing");
     expect(selectBuilder.contains).toHaveBeenCalledWith("metadata", { generation_output_index: 0 });
+  });
+
+  it("also falls back to index-only generated rows created during the regression window", async () => {
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({
+        data: {
+          id: "media-existing-index-only",
+          storage_path: "user-1/generations/images/existing-index-only.png",
+          file_type: "image",
+        },
+        error: null,
+      });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({
+      data: { media_file_id: null },
+      error: null,
+    });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ error: null })),
+      })),
+    }));
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert: vi.fn(),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: generationOutputUpdate,
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal("fetch", vi.fn());
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/output.png",
+      mode: "image",
+      source: "ai_studio",
+      generationId: "gen-1",
+      index: 0,
+    });
+
+    expect(result.mediaFileId).toBe("media-existing-index-only");
+    expect(selectBuilder.contains).toHaveBeenNthCalledWith(1, "metadata", {
+      generation_output_index: 0,
+    });
+    expect(selectBuilder.contains).toHaveBeenNthCalledWith(2, "metadata", { index: 0 });
   });
 
   it("maps duplicate ai_studio insert to existing row and returns success semantics", async () => {

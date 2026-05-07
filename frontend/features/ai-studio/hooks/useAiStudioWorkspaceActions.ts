@@ -1,17 +1,14 @@
 /**
- * Workspace action and UI policy hook for AI Studio.
+ * Workspace action hook for AI Studio.
  * Centralizes page-level selection handlers and workspace file/media actions.
  */
-import { useCallback, useState, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
+import { useCallback, type ChangeEvent, type Dispatch, type SetStateAction } from "react";
 import type { ModelModalContext } from "../components/ModelModal";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import { isReferencePromptTool } from "../logic/promptTargeting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { normalizeToolId } from "../logic/workflowIdentity";
 import type { StudioMode, ToolId } from "../types";
-
-const MEDIA_LIBRARY_PANEL_ENABLED =
-  process.env.NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED !== "false";
 
 type UseAiStudioWorkspaceActionsParams = {
   selectedTool: ToolId | null;
@@ -53,8 +50,6 @@ export const useAiStudioWorkspaceActions = ({
   addOutputsFromFiles,
   setActiveOutputId,
 }: UseAiStudioWorkspaceActionsParams) => {
-  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
-
   const handleOpenModelModal = useCallback(
     (anchorId: string, target: HTMLElement, context: ModelModalContext | null = null) => {
       openModelModal(anchorId, target, context);
@@ -104,17 +99,9 @@ export const useAiStudioWorkspaceActions = ({
 
   const handleToolSelect = useCallback(
     (tool: ToolId | null) => {
-      if (tool === "media-library" && !MEDIA_LIBRARY_PANEL_ENABLED) {
-        setShowCreateTools(false);
-        setIsMediaLibraryOpen(true);
-        return;
-      }
       const normalizedTool = normalizeToolId(tool);
       const nextTool = normalizedTool ?? tool ?? null;
       setSelectedTool(nextTool);
-      if (isMediaLibraryOpen) {
-        setIsMediaLibraryOpen(false);
-      }
       if (nextTool === "edit") {
         setMode("image");
       }
@@ -122,16 +109,12 @@ export const useAiStudioWorkspaceActions = ({
         setShowCreateTools(false);
       }
     },
-    [isMediaLibraryOpen, setMode, setSelectedTool, setShowCreateTools]
+    [setMode, setSelectedTool, setShowCreateTools]
   );
 
   const handleOpenMediaLibrary = useCallback(() => {
     handleToolSelect("media-library");
   }, [handleToolSelect]);
-
-  const handleCloseMediaLibrary = useCallback(() => {
-    setIsMediaLibraryOpen(false);
-  }, []);
 
   const handleFileBrowserSelection = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -163,8 +146,6 @@ export const useAiStudioWorkspaceActions = ({
   );
 
   return {
-    isMediaLibraryOpen,
-    isMediaLibraryPanelEnabled: MEDIA_LIBRARY_PANEL_ENABLED,
     handleOpenModelModal,
     handleSelectModelFromModal,
     handleManualPromptChange,
@@ -172,7 +153,6 @@ export const useAiStudioWorkspaceActions = ({
     handleVideoPromptTextChange,
     handleToolSelect,
     handleOpenMediaLibrary,
-    handleCloseMediaLibrary,
     handleFileBrowserSelection,
     handleReferenceGridFiles,
     handleSelectOutput,

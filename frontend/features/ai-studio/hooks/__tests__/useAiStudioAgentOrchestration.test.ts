@@ -6,7 +6,10 @@ import { resolveCreateAgentOrchestrationRuntimePolicy } from "../agentOrchestrat
 import { prepareImageUrl } from "../../logic/imageDescription";
 import type { StudioOutput } from "../../types";
 import type { AgentAttachment, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
-import type { CreatePulseResolvedPreset } from "../../components/create/createPulsePresets";
+import {
+  CREATE_PULSE_SCHEMA_VERSION,
+  type CreatePulseResolvedPreset,
+} from "../../components/create/createPulsePresets";
 
 vi.mock("../../logic/imageDescription", () => ({
   prepareImageUrl: vi.fn(async (url: string) => url),
@@ -297,12 +300,7 @@ describe("useAiStudioAgentOrchestration", () => {
         presetId: "story_builder",
         label: "Story Builder",
         instructions: "Pulse-only custom instructions",
-        runtimeMode: "workflow_gpt" as const,
-        activationMode: "activate_and_start" as const,
-        starterAssistantMessage: null,
-        workflowStageHints: null,
-        outputMode: "chat_reply" as const,
-        memoryPolicy: "session" as const,
+        pulseKind: "custom_gpt" as const,
         source: "custom" as const,
       },
     }));
@@ -324,6 +322,53 @@ describe("useAiStudioAgentOrchestration", () => {
           pulse: expect.anything(),
         }),
       })
+    );
+  });
+
+  it("allows follow-up sends for custom pulses without guided workflow metadata", async () => {
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "CUSTOM-PULSE-MARKER: ok" },
+      actions: undefined,
+    }));
+    const setUiNotice = vi.fn();
+    const params = createParams({
+      agentInput: "Give me a quick reply.",
+      sendToAgent,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      runtimePolicy: pulseRuntimePolicy("custom-pulse"),
+      getAgentContext: vi.fn(() => ({
+        pulse: {
+          presetId: "custom-pulse",
+          label: "Custom Pulse",
+          instructions: 'Reply in one sentence beginning with "CUSTOM-PULSE-MARKER:".',
+          pulseKind: "custom_gpt" as const,
+          source: "custom" as const,
+        },
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Give me a quick reply.",
+        payloadText: "Give me a quick reply.",
+        context: expect.objectContaining({
+          pulse: {
+            presetId: "custom-pulse",
+            label: "Custom Pulse",
+            instructions: 'Reply in one sentence beginning with "CUSTOM-PULSE-MARKER:".',
+            pulseKind: "custom_gpt",
+            source: "custom",
+          },
+        }),
+      })
+    );
+    expect(setUiNotice).not.toHaveBeenCalledWith(
+      "Pulse context is unavailable. Start the Pulse again."
     );
   });
 
@@ -638,7 +683,7 @@ describe("useAiStudioAgentOrchestration", () => {
     });
 
     expect(sendToAgent).not.toHaveBeenCalled();
-    expect(setUiNotice).toHaveBeenCalledWith("Use the Pulse workflow to continue.");
+    expect(setUiNotice).toHaveBeenCalledWith("Use Pulse mode to continue.");
     expect(trackAgentUiEvent).toHaveBeenCalledWith(
       "studio_agent_standard_action_blocked_in_pulse_mode"
     );
@@ -831,6 +876,7 @@ describe("useAiStudioAgentOrchestration", () => {
       label: "DFY Story Builder",
       description: "Story workflow",
       systemInstructions: "workflow instructions",
+      pulseKind: "guided_workflow",
       runtimeMode: "workflow_gpt",
       activationMode: "activate_and_start",
       starterAssistantMessage:
@@ -839,6 +885,7 @@ describe("useAiStudioAgentOrchestration", () => {
       outputMode: "chat_reply",
       artifactTarget: "image_prompt",
       memoryPolicy: "session",
+      schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
       isCustom: false,
       isBuiltIn: true,
       isEditable: true,
@@ -910,6 +957,7 @@ describe("useAiStudioAgentOrchestration", () => {
       label: "Video Prompt Magic",
       description: "Video workflow",
       systemInstructions: "workflow instructions",
+      pulseKind: "guided_workflow",
       runtimeMode: "workflow_gpt",
       activationMode: "activate_and_start",
       starterAssistantMessage: "Upload your image to get the process started :)",
@@ -917,6 +965,7 @@ describe("useAiStudioAgentOrchestration", () => {
       outputMode: "chat_reply",
       artifactTarget: "video_prompt",
       memoryPolicy: "session",
+      schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
       isCustom: false,
       isBuiltIn: true,
       isEditable: true,
@@ -979,6 +1028,7 @@ describe("useAiStudioAgentOrchestration", () => {
       label: "DFY Story Builder",
       description: "Story workflow",
       systemInstructions: "workflow instructions",
+      pulseKind: "guided_workflow",
       runtimeMode: "workflow_gpt",
       activationMode: "activate_and_start",
       starterAssistantMessage: "Step 1 - Upload your characters.",
@@ -986,6 +1036,7 @@ describe("useAiStudioAgentOrchestration", () => {
       outputMode: "chat_reply",
       artifactTarget: "image_prompt",
       memoryPolicy: "session",
+      schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
       isCustom: false,
       isBuiltIn: true,
       isEditable: true,
@@ -1030,6 +1081,7 @@ describe("useAiStudioAgentOrchestration", () => {
         label: "DFY Story Builder",
         description: "Story workflow",
         systemInstructions: "workflow instructions",
+        pulseKind: "guided_workflow",
         runtimeMode: "workflow_gpt",
         activationMode: "activate_and_start",
         starterAssistantMessage: "Step 1 - Upload your characters.",
@@ -1037,6 +1089,7 @@ describe("useAiStudioAgentOrchestration", () => {
         outputMode: "chat_reply",
         artifactTarget: "image_prompt",
         memoryPolicy: "session",
+        schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
         isCustom: false,
         isBuiltIn: true,
         isEditable: true,
@@ -1076,6 +1129,7 @@ describe("useAiStudioAgentOrchestration", () => {
         label: "DFY Story Builder",
         description: "Story workflow",
         systemInstructions: "workflow instructions",
+        pulseKind: "guided_workflow",
         runtimeMode: "workflow_gpt",
         activationMode: "activate_and_start",
         starterAssistantMessage: "Step 1 - Upload your characters.",
@@ -1083,6 +1137,7 @@ describe("useAiStudioAgentOrchestration", () => {
         outputMode: "chat_reply",
         artifactTarget: "image_prompt",
         memoryPolicy: "session",
+        schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
         isCustom: false,
         isBuiltIn: true,
         isEditable: true,
@@ -1120,6 +1175,7 @@ describe("useAiStudioAgentOrchestration", () => {
           label: "DFY Story Builder",
           description: "Story workflow",
           systemInstructions: "workflow instructions",
+          pulseKind: "guided_workflow",
           runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
           starterAssistantMessage: "Step 1 - Upload your characters.",
@@ -1127,6 +1183,7 @@ describe("useAiStudioAgentOrchestration", () => {
           outputMode: "chat_reply",
           artifactTarget: "image_prompt",
           memoryPolicy: "session",
+          schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
           isCustom: false,
           isBuiltIn: true,
           isEditable: true,

@@ -97,7 +97,6 @@ const resetRuntimeTestState = () => {
   vi.clearAllMocks();
   process.env.OPENAI_API_KEY = "test-key";
   process.env.STUDIO_AGENT_ENABLED = "true";
-  process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "false";
   process.env.STUDIO_AGENT_SERVER_VISION_ENABLED = "false";
   delete process.env.STUDIO_AGENT_PULSE_MODEL;
   process.env.STUDIO_AGENT_SAFETY_POSTPROCESS_ENABLED = "true";
@@ -523,7 +522,6 @@ describe("AI Studio Create agent runtime boundaries", () => {
   });
 
   it("does not read or write generic canonical prompt persistence from Pulse", async () => {
-    process.env.STUDIO_AGENT_CANONICAL_DB_ENABLED = "true";
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
       json: async () => ({

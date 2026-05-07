@@ -1,6 +1,6 @@
 /**
  * Pulse prompt step component for AI Studio.
- * Handles Pulse chat composer and guided workflow presentation.
+ * Handles Pulse chat composer and Pulse-mode presentation.
  */
 import React from "react";
 import type {

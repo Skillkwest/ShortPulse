@@ -90,7 +90,7 @@ describe("studioAgentRequestGuards", () => {
     expect(context.media?.every((item) => item.kind === "image")).toBe(true);
   });
 
-  it("normalizes legacy pulse runtime metadata to the guided Pulse contract", () => {
+  it("normalizes legacy custom Pulse runtime metadata to the minimal custom GPT contract", () => {
     const context = sanitizeStudioAgentContext({
       mode: "text",
       pulse: {
@@ -110,15 +110,9 @@ describe("studioAgentRequestGuards", () => {
       label: "Story Builder",
       description: null,
       instructions: "Keep the structure easy to follow.",
-      runtimeMode: "workflow_gpt",
-      activationMode: "activate_and_start",
-      starterAssistantMessage: null,
-      workflowStageHints: null,
-      outputMode: "chat_reply",
-      artifactTarget: "video_prompt",
-      memoryPolicy: "session",
+      pulseKind: "custom_gpt",
       source: "custom",
-      workflowSession: null,
+      schemaVersion: 2,
     });
   });
 
@@ -140,6 +134,12 @@ describe("studioAgentRequestGuards", () => {
     expect(context.pulse?.instructions).toBe(
       "This prompt should ask one product question first, then build the final ad concept."
     );
+    expect(context.pulse?.pulseKind).toBe("custom_gpt");
+    expect(context.pulse).not.toHaveProperty("runtimeMode");
+    expect(context.pulse).not.toHaveProperty("activationMode");
+    expect(context.pulse).not.toHaveProperty("outputMode");
+    expect(context.pulse).not.toHaveProperty("artifactTarget");
+    expect(context.pulse).not.toHaveProperty("workflowSession");
   });
 
   it("drops Pulse workflow sessions that do not belong to the active Pulse preset", () => {
@@ -167,7 +167,7 @@ describe("studioAgentRequestGuards", () => {
     });
 
     expect(context.pulse?.presetId).toBe("pulse_active");
-    expect(context.pulse?.workflowSession).toBeNull();
+    expect(context.pulse).not.toHaveProperty("workflowSession");
   });
 
   it("strips Pulse and passive media context from Standard runtime requests", () => {

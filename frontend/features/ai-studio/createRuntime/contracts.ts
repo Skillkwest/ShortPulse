@@ -14,6 +14,7 @@ import type {
 } from "../../../prefabs/agent";
 import type { ModelModalContext } from "../components/ModelModal";
 import type {
+  CreatePulsePresetKind,
   CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
 } from "../components/create/createPulsePresets";
@@ -206,6 +207,7 @@ export type PulseCreateRuntimeProps = {
   hasActiveSession: boolean;
   activePresetId: string | null;
   activePresetLabel: string | null;
+  activePresetKind: CreatePulsePresetKind | null;
   workflowSession: AgentPulseWorkflowSession | null;
   createIsGenerating: boolean;
   currentCostCredits: number | null;

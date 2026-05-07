@@ -923,6 +923,47 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
+  it("blocks create character-mode generate when the selected bundle cannot be loaded", async () => {
+    const setUiError = vi.fn();
+    const generateOutput = vi.fn();
+    const trackCharacterModeEvent = vi.fn();
+    const trackCharacterModeFallback = vi.fn();
+    const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({
+      submissionPromptOverride: "user prompt",
+      displayPromptOverride: "user prompt",
+      referenceInputsOverride: [],
+      notice: null,
+      fallbackCode: "bundle_unavailable",
+      characterReferenceCount: 0,
+      hasCharacterDescription: false,
+    }));
+    const params = createParams({
+      setUiError: asDispatch<string | null>(setUiError),
+      generateOutput,
+      trackCharacterModeEvent,
+      trackCharacterModeFallback,
+      resolveCharacterModeSubmissionOverrides,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleGenerate("user prompt");
+    });
+
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(trackCharacterModeFallback).toHaveBeenCalledWith(
+      expect.objectContaining({ fallbackCode: "bundle_unavailable" }),
+      "create"
+    );
+    expect(setUiError).toHaveBeenCalledWith(
+      "Selected character context could not be loaded. Please reselect the character and retry."
+    );
+    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+      "character_mode_submit_blocked_fallback",
+      expect.objectContaining({ fallback_code: "bundle_unavailable", tool: "create" })
+    );
+  });
+
   it("keeps edit regenerate routed to the edit lane even when character overrides have no references", async () => {
     const setUiError = vi.fn();
     const regenerateOutput = vi.fn();
@@ -989,10 +1030,10 @@ describe("useAiStudioGenerationController", () => {
 
     expect(generateOutput).not.toHaveBeenCalled();
     expect(setUiError).toHaveBeenCalledWith(
-      "Character Mode requires at least one character image before generating."
+      "Select a character before generating with Character Mode."
     );
     expect(trackCharacterModeEvent).toHaveBeenCalledWith(
-      "character_mode_submit_blocked_no_references",
+      "character_mode_submit_blocked_fallback",
       expect.objectContaining({ fallback_code: "no_character_selected", tool: "create" })
     );
   });

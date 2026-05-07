@@ -4,10 +4,7 @@
  */
 import React from "react";
 import {
-  CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
-  CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET,
-  CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
-  CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
+  createCreatePulseCustomSavedPreset,
   CREATE_PULSE_PANEL_MAX,
   type CreatePulseBuiltInPresetDefinition,
   resolveCreatePulsePresetById,
@@ -226,24 +223,15 @@ export const useCreatePulsePresetRuntime = ({
     ) => {
       const saved = await updateSavedPresets((previous) => {
         const existingPreset = previous.find((preset) => preset.presetId === presetId);
-        const resolvedPreset = resolveCreatePulsePresetById(presetId, previous, builtInDefinitions);
-        return upsertCreatePulseSavedPreset(previous, {
-          presetId,
-          label: draft.label,
-          description: null,
-          systemInstructions: draft.systemInstructions,
-          runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
-          activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
-          starterAssistantMessage: null,
-          workflowStageHints: null,
-          outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
-          artifactTarget:
-            existingPreset?.artifactTarget ??
-            resolvedPreset?.artifactTarget ??
-            CREATE_PULSE_CUSTOM_AUTHORING_ARTIFACT_TARGET,
-          memoryPolicy: "session",
-          createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
-        });
+        return upsertCreatePulseSavedPreset(
+          previous,
+          createCreatePulseCustomSavedPreset({
+            presetId,
+            label: draft.label,
+            systemInstructions: draft.systemInstructions,
+            createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
+          })
+        );
       });
       if (saved === false) {
         showPersistentStatus("Unable to save this Pulse right now.", "warning");
@@ -252,7 +240,7 @@ export const useCreatePulsePresetRuntime = ({
       clearStatusMessage();
       return true;
     },
-    [builtInDefinitions, clearStatusMessage, showPersistentStatus, updateSavedPresets]
+    [clearStatusMessage, showPersistentStatus, updateSavedPresets]
   );
 
   const beginPresetDragSession = React.useCallback(

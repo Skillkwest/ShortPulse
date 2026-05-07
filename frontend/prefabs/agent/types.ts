@@ -99,8 +99,9 @@ export type AgentPulseRuntimeContext = {
   instructions: string;
   description?: string | null;
   // Legacy persisted values may still arrive from older snapshots or saved presets.
-  // Runtime boundaries normalize active Pulses to workflow_gpt / activate_and_start / chat_reply.
-  runtimeMode?: "prompt_editor" | "workflow_gpt";
+  // Runtime boundaries normalize active Pulses into explicit guided/custom Pulse contracts.
+  pulseKind?: "guided_workflow" | "custom_gpt";
+  runtimeMode?: "prompt_editor" | "workflow_gpt" | "custom_gpt";
   activationMode?: "activate_only" | "activate_and_start";
   starterAssistantMessage?: string | null;
   workflowStageHints?: string[] | null;
@@ -109,6 +110,7 @@ export type AgentPulseRuntimeContext = {
   memoryPolicy?: "session";
   source?: "builtin" | "custom";
   workflowSession?: AgentPulseWorkflowSession | null;
+  schemaVersion?: number | null;
 };
 
 export type AgentContext = {

@@ -10,7 +10,7 @@ import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-librar
 import {
   MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED,
   MEDIA_LIBRARY_VIRTUALIZATION_ENABLED,
-} from "../../../media-library/logic/mediaLibraryFeatureFlags";
+} from "../../../media-library/logic/mediaLibraryRuntimeConfig";
 import { resolveMediaCardAspectRatio } from "../../logic/mediaLibraryAspectRatio";
 import {
   isVideoFile,

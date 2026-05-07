@@ -63,8 +63,8 @@ const stripGenericPromptContinuity = (context: AgentContext): AgentContext => {
 };
 
 /**
- * Executes the Pulse Create guided send path. Owns workflow request shaping,
- * workflow session capture, and Pulse-specific input guards.
+ * Executes the Pulse Create send path. Owns Pulse request shaping, guided
+ * workflow-session capture when applicable, and Pulse-specific input guards.
  */
 export const runPulseCreateAgentSend = async ({
   agentIsSending,
@@ -130,7 +130,7 @@ export const runPulseCreateAgentSend = async ({
       modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
     })
   );
-  if (!runtimePolicy.resolveWorkflowPulse(baseContext)) {
+  if (!baseContext.pulse) {
     setUiNotice("Pulse context is unavailable. Start the Pulse again.");
     trackAgentUiEvent("studio_agent_send_blocked_missing_pulse_context");
     return;

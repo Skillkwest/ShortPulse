@@ -26,6 +26,7 @@ export default function AdminPricingPage() {
     refresh: refreshAdminAccess,
   } = useAdminAccess({
     enabled: Boolean(user),
+    userId: user?.id ?? null,
   });
   const { pricingState, pricingLoading, pricingRefreshing, pricingError, refreshPricingState } =
     useAdminPricingController({

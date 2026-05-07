@@ -38,7 +38,7 @@ describe("useAdminAccess", () => {
       })
     );
 
-    const first = renderHook(() => useAdminAccess({ enabled: true }));
+    const first = renderHook(() => useAdminAccess({ enabled: true, userId: "admin-1" }));
 
     await waitFor(() => expect(first.result.current.status).toBe("granted"));
 
@@ -47,7 +47,7 @@ describe("useAdminAccess", () => {
     const nextResponse = deferred<ReturnType<typeof jsonResponse>>();
     fetchWithAuthMock.mockImplementationOnce(() => nextResponse.promise);
 
-    const second = renderHook(() => useAdminAccess({ enabled: true }));
+    const second = renderHook(() => useAdminAccess({ enabled: true, userId: "admin-1" }));
 
     expect(second.result.current.status).toBe("granted");
     expect(second.result.current.isAdmin).toBe(true);
@@ -71,7 +71,7 @@ describe("useAdminAccess", () => {
       })
     );
 
-    const first = renderHook(() => useAdminAccess({ enabled: true }));
+    const first = renderHook(() => useAdminAccess({ enabled: true, userId: "admin-1" }));
     await waitFor(() => expect(first.result.current.status).toBe("granted"));
     first.unmount();
 
@@ -79,7 +79,7 @@ describe("useAdminAccess", () => {
       jsonResponse({ error: "Access endpoint unavailable." }, false, 500)
     );
 
-    const second = renderHook(() => useAdminAccess({ enabled: true }));
+    const second = renderHook(() => useAdminAccess({ enabled: true, userId: "admin-1" }));
 
     await waitFor(() => expect(fetchWithAuthMock).toHaveBeenCalledTimes(2));
 
@@ -90,5 +90,37 @@ describe("useAdminAccess", () => {
     await act(async () => {
       second.result.current.refresh();
     });
+  });
+
+  it("does not reuse a prior user's cached grant after an account switch", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      jsonResponse({
+        isAdmin: true,
+        accessVia: "email_allowlist",
+      })
+    );
+
+    const first = renderHook(() => useAdminAccess({ enabled: true, userId: "admin-1" }));
+    await waitFor(() => expect(first.result.current.status).toBe("granted"));
+    first.unmount();
+
+    const nextResponse = deferred<ReturnType<typeof jsonResponse>>();
+    fetchWithAuthMock.mockImplementationOnce(() => nextResponse.promise);
+
+    const second = renderHook(() => useAdminAccess({ enabled: true, userId: "user-2" }));
+
+    expect(second.result.current.status).toBe("checking");
+    expect(second.result.current.isAdmin).toBe(false);
+    expect(second.result.current.isLoading).toBe(true);
+
+    nextResponse.resolve(
+      jsonResponse({
+        isAdmin: false,
+        accessVia: "none",
+      })
+    );
+
+    await waitFor(() => expect(second.result.current.status).toBe("denied"));
+    expect(second.result.current.isAdmin).toBe(false);
   });
 });

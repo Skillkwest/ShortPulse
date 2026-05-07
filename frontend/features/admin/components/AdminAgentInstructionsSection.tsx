@@ -1,10 +1,11 @@
 /**
  * Admin agent-instruction workspace.
- * Standard remains a local scaffold. Pulse built-ins load from and persist to the shared control plane.
+ * Standard remains a local scaffold. Built-in guided workflows load from and persist to the shared control plane.
  */
 import React from "react";
 import { copyToClipboard } from "../logic/copyToClipboard";
 import {
+  CREATE_PULSE_SCHEMA_VERSION,
   normalizeCreatePulseBuiltInPresetDefinitions,
   resolveCreatePulseBuiltInPresetDefinitions,
   type CreatePulseArtifactTarget,
@@ -67,10 +68,12 @@ const buildPulseDefinitionFromDraft = (
     .filter((entry) => entry.length > 0),
   artifactTarget: draft.artifactTarget,
   systemInstructions: draft.systemInstructions.trim(),
+  pulseKind: "guided_workflow",
   runtimeMode: "workflow_gpt",
   activationMode: "activate_and_start",
   outputMode: "chat_reply",
   memoryPolicy: "session",
+  schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
 });
 
 const buildEmptyPulseDraft = (counter: number): AdminPulseDraft => ({
@@ -113,7 +116,9 @@ const isPulseDraftBlank = (draft: AdminPulseDraft): boolean =>
   draft.artifactTarget === "text_artifact";
 
 const formatPulseBuiltInUpdateMeta = (updatedAt: string | null, updatedByEmail: string | null) => {
-  if (!updatedAt) return "Using seeded fallback. Save once to create the shared Pulse catalog row.";
+  if (!updatedAt) {
+    return "Using seeded fallback. Save once to create the shared guided workflow catalog row.";
+  }
   const byline = updatedByEmail ? ` by ${updatedByEmail}` : "";
   return `Last saved${byline} on ${new Date(updatedAt).toLocaleString()}.`;
 };
@@ -129,7 +134,7 @@ const loadPulseBuiltInCatalog = async (): Promise<{
     headers: { Accept: "application/json" },
   });
   if (!response.ok) {
-    throw new Error("Unable to load the global Pulse built-in set.");
+    throw new Error("Unable to load the global guided workflow set.");
   }
   const payload = (await response.json()) as {
     builtInDefinitions?: unknown;
@@ -151,7 +156,7 @@ const loadPulseBuiltInCatalog = async (): Promise<{
 };
 
 /**
- * Renders the admin draft-edit surface for Standard and built-in Pulse agent instructions.
+ * Renders the admin draft-edit surface for Standard and built-in guided workflow instructions.
  */
 export function AdminAgentInstructionsSection() {
   const [standardInstructions, setStandardInstructions] = React.useState("");
@@ -233,7 +238,7 @@ export function AdminAgentInstructionsSection() {
       setPulseSaveState("idle");
     } catch (error) {
       setPulseError(
-        error instanceof Error ? error.message : "Unable to load the global Pulse built-in set."
+        error instanceof Error ? error.message : "Unable to load the global guided workflow set."
       );
       const fallbackDrafts = buildPulseDraftsFromDefinitions(
         resolveCreatePulseBuiltInPresetDefinitions()
@@ -316,7 +321,7 @@ export function AdminAgentInstructionsSection() {
         error?: string;
       };
       if (!response.ok) {
-        throw new Error(payload.error || "Unable to save the global Pulse built-in set.");
+        throw new Error(payload.error || "Unable to save the global guided workflow set.");
       }
       const normalizedDefinitions = normalizeCreatePulseBuiltInPresetDefinitions(
         payload.builtInDefinitions
@@ -331,7 +336,7 @@ export function AdminAgentInstructionsSection() {
     } catch (error) {
       setPulseSaveState("error");
       setPulseError(
-        error instanceof Error ? error.message : "Unable to save the global Pulse built-in set."
+        error instanceof Error ? error.message : "Unable to save the global guided workflow set."
       );
     }
   }, [hydratePulseDrafts, pulseDrafts]);
@@ -343,13 +348,13 @@ export function AdminAgentInstructionsSection() {
           <p className="eyebrow">Create properties panel</p>
           <h2 className={styles.adminSectionTitle}>Agent Instructions</h2>
           <p className="tiny subdued">
-            Standard stays scaffold-only for now. Pulse built-ins here load from the shared admin
-            control plane and can be replaced for every Create user.
+            Standard stays scaffold-only for now. Built-in guided workflows here load from the
+            shared admin control plane and can be replaced for every Create user.
           </p>
         </div>
         <div className={styles.agentInstructionActions}>
           <button type="button" className="ghost-btn mini" onClick={handleAddPulseDraft}>
-            Add built-in Pulse
+            Add guided workflow
           </button>
           <button
             type="button"
@@ -365,7 +370,7 @@ export function AdminAgentInstructionsSection() {
             onClick={() => void handleSavePulseDrafts()}
             disabled={pulseLoading || pulseSaveState === "saving" || !hasPulseUnsavedChanges}
           >
-            {pulseSaveState === "saving" ? "Saving..." : "Save Pulse set"}
+            {pulseSaveState === "saving" ? "Saving..." : "Save guided workflow set"}
           </button>
         </div>
       </div>
@@ -379,13 +384,13 @@ export function AdminAgentInstructionsSection() {
           </p>
         </div>
         <div className={styles.adminCard}>
-          <p className={styles.agentInstructionSummaryLabel}>Pulse built-ins</p>
+          <p className={styles.agentInstructionSummaryLabel}>Built-in guided workflows</p>
           <strong className={styles.agentInstructionSummaryValue}>
             {pulseDrafts.length} editable slot{pulseDrafts.length === 1 ? "" : "s"}
           </strong>
           <p className={styles.adminSubtext}>
             {pulseLoading
-              ? "Loading the shared Pulse built-in catalog."
+              ? "Loading the shared guided workflow catalog."
               : pulseError
                 ? pulseError
                 : formatPulseBuiltInUpdateMeta(pulseUpdatedAt, pulseUpdatedByEmail)}
@@ -456,12 +461,14 @@ export function AdminAgentInstructionsSection() {
         <div className={styles.agentInstructionModeSection}>
           <div className={styles.agentInstructionModeHeader}>
             <div>
-              <p className={styles.agentInstructionModeEyebrow}>Pulse mode</p>
-              <h3 className={styles.agentInstructionModeTitle}>Global built-in Pulse set</h3>
+              <p className={styles.agentInstructionModeEyebrow}>Guided workflows</p>
+              <h3 className={styles.agentInstructionModeTitle}>
+                Global built-in guided workflow set
+              </h3>
             </div>
             <p className={styles.agentInstructionModeDescription}>
-              These entries are the shared built-in Pulse catalog. Seeded content is just a starting
-              point. Save applies the current set for all Create users.
+              These entries are the shared built-in guided workflow catalog. Seeded content is just
+              a starting point. Save applies the current set for all Create users.
             </p>
           </div>
 
@@ -473,13 +480,13 @@ export function AdminAgentInstructionsSection() {
                 : !isPulseDraftBlank(draft);
               const feedbackKey = `pulse:${draft.localId}`;
               const cardTitle =
-                draft.label.trim().length > 0 ? draft.label : `Pulse Slot ${index + 1}`;
+                draft.label.trim().length > 0 ? draft.label : `Workflow Slot ${index + 1}`;
               const statusLabel = stored ? (isDirty ? "Unsaved edits" : "Stored") : "New slot";
               const note = stored
                 ? isDirty
-                  ? "This slot differs from the stored global Pulse set."
-                  : "Matches the stored global Pulse set."
-                : "New slot. Save applies it to the shared built-in Pulse catalog.";
+                  ? "This slot differs from the stored global guided workflow set."
+                  : "Matches the stored global guided workflow set."
+                : "New slot. Save applies it to the shared built-in guided workflow catalog.";
               const copyValue = [
                 `Preset ID: ${draft.presetId}`,
                 `Label: ${draft.label}`,
@@ -504,8 +511,8 @@ export function AdminAgentInstructionsSection() {
                         </span>
                       </div>
                       <p className={styles.agentInstructionDescription}>
-                        Define the full built-in Pulse slot here. The runtime will use the stored
-                        server copy for built-in preset ids.
+                        Define the full built-in guided workflow here. The runtime will use the
+                        stored server copy for built-in preset ids.
                       </p>
                     </div>
                     <div className={styles.agentInstructionActions}>
@@ -536,7 +543,7 @@ export function AdminAgentInstructionsSection() {
 
                   <div className={styles.agentInstructionFormGrid}>
                     <label className={styles.agentInstructionField}>
-                      <span className={styles.agentInstructionLabel}>Pulse name</span>
+                      <span className={styles.agentInstructionLabel}>Workflow name</span>
                       <input
                         className={styles.agentInstructionInput}
                         type="text"
@@ -591,7 +598,7 @@ export function AdminAgentInstructionsSection() {
                       onChange={(event) =>
                         updatePulseDraft(draft.localId, "description", event.target.value)
                       }
-                      placeholder="What this built-in Pulse is for."
+                      placeholder="What this built-in guided workflow is for."
                       spellCheck={false}
                       rows={3}
                     />
@@ -646,7 +653,7 @@ export function AdminAgentInstructionsSection() {
                     onChange={(event) =>
                       updatePulseDraft(draft.localId, "systemInstructions", event.target.value)
                     }
-                    placeholder="Paste the full built-in Pulse system instructions here."
+                    placeholder="Paste the full built-in guided workflow system instructions here."
                     spellCheck={false}
                     rows={18}
                   />
@@ -658,14 +665,17 @@ export function AdminAgentInstructionsSection() {
             {pulseDrafts.length === 0 ? (
               <article className={styles.agentInstructionCard}>
                 <div className={styles.agentInstructionModeHeader}>
-                  <h4 className={styles.agentInstructionTitle}>No built-in Pulse slots drafted</h4>
+                  <h4 className={styles.agentInstructionTitle}>
+                    No built-in guided workflows drafted
+                  </h4>
                   <p className={styles.agentInstructionModeDescription}>
-                    Add a new slot to define the shared built-in Pulse catalog from a blank slate.
+                    Add a new slot to define the shared built-in guided workflow catalog from a
+                    blank slate.
                   </p>
                 </div>
                 <div className={styles.agentInstructionActions}>
                   <button type="button" className="ghost-btn mini" onClick={handleAddPulseDraft}>
-                    Add built-in Pulse
+                    Add guided workflow
                   </button>
                   <button
                     type="button"

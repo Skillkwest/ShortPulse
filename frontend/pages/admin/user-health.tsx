@@ -51,7 +51,7 @@ export default function AdminUserHealthPage() {
     isAdmin: hasAdminAccess,
     error: adminAccessError,
     refresh: refreshAdminAccess,
-  } = useAdminAccess({ enabled: Boolean(user) });
+  } = useAdminAccess({ enabled: Boolean(user), userId: user?.id ?? null });
 
   const [lookup, setLookup] = useState("");
   const [lookupMode, setLookupMode] = useState<"auto" | "email" | "user_id">("auto");

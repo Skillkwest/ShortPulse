@@ -9,6 +9,7 @@ export type AdminAccessStatus = "idle" | "checking" | "granted" | "denied" | "er
 
 type UseAdminAccessOptions = {
   enabled: boolean;
+  userId?: string | null;
 };
 
 type UseAdminAccessResult = {
@@ -26,16 +27,17 @@ type CachedAdminAccessState = {
   accessVia: AdminAccessVia | null;
 };
 
-let cachedAdminAccessState: CachedAdminAccessState | null = null;
+let cachedAdminAccessStateByUserId = new Map<string, CachedAdminAccessState>();
 
 export const resetCachedAdminAccessStateForTests = (): void => {
-  cachedAdminAccessState = null;
+  cachedAdminAccessStateByUserId = new Map();
 };
 
 const getInitialAdminAccessState = (
-  enabled: boolean
+  enabled: boolean,
+  userId: string | null | undefined
 ): Pick<UseAdminAccessResult, "status" | "isAdmin" | "accessVia" | "error"> => {
-  if (!enabled) {
+  if (!enabled || !userId) {
     return {
       status: "idle",
       isAdmin: false,
@@ -44,6 +46,7 @@ const getInitialAdminAccessState = (
     };
   }
 
+  const cachedAdminAccessState = cachedAdminAccessStateByUserId.get(userId) ?? null;
   if (cachedAdminAccessState) {
     return {
       status: cachedAdminAccessState.status,
@@ -64,8 +67,11 @@ const getInitialAdminAccessState = (
 /**
  * Resolves admin access via a dedicated endpoint so pages do not gate on /api/admin/users.
  */
-export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAccessResult => {
-  const initialState = getInitialAdminAccessState(enabled);
+export const useAdminAccess = ({
+  enabled,
+  userId,
+}: UseAdminAccessOptions): UseAdminAccessResult => {
+  const initialState = getInitialAdminAccessState(enabled, userId);
   const [status, setStatus] = useState<AdminAccessStatus>(initialState.status);
   const [isAdmin, setIsAdmin] = useState(initialState.isAdmin);
   const [accessVia, setAccessVia] = useState<AdminAccessVia | null>(initialState.accessVia);
@@ -77,11 +83,20 @@ export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAcce
   }, []);
 
   useEffect(() => {
-    if (!enabled) {
+    const nextState = getInitialAdminAccessState(enabled, userId);
+    setStatus(nextState.status);
+    setIsAdmin(nextState.isAdmin);
+    setAccessVia(nextState.accessVia);
+    setError(nextState.error);
+  }, [enabled, userId]);
+
+  useEffect(() => {
+    if (!enabled || !userId) {
       return;
     }
 
     let cancelled = false;
+    const cachedAdminAccessState = cachedAdminAccessStateByUserId.get(userId) ?? null;
     const hadGrantedCache = cachedAdminAccessState?.status === "granted";
 
     const run = async () => {
@@ -102,11 +117,11 @@ export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAcce
         if (cancelled) return;
 
         if (response.status === 403) {
-          cachedAdminAccessState = {
+          cachedAdminAccessStateByUserId.set(userId, {
             status: "denied",
             isAdmin: false,
             accessVia: "none",
-          };
+          });
           setStatus("denied");
           setIsAdmin(false);
           setAccessVia("none");
@@ -138,11 +153,11 @@ export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAcce
         }
 
         const adminAccess = payload as AdminAccessResponse;
-        cachedAdminAccessState = {
+        cachedAdminAccessStateByUserId.set(userId, {
           status: adminAccess.isAdmin ? "granted" : "denied",
           isAdmin: adminAccess.isAdmin,
           accessVia: adminAccess.accessVia,
-        };
+        });
         setStatus(adminAccess.isAdmin ? "granted" : "denied");
         setIsAdmin(adminAccess.isAdmin);
         setAccessVia(adminAccess.accessVia);
@@ -168,14 +183,14 @@ export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAcce
     return () => {
       cancelled = true;
     };
-  }, [enabled, refreshTick]);
+  }, [enabled, refreshTick, userId]);
 
   return {
-    status: enabled ? status : "idle",
-    isLoading: enabled ? status === "checking" : false,
-    isAdmin: enabled ? isAdmin : false,
-    accessVia: enabled ? accessVia : null,
-    error: enabled ? error : null,
+    status: enabled && userId ? status : "idle",
+    isLoading: enabled && userId ? status === "checking" : false,
+    isAdmin: enabled && userId ? isAdmin : false,
+    accessVia: enabled && userId ? accessVia : null,
+    error: enabled && userId ? error : null,
     refresh,
   };
 };

@@ -36,7 +36,7 @@ export default function AdminUserHealthFleetPage() {
     isAdmin: hasAdminAccess,
     error: adminAccessError,
     refresh: refreshAdminAccess,
-  } = useAdminAccess({ enabled: Boolean(user) });
+  } = useAdminAccess({ enabled: Boolean(user), userId: user?.id ?? null });
 
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState<"all" | "critical" | "warning" | "info">("all");

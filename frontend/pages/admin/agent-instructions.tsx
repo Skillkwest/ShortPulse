@@ -13,6 +13,7 @@ export default function AdminAgentInstructionsPage() {
     refresh: refreshAdminAccess,
   } = useAdminAccess({
     enabled: Boolean(user),
+    userId: user?.id ?? null,
   });
 
   return (

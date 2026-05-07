@@ -24,7 +24,7 @@ const validateBuiltInDefinitionsPayload = (
     return {
       ok: false,
       message:
-        "Each Pulse built-in must have a unique preset id, label, description, artifact target, and system instructions.",
+        "Each built-in guided workflow must have a unique preset id, label, description, artifact target, and system instructions.",
     };
   }
   return { ok: true, builtInDefinitions: normalized };
@@ -51,7 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         routeLabel: "api/admin/agent-instructions/pulse-builtins",
         user: adminUser,
       });
-      return res.status(500).json({ error: "Failed to load Pulse built-ins." });
+      return res.status(500).json({ error: "Failed to load built-in guided workflows." });
     }
   }
 
@@ -80,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         routeLabel: "api/admin/agent-instructions/pulse-builtins",
         user: adminUser,
       });
-      return res.status(500).json({ error: "Failed to save Pulse built-ins." });
+      return res.status(500).json({ error: "Failed to save built-in guided workflows." });
     }
   }
 

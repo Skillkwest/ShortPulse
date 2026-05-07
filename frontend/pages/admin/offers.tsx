@@ -169,6 +169,7 @@ export default function AdminOffersPage() {
     refresh: refreshAdminAccess,
   } = useAdminAccess({
     enabled: Boolean(user),
+    userId: user?.id ?? null,
   });
   const {
     drafts,

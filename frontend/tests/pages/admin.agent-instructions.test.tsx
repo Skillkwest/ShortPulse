@@ -80,12 +80,12 @@ describe("Admin agent instructions page", () => {
       "aria-current",
       "page"
     );
-    expect(await screen.findByText("Global built-in Pulse set")).toBeInTheDocument();
+    expect(await screen.findByText("Global built-in guided workflow set")).toBeInTheDocument();
     expect(screen.getByText("Standard Create Agent")).toBeInTheDocument();
     expect(screen.getByText("Video Prompt Magic")).toBeInTheDocument();
     expect(screen.getByText("Multi Sequence Video Prompt")).toBeInTheDocument();
     expect(screen.getByText("DFY Story Builder")).toBeInTheDocument();
-    expect(screen.getAllByLabelText("Pulse name")).toHaveLength(3);
+    expect(screen.getAllByLabelText("Workflow name")).toHaveLength(3);
     expect(screen.getAllByLabelText("Preset ID")).toHaveLength(3);
     expect(screen.getAllByLabelText("Artifact target")).toHaveLength(3);
     expect(screen.getAllByLabelText("System instructions")).toHaveLength(3);
@@ -123,7 +123,7 @@ describe("Admin agent instructions page", () => {
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
     if (!pulseCard) throw new Error("Expected Video Prompt Magic card.");
 
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Workflow name" }), {
       target: { value: "Global Prompt Director" },
     });
     fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Description" }), {
@@ -134,18 +134,18 @@ describe("Admin agent instructions page", () => {
     });
     expect(within(pulseCard).getByText("Unsaved edits")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add built-in Pulse" }));
-    expect(screen.getByText("Pulse Slot 2")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add guided workflow" }));
+    expect(screen.getByText("Workflow Slot 2")).toBeInTheDocument();
 
-    const newSlotCard = screen.getByText("Pulse Slot 2").closest("article");
+    const newSlotCard = screen.getByText("Workflow Slot 2").closest("article");
     if (!newSlotCard) throw new Error("Expected new Pulse slot card.");
-    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Workflow name" }), {
       target: { value: "Universal Story Pulse" },
     });
     fireEvent.click(within(newSlotCard).getByRole("button", { name: "Remove" }));
-    expect(screen.queryByText("Pulse Slot 2")).not.toBeInTheDocument();
+    expect(screen.queryByText("Workflow Slot 2")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Save Pulse set" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save guided workflow set" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -176,11 +176,11 @@ describe("Admin agent instructions page", () => {
     expect(screen.getByText("Global Prompt Director")).toBeInTheDocument();
     expect(within(pulseCard).getByText("Stored")).toBeInTheDocument();
 
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Workflow name" }), {
       target: { value: "Temporary name" },
     });
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Reset to stored" }));
-    expect(within(pulseCard).getByRole("textbox", { name: "Pulse name" })).toHaveValue(
+    expect(within(pulseCard).getByRole("textbox", { name: "Workflow name" })).toHaveValue(
       "Global Prompt Director"
     );
   });

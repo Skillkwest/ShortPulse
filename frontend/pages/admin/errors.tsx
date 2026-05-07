@@ -18,6 +18,7 @@ export default function AdminErrorsPage() {
     refresh: refreshAdminAccess,
   } = useAdminAccess({
     enabled: Boolean(user),
+    userId: user?.id ?? null,
   });
   const {
     errors,

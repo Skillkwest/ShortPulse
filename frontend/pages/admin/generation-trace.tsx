@@ -56,7 +56,7 @@ export default function AdminGenerationTracePage() {
     isAdmin: hasAdminAccess,
     error: adminAccessError,
     refresh: refreshAdminAccess,
-  } = useAdminAccess({ enabled: Boolean(user) });
+  } = useAdminAccess({ enabled: Boolean(user), userId: user?.id ?? null });
 
   const [generationId, setGenerationId] = useState("");
   const [requestId, setRequestId] = useState("");

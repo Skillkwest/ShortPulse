@@ -68,6 +68,7 @@ export type ModelUsageKind =
   | "source_duration_seconds"
   | "generation_count"
   | "text_characters"
+  | "blended_text_characters"
   | "input_tokens"
   | "none";
 
@@ -193,19 +194,20 @@ const IMAGE_AMOUNT_PRICING_STRATEGIES = new Set([
 const INTEGER_USAGE_KINDS = new Set<ModelUsageKind>([
   "generation_count",
   "text_characters",
+  "blended_text_characters",
   "input_tokens",
 ]);
 
 export const getModelUsageControl = (model: AdminPricingModelRow): ModelUsageControl => {
   if (model.pricingStrategy === "openai-text-token") {
     return {
-      kind: "none",
-      label: "Scenario",
-      unitLabel: "",
-      defaultValue: null,
-      minValue: null,
+      kind: "blended_text_characters",
+      label: "Characters",
+      unitLabel: "chars",
+      defaultValue: 50_000,
+      minValue: 1,
       maxValue: null,
-      step: "1",
+      step: "1000",
       inputMode: "numeric",
     };
   }
@@ -334,6 +336,8 @@ export const getModelUsageRateMultiplier = (
       return Math.max(1, Math.round(usageValue));
     case "text_characters":
       return usageValue / 1_000;
+    case "blended_text_characters":
+      return usageValue / 50_000;
     case "input_tokens":
       return usageValue / 1_000_000;
     default:
@@ -361,6 +365,7 @@ export const buildModelUsagePricingOverrides = (
     case "generation_count":
       return { generationCount: Math.max(1, Math.round(usageValue)) };
     case "text_characters":
+    case "blended_text_characters":
       return { textCharacters: Math.max(1, Math.round(usageValue)) };
     case "input_tokens":
       return { inputTokens: Math.max(1, Math.round(usageValue)) };

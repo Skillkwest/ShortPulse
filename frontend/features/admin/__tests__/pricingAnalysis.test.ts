@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildPlanMarginModelRows,
   buildModelEconomicsRows,
   buildUsageMixAnalysisRows,
+  computePlanMarginSummary,
   computePlanEconomicsSummary,
   type UsageMixDraftRow,
 } from "../pricingAnalysis";
@@ -54,6 +56,7 @@ const buildModelRow = (overrides: Partial<AdminPricingModelRow>): AdminPricingMo
 describe("pricingAnalysis", () => {
   it("computes plan economics after discount, processor fees, and affiliate share", () => {
     const summary = computePlanEconomicsSummary({
+      simulatedName: "Plan",
       priceUsd: "49.00",
       includedCredits: "1500",
       discountPct: "10",
@@ -73,10 +76,152 @@ describe("pricingAnalysis", () => {
     expect(summary.includedCredits).toBe(1500);
   });
 
+  it("builds plan margin simulator rows from money-kept-per-credit math", () => {
+    const pricingPolicy = {
+      ...getDefaultModelPricingPolicyDocument(),
+      perModel: {
+        "kie-ai/veo-3.1-fast-i2v": {
+          markupBps: 12_000,
+        },
+      },
+    };
+    const model = buildModelRow({
+      id: "kie-ai/veo-3.1-fast-i2v",
+      label: "Veo 3.1",
+      provider: "kie",
+      sourceUrl: "https://docs.kie.ai/",
+      workflowType: "Text to video",
+      pricingStrategy: "veo-3-per-second",
+      pricingStrategyLabel: "veo-3-per-second",
+      defaultAspect: "16:9",
+      allowedAspects: ["16:9"],
+      defaultResolution: "720p",
+      allowedResolutions: ["720p"],
+      defaultDurationSeconds: 5,
+      minDurationSeconds: 5,
+      maxDurationSeconds: 5,
+      allowedDurations: [5],
+      defaultAudio: true,
+      pricingPreview: {
+        usdRaw: 0.3,
+        rawCredits: 9,
+        billedCredits: 18,
+        billedUsd: 0.18,
+      },
+      pricingPreviewVariants: [
+        {
+          id: "default",
+          label: "Default",
+          audio: true,
+          resolution: "720p",
+          aspect: "16:9",
+          breakdown: {
+            usdRaw: 0.3,
+            rawCredits: 9,
+            billedCredits: 18,
+            billedUsd: 0.18,
+          },
+        },
+      ],
+    });
+    const modelRows = buildModelEconomicsRows({
+      models: [model],
+      pricingPolicy,
+    });
+    const planSummary = computePlanMarginSummary({
+      simulatedName: "Plan",
+      priceUsd: "49",
+      includedCredits: "1200",
+      discountPct: "0",
+      affiliatePct: "15",
+      processorPct: "0",
+      processorFlatUsd: "0",
+    });
+
+    const rows = buildPlanMarginModelRows({
+      modelRows,
+      planSummary,
+    });
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      creditsWithMarkup: 88,
+      afterDiscountAffiliateUsd: 3.0543333333333336,
+    });
+    expect(rows[0]?.afterMarkupUsd).toBeCloseTo(0.88, 6);
+    expect(rows[0]?.profitAfterDiscountAffiliateUsd).toBeCloseTo(2.6543333333333337, 6);
+    expect(rows[0]?.marginPercent).toBeCloseTo(86.90385245007094, 6);
+  });
+
+  it("maps billed credits into retained plan revenue using money kept per included credit", () => {
+    const planSummary = computePlanMarginSummary({
+      simulatedName: "Plan",
+      priceUsd: "49",
+      includedCredits: "1500",
+      discountPct: "0",
+      affiliatePct: "15",
+      processorPct: "0",
+      processorFlatUsd: "0",
+    });
+
+    const rows = buildPlanMarginModelRows({
+      modelRows: [
+        {
+          key: "example",
+          modelId: "example-model",
+          variantId: "default",
+          modelLabel: "Example model",
+          provider: "fal",
+          typeLabel: "text → image",
+          specLabel: "Example spec",
+          usageLabel: "Amount",
+          usageValueLabel: "1",
+          durationSeconds: null,
+          providerCostUsd: 2.03,
+          costPerSecondUsd: null,
+          creditsAtCost: 60.9,
+          billedCredits: 97,
+          billedUsd: 3.25,
+          marginUsd: 1.22,
+          marginPercent: 37.5384615385,
+          creditUsdScale: null,
+          markupBps: null,
+          roundingIncrement: null,
+          pricingAuthority: "local_pricing",
+        },
+      ],
+      planSummary,
+    });
+
+    expect(planSummary.moneyKeptUsd).toBeCloseTo(41.65, 6);
+    expect(planSummary.dollarPerCredit).toBeCloseTo(41.65 / 1500, 6);
+    expect(rows[0]?.creditsWithMarkup).toBe(97);
+    expect(rows[0]?.afterDiscountAffiliateUsd).toBeCloseTo((41.65 / 1500) * 97, 6);
+    expect(rows[0]?.profitAfterDiscountAffiliateUsd).toBeCloseTo((41.65 / 1500) * 97 - 2.03, 6);
+  });
+
+  it("subtracts affiliate from the original plan price before computing retained value per credit", () => {
+    const planSummary = computePlanMarginSummary({
+      simulatedName: "Plan",
+      priceUsd: "49",
+      includedCredits: "1500",
+      discountPct: "20",
+      affiliatePct: "15",
+      processorPct: "0",
+      processorFlatUsd: "0",
+    });
+
+    expect(planSummary.afterDiscountUsd).toBeCloseTo(39.2, 6);
+    expect(planSummary.affiliateCostUsd).toBeCloseTo(7.35, 6);
+    expect(planSummary.moneyKeptUsd).toBeCloseTo(31.85, 6);
+    expect(planSummary.dollarPerCredit).toBeCloseTo(31.85 / 1500, 6);
+  });
+
   it("keeps usage-mix monthly revenue capped to the plan net revenue", () => {
     const pricingPolicy = getDefaultModelPricingPolicyDocument();
     const models = [buildModelRow({})];
     const planSummary = computePlanEconomicsSummary({
+      simulatedName: "Plan",
       priceUsd: "39.00",
       includedCredits: "3000",
       discountPct: "0",
@@ -257,16 +402,16 @@ describe("pricingAnalysis", () => {
     expect(draftRow?.providerCostUsd).toBeCloseTo(0.117, 6);
   });
 
-  it("shows OpenAI text models as a fixed per-10,000-character output rate", () => {
+  it("shows OpenAI text models as a fixed per-50,000-character blended rate", () => {
     const pricingPolicy = getDefaultModelPricingPolicyDocument();
     const model = buildModelRow({
       id: "gpt-5.5",
       label: "GPT-5.5",
       provider: "openai",
       sourceUrl: "https://openai.com/api/pricing/",
-      workflowType: "Text to text",
+      workflowType: "Text",
       pricingStrategy: "openai-text-token",
-      pricingStrategyLabel: "Per 10,000 characters",
+      pricingStrategyLabel: "Per 50,000 characters",
       defaultAspect: "",
       allowedAspects: [""],
       defaultResolution: null as never,
@@ -303,9 +448,10 @@ describe("pricingAnalysis", () => {
     });
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.usageValueLabel).toBe("");
-    expect(rows[0]?.specLabel).toBe("10,000 characters generated");
-    expect(rows[0]?.providerCostUsd).toBeCloseTo(0.075, 6);
+    expect(rows[0]?.usageLabel).toBe("Characters");
+    expect(rows[0]?.usageValueLabel).toBe("50,000");
+    expect(rows[0]?.specLabel).toBe("Blended characters");
+    expect(rows[0]?.providerCostUsd).toBeCloseTo(0.281, 6);
   });
 
   it("expands shared-policy image models into separate price-variant rows", () => {

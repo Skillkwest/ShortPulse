@@ -135,7 +135,7 @@ describe("pricing grid invariants", () => {
     ).toBe(0.002);
   });
 
-  it("keeps OpenAI text scenarios fixed and treats the rate source as the displayed scenario price", () => {
+  it("keeps the OpenAI per-50,000-character rate fixed while character usage scales total provider cost", () => {
     const model = buildModelRow({
       id: "gpt-5.4-pro",
       label: "GPT-5.4 Pro",
@@ -143,7 +143,7 @@ describe("pricing grid invariants", () => {
       sourceUrl: "https://openai.com/api/pricing/",
       workflowType: "Text to text",
       pricingStrategy: "openai-text-token",
-      pricingStrategyLabel: "Per 10,000 characters",
+      pricingStrategyLabel: "Per 50,000 characters",
       defaultResolution: null,
       allowedResolutions: [],
       pricingPreview: {
@@ -168,18 +168,22 @@ describe("pricing grid invariants", () => {
     const rows = buildModelEconomicsRows({
       models: [model],
       pricingPolicy: getDefaultModelPricingPolicyDocument(),
+      durationDrafts: {
+        [model.id]: "100000",
+      },
     });
-    const row = rows.find((candidate) => candidate.specLabel === "10,000 characters generated");
+    const row = rows.find((candidate) => candidate.specLabel === "Blended characters");
 
-    expect(row?.usageValueLabel).toBe("");
-    expect(row?.providerCostUsd).toBeCloseTo(0.45, 4);
+    expect(row?.usageValueLabel).toBe("100,000");
+    expect(row?.providerCostUsd).toBeCloseTo(3.38, 4);
     expect(
       getRateSourceCostUsd({
         rateSourceInputMode: getModelRateSourceInputMode(model),
         providerCostUsd: row?.providerCostUsd,
         providerCostUsdPerSecond: row?.costPerSecondUsd,
         durationSeconds: row?.durationSeconds,
+        usageRateMultiplier: getModelUsageRateMultiplier(model, 100000),
       })
-    ).toBeCloseTo(0.45, 4);
+    ).toBeCloseTo(1.69, 4);
   });
 });

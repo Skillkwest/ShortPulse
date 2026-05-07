@@ -184,6 +184,7 @@ export type RateSourceInputMode =
   | "per_minute"
   | "per_generation"
   | "per_1k_chars"
+  | "per_50k_chars"
   | "per_1m_tokens"
   | "flat";
 
@@ -195,6 +196,9 @@ const isPerSecondRateSource = (pricingStrategyLabel: string): boolean => {
 const isPerMinuteRateSource = (pricingStrategyLabel: string): boolean =>
   pricingStrategyLabel.toLowerCase().includes("per minute");
 
+const isPer50kCharsRateSource = (pricingStrategyLabel: string): boolean =>
+  pricingStrategyLabel.toLowerCase().includes("per 50,000 characters");
+
 export const getRateSourceInputMode = ({
   pricingStrategyLabel,
   usageKind,
@@ -204,6 +208,7 @@ export const getRateSourceInputMode = ({
 }): RateSourceInputMode => {
   if (isPerSecondRateSource(pricingStrategyLabel)) return "per_second";
   if (isPerMinuteRateSource(pricingStrategyLabel)) return "per_minute";
+  if (isPer50kCharsRateSource(pricingStrategyLabel)) return "per_50k_chars";
   if (usageKind === "generation_count") return "per_generation";
   if (usageKind === "text_characters") return "per_1k_chars";
   if (usageKind === "input_tokens") return "per_1m_tokens";
@@ -247,6 +252,7 @@ export const getRateSourceCostUsd = ({
   if (
     (rateSourceInputMode === "per_generation" ||
       rateSourceInputMode === "per_1k_chars" ||
+      rateSourceInputMode === "per_50k_chars" ||
       rateSourceInputMode === "per_1m_tokens") &&
     providerCostUsd != null &&
     Number.isFinite(providerCostUsd) &&

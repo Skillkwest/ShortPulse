@@ -1,15 +1,16 @@
 /**
- * Compact support modules for the admin pricing calculator.
- * They read from the shared draft grid and help interpret plan economics,
- * usage mix, and weighted outcomes without becoming a second pricing editor.
+ * Plan margin simulator for the admin pricing page.
+ * Mirrors the current pricing grid shape and translates billed credits into
+ * plan-earned revenue after discount and affiliate adjustments.
  */
 import React from "react";
 import {
-  buildUsageMixAnalysisRows,
-  computePlanEconomicsSummary,
-  type ModelEconomicsRow,
+  buildDefaultPlanEconomicsDraft,
+  buildModelEconomicsRows,
+  buildPlanMarginModelRows,
+  computePlanMarginSummary,
   type PlanEconomicsDraft,
-  type UsageMixDraftRow,
+  type PlanMarginModelRow,
 } from "./pricingAnalysis";
 import {
   formatCredits,
@@ -20,99 +21,712 @@ import {
 import type {
   AudioDraftByModelId,
   AspectDraftByModelId,
+  DurationDraftByModelId,
+  ModelPricingSortOption,
   ResolutionDraftByModelId,
 } from "./pricingDrafts";
-import type { AdminPricingModelRow, AdminPricingPlanRow } from "./types";
 import type { ModelPricingPolicyDocument } from "../../lib/model-runtime/pricingPolicy";
+import type { AdminPricingModelRow, AdminPricingPlanRow } from "./types";
 import styles from "../../styles/admin.module.css";
 
 type PricingCalculatorSupportStripProps = {
   plans: AdminPricingPlanRow[];
-  selectedPlanId: string;
-  setSelectedPlanId: React.Dispatch<React.SetStateAction<string>>;
-  selectedPlanDraft: PlanEconomicsDraft | null | undefined;
-  updatePlanDraft: (planId: string, field: keyof PlanEconomicsDraft, value: string) => void;
-  usageMixRows: UsageMixDraftRow[];
-  updateUsageMixRow: (rowId: string, patch: Partial<UsageMixDraftRow>) => void;
-  addUsageMixRow: () => void;
-  removeUsageMixRow: (rowId: string) => void;
-  models: AdminPricingModelRow[];
-  modelRows: ModelEconomicsRow[];
-  pricingPolicy: ModelPricingPolicyDocument;
+  displayedModels: AdminPricingModelRow[];
+  effectiveModelPolicyDraft: ModelPricingPolicyDocument;
+  durationDrafts: DurationDraftByModelId;
   aspectDrafts: AspectDraftByModelId;
   resolutionDrafts: ResolutionDraftByModelId;
   audioDrafts: AudioDraftByModelId;
+  modelSortOption: ModelPricingSortOption;
+  planDraftsByPlanId: Record<string, PlanEconomicsDraft>;
+  simulatorPlanIds: string[];
+  updatePlanDraft: (planId: string, field: keyof PlanEconomicsDraft, value: string) => void;
+  addSimulatorPlan: () => void;
+  removeSimulatorPlan: (planId: string) => void;
   isDraftDirty: boolean;
 };
 
+type PlanMarginModelGroup = {
+  key: string;
+  providerLabel: string;
+  modelLabel: string;
+  typeSummary: string;
+  usageLabel: string;
+  usageValueLabel: string;
+  summarySpecLabel: string;
+  variantCountLabel: string;
+  rows: PlanMarginModelRow[];
+};
+
+type PlanMarginPlanCardProps = {
+  planId: string;
+  plan: AdminPricingPlanRow | null;
+  planDraft: PlanEconomicsDraft;
+  planSummary: ReturnType<typeof computePlanMarginSummary>;
+  modelGroups: PlanMarginModelGroup[];
+  expandedModelKeys: Record<string, boolean>;
+  toggleModelExpanded: (planId: string, modelId: string) => void;
+  updatePlanDraft: (planId: string, field: keyof PlanEconomicsDraft, value: string) => void;
+  removeSimulatorPlan: (planId: string) => void;
+};
+
+const getFiniteValues = (values: Array<number | null | undefined>): number[] =>
+  values.filter((value): value is number => value != null && Number.isFinite(value));
+
+const formatValueRange = (
+  values: Array<number | null | undefined>,
+  formatter: (value: number) => string
+): string => {
+  const finiteValues = getFiniteValues(values);
+  if (!finiteValues.length) return "-";
+  const minValue = Math.min(...finiteValues);
+  const maxValue = Math.max(...finiteValues);
+  if (Math.abs(maxValue - minValue) < 0.000001) {
+    return formatter(minValue);
+  }
+  return `${formatter(minValue)} to ${formatter(maxValue)}`;
+};
+
+const formatPercentRange = (values: Array<number | null | undefined>): string => {
+  const finiteValues = getFiniteValues(values);
+  if (!finiteValues.length) return "-";
+  const minValue = Math.min(...finiteValues);
+  const maxValue = Math.max(...finiteValues);
+  if (Math.abs(maxValue - minValue) < 0.000001) {
+    return formatPercent(minValue);
+  }
+  return `${formatPercent(minValue)} to ${formatPercent(maxValue)}`;
+};
+
+const getMarginToneStyle = (
+  values: Array<number | null | undefined>
+): React.CSSProperties | undefined => {
+  const finiteValues = getFiniteValues(values);
+  if (!finiteValues.length) return undefined;
+  const averageMargin = finiteValues.reduce((sum, value) => sum + value, 0) / finiteValues.length;
+  const normalized = Math.max(0, Math.min(1, (averageMargin - 10) / 40));
+  const hue = 6 + normalized * 142;
+  const saturation = 76 + normalized * 10;
+  const lightness = 62 + normalized * 10;
+  return {
+    color: `hsl(${hue.toFixed(1)}deg ${saturation.toFixed(1)}% ${lightness.toFixed(1)}%)`,
+  };
+};
+
+const getTypeSummary = (rows: PlanMarginModelRow[]): string => {
+  const labels = Array.from(new Set(rows.map((row) => row.typeLabel).filter(Boolean)));
+  if (labels.length <= 1) return labels[0] ?? "-";
+  return `${labels[0]} + ${labels.length - 1} more`;
+};
+
+const buildPlanMarginGroups = (
+  displayedModels: AdminPricingModelRow[],
+  marginRows: PlanMarginModelRow[]
+): PlanMarginModelGroup[] => {
+  const rowsByModelId = marginRows.reduce<Record<string, PlanMarginModelRow[]>>((acc, row) => {
+    if (!acc[row.modelId]) acc[row.modelId] = [];
+    acc[row.modelId].push(row);
+    return acc;
+  }, {});
+
+  return displayedModels.flatMap((model) => {
+    const rows = rowsByModelId[model.id] ?? [];
+    if (!rows.length) return [];
+    const variantCountLabel =
+      rows.length === 1 ? "1 price variant" : `${rows.length} price variants`;
+    return [
+      {
+        key: model.id,
+        providerLabel: rows[0]?.providerLabel ?? model.provider,
+        modelLabel: rows[0]?.modelLabel ?? model.label,
+        typeSummary: getTypeSummary(rows),
+        usageLabel: rows[0]?.usageLabel ?? "Usage",
+        usageValueLabel: rows[0]?.usageValueLabel ?? "",
+        summarySpecLabel: rows.length === 1 ? (rows[0]?.specLabel ?? "-") : variantCountLabel,
+        variantCountLabel,
+        rows,
+      },
+    ];
+  });
+};
+
+function PlanMarginPlanCard({
+  planId,
+  plan,
+  planDraft,
+  planSummary,
+  modelGroups,
+  expandedModelKeys,
+  toggleModelExpanded,
+  updatePlanDraft,
+  removeSimulatorPlan,
+}: PlanMarginPlanCardProps) {
+  const tableShellRef = React.useRef<HTMLDivElement | null>(null);
+  const tableScrollerRef = React.useRef<HTMLDivElement | null>(null);
+  const stickyHeaderViewportRef = React.useRef<HTMLDivElement | null>(null);
+  const stickyHeaderTrackRef = React.useRef<HTMLDivElement | null>(null);
+  const [pinnedHeaderLayout, setPinnedHeaderLayout] = React.useState<{
+    active: boolean;
+    left: number;
+    width: number;
+    height: number;
+  }>({
+    active: false,
+    left: 0,
+    width: 0,
+    height: 0,
+  });
+
+  const syncStickyHeaderScroll = React.useCallback(() => {
+    const scroller = tableScrollerRef.current;
+    const headerTrack = stickyHeaderTrackRef.current;
+    if (!scroller || !headerTrack) return;
+    headerTrack.style.transform = `translateX(-${scroller.scrollLeft}px)`;
+  }, []);
+
+  React.useEffect(() => {
+    syncStickyHeaderScroll();
+  }, [syncStickyHeaderScroll]);
+
+  React.useEffect(() => {
+    const updatePinnedHeaderLayout = () => {
+      const shell = tableShellRef.current;
+      const headerViewport = stickyHeaderViewportRef.current;
+      if (!shell || !headerViewport) return;
+
+      const shellRect = shell.getBoundingClientRect();
+      const headerHeight = headerViewport.offsetHeight;
+      const pinTop = 12;
+      const shouldPin = shellRect.top <= pinTop && shellRect.bottom - headerHeight > pinTop;
+
+      setPinnedHeaderLayout((current) => {
+        if (!shouldPin) {
+          if (!current.active && current.height === headerHeight) return current;
+          return {
+            active: false,
+            left: 0,
+            width: 0,
+            height: headerHeight,
+          };
+        }
+
+        const next = {
+          active: true,
+          left: shellRect.left,
+          width: shellRect.width,
+          height: headerHeight,
+        };
+        if (
+          current.active === next.active &&
+          Math.abs(current.left - next.left) < 0.5 &&
+          Math.abs(current.width - next.width) < 0.5 &&
+          current.height === next.height
+        ) {
+          return current;
+        }
+        return next;
+      });
+    };
+
+    updatePinnedHeaderLayout();
+    window.addEventListener("scroll", updatePinnedHeaderLayout, { passive: true });
+    window.addEventListener("resize", updatePinnedHeaderLayout);
+    return () => {
+      window.removeEventListener("scroll", updatePinnedHeaderLayout);
+      window.removeEventListener("resize", updatePinnedHeaderLayout);
+    };
+  }, []);
+
+  const headerCells = (
+    <>
+      <span>Provider</span>
+      <span>Model</span>
+      <span>Type</span>
+      <span>Usage</span>
+      <span>Spec</span>
+      <span>$ at cost</span>
+      <span>Credits at cost</span>
+      <span>Markup</span>
+      <span>Credits w/ markup</span>
+      <span>$ after markup</span>
+      <span>$ after disc & aff</span>
+      <span>Profit</span>
+      <span>Margin</span>
+    </>
+  );
+
+  const planLabel = plan?.displayName ?? "Simulation Plan";
+  const fallbackSimulatorTitle = `${formatProviderCostUsd(planSummary.grossUsd)}/mo ${planLabel}`;
+
+  return (
+    <details className={styles.pricingPlanMarginCard} open>
+      <summary className={styles.pricingPlanMarginSummary}>
+        <span
+          className={styles.pricingPlanMarginSummaryTitle}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <span className={styles.pricingPlanMarginSummaryEditor}>
+            <input
+              aria-label={`${planLabel} simulator title`}
+              className={`${styles.searchInput} ${styles.pricingPlanMarginSummaryNameInput}`}
+              value={planDraft.simulatedName || fallbackSimulatorTitle}
+              onChange={(event) => updatePlanDraft(planId, "simulatedName", event.target.value)}
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+            />
+          </span>
+        </span>
+        <span className={styles.pricingPlanMarginSummaryActions}>
+          <span className={styles.pricingPlanMarginSummaryMeta}>{modelGroups.length} models</span>
+          <button
+            type="button"
+            className="ghost-btn mini"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              removeSimulatorPlan(planId);
+            }}
+          >
+            Remove
+          </button>
+        </span>
+      </summary>
+
+      <div className={styles.pricingPlanMarginBody}>
+        <aside className={styles.pricingPlanMarginSidebar}>
+          <label className={styles.pricingPlanMarginField}>
+            <span>Plan price</span>
+            <input
+              aria-label={`${planLabel} plan price`}
+              className={styles.searchInput}
+              value={planDraft.priceUsd}
+              onChange={(event) => updatePlanDraft(planId, "priceUsd", event.target.value)}
+            />
+          </label>
+
+          <label className={styles.pricingPlanMarginField}>
+            <span>Credits included</span>
+            <input
+              aria-label={`${planLabel} credits included`}
+              className={styles.searchInput}
+              value={planDraft.includedCredits}
+              onChange={(event) => updatePlanDraft(planId, "includedCredits", event.target.value)}
+            />
+          </label>
+
+          <label className={styles.pricingPlanMarginField}>
+            <span>Discount</span>
+            <div className={styles.pricingPlanMarginInputWrap}>
+              <input
+                aria-label={`${planLabel} discount`}
+                className={styles.searchInput}
+                value={planDraft.discountPct}
+                onChange={(event) => updatePlanDraft(planId, "discountPct", event.target.value)}
+              />
+              <span>%</span>
+            </div>
+          </label>
+
+          <label className={styles.pricingPlanMarginField}>
+            <span>Affiliate cut</span>
+            <div className={styles.pricingPlanMarginInputWrap}>
+              <input
+                aria-label={`${planLabel} affiliate cut`}
+                className={styles.searchInput}
+                value={planDraft.affiliatePct}
+                onChange={(event) => updatePlanDraft(planId, "affiliatePct", event.target.value)}
+              />
+              <span>%</span>
+            </div>
+          </label>
+
+          <div className={styles.pricingPlanMarginSummaryCard}>
+            <div className={styles.pricingPlanMarginSummaryRow}>
+              <span>Price after discount</span>
+              <strong>{formatProviderCostUsd(planSummary.afterDiscountUsd)}</strong>
+            </div>
+            <div className={styles.pricingPlanMarginSummaryRow}>
+              <span>Money kept</span>
+              <strong>{formatProviderCostUsd(planSummary.moneyKeptUsd)}</strong>
+            </div>
+            <div className={styles.pricingPlanMarginSummaryRow}>
+              <span>$ / credit</span>
+              <strong>{formatProviderCostUsd(planSummary.dollarPerCredit)}</strong>
+            </div>
+            <p className={styles.pricingPlanMarginSummaryNote}>
+              Every billed credit from the pricing grid is worth{" "}
+              {formatProviderCostUsd(planSummary.dollarPerCredit)} after{" "}
+              {planDraft.discountPct || "0"}% discount and {planDraft.affiliatePct || "0"}%
+              affiliate cut.
+            </p>
+          </div>
+        </aside>
+
+        <div className={styles.pricingPlanMarginMain}>
+          <div className={styles.pricingPlanMarginTableHead}>
+            <div>
+              <h3 className={styles.pricingSupportTitle}>
+                Model economics (mirrors pricing grid variants)
+              </h3>
+            </div>
+            <span className="tiny subdued">{modelGroups.length} models</span>
+          </div>
+
+          <div
+            ref={tableShellRef}
+            className={styles.pricingWorkbookShell}
+            style={{
+              paddingTop: pinnedHeaderLayout.active ? `${pinnedHeaderLayout.height}px` : undefined,
+            }}
+          >
+            <div
+              ref={stickyHeaderViewportRef}
+              className={`${styles.pricingWorkbookStickyHeadViewport} ${styles.pricingPlanMarginStickyHeadViewport}`}
+              style={
+                pinnedHeaderLayout.active
+                  ? {
+                      position: "fixed",
+                      top: "12px",
+                      left: `${pinnedHeaderLayout.left}px`,
+                      width: `${pinnedHeaderLayout.width}px`,
+                      zIndex: 30,
+                    }
+                  : undefined
+              }
+            >
+              <div
+                ref={stickyHeaderTrackRef}
+                className={`${styles.adminTableHead} ${styles.pricingPlanMarginGrid} ${styles.pricingWorkbookStickyHeadTrack} ${styles.pricingPlanMarginStickyHeadTrack}`}
+              >
+                {headerCells}
+              </div>
+            </div>
+
+            <div
+              ref={tableScrollerRef}
+              className={styles.adminTableScroller}
+              onScroll={syncStickyHeaderScroll}
+            >
+              <div
+                className={`${styles.adminTable} ${styles.pricingPlanMarginTable} ${styles.pricingPlanMarginBodyTable}`}
+              >
+                {modelGroups.length === 0 ? (
+                  <div className={`${styles.pricingModelsRow} ${styles.pricingPlanMarginGrid}`}>
+                    <span className={styles.pricingPrimaryCell}>
+                      <strong>No models in the current grid view</strong>
+                      <small>Clear the model search or adjust the grid filters.</small>
+                    </span>
+                  </div>
+                ) : null}
+
+                {modelGroups.map((group) => {
+                  const compositeKey = `${planId}:${group.key}`;
+                  const isExpanded = expandedModelKeys[compositeKey] ?? false;
+                  const groupMarginToneStyle = getMarginToneStyle(
+                    group.rows.map((row) => row.marginPercent)
+                  );
+                  return (
+                    <React.Fragment key={compositeKey}>
+                      <div
+                        className={`${styles.pricingModelsRow} ${styles.pricingModelSummaryRow} ${styles.pricingPlanMarginGrid}`}
+                      >
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingPlanMarginProviderCell}`}
+                        >
+                          <strong>{group.providerLabel}</strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingRateSourceCell}`}
+                        >
+                          <div className={styles.pricingModelSummaryCell}>
+                            <button
+                              type="button"
+                              className={styles.pricingModelToggleButton}
+                              onClick={() => toggleModelExpanded(planId, group.key)}
+                              aria-expanded={isExpanded}
+                              aria-controls={`plan-margin-${planId}-${group.key}`}
+                            >
+                              <span className={styles.pricingExpandGlyph}>
+                                {isExpanded ? "-" : "+"}
+                              </span>
+                              <strong>{group.modelLabel}</strong>
+                            </button>
+                            <small>{group.variantCountLabel}</small>
+                          </div>
+                        </span>
+                        <span className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}>
+                          <strong>{group.typeSummary}</strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          <strong>{group.usageValueLabel || "-"}</strong>
+                          {group.usageLabel ? <small>{group.usageLabel}</small> : null}
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingRateSourceCell}`}
+                        >
+                          <strong>{group.summarySpecLabel}</strong>
+                          {group.rows.length > 1 ? (
+                            <small>Expand to inspect each variant.</small>
+                          ) : null}
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          <strong>
+                            {formatValueRange(
+                              group.rows.map((row) => row.providerCostUsd),
+                              formatProviderCostUsd
+                            )}
+                          </strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          <strong>
+                            {formatValueRange(
+                              group.rows.map((row) => row.creditsAtCost),
+                              formatFractionalCredits
+                            )}
+                          </strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          <strong>
+                            {formatPercentRange(group.rows.map((row) => row.markupPercent))}
+                          </strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          <strong>
+                            {formatValueRange(
+                              group.rows.map((row) => row.creditsWithMarkup),
+                              formatFractionalCredits
+                            )}
+                          </strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          <strong>
+                            {formatValueRange(
+                              group.rows.map((row) => row.afterMarkupUsd),
+                              formatProviderCostUsd
+                            )}
+                          </strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          <strong>
+                            {formatValueRange(
+                              group.rows.map((row) => row.afterDiscountAffiliateUsd),
+                              formatProviderCostUsd
+                            )}
+                          </strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell} ${styles.pricingPlanMarginProfitCell}`}
+                        >
+                          <strong>
+                            {formatValueRange(
+                              group.rows.map((row) => row.profitAfterDiscountAffiliateUsd),
+                              formatProviderCostUsd
+                            )}
+                          </strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell} ${styles.pricingPlanMarginMarginCell}`}
+                        >
+                          <strong style={groupMarginToneStyle}>
+                            {formatPercentRange(group.rows.map((row) => row.marginPercent))}
+                          </strong>
+                        </span>
+                      </div>
+
+                      {isExpanded ? (
+                        <div
+                          id={`plan-margin-${planId}-${group.key}`}
+                          className={styles.pricingVariantGroup}
+                        >
+                          {group.rows.map((row, index) => (
+                            <div
+                              key={`${compositeKey}:${row.variantId}`}
+                              className={`${styles.pricingModelsRow} ${styles.pricingVariantRow} ${styles.pricingPlanMarginGrid}`}
+                            >
+                              <span className={styles.pricingVariantPlaceholder} />
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingRateSourceCell}`}
+                              >
+                                <strong>{`Variant ${index + 1}`}</strong>
+                                <small>{group.modelLabel}</small>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}
+                              >
+                                <strong>{row.typeLabel}</strong>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                              >
+                                <strong>{row.usageValueLabel || "-"}</strong>
+                                {row.usageLabel ? <small>{row.usageLabel}</small> : null}
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingRateSourceCell}`}
+                              >
+                                <strong>{row.specLabel}</strong>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                              >
+                                <strong>{formatProviderCostUsd(row.providerCostUsd)}</strong>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                              >
+                                <strong>
+                                  {row.creditsAtCost != null
+                                    ? formatFractionalCredits(row.creditsAtCost)
+                                    : "-"}
+                                </strong>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                              >
+                                <strong>
+                                  {row.markupPercent != null
+                                    ? formatPercent(row.markupPercent)
+                                    : "-"}
+                                </strong>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                              >
+                                <strong>
+                                  {row.creditsWithMarkup != null
+                                    ? formatFractionalCredits(row.creditsWithMarkup)
+                                    : "-"}
+                                </strong>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                              >
+                                <strong>{formatProviderCostUsd(row.afterMarkupUsd)}</strong>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                              >
+                                <strong>
+                                  {formatProviderCostUsd(row.afterDiscountAffiliateUsd)}
+                                </strong>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell} ${styles.pricingPlanMarginProfitCell}`}
+                              >
+                                <strong>
+                                  {formatProviderCostUsd(row.profitAfterDiscountAffiliateUsd)}
+                                </strong>
+                              </span>
+                              <span
+                                className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell} ${styles.pricingPlanMarginMarginCell}`}
+                              >
+                                <strong>
+                                  <span style={getMarginToneStyle([row.marginPercent])}>
+                                    {row.marginPercent != null
+                                      ? formatPercent(row.marginPercent)
+                                      : "-"}
+                                  </span>
+                                </strong>
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 export function PricingCalculatorSupportStrip({
   plans,
-  selectedPlanId,
-  setSelectedPlanId,
-  selectedPlanDraft,
-  updatePlanDraft,
-  usageMixRows,
-  updateUsageMixRow,
-  addUsageMixRow,
-  removeUsageMixRow,
-  models,
-  modelRows,
-  pricingPolicy,
+  displayedModels,
+  effectiveModelPolicyDraft,
+  durationDrafts,
   aspectDrafts,
   resolutionDrafts,
   audioDrafts,
+  modelSortOption,
+  planDraftsByPlanId,
+  simulatorPlanIds,
+  updatePlanDraft,
+  addSimulatorPlan,
+  removeSimulatorPlan,
   isDraftDirty,
 }: PricingCalculatorSupportStripProps) {
-  const selectedPlan = React.useMemo(
-    () => plans.find((plan) => plan.planId === selectedPlanId) ?? plans[0] ?? null,
-    [plans, selectedPlanId]
-  );
+  const [expandedModelKeys, setExpandedModelKeys] = React.useState<Record<string, boolean>>({});
 
-  const planSummary = React.useMemo(
-    () => computePlanEconomicsSummary(selectedPlanDraft),
-    [selectedPlanDraft]
+  const orderedPlans = React.useMemo(
+    () => [...plans].sort((left, right) => left.sortOrder - right.sortOrder),
+    [plans]
   );
-
-  const usageRows = React.useMemo(
+  const plansById = React.useMemo(
     () =>
-      buildUsageMixAnalysisRows({
-        rows: usageMixRows,
-        models,
-        pricingPolicy,
-        planSummary,
+      orderedPlans.reduce<Record<string, AdminPricingPlanRow>>((acc, plan) => {
+        acc[plan.planId] = plan;
+        return acc;
+      }, {}),
+    [orderedPlans]
+  );
+
+  const syncedModelRows = React.useMemo(
+    () =>
+      buildModelEconomicsRows({
+        models: displayedModels,
+        pricingPolicy: effectiveModelPolicyDraft,
+        durationDrafts,
         aspectDrafts,
         resolutionDrafts,
         audioDrafts,
+        sortOption: modelSortOption,
       }),
-    [aspectDrafts, audioDrafts, models, planSummary, pricingPolicy, resolutionDrafts, usageMixRows]
+    [
+      aspectDrafts,
+      audioDrafts,
+      displayedModels,
+      durationDrafts,
+      effectiveModelPolicyDraft,
+      modelSortOption,
+      resolutionDrafts,
+    ]
   );
 
-  const totalMonthlyRuns = usageRows.reduce((sum, row) => sum + (row.runsPerMonth ?? 0), 0);
-  const totalBilledCredits = usageRows.reduce(
-    (sum, row) => sum + (row.billedCreditsPerRun ?? 0) * (row.runsPerMonth ?? 0),
-    0
-  );
-  const totalMonthlyCost = usageRows.reduce(
-    (sum, row) => sum + (row.providerCostPerMonthUsd ?? 0),
-    0
-  );
-  const totalMonthlyRevenue = usageRows.reduce(
-    (sum, row) => sum + (row.revenuePerMonthUsd ?? 0),
-    0
-  );
-  const effectiveMonthlyRevenue =
-    totalMonthlyRevenue > 0 ? totalMonthlyRevenue : (planSummary.netRevenueUsd ?? 0);
-  const effectiveMonthlyProfit = effectiveMonthlyRevenue - totalMonthlyCost;
-  const effectiveMarginPercent =
-    effectiveMonthlyRevenue > 0 ? (effectiveMonthlyProfit / effectiveMonthlyRevenue) * 100 : null;
+  const toggleModelExpanded = React.useCallback((planId: string, modelId: string) => {
+    const compositeKey = `${planId}:${modelId}`;
+    setExpandedModelKeys((current) => ({
+      ...current,
+      [compositeKey]: !current[compositeKey],
+    }));
+  }, []);
 
   return (
     <section className={`${styles.adminSection} ${styles.pricingCalculatorSupportStrip}`}>
       <div className={styles.adminSectionHead}>
         <div>
-          <h2 className={styles.adminSectionTitle}>Plan Calculator</h2>
+          <h2 className={styles.adminSectionTitle}>Plan Margin Simulator</h2>
           <p className="tiny subdued">
-            Pressure-test usage mix, plan revenue, and margin against the current pricing grid.
+            Mirror the current pricing grid, then translate billed credits into plan-earned revenue
+            after discount and affiliate adjustments.
           </p>
         </div>
         <span className={`${styles.pill} ${isDraftDirty ? styles.pillWarn : styles.pillOk}`}>
@@ -120,333 +734,49 @@ export function PricingCalculatorSupportStrip({
         </span>
       </div>
 
-      <div className={styles.pricingCalculatorSupportGrid}>
-        <article className={styles.pricingSupportPanel}>
-          <div className={styles.pricingSupportHeader}>
-            <div>
-              <h3 className={styles.pricingSupportTitle}>Usage Mix</h3>
-              <p className="tiny subdued">
-                Model the runs you expect this plan to absorb each month.
-              </p>
-            </div>
-            <button type="button" className="ghost-btn mini" onClick={addUsageMixRow}>
-              Add row
-            </button>
+      <div className={styles.pricingPlanMarginToolbar}>
+        <button type="button" className="ghost-btn mini" onClick={addSimulatorPlan}>
+          Add simulator plan
+        </button>
+      </div>
+
+      <div className={styles.pricingPlanMarginList}>
+        {simulatorPlanIds.length === 0 ? (
+          <div className={styles.pricingPlanMarginEmptyState}>
+            <strong>No simulator plans yet.</strong>
+            <span>Add a simulator plan to start modeling margin scenarios.</span>
           </div>
+        ) : null}
 
-          <div className={styles.adminTableScroller}>
-            <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
-              <div className={`${styles.adminTableHead} ${styles.pricingSupportUsageTotalsHead}`}>
-                <span>Runs / month</span>
-                <span>Billed credits</span>
-                <span>Provider cost / month</span>
-              </div>
-              <div className={`${styles.adminTableRow} ${styles.pricingSupportUsageTotalsRow}`}>
-                <span>{formatFractionalCredits(totalMonthlyRuns)}</span>
-                <span>{formatFractionalCredits(totalBilledCredits)}</span>
-                <span>{formatProviderCostUsd(totalMonthlyCost)}</span>
-              </div>
-            </div>
-          </div>
+        {simulatorPlanIds.map((planId) => {
+          const plan = plansById[planId] ?? null;
+          const planDraft = planDraftsByPlanId[planId] ?? buildDefaultPlanEconomicsDraft(plan);
+          const planSummary = computePlanMarginSummary({
+            ...planDraft,
+            processorPct: "0",
+            processorFlatUsd: "0",
+          });
+          const marginRows = buildPlanMarginModelRows({
+            modelRows: syncedModelRows,
+            planSummary,
+          });
+          const modelGroups = buildPlanMarginGroups(displayedModels, marginRows);
 
-          <div className={styles.adminTableScroller}>
-            <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
-              <div className={`${styles.adminTableHead} ${styles.pricingSupportUsageHead}`}>
-                <span>Model / spec</span>
-                <span>Type</span>
-                <span>Duration (s)</span>
-                <span>Runs / month</span>
-                <span>Share</span>
-                <span>Billed credits</span>
-                <span>$ / run</span>
-                <span>Rev / run</span>
-                <span>Profit / run</span>
-                <span>Cost / month</span>
-                <span>Rev / month</span>
-                <span>Profit / month</span>
-                <span>Action</span>
-              </div>
-              {usageMixRows.map((row) => {
-                const analysisRow = usageRows.find((candidate) => candidate.id === row.id) ?? null;
-                const selectedModelOption =
-                  modelRows.find(
-                    (candidate) =>
-                      candidate.modelId === row.modelId && candidate.variantId === row.variantId
-                  ) ??
-                  modelRows.find((candidate) => candidate.modelId === row.modelId) ??
-                  modelRows[0] ??
-                  null;
-                return (
-                  <div
-                    key={row.id}
-                    className={`${styles.adminTableRow} ${styles.pricingSupportUsageRow}`}
-                  >
-                    <span>
-                      <select
-                        aria-label="Model / spec"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={
-                          selectedModelOption
-                            ? `${selectedModelOption.modelId}:${selectedModelOption.variantId}`
-                            : ""
-                        }
-                        onChange={(event) => {
-                          const [modelId, variantId = "default"] = event.target.value.split(":");
-                          const selectedRow =
-                            modelRows.find(
-                              (candidate) =>
-                                candidate.modelId === modelId && candidate.variantId === variantId
-                            ) ?? null;
-                          updateUsageMixRow(row.id, {
-                            modelId,
-                            variantId,
-                            durationSeconds:
-                              selectedRow?.durationSeconds != null
-                                ? String(selectedRow.durationSeconds)
-                                : "",
-                          });
-                        }}
-                      >
-                        {modelRows.map((modelRow) => (
-                          <option
-                            key={modelRow.key}
-                            value={`${modelRow.modelId}:${modelRow.variantId}`}
-                          >
-                            {modelRow.modelLabel} · {modelRow.specLabel}
-                          </option>
-                        ))}
-                      </select>
-                    </span>
-                    <span>{analysisRow?.typeLabel ?? "—"}</span>
-                    <span>
-                      <input
-                        aria-label="Duration (s)"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={row.durationSeconds}
-                        onChange={(event) =>
-                          updateUsageMixRow(row.id, { durationSeconds: event.target.value })
-                        }
-                      />
-                    </span>
-                    <span>
-                      <input
-                        aria-label="Runs / month"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={row.runsPerMonth}
-                        onChange={(event) =>
-                          updateUsageMixRow(row.id, { runsPerMonth: event.target.value })
-                        }
-                      />
-                    </span>
-                    <span>
-                      {analysisRow?.runSharePercent != null
-                        ? formatPercent(analysisRow.runSharePercent)
-                        : "—"}
-                    </span>
-                    <span>
-                      {formatFractionalCredits(analysisRow?.billedCreditsPerRun ?? Number.NaN)}
-                    </span>
-                    <span>{formatProviderCostUsd(analysisRow?.providerCostPerRunUsd)}</span>
-                    <span>{formatProviderCostUsd(analysisRow?.revenuePerRunUsd)}</span>
-                    <span>{formatProviderCostUsd(analysisRow?.profitPerRunUsd)}</span>
-                    <span>{formatProviderCostUsd(analysisRow?.providerCostPerMonthUsd)}</span>
-                    <span>{formatProviderCostUsd(analysisRow?.revenuePerMonthUsd)}</span>
-                    <span>{formatProviderCostUsd(analysisRow?.profitPerMonthUsd)}</span>
-                    <span>
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={() => removeUsageMixRow(row.id)}
-                        disabled={usageMixRows.length <= 1}
-                      >
-                        Remove
-                      </button>
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </article>
-
-        <article className={styles.pricingSupportPanel}>
-          <div className={styles.pricingSupportHeader}>
-            <div>
-              <h3 className={styles.pricingSupportTitle}>Plan Inputs</h3>
-              <p className="tiny subdued">
-                Tune credits, discounts, and fees without mutating the live catalog rows below.
-              </p>
-            </div>
-          </div>
-
-          {selectedPlan ? (
-            <>
-              <div className={styles.adminTableScroller}>
-                <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
-                  <div className={`${styles.adminTableHead} ${styles.pricingSupportPlanInputHead}`}>
-                    <span>Plan</span>
-                    <span>Price ($)</span>
-                    <span>Included credits</span>
-                    <span>Discount %</span>
-                    <span>Affiliate %</span>
-                    <span>Processor %</span>
-                    <span>Processor flat ($)</span>
-                  </div>
-                  <div className={`${styles.adminTableRow} ${styles.pricingSupportPlanInputRow}`}>
-                    <span>
-                      <select
-                        aria-label="Plan"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={selectedPlan.planId}
-                        onChange={(event) => setSelectedPlanId(event.target.value)}
-                      >
-                        {plans.map((plan) => (
-                          <option key={plan.planId} value={plan.planId}>
-                            {plan.displayName}
-                          </option>
-                        ))}
-                      </select>
-                    </span>
-                    <span>
-                      <input
-                        aria-label="Plan price ($)"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={selectedPlanDraft?.priceUsd ?? ""}
-                        onChange={(event) =>
-                          updatePlanDraft(selectedPlan.planId, "priceUsd", event.target.value)
-                        }
-                      />
-                    </span>
-                    <span>
-                      <input
-                        aria-label="Included credits"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={selectedPlanDraft?.includedCredits ?? ""}
-                        onChange={(event) =>
-                          updatePlanDraft(
-                            selectedPlan.planId,
-                            "includedCredits",
-                            event.target.value
-                          )
-                        }
-                      />
-                    </span>
-                    <span>
-                      <input
-                        aria-label="Discount %"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={selectedPlanDraft?.discountPct ?? ""}
-                        onChange={(event) =>
-                          updatePlanDraft(selectedPlan.planId, "discountPct", event.target.value)
-                        }
-                      />
-                    </span>
-                    <span>
-                      <input
-                        aria-label="Affiliate %"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={selectedPlanDraft?.affiliatePct ?? ""}
-                        onChange={(event) =>
-                          updatePlanDraft(selectedPlan.planId, "affiliatePct", event.target.value)
-                        }
-                      />
-                    </span>
-                    <span>
-                      <input
-                        aria-label="Processor %"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={selectedPlanDraft?.processorPct ?? ""}
-                        onChange={(event) =>
-                          updatePlanDraft(selectedPlan.planId, "processorPct", event.target.value)
-                        }
-                      />
-                    </span>
-                    <span>
-                      <input
-                        aria-label="Processor flat ($)"
-                        className={`${styles.searchInput} ${styles.pricingSupportCellInput}`}
-                        value={selectedPlanDraft?.processorFlatUsd ?? ""}
-                        onChange={(event) =>
-                          updatePlanDraft(
-                            selectedPlan.planId,
-                            "processorFlatUsd",
-                            event.target.value
-                          )
-                        }
-                      />
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.adminTableScroller}>
-                <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
-                  <div
-                    className={`${styles.adminTableHead} ${styles.pricingSupportPlanOutputHead}`}
-                  >
-                    <span>Gross</span>
-                    <span>Discount</span>
-                    <span>Processor fee</span>
-                    <span>Affiliate cost</span>
-                    <span>Net revenue</span>
-                    <span>$ / credit</span>
-                    <span>Included credits</span>
-                  </div>
-                  <div className={`${styles.adminTableRow} ${styles.pricingSupportPlanOutputRow}`}>
-                    <span>{formatProviderCostUsd(planSummary.grossUsd)}</span>
-                    <span>{formatProviderCostUsd(planSummary.discountAmountUsd)}</span>
-                    <span>{formatProviderCostUsd(planSummary.processorFeeUsd)}</span>
-                    <span>{formatProviderCostUsd(planSummary.affiliateCostUsd)}</span>
-                    <span>{formatProviderCostUsd(planSummary.netRevenueUsd)}</span>
-                    <span>{formatProviderCostUsd(planSummary.dollarPerCredit)}</span>
-                    <span>
-                      {planSummary.includedCredits != null
-                        ? formatCredits(Math.round(planSummary.includedCredits))
-                        : "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : null}
-        </article>
-
-        <article className={styles.pricingSupportPanel}>
-          <div className={styles.pricingSupportHeader}>
-            <div>
-              <h3 className={styles.pricingSupportTitle}>Projected Margin</h3>
-              <p className="tiny subdued">
-                Compare estimated plan revenue against the modeled provider cost from your usage
-                mix.
-              </p>
-            </div>
-          </div>
-
-          <div className={styles.adminTableScroller}>
-            <div className={`${styles.adminTable} ${styles.pricingSupportTable}`}>
-              <div className={`${styles.adminTableHead} ${styles.pricingSupportSummaryHead}`}>
-                <span>Plan</span>
-                <span>Revenue / month</span>
-                <span>Cost / month</span>
-                <span>Profit / month</span>
-                <span>Margin</span>
-              </div>
-              <div className={`${styles.adminTableRow} ${styles.pricingSupportSummaryRow}`}>
-                <span>{selectedPlan?.displayName ?? "—"}</span>
-                <span>{formatProviderCostUsd(effectiveMonthlyRevenue)}</span>
-                <span>{formatProviderCostUsd(totalMonthlyCost)}</span>
-                <span>{formatProviderCostUsd(effectiveMonthlyProfit)}</span>
-                <span>
-                  {effectiveMarginPercent != null ? formatPercent(effectiveMarginPercent) : "—"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {effectiveMarginPercent != null && effectiveMarginPercent < 0 ? (
-            <p className={styles.pricingSupportWarning}>Projected margin is negative.</p>
-          ) : null}
-        </article>
+          return (
+            <PlanMarginPlanCard
+              key={planId}
+              planId={planId}
+              plan={plan}
+              planDraft={planDraft}
+              planSummary={planSummary}
+              modelGroups={modelGroups}
+              expandedModelKeys={expandedModelKeys}
+              toggleModelExpanded={toggleModelExpanded}
+              updatePlanDraft={updatePlanDraft}
+              removeSimulatorPlan={removeSimulatorPlan}
+            />
+          );
+        })}
       </div>
     </section>
   );

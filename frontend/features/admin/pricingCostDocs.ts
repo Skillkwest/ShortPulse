@@ -18,16 +18,16 @@ export type CostDocsPopover = {
 
 const COST_DOCS_POPOVER_WIDTH = 380;
 const COST_DOCS_POPOVER_HEIGHT = 260;
-const OPENAI_TEXT_10K_CHARACTER_OUTPUT_USD: Record<string, number> = {
-  "gpt-5.5": 0.075,
-  "gpt-5.5-pro": 0.45,
-  "gpt-5.4": 0.0375,
-  "gpt-5.4-pro": 0.45,
-  "gpt-5.4-mini": 0.011,
-  "gpt-5.4-nano": 0.003,
+const OPENAI_TEXT_50K_CHARACTER_OUTPUT_USD: Record<string, number> = {
+  "gpt-5.5": 0.281,
+  "gpt-5.5-pro": 1.69,
+  "gpt-5.4": 0.141,
+  "gpt-5.4-pro": 1.69,
+  "gpt-5.4-mini": 0.033,
+  "gpt-5.4-nano": 0.009,
 };
-const OPENAI_TEXT_10K_CHARACTER_VARIANT_ID = "per-10000-characters";
-const OPENAI_TEXT_10K_CHARACTER_LABEL = "10,000 characters generated";
+const OPENAI_TEXT_50K_CHARACTER_VARIANT_ID = "per-50000-characters";
+const OPENAI_TEXT_50K_CHARACTER_LABEL = "Blended characters";
 
 export const getCostDocsPosition = (clientX: number, clientY: number): { x: number; y: number } => {
   if (typeof window === "undefined") return { x: clientX + 14, y: clientY + 14 };
@@ -165,9 +165,9 @@ const getProviderPricingDocLines = (
       ];
     case "openai-text-token":
       return [
-        "Provider cost basis used here: the screenshot-style OpenAI output figures per 10,000 characters generated.",
-        "GPT-5.5: about $0.075, GPT-5.4: about $0.0375, and GPT-5.4 Mini: about $0.011 per 10,000 characters.",
-        "Pro tiers are modeled at about $0.45 per 10,000 characters, and GPT-5.4 Nano is modeled at about $0.003 per 10,000 characters.",
+        "Provider cost basis used here: the screenshot-style blended OpenAI figures per 50,000 characters.",
+        "GPT-5.5: about $0.281, GPT-5.4: about $0.141, GPT-5.4 Mini: about $0.033, and GPT-5.4 Nano: about $0.009 per 50,000 characters.",
+        "Pro tiers are modeled at about $1.69 per 50,000 blended characters.",
       ];
     default:
       return [
@@ -305,12 +305,17 @@ export const buildDraftPricingPreviewVariants = (
   if (model.pricingAuthority !== "shared_policy") return serverVariants;
 
   if (model.pricingStrategy === "openai-text-token") {
-    const usdRaw = OPENAI_TEXT_10K_CHARACTER_OUTPUT_USD[model.id];
-    if (!(Number.isFinite(usdRaw) && usdRaw > 0)) {
+    const baseUsdRaw = OPENAI_TEXT_50K_CHARACTER_OUTPUT_USD[model.id];
+    if (!(Number.isFinite(baseUsdRaw) && baseUsdRaw > 0)) {
       return serverVariants;
     }
+    const characterCount =
+      options.usageAmount != null && Number.isFinite(options.usageAmount) && options.usageAmount > 0
+        ? Math.max(1, Math.round(options.usageAmount))
+        : 50_000;
+    const usdRaw = baseUsdRaw * (characterCount / 50_000);
     const variantId = buildModelPricingVariantId({
-      baseVariantId: OPENAI_TEXT_10K_CHARACTER_VARIANT_ID,
+      baseVariantId: OPENAI_TEXT_50K_CHARACTER_VARIANT_ID,
     });
     const quantized = convertUsdToCredits({
       usdRaw,
@@ -322,7 +327,7 @@ export const buildDraftPricingPreviewVariants = (
     return [
       {
         id: variantId,
-        label: OPENAI_TEXT_10K_CHARACTER_LABEL,
+        label: OPENAI_TEXT_50K_CHARACTER_LABEL,
         breakdown: {
           usdRaw,
           rawCredits: quantized.rawCredits,

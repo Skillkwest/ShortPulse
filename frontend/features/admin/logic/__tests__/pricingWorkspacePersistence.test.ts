@@ -61,9 +61,11 @@ const buildSnapshot = (): AdminPricingWorkspaceDraftSnapshot => ({
   modelSortOption: "type",
   globalCreditScaleDraft: "30",
   globalCreditUsdAmountDraft: "1",
+  simulatorPlanIds: ["starter", "sim-plan-1"],
   selectedUsagePlanId: "starter",
   planEconomicsDrafts: {
     starter: {
+      simulatedName: "Starter",
       priceUsd: "19",
       includedCredits: "900",
       discountPct: "0",
@@ -113,6 +115,7 @@ describe("pricingWorkspacePersistence", () => {
         },
         planEconomicsDrafts: {
           starter: {
+            simulatedName: "Starter",
             priceUsd: "19",
             includedCredits: "900",
             discountPct: "0",
@@ -162,9 +165,11 @@ describe("pricingWorkspacePersistence", () => {
       modelSortOption: "type",
       globalCreditScaleDraft: "",
       globalCreditUsdAmountDraft: "1",
+      simulatorPlanIds: null,
       selectedUsagePlanId: "",
       planEconomicsDrafts: {
         starter: {
+          simulatedName: "Starter",
           priceUsd: "19",
           includedCredits: "900",
           discountPct: "0",
@@ -185,6 +190,64 @@ describe("pricingWorkspacePersistence", () => {
         ],
       },
     });
+  });
+
+  it("preserves older plan economics drafts that do not yet include a simulator name", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "shortpulse.adminPricingWorkspace.v1",
+      JSON.stringify({
+        planEconomicsDrafts: {
+          starter: {
+            priceUsd: "19",
+            includedCredits: "900",
+            discountPct: "0",
+            affiliatePct: "20",
+            processorPct: "2.9",
+            processorFlatUsd: "0.3",
+          },
+        },
+      })
+    );
+
+    expect(readAdminPricingWorkspaceDraftFromStorage(storage)?.planEconomicsDrafts).toEqual({
+      starter: {
+        simulatedName: "",
+        priceUsd: "19",
+        includedCredits: "900",
+        discountPct: "0",
+        affiliatePct: "20",
+        processorPct: "2.9",
+        processorFlatUsd: "0.3",
+      },
+    });
+  });
+
+  it("sanitizes simulator plan ids as a simple string list", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "shortpulse.adminPricingWorkspace.v1",
+      JSON.stringify({
+        simulatorPlanIds: ["starter", 42, "sim-plan-2"],
+      })
+    );
+
+    expect(readAdminPricingWorkspaceDraftFromStorage(storage)?.simulatorPlanIds).toEqual([
+      "starter",
+      "sim-plan-2",
+    ]);
+  });
+
+  it("preserves an intentionally empty simulator plan list", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(
+      "shortpulse.adminPricingWorkspace.v1",
+      JSON.stringify({
+        simulatorPlanIds: [],
+      })
+    );
+
+    expect(readAdminPricingWorkspaceDraftFromStorage(storage)?.simulatorPlanIds).toEqual([]);
   });
 
   it("clears the stored workspace snapshot", () => {

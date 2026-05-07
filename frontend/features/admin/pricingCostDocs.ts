@@ -6,6 +6,7 @@ import type {
 import { buildDefaultPricingParams, computeCostForModel } from "../../lib/model-runtime/pricing";
 import { buildModelUsagePricingOverrides, shouldShowAudioSpecControl } from "./pricingDrafts";
 import { buildModelPricingVariantId } from "../../lib/model-runtime/modelPricingVariants";
+import { convertUsdToCredits } from "../../lib/model-runtime/pricingCredits";
 
 export type CostDocsPopover = {
   x: number;
@@ -17,6 +18,16 @@ export type CostDocsPopover = {
 
 const COST_DOCS_POPOVER_WIDTH = 380;
 const COST_DOCS_POPOVER_HEIGHT = 260;
+const OPENAI_TEXT_10K_CHARACTER_OUTPUT_USD: Record<string, number> = {
+  "gpt-5.5": 0.075,
+  "gpt-5.5-pro": 0.45,
+  "gpt-5.4": 0.0375,
+  "gpt-5.4-pro": 0.45,
+  "gpt-5.4-mini": 0.011,
+  "gpt-5.4-nano": 0.003,
+};
+const OPENAI_TEXT_10K_CHARACTER_VARIANT_ID = "per-10000-characters";
+const OPENAI_TEXT_10K_CHARACTER_LABEL = "10,000 characters generated";
 
 export const getCostDocsPosition = (clientX: number, clientY: number): { x: number; y: number } => {
   if (typeof window === "undefined") return { x: clientX + 14, y: clientY + 14 };
@@ -117,11 +128,18 @@ const getProviderPricingDocLines = (
         "720p: 3.5 credits/sec without audio, 7 credits/sec with audio. 480p: 2 credits/sec without audio, 4 credits/sec with audio.",
       ];
     case "seedance-2-per-second":
+      return [
+        "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
+        "Seedance 2.0 is priced by resolution and whether the request includes reference video input.",
+        "1080p: 62 credits/sec with video input, 102 credits/sec without video input.",
+        "720p: 25 credits/sec with video input, 41 credits/sec without video input. 480p: 11.5 credits/sec with video input, 19 credits/sec without video input.",
+      ];
     case "seedance-2-fast-per-second":
       return [
-        "Provider cost basis used here: tokenized video pricing by resolution, frame rate, duration, and audio setting.",
-        "Formula: width x height x 24 fps x duration / 1024 tokens.",
-        "Rates: $1.20 per million tokens without audio, $2.40 per million tokens with audio.",
+        "Provider cost basis used here: Kie credits convert at $0.005 per credit.",
+        "Seedance 2.0 Fast is priced by resolution and whether the request includes reference video input.",
+        "720p: 20 credits/sec with video input, 33 credits/sec without video input.",
+        "480p: 9 credits/sec with video input, 15.5 credits/sec without video input.",
       ];
     case "elevenlabs-music-per-minute":
       return [
@@ -147,10 +165,9 @@ const getProviderPricingDocLines = (
       ];
     case "openai-text-token":
       return [
-        "Provider cost basis used here: OpenAI standard short-context token rates.",
-        "GPT-5.4: input $2.50/M, cached input $0.25/M, output $15.00/M.",
-        "GPT-5.4 Mini: input $0.75/M, cached input $0.075/M, output $4.50/M.",
-        "GPT-5.4 Nano: input $0.20/M, cached input $0.02/M, output $1.25/M.",
+        "Provider cost basis used here: the screenshot-style OpenAI output figures per 10,000 characters generated.",
+        "GPT-5.5: about $0.075, GPT-5.4: about $0.0375, and GPT-5.4 Mini: about $0.011 per 10,000 characters.",
+        "Pro tiers are modeled at about $0.45 per 10,000 characters, and GPT-5.4 Nano is modeled at about $0.003 per 10,000 characters.",
       ];
     default:
       return [
@@ -207,8 +224,6 @@ const shouldExpandAspectPricingVariants = (model: AdminPricingModelRow): boolean
     "fal-fill-per-mp",
     "fal-flux-kontext-inpaint-per-mp",
     "gpt-image-2-per-image",
-    "seedance-2-per-second",
-    "seedance-2-fast-per-second",
   ].includes(model.pricingStrategy);
 
 const shouldExpandResolutionPricingVariants = (model: AdminPricingModelRow): boolean =>
@@ -224,6 +239,9 @@ const shouldExpandResolutionPricingVariants = (model: AdminPricingModelRow): boo
     "seedance-2-per-second",
     "seedance-2-fast-per-second",
   ].includes(model.pricingStrategy);
+
+const shouldExpandVideoInputPricingVariants = (model: AdminPricingModelRow): boolean =>
+  ["seedance-2-per-second", "seedance-2-fast-per-second"].includes(model.pricingStrategy);
 
 const buildAspectOptions = (
   model: AdminPricingModelRow,
@@ -253,9 +271,18 @@ const buildAudioOptions = (
   model: AdminPricingModelRow,
   options: { audio?: boolean | null }
 ): Array<boolean | null> => {
-  if (options.audio !== undefined) return [options.audio];
   if (!shouldShowAudioSpecControl(model)) return [null];
+  if (options.audio !== undefined) return [options.audio];
   return orderWithDefaultFirst([true, false], model.defaultAudio ?? true);
+};
+
+const buildVideoInputOptions = (
+  model: AdminPricingModelRow,
+  options: { videoInput?: boolean | null }
+): Array<boolean | null> => {
+  if (!shouldExpandVideoInputPricingVariants(model)) return [null];
+  if (options.videoInput !== undefined) return [options.videoInput];
+  return [true, false];
 };
 
 export const buildDraftPricingPreviewVariants = (
@@ -266,6 +293,7 @@ export const buildDraftPricingPreviewVariants = (
     aspect?: string | null;
     resolution?: string | null;
     audio?: boolean | null;
+    videoInput?: boolean | null;
   } = {}
 ): AdminPricingPreviewVariant[] => {
   const serverVariants = model.pricingPreviewVariants.length
@@ -276,46 +304,81 @@ export const buildDraftPricingPreviewVariants = (
 
   if (model.pricingAuthority !== "shared_policy") return serverVariants;
 
+  if (model.pricingStrategy === "openai-text-token") {
+    const usdRaw = OPENAI_TEXT_10K_CHARACTER_OUTPUT_USD[model.id];
+    if (!(Number.isFinite(usdRaw) && usdRaw > 0)) {
+      return serverVariants;
+    }
+    const variantId = buildModelPricingVariantId({
+      baseVariantId: OPENAI_TEXT_10K_CHARACTER_VARIANT_ID,
+    });
+    const quantized = convertUsdToCredits({
+      usdRaw,
+      modelId: model.id,
+      policy: pricingPolicy,
+      variantId,
+      applyMarkup: true,
+    });
+    return [
+      {
+        id: variantId,
+        label: OPENAI_TEXT_10K_CHARACTER_LABEL,
+        breakdown: {
+          usdRaw,
+          rawCredits: quantized.rawCredits,
+          billedCredits: quantized.credits,
+          billedUsd: quantized.billedUsd,
+        },
+      },
+    ];
+  }
+
   const variants = serverVariants.length
     ? serverVariants
     : [{ id: "default", label: "Default", breakdown: null }];
   const aspectOptions = buildAspectOptions(model, { aspect: options.aspect });
   const resolutionOptions = buildResolutionOptions(model, { resolution: options.resolution });
   const audioOptions = buildAudioOptions(model, { audio: options.audio });
+  const videoInputOptions = buildVideoInputOptions(model, { videoInput: options.videoInput });
 
   const draftVariants = variants
     .flatMap((variant) =>
       resolutionOptions.flatMap((resolution) =>
         aspectOptions.flatMap((aspect) =>
-          audioOptions.map((audio): AdminPricingPreviewVariant | null => {
-            const usageOverrides = buildModelUsagePricingOverrides(
-              model,
-              options.usageAmount ?? null
-            );
-            const params = buildDefaultPricingParams(model.id, {
-              ...(aspect ? { aspect } : {}),
-              ...(resolution ? { resolution } : {}),
-              ...(audio != null ? { audio } : {}),
-              ...usageOverrides,
-              ...(variant.id === "edit" ? { inputImageCount: 1, inputFidelity: "high" } : {}),
-            });
-            const breakdown =
-              mapDraftPricingBreakdown(model.id, params, pricingPolicy) ?? variant.breakdown;
-            if (!breakdown) return null;
-            return {
-              id: buildModelPricingVariantId({
-                baseVariantId: variant.id,
+          videoInputOptions.flatMap((videoInput) =>
+            audioOptions.map((audio): AdminPricingPreviewVariant | null => {
+              const usageOverrides = buildModelUsagePricingOverrides(
+                model,
+                options.usageAmount ?? null
+              );
+              const params = buildDefaultPricingParams(model.id, {
+                ...(aspect ? { aspect } : {}),
+                ...(resolution ? { resolution } : {}),
+                ...(audio != null ? { audio } : {}),
+                ...(videoInput != null ? { inputVideoCount: videoInput ? 1 : 0 } : {}),
+                ...usageOverrides,
+                ...(variant.id === "edit" ? { inputImageCount: 1, inputFidelity: "high" } : {}),
+              });
+              const breakdown =
+                mapDraftPricingBreakdown(model.id, params, pricingPolicy) ?? variant.breakdown;
+              if (!breakdown) return null;
+              return {
+                id: buildModelPricingVariantId({
+                  baseVariantId: variant.id,
+                  aspect,
+                  resolution,
+                  audio,
+                  videoInput,
+                }),
+                label: variant.label,
                 aspect,
                 resolution,
                 audio,
-              }),
-              label: variant.label,
-              aspect,
-              resolution,
-              audio,
-              breakdown,
-            } satisfies AdminPricingPreviewVariant;
-          })
+                videoInput,
+                breakdown,
+              } satisfies AdminPricingPreviewVariant;
+            })
+          )
         )
       )
     )

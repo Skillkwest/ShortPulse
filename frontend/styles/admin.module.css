@@ -1670,6 +1670,26 @@
   white-space: nowrap;
 }
 
+.pricingTypeLink {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.pricingTypeLink strong {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.pricingTypeLink:hover strong,
+.pricingTypeLink:focus-visible strong {
+  color: var(--admin-text-strong);
+}
+
 .pricingWorkbookStickyHeadTrack span:last-child,
 .pricingWorkbookTable .pricingModelsRow > span:last-child {
   border-right: 0;

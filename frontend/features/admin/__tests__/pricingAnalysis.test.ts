@@ -257,16 +257,16 @@ describe("pricingAnalysis", () => {
     expect(draftRow?.providerCostUsd).toBeCloseTo(0.117, 6);
   });
 
-  it("scales token-priced shared-policy models when usage increases", () => {
+  it("shows OpenAI text models as a fixed per-10,000-character output rate", () => {
     const pricingPolicy = getDefaultModelPricingPolicyDocument();
     const model = buildModelRow({
-      id: "gpt-5.4",
-      label: "GPT-5.4",
+      id: "gpt-5.5",
+      label: "GPT-5.5",
       provider: "openai",
-      sourceUrl: "https://platform.openai.com/docs/pricing",
-      workflowType: "Text",
+      sourceUrl: "https://openai.com/api/pricing/",
+      workflowType: "Text to text",
       pricingStrategy: "openai-text-token",
-      pricingStrategyLabel: "Per 1M input tokens",
+      pricingStrategyLabel: "Per 10,000 characters",
       defaultAspect: "",
       allowedAspects: [""],
       defaultResolution: null as never,
@@ -278,49 +278,34 @@ describe("pricingAnalysis", () => {
       allowedDurations: [],
       defaultAudio: null,
       pricingPreview: {
-        usdRaw: 2.5,
-        rawCredits: 75,
-        billedCredits: 75,
-        billedUsd: 2.5,
+        usdRaw: 0.4667,
+        rawCredits: 14,
+        billedCredits: 14,
+        billedUsd: 0.4667,
       },
       pricingPreviewVariants: [
         {
           id: "default",
           label: "Default",
           breakdown: {
-            usdRaw: 2.5,
-            rawCredits: 75,
-            billedCredits: 75,
-            billedUsd: 2.5,
+            usdRaw: 0.4667,
+            rawCredits: 14,
+            billedCredits: 14,
+            billedUsd: 0.4667,
           },
         },
       ],
     });
 
-    const liveRow = buildModelEconomicsRows({
+    const rows = buildModelEconomicsRows({
       models: [model],
       pricingPolicy,
-    })[0];
-    const draftRow = buildModelEconomicsRows({
-      models: [model],
-      pricingPolicy,
-      durationDrafts: {
-        [model.id]: "2000000",
-      },
-    })[0];
+    });
 
-    expect(liveRow).toMatchObject({
-      usageLabel: "Input tokens",
-      usageValueLabel: "1,000,000",
-      providerCostUsd: 2.5,
-      creditsAtCost: 250,
-    });
-    expect(draftRow).toMatchObject({
-      usageLabel: "Input tokens",
-      usageValueLabel: "2,000,000",
-      providerCostUsd: 5,
-      creditsAtCost: 500,
-    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.usageValueLabel).toBe("");
+    expect(rows[0]?.specLabel).toBe("10,000 characters generated");
+    expect(rows[0]?.providerCostUsd).toBeCloseTo(0.075, 6);
   });
 
   it("expands shared-policy image models into separate price-variant rows", () => {
@@ -550,6 +535,124 @@ describe("pricingAnalysis", () => {
     expect(rows[1]?.providerCostUsd).toBeCloseTo(0.7, 6);
     expect(rows[2]?.providerCostUsd).toBeCloseTo(1.35, 6);
     expect(rows[3]?.providerCostUsd).toBeCloseTo(0.9, 6);
+  });
+
+  it("expands Seedance 2.0 into Kie's live resolution and video-input price variants", () => {
+    const pricingPolicy = getDefaultModelPricingPolicyDocument();
+    const model = buildModelRow({
+      id: "kie-ai/seedance-2",
+      label: "Seedance 2.0 (Kie)",
+      provider: "kie",
+      sourceUrl: "https://kie.ai/pricing",
+      workflowType: "Text to video",
+      pricingStrategy: "seedance-2-per-second",
+      pricingStrategyLabel: "Per output second",
+      defaultAspect: "16:9",
+      allowedAspects: ["1:1", "16:9"],
+      defaultResolution: "1080p",
+      allowedResolutions: ["1080p", "720p", "480p"],
+      defaultDurationSeconds: 5,
+      minDurationSeconds: 5,
+      maxDurationSeconds: 15,
+      defaultAudio: true,
+      pricingPreview: {
+        usdRaw: 0.51,
+        rawCredits: 102,
+        billedCredits: 102,
+        billedUsd: 0.51,
+      },
+      pricingPreviewVariants: [
+        {
+          id: "default",
+          label: "Default",
+          breakdown: {
+            usdRaw: 0.51,
+            rawCredits: 102,
+            billedCredits: 102,
+            billedUsd: 0.51,
+          },
+        },
+      ],
+    });
+
+    const rows = buildModelEconomicsRows({
+      models: [model],
+      pricingPolicy,
+    });
+
+    expect(rows).toHaveLength(6);
+    expect(rows.map((row) => row.specLabel)).toEqual([
+      "1080p / 16:9 / with video input",
+      "1080p / 16:9 / no video input",
+      "720p / 16:9 / with video input",
+      "720p / 16:9 / no video input",
+      "480p / 16:9 / with video input",
+      "480p / 16:9 / no video input",
+    ]);
+    expect(rows.map((row) => row.providerCostUsd)).toHaveLength(6);
+    expect(rows[0]?.providerCostUsd).toBeCloseTo(1.55, 6);
+    expect(rows[1]?.providerCostUsd).toBeCloseTo(2.55, 6);
+    expect(rows[2]?.providerCostUsd).toBeCloseTo(0.625, 6);
+    expect(rows[3]?.providerCostUsd).toBeCloseTo(1.025, 6);
+    expect(rows[4]?.providerCostUsd).toBeCloseTo(0.2875, 6);
+    expect(rows[5]?.providerCostUsd).toBeCloseTo(0.475, 6);
+  });
+
+  it("expands Seedance 2.0 Fast into Kie's live resolution and video-input price variants", () => {
+    const pricingPolicy = getDefaultModelPricingPolicyDocument();
+    const model = buildModelRow({
+      id: "kie-ai/seedance-2-fast",
+      label: "Seedance 2.0 Fast (Kie)",
+      provider: "kie",
+      sourceUrl: "https://kie.ai/pricing",
+      workflowType: "Text to video",
+      pricingStrategy: "seedance-2-fast-per-second",
+      pricingStrategyLabel: "Per output second",
+      defaultAspect: "16:9",
+      allowedAspects: ["1:1", "16:9"],
+      defaultResolution: "720p",
+      allowedResolutions: ["720p", "480p"],
+      defaultDurationSeconds: 5,
+      minDurationSeconds: 5,
+      maxDurationSeconds: 15,
+      defaultAudio: true,
+      pricingPreview: {
+        usdRaw: 0.165,
+        rawCredits: 33,
+        billedCredits: 33,
+        billedUsd: 0.165,
+      },
+      pricingPreviewVariants: [
+        {
+          id: "default",
+          label: "Default",
+          breakdown: {
+            usdRaw: 0.165,
+            rawCredits: 33,
+            billedCredits: 33,
+            billedUsd: 0.165,
+          },
+        },
+      ],
+    });
+
+    const rows = buildModelEconomicsRows({
+      models: [model],
+      pricingPolicy,
+    });
+
+    expect(rows).toHaveLength(4);
+    expect(rows.map((row) => row.specLabel)).toEqual([
+      "720p / 16:9 / with video input",
+      "720p / 16:9 / no video input",
+      "480p / 16:9 / with video input",
+      "480p / 16:9 / no video input",
+    ]);
+    expect(rows.map((row) => row.providerCostUsd)).toHaveLength(4);
+    expect(rows[0]?.providerCostUsd).toBeCloseTo(0.5, 6);
+    expect(rows[1]?.providerCostUsd).toBeCloseTo(0.825, 6);
+    expect(rows[2]?.providerCostUsd).toBeCloseTo(0.225, 6);
+    expect(rows[3]?.providerCostUsd).toBeCloseTo(0.3875, 6);
   });
 
   it("recomputes shared-policy credits at cost from provider usd instead of marked runtime raw credits", () => {

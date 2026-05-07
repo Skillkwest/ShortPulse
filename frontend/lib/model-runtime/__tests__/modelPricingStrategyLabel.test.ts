@@ -26,7 +26,7 @@ describe("getAdminPricingStrategyLabel", () => {
 
   it("describes token billing plainly", () => {
     expect(getAdminPricingStrategyLabel("gpt-5.4-nano", "openai-text-token")).toBe(
-      "Per 1M input tokens"
+      "Per 10,000 characters"
     );
   });
 

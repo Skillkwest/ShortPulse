@@ -579,6 +579,7 @@ export type AdminPricingPreviewVariant = {
   aspect?: string | null;
   resolution?: string | null;
   audio?: boolean | null;
+  videoInput?: boolean | null;
   breakdown: AdminCreditPricingBreakdown;
 };
 

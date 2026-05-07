@@ -12,7 +12,11 @@ import {
   OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
   OPENAI_GPT_IMAGE_2_MODEL_ID,
 } from "../../../lib/model-runtime/openAiImage2";
-import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
 import type { StudioMode, ToolId } from "../types";
 
 type UseAiStudioPageDerivationsParams = {
@@ -26,6 +30,7 @@ type UseAiStudioPageDerivationsParams = {
   videoReferenceMode: string;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
+  seedance2ReferenceVideoUrls: string[];
   isCharacterModeEnabled?: boolean;
 };
 
@@ -43,6 +48,7 @@ export const useAiStudioPageDerivations = ({
   videoReferenceMode,
   referenceImageUrl,
   extraImageUrls,
+  seedance2ReferenceVideoUrls = [],
   isCharacterModeEnabled = false,
 }: UseAiStudioPageDerivationsParams) => {
   const isTemplateView =
@@ -57,6 +63,14 @@ export const useAiStudioPageDerivations = ({
       .length;
   }, [extraImageUrls, referenceImageUrl]);
 
+  const preparedReferenceVideoCount = useMemo(
+    () =>
+      seedance2ReferenceVideoUrls.filter(
+        (value) => typeof value === "string" && value.trim().length > 0
+      ).length,
+    [seedance2ReferenceVideoUrls]
+  );
+
   const costParamsForModel = useCallback(
     (targetModelId: string, overrides: Omit<PricingParams, "modelId"> = {}) => {
       const gptImage2EditPricingDefaults =
@@ -66,15 +80,22 @@ export const useAiStudioPageDerivations = ({
               inputFidelity: OPENAI_GPT_IMAGE_2_DEFAULT_INPUT_FIDELITY,
             }
           : {};
+      const seedanceVideoInputPricingDefaults =
+        targetModelId === KIE_SEEDANCE_2_MODEL_ID || targetModelId === KIE_SEEDANCE_2_FAST_MODEL_ID
+          ? {
+              inputVideoCount: preparedReferenceVideoCount,
+            }
+          : {};
       return {
         modelId: targetModelId,
         ...buildDefaultPricingParams(targetModelId),
         aspect,
         ...gptImage2EditPricingDefaults,
+        ...seedanceVideoInputPricingDefaults,
         ...overrides,
       };
     },
-    [aspect, preparedReferenceImageCount]
+    [aspect, preparedReferenceImageCount, preparedReferenceVideoCount]
   );
 
   const filteredModelOptions = useMemo(() => {

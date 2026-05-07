@@ -27,12 +27,14 @@ export type PricingStrategyId =
 
 export type PricingParams = {
   modelId: string;
+  variantBaseId?: string;
   aspect?: string;
   imageWidth?: number;
   imageHeight?: number;
   size?: string;
   quality?: string;
   inputImageCount?: number;
+  inputVideoCount?: number;
   inputFidelity?: string;
   maskPresent?: boolean;
   inputTokens?: number;
@@ -42,6 +44,7 @@ export type PricingParams = {
   generationCount?: number;
   resolution?: string;
   mode?: string;
+  contextLengthTier?: "standard" | "long";
   sourceDurationSeconds?: number;
   textCharacters?: number;
   webSearch?: boolean;

@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { KIE_SEEDANCE_2_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import type { ToolId } from "../../types";
 import { useAiStudioPageDerivations } from "../useAiStudioPageDerivations";
 
@@ -16,6 +17,7 @@ const createParams = (
   videoReferenceMode: "standard",
   referenceImageUrl: null,
   extraImageUrls: [null, null, null],
+  seedance2ReferenceVideoUrls: [],
   isCharacterModeEnabled: false,
   ...overrides,
 });
@@ -77,6 +79,19 @@ describe("useAiStudioPageDerivations", () => {
     const params = result.current.costParamsForModel("gpt-image-2");
     expect(params.inputImageCount).toBe(2);
     expect(params.inputFidelity).toBe("high");
+  });
+
+  it("adds Seedance video-input pricing defaults when reference videos are present", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageDerivations(
+        createParams({
+          seedance2ReferenceVideoUrls: ["https://example.com/ref.mp4", "  "],
+        })
+      )
+    );
+
+    const params = result.current.costParamsForModel(KIE_SEEDANCE_2_MODEL_ID);
+    expect(params.inputVideoCount).toBe(1);
   });
 
   it("uses shared create/image model policy and keeps only image-capable create models", () => {

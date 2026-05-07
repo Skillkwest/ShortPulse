@@ -135,32 +135,32 @@ describe("pricing grid invariants", () => {
     ).toBe(0.002);
   });
 
-  it("keeps per-1M-token rate fixed while token usage scales total provider cost", () => {
+  it("keeps OpenAI text scenarios fixed and treats the rate source as the displayed scenario price", () => {
     const model = buildModelRow({
-      id: "gpt-5.4-nano",
-      label: "GPT-5.4 Nano",
+      id: "gpt-5.4-pro",
+      label: "GPT-5.4 Pro",
       provider: "openai",
-      sourceUrl: "https://platform.openai.com/docs/pricing",
+      sourceUrl: "https://openai.com/api/pricing/",
       workflowType: "Text to text",
       pricingStrategy: "openai-text-token",
-      pricingStrategyLabel: "Per 1M input tokens",
+      pricingStrategyLabel: "Per 10,000 characters",
       defaultResolution: null,
       allowedResolutions: [],
       pricingPreview: {
-        usdRaw: 0.2,
-        rawCredits: 6,
-        billedCredits: 10,
-        billedUsd: 0.3333,
+        usdRaw: 2.8,
+        rawCredits: 84,
+        billedCredits: 84,
+        billedUsd: 2.8,
       },
       pricingPreviewVariants: [
         {
           id: "default",
           label: "Default",
           breakdown: {
-            usdRaw: 0.2,
-            rawCredits: 6,
-            billedCredits: 10,
-            billedUsd: 0.3333,
+            usdRaw: 2.8,
+            rawCredits: 84,
+            billedCredits: 84,
+            billedUsd: 2.8,
           },
         },
       ],
@@ -168,24 +168,18 @@ describe("pricing grid invariants", () => {
     const rows = buildModelEconomicsRows({
       models: [model],
       pricingPolicy: getDefaultModelPricingPolicyDocument(),
-      durationDrafts: {
-        [model.id]: "2000000",
-      },
     });
-    const row = rows[0];
+    const row = rows.find((candidate) => candidate.specLabel === "10,000 characters generated");
 
-    expect(row).toMatchObject({
-      usageValueLabel: "2,000,000",
-      providerCostUsd: 0.4,
-    });
+    expect(row?.usageValueLabel).toBe("");
+    expect(row?.providerCostUsd).toBeCloseTo(0.45, 4);
     expect(
       getRateSourceCostUsd({
         rateSourceInputMode: getModelRateSourceInputMode(model),
         providerCostUsd: row?.providerCostUsd,
         providerCostUsdPerSecond: row?.costPerSecondUsd,
         durationSeconds: row?.durationSeconds,
-        usageRateMultiplier: getModelUsageRateMultiplier(model, 2_000_000),
       })
-    ).toBe(0.2);
+    ).toBeCloseTo(0.45, 4);
   });
 });

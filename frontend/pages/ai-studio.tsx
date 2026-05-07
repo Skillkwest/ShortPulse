@@ -1650,6 +1650,7 @@ const useAiStudioPageRuntimeShell = ({
     videoReferenceMode,
     referenceImageUrl,
     extraImageUrls,
+    seedance2ReferenceVideoUrls,
     isCharacterModeEnabled: isCreateCharacterModeEnabled,
   });
 

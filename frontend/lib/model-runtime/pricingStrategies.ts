@@ -17,9 +17,10 @@ import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes"
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "./providerModelIds";
-import { resolveModelPricingVariantId } from "./modelPricingVariants";
+import { buildModelPricingVariantId, resolveModelPricingVariantId } from "./modelPricingVariants";
 
 const FAL_COST_PER_MP_USD = 0.025;
 const ECONOMY_IMAGE_COST_PER_MP_USD = 0.006;
@@ -36,13 +37,30 @@ const ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION = 0.01;
 const ELEVENLABS_SOUND_EFFECT_EXPLICIT_USD_PER_SECOND =
   ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION / 5;
 const ELEVENLABS_MUSIC_USD_PER_MINUTE = 0.3;
-const OPENAI_TEXT_TOKEN_RATES_USD_PER_M: Record<
-  string,
-  { input: number; cachedInput: number; output: number }
-> = {
-  "gpt-5.4": { input: 2.5, cachedInput: 0.25, output: 15 },
-  "gpt-5.4-mini": { input: 0.75, cachedInput: 0.075, output: 4.5 },
-  "gpt-5.4-nano": { input: 0.2, cachedInput: 0.02, output: 1.25 },
+type OpenAiTextTokenRateSet = {
+  standard: { input: number; cachedInput: number; output: number };
+  long?: { input: number; cachedInput: number; output: number };
+};
+
+const OPENAI_TEXT_TOKEN_RATES_USD_PER_M: Record<string, OpenAiTextTokenRateSet> = {
+  "gpt-5.5": {
+    standard: { input: 5, cachedInput: 0.5, output: 30 },
+    long: { input: 10, cachedInput: 1, output: 45 },
+  },
+  "gpt-5.5-pro": {
+    standard: { input: 30, cachedInput: 0, output: 180 },
+    long: { input: 60, cachedInput: 0, output: 270 },
+  },
+  "gpt-5.4": {
+    standard: { input: 2.5, cachedInput: 0.25, output: 15 },
+    long: { input: 5, cachedInput: 0.5, output: 22.5 },
+  },
+  "gpt-5.4-pro": {
+    standard: { input: 30, cachedInput: 0, output: 180 },
+    long: { input: 60, cachedInput: 0, output: 270 },
+  },
+  "gpt-5.4-mini": { standard: { input: 0.75, cachedInput: 0.075, output: 4.5 } },
+  "gpt-5.4-nano": { standard: { input: 0.2, cachedInput: 0.02, output: 1.25 } },
 };
 const VEO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.4;
 const VEO_NO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.2;
@@ -57,14 +75,20 @@ const KLING_3_KIE_STD_AUDIO_ON_CREDITS_PER_SECOND = 21;
 const KLING_3_KIE_PRO_AUDIO_OFF_CREDITS_PER_SECOND = 18;
 const KLING_3_KIE_PRO_AUDIO_ON_CREDITS_PER_SECOND = 27;
 const KIE_VEO_31_FAST_I2V_PER_VIDEO_USD = 0.4;
-const SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN = 2.4;
-const SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN = 1.2;
-const SEEDANCE_DEFAULT_FPS = 24;
 const SEEDANCE_RESOLUTION_MAP = {
   "1080p": { width: 1920, height: 1080 },
   "720p": { width: 1280, height: 720 },
   "480p": { width: 854, height: 480 },
 };
+const SEEDANCE_2_STANDARD_CREDITS_PER_SECOND = {
+  "1080p": { withVideoInput: 62, noVideoInput: 102 },
+  "720p": { withVideoInput: 25, noVideoInput: 41 },
+  "480p": { withVideoInput: 11.5, noVideoInput: 19 },
+} as const;
+const SEEDANCE_2_FAST_CREDITS_PER_SECOND = {
+  "720p": { withVideoInput: 20, noVideoInput: 33 },
+  "480p": { withVideoInput: 9, noVideoInput: 15.5 },
+} as const;
 
 const kieCreditsToUsd = (credits: number): number => credits * KIE_CREDIT_USD;
 
@@ -363,10 +387,14 @@ const computeOpenAiTextTokenCost: StrategyFn = ({
   inputTokens = 0,
   cachedInputTokens = 0,
   outputTokens = 0,
+  contextLengthTier,
+  variantBaseId,
   pricingPolicy,
 }) => {
-  const rates = OPENAI_TEXT_TOKEN_RATES_USD_PER_M[modelId];
-  if (!rates) return null;
+  const rateSet = OPENAI_TEXT_TOKEN_RATES_USD_PER_M[modelId];
+  if (!rateSet) return null;
+  const rates =
+    contextLengthTier === "long" ? (rateSet.long ?? rateSet.standard) : rateSet.standard;
   const totalUsd =
     (Math.max(0, inputTokens) / 1_000_000) * rates.input +
     (Math.max(0, cachedInputTokens) / 1_000_000) * rates.cachedInput +
@@ -378,7 +406,12 @@ const computeOpenAiTextTokenCost: StrategyFn = ({
     width: 0,
     height: 0,
     policy: pricingPolicy,
-    variantId: resolveModelPricingVariantId({ modelId, pricingPolicy }),
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      variantBaseId,
+      contextLengthTier,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -680,6 +713,21 @@ const resolveSeedance2Duration = (value?: number) => {
   return 15;
 };
 
+const resolveSeedanceVideoInput = (params: PricingParams): boolean =>
+  typeof params.inputVideoCount === "number" &&
+  Number.isFinite(params.inputVideoCount) &&
+  params.inputVideoCount > 0;
+
+const resolveSeedanceResolutionKey = (
+  params: PricingParams,
+  fallback: "1080p" | "720p"
+): keyof typeof SEEDANCE_RESOLUTION_MAP => {
+  const res = resolveDefaultResolution(params, fallback).toLowerCase();
+  if (res.includes("1080")) return "1080p";
+  if (res.includes("720") || res.includes("high")) return "720p";
+  return "480p";
+};
+
 const computeSeedancePerSecondCost: StrategyFn = (params) => {
   if (params.modelId === KIE_SEEDANCE_15_PRO_MODEL_ID) {
     const duration = resolveSeedance15Duration(params.durationSeconds);
@@ -706,21 +754,25 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
   }
 
   const duration = resolveSeedance2Duration(params.durationSeconds);
-  const res = resolveDefaultResolution(params, "1080p").toLowerCase();
-  const resolutionKey = res.includes("1080")
-    ? "1080p"
-    : res.includes("720") || res.includes("high")
-      ? "720p"
-      : "480p";
+  const videoInput = resolveSeedanceVideoInput(params);
+  const isSeedanceFast = params.modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
+  const resolutionKey = resolveSeedanceResolutionKey(params, isSeedanceFast ? "720p" : "1080p");
   const resolution = SEEDANCE_RESOLUTION_MAP[resolutionKey];
   if (!resolution) return null;
-
-  const hasAudio = resolveDefaultAudio(params, true);
-  const ratePerMillionTokens = hasAudio
-    ? SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN
-    : SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN;
-  const tokens = (resolution.width * resolution.height * SEEDANCE_DEFAULT_FPS * duration) / 1024;
-  const usdRaw = (tokens / 1_000_000) * ratePerMillionTokens;
+  const pricingTable = isSeedanceFast
+    ? SEEDANCE_2_FAST_CREDITS_PER_SECOND
+    : SEEDANCE_2_STANDARD_CREDITS_PER_SECOND;
+  const resolutionPricing =
+    pricingTable[
+      (isSeedanceFast && resolutionKey === "1080p"
+        ? "720p"
+        : resolutionKey) as keyof typeof pricingTable
+    ];
+  if (!resolutionPricing) return null;
+  const creditsPerSecond = videoInput
+    ? resolutionPricing.withVideoInput
+    : resolutionPricing.noVideoInput;
+  const usdRaw = kieCreditsToUsd(creditsPerSecond * duration);
   return toCostBreakdown({
     modelId: params.modelId,
     usdRaw,
@@ -728,7 +780,12 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
     width: resolution.width,
     height: resolution.height,
     policy: params.pricingPolicy,
-    variantId: resolveModelPricingVariantId(params),
+    variantId: buildModelPricingVariantId({
+      baseVariantId: "default",
+      aspect: params.aspect ?? getModelConfig(params.modelId)?.defaultAspect ?? null,
+      resolution: resolutionKey,
+      videoInput,
+    }),
   });
 };
 

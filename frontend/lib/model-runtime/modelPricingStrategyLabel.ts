@@ -29,7 +29,7 @@ export const getAdminPricingStrategyLabel = (
     case "seedream-per-image":
       return "Per image (4K costs more)";
     case "openai-text-token":
-      return "Per 1M input tokens";
+      return "Per 10,000 characters";
     case "veo-3-per-second":
       return modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ? "Per video (flat)" : "Per output second";
     case "kling-3-per-second":

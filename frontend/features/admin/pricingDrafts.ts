@@ -199,13 +199,13 @@ const INTEGER_USAGE_KINDS = new Set<ModelUsageKind>([
 export const getModelUsageControl = (model: AdminPricingModelRow): ModelUsageControl => {
   if (model.pricingStrategy === "openai-text-token") {
     return {
-      kind: "input_tokens",
-      label: "Input tokens",
-      unitLabel: "tokens",
-      defaultValue: 1_000_000,
-      minValue: 1,
+      kind: "none",
+      label: "Scenario",
+      unitLabel: "",
+      defaultValue: null,
+      minValue: null,
       maxValue: null,
-      step: "1000",
+      step: "1",
       inputMode: "numeric",
     };
   }
@@ -399,4 +399,6 @@ export const shouldShowResolutionSpecControl = (model: AdminPricingModelRow): bo
   model.allowedResolutions.length > 1;
 
 export const shouldShowAudioSpecControl = (model: AdminPricingModelRow): boolean =>
-  model.defaultAudio != null && model.workflowType.toLowerCase().includes("video");
+  model.defaultAudio != null &&
+  model.workflowType.toLowerCase().includes("video") &&
+  !["seedance-2-per-second", "seedance-2-fast-per-second"].includes(model.pricingStrategy);

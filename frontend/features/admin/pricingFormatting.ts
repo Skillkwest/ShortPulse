@@ -143,13 +143,18 @@ export const getVariantSpecSummary = (
   variantCount: number,
   draftContext: ModelSpecDraftContext = {}
 ): string => {
+  if (model.pricingStrategy === "openai-text-token" && variant?.label) {
+    return variant.label;
+  }
   const resolvedSpec = getResolvedModelSpec(model, draftContext);
   const parts: string[] = [];
   const resolution = variant?.resolution ?? resolvedSpec.resolution;
   const aspect = variant?.aspect ?? resolvedSpec.aspect;
   const audio = variant?.audio ?? resolvedSpec.audio;
+  const videoInput = variant?.videoInput ?? null;
   if (resolution) parts.push(resolution);
   if (aspect) parts.push(aspect);
+  if (videoInput != null) parts.push(videoInput ? "with video input" : "no video input");
   if (audio != null) parts.push(audio ? "audio on" : "audio off");
   const baseSpec = parts.length ? parts.join(" / ") : model.workflowType;
   if (

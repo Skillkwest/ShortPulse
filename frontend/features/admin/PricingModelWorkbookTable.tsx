@@ -44,6 +44,8 @@ import {
   resolveModelPricingForModel,
   type ModelPricingPolicyDocument,
 } from "../../lib/model-runtime/pricingPolicy";
+import { getAdminPricingStrategyLabel } from "../../lib/model-runtime/modelPricingStrategyLabel";
+import type { PricingStrategyId } from "../../lib/model-runtime/pricingTypes";
 import styles from "../../styles/admin.module.css";
 
 const getFiniteValues = (values: Array<number | null | undefined>): number[] =>
@@ -119,12 +121,30 @@ const getVariantTypeSummary = (
   return `${labels[0]} + ${labels.length - 1} more`;
 };
 
+const getDisplayedPricingStrategyLabel = (model: AdminPricingModelRow): string =>
+  getAdminPricingStrategyLabel(model.id, model.pricingStrategy as PricingStrategyId);
+
 const getMarginToneClassName = (marginUsd: number | null | undefined): string => {
   if (marginUsd == null || !Number.isFinite(marginUsd)) return "";
   if (marginUsd < 0) return styles.pricingMetricNegative;
   if (marginUsd > 0) return styles.pricingMetricPositive;
   return styles.pricingMetricNeutral;
 };
+
+const getPricingSourceUrl = (model: AdminPricingModelRow): string =>
+  model.provider === "kie" ? "https://kie.ai/pricing" : model.sourceUrl;
+
+const renderTypeSourceLink = (model: AdminPricingModelRow, label: string) => (
+  <a
+    href={getPricingSourceUrl(model)}
+    target="_blank"
+    rel="noreferrer"
+    className={styles.pricingTypeLink}
+    title={`Open source page for ${model.label}`}
+  >
+    <strong>{label}</strong>
+  </a>
+);
 
 type PricingModelWorkbookTableProps = {
   displayedModels: AdminPricingModelRow[];
@@ -593,7 +613,7 @@ export function PricingModelWorkbookTable({
                     </div>
                   </span>
                   <span className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}>
-                    <strong>{summaryTypeLabel}</strong>
+                    {renderTypeSourceLink(model, summaryTypeLabel)}
                   </span>
                   <span className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}>
                     {canEditModelDuration(model) ? (
@@ -646,7 +666,7 @@ export function PricingModelWorkbookTable({
                       }}
                       onBlur={hideCostDocsPopover}
                     >
-                      <strong>{model.pricingStrategyLabel}</strong>
+                      <strong>{getDisplayedPricingStrategyLabel(model)}</strong>
                     </button>
                     <small>
                       {formatValueRange(
@@ -760,7 +780,7 @@ export function PricingModelWorkbookTable({
                           <small>{model.label}</small>
                         </span>
                         <span className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}>
-                          <strong>{getModelTypeLabel(model, row.variant)}</strong>
+                          {renderTypeSourceLink(model, getModelTypeLabel(model, row.variant))}
                         </span>
                         <span
                           className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
@@ -799,7 +819,7 @@ export function PricingModelWorkbookTable({
                             }}
                             onBlur={hideCostDocsPopover}
                           >
-                            <strong>{model.pricingStrategyLabel}</strong>
+                            <strong>{getDisplayedPricingStrategyLabel(model)}</strong>
                           </button>
                           {canEditSharedPolicy && row.variantId ? (
                             <label className={styles.pricingSheetInputWrap}>

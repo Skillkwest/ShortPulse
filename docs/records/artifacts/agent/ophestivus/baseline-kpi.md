@@ -101,3 +101,25 @@ Any future run fails the baseline regardless of numeric score if it:
 - Stores secrets, bearer tokens, service-role keys, or private customer data in a ticket or report.
 - Touches unrelated files or reverts other work without explicit authorization.
 - Moves anything to `Published` without explicit user instruction.
+
+## Post-Baseline Observations
+
+These notes do not change the frozen KPI weights, baseline score, or thresholds. They clarify how future runs should be judged against the same baseline after the workflow matured further.
+
+### 2026-05-06 Workflow Clarifications
+
+- Correct performance now includes distinguishing runnable backlog work from parked Human Review handoffs.
+- `[HUMAN REVIEW]` backlog tickets and tickets containing `*** HUMAN REVIEW REQUIRED ***` are parked escalation handoffs, not active intake work.
+- Correct performance includes escalating broad real bugs instead of forcing a shallow code fix just to clear the queue.
+- A bounded repo-side fix is not enough for full credit when the originating incident happened on preview/staging and live verification still requires deploy. In that case, correct handling is a Human Review deploy-verification handoff, not a premature move to `Review` or `Complete`.
+- Billing-state, control-plane, provider-runtime, and row-level consistency incidents should be judged partly on escalation quality, not only on code change quantity.
+- Tooling discipline now specifically includes preferring `ophestivus:escalate-ticket` for Human Review handoffs instead of manual ticket-title/detail compaction.
+
+### Additional Failure Signals To Watch
+
+These do not replace the failure conditions above; they are added warning signs for future comparison:
+
+- Treating a parked Human Review backlog ticket as runnable active work.
+- Moving a deploy-gated fix toward `Review` without proving the deployed incident family is actually clean.
+- Normalizing away a billing or lifecycle inconsistency without row-level evidence.
+- Adding broad retry behavior in worker/control-plane/provider lanes without isolating the failing fetch or settlement site.

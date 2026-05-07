@@ -11,6 +11,7 @@ Purpose: quick lookup for the SOPs Ophestivus uses when working the admin error 
 | `docs/sops/sop_admin_ophestivus_complete_regression_audit.md` | Lightly audit one aged Complete ticket for post-completion regression evidence.                                | `run check complete SOP`, `run complete regression audit`, `audit complete column` |
 | `docs/sops/sop_admin_ophestivus_board_operations.md`    | Understand shared board state, columns, helper commands, and board guardrails.                                 | `board operations`, `kanban workflow`                                              |
 | `docs/sops/sop_sql_migration_operations.md`             | Work requires SQL migration, schema repair, hosted Supabase validation, or migration approval.                 | `SQL`, `migration`, `schema`, `Supabase`                                           |
+| `docs/records/artifacts/agent/ophestivus/post-run-performance-analysis-interview.md` | Run the tailored post-run interview to assess workflow quality, tooling gaps, and needed memory/doc changes. | `run post-run interview`, `post-run analysis`, `performance interview`             |
 
 ## Default Order
 

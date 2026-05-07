@@ -13,6 +13,7 @@ Run commands from `frontend/` unless noted otherwise.
 | `npm run ophestivus:error-event-detail -- --incident <incident-id>`               | `frontend/scripts/ophestivus_error_event_detail.mjs`    | Print redacted latest event stack/metadata details for an incident or ticket.                                           | No                                  |
 | `npm run ophestivus:compact-ticket-report`                                        | `frontend/scripts/ophestivus_ticket_report.mjs`         | Build a board-safe Review summary with local report path and room reserved for the later approval note.                 | No                                  |
 | `npm run ophestivus:complete-error-ticket`                                        | `frontend/scripts/ophestivus_complete_error_ticket.mjs` | Write the full local report, validate Review evidence, resolve the incident, write the compact ticket summary, and move to `Review`. | Yes, unless `--dry-run`    |
+| `npm run ophestivus:escalate-ticket`                                              | `frontend/scripts/ophestivus_escalate_ticket.mjs`       | Write a compact Human Review handoff, prefix the title, and move the ticket back to `Backlog`.                          | Yes, unless `--dry-run`             |
 | `npm run ophestivus:review`                                                       | `frontend/scripts/ophestivus_review.mjs`                | Read Review tickets, append approval notes, and move approved tickets to `Complete`.                                    | Yes with `--approve`, otherwise no  |
 | `npm run ophestivus:move-ticket`                                                  | `frontend/scripts/ophestivus_move_ticket.mjs`           | Move one active ticket between board columns with dry-run and stale-status guards.                                      | Yes, unless `--dry-run`             |
 | `npm run ophestivus:append-ticket-note`                                           | `frontend/scripts/ophestivus_append_ticket_note.mjs`    | Append a note to ticket details with length prediction and optional note compaction.                                    | Yes, unless `--dry-run`             |
@@ -27,6 +28,7 @@ Run commands from `frontend/` unless noted otherwise.
 5. For Admin Errors closeout, let `ophestivus:complete-error-ticket` write the full local report and place the report path in the compact ticket summary.
 6. Let `ophestivus:complete-error-ticket` fail before Review if the compact summary is missing the full report path, has a truncated `Report:` value, or does not leave approval-note room.
 7. Use `ophestivus:run-log` directly for non-error SOP work or ad hoc reports that are not handled by the complete-error-ticket helper.
+8. Use `ophestivus:escalate-ticket` instead of manual title/detail compaction when the stop rule or Human Review path triggers.
 
 ## Report Fields
 

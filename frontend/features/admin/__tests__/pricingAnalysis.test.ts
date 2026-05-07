@@ -257,7 +257,7 @@ describe("pricingAnalysis", () => {
     expect(draftRow?.providerCostUsd).toBeCloseTo(0.117, 6);
   });
 
-  it("shows OpenAI text models as a fixed per-10,000-character output rate", () => {
+  it("shows OpenAI text models as a fixed per-50,000-character blended rate", () => {
     const pricingPolicy = getDefaultModelPricingPolicyDocument();
     const model = buildModelRow({
       id: "gpt-5.5",
@@ -266,7 +266,7 @@ describe("pricingAnalysis", () => {
       sourceUrl: "https://openai.com/api/pricing/",
       workflowType: "Text to text",
       pricingStrategy: "openai-text-token",
-      pricingStrategyLabel: "Per 10,000 characters",
+      pricingStrategyLabel: "Per 50,000 characters",
       defaultAspect: "",
       allowedAspects: [""],
       defaultResolution: null as never,
@@ -303,9 +303,10 @@ describe("pricingAnalysis", () => {
     });
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.usageValueLabel).toBe("");
-    expect(rows[0]?.specLabel).toBe("10,000 characters generated");
-    expect(rows[0]?.providerCostUsd).toBeCloseTo(0.075, 6);
+    expect(rows[0]?.usageLabel).toBe("Characters");
+    expect(rows[0]?.usageValueLabel).toBe("50,000");
+    expect(rows[0]?.specLabel).toBe("Blended characters");
+    expect(rows[0]?.providerCostUsd).toBeCloseTo(0.281, 6);
   });
 
   it("expands shared-policy image models into separate price-variant rows", () => {

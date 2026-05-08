@@ -311,11 +311,141 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
+.adminAgentInstructionsPage {
+  max-width: min(1520px, calc(100vw - 24px));
+}
+
+.adminAgentInstructionsPage .adminHeader {
+  margin-bottom: 18px;
+  padding: 2px 0 6px;
+}
+
+.adminAgentInstructionsPage .adminTitle {
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.adminAgentInstructionsPage .adminUserPill {
+  border-color: rgba(37, 169, 191, 0.3);
+  background:
+    linear-gradient(180deg, rgba(37, 169, 191, 0.16), rgba(37, 169, 191, 0.04)),
+    var(--admin-surface-1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 10px 26px rgba(0, 0, 0, 0.22);
+}
+
+.adminAgentInstructionsPage .adminNavShell {
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.adminAgentInstructionsPage .adminNavRow {
+  padding: 8px;
+  border-radius: 18px;
+  border: 1px solid var(--admin-border-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+    rgba(11, 15, 19, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.adminAgentInstructionsPage .adminNavLink {
+  border-radius: 12px;
+}
+
+.adminAgentInstructionsPage .adminNavLinkActive {
+  background:
+    linear-gradient(180deg, rgba(37, 169, 191, 0.2), rgba(37, 169, 191, 0.07)),
+    var(--admin-surface-2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.adminAgentInstructionsSection {
+  position: relative;
+  overflow: hidden;
+  padding: 18px;
+  border-radius: 20px;
+  border-color: rgba(37, 169, 191, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(37, 169, 191, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0) 22%),
+    var(--admin-surface-1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+.adminAgentInstructionsSection::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(37, 169, 191, 0.08), transparent 28%),
+    linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.015));
+  opacity: 0.9;
+}
+
+.adminAgentInstructionsSection > * {
+  position: relative;
+  z-index: 1;
+}
+
+.agentInstructionToolbarRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
 .agentInstructionsSummaryGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   margin-top: 14px;
+}
+
+.agentInstructionSummaryCard {
+  position: relative;
+  overflow: hidden;
+  min-height: 148px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--admin-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
+    var(--admin-surface-2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 16px 34px rgba(0, 0, 0, 0.24);
+}
+
+.agentInstructionSummaryCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.45), transparent 72%);
+}
+
+.agentInstructionSummaryCardMuted {
+  border-color: rgba(216, 168, 74, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(216, 168, 74, 0.09), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    var(--admin-surface-2);
+}
+
+.agentInstructionSummaryCardAccent {
+  border-color: rgba(37, 169, 191, 0.26);
+  background:
+    radial-gradient(circle at top left, rgba(37, 169, 191, 0.12), transparent 44%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
+    var(--admin-surface-2);
 }
 
 .agentInstructionSummaryLabel {
@@ -340,6 +470,46 @@
   margin-top: 18px;
 }
 
+.agentInstructionStandardCard {
+  border-style: solid;
+  border-color: rgba(216, 168, 74, 0.22);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(216, 168, 74, 0.08),
+      rgba(216, 168, 74, 0.02) 18%,
+      transparent 42%
+    ),
+    var(--admin-surface-2);
+}
+
+.agentInstructionEditPresetCard {
+  border-style: solid;
+  border-color: rgba(255, 171, 53, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(255, 106, 0, 0.12), transparent 28%),
+    linear-gradient(
+      180deg,
+      rgba(255, 190, 92, 0.08),
+      rgba(255, 190, 92, 0.02) 18%,
+      transparent 42%
+    ),
+    var(--admin-surface-2);
+}
+
+.agentInstructionPulseSection {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(37, 169, 191, 0.16);
+  background:
+    radial-gradient(circle at top left, rgba(37, 169, 191, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)),
+    rgba(17, 22, 27, 0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 18px 36px rgba(0, 0, 0, 0.22);
+}
+
 .agentInstructionModeSection {
   display: grid;
   gap: 14px;
@@ -348,6 +518,11 @@
 .agentInstructionModeHeader {
   display: grid;
   gap: 6px;
+}
+
+.agentInstructionModeActions {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .agentInstructionModeEyebrow {
@@ -377,14 +552,54 @@
   gap: 14px;
 }
 
+.agentInstructionCardList[hidden] {
+  display: none !important;
+}
+
+.agentInstructionCollapsibleBody {
+  display: grid;
+  gap: 12px;
+}
+
+.agentInstructionCollapsibleBody[hidden] {
+  display: none !important;
+}
+
 .agentInstructionCard {
   display: grid;
   gap: 12px;
   padding: 16px;
-  border-radius: 16px;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface-2);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(120, 132, 146, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    var(--admin-surface-2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    0 18px 40px rgba(0, 0, 0, 0.26);
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.agentInstructionCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.4), transparent 76%);
+}
+
+.adminAgentInstructionsPage .agentInstructionCard:hover {
+  border-color: rgba(37, 169, 191, 0.3);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 22px 44px rgba(0, 0, 0, 0.3);
 }
 
 .agentInstructionHeader {
@@ -393,6 +608,8 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(120, 132, 146, 0.12);
 }
 
 .agentInstructionTitleRow {
@@ -402,9 +619,47 @@
   flex-wrap: wrap;
 }
 
+.agentInstructionCollapseToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 132, 146, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
+    rgba(15, 19, 23, 0.9);
+  color: var(--admin-text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.agentInstructionCollapseToggle:hover {
+  border-color: rgba(37, 169, 191, 0.42);
+  color: var(--admin-text-strong);
+  transform: translateY(-1px);
+}
+
+.agentInstructionCollapseIcon {
+  transition: transform 0.14s ease;
+}
+
+.agentInstructionCollapseIconCollapsed {
+  transform: rotate(-90deg);
+}
+
 .agentInstructionTitle {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
   color: var(--admin-text-strong);
 }
 
@@ -477,9 +732,13 @@
 .agentInstructionSubTextarea {
   width: 100%;
   padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--admin-border);
-  background: #0f1317;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 132, 146, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)), #101419;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08);
   color: var(--admin-text-strong);
   font-size: 13px;
   line-height: 1.55;
@@ -501,12 +760,17 @@
 
 .agentInstructionTextarea {
   width: 100%;
-  min-height: 220px;
+  min-height: 260px;
   resize: vertical;
   padding: 14px;
-  border-radius: 14px;
-  border: 1px solid var(--admin-border);
-  background: #0f1317;
+  border-radius: 18px;
+  border: 1px solid rgba(120, 132, 146, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(37, 169, 191, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)), #0f1317;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08);
   color: var(--admin-text-strong);
   font:
     12px/1.6 ui-monospace,
@@ -534,13 +798,124 @@
   outline: 2px solid var(--admin-focus);
   outline-offset: 2px;
   border-color: var(--admin-accent-border-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 0 0 4px rgba(37, 169, 191, 0.12);
 }
 
 .agentInstructionNote {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
+  color: var(--admin-text-faint);
+}
+
+.agentInstructionCollapsedSummary {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 132, 146, 0.14);
+  background: rgba(10, 14, 18, 0.34);
   color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.agentEditPresetSurfaceHeader {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.agentEditPresetModePill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff2c6d, #ffb01f);
+  color: #fff8f0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 12px 24px rgba(255, 104, 32, 0.24);
+}
+
+.agentEditPresetSurfaceTitle {
+  margin: 0;
+  font-size: 18px;
+  color: var(--admin-text-strong);
+  letter-spacing: -0.02em;
+}
+
+.agentEditPresetGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.agentEditPresetTile {
+  display: grid;
+  gap: 10px;
+  min-height: 132px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 179, 70, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+    rgba(30, 35, 41, 0.94);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    transform 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.agentEditPresetTile:hover {
+  border-color: rgba(255, 196, 92, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+}
+
+.agentEditPresetTileTitle {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--admin-text-strong);
+}
+
+.agentEditPresetTilePrompt {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--admin-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.agentEditPresetModalCard {
+  width: min(760px, calc(100vw - 28px));
+}
+
+.agentEditPresetModalTitle {
+  margin: 0 0 2px;
+  font-size: 18px;
+  color: var(--admin-text-strong);
+}
+
+.agentEditPresetModalTextarea {
+  min-height: 220px;
+}
+
+.agentEditPresetModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .adminStatePanel {
@@ -601,6 +976,30 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+}
+
+.adminAgentInstructionsPage .adminSectionHead {
+  margin-bottom: 14px;
+}
+
+.adminAgentInstructionsPage :global(.ghost-btn),
+.adminAgentInstructionsPage :global(.ghost-btn.mini) {
+  border-radius: 12px;
+  border-color: rgba(120, 132, 146, 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
+    rgba(18, 22, 27, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.adminAgentInstructionsPage :global(.ghost-btn:hover),
+.adminAgentInstructionsPage :global(.ghost-btn.mini:hover) {
+  border-color: rgba(37, 169, 191, 0.45);
+  background:
+    linear-gradient(180deg, rgba(37, 169, 191, 0.16), rgba(37, 169, 191, 0.05)),
+    rgba(18, 22, 27, 0.96);
 }
 
 .adminSectionEyebrow {

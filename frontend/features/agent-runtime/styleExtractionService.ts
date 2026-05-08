@@ -4,10 +4,10 @@
  */
 import type { NextApiRequest } from "next";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
-import { loadAgentPrompt } from "../../lib/agentPromptLoader";
 import { AgentPromptId } from "../../lib/agentPromptsConfig";
 import type { AuthenticatedApiUser } from "../../lib/server/api/auth";
 import { logGenerationFailure } from "../../lib/server/api/appErrorLogs";
+import { resolveRuntimeAgentPrompt } from "../../lib/server/api/runtimeAgentPromptControlPlane";
 import {
   buildPromptCompilerCacheScopeKey,
   resolvePromptTemplateVersion,
@@ -223,7 +223,10 @@ export const executeStyleExtraction = async ({
   routeLabel?: string;
 }): Promise<StyleExtractionResult> => {
   const apiKey = process.env.OPENAI_API_KEY;
-  const systemPrompt = loadAgentPrompt(STYLE_EXTRACTOR_ID, process.env[STYLE_EXTRACTOR_ID]);
+  const runtimePrompt = await resolveRuntimeAgentPrompt({
+    promptId: STYLE_EXTRACTOR_ID,
+  });
+  const systemPrompt = runtimePrompt.promptBody;
   const promptTemplateVersion = systemPrompt
     ? resolvePromptTemplateVersion({
         route: "extract-style",

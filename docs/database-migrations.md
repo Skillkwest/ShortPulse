@@ -232,7 +232,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 115.  `sql/migrations/115_remove_global_model_pricing_rounding.sql`
 116.  `sql/migrations/116_add_atomic_admin_pricing_offer_activation_rpcs.sql`
 117.  `sql/migrations/117_add_create_pulse_builtin_control_plane.sql`
-118.  Rollback files:
+118.  `sql/migrations/118_add_agent_prompt_runtime_control_plane.sql`
+119.  Rollback files:
 
 
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
@@ -260,6 +261,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/058_add_user_preferences_ai_studio_style_details_overrides_rollback.sql`
     - `sql/migrations/rollback/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden_rollback.sql`
     - `sql/migrations/rollback/117_add_create_pulse_builtin_control_plane_rollback.sql`
+    - `sql/migrations/rollback/118_add_agent_prompt_runtime_control_plane_rollback.sql`
     - `sql/migrations/rollback/082_add_user_preferences_ai_studio_saved_voices_rollback.sql`
     - `sql/migrations/rollback/085_add_billing_plan_offers_and_subscription_contracts_rollback.sql`
     - `sql/migrations/rollback/086_add_internal_comp_billing_contract_support_rollback.sql`
@@ -377,6 +379,7 @@ Billing safety note:
 - Migration `067_add_admin_user_health_fleet_automation.sql` adds scheduled admin fleet-risk snapshot persistence and service-role maintenance RPC posture for the admin-user-health control plane.
 - Migration `068_add_character_media_assets_isolation.sql` adds `character_media_assets`, dual-reference compatibility columns (`character_media_id`) on Character Manager linkage tables, containment-safe integrity checks, and backfill for slot/quickswap/profile/preset character assets.
 - Migration `069_harden_provider_attached_stale_cleanup_execute_grants.sql` hardens `release_stale_provider_attached_generation_reservations` execute posture to service-role-only.
+- Migration `118_add_agent_prompt_runtime_control_plane.sql` adds the service-role-only `agent_prompt_runtime` table and seeded style-extraction prompt row used by `/api/ai/extract-style` runtime prompt resolution and `/api/admin/agent-instructions/style-extract-prompt` admin mutation.
 - Migration `095_add_project_media_folder_canvas_states.sql` adds `project_media_folder_canvas_states` so Media Library custom-folder canvas snapshots can persist by `user_id + project_id + folder_id` on project routes while the legacy user-scoped folder canvas table remains in place for non-project surfaces.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.

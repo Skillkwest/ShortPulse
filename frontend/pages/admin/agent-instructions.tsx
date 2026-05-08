@@ -2,6 +2,7 @@ import { AdminAgentInstructionsSection } from "../../features/admin/components/A
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useProtectedRoute } from "../../lib/authGuard";
+import styles from "../../styles/admin.module.css";
 
 export default function AdminAgentInstructionsPage() {
   const { loading, user } = useProtectedRoute(true);
@@ -29,6 +30,7 @@ export default function AdminAgentInstructionsPage() {
       pageDescription="Review and edit the built-in Create Pulse agents with simplified name, description, and system-instructions fields."
       userEmail={user?.email}
       currentPath="/admin/agent-instructions"
+      mainClassName={styles.adminAgentInstructionsPage}
     >
       <AdminAgentInstructionsSection />
     </AdminRouteShell>

@@ -1,5 +1,9 @@
 # Next-Agent Handoff: Generation Recovery / Settlement Hardening
 
+## Lane Id
+
+`generation-recovery-settlement-hardening`
+
 Purpose: give the next agent one high-ROI, bounded task derived from the systems catalog.
 
 ## Copy/Paste Use
@@ -12,8 +16,12 @@ Purpose: give the next agent one high-ROI, bounded task derived from the systems
 
 - Overall app rating is currently `6/10`.
 - `Generation recovery / settlement` is the weakest high-value system in `docs/systems/catalog.md` at `4/10`.
+- Target score: `7/10`
 - This system sits underneath `Create workflow`, `Edit workflow`, `Reference Grid`, and `Billing / credits`.
 - Improvements here have a direct reliability payoff without requiring a broad product refactor.
+- Why the score is currently low:
+  - terminal-state convergence is still too fragile across webhook, reconciler, billing, and projection flows
+  - correctness depends on multiple runtime seams lining up without enough trusted invariants
 
 ## Scoped task
 
@@ -25,6 +33,25 @@ The goal is to find the highest-value bounded hardening change in the recovery p
 
 1. implement it safely, or
 2. produce a precise findings packet with the smallest defensible follow-up scope.
+
+## Owned write surface
+
+- `frontend/pages/api/internal/generation-recovery/run.ts`
+- `frontend/pages/api/admin/generation-recovery/replay.ts`
+- `frontend/pages/api/fal/webhook.ts`
+- `frontend/lib/server/generationControlPlane/`
+- `frontend/lib/server/falIntegration/`
+- `frontend/lib/server/api/generationBilling/settlementService.ts`
+- `frontend/lib/server/api/generationBilling.ts`
+- `frontend/lib/server/api/generationProjection.ts`
+- directly related recovery and billing tests
+
+## Avoid surface
+
+- Create, Edit, Video, and Sound UI workflow files
+- Pricing control-plane files unless a narrow invariant requires a minimal touch
+- Media Library UX files
+- general auth and security hardening outside a concrete recovery defect
 
 ## In scope
 
@@ -121,6 +148,13 @@ Stop and hand back when one of these is true:
 
 Do not keep expanding from recovery into adjacent systems by momentum alone.
 
+## Required closeout report
+
+- Path:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+- Filename:
+  - `YYYY-MM-DD-generation-recovery-settlement-hardening-closeout.md`
+
 ## Closeout And Archive
 
 - Return one of:
@@ -132,6 +166,7 @@ Do not keep expanding from recovery into adjacent systems by momentum alone.
   - what was verified
   - residual risk
   - exact next step if unresolved
+- Create the closeout report in the required report path before considering the lane finished.
 - After returning the result, this lane should be considered ready to archive unless the user explicitly reopens it.
 
 ## Current system snapshot

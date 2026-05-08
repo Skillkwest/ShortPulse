@@ -13,11 +13,11 @@ Each rated system uses four `1..5` scores:
 
 Use the numbers consistently. The point is comparability, not false precision.
 
-Optional shorthand:
+Required shorthand:
 
 - `Current score (/10)`
 
-Use that only as a fast-scan summary of current health/maturity after the four core scores are already justified.
+Use that as the fast-scan maturity signal after the four core scores are justified.
 
 ## Criticality
 
@@ -81,6 +81,21 @@ Good evidence for ratings includes:
 
 This is a compressed planning signal, not a replacement for the core rubric.
 
+- Start with the `Health` band:
+  - `Health = 1` -> `1..3`
+  - `Health = 2` -> `4..5`
+  - `Health = 3` -> `6..7`
+  - `Health = 4` -> `8..9`
+  - `Health = 5` -> `10`
+- Then choose the lower or upper end of that band using:
+  - unresolved blockers
+  - `Risk`
+  - `Confidence`
+  - `Rating state`
+  - known structural fragility relative to neighboring systems
+
+Use these interpretations:
+
 - `8..10`: strong and low-friction
 - `6..7`: functional with meaningful complexity or debt
 - `4..5`: important but fragile or in active need of hardening
@@ -89,4 +104,13 @@ This is a compressed planning signal, not a replacement for the core rubric.
 When in doubt:
 
 - calibrate the `1..5` scores first
-- then assign the `Current score (/10)`
+- keep the `/10` inside the `Health` band
+- use `Criticality` to drive urgency, not to inflate maturity
+
+## Rating state
+
+Use one of:
+
+- `seeded`: first-pass row with thin evidence
+- `provisional`: enough evidence to rate, but the boundary or calibration is still weak
+- `calibrated`: compared against nearby systems and strong enough to drive prioritization

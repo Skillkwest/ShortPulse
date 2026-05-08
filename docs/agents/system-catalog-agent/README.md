@@ -46,6 +46,7 @@ Within this window, the agent's primary mission is to drive the repo toward prod
 - `docs/systems/README.md`
 - `docs/systems/catalog.md`
 - `docs/systems/rating-rubric.md`
+- `docs/agents/system-catalog-agent/standard-operating-procedure.md`
 - `docs/operator-map.md`
 - `docs/routes.md`
 - `docs/architecture-overview.md`
@@ -135,11 +136,16 @@ Retained artifacts live in:
 
 Use repo-visible memory for concise durable operating lessons. Use retained artifacts for reports, training history, SOP notes, and helper inventories.
 
+External execution-agent closeout reports belong in:
+
+- `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+
 ## Operating Package
 
 The current operating package for the active production window lives in:
 
 - `docs/agents/system-catalog-agent/operating-package-2026-05-06.md`
+- `docs/agents/system-catalog-agent/standard-operating-procedure.md`
 - `docs/agents/system-catalog-agent/production-readiness-plan-2026-06-06.md`
 - `docs/agents/system-catalog-agent/prioritized-handoff-queue-2026-06-06.md`
 - `docs/agents/system-catalog-agent/system-score-criteria.md`

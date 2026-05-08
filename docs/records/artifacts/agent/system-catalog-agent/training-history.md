@@ -95,3 +95,47 @@ Actions taken:
 Training result:
 
 - The Catalog Agent now distinguishes between external completion and catalog-approved score movement, which keeps the ship-bar process disciplined.
+
+## 2026-05-07: SOP And Report Intake Formalization
+
+Task: formalize the Catalog Agent SOP, report intake path, and lane closeout rules so parallel execution work stays organized and rerating remains evidence-backed.
+
+Actions taken:
+
+- Created a standing SOP for catalog audits, rerating, queue maintenance, handoff generation, and report intake.
+- Created a dedicated external closeout-report folder under the System Catalog Agent artifact area.
+- Updated the handoff template so every lane includes a lane id, owned write surface, avoid surface, stop conditions, and a required closeout report path.
+- Normalized the active handoff packets to the new lane and closeout standard.
+- Wired the SOP and intake path into the contract, memory, operating package, indexes, and artifact readmes.
+
+Training result:
+
+- The Catalog Agent now has an explicit operating pipeline: lane assignment, execution, closeout intake, repo audit, and rerating.
+
+## 2026-05-07: Catalog Space Audit Cleanup
+
+Task: audit the Catalog Agent space for drift in organization, duty clarity, and report flow.
+
+Actions taken:
+
+- Renamed the handoff index from an `active` framing to a library framing so folder contents are not mistaken for dispatch state.
+- Added a reusable external lane closeout template to match the existing handoff-template discipline.
+- Updated the artifact-memory and tooling notes to remove stale priority and tooling assumptions.
+
+Training result:
+
+- The Catalog Agent space now distinguishes more clearly between library surfaces, live dispatch state, and intake/report surfaces.
+
+## 2026-05-07: SOP Audit Fixes
+
+Task: fix the Catalog Agent SOP after a contract-level audit found rollover, intake, and handoff-standard gaps.
+
+Actions taken:
+
+- Replaced hardcoded dated operating-authority references in the SOP with an active-window resolution rule.
+- Added the missing fallback path for rerating when an external lane finishes without a closeout report.
+- Aligned the SOP, handoff template, and active handoff packets with the contract requirement that handoffs state target score and why the current score is low.
+
+Training result:
+
+- The SOP is now a stronger standing authority instead of a document that would drift at the next production-window rollover.

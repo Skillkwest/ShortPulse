@@ -1,6 +1,6 @@
 # Systems Catalog
 
-Purpose: define the authoritative ShortPulse systems catalog used for architecture visibility, risk rating, and prioritization.
+Purpose: define the authoritative ShortPulse systems catalog used for architecture visibility, risk rating, and ship-readiness prioritization.
 
 ## What this namespace is for
 
@@ -12,7 +12,7 @@ Use `docs/systems/` to answer:
 - which systems are most critical or fragile
 - which operational systems in `docs/operator-map.md` support a broader product or platform system
 
-This namespace is the canonical architecture and risk catalog.
+This namespace is the canonical architecture and ship-readiness catalog.
 
 ## Relationship to other docs
 
@@ -37,6 +37,13 @@ System types:
 - `shared platform`
 - `control plane`
 - `ops/support`
+
+The catalog is intentionally doing two jobs:
+
+- canonical system registry
+- ship-readiness control surface
+
+The row model should make both jobs clear without forcing the reader to cross-reference multiple docs just to answer whether a system is ready to ship.
 
 ## Natural-language mapping
 
@@ -93,7 +100,14 @@ The catalog row schema is:
 - `Health`
 - `Risk`
 - `Confidence`
+- `Rating state`
 - `Current score (/10)`
+- `Ship floor`
+- `Ship status`
+- `Priority band`
+- `Active blocker`
+- `Active lane`
+- `Review basis`
 - `Source of truth`
 - `Last reviewed`
 - `Notes`
@@ -115,12 +129,25 @@ When evidence is thin, lower `Confidence` instead of forcing stronger `Health` o
 
 ## Fast-scan score
 
-`Current score (/10)` is an optional shorthand for quick scanning and prioritization.
+`Current score (/10)` is the required fast-scan maturity signal for this catalog.
 
 - It represents current system health/maturity, not business importance.
 - It does not replace the four core ratings.
-- Use it to summarize the row after the `Criticality`, `Health`, `Risk`, and `Confidence` scores already make sense.
-- Treat it as provisional unless the surrounding cluster has been calibrated.
+- Derive it from the four core scores using `docs/systems/rating-rubric.md`.
+- Treat it as less trustworthy when `Rating state` is not yet `calibrated`.
+
+## Ship-readiness fields
+
+Use the catalog to distinguish system maturity from execution urgency.
+
+- `Ship floor` is the minimum acceptable `/10` score for the current production window.
+- `Ship status` compares `Current score (/10)` against `Ship floor`.
+- `Priority band` expresses execution urgency, not maturity.
+- `Active blocker` names the current known blocker when one exists.
+- `Active lane` names the current handoff lane id or `queue-only`.
+- `Review basis` names the evidence snapshot or review mode behind the row.
+
+Do not use `Priority band` as a proxy for health. A lower-priority row can still be below floor.
 
 ## Rating pass workflow
 
@@ -131,7 +158,8 @@ Use this sequence every time:
 3. Read the linked source-of-truth docs and inspect the main code paths.
 4. Refine `Boundary`, `Primary surfaces`, `Depends on`, and `Related operator systems` if needed.
 5. Score `Criticality`, `Health`, `Risk`, and `Confidence`.
-6. Add a short note explaining the score and any open questions.
+6. Set `Rating state`, `Ship floor`, `Ship status`, `Priority band`, `Active blocker`, `Active lane`, and `Review basis`.
+7. Add a short note explaining the score and any open questions.
 
 Use `docs/systems/rating-pass-template.md` for the working checklist.
 
@@ -168,4 +196,5 @@ npm -C frontend run docs:check
 - `docs/systems/catalog.md`
 - `docs/systems/rating-rubric.md`
 - `docs/systems/rating-pass-template.md`
+- `docs/systems/ship-readiness-scoreboard.md`
 - `docs/systems/next-agent-handoff-generation-recovery-hardening.md`

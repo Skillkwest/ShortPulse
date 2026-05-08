@@ -14,7 +14,8 @@ The agent has a durable contract, repo-visible memory, and an initial artifact a
 - `sops.md`: workflow references and emerging SOP needs.
 - `tools.md`: helper inventory and future tooling needs.
 - `training-history.md`: supervised setup and future training runs.
-- `reports/`: full audit, roadmap, and handoff packets.
+- `reports/`: full audit, roadmap, dispatch tracking, and report intake area.
+  - `reports/external-lane-closeouts/`: closeout reports written by execution agents for Catalog Agent review.
 
 ## Authority
 

@@ -1,5 +1,9 @@
 # Next-Agent Handoff: Edit Workflow Hardening
 
+## Lane Id
+
+`edit-workflow-hardening`
+
 Purpose: raise the weakest major AI Studio workflow from a fragile `5/10` toward the ship floor.
 
 ## Copy/Paste Use
@@ -12,8 +16,12 @@ Purpose: raise the weakest major AI Studio workflow from a fragile `5/10` toward
 
 - System: `Edit workflow`
 - Current score: `5/10`
+- Target score: `7/10`
 - Ship floor: `7/10`
 - Edit is a large, stateful surface with layers, markup, inpaint, token rules, flatten/export, and restore behavior concentrated in a few big files.
+- Why the score is currently low:
+  - too much workflow state and behavior is concentrated in a small number of large seams
+  - restore and prompt-reference behavior still carries high regression risk
 
 ## Recommended agent profile
 
@@ -24,6 +32,20 @@ AI Studio workflow modularization agent with strong state-surface decomposition 
 Find the highest-ROI bounded hardening change inside the Edit workflow and either implement it or reduce the lane to a sharply scoped next patch.
 
 Prefer reducing workflow fragility over adding new workflow capability.
+
+## Owned write surface
+
+- `frontend/features/ai-studio/components/edit/`
+- `frontend/features/ai-studio/logic/expertEditPromptReferences.ts`
+- `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts`
+- directly related Edit tests
+
+## Avoid surface
+
+- provider integration files
+- recovery and billing files
+- Reference Grid and Media Library workflow files
+- broad project-system persistence surfaces outside Edit-owned restore behavior
 
 ## In scope
 
@@ -83,6 +105,13 @@ Inspect first:
 
 - Stop before broad canvas or workflow redesign unless the bounded fix is impossible without it.
 
+## Required closeout report
+
+- Path:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+- Filename:
+  - `YYYY-MM-DD-edit-workflow-hardening-closeout.md`
+
 ## Closeout And Archive
 
 - Return one of:
@@ -94,4 +123,5 @@ Inspect first:
   - what was verified
   - residual risk
   - exact next step if unresolved
+- Create the closeout report in the required report path before considering the lane finished.
 - After returning the result, this lane should be considered ready to archive unless the user explicitly reopens it.

@@ -1,8 +1,14 @@
 # System Catalog Agent SOP Notes
 
-Purpose: track the System Catalog Agent's current workflow references and emerging SOP needs during training.
+Purpose: point to the standing SOP and capture smaller workflow notes that do not belong in the formal contract.
 
-## Active References
+## Canonical SOP
+
+The authoritative SOP lives at:
+
+- `docs/agents/system-catalog-agent/standard-operating-procedure.md`
+
+## Supporting References
 
 - `agent-teaching/README.md`
 - `agent-teaching/operations/post-run-performance-analysis-interview.md`
@@ -14,22 +20,7 @@ Purpose: track the System Catalog Agent's current workflow references and emergi
 - `docs/architecture-overview.md`
 - `docs/frontend-architecture.md`
 
-## Initial Workflow
+## Current Notes
 
-1. Load the repo startup contract and Catalog Agent memory.
-2. Confirm which catalog system rows are in scope.
-3. Audit the relevant code, docs, operator map, and route map surfaces.
-4. Reconcile current system boundaries with repo reality.
-5. Decide whether the output is:
-   - rating refinement
-   - system reprioritization
-   - boundary correction
-   - or execution-handoff generation
-6. Produce evidence-backed scoring and next-work guidance.
-7. Record durable lessons and retained reports only when they reduce future audit cost.
-
-## SOP Gaps To Revisit After Real Runs
-
-- Whether the agent needs a dedicated handoff template under `reports/`.
-- Whether a recurring production-readiness scorecard should be maintained as a first-class artifact.
-- Whether the catalog cadence should be tied to weekly or milestone-based review checkpoints.
+- Keep external execution-agent closeout reports isolated under `reports/external-lane-closeouts/` so Catalog Agent-authored reports and inbound lane reports do not get mixed together.
+- Treat score changes, queue changes, and ship-bar changes as Catalog Agent-only actions unless the user explicitly decides otherwise.

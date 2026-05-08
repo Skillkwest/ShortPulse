@@ -1,5 +1,9 @@
 # Next-Agent Handoff: Project / Workspace Persistence Hardening
 
+## Lane Id
+
+`project-workspace-persistence-hardening`
+
 Purpose: harden the current project-owned save/restore authority before final ship evaluation.
 
 ## Copy/Paste Use
@@ -12,8 +16,12 @@ Purpose: harden the current project-owned save/restore authority before final sh
 
 - System: `Project / workspace persistence`
 - Current score: `6/10`
+- Target score: `7/10`
 - Ship floor: `7/10`
 - This system now owns durable workspace behavior for AI Studio and cannot remain only partially trusted near ship.
+- Why the score is currently low:
+  - restore and association invariants are still not explicit enough
+  - persistence trust remains broader than the ship bar should allow
 
 ## Recommended agent profile
 
@@ -22,6 +30,21 @@ Persistence-contract agent with strong ownership, restore, and data-sanitization
 ## Scoped task
 
 Investigate and harden one high-ROI persistence invariant in project workspace save/restore, especially around association backfill, restore filtering, or excluded runtime state.
+
+## Owned write surface
+
+- `frontend/pages/api/projects/[...projectPath].ts`
+- `frontend/lib/server/projectsService.ts`
+- `frontend/lib/server/projectWorkspaceStatesService.ts`
+- `frontend/lib/server/projectGenerationAssociationsService.ts`
+- directly related project workspace tests
+
+## Avoid surface
+
+- general AI Studio canvas workflow files
+- provider runtime and recovery files
+- broad Media Library surfaces
+- unrelated project dashboard feature files
 
 ## In scope
 
@@ -79,6 +102,13 @@ Inspect first:
 
 - Stop before expanding into a broad project-system rewrite unless the bounded issue cannot be fixed otherwise.
 
+## Required closeout report
+
+- Path:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+- Filename:
+  - `YYYY-MM-DD-project-workspace-persistence-hardening-closeout.md`
+
 ## Closeout And Archive
 
 - Return one of:
@@ -90,4 +120,5 @@ Inspect first:
   - what was verified
   - residual risk
   - exact next step if unresolved
+- Create the closeout report in the required report path before considering the lane finished.
 - After returning the result, this lane should be considered ready to archive unless the user explicitly reopens it.

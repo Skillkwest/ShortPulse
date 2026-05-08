@@ -1,5 +1,9 @@
 # Next-Agent Handoff: Elements Workflow Hardening
 
+## Lane Id
+
+`elements-workflow-hardening`
+
 Purpose: raise a low-confidence AI Studio workflow to a more explicit and supportable state.
 
 ## Copy/Paste Use
@@ -12,8 +16,12 @@ Purpose: raise a low-confidence AI Studio workflow to a more explicit and suppor
 
 - System: `Elements workflow`
 - Current score: `5/10`
+- Target score: `6/10`
 - Ship floor: `6/10`
 - The boundary still appears transitional and should not stay vague near production launch.
+- Why the score is currently low:
+  - workflow authority and reuse semantics are still soft
+  - persistence expectations are not explicit enough for a production-adjacent surface
 
 ## Recommended agent profile
 
@@ -22,6 +30,20 @@ Workflow modularization agent with strong contract-cleanup and persistence-bound
 ## Scoped task
 
 Investigate the Elements workflow and make one bounded hardening change that clarifies workflow authority, persistence rules, or downstream reuse semantics.
+
+## Owned write surface
+
+- `frontend/features/ai-studio/components/ElementsPanel.tsx`
+- related elements-manager workflow files
+- element persistence paths directly owned by the workflow
+- directly related elements tests
+
+## Avoid surface
+
+- broad asset-management redesign
+- character workflow files except where direct comparison is required for diagnosis
+- unrelated AI Studio panels
+- provider runtime and billing files
 
 ## In scope
 
@@ -74,6 +96,13 @@ Inspect first:
 
 - Stop before broadening into a larger library redesign unless the bounded issue cannot be solved in place.
 
+## Required closeout report
+
+- Path:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+- Filename:
+  - `YYYY-MM-DD-elements-workflow-hardening-closeout.md`
+
 ## Closeout And Archive
 
 - Return one of:
@@ -85,4 +114,5 @@ Inspect first:
   - what was verified
   - residual risk
   - exact next step if unresolved
+- Create the closeout report in the required report path before considering the lane finished.
 - After returning the result, this lane should be considered ready to archive unless the user explicitly reopens it.

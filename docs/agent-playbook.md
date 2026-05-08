@@ -10,6 +10,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 ## Structure to respect
 - App lives in `frontend/` (Next.js pages router with client UI plus internal server API routes).
 - Docs in `docs/`; start at `docs/README.md`, keep API refs in `docs/api/`, SOPs in `docs/sops/`, and ADRs in `docs/adr/`.
+- For system inventory, system rating, workflow-boundary, or panel-to-system mapping tasks, start with `docs/systems/README.md`, `docs/systems/catalog.md`, and `docs/systems/rating-rubric.md`.
 - Supabase bootstrap SQL in `sql/`; do not add secrets.
 - Follow feature module pattern (`features/<name>/{types,constants,data,utils,logic,components}`) and keep pages thin.
 - Aim to keep files under ~500 lines; if they exceed, document why and plan a split.
@@ -58,6 +59,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Run `npm -C frontend run docs:check` to validate markdown/index integrity plus semantic parity checks (routes, API inventory, migrations, archive manifest).
 - Use `skills/skill-session-startup-contract/SKILL.md` at the start of every new task/session to enforce startup preflight, core context loading, and no-edit gating.
 - Use `skills/skill-subagent-audit-research/SKILL.md` when the user asks to audit, inspect, investigate, or do online research; use subagents for substantive lanes when available, allowed, and useful, and close unused subagents at will.
+- For system-catalog work, map natural-language surfaces like `create panel`, `edit panel`, or `video panel` to their system rows first; do not create panel rows unless the repo shows a truly separate system boundary.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
 - Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.
 - Use `agent-teaching/README.md` when creating, training, maintaining, or refreshing task-specific agents, and follow its Notion-mirrored setup and training sequence.

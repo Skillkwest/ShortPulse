@@ -12,12 +12,14 @@ The catalog is a decision tool. It is not the mission.
 
 - Contract: `docs/agents/system-catalog-agent/README.md`
 - Memory: `docs/agents/system-catalog-agent/memory.md`
+- SOP: `docs/agents/system-catalog-agent/standard-operating-procedure.md`
 - Production plan: `docs/agents/system-catalog-agent/production-readiness-plan-2026-06-06.md`
 - Handoff queue: `docs/agents/system-catalog-agent/prioritized-handoff-queue-2026-06-06.md`
 - Score criteria: `docs/agents/system-catalog-agent/system-score-criteria.md`
 - Handoff template: `docs/agents/system-catalog-agent/handoff-template.md`
 - Detailed handoffs: `docs/agents/system-catalog-agent/handoffs/README.md`
 - Dispatch log: `docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-06-dispatch-log.md`
+- External lane closeouts: `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
 
 ## Authority Rule
 

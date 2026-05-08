@@ -20,6 +20,8 @@ Purpose: keep repo-visible memory for the System Catalog Agent's catalog steward
 - 2026-05-06: The current weakest production-critical system is `Generation recovery / settlement` at `4/10`. It is the highest-priority hot-path hardening target until stronger evidence says otherwise.
 - 2026-05-06: Large orchestration surfaces remain a recurring signal of system fragility, especially in AI Studio and media/runtime control paths. Score-lift plans should explicitly consider decomposition, simplification, or rewrite when the architecture is too concentrated.
 - 2026-05-06: The user wants handoffs that other agents can execute directly. Handoffs should be treated as first-class deliverables, not as loose notes.
+- 2026-05-07: External agent completion is not enough to move a score. The Catalog Agent must ingest the closeout report, inspect the repo, and rerate only from repo-backed evidence.
+- 2026-05-07: External execution-agent reports belong in `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/` and should be treated as intake artifacts, not as authoritative catalog updates.
 
 ## Open Follow-Ups
 

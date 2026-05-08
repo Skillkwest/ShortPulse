@@ -20,5 +20,5 @@ Purpose: record helper commands, scripts, and future tooling needs for the Syste
 
 ## Tooling Needs
 
-- A reusable system-handoff template with fixed sections for score-lift work.
+- A reusable closeout diff summarizer if repeated report-intake runs prove too slow or inconsistent.
 - A compact system scorecard generator if repeated runs prove the manual summaries too slow or error-prone.

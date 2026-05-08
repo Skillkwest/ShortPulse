@@ -10,10 +10,12 @@ Purpose: retain working memory notes for the System Catalog Agent outside the pr
 
 ## Current Priority Systems
 
-- `generation-recovery-settlement`
-- `ai-studio-edit-workflow`
-- `ai-studio-characters-workflow`
-- `ai-studio-elements-workflow`
+- Use `docs/agents/system-catalog-agent/prioritized-handoff-queue-2026-06-06.md` as the authority for current priority order.
+- Current active ship-critical focus:
+  - `reference-grid`
+  - `edit-workflow`
+  - `project-workspace-persistence`
+- `generation-recovery-settlement` remains queue-critical but is currently in `completed externally, pending Catalog Agent review` state.
 
 ## Working Rule
 

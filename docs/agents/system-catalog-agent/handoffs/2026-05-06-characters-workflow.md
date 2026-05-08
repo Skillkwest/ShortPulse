@@ -1,5 +1,9 @@
 # Next-Agent Handoff: Characters Workflow Hardening
 
+## Lane Id
+
+`characters-workflow-hardening`
+
 Purpose: convert a low-confidence workflow into a bounded, better-understood surface before ship.
 
 ## Copy/Paste Use
@@ -12,8 +16,12 @@ Purpose: convert a low-confidence workflow into a bounded, better-understood sur
 
 - System: `Characters workflow`
 - Current score: `5/10`
+- Target score: `6/10`
 - Ship floor: `6/10`
 - Confidence is low and the workflow still looks like a likely concentration point for mixed view state, persistence glue, and AI Studio integration assumptions.
+- Why the score is currently low:
+  - workflow authority is still too implicit across shell state, persistence, and mode integration
+  - current confidence is limited by unclear boundaries and sparse targeted evidence
 
 ## Recommended agent profile
 
@@ -22,6 +30,19 @@ Workflow modularization agent with good persistence and shell-state separation d
 ## Scoped task
 
 Find the highest-ROI bounded hardening or decomposition change in the Characters workflow that improves confidence without broadening the scope into a full feature rewrite.
+
+## Owned write surface
+
+- Character workflow shell and controller files
+- Character Mode integration seams owned by the Characters workflow
+- directly related character workflow tests
+
+## Avoid surface
+
+- net-new character feature expansion
+- broad Create workflow files outside Character Mode boundaries
+- storage platform or media-delivery infrastructure
+- unrelated Elements or Reference Grid workflow files
 
 ## In scope
 
@@ -74,6 +95,13 @@ Inspect first:
 
 - Stop before opening a broad character-system redesign with no sharply bounded fix.
 
+## Required closeout report
+
+- Path:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+- Filename:
+  - `YYYY-MM-DD-characters-workflow-hardening-closeout.md`
+
 ## Closeout And Archive
 
 - Return one of:
@@ -85,4 +113,5 @@ Inspect first:
   - what was verified
   - residual risk
   - exact next step if unresolved
+- Create the closeout report in the required report path before considering the lane finished.
 - After returning the result, this lane should be considered ready to archive unless the user explicitly reopens it.

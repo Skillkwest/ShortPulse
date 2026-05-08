@@ -8,6 +8,10 @@ Purpose: provide one reusable handoff format for execution agents working from t
 
 `Next-Agent Handoff: <system or lane>`
 
+### Lane Id
+
+`<lane-id>`
+
 ### Copy/Paste Use
 
 - This document is written to be pasted directly into another agent.
@@ -18,8 +22,10 @@ Purpose: provide one reusable handoff format for execution agents working from t
 
 - Current system:
 - Current score:
+- Target score:
 - Ship floor:
 - Why this is worth doing now:
+- Why the score is currently low:
 
 ### Recommended agent profile
 
@@ -28,6 +34,14 @@ Purpose: provide one reusable handoff format for execution agents working from t
 ### Scoped task
 
 State the smallest high-ROI task that should move the system toward the ship bar.
+
+### Owned write surface
+
+- list the files, directories, or modules this lane may change
+
+### Avoid surface
+
+- list nearby files, directories, or modules this lane should not change
 
 ### In scope
 
@@ -77,6 +91,23 @@ Inspect first:
 
 - when to stop instead of broadening into adjacent systems
 
+### Required closeout report
+
+- Path:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+- Filename:
+  - `YYYY-MM-DD-<lane-id>-closeout.md`
+- Required contents:
+  - lane id
+  - source handoff path
+  - execution status
+  - files changed
+  - summary of what changed
+  - validation run
+  - blockers encountered
+  - residual risk
+  - recommended next step for Catalog Agent review
+
 ### Closeout And Archive
 
 - Return one of:
@@ -88,4 +119,5 @@ Inspect first:
   - what was verified
   - residual risk
   - exact recommended next step
+- Create the closeout report in the required report path before considering the lane finished.
 - After the handoff result is returned to the user, the receiving agent should treat its lane as complete and ready to archive unless the user explicitly continues that same lane.

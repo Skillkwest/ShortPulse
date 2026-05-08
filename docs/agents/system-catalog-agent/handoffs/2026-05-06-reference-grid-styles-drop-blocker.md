@@ -1,5 +1,9 @@
 # Next-Agent Handoff: Reference Grid Styles Drop Blocker
 
+## Lane Id
+
+`reference-grid-styles-drop-blocker`
+
 Purpose: resolve the current P0 known-issue path that blocks final AI Studio closeout.
 
 ## Copy/Paste Use
@@ -12,9 +16,13 @@ Purpose: resolve the current P0 known-issue path that blocks final AI Studio clo
 
 - System: `Reference Grid`
 - Current score: `6/10`
+- Target score: `7/10`
 - Ship floor: `7/10`
 - There is an active P0 known issue in `docs/known-issues.md`: `KI-AI-RG-STYLES-001`
 - Final ship signoff should not proceed while this workflow remains broken without fresh waiver evidence.
+- Why the score is currently low:
+  - an active ship-path blocker still exists in a core user-facing workflow
+  - internal drop authority and payload handling are not trusted enough yet
 
 ## Recommended agent profile
 
@@ -25,6 +33,19 @@ AI Studio runtime hardening agent with strong drag/drop, media-source, and chara
 Run a characterization-first investigation and fix pass for the Reference Grid -> Styles image drop path.
 
 The goal is to make one failing internal image drop path reliable or to reduce the issue to one sharply bounded remaining defect with captured payload evidence.
+
+## Owned write surface
+
+- `frontend/features/ai-studio/components/style-creator/`
+- `frontend/features/ai-studio/utils/dragDrop.ts`
+- directly related tests for style intake and internal reference drops
+
+## Avoid surface
+
+- generation runtime control-plane files
+- billing or pricing files
+- broad Media Library architecture
+- unrelated AI Studio panels and workflows
 
 ## In scope
 
@@ -83,6 +104,13 @@ Inspect first:
 
 - Stop if the next step requires broad media architecture changes without first locking passing/failing payloads as tests.
 
+## Required closeout report
+
+- Path:
+  - `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/`
+- Filename:
+  - `YYYY-MM-DD-reference-grid-styles-drop-blocker-closeout.md`
+
 ## Closeout And Archive
 
 - Return one of:
@@ -94,4 +122,5 @@ Inspect first:
   - what was verified
   - residual risk
   - exact next step if unresolved
+- Create the closeout report in the required report path before considering the lane finished.
 - After returning the result, this lane should be considered ready to archive unless the user explicitly reopens it.

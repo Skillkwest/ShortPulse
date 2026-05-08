@@ -86,6 +86,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/systems/catalog.md`
 - `docs/systems/rating-rubric.md`
 - `docs/systems/rating-pass-template.md`
+- `docs/systems/ship-readiness-scoreboard.md`
 - `docs/systems/next-agent-handoff-generation-recovery-hardening.md`
 - `docs/local-development.md`
 - `docs/deployment.md`

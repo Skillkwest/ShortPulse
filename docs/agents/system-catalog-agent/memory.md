@@ -22,6 +22,7 @@ Purpose: keep repo-visible memory for the System Catalog Agent's catalog steward
 - 2026-05-06: The user wants handoffs that other agents can execute directly. Handoffs should be treated as first-class deliverables, not as loose notes.
 - 2026-05-07: External agent completion is not enough to move a score. The Catalog Agent must ingest the closeout report, inspect the repo, and rerate only from repo-backed evidence.
 - 2026-05-07: External execution-agent reports belong in `docs/records/artifacts/agent/system-catalog-agent/reports/external-lane-closeouts/` and should be treated as intake artifacts, not as authoritative catalog updates.
+- 2026-05-07: The catalog itself now carries ship-floor, ship-status, priority-band, active-lane, and review-basis fields. That means the canonical system registry can also act as a release-control surface without forcing multiple-doc reconciliation for basic ship questions.
 
 ## Open Follow-Ups
 

@@ -139,3 +139,18 @@ Actions taken:
 Training result:
 
 - The SOP is now a stronger standing authority instead of a document that would drift at the next production-window rollover.
+
+## 2026-05-07: Catalog Model Hardening
+
+Task: redesign the systems catalog so it works as a stronger ship-readiness tool instead of only an architecture registry.
+
+Actions taken:
+
+- Added first-class ship-control fields to the catalog model: `Rating state`, `Ship floor`, `Ship status`, `Priority band`, `Active blocker`, `Active lane`, and `Review basis`.
+- Tightened the `/10` scoring contract so the shorthand is derived from the `Health` band and shaped by risk, confidence, blockers, and calibration state.
+- Updated the rating-pass template to capture the new fields during every rating run.
+- Added a derived ship-readiness scoreboard under `docs/systems/` for fast release-control reads.
+
+Training result:
+
+- The canonical systems catalog is now much closer to a usable release-control instrument instead of a good-but-passive architecture table.

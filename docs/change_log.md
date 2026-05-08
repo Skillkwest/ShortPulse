@@ -3,6 +3,10 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Documentation sync:
+  - updated `docs/product/ai-studio-pricing.md` and `README.md` to reflect the current admin pricing workspace contract,
+  - documented the `60%` default shared-policy markup, whole-credit rounding default, refresh-persistent local pricing drafts, Kie pricing source-of-truth at [kie.ai/pricing](https://kie.ai/pricing), and GPT text-model `Per 50,000 characters` blended-character basis,
+  - and recorded the live Seedance 2 / Seedance 2 Fast Kie pricing splits plus the simplified GPT blended-character pricing baselines used in the admin grid.
 - Documentation governance:
   - corrected the `docs/routes.md` auth vocabulary so handler-authenticated GPT Image 2 routes no longer falsely claim shared runtime auth-guard coverage,
   - updated the semantic-drift checker to distinguish shared runtime-protected routes from route-level bearer-authenticated routes,

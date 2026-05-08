@@ -151,6 +151,7 @@ export default function AdminPricingPage() {
             updatePlanDraft={pageState.updatePlanEconomicsDraft}
             addSimulatorPlan={pageState.addSimulatorPlan}
             removeSimulatorPlan={pageState.removeSimulatorPlan}
+            reorderSimulatorPlans={pageState.reorderSimulatorPlans}
             isDraftDirty={pageState.canApplyModelPolicy}
           />
 

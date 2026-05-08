@@ -76,7 +76,7 @@ describe("pricingAnalysis", () => {
     expect(summary.includedCredits).toBe(1500);
   });
 
-  it("builds plan margin simulator rows from money-kept-per-credit math", () => {
+  it("builds plan margin simulator rows from discounted-then-affiliate money-kept-per-credit math", () => {
     const pricingPolicy = {
       ...getDefaultModelPricingPolicyDocument(),
       perModel: {
@@ -153,7 +153,7 @@ describe("pricingAnalysis", () => {
     expect(rows[0]?.marginPercent).toBeCloseTo(86.90385245007094, 6);
   });
 
-  it("maps billed credits into retained plan revenue using money kept per included credit", () => {
+  it("maps billed credits into retained plan revenue using discounted-then-affiliate money kept per included credit", () => {
     const planSummary = computePlanMarginSummary({
       simulatedName: "Plan",
       priceUsd: "49",
@@ -200,7 +200,7 @@ describe("pricingAnalysis", () => {
     expect(rows[0]?.profitAfterDiscountAffiliateUsd).toBeCloseTo((41.65 / 1500) * 97 - 2.03, 6);
   });
 
-  it("subtracts affiliate from the original plan price before computing retained value per credit", () => {
+  it("subtracts affiliate from the discounted plan price before computing retained value per credit", () => {
     const planSummary = computePlanMarginSummary({
       simulatedName: "Plan",
       priceUsd: "49",
@@ -212,9 +212,26 @@ describe("pricingAnalysis", () => {
     });
 
     expect(planSummary.afterDiscountUsd).toBeCloseTo(39.2, 6);
-    expect(planSummary.affiliateCostUsd).toBeCloseTo(7.35, 6);
-    expect(planSummary.moneyKeptUsd).toBeCloseTo(31.85, 6);
-    expect(planSummary.dollarPerCredit).toBeCloseTo(31.85 / 1500, 6);
+    expect(planSummary.affiliateCostUsd).toBeCloseTo(5.88, 6);
+    expect(planSummary.moneyKeptUsd).toBeCloseTo(33.32, 6);
+    expect(planSummary.dollarPerCredit).toBeCloseTo(33.32 / 1500, 6);
+  });
+
+  it("matches the yearly-plan example where affiliate is deducted after discount", () => {
+    const planSummary = computePlanMarginSummary({
+      simulatedName: "$299/mo YEARLY",
+      priceUsd: "299",
+      includedCredits: "8000",
+      discountPct: "23",
+      affiliatePct: "15",
+      processorPct: "0",
+      processorFlatUsd: "0",
+    });
+
+    expect(planSummary.afterDiscountUsd).toBeCloseTo(230.23, 6);
+    expect(planSummary.affiliateCostUsd).toBeCloseTo(34.5345, 6);
+    expect(planSummary.moneyKeptUsd).toBeCloseTo(195.6955, 6);
+    expect(planSummary.dollarPerCredit).toBeCloseTo(195.6955 / 8000, 6);
   });
 
   it("keeps usage-mix monthly revenue capped to the plan net revenue", () => {

@@ -30,15 +30,17 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - Default policy:
   - Base conversion: `1 credit = $0.01`
   - Markup is model-specific only; legacy top-level markup fields are ignored during normalization.
+  - Default shared-policy markup in the admin pricing workspace is `60%` unless a model or variant override is supplied.
   - Default credits: `rawCredits = ceil(providerUsd * creditUsdScale * (1 + modelMarkupBps / 10000))`, `credits = rawCredits`
 - Per-model overrides:
-  - Blank model markup fields calculate as `0%`; filled model markup fields control only that model.
+  - Blank model markup fields inherit the active shared-policy default (`60%` in the current admin grid baseline); filled model markup fields control only that model.
   - Filled credit-conversion override fields replace the global conversion value for that model.
-  - `roundingIncrement` is row-specific only. Blank means no additional round-nearest behavior.
+  - `roundingIncrement` is row-specific only. The current admin pricing workspace defaults to whole-credit rounding and hides the dedicated Round Up column from the primary grid.
 - Blocked-pricing models remain legacy/no-markup until provider evidence is supplied.
 - Current blocked set: none.
 - `usdRaw` is provider USD before markup/rounding; `usd` is billed USD (`credits * 0.01`).
 - Runtime authority: admin edits create a new versioned policy document and update the control-plane singleton; AI Studio clients and server billing both resolve that same active document with a short cache TTL.
+- `/admin/pricing` is the operator-facing review surface for that policy: grouped parent rows summarize model families, expandable variant rows carry the editable provider-cost and markup inputs, and browser-local draft state survives refreshes until the operator applies or resets the draft.
 - ElevenLabs sound generation now bills through the shared model-pricing engine for:
   - `eleven_multilingual_v2` (voiceover) by billed character count
   - `eleven_multilingual_sts_v2` (voice changer) by processed source duration
@@ -57,10 +59,12 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `seedream-5-lite-per-image`: `$0.035` per image.
 - `kling-3-per-second`:
   - Fal lanes: `$0.112/s` audio-off, `$0.168/s` audio-on, `$0.196/s` audio+voice
-  - Kie lane (`kie-ai/kling-3.0`): bill on Kie `mode` rather than raw `resolution`; observed `std` audio-off = `14` Kie credits/s (`$0.07/s`), observed `pro` audio-off = `18` Kie credits/s (`$0.09/s`), and current runtime keeps a `1.5x` sound-on premium for those mode baselines until richer Kie evidence is captured.
-- `veo-3-per-second`: Fal lanes use `$0.20/$0.40` (no-audio/audio) for non-4K and `$0.40/$0.60` for 4K; `kie-ai/veo-3.1-fast-i2v` uses fixed `$0.40` per video from current Kie pricing evidence.
-- `seedance-1.5-per-second`: Kie-log-backed rate table for `kie-ai/seedance-1.5-pro`: `720p` `$0.0175/s` audio-off and `$0.035/s` audio-on; `1080p` `$0.0375/s` audio-off and `$0.075/s` audio-on; `480p` remains a conservative interim baseline pending direct Kie evidence.
-- `openai-text-token`: OpenAI standard short-context token rates for `gpt-5.4` (`$2.50`/M input, `$0.25`/M cached input, `$15.00`/M output), `gpt-5.4-mini` (`$0.75`/M input, `$0.075`/M cached input, `$4.50`/M output), and `gpt-5.4-nano` (`$0.20`/M input, `$0.02`/M cached input, `$1.25`/M output), then shared credit conversion plus any per-model markup and row-specific round-nearest override.
+  - Kie lane (`kie-ai/kling-3.0`): use [Kie pricing](https://kie.ai/pricing) as source of truth. Current shared-policy rows split by resolution and audio state in the admin grid: `1080p / audio off = $0.09/s`, `1080p / audio on = $0.135/s`, `720p / audio off = $0.07/s`, `720p / audio on = $0.105/s`.
+- `veo-3-per-second`: Fal lanes use `$0.20/$0.40` (no-audio/audio) for non-4K and `$0.40/$0.60` for 4K; `kie-ai/veo-3.1-fast-i2v` currently uses fixed per-video Kie pricing evidence and is displayed in the admin grid as a flat-per-video lane rather than a pure per-second lane.
+- `seedance-1.5-per-second`: use [Kie pricing](https://kie.ai/pricing) as source of truth. Current runtime/admin rows split by resolution plus `with video input` vs `no video input`: `1080p` `$0.15/s` with video input and `$0.30/s` without video input, `720p` `$0.07/s` with video input and `$0.14/s` without video input, `480p` `$0.04/s` with video input and `$0.08/s` without video input.
+- `seedance-2-per-second`: use [Kie pricing](https://kie.ai/pricing) as source of truth. Current runtime/admin rows split by resolution plus `with video input` vs `no video input`: `1080p` `$0.31/s` with video input and `$0.51/s` without, `720p` `$0.125/s` with and `$0.205/s` without, `480p` `$0.0575/s` with and `$0.095/s` without.
+- `seedance-2-fast-per-second`: use [Kie pricing](https://kie.ai/pricing) as source of truth. Current runtime/admin rows split by resolution plus `with video input` vs `no video input`: `720p` `$0.10/s` with and `$0.165/s` without, `480p` `$0.045/s` with and `$0.0775/s` without.
+- `openai-text-token`: admin pricing uses simplified blended-character estimates rather than raw input/output token tables. The current admin grid treats these rows as `Per 50,000 characters`, with editable character count and screenshot-based provider baselines: `gpt-5.4-nano $0.009`, `gpt-5.4-mini $0.033`, `gpt-5.4 $0.141`, `gpt-5.5 $0.281`, and `gpt-5.4-pro` / `gpt-5.5-pro $1.69` per `50,000` blended characters. The `Rate Source` value stays fixed at the 50k basis while `$ at cost`, credits, billed USD, and margin scale linearly with the chosen character count.
 
 ## Tests
 

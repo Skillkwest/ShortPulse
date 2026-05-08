@@ -43,6 +43,7 @@ type PricingCalculatorSupportStripProps = {
   updatePlanDraft: (planId: string, field: keyof PlanEconomicsDraft, value: string) => void;
   addSimulatorPlan: () => void;
   removeSimulatorPlan: (planId: string) => void;
+  reorderSimulatorPlans: (fromPlanId: string, targetIndex: number) => void;
   isDraftDirty: boolean;
 };
 
@@ -68,6 +69,9 @@ type PlanMarginPlanCardProps = {
   toggleModelExpanded: (planId: string, modelId: string) => void;
   updatePlanDraft: (planId: string, field: keyof PlanEconomicsDraft, value: string) => void;
   removeSimulatorPlan: (planId: string) => void;
+  isDragging: boolean;
+  onDragStartCard: (planId: string) => void;
+  onDragEndCard: () => void;
 };
 
 const getFiniteValues = (values: Array<number | null | undefined>): number[] =>
@@ -111,6 +115,11 @@ const getMarginToneStyle = (
   return {
     color: `hsl(${hue.toFixed(1)}deg ${saturation.toFixed(1)}% ${lightness.toFixed(1)}%)`,
   };
+};
+
+const formatNegativeProviderCostUsd = (value: number | null | undefined): string => {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return `-${formatProviderCostUsd(value)}`;
 };
 
 const getTypeSummary = (rows: PlanMarginModelRow[]): string => {
@@ -160,6 +169,9 @@ function PlanMarginPlanCard({
   toggleModelExpanded,
   updatePlanDraft,
   removeSimulatorPlan,
+  isDragging,
+  onDragStartCard,
+  onDragEndCard,
 }: PlanMarginPlanCardProps) {
   const tableShellRef = React.useRef<HTMLDivElement | null>(null);
   const tableScrollerRef = React.useRef<HTMLDivElement | null>(null);
@@ -259,7 +271,12 @@ function PlanMarginPlanCard({
   const fallbackSimulatorTitle = `${formatProviderCostUsd(planSummary.grossUsd)}/mo ${planLabel}`;
 
   return (
-    <details className={styles.pricingPlanMarginCard} open>
+    <details
+      className={`${styles.pricingPlanMarginCard} ${isDragging ? styles.pricingPlanMarginCardDragging : ""}`}
+      open
+      role="group"
+      aria-label={`${planDraft.simulatedName || fallbackSimulatorTitle} simulator plan`}
+    >
       <summary className={styles.pricingPlanMarginSummary}>
         <span
           className={styles.pricingPlanMarginSummaryTitle}
@@ -277,6 +294,27 @@ function PlanMarginPlanCard({
           </span>
         </span>
         <span className={styles.pricingPlanMarginSummaryActions}>
+          <button
+            type="button"
+            className={styles.pricingPlanMarginDragHandle}
+            aria-label={`Reorder ${planDraft.simulatedName || fallbackSimulatorTitle} simulator plan`}
+            title="Drag to reorder simulator plan"
+            draggable
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onDragStart={(event) => {
+              event.stopPropagation();
+              onDragStartCard(planId);
+            }}
+            onDragEnd={(event) => {
+              event.stopPropagation();
+              onDragEndCard();
+            }}
+          >
+            Drag
+          </button>
           <span className={styles.pricingPlanMarginSummaryMeta}>{modelGroups.length} models</span>
           <button
             type="button"
@@ -344,6 +382,10 @@ function PlanMarginPlanCard({
             <div className={styles.pricingPlanMarginSummaryRow}>
               <span>Price after discount</span>
               <strong>{formatProviderCostUsd(planSummary.afterDiscountUsd)}</strong>
+            </div>
+            <div className={styles.pricingPlanMarginSummaryRow}>
+              <span>Affiliate deduction</span>
+              <strong>{formatNegativeProviderCostUsd(planSummary.affiliateCostUsd)}</strong>
             </div>
             <div className={styles.pricingPlanMarginSummaryRow}>
               <span>Money kept</span>
@@ -672,9 +714,12 @@ export function PricingCalculatorSupportStrip({
   updatePlanDraft,
   addSimulatorPlan,
   removeSimulatorPlan,
+  reorderSimulatorPlans,
   isDraftDirty,
 }: PricingCalculatorSupportStripProps) {
   const [expandedModelKeys, setExpandedModelKeys] = React.useState<Record<string, boolean>>({});
+  const [draggedPlanId, setDraggedPlanId] = React.useState<string | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = React.useState<number | null>(null);
 
   const orderedPlans = React.useMemo(
     () => [...plans].sort((left, right) => left.sortOrder - right.sortOrder),
@@ -719,6 +764,31 @@ export function PricingCalculatorSupportStrip({
     }));
   }, []);
 
+  const handleDragStartCard = React.useCallback((planId: string) => {
+    setDraggedPlanId(planId);
+    setDropTargetIndex(null);
+  }, []);
+
+  const handleDragEnterSlot = React.useCallback((targetIndex: number) => {
+    setDropTargetIndex(targetIndex);
+  }, []);
+
+  const handleDropSlot = React.useCallback(
+    (targetIndex: number) => {
+      if (draggedPlanId) {
+        reorderSimulatorPlans(draggedPlanId, targetIndex);
+      }
+      setDraggedPlanId(null);
+      setDropTargetIndex(null);
+    },
+    [draggedPlanId, reorderSimulatorPlans]
+  );
+
+  const handleDragEndCard = React.useCallback(() => {
+    setDraggedPlanId(null);
+    setDropTargetIndex(null);
+  }, []);
+
   return (
     <section className={`${styles.adminSection} ${styles.pricingCalculatorSupportStrip}`}>
       <div className={styles.adminSectionHead}>
@@ -748,7 +818,7 @@ export function PricingCalculatorSupportStrip({
           </div>
         ) : null}
 
-        {simulatorPlanIds.map((planId) => {
+        {simulatorPlanIds.map((planId, index) => {
           const plan = plansById[planId] ?? null;
           const planDraft = planDraftsByPlanId[planId] ?? buildDefaultPlanEconomicsDraft(plan);
           const planSummary = computePlanMarginSummary({
@@ -763,20 +833,40 @@ export function PricingCalculatorSupportStrip({
           const modelGroups = buildPlanMarginGroups(displayedModels, marginRows);
 
           return (
-            <PlanMarginPlanCard
-              key={planId}
-              planId={planId}
-              plan={plan}
-              planDraft={planDraft}
-              planSummary={planSummary}
-              modelGroups={modelGroups}
-              expandedModelKeys={expandedModelKeys}
-              toggleModelExpanded={toggleModelExpanded}
-              updatePlanDraft={updatePlanDraft}
-              removeSimulatorPlan={removeSimulatorPlan}
-            />
+            <React.Fragment key={planId}>
+              <div
+                className={`${styles.pricingPlanMarginDropSlot} ${dropTargetIndex === index ? styles.pricingPlanMarginDropSlotActive : ""}`}
+                aria-hidden="true"
+                onDragEnter={() => handleDragEnterSlot(index)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => handleDropSlot(index)}
+              />
+              <PlanMarginPlanCard
+                planId={planId}
+                plan={plan}
+                planDraft={planDraft}
+                planSummary={planSummary}
+                modelGroups={modelGroups}
+                expandedModelKeys={expandedModelKeys}
+                toggleModelExpanded={toggleModelExpanded}
+                updatePlanDraft={updatePlanDraft}
+                removeSimulatorPlan={removeSimulatorPlan}
+                isDragging={draggedPlanId === planId}
+                onDragStartCard={handleDragStartCard}
+                onDragEndCard={handleDragEndCard}
+              />
+            </React.Fragment>
           );
         })}
+        {simulatorPlanIds.length > 0 ? (
+          <div
+            className={`${styles.pricingPlanMarginDropSlot} ${dropTargetIndex === simulatorPlanIds.length ? styles.pricingPlanMarginDropSlotActive : ""}`}
+            aria-hidden="true"
+            onDragEnter={() => handleDragEnterSlot(simulatorPlanIds.length)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={() => handleDropSlot(simulatorPlanIds.length)}
+          />
+        ) : null}
       </div>
     </section>
   );

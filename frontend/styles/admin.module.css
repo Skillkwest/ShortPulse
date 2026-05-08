@@ -2952,7 +2952,7 @@
 
 .pricingPlanMarginList {
   display: grid;
-  gap: 16px;
+  gap: 0;
 }
 
 .pricingPlanMarginToolbar {
@@ -2986,13 +2986,43 @@
   overflow: hidden;
 }
 
+.pricingPlanMarginCardDragging {
+  opacity: 0.68;
+}
+
+.pricingPlanMarginDropSlot {
+  height: 16px;
+  position: relative;
+}
+
+.pricingPlanMarginDropSlot::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: transparent;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    height 140ms ease;
+}
+
+.pricingPlanMarginDropSlotActive::after {
+  height: 3px;
+  background: rgba(78, 160, 158, 0.92);
+  box-shadow: 0 0 0 1px rgba(78, 160, 158, 0.28);
+}
+
 .pricingPlanMarginSummary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 18px 20px;
-  cursor: pointer;
+  cursor: default;
   list-style: none;
 }
 
@@ -3011,6 +3041,28 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.pricingPlanMarginDragHandle {
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  cursor: grab;
+}
+
+.pricingPlanMarginDragHandle:active {
+  cursor: grabbing;
+}
+
+.pricingPlanMarginDragHandle:hover {
+  border-color: rgba(78, 160, 158, 0.45);
+  color: var(--admin-text-strong);
 }
 
 .pricingPlanMarginSummaryNameInput {

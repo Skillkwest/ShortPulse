@@ -436,8 +436,8 @@ export const computePlanMarginSummary = (
 
   const discountAmountUsd = grossUsd * (discountPct / 100);
   const afterDiscountUsd = grossUsd - discountAmountUsd;
-  const affiliateCostUsd = grossUsd * (affiliatePct / 100);
-  const moneyKeptUsd = Math.max(0, grossUsd - discountAmountUsd - affiliateCostUsd);
+  const affiliateCostUsd = afterDiscountUsd * (affiliatePct / 100);
+  const moneyKeptUsd = Math.max(0, afterDiscountUsd - affiliateCostUsd);
   const dollarPerCredit = includedCredits > 0 ? moneyKeptUsd / includedCredits : null;
 
   return {

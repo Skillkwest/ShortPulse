@@ -110,6 +110,7 @@ describe("PricingCalculatorSupportStrip", () => {
         updatePlanDraft={vi.fn()}
         addSimulatorPlan={vi.fn()}
         removeSimulatorPlan={vi.fn()}
+        reorderSimulatorPlans={vi.fn()}
         isDraftDirty={false}
       />
     );
@@ -118,19 +119,20 @@ describe("PricingCalculatorSupportStrip", () => {
     expect(screen.getByDisplayValue("$49.00/mo Plus")).toBeInTheDocument();
     expect(screen.getByText("Model economics (mirrors pricing grid variants)")).toBeInTheDocument();
     expect(screen.getByText("$39.20")).toBeInTheDocument();
-    expect(screen.getByText("$31.85")).toBeInTheDocument();
-    expect(screen.getByText("$0.0212")).toBeInTheDocument();
+    expect(screen.getByText("-$5.88")).toBeInTheDocument();
+    expect(screen.getByText("$33.32")).toBeInTheDocument();
+    expect(screen.getByText("$0.0222")).toBeInTheDocument();
     expect(screen.getAllByText("2 price variants")).toHaveLength(2);
     expect(screen.getByText("$2.40 to $3.25")).toBeInTheDocument();
-    expect(screen.getByText("$1.53 to $2.06")).toBeInTheDocument();
+    expect(screen.getByText("$1.60 to $2.15")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Veo 3\.1/i }));
 
     expect(screen.getByText("Variant 1")).toBeInTheDocument();
     expect(screen.getByText("97")).toBeInTheDocument();
     expect(screen.getByText("$3.25")).toBeInTheDocument();
-    expect(screen.getByText("$2.06")).toBeInTheDocument();
-    expect(screen.getByText("$0.0296")).toBeInTheDocument();
+    expect(screen.getByText("$2.15")).toBeInTheDocument();
+    expect(screen.getByText("$0.1247")).toBeInTheDocument();
   });
 
   it("lets the simulator title be renamed without coupling that input to the price field", () => {
@@ -180,6 +182,7 @@ describe("PricingCalculatorSupportStrip", () => {
         updatePlanDraft={updatePlanDraft}
         addSimulatorPlan={vi.fn()}
         removeSimulatorPlan={vi.fn()}
+        reorderSimulatorPlans={vi.fn()}
         isDraftDirty={false}
       />
     );
@@ -221,6 +224,7 @@ describe("PricingCalculatorSupportStrip", () => {
         updatePlanDraft={vi.fn()}
         addSimulatorPlan={addSimulatorPlan}
         removeSimulatorPlan={removeSimulatorPlan}
+        reorderSimulatorPlans={vi.fn()}
         isDraftDirty={false}
       />
     );
@@ -230,5 +234,56 @@ describe("PricingCalculatorSupportStrip", () => {
 
     expect(addSimulatorPlan).toHaveBeenCalledTimes(1);
     expect(removeSimulatorPlan).toHaveBeenCalledWith("sim-plan-1");
+  });
+
+  it("supports drag-and-drop reordering for simulator plan cards", () => {
+    const reorderSimulatorPlans = vi.fn();
+
+    render(
+      <PricingCalculatorSupportStrip
+        plans={[]}
+        displayedModels={[buildModelRow({})]}
+        effectiveModelPolicyDraft={getDefaultModelPricingPolicyDocument()}
+        durationDrafts={{}}
+        aspectDrafts={{}}
+        resolutionDrafts={{}}
+        audioDrafts={{}}
+        modelSortOption="model_asc"
+        planDraftsByPlanId={{
+          "sim-plan-1": {
+            simulatedName: "$15/mo",
+            priceUsd: "15",
+            includedCredits: "450",
+            discountPct: "0",
+            affiliatePct: "0",
+            processorPct: "2.9",
+            processorFlatUsd: "0.30",
+          },
+          "sim-plan-2": {
+            simulatedName: "$49/mo",
+            priceUsd: "49",
+            includedCredits: "1200",
+            discountPct: "0",
+            affiliatePct: "0",
+            processorPct: "2.9",
+            processorFlatUsd: "0.30",
+          },
+        }}
+        simulatorPlanIds={["sim-plan-1", "sim-plan-2"]}
+        updatePlanDraft={vi.fn()}
+        addSimulatorPlan={vi.fn()}
+        removeSimulatorPlan={vi.fn()}
+        reorderSimulatorPlans={reorderSimulatorPlans}
+        isDraftDirty={false}
+      />
+    );
+
+    const dragHandles = screen.getAllByRole("button", { name: /reorder .* simulator plan/i });
+    const dropSlots = document.querySelectorAll('[class*="pricingPlanMarginDropSlot"]');
+    fireEvent.dragStart(dragHandles[0]);
+    fireEvent.dragEnter(dropSlots[2]);
+    fireEvent.drop(dropSlots[2]);
+
+    expect(reorderSimulatorPlans).toHaveBeenCalledWith("sim-plan-1", 2);
   });
 });

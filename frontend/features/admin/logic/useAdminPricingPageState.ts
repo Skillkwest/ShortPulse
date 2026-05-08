@@ -549,6 +549,25 @@ export function useAdminPricingPageState({
     });
   }, []);
 
+  const reorderSimulatorPlans = React.useCallback(
+    (fromPlanId: string, targetIndex: number) => {
+      setSimulatorPlanIds((current) => {
+        const source = current ?? buildLiveSimulatorPlanIds();
+        const fromIndex = source.indexOf(fromPlanId);
+        if (fromIndex < 0) return source;
+        const boundedTargetIndex = Math.max(0, Math.min(targetIndex, source.length));
+        if (boundedTargetIndex === fromIndex || boundedTargetIndex === fromIndex + 1) return source;
+        const next = [...source];
+        const [moved] = next.splice(fromIndex, 1);
+        const adjustedTargetIndex =
+          boundedTargetIndex > fromIndex ? boundedTargetIndex - 1 : boundedTargetIndex;
+        next.splice(adjustedTargetIndex, 0, moved);
+        return next;
+      });
+    },
+    [buildLiveSimulatorPlanIds]
+  );
+
   const updateUsageMixRow = React.useCallback(
     (rowId: string, patch: Partial<UsageMixDraftRow>) => {
       if (!selectedUsagePlanId) return;
@@ -1015,6 +1034,7 @@ export function useAdminPricingPageState({
     updatePlanEconomicsDraft,
     addSimulatorPlan,
     removeSimulatorPlan,
+    reorderSimulatorPlans,
     selectedUsagePlanId,
     setSelectedUsagePlanId,
     selectedUsagePlan,

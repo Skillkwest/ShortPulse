@@ -367,12 +367,6 @@ export function AdminAgentInstructionsSection() {
     []
   );
 
-  const handleResetEditSystemPresets = React.useCallback(() => {
-    setEditSystemPresetDrafts(buildAdminEditPresetDrafts());
-    setNextEditPresetDraftIndex(buildAdminEditPresetDrafts().length + 1);
-    setPendingEditSystemPreset(null);
-  }, []);
-
   const handleAddEditSystemPreset = React.useCallback(() => {
     setPendingEditSystemPreset(buildEmptyAdminEditPresetDraft(nextEditPresetDraftIndex));
     setNextEditPresetDraftIndex((current) => current + 1);
@@ -525,30 +519,6 @@ export function AdminAgentInstructionsSection() {
 
   return (
     <section className={`${styles.adminSection} ${styles.adminAgentInstructionsSection}`}>
-      <div className={styles.agentInstructionToolbarRow}>
-        <div className={styles.agentInstructionActions}>
-          <button type="button" className="ghost-btn mini" onClick={handleAddPulseDraft}>
-            Add built-in Pulse
-          </button>
-          <button
-            type="button"
-            className="ghost-btn mini"
-            onClick={handleResetAllPulseDrafts}
-            disabled={!hasPulseUnsavedChanges || pulseLoading}
-          >
-            Reset to stored set
-          </button>
-          <button
-            type="button"
-            className="ghost-btn mini"
-            onClick={() => void handleSavePulseDrafts()}
-            disabled={pulseLoading || pulseSaveState === "saving" || !hasPulseUnsavedChanges}
-          >
-            {pulseSaveState === "saving" ? "Saving..." : "Save Pulse set"}
-          </button>
-        </div>
-      </div>
-
       <div className={styles.agentInstructionWorkspace}>
         <article
           className={`${styles.agentInstructionCard} ${styles.agentInstructionStandardCard}`}
@@ -767,18 +737,6 @@ export function AdminAgentInstructionsSection() {
                 only for now and does not persist to a shared control plane yet.
               </p>
             </div>
-            <div className={styles.agentInstructionActions}>
-              <button type="button" className="ghost-btn mini" onClick={handleAddEditSystemPreset}>
-                Add preset
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={handleResetEditSystemPresets}
-              >
-                Reset to defaults
-              </button>
-            </div>
           </div>
 
           <div
@@ -786,10 +744,6 @@ export function AdminAgentInstructionsSection() {
             className={styles.agentInstructionCollapsibleBody}
             hidden={editSystemPresetCardCollapsed}
           >
-            <div className={styles.agentEditPresetSurfaceHeader}>
-              <span className={styles.agentEditPresetModePill}>Edit</span>
-              <h4 className={styles.agentEditPresetSurfaceTitle}>Edit Mode Presets</h4>
-            </div>
             <div
               className={styles.agentEditPresetGrid}
               role="list"
@@ -851,15 +805,17 @@ export function AdminAgentInstructionsSection() {
           className={`${styles.agentInstructionModeSection} ${styles.agentInstructionPulseSection}`}
         >
           <div className={styles.agentInstructionModeHeader}>
-            <div>
-              <p className={styles.agentInstructionModeEyebrow}>Pulse mode</p>
-              <h3 className={styles.agentInstructionModeTitle}>Global built-in Pulse set</h3>
+            <div className={styles.agentInstructionModeHeaderTop}>
+              <div>
+                <p className={styles.agentInstructionModeEyebrow}>Pulse mode</p>
+                <h3 className={styles.agentInstructionModeTitle}>Global built-in Pulse set</h3>
+              </div>
             </div>
             <p className={styles.agentInstructionModeDescription}>
               These entries are the shared built-in Pulse catalog. Seeded content is just a starting
               point. Save applies the current set for all Create users.
             </p>
-            <div className={styles.agentInstructionModeActions}>
+            <div className={styles.agentInstructionModeMetaRow}>
               <button
                 type="button"
                 className={styles.agentInstructionCollapseToggle}
@@ -965,7 +921,7 @@ export function AdminAgentInstructionsSection() {
                         className="ghost-btn mini"
                         onClick={() => handleRemovePulseDraft(draft.localId)}
                       >
-                        Remove
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -1110,28 +1066,37 @@ export function AdminAgentInstructionsSection() {
               );
             })}
 
-            {pulseDrafts.length === 0 ? (
-              <article className={styles.agentInstructionCard}>
-                <div className={styles.agentInstructionModeHeader}>
-                  <h4 className={styles.agentInstructionTitle}>No built-in Pulse slots drafted</h4>
-                  <p className={styles.agentInstructionModeDescription}>
-                    Add a new slot to define the shared built-in Pulse catalog from a blank slate.
-                  </p>
-                </div>
-                <div className={styles.agentInstructionActions}>
-                  <button type="button" className="ghost-btn mini" onClick={handleAddPulseDraft}>
-                    Add built-in Pulse
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => void refreshPulseBuiltIns()}
-                  >
-                    Reload stored set
-                  </button>
-                </div>
-              </article>
-            ) : null}
+            <article className={`${styles.agentInstructionCard} ${styles.agentInstructionAddCard}`}>
+              <button
+                type="button"
+                className={styles.agentInstructionAddTile}
+                onClick={handleAddPulseDraft}
+              >
+                <span className={styles.agentInstructionAddIcon}>+</span>
+                <span className={styles.agentInstructionAddTitle}>Add built-in Pulse</span>
+                <span className={styles.agentInstructionAddDescription}>
+                  Create another shared Pulse slot at the bottom of this catalog.
+                </span>
+              </button>
+              <div className={styles.agentInstructionFooterActions}>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={handleResetAllPulseDrafts}
+                  disabled={!hasPulseUnsavedChanges || pulseLoading}
+                >
+                  Reset to stored set
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => void handleSavePulseDrafts()}
+                  disabled={pulseLoading || pulseSaveState === "saving" || !hasPulseUnsavedChanges}
+                >
+                  {pulseSaveState === "saving" ? "Saving..." : "Save Pulse set"}
+                </button>
+              </div>
+            </article>
           </div>
           {pulseSectionCollapsed ? (
             <p className={styles.agentInstructionCollapsedSummary}>

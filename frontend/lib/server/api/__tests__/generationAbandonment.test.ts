@@ -185,4 +185,36 @@ describe("recordGenerationAbandonment", () => {
       })
     );
   });
+
+  it("does not terminalize an active generation when no-refund settlement does not complete", async () => {
+    const supabase = createSupabaseMock({ generationStatus: "running" });
+    getSupabaseAdminMock.mockReturnValue(supabase.client);
+    settleGenerationOutcomeMock.mockResolvedValueOnce({
+      settled: false,
+      note: "charge_not_found",
+    });
+
+    await expect(
+      recordGenerationAbandonment({
+        userId: "user-1",
+        generationId: "gen-1",
+        noRefund: true,
+      })
+    ).rejects.toThrow(
+      "Failed to settle abandoned generation before terminalizing it: charge_not_found"
+    );
+
+    expect(supabase.updates.generations).not.toHaveBeenCalled();
+    expect(supabase.updates.attempts).not.toHaveBeenCalled();
+    expect(supabase.updates.projections).not.toHaveBeenCalled();
+    expect(supabase.updates.publications).not.toHaveBeenCalled();
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        providerRequestId: "req-1",
+        outcome: "fail",
+        abandonedNoRefund: true,
+      })
+    );
+  });
 });

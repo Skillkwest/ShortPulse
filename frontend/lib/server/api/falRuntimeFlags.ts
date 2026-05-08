@@ -1,5 +1,5 @@
 /**
- * Centralized Fal runtime rollout flags.
+ * Centralized Fal runtime config.
  * Keeps env parsing strict and deterministic for server-side handlers.
  */
 import {
@@ -19,8 +19,6 @@ export type FalRuntimeFlags = {
   reconcilerMaxAttempts: number;
   reconcilerMinAgeSeconds: number;
   reconcilerLeaseSeconds: number;
-  circuitBreakerEnabled: boolean;
-  circuitBreakerThreshold15m: number;
   publicApiBaseUrl: string | null;
   admission: GenerationAdmissionConfig;
   reservationCleanupEnabled: boolean;
@@ -98,12 +96,6 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     0
   ),
   reconcilerLeaseSeconds: parseInteger(process.env.SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS, 120, 1),
-  circuitBreakerEnabled: parseBoolean(process.env.SHORTPULSE_FAL_CIRCUIT_BREAKER_ENABLED, false),
-  circuitBreakerThreshold15m: parseInteger(
-    process.env.SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M,
-    20,
-    1
-  ),
   publicApiBaseUrl: normalizeBaseUrl(
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL ?? process.env.APP_BASE_URL
   ),

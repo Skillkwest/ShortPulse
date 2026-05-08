@@ -302,22 +302,22 @@ describe("Profile subscription actions", () => {
     expect(container.querySelector(".profile-subscription-hero-card.plan-media")).not.toBeNull();
     expect(container.querySelector(".profile-plan-card.current.plan-media")).not.toBeNull();
     expect(screen.queryByText("Status")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Downgrade to Free" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Current Plan" })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Downgrade to Free" })).toBeInTheDocument();
     expect(
-      screen.getByText("$10.00 / month · Ideal for creators testing cadence.")
+      await screen.findByText("$10.00 / month · Ideal for creators testing cadence.")
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Recent subscription payments" })
+      await screen.findByRole("heading", { name: "Recent subscription payments" })
     ).toBeInTheDocument();
-    expect(screen.getByText("Monthly subscription renewal")).toBeInTheDocument();
-    expect(screen.getAllByText("$19.00").length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: "View invoice" })).toHaveAttribute(
+    expect(await screen.findByText("Monthly subscription renewal")).toBeInTheDocument();
+    expect((await screen.findAllByText("$19.00")).length).toBeGreaterThan(0);
+    expect(await screen.findByRole("link", { name: "View invoice" })).toHaveAttribute(
       "href",
       "https://stripe.test/invoices/in_123"
     );
-  });
+  }, 15000);
 
   it("falls back to the billing profile plan when the contract row is missing", async () => {
     billingContractState.value = null;

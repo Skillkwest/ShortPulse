@@ -8,10 +8,9 @@ const REPO_ROOT = process.cwd();
 const ENFORCED_BUDGETS = [
   { file: "frontend/pages/ai-studio.tsx", maxLines: 1700 },
   { file: "frontend/features/ai-studio/hooks/useAiStudioState.ts", maxLines: 1400 },
-  { file: "frontend/pages/api/ai/studio-agent.ts", maxLines: 1250 },
   { file: "frontend/features/ai-studio/hooks/useAiStudioAgentOrchestration.ts", maxLines: 650 },
   { file: "frontend/features/ai-studio/components/PromptStep.tsx", maxLines: 720 },
-  { file: "frontend/features/ai-agent/useAiAgent.ts", maxLines: 360 },
+  { file: "frontend/features/ai-agent/useCreateAgentStateCore.ts", maxLines: 500 },
 ];
 
 const REFERENCE_GRID_TARGET_BUDGETS = [
@@ -21,9 +20,18 @@ const REFERENCE_GRID_TARGET_BUDGETS = [
 ];
 
 const EXPERT_EDIT_TARGET_BUDGETS = [
-  { file: "frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx", maxLines: 5000 },
-  { file: "frontend/features/ai-studio/components/edit/useInpaintMaskController.ts", maxLines: 1400 },
-  { file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx", maxLines: 1600 },
+  { file: "frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx", maxLines: 1800 },
+  { file: "frontend/features/ai-studio/components/edit/useInpaintMaskController.ts", maxLines: 1250 },
+  { file: "frontend/features/ai-studio/components/MediaLibraryPanel.tsx", maxLines: 1550 },
+];
+
+const AI_STUDIO_RUNTIME_TARGET_BUDGETS = [
+  { file: "frontend/pages/ai-studio.tsx", maxLines: 3000 },
+  { file: "frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts", maxLines: 1000 },
+  {
+    file: "frontend/features/ai-studio/hooks/useAiStudioStateRuntimeControllers.ts",
+    maxLines: 450,
+  },
 ];
 
 const CHARACTER_MANAGER_TARGET_BUDGETS = [
@@ -127,6 +135,12 @@ function run() {
     }
   }
 
+  reportTargetBudgetGroup(
+    "AI_STUDIO_RUNTIME_SIZE_BUDGET_MODE",
+    "AI Studio runtime target",
+    AI_STUDIO_RUNTIME_TARGET_BUDGETS,
+    hardErrors
+  );
   reportTargetBudgetGroup(
     "EXPERT_EDIT_SIZE_BUDGET_MODE",
     "Expert Edit target",

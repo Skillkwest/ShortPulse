@@ -95,6 +95,20 @@ const MEDIA_RENDERING_BOUNDARY_RULES = [
     ],
   },
 ];
+const DEPRECATED_RUNTIME_HUB_RULES = [
+  {
+    name: "edit-video-panel-prop-hub",
+    modeEnv: "AI_STUDIO_RUNTIME_BOUNDARY_MODE",
+    filePath: path.join(
+      FRONTEND_ROOT,
+      "features",
+      "ai-studio",
+      "hooks",
+      "useAiStudioEditVideoPanelProps.ts"
+    ),
+    importRoots: [path.join(FRONTEND_ROOT, "pages", "ai-studio.tsx")],
+  },
+];
 
 const TS_FILE_PATTERN = /\.(ts|tsx)$/;
 const IMPORT_RE = /\b(?:import|export)\s+(?:type\s+)?(?:[^"'`]*?\s+from\s+)?["'`]([^"'`]+)["'`]/g;
@@ -362,6 +376,31 @@ function collectCycleErrors(roots) {
   return findCycles(adjacency).map((cycle) => `Dependency cycle detected: ${cycle}`);
 }
 
+function collectDeprecatedRuntimeHubErrors(rule) {
+  const errors = [];
+  if (fs.existsSync(rule.filePath)) {
+    errors.push(
+      `${toPosix(path.relative(REPO_ROOT, rule.filePath))} reintroduces a deprecated mixed-mode runtime hub.`
+    );
+  }
+
+  for (const filePath of rule.importRoots) {
+    if (!fs.existsSync(filePath)) continue;
+    const imports = readImports(filePath);
+    for (const specifier of imports) {
+      const resolvedFile = resolveImportFilePath(filePath, specifier);
+      if (!resolvedFile) continue;
+      if (path.resolve(resolvedFile) !== path.resolve(rule.filePath)) continue;
+      const relFile = toPosix(path.relative(REPO_ROOT, filePath));
+      errors.push(
+        `${relFile} imports deprecated mixed-mode runtime hub (${specifier}). Keep Edit and Video panel assembly split.`
+      );
+    }
+  }
+
+  return errors;
+}
+
 function printErrors(header, errors) {
   if (!errors.length) return;
   console.error(header);
@@ -452,6 +491,21 @@ function checkBoundaries() {
       hardErrors.push(...errors);
     } else {
       console.warn(`${rule.name} cycle checks failed in warn mode:`);
+      for (const error of errors) {
+        console.warn(`- ${error}`);
+      }
+    }
+  }
+
+  for (const rule of DEPRECATED_RUNTIME_HUB_RULES) {
+    const mode = resolveMode(process.env[rule.modeEnv], "enforce");
+    const errors = collectDeprecatedRuntimeHubErrors(rule);
+    if (!errors.length) continue;
+    if (mode === "enforce") {
+      printErrors(`Architecture boundary checks failed (${rule.name} deprecated hub):`, errors);
+      hardErrors.push(...errors);
+    } else {
+      console.warn(`${rule.name} deprecated hub checks failed in warn mode:`);
       for (const error of errors) {
         console.warn(`- ${error}`);
       }

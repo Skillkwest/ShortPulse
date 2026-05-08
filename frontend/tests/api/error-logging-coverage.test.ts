@@ -20,6 +20,12 @@ const ALLOWLIST = new Set<string>([
   "log/client-error.ts",
 ]);
 
+const ALLOWLIST_LOCATIONS = new Set<string>([
+  // Helper-level validation catch that converts invalid client-supplied storage-path hints
+  // into deterministic 4xx-safe field errors rather than route-fault telemetry.
+  "media/copy-from-url.ts:190",
+]);
+
 const LOG_CALL_PATTERNS = [
   "logApiRouteException(",
   "logGenerationFailure(",
@@ -60,6 +66,8 @@ const findUninstrumentedCatches = (absoluteFile: string): CatchLocation[] => {
     const blockPreview = lines.slice(index, index + LOOKAHEAD_LINES).join("\n");
     const hasLoggingCall = LOG_CALL_PATTERNS.some((pattern) => blockPreview.includes(pattern));
     if (!hasLoggingCall) {
+      const locationKey = `${relative}:${index + 1}`;
+      if (ALLOWLIST_LOCATIONS.has(locationKey)) continue;
       misses.push({
         file: relative,
         line: index + 1,

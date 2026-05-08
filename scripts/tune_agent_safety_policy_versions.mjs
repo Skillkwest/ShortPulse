@@ -108,7 +108,7 @@ const ensurePolicyBase = (policy) => {
   }
 
   if (!asObjectRecord(next.postprocess)) {
-    next.postprocess = { mode: "shadow" };
+    next.postprocess = { mode: "enforce" };
   }
 
   return next;
@@ -141,7 +141,7 @@ const applyTargetTuning = ({ basePolicy, profileId }) => {
     };
   }
 
-  next.postprocess.mode = "shadow";
+  next.postprocess.mode = "enforce";
   next.schemaVersion = 2;
   return next;
 };

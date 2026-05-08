@@ -433,8 +433,14 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     </div>
                     {inspirationRail}
                   </div>
-                  <div className="music-properties-custom-divider-wrap" {...customDividerProps}>
-                    <div className="music-properties-custom-divider" aria-hidden="true" />
+                  <div
+                    className="music-properties-custom-divider-wrap reference-grid-horizontal-divider-wrap"
+                    {...customDividerProps}
+                  >
+                    <div
+                      className="music-properties-custom-divider reference-grid-horizontal-divider"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div
                     className="music-properties-custom-pane music-properties-custom-pane--lyrics"

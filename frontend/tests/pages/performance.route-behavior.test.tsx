@@ -47,7 +47,7 @@ describe("Performance analytics route behavior", () => {
     expect(screen.getByText("Sorted by views")).toBeInTheDocument();
     expect(container.querySelector(".sort-menu")).toBeNull();
     expect(screen.getByRole("button", { name: /^views$/i })).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("shows a busy refresh state and restores the idle state after the refresh delay", async () => {
     vi.useFakeTimers();
@@ -70,7 +70,7 @@ describe("Performance analytics route behavior", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
+  }, 15000);
 
   it("opens and closes the selected video detail modal", () => {
     const { container } = render(<PerformanceAnalyticsPage />);

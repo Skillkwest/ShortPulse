@@ -845,6 +845,11 @@ describe("Admin pricing page", () => {
     fireEvent.change(inlineMarkupInput, { target: { value: "0" } });
     expect(inlineMarkupInput).toHaveValue("0");
     expect(rowMarkupInput).toHaveValue("0");
+
+    const inlineRoundingInput = screen.getByLabelText("Roundup increment override");
+    fireEvent.change(inlineRoundingInput, { target: { value: "0" } });
+    expect(inlineRoundingInput).toHaveValue("0");
+    expect(screen.getByLabelText("Round nearest for FLUX.2 Lite")).toHaveValue("0");
   });
 
   it("previews empty model markup drafts at cost", () => {

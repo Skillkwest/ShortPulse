@@ -242,6 +242,26 @@ export const recordGenerationAbandonment = async ({
       });
       const providerRequestId = normalizeString(generationRow.request_id) ?? normalizedRequestId;
       const shouldCloseGeneration = isActiveGenerationStatus(generationRow.status);
+      if (shouldCloseGeneration && providerRequestId) {
+        const settlement = await settleGenerationOutcome({
+          userId,
+          providerRequestId,
+          outcome: "fail",
+          reason: ABANDONED_ERROR_MESSAGE,
+          routeLabel: "generation-abandon",
+          abandonedNoRefund: noRefund,
+          detail: {
+            generation_id: id,
+            abandon_reason: reason,
+            abandoned_at: nowIso,
+          },
+        });
+        if (!settlement.settled) {
+          throw new Error(
+            `Failed to settle abandoned generation before terminalizing it: ${settlement.note}`
+          );
+        }
+      }
       const generationPayload: Record<string, unknown> = { metadata: nextMetadata };
       if (shouldCloseGeneration) {
         generationPayload.status = "fail";
@@ -274,21 +294,6 @@ export const recordGenerationAbandonment = async ({
           throw new Error(
             attemptUpdate.error.message || "Failed to mark generation attempt abandoned."
           );
-        }
-        if (providerRequestId) {
-          await settleGenerationOutcome({
-            userId,
-            providerRequestId,
-            outcome: "fail",
-            reason: ABANDONED_ERROR_MESSAGE,
-            routeLabel: "generation-abandon",
-            abandonedNoRefund: noRefund,
-            detail: {
-              generation_id: id,
-              abandon_reason: reason,
-              abandoned_at: nowIso,
-            },
-          });
         }
       }
       const projectionUpdate = await adminClient

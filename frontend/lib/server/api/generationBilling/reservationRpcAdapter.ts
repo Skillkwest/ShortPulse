@@ -75,7 +75,7 @@ const parseReservationRow = (
 };
 
 type ReserveGenerationCreditsAdmission = {
-  mode: "off" | "shadow" | "enforce";
+  mode: "off" | "enforce";
   globalMax: number;
   tier: string;
   tierMax: number;

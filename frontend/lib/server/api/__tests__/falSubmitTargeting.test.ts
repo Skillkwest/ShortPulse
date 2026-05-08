@@ -14,8 +14,6 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   reconcilerMaxAttempts: 5,
   reconcilerMinAgeSeconds: 0,
   reconcilerLeaseSeconds: 120,
-  circuitBreakerEnabled: false,
-  circuitBreakerThreshold15m: 20,
   publicApiBaseUrl: "https://shortpulse.test",
   admission: {
     mode: "off",

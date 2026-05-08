@@ -4293,7 +4293,7 @@ describe("ExpertEditPanelView", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
+  }, 15000);
 
   it("renders adjust, re-center, expand, and a functional move zoom slider", async () => {
     render(

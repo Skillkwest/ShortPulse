@@ -106,7 +106,7 @@ run_step "security_audit_prod" "required" "npm audit --omit=dev --audit-level=mo
 run_step "security_audit_full" "advisory" "npm audit --audit-level=moderate"
 
 if [[ "$RUN_ADAPTIVE_GATE" == "1" ]]; then
-  run_step "adaptive_media_gate" "required" "npm run test:adaptive-v2-gate"
+  run_step "adaptive_media_gate" "required" "npm run test:adaptive-media-runtime"
 else
   skip_step "adaptive_media_gate" "RUN_ADAPTIVE_GATE is not 1"
 fi

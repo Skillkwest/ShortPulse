@@ -1,6 +1,6 @@
 ---
 name: adaptive-change-gate
-description: Run the mandatory Adaptive Media V2 regression gate and report pass/fail evidence before merging changes that touch adaptive media, reference grid, quick slot, media-library modal grid, or character adaptive surfaces.
+description: Run the mandatory adaptive media regression gate and report pass/fail evidence before merging changes that touch adaptive media, reference grid, quick slot, media-library modal grid, or character adaptive surfaces.
 ---
 
 # Adaptive Change Gate
@@ -9,7 +9,7 @@ description: Run the mandatory Adaptive Media V2 regression gate and report pass
 1. Run the required adaptive gate command:
 ```bash
 cd frontend
-npm run test:adaptive-v2-gate
+npm run test:adaptive-media-runtime
 ```
 
 2. If the gate fails, identify the first failing suite and stop rollout work until it is fixed.
@@ -21,5 +21,5 @@ npm run test:adaptive-v2-gate
 - whether any known low-severity issues were observed during manual smoke
 
 ## Pass criteria
-- `test:adaptive-v2-gate` exits successfully.
+- `test:adaptive-media-runtime` exits successfully.
 - No stuck `loading preview...` / `generating...` cards in quick slot or reference grid during follow-up smoke.

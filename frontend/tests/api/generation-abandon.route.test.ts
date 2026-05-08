@@ -92,4 +92,40 @@ describe("POST /api/generation/abandon", () => {
       cancelUnsupported: true,
     });
   });
+
+  it("returns 500 and logs when abandonment settlement fails", async () => {
+    const res = createMockResponse();
+    recordGenerationAbandonmentMock.mockRejectedValueOnce(
+      new Error("Failed to settle abandoned generation before terminalizing it: charge_not_found")
+    );
+
+    await generationAbandonHandler(
+      {
+        method: "POST",
+        body: {
+          generation_id: "gen-1",
+          request_id: "req-1",
+        },
+      } as never,
+      res as never
+    );
+
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        req: expect.objectContaining({
+          method: "POST",
+        }),
+        routeLabel: "generation-abandon",
+        scope: "generation",
+        user: expect.objectContaining({
+          id: "user-1",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Unable to abandon generation",
+      details: "Failed to settle abandoned generation before terminalizing it: charge_not_found",
+    });
+  });
 });

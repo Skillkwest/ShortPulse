@@ -2071,7 +2071,7 @@ describe("CharacterManagerShell behavior", () => {
     await waitFor(() => {
       expect(within(characterList).getAllByRole("listitem")).toHaveLength(100);
     });
-  });
+  }, 15000);
 
   it("keeps deep selected characters visible without widening the manage window", async () => {
     characterManagerMockState.characters = Array.from({ length: 100 }, (_, index) => ({

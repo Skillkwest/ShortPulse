@@ -1,20 +1,12 @@
 import React from "react";
 import { modelLogos } from "../../constants";
 import { needsImageUpload } from "../../utils/imageUpload";
-import { stripEditLabel } from "../../utils/modelLabels";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import {
-  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
-  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
   isEditGenerationModeToggleEnabled,
   isMarkupCollapsedOpenModalEnabled,
   isMarkupModelLockEnabled,
-  resolveInpaintPromptReferencePolicy,
 } from "../../logic/inpaintSubmission";
-import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
-import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
-import { useReferencePropertiesInteractions } from "../useReferencePropertiesInteractions";
-import { useCreateCharacterModeController } from "../create/useCreateCharacterModeController";
 import { useInpaintMaskController } from "./useInpaintMaskController";
 import {
   createIdleMarkupDrawPointerSession,
@@ -24,11 +16,10 @@ import {
 import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
 import { useExpertEditDocumentState } from "./useExpertEditDocumentState";
 import { useExpertEditLayerActions } from "./useExpertEditLayerActions";
-import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
 import { useExpertEditGenerationPresetRuntime } from "./useExpertEditGenerationPresetRuntime";
+import { useExpertEditPromptComposerRuntime } from "./useExpertEditPromptComposerRuntime";
 import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
 import { useExpertEditMarkupControlsRuntime } from "./useExpertEditMarkupControlsRuntime";
-import { useExpertEditPresetRuntime } from "./useExpertEditPresetRuntime";
 import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
 import { useExpertEditStageInteractions } from "./useExpertEditStageInteractions";
@@ -52,9 +43,7 @@ import {
   ExpertEditPresetUtilityActionButtons,
 } from "./ExpertEditStageControls";
 import {
-  COMPOSITE_REGENERATE_COHESION_PROMPT,
   INPAINT_STROKE_SIZE_DEFAULT,
-  LOCKED_EDIT_TOOL_MODEL_LOGO_SRC,
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
   STATUS_TOAST_FADE_MS,
@@ -350,176 +339,96 @@ export function ExpertEditPanelView({
   const shouldOpenMarkupModalFromCollapsedTools = isMarkupCollapsedOpenModalEnabled();
   const isModelPickerLocked = isInpaintSubmitMode || shouldLockMarkupModelPicker;
   const promptTextValue = referenceText ?? "";
-  const inpaintPromptReferencePolicy = React.useMemo(
-    () =>
-      resolveInpaintPromptReferencePolicy({
-        promptText: promptTextValue,
-        extraImageUrls,
-      }),
-    [extraImageUrls, promptTextValue]
-  );
-  const effectiveSelectorModelId = isInpaintSubmitMode
-    ? inpaintPromptReferencePolicy.modelId
-    : shouldLockMarkupModelPicker
-      ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID
-      : modelId;
-  const effectiveModelPickerLabel = isInpaintSubmitMode
-    ? inpaintPromptReferencePolicy.modelLabel
-    : shouldLockMarkupModelPicker
-      ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL
-      : stripEditLabel(modelLabel);
-  const effectiveModelPickerLogoSrc = isModelPickerLocked
-    ? LOCKED_EDIT_TOOL_MODEL_LOGO_SRC
-    : modelLogoSrc;
   const collapsedToolsThemeClass = isMoveToolSelected
     ? "is-active-move"
     : isMarkupToolSelected
       ? "is-active-markup"
       : "is-active-inpaint";
-
   const {
-    extraOneInputRef,
-    extraTwoInputRef,
-    extraThreeInputRef,
+    aspectOptionsForModel,
+    closeCharacterPicker,
+    effectiveModelPickerLabel,
+    effectiveModelPickerLogoSrc,
+    effectiveSelectorModelId,
     extraDragActive,
-    handleFileSelection,
-    handleExtraDrop,
+    handleCompositeRegeneratePromptInsert,
+    handleCustomPresetSave,
     handleExtraDragEnter,
-    handleExtraDragOver,
     handleExtraDragLeave,
-  } = useReferencePropertiesInteractions({
-    referenceImageUrl: selectedLayerImageUrl,
+    handleExtraDragOver,
+    handleExtraDrop,
+    handleFileSelection,
+    handleInvalidPromptReferenceToken,
+    handlePanelPresetApply,
+    handlePanelPresetDragStart,
+    handlePresetDragEnd,
+    handlePresetPanelDragLeave,
+    handlePresetPanelDragOver,
+    handlePresetPanelDrop,
+    handlePresetsSurfaceDragLeave,
+    handlePresetsSurfaceDragOver,
+    handlePresetsSurfaceDrop,
+    handlePromptBlur,
+    handlePromptFocus,
+    handlePromptKeyDown,
+    handlePromptDropWithTokenInsert,
+    handlePromptScroll,
+    handlePromptTextChange,
+    handleSurfacePresetDragStart,
+    hasPromptText,
+    imageResolutionValue,
+    imageResolutionOptions,
+    inlineGuardrailReason,
+    inputRefs,
+    inpaintLayerSources,
+    inpaintPromptReferencePolicy,
+    insertPromptTokenFromPicker,
+    isCharacterPickerOpen,
+    isPromptComposerExpanded,
+    isPresetPanelDropActive,
+    isPresetsSurfaceDropActive,
+    populatedPromptTokenSlotIndexes,
+    promptHighlightRef,
+    promptHighlightSegments,
+    promptInputShellRef,
+    promptTextareaRef,
+    promptTokenInlineError,
+    promptTokenPickerState,
+    resetPresetDropState,
+    shouldBlurPromptUnderlay,
+    shouldShowResolutionControl,
+  } = useExpertEditPromptComposerRuntime({
+    promptTextValue,
     extraImageUrls,
-    onPrimaryImageChange: () => {},
+    selectedLayerImageUrl,
     onExtraImageChange,
     onPromptTextChange,
     resolvePreviewUrlById,
-    klingMultiPrompts: [],
-    klingElements: [],
-  });
-
-  const { imageResolutionValue, imageResolutionOptions, modelConfig, aspectOptionsForModel } =
-    useReferencePropertiesDerivedState({
-      variant: "image",
-      modelId: effectiveSelectorModelId,
-      aspectOptions,
-      klingMultiPrompts: [],
-      klingElements: [],
-      klingVoiceIds: ["", ""],
-      klingCfgScale: 0.5,
-      klingNegativePrompt: "",
-      imageResolution,
-    });
-
-  useReferencePropertiesConstraintEffects({
-    modelConfig,
-    videoDurationValue: 6,
-    videoResolutionValue: "1080p",
-    isVideoVariant: false,
+    modelId,
+    modelLabel,
+    modelLogoSrc,
+    shouldLockMarkupModelPicker,
+    isInpaintSubmitMode,
+    isModelPickerLocked,
     imageResolution,
-    imageResolutionValue,
     onImageResolutionChange,
-  });
-  const { isCharacterPickerOpen, closeCharacterPicker } = useCreateCharacterModeController({
-    beginnerMode: false,
+    aspectOptions,
     characterModeEnabled,
     characterOptions,
     selectedCharacterId,
     isCharacterOptionsLoading,
     onCharacterModeEnabledChange,
-  });
-
-  const inputRefs = [extraOneInputRef, extraTwoInputRef, extraThreeInputRef] as const;
-  const shouldShowResolutionControl = imageResolutionOptions.length > 0;
-  const hasPromptText = promptTextValue.trim().length > 0;
-  const [isPromptComposerExpanded, setIsPromptComposerExpanded] = React.useState(false);
-  const suppressInlineReferenceGuardrail =
-    guardrailReason === "Add a reference image before generating.";
-  const inlineGuardrailReason = suppressInlineReferenceGuardrail ? null : guardrailReason;
-  const inpaintLayerSources = React.useMemo(
-    () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
-    [layers]
-  );
-  const {
-    promptInputShellRef,
-    promptHighlightRef,
-    promptTextareaRef,
-    promptVisualRowCount,
-    promptHighlightSegments,
-    promptTokenPickerState,
-    promptTokenInlineError,
-    populatedPromptTokenSlotIndexes,
-    handlePromptTextChange,
-    handleInvalidPromptReferenceToken,
-    handlePromptKeyDown,
-    handlePromptDropWithTokenInsert,
-    handlePromptScroll,
-    closePromptTokenPicker,
-    insertPromptTokenFromPicker,
-  } = useExpertEditPromptTokenController({
-    promptTextValue,
-    extraImageUrls,
     populatedLayerCount,
-    allowSecondaryReferenceTokens: isInpaintSubmitMode
-      ? inpaintPromptReferencePolicy.allowSecondaryReferenceTokens
-      : true,
-    maxSecondaryReferenceTokens: isInpaintSubmitMode
-      ? inpaintPromptReferencePolicy.maxSecondaryReferenceTokens
-      : undefined,
-    isPromptComposerExpanded,
-    onPromptTextChange,
-    showStatusToast,
-  });
-
-  const handlePromptFocus = React.useCallback(() => {
-    setIsPromptComposerExpanded(true);
-  }, []);
-  const shouldBlurPromptUnderlay = isPromptComposerExpanded && promptVisualRowCount >= 8;
-
-  const handlePromptBlur = React.useCallback(
-    (event: React.FocusEvent<HTMLTextAreaElement>) => {
-      closePromptTokenPicker();
-      if (
-        promptInputShellRef.current &&
-        event.relatedTarget instanceof Node &&
-        promptInputShellRef.current.contains(event.relatedTarget)
-      ) {
-        return;
-      }
-      setIsPromptComposerExpanded(false);
-    },
-    [closePromptTokenPicker, promptInputShellRef]
-  );
-
-  React.useEffect(() => {
-    if (!onEditSubmitIntentChange) return;
-    onEditSubmitIntentChange(effectiveEditSubmitIntent);
-  }, [effectiveEditSubmitIntent, onEditSubmitIntentChange]);
-  const handleCompositeRegeneratePromptInsert = React.useCallback(() => {
-    handlePromptTextChange(COMPOSITE_REGENERATE_COHESION_PROMPT);
-  }, [handlePromptTextChange]);
-  const {
-    isPresetPanelDropActive,
-    isPresetsSurfaceDropActive,
-    resetPresetDropState,
-    handlePanelPresetApply,
-    handleCustomPresetSave,
-    handleSurfacePresetDragStart,
-    handlePanelPresetDragStart,
-    handlePresetDragEnd,
-    handlePresetPanelDragOver,
-    handlePresetPanelDragLeave,
-    handlePresetPanelDrop,
-    handlePresetsSurfaceDragOver,
-    handlePresetsSurfaceDragLeave,
-    handlePresetsSurfaceDrop,
-  } = useExpertEditPresetRuntime({
+    effectiveEditSubmitIntent,
+    onEditSubmitIntentChange,
+    guardrailReason,
+    layers,
     customPresetOverrides,
     updateSelectedPresetIds,
     updateCustomPresetOverrides,
-    handlePromptTextChange,
     showStatusToast,
   });
+  const [extraOneInputRef, extraTwoInputRef, extraThreeInputRef] = inputRefs;
 
   const {
     overlayCanvasRef,

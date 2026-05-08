@@ -69,6 +69,65 @@ describe("POST /api/admin/agent-safety-policy/version", () => {
     );
   });
 
+  it("rejects shadow postprocess mode", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        profileId: "prod_safe_v1",
+        policy: {
+          schemaVersion: 2,
+          input: {
+            text: {
+              text: {
+                sexual: { level: "refuse" },
+                violence: { level: "refuse" },
+                self_harm: { level: "refuse" },
+                hate: { level: "refuse" },
+              },
+              image: {
+                sexual: { level: "refuse" },
+                violence: { level: "refuse" },
+                self_harm: { level: "refuse" },
+                hate: { level: "refuse" },
+              },
+              video: {
+                sexual: { level: "refuse" },
+                violence: { level: "refuse" },
+                self_harm: { level: "refuse" },
+                hate: { level: "refuse" },
+              },
+            },
+            image_preflight: {
+              enabled: true,
+              thresholds: {
+                sexual: 0.8,
+                violence: 0.8,
+                self_harm: 0.8,
+                hate: 0.8,
+              },
+            },
+          },
+          generation: {
+            defaults: { image: { level: "moderate" }, video: { level: "moderate" } },
+            per_model: {},
+          },
+          postprocess: { mode: "shadow" },
+        },
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(createAgentSafetyPolicyVersionMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Invalid policy payload.",
+        detail: expect.arrayContaining(["postprocess.mode must be one of: enforce, off"]),
+      })
+    );
+  });
+
   it("creates a policy version", async () => {
     createAgentSafetyPolicyVersionMock.mockResolvedValue({
       status: "created",
@@ -119,7 +178,7 @@ describe("POST /api/admin/agent-safety-policy/version", () => {
             defaults: { image: { level: "moderate" }, video: { level: "moderate" } },
             per_model: {},
           },
-          postprocess: { mode: "shadow" },
+          postprocess: { mode: "enforce" },
         },
       },
     };

@@ -1,40 +1,21 @@
 /**
- * Runtime policy for temporary beginner-mode lockdown behavior.
- * Centralizes env parsing so pages/components use deterministic booleans.
+ * Beginner mode is retired from the live runtime.
+ * AI Studio and Character always run in expert mode.
  */
 
-const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
-  if (value === "true") return true;
-  if (value === "false") return false;
-  return fallback;
-};
-
-const BEGINNER_MODE_FORCE_OFF_DEFAULT = true;
-const BEGINNER_MODE_TOGGLE_VISIBLE_DEFAULT = false;
-
-export const BEGINNER_MODE_FORCE_OFF = parseBoolean(
-  process.env.NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF,
-  BEGINNER_MODE_FORCE_OFF_DEFAULT
-);
-
-export const BEGINNER_MODE_TOGGLE_VISIBLE = parseBoolean(
-  process.env.NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_TOGGLE_VISIBLE,
-  BEGINNER_MODE_TOGGLE_VISIBLE_DEFAULT
-);
+export const BEGINNER_MODE_FORCE_OFF = true;
+export const BEGINNER_MODE_TOGGLE_VISIBLE = false;
 
 /**
- * Resolves beginner mode under runtime policy precedence.
+ * Resolves beginner mode under the canonical runtime policy.
  */
-export const resolveEffectiveBeginnerMode = (value: boolean): boolean => {
-  if (BEGINNER_MODE_FORCE_OFF) return false;
-  return value;
+export const resolveEffectiveBeginnerMode = (_value: boolean): boolean => {
+  return false;
 };
 
 /**
  * Returns whether beginner toggle controls should be rendered.
- * Force-off always hides the toggle regardless of visibility flag.
  */
 export const isBeginnerModeToggleVisible = (): boolean => {
-  if (BEGINNER_MODE_FORCE_OFF) return false;
-  return BEGINNER_MODE_TOGGLE_VISIBLE;
+  return false;
 };

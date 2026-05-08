@@ -149,6 +149,12 @@ Use the catalog to distinguish system maturity from execution urgency.
 
 Do not use `Priority band` as a proxy for health. A lower-priority row can still be below floor.
 
+Priority bands should be used like this:
+
+- `P0 ship-critical`: current hot-path systems that materially block release
+- `P1 ship-relevant`: next systems that can still block or destabilize ship readiness
+- `P2 validation`: important systems that should be validated or selectively hardened, but are not the first release-control lane
+
 ## Rating pass workflow
 
 Use this sequence every time:

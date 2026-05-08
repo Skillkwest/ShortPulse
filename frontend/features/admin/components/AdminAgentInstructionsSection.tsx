@@ -12,10 +12,7 @@ import {
   type CreatePulseArtifactTarget,
   type CreatePulseBuiltInPresetDefinition,
 } from "../../ai-studio/components/create/createPulsePresets";
-import {
-  resolveExpertEditPresetCatalog,
-  type ExpertEditPresetId,
-} from "../../ai-studio/components/edit/expertEditPresets";
+import { resolveExpertEditPresetCatalog } from "../../ai-studio/components/edit/expertEditPresets";
 import styles from "../../../styles/admin.module.css";
 
 type CopyFeedbackMap = Record<string, string | null>;
@@ -31,12 +28,12 @@ type AdminPulseDraft = {
 };
 type SaveState = "idle" | "saving" | "saved" | "error";
 type AdminEditPresetDraft = {
-  presetId: ExpertEditPresetId;
+  presetId: string;
   label: string;
   prompt: string;
 };
 type PendingEditSystemPresetState = {
-  presetId: ExpertEditPresetId;
+  presetId: string;
   originalLabel: string;
   label: string;
   prompt: string;
@@ -145,6 +142,13 @@ const buildAdminEditPresetDrafts = (): AdminEditPresetDraft[] =>
       prompt: preset.prompt,
     }));
 
+const buildEmptyAdminEditPresetDraft = (counter: number): PendingEditSystemPresetState => ({
+  presetId: `local_custom_${counter}`,
+  originalLabel: "",
+  label: "",
+  prompt: "",
+});
+
 const loadStyleExtractPromptDraft = async (): Promise<StyleExtractPromptDraft> => {
   const response = await fetch("/api/admin/agent-instructions/style-extract-prompt", {
     method: "GET",
@@ -232,6 +236,9 @@ export function AdminAgentInstructionsSection() {
   const [editSystemPresetDrafts, setEditSystemPresetDrafts] = React.useState<
     AdminEditPresetDraft[]
   >(() => buildAdminEditPresetDrafts());
+  const [nextEditPresetDraftIndex, setNextEditPresetDraftIndex] = React.useState(
+    () => buildAdminEditPresetDrafts().length + 1
+  );
   const [pendingEditSystemPreset, setPendingEditSystemPreset] =
     React.useState<PendingEditSystemPresetState | null>(null);
   const [pulseSectionCollapsed, setPulseSectionCollapsed] = React.useState(false);
@@ -362,8 +369,14 @@ export function AdminAgentInstructionsSection() {
 
   const handleResetEditSystemPresets = React.useCallback(() => {
     setEditSystemPresetDrafts(buildAdminEditPresetDrafts());
+    setNextEditPresetDraftIndex(buildAdminEditPresetDrafts().length + 1);
     setPendingEditSystemPreset(null);
   }, []);
+
+  const handleAddEditSystemPreset = React.useCallback(() => {
+    setPendingEditSystemPreset(buildEmptyAdminEditPresetDraft(nextEditPresetDraftIndex));
+    setNextEditPresetDraftIndex((current) => current + 1);
+  }, [nextEditPresetDraftIndex]);
 
   const handleSaveStyleExtractPrompt = React.useCallback(async () => {
     setStyleExtractPromptSaveState("saving");
@@ -405,8 +418,21 @@ export function AdminAgentInstructionsSection() {
     const nextLabel = pendingEditSystemPreset.label.trim();
     const nextPrompt = pendingEditSystemPreset.prompt.trim();
     if (!nextLabel || !nextPrompt) return;
-    setEditSystemPresetDrafts((current) =>
-      current.map((draft) =>
+    setEditSystemPresetDrafts((current) => {
+      const existingIndex = current.findIndex(
+        (draft) => draft.presetId === pendingEditSystemPreset.presetId
+      );
+      if (existingIndex === -1) {
+        return [
+          ...current,
+          {
+            presetId: pendingEditSystemPreset.presetId,
+            label: nextLabel,
+            prompt: nextPrompt,
+          },
+        ];
+      }
+      return current.map((draft) =>
         draft.presetId === pendingEditSystemPreset.presetId
           ? {
               ...draft,
@@ -414,10 +440,15 @@ export function AdminAgentInstructionsSection() {
               prompt: nextPrompt,
             }
           : draft
-      )
-    );
+      );
+    });
     setPendingEditSystemPreset(null);
   }, [pendingEditSystemPreset]);
+
+  const handleDeleteEditSystemPreset = React.useCallback((presetId: string) => {
+    setEditSystemPresetDrafts((current) => current.filter((draft) => draft.presetId !== presetId));
+    setPendingEditSystemPreset((current) => (current?.presetId === presetId ? null : current));
+  }, []);
 
   const handleResetPulseDraft = React.useCallback(
     (localId: string) => {
@@ -737,6 +768,9 @@ export function AdminAgentInstructionsSection() {
               </p>
             </div>
             <div className={styles.agentInstructionActions}>
+              <button type="button" className="ghost-btn mini" onClick={handleAddEditSystemPreset}>
+                Add preset
+              </button>
               <button
                 type="button"
                 className="ghost-btn mini"
@@ -762,24 +796,47 @@ export function AdminAgentInstructionsSection() {
               aria-label="Edit mode system presets"
             >
               {editSystemPresetDrafts.map((preset) => (
-                <button
+                <article
                   key={preset.presetId}
-                  type="button"
                   role="listitem"
                   className={styles.agentEditPresetTile}
-                  onClick={() =>
-                    setPendingEditSystemPreset({
-                      presetId: preset.presetId,
-                      originalLabel: preset.label,
-                      label: preset.label,
-                      prompt: preset.prompt,
-                    })
-                  }
                 >
-                  <span className={styles.agentEditPresetTileTitle}>{preset.label}</span>
-                  <span className={styles.agentEditPresetTilePrompt}>{preset.prompt}</span>
-                </button>
+                  <button
+                    type="button"
+                    className={styles.agentEditPresetTileDelete}
+                    onClick={() => handleDeleteEditSystemPreset(preset.presetId)}
+                    aria-label={`Delete ${preset.label} preset`}
+                  >
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.agentEditPresetTileButton}
+                    onClick={() =>
+                      setPendingEditSystemPreset({
+                        presetId: preset.presetId,
+                        originalLabel: preset.label,
+                        label: preset.label,
+                        prompt: preset.prompt,
+                      })
+                    }
+                  >
+                    <span className={styles.agentEditPresetTileTitle}>{preset.label}</span>
+                    <span className={styles.agentEditPresetTilePrompt}>{preset.prompt}</span>
+                  </button>
+                </article>
               ))}
+              <button
+                type="button"
+                className={`${styles.agentEditPresetTile} ${styles.agentEditPresetTileAdd}`}
+                onClick={handleAddEditSystemPreset}
+              >
+                <span className={styles.agentEditPresetTileAddIcon}>+</span>
+                <span className={styles.agentEditPresetTileTitle}>Add preset</span>
+                <span className={styles.agentEditPresetTilePrompt}>
+                  Create another local draft system preset for Edit mode.
+                </span>
+              </button>
             </div>
           </div>
           {editSystemPresetCardCollapsed ? (
@@ -1095,10 +1152,18 @@ export function AdminAgentInstructionsSection() {
             className={`${styles.adminModalCard} ${styles.agentEditPresetModalCard}`}
             role="dialog"
             aria-modal="true"
-            aria-label={`Edit ${pendingEditSystemPreset.originalLabel} preset`}
+            aria-label={
+              pendingEditSystemPreset.originalLabel.trim().length > 0
+                ? `Edit ${pendingEditSystemPreset.originalLabel} preset`
+                : "Create preset"
+            }
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 className={styles.agentEditPresetModalTitle}>Edit Preset</h3>
+            <h3 className={styles.agentEditPresetModalTitle}>
+              {pendingEditSystemPreset.originalLabel.trim().length > 0
+                ? "Edit Preset"
+                : "Create Preset"}
+            </h3>
             <label className={styles.agentInstructionLabel} htmlFor="admin-edit-preset-name">
               Preset Name
             </label>
@@ -1154,7 +1219,7 @@ export function AdminAgentInstructionsSection() {
                   pendingEditSystemPreset.prompt.trim().length === 0
                 }
               >
-                Save
+                {pendingEditSystemPreset.originalLabel.trim().length > 0 ? "Save" : "Create"}
               </button>
             </div>
           </div>

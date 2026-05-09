@@ -8,7 +8,7 @@ import { convertUsdToCredits, resolveModelCreditRoundingMode } from "../pricingC
 describe("pricingCredits", () => {
   it("does not apply extra round-nearest quantization by default", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.039,
     });
     expect(result).toEqual({
@@ -41,12 +41,12 @@ describe("pricingCredits", () => {
 
   it("does not round boundary values up to nearest-5 without a per-model override", () => {
     const noMarkupAtFive = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.05,
       applyMarkup: false,
     });
     const noMarkupAboveFive = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.050001,
       applyMarkup: false,
     });
@@ -59,12 +59,12 @@ describe("pricingCredits", () => {
 
   it("does not apply markup without a per-model markup value", () => {
     const withoutMarkup = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.0486,
       applyMarkup: false,
     });
     const withMarkup = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.0486,
     });
 
@@ -78,7 +78,7 @@ describe("pricingCredits", () => {
     expect(resolveModelCreditRoundingMode("fal-ai/flux-2/klein/9b")).toBe("ceil");
     expect(resolveModelCreditRoundingMode("fal-ai/bria/background/remove")).toBe("ceil");
     expect(
-      resolveModelCreditRoundingMode("fal-ai/nano-banana", {
+      resolveModelCreditRoundingMode("fal-ai/nano-banana-2", {
         schemaVersion: 1,
         global: {
           creditUsdScale: 100,
@@ -86,7 +86,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 1,
         },
         perModel: {
-          "fal-ai/nano-banana": {
+          "fal-ai/nano-banana-2": {
             roundingIncrement: 5,
           },
         },
@@ -96,7 +96,7 @@ describe("pricingCredits", () => {
 
   it("ignores the legacy top-level markup field while applying conversion scale", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.039,
       policy: {
         schemaVersion: 1,
@@ -118,7 +118,7 @@ describe("pricingCredits", () => {
 
   it("applies per-model markup without layering on the legacy top-level field", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.039,
       policy: {
         schemaVersion: 1,
@@ -128,7 +128,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 5,
         },
         perModel: {
-          "fal-ai/nano-banana": {
+          "fal-ai/nano-banana-2": {
             markupBps: 10_000,
           },
         },
@@ -144,7 +144,7 @@ describe("pricingCredits", () => {
 
   it("applies per-model credit conversion overrides", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.039,
       policy: {
         schemaVersion: 1,
@@ -154,7 +154,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 5,
         },
         perModel: {
-          "fal-ai/nano-banana": {
+          "fal-ai/nano-banana-2": {
             creditUsdScale: 200,
           },
         },
@@ -170,7 +170,7 @@ describe("pricingCredits", () => {
 
   it("applies per-model rounding increment overrides", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.0486,
       policy: {
         schemaVersion: 1,
@@ -180,7 +180,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 5,
         },
         perModel: {
-          "fal-ai/nano-banana": {
+          "fal-ai/nano-banana-2": {
             roundingIncrement: 5,
           },
         },
@@ -196,7 +196,7 @@ describe("pricingCredits", () => {
 
   it("converts legacy multiplier overrides without using top-level markup", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       usdRaw: 0.039,
       policy: {
         schemaVersion: 1,
@@ -206,7 +206,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 5,
         },
         perModel: {
-          "fal-ai/nano-banana": {
+          "fal-ai/nano-banana-2": {
             // Legacy format from the first control-plane implementation.
             // Normalization maps this to a per-model markup and ignores top-level markup.
             multiplierBps: 20_000,

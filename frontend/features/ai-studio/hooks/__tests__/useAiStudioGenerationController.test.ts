@@ -1092,7 +1092,7 @@ describe("useAiStudioGenerationController", () => {
     const params = createParams({
       mode: "image",
       selectedTool: "edit",
-      model: "fal-ai/nano-banana/edit",
+      model: "fal-ai/nano-banana-2/edit",
       isCharacterModeEnabled: true,
       resolveCharacterModeSubmissionOverrides,
       resolveReferenceInputsForTool,

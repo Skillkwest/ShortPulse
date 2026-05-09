@@ -5,6 +5,7 @@ const persistGenerationOutputRecordsMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
+const associateMediaFilesWithProjectForUserMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 
 type MockQueryResult = {
@@ -86,6 +87,8 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
   associateGenerationWithProjectForUser: (...args: unknown[]) =>
     associateGenerationWithProjectForUserMock(...args),
+  associateMediaFilesWithProjectForUser: (...args: unknown[]) =>
+    associateMediaFilesWithProjectForUserMock(...args),
 }));
 
 import { persistGeneratedAudioAsset } from "../../lib/server/elevenlabs";
@@ -128,6 +131,7 @@ describe("persistGeneratedAudioAsset", () => {
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
+    associateMediaFilesWithProjectForUserMock.mockResolvedValue(true);
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
   });
 
@@ -174,6 +178,7 @@ describe("persistGeneratedAudioAsset", () => {
       projectId: "project-1",
       generationId: "generation-1",
     });
+    expect(associateMediaFilesWithProjectForUserMock).not.toHaveBeenCalled();
     expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "generation-1",
@@ -230,6 +235,7 @@ describe("persistGeneratedAudioAsset", () => {
         }),
       })
     );
+    expect(associateMediaFilesWithProjectForUserMock).not.toHaveBeenCalled();
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "generation-1",
@@ -267,6 +273,31 @@ describe("persistGeneratedAudioAsset", () => {
       mediaFileId: null,
       outputRowId: "output-1",
       signedUrl: "https://signed.example/audio.mp3",
+    });
+  });
+
+  it("associates autosaved audio media with the active project", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
+
+    await persistGeneratedAudioAsset({
+      userId: "user-1",
+      promptText: "Rainy city ambience",
+      provider: "elevenlabs",
+      modelId: "music_v1",
+      projectId: "project-1",
+      sourceMode: "music",
+      outputBuffer: Buffer.from("audio"),
+      outputContentType: "audio/mpeg",
+      outputFormat: "mp3_44100_128",
+    });
+
+    expect(associateMediaFilesWithProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      mediaFileIds: ["media-1"],
     });
   });
 });

@@ -6,13 +6,10 @@ import type { CharacterManagerShellSurface } from "../types";
 
 type ResolveCharacterManagerSurfacePolicyParams = {
   surface: CharacterManagerShellSurface;
-  beginnerMode: boolean;
-  beginnerModeOverride?: boolean;
 };
 
 export type CharacterManagerSurfacePolicy = {
   isEmbeddedSurface: boolean;
-  effectiveBeginnerMode: boolean;
   showQuickSwapCollapseToggle: boolean;
   showQuickSwapHelperText: boolean;
 };
@@ -22,17 +19,12 @@ export type CharacterManagerSurfacePolicy = {
  */
 export const resolveCharacterManagerSurfacePolicy = ({
   surface,
-  beginnerMode,
-  beginnerModeOverride,
 }: ResolveCharacterManagerSurfacePolicyParams): CharacterManagerSurfacePolicy => {
   const isEmbeddedSurface = surface === "panel";
-  const isBeginnerModeControlled = typeof beginnerModeOverride === "boolean";
-  const effectiveBeginnerMode = isBeginnerModeControlled ? beginnerModeOverride : beginnerMode;
 
   return {
     isEmbeddedSurface,
-    effectiveBeginnerMode,
-    showQuickSwapCollapseToggle: surface !== "panel" || effectiveBeginnerMode,
+    showQuickSwapCollapseToggle: surface !== "panel",
     showQuickSwapHelperText: surface !== "panel",
   };
 };

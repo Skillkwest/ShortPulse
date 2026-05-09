@@ -41,7 +41,7 @@ describe("resolveSubmissionHandlerRoute", () => {
     expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/nonexistent")).toBe(
       "unsupported"
     );
-    expect(resolveSubmissionHandlerRoute("fal-ai/nano-banana")).toBe("default");
+    expect(resolveSubmissionHandlerRoute("fal-ai/nano-banana-2")).toBe("default");
     expect(resolveSubmissionHandlerRoute("gpt-image-2")).toBe("default");
     expect(resolveSubmissionHandlerRoute("legacy/provider-image")).toBe("unsupported");
     expect(resolveSubmissionHandlerRoute("custom/unknown-model")).toBe("unsupported");

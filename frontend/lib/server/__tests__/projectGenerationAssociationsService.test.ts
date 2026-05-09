@@ -1,11 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   associateGenerationWithProjectForUser,
+  associateMediaFilesWithProjectForUser,
   hydrateProjectSnapshotGeneratedOutputs,
 } from "../projectGenerationAssociationsService";
 
 const projectMaybeSingleMock = vi.fn();
+let ownedMediaQueryResult: { data: unknown; error: unknown } = { data: [], error: null };
+const ownedMediaSelectBuilder = {
+  eq: vi.fn(),
+  in: vi.fn(),
+  then: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["then"]>) =>
+    Promise.resolve(ownedMediaQueryResult).then(...args),
+  catch: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["catch"]>) =>
+    Promise.resolve(ownedMediaQueryResult).catch(...args),
+  finally: (...args: Parameters<Promise<{ data: unknown; error: unknown }>["finally"]>) =>
+    Promise.resolve(ownedMediaQueryResult).finally(...args),
+};
+ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
+ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
+const mediaOwnershipSelectMock = vi.fn(() => ownedMediaSelectBuilder);
 const associationUpsertMock = vi.fn();
+const mediaAssociationUpsertMock = vi.fn();
 const projectGenerationItemsSelectMock = vi.fn();
 const generationProjectionSelectMock = vi.fn();
 
@@ -54,6 +70,16 @@ vi.mock("../api/supabaseAdmin", () => ({
           upsert: associationUpsertMock,
         };
       }
+      if (table === "project_media_items") {
+        return {
+          upsert: mediaAssociationUpsertMock,
+        };
+      }
+      if (table === "media_files") {
+        return {
+          select: mediaOwnershipSelectMock,
+        };
+      }
       if (table === "generation_projection") {
         return {
           select: generationProjectionSelectMock,
@@ -67,6 +93,9 @@ vi.mock("../api/supabaseAdmin", () => ({
 describe("associateGenerationWithProjectForUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    ownedMediaQueryResult = { data: [], error: null };
+    ownedMediaSelectBuilder.eq.mockReturnValue(ownedMediaSelectBuilder);
+    ownedMediaSelectBuilder.in.mockReturnValue(ownedMediaSelectBuilder);
   });
 
   it("upserts a project association when the project belongs to the user", async () => {
@@ -93,6 +122,63 @@ describe("associateGenerationWithProjectForUser", () => {
         onConflict: "project_id,generation_id",
       }
     );
+  });
+
+  it("upserts project media membership when the project belongs to the user", async () => {
+    projectMaybeSingleMock.mockResolvedValue({
+      data: { id: "project-1" },
+      error: null,
+    });
+    ownedMediaQueryResult = {
+      data: [{ id: "media-1" }, { id: "media-2" }],
+      error: null,
+    };
+    mediaAssociationUpsertMock.mockResolvedValue({ error: null });
+
+    const associated = await associateMediaFilesWithProjectForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      mediaFileIds: ["media-1", "media-2", "media-1"],
+    });
+
+    expect(associated).toBe(true);
+    expect(mediaAssociationUpsertMock).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          media_file_id: "media-1",
+          user_id: "user-1",
+        }),
+        expect.objectContaining({
+          project_id: "project-1",
+          media_file_id: "media-2",
+          user_id: "user-1",
+        }),
+      ],
+      {
+        onConflict: "project_id,media_file_id",
+      }
+    );
+  });
+
+  it("skips media association for ids not owned by the user", async () => {
+    projectMaybeSingleMock.mockResolvedValue({
+      data: { id: "project-1" },
+      error: null,
+    });
+    ownedMediaQueryResult = {
+      data: [],
+      error: null,
+    };
+
+    const associated = await associateMediaFilesWithProjectForUser({
+      userId: "user-1",
+      projectId: "project-1",
+      mediaFileIds: ["foreign-media-1"],
+    });
+
+    expect(associated).toBe(false);
+    expect(mediaAssociationUpsertMock).not.toHaveBeenCalled();
   });
 
   it("skips the association when the project is not owned by the user", async () => {

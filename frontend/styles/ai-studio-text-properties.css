@@ -200,28 +200,3 @@
   justify-content: flex-end;
   gap: 10px;
 }
-
-.ai-studio-page[data-beginner-mode="on"] .text-properties-panel .agent-composer-tip-row {
-  padding-bottom: 12px;
-}
-
-.text-properties-panel .agent-composer-tip-row .create-beginner-pin-helper {
-  margin: 0;
-  max-width: min(100%, 560px);
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(37, 169, 191, 0.62);
-  background: rgba(26, 51, 60, 0.54);
-  color: rgba(162, 236, 250, 0.98);
-  line-height: 1.35;
-  text-align: left;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.text-properties-panel .agent-composer-tip-row .beginner-pin-helper-prefix {
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: currentColor;
-}

@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
@@ -693,7 +693,13 @@ describe("useAiStudioReferenceAssetActions", () => {
   });
 
   it("saves a valid reference id and ignores empty ids", () => {
-    const saveReferenceToLibrary = vi.fn();
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue({
+      ok: true,
+      mediaFileIds: ["media-1"],
+      promptId: null,
+      delivery: null,
+      error: null,
+    });
     const { result } = renderHook(() =>
       useAiStudioReferenceAssetActions(createParams({ saveReferenceToLibrary }))
     );
@@ -705,5 +711,26 @@ describe("useAiStudioReferenceAssetActions", () => {
 
     expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
     expect(saveReferenceToLibrary).toHaveBeenCalledWith("out-1");
+  });
+
+  it("swallows unexpected save promise rejections and surfaces a UI error", async () => {
+    const saveReferenceToLibrary = vi.fn().mockRejectedValue(new Error("save exploded"));
+    const setUiError = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioReferenceAssetActions(
+        createParams({
+          saveReferenceToLibrary,
+          setUiError: asDispatch<string | null>(setUiError),
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleSaveReference("out-1");
+    });
+
+    await waitFor(() => {
+      expect(setUiError).toHaveBeenCalledWith("save exploded");
+    });
   });
 });

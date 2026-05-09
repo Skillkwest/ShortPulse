@@ -367,8 +367,8 @@ describe("ExpertEditPanelView", () => {
   const baseProps: React.ComponentProps<typeof ExpertEditPanelView> = {
     expertEditEligible: true,
     aspect: "1:1",
-    modelId: "fal-ai/nano-banana/edit",
-    modelLabel: "Nano Banana Edit",
+    modelId: "fal-ai/nano-banana-2/edit",
+    modelLabel: "Nano Banana 2 Edit",
     referenceImageUrl: null,
     extraImageUrls: [null, null, null],
     referenceText: "",
@@ -4171,7 +4171,7 @@ describe("ExpertEditPanelView", () => {
     const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
 
     expect(modelPickerButton).not.toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+    expect(modelPickerButton).toHaveTextContent("Nano Banana 2");
 
     fireEvent.click(inpaintTab);
     expect(modelPickerButton).toBeDisabled();
@@ -4188,7 +4188,7 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(standardTab);
     expect(modelPickerButton).not.toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+    expect(modelPickerButton).toHaveTextContent("Nano Banana 2");
   });
 
   it("keeps the model picker unlocked while Markup is selected", async () => {
@@ -4202,11 +4202,11 @@ describe("ExpertEditPanelView", () => {
     const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
 
     expect(modelPickerButton).not.toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+    expect(modelPickerButton).toHaveTextContent("Nano Banana 2");
 
     fireEvent.click(markupButton);
     expect(modelPickerButton).not.toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+    expect(modelPickerButton).toHaveTextContent("Nano Banana 2");
     expect(modelPickerButton.querySelector(".model-chip-logo-img")).not.toHaveAttribute(
       "src",
       "/tiny-logo.png"
@@ -4216,7 +4216,7 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(moveButton);
     expect(modelPickerButton).not.toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+    expect(modelPickerButton).toHaveTextContent("Nano Banana 2");
   });
 
   it("locks the model picker to Pulse Markup v1 while Markup is selected", async () => {
@@ -4228,7 +4228,7 @@ describe("ExpertEditPanelView", () => {
     const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
 
     expect(modelPickerButton).not.toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+    expect(modelPickerButton).toHaveTextContent("Nano Banana 2");
 
     fireEvent.click(markupTab);
     expect(modelPickerButton).toBeDisabled();
@@ -4242,7 +4242,7 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(standardTab);
     expect(modelPickerButton).not.toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+    expect(modelPickerButton).toHaveTextContent("Nano Banana 2");
   });
 
   it("locks the model picker from selector-row markup mode tabs", () => {
@@ -4266,7 +4266,7 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(standardTab);
     expect(modelPickerButton).not.toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent("Nano Banana");
+    expect(modelPickerButton).toHaveTextContent("Nano Banana 2");
   });
 
   it("applies active tool theme classes to the collapsed tools button", () => {

@@ -149,9 +149,9 @@ export const useExpertEditMarkupControlsRuntime = ({
   }, [openMarkupColorPickerScope]);
 
   const renderMarkupControlsContent = React.useCallback(
-    (scope: "inline" | "modal") => (
+    (scope: "inline" | "modal" | "rail") => (
       <ExpertEditMarkupControlsContent
-        scope={scope}
+        scope={scope === "rail" ? "inline" : scope}
         selectedMarkupMode={selectedMarkupMode}
         isMarkupToolSelected={isMarkupToolSelected}
         isMarkupExpandSelected={isMarkupExpandSelected}
@@ -162,7 +162,9 @@ export const useExpertEditMarkupControlsRuntime = ({
           scope === "modal" ? modalMarkupColorPickerAnchorRef : inlineMarkupColorPickerAnchorRef
         }
         markupColorSaturationRef={markupColorSaturationRef}
-        isMarkupColorPickerOpen={openMarkupColorPickerScope === scope}
+        isMarkupColorPickerOpen={
+          openMarkupColorPickerScope === (scope === "rail" ? "inline" : scope)
+        }
         toggleMarkupColorPicker={toggleMarkupColorPicker}
         setSelectedRailTool={setSelectedRailTool}
         setSelectedMarkupMode={setSelectedMarkupMode}

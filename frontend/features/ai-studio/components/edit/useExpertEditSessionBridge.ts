@@ -2,11 +2,11 @@ import React from "react";
 
 import { clearWindowAnimationFrameRef, clearWindowTimeoutRef } from "./expertEditInteractionUtils";
 import { collectOwnedLayerImageUrls, type ExpertEditLayer } from "./expertEditLayerSessionUtils";
+import { type ExpertEditSessionState } from "./expertEditSessionState";
 import {
-  areExpertEditSessionStatesEqual,
-  cloneExpertEditSessionState,
-  type ExpertEditSessionState,
-} from "./expertEditSessionState";
+  flushPendingPublishedSessionState,
+  useExpertEditPublishedSessionSync,
+} from "./useExpertEditPublishedSessionSync";
 import { useExpertEditSessionHostSync } from "./useExpertEditSessionHostSync";
 import type { MarkupStroke } from "./markupStrokeController";
 import type { InpaintMaskSnapshot } from "./useInpaintMaskController";
@@ -57,48 +57,45 @@ export function useExpertEditSessionBridge({
   const lastDispatchedPrimaryRef = React.useRef<string | null>(initialReferenceImageUrl);
   const previousPrimaryPropRef = React.useRef<string | null>(initialReferenceImageUrl);
 
-  useExpertEditSessionHostSync({
+  useExpertEditPublishedSessionSync({
     foundationLayerId,
     selectedLayerIndex,
     layers,
     markupStrokes,
     inpaintSnapshot,
-    referenceImageUrl,
-    hostPrimaryImageUrl,
-    removeBackgroundPendingLayerId,
     layerIdCounterRef,
-    previousLayersRef,
     lastDispatchedSessionStateRef,
     pendingSessionStateRef,
     sessionDispatchFrameRef,
     sessionDispatchTimeoutRef,
     lastSessionDispatchAtRef,
+    onSessionStateChange,
+  });
+
+  useExpertEditSessionHostSync({
+    selectedLayerIndex,
+    layers,
+    referenceImageUrl,
+    hostPrimaryImageUrl,
+    removeBackgroundPendingLayerId,
+    previousLayersRef,
+    foundationLayerId,
     lastDispatchedPrimaryRef,
     previousPrimaryPropRef,
     removeBackgroundPendingSourceUrlRef,
     setLayers,
     clearRemoveBackgroundPending,
     onPrimaryImageChange,
-    onSessionStateChange,
     revokeObjectUrlSafe,
   });
 
   React.useEffect(
     () => () => {
-      const pendingState = pendingSessionStateRef.current;
-      const lastDispatchedState = lastDispatchedSessionStateRef.current;
-      if (
-        onSessionStateChange &&
-        pendingState &&
-        (!lastDispatchedState ||
-          !areExpertEditSessionStatesEqual(lastDispatchedState, pendingState))
-      ) {
-        const clonedState = cloneExpertEditSessionState(pendingState);
-        lastDispatchedSessionStateRef.current = clonedState;
-        onSessionStateChange(clonedState);
-      }
-      pendingSessionStateRef.current = null;
-      lastDispatchedSessionStateRef.current = null;
+      flushPendingPublishedSessionState({
+        onSessionStateChange,
+        pendingSessionStateRef,
+        lastDispatchedSessionStateRef,
+      });
       clearWindowAnimationFrameRef(sessionDispatchFrameRef);
       clearWindowTimeoutRef(sessionDispatchTimeoutRef);
       if (!onSessionStateChange) {

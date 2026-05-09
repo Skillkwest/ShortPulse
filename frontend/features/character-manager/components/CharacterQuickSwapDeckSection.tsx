@@ -9,7 +9,6 @@ import { resolveVirtualGridWindow, sliceVirtualGridEntries } from "../logic/quic
 import type { CharacterQuickSwapItem } from "../types";
 
 type CharacterQuickSwapDeckSectionProps = {
-  beginnerMode: boolean;
   showCollapseToggle?: boolean;
   showHelperText?: boolean;
   isCollapsed: boolean;
@@ -100,7 +99,6 @@ const resolveActiveGridColumnCount = (
  * Renders the quick-swap deck with dynamic item counts and archived controls.
  */
 export function CharacterQuickSwapDeckSection({
-  beginnerMode,
   showCollapseToggle = true,
   showHelperText = true,
   isCollapsed,
@@ -313,11 +311,6 @@ export function CharacterQuickSwapDeckSection({
     >
       <div className="character-section-head">
         <div className="character-section-title-row">
-          {beginnerMode ? (
-            <span className="character-step-badge" aria-hidden="true">
-              1
-            </span>
-          ) : null}
           <div className="character-section-title-copy">
             <h3 className="character-section-title">QuickSwap Deck</h3>
             {!isCollapsed && showHelperText ? (

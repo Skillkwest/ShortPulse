@@ -21,6 +21,10 @@ import {
 } from "./sessionSnapshotCanvas";
 import { parseAiStudioSessionExpertEditState } from "./sessionSnapshotExpertEdit";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import {
+  PULSE_CREATE_FORCED_CHAT_MODE_ENABLED,
+  STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
+} from "./chatModeDefaults";
 import { resolveHydratedPulseRuntimeState, resolvePulseRuntimeState } from "./pulseSessionState";
 
 const FALLBACK_MODE: StudioMode = "text";
@@ -602,7 +606,7 @@ const buildHydratedAgentRuntime = (value: unknown) => {
     input: asString(runtime.input, ""),
     latestAgentPrompt: asNullableString(runtime.latestAgentPrompt),
     promptOrigin: asPromptOrigin(runtime.promptOrigin),
-    chatModeEnabled: asBoolean(runtime.chatModeEnabled, true),
+    chatModeEnabled: asBoolean(runtime.chatModeEnabled, STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED),
     pulseWorkflowSession: asPulseWorkflowSession(runtime.pulseWorkflowSession),
   };
 };
@@ -614,7 +618,10 @@ const coerceHydratedRuntimeChatMode = <
   options?: {
     forceChatModeEnabled?: boolean;
   }
-): TRuntime => (options?.forceChatModeEnabled ? { ...runtime, chatModeEnabled: true } : runtime);
+): TRuntime =>
+  options?.forceChatModeEnabled
+    ? { ...runtime, chatModeEnabled: PULSE_CREATE_FORCED_CHAT_MODE_ENABLED }
+    : runtime;
 
 const isHydratedPulseRuntimeAuthorizedForPreset = (
   runtime: ReturnType<typeof buildHydratedAgentRuntime>,

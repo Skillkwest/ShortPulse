@@ -17,7 +17,7 @@ type ExpertEditLayersPanelProps = {
   editingLayerValue: string;
   draggingLayerIndex: number | null;
   dragOverLayerIndex: number | null;
-  resolvedSelectedLayerIndex: number;
+  resolvedSelectedLayerIndex: number | null;
   isGenerateDisabled: boolean;
   selectedLayerImageUrl: string | null;
   isRemoveBackgroundPending: boolean;

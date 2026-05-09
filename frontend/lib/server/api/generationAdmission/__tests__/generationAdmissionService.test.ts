@@ -173,7 +173,7 @@ describe("generationAdmissionService", () => {
 
     const decision = await evaluateUserGenerationAdmission({
       userId: "user-1",
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       config: {
         mode: "enforce",
         globalMax: 4,
@@ -194,7 +194,7 @@ describe("generationAdmissionService", () => {
     expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledWith({
       userId: "user-1",
       provider: "fal",
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       staleIgnoreMinAgeSeconds: 900,
       activeGenerationStaleIgnoreMinAgeSeconds: 900,
       orphanGraceSeconds: 60,
@@ -227,7 +227,7 @@ describe("generationAdmissionService", () => {
     const result = await evaluateScopedGenerationAdmission({
       scopeUserId: null,
       provider: "fal",
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       config: {
         mode: "enforce",
         globalMax: 4,

@@ -8,6 +8,7 @@ import {
   handleVideoModelSubmission,
   resolveSubmissionHandlerRoute,
 } from "../taskSubmissionHandlers";
+import type { FalSubmitResponse } from "../../../../lib/falClient";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import type { Provider } from "../../logic/stateParsers";
@@ -55,7 +56,7 @@ type DispatchSubmissionByRouteParams = {
     taskId: string | undefined,
     provider: Provider,
     patch?: SubmissionPatch,
-    submitResponse?: { request_id?: string; generationId?: string }
+    submitResponse?: FalSubmitResponse
   ) => void;
   completeGenerationImmediately?: (result: ImmediateGenerationResult) => void;
   createSubmitNotStartedError: (detail: string) => Error;

@@ -1,6 +1,7 @@
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useAiStudioMediaAutosaveOrchestrator } from "../useAiStudioMediaAutosaveOrchestrator";
+import type { PersistOutputSaveResult } from "../persistenceActionContracts";
 import type { StudioOutput } from "../../types";
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
@@ -18,9 +19,20 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   ...overrides,
 });
 
+const createPersistResult = (
+  overrides: Partial<PersistOutputSaveResult> = {}
+): PersistOutputSaveResult => ({
+  ok: true,
+  mediaFileIds: ["media-1"],
+  promptId: null,
+  delivery: null,
+  error: null,
+  ...overrides,
+});
+
 describe("useAiStudioMediaAutosaveOrchestrator", () => {
   it("does not autosave when media autosave preference is off", () => {
-    const saveReferenceToLibrary = vi.fn();
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
         outputs: [createOutput()],
@@ -32,7 +44,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
   });
 
   it("autosaves eligible unsaved media once and avoids rerender loops", () => {
-    const saveReferenceToLibrary = vi.fn();
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     const { rerender } = renderHook(
       ({ outputs }: { outputs: StudioOutput[] }) =>
         useAiStudioMediaAutosaveOrchestrator({
@@ -57,7 +69,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
   });
 
   it("skips library items already carrying savedMediaIds and prompt-only references", () => {
-    const saveReferenceToLibrary = vi.fn();
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
         outputs: [
@@ -83,7 +95,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
   });
 
   it("does not autosave outputs that are already saving", () => {
-    const saveReferenceToLibrary = vi.fn();
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
         outputs: [
@@ -101,7 +113,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
   });
 
   it("does not autosave generated outputs until durable generation identity exists", () => {
-    const saveReferenceToLibrary = vi.fn();
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
         outputs: [
@@ -118,5 +130,39 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     );
 
     expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed autosave once and then stops after the retry budget is exhausted", async () => {
+    const saveReferenceToLibrary = vi
+      .fn()
+      .mockResolvedValueOnce(createPersistResult({ ok: false, mediaFileIds: [], error: "fail-1" }))
+      .mockResolvedValueOnce(createPersistResult({ ok: false, mediaFileIds: [], error: "fail-2" }));
+    const { rerender } = renderHook(
+      ({ outputs }: { outputs: StudioOutput[] }) =>
+        useAiStudioMediaAutosaveOrchestrator({
+          outputs,
+          mediaAutosaveEnabled: true,
+          saveReferenceToLibrary,
+        }),
+      {
+        initialProps: {
+          outputs: [createOutput({ id: "retry-1", saveState: "idle" })],
+        },
+      }
+    );
+
+    await waitFor(() => expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1));
+
+    rerender({
+      outputs: [createOutput({ id: "retry-1", saveState: "failed", saveError: "fail-1" })],
+    });
+    await waitFor(() => expect(saveReferenceToLibrary).toHaveBeenCalledTimes(2));
+
+    rerender({
+      outputs: [createOutput({ id: "retry-1", saveState: "failed", saveError: "fail-2" })],
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveReferenceToLibrary).toHaveBeenCalledTimes(2);
   });
 });

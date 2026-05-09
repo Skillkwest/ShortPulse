@@ -44,8 +44,8 @@ const remapMaskCanvasToSize = ({
 };
 
 type UseInpaintMaskDocumentRuntimeParams = {
-  maskCanvasesRef: React.RefObject<Map<string, HTMLCanvasElement>>;
-  maskMetaRef: React.RefObject<Map<string, MaskLayerMeta>>;
+  maskCanvasesRef: React.MutableRefObject<Map<string, HTMLCanvasElement>>;
+  maskMetaRef: React.MutableRefObject<Map<string, MaskLayerMeta>>;
   selectedLayerId: string | null;
   selectedLayerImageUrl: string | null;
   layerSources: InpaintLayerSource[];

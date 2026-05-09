@@ -302,8 +302,8 @@
   gap: 10px;
 }
 
-.ai-studio-page[data-beginner-mode="off"] .step-card-header::before,
-.ai-studio-page[data-beginner-mode="off"] .reference-step-header::before {
+.ai-studio-page .step-card-header::before,
+.ai-studio-page .reference-step-header::before {
   content: "";
   width: 10px;
   height: 10px;
@@ -373,20 +373,8 @@
     color 0.16s ease,
     box-shadow 0.16s ease;
 }
-.ai-studio-page[data-beginner-mode="on"] .reference-toggle {
-  border-color: rgba(4, 183, 135, 0.8);
-}
-
-.reference-toggle:hover:not(:disabled) {
-  border-color: var(--ai-warm-border, rgba(245, 185, 66, 0.6));
-}
-
-.ai-studio-page[data-beginner-mode="off"] .reference-toggle:hover:not(:disabled) {
+.ai-studio-page .reference-toggle:hover:not(:disabled) {
   border-color: rgba(4, 183, 135, 0.9);
-}
-
-.ai-studio-page[data-beginner-mode="on"] .reference-toggle:hover:not(:disabled) {
-  border-color: rgba(4, 183, 135, 0.95);
 }
 .reference-toggle.is-active {
   background: linear-gradient(
@@ -423,16 +411,6 @@
 .reference-toggle.is-active .reference-toggle-dot {
   transform: translate(22px, -50%);
   background: #1a140c;
-}
-
-.ai-studio-page[data-beginner-mode="on"] .reference-toggle.is-active {
-  background: linear-gradient(135deg, rgba(4, 183, 135, 0.96), rgba(14, 213, 100, 0.658));
-  border-color: rgba(4, 183, 135, 0.96);
-  box-shadow: 0 6px 18px rgba(7, 143, 64, 0.34);
-}
-
-.ai-studio-page[data-beginner-mode="on"] .reference-toggle.is-active .reference-toggle-dot {
-  background: #071a18;
 }
 
 /* Warm/yellow toggle prefab (audio uses this by default). */
@@ -546,19 +524,6 @@
   box-shadow:
     0 6px 18px rgba(245, 185, 66, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.32);
-}
-
-.ai-studio-page[data-beginner-mode="on"] .step-badge {
-  background: linear-gradient(135deg, rgba(4, 183, 135, 0.96), rgba(14, 213, 100, 0.658));
-  color: #000000;
-  box-shadow:
-    0 6px 18px rgba(7, 143, 64, 0.34),
-    inset 0 1px 0 rgba(5, 175, 84, 0.813);
-}
-
-.ai-studio-page[data-beginner-mode="on"] .step-card-header > .step-badge {
-  align-self: flex-start;
-  margin-top: 9px;
 }
 
 .step-header-copy {

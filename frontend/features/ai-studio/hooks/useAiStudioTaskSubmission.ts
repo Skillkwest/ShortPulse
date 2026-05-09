@@ -527,7 +527,6 @@ export const useAiStudioTaskSubmission = ({
             projectId,
             finalModel,
             cleanedPrompt: cleanedSubmissionPrompt,
-            effectiveTool,
             outputMode,
             effectiveAspect,
             requestedDurationSeconds,

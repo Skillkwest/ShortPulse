@@ -25,7 +25,6 @@ const ECONOMY_IMAGE_COST_PER_MP_USD = 0.006;
 const FLUX_PRO_FILL_COST_PER_MP_USD = 0.05;
 const FLUX_KONTEXT_INPAINT_COST_PER_MP_USD = 0.035;
 const BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD = 0.018;
-const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
 const ELEVENLABS_TEXT_TO_SPEECH_USD_PER_1K_CHARACTERS = 0.1;
 const ELEVENLABS_VOICE_CHANGER_USD_PER_MINUTE = 0.12;
@@ -246,17 +245,6 @@ const computeFluxKontextInpaintPerMpCost: StrategyFn = ({
     megapixels,
     width: size.width,
     height: size.height,
-    policy: pricingPolicy,
-  });
-};
-
-const computeGoogleNanoBananaPerImageCost: StrategyFn = ({ modelId, pricingPolicy }) => {
-  return toCostBreakdown({
-    modelId,
-    usdRaw: GOOGLE_NANO_BANANA_PER_IMAGE_USD,
-    megapixels: 0,
-    width: 0,
-    height: 0,
     policy: pricingPolicy,
   });
 };
@@ -639,7 +627,6 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-fill-per-mp": computeFalFillPerMpCost,
   "fal-flux-kontext-inpaint-per-mp": computeFluxKontextInpaintPerMpCost,
   "gpt-image-2-per-image": computeGptImage2PerImageCost,
-  "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
   "nano-banana-2-per-image": computeNanoBanana2PerImageCost,
   "openai-text-token": computeOpenAiTextTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,

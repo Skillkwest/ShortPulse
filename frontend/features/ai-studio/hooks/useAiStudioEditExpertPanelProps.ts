@@ -6,6 +6,7 @@ import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
 import type { EditSubmitIntent } from "../logic/editSubmitIntent";
 import type { AiStudioEditExpertPanelContract } from "./contracts/pageContentContracts";
+import type { ModelModalContext } from "../components/ModelModal";
 import type {
   ExpertEditCustomPresetOverrides,
   ExpertEditPresetId,
@@ -30,13 +31,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   handleOpenModelModal: (
     anchorId: string,
     target: HTMLElement,
-    context?:
-      | "reference-image"
-      | "reference-video"
-      | "reference-keyframes"
-      | "text-image"
-      | "text-video"
-      | null
+    context?: ModelModalContext | null
   ) => void;
   setReferenceImageUrl: (url: string | null) => void;
   setExtraImageUrl: (index: number, url: string | null) => void;
@@ -58,7 +53,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   imageResolution: string;
   setImageResolution: Dispatch<SetStateAction<string>>;
-  characterOptions: Array<{ id: string; name: string; profileImageUrl?: string | null }>;
+  characterOptions: Array<{ id: string; name: string; profileImageUrl: string | null }>;
   selectedCharacterId: string;
   setSelectedCharacterId: Dispatch<SetStateAction<string>>;
   isCharacterOptionsLoading: boolean;

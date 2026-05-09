@@ -518,7 +518,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
     try {
       const submitTask = vi.fn();
       const params = createParams({
-        model: "fal-ai/nano-banana/edit",
+        model: "fal-ai/nano-banana-2/edit",
         selectedTool: "edit",
         selectedStylePrompt: "moody studio lighting",
         submitTask,

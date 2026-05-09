@@ -74,20 +74,6 @@ export const modelOptions: ModelOption[] = listPickerModelConfigs()
     mediaType: mapCatalogMediaTypeToModelOption(config.mediaType),
   }));
 
-export const falNanoBananaAllowedAspects = new Set(
-  getModelAllowedAspects("fal-ai/nano-banana", [
-    "16:9",
-    "3:2",
-    "4:3",
-    "5:4",
-    "1:1",
-    "4:5",
-    "3:4",
-    "2:3",
-    "9:16",
-  ])
-);
-
 export const falNanoBananaProAllowedAspects = new Set(
   getModelAllowedAspects("fal-ai/nano-banana-pro/edit", [
     "auto",

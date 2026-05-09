@@ -16,7 +16,6 @@ import {
   normalizeNanoBananaProResolution,
 } from "../../logic/imageResolution";
 import {
-  normalizeAspectForFalNanoBanana,
   normalizeAspectForFalNanoBanana2,
   normalizeAspectForFalNanoBananaPro,
 } from "../../logic/stateParsers";
@@ -33,7 +32,6 @@ const handoffSubmitResponse = ({
   pollingProvider:
     | "fal-seedream"
     | "fal-seedream-v5-lite"
-    | "fal-nano-banana"
     | "fal-nano-banana-2"
     | "fal-nano-banana-pro";
   startPollingWithGeneration: ImageSubmissionArgs["startPollingWithGeneration"];
@@ -65,7 +63,6 @@ export const handleDefaultModelSubmission = async ({
   let pollingProvider:
     | "fal-seedream"
     | "fal-seedream-v5-lite"
-    | "fal-nano-banana"
     | "fal-nano-banana-2"
     | "fal-nano-banana-pro";
   const shortpulseSubmitPayload = {
@@ -139,16 +136,6 @@ export const handleDefaultModelSubmission = async ({
       finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
         ? "fal-seedream-v5-lite"
         : "fal-seedream";
-  } else if (finalModel === "fal-ai/nano-banana") {
-    response = await submitQueuedGenerationByModelId(finalModel, {
-      prompt: cleanedPrompt,
-      num_images: 1,
-      aspect_ratio: normalizeAspectForFalNanoBanana(aspect),
-      output_format: "png",
-      ...falReferencePayload,
-      ...shortpulseSubmitPayload,
-    });
-    pollingProvider = "fal-nano-banana";
   } else if (finalModel === "fal-ai/nano-banana-pro") {
     response = await submitQueuedGenerationByModelId(finalModel, {
       prompt: cleanedPrompt,

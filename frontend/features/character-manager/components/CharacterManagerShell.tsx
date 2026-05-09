@@ -69,8 +69,6 @@ type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
   initialWorkflowTab?: CharacterWorkflowTab;
   externalCreateRequestKey?: number;
-  beginnerModeOverride?: boolean;
-  showBeginnerModeToggle?: boolean;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
   onActiveTabChange?: (activeTab: CharacterWorkflowTab) => void;
 };
@@ -120,8 +118,6 @@ export function CharacterManagerShell({
   surface = "page",
   initialWorkflowTab,
   externalCreateRequestKey = 0,
-  beginnerModeOverride,
-  showBeginnerModeToggle = true,
   resolveCharacterDropReference,
   onActiveTabChange,
 }: CharacterManagerShellProps) {
@@ -197,16 +193,10 @@ export function CharacterManagerShell({
   });
   const quickSwapActiveItems = useMemo(() => quickSwapItems, [quickSwapItems]);
   const { isQuickSwapTipHidden, markQuickSwapTipHidden } = useCharacterQuickSwapTipPreference();
-  const {
-    setBeginnerMode,
-    isEmbeddedSurface,
-    effectiveBeginnerMode,
-    showQuickSwapCollapseToggle,
-    showQuickSwapHelperText,
-  } = useCharacterManagerSurfacePolicy({
-    surface,
-    beginnerModeOverride,
-  });
+  const { isEmbeddedSurface, showQuickSwapCollapseToggle, showQuickSwapHelperText } =
+    useCharacterManagerSurfacePolicy({
+      surface,
+    });
   const {
     activeTab,
     setActiveTab,
@@ -405,7 +395,6 @@ export function CharacterManagerShell({
     metadata: {
       surface,
       active_tab: activeTab,
-      beginner_mode: effectiveBeginnerMode,
       selected_character_id: selectedCharacterId,
     },
   });
@@ -600,7 +589,6 @@ export function CharacterManagerShell({
       id={isEmbeddedSurface ? undefined : "main-content"}
       className={rootClassName}
       data-active-tab={activeTab}
-      data-beginner-mode={effectiveBeginnerMode ? "on" : "off"}
       data-surface={surface}
     >
       {!isEmbeddedSurface ? (
@@ -652,9 +640,6 @@ export function CharacterManagerShell({
           createTabId={createWorkflowTabId}
           managePanelId={manageWorkflowPanelId}
           createPanelId={createWorkflowPanelId}
-          showBeginnerModeToggle={!isEmbeddedSurface && showBeginnerModeToggle}
-          effectiveBeginnerMode={effectiveBeginnerMode}
-          setBeginnerMode={setBeginnerMode}
           isCreatingCharacter={isCreatingCharacter}
           isSavingCharacter={isSavingCharacter}
           hasUnsavedCharacterDraft={hasUnsavedCharacterDraft}
@@ -692,7 +677,6 @@ export function CharacterManagerShell({
             <CharacterCreateWorkspaceLayout
               quickSwap={
                 <CharacterQuickSwapDeckSection
-                  beginnerMode={effectiveBeginnerMode}
                   showCollapseToggle={showQuickSwapCollapseToggle}
                   showHelperText={showQuickSwapHelperText}
                   isCollapsed={isQuickSwapCollapsed}
@@ -801,11 +785,6 @@ export function CharacterManagerShell({
                 <section className="character-section character-section--references">
                   <div className="character-section-head">
                     <div className="character-section-title-row">
-                      {effectiveBeginnerMode ? (
-                        <span className="character-step-badge" aria-hidden="true">
-                          2
-                        </span>
-                      ) : null}
                       <div className="character-section-title-copy">
                         <h3 className="character-section-title">Character Sheet</h3>
                       </div>

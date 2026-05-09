@@ -33,8 +33,6 @@ const StepHeaderActionButton: React.FC<StepHeaderActionButtonProps> = ({
 };
 
 type PromptStepHeaderProps = {
-  beginnerMode: boolean;
-  stepNumber: string | number;
   effectiveTitle: string;
   visibleSubtitle?: string;
   chatOnly: boolean;
@@ -45,8 +43,6 @@ type PromptStepHeaderProps = {
 };
 
 export const PromptStepHeader: React.FC<PromptStepHeaderProps> = ({
-  beginnerMode,
-  stepNumber,
   effectiveTitle,
   visibleSubtitle,
   chatOnly,
@@ -63,7 +59,6 @@ export const PromptStepHeader: React.FC<PromptStepHeaderProps> = ({
         onToggleCollapse();
       }}
     >
-      {beginnerMode ? <span className="step-badge">{stepNumber}</span> : null}
       <div className="step-header-copy">
         <p className="step-title">{effectiveTitle}</p>
         {visibleSubtitle ? (
@@ -92,13 +87,11 @@ export const PromptStepHeader: React.FC<PromptStepHeaderProps> = ({
             ) : null}
           </div>
         ) : null}
-        {!beginnerMode ? (
-          <StepHeaderActionButton
-            label="Open prompt tools"
-            isCollapsed={isCollapsed}
-            onClick={onToggleCollapse}
-          />
-        ) : null}
+        <StepHeaderActionButton
+          label="Open prompt tools"
+          isCollapsed={isCollapsed}
+          onClick={onToggleCollapse}
+        />
       </div>
     </div>
   );

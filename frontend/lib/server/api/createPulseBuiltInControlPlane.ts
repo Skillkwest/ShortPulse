@@ -7,7 +7,7 @@ import {
   CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS,
   normalizeCreatePulseBuiltInPresetDefinitions,
   type CreatePulseBuiltInPresetDefinition,
-} from "../../../features/ai-studio/components/create/createPulsePresets";
+} from "../../model-runtime/createPulseBuiltIns";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 
 export type ActiveCreatePulseBuiltInCatalog = {

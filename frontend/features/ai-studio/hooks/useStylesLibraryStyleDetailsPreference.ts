@@ -70,12 +70,12 @@ const isStyleDetailsRemoteSyncTimeoutError = (
   return (error as { code?: unknown }).code === STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_CODE;
 };
 
-const withRemoteSyncTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> =>
+const withRemoteSyncTimeout = async <T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T> =>
   await new Promise<T>((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
       reject(createStyleDetailsRemoteSyncTimeoutError(timeoutMs));
     }, timeoutMs);
-    promise
+    Promise.resolve(promise)
       .then((value) => {
         window.clearTimeout(timeoutId);
         resolve(value);
@@ -222,7 +222,7 @@ export const useStylesLibraryStyleDetailsPreference =
         }
 
         try {
-          const { error: upsertError } = await withRemoteSyncTimeout(
+          const upsertResult = await withRemoteSyncTimeout<{ error: unknown }>(
             supabaseQueryClient
               .from("user_preferences")
               .upsert(
@@ -231,6 +231,7 @@ export const useStylesLibraryStyleDetailsPreference =
               ),
             STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS
           );
+          const upsertError = upsertResult.error;
           if (upsertError) throw upsertError;
           if (requestVersion !== writeVersionRef.current) return true;
           setError(null);
@@ -281,7 +282,7 @@ export const useStylesLibraryStyleDetailsPreference =
         }
 
         try {
-          const { error: upsertError } = await withRemoteSyncTimeout(
+          const upsertResult = await withRemoteSyncTimeout<{ error: unknown }>(
             supabaseQueryClient
               .from("user_preferences")
               .upsert(
@@ -290,6 +291,7 @@ export const useStylesLibraryStyleDetailsPreference =
               ),
             STYLE_DETAILS_REMOTE_SYNC_TIMEOUT_MS
           );
+          const upsertError = upsertResult.error;
           if (upsertError) throw upsertError;
           if (requestVersion !== writeVersionRef.current) return true;
           setError(null);

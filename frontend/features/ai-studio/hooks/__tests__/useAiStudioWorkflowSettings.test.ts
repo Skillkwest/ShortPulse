@@ -28,7 +28,8 @@ const useHarness = (
   initialTool: ToolId | null,
   sessionId = "session-1",
   projectId: string | null = null,
-  projectRouteRequested = false
+  projectRouteRequested = false,
+  isCharacterModeEnabled = false
 ) => {
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(initialTool);
   const [mode, setMode] = useState<StudioMode>("text");
@@ -69,6 +70,7 @@ const useHarness = (
     projectId,
     projectRouteRequested,
     sessionId,
+    isCharacterModeEnabled,
     selectedTool,
     mode,
     model,
@@ -154,6 +156,15 @@ describe("useAiStudioWorkflowSettings", () => {
 
     await waitFor(() => expect(result.current.mode).toBe("image"));
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image");
+  });
+
+  it("defaults create workflow model to the edit default when Character Mode is enabled", async () => {
+    window.sessionStorage.clear();
+
+    const { result } = renderHook(() => useHarness("create", "session-1", null, false, true));
+
+    await waitFor(() => expect(result.current.mode).toBe("image"));
+    expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
   });
 
   it("restores saved create video workflow settings from session storage without overwriting the shared aspect", async () => {
@@ -261,6 +272,39 @@ describe("useAiStudioWorkflowSettings", () => {
 
     await waitFor(() => expect(result.current.mode).toBe("image"));
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image");
+  });
+
+  it("restores a saved character-mode edit model without normalizing it back to text-image", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        create: {
+          mode: "image",
+          model: "fal-ai/bytedance/seedream/v4.5/edit",
+          aspect: "1:1",
+          imageResolution: "model_default",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useHarness("create", "session-1", null, false, true));
+
+    await waitFor(() => expect(result.current.mode).toBe("image"));
+    expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
   });
 
   it("falls back to Seedream edit when saved edit model is invalid", async () => {
@@ -611,7 +655,7 @@ describe("useAiStudioWorkflowSettings", () => {
     );
 
     act(() => {
-      result.current.setModelState("fal-ai/nano-banana");
+      result.current.setModelState("fal-ai/nano-banana-2");
       result.current.setSelectedTool("video");
     });
 
@@ -622,7 +666,7 @@ describe("useAiStudioWorkflowSettings", () => {
     });
 
     await waitFor(() => expect(result.current.selectedTool).toBe("create"));
-    expect(result.current.model).toBe("fal-ai/nano-banana");
+    expect(result.current.model).toBe("fal-ai/nano-banana-2");
   });
 
   it("keeps aspect synchronized across create, edit, and video workflow switches", async () => {

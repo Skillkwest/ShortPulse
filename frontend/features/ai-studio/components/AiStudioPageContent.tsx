@@ -485,9 +485,6 @@ export type AiStudioPageContentProps = {
   onDismissUiError: () => void;
   onDismissUiNotice: () => void;
   onDismissCharacterError: () => void;
-  beginnerMode: boolean;
-  showBeginnerModeToggle: boolean;
-  onBeginnerModeChange: (value: boolean) => void;
   balanceCredits: number | null;
   pendingHoldCredits: number | null;
   balanceLoading: boolean;
@@ -559,9 +556,6 @@ export function AiStudioPageContent({
   onDismissUiError,
   onDismissUiNotice,
   onDismissCharacterError,
-  beginnerMode,
-  showBeginnerModeToggle,
-  onBeginnerModeChange,
   balanceCredits,
   balanceLoading,
   visibleFailures,
@@ -629,9 +623,7 @@ export function AiStudioPageContent({
     : "image/*,video/*,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga";
   const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
   const showExpertCreatePanel = Boolean(
-    propertiesPanelKind === "create" &&
-    activeCreateProperties?.expertCreateUiEligible &&
-    !activeCreateProperties.beginnerMode
+    propertiesPanelKind === "create" && activeCreateProperties?.expertCreateUiEligible
   );
   const showExpertEditPanel = propertiesPanelKind === "edit";
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
@@ -1320,12 +1312,11 @@ export function AiStudioPageContent({
   const characterPropertiesPanelContent = React.useMemo(
     () => (
       <CharacterPanel
-        beginnerMode={beginnerMode}
         createRequestKey={characterCreateRequestKey}
         resolveCharacterDropReference={resolveCharacterDropReference}
       />
     ),
-    [beginnerMode, characterCreateRequestKey, resolveCharacterDropReference]
+    [characterCreateRequestKey, resolveCharacterDropReference]
   );
   const presetsPropertiesPanelContent = React.useMemo(
     () => (
@@ -1487,23 +1478,17 @@ export function AiStudioPageContent({
     <AiStudioToolbarRail
       selectedTool={selectedTool}
       showCreateTools={showCreateTools}
-      beginnerMode={beginnerMode}
-      showBeginnerModeToggle={showBeginnerModeToggle}
       onOpenProjects={onOpenProjects}
       onSelectTool={handleToolSelection}
       onToggleCreateTools={onToggleCreateTools}
-      onBeginnerModeChange={onBeginnerModeChange}
     />
   ) : (
     <AiStudioToolbar
       selectedTool={selectedTool}
       showCreateTools={showCreateTools}
-      beginnerMode={beginnerMode}
-      showBeginnerModeToggle={showBeginnerModeToggle}
       onOpenProjects={onOpenProjects}
       onSelectTool={handleToolSelection}
       onToggleCreateTools={onToggleCreateTools}
-      onToggleBeginnerMode={onBeginnerModeChange}
     />
   );
 
@@ -1554,7 +1539,6 @@ export function AiStudioPageContent({
     <>
       <main
         className="page page-wide ai-studio-page"
-        data-beginner-mode={beginnerMode ? "on" : "off"}
         data-shell-boundary-split={FLAG_SHELL_BOUNDARY_SPLIT ? "on" : "off"}
         data-selected-tool={selectedTool ?? undefined}
       >

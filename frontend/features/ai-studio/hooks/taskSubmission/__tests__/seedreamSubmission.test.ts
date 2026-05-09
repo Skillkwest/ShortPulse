@@ -13,9 +13,9 @@ const falClientMocks = vi.hoisted(() => ({
   submitFalSeedreamEdit: vi.fn(),
   submitFalSeedreamV5Lite: vi.fn(),
   submitFalSeedreamV5LiteEdit: vi.fn(),
-  submitFalNanoBanana: vi.fn(),
+  submitFalNanoBanana2: vi.fn(),
   submitFalNanoBananaPro: vi.fn(),
-  submitFalNanoBananaEdit: vi.fn(),
+  submitFalNanoBanana2Edit: vi.fn(),
   submitFalNanoBananaProEdit: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
 }));
@@ -27,18 +27,16 @@ vi.mock("../../../../../lib/falClient", () => {
         return falClientMocks.submitFalSeedream(payload);
       case "fal-ai/bytedance/seedream/v5/lite/text-to-image":
         return falClientMocks.submitFalSeedreamV5Lite(payload);
-      case "fal-ai/nano-banana":
-        return falClientMocks.submitFalNanoBanana(payload);
+      case "fal-ai/nano-banana-2":
+        return falClientMocks.submitFalNanoBanana2(payload);
       case "fal-ai/nano-banana-pro":
         return falClientMocks.submitFalNanoBananaPro(payload);
-      case "fal-ai/nano-banana-2":
-        return Promise.resolve({ request_id: "nano-2-req" });
       case "fal-ai/bytedance/seedream/v4.5/edit":
         return falClientMocks.submitFalSeedreamEdit(payload);
       case "fal-ai/bytedance/seedream/v5/lite/edit":
         return falClientMocks.submitFalSeedreamV5LiteEdit(payload);
-      case "fal-ai/nano-banana/edit":
-        return falClientMocks.submitFalNanoBananaEdit(payload);
+      case "fal-ai/nano-banana-2/edit":
+        return falClientMocks.submitFalNanoBanana2Edit(payload);
       case "fal-ai/nano-banana-pro/edit":
         return falClientMocks.submitFalNanoBananaProEdit(payload);
       case "fal-ai/flux-2/klein/9b":
@@ -62,9 +60,9 @@ const {
   submitFalSeedreamEdit,
   submitFalSeedreamV5Lite,
   submitFalSeedreamV5LiteEdit,
-  submitFalNanoBanana,
+  submitFalNanoBanana2,
   submitFalNanoBananaPro,
-  submitFalNanoBananaEdit,
+  submitFalNanoBanana2Edit,
   submitFalNanoBananaProEdit,
   submitFalFlux2Klein,
 } = falClientMocks;
@@ -118,9 +116,9 @@ describe("Seedream submission payloads", () => {
     vi.mocked(submitFalSeedreamV5LiteEdit).mockResolvedValue({
       request_id: "seedream-v5-lite-edit-req",
     });
-    vi.mocked(submitFalNanoBanana).mockResolvedValue({ request_id: "nano-req" });
+    vi.mocked(submitFalNanoBanana2).mockResolvedValue({ request_id: "nano-2-req" });
     vi.mocked(submitFalNanoBananaPro).mockResolvedValue({ request_id: "nano-pro-req" });
-    vi.mocked(submitFalNanoBananaEdit).mockResolvedValue({ request_id: "nano-edit-req" });
+    vi.mocked(submitFalNanoBanana2Edit).mockResolvedValue({ request_id: "nano-2-edit-req" });
     vi.mocked(submitFalNanoBananaProEdit).mockResolvedValue({ request_id: "nano-pro-edit-req" });
     vi.mocked(submitFalFlux2Klein).mockResolvedValue({ request_id: "flux2-klein-req" });
     vi.mocked(submitOpenAiGptImage2).mockResolvedValue({

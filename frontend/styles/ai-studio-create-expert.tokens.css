@@ -1,9 +1,9 @@
 /**
  * AI Studio expert create panel styles.
- * Scoped under `.create-expert-panel` so beginner flow remains unchanged.
+ * Scoped under `.create-expert-panel` for Create-specific panel styling.
  */
 
-.ai-studio-page[data-beginner-mode="off"] {
+.ai-studio-page {
   /* Expert Create properties container surface controls */
   --ai-expert-create-properties-bg: var(--color-bg);
   --ai-expert-create-properties-border: 0;
@@ -13,8 +13,7 @@
   --ai-expert-create-properties-gap: 0;
 }
 
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
-  .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool="create"] .panel.ai-panel.ai-properties {
   background: transparent;
   padding: 0;
 }

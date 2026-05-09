@@ -13,8 +13,6 @@ type PromptStepEnhancedSurfaceProps = {
   handleEnhancedPromptKeyDown: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   promptThinking: boolean;
   promptPlaceholder: string;
-  beginnerMode: boolean;
-  beginnerPinHelperText?: string;
   hideEnhanceButton: boolean;
   enhanceOnly: boolean;
   onAgentEnhanceSend?: () => void;
@@ -44,8 +42,6 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   handleEnhancedPromptKeyDown,
   promptThinking,
   promptPlaceholder,
-  beginnerMode,
-  beginnerPinHelperText,
   hideEnhanceButton,
   enhanceOnly,
   onAgentEnhanceSend,
@@ -224,12 +220,6 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
         </div>
       </div>
       <div className="enhanced-actions-row prompt-actions-compact">
-        {beginnerMode && beginnerPinHelperText ? (
-          <p className="tiny helper-text beginner-pin-helper">
-            <span className="beginner-pin-helper-prefix">Tip:</span>
-            <span>{beginnerPinHelperText}</span>
-          </p>
-        ) : null}
         <div className="enhanced-action-buttons agent-inline-actions">
           {!hideEnhanceButton ? (
             <AgentEnhanceButton

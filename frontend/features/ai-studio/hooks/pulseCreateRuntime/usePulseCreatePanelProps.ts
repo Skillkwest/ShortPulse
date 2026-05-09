@@ -114,7 +114,6 @@ export const buildPulseCreatePanelProps = ({
   shouldDisableSave: false,
   onGeneratePulseArtifact: handlePulseCreatePrimarySubmit,
   onSavePrompt: savePromptReference,
-  beginnerMode: false,
   expertCreateUiEligible,
   pulsePreferenceRuntime,
 });

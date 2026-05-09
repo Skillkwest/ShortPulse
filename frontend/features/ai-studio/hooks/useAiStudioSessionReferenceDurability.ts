@@ -5,7 +5,12 @@
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
+import {
+  AI_STUDIO_DURABILITY_MAX_ATTEMPTS_PER_SIGNATURE,
+  AI_STUDIO_DURABILITY_RETRY_DELAY_MS,
+} from "../logic/persistenceRetryPolicy";
 import type { StudioOutput } from "../types";
+import { uploadAudioAssetToStorage } from "../utils/audioUpload";
 import { uploadImageAssetToStorage } from "../utils/imageUpload";
 import { uploadVideoAssetToStorage } from "../utils/videoUpload";
 
@@ -41,6 +46,19 @@ const SUPPORTED_DATA_VIDEO_MIME_TYPES = new Set([
   "video/x-m4v",
 ]);
 
+const SUPPORTED_DATA_AUDIO_MIME_TYPES = new Set([
+  "audio/aac",
+  "audio/flac",
+  "audio/m4a",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-m4a",
+  "audio/x-wav",
+]);
+
 const resolveDataUrlMimeType = (value: string): string | null => {
   const normalized = value.trim();
   if (!normalized.startsWith("data:")) return null;
@@ -60,6 +78,9 @@ const isLocalPreviewUrl = (value: string | null | undefined): boolean => {
   }
   if (dataMimeType.startsWith("video/")) {
     return SUPPORTED_DATA_VIDEO_MIME_TYPES.has(dataMimeType);
+  }
+  if (dataMimeType.startsWith("audio/")) {
+    return SUPPORTED_DATA_AUDIO_MIME_TYPES.has(dataMimeType);
   }
   return false;
 };
@@ -88,9 +109,12 @@ const resolveCandidateSignature = (output: StudioOutput): string => {
   ].join("|");
 };
 
+const resolveAttemptKey = (candidate: LocalReferenceCandidate): string =>
+  `${candidate.id}::${candidate.signature}`;
+
 const toLocalReferenceCandidate = (output: StudioOutput): LocalReferenceCandidate | null => {
   if (!output?.id) return null;
-  if (output.mode !== "image" && output.mode !== "video") return null;
+  if (output.mode !== "image" && output.mode !== "video" && output.mode !== "audio") return null;
   if (!isLocalPreviewUrl(output.previewUrl)) return null;
   if (
     asCanonicalStoragePath(output.previewStoragePath) ||
@@ -177,8 +201,10 @@ export const useAiStudioSessionReferenceDurability = ({
   const pendingQueueRef = useRef<string[]>([]);
   const pendingSetRef = useRef<Set<string>>(new Set());
   const completedSignatureByIdRef = useRef<Map<string, string>>(new Map());
-  const failedSignatureByIdRef = useRef<Map<string, string>>(new Map());
+  const attemptCountBySignatureRef = useRef<Map<string, number>>(new Map());
+  const retryTimeoutByAttemptKeyRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const drainingRef = useRef(false);
+  const drainPendingQueueRef = useRef<() => Promise<void>>(async () => undefined);
 
   const processCandidate = useCallback(
     async (candidateId: string) => {
@@ -187,11 +213,13 @@ export const useAiStudioSessionReferenceDurability = ({
 
       const completedSignature = completedSignatureByIdRef.current.get(candidate.id);
       if (completedSignature === candidate.signature) return;
-      const failedSignature = failedSignatureByIdRef.current.get(candidate.id);
-      if (failedSignature === candidate.signature) return;
+      const attemptKey = resolveAttemptKey(candidate);
+      const attemptCount = attemptCountBySignatureRef.current.get(attemptKey) ?? 0;
+      if (attemptCount >= AI_STUDIO_DURABILITY_MAX_ATTEMPTS_PER_SIGNATURE) return;
       if (inFlightRef.current.has(candidate.id)) return;
 
       inFlightRef.current.add(candidate.id);
+      attemptCountBySignatureRef.current.set(attemptKey, attemptCount + 1);
       try {
         let uploaded: { url: string; path: string } | null = null;
         let uploadedPoster: { url: string; path: string } | null = null;
@@ -212,6 +240,8 @@ export const useAiStudioSessionReferenceDurability = ({
               });
             }
           }
+        } else if (candidate.mode === "audio") {
+          uploaded = await uploadAudioAssetToStorage(candidate.previewUrl);
         } else {
           uploaded = await uploadImageAssetToStorage(candidate.previewUrl);
         }
@@ -250,9 +280,36 @@ export const useAiStudioSessionReferenceDurability = ({
         );
 
         completedSignatureByIdRef.current.set(candidate.id, candidate.signature);
-        failedSignatureByIdRef.current.delete(candidate.id);
+        attemptCountBySignatureRef.current.delete(attemptKey);
+        const retryTimeout = retryTimeoutByAttemptKeyRef.current.get(attemptKey);
+        if (retryTimeout) {
+          clearTimeout(retryTimeout);
+          retryTimeoutByAttemptKeyRef.current.delete(attemptKey);
+        }
       } catch (error) {
-        failedSignatureByIdRef.current.set(candidate.id, candidate.signature);
+        if (
+          (attemptCountBySignatureRef.current.get(attemptKey) ?? 0) <
+            AI_STUDIO_DURABILITY_MAX_ATTEMPTS_PER_SIGNATURE &&
+          !retryTimeoutByAttemptKeyRef.current.has(attemptKey)
+        ) {
+          const retryTimeout = setTimeout(() => {
+            retryTimeoutByAttemptKeyRef.current.delete(attemptKey);
+            const activeCandidate = candidateByIdRef.current.get(candidate.id);
+            if (!activeCandidate || activeCandidate.signature !== candidate.signature) return;
+            if (inFlightRef.current.has(candidate.id) || pendingSetRef.current.has(candidate.id))
+              return;
+            if (
+              (attemptCountBySignatureRef.current.get(attemptKey) ?? 0) >=
+              AI_STUDIO_DURABILITY_MAX_ATTEMPTS_PER_SIGNATURE
+            ) {
+              return;
+            }
+            pendingSetRef.current.add(candidate.id);
+            pendingQueueRef.current.push(candidate.id);
+            void drainPendingQueueRef.current();
+          }, AI_STUDIO_DURABILITY_RETRY_DELAY_MS);
+          retryTimeoutByAttemptKeyRef.current.set(attemptKey, retryTimeout);
+        }
         addBreadcrumb({
           type: "ui",
           level: "warn",
@@ -284,6 +341,7 @@ export const useAiStudioSessionReferenceDurability = ({
       drainingRef.current = false;
     }
   }, [processCandidate]);
+  drainPendingQueueRef.current = drainPendingQueue;
 
   useEffect(() => {
     const nextCandidateById = new Map<string, LocalReferenceCandidate>();
@@ -298,15 +356,24 @@ export const useAiStudioSessionReferenceDurability = ({
     [...completedSignatureByIdRef.current.keys()].forEach((id) => {
       if (nextCandidateById.has(id)) return;
       completedSignatureByIdRef.current.delete(id);
-      failedSignatureByIdRef.current.delete(id);
+      [...attemptCountBySignatureRef.current.keys()].forEach((attemptKey) => {
+        if (!attemptKey.startsWith(`${id}::`)) return;
+        attemptCountBySignatureRef.current.delete(attemptKey);
+        const retryTimeout = retryTimeoutByAttemptKeyRef.current.get(attemptKey);
+        if (retryTimeout) {
+          clearTimeout(retryTimeout);
+          retryTimeoutByAttemptKeyRef.current.delete(attemptKey);
+        }
+      });
     });
 
     nextCandidateById.forEach((candidate) => {
       if (inFlightRef.current.has(candidate.id)) return;
       const completedSignature = completedSignatureByIdRef.current.get(candidate.id);
       if (completedSignature === candidate.signature) return;
-      const failedSignature = failedSignatureByIdRef.current.get(candidate.id);
-      if (failedSignature === candidate.signature) return;
+      const attemptCount =
+        attemptCountBySignatureRef.current.get(resolveAttemptKey(candidate)) ?? 0;
+      if (attemptCount >= AI_STUDIO_DURABILITY_MAX_ATTEMPTS_PER_SIGNATURE) return;
       if (pendingSetRef.current.has(candidate.id)) return;
       pendingSetRef.current.add(candidate.id);
       pendingQueueRef.current.push(candidate.id);
@@ -314,4 +381,14 @@ export const useAiStudioSessionReferenceDurability = ({
 
     void drainPendingQueue();
   }, [archivedOutputs, drainPendingQueue, outputs]);
+
+  useEffect(
+    () => () => {
+      retryTimeoutByAttemptKeyRef.current.forEach((retryTimeout) => {
+        clearTimeout(retryTimeout);
+      });
+      retryTimeoutByAttemptKeyRef.current.clear();
+    },
+    []
+  );
 };

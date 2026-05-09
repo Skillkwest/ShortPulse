@@ -19,10 +19,8 @@ export type Provider =
   | "fal-flux-kontext-inpaint"
   | "fal-bria-background-remove"
   | "fal-kling"
-  | "fal-nano-banana"
   | "fal-nano-banana-2"
   | "fal-kling-3"
-  | "fal-nano-banana-edit"
   | "fal-nano-banana-2-edit"
   | "fal-nano-banana-pro"
   | "fal-nano-banana-pro-edit"
@@ -46,9 +44,7 @@ const activePollingProviders = new Set<Provider>([
   "fal-flux-pro-fill",
   "fal-flux-kontext-inpaint",
   "fal-bria-background-remove",
-  "fal-nano-banana",
   "fal-nano-banana-2",
-  "fal-nano-banana-edit",
   "fal-nano-banana-2-edit",
   "fal-nano-banana-pro",
   "fal-nano-banana-pro-edit",
@@ -102,10 +98,6 @@ export const normalizeProviderForPolling = (
       return "fal-nano-banana-2-edit";
     }
     if (normalized.includes("nano-banana-2")) return "fal-nano-banana-2";
-    if (normalized.includes("nano-banana") && normalized.includes("edit")) {
-      return "fal-nano-banana-edit";
-    }
-    if (normalized.includes("nano-banana")) return "fal-nano-banana";
     if (normalized.includes("flux-kontext") && normalized.includes("inpaint")) {
       return "fal-flux-kontext-inpaint";
     }
@@ -184,8 +176,6 @@ export const resolveModelLabel = (value?: string) =>
     ? (modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})`)
     : "Choose Model";
 
-export const normalizeAspectForFalNanoBanana = (value: string) =>
-  resolveEffectiveAspectForModel("fal-ai/nano-banana", value, "1:1");
 export const normalizeAspectForFalNanoBanana2 = (value: string) =>
   resolveEffectiveAspectForModel("fal-ai/nano-banana-2", value, "auto");
 export const normalizeAspectForFalNanoBananaPro = (value: string) =>

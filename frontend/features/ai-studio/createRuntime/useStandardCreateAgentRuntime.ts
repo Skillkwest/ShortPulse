@@ -25,6 +25,7 @@ import { runStandardCreateAgentSend } from "../hooks/agentOrchestration/runStand
 import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
+import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
 import type {
   AiStudioSessionAgentMessageV1,
   AiStudioSessionAgentV1,
@@ -150,8 +151,9 @@ export const useStandardCreateAgentRuntime = ({
   const agentUiBusyRef = useRef(false);
   const [latestAgentPrompt, setLatestAgentPrompt] = useState<string | null>(null);
   const [promptOrigin, setPromptOrigin] = useState<PromptOrigin>("manual");
-  const chatModeEnabled = true;
-  const setChatModeEnabled = useCallback<Dispatch<SetStateAction<boolean>>>(() => undefined, []);
+  const [chatModeEnabled, setChatModeEnabled] = useState<boolean>(
+    STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED
+  );
   const preparedImageUrlCacheRef = useRef<Map<string, { safeUrl: string; expiresAtMs: number }>>(
     new Map()
   );
@@ -345,9 +347,9 @@ export const useStandardCreateAgentRuntime = ({
       input: agentInput,
       latestAgentPrompt,
       promptOrigin,
-      chatModeEnabled: true,
+      chatModeEnabled,
     }),
-    [agentInput, agentMessages, latestAgentPrompt, promptOrigin]
+    [agentInput, agentMessages, chatModeEnabled, latestAgentPrompt, promptOrigin]
   );
 
   const hydrateFromSessionAgentSnapshot = useCallback(
@@ -363,12 +365,14 @@ export const useStandardCreateAgentRuntime = ({
       setAgentAttachmentError(null);
       setLatestAgentPrompt(standardRuntime.latestAgentPrompt);
       setPromptOrigin(standardRuntime.promptOrigin);
+      setChatModeEnabled(standardRuntime.chatModeEnabled);
     },
     [
       replaceMessages,
       setAgentAttachmentError,
       setAgentAttachments,
       setAgentInput,
+      setChatModeEnabled,
       setLatestAgentPrompt,
       setPromptOrigin,
     ]
@@ -379,7 +383,7 @@ export const useStandardCreateAgentRuntime = ({
     resetAgentComposer({ preserveInput: false, preserveAttachments: false });
     setLatestAgentPrompt(null);
     setPromptOrigin("manual");
-    setChatModeEnabled(true);
+    setChatModeEnabled(STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED);
     setAgentAttachmentError(null);
     setAgentAttachments([]);
   }, [
@@ -389,6 +393,10 @@ export const useStandardCreateAgentRuntime = ({
     setAgentAttachments,
     setChatModeEnabled,
   ]);
+
+  useEffect(() => {
+    setChatModeEnabled(STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED);
+  }, [sessionId]);
 
   useEffect(() => {
     resetAgentComposer({ preserveInput: true, preserveAttachments: false });

@@ -22,12 +22,6 @@
   display: none;
 }
 
-.ai-character-step-card.ai-character-step-card--beginner .step-header-copy .step-subtitle {
-  display: block;
-  margin-top: 4px;
-  white-space: normal;
-}
-
 .ai-character-step-card .step-title {
   display: block;
   min-height: 0;

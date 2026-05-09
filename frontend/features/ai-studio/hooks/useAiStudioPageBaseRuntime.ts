@@ -1,10 +1,11 @@
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import type { CreateRuntimeAgentHydrationPayload } from "../createRuntime/sessionAgentHydrationBoundary";
 import { useAiStudioEditSubmitIntent } from "./useAiStudioEditSubmitIntent";
 import { useAiStudioInternalDropResolvers } from "./useAiStudioInternalDropResolvers";
 import { useAiStudioCreateModeRuntime } from "./useAiStudioCreateModeRuntime";
+import { useAiStudioPageLocalState } from "./useAiStudioPageLocalState";
 import { useAiStudioPageCharacterRuntime } from "./useAiStudioPageCharacterRuntime";
 import { useAiStudioPageCreditDerivations } from "./useAiStudioPageCreditDerivations";
 import { useAiStudioPageMediaReferenceRuntime } from "./useAiStudioPageMediaReferenceRuntime";
@@ -12,7 +13,6 @@ import { useAiStudioPageOutputAdapters } from "./useAiStudioPageOutputAdapters";
 import { useAiStudioPerfAuditRuntime } from "./useAiStudioPerfAuditRuntime";
 import { useAiStudioState } from "./useAiStudioState";
 import { useCredits } from "./useCredits";
-import { useEffectiveBeginnerModePreference } from "./useEffectiveBeginnerModePreference";
 import { useExpertEditPresetPanelPreference } from "./useExpertEditPresetPanelPreference";
 import { useMediaAutosavePreference } from "./useMediaAutosavePreference";
 import { useAiStudioMediaAutosaveOrchestrator } from "./useAiStudioMediaAutosaveOrchestrator";
@@ -27,15 +27,12 @@ import {
   PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
   PERF_FLAG_SELECTOR_CALLBACKS,
 } from "../logic/perfProfileFlags";
-import type { StudioOutput, ToolId } from "../types";
-import type { CharacterModeInjectionBundle } from "./useAiStudioCharacterModeController";
+import type { ToolId } from "../types";
 
 const FLAG_OUTPUT_SELECTOR_STORE = PERF_FLAG_OUTPUT_SELECTOR_STORE;
 const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
-
-type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
 export const useAiStudioPageBaseRuntime = () => {
   const router = useRouter();
@@ -65,30 +62,40 @@ export const useAiStudioPageBaseRuntime = () => {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents));
   }, [balanceCents]);
-  const [optimisticDebitEntries, setOptimisticDebitEntries] = useState<OptimisticDebitEntry[]>([]);
-  const [isCreateCharacterBundleLoading, setIsCreateCharacterBundleLoading] = useState(false);
-  const [isEditCharacterBundleLoading, setIsEditCharacterBundleLoading] = useState(false);
-  const [isCreateCharacterModeEnabled, setIsCreateCharacterModeEnabled] = useState(false);
-  const [isEditCharacterModeEnabled, setIsEditCharacterModeEnabled] = useState(false);
-  const [createSelectedCharacterLookId, setCreateSelectedCharacterLookId] = useState("");
-  const [characterCreateRequestKey, setCharacterCreateRequestKey] = useState(0);
-  const [elementCreateRequestKey, setElementCreateRequestKey] = useState(0);
-  const [editSelectedCharacterId, setEditSelectedCharacterId] = useState("");
-  const [selectedStylePrompt, setSelectedStylePrompt] = useState<string | null>(null);
-  const [selectedStyleContext, setSelectedStyleContext] = useState<
-    StudioOutput["styleContext"] | null
-  >(null);
-  const [sessionTitleOverrideState, setSessionTitleOverrideState] = useState<{
-    sessionId: string;
-    title: string | null;
-  } | null>(null);
-  const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
-  const [createCharacterModeInjectionBundle, setCreateCharacterModeInjectionBundle] =
-    useState<CharacterModeInjectionBundle | null>(null);
-  const [editCharacterModeInjectionBundle, setEditCharacterModeInjectionBundle] =
-    useState<CharacterModeInjectionBundle | null>(null);
-  const localSessionTitleOverride =
-    sessionTitleOverrideState?.sessionId === sessionId ? sessionTitleOverrideState.title : null;
+  const {
+    characterCreateRequestKey,
+    createCharacterModeInjectionBundle,
+    createSelectedCharacterLookId,
+    editCharacterModeInjectionBundle,
+    editSelectedCharacterId,
+    elementCreateRequestKey,
+    isCreateCharacterBundleLoading,
+    isCreateCharacterModeEnabled,
+    isEditCharacterBundleLoading,
+    isEditCharacterModeEnabled,
+    isProjectsModalOpen,
+    localSessionTitleOverride,
+    optimisticDebitEntries,
+    selectedStyleContext,
+    selectedStylePrompt,
+    setCharacterCreateRequestKey,
+    setCreateCharacterModeInjectionBundle,
+    setCreateSelectedCharacterLookId,
+    setEditCharacterModeInjectionBundle,
+    setEditSelectedCharacterId,
+    setElementCreateRequestKey,
+    setIsCreateCharacterBundleLoading,
+    setIsCreateCharacterModeEnabled,
+    setIsEditCharacterBundleLoading,
+    setIsEditCharacterModeEnabled,
+    setIsProjectsModalOpen,
+    setOptimisticDebitEntries,
+    setSelectedStyleContext,
+    setSelectedStylePrompt,
+    setSessionTitleOverrideState,
+  } = useAiStudioPageLocalState({
+    sessionId,
+  });
   const {
     verifiedProjectId,
     projectRouteRequested,
@@ -358,14 +365,6 @@ export const useAiStudioPageBaseRuntime = () => {
   });
 
   const referenceGridFileInputRef = useRef<HTMLInputElement | null>(null);
-  const {
-    beginnerMode,
-    loading: beginnerModeLoading,
-    error: beginnerModeError,
-    syncState: beginnerModeSyncState,
-    showBeginnerModeToggle,
-    setBeginnerMode,
-  } = useEffectiveBeginnerModePreference();
   const trackUiEvent = useCallback((message: string, data?: Record<string, unknown>) => {
     addBreadcrumb({
       type: "ui",
@@ -435,10 +434,6 @@ export const useAiStudioPageBaseRuntime = () => {
     aspect,
     balanceCredits,
     balanceLoading,
-    beginnerMode,
-    beginnerModeError,
-    beginnerModeLoading,
-    beginnerModeSyncState,
     buildSessionSnapshot,
     canvasSessionState,
     characterCreateRequestKey,
@@ -578,7 +573,6 @@ export const useAiStudioPageBaseRuntime = () => {
     sessionPersistenceTitleOverride,
     setActiveOutputId,
     setAspect,
-    setBeginnerMode,
     setCreateSelectedCharacterId,
     setCreateSelectedCharacterLookId,
     setDetailOutputId,
@@ -632,7 +626,6 @@ export const useAiStudioPageBaseRuntime = () => {
     setVideoReferenceMode,
     setVideoReferenceText,
     setVideoResolution,
-    showBeginnerModeToggle,
     showCreateTools,
     standardPrompt,
     trackCharacterModeFallback,

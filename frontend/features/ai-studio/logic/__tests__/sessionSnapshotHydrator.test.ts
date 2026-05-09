@@ -95,7 +95,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.outputs.curatedReferenceIds).toEqual(["out-1"]);
     expect(payload.outputs.removedFromAllRefsIds).toEqual(["out-2"]);
     expect(payload.agent.promptOrigin).toBe("manual");
-    expect(payload.agent.chatModeEnabled).toBe(true);
+    expect(payload.agent.chatModeEnabled).toBe(false);
     expect(payload.agent.pulseWorkflowSession).toBeNull();
     expect(payload.agentRuntimes.standard.promptOrigin).toBe("manual");
     expect(payload.agentRuntimes.pulsePresetId).toBeNull();
@@ -1136,7 +1136,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agent.input).toBe("");
     expect(payload.agent.latestAgentPrompt).toBeNull();
     expect(payload.agent.promptOrigin).toBe("manual");
-    expect(payload.agent.chatModeEnabled).toBe(true);
+    expect(payload.agent.chatModeEnabled).toBe(false);
   });
 
   it("hydrates queue lifecycle metadata for queued generation restore paths", () => {

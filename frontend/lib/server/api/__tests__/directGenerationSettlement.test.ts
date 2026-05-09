@@ -144,7 +144,7 @@ describe("directGenerationSettlement", () => {
       user_id: "user-1",
       request_id: "req-1",
       provider: "fal",
-      model_id: "fal-ai/nano-banana",
+      model_id: "fal-ai/nano-banana-2",
       prompt_text: "portrait",
       created_at: "2026-04-26T00:00:00.000Z",
       metadata: {
@@ -213,6 +213,7 @@ describe("directGenerationSettlement", () => {
         request_id: "req-1",
       }),
       mediaUrls: ["https://provider.example/out-1.png", "https://provider.example/out-2.png"],
+      projectId: null,
     });
     expect(persistGenerationOutputRecordsMock).toHaveBeenNthCalledWith(
       1,
@@ -386,6 +387,11 @@ describe("directGenerationSettlement", () => {
       generationId: "gen-project",
       requestId: "req-project",
     });
+    expect(persistRecoveryMediaFilesForGenerationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+      })
+    );
     expect(associateGenerationWithProjectForUserMock).toHaveBeenCalledWith({
       userId: "user-1",
       projectId: "project-1",

@@ -20,13 +20,9 @@ type ReferenceKlingAdvancedStepsProps = {
   supportsCfgScale?: boolean;
   assetsHelperText?: string;
   guidanceHelperText?: string;
-  beginnerMode: boolean;
   klingAdvancedOrder?: number;
-  klingAdvancedBadge: string;
   klingAssetsOrder?: number;
-  klingAssetsBadge: string;
   klingGuidanceOrder?: number;
-  klingGuidanceBadge: string;
   collapsedKlingAdvanced: boolean;
   collapsedKlingAssets: boolean;
   collapsedKlingGuidance: boolean;
@@ -78,13 +74,9 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
   supportsCfgScale = true,
   assetsHelperText,
   guidanceHelperText,
-  beginnerMode,
   klingAdvancedOrder,
-  klingAdvancedBadge,
   klingAssetsOrder,
-  klingAssetsBadge,
   klingGuidanceOrder,
-  klingGuidanceBadge,
   collapsedKlingAdvanced,
   collapsedKlingAssets,
   collapsedKlingGuidance,
@@ -131,20 +123,17 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
         style={{ order: klingAdvancedOrder }}
       >
         <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">{klingAdvancedBadge}</span>}
           <div className="step-header-copy">
             <p className="step-title">Shots & Timing</p>
             <span className="step-subtitle tiny helper-text">{klingShotSummary}</span>
           </div>
-          {!beginnerMode ? (
-            <div className="step-header-actions">
-              <ReferenceStepHeaderActionButton
-                label={`Toggle ${workflowLabel} shots`}
-                isCollapsed={collapsedKlingAdvanced}
-                onClick={onToggleKlingAdvanced}
-              />
-            </div>
-          ) : null}
+          <div className="step-header-actions">
+            <ReferenceStepHeaderActionButton
+              label={`Toggle ${workflowLabel} shots`}
+              isCollapsed={collapsedKlingAdvanced}
+              onClick={onToggleKlingAdvanced}
+            />
+          </div>
         </div>
         {!collapsedKlingAdvanced ? (
           <div className="create-controls kling-advanced-grid">
@@ -232,20 +221,17 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
         style={{ order: klingAssetsCardOrder }}
       >
         <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">{klingAssetsBadge}</span>}
           <div className="step-header-copy">
             <p className="step-title">{isKieKlingModel ? "Assets" : "Assets & Voices"}</p>
             <span className="step-subtitle tiny helper-text">{klingAssetsSummary}</span>
           </div>
-          {!beginnerMode ? (
-            <div className="step-header-actions">
-              <ReferenceStepHeaderActionButton
-                label={`Toggle ${workflowLabel} assets`}
-                isCollapsed={collapsedKlingAssets}
-                onClick={onToggleKlingAssets}
-              />
-            </div>
-          ) : null}
+          <div className="step-header-actions">
+            <ReferenceStepHeaderActionButton
+              label={`Toggle ${workflowLabel} assets`}
+              isCollapsed={collapsedKlingAssets}
+              onClick={onToggleKlingAssets}
+            />
+          </div>
         </div>
         {!collapsedKlingAssets ? (
           <div className="create-controls kling-advanced-grid">
@@ -375,20 +361,17 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
         style={{ order: klingGuidanceCardOrder }}
       >
         <div className="step-card-header">
-          {beginnerMode && <span className="step-badge">{klingGuidanceBadge}</span>}
           <div className="step-header-copy">
             <p className="step-title">Guidance & Safety</p>
             <span className="step-subtitle tiny helper-text">{klingGuidanceSummary}</span>
           </div>
-          {!beginnerMode ? (
-            <div className="step-header-actions">
-              <ReferenceStepHeaderActionButton
-                label={`Toggle ${workflowLabel} guidance`}
-                isCollapsed={collapsedKlingGuidance}
-                onClick={onToggleKlingGuidance}
-              />
-            </div>
-          ) : null}
+          <div className="step-header-actions">
+            <ReferenceStepHeaderActionButton
+              label={`Toggle ${workflowLabel} guidance`}
+              isCollapsed={collapsedKlingGuidance}
+              onClick={onToggleKlingGuidance}
+            />
+          </div>
         </div>
         {!collapsedKlingGuidance ? (
           <div className="create-controls kling-advanced-grid">

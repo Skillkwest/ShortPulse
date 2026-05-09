@@ -25,6 +25,9 @@ describe("MusicPropertiesPanel", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Music inspiration")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Music inspiration").closest(".music-properties-script-input-shell")
+    ).toHaveClass("music-properties-script-input-shell--with-inspiration");
     expect(screen.getByRole("button", { name: "passionate vocals" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "lofi hip hop" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Scroll inspiration left" })).toBeInTheDocument();
@@ -67,23 +70,20 @@ describe("MusicPropertiesPanel", () => {
       "Write lyrics, hooks, section ideas, ad-libs, or line-by-line structure here."
     );
     expect(
-      screen.getByRole("separator", {
+      screen.queryByRole("separator", {
         name: "Resize song style and lyrics sections",
       })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("separator", {
-        name: "Resize song style and lyrics sections",
-      })
-    ).toHaveClass("music-properties-custom-divider-wrap");
-    expect(
-      screen.getByRole("separator", {
-        name: "Resize song style and lyrics sections",
-      })
-    ).not.toHaveClass("reference-grid-horizontal-divider-wrap");
+    ).toBeNull();
     expect(screen.getByLabelText("Music inspiration")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Music inspiration").closest(".music-properties-script-input-shell")
+    ).toHaveClass("music-properties-script-input-shell--custom-prompt");
+    expect(screen.getByRole("button", { name: "Scroll inspiration left" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Scroll inspiration right" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Singer" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByLabelText("Music defaults")).toBeInTheDocument();
+    expect(screen.queryByText("MP3")).toBeNull();
+    expect(screen.queryByText("Auto")).toBeNull();
     expect(screen.queryByLabelText("Custom mode note")).toBeNull();
   });
 

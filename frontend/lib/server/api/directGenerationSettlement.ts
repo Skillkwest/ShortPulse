@@ -367,6 +367,7 @@ export const settleDirectGenerationSuccess = async ({
           metadata: generationMetadata,
         },
         mediaUrls: normalizedResultUrls,
+        projectId: readProjectIdFromMetadata(generationMetadata),
       });
       persistedOutputRows = await persistGenerationOutputRecords({
         generationId: generation.id,

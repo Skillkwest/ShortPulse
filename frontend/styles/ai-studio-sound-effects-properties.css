@@ -6,9 +6,7 @@
   display: contents;
 }
 
-.ai-studio-page[data-selected-tool="sound-effects"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound-effects"]
-  .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool="sound-effects"] .panel.ai-panel.ai-properties {
   background: transparent;
   padding: 0;
   gap: 0;

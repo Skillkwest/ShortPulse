@@ -33,17 +33,14 @@
   display: contents;
 }
 
-.ai-studio-page[data-selected-tool="voices"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voices"]
-  .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool="voices"] .panel.ai-panel.ai-properties {
   background: transparent;
   padding: 0;
   gap: 0;
   overflow: hidden;
 }
 
-.ai-studio-page[data-selected-tool="voices"] .ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voices"] .ai-properties {
+.ai-studio-page[data-selected-tool="voices"] .ai-properties {
   overflow-y: hidden;
 }
 

@@ -724,15 +724,19 @@ describe("Create agent mode boundaries", () => {
   });
 
   it("keeps page-content Create test fixtures discriminated by mode", () => {
-    const pageContentDropTestSource = readFrontendFile(
-      "features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx"
+    const standardCreateTestSource = readFrontendFile(
+      "features/ai-studio/components/create/__tests__/StandardCreatePropertiesPanel.single-mode.test.tsx"
+    );
+    const pulseCreateTestSource = readFrontendFile(
+      "features/ai-studio/components/create/__tests__/PulseCreatePropertiesPanel.test.tsx"
     );
 
-    expect(pageContentDropTestSource).not.toContain("commonCreateFields");
-    expect(pageContentDropTestSource).not.toContain("Record<string, unknown>");
-    expect(pageContentDropTestSource).toContain("type CreatePropertiesTestParams");
-    expect(pageContentDropTestSource).toContain("standard?: Partial<TestStandardCreateProps>");
-    expect(pageContentDropTestSource).toContain("pulse?: Partial<TestPulseCreateProps>");
+    expect(standardCreateTestSource).toContain("StandardCreatePropertiesPanel single mode");
+    expect(standardCreateTestSource).toContain('"text-image"');
+    expect(standardCreateTestSource).not.toContain("PulseCreatePropertiesPanel");
+    expect(pulseCreateTestSource).toContain('describe("PulseCreatePropertiesPanel"');
+    expect(pulseCreateTestSource).toContain("guided-workflow startup messaging");
+    expect(pulseCreateTestSource).not.toContain("StandardCreatePropertiesPanel");
   });
 
   it("keeps Standard and Pulse Create props from cloning one shared prop bag", () => {

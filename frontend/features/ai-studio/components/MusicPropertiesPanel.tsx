@@ -96,7 +96,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   pricingPolicy = null,
 }: MusicPropertiesPanelProps) {
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
-  const customSplitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const inspirationScrollerRef = React.useRef<HTMLDivElement | null>(null);
   const inspirationDragPointerIdRef = React.useRef<number | null>(null);
   const inspirationDragStartXRef = React.useRef(0);
@@ -128,18 +127,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     minTopSectionHeightPx: minTopToggleHeightPx,
     minBottomSectionHeightPx: minBottomComposerHeightPx,
     ariaLabel: "Resize music mode and composition sections",
-  });
-  const {
-    topSectionStyle: customTopSectionStyle,
-    bottomSectionStyle: customBottomSectionStyle,
-    dividerProps: customDividerProps,
-  } = useReferenceGridHorizontalSplit({
-    enabled: !isStandardMode,
-    containerRef: customSplitContainerRef,
-    defaultTopRatio: 0.58,
-    minTopSectionHeightPx: 300,
-    minBottomSectionHeightPx: 188,
-    ariaLabel: "Resize song style and lyrics sections",
   });
 
   const estimatedCredits =
@@ -285,10 +272,33 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     });
   }, [isGenerating, onGenerate, prompt, singerEnabled]);
 
-  const inspirationRail = (
-    <section className="music-properties-inspiration" aria-label="Music inspiration">
-      <div className="music-properties-inspiration-header">
-        <p className="music-properties-inspiration-label">Inspiration</p>
+  const renderInspirationRail = (variant: "standard" | "embedded" = "standard") => (
+    <section
+      className={`music-properties-inspiration music-properties-inspiration--${variant}`}
+      aria-label="Music inspiration"
+    >
+      <p className="music-properties-inspiration-label">Inspiration</p>
+      <div className="music-properties-inspiration-rail">
+        <div
+          ref={inspirationScrollerRef}
+          className={`music-properties-inspiration-chips ${isDraggingInspiration ? "is-dragging" : ""}`}
+          onScroll={syncInspirationScrollState}
+          onPointerDown={handleInspirationPointerDown}
+          onPointerMove={handleInspirationPointerMove}
+          onPointerUp={handleInspirationPointerUp}
+          onPointerCancel={endInspirationDrag}
+        >
+          {musicInspirationChips.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              className="music-properties-inspiration-chip"
+              onClick={() => handleInspirationClick(chip)}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
         <div className="music-properties-inspiration-controls">
           <button
             type="button"
@@ -310,26 +320,6 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
           </button>
         </div>
       </div>
-      <div
-        ref={inspirationScrollerRef}
-        className={`music-properties-inspiration-chips ${isDraggingInspiration ? "is-dragging" : ""}`}
-        onScroll={syncInspirationScrollState}
-        onPointerDown={handleInspirationPointerDown}
-        onPointerMove={handleInspirationPointerMove}
-        onPointerUp={handleInspirationPointerUp}
-        onPointerCancel={endInspirationDrag}
-      >
-        {musicInspirationChips.map((chip) => (
-          <button
-            key={chip}
-            type="button"
-            className="music-properties-inspiration-chip"
-            onClick={() => handleInspirationClick(chip)}
-          >
-            {chip}
-          </button>
-        ))}
-      </div>
     </section>
   );
 
@@ -342,7 +332,11 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       <div className="music-properties-shell">
         <div ref={splitContainerRef} className="music-properties-main">
           <section
-            className="music-properties-topbar"
+            className={`music-properties-topbar ${
+              isStandardMode
+                ? "music-properties-topbar--standard"
+                : "music-properties-topbar--custom"
+            }`}
             style={isStandardMode ? topSectionStyle : undefined}
             aria-label="Music composition mode"
           >
@@ -394,7 +388,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
             >
               {composerMode === "simple" ? (
                 <>
-                  <div className="music-properties-script-input-shell">
+                  <div className="music-properties-script-input-shell music-properties-script-input-shell--with-inspiration">
                     <textarea
                       className="music-properties-script-input"
                       value={prompt}
@@ -405,23 +399,23 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                       placeholder={promptPlaceholder}
                       aria-label="Music prompt"
                     />
+                    <div
+                      className="music-properties-script-input-shell-divider"
+                      aria-hidden="true"
+                    />
+                    {renderInspirationRail("embedded")}
                   </div>
-                  {inspirationRail}
                 </>
               ) : (
                 <section
-                  ref={customSplitContainerRef}
                   className="music-properties-custom-surface"
                   aria-label="Custom music composer"
                 >
-                  <div
-                    className="music-properties-custom-pane music-properties-custom-pane--prompt"
-                    style={customTopSectionStyle}
-                  >
+                  <div className="music-properties-custom-pane music-properties-custom-pane--prompt">
                     <p className="music-properties-custom-pane-title">Song style and vibe</p>
                     <div className="music-properties-script-input-shell music-properties-script-input-shell--custom-prompt">
                       <textarea
-                        className="music-properties-script-input"
+                        className="music-properties-script-input music-properties-script-input--custom-prompt"
                         value={prompt}
                         onChange={(event) =>
                           setPrompt(event.target.value.slice(0, maxPromptCharacters))
@@ -430,22 +424,14 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                         placeholder={customMusicPromptPlaceholder}
                         aria-label="Music prompt"
                       />
+                      <div
+                        className="music-properties-script-input-shell-divider"
+                        aria-hidden="true"
+                      />
+                      {renderInspirationRail("embedded")}
                     </div>
-                    {inspirationRail}
                   </div>
-                  <div
-                    className="music-properties-custom-divider-wrap reference-grid-horizontal-divider-wrap"
-                    {...customDividerProps}
-                  >
-                    <div
-                      className="music-properties-custom-divider reference-grid-horizontal-divider"
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <div
-                    className="music-properties-custom-pane music-properties-custom-pane--lyrics"
-                    style={customBottomSectionStyle}
-                  >
+                  <div className="music-properties-custom-pane music-properties-custom-pane--lyrics">
                     <p className="music-properties-custom-pane-title">Lyrics</p>
                     <div className="music-properties-script-input-shell music-properties-script-input-shell--custom-lyrics">
                       <textarea
@@ -487,16 +473,17 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                       onClick={() => setSingerEnabled((current) => !current)}
                     >
                       <span className="music-properties-singer-switch-label">Singer</span>
-                      <span className="music-properties-singer-switch-control" aria-hidden="true">
-                        <span className="music-properties-singer-switch-thumb" />
+                      <span
+                        className={`music-properties-singer-switch-control audio-toggle ${
+                          singerEnabled ? "is-active" : ""
+                        }`}
+                        aria-hidden="true"
+                      >
+                        <span className="audio-toggle-track">
+                          <span className="music-properties-singer-switch-thumb audio-toggle-dot" />
+                        </span>
                       </span>
                     </button>
-                    <span className="music-properties-action-pill tts-properties-toggle-pill">
-                      MP3
-                    </span>
-                    <span className="music-properties-action-pill tts-properties-toggle-pill">
-                      Auto
-                    </span>
                   </div>
                 ) : null}
               </div>

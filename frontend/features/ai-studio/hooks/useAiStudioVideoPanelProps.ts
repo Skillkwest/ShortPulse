@@ -4,6 +4,7 @@
  */
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
+import type { ModelModalContext } from "../components/ModelModal";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { AiStudioVideoPanelContract } from "./contracts/pageContentContracts";
 
@@ -66,13 +67,7 @@ type UseAiStudioVideoPanelPropsParams = {
   handleOpenModelModal: (
     anchorId: string,
     target: HTMLElement,
-    context?:
-      | "reference-image"
-      | "reference-video"
-      | "reference-keyframes"
-      | "text-image"
-      | "text-video"
-      | null
+    context?: ModelModalContext | null
   ) => void;
   setReferenceImageUrl: (url: string | null) => void;
   setExtraImageUrl: (index: number, url: string | null) => void;
@@ -84,7 +79,6 @@ type UseAiStudioVideoPanelPropsParams = {
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   isGenerateDisabled: boolean;
   generationGuardrail: string | null;
-  beginnerMode: boolean;
   onCreateCharacter: () => void;
   onCreateElement: () => void;
 };
@@ -153,7 +147,6 @@ export const useAiStudioVideoPanelProps = ({
   resolveOutputPreviewUrl,
   isGenerateDisabled,
   generationGuardrail,
-  beginnerMode,
   onCreateCharacter,
   onCreateElement,
 }: UseAiStudioVideoPanelPropsParams): AiStudioVideoPanelContract =>
@@ -222,13 +215,11 @@ export const useAiStudioVideoPanelProps = ({
       isGenerateDisabled,
       agentIsSending: false,
       onAgentEnhanceSend: undefined,
-      beginnerMode,
       onCreateCharacter,
       onCreateElement,
     }),
     [
       aspect,
-      beginnerMode,
       currentCostCredits,
       currentModelLabel,
       extraImageUrls,

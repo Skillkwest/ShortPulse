@@ -76,8 +76,6 @@ const MODEL_DOC_MAP = {
   "fal-ai/flux-pro/v1/fill": "api-fal-flux-pro-fill.md",
   "fal-ai/flux-kontext-lora/inpaint": "api-fal-flux-kontext-inpaint.md",
   "fal-ai/bria/background/remove": "api-fal-bria-background-remove.md",
-  "fal-ai/nano-banana": "api-fal-nano-banana.md",
-  "fal-ai/nano-banana/edit": "api-fal-nano-banana-edit.md",
   "fal-ai/nano-banana-2": "api-fal-nano-banana-2.md",
   "fal-ai/nano-banana-2/edit": "api-fal-nano-banana-2-edit.md",
   "fal-ai/nano-banana-pro": "api-fal-nano-banana-pro.md",

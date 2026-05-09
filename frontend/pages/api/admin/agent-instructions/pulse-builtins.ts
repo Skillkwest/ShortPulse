@@ -6,7 +6,7 @@ import {
   getSeededCreatePulseBuiltInDefinitions,
   saveCreatePulseBuiltInCatalog,
 } from "../../../../lib/server/api/createPulseBuiltInControlPlane";
-import { normalizeCreatePulseBuiltInPresetDefinitions } from "../../../../features/ai-studio/components/create/createPulsePresets";
+import { normalizeCreatePulseBuiltInPresetDefinitions } from "../../../../lib/model-runtime/createPulseBuiltIns";
 
 const validateBuiltInDefinitionsPayload = (
   value: unknown

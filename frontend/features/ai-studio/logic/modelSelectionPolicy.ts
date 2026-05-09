@@ -205,10 +205,12 @@ export const resolveAiStudioAllowedModelOptions = ({
 export const resolveCreateWorkflowStartupModel = ({
   mode,
   savedModelId,
+  isCharacterModeEnabled = false,
   getModelConfig,
 }: {
   mode: StudioMode;
   savedModelId: string | null;
+  isCharacterModeEnabled?: boolean;
   getModelConfig: (id: string) => ModelConfigLike | null;
 }): string | null => {
   const allowedValues = new Set(
@@ -216,6 +218,7 @@ export const resolveCreateWorkflowStartupModel = ({
       selectedTool: "create",
       mode,
       videoReferenceMode: "standard",
+      isCharacterModeEnabled,
       getModelConfig,
     }).map((option) => option.value)
   );
@@ -224,8 +227,13 @@ export const resolveCreateWorkflowStartupModel = ({
     return savedModelId;
   }
 
-  if ((mode === "image" || mode === "text") && allowedValues.has(CREATE_DEFAULT_MODEL_ID)) {
-    return CREATE_DEFAULT_MODEL_ID;
+  if (mode === "image" || mode === "text") {
+    const defaultModelId = isCharacterModeEnabled
+      ? CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID
+      : CREATE_DEFAULT_MODEL_ID;
+    if (allowedValues.has(defaultModelId)) {
+      return defaultModelId;
+    }
   }
 
   return null;

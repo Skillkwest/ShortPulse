@@ -166,7 +166,7 @@ describe("sessionSnapshot", () => {
         input: "",
         latestAgentPrompt: null,
         promptOrigin: "manual",
-        chatModeEnabled: true,
+        chatModeEnabled: false,
         pulseWorkflowSession: null,
       },
       pulsePresetId: "multi_shot",
@@ -431,7 +431,7 @@ describe("sessionSnapshot", () => {
       input: "",
       latestAgentPrompt: null,
       promptOrigin: "manual",
-      chatModeEnabled: true,
+      chatModeEnabled: false,
       pulseWorkflowSession: null,
     });
   });
@@ -517,7 +517,7 @@ describe("sessionSnapshot", () => {
       input: "",
       latestAgentPrompt: null,
       promptOrigin: "manual",
-      chatModeEnabled: true,
+      chatModeEnabled: false,
       pulseWorkflowSession: null,
     });
   });
@@ -659,7 +659,7 @@ describe("sessionSnapshot", () => {
       input: "",
       latestAgentPrompt: null,
       promptOrigin: "manual",
-      chatModeEnabled: true,
+      chatModeEnabled: false,
       pulseWorkflowSession: null,
     });
     expect("agentRuntimes" in projectSnapshot).toBe(false);

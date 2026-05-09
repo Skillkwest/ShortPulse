@@ -1380,25 +1380,18 @@ body.ai-shell-resizing * {
   border-color: rgba(201, 205, 214, 0.08);
 }
 
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voices"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="text-to-speech"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voice-changer"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound-effects"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="music"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="elements"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="text"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="kling"]
-  .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool="create"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="sound"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="voices"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="text-to-speech"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="voice-changer"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="sound-effects"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="music"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="elements"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="text"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="edit"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="video"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="kling"] .panel.ai-panel.ai-properties {
   background: #94a0a108;
   border: 0;
   box-shadow: none;
@@ -1410,33 +1403,24 @@ body.ai-shell-resizing * {
   height: 100%;
 }
 
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="elements"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="kling"]
-  .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool="elements"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="video"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="kling"] .panel.ai-panel.ai-properties {
   background: transparent;
   padding: 0;
 }
 
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voices"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="text-to-speech"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voice-changer"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound-effects"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="music"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="elements"]
-  .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="kling"]
-  .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool="create"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="sound"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="voices"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="text-to-speech"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="voice-changer"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="sound-effects"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="music"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="elements"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="edit"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="video"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-selected-tool="kling"] .panel.ai-panel.ai-properties {
   min-height: var(--ai-shell-column-max-height);
   max-height: var(--ai-shell-column-max-height);
 }
@@ -2219,45 +2203,6 @@ body.ai-shell-resizing * {
 
 .toolbar-footer--toggle-hidden {
   min-height: 76px;
-}
-
-.toolbar-beginner-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
-  border-radius: 12px;
-  border: 1px solid var(--ai-container-card-border);
-  background: var(--ai-container-card-bg);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.24);
-}
-
-.toolbar-beginner-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.toolbar-beginner-toggle .toolbar-label {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.toolbar-beginner-toggle .beginner-toggle {
-  flex-shrink: 0;
-  width: 48px;
-  height: 26px;
-}
-
-.toolbar-beginner-toggle .reference-toggle-dot {
-  width: 18px;
-  height: 18px;
-}
-
-.toolbar-beginner-toggle .reference-toggle.is-active .reference-toggle-dot {
-  transform: translate(24px, -50%);
 }
 
 .toolbar-footer {

@@ -16,6 +16,10 @@ import {
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 import type { CreatePageAgentRuntime } from "../createRuntime/contracts";
+import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import { isCreateCharacterModeModel } from "../logic/createCharacterModeModelMapping";
+import { resolveCreateWorkflowStartupModel } from "../logic/modelSelectionPolicy";
+import { getModelConfig } from "../logic/pricing";
 import {
   shouldApplySessionAgentHydrationToRuntime,
   type CreateRuntimeAgentHydrationPayload,
@@ -30,14 +34,14 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
     sessionId: string;
     agentRuntime: CreatePageAgentRuntime["persistedAgentRuntime"];
     agentRuntimes?: AiStudioSessionAgentRuntimesV2;
-    expertEditSessionState?: unknown;
-  }) => AiStudioSessionSnapshot;
+    expertEditSessionState?: ExpertEditSessionState | null;
+  }) => AiStudioSessionSnapshotV2;
   canvasSessionState: AiStudioSessionCanvasState | null;
   createSelectedCharacterId: string;
   createSelectedCharacterLookId: string;
   expertCreateMode: "standard" | "pulse";
   expertEditSessionRevision: number;
-  getExpertEditSessionState: () => unknown;
+  getExpertEditSessionState: () => ExpertEditSessionState | null;
   hasActivePulseSession: boolean;
   hydrateActiveFromSessionAgentSnapshot: (payload: CreateRuntimeAgentHydrationPayload) => void;
   hydrateCanvasSessionState: (canvas: AiStudioSessionCanvasState | null) => void;
@@ -55,8 +59,40 @@ type UseAiStudioPageProjectSessionRuntimeParams = {
   sessionPersistenceTitleOverride: string | null;
   setCreateSelectedCharacterId: (value: string) => void;
   setCreateSelectedCharacterLookId: (value: string) => void;
+  setIsCreateCharacterModeEnabled: (value: boolean) => void;
   setExpertEditSessionState: (value: AiStudioSessionHydrationPayload["expertEdit"]) => void;
   setUiNotice: (message: string | null) => void;
+};
+
+export const shouldRestoreCreateCharacterModeFromProjectSnapshot = (
+  snapshot: AiStudioSessionSnapshot
+): boolean => {
+  const selectedTool = snapshot.workspace.selectedTool;
+  const mode = snapshot.workspace.mode;
+  if (selectedTool !== "create" && selectedTool !== "text") return false;
+  if (mode !== "image" && mode !== "text") return false;
+  return isCreateCharacterModeModel(snapshot.workspace.model);
+};
+
+export const normalizeProjectRestoreSnapshotForCreateCharacterMode = (
+  snapshot: AiStudioSessionSnapshot
+): AiStudioSessionSnapshot => {
+  if (snapshot.schemaVersion < 2) return snapshot;
+  if (!shouldRestoreCreateCharacterModeFromProjectSnapshot(snapshot)) return snapshot;
+
+  const resolvedCreateModel = resolveCreateWorkflowStartupModel({
+    mode: snapshot.workspace.mode,
+    savedModelId: snapshot.workspace.model,
+    isCharacterModeEnabled: true,
+    getModelConfig,
+  });
+  if (resolvedCreateModel === snapshot.workspace.model) {
+    return snapshot;
+  }
+
+  return patchAiStudioSessionSnapshotWorkspace(snapshot as AiStudioSessionSnapshotV2, {
+    model: resolvedCreateModel,
+  });
 };
 
 /**
@@ -86,6 +122,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
   sessionPersistenceTitleOverride,
   setCreateSelectedCharacterId,
   setCreateSelectedCharacterLookId,
+  setIsCreateCharacterModeEnabled,
   setExpertEditSessionState,
   setUiNotice,
 }: UseAiStudioPageProjectSessionRuntimeParams) => {
@@ -164,12 +201,21 @@ export const useAiStudioPageProjectSessionRuntime = ({
 
   const hydrateProjectAwareSessionSnapshot = useCallback(
     (snapshot: Parameters<typeof hydrateFromSessionSnapshot>[0]) => {
-      const payload = hydrateFromSessionSnapshot(snapshot);
+      const normalizedSnapshot = normalizeProjectRestoreSnapshotForCreateCharacterMode(snapshot);
+      const payload = hydrateFromSessionSnapshot(normalizedSnapshot);
       setCreateSelectedCharacterId(payload.workspace.selectedCharacterId ?? "");
       setCreateSelectedCharacterLookId(payload.workspace.selectedCharacterLookId ?? "");
+      setIsCreateCharacterModeEnabled(
+        shouldRestoreCreateCharacterModeFromProjectSnapshot(normalizedSnapshot)
+      );
       return payload;
     },
-    [hydrateFromSessionSnapshot, setCreateSelectedCharacterId, setCreateSelectedCharacterLookId]
+    [
+      hydrateFromSessionSnapshot,
+      setCreateSelectedCharacterId,
+      setCreateSelectedCharacterLookId,
+      setIsCreateCharacterModeEnabled,
+    ]
   );
 
   const applyEmptyProjectState = useCallback(() => {

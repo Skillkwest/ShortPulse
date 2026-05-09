@@ -12,7 +12,7 @@ import type { PromptStepProps } from "./promptStep/types";
 export type { PromptStepProps } from "./promptStep/types";
 
 export function PromptStep({
-  stepNumber,
+  stepNumber: _stepNumber,
   title = "Choose Prompt Mode",
   subtitle = "Draft the prompt you want to use, or switch to Chat to have the agent craft one for you.",
   prompt,
@@ -53,17 +53,13 @@ export function PromptStep({
   onDrop,
   onDragOver,
   className = "",
-  beginnerMode = false,
   chatOnly = false,
   promptOnly = false,
   enhanceOnly = false,
   hideEnhanceButton = false,
   promptPlaceholder = "Describe what you want, then refine it.",
-  beginnerSubtitle,
-  beginnerTitle,
   promptSaveButtonClassName = "prompt-fab-save",
   promptSaveButtonUnstyled = false,
-  beginnerPinHelperText,
   promptInlineAction = null,
   promptInlineActionClassName = "",
   chatPromptSaveButtonClassName = "",
@@ -106,7 +102,7 @@ export function PromptStep({
   const shouldRestoreAgentInputFocusRef = React.useRef(false);
   const previousAgentIsSendingRef = React.useRef(agentIsSending);
 
-  // Chat-only overrides local mode state; otherwise beginner mode defaults to enhanced prompt mode.
+  // Chat-only and prompt-only variants override the local mode state.
   React.useEffect(() => {
     if (promptOnly && promptMode !== "enhanced") {
       setPromptMode("enhanced");
@@ -116,12 +112,9 @@ export function PromptStep({
       setPromptMode("chat");
       return;
     }
-    if (!chatOnly && beginnerMode && promptMode !== "enhanced") {
-      setPromptMode("enhanced");
-    }
-  }, [beginnerMode, chatOnly, promptMode, promptOnly]);
+  }, [chatOnly, promptMode, promptOnly]);
 
-  const effectiveTitle = beginnerMode ? (beginnerTitle ?? "Build Your Prompt") : title;
+  const effectiveTitle = title;
 
   const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     onPromptKeyDown?.(event);
@@ -153,7 +146,7 @@ export function PromptStep({
   const chatThinking = Boolean(
     agentIsSending || (showGenerationThinkingInChat ? isGenerating : false)
   );
-  const visibleSubtitle = beginnerMode ? beginnerSubtitle : subtitle;
+  const visibleSubtitle = subtitle;
   const canPinAgentInput = effectiveComposerInput.trim().length > 0;
   const shouldDisableChatPin = shouldDisableSave || !canPinAgentInput;
   const canSendAgentInput =
@@ -169,7 +162,6 @@ export function PromptStep({
     // Keep focus in the composer so the user can immediately type the next message.
     requestAnimationFrame(() => agentInputRef.current?.focus());
   };
-  const showBeginnerChatPinTip = Boolean(beginnerMode && chatOnly && beginnerPinHelperText);
   const dropToInputComposer = agentAttachmentDropTarget === "input";
   const imageAttachmentCounts = React.useMemo(() => {
     const images = stagedAttachments.filter((attachment) => attachment.kind === "image");
@@ -325,8 +317,6 @@ export function PromptStep({
     >
       {!hideHeader ? (
         <PromptStepHeader
-          beginnerMode={beginnerMode}
-          stepNumber={stepNumber}
           effectiveTitle={effectiveTitle}
           visibleSubtitle={visibleSubtitle}
           chatOnly={chatOnly}
@@ -341,7 +331,6 @@ export function PromptStep({
           <>
             {showInlineChat ? (
               <StandardPromptStepChatSurface
-                beginnerMode={beginnerMode}
                 chatOnly={chatOnly}
                 promptOnly={promptOnly}
                 enhanceOnly={enhanceOnly}
@@ -396,8 +385,6 @@ export function PromptStep({
                 agentIsSending={agentIsSending}
                 onSavePrompt={onSavePrompt}
                 shouldDisableChatPin={shouldDisableChatPin}
-                showBeginnerChatPinTip={showBeginnerChatPinTip}
-                beginnerPinHelperText={beginnerPinHelperText}
                 chatPromptSaveButtonClassName={chatPromptSaveButtonClassName}
                 chatPromptSaveButtonUnstyled={chatPromptSaveButtonUnstyled}
                 imageAttachmentCounts={imageAttachmentCounts}
@@ -411,8 +398,6 @@ export function PromptStep({
                 handleEnhancedPromptKeyDown={handleEnhancedPromptKeyDown}
                 promptThinking={promptThinking}
                 promptPlaceholder={promptPlaceholder}
-                beginnerMode={beginnerMode}
-                beginnerPinHelperText={beginnerPinHelperText}
                 hideEnhanceButton={hideEnhanceButton}
                 enhanceOnly={enhanceOnly}
                 onAgentEnhanceSend={onAgentEnhanceSend}

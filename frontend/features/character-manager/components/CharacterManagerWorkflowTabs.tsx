@@ -15,9 +15,6 @@ type CharacterManagerWorkflowTabsProps = {
   createTabId: string;
   managePanelId: string;
   createPanelId: string;
-  showBeginnerModeToggle: boolean;
-  effectiveBeginnerMode: boolean;
-  setBeginnerMode: React.Dispatch<React.SetStateAction<boolean>>;
   isCreatingCharacter: boolean;
   isSavingCharacter: boolean;
   hasUnsavedCharacterDraft: boolean;
@@ -37,9 +34,6 @@ export function CharacterManagerWorkflowTabs({
   createTabId,
   managePanelId,
   createPanelId,
-  showBeginnerModeToggle,
-  effectiveBeginnerMode,
-  setBeginnerMode,
   isCreatingCharacter,
   isSavingCharacter,
   hasUnsavedCharacterDraft,
@@ -157,24 +151,6 @@ export function CharacterManagerWorkflowTabs({
     <div className="character-mode-row">
       <DashboardNavPrefab variant="inline" className="character-mode-dashboard-link" />
       {tabRow}
-      {activeTab === "create" && showBeginnerModeToggle ? (
-        <div className="toolbar-beginner-toggle character-mode-beginner-toggle">
-          <div className="toolbar-beginner-copy">
-            <span className="toolbar-label">Beginner mode</span>
-          </div>
-          <button
-            type="button"
-            className={`reference-toggle beginner-toggle ${effectiveBeginnerMode ? "is-active" : ""}`}
-            aria-pressed={effectiveBeginnerMode}
-            aria-label={effectiveBeginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
-            onClick={() => setBeginnerMode((current) => !current)}
-          >
-            <span className="reference-toggle-track" aria-hidden="true">
-              <span className="reference-toggle-dot" />
-            </span>
-          </button>
-        </div>
-      ) : null}
       {saveButton}
       {activeTab === "manage" ? createButton : null}
     </div>

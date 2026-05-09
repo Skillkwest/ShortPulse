@@ -281,7 +281,9 @@ describe("useAiStudioTaskOrchestration", () => {
   });
 
   it("ignores success callbacks for outputs that are not hidden replacement runs", async () => {
-    let outputs = [createOutput({ id: "out-1", taskId: "task-1", modelId: "fal-ai/nano-banana" })];
+    let outputs = [
+      createOutput({ id: "out-1", taskId: "task-1", modelId: "fal-ai/nano-banana-2" }),
+    ];
     const setPrimaryEditReferenceImageUrl = vi.fn();
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -330,7 +332,7 @@ describe("useAiStudioTaskOrchestration", () => {
       capturedTaskCallbacks?.onGenerationSuccess?.({
         outputId: "out-1",
         taskId: "task-1",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         resultUrls: ["https://cdn.test/not-used.png"],
       });
     });

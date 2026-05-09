@@ -15,9 +15,6 @@ type UseAiStudioPageContentRuntimeParams = {
   onDismissUiError: AiStudioPageContentProps["onDismissUiError"];
   onDismissUiNotice: AiStudioPageContentProps["onDismissUiNotice"];
   onDismissCharacterError: AiStudioPageContentProps["onDismissCharacterError"];
-  beginnerMode: AiStudioPageContentProps["beginnerMode"];
-  showBeginnerModeToggle: AiStudioPageContentProps["showBeginnerModeToggle"];
-  onBeginnerModeChange: AiStudioPageContentProps["onBeginnerModeChange"];
   balanceCredits: AiStudioPageContentProps["balanceCredits"];
   pendingHoldCredits: AiStudioPageContentProps["pendingHoldCredits"];
   balanceLoading: AiStudioPageContentProps["balanceLoading"];
@@ -80,9 +77,6 @@ export const useAiStudioPageContentRuntime = ({
   onDismissUiError,
   onDismissUiNotice,
   onDismissCharacterError,
-  beginnerMode,
-  showBeginnerModeToggle,
-  onBeginnerModeChange,
   balanceCredits,
   pendingHoldCredits,
   balanceLoading,
@@ -142,9 +136,6 @@ export const useAiStudioPageContentRuntime = ({
       onDismissUiError,
       onDismissUiNotice,
       onDismissCharacterError,
-      beginnerMode,
-      showBeginnerModeToggle,
-      onBeginnerModeChange,
       balanceCredits,
       pendingHoldCredits,
       balanceLoading,
@@ -203,9 +194,6 @@ export const useAiStudioPageContentRuntime = ({
       onDismissUiError,
       onDismissUiNotice,
       onDismissCharacterError,
-      beginnerMode,
-      showBeginnerModeToggle,
-      onBeginnerModeChange,
       balanceCredits,
       pendingHoldCredits,
       balanceLoading,

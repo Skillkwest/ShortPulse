@@ -115,7 +115,7 @@ describe("createFalSubmitHandler", () => {
         headers: { "Content-Type": "application/json" },
       }),
       data: { request_id: "req-direct-1" },
-      targetUrl: "https://queue.fal.run/fal-ai/nano-banana",
+      targetUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
       targetIndex: 0,
       providerRequestId: "req-direct-1",
       providerDiagnostics: null,
@@ -161,9 +161,9 @@ describe("createFalSubmitHandler", () => {
 
   it("submits Fal image routes directly and returns a provider request id", async () => {
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
+      modelId: "fal-ai/nano-banana-2",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
+      routeLabel: "Fal Nano Banana 2",
     });
 
     const req = {
@@ -179,7 +179,7 @@ describe("createFalSubmitHandler", () => {
         host: "shortpulse-git-working-development-kirk-artmans-projects.vercel.app",
         "x-forwarded-proto": "https",
       },
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 
@@ -189,10 +189,10 @@ describe("createFalSubmitHandler", () => {
     expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: "fal",
-        modelId: "fal-ai/nano-banana",
+        modelId: "fal-ai/nano-banana-2",
         targets: [
           {
-            submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
+            submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
           },
         ],
       })
@@ -242,7 +242,7 @@ describe("createFalSubmitHandler", () => {
         host: "localhost:3000",
         "x-forwarded-proto": "http",
       },
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 
@@ -319,7 +319,7 @@ describe("createFalSubmitHandler", () => {
       method: "POST",
       body: { prompt: "portrait" },
       headers: {},
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 
@@ -469,16 +469,16 @@ describe("createFalSubmitHandler", () => {
 
   it("still submits active Fal image routes directly when the durable queue is disabled", async () => {
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
+      modelId: "fal-ai/nano-banana-2",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
+      routeLabel: "Fal Nano Banana 2",
     });
 
     const req = {
       method: "POST",
       body: { prompt: "portrait" },
       headers: {},
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 
@@ -535,16 +535,16 @@ describe("createFalSubmitHandler", () => {
       });
 
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
+      modelId: "fal-ai/nano-banana-2",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
+      routeLabel: "Fal Nano Banana 2",
     });
 
     const req = {
       method: "POST",
       body: { prompt: "portrait" },
       headers: {},
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 
@@ -586,16 +586,16 @@ describe("createFalSubmitHandler", () => {
       });
 
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
+      modelId: "fal-ai/nano-banana-2",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
+      routeLabel: "Fal Nano Banana 2",
     });
 
     const req = {
       method: "POST",
       body: { prompt: "portrait" },
       headers: {},
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 
@@ -627,16 +627,16 @@ describe("createFalSubmitHandler", () => {
     chargeGenerationRequestMock.mockResolvedValue(charge);
 
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
+      modelId: "fal-ai/nano-banana-2",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
+      routeLabel: "Fal Nano Banana 2",
     });
 
     const req = {
       method: "POST",
       body: { prompt: "portrait" },
       headers: {},
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 
@@ -690,16 +690,16 @@ describe("createFalSubmitHandler", () => {
       },
     });
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
+      modelId: "fal-ai/nano-banana-2",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
+      routeLabel: "Fal Nano Banana 2",
     });
 
     const req = {
       method: "POST",
       body: { prompt: "portrait" },
       headers: {},
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 
@@ -743,16 +743,16 @@ describe("createFalSubmitHandler", () => {
     });
 
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
+      modelId: "fal-ai/nano-banana-2",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2",
+      routeLabel: "Fal Nano Banana 2",
     });
 
     const req = {
       method: "POST",
       body: { prompt: "portrait" },
       headers: {},
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 
@@ -830,15 +830,15 @@ describe("createFalSubmitHandler", () => {
 
   it("fails closed before billing on unknown top-level fields", async () => {
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
+      modelId: "fal-ai/nano-banana-2",
+      routeLabel: "Fal Nano Banana 2",
     });
 
     const req = {
       method: "POST",
       body: { prompt: "portrait", rogue_field: "x" },
       headers: {},
-      url: "/api/fal/nano-banana-submit",
+      url: "/api/fal/nano-banana-2-submit",
     };
     const res = createMockResponse();
 

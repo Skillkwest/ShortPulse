@@ -113,7 +113,6 @@ export type AgentChatPanelProps = {
   onDragLeave?: (event: React.DragEvent<HTMLDivElement>) => void;
   onRemoveAttachment?: (id: string) => void;
   onClearAttachments?: () => void;
-  beginnerMode?: boolean;
   highlightLatestAssistantOnly?: boolean;
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;

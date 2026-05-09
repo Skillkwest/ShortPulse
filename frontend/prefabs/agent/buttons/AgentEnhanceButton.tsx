@@ -1,6 +1,6 @@
 /**
  * Prefab enhance button aligned with the agent action buttons.
- * Uses the same styling as the send button with a beginner-friendly label.
+ * Uses the same styling as the send button with a short action label.
  */
 import React from "react";
 import { MagicWand } from "phosphor-react";

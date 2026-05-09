@@ -20,7 +20,6 @@ import { AgentComposerAttachmentImage } from "./AgentComposerAttachmentImage";
 import type { PromptStepPulseLoadingState } from "./types";
 
 type PulsePromptStepChatSurfaceProps = {
-  beginnerMode: boolean;
   chatOnly: boolean;
   promptOnly: boolean;
   enhanceOnly: boolean;
@@ -76,8 +75,6 @@ type PulsePromptStepChatSurfaceProps = {
   agentIsSending: boolean;
   onSavePrompt?: (customPrompt?: string) => void;
   shouldDisableChatPin: boolean;
-  showBeginnerChatPinTip: boolean;
-  beginnerPinHelperText?: string;
   chatPromptSaveButtonClassName: string;
   chatPromptSaveButtonUnstyled: boolean;
   imageAttachmentCounts: {
@@ -90,7 +87,6 @@ type PulsePromptStepChatSurfaceProps = {
 };
 
 export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProps> = ({
-  beginnerMode,
   chatOnly,
   promptOnly,
   enhanceOnly,
@@ -136,8 +132,6 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
   agentIsSending,
   onSavePrompt,
   shouldDisableChatPin,
-  showBeginnerChatPinTip,
-  beginnerPinHelperText,
   chatPromptSaveButtonClassName,
   chatPromptSaveButtonUnstyled,
   imageAttachmentCounts,
@@ -331,7 +325,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
 
   const chatModeActionsContent = (
     <div className="agent-inline-actions">
-      {!showBeginnerChatPinTip && onSavePrompt ? (
+      {onSavePrompt ? (
         <AgentSaveButton
           onClick={() => onSavePrompt(agentInput)}
           disabled={shouldDisableChatPin}
@@ -382,7 +376,7 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
 
   return (
     <>
-      {!chatOnly && !promptOnly && !enhanceOnly && !beginnerMode ? (
+      {!chatOnly && !promptOnly && !enhanceOnly ? (
         <div className="prompt-mode-row">
           <div
             className="prompt-mode-toggle-row prompt-mode-toggle-standalone"
@@ -445,26 +439,9 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
           {composerRowContent}
         </>
       )}
-      {showBeginnerChatPinTip && onSavePrompt ? (
-        <div className="agent-composer-tip-row">
-          <p className="tiny helper-text beginner-pin-helper create-beginner-pin-helper">
-            <span className="beginner-pin-helper-prefix">Tip:</span>
-            <span>{beginnerPinHelperText}</span>
-          </p>
-          <AgentSaveButton
-            onClick={() => onSavePrompt(agentInput)}
-            disabled={shouldDisableChatPin}
-            ariaLabel="Pin prompt"
-            className={chatPromptSaveButtonClassName}
-            unstyled={chatPromptSaveButtonUnstyled}
-          />
-        </div>
-      ) : null}
-      {!beginnerMode ? (
-        <p className="tiny helper-text agent-composer-hint">
-          Enter to send. Shift+Enter for a new line.
-        </p>
-      ) : null}
+      <p className="tiny helper-text agent-composer-hint">
+        Enter to send. Shift+Enter for a new line.
+      </p>
       {imageAttachmentCounts.total > 0 ? (
         <p className="tiny helper-text agent-composer-hint agent-composer-hint--media">
           Vision images: {imageAttachmentCounts.ready}/{imageAttachmentCounts.total} ready

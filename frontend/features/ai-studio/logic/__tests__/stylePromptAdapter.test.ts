@@ -7,7 +7,7 @@ import {
 
 describe("stylePromptAdapter", () => {
   it("resolves Nano Banana family from pricing strategy-backed model config", () => {
-    expect(resolveStylePromptModelFamily("fal-ai/nano-banana/edit")).toBe("nano_banana");
+    expect(resolveStylePromptModelFamily("fal-ai/nano-banana-2/edit")).toBe("nano_banana");
     expect(resolveStylePromptModelFamily("fal-ai/nano-banana-pro/edit")).toBe("nano_banana");
     expect(resolveStylePromptModelFamily("fal-ai/nano-banana-2/edit")).toBe("nano_banana");
   });
@@ -58,7 +58,7 @@ describe("stylePromptAdapter", () => {
       tool: "edit",
       submissionPrompt: "Refine image",
       selectedStylePrompt: "  moody studio  lighting  ",
-      modelId: "fal-ai/nano-banana/edit",
+      modelId: "fal-ai/nano-banana-2/edit",
       adapterEnabled: false,
     });
 

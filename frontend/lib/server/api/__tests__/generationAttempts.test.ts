@@ -100,7 +100,7 @@ describe("generationAttempts", () => {
       generationId: "gen-1",
       userId: "user-1",
       provider: "fal",
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       providerRequestId: "req-1",
       dispatchSource: "queued_submit",
       metadata: {
@@ -125,7 +125,7 @@ describe("generationAttempts", () => {
         user_id: "user-1",
         attempt_number: 1,
         provider: "fal",
-        model_id: "fal-ai/nano-banana",
+        model_id: "fal-ai/nano-banana-2",
         provider_request_id: "req-1",
         status: "running",
         dispatch_source: "queued_submit",
@@ -232,7 +232,7 @@ describe("generationAttempts", () => {
       generationId: "gen-1",
       userId: "user-1",
       provider: "fal",
-      modelId: "fal-ai/nano-banana",
+      modelId: "fal-ai/nano-banana-2",
       providerRequestId: "req-1",
       dispatchSource: "queued_submit",
       metadata: {

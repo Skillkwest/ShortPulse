@@ -33,9 +33,9 @@ vi.mock("../../../../lib/falClient", () => {
         return falClientMocks.fetchFalBriaBackgroundRemoveStatus(requestId);
       case "fal-ai/flux-2/klein/9b":
         return falClientMocks.fetchFalFlux2KleinStatus(requestId);
-      case "fal-ai/nano-banana":
+      case "fal-ai/nano-banana-2":
         return falClientMocks.fetchFalNanoBananaStatus(requestId);
-      case "fal-ai/nano-banana/edit":
+      case "fal-ai/nano-banana-2/edit":
         return falClientMocks.fetchFalNanoBananaEditStatus(requestId);
       case "fal-ai/nano-banana-pro":
         return falClientMocks.fetchFalNanoBananaProStatus(requestId);
@@ -157,7 +157,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana", Date.now(), 20);
+      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana-2", Date.now(), 20);
     });
 
     await vi.advanceTimersByTimeAsync(2_500);
@@ -174,7 +174,7 @@ describe("useAiStudioTasks", () => {
       expect.objectContaining({
         outputId: "out-1",
         taskId: "task-1",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         resultUrls: ["https://cdn.test/recovered.png"],
       })
     );
@@ -216,7 +216,7 @@ describe("useAiStudioTasks", () => {
         "task-status-gen-1",
         "out-1",
         0,
-        "fal-nano-banana",
+        "fal-nano-banana-2",
         Date.now(),
         20
       );
@@ -261,7 +261,7 @@ describe("useAiStudioTasks", () => {
         "task-handoff-delay",
         "out-1",
         0,
-        "fal-nano-banana",
+        "fal-nano-banana-2",
         Date.now(),
         0,
         undefined,
@@ -308,7 +308,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-server-hint-success", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-server-hint-success", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(1_250);
@@ -356,7 +356,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-lifecycle-no-urls", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-lifecycle-no-urls", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(1_250);
@@ -666,7 +666,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-server-hint-failure", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-server-hint-failure", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -703,7 +703,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana", Date.now(), 20);
+      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana-2", Date.now(), 20);
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -752,7 +752,7 @@ describe("useAiStudioTasks", () => {
       );
 
       act(() => {
-        result.current.startPollingTask("task-hidden-tab", "out-1", 0, "fal-nano-banana");
+        result.current.startPollingTask("task-hidden-tab", "out-1", 0, "fal-nano-banana-2");
       });
 
       await vi.advanceTimersByTimeAsync(14_500);
@@ -767,7 +767,7 @@ describe("useAiStudioTasks", () => {
         expect.objectContaining({
           outputId: "out-1",
           taskId: "task-hidden-tab",
-          provider: "fal-nano-banana",
+          provider: "fal-nano-banana-2",
           resultUrls: ["https://cdn.test/hidden-visible.png"],
         })
       );
@@ -817,7 +817,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-1", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -835,7 +835,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         reasonCode: "provider_error",
       })
     );
@@ -876,7 +876,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-terminal-error", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-terminal-error", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -895,7 +895,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         reasonCode: "provider_error",
       })
     );
@@ -940,7 +940,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-failed-success-text", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-failed-success-text", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -958,7 +958,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         message: "Generation failed",
         reasonCode: "provider_error",
       })
@@ -1001,7 +1001,12 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-failed-neutral-message", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask(
+        "task-failed-neutral-message",
+        "out-1",
+        0,
+        "fal-nano-banana-2"
+      );
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1019,7 +1024,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         message: "Generation failed",
         reasonCode: "provider_error",
       })
@@ -1061,7 +1066,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-error-message-field", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-error-message-field", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1079,7 +1084,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationFailure).toHaveBeenCalledWith(
       expect.objectContaining({
         outputId: "out-1",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         message: "Downstream service error",
         reasonCode: "provider_error",
       })
@@ -1151,7 +1156,7 @@ describe("useAiStudioTasks", () => {
         "task-raw-media-without-status",
         "out-1",
         0,
-        "fal-nano-banana"
+        "fal-nano-banana-2"
       );
     });
 
@@ -1205,7 +1210,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("video-task-1", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("video-task-1", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1217,7 +1222,7 @@ describe("useAiStudioTasks", () => {
       expect.objectContaining({
         outputId: "out-1",
         taskId: "video-task-1",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         resultUrls: ["https://cdn.test/video-output.mp4"],
       })
     );
@@ -1541,7 +1546,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-processing", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-processing", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1582,7 +1587,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-lifecycle-running", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-lifecycle-running", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1627,7 +1632,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-lifecycle-recovery", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-lifecycle-recovery", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -1679,7 +1684,7 @@ describe("useAiStudioTasks", () => {
         "task-transient-recovery-hint",
         "out-1",
         0,
-        "fal-nano-banana"
+        "fal-nano-banana-2"
       );
     });
 
@@ -1730,7 +1735,7 @@ describe("useAiStudioTasks", () => {
         "task-completed-recovery-hint",
         "out-1",
         0,
-        "fal-nano-banana"
+        "fal-nano-banana-2"
       );
     });
 
@@ -1763,7 +1768,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-processing-repeat", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-processing-repeat", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_100);
@@ -1797,7 +1802,14 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-timeout", "out-1", 4, "fal-nano-banana", startedAt, 2);
+      result.current.startPollingTask(
+        "task-timeout",
+        "out-1",
+        4,
+        "fal-nano-banana-2",
+        startedAt,
+        2
+      );
     });
 
     await flushQueuedOutputUpdates();
@@ -1843,7 +1855,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-timeout-retry", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-timeout-retry", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_100);
@@ -1865,7 +1877,7 @@ describe("useAiStudioTasks", () => {
       expect.objectContaining({
         outputId: "out-1",
         taskId: "task-timeout-retry",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         resultUrls: ["https://cdn.test/timeout-retry-success.png"],
       })
     );
@@ -1893,7 +1905,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-timeout-repeat", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-timeout-repeat", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_100);
@@ -1928,7 +1940,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-status-error", "out-1", 30, "fal-nano-banana");
+      result.current.startPollingTask("task-status-error", "out-1", 30, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(4_600);
@@ -1955,7 +1967,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-gone", "out-gone", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-gone", "out-gone", 0, "fal-nano-banana-2");
     });
     await vi.advanceTimersByTimeAsync(2_000);
 
@@ -1980,7 +1992,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-hard-stop", "out-gone", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-hard-stop", "out-gone", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 5_000);
@@ -1991,7 +2003,7 @@ describe("useAiStudioTasks", () => {
       expect.objectContaining({
         outputId: "out-gone",
         taskId: "task-hard-stop",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
       })
     );
   });
@@ -2035,7 +2047,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-transient", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-transient", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(4_500);
@@ -2047,7 +2059,7 @@ describe("useAiStudioTasks", () => {
       expect.objectContaining({
         outputId: "out-1",
         taskId: "task-transient",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         resultUrls: ["https://cdn.test/transient-recovery.png"],
       })
     );
@@ -2094,7 +2106,7 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-extended", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-extended", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(13_000);
@@ -2106,7 +2118,7 @@ describe("useAiStudioTasks", () => {
       expect.objectContaining({
         outputId: "out-1",
         taskId: "task-extended",
-        provider: "fal-nano-banana",
+        provider: "fal-nano-banana-2",
         resultUrls: ["https://cdn.test/extended-recovery.png"],
       })
     );
@@ -2131,8 +2143,8 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("task-dup", "out-1", 0, "fal-nano-banana");
-      result.current.startPollingTask("task-dup", "out-1", 0, "fal-nano-banana");
+      result.current.startPollingTask("task-dup", "out-1", 0, "fal-nano-banana-2");
+      result.current.startPollingTask("task-dup", "out-1", 0, "fal-nano-banana-2");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
@@ -2182,7 +2194,7 @@ describe("useAiStudioTasks", () => {
           `task-${index + 1}`,
           `out-${index + 1}`,
           0,
-          "fal-nano-banana"
+          "fal-nano-banana-2"
         );
       });
     });
@@ -2258,7 +2270,7 @@ describe("useAiStudioTasks", () => {
         "task-no-media-tail",
         "out-1",
         0,
-        "fal-nano-banana",
+        "fal-nano-banana-2",
         Date.now(),
         20
       );

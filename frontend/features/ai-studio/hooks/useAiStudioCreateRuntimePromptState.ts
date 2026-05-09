@@ -3,6 +3,7 @@
  * Owns stable create/edit/video text setters plus create-mode prompt/runtime selection.
  */
 import { useMemo } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioStableTextSetters } from "./useAiStudioStableTextSetters";
 
 type UseAiStudioCreateRuntimePromptStateParams = {
@@ -10,10 +11,10 @@ type UseAiStudioCreateRuntimePromptStateParams = {
   expertCreateMode: "standard" | "pulse";
   pulsePrompt: string;
   pulseSessionInstanceId: string | null;
-  setEditReferenceTextState: (value: string) => void;
-  setPulsePromptState: (value: string) => void;
-  setStandardPromptState: (value: string) => void;
-  setVideoReferenceTextState: (value: string) => void;
+  setEditReferenceTextState: Dispatch<SetStateAction<string>>;
+  setPulsePromptState: Dispatch<SetStateAction<string>>;
+  setStandardPromptState: Dispatch<SetStateAction<string>>;
+  setVideoReferenceTextState: Dispatch<SetStateAction<string>>;
   standardPrompt: string;
 };
 

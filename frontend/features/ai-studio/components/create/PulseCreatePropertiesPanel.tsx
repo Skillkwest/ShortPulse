@@ -57,7 +57,6 @@ export type PulseCreatePropertiesPanelProps = {
   onSavePrompt: (customPrompt?: string) => void;
   shouldDisableSave?: boolean;
   onClearAgentChat?: () => void;
-  beginnerMode?: boolean;
   expertCreateUiEligible?: boolean;
   createModeToggle?: React.ReactNode;
   activePulsePresetId?: CreatePulsePresetId | null;
@@ -204,12 +203,10 @@ export function PulseCreatePropertiesPanel({
     stepNumber: "1",
     title: "Ask anything",
     subtitle: "",
-    beginnerPinHelperText: "",
     isCollapsed: false,
     onToggleCollapse: () => {
       // Pulse expert mode keeps chat composer always open.
     },
-    beginnerMode: false,
     className: "create-expert-prompt-step is-character-mode-off",
     embedSendButtonInInput: true,
     hideAgentIntroMessage: true,

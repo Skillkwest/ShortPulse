@@ -18,11 +18,6 @@
   overflow: hidden;
 }
 
-.character-manager-page--embedded[data-beginner-mode="on"] {
-  --character-embedded-sheet-width: 360px;
-  --character-embedded-sheet-card-max-width: 204px;
-}
-
 .character-manager-page--embedded .character-mode-panel {
   margin-top: 0;
   margin-bottom: 0;

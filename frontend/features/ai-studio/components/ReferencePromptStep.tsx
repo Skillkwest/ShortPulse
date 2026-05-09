@@ -14,13 +14,11 @@ type ReferencePromptStepProps = {
   collapsed: boolean;
   onToggleCollapse: () => void;
   onDrop: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
-  beginnerMode: boolean;
   agentIsSending: boolean;
   agentError?: string;
   onAgentEnhanceSend?: () => void;
   showEnhanceButton?: boolean;
-  beginnerHelperText?: string;
-  beginnerPinHelperText?: string;
+  promptHelperText?: string;
   promptSaveButtonClassName?: string;
   promptSaveButtonUnstyled?: boolean;
   hideHeader?: boolean;
@@ -49,13 +47,11 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   collapsed,
   onToggleCollapse,
   onDrop,
-  beginnerMode,
   agentIsSending,
   agentError,
   onAgentEnhanceSend,
   showEnhanceButton = true,
-  beginnerHelperText,
-  beginnerPinHelperText,
+  promptHelperText,
   promptSaveButtonClassName,
   promptSaveButtonUnstyled = false,
   hideHeader = false,
@@ -76,7 +72,6 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
       <PromptStep
         stepNumber={promptBadge}
         title="Write Your Prompt"
-        subtitle="Start typing your prompt or drag & drop a prompt from the reference grid."
         prompt={referenceText ?? ""}
         onPromptChange={onPromptTextChange}
         agentEnabled={false}
@@ -92,14 +87,14 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         onDrop={onDrop}
         onDragOver={(event) => event.preventDefault()}
         className="reference-step-card"
-        beginnerMode={beginnerMode}
-        beginnerTitle="Write Your Prompt"
         promptOnly
         enhanceOnly
         hideEnhanceButton={!showEnhanceButton}
         promptPlaceholder={promptPlaceholder}
-        beginnerSubtitle={beginnerHelperText}
-        beginnerPinHelperText={beginnerPinHelperText}
+        subtitle={
+          promptHelperText ??
+          "Start typing your prompt or drag & drop a prompt from the reference grid."
+        }
         promptSaveButtonClassName={promptSaveButtonClassName}
         promptSaveButtonUnstyled={promptSaveButtonUnstyled}
         hideHeader={hideHeader}

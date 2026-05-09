@@ -45,8 +45,12 @@ type UseExpertEditPromptComposerRuntimeParams = {
   guardrailReason: string | null;
   layers: Array<{ id: string; imageUrl: string | null }>;
   customPresetOverrides: ExpertEditCustomPresetOverrides;
-  updateSelectedPresetIds: (presetIds: ExpertEditPresetId[]) => void;
-  updateCustomPresetOverrides: (overrides: ExpertEditCustomPresetOverrides) => void;
+  updateSelectedPresetIds: (
+    updater: (previous: ExpertEditPresetId[]) => ExpertEditPresetId[]
+  ) => void;
+  updateCustomPresetOverrides: (
+    updater: (previous: ExpertEditCustomPresetOverrides) => ExpertEditCustomPresetOverrides
+  ) => void;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
 };
 

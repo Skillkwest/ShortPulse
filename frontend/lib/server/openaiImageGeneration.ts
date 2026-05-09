@@ -21,7 +21,10 @@ import { upsertGenerationPublication } from "./api/generationPublications";
 import { readGenerationAbandonmentContext } from "./api/generationAbandonment";
 import { writeAppErrorLog } from "./api/appErrorLogs";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
-import { associateGenerationWithProjectForUser } from "./projectGenerationAssociationsService";
+import {
+  associateGenerationWithProjectForUser,
+  associateMediaFilesWithProjectForUser,
+} from "./projectGenerationAssociationsService";
 
 const DEFAULT_OPENAI_API_BASE = "https://api.openai.com/v1";
 const MEDIA_BUCKET = "media_library";
@@ -194,6 +197,7 @@ const readMediaAutosaveEnabledForUser = async (userId: string): Promise<boolean>
 
 const associateGeneratedOpenAiImageWithProject = async ({
   generationId,
+  mediaFileId,
   modelId,
   projectId,
   providerRequestId,
@@ -201,6 +205,7 @@ const associateGeneratedOpenAiImageWithProject = async ({
   userId,
 }: {
   generationId: string;
+  mediaFileId: string | null;
   modelId: string;
   projectId: string | null;
   providerRequestId: string | null;
@@ -214,6 +219,13 @@ const associateGeneratedOpenAiImageWithProject = async ({
       projectId,
       generationId,
     });
+    if (mediaFileId) {
+      await associateMediaFilesWithProjectForUser({
+        userId,
+        projectId,
+        mediaFileIds: [mediaFileId],
+      });
+    }
   } catch (error) {
     await writeAppErrorLog({
       source: "telemetry.openai_image.project_association_failed",
@@ -223,6 +235,7 @@ const associateGeneratedOpenAiImageWithProject = async ({
       statusCode: 200,
       metadata: {
         generation_id: generationId,
+        media_file_id: mediaFileId,
         project_id: projectId,
         provider: "openai",
         provider_request_id: providerRequestId,
@@ -525,6 +538,7 @@ export const persistGeneratedImageAsset = async ({
 
   await associateGeneratedOpenAiImageWithProject({
     generationId,
+    mediaFileId,
     modelId,
     projectId: resolvedProjectId,
     providerRequestId: resolvedProviderRequestId,

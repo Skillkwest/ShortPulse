@@ -17,8 +17,6 @@ const falClientMocks = vi.hoisted(() => ({
   submitFalFluxKontextInpaint: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
   submitFalFluxProFill: vi.fn(),
-  submitFalNanoBanana: vi.fn(),
-  submitFalNanoBananaEdit: vi.fn(),
   submitFalNanoBanana2: vi.fn(),
   submitFalNanoBanana2Edit: vi.fn(),
   submitFalNanoBananaPro: vi.fn(),
@@ -36,8 +34,6 @@ vi.mock("../../../../../lib/falClient", () => {
         return falClientMocks.submitFalSeedream(payload);
       case "fal-ai/bytedance/seedream/v5/lite/text-to-image":
         return falClientMocks.submitFalSeedreamV5Lite(payload);
-      case "fal-ai/nano-banana":
-        return falClientMocks.submitFalNanoBanana(payload);
       case "fal-ai/nano-banana-2":
         return falClientMocks.submitFalNanoBanana2(payload);
       case "fal-ai/nano-banana-pro":
@@ -54,8 +50,6 @@ vi.mock("../../../../../lib/falClient", () => {
         return falClientMocks.submitFalSeedreamEdit(payload);
       case "fal-ai/bytedance/seedream/v5/lite/edit":
         return falClientMocks.submitFalSeedreamV5LiteEdit(payload);
-      case "fal-ai/nano-banana/edit":
-        return falClientMocks.submitFalNanoBananaEdit(payload);
       case "fal-ai/nano-banana-2/edit":
         return falClientMocks.submitFalNanoBanana2Edit(payload);
       case "fal-ai/nano-banana-pro/edit":
@@ -74,8 +68,6 @@ const {
   submitFalFluxKontextInpaint,
   submitFalFlux2Klein,
   submitFalFluxProFill,
-  submitFalNanoBanana,
-  submitFalNanoBananaEdit,
   submitFalNanoBanana2,
   submitFalNanoBanana2Edit,
   submitFalNanoBananaPro,
@@ -123,16 +115,6 @@ const CASES: Record<string, CaseConfig> = {
     route: "image",
     submitName: "submitFalFluxKontextInpaint",
     expectedReferenceField: "none",
-  },
-  "fal-ai/nano-banana": {
-    route: "default",
-    submitName: "submitFalNanoBanana",
-    expectedReferenceField: "none",
-  },
-  "fal-ai/nano-banana/edit": {
-    route: "image",
-    submitName: "submitFalNanoBananaEdit",
-    expectedReferenceField: "image_urls",
   },
   "fal-ai/nano-banana-pro": {
     route: "default",
@@ -253,8 +235,6 @@ const submitSpyByName = {
   submitFalFluxKontextInpaint: vi.mocked(submitFalFluxKontextInpaint),
   submitFalFlux2Klein: vi.mocked(submitFalFlux2Klein),
   submitFalFluxProFill: vi.mocked(submitFalFluxProFill),
-  submitFalNanoBanana: vi.mocked(submitFalNanoBanana),
-  submitFalNanoBananaEdit: vi.mocked(submitFalNanoBananaEdit),
   submitFalNanoBanana2: vi.mocked(submitFalNanoBanana2),
   submitFalNanoBanana2Edit: vi.mocked(submitFalNanoBanana2Edit),
   submitFalNanoBananaPro: vi.mocked(submitFalNanoBananaPro),

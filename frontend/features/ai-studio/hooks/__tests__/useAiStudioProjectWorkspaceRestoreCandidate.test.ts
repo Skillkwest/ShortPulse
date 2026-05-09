@@ -143,7 +143,7 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
       input: "",
       latestAgentPrompt: null,
       promptOrigin: "manual",
-      chatModeEnabled: true,
+      chatModeEnabled: false,
       pulseWorkflowSession: null,
     });
     expect(result.current.snapshot).not.toBeNull();

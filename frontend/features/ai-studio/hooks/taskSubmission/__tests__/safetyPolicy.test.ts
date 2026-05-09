@@ -34,7 +34,7 @@ describe("resolveImageSubmissionSafetyPayload", () => {
   });
 
   it("returns empty payload for models without explicit safety policy overrides", () => {
-    expect(resolveImageSubmissionSafetyPayload("fal-ai/nano-banana")).toEqual({});
+    expect(resolveImageSubmissionSafetyPayload("fal-ai/nano-banana-2")).toEqual({});
     expect(resolveImageSubmissionSafetyPayload("unknown-model")).toEqual({});
   });
 });

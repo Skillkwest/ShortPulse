@@ -14,11 +14,9 @@ import { ReferenceStepHeaderActionButton } from "./ReferenceStepHeaderActionButt
 
 type ReferenceMediaStepProps = {
   referenceOrder: number;
-  referenceBadge: string;
   collapsedReference: boolean;
   onExpandReference: () => void;
   onToggleReference: () => void;
-  beginnerMode: boolean;
   isVideoVariant: boolean;
   referenceStepTitle: string;
   referenceStepSubtitle: string;
@@ -65,11 +63,9 @@ type ReferenceMediaStepProps = {
  */
 export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   referenceOrder,
-  referenceBadge,
   collapsedReference,
   onExpandReference,
   onToggleReference,
-  beginnerMode,
   isVideoVariant,
   referenceStepTitle,
   referenceStepSubtitle,
@@ -417,20 +413,17 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
         >
           {showHeader ? (
             <div className="reference-step-header">
-              {beginnerMode && <span className="step-badge mini">{referenceBadge}</span>}
               <div className="reference-step-copy">
                 <p className="step-title">{referenceStepTitle}</p>
                 <span className="step-subtitle tiny helper-text">{referenceStepSubtitle}</span>
               </div>
-              {!beginnerMode ? (
-                <div className="reference-drop-header-actions">
-                  <ReferenceStepHeaderActionButton
-                    label="Open reference options"
-                    isCollapsed={collapsedReference}
-                    onClick={onToggleReference}
-                  />
-                </div>
-              ) : null}
+              <div className="reference-drop-header-actions">
+                <ReferenceStepHeaderActionButton
+                  label="Open reference options"
+                  isCollapsed={collapsedReference}
+                  onClick={onToggleReference}
+                />
+              </div>
             </div>
           ) : null}
           {!isCollapsed ? (

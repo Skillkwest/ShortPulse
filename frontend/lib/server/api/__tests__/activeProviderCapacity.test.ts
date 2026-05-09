@@ -380,7 +380,7 @@ describe("readActiveProviderCapacitySnapshot", () => {
         },
         {
           user_id: "user-2",
-          model_id: "fal-ai/nano-banana",
+          model_id: "fal-ai/nano-banana-2",
           provider_request_id: null,
           created_at: "2026-03-25T11:59:40.000Z",
         },

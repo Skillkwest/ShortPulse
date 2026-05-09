@@ -47,12 +47,9 @@ import {
 type AiStudioToolbarProps = {
   selectedTool: ToolId | null;
   showCreateTools: boolean;
-  beginnerMode: boolean;
-  showBeginnerModeToggle?: boolean;
   onOpenProjects?: () => void;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (show: boolean) => void;
-  onToggleBeginnerMode: (enabled: boolean) => void;
 };
 
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
@@ -113,12 +110,9 @@ const toolIcons: Record<ToolId, IconComponent> = {
  */
 function AiStudioToolbarComponent({
   selectedTool,
-  beginnerMode,
-  showBeginnerModeToggle = true,
   onOpenProjects,
   onSelectTool,
   onToggleCreateTools,
-  onToggleBeginnerMode,
 }: AiStudioToolbarProps) {
   const isCreateSelected = isCreateWorkflow(selectedTool);
   const isEditSelected = isEditWorkflow(selectedTool);
@@ -369,28 +363,7 @@ function AiStudioToolbarComponent({
           <div className="toolbar-divider toolbar-divider-secondary" aria-hidden="true" />
         </div>
       </div>
-      <div
-        className={`toolbar-footer ${showBeginnerModeToggle ? "" : "toolbar-footer--toggle-hidden"}`}
-      >
-        {showBeginnerModeToggle ? (
-          <div className="toolbar-beginner-toggle">
-            <div className="toolbar-beginner-copy">
-              <span className="toolbar-label">Beginner mode</span>
-            </div>
-            <button
-              type="button"
-              className={`reference-toggle beginner-toggle ${beginnerMode ? "is-active" : ""}`}
-              aria-pressed={beginnerMode}
-              aria-label={beginnerMode ? "Disable beginner mode" : "Enable beginner mode"}
-              onClick={() => onToggleBeginnerMode(!beginnerMode)}
-            >
-              <span className="reference-toggle-track" aria-hidden="true">
-                <span className="reference-toggle-dot" />
-              </span>
-            </button>
-          </div>
-        ) : null}
-      </div>
+      <div className="toolbar-footer toolbar-footer--toggle-hidden" />
     </aside>
   );
 }

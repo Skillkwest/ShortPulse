@@ -108,7 +108,7 @@
   opacity: 0.46;
 }
 
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties {
+.ai-studio-page[data-selected-tool="edit"] .panel.ai-panel.ai-properties {
   background: #13151800;
   border: 0;
   box-shadow: none;

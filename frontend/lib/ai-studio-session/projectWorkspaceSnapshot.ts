@@ -1,3 +1,5 @@
+import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../../features/ai-studio/logic/chatModeDefaults";
+
 type MinimalAiStudioSessionSnapshot = {
   schemaVersion: number;
   updatedAt: string;
@@ -12,7 +14,7 @@ type MinimalAiStudioSessionAgentState = {
   input: "";
   latestAgentPrompt: null;
   promptOrigin: "manual";
-  chatModeEnabled: true;
+  chatModeEnabled: false;
   pulseWorkflowSession: null;
 };
 
@@ -37,7 +39,7 @@ export const createEmptyAiStudioSessionAgentState = (): MinimalAiStudioSessionAg
   input: "",
   latestAgentPrompt: null,
   promptOrigin: "manual",
-  chatModeEnabled: true,
+  chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
   pulseWorkflowSession: null,
 });
 

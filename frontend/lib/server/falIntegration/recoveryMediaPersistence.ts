@@ -12,6 +12,7 @@ import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { readPersistedGenerationOutputs } from "../api/generationOutputs";
 import { reconcileOwnedGenerationOutputSlot } from "../api/generationOutputConvergence";
+import { associateMediaFilesWithProjectForUser } from "../projectGenerationAssociationsService";
 import { upsertVideoPosterVariantFromBuffer } from "../videoPosterVariant";
 import { asString } from "./falAdapter";
 import { extractImageDimensionsFromBuffer } from "../imageDimensions";
@@ -202,9 +203,11 @@ export const readExistingRecoveryMediaRows = async (
 export const persistRecoveryMediaFilesForGeneration = async ({
   generation,
   mediaUrls,
+  projectId = null,
 }: {
   generation: RecoveryPersistenceGeneration;
   mediaUrls: string[];
+  projectId?: string | null;
 }): Promise<string[]> => {
   const supabaseAdmin = getSupabaseAdmin();
   const existingRows = await readExistingRecoveryMediaRows(generation.id, generation.user_id);
@@ -339,6 +342,13 @@ export const persistRecoveryMediaFilesForGeneration = async ({
           (await lookupExistingData("index"));
         const existingRowId = asString(asObject(existingData).id);
         if (existingRowId) {
+          if (projectId) {
+            await associateMediaFilesWithProjectForUser({
+              userId: generation.user_id,
+              projectId,
+              mediaFileIds: [existingRowId],
+            });
+          }
           try {
             await supabaseAdmin.storage.from(MEDIA_BUCKET).remove([storagePath]);
           } catch {
@@ -385,6 +395,13 @@ export const persistRecoveryMediaFilesForGeneration = async ({
     }
     const mediaFileId = asString(asObject(data).id);
     if (mediaFileId) {
+      if (projectId) {
+        await associateMediaFilesWithProjectForUser({
+          userId: generation.user_id,
+          projectId,
+          mediaFileIds: [mediaFileId],
+        });
+      }
       if (fileType === "video") {
         await upsertVideoPosterVariantFromBuffer({
           supabaseAdmin,

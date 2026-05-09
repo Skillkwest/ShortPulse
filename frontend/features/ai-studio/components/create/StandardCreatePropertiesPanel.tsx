@@ -593,7 +593,7 @@ export function StandardCreatePropertiesPanel({
   agentBootstrapPending = false,
   agentMessages = [],
   agentInput = "",
-  chatModeEnabled = true,
+  chatModeEnabled = false,
   agentIsSending = false,
   agentError,
   stagedPrompt = null,

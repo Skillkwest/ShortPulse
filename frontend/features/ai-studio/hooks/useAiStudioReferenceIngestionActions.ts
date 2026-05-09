@@ -5,6 +5,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { AgentContext } from "../../ai-agent/types";
 import { randomId } from "../logic/ids";
+import { associateMediaFilesWithProject } from "../logic/mediaLibraryPersistence";
 import { resolveModelLabel } from "../logic/stateParsers";
 import type { StudioMode, StudioOutput } from "../types";
 import {
@@ -17,6 +18,7 @@ import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 
 type UseAiStudioReferenceIngestionActionsArgs = {
   activeOutput?: StudioOutput | null;
+  projectId?: string | null;
   mode: StudioMode;
   aspect: string;
   model: string | null;
@@ -78,6 +80,7 @@ type UseAiStudioReferenceIngestionActionsResult = {
 
 export const useAiStudioReferenceIngestionActions = ({
   activeOutput = null,
+  projectId = null,
   mode,
   aspect,
   model,
@@ -150,6 +153,17 @@ export const useAiStudioReferenceIngestionActions = ({
 
       setOutputs((prev) => [optimisticOutput, ...prev]);
 
+      if (payload.id && projectId) {
+        try {
+          await associateMediaFilesWithProject({
+            projectId,
+            mediaFileIds: [payload.id],
+          });
+        } catch {
+          // Continue hydration even if project association fails transiently.
+        }
+      }
+
       try {
         const preparedPayload = await prepareLibraryMediaIngestionPayload(payload);
         const refreshedOutput = buildLibraryMediaOutputWithId(preparedPayload, outputId);
@@ -180,6 +194,7 @@ export const useAiStudioReferenceIngestionActions = ({
     [
       buildLibraryMediaOutputWithId,
       libraryMediaIngestionErrorMessage,
+      projectId,
       setOutputs,
       setUiError,
       updateOutputById,

@@ -5,6 +5,7 @@ const persistGenerationOutputRecordsMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const upsertGenerationPublicationMock = vi.fn();
 const associateGenerationWithProjectForUserMock = vi.fn();
+const associateMediaFilesWithProjectForUserMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 
 type MockQueryResult = {
@@ -86,6 +87,8 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 vi.mock("../../lib/server/projectGenerationAssociationsService", () => ({
   associateGenerationWithProjectForUser: (...args: unknown[]) =>
     associateGenerationWithProjectForUserMock(...args),
+  associateMediaFilesWithProjectForUser: (...args: unknown[]) =>
+    associateMediaFilesWithProjectForUserMock(...args),
 }));
 
 import { persistGeneratedVideoAsset } from "../../lib/server/elevenlabs";
@@ -128,6 +131,7 @@ describe("persistGeneratedVideoAsset", () => {
     upsertGenerationPublicationMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     associateGenerationWithProjectForUserMock.mockResolvedValue(true);
+    associateMediaFilesWithProjectForUserMock.mockResolvedValue(true);
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
   });
 
@@ -197,6 +201,7 @@ describe("persistGeneratedVideoAsset", () => {
       projectId: "project-1",
       generationId: "generation-1",
     });
+    expect(associateMediaFilesWithProjectForUserMock).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       generationId: "generation-1",
       mediaFileId: null,
@@ -263,6 +268,7 @@ describe("persistGeneratedVideoAsset", () => {
         }),
       })
     );
+    expect(associateMediaFilesWithProjectForUserMock).not.toHaveBeenCalled();
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.elevenlabs.media_autosave_failed",
@@ -282,6 +288,32 @@ describe("persistGeneratedVideoAsset", () => {
       mediaFileId: null,
       outputRowId: "output-1",
       signedUrl: "https://signed.example/video.mp4",
+    });
+  });
+
+  it("associates autosaved video media with the active project", async () => {
+    userPreferencesMaybeSingleMock.mockResolvedValue({
+      data: { media_autosave_enabled: true },
+      error: null,
+    });
+
+    await persistGeneratedVideoAsset({
+      userId: "user-1",
+      promptText: "Cinematic skyline reveal",
+      provider: "elevenlabs",
+      modelId: "video_v1",
+      projectId: "project-1",
+      sourceMode: "voice-changer",
+      outputBuffer: Buffer.from("video"),
+      outputContentType: "video/mp4",
+      generationReplay: { source: "reroll-1" },
+      extraMetadata: { remuxed_from: "source-video-1" },
+    });
+
+    expect(associateMediaFilesWithProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      mediaFileIds: ["media-1"],
     });
   });
 });

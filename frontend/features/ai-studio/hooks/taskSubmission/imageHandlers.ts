@@ -2,7 +2,7 @@
  * Image and edit submission handlers for AI Studio task generation.
  */
 import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
-import { falNanoBananaAllowedAspects, falNanoBananaProAllowedAspects } from "../../constants";
+import { falNanoBananaProAllowedAspects } from "../../constants";
 import {
   normalizeNanoBanana2Resolution,
   normalizeNanoBananaProResolution,
@@ -23,7 +23,6 @@ const handoffSubmitResponse = ({
     | "fal-seedream"
     | "fal-seedream-edit"
     | "fal-seedream-v5-lite-edit"
-    | "fal-nano-banana-edit"
     | "fal-nano-banana-2-edit"
     | "fal-nano-banana-pro-edit"
     | "fal-flux2-klein"
@@ -125,27 +124,6 @@ export const handleImageModelSubmission = async ({
     handoffSubmitResponse({
       response,
       pollingProvider: "fal-flux-kontext-inpaint",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal-ai/nano-banana/edit") {
-    if (!preparedImageInputs.length) {
-      notifyGenerationFailure(id, "Nano Banana Edit requires at least one reference image.");
-      return true;
-    }
-    const response = await submitQueuedGenerationByModelId(finalModel, {
-      prompt: cleanedPrompt,
-      num_images: 1,
-      aspect_ratio: falNanoBananaAllowedAspects.has(aspect) ? aspect : "auto",
-      output_format: "png",
-      image_urls: preparedImageInputs.slice(0, 8),
-      ...shortpulseSubmitPayload,
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "fal-nano-banana-edit",
       startPollingWithGeneration,
     });
     return true;

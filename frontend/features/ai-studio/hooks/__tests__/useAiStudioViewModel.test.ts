@@ -703,11 +703,11 @@ describe("useAiStudioViewModel edit guardrails", () => {
   const editInput = {
     ...baseInput,
     mode: "image" as const,
-    model: "fal-ai/nano-banana/edit",
+    model: "fal-ai/nano-banana-2/edit",
     selectedTool: "edit" as const,
     videoReferenceMode: "standard" as const,
     motionReferenceVideoUrl: null,
-    costParamsForModel: makeCostParamsForModel("fal-ai/nano-banana/edit"),
+    costParamsForModel: makeCostParamsForModel("fal-ai/nano-banana-2/edit"),
   };
 
   it("requires a primary reference image in edit workflow", () => {

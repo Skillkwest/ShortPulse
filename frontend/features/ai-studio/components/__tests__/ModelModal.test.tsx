@@ -21,7 +21,7 @@ vi.mock("next/image", () => ({
 
 const baseOptions: ModelOption[] = [
   { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
-  { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
+  { value: "fal-ai/nano-banana-2", label: "Nano Banana 2", mediaType: "image" },
   {
     value: "fal-ai/bytedance/seedream/v4.5/text-to-image",
     label: "Seedream 4.5",
@@ -60,7 +60,7 @@ describe("ModelModal", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("hides Nano Banana chips in text-image context while keeping supported alternatives", () => {
+  it("keeps supported text-image alternatives visible in text-image context", () => {
     render(
       <ModelModal
         isOpen
@@ -72,7 +72,7 @@ describe("ModelModal", () => {
     );
 
     expect(screen.getByRole("button", { name: /FLUX\.2 Lite/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Nano Banana/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Nano Banana 2/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Seedream 4\.5/i })).toBeInTheDocument();
   });
 
@@ -276,7 +276,6 @@ describe("ModelModal", () => {
         label: "Seedream 5 Lite",
         mediaType: "image",
       },
-      { value: "fal-ai/nano-banana/edit", label: "Nano Banana", mediaType: "image" },
       {
         value: "fal-ai/bytedance/seedream/v4.5/edit",
         label: "Seedream 4.5",
@@ -296,13 +295,51 @@ describe("ModelModal", () => {
     expect(readChipTitles(container)).toEqual([
       "Seedream 4.5",
       "Seedream 5 Lite",
-      "Nano Banana",
       "Nano Banana 2",
       "Nano Banana Pro",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
-      { family: "Nano Banana", chips: ["Nano Banana", "Nano Banana 2", "Nano Banana Pro"] },
+      { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
+    ]);
+  });
+
+  it("renders character-image chips with the edit-model ordering contract", () => {
+    const options: ModelOption[] = [
+      { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro", mediaType: "image" },
+      { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2", mediaType: "image" },
+      {
+        value: "fal-ai/bytedance/seedream/v5/lite/edit",
+        label: "Seedream 5 Lite",
+        mediaType: "image",
+      },
+      {
+        value: "fal-ai/bytedance/seedream/v4.5/edit",
+        label: "Seedream 4.5",
+        mediaType: "image",
+      },
+    ];
+
+    const { container } = render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="character-image"
+      />
+    );
+
+    expect(screen.getByText("Character Mode")).toBeInTheDocument();
+    expect(readChipTitles(container)).toEqual([
+      "Seedream 4.5",
+      "Seedream 5 Lite",
+      "Nano Banana 2",
+      "Nano Banana Pro",
+    ]);
+    expect(readFamilyColumns()).toEqual([
+      { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
+      { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
     ]);
   });
 
@@ -388,11 +425,11 @@ describe("ModelModal", () => {
     expect(screen.getByText("555")).toBeInTheDocument();
   });
 
-  it("keeps FLUX.2 and Nano Banana chips visible outside text-image context", () => {
+  it("keeps FLUX.2 and Nano Banana 2 chips visible outside text-image context", () => {
     render(<ModelModal isOpen onClose={vi.fn()} onSelect={vi.fn()} options={baseOptions} />);
 
     expect(screen.getByRole("button", { name: /FLUX\.2/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Nano Banana/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Nano Banana 2/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Seedream 4\.5/i })).toBeInTheDocument();
   });
 });

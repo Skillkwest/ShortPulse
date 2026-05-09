@@ -62,7 +62,7 @@ describe("GET /api/admin/credits/ledger", () => {
           id: "ledger-1",
           user_id: "user-1",
           change_cents: -5,
-          reason: "fal-ai/nano-banana generation",
+          reason: "fal-ai/nano-banana-2 generation",
           source: "generation_charge",
           source_ref: "req-123",
           metadata: {
@@ -97,7 +97,7 @@ describe("GET /api/admin/credits/ledger", () => {
           id: "ledger-1",
           userId: "user-1",
           changeCents: -5,
-          reason: "fal-ai/nano-banana generation",
+          reason: "fal-ai/nano-banana-2 generation",
           source: "generation_charge",
           sourceRef: "req-123",
           pricingBreakdown: {

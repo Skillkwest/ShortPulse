@@ -21,7 +21,7 @@ type ReferencePromptStepMockProps = {
   onDrop?: (event: React.DragEvent<HTMLTextAreaElement>) => void;
   promptTextareaRef?: React.Ref<HTMLTextAreaElement>;
   promptPlaceholder?: string;
-  beginnerHelperText?: string;
+  promptHelperText?: string;
   agentIsSending?: boolean;
   agentError?: string;
   onAgentEnhanceSend?: unknown;
@@ -474,13 +474,13 @@ describe("VideoPropertiesPanel", () => {
     render(<VideoPropertiesPanel {...baseProps} klingWorkflowMode="multi" />);
 
     const promptProps = referencePromptStepMock.mock.calls[0]?.[0] as
-      | { promptPlaceholder?: string; beginnerHelperText?: string }
+      | { promptPlaceholder?: string; promptHelperText?: string }
       | undefined;
     expect(promptProps).toEqual(
       expect.objectContaining({
         promptPlaceholder:
           "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.",
-        beginnerHelperText:
+        promptHelperText:
           "Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip.",
       })
     );

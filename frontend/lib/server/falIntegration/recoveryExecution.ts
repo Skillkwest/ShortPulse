@@ -532,6 +532,13 @@ export const executeGenerationRecovery = async ({
   const nowIso = nowDate.toISOString();
   const generationAgeSeconds = resolveGenerationAgeSeconds(generation.created_at, nowDate);
   const generationMetadata = asObject(generation.metadata);
+  const shortpulseContext = readMetadataObject(
+    generationMetadata,
+    "shortpulse_context",
+    "shortpulseContext"
+  );
+  const projectId =
+    asOptionalString(shortpulseContext.project_id) ?? asOptionalString(shortpulseContext.projectId);
   const abandonment = await readGenerationAbandonmentContext({
     userId: generation.user_id,
     generationId: generation.id,
@@ -1124,6 +1131,7 @@ export const executeGenerationRecovery = async ({
     mediaFileIds = await persistRecoveryMediaFilesForGeneration({
       generation,
       mediaUrls: recoveredUrls,
+      projectId,
     });
   } catch (error) {
     if (!isTerminalMediaPersistenceError(error)) {

@@ -8,13 +8,15 @@ import {
   type MediaAutosaveSource,
   type PersistenceIntent,
 } from "../../../lib/mediaAutosavePolicy";
+import { AI_STUDIO_AUTOSAVE_MAX_ATTEMPTS_PER_OUTPUT } from "../logic/persistenceRetryPolicy";
 import { hasDurableGenerationIdentity } from "./useAiStudioPersistenceActions";
+import type { PersistOutputSaveResult } from "./persistenceActionContracts";
 import type { StudioOutput } from "../types";
 
 type UseAiStudioMediaAutosaveOrchestratorArgs = {
   outputs: StudioOutput[];
   mediaAutosaveEnabled: boolean;
-  saveReferenceToLibrary: (outputId: string) => void;
+  saveReferenceToLibrary: (outputId: string) => Promise<PersistOutputSaveResult>;
 };
 
 const hasRenderableMedia = (output: StudioOutput): boolean =>
@@ -37,32 +39,52 @@ const buildDecisionInput = (output: StudioOutput, mediaAutosaveEnabled: boolean)
 });
 
 /**
- * Applies autosave policy to output snapshots and triggers one-shot autosave for eligible unsaved media.
+ * Applies autosave policy to output snapshots and triggers bounded autosave retries for eligible unsaved media.
  */
 export const useAiStudioMediaAutosaveOrchestrator = ({
   outputs,
   mediaAutosaveEnabled,
   saveReferenceToLibrary,
 }: UseAiStudioMediaAutosaveOrchestratorArgs) => {
-  const attemptedOutputIdsRef = useRef<Set<string>>(new Set());
+  const inFlightOutputIdsRef = useRef<Set<string>>(new Set());
+  const attemptCountByOutputIdRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const activeIds = new Set(outputs.map((output) => output.id));
-    for (const attemptedId of attemptedOutputIdsRef.current) {
-      if (!activeIds.has(attemptedId)) {
-        attemptedOutputIdsRef.current.delete(attemptedId);
+    for (const outputId of inFlightOutputIdsRef.current) {
+      if (!activeIds.has(outputId)) {
+        inFlightOutputIdsRef.current.delete(outputId);
+      }
+    }
+    for (const trackedOutputId of attemptCountByOutputIdRef.current.keys()) {
+      if (!activeIds.has(trackedOutputId)) {
+        attemptCountByOutputIdRef.current.delete(trackedOutputId);
       }
     }
 
     if (!mediaAutosaveEnabled) return;
 
     outputs.forEach((output) => {
-      if (attemptedOutputIdsRef.current.has(output.id)) return;
+      if (inFlightOutputIdsRef.current.has(output.id)) return;
+      const attemptCount = attemptCountByOutputIdRef.current.get(output.id) ?? 0;
+      if (attemptCount >= AI_STUDIO_AUTOSAVE_MAX_ATTEMPTS_PER_OUTPUT) return;
       if (output.mediaSource === "generated" && !hasDurableGenerationIdentity(output)) return;
       const decision = canAutoSaveOutput(buildDecisionInput(output, mediaAutosaveEnabled));
       if (!decision.allowed) return;
-      attemptedOutputIdsRef.current.add(output.id);
-      saveReferenceToLibrary(output.id);
+      inFlightOutputIdsRef.current.add(output.id);
+      attemptCountByOutputIdRef.current.set(output.id, attemptCount + 1);
+      void saveReferenceToLibrary(output.id)
+        .then((result) => {
+          if (result.ok) {
+            attemptCountByOutputIdRef.current.delete(output.id);
+          }
+        })
+        .catch(() => {
+          // Failure state is handled by persistence runtime; keep attempt count for bounded retry.
+        })
+        .finally(() => {
+          inFlightOutputIdsRef.current.delete(output.id);
+        });
     });
   }, [mediaAutosaveEnabled, outputs, saveReferenceToLibrary]);
 };

@@ -547,6 +547,109 @@ const buildProjectGenerationMediaDeliveryByGenerationId = async ({
   return deliveryByGenerationId;
 };
 
+const verifyOwnedProjectForUser = async ({
+  userId,
+  projectId,
+}: {
+  userId: string;
+  projectId: string;
+}): Promise<boolean> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data: projectRow, error: projectError } = await supabaseAdmin
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (projectError) {
+    throw new Error(projectError.message || "Failed to verify owned project before association");
+  }
+
+  return Boolean(projectRow);
+};
+
+const resolveOwnedMediaFileIdsForUser = async ({
+  userId,
+  mediaFileIds,
+}: {
+  userId: string;
+  mediaFileIds: string[];
+}): Promise<string[]> => {
+  const normalizedMediaFileIds = Array.from(
+    new Set(
+      mediaFileIds
+        .map((value) => asTrimmedString(value))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  if (!normalizedMediaFileIds.length) return [];
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("media_files")
+    .select("id")
+    .eq("user_id", userId)
+    .in("id", normalizedMediaFileIds);
+
+  if (error) {
+    throw new Error(error.message || "Failed to verify owned media files before association");
+  }
+
+  return (Array.isArray(data) ? data : [])
+    .map((row) => asTrimmedString(asRecord(row).id))
+    .filter((value): value is string => Boolean(value));
+};
+
+/**
+ * Associates owned media files with one owned project.
+ * This is used by project routes that reuse durable media ids and need
+ * immediate project membership without waiting for workspace snapshot backfill.
+ */
+export const associateMediaFilesWithProjectForUser = async ({
+  userId,
+  projectId,
+  mediaFileIds,
+}: {
+  userId: string;
+  projectId: string;
+  mediaFileIds: string[];
+}): Promise<boolean> => {
+  const normalizedProjectId = asTrimmedString(projectId);
+  if (!normalizedProjectId) return false;
+
+  const projectOwned = await verifyOwnedProjectForUser({
+    userId,
+    projectId: normalizedProjectId,
+  });
+  if (!projectOwned) return false;
+  const ownedMediaFileIds = await resolveOwnedMediaFileIdsForUser({
+    userId,
+    mediaFileIds,
+  });
+  if (!ownedMediaFileIds.length) return false;
+
+  const nowIso = new Date().toISOString();
+  const supabaseAdmin = getSupabaseAdmin();
+  const { error } = await supabaseAdmin.from("project_media_items").upsert(
+    ownedMediaFileIds.map((mediaFileId) => ({
+      project_id: normalizedProjectId,
+      media_file_id: mediaFileId,
+      user_id: userId,
+      updated_at: nowIso,
+    })),
+    {
+      onConflict: "project_id,media_file_id",
+    }
+  );
+
+  if (error) {
+    throw new Error(error.message || "Failed to associate media files with project");
+  }
+
+  return true;
+};
+
 /**
  * Associates one owned generation with one owned project.
  * This is used by direct-complete provider lanes that must eagerly persist
@@ -566,20 +669,14 @@ export const associateGenerationWithProjectForUser = async ({
   const normalizedGenerationId = asTrimmedString(generationId);
   if (!normalizedProjectId || !normalizedGenerationId) return false;
 
-  const supabaseAdmin = getSupabaseAdmin();
-  const { data: projectRow, error: projectError } = await supabaseAdmin
-    .from("projects")
-    .select("id")
-    .eq("id", normalizedProjectId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (projectError) {
-    throw new Error(projectError.message || "Failed to verify owned project before association");
-  }
-  if (!projectRow) return false;
+  const projectOwned = await verifyOwnedProjectForUser({
+    userId,
+    projectId: normalizedProjectId,
+  });
+  if (!projectOwned) return false;
 
   const nowIso = new Date().toISOString();
+  const supabaseAdmin = getSupabaseAdmin();
   const { error } = await supabaseAdmin.from("project_generation_items").upsert(
     {
       project_id: normalizedProjectId,

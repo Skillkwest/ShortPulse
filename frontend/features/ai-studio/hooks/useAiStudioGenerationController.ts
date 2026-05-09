@@ -4,37 +4,21 @@
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { resolveCreateCharacterModeSubmitModel } from "../logic/createCharacterModeModelMapping";
-import {
-  GENERATION_GUARDRAIL_FALLBACK_ERROR,
-  resolveGenerationStartDecision,
-} from "../logic/generationStartPolicy";
+import { GENERATION_GUARDRAIL_FALLBACK_ERROR } from "../logic/generationStartPolicy";
 import { trackAiStudioGenerateClicked } from "../logic/generationUsageTelemetry";
-import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
 import { buildImageReferenceInputs } from "../logic/referenceInputs";
-import { DeadlineExceededError, withDeadline } from "../logic/withDeadline";
 import type { ExpertEditRegenerateOptions } from "../components/edit/expertEditSubmissionContract";
 import type {
   AiStudioGenerateOutputOptions,
   AiStudioGenerateSubmissionOverrides,
 } from "./contracts/generationSubmissionContracts";
+import {
+  type CharacterModeFallbackSummary,
+  type CharacterModeSubmissionOverrides,
+} from "./generationCharacterModePreflight";
+import { runGenerationCharacterPreparation } from "./generationCharacterPreparation";
+import { runGenerationCreditGuardrail } from "./generationCreditGuardrail";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
-
-type CharacterModeFallbackSummary<TFallbackCode extends string> = {
-  fallbackCode: TFallbackCode | null;
-  characterReferenceCount: number;
-  hasCharacterDescription: boolean;
-} | null;
-
-type CharacterModeSubmissionOverrides<TFallbackCode extends string> = {
-  submissionPromptOverride: string;
-  displayPromptOverride: string;
-  referenceInputsOverride: string[];
-  characterContextOverride?: StudioOutput["characterContext"];
-  notice: string | null;
-  fallbackCode: TFallbackCode | null;
-  characterReferenceCount: number;
-  hasCharacterDescription: boolean;
-} | null;
 
 type GenerateOptions = {
   modeOverride?: StudioMode;
@@ -57,29 +41,6 @@ type RegenerateWithDebitOptions = ExpertEditRegenerateOptions &
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
-const CREATE_CHARACTER_MODE_LOADING_ERROR =
-  "Character Mode context is still loading. Please wait before generating.";
-const CREATE_CHARACTER_MODE_BUNDLE_UNAVAILABLE_ERROR =
-  "Selected character context could not be loaded. Please reselect the character and retry.";
-const CREATE_CHARACTER_MODE_SELECTION_REQUIRED_ERROR =
-  "Select a character before generating with Character Mode.";
-
-const resolveCreateCharacterModeFallbackBlockMessage = <TFallbackCode extends string>(
-  tool: ToolId | null,
-  overrides: CharacterModeSubmissionOverrides<TFallbackCode>
-): string | null => {
-  if (!isCreateTool(tool) || !overrides?.fallbackCode) return null;
-  switch (overrides.fallbackCode) {
-    case "bundle_loading":
-      return CREATE_CHARACTER_MODE_LOADING_ERROR;
-    case "bundle_unavailable":
-      return CREATE_CHARACTER_MODE_BUNDLE_UNAVAILABLE_ERROR;
-    case "no_character_selected":
-      return CREATE_CHARACTER_MODE_SELECTION_REQUIRED_ERROR;
-    default:
-      return null;
-  }
-};
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
   mode: StudioMode;
@@ -280,151 +241,62 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       });
 
       const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
-      let checkedFreshCredits = false;
-
-      if (
-        options?.costOverrideCredits != null &&
-        effectiveBalanceCredits != null &&
-        effectiveBalanceCredits < options.costOverrideCredits
-      ) {
-        const hasFreshCredits = await ensureFreshCreditsForRun(options.costOverrideCredits);
-        checkedFreshCredits = true;
-        if (!hasFreshCredits) {
+      const canProceedWithCredits = await runGenerationCreditGuardrail({
+        requiredCredits,
+        upfrontRunCredits: options?.costOverrideCredits,
+        effectiveBalanceCredits,
+        isGenerateDisabled,
+        isCreditGuardrail,
+        alwaysCheckCreditGuardrailWhenEnabled: false,
+        ensureFreshCreditsForRun,
+        resolveGuardrailBlockMessage,
+        handleInsufficientCredits: () => {
           setUiError("You do not have enough credits for this run.");
-          return { accepted: false, optimisticOutputId: null };
-        }
-      }
-
-      if (isGenerateDisabled) {
-        if (isCreditGuardrail) {
-          const hasFreshCredits = checkedFreshCredits
-            ? true
-            : await ensureFreshCreditsForRun(requiredCredits);
-          if (!hasFreshCredits) {
-            setUiError(resolveGuardrailBlockMessage());
-            return { accepted: false, optimisticOutputId: null };
-          }
-        } else {
-          setUiError(resolveGuardrailBlockMessage());
-          return { accepted: false, optimisticOutputId: null };
-        }
+        },
+        handleGuardrailBlock: (message) => {
+          setUiError(message);
+        },
+      });
+      if (!canProceedWithCredits) {
+        return { accepted: false, optimisticOutputId: null };
       }
 
       const defaultPromptForTool = resolveDefaultPromptForTool(effectiveTool);
       const promptToUse =
         typeof promptOverride === "string" ? promptOverride : defaultPromptForTool;
-      const startDecision = resolveGenerationStartDecision({
-        tool: effectiveTool,
-        mode: effectiveMode,
-        modelId: effectiveModelId,
-        promptText: promptToUse,
-        checkPrompt: shouldCheckPromptAtGenerationStart({
-          tool: effectiveTool,
-          modelId: effectiveModelId,
-        }),
-      });
-      if (!startDecision.allow) {
-        setUiError(startDecision.message);
-        return { accepted: false, optimisticOutputId: null };
-      }
-
       const optimisticOutputId = insertOptimisticGenerationPlaceholder?.({
         prompt: promptToUse,
         modeOverride: effectiveMode,
         selectedToolOverride: effectiveTool,
       });
 
-      let characterModeOverrides: CharacterModeSubmissionOverrides<TFallbackCode>;
-      try {
-        trackCharacterModeEvent?.("generation_preflight_started", {
-          trigger: "generate",
-          tool: effectiveTool,
-          model_id: effectiveModelId,
-          is_character_mode: isCharacterModeEnabledForTool,
-        });
-        const characterModeBundleForSubmit = await withDeadline({
-          timeoutMs: PREFLIGHT_TIMEOUT_MS,
-          timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
-          run: () => refreshCharacterModeInjectionBundleForSubmission(effectiveTool),
-        });
-        const userReferenceInputs = resolveUserReferenceInputsForTool(effectiveTool);
-        characterModeOverrides = resolveCharacterModeSubmissionOverrides(
-          promptToUse,
-          effectiveTool,
-          characterModeBundleForSubmit,
-          userReferenceInputs
-        );
-      } catch (error) {
-        if (error instanceof DeadlineExceededError) {
-          trackCharacterModeEvent?.("generation_preflight_timeout", {
-            trigger: "generate",
-            tool: effectiveTool,
-            model_id: effectiveModelId,
-            is_character_mode: isCharacterModeEnabledForTool,
-            duration_ms: error.timeoutMs,
-            reason_code: "PREFLIGHT_TIMEOUT",
-          });
-        }
-        if (optimisticOutputId) {
-          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
-        }
-        setUiError(
-          error instanceof DeadlineExceededError
-            ? PREFLIGHT_TIMEOUT_ERROR
-            : error instanceof Error
-              ? error.message
-              : "Unable to start generation."
-        );
+      const preparationResult = await runGenerationCharacterPreparation({
+        trigger: "generate",
+        tool: effectiveTool,
+        mode: effectiveMode,
+        effectiveModelId,
+        promptForGuardrails: promptToUse,
+        promptForCharacterComposition: promptToUse,
+        isCharacterModeEnabledForTool,
+        userReferenceInputs: resolveUserReferenceInputsForTool(effectiveTool),
+        allowCreateFallbackBlock: true,
+        timeoutMs: PREFLIGHT_TIMEOUT_MS,
+        timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
+        refreshCharacterModeInjectionBundleForSubmission,
+        resolveCharacterModeSubmissionOverrides,
+        trackCharacterModeFallback,
+        trackCharacterModeEvent,
+        setUiError,
+        onFailureCleanup: () => {
+          if (optimisticOutputId) {
+            removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+          }
+        },
+      });
+      if (!preparationResult.ok) {
         return { accepted: false, optimisticOutputId: null };
       }
-
-      const hasCharacterModeReferences =
-        (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
-      const createCharacterModeFallbackBlockMessage =
-        resolveCreateCharacterModeFallbackBlockMessage(effectiveTool, characterModeOverrides);
-      if (createCharacterModeFallbackBlockMessage) {
-        trackCharacterModeFallback(characterModeOverrides, effectiveTool);
-        trackCharacterModeEvent?.("character_mode_submit_blocked_fallback", {
-          tool: effectiveTool,
-          fallback_code: characterModeOverrides?.fallbackCode ?? null,
-          has_character_description: characterModeOverrides?.hasCharacterDescription ?? false,
-          character_reference_count: characterModeOverrides?.characterReferenceCount ?? 0,
-        });
-        if (optimisticOutputId) {
-          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
-        }
-        setUiError(createCharacterModeFallbackBlockMessage);
-        return { accepted: false, optimisticOutputId: null };
-      }
-      const characterModeDecision =
-        characterModeOverrides &&
-        resolveGenerationStartDecision({
-          tool: effectiveTool,
-          mode: effectiveMode,
-          modelId: effectiveModelId,
-          promptText: promptToUse,
-          checkCreateTextMode: false,
-          checkPrompt: false,
-          checkModel: false,
-          checkCharacterReferences: true,
-          hasCharacterModeReferences,
-        });
-      if (characterModeOverrides && characterModeDecision && !characterModeDecision.allow) {
-        trackCharacterModeFallback(characterModeOverrides, effectiveTool);
-        trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
-          tool: effectiveTool,
-          fallback_code: characterModeOverrides.fallbackCode,
-          has_character_description: characterModeOverrides.hasCharacterDescription,
-          character_reference_count: characterModeOverrides.characterReferenceCount,
-        });
-        if (optimisticOutputId) {
-          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
-        }
-        setUiError(characterModeDecision.message);
-        return { accepted: false, optimisticOutputId: null };
-      }
-
-      trackCharacterModeFallback(characterModeOverrides, effectiveTool);
+      const characterModeOverrides = preparationResult.overrides;
       enqueueOptimisticDebit(requiredCredits, optimisticOutputId ?? null);
       generateOutput(promptToUse, {
         modeOverride: effectiveMode,
@@ -517,36 +389,26 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           options?.referenceInputsOverride ?? resolveUserReferenceInputsForTool(tool)
         ).length,
       });
-      let checkedFreshCredits = false;
-
-      if (
-        resolvedRunCostCredits != null &&
-        effectiveBalanceCredits != null &&
-        effectiveBalanceCredits < resolvedRunCostCredits
-      ) {
-        const hasFreshCredits = await ensureFreshCreditsForRun(resolvedRunCostCredits);
-        checkedFreshCredits = true;
-        if (!hasFreshCredits) {
+      const canProceedWithCredits = await runGenerationCreditGuardrail({
+        requiredCredits,
+        upfrontRunCredits: resolvedRunCostCredits,
+        effectiveBalanceCredits,
+        isGenerateDisabled,
+        isCreditGuardrail,
+        alwaysCheckCreditGuardrailWhenEnabled: true,
+        ensureFreshCreditsForRun,
+        resolveGuardrailBlockMessage,
+        handleInsufficientCredits: () => {
           removeExternalOptimisticPlaceholder();
           setUiError("You do not have enough credits for this run.");
-          return;
-        }
-      }
-
-      if (isGenerateDisabled && !isCreditGuardrail) {
-        removeExternalOptimisticPlaceholder();
-        setUiError(resolveGuardrailBlockMessage());
-        return;
-      }
-      if (isCreditGuardrail) {
-        const hasFreshCredits = checkedFreshCredits
-          ? true
-          : await ensureFreshCreditsForRun(requiredCredits);
-        if (!hasFreshCredits) {
+        },
+        handleGuardrailBlock: (message) => {
           removeExternalOptimisticPlaceholder();
-          setUiError(resolveGuardrailBlockMessage());
-          return;
-        }
+          setUiError(message);
+        },
+      });
+      if (!canProceedWithCredits) {
+        return;
       }
 
       const promptToUse = resolveDefaultPromptForTool(tool);
@@ -558,99 +420,31 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         typeof options?.submissionPromptOverride === "string"
           ? options.submissionPromptOverride
           : promptForGuardrails;
-      const regenerateStartDecision = resolveGenerationStartDecision({
+      const preparationResult = await runGenerationCharacterPreparation({
+        trigger: "regenerate",
         tool,
         mode,
-        modelId: effectiveSubmitModelId,
-        promptText: promptForGuardrails,
+        effectiveModelId: effectiveSubmitModelId,
+        promptForGuardrails,
+        promptForCharacterComposition,
+        isCharacterModeEnabledForTool,
+        userReferenceInputs:
+          options?.referenceInputsOverride ?? resolveUserReferenceInputsForTool(tool),
+        allowCreateFallbackBlock: false,
+        timeoutMs: PREFLIGHT_TIMEOUT_MS,
+        timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
+        refreshCharacterModeInjectionBundleForSubmission,
+        resolveCharacterModeSubmissionOverrides,
+        trackCharacterModeFallback,
+        trackCharacterModeEvent,
+        setUiError,
+        onFailureCleanup: removeExternalOptimisticPlaceholder,
         checkCreateTextMode: false,
-        checkPrompt: shouldCheckPromptAtGenerationStart({
-          tool,
-          modelId: effectiveSubmitModelId,
-        }),
       });
-      if (!regenerateStartDecision.allow) {
-        removeExternalOptimisticPlaceholder();
-        setUiError(regenerateStartDecision.message);
+      if (!preparationResult.ok) {
         return;
       }
-
-      let characterModeOverrides: CharacterModeSubmissionOverrides<TFallbackCode>;
-      try {
-        trackCharacterModeEvent?.("generation_preflight_started", {
-          trigger: "regenerate",
-          tool,
-          model_id: effectiveSubmitModelId,
-          is_character_mode: isCharacterModeEnabledForTool,
-        });
-        const characterModeBundleForSubmit = await withDeadline({
-          timeoutMs: PREFLIGHT_TIMEOUT_MS,
-          timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
-          run: () => refreshCharacterModeInjectionBundleForSubmission(tool),
-        });
-        const userReferenceInputs =
-          options?.referenceInputsOverride ?? resolveUserReferenceInputsForTool(tool);
-        characterModeOverrides = resolveCharacterModeSubmissionOverrides(
-          promptForCharacterComposition,
-          tool,
-          characterModeBundleForSubmit,
-          userReferenceInputs
-        );
-      } catch (error) {
-        removeExternalOptimisticPlaceholder();
-        if (error instanceof DeadlineExceededError) {
-          trackCharacterModeEvent?.("generation_preflight_timeout", {
-            trigger: "regenerate",
-            tool,
-            model_id: effectiveSubmitModelId,
-            is_character_mode: isCharacterModeEnabledForTool,
-            duration_ms: error.timeoutMs,
-            reason_code: "PREFLIGHT_TIMEOUT",
-          });
-        }
-        setUiError(
-          error instanceof DeadlineExceededError
-            ? PREFLIGHT_TIMEOUT_ERROR
-            : error instanceof Error
-              ? error.message
-              : "Unable to start generation."
-        );
-        return;
-      }
-
-      const hasCharacterModeReferences =
-        (characterModeOverrides?.referenceInputsOverride?.length ?? 0) > 0;
-      const regenerateCharacterModeDecision =
-        characterModeOverrides &&
-        resolveGenerationStartDecision({
-          tool,
-          mode,
-          modelId: effectiveSubmitModelId,
-          promptText: promptForGuardrails,
-          checkCreateTextMode: false,
-          checkPrompt: false,
-          checkModel: false,
-          checkCharacterReferences: true,
-          hasCharacterModeReferences,
-        });
-      if (
-        characterModeOverrides &&
-        regenerateCharacterModeDecision &&
-        !regenerateCharacterModeDecision.allow
-      ) {
-        removeExternalOptimisticPlaceholder();
-        trackCharacterModeFallback(characterModeOverrides, tool);
-        trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
-          tool,
-          fallback_code: characterModeOverrides.fallbackCode,
-          has_character_description: characterModeOverrides.hasCharacterDescription,
-          character_reference_count: characterModeOverrides.characterReferenceCount,
-        });
-        setUiError(regenerateCharacterModeDecision.message);
-        return;
-      }
-
-      trackCharacterModeFallback(characterModeOverrides, tool);
+      const characterModeOverrides = preparationResult.overrides;
       const effectiveModelId = effectiveSubmitModelId;
       const wasSubmitModelCoerced =
         effectiveModelId != null && model != null && effectiveModelId !== model;

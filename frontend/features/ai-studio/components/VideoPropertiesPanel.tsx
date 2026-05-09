@@ -121,7 +121,6 @@ export type VideoPropertiesPanelProps = {
   agentIsSending?: boolean;
   agentError?: string;
   onAgentEnhanceSend?: () => void;
-  beginnerMode?: boolean;
   onCreateCharacter?: () => void;
   onCreateElement?: () => void;
 };
@@ -177,7 +176,6 @@ export function VideoPropertiesPanel({
   costCredits,
   isGenerateDisabled = false,
   referenceImageWarning = null,
-  beginnerMode = false,
   onCreateCharacter,
   onCreateElement,
 }: VideoPropertiesPanelProps) {
@@ -1247,11 +1245,9 @@ export function VideoPropertiesPanel({
                     <div className="video-setup-reference-slot">
                       <ReferenceMediaStep
                         referenceOrder={referenceOrder}
-                        referenceBadge={referenceBadge}
                         collapsedReference={collapsedSteps.reference}
                         onExpandReference={() => expandIfCollapsed("reference")}
                         onToggleReference={() => toggleStep("reference")}
-                        beginnerMode={beginnerMode}
                         isVideoVariant={true}
                         referenceStepTitle={referenceStepTitle}
                         referenceStepSubtitle={referenceStepSubtitle}
@@ -1559,7 +1555,6 @@ export function VideoPropertiesPanel({
                                   collapsed={collapsedSteps.prompt}
                                   onToggleCollapse={() => toggleStep("prompt")}
                                   onDrop={handlePromptDropWithKlingTokenInsert}
-                                  beginnerMode={beginnerMode}
                                   agentIsSending={videoPromptAgentIsSending}
                                   agentError={videoPromptAgentError}
                                   onAgentEnhanceSend={videoPromptEnhanceSend}
@@ -1568,7 +1563,7 @@ export function VideoPropertiesPanel({
                                   autoResize
                                   autoResizeLayoutKey={promptAutoResizeLayoutKey}
                                   promptPlaceholder={primaryPromptPlaceholder}
-                                  beginnerHelperText={primaryPromptHelperText}
+                                  promptHelperText={primaryPromptHelperText}
                                   promptTextareaRef={primaryPromptTextareaRef}
                                   promptHighlightSegments={primaryPromptHighlightSegments}
                                   onPromptFocus={() => handlePromptSelection("primary")}
@@ -1730,13 +1725,9 @@ export function VideoPropertiesPanel({
               supportsVoiceControls={!isKieKlingWorkspace}
               supportsNegativePrompt={!isKieKlingWorkspace}
               supportsCfgScale
-              beginnerMode={beginnerMode}
               klingAdvancedOrder={klingAdvancedOrder}
-              klingAdvancedBadge={klingAdvancedBadge}
               klingAssetsOrder={klingAssetsOrder}
-              klingAssetsBadge={klingAssetsBadge}
               klingGuidanceOrder={klingGuidanceOrder}
-              klingGuidanceBadge={klingGuidanceBadge}
               collapsedKlingAdvanced={collapsedSteps.klingAdvanced}
               collapsedKlingAssets={collapsedSteps.klingAssets}
               collapsedKlingGuidance={collapsedSteps.klingGuidance}

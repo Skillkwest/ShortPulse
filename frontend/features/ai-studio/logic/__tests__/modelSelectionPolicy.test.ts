@@ -223,6 +223,28 @@ describe("modelSelectionPolicy", () => {
     expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
   });
 
+  it("keeps saved character-mode edit models during create startup resolution", () => {
+    const model = resolveCreateWorkflowStartupModel({
+      mode: "image",
+      savedModelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      isCharacterModeEnabled: true,
+      getModelConfig,
+    });
+
+    expect(model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+  });
+
+  it("defaults create startup to the character-mode edit default when enabled", () => {
+    const model = resolveCreateWorkflowStartupModel({
+      mode: "image",
+      savedModelId: null,
+      isCharacterModeEnabled: true,
+      getModelConfig,
+    });
+
+    expect(model).toBe(EDIT_DEFAULT_MODEL_ID);
+  });
+
   it("includes Seedance 2.x in standard video lane model selection by default", () => {
     const values = new Set(
       resolveAiStudioAllowedModelOptions({

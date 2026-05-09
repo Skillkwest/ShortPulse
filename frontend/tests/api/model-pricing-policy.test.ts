@@ -192,7 +192,7 @@ describe("model pricing policy routes", () => {
             defaultRoundingIncrement: 1,
           },
           perModel: {
-            "fal-ai/nano-banana": {
+            "fal-ai/nano-banana-2": {
               markupBps: 1000,
             },
           },

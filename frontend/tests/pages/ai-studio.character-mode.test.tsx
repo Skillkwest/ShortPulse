@@ -6,6 +6,7 @@ import React from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../features/ai-studio/types";
+import { StandardCreatePropertiesPanel } from "../../features/ai-studio/components/create/StandardCreatePropertiesPanel";
 import { createDefaultCharacterSheetPresetState } from "../../features/character-manager/constants";
 import type { CharacterManagerDraftSnapshot } from "../../features/character-manager/logic/characterManagerPersistence";
 import { publishCharacterListChanged } from "../../features/character-manager/logic/characterListSyncEvents";
@@ -82,6 +83,13 @@ const {
               profileImageUrl: string | null;
             }>;
           };
+        };
+        modelModalState?: {
+          context?: string | null;
+          options?: Array<{
+            value: string;
+            label: string;
+          }>;
         };
       } | null,
     };
@@ -208,6 +216,75 @@ vi.mock("next/head", () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("../../features/ai-studio/components/create/StandardCreatePanelView", () => ({
+  StandardCreatePanelView: ({
+    onCreateModelOpen,
+  }: {
+    onCreateModelOpen: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  }) => (
+    <div>
+      <button type="button" onClick={onCreateModelOpen}>
+        open-model-picker
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock("../../features/ai-studio/components/create/BeginnerCreatePanelView", () => ({
+  BeginnerCreatePanelView: () => <div data-testid="beginner-create-panel-view" />,
+}));
+
+vi.mock("../../features/ai-studio/components/modal-layer/AiStudioModalLayer", () => ({
+  AiStudioModalLayer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  AiStudioModalActivityProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useAiStudioModalActivity: () => false,
+}));
+
+vi.mock("../../features/ai-studio/hooks/useAvatarResilience", () => ({
+  useAvatarResilience: () => ({
+    resolveAvatarUrl: (_id: string, url: string | null) => url,
+    clearAvatarFailure: vi.fn(),
+    handleAvatarError: vi.fn(async () => undefined),
+  }),
+}));
+
+vi.mock("../../features/ai-studio/logic/createSelectorState", () => ({
+  deriveCreateSelectorViewState: () => ({
+    imageResolutionOptions: [],
+    imageResolutionValue: "model_default",
+    shouldShowImageResolutionCard: false,
+    isModelSelectionEmpty: false,
+    isCreateModelPickerOpen: false,
+    disableOutputGenerate: false,
+  }),
+}));
+
+vi.mock("../../features/ai-studio/logic/modelRegistry", () => ({
+  getModelConfig: () => null,
+}));
+
+vi.mock("../../features/ai-studio/components/create/useCreateCharacterModeController", async () => {
+  const actual = await vi.importActual(
+    "../../features/ai-studio/components/create/useCreateCharacterModeController"
+  );
+  return {
+    ...(actual as object),
+    useCreateCharacterModeController: () => ({
+      characterStepSubtitle: "Select one of your Character Manager profiles.",
+      isCharacterPickerOpen: false,
+      openCharacterPicker: vi.fn(),
+      closeCharacterPicker: vi.fn(),
+      handleCharacterModeEnabledToggle: vi.fn(),
+      characterSelectDisabled: false,
+      isCharacterSelectionEmpty: false,
+      selectedCharacterName: "Taylor",
+      selectedCharacterDisplayName: "Taylor",
+      selectedCharacterProfileImageUrl: null,
+      selectedCharacterInitials: "T",
+    }),
+  };
+});
+
 vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
   AiStudioPageContent: (props: {
     propertiesCreate: {
@@ -245,6 +322,9 @@ vi.mock("../../features/ai-studio/components/AiStudioPageContent", () => ({
         >
           select-character
         </button>
+        {standardCreateProps ? (
+          <StandardCreatePropertiesPanel {...standardCreateProps} expertCreateUiEligible={true} />
+        ) : null}
         <button type="button" onClick={() => standardCreateProps?.onGenerate()}>
           generate
         </button>
@@ -293,17 +373,6 @@ vi.mock("../../features/character/hooks/useCharacterWorkflow", () => ({
   }),
 }));
 
-vi.mock("../../features/ai-studio/hooks/useEffectiveBeginnerModePreference", () => ({
-  useEffectiveBeginnerModePreference: () => ({
-    beginnerMode: false,
-    loading: false,
-    error: null,
-    syncState: "ready",
-    showBeginnerModeToggle: true,
-    setBeginnerMode: vi.fn(),
-  }),
-}));
-
 vi.mock("../../features/character-manager/logic/characterManagerPersistence", () => ({
   listCharacterManagerCharacters: listCharacterManagerCharactersMock,
   loadCharacterManagerDraftByCharacterId: loadCharacterManagerDraftByCharacterIdMock,
@@ -330,6 +399,51 @@ vi.mock("../../lib/appErrorReporter", () => ({
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioState", () => ({
   useAiStudioState: () => aiStudioStateMock,
+}));
+
+vi.mock("../../features/ai-studio/hooks/useAiStudioPageGenerationRuntime", () => ({
+  useAiStudioPageGenerationRuntime: () => ({
+    currentCostCredits: null,
+    dismissFailure: vi.fn(),
+    effectiveGenerationGuardrail: null,
+    effectiveIsGenerateDisabled: false,
+    filteredModelOptions: [
+      { value: "fal-ai/bytedance/seedream/v4.5/edit", label: "Seedream 4.5" },
+      { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2" },
+    ],
+    focusFailure: vi.fn(),
+    handleEditPromptTextChange: vi.fn(),
+    handleFileBrowserSelection: vi.fn(),
+    handleGenerate: vi.fn(),
+    handleImageRegenerateWithDebit: vi.fn(),
+    handleManualPromptChange: vi.fn(),
+    handleMusicGenerate: vi.fn(),
+    handleOpenMediaLibrary: vi.fn(),
+    handleOpenModelModal: (anchorId: string, target: HTMLElement, context?: unknown) =>
+      aiStudioStateMock.openModelModal(anchorId, target, context),
+    handleReferenceGridFiles: vi.fn(),
+    handleRegenerateWithDebit: vi.fn(),
+    handleSelectModelFromModal: vi.fn(),
+    handleSelectOutput: vi.fn(),
+    handleSoundEffectsGenerate: vi.fn(),
+    handleToolSelect: vi.fn(),
+    handleVideoPromptTextChange: vi.fn(),
+    handleVoicesGenerate: vi.fn(),
+    hasSufficientCreditsForPromptReferenceGenerate: true,
+    isTemplateView: false,
+    musicIsGenerating: false,
+    promptReferenceGenerateCostCredits: null,
+    pulseArtifactTarget: null,
+    pulseCurrentCostCredits: null,
+    pulseGenerateCostCredits: null,
+    pulseGenerationGuardrail: null,
+    pulsePromptReferenceGenerateCostCredits: null,
+    referenceImageWarning: null,
+    resolveModelPickerCredits: vi.fn(() => null),
+    soundEffectsIsGenerating: false,
+    visibleFailures: [],
+    voicesIsGenerating: false,
+  }),
 }));
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioSessionIdentity", () => ({
@@ -615,6 +729,75 @@ const createOutput = (id: string, taskState: StudioOutput["taskState"]): StudioO
 });
 
 const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
+
+describe("ai-studio page character mode model picker", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    nowMs = 1_000_000;
+    vi.spyOn(Date, "now").mockImplementation(() => nowMs);
+    creditsStateMock.balanceCents = 10_000;
+    creditsStateMock.balanceReservedCents = null;
+    creditsStateMock.balanceLoading = false;
+    creditsStateMock.refreshSource = "fallback";
+    aiStudioPageContentCapture.lastProps = null;
+    aiStudioStateMock.outputs = [];
+    aiStudioStateMock.openModelModal.mockClear();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Taylor",
+        profileImageUrl: null,
+      },
+    ]);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
+      createCharacterSnapshot(
+        "Character prompt",
+        "https://cdn.test/character.png",
+        "user/chars/character.png"
+      )
+    );
+  });
+
+  it("opens the create picker with Character Mode edit models on the page flow", async () => {
+    render(<AiStudioPage />);
+
+    await waitFor(() =>
+      expect(
+        aiStudioPageContentCapture.lastProps?.propertiesCreate?.standard?.characterOptions
+      ).toEqual([
+        {
+          id: "char-1",
+          name: "Taylor",
+          profileImageUrl: null,
+        },
+      ])
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "enable-character-mode" }));
+    fireEvent.click(screen.getByRole("button", { name: "select-character" }));
+
+    await waitFor(() => {
+      const optionValues =
+        aiStudioPageContentCapture.lastProps?.modelModalState?.options?.map(
+          (option) => option.value
+        ) ?? [];
+      expect(optionValues).toContain("fal-ai/bytedance/seedream/v4.5/edit");
+      expect(optionValues).toContain("fal-ai/nano-banana-2/edit");
+      expect(optionValues).not.toContain("fal-ai/bytedance/seedream/v4.5/text-to-image");
+      expect(optionValues).not.toContain("fal-ai/nano-banana-2");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "open-model-picker" }));
+
+    expect(aiStudioStateMock.openModelModal).toHaveBeenCalledWith(
+      "create-model",
+      expect.any(HTMLElement),
+      "text-image"
+    );
+  });
+});
 
 // This page-level harness currently exhausts the Vitest worker heap before test bodies run.
 // Keep the character-mode behavior covered by lower-level hooks while this integration harness

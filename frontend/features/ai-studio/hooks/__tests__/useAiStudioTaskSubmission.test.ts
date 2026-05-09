@@ -48,7 +48,7 @@ const createStatefulUpdateOutputById = (accessor: {
 
 describe("useAiStudioTaskSubmission", () => {
   const STRICT_EDIT_MODELS = [
-    "fal-ai/nano-banana/edit",
+    "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-pro/edit",
     "fal-ai/bytedance/seedream/v5/lite/edit",

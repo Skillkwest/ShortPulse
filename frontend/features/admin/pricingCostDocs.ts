@@ -65,11 +65,6 @@ const getProviderPricingDocLines = (
           ? "Edit rows add the deterministic input-image surcharge for the selected size and input fidelity."
           : "Create rows use only the output image price unless extra inputs are supplied.",
       ];
-    case "google-nano-banana-per-image":
-      return [
-        "Provider cost basis used here: $0.039 per generated image.",
-        "Workbook formula: one provider charge per completed output image.",
-      ];
     case "nano-banana-2-per-image":
       return [
         "Provider cost basis used here: $0.08 per 1K image.",

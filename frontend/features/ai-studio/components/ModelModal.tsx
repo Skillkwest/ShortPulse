@@ -22,6 +22,7 @@ import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelI
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 
 export type ModelModalContext =
+  | "character-image"
   | "reference-image"
   | "reference-video"
   | "reference-keyframes"
@@ -159,19 +160,6 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Image", "Image-to-Image", "Auto 2K/3K", "Fast"],
     verified: true,
   },
-  "fal-ai/nano-banana": {
-    provider: "Google",
-    description:
-      "Nano Banana text-to-image model for fast generations across a wide aspect-ratio range.",
-    tags: ["Image", "Text-to-Image", "Fast", "Wide Aspects"],
-  },
-  "fal-ai/nano-banana/edit": {
-    provider: "Google",
-    description:
-      "Nano Banana Edit supports rapid image-to-image changes with flexible aspect-ratio control.",
-    logo: "Google",
-    tags: ["Image", "Image-to-Image", "Fast", "Wide Aspects"],
-  },
   "fal-ai/nano-banana-pro": {
     provider: "Google",
     description: "Nano Banana Pro text-to-image adds selectable 1K, 2K, or 4K output.",
@@ -275,6 +263,7 @@ const modelFamilyMeta: Record<string, { label: string; logo?: string }> = {
 };
 
 const familyPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
+  "character-image": ["seedream", "nano-banana", "gpt-image", "flux"],
   "text-image": ["seedream", "nano-banana", "gpt-image", "flux"],
   "reference-image": ["seedream", "nano-banana", "gpt-image", "flux"],
   "reference-video": ["veo", "kling", "seedance"],
@@ -317,6 +306,7 @@ const resolveModelFamilyKey = (modelId: string): string => {
 };
 
 const contextTooltipTagMap: Record<ModelModalContext, string> = {
+  "character-image": "Image-to-Image",
   "reference-image": "Image-to-Image",
   "reference-video": "Image-to-Video",
   "reference-keyframes": "First/Last Frame",
@@ -325,6 +315,7 @@ const contextTooltipTagMap: Record<ModelModalContext, string> = {
 };
 
 const providerPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
+  "character-image": ["ByteDance", "Google", "Black Forest Labs"],
   "text-image": ["ByteDance", "Google", "Black Forest Labs"],
   "reference-image": ["ByteDance", "Google", "Black Forest Labs"],
   "reference-video": ["Kie AI"],
@@ -333,6 +324,12 @@ const providerPriorityByContext: Partial<Record<ModelModalContext, string[]>> = 
 };
 
 const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
+  "character-image": [
+    "fal-ai/bytedance/seedream/v4.5/edit",
+    "fal-ai/bytedance/seedream/v5/lite/edit",
+    "fal-ai/nano-banana-2/edit",
+    "fal-ai/nano-banana-pro/edit",
+  ],
   "text-image": [
     "fal-ai/bytedance/seedream/v4.5/text-to-image",
     "fal-ai/bytedance/seedream/v5/lite/text-to-image",
@@ -343,7 +340,6 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   "reference-image": [
     "fal-ai/bytedance/seedream/v4.5/edit",
     "fal-ai/bytedance/seedream/v5/lite/edit",
-    "fal-ai/nano-banana/edit",
     "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-pro/edit",
   ],
@@ -358,9 +354,7 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   ],
 };
 
-const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
-  "text-image": ["fal-ai/nano-banana"],
-};
+const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {};
 
 const videoModalContexts = new Set<ModelModalContext>([
   "reference-video",
@@ -369,6 +363,7 @@ const videoModalContexts = new Set<ModelModalContext>([
 ]);
 
 const contextTitleMap: Partial<Record<ModelModalContext, string>> = {
+  "character-image": "Character Mode",
   "reference-image": "Image-to-Image",
   "text-image": "Text-to-Image",
 };
@@ -377,6 +372,7 @@ const modelMatchesModalContext = (option: ModelOption, context?: ModelModalConte
   const config = getModelConfig(option.value);
   if (!config) return false;
   if (!context) return true;
+  if (context === "character-image") return Boolean(config.supportsImageToImage);
   if (context === "text-image") return Boolean(config.supportsTextToImage);
   if (context === "reference-image") return Boolean(config.supportsImageToImage);
   if (context === "text-video") {

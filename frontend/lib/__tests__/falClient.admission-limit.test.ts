@@ -36,7 +36,7 @@ describe("falClient generation admission error handling", () => {
     );
 
     await expect(
-      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+      submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
     ).rejects.toThrow("You already have too many active generations. Please retry in 20 seconds.");
   });
 
@@ -54,7 +54,7 @@ describe("falClient generation admission error handling", () => {
     );
 
     await expect(
-      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+      submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
     ).rejects.toThrow("Shared generation capacity is busy right now. Please retry in 14 seconds.");
   });
 
@@ -73,7 +73,7 @@ describe("falClient generation admission error handling", () => {
     );
 
     await expect(
-      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+      submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
     ).rejects.toThrow("Too many active generations. Please retry in 9 seconds.");
   });
 
@@ -92,7 +92,7 @@ describe("falClient generation admission error handling", () => {
     );
 
     await expect(
-      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+      submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
     ).rejects.toThrow(
       "Generation admission is temporarily unavailable. Please retry in 12 seconds."
     );
@@ -113,8 +113,8 @@ describe("falClient generation admission error handling", () => {
     );
 
     await expect(
-      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
-    ).rejects.toThrow("Fal Nano Banana did not return a request_id");
+      submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
+    ).rejects.toThrow("Fal Nano Banana 2 did not return a request_id");
   });
 
   it("surfaces provider msg fields for non-admission submit failures", async () => {
@@ -129,7 +129,7 @@ describe("falClient generation admission error handling", () => {
     );
 
     await expect(
-      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+      submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
     ).rejects.toThrow("Input video URL is not publicly reachable.");
   });
 
@@ -146,7 +146,7 @@ describe("falClient generation admission error handling", () => {
     );
 
     await expect(
-      submitQueuedGenerationByModelId("fal-ai/nano-banana", { prompt: "portrait" })
+      submitQueuedGenerationByModelId("fal-ai/nano-banana-2", { prompt: "portrait" })
     ).rejects.toThrow(
       "This request was blocked for explicit or unsafe content. Try revising the prompt or references."
     );

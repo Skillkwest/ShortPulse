@@ -1,7 +1,20 @@
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioReferenceIngestionActions } from "../useAiStudioReferenceIngestionActions";
 import type { StudioOutput } from "../../types";
+
+const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
+const prepareLibraryMediaIngestionPayloadMock = vi.hoisted(() => vi.fn(async (payload) => payload));
+
+vi.mock("../../logic/mediaLibraryPersistence", () => ({
+  associateMediaFilesWithProject: (...args: unknown[]) =>
+    associateMediaFilesWithProjectMock(...args),
+}));
+
+vi.mock("../../reference-ingestion/prepareLibraryMediaIngestionPayload", () => ({
+  prepareLibraryMediaIngestionPayload: (...args: unknown[]) =>
+    prepareLibraryMediaIngestionPayloadMock(...args),
+}));
 
 const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -30,6 +43,11 @@ const createParams = (
 });
 
 describe("useAiStudioReferenceIngestionActions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prepareLibraryMediaIngestionPayloadMock.mockImplementation(async (payload) => payload);
+  });
+
   it("does not use the active output as default agent image context", () => {
     const { result } = renderHook(() => useAiStudioReferenceIngestionActions(createParams()));
 
@@ -91,5 +109,66 @@ describe("useAiStudioReferenceIngestionActions", () => {
         activePrompt: "Previous assistant turn",
       })
     );
+  });
+
+  it("associates saved library media with the active project on ingest", async () => {
+    const setOutputs = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.addLibraryMediaReferenceToQuickSlot({
+        id: "media-1",
+        url: "https://cdn.test/media-1.png",
+        fileType: "image",
+        filename: "Reference 1",
+      });
+    });
+
+    expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      mediaFileIds: ["media-1"],
+    });
+    expect(setOutputs).toHaveBeenCalled();
+  });
+
+  it("still refreshes the optimistic card when project association fails", async () => {
+    const setOutputs = vi.fn();
+    const updateOutputById = vi.fn();
+    associateMediaFilesWithProjectMock.mockRejectedValueOnce(new Error("association failed"));
+    prepareLibraryMediaIngestionPayloadMock.mockResolvedValueOnce({
+      id: "media-1",
+      url: "https://cdn.test/media-1-refreshed.png",
+      fileType: "image",
+      filename: "Reference 1",
+    });
+    const { result } = renderHook(() =>
+      useAiStudioReferenceIngestionActions(
+        createParams({
+          projectId: "project-1",
+          setOutputs,
+          updateOutputById,
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.addLibraryMediaReferenceToQuickSlot({
+        id: "media-1",
+        url: "https://cdn.test/media-1.png",
+        fileType: "image",
+        filename: "Reference 1",
+      });
+    });
+
+    expect(associateMediaFilesWithProjectMock).toHaveBeenCalledTimes(1);
+    expect(prepareLibraryMediaIngestionPayloadMock).toHaveBeenCalledTimes(1);
+    expect(updateOutputById).toHaveBeenCalledTimes(1);
   });
 });

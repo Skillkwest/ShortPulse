@@ -8,7 +8,10 @@ import { persistGenerationOutputRecords } from "./api/generationOutputs";
 import { upsertGenerationProjection } from "./api/generationProjection";
 import { upsertGenerationPublication } from "./api/generationPublications";
 import { writeAppErrorLog } from "./api/appErrorLogs";
-import { associateGenerationWithProjectForUser } from "./projectGenerationAssociationsService";
+import {
+  associateGenerationWithProjectForUser,
+  associateMediaFilesWithProjectForUser,
+} from "./projectGenerationAssociationsService";
 import {
   extractAudioTrack,
   isVideoSource,
@@ -151,6 +154,7 @@ const normalizeProviderErrorMessage = (value: unknown): string | null => {
 
 const associateGeneratedElevenLabsAssetWithProject = async ({
   generationId,
+  mediaFileId,
   mediaKind,
   modelId,
   projectId,
@@ -160,6 +164,7 @@ const associateGeneratedElevenLabsAssetWithProject = async ({
   userId,
 }: {
   generationId: string;
+  mediaFileId: string | null;
   mediaKind: "audio" | "video";
   modelId: string;
   projectId: string | null;
@@ -175,6 +180,13 @@ const associateGeneratedElevenLabsAssetWithProject = async ({
       projectId,
       generationId,
     });
+    if (mediaFileId) {
+      await associateMediaFilesWithProjectForUser({
+        userId,
+        projectId,
+        mediaFileIds: [mediaFileId],
+      });
+    }
   } catch (error) {
     await writeAppErrorLog({
       source: "telemetry.elevenlabs.project_association_failed",
@@ -184,6 +196,7 @@ const associateGeneratedElevenLabsAssetWithProject = async ({
       statusCode: 200,
       metadata: {
         generation_id: generationId,
+        media_file_id: mediaFileId,
         project_id: projectId,
         provider: "elevenlabs",
         provider_request_id: providerRequestId,
@@ -1067,6 +1080,7 @@ export const persistGeneratedAudioAsset = async ({
 
   await associateGeneratedElevenLabsAssetWithProject({
     generationId,
+    mediaFileId,
     mediaKind: "audio",
     modelId,
     projectId: resolvedProjectId,
@@ -1336,6 +1350,7 @@ export const persistGeneratedVideoAsset = async ({
 
   await associateGeneratedElevenLabsAssetWithProject({
     generationId,
+    mediaFileId,
     mediaKind: "video",
     modelId,
     projectId: resolvedProjectId,

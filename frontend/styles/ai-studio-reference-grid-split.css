@@ -582,7 +582,7 @@
   margin: 0;
 }
 
-.ai-studio-page[data-beginner-mode="off"] .reference-styles-header .helper-text {
+.ai-studio-page .reference-styles-header .helper-text {
   display: none;
 }
 

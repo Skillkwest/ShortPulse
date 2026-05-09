@@ -14,11 +14,12 @@ import {
   resolveReferenceDownloadTarget,
 } from "../logic/referenceDownload";
 import type { StudioOutput } from "../types";
+import type { PersistOutputSaveResult } from "./persistenceActionContracts";
 
 type UseAiStudioReferenceAssetActionsParams = {
   projectId?: string | null;
   findOutputById: (id: string) => StudioOutput | null;
-  saveReferenceToLibrary: (outputId: string) => void;
+  saveReferenceToLibrary: (outputId: string) => Promise<PersistOutputSaveResult>;
   setUiError: Dispatch<SetStateAction<string | null>>;
 };
 
@@ -100,9 +101,15 @@ export const useAiStudioReferenceAssetActions = ({
   const handleSaveReference = useCallback(
     (outputId: string) => {
       if (!outputId) return;
-      saveReferenceToLibrary(outputId);
+      void saveReferenceToLibrary(outputId).catch((error) => {
+        const message =
+          error instanceof Error && error.message.trim().length
+            ? error.message.trim()
+            : "Unable to save media.";
+        setUiError(message);
+      });
     },
-    [saveReferenceToLibrary]
+    [saveReferenceToLibrary, setUiError]
   );
 
   return {

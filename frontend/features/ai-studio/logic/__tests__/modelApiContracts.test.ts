@@ -66,7 +66,7 @@ describe("model API contracts", () => {
     const knownDefaultRouteModelIds = new Set([
       "fal-ai/bytedance/seedream/v4.5/text-to-image",
       "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-      "fal-ai/nano-banana",
+      "fal-ai/nano-banana-2",
       "fal-ai/nano-banana-2",
       "fal-ai/nano-banana-pro",
     ]);

@@ -29,6 +29,10 @@ import {
   type AiStudioSessionExpertEditSnapshotV1,
 } from "./sessionSnapshotExpertEdit";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+import {
+  PULSE_CREATE_FORCED_CHAT_MODE_ENABLED,
+  STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
+} from "./chatModeDefaults";
 import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessionState";
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
@@ -463,7 +467,11 @@ const sanitizeAgentRuntimeMessage = (
   ...(message.outcomeClass ? { outcomeClass: message.outcomeClass } : {}),
   ...(message.reasonCode ? { reasonCode: message.reasonCode } : {}),
   ...(message.decision ? { decision: message.decision } : {}),
-  attachments: sanitizeAgentAttachments(message.attachments as AgentMessage["attachments"]),
+  ...(message.attachments
+    ? {
+        attachments: sanitizeAgentAttachments(message.attachments as AgentMessage["attachments"]),
+      }
+    : {}),
 });
 
 const sanitizeAgentRuntime = (runtime: {
@@ -501,7 +509,7 @@ export const createEmptyAiStudioSessionAgentState = (): AiStudioSessionAgentV1 =
   input: "",
   latestAgentPrompt: null,
   promptOrigin: "manual",
-  chatModeEnabled: true,
+  chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
   pulseWorkflowSession: null,
 });
 
@@ -709,7 +717,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
     agentInput: "",
     latestAgentPrompt: null,
     promptOrigin: "manual",
-    chatModeEnabled: true,
+    chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
     pulseWorkflowSession: null,
     agentRuntimes: {
       standard: {
@@ -717,7 +725,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
         input: "",
         latestAgentPrompt: null,
         promptOrigin: "manual",
-        chatModeEnabled: true,
+        chatModeEnabled: STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
         pulseWorkflowSession: null,
       },
       pulsePresetId: null,
@@ -726,7 +734,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
         input: "",
         latestAgentPrompt: null,
         promptOrigin: "manual",
-        chatModeEnabled: true,
+        chatModeEnabled: PULSE_CREATE_FORCED_CHAT_MODE_ENABLED,
         pulseWorkflowSession: null,
       },
     },

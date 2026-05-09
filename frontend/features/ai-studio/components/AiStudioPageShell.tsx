@@ -19,7 +19,7 @@ type AiStudioPageShellProps = {
   projectTitle: string | null;
   projectsModalOpen: boolean;
   referenceGridPreconnectOrigin: string | null;
-  refreshProject: () => Promise<void>;
+  refreshProject: () => void | Promise<void>;
   retryProjectBootstrap: () => void;
   shouldGateProjectBootstrap: boolean;
   onCloseProjectsModal: () => void;

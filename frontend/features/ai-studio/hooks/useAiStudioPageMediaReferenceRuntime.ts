@@ -27,6 +27,10 @@ import {
   resolveVoiceChangerOutputRemoteUrl,
   resolveVoiceChangerOutputStoragePath,
 } from "../logic/voiceChangerReferenceSource";
+import type {
+  LibraryMediaReferencePayload,
+  LibraryPromptReferencePayload,
+} from "../reference-grid/referenceGridTypes";
 import type { StudioOutput } from "../types";
 import { resolveSavedMediaIdFromOutput } from "./useAiStudioInternalDropResolvers";
 
@@ -35,34 +39,17 @@ type QuickSlotDropOptions = {
   placement: "before" | "after" | "end";
 };
 
-type LibraryMediaQuickSlotPayload = {
-  id: string;
-  url?: string | null;
-  fullUrl?: string | null;
-  previewUrl?: string | null;
-  fileType?: string | null;
-  filename?: string | null;
-  promptText?: string | null;
-  width?: number | null;
-  height?: number | null;
-};
-
-type LibraryPromptQuickSlotPayload = {
-  id: string;
-  promptText: string;
-};
-
 type UseAiStudioPageMediaReferenceRuntimeParams = {
   addCuratedReference: (outputId: string) => void;
   addLibraryMediaReferenceToQuickSlot: (
-    payload: LibraryMediaQuickSlotPayload,
+    payload: LibraryMediaReferencePayload,
     options?: QuickSlotDropOptions
   ) => Promise<string | null>;
   addLibraryPromptReferenceToQuickSlot: (
-    payload: LibraryPromptQuickSlotPayload,
+    payload: LibraryPromptReferencePayload,
     options?: QuickSlotDropOptions
   ) => string | null;
-  addPastedPromptReference: (text: string) => Promise<string | null>;
+  addPastedPromptReference: (text: string) => void;
   getOutputById: (outputId: string) => StudioOutput | null;
   reorderCuratedReference: (
     outputId: string,
@@ -85,7 +72,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   setActiveOutputId,
 }: UseAiStudioPageMediaReferenceRuntimeParams) => {
   const handleQuickSlotLibraryMediaDrop = useCallback(
-    async (payload: LibraryMediaQuickSlotPayload, options?: QuickSlotDropOptions) => {
+    async (payload: LibraryMediaReferencePayload, options?: QuickSlotDropOptions) => {
       const insertedId = await addLibraryMediaReferenceToQuickSlot(payload, options);
       if (!insertedId) return null;
       addCuratedReference(insertedId);
@@ -104,7 +91,7 @@ export const useAiStudioPageMediaReferenceRuntime = ({
   );
 
   const handleQuickSlotLibraryPromptDrop = useCallback(
-    (payload: LibraryPromptQuickSlotPayload, options?: QuickSlotDropOptions) => {
+    (payload: LibraryPromptReferencePayload, options?: QuickSlotDropOptions) => {
       const insertedId = addLibraryPromptReferenceToQuickSlot(payload, options);
       if (!insertedId) return null;
       addCuratedReference(insertedId);

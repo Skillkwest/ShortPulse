@@ -20,7 +20,6 @@ type AppendStylePromptToSubmissionParams = {
 const STYLE_PROMPT_ENABLED_TOOLS = new Set<ToolId>(["create", "text", "image", "edit"]);
 
 const NANO_BANANA_STRATEGIES = new Set<PricingStrategyId>([
-  "google-nano-banana-per-image",
   "nano-banana-per-image",
   "nano-banana-2-per-image",
 ]);

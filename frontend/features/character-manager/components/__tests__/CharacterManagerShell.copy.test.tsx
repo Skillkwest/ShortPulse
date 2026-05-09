@@ -130,4 +130,10 @@ describe("CharacterManagerShell copy", () => {
 
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
   });
+
+  it("does not render retired step-badge chrome", () => {
+    const { container } = render(<CharacterManagerShell />);
+
+    expect(container.querySelector(".character-step-badge")).toBeNull();
+  });
 });

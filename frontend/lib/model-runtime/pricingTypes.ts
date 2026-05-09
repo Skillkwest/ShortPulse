@@ -13,7 +13,6 @@ export type PricingStrategyId =
   | "fal-fill-per-mp"
   | "fal-flux-kontext-inpaint-per-mp"
   | "gpt-image-2-per-image"
-  | "google-nano-banana-per-image"
   | "nano-banana-2-per-image"
   | "openai-text-token"
   | "nano-banana-per-image"

@@ -1,6 +1,6 @@
 /**
  * Expert Edit design tokens.
- * Scoped under `.edit-expert-panel` to avoid impacting legacy beginner edit UI.
+ * Scoped under `.edit-expert-panel` to isolate Edit-specific token overrides.
  */
 .edit-expert-panel {
   --edit-expert-accent: var(--color-amber, #f5b942);

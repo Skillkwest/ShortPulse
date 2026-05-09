@@ -46,6 +46,7 @@ import {
 import { useStandardCreateInlineGenerate } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreateInlineGenerate";
 import { useStandardCreatePrimarySubmit } from "../features/ai-studio/hooks/standardCreateRuntime/useStandardCreatePrimarySubmit";
 import type { StudioMode, ToolId } from "../features/ai-studio/types";
+import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../features/ai-studio/logic/chatModeDefaults";
 import { PERF_FLAG_PAGE_OUTPUT_DECOUPLE } from "../features/ai-studio/logic/perfProfileFlags";
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 type CreatePulsePresetPageRuntime = ReturnType<typeof useCreatePulsePresetPageRuntime>;
@@ -247,7 +248,8 @@ const useAiStudioCreatePanelRuntime = ({
     () => undefined,
     []
   );
-  const chatModeEnabled = standardCreateAgentRuntime?.chatModeEnabled ?? true;
+  const chatModeEnabled =
+    standardCreateAgentRuntime?.chatModeEnabled ?? STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED;
   const setChatModeEnabled =
     standardCreateAgentRuntime?.setChatModeEnabled ?? noopSetChatModeEnabled;
   const handleProviderPrimarySubmit = useCallback(() => {
@@ -696,7 +698,6 @@ const useAiStudioEditVideoPanelRuntimes = ({
     resolveOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
     isGenerateDisabled: effectiveIsGenerateDisabled,
     generationGuardrail: effectiveGenerationGuardrail,
-    beginnerMode: workflowBeginnerPolicy.video.beginnerMode,
     onCreateCharacter: base.handleOpenCharacterCreate,
     onCreateElement: base.handleOpenElementCreate,
   });
@@ -1043,10 +1044,6 @@ const AiStudioPageRuntimeBody = ({
     aspect,
     balanceCredits,
     balanceLoading,
-    beginnerMode,
-    beginnerModeError,
-    beginnerModeLoading,
-    beginnerModeSyncState,
     buildSessionSnapshot,
     canvasSessionState,
     characterCreateRequestKey,
@@ -1126,12 +1123,12 @@ const AiStudioPageRuntimeBody = ({
     sessionId,
     sessionPersistenceTitleOverride,
     setActiveOutputId,
-    setBeginnerMode,
     setCreateSelectedCharacterId,
     setCreateSelectedCharacterLookId,
     setDetailOutputId,
     setEditReferenceText,
     setExpertEditSessionState,
+    setIsCreateCharacterModeEnabled,
     setMode,
     setModel,
     setOptimisticDebitEntries,
@@ -1145,7 +1142,6 @@ const AiStudioPageRuntimeBody = ({
     setUiError,
     setUiNotice,
     setVideoReferenceText,
-    showBeginnerModeToggle,
     showCreateTools,
     trackCharacterModeFallback,
     trackUiEvent,
@@ -1159,6 +1155,12 @@ const AiStudioPageRuntimeBody = ({
     videoReferenceText,
     videoResolution,
   } = base;
+  const beginnerMode = false;
+  const beginnerModeError = null;
+  const beginnerModeLoading = false;
+  const beginnerModeSyncState = "ready" as const;
+  const showBeginnerModeToggle = false;
+  const setBeginnerMode = (_value: boolean) => {};
   const {
     activeCreatePulsePresetSnapshot,
     setActiveCreatePulsePresetSnapshot,
@@ -1245,6 +1247,7 @@ const AiStudioPageRuntimeBody = ({
     sessionPersistenceTitleOverride,
     setCreateSelectedCharacterId,
     setCreateSelectedCharacterLookId,
+    setIsCreateCharacterModeEnabled,
     setExpertEditSessionState,
     setUiNotice,
   });
@@ -1481,9 +1484,6 @@ const AiStudioPageRuntimeBody = ({
     onDismissUiError: dismissError,
     onDismissUiNotice: dismissNotice,
     onDismissCharacterError: clearCharacterError,
-    beginnerMode,
-    showBeginnerModeToggle,
-    onBeginnerModeChange: handleBeginnerModeChange,
     balanceCredits: effectiveBalanceCredits,
     pendingHoldCredits: pendingHoldCredits > 0 ? pendingHoldCredits : null,
     balanceLoading,

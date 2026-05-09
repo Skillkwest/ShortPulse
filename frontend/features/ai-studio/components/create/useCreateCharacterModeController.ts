@@ -5,7 +5,7 @@ type CreateStepAction = "character" | "model" | "prompt" | "imageSettings";
 export type CreateCharacterOption = {
   id: string;
   name: string;
-  profileImageUrl?: string | null;
+  profileImageUrl: string | null;
 };
 
 export type CreateCharacterLookOption = {

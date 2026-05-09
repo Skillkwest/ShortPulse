@@ -282,6 +282,7 @@ type UseAiStudioWorkflowSettingsParams = {
   projectId?: string | null;
   projectRouteRequested?: boolean;
   sessionId?: string | null;
+  isCharacterModeEnabled?: boolean;
   selectedTool: ToolId | null;
   mode: StudioMode;
   model: string | null;
@@ -338,6 +339,7 @@ export const useAiStudioWorkflowSettings = ({
   projectId = null,
   projectRouteRequested = false,
   sessionId = null,
+  isCharacterModeEnabled = false,
   selectedTool,
   mode,
   model,
@@ -565,6 +567,7 @@ export const useAiStudioWorkflowSettings = ({
       const resolvedCreateModel = resolveCreateWorkflowStartupModel({
         mode: snapshot.mode,
         savedModelId: snapshot.model,
+        isCharacterModeEnabled,
         getModelConfig,
       });
       if (resolvedCreateModel !== snapshot.model) {
@@ -694,6 +697,7 @@ export const useAiStudioWorkflowSettings = ({
     setVideoGenerateAudio,
     setVideoReferenceMode,
     setVideoResolution,
+    isCharacterModeEnabled,
     workflowSettingsPersistenceEnabled,
     workflowSettingsHydrated,
   ]);

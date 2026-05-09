@@ -1,6 +1,6 @@
 /**
  * Extracts reusable visual style descriptors from an image using OpenAI vision.
- * Uses style extraction system prompt from frontend/lib/agentPromptsConfig.ts.
+ * Uses the runtime style extraction system prompt resolved through the admin prompt control plane.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";

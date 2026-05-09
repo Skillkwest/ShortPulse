@@ -50,11 +50,29 @@ const buildCatalogResponse = (
   }),
 });
 
+const buildStyleExtractPromptResponse = (promptBody = "Photographic, moody lighting") => ({
+  ok: true,
+  json: async () => ({
+    promptBody,
+    source: "control_plane" as const,
+    updatedAt: "2026-05-05T18:00:00.000Z",
+    updatedByEmail: "admin@example.com",
+  }),
+});
+
 describe("Admin agent instructions page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", fetchMock);
-    fetchMock.mockResolvedValue(buildCatalogResponse());
+    fetchMock.mockImplementation(async (input: string) => {
+      if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+        return buildStyleExtractPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/pulse-builtins") {
+        return buildCatalogResponse();
+      }
+      throw new Error(`Unexpected fetch target: ${input}`);
+    });
     useProtectedRouteMock.mockReturnValue({
       loading: false,
       user: { id: "11111111-1111-4111-8111-111111111111", email: "admin@example.com" },
@@ -80,15 +98,12 @@ describe("Admin agent instructions page", () => {
       "aria-current",
       "page"
     );
-    expect(await screen.findByText("Global built-in guided workflow set")).toBeInTheDocument();
+    expect(await screen.findByText("Global built-in Pulse set")).toBeInTheDocument();
     expect(screen.getByText("Standard Create Agent")).toBeInTheDocument();
     expect(screen.getByText("Video Prompt Magic")).toBeInTheDocument();
     expect(screen.getByText("Multi Sequence Video Prompt")).toBeInTheDocument();
     expect(screen.getByText("DFY Story Builder")).toBeInTheDocument();
-    expect(screen.getAllByLabelText("Workflow name")).toHaveLength(3);
-    expect(screen.getAllByLabelText("Preset ID")).toHaveLength(3);
-    expect(screen.getAllByLabelText("Artifact target")).toHaveLength(3);
-    expect(screen.getAllByLabelText("System instructions")).toHaveLength(3);
+    expect(screen.getByText("Style Extraction System Prompt")).toBeInTheDocument();
   });
 
   it("edits, adds, removes, resets, and saves built-in Pulse slots", async () => {
@@ -101,15 +116,25 @@ describe("Admin agent instructions page", () => {
       },
     ];
 
-    fetchMock
-      .mockResolvedValueOnce(buildCatalogResponse([CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0]]))
-      .mockResolvedValueOnce(buildCatalogResponse(updatedDefinitions));
+    fetchMock.mockImplementation(async (input: string, init?: { method?: string }) => {
+      if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+        return buildStyleExtractPromptResponse();
+      }
+      if (input === "/api/admin/agent-instructions/pulse-builtins") {
+        if (init?.method === "PUT") {
+          return buildCatalogResponse(updatedDefinitions);
+        }
+        return buildCatalogResponse([CREATE_PULSE_SEEDED_BUILT_IN_DEFINITIONS[0]]);
+      }
+      throw new Error(`Unexpected fetch target: ${input}`);
+    });
 
     render(<AdminAgentInstructionsPage />);
     await screen.findByText("Video Prompt Magic");
 
     const standardCard = screen.getByText("Standard Create Agent").closest("article");
     if (!standardCard) throw new Error("Expected Standard Create Agent card.");
+    fireEvent.click(within(standardCard).getByRole("button", { name: "Expand" }));
     fireEvent.change(
       within(standardCard).getByRole("textbox", { name: "System instructions draft" }),
       {
@@ -122,8 +147,9 @@ describe("Admin agent instructions page", () => {
 
     const pulseCard = screen.getByText("Video Prompt Magic").closest("article");
     if (!pulseCard) throw new Error("Expected Video Prompt Magic card.");
+    fireEvent.click(within(pulseCard).getByRole("button", { name: "Expand" }));
 
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Workflow name" }), {
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
       target: { value: "Global Prompt Director" },
     });
     fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Description" }), {
@@ -134,24 +160,24 @@ describe("Admin agent instructions page", () => {
     });
     expect(within(pulseCard).getByText("Unsaved edits")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Add guided workflow" }));
-    expect(screen.getByText("Workflow Slot 2")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Add built-in Pulse/i }));
+    expect(screen.getByText("Pulse Slot 2")).toBeInTheDocument();
 
-    const newSlotCard = screen.getByText("Workflow Slot 2").closest("article");
+    const newSlotCard = screen.getByText("Pulse Slot 2").closest("article");
     if (!newSlotCard) throw new Error("Expected new Pulse slot card.");
-    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Workflow name" }), {
+    fireEvent.change(within(newSlotCard).getByRole("textbox", { name: "Pulse name" }), {
       target: { value: "Universal Story Pulse" },
     });
-    fireEvent.click(within(newSlotCard).getByRole("button", { name: "Remove" }));
-    expect(screen.queryByText("Workflow Slot 2")).not.toBeInTheDocument();
+    fireEvent.click(within(newSlotCard).getByRole("button", { name: "Delete" }));
+    expect(screen.queryByText("Pulse Slot 2")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Save guided workflow set" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save Pulse set" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
-    const saveRequest = fetchMock.mock.calls[1];
+    const saveRequest = fetchMock.mock.calls[2];
     expect(saveRequest?.[0]).toBe("/api/admin/agent-instructions/pulse-builtins");
     expect(saveRequest?.[1]).toMatchObject({
       method: "PUT",
@@ -176,12 +202,96 @@ describe("Admin agent instructions page", () => {
     expect(screen.getByText("Global Prompt Director")).toBeInTheDocument();
     expect(within(pulseCard).getByText("Stored")).toBeInTheDocument();
 
-    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Workflow name" }), {
+    fireEvent.change(within(pulseCard).getByRole("textbox", { name: "Pulse name" }), {
       target: { value: "Temporary name" },
     });
     fireEvent.click(within(pulseCard).getByRole("button", { name: "Reset to stored" }));
-    expect(within(pulseCard).getByRole("textbox", { name: "Workflow name" })).toHaveValue(
+    expect(within(pulseCard).getByRole("textbox", { name: "Pulse name" })).toHaveValue(
       "Global Prompt Director"
     );
+  });
+
+  it("edits and saves the live style-extraction prompt", async () => {
+    fetchMock.mockImplementation(
+      async (input: string, init?: { method?: string; body?: string }) => {
+        if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+          if (init?.method === "PUT") {
+            return buildStyleExtractPromptResponse("Digital Illustration, soft bloom");
+          }
+          return buildStyleExtractPromptResponse();
+        }
+        if (input === "/api/admin/agent-instructions/pulse-builtins") {
+          return buildCatalogResponse();
+        }
+        throw new Error(`Unexpected fetch target: ${input}`);
+      }
+    );
+
+    render(<AdminAgentInstructionsPage />);
+    await screen.findByText("Style Extraction System Prompt");
+
+    const styleCard = screen.getByText("Style Extraction System Prompt").closest("article");
+    if (!styleCard) throw new Error("Expected style extraction prompt card.");
+
+    fireEvent.click(within(styleCard).getByRole("button", { name: "Expand" }));
+    const promptBox = within(styleCard).getByRole("textbox", { name: "Runtime system prompt" });
+    fireEvent.change(promptBox, {
+      target: { value: "Digital Illustration, soft bloom" },
+    });
+    expect(within(styleCard).getByText("Unsaved edits")).toBeInTheDocument();
+
+    fireEvent.click(within(styleCard).getByRole("button", { name: "Save prompt" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/admin/agent-instructions/style-extract-prompt",
+        expect.objectContaining({
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        })
+      );
+    });
+
+    const saveRequest = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/agent-instructions/style-extract-prompt" && init?.method === "PUT"
+    );
+    expect(JSON.parse(String(saveRequest?.[1]?.body))).toEqual({
+      promptBody: "Digital Illustration, soft bloom",
+    });
+    expect(promptBox).toHaveValue("Digital Illustration, soft bloom");
+    expect(within(styleCard).getByText("Live override")).toBeInTheDocument();
+  });
+
+  it("surfaces degraded control-plane reads on the style-extraction prompt card", async () => {
+    fetchMock.mockImplementation(async (input: string) => {
+      if (input === "/api/admin/agent-instructions/style-extract-prompt") {
+        return {
+          ok: true,
+          json: async () => ({
+            promptBody: "Seed fallback prompt",
+            source: "seed" as const,
+            updatedAt: null,
+            updatedByEmail: null,
+            degraded: true,
+          }),
+        };
+      }
+      if (input === "/api/admin/agent-instructions/pulse-builtins") {
+        return buildCatalogResponse();
+      }
+      throw new Error(`Unexpected fetch target: ${input}`);
+    });
+
+    render(<AdminAgentInstructionsPage />);
+    const degradedMessage = await screen.findByText(
+      "Live control-plane lookup failed. Showing the seeded code prompt until the admin route recovers."
+    );
+
+    expect(degradedMessage).toBeInTheDocument();
+    expect(screen.getByText("Seeded local copy")).toBeInTheDocument();
   });
 });

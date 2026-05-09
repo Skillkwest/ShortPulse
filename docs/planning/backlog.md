@@ -77,10 +77,7 @@ Structure (locked):
 - [ ] AI Studio: test header title color updates and add a sparkle icon next to the `AI Studio` title.
 - [ ] AI Studio: preload character workflow identities and saved references when entering from Dashboard so character assets are cached across workflow switches.
 - [ ] AI Studio: make `CharacterManager` open instantly (no open animation) and tune properties panel sizing.
-- [ ] AI Studio: in Beginner mode, make the `Create Properties` panel resize to its minimum width when `Create Primary` is clicked.
 - [ ] AI Studio: add a `Canvas` button that opens a free-form canvas for dragging/dropping images and text prompts to visually organize ideas.
-- [ ] AI Studio: clean up beginner-mode copy across all properties panels.
-- [ ] Add account setting: "Show Beginner Mode Toggle" (control visibility of the beginner toggle card, not just mode state).
 - [ ] Add CSV import/export for saved creators.
 - [ ] Build out performance analytics.
 

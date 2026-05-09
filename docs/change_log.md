@@ -2688,14 +2688,6 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Recorded Wave F Pass 3 evidence:
   - `docs/planning/evidence/unified-buildout/phase-13/2026-03-02-phase-13-wave-f-pass-3-control-plane-persistence-admin-apis.md`.
 
-## 2026-03-02 (expert-first beginner-mode lockdown)
-- Added runtime beginner-mode policy seam at `frontend/lib/ui-modes/beginnerModeRuntime.ts` with two decoupled flags: `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF` and `NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_TOGGLE_VISIBLE`; force-off now has strict precedence over toggle visibility.
-- Added `useEffectiveBeginnerModePreference` wrapper hook and wired `/ai-studio` to use effective mode + toggle visibility propagation (`AiStudioPageContent` -> `AiStudioToolbarRail` -> `AiStudioToolbar`). Removed dead `showOnboardingSteps` prop drift in toolbar wiring.
-- Extended Character Manager route/shell wiring so force-off can pin expert mode (`beginnerModeOverride=false`) while hiding beginner toggle controls with `showBeginnerModeToggle`.
-- Added migration `sql/migrations/049_enforce_expert_default_beginner_mode.sql` and rollback `sql/migrations/rollback/049_enforce_expert_default_beginner_mode_rollback.sql`; forward migration sets `user_preferences.beginner_mode` default to `false` and backfills existing rows, rollback restores default `true` for new rows only.
-- Updated bootstrap/data/docs parity for the temporary lockdown policy (`sql/create_user_preferences_table.sql`, `frontend/.env.example`, `README.md`, `docs/routes.md`, `docs/data-dictionary.md`, `docs/database-migrations.md`, `docs/sops/sop_sql_migration_operations.md`, `docs/sops/sop_image_generation.md`, `docs/troubleshooting.md`, `docs/planning/migration-number-reservation-map.md`).
-- Added/updated tests for runtime policy parsing, wrapper-hook behavior, toolbar/shell toggle suppression, and AI Studio page hook mocking.
-
 ## 2026-03-02 (Character UI unification: layout swap + class decoupling)
 - Implemented Pass 1 create-workspace layout swap with a dedicated presentational wrapper:
   - added `frontend/features/character-manager/components/CharacterCreateWorkspaceLayout.tsx`
@@ -2706,7 +2698,6 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - added `frontend/styles/ai-studio-character-controls.css`
   - imported it in `frontend/styles/globals.css`
   - migrated AI Studio create/picker/chat components to `ai-character-*` and `ai-chat-*` class namespaces:
-    - `frontend/features/ai-studio/components/create/BeginnerCreatePanelView.tsx`
     - `frontend/features/ai-studio/components/create/ExpertCreatePanelView.tsx`
     - `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`
     - `frontend/features/ai-studio/components/promptStep/PromptStepChatSurface.tsx`

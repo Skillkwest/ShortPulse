@@ -29,7 +29,7 @@ linked_pr: n/a (planning/control artifact)
 ## Remaining Domain Clusters
 ### 1. Shell UI state and responsive layout control
 Includes:
-1. active tab, beginner mode, quick-swap collapse, preview state, delete-target state
+1. active tab, quick-swap collapse, preview state, delete-target state
 2. column-count listeners and library visible-count smoothing
 3. panel/page shell toggles and local-storage persistence
 
@@ -113,4 +113,3 @@ The next accepted `B3-01` slice should satisfy all of:
 2. It uses the existing `CharacterManagerShell` component test suites as the contract, adding tests only if a real gap appears.
 3. It reduces `CharacterManagerShell.tsx` materially while keeping ownership clearer than before.
 4. It avoids presenter-only decomposition until state/controller seams are cleaner.
-

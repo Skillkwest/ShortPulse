@@ -19,8 +19,8 @@ These issues increased regression risk and made workflow behavior hard to reason
 2. Keep legacy alias compatibility (`text`, `image`, `kling`, `canvas`) during this cycle.
 3. Use a lightweight internal panel registry keyed by canonical workflow ID.
 4. Remove dead `propertiesCharacter` path and rely on embedded `CharacterPanel` render path.
-5. Expose beginner preference `syncState` and protect writes with request-version stale guards.
-6. Apply explicit beginner policy object per workflow panel.
+5. Expose preference `syncState` and protect writes with request-version stale guards.
+6. Apply explicit workflow policy objects per workflow panel.
 
 ## Consequences
 Positive:

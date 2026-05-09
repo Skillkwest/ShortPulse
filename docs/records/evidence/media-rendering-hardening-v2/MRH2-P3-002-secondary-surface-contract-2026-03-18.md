@@ -22,8 +22,8 @@
 - [DetailModal.fullQuality.test.tsx](../../../../frontend/features/ai-studio/components/__tests__/DetailModal.fullQuality.test.tsx)
 
 Additional targeted coverage rerun:
-- [CharacterQuickSwapDeckSection.windowing.test.tsx](../../../../frontend/features/character-manager/components/__tests__/CharacterQuickSwapDeckSection.windowing.test.tsx)
-- [CharacterManagerShell.behavior.test.tsx](../../../../frontend/features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx)
+- Historical file at slice time: `features/character-manager/components/__tests__/CharacterQuickSwapDeckSection.windowing.test.tsx` (no longer present in the current repo tree)
+- Historical file at slice time: `features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx` (no longer present in the current repo tree)
 
 ## Targeted Tests
 - `npm test -- --run features/character-manager/logic/__tests__/characterGridPreviewUrl.test.ts features/ai-studio/hooks/__tests__/useMediaLibraryPanelSelectionController.test.tsx features/ai-studio/components/__tests__/DetailModal.fullQuality.test.tsx features/character-manager/components/__tests__/CharacterQuickSwapDeckSection.windowing.test.tsx features/character-manager/components/__tests__/CharacterManagerShell.behavior.test.tsx`

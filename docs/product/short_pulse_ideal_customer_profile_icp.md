@@ -53,7 +53,7 @@ This is the core ICP.
 
 **Typical profile:**
 - Actively posting short‑form content
-- Past beginner stage
+- Past the earliest learning stage
 - Some videos perform well, many do not
 - Views are inconsistent
 - Monetization is unclear or early
@@ -294,4 +294,3 @@ ShortPulse exists so creators can **stop guessing and start compounding**.
 ---
 
 _End of ICP document._
-

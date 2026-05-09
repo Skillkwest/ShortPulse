@@ -51,13 +51,13 @@ sequenceDiagram
 
 1. `AiStudioPage` performs the top-level Create-mode render decision:
 
-- Standard path: `StandardCreateRuntimeRoot` mounts Standard-owned agent runtime, chat-mode preference, composer input, prompt setter, and generation commands.
+- Standard path: `StandardCreateRuntimeRoot` mounts Standard-owned agent runtime, chat-mode state, composer input, prompt setter, and generation commands. Standard Create now defaults chat mode off when no explicit Standard runtime value exists.
 - Pulse path: `PulseCreateRuntimeRoot` mounts Pulse-owned preset/page runtime, agent runtime, workflow state, composer input, prompt setter, and artifact-generation command.
 
 2. `AiStudioPageRuntimeBody` and `AiStudioPageRuntimePresenter` consume one discriminated `CreatePageAgentRuntime` and build `propertiesCreate` from the active mode only.
 3. `AiStudioPageContent` renders the matching Create panel:
 
-- Standard path: `StandardCreatePropertiesPanel` owns beginner + expert Standard composer rendering.
+- Standard path: `StandardCreatePropertiesPanel` owns Standard composer rendering.
 - Pulse path: `PulseCreatePropertiesPanel` owns Pulse composer rendering and mounts `PulseCreatePanelView`.
 
 4. Model picker open path is anchored with `anchorId="create-model"` and `context="text-image"` so modal ordering/filtering stays deterministic for Create.
@@ -104,7 +104,8 @@ sequenceDiagram
 
 2. Create text-mode branch:
 
-- Standard mode: send to the Standard chat lane through `/api/ai/studio-agent-standard`.
+- Standard mode with chat mode on: send to the Standard chat lane through `/api/ai/studio-agent-standard`.
+- Standard mode with chat mode off: bypass the Standard agent lane and submit direct generate from the authored/raw prompt path.
 - Expert Create `Pulse` mode override: Pulse is its own agent-only lane through `/api/ai/studio-agent-pulse`.
 
 3. `handleGenerate` preflight:

@@ -110,6 +110,11 @@ Now commit changes. Organize and commit in logical batches.
 Now push all committed changes on the current approved branch.
 ```
 
+Special shorthand:
+
+- If the user says `run your SOP`, Gear Ball should treat that as explicit authorization to execute the default sequence above end-to-end on the current approved branch without stopping for an intermediate checkpoint.
+- Narrower user constraints still win. Examples: `explore only`, `do not push`, `do not commit yet`, or `fix only with no UI/UX/behavior changes`.
+
 For substantial runs, copy the report template from `docs/agents/gear-ball/reports/README.md` and fill it as evidence before final closeout.
 
 ## Default Workflow

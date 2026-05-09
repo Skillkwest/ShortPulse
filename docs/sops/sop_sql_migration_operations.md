@@ -165,6 +165,7 @@ Current set:
 - `115_remove_global_model_pricing_rounding.sql`
 - `118_canonicalize_character_metadata_media_ids.sql`
 - `119_require_character_media_id_on_character_links.sql`
+- `120_remove_legacy_onboarding_user_preference.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 

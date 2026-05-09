@@ -44,7 +44,7 @@ linked_pr: n/a (local execution slice)
 2. `useCharacterManagerShellViewState.ts`: new file at `270` lines.
 3. Coupling reduction:
    - shell-local view state no longer lives inline with the route shell,
-   - responsive column-count control, beginner-mode persistence, quick-swap collapse policy, preview navigation state, and delete-target modal state now live behind one named hook,
+   - responsive column-count control, mode persistence, quick-swap collapse policy, preview navigation state, and delete-target modal state now live behind one named hook,
    - the remaining shell hotspot is more concentrated around dropped-reference resolution and quick-swap/character-sheet orchestration.
 
 ## Net Complexity Note
@@ -60,7 +60,7 @@ linked_pr: n/a (local execution slice)
 ## Parity Assertions
 1. `CharacterManagerShell` public props remained unchanged.
 2. No API/server/schema changes.
-3. Existing behaviors around beginner-mode toggle, quick-swap collapse, reference preview, delete modals, and shell layout remained covered by the shell test suite and stayed green.
+3. Existing behaviors around quick-swap collapse, reference preview, delete modals, and shell layout remained covered by the shell test suite and stayed green.
 
 ## Task Contract Checklist
 1. Behavior/API parity: pass.

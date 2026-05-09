@@ -9,7 +9,7 @@ If regressions reappear, check `app_error_logs` for `source='client.api_network'
 ## AI Studio reference upload returns `413`
 Symptoms:
 - AI Studio shows `Reference upload failed` and the detail mentions `413`, `file too large`, or `Reference image is too large`.
-- Nano Banana / Nano Banana Pro rows fail before provider submit begins.
+- Nano Banana 2 / Nano Banana Pro rows fail before provider submit begins.
 
 Checklist:
 - AI Studio now auto-resizes local/blob/data reference images before upload when possible.
@@ -258,7 +258,7 @@ Mitigation:
   - Warning: terminal failures > 3 or > 0.5% of image rows.
   - Critical: terminal failures > 20 or > 2% of image rows.
 
-## Style prompt appears weak on some models (especially Google/Nano Banana edit lanes)
+## Style prompt appears weak on some models (especially Nano Banana family edit lanes)
 Symptoms:
 - Style is selected, but outputs mostly follow reference structure with limited style transfer.
 - Different model families show noticeably different style adherence for the same prompt + references.
@@ -866,11 +866,6 @@ limit 20;
 Checklist:
 - The provider URL allows browser fetches (some providers block cross-origin downloads).
 - If blocked, consider a Supabase Edge Function proxy (requires an ADR) or store metadata only.
-
-## Beginner mode toggle is missing or expert mode is always on
-Checklist:
-- Beginner mode is retired from the live runtime, so expert mode is always on.
-- Remember the DB default after migration `049_enforce_expert_default_beginner_mode.sql` is `user_preferences.beginner_mode=false` for new rows.
 
 ## “It works in dev but not in build”
 Checklist:

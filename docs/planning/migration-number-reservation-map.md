@@ -19,7 +19,6 @@ Prevent migration-number collisions across concurrent plan tracks and lock order
 | `046_*` | Character QuickSwap storage-scope check fix | Implemented | `046_fix_character_quickswap_storage_scope_check.sql` already landed. |
 | `047_*` | Safety control-plane persistence entities | Implemented | `047_add_agent_safety_policy_control_plane.sql` landed with rollback pair. |
 | `048_*` | Safety control-plane grants/hardening/checks | Implemented | `048_harden_agent_safety_policy_control_plane_grants.sql` landed. |
-| `049_*` | Global expert-first beginner-mode default enforcement | Implemented | `049_enforce_expert_default_beginner_mode.sql` landed with rollback pair. |
 | `064_*` | All Media completeness durable-row backfill | Implemented | `064_backfill_media_files_from_storage_objects.sql` landed with diagnostics + rollback pair. |
 | `065_*` | Media derivative retry/lease control fields + backlog indexes | Implemented | `065_add_media_derivative_processing_fields.sql` landed with rollback pair. |
 | `066_*` | Media derivative claim/update service-role RPCs | Implemented | `066_add_media_derivative_processing_rpcs.sql` landed with rollback pair. |

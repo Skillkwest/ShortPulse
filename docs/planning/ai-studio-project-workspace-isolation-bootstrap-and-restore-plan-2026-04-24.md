@@ -132,7 +132,6 @@ These must be isolated per project and therefore must reset or hydrate per proje
 ### User Preference State
 These may remain global only if intentionally treated as user preferences:
 1. shell split width,
-2. beginner mode,
 3. panel arrangement preferences,
 4. other clearly non-content UI conveniences.
 

@@ -37,8 +37,6 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-flux-pro-fill.md`
 - `docs/api/api-fal-flux-kontext-inpaint.md`
 - `docs/api/api-fal-bria-background-remove.md`
-- `docs/api/api-fal-nano-banana.md`
-- `docs/api/api-fal-nano-banana-edit.md`
 - `docs/api/api-fal-nano-banana-2.md`
 - `docs/api/api-fal-nano-banana-2-edit.md`
 - `docs/api/api-fal-nano-banana-pro.md`

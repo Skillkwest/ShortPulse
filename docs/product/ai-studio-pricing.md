@@ -50,7 +50,6 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 
 - `fal-economy-image-per-mp`: `fal-ai/flux-2/klein/9b` uses `$0.006/MP`; `fal-ai/bria/background/remove` uses fixed `$0.018` per generation. Any model-specific billed result now comes from the shared credit conversion plus explicit per-model markup/rounding in the admin pricing panel.
 - `fal-fill-per-mp`: `fal-ai/flux-pro/v1/fill` uses raw output megapixels at `$0.05/MP`.
-- `google-nano-banana-per-image`: `$0.039` flat per image.
 - `nano-banana-2-per-image`: base `$0.08` with resolution multipliers (`0.5K x0.75`, `2K x1.5`, `4K x2`) plus optional web-search surcharge `+$0.015`.
 - `nano-banana-per-image`: base `$0.15`, `4K` doubles, optional web-search surcharge `+$0.015`.
 - `seedream-per-image`: base `$0.04`; strategy supports `4K` multiplier in runtime.

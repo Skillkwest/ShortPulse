@@ -711,7 +711,6 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 ### user_preferences
 
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.
-- `beginner_mode` (boolean, default `false`): AI Studio/Character Manager beginner mode preference (expert-first default while runtime lockdown is active).
 - `media_autosave_enabled` (boolean, default `true`): AI Studio autosave policy toggle used by client autosave orchestration and server recovery enforcement.
 - `expert_edit_preset_panel_labels` (text[], default `{'Selfie','Side Profile','Enhance Realism'}`): Persistent per-user Expert Edit preset panel chip allocation (legacy labels; current client normalization caps the active panel at 10).
 - `expert_edit_preset_panel_ids` (text[], default `{'selfie','side_profile','enhance_realism'}`): Canonical per-user Expert Edit preset panel allocation stored by preset ID (current client normalization caps the active panel at 10).

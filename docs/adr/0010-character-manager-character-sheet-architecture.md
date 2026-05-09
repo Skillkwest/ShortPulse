@@ -5,7 +5,7 @@ Accepted
 
 ## Context
 Character consistency is moving to a structured character-sheet workflow instead of LoRA training.  
-The product needs a beginner-friendly Character Manager that:
+The product needs an approachable Character Manager that:
 - Captures a fixed set of required reference shots.
 - Produces deterministic, versioned character sheets for generation.
 - Reuses existing media storage and billing paths safely.
@@ -55,6 +55,6 @@ Implementation note:
 
 ## Alternatives considered
 - LoRA-based identity training as primary workflow: rejected for v1 due to slower UX and higher operational complexity.
-- Flexible/unbounded Character Sheet required-shot uploads: rejected because deterministic preset zones are clearer for beginners and improve consistency.
+- Flexible/unbounded Character Sheet required-shot uploads: rejected because deterministic preset zones are clearer for new users and improve consistency.
 - Flexible/unbounded QuickSwap with bounded active archive: accepted for QuickSwap Deck while retaining deterministic Character Sheet preset zones.
 - Keep all character metadata in client-only IndexedDB: rejected because management/versioning needs durable relational state with RLS.

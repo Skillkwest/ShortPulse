@@ -53,7 +53,6 @@ Opening a saved project is correct only when AI Studio restores one coherent pro
 | Remote session metadata/title | `sessionApiClient.ts`, `pages/ai-studio.tsx` | `/api/ai/sessions/*` | Retired legacy session lane | Route family is retired and page title no longer derives from session-era remote metadata. |
 | Workflow settings storage | `useAiStudioWorkflowSettings.ts` | `sessionStorage` | Browser session | Shared per-tool blob, not truly partitioned by project. |
 | Resolution fallback storage | `aiStudioStateConfig.ts`, `useAiStudioStateEffects.ts` | `sessionStorage` | Browser session | Video duration, video resolution, image resolution. |
-| Beginner mode preference | `useBeginnerModePreference.ts` | `user_preferences` + `localStorage` fallback | User global | Correctly a user-global preference. |
 | Media autosave preference | `useMediaAutosavePreference.ts` | `user_preferences` + `localStorage` fallback | User global | Correctly a user-global preference. |
 | Create Pulse panel/saved presets | `useCreatePulsePresetPanelPreference.ts` | `user_preferences` + `localStorage` fallback | User global | Catalog/default preference surface, not project restore authority. |
 | Expert Edit preset panel/custom presets | `useExpertEditPresetPanelPreference.ts` | `user_preferences` + `localStorage` fallback | User global | Catalog/default preference surface, not project restore authority. |
@@ -133,7 +132,6 @@ Opening a saved project is correct only when AI Studio restores one coherent pro
 ### User-Global Preferences And Catalog Customization
 | Surface | Current Owner | Current Storage | Classification | Target Authority | Owning Phase | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Beginner mode | `useBeginnerModePreference.ts` | `user_preferences` + `localStorage` fallback | User global | Stay in `user_preferences` | 3 retain | Personal product preference, not project content. |
 | Media autosave enabled | `useMediaAutosavePreference.ts` | `user_preferences` + `localStorage` fallback | User global | Stay in `user_preferences` | 4 consume | Personal save policy. |
 | Create Pulse panel ids | `useCreatePulsePresetPanelPreference.ts` | `user_preferences` + `localStorage` fallback | User global | Stay in `user_preferences` | retain | Catalog/default arrangement. |
 | Create Pulse saved presets library | `useCreatePulsePresetPanelPreference.ts` | `user_preferences` + `localStorage` fallback | User global | Stay in `user_preferences` | retain | Personal preset library, not project restore. |

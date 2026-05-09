@@ -43,7 +43,7 @@ Goal: Ensure all user actions that should add/show references reliably update th
 - Output store publish bridge lifecycle (`useAiStudioState` -> external output store).
 - Reference grid selector-store rendering path.
 - Generate placeholder visibility and pending/spinner visibility.
-- Prompt pin visibility (beginner + expert, create/edit/video).
+- Prompt pin visibility across create/edit/video surfaces.
 - Upload/paste/library insertion visibility.
 
 ### Tasks

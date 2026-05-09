@@ -234,7 +234,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 117.  `sql/migrations/117_add_create_pulse_builtin_control_plane.sql`
 118.  `sql/migrations/118_canonicalize_character_metadata_media_ids.sql`
 119.  `sql/migrations/119_require_character_media_id_on_character_links.sql`
-120.  Rollback files:
+120.  `sql/migrations/120_remove_legacy_onboarding_user_preference.sql`
+Rollback files:
 
 
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
@@ -306,6 +307,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/103_sanitize_project_workspace_conversational_runtime_rollback.sql`
     - `sql/migrations/rollback/104_add_user_media_compliance_acceptances_rollback.sql`
     - `sql/migrations/rollback/108_retire_legacy_ai_studio_pulses_rollback.sql`
+    - `sql/migrations/rollback/120_remove_legacy_onboarding_user_preference_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -352,7 +354,6 @@ Billing safety note:
 - Migration `073_add_media_folder_hierarchy.sql` adds explicit parent/child ancestry support to `media_folders` (`parent_folder_id`), sibling-scoped name uniqueness, same-user parent FK enforcement, and recursive cycle protection. Current panel UI may still use proxy navigation until the ancestry cutover lands.
 - Migration `047_add_agent_safety_policy_control_plane.sql` adds agent safety policy version/runtime/event persistence with service-role RPCs for active/read, activate, and rollback operations.
 - Migration `048_harden_agent_safety_policy_control_plane_grants.sql` hardens control-plane RPC execute posture to service-role-only.
-- Migration `049_enforce_expert_default_beginner_mode.sql` forces expert-first mode defaults by setting `user_preferences.beginner_mode` default to `false` and backfilling existing rows to `false`; rollback restores only the new-row default (`true`).
 - Migration `051_add_agent_safety_policy_version_rpc.sql` adds service-role-only policy version creation RPC support (`create_agent_safety_policy_version`) and audit event type expansion (`version_created`).
 - Migration `052_extend_queue_recovery_provider_scope_to_kie.sql` updates queued-submit persistence to store provider family from enqueue inputs and broadens recovery claims from Fal-only to Fal/Kie provider families.
 - Migration `053_fix_ai_studio_session_upsert_ambiguity.sql` resolves an ambiguity defect in AI Studio session snapshot upsert semantics to keep persistence writes deterministic.

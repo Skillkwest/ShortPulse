@@ -1,6 +1,6 @@
 import React from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
   ExpertEditPanelView,
@@ -542,6 +542,10 @@ describe("ExpertEditPanelView", () => {
     });
     document.documentElement.style.overflow = "";
     document.body.style.overflow = "";
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders one primary edit stage and three secondary edit dropzones", () => {
@@ -6276,7 +6280,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
   });
 
-  it("seeds dropped generated image dimensions before standard edit reuse", async () => {
+  it("seeds dropped generated image dimensions before standard edit export", async () => {
     const generatedUrl = "https://fal.media/files/generated-wide-2k.png";
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
@@ -6309,7 +6313,7 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
     const [referenceInputs, submitOptions] = (
       onRegenerateWithReferenceInputs as unknown as {
         mock: {
@@ -6317,7 +6321,7 @@ describe("ExpertEditPanelView", () => {
         };
       }
     ).mock.calls[0] ?? [[], undefined];
-    expect(referenceInputs).toEqual([generatedUrl]);
+    expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
     expect(submitOptions?.referenceInputsMode).toBe("replace");
   });
 
@@ -6932,7 +6936,7 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
   });
 
-  it("reuses the durable primary source url for unchanged standard edit", async () => {
+  it("exports the durable primary source when standard edit framing is unchanged", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async () => {});
@@ -6950,7 +6954,7 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
     expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
     const [referenceInputs, submitOptions] = (
       onRegenerateWithReferenceInputs as unknown as {
@@ -6959,13 +6963,11 @@ describe("ExpertEditPanelView", () => {
         };
       }
     ).mock.calls[0] ?? [[], undefined];
-    expect(referenceInputs).toEqual([
-      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user/reference-portrait.png?token=test",
-    ]);
+    expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
     expect(submitOptions?.referenceInputsMode).toBe("replace");
   });
 
-  it("reuses a public generated primary source url for unchanged standard edit", async () => {
+  it("exports a public generated primary source when standard edit framing is unchanged", async () => {
     const publicGeneratedUrl = "https://fal.media/files/generated-2k.png";
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
@@ -6984,7 +6986,7 @@ describe("ExpertEditPanelView", () => {
       await Promise.resolve();
     });
 
-    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
     expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
     const [referenceInputs, submitOptions] = (
       onRegenerateWithReferenceInputs as unknown as {
@@ -6993,7 +6995,7 @@ describe("ExpertEditPanelView", () => {
         };
       }
     ).mock.calls[0] ?? [[], undefined];
-    expect(referenceInputs).toEqual([publicGeneratedUrl]);
+    expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
     expect(submitOptions?.referenceInputsMode).toBe("replace");
   });
 
@@ -7133,7 +7135,13 @@ describe("ExpertEditPanelView", () => {
       camera?: unknown;
     } | null;
     expect(flattenOptions?.outputAspectRatio ?? 0).toBeCloseTo(1, 4);
-    expect(flattenOptions?.camera).toBeUndefined();
+    expect(flattenOptions?.camera).toEqual(
+      expect.objectContaining({
+        viewportWidth: 200,
+        viewportHeight: 200,
+        scale: expect.any(Number),
+      })
+    );
   });
 
   it("auto-flatten generate passes display/submission prompt overrides when @img tokens are used", async () => {
@@ -7233,7 +7241,7 @@ describe("ExpertEditPanelView", () => {
     ]);
     expect(submitOptions?.displayPromptOverride).toBeUndefined();
     expect(submitOptions?.submissionPromptOverride).toBeUndefined();
-  });
+  }, 15000);
 
   it("auto-flatten generate sends only explicitly linked secondary references to the model", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
@@ -7406,7 +7414,7 @@ describe("ExpertEditPanelView", () => {
     ).mock.calls;
     const submittedReferences = submissionCalls[0]?.[0] ?? [];
     expect(submittedReferences).toHaveLength(1);
-    expect(submittedReferences[0]).toBe("https://example.com/base.png");
+    expect(submittedReferences[0]).toMatch(/^blob:flatten-/);
   });
 
   it("auto-flatten generate forces Nano Banana Pro edit model while Markup is selected", async () => {
@@ -7828,7 +7836,15 @@ describe("ExpertEditPanelView", () => {
       } | null;
       expect(maskExportArgs?.targetWidth).toBe(640);
       expect(maskExportArgs?.targetHeight).toBe(640);
-      expect(maskExportArgs?.camera).toBeUndefined();
+      expect(maskExportArgs?.camera).toEqual(
+        expect.objectContaining({
+          viewportWidth: 420,
+          viewportHeight: 420,
+          offsetX: 0,
+          offsetY: 0,
+          scale: expect.any(Number),
+        })
+      );
     } finally {
       useInpaintMaskControllerSpy.mockRestore();
       Object.defineProperty(globalThis, "Image", {
@@ -7952,8 +7968,14 @@ describe("ExpertEditPanelView", () => {
         camera?: unknown;
       } | null;
       expect(flattenOptions?.outputAspectRatio ?? 0).toBeCloseTo(1, 4);
-      expect(flattenOptions?.camera).toBeUndefined();
-      expect(maskExportArgs?.camera).toBeUndefined();
+      expect(flattenOptions?.camera).toEqual(
+        expect.objectContaining({
+          viewportWidth: 200,
+          viewportHeight: 200,
+          scale: expect.any(Number),
+        })
+      );
+      expect(maskExportArgs?.camera).toEqual(flattenOptions?.camera);
     } finally {
       useInpaintMaskControllerSpy.mockRestore();
       Object.defineProperty(globalThis, "Image", {

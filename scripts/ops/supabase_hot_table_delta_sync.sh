@@ -20,9 +20,10 @@ Env fallbacks:
 
 Notes:
   - Syncs the current live-write hot tables:
-    - auth.refresh_tokens
-    - public.worker_instances
-    - public.worker_runs
+  - auth.refresh_tokens
+  - public.worker_instances
+  - public.worker_runs
+    - public.app_error_logs
     - public.app_error_events
     - public.growth_attribution_identities
   - Export scope is watermark-based from production max(updated_at/created_at).
@@ -102,6 +103,7 @@ copy_export() {
 worker_runs_max="$(query_scalar "$TARGET_URL" "select coalesce(max(created_at), '-infinity'::timestamptz) from public.worker_runs;")"
 worker_instances_max="$(query_scalar "$TARGET_URL" "select coalesce(max(updated_at), '-infinity'::timestamptz) from public.worker_instances;")"
 app_error_events_max="$(query_scalar "$TARGET_URL" "select coalesce(max(created_at), '-infinity'::timestamptz) from public.app_error_events;")"
+app_error_logs_max="$(query_scalar "$TARGET_URL" "select coalesce(max(updated_at), '-infinity'::timestamptz) from public.app_error_logs;")"
 growth_attr_max="$(query_scalar "$TARGET_URL" "select coalesce(max(updated_at), '-infinity'::timestamptz) from public.growth_attribution_identities;")"
 refresh_tokens_max="$(query_scalar "$TARGET_URL" "select coalesce(max(updated_at), '-infinity'::timestamptz) from auth.refresh_tokens;")"
 
@@ -115,6 +117,9 @@ copy_export \
   "select id, worker_instance_id, trigger_source, route_label, status, started_at, completed_at, metrics, error_summary, metadata, created_at, updated_at from public.worker_runs where created_at > timestamptz '${worker_runs_max}' order by created_at, id" \
   "$TMP_DIR/public_worker_runs.csv"
 copy_export \
+  "select id, fingerprint, source, scope, severity, status, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, first_seen_at, last_seen_at, occurrences_count, created_at, updated_at from public.app_error_logs where updated_at > timestamptz '${app_error_logs_max}' order by updated_at, id" \
+  "$TMP_DIR/public_app_error_logs.csv"
+copy_export \
   "select id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at from public.app_error_events where created_at > timestamptz '${app_error_events_max}' order by created_at, id" \
   "$TMP_DIR/public_app_error_events.csv"
 copy_export \
@@ -126,6 +131,7 @@ wc -l \
   "$TMP_DIR/auth_refresh_tokens.csv" \
   "$TMP_DIR/public_worker_instances.csv" \
   "$TMP_DIR/public_worker_runs.csv" \
+  "$TMP_DIR/public_app_error_logs.csv" \
   "$TMP_DIR/public_app_error_events.csv" \
   "$TMP_DIR/public_growth_attribution_identities.csv"
 
@@ -184,6 +190,32 @@ on conflict (id) do update set
   metrics = excluded.metrics,
   error_summary = excluded.error_summary,
   metadata = excluded.metadata,
+  created_at = excluded.created_at,
+  updated_at = excluded.updated_at;
+
+create temp table tmp_app_error_logs (like public.app_error_logs including defaults) on commit drop;
+\copy tmp_app_error_logs from '${TMP_DIR}/public_app_error_logs.csv' csv
+insert into public.app_error_logs (id, fingerprint, source, scope, severity, status, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, first_seen_at, last_seen_at, occurrences_count, created_at, updated_at)
+select id, fingerprint, source, scope, severity, status, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, first_seen_at, last_seen_at, occurrences_count, created_at, updated_at
+from tmp_app_error_logs
+on conflict (id) do update set
+  fingerprint = excluded.fingerprint,
+  source = excluded.source,
+  scope = excluded.scope,
+  severity = excluded.severity,
+  status = excluded.status,
+  message = excluded.message,
+  stack = excluded.stack,
+  route = excluded.route,
+  endpoint = excluded.endpoint,
+  request_id = excluded.request_id,
+  http_status = excluded.http_status,
+  user_id = excluded.user_id,
+  user_email = excluded.user_email,
+  metadata = excluded.metadata,
+  first_seen_at = excluded.first_seen_at,
+  last_seen_at = excluded.last_seen_at,
+  occurrences_count = excluded.occurrences_count,
   created_at = excluded.created_at,
   updated_at = excluded.updated_at;
 

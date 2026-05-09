@@ -46,6 +46,7 @@ Notes:
 4. Confirm Supabase schema/policies are up to date for production.
 5. Confirm Stripe webhook secret and admin allow-list values are prepared for production.
 6. Confirm deployment/release notes still distinguish current environment protection state from planned production-readiness protection state.
+7. If production storage payloads are being migrated from staging, complete `docs/sops/sop_nuclo_supabase_storage_migration.md` before any production Vercel rewiring.
 
 ## Environment variables
 

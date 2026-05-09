@@ -55,6 +55,8 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
+- `docs/agents/nuclo/README.md`
+- `docs/agents/nuclo/environment-ledger-template.md`
 - `docs/agents/pulse/README.md`
 - `docs/agents/system-catalog-agent/README.md`
 - `docs/agents/ophestivus.md`
@@ -131,8 +133,6 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/api/api-fal-flux-pro-fill.md`
 - `docs/api/api-fal-flux-kontext-inpaint.md`
 - `docs/api/api-fal-bria-background-remove.md`
-- `docs/api/api-fal-nano-banana.md`
-- `docs/api/api-fal-nano-banana-edit.md`
 - `docs/api/api-fal-nano-banana-2.md`
 - `docs/api/api-fal-nano-banana-2-edit.md`
 - `docs/api/api-fal-nano-banana-pro.md`
@@ -184,6 +184,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_image_generation.md`
 - `docs/sops/sop_video_generation.md`
 - `docs/sops/sop_naming_canonicalization_rollback.md`
+- `docs/sops/sop_nuclo_supabase_storage_migration.md`
 
 ## Product
 

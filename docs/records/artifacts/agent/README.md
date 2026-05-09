@@ -12,6 +12,12 @@ This folder stores raw payload inputs and other non-authoritative agent artifact
 - `docs/records/artifacts/agent/ophestivus/sops.md`
 - `docs/records/artifacts/agent/ophestivus/training-history.md`
 - `docs/records/artifacts/agent/ophestivus/tools.md`
+- `docs/records/artifacts/agent/nuclo/README.md`
+- `docs/records/artifacts/agent/nuclo/memory.md`
+- `docs/records/artifacts/agent/nuclo/reports/README.md`
+- `docs/records/artifacts/agent/nuclo/sops.md`
+- `docs/records/artifacts/agent/nuclo/training-history.md`
+- `docs/records/artifacts/agent/nuclo/tools.md`
 - `docs/records/artifacts/agent/pulse/README.md`
 - `docs/records/artifacts/agent/pulse/memory.md`
 - `docs/records/artifacts/agent/pulse/reports/README.md`

@@ -69,6 +69,7 @@ Reusable cross-agent onboarding and training guidance lives under `agent-teachin
 - `docs/sops/sop_new_model_ingestion.md`
 - `docs/sops/sop_new_feature_modularization.md`
 - `docs/sops/sop_naming_canonicalization_rollback.md`
+- `docs/sops/sop_nuclo_supabase_storage_migration.md`
 
 ## Archived Legacy SOPs (reference only)
 

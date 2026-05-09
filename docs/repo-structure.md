@@ -5,6 +5,8 @@ This document describes the canonical layout of the ShortPulse product repo and 
 ## Top-level
 - `frontend/`: Next.js (pages router) app.
 - `docs/`: Engineering, product, and operations documentation.
+- `nuclo/`: Nuclo-owned workspace for environment/version management scratch, inbox, and handoffs.
+- `scripts/`: repository validation, deployment, and operator tooling.
 - `sql/`: Supabase bootstrap scripts and migrations.
 - `assets/`: Non-runtime design/reference artifacts.
 

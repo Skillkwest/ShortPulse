@@ -7,45 +7,172 @@ import {
   formatFractionalCredits,
   formatPercent,
   formatProviderCostUsd,
+  getEffectiveProviderCostUsd,
+  getEffectiveProviderCostUsdPerSecond,
   getCreditsAtProviderCost,
-  getDurationInputStep,
-  getModelDefaultDurationSeconds,
-  getModelDurationSummary,
+  getModelDurationSecondsForUsage,
+  getModelRateSourceInputMode,
+  getModelUsageControl,
+  getModelUsageDisplayValue,
+  getModelUsageRateMultiplier,
+  getModelUsageValue,
   getModelTypeLabel,
   getPricingAuthorityLabel,
   getPricingMargin,
+  getRateSourceCostUsd,
   getVariantSpecSummary,
   getWorkbookBillableCredits,
   getWorkbookBillableUsd,
   normalizeModelOverrideDraft,
-  parseDurationSecondsInput,
-  parseIntegerInput,
+  normalizeVariantOverrideDraft,
+  parsePositiveDecimalInput,
   parsePercentToBps,
   sortAdminPricingPreviewVariants,
-  type CreditScaleDraftByModelId,
   type DurationDraftByModelId,
   type MarkupDraftByModelId,
   type ModelPricingSortOption,
-  type RoundingDraftByModelId,
+  type VariantMarkupDraftByVariantKey,
+  type VariantProviderCostDraftByVariantKey,
+  type VariantProviderCostPerSecondDraftByVariantKey,
 } from "./pricingPageUtils";
+import type {
+  AudioDraftByModelId,
+  AspectDraftByModelId,
+  ResolutionDraftByModelId,
+} from "./pricingDrafts";
 import {
   resolveModelPricingForModel,
   type ModelPricingPolicyDocument,
 } from "../../lib/model-runtime/pricingPolicy";
+import { getAdminPricingStrategyLabel } from "../../lib/model-runtime/modelPricingStrategyLabel";
+import type { PricingStrategyId } from "../../lib/model-runtime/pricingTypes";
 import styles from "../../styles/admin.module.css";
+
+const getFiniteValues = (values: Array<number | null | undefined>): number[] =>
+  values.filter((value): value is number => value != null && Number.isFinite(value));
+
+const formatValueRange = (
+  values: Array<number | null | undefined>,
+  formatter: (value: number) => string
+): string => {
+  const finiteValues = getFiniteValues(values);
+  if (!finiteValues.length) return "Unavailable";
+  const minValue = Math.min(...finiteValues);
+  const maxValue = Math.max(...finiteValues);
+  if (Math.abs(maxValue - minValue) < 0.000001) {
+    return formatter(minValue);
+  }
+  return `${formatter(minValue)} to ${formatter(maxValue)}`;
+};
+
+const formatPercentRange = (values: Array<number | null | undefined>): string | null => {
+  const finiteValues = getFiniteValues(values);
+  if (!finiteValues.length) return null;
+  const minValue = Math.min(...finiteValues);
+  const maxValue = Math.max(...finiteValues);
+  if (Math.abs(maxValue - minValue) < 0.000001) {
+    return formatPercent(minValue);
+  }
+  return `${formatPercent(minValue)} to ${formatPercent(maxValue)}`;
+};
+
+const getWeightedMarkupPercent = (
+  rows: Array<{
+    activeCreditsAtCost: number | null;
+    resolvedVariantPolicy: { markupBps: number };
+  }>
+): number | null => {
+  const weightedRows = rows.filter(
+    (row) =>
+      row.activeCreditsAtCost != null &&
+      Number.isFinite(row.activeCreditsAtCost) &&
+      row.activeCreditsAtCost > 0
+  );
+  if (weightedRows.length) {
+    const totalCreditsAtCost = weightedRows.reduce(
+      (sum, row) => sum + (row.activeCreditsAtCost ?? 0),
+      0
+    );
+    if (totalCreditsAtCost > 0) {
+      const weightedMarkupPercent = weightedRows.reduce(
+        (sum, row) =>
+          sum + ((row.activeCreditsAtCost ?? 0) * row.resolvedVariantPolicy.markupBps) / 100,
+        0
+      );
+      return weightedMarkupPercent / totalCreditsAtCost;
+    }
+  }
+
+  const markupPercents = rows
+    .map((row) => row.resolvedVariantPolicy.markupBps / 100)
+    .filter((value) => Number.isFinite(value));
+  if (!markupPercents.length) return null;
+  return markupPercents.reduce((sum, value) => sum + value, 0) / markupPercents.length;
+};
+
+const getVariantTypeSummary = (
+  model: AdminPricingModelRow,
+  variants: Array<AdminPricingPreviewVariant | null>
+): string => {
+  const labels = Array.from(
+    new Set(variants.map((variant) => getModelTypeLabel(model, variant)).filter(Boolean))
+  );
+  if (labels.length <= 1) return labels[0] ?? getModelTypeLabel(model);
+  return `${labels[0]} + ${labels.length - 1} more`;
+};
+
+const getDisplayedPricingStrategyLabel = (model: AdminPricingModelRow): string =>
+  getAdminPricingStrategyLabel(model.id, model.pricingStrategy as PricingStrategyId);
+
+const getMarginToneClassName = (marginUsd: number | null | undefined): string => {
+  if (marginUsd == null || !Number.isFinite(marginUsd)) return "";
+  if (marginUsd < 0) return styles.pricingMetricNegative;
+  if (marginUsd > 0) return styles.pricingMetricPositive;
+  return styles.pricingMetricNeutral;
+};
+
+const getPricingSourceUrl = (model: AdminPricingModelRow): string =>
+  model.provider === "kie" ? "https://kie.ai/pricing" : model.sourceUrl;
+
+const renderTypeSourceLink = (model: AdminPricingModelRow, label: string) => (
+  <a
+    href={getPricingSourceUrl(model)}
+    target="_blank"
+    rel="noreferrer"
+    className={styles.pricingTypeLink}
+    title={`Open source page for ${model.label}`}
+  >
+    <strong>{label}</strong>
+  </a>
+);
 
 type PricingModelWorkbookTableProps = {
   displayedModels: AdminPricingModelRow[];
-  selectedModelRow: AdminPricingModelRow | null;
   effectiveModelPolicyDraft: ModelPricingPolicyDocument;
   durationDrafts: DurationDraftByModelId;
   setDurationDrafts: React.Dispatch<React.SetStateAction<DurationDraftByModelId>>;
-  creditScaleDrafts: CreditScaleDraftByModelId;
-  setCreditScaleDrafts: React.Dispatch<React.SetStateAction<CreditScaleDraftByModelId>>;
+  aspectDrafts: AspectDraftByModelId;
+  updateAspectDraft: (modelId: string, value: string) => void;
+  resolutionDrafts: ResolutionDraftByModelId;
+  updateResolutionDraft: (modelId: string, value: string) => void;
+  audioDrafts: AudioDraftByModelId;
+  updateAudioDraft: (
+    modelId: string,
+    value: AudioDraftByModelId[string],
+    model: AdminPricingModelRow
+  ) => void;
   markupDrafts: MarkupDraftByModelId;
   setMarkupDrafts: React.Dispatch<React.SetStateAction<MarkupDraftByModelId>>;
-  roundingDrafts: RoundingDraftByModelId;
-  setRoundingDrafts: React.Dispatch<React.SetStateAction<RoundingDraftByModelId>>;
+  variantMarkupDrafts: VariantMarkupDraftByVariantKey;
+  setVariantMarkupDrafts: React.Dispatch<React.SetStateAction<VariantMarkupDraftByVariantKey>>;
+  variantProviderCostDrafts: VariantProviderCostDraftByVariantKey;
+  setVariantProviderCostDrafts: React.Dispatch<
+    React.SetStateAction<VariantProviderCostDraftByVariantKey>
+  >;
+  variantProviderCostPerSecondDrafts: VariantProviderCostPerSecondDraftByVariantKey;
+  setVariantProviderCostPerSecondDrafts: React.Dispatch<
+    React.SetStateAction<VariantProviderCostPerSecondDraftByVariantKey>
+  >;
   modelSortOption: ModelPricingSortOption;
   showCostDocsPopover: (
     clientX: number,
@@ -54,7 +181,6 @@ type PricingModelWorkbookTableProps = {
     variant: AdminPricingPreviewVariant | null
   ) => void;
   hideCostDocsPopover: () => void;
-  setSelectedModelOverrideId: React.Dispatch<React.SetStateAction<string | null>>;
   updateModelPolicyDraft: (
     updater: (current: ModelPricingPolicyDocument) => ModelPricingPolicyDocument
   ) => void;
@@ -62,397 +188,892 @@ type PricingModelWorkbookTableProps = {
 
 export function PricingModelWorkbookTable({
   displayedModels,
-  selectedModelRow,
   effectiveModelPolicyDraft,
   durationDrafts,
   setDurationDrafts,
-  creditScaleDrafts,
-  setCreditScaleDrafts,
+  aspectDrafts,
+  updateAspectDraft,
+  resolutionDrafts,
+  updateResolutionDraft,
+  audioDrafts,
+  updateAudioDraft,
   markupDrafts,
   setMarkupDrafts,
-  roundingDrafts,
-  setRoundingDrafts,
+  variantMarkupDrafts,
+  setVariantMarkupDrafts,
+  variantProviderCostDrafts,
+  setVariantProviderCostDrafts,
+  variantProviderCostPerSecondDrafts,
+  setVariantProviderCostPerSecondDrafts,
   modelSortOption,
   showCostDocsPopover,
   hideCostDocsPopover,
-  setSelectedModelOverrideId,
   updateModelPolicyDraft,
 }: PricingModelWorkbookTableProps) {
+  const [expandedModelIds, setExpandedModelIds] = React.useState<Record<string, boolean>>({});
+  const [pinnedHeaderLayout, setPinnedHeaderLayout] = React.useState<{
+    active: boolean;
+    left: number;
+    width: number;
+    height: number;
+  }>({
+    active: false,
+    left: 0,
+    width: 0,
+    height: 0,
+  });
+  const workbookShellRef = React.useRef<HTMLDivElement | null>(null);
+  const tableScrollerRef = React.useRef<HTMLDivElement | null>(null);
+  const stickyHeaderViewportRef = React.useRef<HTMLDivElement | null>(null);
+  const stickyHeaderTrackRef = React.useRef<HTMLDivElement | null>(null);
+
+  const toggleModelExpanded = React.useCallback((modelId: string) => {
+    setExpandedModelIds((current) => ({
+      ...current,
+      [modelId]: !current[modelId],
+    }));
+  }, []);
+
+  const syncStickyHeaderScroll = React.useCallback(() => {
+    const scroller = tableScrollerRef.current;
+    const headerTrack = stickyHeaderTrackRef.current;
+    if (!scroller || !headerTrack) return;
+    headerTrack.style.transform = `translateX(-${scroller.scrollLeft}px)`;
+  }, []);
+
+  React.useEffect(() => {
+    syncStickyHeaderScroll();
+  }, [syncStickyHeaderScroll]);
+
+  React.useEffect(() => {
+    const updatePinnedHeaderLayout = () => {
+      const shell = workbookShellRef.current;
+      const headerViewport = stickyHeaderViewportRef.current;
+      if (!shell || !headerViewport) return;
+
+      const shellRect = shell.getBoundingClientRect();
+      const headerHeight = headerViewport.offsetHeight;
+      const pinTop = 12;
+      const shouldPin = shellRect.top <= pinTop && shellRect.bottom - headerHeight > pinTop;
+
+      setPinnedHeaderLayout((current) => {
+        if (!shouldPin) {
+          if (!current.active && current.height === headerHeight) return current;
+          return {
+            active: false,
+            left: 0,
+            width: 0,
+            height: headerHeight,
+          };
+        }
+
+        const next = {
+          active: true,
+          left: shellRect.left,
+          width: shellRect.width,
+          height: headerHeight,
+        };
+        if (
+          current.active === next.active &&
+          Math.abs(current.left - next.left) < 0.5 &&
+          Math.abs(current.width - next.width) < 0.5 &&
+          current.height === next.height
+        ) {
+          return current;
+        }
+        return next;
+      });
+    };
+
+    updatePinnedHeaderLayout();
+    window.addEventListener("scroll", updatePinnedHeaderLayout, { passive: true });
+    window.addEventListener("resize", updatePinnedHeaderLayout);
+    return () => {
+      window.removeEventListener("scroll", updatePinnedHeaderLayout);
+      window.removeEventListener("resize", updatePinnedHeaderLayout);
+    };
+  }, []);
+
+  const workbookHeadCells = (
+    <>
+      <span>Provider</span>
+      <span>Model</span>
+      <span>Type</span>
+      <span>Usage</span>
+      <span>Spec</span>
+      <span>Rate source</span>
+      <span>$ at cost</span>
+      <span>Credits at cost</span>
+      <span>Markup</span>
+      <span>Billed credits</span>
+      <span>$ billed</span>
+      <span>Margin</span>
+    </>
+  );
+
   return (
-    <div className={styles.adminTableScroller}>
-      <div className={`${styles.adminTable} ${styles.pricingWorkbookTable}`}>
-        <div className={`${styles.pricingModelsHead} ${styles.adminTableHead}`}>
-          <span>Provider</span>
-          <span>Model</span>
-          <span>Type</span>
-          <span>Dur</span>
-          <span>Spec</span>
-          <span>Cost unit</span>
-          <span>$ at cost</span>
-          <span>Credits at cost</span>
-          <span>Model markup</span>
-          <span>Round</span>
-          <span>Billed credits</span>
-          <span>$ billed</span>
-          <span>Margin</span>
+    <div
+      ref={workbookShellRef}
+      className={styles.pricingWorkbookShell}
+      style={{
+        paddingTop: pinnedHeaderLayout.active ? `${pinnedHeaderLayout.height}px` : undefined,
+      }}
+    >
+      <div
+        ref={stickyHeaderViewportRef}
+        className={styles.pricingWorkbookStickyHeadViewport}
+        style={
+          pinnedHeaderLayout.active
+            ? {
+                position: "fixed",
+                top: "12px",
+                left: `${pinnedHeaderLayout.left}px`,
+                width: `${pinnedHeaderLayout.width}px`,
+                zIndex: 30,
+              }
+            : undefined
+        }
+      >
+        <div
+          ref={stickyHeaderTrackRef}
+          className={`${styles.adminTableHead} ${styles.pricingModelsHead} ${styles.pricingWorkbookStickyHeadTrack}`}
+        >
+          {workbookHeadCells}
         </div>
-        {displayedModels.length === 0 ? (
-          <div className={`${styles.pricingModelsRow} ${styles.adminTableRow}`}>
-            <span className={styles.pricingPrimaryCell}>
-              <strong>No models found</strong>
-              <small>Try a different search.</small>
-            </span>
-          </div>
-        ) : null}
-        {displayedModels.map((model) => {
-          const durationDraftValue = durationDrafts[model.id];
-          const defaultDurationSeconds = getModelDefaultDurationSeconds(model);
-          const durationInputValue =
-            durationDraftValue ??
-            (defaultDurationSeconds != null ? String(defaultDurationSeconds) : "");
-          const draftDurationSeconds =
-            durationDraftValue !== undefined ? parseDurationSecondsInput(durationDraftValue) : null;
-          const previewVariants = buildDraftPricingPreviewVariants(
-            model,
-            effectiveModelPolicyDraft,
-            draftDurationSeconds
-          );
-          const isSelected = selectedModelRow?.id === model.id;
-          const draftOverride = effectiveModelPolicyDraft.perModel[model.id] ?? null;
-          const resolvedModelPolicy = resolveModelPricingForModel(
-            effectiveModelPolicyDraft,
-            model.id
-          );
-          const creditScaleDraftValue = creditScaleDrafts[model.id];
-          const creditScaleInputValue =
-            creditScaleDraftValue ??
-            (draftOverride?.creditUsdScale != null ? String(draftOverride.creditUsdScale) : "");
-          const markupDraftValue = markupDrafts[model.id];
-          const markupInputValue =
-            markupDraftValue ??
-            (draftOverride?.markupBps != null ? String(draftOverride.markupBps / 100) : "0");
-          const parsedMarkupDraftBps =
-            markupDraftValue !== undefined ? parsePercentToBps(markupDraftValue) : null;
-          const previewMarkupBps =
-            markupDraftValue !== undefined &&
-            parsedMarkupDraftBps != null &&
-            parsedMarkupDraftBps >= 0
-              ? parsedMarkupDraftBps
-              : resolvedModelPolicy.markupBps;
-          const roundingDraftValue = roundingDrafts[model.id];
-          const roundingInputValue =
-            roundingDraftValue ??
-            (draftOverride?.roundingIncrement != null
-              ? String(draftOverride.roundingIncrement)
-              : "");
-          const parsedRoundingDraft =
-            roundingDraftValue !== undefined ? parseIntegerInput(roundingDraftValue) : null;
-          const previewRoundingIncrement =
-            roundingDraftValue !== undefined
-              ? parsedRoundingDraft != null && parsedRoundingDraft > 0
-                ? parsedRoundingDraft
-                : null
-              : (draftOverride?.roundingIncrement ?? null);
-          const canEditSharedPolicy = model.pricingAuthority === "shared_policy";
-          const rowVariants = sortAdminPricingPreviewVariants({
-            model,
-            variants: previewVariants.length ? previewVariants : [null],
-            sortOption: modelSortOption,
-          });
+      </div>
+      <div
+        ref={tableScrollerRef}
+        className={styles.adminTableScroller}
+        onScroll={syncStickyHeaderScroll}
+      >
+        <div
+          className={`${styles.adminTable} ${styles.pricingWorkbookTable} ${styles.pricingWorkbookBody}`}
+        >
+          {displayedModels.length === 0 ? (
+            <div className={`${styles.pricingModelsRow} ${styles.adminTableRow}`}>
+              <span className={styles.pricingPrimaryCell}>
+                <strong>No models found</strong>
+                <small>Try a different search.</small>
+              </span>
+            </div>
+          ) : null}
+          {displayedModels.map((model) => {
+            const durationDraftValue = durationDrafts[model.id];
+            const usageControl = getModelUsageControl(model);
+            const defaultUsageValue = usageControl.defaultValue;
+            const usageInputValue =
+              durationDraftValue ?? (defaultUsageValue != null ? String(defaultUsageValue) : "");
+            const draftUsageAmount =
+              durationDraftValue !== undefined
+                ? getModelUsageValue(model, durationDraftValue)
+                : null;
+            const resolvedUsageAmount = draftUsageAmount ?? defaultUsageValue;
+            const resolvedDurationSeconds = getModelDurationSecondsForUsage(
+              model,
+              resolvedUsageAmount
+            );
+            const usageRateMultiplier = getModelUsageRateMultiplier(model, resolvedUsageAmount);
+            const usageDisplayLabel = getModelUsageDisplayValue(model, resolvedUsageAmount);
+            const previewVariants = buildDraftPricingPreviewVariants(
+              model,
+              effectiveModelPolicyDraft,
+              {
+                usageAmount: draftUsageAmount,
+              }
+            );
+            const draftOverride = effectiveModelPolicyDraft.perModel[model.id] ?? null;
+            const resolvedModelPolicy = resolveModelPricingForModel(
+              effectiveModelPolicyDraft,
+              model.id
+            );
+            const markupDraftValue = markupDrafts[model.id];
+            const markupInputValue =
+              markupDraftValue ?? String(resolvedModelPolicy.markupBps / 100);
+            const canEditSharedPolicy = model.pricingAuthority === "shared_policy";
+            const rowVariants = sortAdminPricingPreviewVariants({
+              model,
+              variants: previewVariants.length ? previewVariants : [null],
+              sortOption: modelSortOption,
+            });
+            const isExpanded = expandedModelIds[model.id] ?? false;
+            const variantRows = rowVariants.map((variant, index) => {
+              const variantId = variant?.id ?? null;
+              const variantDraftKey = `${model.id}:${variantId ?? "default"}`;
+              const resolvedVariantPolicy = resolveModelPricingForModel(
+                effectiveModelPolicyDraft,
+                model.id,
+                variantId
+              );
+              const variantOverride = variantId
+                ? (draftOverride?.variants?.[variantId] ?? null)
+                : null;
+              const activePreview = variant?.breakdown ?? null;
+              const variantMarkupDraftValue = variantMarkupDrafts[variantDraftKey];
+              const variantMarkupInputValue =
+                variantMarkupDraftValue ??
+                (variantOverride?.markupBps != null ? String(variantOverride.markupBps / 100) : "");
+              const rateSourceInputMode = getModelRateSourceInputMode(model);
+              const variantProviderCostDraftValue = variantProviderCostDrafts[variantDraftKey];
+              const variantProviderCostPerSecondDraftValue =
+                variantProviderCostPerSecondDrafts[variantDraftKey];
+              const variantProviderCostPerSecondInputValue =
+                variantProviderCostPerSecondDraftValue ??
+                (variantOverride?.providerUsdPerSecondOverride != null
+                  ? String(variantOverride.providerUsdPerSecondOverride)
+                  : "");
+              const parsedVariantMarkupDraftBps =
+                variantMarkupDraftValue !== undefined
+                  ? parsePercentToBps(variantMarkupDraftValue)
+                  : null;
+              const previewVariantMarkupBps =
+                variantMarkupDraftValue !== undefined &&
+                parsedVariantMarkupDraftBps != null &&
+                parsedVariantMarkupDraftBps >= 0
+                  ? parsedVariantMarkupDraftBps
+                  : resolvedVariantPolicy.markupBps;
+              const parsedVariantProviderCostDraft =
+                variantProviderCostDraftValue !== undefined
+                  ? parsePositiveDecimalInput(variantProviderCostDraftValue)
+                  : null;
+              const parsedVariantProviderCostPerSecondDraftRaw =
+                variantProviderCostPerSecondDraftValue !== undefined
+                  ? parsePositiveDecimalInput(variantProviderCostPerSecondDraftValue)
+                  : null;
+              const parsedVariantProviderCostPerSecondDraft =
+                parsedVariantProviderCostPerSecondDraftRaw == null
+                  ? null
+                  : rateSourceInputMode === "per_minute"
+                    ? parsedVariantProviderCostPerSecondDraftRaw / 60
+                    : rateSourceInputMode === "per_second"
+                      ? parsedVariantProviderCostPerSecondDraftRaw
+                      : null;
+              const previewVariantProviderUsdOverride =
+                variantProviderCostDraftValue !== undefined
+                  ? parsedVariantProviderCostDraft
+                  : resolvedVariantPolicy.providerUsdOverride;
+              const previewVariantProviderUsdPerSecondOverride =
+                variantProviderCostPerSecondDraftValue !== undefined
+                  ? parsedVariantProviderCostPerSecondDraft
+                  : resolvedVariantPolicy.providerUsdPerSecondOverride;
+              const activeProviderCostUsd = getEffectiveProviderCostUsd({
+                breakdown: activePreview,
+                providerUsdOverride: previewVariantProviderUsdOverride,
+                providerUsdPerSecondOverride: previewVariantProviderUsdPerSecondOverride,
+                durationSeconds: resolvedDurationSeconds,
+                usageRateMultiplier,
+              });
+              const activeProviderCostUsdPerSecond = getEffectiveProviderCostUsdPerSecond({
+                providerCostUsd: activeProviderCostUsd,
+                providerUsdPerSecondOverride: previewVariantProviderUsdPerSecondOverride,
+                durationSeconds: resolvedDurationSeconds,
+              });
+              const activeRateSourceCostUsd = getRateSourceCostUsd({
+                rateSourceInputMode,
+                providerCostUsd: activeProviderCostUsd,
+                providerCostUsdPerSecond: activeProviderCostUsdPerSecond,
+                durationSeconds: resolvedDurationSeconds,
+                usageRateMultiplier,
+              });
+              const variantProviderCostInputValue =
+                rateSourceInputMode !== "flat"
+                  ? activeProviderCostUsd != null
+                    ? String(Number(activeProviderCostUsd.toFixed(4)))
+                    : ""
+                  : (variantProviderCostDraftValue ??
+                    (variantOverride?.providerUsdOverride != null
+                      ? String(variantOverride.providerUsdOverride)
+                      : ""));
+              const rateSourceInputValue =
+                rateSourceInputMode === "per_minute"
+                  ? (variantProviderCostPerSecondDraftValue ??
+                    (variantOverride?.providerUsdPerSecondOverride != null
+                      ? String(variantOverride.providerUsdPerSecondOverride * 60)
+                      : ""))
+                  : rateSourceInputMode === "per_second"
+                    ? variantProviderCostPerSecondInputValue
+                    : rateSourceInputMode === "flat"
+                      ? variantProviderCostInputValue
+                      : (variantProviderCostDraftValue ??
+                        (activeRateSourceCostUsd != null
+                          ? String(Number(activeRateSourceCostUsd.toFixed(4)))
+                          : ""));
+              const activeCreditsAtCost = getCreditsAtProviderCost(
+                activePreview,
+                resolvedVariantPolicy.creditUsdScale,
+                {
+                  preferRuntimeCredits: !canEditSharedPolicy,
+                  providerCostUsd: canEditSharedPolicy ? activeProviderCostUsd : null,
+                }
+              );
+              const workbookBillableCredits = getWorkbookBillableCredits({
+                breakdown: activePreview,
+                creditsAtCost: activeCreditsAtCost,
+                markupBps: previewVariantMarkupBps,
+                roundingIncrement: resolvedVariantPolicy.roundingIncrement,
+                preferRuntimeBilledCredits: !canEditSharedPolicy,
+              });
+              const workbookBillableUsd = getWorkbookBillableUsd(
+                workbookBillableCredits,
+                resolvedVariantPolicy.creditUsdScale,
+                activePreview?.billedUsd,
+                {
+                  preferRuntimeBilledUsd: !canEditSharedPolicy,
+                }
+              );
+              const activeMargin = getPricingMargin(
+                activePreview,
+                workbookBillableUsd,
+                activeProviderCostUsd
+              );
+              const markupLabel =
+                rowVariants.length > 1 && variant
+                  ? `Model markup for ${model.label} ${variant.label}`
+                  : `Model markup for ${model.label}`;
 
-          return (
-            <React.Fragment key={model.id}>
-              {rowVariants.map((variant) => {
-                const activePreview = variant?.breakdown ?? null;
-                const activeCreditsAtCost = getCreditsAtProviderCost(
-                  activePreview,
-                  resolvedModelPolicy.creditUsdScale
-                );
-                const workbookBillableCredits = getWorkbookBillableCredits({
-                  creditsAtCost: activeCreditsAtCost,
-                  markupBps: previewMarkupBps,
-                  roundingIncrement: previewRoundingIncrement,
-                });
-                const workbookBillableUsd = getWorkbookBillableUsd(
-                  workbookBillableCredits,
-                  resolvedModelPolicy.creditUsdScale
-                );
-                const activeMargin = getPricingMargin(activePreview, workbookBillableUsd);
-                const markupLabel =
-                  rowVariants.length > 1 && variant
-                    ? `Model markup for ${model.label} ${variant.label}`
-                    : `Model markup for ${model.label}`;
-                const roundingLabel =
-                  rowVariants.length > 1 && variant
-                    ? `Round nearest for ${model.label} ${variant.label}`
-                    : `Round nearest for ${model.label}`;
+              return {
+                key: `${model.id}:${variant?.id ?? "unavailable"}`,
+                index,
+                variant,
+                activePreview,
+                activeProviderCostUsd,
+                activeProviderCostUsdPerSecond,
+                activeRateSourceCostUsd,
+                activeCreditsAtCost,
+                workbookBillableCredits,
+                workbookBillableUsd,
+                activeMargin,
+                resolvedVariantPolicy,
+                variantDraftKey,
+                variantId,
+                resolvedDurationSeconds,
+                usageRateMultiplier,
+                variantMarkupInputValue,
+                variantProviderCostInputValue,
+                variantProviderCostPerSecondInputValue,
+                rateSourceInputMode,
+                rateSourceInputValue,
+                markupLabel,
+                specLabel: getVariantSpecSummary(model, variant, rowVariants.length),
+              };
+            });
+            const usageDisplayValue = usageInputValue || usageDisplayLabel;
+            const variantCountLabel =
+              variantRows.length === 1 ? "1 price variant" : `${variantRows.length} price variants`;
+            const summarySpecLabel =
+              variantRows.length === 1
+                ? (variantRows[0]?.specLabel ?? getVariantSpecSummary(model, null, 1))
+                : variantCountLabel;
+            const summaryMarginPercent = formatPercentRange(
+              variantRows.map((row) => row.activeMargin?.percent)
+            );
+            const hasVariantMarkupOverrides = variantRows.some(
+              (row) => row.resolvedVariantPolicy.markupBps !== resolvedModelPolicy.markupBps
+            );
+            const summaryBlendedMarkupPercent = getWeightedMarkupPercent(variantRows);
+            const summaryMarkupRange = hasVariantMarkupOverrides
+              ? formatPercentRange(
+                  variantRows.map((row) => row.resolvedVariantPolicy.markupBps / 100)
+                )
+              : null;
+            const shouldShowBlendedMarkupSummary = canEditSharedPolicy && hasVariantMarkupOverrides;
+            const summaryMarkupHelperText =
+              variantRows.length === 1
+                ? "Variant override"
+                : (summaryMarkupRange ?? "Blended from variants");
+            const summaryTypeLabel = getVariantTypeSummary(model, rowVariants);
+            const summaryVariant = variantRows[0]?.variant ?? null;
+            const summaryMarginToneClass =
+              variantRows.length === 1
+                ? getMarginToneClassName(variantRows[0]?.activeMargin?.usd)
+                : "";
 
-                return (
-                  <div
-                    key={`${model.id}:${variant?.id ?? "unavailable"}`}
-                    className={`${styles.pricingModelsRow} ${
-                      isSelected ? styles.adminTableRowActive : ""
-                    }`}
+            return (
+              <React.Fragment key={model.id}>
+                <div className={`${styles.pricingModelsRow} ${styles.pricingModelSummaryRow}`}>
+                  <span
+                    className={`${styles.pricingProviderLabel} ${getProviderLabelClassName(
+                      model.provider
+                    )}`.trim()}
                   >
-                    <span
-                      className={`${styles.pricingProviderLabel} ${getProviderLabelClassName(
-                        model.provider
-                      )}`.trim()}
-                    >
-                      {model.provider}
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
+                    {model.provider}
+                  </span>
+                  <span className={`${styles.pricingPrimaryCell} ${styles.pricingRateSourceCell}`}>
+                    <div className={styles.pricingModelSummaryCell}>
                       <button
                         type="button"
-                        className={styles.pricingModelCellButton}
-                        onClick={() =>
-                          setSelectedModelOverrideId((current) =>
-                            current === model.id ? null : model.id
-                          )
-                        }
-                        aria-expanded={isSelected}
-                        aria-label={`Configure pricing override for ${model.label}`}
+                        className={styles.pricingModelToggleButton}
+                        onClick={() => toggleModelExpanded(model.id)}
+                        aria-expanded={isExpanded}
+                        aria-controls={`pricing-variants-${model.id}`}
                       >
+                        <span className={styles.pricingExpandGlyph}>{isExpanded ? "-" : "+"}</span>
                         <strong>{model.label}</strong>
                       </button>
-                    </span>
-                    <span className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}>
-                      <strong>{getModelTypeLabel(model, variant)}</strong>
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {canEditModelDuration(model) ? (
-                        <label className={styles.pricingDurationInputWrap}>
-                          <span className="sr-only">{`Duration seconds for ${model.label}`}</span>
-                          <input
-                            aria-label={`Duration seconds for ${model.label}`}
-                            className={`${styles.searchInput} ${styles.pricingSheetInput}`}
-                            type="number"
-                            inputMode="decimal"
-                            min={model.minDurationSeconds ?? undefined}
-                            max={model.maxDurationSeconds ?? undefined}
-                            step={getDurationInputStep(model)}
-                            value={durationInputValue}
-                            onChange={(event) =>
-                              setDurationDrafts((current) => ({
-                                ...current,
-                                [model.id]: event.target.value,
-                              }))
-                            }
-                          />
-                        </label>
-                      ) : (
-                        <strong>{getModelDurationSummary(model)}</strong>
+                      <small>{variantCountLabel}</small>
+                    </div>
+                  </span>
+                  <span className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}>
+                    {renderTypeSourceLink(model, summaryTypeLabel)}
+                  </span>
+                  <span className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}>
+                    {canEditModelDuration(model) ? (
+                      <label className={styles.pricingDurationInputWrap}>
+                        <span className="sr-only">{`${usageControl.label} for ${model.label}`}</span>
+                        <input
+                          aria-label={`${usageControl.label} for ${model.label}`}
+                          className={`${styles.searchInput} ${styles.pricingSheetInput}`}
+                          type="number"
+                          inputMode={usageControl.inputMode}
+                          min={usageControl.minValue ?? undefined}
+                          max={usageControl.maxValue ?? undefined}
+                          step={usageControl.step}
+                          value={usageInputValue}
+                          onChange={(event) =>
+                            setDurationDrafts((current) => ({
+                              ...current,
+                              [model.id]: event.target.value,
+                            }))
+                          }
+                        />
+                        {usageControl.unitLabel ? <small>{usageControl.unitLabel}</small> : null}
+                      </label>
+                    ) : (
+                      <>
+                        <strong>{usageDisplayLabel || "—"}</strong>
+                        {usageControl.kind !== "none" ? <small>{usageControl.label}</small> : null}
+                      </>
+                    )}
+                  </span>
+                  <span className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}>
+                    <strong>{summarySpecLabel}</strong>
+                    {variantRows.length > 1 ? <small>Expand to inspect each tier.</small> : null}
+                  </span>
+                  <span className={`${styles.pricingPrimaryCell} ${styles.pricingControlCell}`}>
+                    <button
+                      type="button"
+                      className={styles.pricingCostUnitButton}
+                      aria-label={`Show provider pricing docs for ${model.label}`}
+                      onMouseEnter={(event) =>
+                        showCostDocsPopover(event.clientX, event.clientY, model, summaryVariant)
+                      }
+                      onMouseMove={(event) =>
+                        showCostDocsPopover(event.clientX, event.clientY, model, summaryVariant)
+                      }
+                      onMouseLeave={hideCostDocsPopover}
+                      onFocus={(event) => {
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        showCostDocsPopover(rect.right, rect.top, model, summaryVariant);
+                      }}
+                      onBlur={hideCostDocsPopover}
+                    >
+                      <strong>{getDisplayedPricingStrategyLabel(model)}</strong>
+                    </button>
+                    <small>
+                      {formatValueRange(
+                        variantRows.map((row) => row.activeRateSourceCostUsd),
+                        formatProviderCostUsd
                       )}
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      <strong>{getVariantSpecSummary(model, variant, rowVariants.length)}</strong>
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      <button
-                        type="button"
-                        className={styles.pricingCostUnitButton}
-                        aria-label={`Show provider pricing docs for ${model.label}${
-                          variant && variant.id !== "default" ? ` ${variant.label}` : ""
-                        }`}
-                        onMouseEnter={(event) =>
-                          showCostDocsPopover(event.clientX, event.clientY, model, variant)
-                        }
-                        onMouseMove={(event) =>
-                          showCostDocsPopover(event.clientX, event.clientY, model, variant)
-                        }
-                        onMouseLeave={hideCostDocsPopover}
-                        onFocus={(event) => {
-                          const rect = event.currentTarget.getBoundingClientRect();
-                          showCostDocsPopover(rect.right, rect.top, model, variant);
-                        }}
-                        onBlur={hideCostDocsPopover}
-                      >
-                        <strong>{model.pricingStrategyLabel}</strong>
-                      </button>
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {activePreview ? (
-                        <strong>{formatProviderCostUsd(activePreview.usdRaw)}</strong>
-                      ) : (
-                        <small>Unavailable</small>
+                    </small>
+                    {canEditSharedPolicy ? (
+                      <small>
+                        {variantRows.length === 1
+                          ? "Expand to edit this variant."
+                          : "Expand to edit each tier."}
+                      </small>
+                    ) : null}
+                  </span>
+                  <span className={`${styles.pricingPrimaryCell} ${styles.pricingControlCell}`}>
+                    <strong>
+                      {formatValueRange(
+                        variantRows.map((row) => row.activeProviderCostUsd),
+                        formatProviderCostUsd
                       )}
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {activeCreditsAtCost != null ? (
-                        <strong>{formatFractionalCredits(activeCreditsAtCost)}</strong>
-                      ) : (
-                        <small>Unavailable</small>
+                    </strong>
+                  </span>
+                  <span className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}>
+                    <strong>
+                      {formatValueRange(
+                        variantRows.map((row) => row.activeCreditsAtCost),
+                        formatFractionalCredits
                       )}
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {canEditSharedPolicy ? (
-                        <label className={styles.pricingSheetInputWrap}>
-                          <span className="sr-only">{markupLabel}</span>
-                          <input
-                            aria-label={markupLabel}
-                            className={`${styles.searchInput} ${styles.pricingSheetInput}`}
-                            value={markupInputValue}
-                            onChange={(event) => {
-                              const nextValue = event.target.value;
-                              setMarkupDrafts((current) => ({
-                                ...current,
-                                [model.id]: nextValue,
-                              }));
-                              updateModelPolicyDraft((current) =>
-                                normalizeModelOverrideDraft(current, model.id, {
-                                  markupBps: parsePercentToBps(nextValue),
-                                })
-                              );
-                            }}
-                          />
-                          <span>%</span>
-                        </label>
-                      ) : (
-                        <span className={getPricingAuthorityClassName(model.pricingAuthority)}>
+                    </strong>
+                  </span>
+                  <span className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}>
+                    {shouldShowBlendedMarkupSummary ? (
+                      <>
+                        <strong>
+                          {summaryBlendedMarkupPercent != null
+                            ? formatPercent(summaryBlendedMarkupPercent)
+                            : formatPercent(resolvedModelPolicy.markupBps / 100)}
+                        </strong>
+                        <small>{summaryMarkupHelperText}</small>
+                      </>
+                    ) : canEditSharedPolicy ? (
+                      <label className={styles.pricingSheetInputWrap}>
+                        <span className="sr-only">{`Model markup for ${model.label}`}</span>
+                        <input
+                          aria-label={`Model markup for ${model.label}`}
+                          className={`${styles.searchInput} ${styles.pricingSheetInput}`}
+                          value={markupInputValue}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            setMarkupDrafts((current) => ({
+                              ...current,
+                              [model.id]: nextValue,
+                            }));
+                            updateModelPolicyDraft((current) =>
+                              normalizeModelOverrideDraft(current, model.id, {
+                                markupBps: parsePercentToBps(nextValue),
+                              })
+                            );
+                          }}
+                        />
+                        <span>%</span>
+                      </label>
+                    ) : (
+                      <>
+                        <strong>{formatPercent(resolvedModelPolicy.markupBps / 100)}</strong>
+                        <small className={getPricingAuthorityClassName(model.pricingAuthority)}>
                           {getPricingAuthorityLabel(model.pricingAuthority)}
-                        </span>
+                        </small>
+                      </>
+                    )}
+                  </span>
+                  <span className={styles.pricingPrimaryCell}>
+                    <strong>
+                      {formatValueRange(
+                        variantRows.map((row) => row.workbookBillableCredits),
+                        formatFractionalCredits
                       )}
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {canEditSharedPolicy ? (
-                        <label className={styles.pricingRoundInputWrap}>
-                          <span className="sr-only">{roundingLabel}</span>
-                          <input
-                            aria-label={roundingLabel}
-                            className={`${styles.searchInput} ${styles.pricingSheetInput}`}
-                            type="text"
-                            inputMode="numeric"
-                            value={roundingInputValue}
-                            onChange={(event) => {
-                              const nextValue = event.target.value;
-                              setRoundingDrafts((current) => ({
-                                ...current,
-                                [model.id]: nextValue,
-                              }));
-                              updateModelPolicyDraft((current) =>
-                                normalizeModelOverrideDraft(current, model.id, {
-                                  roundingIncrement: parseIntegerInput(nextValue),
-                                })
-                              );
-                            }}
-                          />
-                        </label>
-                      ) : (
-                        <span className={getPricingAuthorityClassName(model.pricingAuthority)}>
-                          {getPricingAuthorityLabel(model.pricingAuthority)}
-                        </span>
+                    </strong>
+                  </span>
+                  <span className={styles.pricingPrimaryCell}>
+                    <strong>
+                      {formatValueRange(
+                        variantRows.map((row) => row.workbookBillableUsd),
+                        formatProviderCostUsd
                       )}
-                      {draftOverride?.roundingIncrement != null ? <small>override</small> : null}
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {workbookBillableCredits != null ? (
-                        <strong>{formatFractionalCredits(workbookBillableCredits)}</strong>
-                      ) : (
-                        <small>Unavailable</small>
+                    </strong>
+                  </span>
+                  <span className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}>
+                    <strong className={summaryMarginToneClass}>
+                      {formatValueRange(
+                        variantRows.map((row) => row.activeMargin?.usd),
+                        formatProviderCostUsd
                       )}
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {workbookBillableUsd != null ? (
-                        <strong>{formatProviderCostUsd(workbookBillableUsd)}</strong>
-                      ) : (
-                        <small>Unavailable</small>
-                      )}
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {activeMargin ? (
-                        <>
-                          <strong>{formatProviderCostUsd(activeMargin.usd)}</strong>
-                          {activeMargin.percent != null ? (
-                            <small>{formatPercent(activeMargin.percent)}</small>
-                          ) : null}
-                        </>
-                      ) : (
-                        <small>Unavailable</small>
-                      )}
-                    </span>
-                  </div>
-                );
-              })}
-              {isSelected ? (
-                <div className={styles.pricingInlineEditorCard}>
-                  <p className="eyebrow">Edit model pricing policy</p>
-                  {model.pricingAuthority !== "shared_policy" ? (
-                    <p className={styles.pricingInlineNotice}>
-                      Metadata-only lane. Grid overrides do not control billing here.
-                    </p>
-                  ) : (
-                    <>
-                      <div className={styles.pricingInlineEditorTopRow}>
-                        <div className={styles.pricingInlineOverridesGrid}>
-                          <label className={styles.manualAdjustField}>
-                            <span className="tiny subdued">Credit conversion override</span>
-                            <input
-                              className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
-                              value={creditScaleInputValue}
-                              placeholder="none"
-                              onChange={(event) => {
-                                const nextValue = event.target.value;
-                                setCreditScaleDrafts((current) => ({
-                                  ...current,
-                                  [model.id]: nextValue,
-                                }));
-                                updateModelPolicyDraft((current) =>
-                                  normalizeModelOverrideDraft(current, model.id, {
-                                    creditUsdScale: parseIntegerInput(nextValue),
-                                  })
-                                );
-                              }}
-                            />
-                          </label>
-                          <label className={styles.manualAdjustField}>
-                            <span className="tiny subdued">Model markup</span>
-                            <input
-                              className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
-                              value={markupInputValue}
-                              placeholder="none"
-                              onChange={(event) => {
-                                const nextValue = event.target.value;
-                                setMarkupDrafts((current) => ({
-                                  ...current,
-                                  [model.id]: nextValue,
-                                }));
-                                updateModelPolicyDraft((current) =>
-                                  normalizeModelOverrideDraft(current, model.id, {
-                                    markupBps: parsePercentToBps(nextValue),
-                                  })
-                                );
-                              }}
-                            />
-                          </label>
-                          <label className={styles.manualAdjustField}>
-                            <span className="tiny subdued">Roundup increment override</span>
-                            <input
-                              className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
-                              value={roundingInputValue}
-                              placeholder="none"
-                              onChange={(event) => {
-                                const nextValue = event.target.value;
-                                setRoundingDrafts((current) => ({
-                                  ...current,
-                                  [model.id]: nextValue,
-                                }));
-                                updateModelPolicyDraft((current) =>
-                                  normalizeModelOverrideDraft(current, model.id, {
-                                    roundingIncrement: parseIntegerInput(nextValue),
-                                  })
-                                );
-                              }}
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                    </strong>
+                    {summaryMarginPercent ? <small>{summaryMarginPercent}</small> : null}
+                  </span>
                 </div>
-              ) : null}
-            </React.Fragment>
-          );
-        })}
+                {isExpanded ? (
+                  <div id={`pricing-variants-${model.id}`} className={styles.pricingVariantGroup}>
+                    {variantRows.map((row) => (
+                      <div
+                        key={row.key}
+                        className={`${styles.pricingModelsRow} ${styles.pricingVariantRow}`}
+                      >
+                        <span className={styles.pricingVariantPlaceholder} />
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingRateSourceCell}`}
+                        >
+                          <strong>{`Variant ${row.index + 1}`}</strong>
+                          <small>{model.label}</small>
+                        </span>
+                        <span className={`${styles.pricingPrimaryCell} ${styles.pricingTypeCell}`}>
+                          {renderTypeSourceLink(model, getModelTypeLabel(model, row.variant))}
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          <strong>{usageDisplayValue || "—"}</strong>
+                          {usageControl.kind !== "none" ? (
+                            <small>{usageControl.label}</small>
+                          ) : null}
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          <strong>{row.specLabel}</strong>
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingControlCell}`}
+                        >
+                          <button
+                            type="button"
+                            className={styles.pricingCostUnitButton}
+                            aria-label={`Show provider pricing docs for ${model.label}${
+                              row.variant && row.variant.id !== "default"
+                                ? ` ${row.variant.label}`
+                                : ""
+                            }`}
+                            onMouseEnter={(event) =>
+                              showCostDocsPopover(event.clientX, event.clientY, model, row.variant)
+                            }
+                            onMouseMove={(event) =>
+                              showCostDocsPopover(event.clientX, event.clientY, model, row.variant)
+                            }
+                            onMouseLeave={hideCostDocsPopover}
+                            onFocus={(event) => {
+                              const rect = event.currentTarget.getBoundingClientRect();
+                              showCostDocsPopover(rect.right, rect.top, model, row.variant);
+                            }}
+                            onBlur={hideCostDocsPopover}
+                          >
+                            <strong>{getDisplayedPricingStrategyLabel(model)}</strong>
+                          </button>
+                          {canEditSharedPolicy && row.variantId ? (
+                            <label className={styles.pricingSheetInputWrap}>
+                              <span className="sr-only">{`Rate source cost for ${model.label} ${row.specLabel}`}</span>
+                              <input
+                                aria-label={`Rate source cost for ${model.label} ${row.specLabel}`}
+                                className={`${styles.searchInput} ${styles.pricingSheetInput}`}
+                                value={row.rateSourceInputValue}
+                                placeholder={
+                                  row.activeRateSourceCostUsd != null
+                                    ? String(Number(row.activeRateSourceCostUsd.toFixed(4)))
+                                    : ""
+                                }
+                                onChange={(event) => {
+                                  const variantId = row.variantId;
+                                  if (!variantId) return;
+                                  const nextValue = event.target.value;
+                                  const parsedRateCost = parsePositiveDecimalInput(nextValue);
+                                  const isTimeRateMode =
+                                    row.rateSourceInputMode === "per_minute" ||
+                                    row.rateSourceInputMode === "per_second";
+                                  const providerUsdPerSecondOverride =
+                                    row.rateSourceInputMode === "per_minute" &&
+                                    parsedRateCost != null
+                                      ? parsedRateCost / 60
+                                      : row.rateSourceInputMode === "per_second"
+                                        ? parsedRateCost
+                                        : null;
+                                  const providerUsdOverride = isTimeRateMode
+                                    ? null
+                                    : parsedRateCost;
+                                  if (isTimeRateMode) {
+                                    setVariantProviderCostPerSecondDrafts((current) => ({
+                                      ...current,
+                                      [row.variantDraftKey]: nextValue,
+                                    }));
+                                    setVariantProviderCostDrafts((current) => {
+                                      const next = { ...current };
+                                      delete next[row.variantDraftKey];
+                                      return next;
+                                    });
+                                  } else {
+                                    setVariantProviderCostDrafts((current) => ({
+                                      ...current,
+                                      [row.variantDraftKey]: nextValue,
+                                    }));
+                                    setVariantProviderCostPerSecondDrafts((current) => {
+                                      const next = { ...current };
+                                      delete next[row.variantDraftKey];
+                                      return next;
+                                    });
+                                  }
+                                  updateModelPolicyDraft((current) =>
+                                    normalizeVariantOverrideDraft(current, model.id, variantId, {
+                                      providerUsdOverride,
+                                      providerUsdPerSecondOverride,
+                                    })
+                                  );
+                                }}
+                              />
+                            </label>
+                          ) : row.activeRateSourceCostUsd != null ? (
+                            <small>{formatProviderCostUsd(row.activeRateSourceCostUsd)}</small>
+                          ) : (
+                            <small>Unavailable</small>
+                          )}
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          {canEditSharedPolicy && row.variantId ? (
+                            <label className={styles.pricingSheetInputWrap}>
+                              <span className="sr-only">{`Provider cost for ${model.label} ${row.specLabel}`}</span>
+                              <input
+                                aria-label={`Provider cost for ${model.label} ${row.specLabel}`}
+                                className={`${styles.searchInput} ${styles.pricingSheetInput}`}
+                                value={row.variantProviderCostInputValue}
+                                placeholder={
+                                  row.activePreview?.usdRaw != null
+                                    ? row.activePreview.usdRaw.toFixed(4)
+                                    : ""
+                                }
+                                onChange={(event) => {
+                                  const variantId = row.variantId;
+                                  if (!variantId) return;
+                                  const nextValue = event.target.value;
+                                  const parsedProviderCost = parsePositiveDecimalInput(nextValue);
+                                  const isTimeRateMode =
+                                    row.rateSourceInputMode === "per_minute" ||
+                                    row.rateSourceInputMode === "per_second";
+                                  const derivedProviderUsdPerSecondOverride =
+                                    isTimeRateMode &&
+                                    parsedProviderCost != null &&
+                                    row.resolvedDurationSeconds != null &&
+                                    Number.isFinite(row.resolvedDurationSeconds) &&
+                                    row.resolvedDurationSeconds > 0
+                                      ? parsedProviderCost / row.resolvedDurationSeconds
+                                      : null;
+                                  const derivedProviderUsdOverride =
+                                    !isTimeRateMode &&
+                                    parsedProviderCost != null &&
+                                    row.usageRateMultiplier != null &&
+                                    Number.isFinite(row.usageRateMultiplier) &&
+                                    row.usageRateMultiplier > 0 &&
+                                    row.rateSourceInputMode !== "flat"
+                                      ? parsedProviderCost / row.usageRateMultiplier
+                                      : !isTimeRateMode
+                                        ? parsedProviderCost
+                                        : null;
+                                  if (isTimeRateMode) {
+                                    setVariantProviderCostDrafts((current) => {
+                                      const next = { ...current };
+                                      delete next[row.variantDraftKey];
+                                      return next;
+                                    });
+                                    setVariantProviderCostPerSecondDrafts((current) => {
+                                      const next = { ...current };
+                                      if (
+                                        derivedProviderUsdPerSecondOverride != null &&
+                                        Number.isFinite(derivedProviderUsdPerSecondOverride) &&
+                                        derivedProviderUsdPerSecondOverride > 0
+                                      ) {
+                                        next[row.variantDraftKey] =
+                                          row.rateSourceInputMode === "per_minute"
+                                            ? String(
+                                                Number(
+                                                  (
+                                                    derivedProviderUsdPerSecondOverride * 60
+                                                  ).toFixed(4)
+                                                )
+                                              )
+                                            : String(
+                                                Number(
+                                                  derivedProviderUsdPerSecondOverride.toFixed(4)
+                                                )
+                                              );
+                                      } else {
+                                        delete next[row.variantDraftKey];
+                                      }
+                                      return next;
+                                    });
+                                  } else {
+                                    setVariantProviderCostDrafts((current) => ({
+                                      ...current,
+                                      [row.variantDraftKey]:
+                                        derivedProviderUsdOverride != null &&
+                                        Number.isFinite(derivedProviderUsdOverride) &&
+                                        derivedProviderUsdOverride > 0
+                                          ? String(Number(derivedProviderUsdOverride.toFixed(4)))
+                                          : nextValue,
+                                    }));
+                                    setVariantProviderCostPerSecondDrafts((current) => {
+                                      const next = { ...current };
+                                      delete next[row.variantDraftKey];
+                                      return next;
+                                    });
+                                  }
+                                  updateModelPolicyDraft((current) =>
+                                    normalizeVariantOverrideDraft(current, model.id, variantId, {
+                                      providerUsdOverride: derivedProviderUsdOverride,
+                                      providerUsdPerSecondOverride:
+                                        derivedProviderUsdPerSecondOverride,
+                                    })
+                                  );
+                                }}
+                              />
+                            </label>
+                          ) : row.activeProviderCostUsd != null ? (
+                            <strong>{formatProviderCostUsd(row.activeProviderCostUsd)}</strong>
+                          ) : (
+                            <small>Unavailable</small>
+                          )}
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingControlCell}`}
+                        >
+                          {row.activeCreditsAtCost != null ? (
+                            <strong>{formatFractionalCredits(row.activeCreditsAtCost)}</strong>
+                          ) : (
+                            <small>Unavailable</small>
+                          )}
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          {canEditSharedPolicy && row.variantId ? (
+                            <label className={styles.pricingSheetInputWrap}>
+                              <span className="sr-only">{row.markupLabel}</span>
+                              <input
+                                aria-label={row.markupLabel}
+                                className={`${styles.searchInput} ${styles.pricingSheetInput}`}
+                                value={row.variantMarkupInputValue}
+                                placeholder={String(row.resolvedVariantPolicy.markupBps / 100)}
+                                onChange={(event) => {
+                                  const variantId = row.variantId;
+                                  if (!variantId) return;
+                                  const nextValue = event.target.value;
+                                  setVariantMarkupDrafts((current) => ({
+                                    ...current,
+                                    [row.variantDraftKey]: nextValue,
+                                  }));
+                                  updateModelPolicyDraft((current) =>
+                                    normalizeVariantOverrideDraft(current, model.id, variantId, {
+                                      markupBps: parsePercentToBps(nextValue),
+                                    })
+                                  );
+                                }}
+                              />
+                              <span>%</span>
+                            </label>
+                          ) : (
+                            <strong>
+                              {formatPercent(row.resolvedVariantPolicy.markupBps / 100)}
+                            </strong>
+                          )}
+                        </span>
+                        <span
+                          className={`${styles.pricingPrimaryCell} ${styles.pricingNumberCell}`}
+                        >
+                          {row.workbookBillableCredits != null ? (
+                            <strong>{formatFractionalCredits(row.workbookBillableCredits)}</strong>
+                          ) : (
+                            <small>Unavailable</small>
+                          )}
+                        </span>
+                        <span className={styles.pricingPrimaryCell}>
+                          {row.workbookBillableUsd != null ? (
+                            <strong>{formatProviderCostUsd(row.workbookBillableUsd)}</strong>
+                          ) : (
+                            <small>Unavailable</small>
+                          )}
+                        </span>
+                        <span className={styles.pricingPrimaryCell}>
+                          {row.activeMargin ? (
+                            <>
+                              <strong className={getMarginToneClassName(row.activeMargin.usd)}>
+                                {formatProviderCostUsd(row.activeMargin.usd)}
+                              </strong>
+                              {row.activeMargin.percent != null ? (
+                                <small>{formatPercent(row.activeMargin.percent)}</small>
+                              ) : null}
+                            </>
+                          ) : (
+                            <small>Unavailable</small>
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

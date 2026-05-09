@@ -13,6 +13,7 @@ import {
   type ModelLifecycle,
   type ModelLogoKey,
   type ModelProvider,
+  type ModelSubmissionAdapterKey,
   type ModelSurface,
   type ModelVisibilityFlag,
 } from "./modelCatalog";
@@ -59,6 +60,7 @@ export type ModelConfig = {
   generationLanes?: GenerationWorkflowLane[];
   executionMode?: GenerationExecutionMode;
   submitHandler?: GenerationSubmitHandler;
+  submissionAdapterKey?: ModelSubmissionAdapterKey;
   gridEligible?: boolean;
   apiRouteSlug?: string;
 };
@@ -121,6 +123,7 @@ const buildModelConfig = (entry: RegistryReadyCatalogEntry): ModelConfig => ({
   generationLanes: entry.generationLanes,
   executionMode: entry.executionMode,
   submitHandler: entry.submitHandler,
+  submissionAdapterKey: entry.submissionAdapterKey,
   gridEligible: entry.gridEligible,
   apiRouteSlug: entry.apiRouteSlug,
 });

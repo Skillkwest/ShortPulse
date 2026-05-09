@@ -1,3 +1,7 @@
+/**
+ * Admin pricing page state.
+ * Hydrates the pricing workspace draft, keeps simulator cards stable, and owns draft-only edits.
+ */
 import React from "react";
 import type { PricingConfirmationIntent, PricingWorkspaceState } from "../PricingPageChrome";
 import type {
@@ -19,16 +23,24 @@ import {
   getCostDocsPosition,
   getModelTypeLabel,
   getProviderPricingDocs,
+  type AudioDraftByModelId,
+  type AspectDraftByModelId,
   parseIntegerInput,
   parsePercentToBps,
   parsePositiveDecimalInput,
+  parseAudioDraft,
+  type ResolutionDraftByModelId,
   sortAdminPricingModels,
   type CostDocsPopover,
   type CreditScaleDraftByModelId,
   type DurationDraftByModelId,
   type MarkupDraftByModelId,
   type ModelPricingSortOption,
-  type RoundingDraftByModelId,
+  type VariantMarkupDraftByVariantKey,
+  type ProviderCostDraftByModelId,
+  type ProviderCostPerSecondDraftByModelId,
+  type VariantProviderCostDraftByVariantKey,
+  type VariantProviderCostPerSecondDraftByVariantKey,
 } from "../pricingPageUtils";
 import { useAdminPricingCatalogState } from "./useAdminPricingCatalogState";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
@@ -38,17 +50,28 @@ import {
   modelPricingPolicyDocumentsEqual,
   type ModelPricingPolicyDocument,
 } from "../../../lib/model-runtime/pricingPolicy";
+import {
+  readAdminPricingWorkspaceDraft,
+  writeAdminPricingWorkspaceDraft,
+} from "./pricingWorkspacePersistence";
 
 const planEconomicsDraftsEqual = (
   left: PlanEconomicsDraft | null | undefined,
   right: PlanEconomicsDraft | null | undefined
 ) =>
+  (left?.simulatedName ?? "") === (right?.simulatedName ?? "") &&
   (left?.priceUsd ?? "") === (right?.priceUsd ?? "") &&
   (left?.includedCredits ?? "") === (right?.includedCredits ?? "") &&
   (left?.discountPct ?? "") === (right?.discountPct ?? "") &&
   (left?.affiliatePct ?? "") === (right?.affiliatePct ?? "") &&
   (left?.processorPct ?? "") === (right?.processorPct ?? "") &&
   (left?.processorFlatUsd ?? "") === (right?.processorFlatUsd ?? "");
+
+const SIMULATOR_PLAN_ID_PREFIX = "sim-plan-";
+
+const isCustomSimulatorPlanId = (planId: string) => planId.startsWith(SIMULATOR_PLAN_ID_PREFIX);
+
+const buildCustomSimulatorPlanName = (sequence: number) => `$49.00/mo Simulation Plan ${sequence}`;
 
 type ModelPolicyApplyResponse = {
   ok?: boolean;
@@ -72,9 +95,22 @@ export function useAdminPricingPageState({
   refreshPricingState: () => Promise<unknown>;
 }) {
   const [durationDrafts, setDurationDrafts] = React.useState<DurationDraftByModelId>({});
+  const [aspectDrafts, setAspectDrafts] = React.useState<AspectDraftByModelId>({});
+  const [resolutionDrafts, setResolutionDrafts] = React.useState<ResolutionDraftByModelId>({});
+  const [audioDrafts, setAudioDrafts] = React.useState<AudioDraftByModelId>({});
   const [creditScaleDrafts, setCreditScaleDrafts] = React.useState<CreditScaleDraftByModelId>({});
   const [markupDrafts, setMarkupDrafts] = React.useState<MarkupDraftByModelId>({});
-  const [roundingDrafts, setRoundingDrafts] = React.useState<RoundingDraftByModelId>({});
+  const [variantMarkupDrafts, setVariantMarkupDrafts] =
+    React.useState<VariantMarkupDraftByVariantKey>({});
+  const [providerCostDrafts, setProviderCostDrafts] = React.useState<ProviderCostDraftByModelId>(
+    {}
+  );
+  const [providerCostPerSecondDrafts, setProviderCostPerSecondDrafts] =
+    React.useState<ProviderCostPerSecondDraftByModelId>({});
+  const [variantProviderCostDrafts, setVariantProviderCostDrafts] =
+    React.useState<VariantProviderCostDraftByVariantKey>({});
+  const [variantProviderCostPerSecondDrafts, setVariantProviderCostPerSecondDrafts] =
+    React.useState<VariantProviderCostPerSecondDraftByVariantKey>({});
 
   const [modelPolicyDraft, setModelPolicyDraft] = React.useState<ModelPricingPolicyDocument | null>(
     null
@@ -84,7 +120,6 @@ export function useAdminPricingPageState({
   const [modelPolicyRollbackLoading, setModelPolicyRollbackLoading] = React.useState(false);
   const [modelPolicyMessage, setModelPolicyMessage] = React.useState<string | null>(null);
   const [modelPolicyError, setModelPolicyError] = React.useState<string | null>(null);
-  const [selectedModelOverrideId, setSelectedModelOverrideId] = React.useState<string | null>(null);
   const [modelSearchQuery, setModelSearchQuery] = React.useState("");
   const [modelSortOption, setModelSortOption] = React.useState<ModelPricingSortOption>("type");
   const [globalCreditScaleDraft, setGlobalCreditScaleDraft] = React.useState("");
@@ -95,21 +130,18 @@ export function useAdminPricingPageState({
   const [planEconomicsDrafts, setPlanEconomicsDrafts] = React.useState<
     Record<string, PlanEconomicsDraft>
   >({});
+  const [simulatorPlanIds, setSimulatorPlanIds] = React.useState<string[] | null>(null);
   const [selectedUsagePlanId, setSelectedUsagePlanId] = React.useState("");
   const [usageMixRowsByPlanId, setUsageMixRowsByPlanId] = React.useState<
     Record<string, UsageMixDraftRow[]>
   >({});
   const planEconomicsSeedByPlanIdRef = React.useRef<Record<string, PlanEconomicsDraft>>({});
-  const modelPolicyDirtyRef = React.useRef(modelPolicyDirty);
+  const [pricingWorkspaceHydrated, setPricingWorkspaceHydrated] = React.useState(false);
   const catalogState = useAdminPricingCatalogState({
     pricingState,
     refreshPricingState,
     setPendingConfirmation,
   });
-
-  React.useEffect(() => {
-    modelPolicyDirtyRef.current = modelPolicyDirty;
-  }, [modelPolicyDirty]);
 
   const showCostDocsPopover = React.useCallback(
     (
@@ -141,12 +173,51 @@ export function useAdminPricingPageState({
   );
 
   React.useEffect(() => {
-    if (!pricingState || modelPolicyDirtyRef.current) return;
+    if (!pricingState || pricingWorkspaceHydrated) return;
+    const restoredWorkspace = readAdminPricingWorkspaceDraft();
+    if (restoredWorkspace) {
+      const restoredPolicyDraft = restoredWorkspace.modelPolicyDraft ?? activeModelPolicyDocument;
+      const nextModelPolicyDraft = compactModelPricingPolicyDocument(restoredPolicyDraft);
+      const nextModelPolicyDirty =
+        restoredWorkspace.modelPolicyDirty ||
+        !modelPricingPolicyDocumentsEqual(nextModelPolicyDraft, activeModelPolicyDocument);
+
+      setDurationDrafts(restoredWorkspace.durationDrafts);
+      setAspectDrafts(restoredWorkspace.aspectDrafts);
+      setResolutionDrafts(restoredWorkspace.resolutionDrafts);
+      setAudioDrafts(restoredWorkspace.audioDrafts);
+      setCreditScaleDrafts(restoredWorkspace.creditScaleDrafts);
+      setMarkupDrafts(restoredWorkspace.markupDrafts);
+      setVariantMarkupDrafts(restoredWorkspace.variantMarkupDrafts);
+      setProviderCostDrafts(restoredWorkspace.providerCostDrafts);
+      setProviderCostPerSecondDrafts(restoredWorkspace.providerCostPerSecondDrafts);
+      setVariantProviderCostDrafts(restoredWorkspace.variantProviderCostDrafts);
+      setVariantProviderCostPerSecondDrafts(restoredWorkspace.variantProviderCostPerSecondDrafts);
+      setModelPolicyDraft(nextModelPolicyDraft);
+      setModelPolicyDirty(nextModelPolicyDirty);
+      setModelSearchQuery(restoredWorkspace.modelSearchQuery);
+      setModelSortOption(restoredWorkspace.modelSortOption);
+      setGlobalCreditScaleDraft(restoredWorkspace.globalCreditScaleDraft);
+      setGlobalCreditUsdAmountDraft(restoredWorkspace.globalCreditUsdAmountDraft);
+      setPlanEconomicsDrafts(restoredWorkspace.planEconomicsDrafts);
+      setSimulatorPlanIds(restoredWorkspace.simulatorPlanIds);
+      setSelectedUsagePlanId(restoredWorkspace.selectedUsagePlanId);
+      setUsageMixRowsByPlanId(restoredWorkspace.usageMixRowsByPlanId);
+    }
+    setPricingWorkspaceHydrated(true);
+  }, [activeModelPolicyDocument, pricingState, pricingWorkspaceHydrated]);
+
+  React.useEffect(() => {
+    if (!pricingState || modelPolicyDirty || !pricingWorkspaceHydrated) return;
     setModelPolicyDraft(activeModelPolicyDocument);
     setCreditScaleDrafts({});
     setMarkupDrafts({});
-    setRoundingDrafts({});
-  }, [activeModelPolicyDocument, pricingState]);
+    setVariantMarkupDrafts({});
+    setProviderCostDrafts({});
+    setProviderCostPerSecondDrafts({});
+    setVariantProviderCostDrafts({});
+    setVariantProviderCostPerSecondDrafts({});
+  }, [activeModelPolicyDocument, modelPolicyDirty, pricingState, pricingWorkspaceHydrated]);
 
   const effectiveModelPolicyDraft = modelPolicyDraft ?? activeModelPolicyDocument;
 
@@ -156,10 +227,61 @@ export function useAdminPricingPageState({
     setGlobalCreditUsdAmountDraft("1");
   }, [effectiveModelPolicyDraft.global.creditUsdScale, modelPolicyDirty]);
 
-  const selectedModelRow = React.useMemo(
-    () => pricingState?.models.find((model) => model.id === selectedModelOverrideId) ?? null,
-    [pricingState?.models, selectedModelOverrideId]
-  );
+  React.useEffect(() => {
+    if (!pricingState || !pricingWorkspaceHydrated) return;
+    writeAdminPricingWorkspaceDraft({
+      version: 1,
+      savedAt: new Date().toISOString(),
+      sourceActivePolicyVersion: modelPolicySnapshot?.activePolicyVersion ?? null,
+      modelPolicyDirty,
+      modelPolicyDraft: effectiveModelPolicyDraft,
+      durationDrafts,
+      aspectDrafts,
+      resolutionDrafts,
+      audioDrafts,
+      creditScaleDrafts,
+      markupDrafts,
+      variantMarkupDrafts,
+      providerCostDrafts,
+      providerCostPerSecondDrafts,
+      variantProviderCostDrafts,
+      variantProviderCostPerSecondDrafts,
+      modelSearchQuery,
+      modelSortOption,
+      globalCreditScaleDraft,
+      globalCreditUsdAmountDraft,
+      simulatorPlanIds: simulatorPlanIds ?? [],
+      selectedUsagePlanId,
+      planEconomicsDrafts,
+      usageMixRowsByPlanId,
+    });
+  }, [
+    aspectDrafts,
+    audioDrafts,
+    creditScaleDrafts,
+    durationDrafts,
+    effectiveModelPolicyDraft,
+    globalCreditScaleDraft,
+    globalCreditUsdAmountDraft,
+    markupDrafts,
+    modelPolicyDirty,
+    modelSearchQuery,
+    modelSortOption,
+    modelPolicySnapshot?.activePolicyVersion,
+    planEconomicsDrafts,
+    pricingState,
+    pricingWorkspaceHydrated,
+    providerCostDrafts,
+    providerCostPerSecondDrafts,
+    resolutionDrafts,
+    simulatorPlanIds,
+    selectedUsagePlanId,
+    usageMixRowsByPlanId,
+    variantMarkupDrafts,
+    variantProviderCostDrafts,
+    variantProviderCostPerSecondDrafts,
+  ]);
+
   const filteredModels = React.useMemo(() => {
     const models = pricingState?.models ?? [];
     const query = modelSearchQuery.trim().toLowerCase();
@@ -184,8 +306,19 @@ export function useAdminPricingPageState({
         sortOption: modelSortOption,
         pricingPolicy: effectiveModelPolicyDraft,
         durationDrafts,
+        aspectDrafts,
+        resolutionDrafts,
+        audioDrafts,
       }),
-    [durationDrafts, effectiveModelPolicyDraft, filteredModels, modelSortOption]
+    [
+      aspectDrafts,
+      audioDrafts,
+      durationDrafts,
+      effectiveModelPolicyDraft,
+      filteredModels,
+      modelSortOption,
+      resolutionDrafts,
+    ]
   );
 
   const modelEconomicsRows = React.useMemo(
@@ -194,8 +327,18 @@ export function useAdminPricingPageState({
         models: pricingState?.models ?? [],
         pricingPolicy: effectiveModelPolicyDraft,
         durationDrafts,
+        aspectDrafts,
+        resolutionDrafts,
+        audioDrafts,
       }),
-    [durationDrafts, effectiveModelPolicyDraft, pricingState?.models]
+    [
+      aspectDrafts,
+      audioDrafts,
+      durationDrafts,
+      effectiveModelPolicyDraft,
+      pricingState?.models,
+      resolutionDrafts,
+    ]
   );
 
   const buildPlanEconomicsDefaults = React.useCallback(
@@ -206,6 +349,14 @@ export function useAdminPricingPageState({
           buildDefaultPlanEconomicsDraft(plan),
         ])
       ) as Record<string, PlanEconomicsDraft>,
+    [pricingState?.plans]
+  );
+
+  const buildLiveSimulatorPlanIds = React.useCallback(
+    () =>
+      [...(pricingState?.plans ?? [])]
+        .sort((left, right) => left.sortOrder - right.sortOrder)
+        .map((plan) => plan.planId),
     [pricingState?.plans]
   );
 
@@ -237,10 +388,29 @@ export function useAdminPricingPageState({
         next[plan.planId] = shouldReseed ? nextDefault : existingDraft;
         if (shouldReseed && !planEconomicsDraftsEqual(existingDraft, nextDefault)) changed = true;
       }
+      for (const [planId, draft] of Object.entries(current)) {
+        if (next[planId]) continue;
+        if (!isCustomSimulatorPlanId(planId)) {
+          changed = true;
+          continue;
+        }
+        next[planId] = draft;
+      }
       if (Object.keys(current).some((planId) => !next[planId])) changed = true;
       return changed ? next : current;
     });
     planEconomicsSeedByPlanIdRef.current = nextDefaultDrafts;
+    setSimulatorPlanIds((current) => {
+      if (current == null) return buildLiveSimulatorPlanIds();
+      const availableIds = new Set([
+        ...Object.keys(nextDefaultDrafts),
+        ...Object.keys(planEconomicsDrafts),
+        ...current.filter((planId) => isCustomSimulatorPlanId(planId)),
+      ]);
+      const filtered = current.filter((planId) => availableIds.has(planId));
+      if (filtered.length !== current.length) return filtered;
+      return current;
+    });
     setSelectedUsagePlanId((current) =>
       current && plans.some((plan) => plan.planId === current) ? current : (plans[0]?.planId ?? "")
     );
@@ -258,7 +428,13 @@ export function useAdminPricingPageState({
       if (Object.keys(current).some((planId) => !next[planId])) changed = true;
       return changed ? next : current;
     });
-  }, [buildPlanEconomicsDefaults, modelEconomicsRows, pricingState?.plans]);
+  }, [
+    buildLiveSimulatorPlanIds,
+    buildPlanEconomicsDefaults,
+    modelEconomicsRows,
+    planEconomicsDrafts,
+    pricingState?.plans,
+  ]);
 
   const selectedUsagePlan = React.useMemo(
     () => pricingState?.plans.find((plan) => plan.planId === selectedUsagePlanId) ?? null,
@@ -271,6 +447,57 @@ export function useAdminPricingPageState({
           buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null))
         : buildDefaultUsageMixDraftRows(modelEconomicsRows[0] ?? null),
     [modelEconomicsRows, selectedUsagePlanId, usageMixRowsByPlanId]
+  );
+
+  const updateAspectDraft = React.useCallback((modelId: string, value: string) => {
+    setAspectDrafts((current) => {
+      if (!value.trim()) {
+        const next = { ...current };
+        delete next[modelId];
+        return next;
+      }
+      return {
+        ...current,
+        [modelId]: value,
+      };
+    });
+  }, []);
+
+  const updateResolutionDraft = React.useCallback((modelId: string, value: string) => {
+    setResolutionDrafts((current) => {
+      if (!value.trim()) {
+        const next = { ...current };
+        delete next[modelId];
+        return next;
+      }
+      return {
+        ...current,
+        [modelId]: value,
+      };
+    });
+  }, []);
+
+  const updateAudioDraft = React.useCallback(
+    (modelId: string, value: AudioDraftByModelId[string], model: AdminPricingModelRow) => {
+      const normalizedValue = value === "default" ? "default" : value;
+      setAudioDrafts((current) => {
+        const resolvedDefaultAudio = parseAudioDraft(undefined, model);
+        if (
+          normalizedValue === "default" ||
+          (normalizedValue === "on" && resolvedDefaultAudio) ||
+          (normalizedValue === "off" && !resolvedDefaultAudio)
+        ) {
+          const next = { ...current };
+          delete next[modelId];
+          return next;
+        }
+        return {
+          ...current,
+          [modelId]: normalizedValue,
+        };
+      });
+    },
+    []
   );
 
   const updatePlanEconomicsDraft = React.useCallback(
@@ -288,6 +515,57 @@ export function useAdminPricingPageState({
       });
     },
     [pricingState?.plans]
+  );
+
+  const addSimulatorPlan = React.useCallback(() => {
+    const usedSequenceNumbers = [...Object.keys(planEconomicsDrafts), ...(simulatorPlanIds ?? [])]
+      .map((planId) =>
+        isCustomSimulatorPlanId(planId)
+          ? Number(planId.slice(SIMULATOR_PLAN_ID_PREFIX.length))
+          : Number.NaN
+      )
+      .filter((value) => Number.isFinite(value));
+    const nextSequence = usedSequenceNumbers.length > 0 ? Math.max(...usedSequenceNumbers) + 1 : 1;
+    const nextPlanId = `${SIMULATOR_PLAN_ID_PREFIX}${nextSequence}`;
+    setPlanEconomicsDrafts((current) => ({
+      ...current,
+      [nextPlanId]: {
+        ...buildDefaultPlanEconomicsDraft(null),
+        simulatedName: buildCustomSimulatorPlanName(nextSequence),
+      },
+    }));
+    setSimulatorPlanIds((current) => [...(current ?? buildLiveSimulatorPlanIds()), nextPlanId]);
+  }, [buildLiveSimulatorPlanIds, planEconomicsDrafts, simulatorPlanIds]);
+
+  const removeSimulatorPlan = React.useCallback((planId: string) => {
+    setSimulatorPlanIds((current) => {
+      if (current == null) return current;
+      return current.filter((currentPlanId) => currentPlanId !== planId);
+    });
+    setPlanEconomicsDrafts((current) => {
+      const next = { ...current };
+      delete next[planId];
+      return next;
+    });
+  }, []);
+
+  const reorderSimulatorPlans = React.useCallback(
+    (fromPlanId: string, targetIndex: number) => {
+      setSimulatorPlanIds((current) => {
+        const source = current ?? buildLiveSimulatorPlanIds();
+        const fromIndex = source.indexOf(fromPlanId);
+        if (fromIndex < 0) return source;
+        const boundedTargetIndex = Math.max(0, Math.min(targetIndex, source.length));
+        if (boundedTargetIndex === fromIndex || boundedTargetIndex === fromIndex + 1) return source;
+        const next = [...source];
+        const [moved] = next.splice(fromIndex, 1);
+        const adjustedTargetIndex =
+          boundedTargetIndex > fromIndex ? boundedTargetIndex - 1 : boundedTargetIndex;
+        next.splice(adjustedTargetIndex, 0, moved);
+        return next;
+      });
+    },
+    [buildLiveSimulatorPlanIds]
   );
 
   const updateUsageMixRow = React.useCallback(
@@ -372,17 +650,54 @@ export function useAdminPricingPageState({
     });
     if (hasInvalidMarkupDraft) return true;
 
-    return Object.values(roundingDrafts).some((value) => {
+    const hasInvalidVariantMarkupDraft = Object.values(variantMarkupDrafts).some((value) => {
       if (value.trim() === "") return false;
-      const parsed = parseIntegerInput(value);
-      return parsed == null || parsed <= 0;
+      const parsed = parsePercentToBps(value);
+      return parsed == null || parsed < 0;
     });
+    if (hasInvalidVariantMarkupDraft) return true;
+
+    const hasInvalidProviderCostDraft = Object.values(providerCostDrafts).some((value) => {
+      if (value.trim() === "") return false;
+      return parsePositiveDecimalInput(value) == null;
+    });
+    if (hasInvalidProviderCostDraft) return true;
+
+    const hasInvalidProviderCostPerSecondDraft = Object.values(providerCostPerSecondDrafts).some(
+      (value) => {
+        if (value.trim() === "") return false;
+        return parsePositiveDecimalInput(value) == null;
+      }
+    );
+    if (hasInvalidProviderCostPerSecondDraft) return true;
+
+    const hasInvalidVariantProviderCostDraft = Object.values(variantProviderCostDrafts).some(
+      (value) => {
+        if (value.trim() === "") return false;
+        return parsePositiveDecimalInput(value) == null;
+      }
+    );
+    if (hasInvalidVariantProviderCostDraft) return true;
+
+    const hasInvalidVariantProviderCostPerSecondDraft = Object.values(
+      variantProviderCostPerSecondDrafts
+    ).some((value) => {
+      if (value.trim() === "") return false;
+      return parsePositiveDecimalInput(value) == null;
+    });
+    if (hasInvalidVariantProviderCostPerSecondDraft) return true;
+
+    return false;
   }, [
     creditScaleDrafts,
     globalCreditScaleDraft,
     globalCreditUsdAmountDraft,
     markupDrafts,
-    roundingDrafts,
+    providerCostDrafts,
+    providerCostPerSecondDrafts,
+    variantMarkupDrafts,
+    variantProviderCostDrafts,
+    variantProviderCostPerSecondDrafts,
   ]);
 
   const pricingWorkspaceState: PricingWorkspaceState | null = !pricingState
@@ -487,15 +802,28 @@ export function useAdminPricingPageState({
 
   const resetModelPolicyDraft = React.useCallback(() => {
     setModelPolicyDraft(activeModelPolicyDocument);
+    setAspectDrafts({});
+    setResolutionDrafts({});
+    setAudioDrafts({});
     setCreditScaleDrafts({});
     setMarkupDrafts({});
-    setRoundingDrafts({});
+    setVariantMarkupDrafts({});
+    setProviderCostDrafts({});
+    setProviderCostPerSecondDrafts({});
+    setVariantProviderCostDrafts({});
+    setVariantProviderCostPerSecondDrafts({});
     setPlanEconomicsDrafts(buildPlanEconomicsDefaults());
+    setSimulatorPlanIds(buildLiveSimulatorPlanIds());
     setUsageMixRowsByPlanId(buildUsageMixDefaults());
     setModelPolicyDirty(false);
     setModelPolicyMessage(null);
     setModelPolicyError(null);
-  }, [activeModelPolicyDocument, buildPlanEconomicsDefaults, buildUsageMixDefaults]);
+  }, [
+    activeModelPolicyDocument,
+    buildLiveSimulatorPlanIds,
+    buildPlanEconomicsDefaults,
+    buildUsageMixDefaults,
+  ]);
 
   const applyModelPolicy = React.useCallback(async () => {
     const policy = compactModelPricingPolicyDocument(effectiveModelPolicyDraft);
@@ -648,14 +976,27 @@ export function useAdminPricingPageState({
     ...catalogState,
     durationDrafts,
     setDurationDrafts,
+    aspectDrafts,
+    updateAspectDraft,
+    resolutionDrafts,
+    updateResolutionDraft,
+    audioDrafts,
+    updateAudioDraft,
     creditScaleDrafts,
     setCreditScaleDrafts,
     markupDrafts,
     setMarkupDrafts,
-    roundingDrafts,
-    setRoundingDrafts,
+    variantMarkupDrafts,
+    setVariantMarkupDrafts,
+    providerCostDrafts,
+    setProviderCostDrafts,
+    providerCostPerSecondDrafts,
+    setProviderCostPerSecondDrafts,
+    variantProviderCostDrafts,
+    setVariantProviderCostDrafts,
+    variantProviderCostPerSecondDrafts,
+    setVariantProviderCostPerSecondDrafts,
     effectiveModelPolicyDraft,
-    selectedModelRow,
     displayedModels,
     canApplyModelPolicy,
     modelPolicySaving,
@@ -677,7 +1018,6 @@ export function useAdminPricingPageState({
     pendingConfirmation,
     showCostDocsPopover,
     hideCostDocsPopover,
-    setSelectedModelOverrideId,
     updateModelPolicyDraft,
     openModelPolicyApplyConfirmation,
     openModelPolicyRollbackConfirmation,
@@ -690,7 +1030,11 @@ export function useAdminPricingPageState({
     modelEconomicsRows,
     draftPolicyDiffDescriptions,
     planEconomicsDrafts,
+    simulatorPlanIds: simulatorPlanIds ?? buildLiveSimulatorPlanIds(),
     updatePlanEconomicsDraft,
+    addSimulatorPlan,
+    removeSimulatorPlan,
+    reorderSimulatorPlans,
     selectedUsagePlanId,
     setSelectedUsagePlanId,
     selectedUsagePlan,

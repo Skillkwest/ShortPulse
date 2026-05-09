@@ -55,6 +55,33 @@ export type DurationDraftByModelId = Record<string, string>;
 export type CreditScaleDraftByModelId = Record<string, string>;
 export type MarkupDraftByModelId = Record<string, string>;
 export type RoundingDraftByModelId = Record<string, string>;
+export type AspectDraftByModelId = Record<string, string>;
+export type ResolutionDraftByModelId = Record<string, string>;
+export type AudioDraftByModelId = Record<string, "default" | "on" | "off">;
+export type VariantMarkupDraftByVariantKey = Record<string, string>;
+export type ProviderCostDraftByModelId = Record<string, string>;
+export type ProviderCostPerSecondDraftByModelId = Record<string, string>;
+export type VariantProviderCostDraftByVariantKey = Record<string, string>;
+export type VariantProviderCostPerSecondDraftByVariantKey = Record<string, string>;
+export type ModelUsageKind =
+  | "duration_seconds"
+  | "source_duration_seconds"
+  | "generation_count"
+  | "text_characters"
+  | "blended_text_characters"
+  | "input_tokens"
+  | "none";
+
+export type ModelUsageControl = {
+  kind: ModelUsageKind;
+  label: string;
+  unitLabel: string;
+  defaultValue: number | null;
+  minValue: number | null;
+  maxValue: number | null;
+  step: string;
+  inputMode: "decimal" | "numeric";
+};
 
 export const PRICING_VIEW_TABS: Array<{ id: PricingView; label: string }> = [
   { id: "grid", label: "Pricing Grid" },
@@ -151,20 +178,209 @@ export const parseDurationSecondsInput = (value: string): number | null => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
-export const canEditModelDuration = (model: AdminPricingModelRow): boolean =>
-  model.pricingAuthority === "shared_policy" &&
-  (model.defaultDurationSeconds != null ||
+const IMAGE_AMOUNT_PRICING_STRATEGIES = new Set([
+  "fal-per-mp",
+  "fal-economy-image-per-mp",
+  "fal-fill-per-mp",
+  "fal-flux-kontext-inpaint-per-mp",
+  "gpt-image-2-per-image",
+  "google-nano-banana-per-image",
+  "nano-banana-2-per-image",
+  "nano-banana-per-image",
+  "seedream-per-image",
+  "seedream-5-lite-per-image",
+]);
+
+const INTEGER_USAGE_KINDS = new Set<ModelUsageKind>([
+  "generation_count",
+  "text_characters",
+  "blended_text_characters",
+  "input_tokens",
+]);
+
+export const getModelUsageControl = (model: AdminPricingModelRow): ModelUsageControl => {
+  if (model.pricingStrategy === "openai-text-token") {
+    return {
+      kind: "blended_text_characters",
+      label: "Characters",
+      unitLabel: "chars",
+      defaultValue: 50_000,
+      minValue: 1,
+      maxValue: null,
+      step: "1000",
+      inputMode: "numeric",
+    };
+  }
+
+  if (model.pricingStrategy === "elevenlabs-text-to-speech-per-kchar") {
+    return {
+      kind: "text_characters",
+      label: "Characters",
+      unitLabel: "chars",
+      defaultValue: 1_000,
+      minValue: 1,
+      maxValue: null,
+      step: "100",
+      inputMode: "numeric",
+    };
+  }
+
+  if (model.pricingStrategy === "elevenlabs-voice-changer-per-minute") {
+    return {
+      kind: "source_duration_seconds",
+      label: "Source duration",
+      unitLabel: "sec",
+      defaultValue: model.defaultSourceDurationSeconds ?? 60,
+      minValue: model.minDurationSeconds ?? 1,
+      maxValue: model.maxDurationSeconds ?? null,
+      step: getDurationInputStep(model),
+      inputMode: "decimal",
+    };
+  }
+
+  if (IMAGE_AMOUNT_PRICING_STRATEGIES.has(model.pricingStrategy)) {
+    return {
+      kind: "generation_count",
+      label: "Amount",
+      unitLabel: "images",
+      defaultValue: 1,
+      minValue: 1,
+      maxValue: null,
+      step: "1",
+      inputMode: "numeric",
+    };
+  }
+
+  if (
+    model.defaultDurationSeconds != null ||
     model.defaultSourceDurationSeconds != null ||
     model.minDurationSeconds != null ||
     model.maxDurationSeconds != null ||
     model.allowedDurations.length > 0 ||
     model.pricingStrategy.includes("per-second") ||
     model.pricingStrategy.includes("per-minute") ||
-    model.pricingStrategy === "elevenlabs-sound-effect");
+    model.pricingStrategy === "elevenlabs-sound-effect"
+  ) {
+    return {
+      kind: "duration_seconds",
+      label: "Duration",
+      unitLabel: "sec",
+      defaultValue: model.defaultDurationSeconds ?? model.defaultSourceDurationSeconds ?? null,
+      minValue: model.minDurationSeconds ?? 0.1,
+      maxValue: model.maxDurationSeconds ?? null,
+      step: getDurationInputStep(model),
+      inputMode: "decimal",
+    };
+  }
+
+  return {
+    kind: "none",
+    label: "Usage",
+    unitLabel: "",
+    defaultValue: null,
+    minValue: null,
+    maxValue: null,
+    step: "1",
+    inputMode: "numeric",
+  };
+};
+
+export const getModelUsageValue = (
+  model: AdminPricingModelRow,
+  draftValue: string | undefined
+): number | null => {
+  const parsed = draftValue !== undefined ? parseDurationSecondsInput(draftValue) : null;
+  return parsed ?? getModelUsageControl(model).defaultValue;
+};
+
+export const getModelUsageDisplayValue = (
+  model: AdminPricingModelRow,
+  usageValue: number | null | undefined
+): string => {
+  if (usageValue == null || !Number.isFinite(usageValue)) return "";
+  const { kind } = getModelUsageControl(model);
+  if (INTEGER_USAGE_KINDS.has(kind)) {
+    return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(
+      Math.round(usageValue)
+    );
+  }
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: Number.isInteger(usageValue) ? 0 : 1,
+    maximumFractionDigits: Number.isInteger(usageValue) ? 0 : 2,
+  }).format(usageValue);
+};
+
+export const getModelDurationSecondsForUsage = (
+  model: AdminPricingModelRow,
+  usageValue: number | null | undefined
+): number | null => {
+  const usageControl = getModelUsageControl(model);
+  if (
+    (usageControl.kind === "duration_seconds" || usageControl.kind === "source_duration_seconds") &&
+    usageValue != null &&
+    Number.isFinite(usageValue) &&
+    usageValue > 0
+  ) {
+    return usageValue;
+  }
+  return model.defaultDurationSeconds ?? model.defaultSourceDurationSeconds ?? null;
+};
+
+export const getModelUsageRateMultiplier = (
+  model: AdminPricingModelRow,
+  usageValue: number | null | undefined
+): number | null => {
+  if (usageValue == null || !Number.isFinite(usageValue) || usageValue <= 0) return null;
+  switch (getModelUsageControl(model).kind) {
+    case "generation_count":
+      return Math.max(1, Math.round(usageValue));
+    case "text_characters":
+      return usageValue / 1_000;
+    case "blended_text_characters":
+      return usageValue / 50_000;
+    case "input_tokens":
+      return usageValue / 1_000_000;
+    default:
+      return null;
+  }
+};
+
+export const buildModelUsagePricingOverrides = (
+  model: AdminPricingModelRow,
+  usageValue: number | null | undefined
+): {
+  durationSeconds?: number;
+  sourceDurationSeconds?: number;
+  generationCount?: number;
+  textCharacters?: number;
+  inputTokens?: number;
+} => {
+  if (usageValue == null || !Number.isFinite(usageValue) || usageValue <= 0) return {};
+  const usageControl = getModelUsageControl(model);
+  switch (usageControl.kind) {
+    case "duration_seconds":
+      return { durationSeconds: usageValue };
+    case "source_duration_seconds":
+      return { sourceDurationSeconds: usageValue };
+    case "generation_count":
+      return { generationCount: Math.max(1, Math.round(usageValue)) };
+    case "text_characters":
+    case "blended_text_characters":
+      return { textCharacters: Math.max(1, Math.round(usageValue)) };
+    case "input_tokens":
+      return { inputTokens: Math.max(1, Math.round(usageValue)) };
+    default:
+      return {};
+  }
+};
+
+export const canEditModelDuration = (model: AdminPricingModelRow): boolean =>
+  model.pricingAuthority === "shared_policy" && getModelUsageControl(model).kind !== "none";
 
 export const getDurationInputStep = (model: AdminPricingModelRow): string => {
+  const allowedDurations = model.allowedDurations ?? [];
   if (
-    model.allowedDurations.some((duration) => !Number.isInteger(duration)) ||
+    allowedDurations.some((duration) => !Number.isInteger(duration)) ||
     !Number.isInteger(model.minDurationSeconds ?? 1) ||
     !Number.isInteger(model.maxDurationSeconds ?? 1)
   ) {
@@ -172,3 +388,23 @@ export const getDurationInputStep = (model: AdminPricingModelRow): string => {
   }
   return "1";
 };
+
+export const parseAudioDraft = (
+  value: AudioDraftByModelId[string] | undefined,
+  model: AdminPricingModelRow
+): boolean => {
+  if (value === "on") return true;
+  if (value === "off") return false;
+  return model.defaultAudio ?? true;
+};
+
+export const shouldShowAspectSpecControl = (model: AdminPricingModelRow): boolean =>
+  (model.allowedAspects ?? []).length > 1;
+
+export const shouldShowResolutionSpecControl = (model: AdminPricingModelRow): boolean =>
+  (model.allowedResolutions ?? []).length > 1;
+
+export const shouldShowAudioSpecControl = (model: AdminPricingModelRow): boolean =>
+  model.defaultAudio != null &&
+  model.workflowType.toLowerCase().includes("video") &&
+  !["seedance-2-per-second", "seedance-2-fast-per-second"].includes(model.pricingStrategy);

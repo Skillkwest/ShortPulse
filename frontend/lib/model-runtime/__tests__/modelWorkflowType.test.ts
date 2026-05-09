@@ -36,6 +36,7 @@ describe("getAdminModelWorkflowType", () => {
       getAdminModelWorkflowType({
         id: "kie-ai/veo-3.1-fast-i2v",
         mediaType: "image-to-video",
+        generationLanes: ["text-to-video", "image-to-video"],
       })
     ).toBe("Text to video");
 
@@ -43,6 +44,7 @@ describe("getAdminModelWorkflowType", () => {
       getAdminModelWorkflowType({
         id: "kie-ai/seedance-2",
         mediaType: "image-to-video",
+        generationLanes: ["text-to-video", "image-to-video"],
       })
     ).toBe("Text to video");
   });
@@ -52,6 +54,7 @@ describe("getAdminModelWorkflowType", () => {
       getAdminModelWorkflowType({
         id: "kie-ai/kling-3.0",
         mediaType: "image-to-video",
+        generationLanes: ["image-to-video"],
       })
     ).toBe("Image to video");
   });

@@ -52,8 +52,9 @@ const toMicroUsd = (usdRaw: number): bigint => {
 
 export const resolveModelCreditRoundingMode = (
   modelId: string,
-  policy?: ModelPricingPolicyDocument | null
-): CreditRoundingMode => resolveModelPricingForModel(policy, modelId).roundingMode;
+  policy?: ModelPricingPolicyDocument | null,
+  variantId?: string | null
+): CreditRoundingMode => resolveModelPricingForModel(policy, modelId, variantId).roundingMode;
 
 /**
  * Converts provider USD to credits with decimal-safe math.
@@ -64,14 +65,16 @@ export const convertUsdToCredits = ({
   modelId,
   applyMarkup = true,
   policy = null,
+  variantId = null,
 }: {
   usdRaw: number;
   modelId: string;
   applyMarkup?: boolean;
   policy?: ModelPricingPolicyDocument | null;
+  variantId?: string | null;
 }) => {
   const usdMicro = toMicroUsd(usdRaw);
-  const resolvedPolicy = resolveModelPricingForModel(policy, modelId);
+  const resolvedPolicy = resolveModelPricingForModel(policy, modelId, variantId);
   const creditUsdScaleBigInt = BigInt(resolvedPolicy.creditUsdScale || CREDIT_USD_SCALE);
   if (usdMicro <= BIGINT_ZERO) {
     return {
@@ -89,7 +92,7 @@ export const convertUsdToCredits = ({
   }
 
   const rawCredits = Number(ceilDiv(numerator, denominator));
-  const roundingMode = resolveModelCreditRoundingMode(modelId, policy);
+  const roundingMode = resolveModelCreditRoundingMode(modelId, policy, variantId);
   const credits =
     roundingMode === "ceil"
       ? rawCredits

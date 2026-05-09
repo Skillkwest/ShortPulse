@@ -6,8 +6,8 @@ import {
   PricingHealthSection,
   PricingWorkspaceNotice,
 } from "../../features/admin/PricingPageChrome";
-import { PricingCalculatorSupportStrip } from "../../features/admin/PricingCalculatorSupportStrip";
 import { PricingCatalogSections } from "../../features/admin/PricingCatalogSections";
+import { PricingCalculatorSupportStrip } from "../../features/admin/PricingCalculatorSupportStrip";
 import { PricingModelWorkbook } from "../../features/admin/PricingModelWorkbook";
 import { PricingPolicyStatusBar } from "../../features/admin/PricingPolicyStatusBar";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
@@ -96,57 +96,6 @@ export default function AdminPricingPage() {
 
           <PricingHealthSection health={pricingState?.health} />
 
-          <PricingModelWorkbook
-            pricingState={pricingState}
-            displayedModels={pageState.displayedModels}
-            selectedModelRow={pageState.selectedModelRow}
-            effectiveModelPolicyDraft={pageState.effectiveModelPolicyDraft}
-            durationDrafts={pageState.durationDrafts}
-            setDurationDrafts={pageState.setDurationDrafts}
-            creditScaleDrafts={pageState.creditScaleDrafts}
-            setCreditScaleDrafts={pageState.setCreditScaleDrafts}
-            markupDrafts={pageState.markupDrafts}
-            setMarkupDrafts={pageState.setMarkupDrafts}
-            roundingDrafts={pageState.roundingDrafts}
-            setRoundingDrafts={pageState.setRoundingDrafts}
-            modelSortOption={pageState.modelSortOption}
-            setModelSortOption={pageState.setModelSortOption}
-            modelSearchQuery={pageState.modelSearchQuery}
-            setModelSearchQuery={pageState.setModelSearchQuery}
-            globalCreditScaleDraft={pageState.globalCreditScaleDraft}
-            updateGlobalCreditScaleDraft={pageState.updateGlobalCreditScaleDraft}
-            globalCreditUsdAmountDraft={pageState.globalCreditUsdAmountDraft}
-            updateGlobalCreditUsdAmountDraft={pageState.updateGlobalCreditUsdAmountDraft}
-            resetInvalidGlobalConversionDraft={pageState.resetInvalidGlobalConversionDraft}
-            modelPolicyMessage={pageState.modelPolicyMessage}
-            modelPolicyError={pageState.modelPolicyError}
-            canApplyModelPolicy={pageState.canApplyModelPolicy}
-            showCostDocsPopover={pageState.showCostDocsPopover}
-            hideCostDocsPopover={pageState.hideCostDocsPopover}
-            setSelectedModelOverrideId={pageState.setSelectedModelOverrideId}
-            updateModelPolicyDraft={pageState.updateModelPolicyDraft}
-          />
-
-          <PricingCalculatorSupportStrip
-            plans={pricingState?.plans ?? []}
-            selectedPlanId={pageState.selectedUsagePlanId}
-            setSelectedPlanId={pageState.setSelectedUsagePlanId}
-            selectedPlanDraft={
-              pageState.selectedUsagePlan
-                ? pageState.planEconomicsDrafts[pageState.selectedUsagePlan.planId]
-                : null
-            }
-            updatePlanDraft={pageState.updatePlanEconomicsDraft}
-            usageMixRows={pageState.usageMixRows}
-            updateUsageMixRow={pageState.updateUsageMixRow}
-            addUsageMixRow={pageState.addUsageMixRow}
-            removeUsageMixRow={pageState.removeUsageMixRow}
-            models={pricingState?.models ?? []}
-            modelRows={pageState.modelEconomicsRows}
-            pricingPolicy={pageState.effectiveModelPolicyDraft}
-            isDraftDirty={pageState.canApplyModelPolicy}
-          />
-
           <PricingCatalogSections
             pricingState={pricingState}
             planDraft={pageState.planDraft}
@@ -176,6 +125,67 @@ export default function AdminPricingPage() {
             setStorageMessage={pageState.setStorageMessage}
             setStorageError={pageState.setStorageError}
             onConfirmStorageOffer={pageState.openStorageOfferConfirmation}
+          />
+
+          <PricingModelWorkbook
+            pricingState={pricingState}
+            displayedModels={pageState.displayedModels}
+            effectiveModelPolicyDraft={pageState.effectiveModelPolicyDraft}
+            durationDrafts={pageState.durationDrafts}
+            setDurationDrafts={pageState.setDurationDrafts}
+            aspectDrafts={pageState.aspectDrafts}
+            updateAspectDraft={pageState.updateAspectDraft}
+            resolutionDrafts={pageState.resolutionDrafts}
+            updateResolutionDraft={pageState.updateResolutionDraft}
+            audioDrafts={pageState.audioDrafts}
+            updateAudioDraft={pageState.updateAudioDraft}
+            creditScaleDrafts={pageState.creditScaleDrafts}
+            setCreditScaleDrafts={pageState.setCreditScaleDrafts}
+            markupDrafts={pageState.markupDrafts}
+            setMarkupDrafts={pageState.setMarkupDrafts}
+            variantMarkupDrafts={pageState.variantMarkupDrafts}
+            setVariantMarkupDrafts={pageState.setVariantMarkupDrafts}
+            providerCostDrafts={pageState.providerCostDrafts}
+            setProviderCostDrafts={pageState.setProviderCostDrafts}
+            providerCostPerSecondDrafts={pageState.providerCostPerSecondDrafts}
+            setProviderCostPerSecondDrafts={pageState.setProviderCostPerSecondDrafts}
+            variantProviderCostDrafts={pageState.variantProviderCostDrafts}
+            setVariantProviderCostDrafts={pageState.setVariantProviderCostDrafts}
+            variantProviderCostPerSecondDrafts={pageState.variantProviderCostPerSecondDrafts}
+            setVariantProviderCostPerSecondDrafts={pageState.setVariantProviderCostPerSecondDrafts}
+            modelSortOption={pageState.modelSortOption}
+            setModelSortOption={pageState.setModelSortOption}
+            modelSearchQuery={pageState.modelSearchQuery}
+            setModelSearchQuery={pageState.setModelSearchQuery}
+            globalCreditScaleDraft={pageState.globalCreditScaleDraft}
+            updateGlobalCreditScaleDraft={pageState.updateGlobalCreditScaleDraft}
+            globalCreditUsdAmountDraft={pageState.globalCreditUsdAmountDraft}
+            updateGlobalCreditUsdAmountDraft={pageState.updateGlobalCreditUsdAmountDraft}
+            resetInvalidGlobalConversionDraft={pageState.resetInvalidGlobalConversionDraft}
+            modelPolicyMessage={pageState.modelPolicyMessage}
+            modelPolicyError={pageState.modelPolicyError}
+            canApplyModelPolicy={pageState.canApplyModelPolicy}
+            showCostDocsPopover={pageState.showCostDocsPopover}
+            hideCostDocsPopover={pageState.hideCostDocsPopover}
+            updateModelPolicyDraft={pageState.updateModelPolicyDraft}
+          />
+
+          <PricingCalculatorSupportStrip
+            plans={pricingState?.plans ?? []}
+            displayedModels={pageState.displayedModels}
+            effectiveModelPolicyDraft={pageState.effectiveModelPolicyDraft}
+            durationDrafts={pageState.durationDrafts}
+            aspectDrafts={pageState.aspectDrafts}
+            resolutionDrafts={pageState.resolutionDrafts}
+            audioDrafts={pageState.audioDrafts}
+            modelSortOption={pageState.modelSortOption}
+            planDraftsByPlanId={pageState.planEconomicsDrafts}
+            simulatorPlanIds={pageState.simulatorPlanIds}
+            updatePlanDraft={pageState.updatePlanEconomicsDraft}
+            addSimulatorPlan={pageState.addSimulatorPlan}
+            removeSimulatorPlan={pageState.removeSimulatorPlan}
+            reorderSimulatorPlans={pageState.reorderSimulatorPlans}
+            isDraftDirty={pageState.canApplyModelPolicy}
           />
 
           <PricingCostDocsPopover popover={pageState.costDocsPopover} />

@@ -17,30 +17,50 @@ import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes"
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "./providerModelIds";
+import { buildModelPricingVariantId, resolveModelPricingVariantId } from "./modelPricingVariants";
 
 const FAL_COST_PER_MP_USD = 0.025;
 const ECONOMY_IMAGE_COST_PER_MP_USD = 0.006;
 const FLUX_PRO_FILL_COST_PER_MP_USD = 0.05;
 const FLUX_KONTEXT_INPAINT_COST_PER_MP_USD = 0.035;
 const BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD = 0.018;
+const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
 export const DEFAULT_KLING_DURATION_SECONDS = 10;
 const ELEVENLABS_TEXT_TO_SPEECH_USD_PER_1K_CHARACTERS = 0.1;
 const ELEVENLABS_VOICE_CHANGER_USD_PER_MINUTE = 0.12;
-const ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION = 0.12;
-// ElevenLabs documents explicit-duration sound effects as 20 internal credits / second and
-// auto-duration as 100 credits / generation. We normalize both onto the published USD basis.
+const ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION = 0.01;
+// ElevenLabs API pricing documents sound effects at 100 credits / generation for auto-duration
+// and 20 credits / second when duration is explicitly requested.
 const ELEVENLABS_SOUND_EFFECT_EXPLICIT_USD_PER_SECOND =
   ELEVENLABS_SOUND_EFFECT_AUTO_USD_PER_GENERATION / 5;
 const ELEVENLABS_MUSIC_USD_PER_MINUTE = 0.3;
-const OPENAI_TEXT_TOKEN_RATES_USD_PER_M: Record<
-  string,
-  { input: number; cachedInput: number; output: number }
-> = {
-  "gpt-5.4": { input: 2.5, cachedInput: 0.25, output: 15 },
-  "gpt-5.4-mini": { input: 0.75, cachedInput: 0.075, output: 4.5 },
-  "gpt-5.4-nano": { input: 0.2, cachedInput: 0.02, output: 1.25 },
+type OpenAiTextTokenRateSet = {
+  standard: { input: number; cachedInput: number; output: number };
+  long?: { input: number; cachedInput: number; output: number };
+};
+
+const OPENAI_TEXT_TOKEN_RATES_USD_PER_M: Record<string, OpenAiTextTokenRateSet> = {
+  "gpt-5.5": {
+    standard: { input: 5, cachedInput: 0.5, output: 30 },
+    long: { input: 10, cachedInput: 1, output: 45 },
+  },
+  "gpt-5.5-pro": {
+    standard: { input: 30, cachedInput: 0, output: 180 },
+    long: { input: 60, cachedInput: 0, output: 270 },
+  },
+  "gpt-5.4": {
+    standard: { input: 2.5, cachedInput: 0.25, output: 15 },
+    long: { input: 5, cachedInput: 0.5, output: 22.5 },
+  },
+  "gpt-5.4-pro": {
+    standard: { input: 30, cachedInput: 0, output: 180 },
+    long: { input: 60, cachedInput: 0, output: 270 },
+  },
+  "gpt-5.4-mini": { standard: { input: 0.75, cachedInput: 0.075, output: 4.5 } },
+  "gpt-5.4-nano": { standard: { input: 0.2, cachedInput: 0.02, output: 1.25 } },
 };
 const VEO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.4;
 const VEO_NO_AUDIO_RATE_1080P_USD_PER_SECOND = 0.2;
@@ -55,14 +75,20 @@ const KLING_3_KIE_STD_AUDIO_ON_CREDITS_PER_SECOND = 21;
 const KLING_3_KIE_PRO_AUDIO_OFF_CREDITS_PER_SECOND = 18;
 const KLING_3_KIE_PRO_AUDIO_ON_CREDITS_PER_SECOND = 27;
 const KIE_VEO_31_FAST_I2V_PER_VIDEO_USD = 0.4;
-const SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN = 2.4;
-const SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN = 1.2;
-const SEEDANCE_DEFAULT_FPS = 24;
 const SEEDANCE_RESOLUTION_MAP = {
   "1080p": { width: 1920, height: 1080 },
   "720p": { width: 1280, height: 720 },
   "480p": { width: 854, height: 480 },
 };
+const SEEDANCE_2_STANDARD_CREDITS_PER_SECOND = {
+  "1080p": { withVideoInput: 62, noVideoInput: 102 },
+  "720p": { withVideoInput: 25, noVideoInput: 41 },
+  "480p": { withVideoInput: 11.5, noVideoInput: 19 },
+} as const;
+const SEEDANCE_2_FAST_CREDITS_PER_SECOND = {
+  "720p": { withVideoInput: 20, noVideoInput: 33 },
+  "480p": { withVideoInput: 9, noVideoInput: 15.5 },
+} as const;
 
 const kieCreditsToUsd = (credits: number): number => credits * KIE_CREDIT_USD;
 
@@ -73,6 +99,9 @@ const resolvePositiveFiniteNumber = (value: number | undefined): number | null =
   return value;
 };
 
+const resolveOutputCount = (generationCount: number | undefined): number =>
+  Math.max(1, Math.round(resolvePositiveFiniteNumber(generationCount) ?? 1));
+
 const toCostBreakdown = ({
   modelId,
   usdRaw,
@@ -81,6 +110,7 @@ const toCostBreakdown = ({
   height,
   applyMarkup,
   policy,
+  variantId = null,
 }: {
   modelId: string;
   usdRaw: number;
@@ -89,12 +119,14 @@ const toCostBreakdown = ({
   height: number;
   applyMarkup?: boolean;
   policy?: PricingParams["pricingPolicy"];
+  variantId?: string | null;
 }): CostBreakdown => {
   const quantized = convertUsdToCredits({
     usdRaw,
     modelId,
     applyMarkup: applyMarkup ?? true,
     policy,
+    variantId,
   });
   return {
     credits: quantized.credits,
@@ -163,13 +195,14 @@ const computeFalPerMpCost: StrategyFn = ({
   aspect,
   imageWidth,
   imageHeight,
+  generationCount,
   pricingPolicy,
 }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw = megapixels * FAL_COST_PER_MP_USD;
+  const usdRaw = megapixels * FAL_COST_PER_MP_USD * resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -177,6 +210,13 @@ const computeFalPerMpCost: StrategyFn = ({
     width: size.width,
     height: size.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      aspect,
+      imageWidth,
+      imageHeight,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -185,16 +225,18 @@ const computeEconomyFalImageCost: StrategyFn = ({
   aspect,
   imageWidth,
   imageHeight,
+  generationCount,
   pricingPolicy,
 }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
+  const outputCount = resolveOutputCount(generationCount);
   const usdRaw =
     modelId === "fal-ai/bria/background/remove"
-      ? BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD
-      : megapixels * ECONOMY_IMAGE_COST_PER_MP_USD;
+      ? BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD * outputCount
+      : megapixels * ECONOMY_IMAGE_COST_PER_MP_USD * outputCount;
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -202,6 +244,13 @@ const computeEconomyFalImageCost: StrategyFn = ({
     width: size.width,
     height: size.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      aspect,
+      imageWidth,
+      imageHeight,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -210,13 +259,14 @@ const computeFalFillPerMpCost: StrategyFn = ({
   aspect,
   imageWidth,
   imageHeight,
+  generationCount,
   pricingPolicy,
 }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw = megapixels * FLUX_PRO_FILL_COST_PER_MP_USD;
+  const usdRaw = megapixels * FLUX_PRO_FILL_COST_PER_MP_USD * resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -224,6 +274,13 @@ const computeFalFillPerMpCost: StrategyFn = ({
     width: size.width,
     height: size.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      aspect,
+      imageWidth,
+      imageHeight,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -232,13 +289,15 @@ const computeFluxKontextInpaintPerMpCost: StrategyFn = ({
   aspect,
   imageWidth,
   imageHeight,
+  generationCount,
   pricingPolicy,
 }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw = megapixels * FLUX_KONTEXT_INPAINT_COST_PER_MP_USD;
+  const usdRaw =
+    megapixels * FLUX_KONTEXT_INPAINT_COST_PER_MP_USD * resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -246,6 +305,29 @@ const computeFluxKontextInpaintPerMpCost: StrategyFn = ({
     width: size.width,
     height: size.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      aspect,
+      imageWidth,
+      imageHeight,
+      pricingPolicy,
+    }),
+  });
+};
+
+const computeGoogleNanoBananaPerImageCost: StrategyFn = ({
+  modelId,
+  generationCount,
+  pricingPolicy,
+}) => {
+  return toCostBreakdown({
+    modelId,
+    usdRaw: GOOGLE_NANO_BANANA_PER_IMAGE_USD * resolveOutputCount(generationCount),
+    megapixels: 0,
+    width: 0,
+    height: 0,
+    policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, pricingPolicy }),
   });
 };
 
@@ -261,7 +343,7 @@ const computeGptImage2PerImageCost: StrategyFn = ({
   const size = resolveGptImage2Size(params);
   const quality = resolveGptImage2Quality(params);
   const outputUsdPerImage = OPENAI_GPT_IMAGE_2_CREATE_COSTS_USD[size][quality];
-  const outputCount = Math.max(1, Math.round(resolvePositiveFiniteNumber(generationCount) ?? 1));
+  const outputCount = resolveOutputCount(generationCount);
   const dimensions = OPENAI_GPT_IMAGE_2_SIZE_TO_DIMENSIONS[size];
   const megapixels = (dimensions.width * dimensions.height) / 1_000_000;
   const normalizedInputImageCount = Math.max(
@@ -287,6 +369,16 @@ const computeGptImage2PerImageCost: StrategyFn = ({
     width: dimensions.width,
     height: dimensions.height,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      inputImageCount,
+      inputFidelity,
+      maskPresent,
+      size,
+      quality,
+      resolution: quality,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -295,10 +387,14 @@ const computeOpenAiTextTokenCost: StrategyFn = ({
   inputTokens = 0,
   cachedInputTokens = 0,
   outputTokens = 0,
+  contextLengthTier,
+  variantBaseId,
   pricingPolicy,
 }) => {
-  const rates = OPENAI_TEXT_TOKEN_RATES_USD_PER_M[modelId];
-  if (!rates) return null;
+  const rateSet = OPENAI_TEXT_TOKEN_RATES_USD_PER_M[modelId];
+  if (!rateSet) return null;
+  const rates =
+    contextLengthTier === "long" ? (rateSet.long ?? rateSet.standard) : rateSet.standard;
   const totalUsd =
     (Math.max(0, inputTokens) / 1_000_000) * rates.input +
     (Math.max(0, cachedInputTokens) / 1_000_000) * rates.cachedInput +
@@ -310,6 +406,12 @@ const computeOpenAiTextTokenCost: StrategyFn = ({
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      variantBaseId,
+      contextLengthTier,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -329,6 +431,7 @@ const computeElevenLabsTextToSpeechCost: StrategyFn = ({
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, textCharacters, pricingPolicy }),
   });
 };
 
@@ -347,6 +450,11 @@ const computeElevenLabsVoiceChangerCost: StrategyFn = ({
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      sourceDurationSeconds,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -373,6 +481,12 @@ const computeElevenLabsSoundEffectCost: StrategyFn = ({
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      durationSeconds,
+      generationCount,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -389,30 +503,43 @@ const computeElevenLabsMusicCost: StrategyFn = ({ durationSeconds, modelId, pric
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, durationSeconds, pricingPolicy }),
   });
 };
 
-const computeSeedreamPerImageCost: StrategyFn = ({ modelId, resolution, pricingPolicy }) => {
+const computeSeedreamPerImageCost: StrategyFn = ({
+  modelId,
+  resolution,
+  generationCount,
+  pricingPolicy,
+}) => {
   const baseUsd = 0.04;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
+  const outputCount = resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
-    usdRaw: baseUsd * resolutionMultiplier,
+    usdRaw: baseUsd * resolutionMultiplier * outputCount,
     megapixels: 0,
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, resolution, pricingPolicy }),
   });
 };
 
-const computeSeedream5LitePerImageCost: StrategyFn = ({ modelId, pricingPolicy }) => {
+const computeSeedream5LitePerImageCost: StrategyFn = ({
+  modelId,
+  generationCount,
+  pricingPolicy,
+}) => {
   return toCostBreakdown({
     modelId,
-    usdRaw: 0.035,
+    usdRaw: 0.035 * resolveOutputCount(generationCount),
     megapixels: 0,
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({ modelId, pricingPolicy }),
   });
 };
 
@@ -420,6 +547,7 @@ const computeNanoBanana2PerImageCost: StrategyFn = ({
   modelId,
   resolution,
   webSearch,
+  generationCount,
   pricingPolicy,
 }) => {
   const baseUsd = 0.08;
@@ -433,13 +561,20 @@ const computeNanoBanana2PerImageCost: StrategyFn = ({
           ? 0.75
           : 1;
   const webSearchUsd = webSearch ? 0.015 : 0;
+  const outputCount = resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
-    usdRaw: baseUsd * resolutionMultiplier + webSearchUsd,
+    usdRaw: (baseUsd * resolutionMultiplier + webSearchUsd) * outputCount,
     megapixels: 0,
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      resolution,
+      webSearch,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -447,18 +582,26 @@ const computeNanoBananaPerImageCost: StrategyFn = ({
   modelId,
   resolution,
   webSearch,
+  generationCount,
   pricingPolicy,
 }) => {
   const baseUsd = 0.15;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
   const webSearchUsd = webSearch ? 0.015 : 0;
+  const outputCount = resolveOutputCount(generationCount);
   return toCostBreakdown({
     modelId,
-    usdRaw: baseUsd * resolutionMultiplier + webSearchUsd,
+    usdRaw: (baseUsd * resolutionMultiplier + webSearchUsd) * outputCount,
     megapixels: 0,
     width: 0,
     height: 0,
     policy: pricingPolicy,
+    variantId: resolveModelPricingVariantId({
+      modelId,
+      resolution,
+      webSearch,
+      pricingPolicy,
+    }),
   });
 };
 
@@ -510,6 +653,7 @@ const computeKling3PerSecondCost: StrategyFn = (params) => {
     width: 0,
     height: 0,
     policy: params.pricingPolicy,
+    variantId: resolveModelPricingVariantId(params),
   });
 };
 
@@ -522,6 +666,7 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
       width: 0,
       height: 0,
       policy: params.pricingPolicy,
+      variantId: resolveModelPricingVariantId(params),
     });
   }
 
@@ -544,6 +689,7 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
     width: 0,
     height: 0,
     policy: params.pricingPolicy,
+    variantId: resolveModelPricingVariantId(params),
   });
 };
 
@@ -567,6 +713,21 @@ const resolveSeedance2Duration = (value?: number) => {
   return 15;
 };
 
+const resolveSeedanceVideoInput = (params: PricingParams): boolean =>
+  typeof params.inputVideoCount === "number" &&
+  Number.isFinite(params.inputVideoCount) &&
+  params.inputVideoCount > 0;
+
+const resolveSeedanceResolutionKey = (
+  params: PricingParams,
+  fallback: "1080p" | "720p"
+): keyof typeof SEEDANCE_RESOLUTION_MAP => {
+  const res = resolveDefaultResolution(params, fallback).toLowerCase();
+  if (res.includes("1080")) return "1080p";
+  if (res.includes("720") || res.includes("high")) return "720p";
+  return "480p";
+};
+
 const computeSeedancePerSecondCost: StrategyFn = (params) => {
   if (params.modelId === KIE_SEEDANCE_15_PRO_MODEL_ID) {
     const duration = resolveSeedance15Duration(params.durationSeconds);
@@ -588,25 +749,30 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
       width: resolution.width,
       height: resolution.height,
       policy: params.pricingPolicy,
+      variantId: resolveModelPricingVariantId(params),
     });
   }
 
   const duration = resolveSeedance2Duration(params.durationSeconds);
-  const res = resolveDefaultResolution(params, "1080p").toLowerCase();
-  const resolutionKey = res.includes("1080")
-    ? "1080p"
-    : res.includes("720") || res.includes("high")
-      ? "720p"
-      : "480p";
+  const videoInput = resolveSeedanceVideoInput(params);
+  const isSeedanceFast = params.modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
+  const resolutionKey = resolveSeedanceResolutionKey(params, isSeedanceFast ? "720p" : "1080p");
   const resolution = SEEDANCE_RESOLUTION_MAP[resolutionKey];
   if (!resolution) return null;
-
-  const hasAudio = resolveDefaultAudio(params, true);
-  const ratePerMillionTokens = hasAudio
-    ? SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN
-    : SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN;
-  const tokens = (resolution.width * resolution.height * SEEDANCE_DEFAULT_FPS * duration) / 1024;
-  const usdRaw = (tokens / 1_000_000) * ratePerMillionTokens;
+  const pricingTable = isSeedanceFast
+    ? SEEDANCE_2_FAST_CREDITS_PER_SECOND
+    : SEEDANCE_2_STANDARD_CREDITS_PER_SECOND;
+  const resolutionPricing =
+    pricingTable[
+      (isSeedanceFast && resolutionKey === "1080p"
+        ? "720p"
+        : resolutionKey) as keyof typeof pricingTable
+    ];
+  if (!resolutionPricing) return null;
+  const creditsPerSecond = videoInput
+    ? resolutionPricing.withVideoInput
+    : resolutionPricing.noVideoInput;
+  const usdRaw = kieCreditsToUsd(creditsPerSecond * duration);
   return toCostBreakdown({
     modelId: params.modelId,
     usdRaw,
@@ -614,6 +780,12 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
     width: resolution.width,
     height: resolution.height,
     policy: params.pricingPolicy,
+    variantId: buildModelPricingVariantId({
+      baseVariantId: "default",
+      aspect: params.aspect ?? getModelConfig(params.modelId)?.defaultAspect ?? null,
+      resolution: resolutionKey,
+      videoInput,
+    }),
   });
 };
 
@@ -627,6 +799,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-fill-per-mp": computeFalFillPerMpCost,
   "fal-flux-kontext-inpaint-per-mp": computeFluxKontextInpaintPerMpCost,
   "gpt-image-2-per-image": computeGptImage2PerImageCost,
+  "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
   "nano-banana-2-per-image": computeNanoBanana2PerImageCost,
   "openai-text-token": computeOpenAiTextTokenCost,
   "nano-banana-per-image": computeNanoBananaPerImageCost,

@@ -41,6 +41,26 @@ export type GenerationWorkflowLane =
   | "text";
 export type GenerationExecutionMode = "queued" | "direct" | "none";
 export type GenerationSubmitHandler = "default" | "image" | "video" | "audio" | "unsupported";
+export type ModelSubmissionAdapterKey =
+  | "openai-gpt-image-2"
+  | "seedream-text"
+  | "seedream-v5-lite-text"
+  | "nano-banana-pro-text"
+  | "nano-banana-2-text"
+  | "bria-background-remove"
+  | "flux-pro-fill"
+  | "flux-kontext-inpaint"
+  | "nano-banana-pro-edit"
+  | "nano-banana-2-edit"
+  | "seedream-edit"
+  | "seedream-v5-lite-edit"
+  | "flux-2-klein"
+  | "kie-veo-31-fast-i2v"
+  | "kie-seedance-1-5-pro"
+  | "kie-seedance-2"
+  | "kie-kling-3";
+export type ModelPromptPolicy = "required" | "optional";
+export type ModelAdmissionTier = "video_long" | "image_heavy" | "image_standard";
 export type ModelLifecycle = "active" | "deprecated" | "disabled" | "retired";
 export type ModelSurface =
   | "picker"
@@ -85,6 +105,11 @@ export type ModelCatalogEntry = {
   providerModelId?: string;
   providerVariants?: string[];
   sizeMapId?: "fal-image";
+  pairedModelId?: string;
+  createCharacterModeOrder?: number;
+  promptPolicy?: ModelPromptPolicy;
+  admissionTier?: ModelAdmissionTier;
+  alwaysOnProviderRuntime?: boolean;
   submitAspectField: ModelAspectSubmitField;
   defaultAspect: string;
   allowedAspects: string[];
@@ -104,6 +129,7 @@ export type ModelCatalogEntry = {
   generationLanes?: GenerationWorkflowLane[];
   executionMode?: GenerationExecutionMode;
   submitHandler?: GenerationSubmitHandler;
+  submissionAdapterKey?: ModelSubmissionAdapterKey;
   gridEligible?: boolean;
   apiRouteSlug?: string;
   falSubmitUrl?: string;
@@ -121,6 +147,7 @@ export type ModelCatalogEntry = {
 const VERIFIED_AT = "2026-04-30";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 const GPT_IMAGE_2_VERIFIED_AT = "2026-04-27";
+const OPENAI_TEXT_VERIFIED_AT = "2026-05-07";
 const ELEVENLABS_VERIFIED_AT = "2026-05-01";
 type ModelCatalogRuntimeMetadata = Pick<
   ModelCatalogEntry,
@@ -140,6 +167,11 @@ type ModelCatalogRuntimeMetadata = Pick<
   | "providerModelId"
   | "providerVariants"
   | "sizeMapId"
+  | "pairedModelId"
+  | "createCharacterModeOrder"
+  | "promptPolicy"
+  | "admissionTier"
+  | "alwaysOnProviderRuntime"
   | "defaultAudio"
   | "supportsTextToImage"
   | "supportsImageToImage"
@@ -147,6 +179,7 @@ type ModelCatalogRuntimeMetadata = Pick<
   | "generationLanes"
   | "executionMode"
   | "submitHandler"
+  | "submissionAdapterKey"
   | "gridEligible"
   | "apiRouteSlug"
   | "defaultGenerationCount"
@@ -699,7 +732,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     defaultDurationSeconds: 5,
     allowedDurations: [5, 10, 15],
     defaultResolution: "1080p",
-    allowedResolutions: ["720p", "1080p"],
+    allowedResolutions: ["1080p", "720p", "480p"],
     kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
     kieStatusBaseUrls: ["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"],
     kieTimeoutMs: 60000,
@@ -731,7 +764,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       requiredStringFields: ["prompt"],
       enumFields: {
         aspect_ratio: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
-        resolution: ["720p", "1080p"],
+        resolution: ["480p", "720p", "1080p"],
       },
       optionalBooleanFields: ["generate_audio", "return_last_frame", "web_search"],
       optionalNumberFields: ["duration"],
@@ -747,8 +780,8 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     allowedAspects: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
     defaultDurationSeconds: 5,
     allowedDurations: [5, 10, 15],
-    defaultResolution: "1080p",
-    allowedResolutions: ["720p", "1080p"],
+    defaultResolution: "720p",
+    allowedResolutions: ["720p", "480p"],
     kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
     kieStatusBaseUrls: ["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"],
     kieTimeoutMs: 60000,
@@ -780,17 +813,44 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       requiredStringFields: ["prompt"],
       enumFields: {
         aspect_ratio: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
-        resolution: ["720p", "1080p"],
+        resolution: ["480p", "720p"],
       },
       optionalBooleanFields: ["generate_audio", "return_last_frame", "web_search"],
       optionalNumberFields: ["duration"],
     },
   },
+  "gpt-5.5": {
+    modelId: "gpt-5.5",
+    provider: "openai",
+    sourceUrl: "https://openai.com/api/pricing/",
+    verifiedAt: OPENAI_TEXT_VERIFIED_AT,
+    submitAspectField: "none",
+    defaultAspect: "text",
+    allowedAspects: [],
+  },
+  "gpt-5.5-pro": {
+    modelId: "gpt-5.5-pro",
+    provider: "openai",
+    sourceUrl: "https://openai.com/api/pricing/",
+    verifiedAt: OPENAI_TEXT_VERIFIED_AT,
+    submitAspectField: "none",
+    defaultAspect: "text",
+    allowedAspects: [],
+  },
   "gpt-5.4": {
     modelId: "gpt-5.4",
     provider: "openai",
-    sourceUrl: "https://developers.openai.com/api/docs/pricing",
-    verifiedAt: VERIFIED_AT,
+    sourceUrl: "https://openai.com/api/pricing/",
+    verifiedAt: OPENAI_TEXT_VERIFIED_AT,
+    submitAspectField: "none",
+    defaultAspect: "text",
+    allowedAspects: [],
+  },
+  "gpt-5.4-pro": {
+    modelId: "gpt-5.4-pro",
+    provider: "openai",
+    sourceUrl: "https://openai.com/api/pricing/",
+    verifiedAt: OPENAI_TEXT_VERIFIED_AT,
     submitAspectField: "none",
     defaultAspect: "text",
     allowedAspects: [],
@@ -798,8 +858,8 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
   "gpt-5.4-mini": {
     modelId: "gpt-5.4-mini",
     provider: "openai",
-    sourceUrl: "https://developers.openai.com/api/docs/pricing",
-    verifiedAt: VERIFIED_AT,
+    sourceUrl: "https://openai.com/api/pricing/",
+    verifiedAt: OPENAI_TEXT_VERIFIED_AT,
     submitAspectField: "none",
     defaultAspect: "text",
     allowedAspects: [],
@@ -807,8 +867,8 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
   "gpt-5.4-nano": {
     modelId: "gpt-5.4-nano",
     provider: "openai",
-    sourceUrl: "https://developers.openai.com/api/docs/pricing",
-    verifiedAt: VERIFIED_AT,
+    sourceUrl: "https://openai.com/api/pricing/",
+    verifiedAt: OPENAI_TEXT_VERIFIED_AT,
     submitAspectField: "none",
     defaultAspect: "text",
     allowedAspects: [],
@@ -966,6 +1026,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "image",
+    submissionAdapterKey: "flux-2-klein",
     gridEligible: true,
     apiRouteSlug: "flux2klein",
   }),
@@ -983,6 +1044,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
+    submissionAdapterKey: "flux-pro-fill",
     gridEligible: true,
     apiRouteSlug: "flux-pro-fill",
   }),
@@ -1000,6 +1062,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
+    submissionAdapterKey: "flux-kontext-inpaint",
     gridEligible: true,
     apiRouteSlug: "flux-kontext-inpaint",
   }),
@@ -1016,6 +1079,8 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
+    submissionAdapterKey: "bria-background-remove",
+    promptPolicy: "optional",
     gridEligible: false,
     apiRouteSlug: "bria-background-remove",
   }),
@@ -1032,6 +1097,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text-to-image", "image-to-image"],
     executionMode: "direct",
     submitHandler: "default",
+    submissionAdapterKey: "openai-gpt-image-2",
     gridEligible: true,
   }),
   "fal-ai/nano-banana-2": activePickerPricingRuntime({
@@ -1039,13 +1105,15 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     mediaType: "image",
     pricingStrategy: "nano-banana-2-per-image",
     displayFamily: "Image",
-    displayOrder: 120,
+    displayOrder: 140,
     pricingFamily: "Image",
     logoKey: "google",
+    pairedModelId: "fal-ai/nano-banana-2/edit",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "default",
+    submissionAdapterKey: "nano-banana-2-text",
     gridEligible: true,
     apiRouteSlug: "nano-banana-2",
   }),
@@ -1054,13 +1122,17 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     mediaType: "image",
     pricingStrategy: "nano-banana-2-per-image",
     displayFamily: "Image",
-    displayOrder: 130,
+    displayOrder: 150,
     pricingFamily: "Image",
     logoKey: "google",
+    pairedModelId: "fal-ai/nano-banana-2",
+    createCharacterModeOrder: 30,
+    promptPolicy: "required",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
+    submissionAdapterKey: "nano-banana-2-edit",
     gridEligible: true,
     apiRouteSlug: "nano-banana-2-edit",
   }),
@@ -1069,13 +1141,16 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     mediaType: "image",
     pricingStrategy: "nano-banana-per-image",
     displayFamily: "Image",
-    displayOrder: 140,
+    displayOrder: 160,
     pricingFamily: "Image",
     logoKey: "google",
+    pairedModelId: "fal-ai/nano-banana-pro/edit",
+    admissionTier: "image_heavy",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "default",
+    submissionAdapterKey: "nano-banana-pro-text",
     gridEligible: true,
     apiRouteSlug: "nano-banana-pro",
   }),
@@ -1084,13 +1159,18 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     mediaType: "image",
     pricingStrategy: "nano-banana-per-image",
     displayFamily: "Image",
-    displayOrder: 150,
+    displayOrder: 170,
     pricingFamily: "Image",
     logoKey: "google",
+    pairedModelId: "fal-ai/nano-banana-pro",
+    createCharacterModeOrder: 40,
+    promptPolicy: "required",
+    admissionTier: "image_heavy",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
+    submissionAdapterKey: "nano-banana-pro-edit",
     gridEligible: true,
     apiRouteSlug: "nano-banana-pro-edit",
   }),
@@ -1102,10 +1182,13 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 210,
     pricingFamily: "Image",
     logoKey: "seedream",
+    pairedModelId: "fal-ai/bytedance/seedream/v4.5/edit",
+    admissionTier: "image_heavy",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "default",
+    submissionAdapterKey: "seedream-text",
     gridEligible: true,
     apiRouteSlug: "seedream",
   }),
@@ -1117,10 +1200,15 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 200,
     pricingFamily: "Image",
     logoKey: "seedream",
+    pairedModelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+    createCharacterModeOrder: 10,
+    promptPolicy: "required",
+    admissionTier: "image_heavy",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
+    submissionAdapterKey: "seedream-edit",
     gridEligible: true,
     apiRouteSlug: "seedream-edit",
   }),
@@ -1132,10 +1220,12 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 180,
     pricingFamily: "Image",
     logoKey: "seedream",
+    pairedModelId: "fal-ai/bytedance/seedream/v5/lite/edit",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
     submitHandler: "default",
+    submissionAdapterKey: "seedream-v5-lite-text",
     gridEligible: true,
     apiRouteSlug: "seedream-v5-lite",
   }),
@@ -1147,10 +1237,14 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 190,
     pricingFamily: "Image",
     logoKey: "seedream",
+    pairedModelId: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+    createCharacterModeOrder: 20,
+    promptPolicy: "required",
     supportsImageToImage: true,
     generationLanes: ["image-to-image"],
     executionMode: "queued",
     submitHandler: "image",
+    submissionAdapterKey: "seedream-v5-lite-edit",
     gridEligible: true,
     apiRouteSlug: "seedream-v5-lite-edit",
   }),
@@ -1169,6 +1263,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text-to-video", "image-to-video"],
     executionMode: "queued",
     submitHandler: "video",
+    submissionAdapterKey: "kie-veo-31-fast-i2v",
     gridEligible: true,
     apiRouteSlug: "kie-veo",
   }),
@@ -1180,6 +1275,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 20,
     pricingFamily: "Video",
     logoKey: "kling",
+    alwaysOnProviderRuntime: true,
     minDurationSeconds: 5,
     maxDurationSeconds: 15,
     defaultAudio: true,
@@ -1187,6 +1283,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["image-to-video"],
     executionMode: "queued",
     submitHandler: "video",
+    submissionAdapterKey: "kie-kling-3",
     gridEligible: true,
     apiRouteSlug: "kie-kling",
   }),
@@ -1198,6 +1295,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 30,
     pricingFamily: "Video",
     logoKey: "seedream",
+    alwaysOnProviderRuntime: true,
     minDurationSeconds: 4,
     maxDurationSeconds: 12,
     defaultAudio: true,
@@ -1205,6 +1303,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text-to-video", "image-to-video"],
     executionMode: "queued",
     submitHandler: "video",
+    submissionAdapterKey: "kie-seedance-1-5-pro",
     gridEligible: true,
     apiRouteSlug: "kie-seedance",
   }),
@@ -1217,6 +1316,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingFamily: "Video",
     visibilityFlag: "NEXT_PUBLIC_KIE_SEEDANCE_2_ENABLED",
     logoKey: "seedream",
+    alwaysOnProviderRuntime: true,
     minDurationSeconds: 5,
     maxDurationSeconds: 15,
     defaultAudio: true,
@@ -1224,6 +1324,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text-to-video", "image-to-video"],
     executionMode: "queued",
     submitHandler: "video",
+    submissionAdapterKey: "kie-seedance-2",
     gridEligible: true,
     apiRouteSlug: "kie-seedance-2",
   }),
@@ -1236,6 +1337,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingFamily: "Video",
     visibilityFlag: "NEXT_PUBLIC_KIE_SEEDANCE_2_ENABLED",
     logoKey: "seedream",
+    alwaysOnProviderRuntime: true,
     minDurationSeconds: 5,
     maxDurationSeconds: 15,
     defaultAudio: true,
@@ -1243,8 +1345,35 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text-to-video", "image-to-video"],
     executionMode: "queued",
     submitHandler: "video",
+    submissionAdapterKey: "kie-seedance-2",
     gridEligible: true,
     apiRouteSlug: "kie-seedance-2-fast",
+  }),
+  "gpt-5.5": activeInternalPricingRuntime({
+    label: "GPT-5.5",
+    mediaType: "text",
+    pricingStrategy: "openai-text-token",
+    displayFamily: "Text",
+    displayOrder: 280,
+    pricingFamily: "Text",
+    logoKey: "openai",
+    generationLanes: ["text"],
+    executionMode: "none",
+    submitHandler: "unsupported",
+    gridEligible: false,
+  }),
+  "gpt-5.5-pro": activeInternalPricingRuntime({
+    label: "GPT-5.5 Pro",
+    mediaType: "text",
+    pricingStrategy: "openai-text-token",
+    displayFamily: "Text",
+    displayOrder: 290,
+    pricingFamily: "Text",
+    logoKey: "openai",
+    generationLanes: ["text"],
+    executionMode: "none",
+    submitHandler: "unsupported",
+    gridEligible: false,
   }),
   "gpt-5.4": activeInternalPricingRuntime({
     label: "GPT-5.4",
@@ -1252,6 +1381,19 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     pricingStrategy: "openai-text-token",
     displayFamily: "Text",
     displayOrder: 300,
+    pricingFamily: "Text",
+    logoKey: "openai",
+    generationLanes: ["text"],
+    executionMode: "none",
+    submitHandler: "unsupported",
+    gridEligible: false,
+  }),
+  "gpt-5.4-pro": activeInternalPricingRuntime({
+    label: "GPT-5.4 Pro",
+    mediaType: "text",
+    pricingStrategy: "openai-text-token",
+    displayFamily: "Text",
+    displayOrder: 305,
     pricingFamily: "Text",
     logoKey: "openai",
     generationLanes: ["text"],
@@ -1332,6 +1474,31 @@ export const listModelCatalogEntries = (): ModelCatalogEntry[] => Object.values(
 
 export const getModelCatalogEntry = (modelId: string): ModelCatalogEntry | null =>
   MODEL_CATALOG[modelId] ?? null;
+
+export const getPairedModelId = (modelId: string): string | null =>
+  getModelCatalogEntry(modelId)?.pairedModelId ?? null;
+
+export const listCreateCharacterModeModelIds = (): string[] =>
+  listModelCatalogEntries()
+    .filter((entry) => typeof entry.createCharacterModeOrder === "number")
+    .sort(
+      (a, b) =>
+        (a.createCharacterModeOrder ?? Number.MAX_SAFE_INTEGER) -
+        (b.createCharacterModeOrder ?? Number.MAX_SAFE_INTEGER)
+    )
+    .map((entry) => entry.modelId);
+
+export const getModelPromptPolicy = (modelId: string): ModelPromptPolicy | null =>
+  getModelCatalogEntry(modelId)?.promptPolicy ?? null;
+
+export const getModelAdmissionTier = (modelId: string): ModelAdmissionTier | null =>
+  getModelCatalogEntry(modelId)?.admissionTier ?? null;
+
+export const getModelSubmissionAdapterKey = (modelId: string): ModelSubmissionAdapterKey | null =>
+  getModelCatalogEntry(modelId)?.submissionAdapterKey ?? null;
+
+export const isAlwaysOnProviderRuntimeModelId = (modelId: string): boolean =>
+  getModelCatalogEntry(modelId)?.alwaysOnProviderRuntime === true;
 
 export const getFalSubmitUrlByModelId = (modelId: string): string | null =>
   getModelCatalogEntry(modelId)?.falSubmitUrl ?? null;

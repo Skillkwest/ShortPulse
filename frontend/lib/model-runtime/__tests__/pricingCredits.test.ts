@@ -4,21 +4,22 @@
 
 import { describe, expect, it } from "vitest";
 import { convertUsdToCredits, resolveModelCreditRoundingMode } from "../pricingCredits";
+import { buildModelPricingVariantId } from "../modelPricingVariants";
 
 describe("pricingCredits", () => {
-  it("does not apply extra round-nearest quantization by default", () => {
+  it("applies the default 60% markup while keeping whole-credit roundup", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.039,
     });
     expect(result).toEqual({
-      rawCredits: 4,
-      credits: 4,
-      billedUsd: 0.04,
+      rawCredits: 7,
+      credits: 7,
+      billedUsd: 0.07,
     });
   });
 
-  it("ignores legacy global nearest-5 quantization by default", () => {
+  it("ignores legacy global nearest-5 quantization while still applying the default markup", () => {
     const fluxLite = convertUsdToCredits({
       modelId: "fal-ai/flux-2/klein/9b",
       usdRaw: 0.00648,
@@ -28,25 +29,25 @@ describe("pricingCredits", () => {
       usdRaw: 0.018,
     });
     expect(fluxLite).toEqual({
-      rawCredits: 1,
-      credits: 1,
-      billedUsd: 0.01,
-    });
-    expect(bria).toEqual({
       rawCredits: 2,
       credits: 2,
       billedUsd: 0.02,
+    });
+    expect(bria).toEqual({
+      rawCredits: 3,
+      credits: 3,
+      billedUsd: 0.03,
     });
   });
 
   it("does not round boundary values up to nearest-5 without a per-model override", () => {
     const noMarkupAtFive = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.05,
       applyMarkup: false,
     });
     const noMarkupAboveFive = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.050001,
       applyMarkup: false,
     });
@@ -57,28 +58,28 @@ describe("pricingCredits", () => {
     expect(noMarkupAboveFive.credits).toBe(6);
   });
 
-  it("does not apply markup without a per-model markup value", () => {
+  it("applies the default 60% markup when no per-model override exists", () => {
     const withoutMarkup = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.0486,
       applyMarkup: false,
     });
     const withMarkup = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.0486,
     });
 
     expect(withoutMarkup.rawCredits).toBe(5);
     expect(withoutMarkup.credits).toBe(5);
-    expect(withMarkup.rawCredits).toBe(5);
-    expect(withMarkup.credits).toBe(5);
+    expect(withMarkup.rawCredits).toBe(8);
+    expect(withMarkup.credits).toBe(8);
   });
 
   it("resolves ceil rounding unless a per-model increment is set", () => {
     expect(resolveModelCreditRoundingMode("fal-ai/flux-2/klein/9b")).toBe("ceil");
     expect(resolveModelCreditRoundingMode("fal-ai/bria/background/remove")).toBe("ceil");
     expect(
-      resolveModelCreditRoundingMode("fal-ai/nano-banana-2", {
+      resolveModelCreditRoundingMode("fal-ai/nano-banana", {
         schemaVersion: 1,
         global: {
           creditUsdScale: 100,
@@ -86,7 +87,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 1,
         },
         perModel: {
-          "fal-ai/nano-banana-2": {
+          "fal-ai/nano-banana": {
             roundingIncrement: 5,
           },
         },
@@ -94,9 +95,9 @@ describe("pricingCredits", () => {
     ).toBe("nearest-5");
   });
 
-  it("ignores the legacy top-level markup field while applying conversion scale", () => {
+  it("ignores the legacy top-level markup field while still applying the default markup", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.039,
       policy: {
         schemaVersion: 1,
@@ -110,15 +111,15 @@ describe("pricingCredits", () => {
     });
 
     expect(result).toEqual({
-      rawCredits: 8,
-      credits: 8,
-      billedUsd: 0.04,
+      rawCredits: 13,
+      credits: 13,
+      billedUsd: 0.065,
     });
   });
 
   it("applies per-model markup without layering on the legacy top-level field", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.039,
       policy: {
         schemaVersion: 1,
@@ -128,7 +129,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 5,
         },
         perModel: {
-          "fal-ai/nano-banana-2": {
+          "fal-ai/nano-banana": {
             markupBps: 10_000,
           },
         },
@@ -144,7 +145,7 @@ describe("pricingCredits", () => {
 
   it("applies per-model credit conversion overrides", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.039,
       policy: {
         schemaVersion: 1,
@@ -154,7 +155,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 5,
         },
         perModel: {
-          "fal-ai/nano-banana-2": {
+          "fal-ai/nano-banana": {
             creditUsdScale: 200,
           },
         },
@@ -162,15 +163,15 @@ describe("pricingCredits", () => {
     });
 
     expect(result).toEqual({
-      rawCredits: 8,
-      credits: 8,
-      billedUsd: 0.04,
+      rawCredits: 13,
+      credits: 13,
+      billedUsd: 0.065,
     });
   });
 
   it("applies per-model rounding increment overrides", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.0486,
       policy: {
         schemaVersion: 1,
@@ -180,7 +181,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 5,
         },
         perModel: {
-          "fal-ai/nano-banana-2": {
+          "fal-ai/nano-banana": {
             roundingIncrement: 5,
           },
         },
@@ -188,15 +189,15 @@ describe("pricingCredits", () => {
     });
 
     expect(result).toEqual({
-      rawCredits: 5,
-      credits: 5,
-      billedUsd: 0.05,
+      rawCredits: 8,
+      credits: 10,
+      billedUsd: 0.1,
     });
   });
 
   it("converts legacy multiplier overrides without using top-level markup", () => {
     const result = convertUsdToCredits({
-      modelId: "fal-ai/nano-banana-2",
+      modelId: "fal-ai/nano-banana",
       usdRaw: 0.039,
       policy: {
         schemaVersion: 1,
@@ -206,7 +207,7 @@ describe("pricingCredits", () => {
           defaultRoundingIncrement: 5,
         },
         perModel: {
-          "fal-ai/nano-banana-2": {
+          "fal-ai/nano-banana": {
             // Legacy format from the first control-plane implementation.
             // Normalization maps this to a per-model markup and ignores top-level markup.
             multiplierBps: 20_000,
@@ -223,7 +224,7 @@ describe("pricingCredits", () => {
     });
   });
 
-  it("converts legacy exception ids into normal roundup increment overrides", () => {
+  it("converts legacy exception ids into normal roundup increment overrides on top of the default markup", () => {
     const fluxLite = convertUsdToCredits({
       modelId: "fal-ai/flux-2/klein/9b",
       usdRaw: 0.00648,
@@ -240,9 +241,64 @@ describe("pricingCredits", () => {
     });
 
     expect(fluxLite).toEqual({
-      rawCredits: 1,
-      credits: 1,
-      billedUsd: 0.01,
+      rawCredits: 2,
+      credits: 2,
+      billedUsd: 0.02,
+    });
+  });
+
+  it("applies per-variant markup overrides without affecting sibling variants", () => {
+    const modelId = "fal-ai/nano-banana-2";
+    const oneKVariantId = buildModelPricingVariantId({
+      baseVariantId: "default",
+      aspect: "auto",
+      resolution: "1K",
+    });
+    const twoKVariantId = buildModelPricingVariantId({
+      baseVariantId: "default",
+      aspect: "auto",
+      resolution: "2K",
+    });
+    const policy = {
+      schemaVersion: 2 as const,
+      global: {
+        creditUsdScale: 100,
+        defaultRoundingMode: "ceil" as const,
+        defaultRoundingIncrement: 1,
+      },
+      perModel: {
+        [modelId]: {
+          variants: {
+            [oneKVariantId]: {
+              markupBps: 6_000,
+            },
+          },
+        },
+      },
+    };
+
+    const oneKResult = convertUsdToCredits({
+      modelId,
+      usdRaw: 0.08,
+      policy,
+      variantId: oneKVariantId,
+    });
+    const twoKResult = convertUsdToCredits({
+      modelId,
+      usdRaw: 0.08,
+      policy,
+      variantId: twoKVariantId,
+    });
+
+    expect(oneKResult).toEqual({
+      rawCredits: 13,
+      credits: 13,
+      billedUsd: 0.13,
+    });
+    expect(twoKResult).toEqual({
+      rawCredits: 13,
+      credits: 13,
+      billedUsd: 0.13,
     });
   });
 });

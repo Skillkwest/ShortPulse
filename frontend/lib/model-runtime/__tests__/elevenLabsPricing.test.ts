@@ -8,7 +8,6 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      credits: 10,
       usdRaw: 0.1,
     });
   });
@@ -19,7 +18,6 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      credits: 12,
       usdRaw: 0.12,
     });
   });
@@ -30,8 +28,7 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      credits: 12,
-      usdRaw: 0.12,
+      usdRaw: 0.01,
     });
   });
 
@@ -42,8 +39,17 @@ describe("ElevenLabs runtime pricing", () => {
     );
 
     expect(breakdown).toMatchObject({
-      credits: 12,
-      usdRaw: 0.12,
+      usdRaw: 0.01,
+    });
+  });
+
+  it("scales explicit-duration sound effects linearly by seconds", () => {
+    const breakdown = computeCostForModel("eleven_text_to_sound_v2", {
+      durationSeconds: 10,
+    });
+
+    expect(breakdown).toMatchObject({
+      usdRaw: 0.02,
     });
   });
 
@@ -53,7 +59,6 @@ describe("ElevenLabs runtime pricing", () => {
     });
 
     expect(breakdown).toMatchObject({
-      credits: 15,
       usdRaw: 0.15,
     });
   });
@@ -62,7 +67,6 @@ describe("ElevenLabs runtime pricing", () => {
     const breakdown = computeCostForModel("music_v1", {});
 
     expect(breakdown).toMatchObject({
-      credits: 30,
       usdRaw: 0.3,
     });
   });

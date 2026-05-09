@@ -62,6 +62,10 @@ export function PricingPolicyStatusBar({
           ) : (
             <p className="tiny subdued">No draft changes.</p>
           )}
+          <p className="tiny subdued">
+            Browser refresh keeps this local draft. Use <strong>Save draft live</strong> to make the
+            active runtime policy permanent.
+          </p>
         </div>
       </div>
 

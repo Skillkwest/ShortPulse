@@ -51,6 +51,20 @@ const resolveInputImageCount = (payload: JsonObject): number | undefined => {
   return count > 0 ? count : undefined;
 };
 
+const resolveInputVideoCount = (payload: JsonObject): number | undefined => {
+  const directCount = asNumber(payload.input_video_count);
+  if (directCount && directCount >= 0) {
+    return Math.max(0, Math.round(directCount));
+  }
+
+  const videos = payload.reference_video_urls;
+  if (!Array.isArray(videos)) return undefined;
+  const count = videos.filter(
+    (entry) => typeof entry === "string" && entry.trim().length > 0
+  ).length;
+  return count >= 0 ? count : undefined;
+};
+
 const resolveMaskPresent = (payload: JsonObject): boolean | undefined => {
   const directMaskPresent = asBoolean(payload.mask_present);
   if (directMaskPresent !== undefined) return directMaskPresent;
@@ -279,6 +293,8 @@ export const buildPricingParams = (
   if (inputFidelity) params.inputFidelity = inputFidelity;
   const inputImageCount = resolveInputImageCount(payload);
   if (inputImageCount) params.inputImageCount = inputImageCount;
+  const inputVideoCount = resolveInputVideoCount(payload);
+  if (inputVideoCount !== undefined) params.inputVideoCount = inputVideoCount;
   const maskPresent = resolveMaskPresent(payload);
   if (maskPresent !== undefined) params.maskPresent = maskPresent;
 

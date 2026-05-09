@@ -576,6 +576,10 @@ export type AdminPricingPolicySnapshot = ModelPricingPolicySnapshot;
 export type AdminPricingPreviewVariant = {
   id: string;
   label: string;
+  aspect?: string | null;
+  resolution?: string | null;
+  audio?: boolean | null;
+  videoInput?: boolean | null;
   breakdown: AdminCreditPricingBreakdown;
 };
 
@@ -593,12 +597,15 @@ export type AdminPricingModelRow = {
   pricingFamily?: string | null;
   surfaceNote?: string | null;
   defaultAspect: string;
+  allowedAspects: string[];
   defaultResolution: string | null;
+  allowedResolutions: string[];
   defaultDurationSeconds: number | null;
   defaultSourceDurationSeconds: number | null;
   minDurationSeconds: number | null;
   maxDurationSeconds: number | null;
   allowedDurations: number[];
+  defaultAudio: boolean | null;
   roundingIncrement: number;
   pricingAuthority: "shared_policy" | "local_pricing" | "metadata_only";
   pricingPreview: AdminCreditPricingBreakdown | null;

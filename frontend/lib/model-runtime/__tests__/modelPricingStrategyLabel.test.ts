@@ -26,13 +26,19 @@ describe("getAdminPricingStrategyLabel", () => {
 
   it("describes token billing plainly", () => {
     expect(getAdminPricingStrategyLabel("gpt-5.4-nano", "openai-text-token")).toBe(
-      "Per 1M input tokens"
+      "Per 50,000 characters"
+    );
+  });
+
+  it("describes explicit-duration sound effects as second-based billing", () => {
+    expect(getAdminPricingStrategyLabel("eleven_text_to_sound_v2", "elevenlabs-sound-effect")).toBe(
+      "Per second"
     );
   });
 
   it("describes time-based video billing plainly", () => {
     expect(getAdminPricingStrategyLabel(KIE_VEO_31_FAST_I2V_MODEL_ID, "veo-3-per-second")).toBe(
-      "Per output second"
+      "Per video (flat)"
     );
   });
 });

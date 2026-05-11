@@ -11,6 +11,7 @@ Purpose: verify pricing formulas, defaults, and debit behavior across AI Studio.
 - Any model/pricing change
 - Any change to credits/debit logic
 - Before MVP release readiness
+- Use `skills/skill-pricing-wiring/SKILL.md` alongside this audit when the work includes wiring billable UI surfaces onto shared pricing display logic.
 
 ## Sources of truth
 - `frontend/features/ai-studio/logic/modelRegistry.ts`

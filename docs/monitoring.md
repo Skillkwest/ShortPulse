@@ -263,10 +263,10 @@ Provider-specific runbook: `docs/sops/sop_provider_incident_response.md`.
 
 ## Character Manager compatibility drift monitor
 
-- During the Character Sheet migration window, run `sql/check_character_sheet_alias_drift.sql` after each deploy that touches Character Manager persistence or schema.
+- Before applying `122_retire_character_sheet_alias_compat.sql`, run `sql/check_character_sheet_alias_drift.sql` after each deploy that touches Character Manager persistence or schema.
 - Expected result: every `mismatch_count` is `0`.
 - If any non-zero count appears, treat as `medium` severity because cross-surface assignment behavior may diverge.
-- Escalate using the troubleshooting runbook section `Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)`.
+- Escalate using the troubleshooting runbook section `Character Manager alias drift (historical compatibility window)`.
 
 ## Media storage scope drift monitor
 

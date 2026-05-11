@@ -261,8 +261,28 @@ Recommended operator sequence:
   - granted credits from plans/top-ups are stored as nominal credit quantities in billing tables
   - the active model-pricing policy controls how generation USD cost is converted into billed credits at runtime
   - changing the runtime conversion rate does not rewrite historical grants or subscription contract rows
+  - phase-1 billable AI Studio flows also persist `pricing_observability` metadata so operators can compare displayed billed credits against final debited credits without reconstructing the client estimate manually
 - Stripe subscription item sync must treat storage add-ons as recurring subscription items, not consumable credit packs.
 - Immediate Stripe subscription deletion must drop local paid entitlements back to free runtime state. Only `cancel_at_period_end = true` should preserve access through the paid period.
+
+## Pricing observability diagnostics
+
+- Use `/admin/generation-trace` or `GET /api/admin/generation-trace` when you need to inspect estimate-vs-debit drift for billable AI Studio runs.
+- The trace summary includes `pricingObservabilityMismatches`.
+- The trace payload includes `pricingObservabilityMismatchRows`, which normalize:
+  - source type (`generation`, `reservation`, `ledger`)
+  - row id / generation id / request id
+  - displayed billed credits
+  - actual billed credits
+  - delta credits
+  - pricing display source
+  - whether the client considered pricing policy ready
+- Normal healthy traffic should leave `pricingObservabilityMismatchRows` empty for shared-policy billable surfaces.
+- If mismatch rows appear:
+  1. confirm the action is supposed to be `billable_shared_policy`
+  2. verify the client surface uses the shared pricing adapter instead of local pricing math
+  3. verify the route rebuilds canonical pricing params before `chargeGenerationRequest()`
+  4. only after that inspect active model-pricing policy changes for intentional pricing shifts
 
 ## Media storage quota contract
 

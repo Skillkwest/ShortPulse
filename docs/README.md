@@ -82,6 +82,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/adr/0072-admin-kanban-and-ophestivus-foundation.md`
 - `docs/adr/0073-create-pulse-built-in-control-plane.md`
 - `docs/adr/0074-pulse-custom-vs-guided-workflow-terminology.md`
+- `docs/adr/0076-model-inventory-operator-only-and-server-allowlisted.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/systems/README.md`
@@ -93,6 +94,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/local-development.md`
 - `docs/deployment.md`
 - `docs/database-migrations.md`
+- `sql/README.md`
 - `docs/supabase_auth_setup.md`
 - `docs/security-checklist.md`
 - `docs/testing-guide.md`
@@ -180,11 +182,17 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`
 - `docs/sops/sop_new_model_ingestion.md`
+- `docs/sops/sop_model_retirement.md`
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`
 - `docs/sops/sop_video_generation.md`
 - `docs/sops/sop_naming_canonicalization_rollback.md`
 - `docs/sops/sop_nuclo_supabase_storage_migration.md`
+- `docs/sops/sop_nuclo_supabase_migration_apply_and_validation.md`
+- `docs/sops/sop_nuclo_vercel_env_repair.md`
+- `docs/sops/sop_nuclo_production_smoke_test.md`
+- `docs/sops/sop_nuclo_destructive_data_guard.md`
+- `docs/sops/sop_secret_exposure_rotation.md`
 
 ## Product
 

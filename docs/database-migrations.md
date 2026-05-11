@@ -236,6 +236,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 119.  `sql/migrations/119_require_character_media_id_on_character_links.sql`
 120.  `sql/migrations/120_remove_legacy_onboarding_user_preference.sql`
 121.  `sql/migrations/121_add_agent_prompt_runtime_control_plane.sql`
+122.  `sql/migrations/122_retire_character_sheet_alias_compat.sql`
 Rollback files:
 
 
@@ -309,6 +310,7 @@ Rollback files:
     - `sql/migrations/rollback/104_add_user_media_compliance_acceptances_rollback.sql`
     - `sql/migrations/rollback/108_retire_legacy_ai_studio_pulses_rollback.sql`
     - `sql/migrations/rollback/120_remove_legacy_onboarding_user_preference_rollback.sql`
+    - `sql/migrations/rollback/122_retire_character_sheet_alias_compat_rollback.sql`
 
 Hosted SQL lint note:
 
@@ -385,6 +387,7 @@ Billing safety note:
 - Migration `118_canonicalize_character_metadata_media_ids.sql` rewrites `characters.metadata` profile-image and preset references onto canonical `character_media_id` keys and strips legacy metadata linkage keys.
 - Migration `119_require_character_media_id_on_character_links.sql` backfills any remaining slot/QuickSwap row linkage onto `character_media_assets`, retires row-level `media_file_id` coupling from the live Character Manager path, and hardens slot/QuickSwap integrity around required `character_media_id`.
 - Migration `119_require_character_media_id_on_character_links.sql` backfills remaining slot and QuickSwap linkage rows onto `character_media_assets`, removes legacy `media_file_id` dependence on those tables, and requires `character_media_id` going forward.
+- Migration `122_retire_character_sheet_alias_compat.sql` removes the legacy `reference_pack_*` compatibility bridge after verified zero-drift audits across staging and production, scrubs legacy metadata keys, drops alias sync triggers/constraints, and removes the retired alias columns.
 - Migration `069_harden_provider_attached_stale_cleanup_execute_grants.sql` hardens `release_stale_provider_attached_generation_reservations` execute posture to service-role-only.
 - Migration `095_add_project_media_folder_canvas_states.sql` adds `project_media_folder_canvas_states` so Media Library custom-folder canvas snapshots can persist by `user_id + project_id + folder_id` on project routes while the legacy user-scoped folder canvas table remains in place for non-project surfaces.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
@@ -402,7 +405,7 @@ After applying migrations `016_harden_media_storage_path_scope.sql` and `017_har
    - Run `sql/migrations/009_repair_legacy_media_storage_paths.sql` (safe to re-run).
    - Re-run `sql/check_media_storage_scope_drift.sql`.
 
-## Character Sheet compatibility verification (post-012)
+## Character Sheet compatibility verification (post-012 / pre-122)
 
 After applying migration `012_add_character_sheet_aliases_and_compat.sql`:
 
@@ -413,5 +416,22 @@ After applying migration `012_add_character_sheet_aliases_and_compat.sql`:
 
 Deprecation note:
 
-- Legacy aliases (`active_reference_pack_id`, `reference_pack_id`, `reference_pack_assignments`) remain intentionally supported during rollout.
-- Do not remove legacy aliases until drift checks stay at zero through at least one full release cycle across all environments.
+- Legacy aliases (`active_reference_pack_id`, `reference_pack_id`, `reference_pack_assignments`) were intentionally supported only until migration `122_retire_character_sheet_alias_compat.sql` was applied.
+- For any future environment that has not yet applied `122`, do not apply it until drift checks stay at zero and legacy-only rows stay at zero.
+
+## Character Sheet alias retirement (post-122)
+
+After applying migration `122_retire_character_sheet_alias_compat.sql`:
+
+1. Run the read-only readiness/drift audit again:
+   - Execute `sql/check_character_sheet_alias_drift.sql`, or
+   - Run `npm -C frontend run audit:character-sheet-alias-readiness` with the target environment credentials.
+2. Confirm every `mismatch_count` remains `0`.
+3. Confirm no legacy-only rows remain in `characters.metadata`, `character_reference_images`, `character_generation_jobs`, or character-reference `media_files` metadata.
+
+Retirement note:
+
+- Legacy alias columns/keys are removed by migration `122`.
+- Migration `122_retire_character_sheet_alias_compat.sql` is expected to remain safe on environments where the legacy alias columns were already retired; its preflight skips alias drift checks once those columns are absent.
+- `npm -C frontend run audit:character-sheet-alias-readiness` is safe before and after retirement; after migration `122` it reports `aliasColumnsPresent: false` for the retired compatibility columns.
+- `character_reference_packs` remains the table name; only the compatibility aliases are retired.

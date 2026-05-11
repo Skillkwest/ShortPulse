@@ -11,9 +11,11 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `frontend/lib/model-runtime/pricingCredits.ts` — shared USD→credits conversion with per-model markup and optional row-specific round-nearest behavior.
 - `frontend/lib/server/api/modelPricingControlPlane.ts` — versioned runtime control-plane resolver for the active pricing policy document.
 - `frontend/lib/model-runtime/pricing.ts` — dispatcher (`computeCostForModel`) and helpers.
+- `frontend/features/ai-studio/logic/clientPricingDisplay.ts` — shared client adapter for billable credit display (`resolveClientPricingBreakdown`, `resolveClientBilledCredits`) that fails closed when the active pricing policy is unavailable.
 - `frontend/features/ai-studio/logic/*` re-export runtime pricing modules for compatibility.
 - `frontend/pages/api/pricing/model-policy.ts` — authenticated client read route for the active policy snapshot.
 - `frontend/pages/api/admin/pricing/model-policy/apply.ts` / `rollback.ts` — admin mutation routes for versioned policy activation and rollback.
+- `frontend/pages/api/admin/generation-trace.ts` + `frontend/pages/admin/generation-trace.tsx` — operator observability surface for estimate-vs-debit mismatch review via persisted `pricing_observability` metadata.
 - `sql/migrations/096_add_model_pricing_control_plane.sql` — persistent policy versions/runtime pointers/audit events + service-role RPCs.
 
 ## Contract
@@ -21,6 +23,8 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - Model config includes lifecycle/surface metadata, `pricingStrategy`, and optional `sizeMap` for dimension-aware strategies.
 - AI Studio picker options are derived from active catalog models with the `picker` surface; `/admin/pricing` model rows are derived from active, billable catalog models with the `pricing` surface.
 - `computeCostForModel(modelId, params, pricingPolicy?)` returns `{ credits, usd, rawCredits, usdRaw, megapixels, width, height } | null`.
+- Billable UI surfaces must render credits through the shared client adapter rather than direct local `computeCostForModel(...)` calls.
+- If the active pricing policy is unavailable, billable UI must fail closed (`null` / `—`) instead of inventing fallback credits.
 - Defaults for duration/resolution/audio come from catalog/registry and drive both UI estimate chips and server charge inputs.
 - Active model-pricing policy document fields:
   - `global.creditUsdScale`
@@ -39,12 +43,26 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - Current blocked set: none.
 - `usdRaw` is provider USD before markup/rounding; `usd` is billed USD (`credits * 0.01`).
 - Runtime authority: admin edits create a new versioned policy document and update the control-plane singleton; AI Studio clients and server billing both resolve that same active document with a short cache TTL.
+- Phase-1 billable surfaces on this contract are:
+  - core AI Studio create/edit/image/video generate + regenerate flows
+  - standard create primary + inline generate
+  - agent-output generate
+  - Pulse artifact generate
+  - Music
+  - Sound Effects
+  - Voiceover
+  - Voice Changer
+- Explicit non-billable helper exclusions on this contract are:
+  - style extraction
+  - Voice Design preview/create helper flows
+  - voice clone helper flow
 - ElevenLabs sound generation now bills through the shared model-pricing engine for:
   - `eleven_multilingual_v2` (voiceover) by billed character count
   - `eleven_multilingual_sts_v2` (voice changer) by processed source duration
   - `eleven_text_to_sound_v2` (sound effects) by generation or explicit duration
   - `music_v1` (music) by requested duration
 - `metadata_only` ElevenLabs rows remain informational only for supporting/provider-preview models that are not user-billable through the shared runtime pricing policy.
+- Billable submit paths now attach `shortpulse_context.displayed_billed_credits` plus `pricing_display_source` and `pricing_policy_ready` so server-side billing can persist `pricing_observability` deltas for operator diagnostics.
 
 ## Current strategies
 
@@ -67,3 +85,5 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `frontend/features/ai-studio/logic/__tests__/pricing.test.ts` covers strategy formulas including Kie Kling and Kie Veo calculations.
 - `frontend/features/ai-studio/logic/__tests__/modelPricingCoverage.test.ts` runs matrix coverage over supported runtime settings and verifies no global round-nearest behavior is applied by default.
 - `frontend/tests/api/generation-billing.reservations.test.ts` + `frontend/tests/api/generation-billing.pricing-params.test.ts` cover server parity (`buildPricingParams` vs `computeCostForModel`) and reservation metadata consistency.
+- `frontend/features/ai-studio/hooks/__tests__/useAiStudioTaskSubmission.test.ts` covers `shortpulse_context` pricing-observability metadata on billable submissions.
+- `frontend/tests/api/admin-generation-trace.test.ts` covers mismatch counting plus normalized `pricingObservabilityMismatchRows` output for operator review.

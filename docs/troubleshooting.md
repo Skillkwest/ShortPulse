@@ -61,7 +61,7 @@ Symptoms:
 
 Checklist:
 - Confirm the active deployment includes the referenced chunk and the deployment alias is not stale.
-- Run `node scripts/verify_deployment_route_parity.mjs --base-url <target-url> --token <token>` from docs.
+- Run `node scripts/verify_deployment_route_parity.mjs --base-url <target-url>` from docs.
 - Confirm no active caching policy is pinning an older build for that user.
 
 Mitigation:
@@ -173,30 +173,36 @@ Mitigation:
 - Keep media-library preview delivery on Supabase signed URLs (do not re-wrap signed URLs through Next image optimizer).
 - Hard-refresh/re-open the media surface to clear stale wrapped preview state from older sessions.
 
-## Internal route returns `404` due alias/deployment drift
+## Internal route returns `404` or `503` during hosted ops checks
 Symptoms:
 - Internal ops routes unexpectedly return `404` on staging/prod aliases (for example `/api/internal/generation-recovery/run` or `/api/internal/media-derivatives/run`).
-- Vercel alias points to an older deployment that does not include current internal route inventory.
+- Internal ops routes return `503` after a freeze/unfreeze or env flip because their enabling flag or cron secret is missing.
+- Vercel alias may also point to an older deployment that does not include the expected internal route inventory.
 
 Checklist:
 - Run deployment route parity gate:
   ```bash
   node scripts/verify_deployment_route_parity.mjs \
-    --base-url https://<target-alias-or-url> \
-    --token <SHORTPULSE_VERCEL_API_TOKEN>
+    --base-url https://<target-alias-or-url>
   ```
 - Inspect resolved deployment details directly:
   ```bash
-  vercel inspect https://<target-alias-or-url> --format=json --token <SHORTPULSE_VERCEL_API_TOKEN>
+  vercel inspect https://<target-alias-or-url> --format=json
   ```
 - Confirm required routes are present in build output:
   - `/api/internal/admin-user-health-fleet/run`
   - `/api/internal/generation-recovery/run`
   - `/api/internal/media-derivatives/run`
+- Confirm hosted runtime flags and secrets are restored when the route should be available:
+  - `SHORTPULSE_FAL_RECONCILER_ENABLED`
+  - `SHORTPULSE_MEDIA_DERIVATIVES_ENABLED`
+  - `SHORTPULSE_USER_HEALTH_FLEET_ENABLED`
+  - `SHORTPULSE_MEDIA_DERIVATIVES_CRON_SECRET` (or `CRON_SECRET`)
 
 Mitigation:
 - Do not run drain/recovery/derivative operations against aliases that fail route parity.
 - Repoint alias or scheduler URLs to a deployment that passes the parity gate.
+- If route parity passes but the route still returns `404` or `503`, restore the intended hosted flags/secrets and retry the probe.
 - Re-run parity check and only proceed when it reports `PASS`.
 
 ## Media derivative worker backlog grows or image rows stay `pending`
@@ -631,7 +637,7 @@ Checklist:
 - Run focused tests:
   - `npm -C frontend run test -- MediaLibraryModal useMediaTabDataController`
 
-## Character Manager alias drift (Character Sheet vs legacy Reference Pack fields)
+## Character Manager alias drift (historical compatibility window)
 Symptoms:
 - Character Sheet slots appear assigned in one surface but missing in another.
 - Character rows load with stale active sheet pointers after mixed-version deployments.
@@ -647,7 +653,10 @@ Mitigation:
   - `trg_characters_sync_character_sheet_aliases`
   - `trg_character_reference_images_sync_character_sheet_aliases`
   - `trg_character_generation_jobs_sync_character_sheet_aliases`
-- Record persistent mismatches in `docs/change_log.md` and escalate before removing legacy aliases.
+- Record persistent mismatches in `docs/change_log.md` and escalate before applying `122_retire_character_sheet_alias_compat.sql`.
+
+Post-retirement note:
+- After migration `122_retire_character_sheet_alias_compat.sql`, this becomes a historical/readiness runbook rather than an active runtime compatibility path.
 
 ## Prompt or AI Generation saves fail
 Checklist:

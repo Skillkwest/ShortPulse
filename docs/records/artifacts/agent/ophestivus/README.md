@@ -14,7 +14,10 @@ Purpose: local home base for Ophestivus repo-working artifacts, indexes, and sta
 
 - `memory.md`: local retained memory for the Ophestivus working identity and stable repo workflow facts.
 - `baseline-kpi.md`: frozen historical KPI baseline for measuring future Ophestivus workflow performance.
+- `error-capability-map.md`: pattern-level capability map showing what incident classes I can handle, which need guardrails, and which remain human-first.
+- `error-ledger.md`: cross-run incident ledger with fixed classifications, board ids, outcomes, and report links.
 - `post-run-performance-analysis-interview.md`: tailored post-run interview prompts for evaluating workflow quality and identifying needed tools or doc changes.
+- `training-rubric.md`: reusable per-run scoring rubric for judging workflow quality and identifying what to train next.
 - `sops.md`: Ophestivus SOP index and trigger phrases.
 - `tools.md`: Ophestivus helper command inventory.
 - `training-history.md`: narrative record of how Ophestivus was created, trained, prompted, and improved.

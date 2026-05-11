@@ -6,7 +6,7 @@ Purpose: store non-authoritative retained artifacts for Nuclo's environment, ver
 
 Nuclo is currently at `Level 1: Supervised`.
 
-The agent has a durable contract, repo-visible memory, retained artifact area, and owned workspace folder. Nuclo has completed setup, live environment-state inventory, and an audited production-readiness plan, but has not yet completed a live production-cutover mutation run.
+The agent has a durable contract, repo-visible memory, retained artifact area, and owned workspace folder. Nuclo has completed setup, live environment-state inventory, the audited production-readiness/cutover lane, post-cutover environment repair, and standing Supabase-manager safety guardrails.
 
 ## Artifact Layout
 

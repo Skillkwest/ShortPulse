@@ -100,7 +100,7 @@ Define the operational contract for the `/character` Character Manager surface, 
 - AI Studio Create integration: `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/logic/characterModePayload.ts`
 - AI Studio internal drag payload + parser: `frontend/features/ai-studio/utils/dragDrop.ts`
 - AI Studio drop resolver seam: `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
-- Compatibility drift SQL: `sql/check_character_sheet_alias_drift.sql`
+- Historical alias drift / retirement-readiness SQL: `sql/check_character_sheet_alias_drift.sql`
 
 ## Operational Flow
 1. Character bootstrap

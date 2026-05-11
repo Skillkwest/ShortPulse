@@ -1,7 +1,15 @@
 import fs from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import { getModelCatalogEntry } from "../../lib/model-runtime/modelCatalog";
+import {
+  getModelCatalogEntry,
+  listModelCatalogEntries,
+} from "../../lib/model-runtime/modelCatalog";
+import { FAL_ROUTE_INVENTORY } from "../../../scripts/lib/fal_route_inventory";
+import {
+  DIRECT_PROVIDER_ROUTE_INVENTORY,
+  listDirectProviderRouteModelIds,
+} from "../../../scripts/lib/direct_provider_route_inventory";
 
 const FAL_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "fal");
 const OPENAI_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "openai");
@@ -93,6 +101,58 @@ describe("model catalog route coverage", () => {
       .map((filePath) => path.basename(filePath));
 
     expect(filesWithQueueLiterals).toEqual([]);
+  });
+
+  it("keeps queued Fal/Kie route inventory aligned with active runtime catalog models", () => {
+    const queuedRuntimeEntries = listModelCatalogEntries()
+      .filter(
+        (entry) =>
+          entry.lifecycle === "active" &&
+          entry.surfaces?.includes("runtime") &&
+          entry.executionMode === "queued" &&
+          (entry.provider === "fal" || entry.provider === "kie")
+      )
+      .map((entry) => ({
+        modelId: entry.modelId,
+        provider: entry.provider,
+        fileBase: entry.apiRouteSlug ?? null,
+      }))
+      .sort((a, b) => a.modelId.localeCompare(b.modelId));
+
+    const routeInventoryEntries = [...FAL_ROUTE_INVENTORY]
+      .map((entry) => ({
+        modelId: entry.modelId,
+        provider: entry.provider,
+        fileBase: entry.fileBase,
+      }))
+      .sort((a, b) => a.modelId.localeCompare(b.modelId));
+
+    expect(new Set(queuedRuntimeEntries.map((entry) => entry.fileBase)).size).toBe(
+      queuedRuntimeEntries.length
+    );
+    expect(queuedRuntimeEntries).toEqual(routeInventoryEntries);
+  });
+
+  it("keeps direct provider route inventory aligned with active direct runtime catalog models", () => {
+    const directRuntimeModelIds = listModelCatalogEntries()
+      .filter(
+        (entry) =>
+          entry.lifecycle === "active" &&
+          entry.surfaces?.includes("runtime") &&
+          entry.executionMode === "direct" &&
+          (entry.provider === "openai" || entry.provider === "elevenlabs")
+      )
+      .map((entry) => entry.modelId)
+      .sort((a, b) => a.localeCompare(b));
+
+    expect(listDirectProviderRouteModelIds()).toEqual(directRuntimeModelIds);
+
+    const missingRoutes = DIRECT_PROVIDER_ROUTE_INVENTORY.filter(
+      (entry: { routePath: string }) =>
+        !fs.existsSync(path.join(process.cwd(), "..", entry.routePath))
+    ).map((entry: { routePath: string }) => entry.routePath);
+
+    expect(missingRoutes).toEqual([]);
   });
 
   it("uses one canonical Fal status route per active model", () => {

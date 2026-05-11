@@ -6,31 +6,32 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-
-const REPO_ROOT = process.cwd();
-const FRONTEND_ROOT = path.join(REPO_ROOT, "frontend");
-const MODEL_CATALOG_PATH = path.join(
+const {
   FRONTEND_ROOT,
+  REPO_ROOT,
+  resolveFrontendPath,
+  resolveRepoPath,
+} = require("./lib/repo_paths");
+
+const MODEL_CATALOG_PATH = resolveFrontendPath(
   "lib",
   "model-runtime",
   "modelCatalog.ts",
 );
-const MODEL_REGISTRY_PATH = path.join(
-  FRONTEND_ROOT,
+const MODEL_REGISTRY_PATH = resolveFrontendPath(
   "lib",
   "model-runtime",
   "modelRegistry.ts",
 );
-const PROVIDER_MODEL_IDS_PATH = path.join(
-  FRONTEND_ROOT,
+const PROVIDER_MODEL_IDS_PATH = resolveFrontendPath(
   "lib",
   "model-runtime",
   "providerModelIds.ts",
 );
-const FAL_ROUTES_DIR = path.join(FRONTEND_ROOT, "pages", "api", "fal");
-const DOCS_API_DIR = path.join(REPO_ROOT, "docs", "api");
-const DOCS_API_INDEX = path.join(DOCS_API_DIR, "README.md");
-const DOCS_ROOT_INDEX = path.join(REPO_ROOT, "docs", "README.md");
+const FAL_ROUTES_DIR = resolveFrontendPath("pages", "api", "fal");
+const DOCS_API_DIR = resolveRepoPath("docs", "api");
+const DOCS_API_INDEX = resolveRepoPath("docs", "api", "README.md");
+const DOCS_ROOT_INDEX = resolveRepoPath("docs", "README.md");
 const MAX_STALE_DAYS = Number(
   process.env.SHORTPULSE_MODEL_CATALOG_MAX_STALE_DAYS || 45,
 );
@@ -70,47 +71,6 @@ const RETIRED_FAL_SUBMIT_ROUTE_MODEL_IDS = new Set([
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
 ]);
-
-const MODEL_DOC_MAP = {
-  "fal-ai/flux-2/klein/9b": "api-fal-flux-2-klein-9b.md",
-  "fal-ai/flux-pro/v1/fill": "api-fal-flux-pro-fill.md",
-  "fal-ai/flux-kontext-lora/inpaint": "api-fal-flux-kontext-inpaint.md",
-  "fal-ai/bria/background/remove": "api-fal-bria-background-remove.md",
-  "fal-ai/nano-banana-2": "api-fal-nano-banana-2.md",
-  "fal-ai/nano-banana-2/edit": "api-fal-nano-banana-2-edit.md",
-  "fal-ai/nano-banana-pro": "api-fal-nano-banana-pro.md",
-  "fal-ai/nano-banana-pro/edit": "api-fal-nano-banana-pro-edit.md",
-  "fal-ai/bytedance/seedream/v4.5/text-to-image": "api-fal-seedream-4-5.md",
-  "fal-ai/bytedance/seedream/v4.5/edit": "api-fal-seedream-4-5-edit.md",
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image":
-    "api-fal-seedream-5-lite.md",
-  "fal-ai/bytedance/seedream/v5/lite/edit": "api-fal-seedream-5-lite-edit.md",
-  "fal-ai/kling-video/v3/pro/text-to-video":
-    "api-fal-kling-3-pro-text-to-video.md",
-  "fal-ai/kling-video/v3/pro/image-to-video":
-    "api-fal-kling-3-pro-image-to-video.md",
-  "fal-ai/veo3.1": "api-fal-veo3.md",
-  "fal-ai/veo3.1/image-to-video": "api-fal-veo3-image-to-video.md",
-  "fal-ai/veo3.1/first-last-frame-to-video": "api-fal-veo3-first-last-frame.md",
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video":
-    "api-fal-seedance-1-5-pro.md",
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video":
-    "api-fal-seedance-1-5-pro-i2v.md",
-  "kie-ai/veo-3.1-fast-i2v": "api-kie-veo-3-1-fast-image-to-video.md",
-  "kie-ai/kling-3.0": "api-kie-kling-3-0.md",
-  "kie-ai/seedance-1.5-pro": "api-kie-seedance-1-5-pro.md",
-  "kie-ai/seedance-2": "api-kie-seedance-2.md",
-  "kie-ai/seedance-2-fast": "api-kie-seedance-2-fast.md",
-  "gpt-image-2": "api-openai-gpt-image-2.md",
-  music_v1: "api-elevenlabs-audio-models.md",
-  eleven_text_to_sound_v2: "api-elevenlabs-audio-models.md",
-  eleven_multilingual_v2: "api-elevenlabs-audio-models.md",
-  eleven_multilingual_sts_v2: "api-elevenlabs-audio-models.md",
-  eleven_multilingual_ttv_v2: "api-elevenlabs-audio-models.md",
-  "gpt-5.4": "api-responses.md",
-  "gpt-5.4-mini": "api-responses.md",
-  "gpt-5.4-nano": "api-responses.md",
-};
 
 function readText(filePath) {
   return fs.readFileSync(filePath, "utf8");
@@ -312,6 +272,7 @@ function run() {
   }
 
   const seenIds = new Set();
+  const modelDocMap = new Map();
   const registryById = new Map(
     registryEntries.map((entry) => [String(entry.id || "").trim(), entry]),
   );
@@ -325,6 +286,13 @@ function run() {
       errors.push(`Duplicate modelId in catalog: ${modelId}`);
     }
     seenIds.add(modelId);
+
+    const apiDocFile = String(entry.apiDocFile || "").trim();
+    if (!apiDocFile) {
+      errors.push(`Missing apiDocFile for ${modelId}`);
+    } else {
+      modelDocMap.set(modelId, apiDocFile);
+    }
 
     const registryEntry = registryById.get(modelId);
     if (!registryEntry) {
@@ -488,9 +456,9 @@ function run() {
       }
     }
 
-    const mappedDoc = MODEL_DOC_MAP[modelId];
+    const mappedDoc = modelDocMap.get(modelId);
     if (!mappedDoc) {
-      errors.push(`Missing MODEL_DOC_MAP entry for ${modelId}`);
+      errors.push(`Missing apiDocFile mapping for ${modelId}`);
       continue;
     }
 
@@ -609,9 +577,9 @@ function run() {
         `Canonical Kie model id is not marked provider='kie' in catalog: ${modelId}`,
       );
     }
-    if (!MODEL_DOC_MAP[modelId]) {
+    if (!modelDocMap.get(modelId)) {
       errors.push(
-        `Canonical Kie model id missing MODEL_DOC_MAP entry: ${modelId}`,
+        `Canonical Kie model id missing apiDocFile entry: ${modelId}`,
       );
     }
     if (!kieRegistryModelIds.has(modelId)) {
@@ -629,11 +597,11 @@ function run() {
     }
   }
 
-  for (const modelId of Object.keys(MODEL_DOC_MAP)) {
+  for (const modelId of modelDocMap.keys()) {
     if (!modelId.startsWith("kie-ai/")) continue;
     if (!kieModelIdSet.has(modelId)) {
       errors.push(
-        `Kie MODEL_DOC_MAP entry missing canonical KIE_SUPPORTED_MODEL_IDS mapping: ${modelId}`,
+        `Kie apiDocFile entry missing canonical KIE_SUPPORTED_MODEL_IDS mapping: ${modelId}`,
       );
     }
   }
@@ -672,7 +640,7 @@ function run() {
 
   const apiIndexText = readText(DOCS_API_INDEX);
   const docsRootText = readText(DOCS_ROOT_INDEX);
-  const mappedDocs = new Set(Object.values(MODEL_DOC_MAP));
+  const mappedDocs = new Set(modelDocMap.values());
 
   for (const fileName of mappedDocs) {
     if (!apiIndexText.includes(`docs/api/${fileName}`)) {

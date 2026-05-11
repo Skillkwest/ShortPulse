@@ -72,6 +72,13 @@ Special case:
   - fix within existing user constraints
   - commit logical batches
   - push committed changes
+- If the user says `we have new changes`, treat that phrase the same way by default on the current approved branch:
+  - analyze
+  - organize/group
+  - validate
+  - fix within existing user constraints
+  - commit logical batches
+  - push committed changes
 - This combined authorization does not grant permission to:
   - switch branches
   - open a PR
@@ -80,7 +87,7 @@ Special case:
   - mutate Vercel env
   - mutate databases
   - make UI/UX/behavior changes unless the user already authorized that broader scope
-- If the user adds narrower constraints such as `explore only`, `do not push`, or `do not commit yet`, the narrower instruction overrides the default `run your SOP` ladder.
+- If the user adds narrower constraints such as `explore only`, `do not push`, or `do not commit yet`, the narrower instruction overrides the default `run your SOP` / `we have new changes` ladder.
 
 ## Output Discipline
 

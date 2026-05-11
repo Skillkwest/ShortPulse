@@ -74,6 +74,7 @@ Use this SOP when the user says one of:
    - Append the approval note template below to the ticket details through the item update path before moving the ticket. The current move API does not accept a note payload, so do not rely on the move activity alone for approval context.
    - Preserve the existing compact summary and local report path when appending the approval note.
    - Re-read the updated ticket and confirm the approval note is present and the item is still in `Review`.
+   - Finalize the linked local Ophestivus report so it reflects the post-approval outcome, including final board status `complete`.
    - Preferred command-line approval path: `cd frontend && npm run ophestivus:review -- --ticket <item-id> --approve --dry-run`, then rerun without `--dry-run` after confirming the planned approval note fits.
    - Move the ticket from `Review` to `Complete`.
    - Do not move it to `Published`.
@@ -105,6 +106,7 @@ Use this SOP when the user says one of:
 - Re-read the ticket after validation and before promotion to prevent stale shared-board state from being approved.
 - Append a visible approval note to ticket details before moving the item to `Complete`.
 - Confirm the approval note is present and the ticket is still in `Review` before the move.
+- Confirm the linked local report was finalized to the `complete` outcome after approval.
 - Leave `Published` untouched unless explicitly instructed by the user.
 
 ## Approval Note Template
@@ -134,6 +136,16 @@ Decision: moved to Complete.
 
 ## Validation
 
+- Prefer targeted re-validation for the ticket's claimed lane first. Re-run the smallest coherent test/check set that proves the reviewed work is still valid, and widen only when the ticket evidence or changed surface requires it.
+- Expect tier-appropriate proof in the review evidence:
+  - `low` risk tickets should show targeted validation plus recurrence verification.
+  - `medium` risk tickets should also show one adjacent contract or neighboring-behavior check.
+  - `high` risk work should normally have been escalated already unless the local report clearly shows that the issue was reduced to one bounded seam.
+- Do not approve a ticket if its claimed fix introduced new lint warnings, type errors, or equivalent validation regressions in the touched lane. Those must be resolved first.
+- If the ticket left behind low-risk lint/type issues in touched files that are directly tied to the same lane, prefer sending it back only when those issues undermine the claimed fix or should clearly have been cleaned up as part of the same bounded work.
+- Treat unrelated repo-wide failures found during review as background repo health unless they touch the ticket's lane or undermine the claimed resolution. Record them when useful, but do not block promotion solely because the wider repo has unrelated failing checks.
+- Treat unrelated pre-existing lint warnings, type errors, or wider validation debt the same way: note them when useful, but do not block promotion unless they overlap the ticket's lane or make the approval evidence unreliable.
+- When the fix type is prone to accidental collateral damage, prefer negative verification in review: confirm the report or checks prove that adjacent behavior still works, not only that the original incident stopped.
 - Board/API changes: run targeted kanban page, component, and API tests.
 - Incident-driven approval: verify Admin Errors backing data or UI state.
 - Code-driven approval: run the relevant targeted tests/checks for touched paths.

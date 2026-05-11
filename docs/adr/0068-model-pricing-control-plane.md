@@ -41,6 +41,8 @@ Runtime pricing authority is now:
 1. server billing resolves the active policy through the control-plane helper
 2. authenticated AI Studio clients fetch the same active policy snapshot through `/api/pricing/model-policy`
 3. `computeCostForModel(..., pricingPolicy)` uses that shared document for estimates and debits
+4. billable UI surfaces render credits through a shared client adapter that fails closed when the active policy is unavailable
+5. billable submit paths attach displayed billed-credit metadata so server billing can persist estimate-vs-debit observability
 
 ## Consequences
 
@@ -48,8 +50,10 @@ Runtime pricing authority is now:
 
 - Admins can change model pricing without code edits.
 - UI estimates and server billing stay on the same pricing document.
+- Billable UI no longer needs to guess or silently fall back when pricing policy is unavailable.
 - Rollback is fast and pointer-based instead of mutating history.
 - Pricing changes are attributable by version, actor, and event time.
+- Operators can review estimate-vs-debit mismatches from the admin generation trace surface instead of inferring drift from raw ledger rows.
 
 ### Negative
 
@@ -60,3 +64,4 @@ Runtime pricing authority is now:
 
 - Subscription/top-up/storage catalog pricing remains a separate control domain.
 - Model pricing policy is versioned globally, not per profile/family.
+- Billability still depends on route implementation. Model/workflow metadata can declare pricing authority intent, but an action is only truly billable when its server route settles through the shared generation-billing path.

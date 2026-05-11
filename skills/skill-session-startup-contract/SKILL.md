@@ -32,6 +32,7 @@ Purpose: enforce consistent startup behavior in every new task/session so contex
    - SQL/migrations: load SQL SOP + migration + security docs and touched migration files.
    - Routes/UI behavior: load route map + relevant SOPs + top-level `README.md`.
    - Pricing/credits: run `skills/skill-pricing-audit/SKILL.md`.
+   - Pricing display/debit wiring: also run `skills/skill-pricing-wiring/SKILL.md`.
    - Docs/index drift: run `skills/skill-doc-index/SKILL.md` or `skills/skill-mvp-docs-sop-governance/SKILL.md`.
 4. **Web browsing decision**
    - Use local repo sources by default.

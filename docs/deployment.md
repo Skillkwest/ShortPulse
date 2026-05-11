@@ -24,14 +24,13 @@ Use these names as the only canonical GitHub Environment identifiers in active r
 Notes:
 - Vercel scope labels such as `Production` and `Preview` are platform labels, not GitHub Environment names.
 - Active docs should not introduce alternate GitHub Environment names such as `Production – short-pulse` or `Production – shortpulse`.
-- Current active deploy posture in this repo: `preview` is the only authoritative deployed runtime and is treated as staging.
-- `production` remains reserved for future cutover and should not be treated as an active source of truth until production credentials and release posture are explicitly introduced.
-- Current protection posture is still open:
-  - `staging`: no required reviewers, no deployment branch policy
-  - `production`: no required reviewers, no deployment branch policy
-- Planned production-readiness posture:
-  - `production` must gain required reviewers and deployment branch restrictions before production-readiness signoff
-  - `staging` remains the canonical pre-production environment and should retain environment-scoped secrets even if reviewer protection stays lighter than production
+- Current active deploy posture in this repo:
+  - `preview` is the authoritative staging runtime
+  - `production` is the live customer runtime on the dedicated production Supabase project
+- Current branch-governance posture:
+  - `production` is covered by active GitHub ruleset `Production` with required checks `frontend`, `security`, and `deadcode`
+  - `staging-preview` is covered by active GitHub ruleset `Staging Preview` with required checks `Vercel` and `Supabase Preview`
+- `staging` remains the canonical pre-production GitHub Environment and should retain environment-scoped secrets even if its required-check posture stays lighter than `production`
 
 ## Pre-deploy checklist
 
@@ -76,7 +75,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (optional override; default `300`)
 - CI/CD deploy gate:
   - `SUPABASE_DB_URL` (GitHub Environment secret for `staging` and `production`, used by `.github/workflows/media-storage-deploy-gate.yml`, `.github/workflows/reliability-control-plane-diagnostics.yml`)
-  - `SHORTPULSE_VERCEL_API_TOKEN` (required by `scripts/verify_deployment_route_parity.mjs`; fallback supports `VERCEL_API_TOKEN`)
+  - `SHORTPULSE_VERCEL_API_TOKEN` (optional for `scripts/verify_deployment_route_parity.mjs`; when absent, the script now falls back to the authenticated `vercel` CLI session, and still accepts `VERCEL_API_TOKEN` as an alternate token source)
 - Optional agent/runtime toggles:
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
   - AI Studio legacy `sid` session persistence is retired; do not configure the old `NEXT_PUBLIC_AI_STUDIO_SESSION_*` or `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` flags.
@@ -175,8 +174,8 @@ node scripts/check_vercel_env_contract.mjs
 ```
 
 Current default behavior:
-- audits `preview` only, because staging is the only active deployed environment in this repo today.
-- keeps `production` checks available for future cutover work.
+- audits `preview` only by default to keep staging validation lightweight during normal work.
+- keeps `production` checks available for production cutover, post-cutover verification, and later drift audits.
 
 Optional production-inclusive audit:
 
@@ -210,8 +209,7 @@ Command examples:
 
 ```bash
 node scripts/verify_deployment_route_parity.mjs \
-  --base-url https://<staging-or-prod-alias> \
-  --token <SHORTPULSE_VERCEL_API_TOKEN>
+  --base-url https://<staging-or-prod-alias>
 ```
 
 ```bash
@@ -220,6 +218,14 @@ node scripts/verify_deployment_route_parity.mjs \
   --required-route /api/internal/admin-user-health-fleet/run \
   --required-route /api/internal/generation-recovery/run \
   --required-route /api/internal/media-derivatives/run
+```
+
+Optional token-auth override:
+
+```bash
+node scripts/verify_deployment_route_parity.mjs \
+  --base-url https://<staging-or-prod-alias> \
+  --token <SHORTPULSE_VERCEL_API_TOKEN>
 ```
 
 Behavior:

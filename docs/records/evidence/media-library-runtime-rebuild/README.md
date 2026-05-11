@@ -37,3 +37,4 @@ Use dated packet names:
 1. `docs/records/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`
 2. `docs/records/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`
 3. `docs/records/evidence/media-library-runtime-rebuild/2026-03-28-mlr-5-s2-closeout-audit.md`
+4. `docs/records/evidence/media-library-runtime-rebuild/2026-05-10-mlr-6-s1-lean-speed-master-plan-audit.md`

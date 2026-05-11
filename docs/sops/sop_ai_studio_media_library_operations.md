@@ -99,7 +99,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ### 6) Right-click behaviors
 1. Right-clicking media (image/video/audio) in `All Media` sends that media to the Reference Grid.
 2. For folder-canvas spaces, right-clicking media sends a copy to Reference Grid (source item remains in the folder canvas).
-3. Double-clicking media (image/video/audio) in `All Media` opens a preview-only detail modal (no ingest side effects).
+3. Double-clicking media (image/video/audio) in `All Media` opens a preview-only detail modal (no ingest side effects), and audible previews follow the shared exclusive-sound rule so only one sound plays at a time across AI Studio and Media Library surfaces.
 
 ### 7) Bulk selection and action semantics
 1. Bulk media actions are panel-first and media-only in v1; prompt bulk actions remain out of scope.
@@ -174,7 +174,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: Right-click on media cards dispatches media ingestion to Reference Grid.
 4. Double-click media in `All Media` -> preview modal:
    - Status: Aligned.
-   - Current: Double-click opens preview-only modal for image/video cards and does not dispatch ingestion.
+   - Current: Double-click opens preview-only modal for image/video/audio cards, does not dispatch ingestion, and respects the shared exclusive-sound playback rule for audible previews.
 5. Drag ghost visibility for Media Library drags:
    - Status: Aligned.
    - Current: Media and prompt drag-start paths mount explicit custom drag ghost previews.
@@ -234,6 +234,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 23. Saved-audio browse and upload support:
    - Status: Aligned.
    - Current: Audio is a first-class Media Library asset in AI Studio. Audio can be saved from eligible Reference Grid references, uploaded from desktop or `Add files`, dropped from the Reference Grid into `All Media` or custom folders, and browsed from the mixed `All Media` plus custom-folder feeds without falling through image-only render paths.
+24. Autosave toggle scope:
+   - Status: Aligned.
+   - Current: The AI Studio autosave preference governs automatic Media Library saving only. Turning it OFF does not disable private restore-durability uploads used to keep local Reference Grid media restorable across reload or project reopen.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`

@@ -50,7 +50,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - `source` is non-null with default `upload` (see `sql/migrations/007_harden_media_source_and_usage_rpc.sql`).
   - `source = private_upload` requires `file_type = image` and `storage_path` under `<user_id>/private/images/...`.
   - Any row with `storage_path` under `<user_id>/private/images/...` must use `source = private_upload`.
-  - `source = character_reference` requires `file_type = image`, `storage_path` under `<user_id>/characters/...`, and metadata keys for `character_id`, `character_sheet_id` (legacy `reference_pack_id` is still accepted), and `slot_key` (see `sql/migrations/010_harden_character_reference_media_integrity.sql` and `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`).
+  - `source = character_reference` requires `file_type = image`, `storage_path` under `<user_id>/characters/...`, and metadata keys for `character_id`, `character_sheet_id`, and `slot_key` (see `sql/migrations/010_harden_character_reference_media_integrity.sql`, `sql/migrations/012_add_character_sheet_aliases_and_compat.sql`, and `sql/migrations/122_retire_character_sheet_alias_compat.sql`).
   - `source = character_quickswap` requires `file_type = image`, `storage_path` under `<user_id>/characters/<character_id>/quickswap/...`, and metadata key `character_id` (see `sql/migrations/045_add_character_quickswap_deck.sql`).
   - Legacy All Media convergence: durable missing rows can be diagnosed with `sql/check_media_all_media_completeness_drift.sql` and backfilled with `sql/migrations/064_backfill_media_files_from_storage_objects.sql`.
   - Migration `065_add_media_derivative_processing_fields.sql` adds derivative retry/lease control fields and an insert-default trigger that marks new image rows `pending` for derivative processing.
@@ -83,7 +83,6 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `name` (text): Character display name.
 - `status` (text): draft | active | archived.
 - `active_character_sheet_id` (uuid, nullable): Active character sheet pointer for generation workflows.
-- `active_reference_pack_id` (uuid, nullable): Legacy alias kept in sync for backward compatibility.
 - `metadata` (jsonb, default `{}`)
   - Character profile image linkage keys:
     - `profile_image_storage_path` (text path in `media_library`)
@@ -93,7 +92,6 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
     - `profile_image_offset_y` (number; persisted profile crop vertical offset)
   - Character sheet assignment keys:
     - `character_sheet_assignments` (canonical key used by current Character Manager UI)
-    - `reference_pack_assignments` (legacy alias kept in sync for backward compatibility)
   - Character sheet preset key:
     - `character_sheet_presets_v1`
       - `active_preset_id`: `"1"`..`"10"`
@@ -180,7 +178,6 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (uuid, pk)
 - `character_id` (uuid): Parent character.
 - `character_sheet_id` (uuid): Parent character sheet (canonical).
-- `reference_pack_id` (uuid): Legacy alias kept in sync for backward compatibility.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `slot_key` (text): Fixed character reference slot key.
 - `character_media_id` (uuid): Required linked `character_media_assets` row.
@@ -214,7 +211,6 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (uuid, pk)
 - `character_id` (uuid): Parent character.
 - `character_sheet_id` (uuid): Parent character sheet used by generation (canonical).
-- `reference_pack_id` (uuid): Legacy alias kept in sync for backward compatibility.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `provider` (text), `request_id` (text, nullable), `status` (text), `prompt` (text)
 - `output_media_file_id` (uuid, nullable): Linked generation output in `media_files`.
@@ -307,6 +303,16 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
     - `shortpulse_context.has_style`
     - `shortpulse_context.style_id`
     - `shortpulse_context.reference_count`
+  - Current pricing-observability keys may also appear:
+    - `shortpulse_context.displayed_billed_credits`
+    - `shortpulse_context.pricing_display_source`
+    - `shortpulse_context.pricing_policy_ready`
+    - `pricing_observability.displayed_billed_credits`
+    - `pricing_observability.actual_billed_credits`
+    - `pricing_observability.delta_credits`
+    - `pricing_observability.mismatch`
+    - `pricing_observability.pricing_display_source`
+    - `pricing_observability.pricing_policy_ready`
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Constraints and indexes:
   - `ai_generations_recovery_state_check` enforces `recovery_state` enum values.
@@ -916,6 +922,10 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `source` (text): signup_seed | stripe_checkout | subscription_renewal | admin_adjustment | generation | ...
 - `source_ref` (text, nullable): Idempotency reference (unique by user+source+ref when provided).
 - `metadata` (jsonb): Context payload for audits/debugging.
+  - Current generation debit rows may include:
+    - `shortpulse_context.*` client submit context
+    - `pricing_breakdown` for raw/billed credit math
+    - `pricing_observability` for displayed-vs-actual billed credit comparison
 - `created_by` (uuid, nullable): Actor ID where available.
 - `created_at` (timestamptz, default now)
 - Legacy note: some older environments still use `ref_id` instead of `source/source_ref/metadata/created_by`. Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` to align schema.
@@ -935,6 +945,10 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `metadata` (jsonb): Reservation context and settlement details.
   - Admission-aware rows include `admission_tier` for tier-scoped concurrency accounting.
   - Release paths persist `release_finality` (`conditional` default, `waived` explicit) for downstream success-settlement recapture policy.
+  - Billable AI Studio reservations may also include:
+    - `shortpulse_context.*` client submit context
+    - `pricing_breakdown` for raw/billed credit math
+    - `pricing_observability` for displayed-vs-actual billed credit comparison
 - `created_at` / `updated_at` (timestamptz)
 - `captured_at` / `released_at` (timestamptz, nullable)
 - RLS: users can select only own reservations (`user_id = auth.uid()`); server-side functions handle writes.

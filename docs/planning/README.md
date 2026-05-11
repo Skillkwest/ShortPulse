@@ -42,6 +42,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 - `docs/planning/ai-studio-agent-modularization-tracker.md`
 - `docs/planning/ai-studio-reference-grid-modularization-program.md`
 - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
+- `docs/planning/model-modal-policy-phase-plan-2026-05-10.md`
 
 ### Program 4: Workflows And Product Surfaces
 - `docs/product/shortpulse_ai_studio.md`

@@ -38,6 +38,13 @@ Purpose: document the canonical ElevenLabs model ids and ShortPulse route contra
 
 All ShortPulse ElevenLabs routes use handler-level bearer auth via `requireApiUser`.
 
+## Route-level model allowlists
+
+- Executable ElevenLabs model inventory is server-owned, not client-owned.
+- Voiceover, voice changer, music, and sound effects routes each resolve their approved model ids from catalog-backed default-role selectors and reject unsupported request model ids before billing or provider execution.
+- Those executable routes, plus the voice-design preview route, are also tracked in `scripts/lib/direct_provider_route_inventory.js` so direct-route authority stays explicit under `model:doctor` and route coverage tests.
+- This keeps user-facing workflow surfaces curated and prevents arbitrary provider model ids from becoming executable just because the provider API would accept them.
+
 ## ShortPulse routing contract
 
 - Voiceover generation:

@@ -61,6 +61,7 @@ Single-page guide for AI agents and contributors to work safely in this repo.
 - Use `skills/skill-subagent-audit-research/SKILL.md` when the user asks to audit, inspect, investigate, or do online research; use subagents for substantive lanes when available, allowed, and useful, and close unused subagents at will.
 - For system-catalog work, map natural-language surfaces like `create panel`, `edit panel`, or `video panel` to their system rows first; do not create panel rows unless the repo shows a truly separate system boundary.
 - Use `skills/skill-pricing-audit/SKILL.md` before changing pricing/models or credit logic.
+- Use `skills/skill-pricing-wiring/SKILL.md` when implementing shared-policy pricing display or debit-alignment changes in AI Studio, and run `node scripts/check_ai_studio_pricing_display_drift.js` after touching billable AI Studio pricing surfaces.
 - Use `skills/skill-doc-index/SKILL.md` when adding or renaming docs.
 - Use `agent-teaching/README.md` when creating, training, maintaining, or refreshing task-specific agents, and follow its Notion-mirrored setup and training sequence.
 - Use `skills/palette-normalizer/SKILL.md` for dry-run-first CSS palette drift audits and safe normalization passes.

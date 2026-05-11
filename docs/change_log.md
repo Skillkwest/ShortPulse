@@ -3,6 +3,22 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Nuclo operator surface hardening:
+  - added standing SOPs for hosted Supabase migration apply/validation, Vercel env repair, production smoke testing, and the destructive-data guard,
+  - added `sql/README.md` as the SQL operator index for migrations, checks, configure scripts, and safety notes,
+  - and linked the new operator surfaces through the docs and Nuclo retained SOP indexes.
+- Vercel contract cleanup closeout:
+  - verified the stale warning-only Vercel env rows are no longer present,
+  - confirmed only the canonical Supabase runtime keys remain across development, preview, and production,
+  - and closed the last pending env-contract warning lane with a clean `scripts/ops/vercel_env_audit.sh` pass.
+- Nuclo Supabase manager hardening:
+  - made the standing Nuclo contract explicit for future Supabase work,
+  - granted full-access posture for schema, migration, parity, and hosted environment operations,
+  - and codified the safety boundary that Nuclo must not delete auth users or user-owned data during normal operations.
+- Secret-exposure response hardening:
+  - added `docs/sops/sop_secret_exposure_rotation.md` as the canonical operator workflow for post-exposure credential replacement, validation, and revocation,
+  - published the ShortPulse-specific post-cutover rotation packet for the Supabase and Vercel secrets exposed during the production cutover lane,
+  - and linked the security checklist plus Nuclo retained operator surfaces to the new rotation authority.
 - Current-branch canonical runtime convergence:
   - froze the live branch runtime contract in `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`,
   - removed dead rollout posture from active env, deployment, local-development, SOP, and operator guidance,

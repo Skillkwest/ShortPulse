@@ -74,6 +74,10 @@ Purpose: triage an Admin Errors incident into the Ophestivus board, work the iss
    - Load relevant repo instructions and scoped docs before editing.
    - Inspect the code path, API route, database access, migration history, recent runtime evidence, recurrence pattern, related endpoints, tests, and docs.
    - Make an early scope call: decide whether the incident looks like a bounded defect/noise class Ophestivus can safely own, or a broader product-path failure that should be escalated for human review.
+   - Assign a working operational risk tier before editing:
+     - `low`: bounded, repeatable class with a narrow safe fix shape.
+     - `medium`: bounded seam is visible, but shared runtime, persistence, or request semantics could affect adjacent behavior.
+     - `high`: billing, provider/runtime, worker/control-plane, deploy/config, risky data/schema, or anything that cannot be isolated and safely verified quickly.
 
 4. Move the ticket to `In progress`.
    - Move the board item only after the intake gate is clean.
@@ -81,8 +85,15 @@ Purpose: triage an Admin Errors incident into the Ophestivus board, work the iss
 
 5. Attempt the smallest safe fix.
    - Classify the likely cause as code, data, schema/migration, deploy/config, provider, auth/session, or user action.
+   - Treat every fix as potentially regression-risking work until validation proves otherwise.
    - For SQL/migration work, follow `docs/sops/sop_sql_migration_operations.md` and do not use Docker-based Supabase workflows.
    - For code changes, add focused defensive handling only when it prevents the same class of issue from recurring.
+   - Preferred fix shapes:
+     - prop/contract repairs
+     - narrow condition guards
+     - reuse of existing helpers
+     - bounded retry hardening only where retry semantics are already known-safe
+   - Avoid broad refactors, speculative retries on writes/settlements, or loosely scoped filtering during incident work.
    - Apply the investigation stop rule instead of continuing indefinitely when progress stalls.
 
 6. Self-audit and resolve in-scope findings.
@@ -117,18 +128,24 @@ Purpose: triage an Admin Errors incident into the Ophestivus board, work the iss
 ### Resolution Gate
 
 - Before moving a ticket to `Review`, prove the issue is actually resolved using the checks the issue requires.
+- Validation must scale with the operational risk tier:
+  - `low`: targeted lane validation plus recurrence check.
+  - `medium`: targeted lane validation plus recurrence check plus one adjacent contract or neighboring-behavior check that proves the fix did not break the immediate seam around it.
+  - `high`: do one bounded narrowing pass; if the safe fix seam is not clearly isolated quickly, escalate instead of forcing autonomy.
 - Verify the incident and any same-fingerprint duplicates are resolved or no longer open in `/admin/errors` or its backing data.
 - Confirm no fresh same-fingerprint matching events appeared after the fix timestamp or operational change timestamp.
 - Run the relevant tests/checks for the touched area.
 - For route/UI/runtime incidents, perform live route verification when feasible. Open or refresh the affected route, exercise the failing path if known, and confirm the same console/runtime/API error does not recur.
 - If live route verification is not feasible, record why and classify the verification as `blocked-live-verification`, `tests-and-data-verified`, or `telemetry-filter-verified` as appropriate.
 - Audit the fix path after tests pass. Re-check changed code, affected data, and original incident evidence for missed failure modes.
+- Use negative verification when relevant: prove not only that the original incident stopped, but that the neighboring contract still behaves correctly. Examples: visible/prod failures still surface after filtering, retries still surface real failures after exhaustion, and repaired UI/runtime seams still receive the full intended contract.
 - Add or update recurrence prevention when the root cause is an application defect.
 
 ### Review Gate
 
 - Rename the ticket to the plain error name/message so review-ready work is easy to scan.
 - Treat the local Ophestivus report under `docs/records/artifacts/agent/ophestivus/reports/` as the durable source of truth for investigation notes, full validation detail, and closeout evidence.
+- The local report may be written as `review-ready` during closeout, but it must reflect the final board outcome after Review approval. Use the standard review helper path so the report is finalized to `complete`.
 - Add only a compact board summary to ticket details: issue, resolution type, key repo change, validation result, recurrence check, residual risk classification, residual risk, and the repo-relative local report path.
 - Classify the resolution as `new-code`, `verified-existing-fix`, `no-code`, `config`, or `data`.
 - Classify the verification as `live-route-verified`, `tests-and-data-verified`, `telemetry-filter-verified`, or `blocked-live-verification`.
@@ -271,6 +288,15 @@ The local report is the durable audit record. Include incident data, investigati
 
 ## Validation
 
+- Prefer targeted validation for the touched incident lane first. Start with the smallest test/check set that proves the fix and widen only when the change surface or evidence requires it.
+- Match the proof burden to the operational risk tier:
+  - `low`: targeted tests/checks plus same-fingerprint recurrence verification.
+  - `medium`: targeted tests/checks plus same-fingerprint recurrence verification plus one adjacent contract check.
+  - `high`: only continue autonomously when a clearly isolated bounded fix seam emerges quickly; otherwise stop at evidence packaging and escalation.
+- Do not introduce new lint warnings, type errors, or equivalent validation regressions in the touched lane. Those are part of the active incident work and must be fixed before closeout.
+- When a touched file already has low-risk lint/type issues that are directly related to the same incident lane, prefer fixing them during the run when doing so is safe and scoped.
+- Treat unrelated repo-wide failures found during a narrow SOP run as background repo health unless they touch the incident lane or invalidate the claimed fix. Record them in the local report or ticket summary, but do not treat them as the primary closeout blocker for an otherwise validated narrow fix.
+- Treat unrelated pre-existing lint warnings, type errors, or wider repo validation debt the same way: record them when useful, but do not expand a narrow incident run into general cleanup unless they touch the claimed fix or make the result untrustworthy.
 - Admin Errors API/UI changes: run the targeted Admin Errors API, panel, pagination, and event-logic tests.
 - Ophestivus board API/UI changes: run the targeted kanban component, page, and API tests.
 - SQL changes: validate against a hosted target when credentials are available, then run the runtime SQL security audit in staging before release signoff.

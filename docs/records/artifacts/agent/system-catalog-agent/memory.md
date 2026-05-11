@@ -20,3 +20,11 @@ Purpose: retain working memory notes for the System Catalog Agent outside the pr
 ## Working Rule
 
 When catalog work produces a durable lesson, promote the concise version into `docs/agents/system-catalog-agent/memory.md` and keep broader supporting notes here or in dated reports.
+
+## Durable Notes
+
+- 2026-05-10: Media Library speed work should prioritize canonical preview authority, derivative-first browse, signed-URL reuse, and visible-window-only scheduling before worker/browser experiments.
+- 2026-05-10: The retained short-form roadmap for this lane is `docs/records/artifacts/agent/system-catalog-agent/reports/2026-05-10-media-library-speed-and-lean-roadmap.md`.
+- 2026-05-10: Phase 0 preparation now has a concrete tool entrypoint at `frontend/scripts/media_library_phase0_bundle.mjs`, with preset-driven live API probes and optional JSON packet output.
+- 2026-05-10: The planning family now has an explicit precedence order: master audit packet first, short roadmap second, Phase 0 checklist third.
+- 2026-05-10: The canonical sequence is Phase 0 through Phase 8, with limited overlap allowed only where the master packet explicitly permits it.

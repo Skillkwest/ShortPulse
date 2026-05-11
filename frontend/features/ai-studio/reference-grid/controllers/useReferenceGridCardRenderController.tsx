@@ -11,6 +11,7 @@ import { isVideoUrl } from "../../logic/stateParsers";
 import { isReferenceOutputFailing } from "../logic/referenceGridLoadingState";
 import { isLocalVideoReferencePendingPersistence } from "../logic/referenceGridCardVisualState";
 import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
+import type { ReferenceGridSingleAudioPlaybackController } from "./useReferenceGridSingleAudioPlaybackController";
 import {
   incrementFreezeInvestigationCounter,
   setFreezeInvestigationGauge,
@@ -56,6 +57,7 @@ type UseReferenceGridCardRenderControllerArgs = {
   markLoaded: (id: string, options?: { notifyAutoSave?: boolean }) => void;
   onAutoplayStarted: (id: string) => void;
   onAutoplayStopped: (id: string) => void;
+  audioPlaybackController: ReferenceGridSingleAudioPlaybackController;
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
@@ -98,6 +100,7 @@ export const useReferenceGridCardRenderController = ({
   markLoaded,
   onAutoplayStarted,
   onAutoplayStopped,
+  audioPlaybackController,
   onRetryStatus,
   onRerollOutput,
   onDeleteOutput,
@@ -190,12 +193,14 @@ export const useReferenceGridCardRenderController = ({
         !videoPosterUrl &&
         Boolean(hoverVideoUrl);
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;
+      const audioInstanceKey = `${options.surface}:${currentOutput.id}`;
       return (
         <ReferenceGridCard
           key={options.isCuratedSurface ? `curated-${currentOutput.id}` : currentOutput.id}
           item={currentOutput}
           dragSourceSurface={options.surface}
           videoNodeKey={videoNodeKey}
+          audioInstanceKey={audioInstanceKey}
           activeOutputId={activeOutputId}
           authorityTier={card.authorityTier}
           isLoading={isCardLoading}
@@ -249,6 +254,9 @@ export const useReferenceGridCardRenderController = ({
           markLoaded={markLoaded}
           onAutoplayStarted={onAutoplayStarted}
           onAutoplayStopped={onAutoplayStopped}
+          onRequestAudioPlay={audioPlaybackController.requestPlay}
+          onAudioPlaybackStarted={audioPlaybackController.markPlaying}
+          onAudioPlaybackStopped={audioPlaybackController.clearActivePlayer}
           onRetryStatus={onRetryStatus}
           onRerollOutput={options.isCuratedSurface ? undefined : onRerollOutput}
           onDeleteOutput={options.isCuratedSurface ? undefined : onDeleteOutput}
@@ -263,6 +271,7 @@ export const useReferenceGridCardRenderController = ({
     },
     [
       activeOutputId,
+      audioPlaybackController,
       autoplayEnabledIdSet,
       linkedPromptReferenceIdSet,
       markLoaded,

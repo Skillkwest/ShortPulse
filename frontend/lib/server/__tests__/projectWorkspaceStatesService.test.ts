@@ -19,6 +19,12 @@ type SupabaseMockOptions = {
   publicationRows?: Array<Record<string, unknown>>;
   mediaRows?: Array<Record<string, unknown>>;
   projectionLimitError?: string;
+  mediaAssociationError?: string;
+  promptAssociationError?: string;
+  generationAssociationError?: string;
+  publicationError?: string;
+  mediaRowReadError?: string;
+  workspaceUpsertError?: string;
 };
 
 const createSupabaseMock = ({
@@ -44,6 +50,12 @@ const createSupabaseMock = ({
   publicationRows = [],
   mediaRows = [],
   projectionLimitError,
+  mediaAssociationError,
+  promptAssociationError,
+  generationAssociationError,
+  publicationError,
+  mediaRowReadError,
+  workspaceUpsertError,
 }: SupabaseMockOptions = {}) => {
   const projectionRowsById = new Map<string, Record<string, unknown>>(
     projectionRows
@@ -61,14 +73,23 @@ const createSupabaseMock = ({
       )
       .map((row) => [row.id, row])
   );
-  const mediaSelect = vi.fn(() => ({
+  const mediaSelect = vi.fn((columns?: string) => ({
     eq: vi.fn(() => ({
-      in: vi.fn(async (_column: string, ids: string[]) => ({
-        data: ids
-          .filter((id) => id === "media-1" || id === "media-2" || mediaRowsById.has(id))
-          .map((id) => mediaRowsById.get(id) ?? { id }),
-        error: null,
-      })),
+      in: vi.fn(async (_column: string, ids: string[]) => {
+        const isMediaRowRead = typeof columns === "string" && columns.includes("storage_path");
+        if (isMediaRowRead && mediaRowReadError) {
+          return {
+            data: null,
+            error: { message: mediaRowReadError },
+          };
+        }
+        return {
+          data: ids
+            .filter((id) => id === "media-1" || id === "media-2" || mediaRowsById.has(id))
+            .map((id) => mediaRowsById.get(id) ?? { id }),
+          error: null,
+        };
+      }),
     })),
   }));
   const promptSelect = vi.fn(() => ({
@@ -87,9 +108,15 @@ const createSupabaseMock = ({
       })),
     })),
   }));
-  const mediaAssociationUpsert = vi.fn(async () => ({ error: null }));
-  const promptAssociationUpsert = vi.fn(async () => ({ error: null }));
-  const generationAssociationUpsert = vi.fn(async () => ({ error: null }));
+  const mediaAssociationUpsert = vi.fn(async () => ({
+    error: mediaAssociationError ? { message: mediaAssociationError } : null,
+  }));
+  const promptAssociationUpsert = vi.fn(async () => ({
+    error: promptAssociationError ? { message: promptAssociationError } : null,
+  }));
+  const generationAssociationUpsert = vi.fn(async () => ({
+    error: generationAssociationError ? { message: generationAssociationError } : null,
+  }));
   const generationAssociationRecentLimit = vi.fn(async () => ({
     data: recentGenerationIds.map((generationId) => ({ generation_id: generationId })),
     error: null,
@@ -136,8 +163,8 @@ const createSupabaseMock = ({
       eq: vi.fn(),
       in: vi.fn(),
       order: vi.fn(async () => ({
-        data: publicationRows,
-        error: null,
+        data: publicationError ? null : publicationRows,
+        error: publicationError ? { message: publicationError } : null,
       })),
     };
     builder.eq.mockReturnValue(builder);
@@ -236,7 +263,27 @@ const createSupabaseMock = ({
     maybeSingle: workspaceMaybeSingle,
   }));
   const workspaceUpsert = vi.fn(() => ({
-    select: workspaceWriteSelect,
+    select: vi.fn(() => ({
+      maybeSingle: vi.fn(async () => ({
+        data: workspaceUpsertError
+          ? null
+          : {
+              project_id: "project-1",
+              user_id: "user-1",
+              schema_version: 2,
+              snapshot:
+                workspaceSnapshot ??
+                ({
+                  schemaVersion: 2,
+                  sessionId: "session-1",
+                  updatedAt: "2026-04-23T01:00:00.000Z",
+                } as Record<string, unknown>),
+              created_at: "2026-04-23T00:00:00.000Z",
+              updated_at: "2026-04-23T01:00:00.000Z",
+            },
+        error: workspaceUpsertError ? { message: workspaceUpsertError } : null,
+      })),
+    })),
   }));
 
   const supabaseMock = {
@@ -557,6 +604,308 @@ describe("projectWorkspaceStatesService", () => {
     expect("agentRuntimes" in (firstWorkspaceUpsertArg?.snapshot ?? {})).toBe(false);
   });
 
+  it("persists the sanitized snapshot when restored-project projection hydration fails during save", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { workspaceUpsert } = createSupabaseMock({
+      projectionLimitError: "projection unavailable",
+    });
+
+    try {
+      await expect(
+        upsertProjectWorkspaceStateForUser({
+          userId: "user-1",
+          projectId: "project-1",
+          schemaVersion: 2,
+          snapshot: {
+            schemaVersion: 2,
+            sessionId: "session-1",
+            updatedAt: "2026-04-23T01:00:00.000Z",
+            meta: {
+              generatedAt: "2026-04-23T01:00:00.000Z",
+              checksum: "fnv1a32:projection-failure",
+            },
+            workspace: {
+              selectedTool: "create",
+              standardPrompt: "Project prompt",
+            },
+            outputs: {
+              active: [
+                {
+                  id: "out-1",
+                  generationId: "generation-1",
+                  previewUrl: "https://expired.example.com/old.png",
+                  resultUrls: ["https://expired.example.com/old.png"],
+                },
+              ],
+              archived: [],
+            },
+            agent: {
+              messages: [],
+              input: "",
+              latestAgentPrompt: null,
+              promptOrigin: "manual",
+              chatModeEnabled: false,
+              pulseWorkflowSession: null,
+            },
+          },
+        })
+      ).resolves.toMatchObject({
+        snapshot: {
+          outputs: {
+            active: [
+              expect.objectContaining({
+                id: "out-1",
+                generationId: "generation-1",
+                previewUrl: "https://expired.example.com/old.png",
+                resultUrls: ["https://expired.example.com/old.png"],
+              }),
+            ],
+          },
+        },
+      });
+
+      const firstWorkspaceUpsertArg = (
+        workspaceUpsert.mock.calls as Array<[{ snapshot?: Record<string, unknown> }?, unknown?]>
+      ).at(0)?.[0];
+      expect(firstWorkspaceUpsertArg?.snapshot).toMatchObject({
+        outputs: {
+          active: [
+            expect.objectContaining({
+              id: "out-1",
+              generationId: "generation-1",
+              previewUrl: "https://expired.example.com/old.png",
+              resultUrls: ["https://expired.example.com/old.png"],
+            }),
+          ],
+        },
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] best-effort save stage failed; persisting sanitized snapshot",
+        expect.objectContaining({
+          projectId: "project-1",
+          stage: "generated output hydration",
+          error: "projection unavailable",
+        })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("persists the sanitized snapshot when restored-project media delivery hydration fails during save", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    createSupabaseMock({
+      mediaRowReadError: "media rows unavailable",
+      projectionRows: [
+        {
+          generation_id: "generation-1",
+          request_id: "task-1",
+          preview_url: "https://cdn.example.com/generated-video.mp4",
+          result_urls: ["https://cdn.example.com/generated-video.mp4"],
+          saved_media_ids: ["media-video-1"],
+          task_state: "success",
+          queue_state: "dispatched",
+          display_prompt: "Restored video",
+          provider: "kie",
+          model_id: "kling-video-v1",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      publicationRows: [
+        {
+          generation_id: "generation-1",
+          owned_media_file_id: "media-video-1",
+          preview_storage_path: "user-1/generated/generated-video-preview.png",
+          full_storage_path: "user-1/generated/generated-video.mp4",
+          created_at: "2026-04-23T01:00:00.000Z",
+        },
+      ],
+    });
+    try {
+      await expect(
+        upsertProjectWorkspaceStateForUser({
+          userId: "user-1",
+          projectId: "project-1",
+          schemaVersion: 2,
+          snapshot: {
+            schemaVersion: 2,
+            sessionId: "session-1",
+            updatedAt: "2026-04-23T01:00:00.000Z",
+            meta: {
+              generatedAt: "2026-04-23T01:00:00.000Z",
+              checksum: "fnv1a32:media-delivery-failure",
+            },
+            workspace: {
+              selectedTool: "create",
+              standardPrompt: "Project prompt",
+            },
+            outputs: {
+              active: [
+                {
+                  id: "video-1",
+                  generationId: "generation-1",
+                  mode: "video",
+                  previewUrl: "https://cdn.example.com/generated-video.mp4",
+                  resultUrls: ["https://cdn.example.com/generated-video.mp4"],
+                },
+              ],
+              archived: [],
+            },
+            agent: {
+              messages: [],
+              input: "",
+              latestAgentPrompt: null,
+              promptOrigin: "manual",
+              chatModeEnabled: false,
+              pulseWorkflowSession: null,
+            },
+          },
+        })
+      ).resolves.toMatchObject({
+        snapshot: {
+          outputs: {
+            active: [
+              expect.objectContaining({
+                id: "video-1",
+                generationId: "generation-1",
+                mode: "video",
+              }),
+            ],
+          },
+        },
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[project-workspace] best-effort save stage failed; persisting sanitized snapshot",
+        expect.objectContaining({
+          projectId: "project-1",
+          stage: "generated output hydration",
+          error: "media rows unavailable",
+        })
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("fails loudly when required project association backfill fails", async () => {
+    createSupabaseMock({
+      mediaAssociationError: "duplicate key value violates unique constraint",
+    });
+
+    await expect(
+      upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-23T01:00:00.000Z",
+          meta: {
+            generatedAt: "2026-04-23T01:00:00.000Z",
+            checksum: "fnv1a32:association-failure",
+          },
+          workspace: {
+            selectedTool: "create",
+            standardPrompt: "Project prompt",
+          },
+          outputs: {
+            active: [
+              {
+                id: "library-1",
+                savedMediaIds: ["media-1"],
+              },
+            ],
+            archived: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      })
+    ).rejects.toThrow(
+      "Project workspace save failed during project association backfill: duplicate key value violates unique constraint"
+    );
+  });
+
+  it("accepts richer agent attachment fields while still sanitizing project workspace saves", async () => {
+    createSupabaseMock();
+
+    await expect(
+      upsertProjectWorkspaceStateForUser({
+        userId: "user-1",
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-23T01:00:00.000Z",
+          meta: {
+            generatedAt: "2026-04-23T01:00:00.000Z",
+            checksum: "fnv1a32:legacy",
+          },
+          workspace: {
+            selectedTool: "create",
+            standardPrompt: "Project prompt",
+          },
+          outputs: {
+            active: [],
+            archived: [],
+          },
+          agent: {
+            messages: [
+              {
+                id: "msg-1",
+                role: "user",
+                content: "Use these references",
+                attachments: [
+                  {
+                    id: "att-1",
+                    kind: "image",
+                    referenceId: "out-1",
+                    mediaId: "media-1",
+                    previewStoragePath: "user-1/generated/out-1-preview.png",
+                    fullStoragePath: "user-1/generated/out-1-full.png",
+                    referenceUrl: "https://signed.example.com/reference.png",
+                    referenceRenderUrl: "https://cdn.example.com/reference-preview.png",
+                    imageUrl: "https://cdn.example.com/reference-preview.png",
+                    imageFallbackUrls: ["https://signed.example.com/reference.png"],
+                    text: null,
+                    aspect: "1:1",
+                    deliveryStatus: "ready",
+                    deliveryError: null,
+                  },
+                ],
+              },
+            ],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      })
+    ).resolves.toMatchObject({
+      snapshot: {
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+  });
+
   it("refreshes generated outputs from project-associated generations on workspace read", async () => {
     createSupabaseMock();
 
@@ -661,6 +1010,82 @@ describe("projectWorkspaceStatesService", () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+
+  it("preserves settled non-generated refs when project workspace reads refresh generated outputs", async () => {
+    createSupabaseMock({
+      workspaceSnapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+        meta: {
+          generatedAt: "2026-04-23T01:00:00.000Z",
+          checksum: "fnv1a32:refs",
+        },
+        outputs: {
+          active: [
+            {
+              id: "generated-1",
+              generationId: "generation-1",
+              previewUrl: "https://expired.example.com/generated.png",
+              resultUrls: ["https://expired.example.com/generated.png"],
+            },
+            {
+              id: "library-1",
+              mediaSource: "library",
+              previewUrl: "https://cdn.example.com/library.png",
+              resultUrls: ["https://cdn.example.com/library.png"],
+              savedMediaIds: ["media-1"],
+              saveState: "saved",
+              status: "saved",
+            },
+            {
+              id: "upload-1",
+              mediaSource: "upload",
+              previewUrl: "https://cdn.example.com/upload.png",
+              resultUrls: ["https://cdn.example.com/upload.png"],
+            },
+          ],
+          archived: [],
+          activeOutputId: null,
+          curatedReferenceIds: [],
+          removedFromAllRefsIds: [],
+        },
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    });
+
+    const result = await getProjectWorkspaceStateForUser({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+
+    expect(result?.snapshot.outputs).toMatchObject({
+      active: [
+        expect.objectContaining({
+          id: "generated-1",
+          previewUrl: "https://cdn.example.com/project-output.png",
+        }),
+        expect.objectContaining({
+          id: "library-1",
+          mediaSource: "library",
+          savedMediaIds: ["media-1"],
+          saveState: "saved",
+        }),
+        expect.objectContaining({
+          id: "upload-1",
+          mediaSource: "upload",
+          previewUrl: "https://cdn.example.com/upload.png",
+        }),
+      ],
+    });
   });
 
   it("hydrates restored project video outputs with poster storage from saved media rows", async () => {

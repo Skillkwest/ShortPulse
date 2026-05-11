@@ -56,6 +56,8 @@ import { resolveBlobDimensions, revokeObjectUrlSafe } from "./expertEditPanelUti
 import {
   createIdleMarkupPanPointerSession,
   type MarkupPanPointerSession,
+  isResolvedStageViewportSize,
+  isMarkupViewportEquivalentToSourceFraming,
 } from "./expertEditViewportUtils";
 import {
   areLayerTransformsEqual,
@@ -447,12 +449,40 @@ export function ExpertEditPanelView({
     imageHasInteractiveMask;
   const shouldShowMarkupBrushReticle = isMarkupToolSelected && hasPrimaryCompositePreview;
   const morePresetsSurfaceId = React.useId();
+  const activeStageViewportSize = React.useMemo(() => {
+    if (isMarkupExpandSelected && isResolvedStageViewportSize(markupModalViewportSize)) {
+      return markupModalViewportSize;
+    }
+    return inlineCompositionSurfaceViewportSize;
+  }, [inlineCompositionSurfaceViewportSize, isMarkupExpandSelected, markupModalViewportSize]);
+  const isStageViewportAtDefaultForSubmit = React.useMemo(
+    () => isMarkupViewportEquivalentToSourceFraming(stageViewport),
+    [stageViewport]
+  );
 
   const resolveStageFlattenSnapshot = React.useCallback(() => {
+    const cameraViewportWidth = Math.max(1, activeStageViewportSize.width);
+    const cameraViewportHeight = Math.max(1, activeStageViewportSize.height);
     return {
       outputAspectRatio: primaryCompositionSurfaceAspectRatioValue,
+      camera: {
+        scale: stageViewport.scale,
+        offsetX: stageViewport.offsetXRatio * cameraViewportWidth,
+        offsetY: stageViewport.offsetYRatio * cameraViewportHeight,
+        viewportWidth: cameraViewportWidth,
+        viewportHeight: cameraViewportHeight,
+      },
+      canReusePrimarySourceUrl: isStageViewportAtDefaultForSubmit,
     };
-  }, [primaryCompositionSurfaceAspectRatioValue]);
+  }, [
+    activeStageViewportSize.height,
+    activeStageViewportSize.width,
+    isStageViewportAtDefaultForSubmit,
+    primaryCompositionSurfaceAspectRatioValue,
+    stageViewport.offsetXRatio,
+    stageViewport.offsetYRatio,
+    stageViewport.scale,
+  ]);
   const {
     isFlattenPending,
     removeBackgroundPendingLayerId,
@@ -480,6 +510,7 @@ export function ExpertEditPanelView({
 
   const reusablePrimarySourceUrl = React.useMemo(() => {
     if (populatedLayerCount !== 1) return null;
+    if (!isStageViewportAtDefaultForSubmit) return null;
     const primaryLayer = layers.find((layer) => layerHasImage(layer)) ?? null;
     const primaryUrl = primaryLayer?.imageUrl?.trim() ?? "";
     if (!primaryLayer || !primaryUrl) return null;
@@ -491,6 +522,7 @@ export function ExpertEditPanelView({
     }
     return primaryUrl;
   }, [
+    isStageViewportAtDefaultForSubmit,
     layers,
     populatedLayerCount,
     primaryCompositionSurfaceAspectRatioValue,
@@ -550,8 +582,6 @@ export function ExpertEditPanelView({
     return undefined;
   }, [isMarkupPanDragging, isMarkupPanSpacePressed]);
 
-  const noopStageWheel = React.useCallback(() => {}, []);
-
   const {
     handleMoveZoomSliderChange,
     resetStageViewport,
@@ -560,7 +590,6 @@ export function ExpertEditPanelView({
     endMarkupPanGesture,
     endMarkupPanGestureOnLeave,
     handleStageViewportWheel,
-    handleNativeStageViewportWheel,
   } = useExpertEditStageViewportController({
     markupViewport: stageViewport,
     shouldApplyMarkupViewport: true,
@@ -576,6 +605,30 @@ export function ExpertEditPanelView({
         return resolveInlineStageRect(currentTarget);
       }
       return currentTarget.getBoundingClientRect();
+    },
+    resolveContentFrameSize: (scope, _currentTarget, viewportSize) => {
+      if (scope === "inline") {
+        return inlineCompositionSurfaceViewportSize;
+      }
+      return viewportSize;
+    },
+    resolvePreferredViewportClampOptions: () => {
+      if (isMarkupExpandSelected) {
+        return {
+          viewportSize: markupModalViewportSize,
+          contentFrameSize: markupModalViewportSize,
+        };
+      }
+      const inlineStageRect = resolveInlineStageRect();
+      return {
+        viewportSize: inlineStageRect
+          ? {
+              width: Math.max(1, inlineStageRect.width),
+              height: Math.max(1, inlineStageRect.height),
+            }
+          : inlineCompositionSurfaceViewportSize,
+        contentFrameSize: inlineCompositionSurfaceViewportSize,
+      };
     },
   });
 
@@ -823,10 +876,6 @@ export function ExpertEditPanelView({
     canRedoGeneralAction,
     handleUndoGeneralAction,
     handleRedoGeneralAction,
-    inlineStageWrapperRef,
-    handleNativeStageViewportWheel,
-    markupModalStageRef,
-    markupModalStageSize,
     shouldShowInpaintBrushReticle,
     unlockGlobalCursor,
     queuePendingHistoryApplyEntry,
@@ -886,6 +935,7 @@ export function ExpertEditPanelView({
   });
 
   const {
+    inlineStageWheelHandler,
     inlineInteractionHandlers,
     inlineSceneContent,
     inlineTransformOverlay,
@@ -973,7 +1023,6 @@ export function ExpertEditPanelView({
     closeMarkupModal,
     handleMarkupModalLayersRef,
     handleMarkupModalDragShield,
-    noopStageWheel,
   });
 
   const { promptAndSelectors, auxiliary } = useExpertEditPanelComposerRuntime({
@@ -1127,6 +1176,7 @@ export function ExpertEditPanelView({
     emptyPrimarySurfaceStyle: emptyPrimaryCompositionSurfaceStyle,
     shouldRenderInlineInteractiveStage,
     inlineInteractionHandlers,
+    onInlineStageWheel: inlineStageWheelHandler,
     onStageMouseDown: handleMarkupStageMiddleClickSuppress,
     onStageAuxClick: handleMarkupStageMiddleClickSuppress,
     onStageContextMenu: handlePrimaryDropzoneContextMenu,

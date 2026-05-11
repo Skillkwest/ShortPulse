@@ -30,19 +30,27 @@ type StageViewportRefSet = {
  */
 export const resolveInlineStageRectFromRefs = ({
   inlineStageWrapperRef,
+  primaryCanvasFrameStackRef,
   primaryCompositionSurfaceRef,
   currentTarget,
-}: Pick<StageViewportRefSet, "inlineStageWrapperRef" | "primaryCompositionSurfaceRef"> & {
+}: Pick<
+  StageViewportRefSet,
+  "inlineStageWrapperRef" | "primaryCanvasFrameStackRef" | "primaryCompositionSurfaceRef"
+> & {
   currentTarget?: HTMLDivElement | null;
 }): DOMRect | null => {
-  const wrapperRect = resolveValidStageRect(
-    inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
+  const frameStackRect = resolveValidStageRect(
+    primaryCanvasFrameStackRef.current?.getBoundingClientRect() ?? null
   );
-  if (wrapperRect) return wrapperRect;
+  if (frameStackRect) return frameStackRect;
   const compositionSurfaceRect = resolveValidStageRect(
     primaryCompositionSurfaceRef.current?.getBoundingClientRect() ?? null
   );
   if (compositionSurfaceRect) return compositionSurfaceRect;
+  const wrapperRect = resolveValidStageRect(
+    inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
+  );
+  if (wrapperRect) return wrapperRect;
   return resolveValidStageRect(currentTarget?.getBoundingClientRect() ?? null);
 };
 
@@ -60,7 +68,10 @@ export const resolveInteractionViewportOffsetPixelsFromRefs = ({
 }: {
   refs: Pick<
     StageViewportRefSet,
-    "inlineStageWrapperRef" | "primaryCompositionSurfaceRef" | "markupModalStageRef"
+    | "inlineStageWrapperRef"
+    | "primaryCanvasFrameStackRef"
+    | "primaryCompositionSurfaceRef"
+    | "markupModalStageRef"
   >;
   hasPrimaryCompositePreview: boolean;
   markupModalViewportSize: StageViewportSize;
@@ -89,6 +100,7 @@ export const resolveInteractionViewportOffsetPixelsFromRefs = ({
         : resolveStageViewportSize(
             resolveInlineStageRectFromRefs({
               inlineStageWrapperRef: refs.inlineStageWrapperRef,
+              primaryCanvasFrameStackRef: refs.primaryCanvasFrameStackRef,
               primaryCompositionSurfaceRef: refs.primaryCompositionSurfaceRef,
               currentTarget,
             }) ?? interactionRect
@@ -106,6 +118,7 @@ const resolveInlineCompositionSurfaceMetrics = ({
 >) => {
   const wrapperRect = resolveInlineStageRectFromRefs({
     inlineStageWrapperRef,
+    primaryCanvasFrameStackRef,
     primaryCompositionSurfaceRef,
   });
   const frameStackElement = primaryCanvasFrameStackRef.current;

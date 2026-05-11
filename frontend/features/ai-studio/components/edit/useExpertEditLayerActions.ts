@@ -1,6 +1,9 @@
 import React from "react";
 
-import { composePrimaryStageLayersToBlob } from "../../logic/expertEditStageFlatten";
+import {
+  composePrimaryStageLayersToBlob,
+  type StageFlattenCameraTransformInput,
+} from "../../logic/expertEditStageFlatten";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import type { ExpertEditPanelViewProps } from "./expertEditPanelViewContract";
 import { REMOVE_BACKGROUND_PENDING_TIMEOUT_MS } from "./expertEditPanelViewContract";
@@ -28,6 +31,7 @@ type UseExpertEditLayerActionsParams = {
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
   resolveStageFlattenSnapshot: () => {
     outputAspectRatio: number;
+    camera?: StageFlattenCameraTransformInput | null;
   };
 };
 
@@ -93,6 +97,7 @@ export function useExpertEditLayerActions({
       const exportBlob = await composePrimaryStageLayersToBlob(layers, {
         mimeType: "image/png",
         outputAspectRatio: flattenSnapshot.outputAspectRatio,
+        camera: flattenSnapshot.camera,
       });
       const flattenedLayerUrl = URL.createObjectURL(exportBlob);
       const flattenedReferenceUrl = onAddSessionMediaReference

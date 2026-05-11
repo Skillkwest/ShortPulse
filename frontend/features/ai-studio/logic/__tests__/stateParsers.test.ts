@@ -6,6 +6,9 @@ import { describe, expect, it } from "vitest";
 import {
   extractFalMediaUrls,
   extractResultUrls,
+  normalizeAspectForFalNanoBanana2,
+  normalizeAspectForFalNanoBananaPro,
+  resolveKlingAspectRatio,
   resolveTaskPollingModelId,
   resolveTaskPollingProvider,
 } from "../stateParsers";
@@ -135,5 +138,19 @@ describe("resolveTaskPollingModelId", () => {
         modelId: "unknown-model",
       })
     ).toBeNull();
+  });
+});
+
+describe("aspect normalization helpers", () => {
+  it("falls back Nano Banana 2 to the catalog default aspect", () => {
+    expect(normalizeAspectForFalNanoBanana2("not-an-aspect")).toBe("auto");
+  });
+
+  it("falls back Nano Banana Pro to the catalog default aspect", () => {
+    expect(normalizeAspectForFalNanoBananaPro("not-an-aspect")).toBe("4:5");
+  });
+
+  it("falls back Kling aspect ratio to the catalog default aspect", () => {
+    expect(resolveKlingAspectRatio("not-an-aspect")).toBe("16:9");
   });
 });

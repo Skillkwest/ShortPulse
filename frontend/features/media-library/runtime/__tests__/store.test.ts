@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyMediaSignedUrls,
   createMediaLibraryRuntimeState,
+  replaceSurfaceMediaRowsByTabs,
   replaceSurfaceMediaTabRows,
   replaceSurfacePromptRows,
   selectSurfaceMediaTabCacheRecord,
@@ -188,6 +189,68 @@ describe("media runtime store", () => {
     expect(routeCache.uploaded_videos.pagesLoaded).toBe(1);
     expect(routeCache.private.rows).toEqual([]);
     expect(routeCache.ai_generations.rows).toEqual([]);
+  });
+
+  it("replaces multiple surface media tabs in one batched write", () => {
+    let state = createMediaLibraryRuntimeState();
+    state = replaceSurfaceMediaRowsByTabs(state, {
+      surface: "panel",
+      rowsByTab: {
+        uploaded_images: [makeMediaRow("image-1")],
+        uploaded_videos: [makeMediaRow("video-1", { file_type: "video/mp4" })],
+        private: [makeMediaRow("private-1", { storage_path: "user/private/private-1.png" })],
+        ai_generations: [makeMediaRow("ai-1", { source: "ai_studio" })],
+      },
+      cacheByTab: {
+        uploaded_images: { loaded: true, pagesLoaded: 1 },
+        uploaded_videos: { loaded: true, pagesLoaded: 1 },
+      },
+    });
+
+    expect(
+      selectSurfaceMediaRows(state, { surface: "panel", tab: "uploaded_images" }).map(
+        (row) => row.id
+      )
+    ).toEqual(["image-1"]);
+    expect(
+      selectSurfaceMediaRows(state, { surface: "panel", tab: "uploaded_videos" }).map(
+        (row) => row.id
+      )
+    ).toEqual(["video-1"]);
+    expect(
+      selectSurfaceMediaRows(state, { surface: "panel", tab: "private" }).map((row) => row.id)
+    ).toEqual(["private-1"]);
+    expect(
+      selectSurfaceMediaRows(state, { surface: "panel", tab: "ai_generations" }).map(
+        (row) => row.id
+      )
+    ).toEqual(["ai-1"]);
+    expect(state.surfaceStateByKind.panel.cacheByTab.uploaded_images.pagesLoaded).toBe(1);
+    expect(state.surfaceStateByKind.panel.cacheByTab.uploaded_videos.pagesLoaded).toBe(1);
+  });
+
+  it("treats semantically identical prompt rows and promptsLoaded state as a no-op", () => {
+    let state = createMediaLibraryRuntimeState();
+    state = replaceSurfacePromptRows(state, {
+      surface: "panel",
+      rows: [makePromptRow("prompt-1"), makePromptRow("prompt-2")],
+      promptsLoaded: true,
+    });
+
+    const nextState = replaceSurfacePromptRows(state, {
+      surface: "panel",
+      rows: [
+        {
+          ...makePromptRow("prompt-1"),
+        },
+        {
+          ...makePromptRow("prompt-2"),
+        },
+      ],
+      promptsLoaded: true,
+    });
+
+    expect(nextState).toBe(state);
   });
 
   it("tracks prompts, selection, aspect ratio, and deduped byte totals per surface", () => {

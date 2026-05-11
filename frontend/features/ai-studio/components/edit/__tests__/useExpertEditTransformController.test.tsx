@@ -89,6 +89,7 @@ describe("useExpertEditTransformController", () => {
       const controller = useExpertEditTransformController({
         layers,
         selectedLayer: layers[0] ?? null,
+        selectedLayerInteractionTransform: layers[0]?.transform ?? null,
         selectedLayerImageAspectRatio: 1,
         sceneZoomScale: 2,
         shouldApplyViewportTransform: true,
@@ -156,5 +157,105 @@ describe("useExpertEditTransformController", () => {
     });
 
     expect(commitTransformHistoryTransition).toHaveBeenCalledTimes(1);
+  });
+
+  it("materializes the visible interaction transform before starting a drag session", () => {
+    const stageRect = {
+      left: 0,
+      top: 0,
+      width: 200,
+      height: 200,
+      right: 200,
+      bottom: 200,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect;
+    const stageElement = createStageElement(stageRect);
+    const initialLayer: ExpertEditLayer = {
+      id: "layer-1",
+      name: "layer 1",
+      imageUrl: "https://example.com/layer-1.png",
+      opacity: 1,
+      isAutoNamed: true,
+      ownsImageUrl: false,
+      transform: {
+        translateXRatio: 0.15,
+        translateYRatio: -0.2,
+        scale: 0.2,
+        rotationDeg: 18,
+      },
+    };
+    const commitTransformHistoryTransition = vi.fn();
+
+    const { result } = renderHook(() => {
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([initialLayer]);
+      const [activeTransformDragMode, setActiveTransformDragMode] =
+        React.useState<TransformPointerSession["dragMode"]>("move");
+      const [isTransformPointerDragging, setIsTransformPointerDragging] = React.useState(false);
+      const transformPointerSessionRef = React.useRef(createIdleTransformPointerSession());
+      const transformGestureBaselineRef = React.useRef(null);
+
+      const controller = useExpertEditTransformController({
+        layers,
+        selectedLayer: layers[0] ?? null,
+        selectedLayerInteractionTransform: defaultLayerTransform(),
+        selectedLayerImageAspectRatio: 1,
+        sceneZoomScale: 1,
+        shouldApplyViewportTransform: false,
+        viewportOffsetXRatio: 0,
+        viewportOffsetYRatio: 0,
+        transformPointerSessionRef,
+        transformGestureBaselineRef,
+        setLayers,
+        setActiveTransformDragMode,
+        setIsTransformPointerDragging,
+        commitTransformHistoryTransition,
+        showStatusToast: vi.fn(),
+      });
+
+      return {
+        activeTransformDragMode,
+        controller,
+        isTransformPointerDragging,
+        layers,
+      };
+    });
+
+    act(() => {
+      result.current.controller.handleMovePointerDown(
+        createPointerEvent({
+          currentTarget: stageElement,
+          clientX: 100,
+          clientY: 100,
+          pointerId: 72,
+        })
+      );
+    });
+
+    expect(result.current.activeTransformDragMode).toBe("move");
+    expect(result.current.isTransformPointerDragging).toBe(true);
+    expect(result.current.layers[0]?.transform).toEqual(defaultLayerTransform());
+
+    act(() => {
+      result.current.controller.endTransformPointerSession(
+        createPointerEvent({
+          currentTarget: stageElement,
+          clientX: 100,
+          clientY: 100,
+          pointerId: 72,
+        })
+      );
+    });
+
+    expect(commitTransformHistoryTransition).toHaveBeenCalledTimes(1);
+    expect(commitTransformHistoryTransition.mock.calls[0]?.[0]).toEqual({
+      layerOrderSignature: "layer-1",
+      layerSnapshots: [{ layerId: "layer-1", transform: defaultLayerTransform() }],
+    });
+    expect(commitTransformHistoryTransition.mock.calls[0]?.[1]).toEqual({
+      layerOrderSignature: "layer-1",
+      layerSnapshots: [{ layerId: "layer-1", transform: defaultLayerTransform() }],
+    });
   });
 });

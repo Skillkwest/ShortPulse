@@ -18,6 +18,7 @@ import { logAdaptiveDetailFullQualityUsed } from "../../../lib/adaptive-media";
 import { resolveExpertEditStyleById } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import { useExclusiveSoundMediaElement } from "./shared/exclusiveSoundPlayback";
 
 type DetailModalProps = {
   output: StudioOutput | null;
@@ -90,6 +91,8 @@ function DetailModalContent({
   resolveCharacterAvatarUrlById,
 }: DetailModalContentProps) {
   const imageVesselRef = useRef<HTMLDivElement | null>(null);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const imagePanDragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -101,6 +104,14 @@ function DetailModalContent({
   const promptOnlyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const promptOnlyCloseTimerRef = useRef<number | null>(null);
   const promptLibrarySavedTimerRef = useRef<number | null>(null);
+  const audioPreviewPlayback = useExclusiveSoundMediaElement(
+    `detail-modal-audio:${output.id}`,
+    audioPreviewRef
+  );
+  const videoPreviewPlayback = useExclusiveSoundMediaElement(
+    `detail-modal-video:${output.id}`,
+    videoPreviewRef
+  );
   const [deleteConfirmOutputId, setDeleteConfirmOutputId] = useState<string | null>(null);
   const [draftPromptsById, setDraftPromptsById] = useState<Record<string, string>>({});
   const [promptOnlySavedOutputId, setPromptOnlySavedOutputId] = useState<string | null>(null);
@@ -1070,6 +1081,7 @@ function DetailModalContent({
                       <video
                         className="art-hero-image"
                         src={displayPreviewUrl}
+                        ref={videoPreviewRef}
                         controls
                         autoPlay
                         loop
@@ -1082,13 +1094,24 @@ function DetailModalContent({
                             event.currentTarget.videoHeight
                           );
                         }}
+                        onPlay={videoPreviewPlayback.handlePlay}
+                        onPause={videoPreviewPlayback.handlePause}
+                        onEnded={videoPreviewPlayback.handleEnded}
+                        onError={videoPreviewPlayback.handleError}
+                        onVolumeChange={videoPreviewPlayback.handleVolumeChange}
                       />
                     ) : isAudioOutput ? (
                       <audio
                         className="art-hero-audio"
                         src={displayPreviewUrl}
+                        ref={audioPreviewRef}
                         controls
                         preload="metadata"
+                        onPlay={audioPreviewPlayback.handlePlay}
+                        onPause={audioPreviewPlayback.handlePause}
+                        onEnded={audioPreviewPlayback.handleEnded}
+                        onError={audioPreviewPlayback.handleError}
+                        onVolumeChange={audioPreviewPlayback.handleVolumeChange}
                       />
                     ) : (
                       <>

@@ -3,6 +3,7 @@
  * Resolves image attachment URLs into safe HTTPS URLs with bounded caching.
  */
 import type { AgentAttachment } from "../../../../prefabs/agent";
+import { resolveAgentAttachmentPreviewUrl } from "../../logic/agentAttachmentImage";
 import { prepareImageUrl } from "../../logic/imageDescription";
 
 const PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -37,20 +38,8 @@ export const prepareAgentImageAttachments = async ({
   attachments: AgentAttachment[];
   preparedImageUrlCache: Map<string, { safeUrl: string; expiresAtMs: number }>;
 }): Promise<PrepareImageAttachmentsResult> => {
-  const imageAttachmentsMissingUrl = attachments.filter(
-    (attachment) => attachment.kind === "image" && !attachment.imageUrl?.trim()
-  );
-  if (imageAttachmentsMissingUrl.length > 0) {
-    return {
-      ok: false,
-      reason: "missing_url",
-      failedIds: imageAttachmentsMissingUrl.map((attachment) => attachment.id),
-    };
-  }
-
   const imageAttachments = attachments.filter(
-    (attachment): attachment is AgentAttachment =>
-      attachment.kind === "image" && Boolean(attachment.imageUrl?.trim())
+    (attachment): attachment is AgentAttachment => attachment.kind === "image"
   );
   const imageAttachmentIds = imageAttachments.map((attachment) => attachment.id);
   if (!imageAttachmentIds.length) {
@@ -86,26 +75,56 @@ export const prepareAgentImageAttachments = async ({
 
   const preparedResults = await Promise.allSettled(
     imageAttachments.map(async (attachment) => {
-      const sourceUrl = attachment.imageUrl?.trim() ?? "";
+      const sourceUrl =
+        (await resolveAgentAttachmentPreviewUrl({
+          previewStoragePath: attachment.previewStoragePath ?? null,
+          fullStoragePath: attachment.fullStoragePath ?? null,
+          referenceRenderUrl: attachment.referenceRenderUrl ?? null,
+          referenceUrl: attachment.referenceUrl ?? null,
+          imageUrl: attachment.imageUrl ?? null,
+        }).catch(() => null)) ??
+        attachment.imageUrl?.trim() ??
+        "";
+      if (!sourceUrl) {
+        return {
+          attachmentId: attachment.id,
+          safeUrl: null,
+          missingUrl: true,
+        };
+      }
       const safeUrl = await resolvePreparedImageUrl(sourceUrl);
       return {
         attachmentId: attachment.id,
         safeUrl,
+        missingUrl: false,
       };
     })
   );
 
   const preparedImageUrls = new Map<string, string>();
+  const missingUrlAttachmentIds: string[] = [];
   const failedAttachmentIds: string[] = [];
   preparedResults.forEach((result, index) => {
     const attachmentId = imageAttachments[index]?.id;
     if (!attachmentId) return;
+    if (result.status === "fulfilled" && result.value.missingUrl) {
+      missingUrlAttachmentIds.push(attachmentId);
+      return;
+    }
     if (result.status === "fulfilled" && result.value.safeUrl?.startsWith("https://")) {
       preparedImageUrls.set(attachmentId, result.value.safeUrl);
       return;
     }
     failedAttachmentIds.push(attachmentId);
   });
+
+  if (missingUrlAttachmentIds.length > 0) {
+    return {
+      ok: false,
+      reason: "missing_url",
+      failedIds: missingUrlAttachmentIds,
+    };
+  }
 
   if (failedAttachmentIds.length) {
     return {

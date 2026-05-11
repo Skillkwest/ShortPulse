@@ -1,10 +1,23 @@
 import React from "react";
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
+import { __resetExclusiveSoundPlaybackForTests } from "../../../components/shared/exclusiveSoundPlayback";
 import { projectReferenceGridMediaOutput } from "../../logic/referenceGridMediaOutput";
 import { useReferenceGridCardRenderController } from "../useReferenceGridCardRenderController";
+import { useReferenceGridSingleAudioPlaybackController } from "../useReferenceGridSingleAudioPlaybackController";
+
+const playMock = vi.fn();
+const pauseMock = vi.fn();
+
+const playSpy = vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => {
+  playMock();
+  return Promise.resolve();
+});
+vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {
+  pauseMock();
+});
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
   ({
@@ -23,6 +36,394 @@ const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
   }) as StudioOutput;
 
 describe("useReferenceGridCardRenderController", () => {
+  beforeEach(() => {
+    __resetExclusiveSoundPlaybackForTests();
+  });
+
+  const createAudioControllerStub = () => ({
+    requestPlay: vi.fn(),
+    markPlaying: vi.fn(),
+    clearActivePlayer: vi.fn(),
+  });
+
+  it("keeps duplicate quick-slot and all-refs audio players mutually exclusive", () => {
+    playMock.mockClear();
+    pauseMock.mockClear();
+    const output = createOutput({
+      id: "audio-1",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-1.mp3",
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: "https://example.com/audio-1.mp3",
+      isVideoPreview: false,
+      isImagePreview: false,
+      isAudioPreview: true,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    };
+
+    const { result } = renderHook(() => {
+      const audioPlaybackController = useReferenceGridSingleAudioPlaybackController();
+      return useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [visibleCard],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController,
+      });
+    });
+
+    const { container } = render(
+      <>
+        {result.current.curatedCardNodes}
+        {result.current.allRefsCardNodes}
+      </>
+    );
+
+    const playButtons = container.querySelectorAll(".reference-card-audio-play");
+    const audioNodes = container.querySelectorAll(".reference-card-audio");
+    expect(playButtons).toHaveLength(2);
+    expect(audioNodes).toHaveLength(2);
+
+    playMock.mockClear();
+    pauseMock.mockClear();
+
+    act(() => {
+      (playButtons[0] as HTMLButtonElement).click();
+      audioNodes[0]?.dispatchEvent(new Event("play"));
+      (playButtons[1] as HTMLButtonElement).click();
+    });
+
+    expect(playMock).toHaveBeenCalledTimes(2);
+    expect(pauseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears active ownership after audio playback ends", () => {
+    playMock.mockClear();
+    pauseMock.mockClear();
+    const output = createOutput({
+      id: "audio-1",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-1.mp3",
+    });
+    const secondOutput = createOutput({
+      id: "audio-2",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-2.mp3",
+    });
+    const visibleCards = [output, secondOutput].map((item) => ({
+      item: projectReferenceGridMediaOutput(item),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: item.previewUrl ?? null,
+      isVideoPreview: false,
+      isImagePreview: false,
+      isAudioPreview: true,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    }));
+
+    const { result } = renderHook(() => {
+      const audioPlaybackController = useReferenceGridSingleAudioPlaybackController();
+      return useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output, [secondOutput.id]: secondOutput },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: visibleCards,
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController,
+      });
+    });
+
+    const { container } = render(<>{result.current.allRefsCardNodes}</>);
+    const playButtons = container.querySelectorAll(".reference-card-audio-play");
+    const audioNodes = container.querySelectorAll(".reference-card-audio");
+
+    act(() => {
+      (playButtons[0] as HTMLButtonElement).click();
+      audioNodes[0]?.dispatchEvent(new Event("play"));
+      audioNodes[0]?.dispatchEvent(new Event("ended"));
+    });
+
+    pauseMock.mockClear();
+    playMock.mockClear();
+
+    act(() => {
+      (playButtons[1] as HTMLButtonElement).click();
+    });
+
+    expect(playMock).toHaveBeenCalledTimes(1);
+    expect(pauseMock).toHaveBeenCalledTimes(0);
+  });
+
+  it("does not leave stale active ownership when playback is rejected", async () => {
+    playMock.mockClear();
+    pauseMock.mockClear();
+    playSpy.mockImplementationOnce(() => {
+      playMock();
+      return Promise.reject(new Error("blocked"));
+    });
+    const output = createOutput({
+      id: "audio-1",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-1.mp3",
+    });
+    const secondOutput = createOutput({
+      id: "audio-2",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-2.mp3",
+    });
+    const visibleCards = [output, secondOutput].map((item) => ({
+      item: projectReferenceGridMediaOutput(item),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: item.previewUrl ?? null,
+      isVideoPreview: false,
+      isImagePreview: false,
+      isAudioPreview: true,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    }));
+
+    const { result } = renderHook(() => {
+      const audioPlaybackController = useReferenceGridSingleAudioPlaybackController();
+      return useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output, [secondOutput.id]: secondOutput },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: visibleCards,
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController,
+      });
+    });
+
+    const { container } = render(<>{result.current.allRefsCardNodes}</>);
+    const playButtons = container.querySelectorAll(".reference-card-audio-play");
+
+    await act(async () => {
+      (playButtons[0] as HTMLButtonElement).click();
+      await Promise.resolve();
+    });
+
+    pauseMock.mockClear();
+    playMock.mockClear();
+
+    act(() => {
+      (playButtons[1] as HTMLButtonElement).click();
+    });
+
+    expect(playMock).toHaveBeenCalledTimes(1);
+    expect(pauseMock).toHaveBeenCalledTimes(0);
+  });
+
+  it("keeps rapid audio handoffs mutually exclusive before the first play event lands", () => {
+    playMock.mockClear();
+    pauseMock.mockClear();
+    const output = createOutput({
+      id: "audio-1",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-1.mp3",
+    });
+    const secondOutput = createOutput({
+      id: "audio-2",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-2.mp3",
+    });
+    const visibleCards = [output, secondOutput].map((item) => ({
+      item: projectReferenceGridMediaOutput(item),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: item.previewUrl ?? null,
+      isVideoPreview: false,
+      isImagePreview: false,
+      isAudioPreview: true,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    }));
+
+    const { result } = renderHook(() => {
+      const audioPlaybackController = useReferenceGridSingleAudioPlaybackController();
+      return useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output, [secondOutput.id]: secondOutput },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: visibleCards,
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController,
+      });
+    });
+
+    const { container } = render(<>{result.current.allRefsCardNodes}</>);
+    const playButtons = container.querySelectorAll(".reference-card-audio-play");
+    const audioNodes = container.querySelectorAll(".reference-card-audio");
+
+    playMock.mockClear();
+    pauseMock.mockClear();
+
+    act(() => {
+      (playButtons[0] as HTMLButtonElement).click();
+      (playButtons[1] as HTMLButtonElement).click();
+      audioNodes[0]?.dispatchEvent(new Event("play"));
+      audioNodes[1]?.dispatchEvent(new Event("play"));
+    });
+
+    expect(playMock).toHaveBeenCalledTimes(2);
+    expect(pauseMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears active ownership when an active audio player errors", () => {
+    playMock.mockClear();
+    pauseMock.mockClear();
+    const output = createOutput({
+      id: "audio-1",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-1.mp3",
+    });
+    const secondOutput = createOutput({
+      id: "audio-2",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-2.mp3",
+    });
+    const visibleCards = [output, secondOutput].map((item) => ({
+      item: projectReferenceGridMediaOutput(item),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: item.previewUrl ?? null,
+      isVideoPreview: false,
+      isImagePreview: false,
+      isAudioPreview: true,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    }));
+
+    const { result } = renderHook(() => {
+      const audioPlaybackController = useReferenceGridSingleAudioPlaybackController();
+      return useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output, [secondOutput.id]: secondOutput },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: visibleCards,
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController,
+      });
+    });
+
+    const { container } = render(<>{result.current.allRefsCardNodes}</>);
+    const playButtons = container.querySelectorAll(".reference-card-audio-play");
+    const audioNodes = container.querySelectorAll(".reference-card-audio");
+
+    act(() => {
+      (playButtons[0] as HTMLButtonElement).click();
+      audioNodes[0]?.dispatchEvent(new Event("play"));
+      audioNodes[0]?.dispatchEvent(new Event("error"));
+    });
+
+    pauseMock.mockClear();
+    playMock.mockClear();
+
+    act(() => {
+      (playButtons[1] as HTMLButtonElement).click();
+    });
+
+    expect(playMock).toHaveBeenCalledTimes(1);
+    expect(pauseMock).toHaveBeenCalledTimes(0);
+  });
+
   it("keeps the loading spinner visible for dormant local video references pending persistence", () => {
     const output = createOutput();
     const visibleCard = {
@@ -61,6 +462,7 @@ describe("useReferenceGridCardRenderController", () => {
         markLoaded: vi.fn(),
         onAutoplayStarted: vi.fn(),
         onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
       })
     );
 
@@ -111,6 +513,7 @@ describe("useReferenceGridCardRenderController", () => {
         markLoaded: vi.fn(),
         onAutoplayStarted: vi.fn(),
         onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
       })
     );
 
@@ -165,6 +568,7 @@ describe("useReferenceGridCardRenderController", () => {
         markLoaded: vi.fn(),
         onAutoplayStarted: vi.fn(),
         onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
       })
     );
 
@@ -224,6 +628,7 @@ describe("useReferenceGridCardRenderController", () => {
         markLoaded: vi.fn(),
         onAutoplayStarted: vi.fn(),
         onAutoplayStopped: vi.fn(),
+        audioPlaybackController: createAudioControllerStub(),
       })
     );
 

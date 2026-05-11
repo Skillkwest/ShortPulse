@@ -217,6 +217,73 @@ export const replaceSurfaceMediaTabRows = <
   return next;
 };
 
+export const replaceSurfaceMediaRowsByTabs = <
+  TMedia extends MediaLibraryMediaRow,
+  TPrompt extends MediaLibraryPromptRow,
+>(
+  state: MediaLibraryRuntimeState<TMedia, TPrompt>,
+  {
+    surface,
+    rowsByTab,
+    cacheByTab,
+  }: {
+    surface: MediaLibrarySurfaceKind;
+    rowsByTab: Record<MediaDataTab, TMedia[]>;
+    cacheByTab?: Partial<Record<MediaDataTab, Partial<MediaLibraryTabCacheState>>>;
+  }
+): MediaLibraryRuntimeState<TMedia, TPrompt> => {
+  const currentSurfaceState = state.surfaceStateByKind[surface];
+  const nextCacheByTab = {} as Record<MediaDataTab, MediaLibraryTabCacheState>;
+  const changedTabs = new Set<MediaDataTab>();
+
+  for (const tab of MEDIA_DATA_TABS) {
+    const currentRows = selectSurfaceMediaRows(state, { surface, tab });
+    const currentCache = currentSurfaceState.cacheByTab[tab];
+    const nextRows = rowsByTab[tab];
+    const nextCache = {
+      ...currentCache,
+      ...(cacheByTab?.[tab] ?? {}),
+    };
+    nextCacheByTab[tab] = nextCache;
+    if (
+      !areOrderedRowsEqual(currentRows, nextRows) ||
+      !areTabCacheStatesEqual(currentCache, nextCache)
+    ) {
+      changedTabs.add(tab);
+    }
+  }
+
+  if (changedTabs.size === 0) {
+    return state;
+  }
+
+  const { next, surfaceState } = cloneRuntimeSurface(state, surface);
+  next.mediaById = { ...state.mediaById };
+
+  const nextMediaIdsByTab = {
+    ...surfaceState.orderedViews.mediaIdsByTab,
+  };
+  const mergedCacheByTab = {
+    ...surfaceState.cacheByTab,
+  };
+
+  for (const tab of changedTabs) {
+    const rows = rowsByTab[tab];
+    for (const row of rows) {
+      next.mediaById[row.id] = row;
+    }
+    nextMediaIdsByTab[tab] = rows.map((row) => row.id);
+    mergedCacheByTab[tab] = nextCacheByTab[tab];
+  }
+
+  surfaceState.orderedViews = {
+    ...surfaceState.orderedViews,
+    mediaIdsByTab: nextMediaIdsByTab,
+  };
+  surfaceState.cacheByTab = mergedCacheByTab;
+  return next;
+};
+
 export const replaceSurfacePromptRows = <
   TMedia extends MediaLibraryMediaRow,
   TPrompt extends MediaLibraryPromptRow,
@@ -232,6 +299,14 @@ export const replaceSurfacePromptRows = <
     promptsLoaded?: boolean;
   }
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
+  const currentRows = selectSurfacePromptRows(state, surface);
+  const currentPromptsLoaded = state.surfaceStateByKind[surface].promptsLoaded;
+  if (
+    areOrderedRowsEqual(currentRows, rows) &&
+    (typeof promptsLoaded !== "boolean" || currentPromptsLoaded === promptsLoaded)
+  ) {
+    return state;
+  }
   const { next, surfaceState } = cloneRuntimeSurface(state, surface);
   next.promptById = { ...state.promptById };
   for (const row of rows) {

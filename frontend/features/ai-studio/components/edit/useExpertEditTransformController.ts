@@ -10,7 +10,10 @@ import {
   resolveTransformSessionUpdate,
 } from "./expertEditTransformGestureUtils";
 import {
+  areLayerTransformsEqual,
   buildTransformHistoryEntry,
+  cloneLayerTransform,
+  type LayerTransform,
   type TransformHistoryEntry,
 } from "./expertEditLayerTransformUtils";
 import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
@@ -25,6 +28,7 @@ import { resolveCanvasSpacePoint } from "./expertEditPanelUtilities";
 type UseExpertEditTransformControllerParams = {
   layers: ExpertEditLayer[];
   selectedLayer: ExpertEditLayer | null;
+  selectedLayerInteractionTransform: LayerTransform | null;
   selectedLayerImageAspectRatio?: number;
   sceneZoomScale: number;
   shouldApplyViewportTransform: boolean;
@@ -77,6 +81,7 @@ const resolveDragModeFromPointerTarget = (
 export const useExpertEditTransformController = ({
   layers,
   selectedLayer,
+  selectedLayerInteractionTransform,
   selectedLayerImageAspectRatio = 1,
   sceneZoomScale,
   shouldApplyViewportTransform,
@@ -153,11 +158,28 @@ export const useExpertEditTransformController = ({
           altKey: event.altKey,
           shiftKey: event.shiftKey,
         });
+      const interactionTransform = selectedLayerInteractionTransform ?? selectedLayer.transform;
+      const interactionLayers = areLayerTransformsEqual(
+        selectedLayer.transform,
+        interactionTransform
+      )
+        ? layers
+        : layers.map((layer) =>
+            layer.id === selectedLayer.id
+              ? {
+                  ...layer,
+                  transform: cloneLayerTransform(interactionTransform),
+                }
+              : layer
+          );
       event.preventDefault();
       if (event.currentTarget.setPointerCapture) {
         event.currentTarget.setPointerCapture(event.pointerId);
       }
-      transformGestureBaselineRef.current = buildTransformHistoryEntry(layers);
+      if (interactionLayers !== layers) {
+        setLayers(interactionLayers);
+      }
+      transformGestureBaselineRef.current = buildTransformHistoryEntry(interactionLayers);
       transformPointerSessionRef.current = createTransformPointerSession({
         pointerId: event.pointerId,
         pointerX: pointer.x,
@@ -165,7 +187,7 @@ export const useExpertEditTransformController = ({
         dropzoneWidth: width,
         dropzoneHeight: height,
         selectedLayerId: selectedLayer.id,
-        selectedLayerTransform: selectedLayer.transform,
+        selectedLayerTransform: interactionTransform,
         imageAspectRatio: selectedLayerImageAspectRatio,
         dragMode,
       });
@@ -176,6 +198,7 @@ export const useExpertEditTransformController = ({
       layers,
       sceneZoomScale,
       selectedLayer,
+      selectedLayerInteractionTransform,
       selectedLayerImageAspectRatio,
       setActiveTransformDragMode,
       setIsTransformPointerDragging,
@@ -184,6 +207,7 @@ export const useExpertEditTransformController = ({
       transformGestureBaselineRef,
       transformPointerSessionRef,
       resolveViewportOffsetPixels,
+      setLayers,
       viewportOffsetXRatio,
       viewportOffsetYRatio,
     ]

@@ -1,6 +1,7 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { __resetExclusiveSoundPlaybackForTests } from "../shared/exclusiveSoundPlayback";
 import { MediaLibraryAllItemsGrid } from "../media-library-modal/MediaLibraryAllItemsGrid";
 
 const useMediaMasonryVirtualizationMock = vi.fn();
@@ -12,6 +13,7 @@ vi.mock("../../../media-library/hooks/useMediaMasonryVirtualization", () => ({
 describe("MediaLibraryAllItemsGrid", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetExclusiveSoundPlaybackForTests();
     useMediaMasonryVirtualizationMock.mockImplementation(({ items }: { items: unknown[] }) => ({
       containerRef: { current: null },
       isVirtualized: false,
@@ -315,5 +317,27 @@ describe("MediaLibraryAllItemsGrid", () => {
     fireEvent.loadedMetadata(audioNode as HTMLAudioElement);
     expect(props.onSignedUrlLoaded).toHaveBeenCalledWith("audio-1");
     expect(props.onMediaPaint).not.toHaveBeenCalled();
+  });
+
+  it("does not open the preview modal when the inline audio play control is double-clicked", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note-1.mp3",
+        storage_path: "user-1/uploads/voice-note-1.mp3",
+        preview_storage_path: "user-1/uploads/voice-note-1.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note-1.mp3",
+        metadata: null,
+      },
+    ];
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Play audio voice-note-1.mp3" }));
+
+    expect(props.onMediaDoubleClick).not.toHaveBeenCalled();
   });
 });

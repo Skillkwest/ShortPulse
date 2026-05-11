@@ -1,8 +1,22 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ReferenceAudioPlayer } from "../../../ai-studio/components/shared/ReferenceAudioPlayer";
+import { __resetExclusiveSoundPlaybackForTests } from "../../../ai-studio/components/shared/exclusiveSoundPlayback";
 import { MediaFileModal } from "../MediaFileModal";
 
 describe("MediaFileModal", () => {
+  beforeEach(() => {
+    __resetExclusiveSoundPlaybackForTests();
+    Object.defineProperty(HTMLMediaElement.prototype, "play", {
+      configurable: true,
+      value: vi.fn().mockResolvedValue(undefined),
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "pause", {
+      configurable: true,
+      value: vi.fn(),
+    });
+  });
+
   it("renders the provided signedUrl in detail preview", () => {
     const { container } = render(
       <MediaFileModal
@@ -123,5 +137,74 @@ describe("MediaFileModal", () => {
       fireEvent.click(backdrop);
     }
     expect(closeModal).toHaveBeenCalled();
+  });
+
+  it("pauses an existing audio preview when modal video starts playing", () => {
+    const pauseSpy = HTMLMediaElement.prototype.pause as ReturnType<typeof vi.fn>;
+
+    render(
+      <>
+        <div className="reference-card has-audio">
+          <ReferenceAudioPlayer
+            audioId="ref-audio-1"
+            audioUrl="https://example.com/ref-audio-1.mp3"
+            playLabel="Play reference audio"
+            pauseLabel="Pause reference audio"
+          />
+        </div>
+        <MediaFileModal
+          canMoveToAnotherTab
+          cacheModalImageNaturalSize={vi.fn()}
+          cacheAspectRatio={vi.fn()}
+          closeModal={vi.fn()}
+          downloadFile={vi.fn(async () => {})}
+          focusedAspectRatio={16 / 9}
+          focusedFile={{
+            id: "video-1",
+            filename: "clip.mp4",
+            file_type: "video/mp4",
+            signedUrl: "https://signed/clip.mp4",
+          }}
+          handleMediaPreviewError={vi.fn()}
+          handleModalImageClick={vi.fn()}
+          handleModalImageKeyDown={vi.fn()}
+          handleModalImagePointerDown={vi.fn()}
+          handleModalImagePointerMove={vi.fn()}
+          handleModalImagePointerUp={vi.fn()}
+          handleModalImageWheel={vi.fn()}
+          handleModalPreviewWheel={vi.fn()}
+          handleRenameInputChange={vi.fn()}
+          isModalImagePanning={false}
+          isVideoFile={(fileType) => fileType.startsWith("video/")}
+          modalError={null}
+          modalImagePan={{ x: 0, y: 0 }}
+          modalImageZoomActive={false}
+          modalImageZoomScale={1}
+          modalMoveTabOptions={[{ tab: "private", label: "Private", disabled: false }]}
+          modalPreviewRef={{ current: null }}
+          moveError={null}
+          moveFocusedFile={vi.fn(async () => {})}
+          moveMenuOpen={false}
+          movingFile={false}
+          renameSuccess={false}
+          renameValue="clip.mp4"
+          requestDeleteFile={vi.fn()}
+          saveRename={vi.fn(async () => {})}
+          savingRename={false}
+          setMoveMenuOpen={vi.fn()}
+        />
+      </>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Play reference audio" }));
+    const referenceAudioNode = document.querySelector(".reference-card-audio") as HTMLAudioElement;
+    const modalVideoNode = document.querySelector(".modal-preview video") as HTMLVideoElement;
+
+    fireEvent.play(referenceAudioNode);
+    pauseSpy.mockClear();
+
+    fireEvent.play(modalVideoNode);
+
+    expect(pauseSpy).toHaveBeenCalledTimes(1);
   });
 });

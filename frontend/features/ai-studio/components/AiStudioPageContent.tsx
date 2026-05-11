@@ -47,6 +47,7 @@ import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndContr
 import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
 import { useStylesLibraryPanelIdsPreference } from "../hooks/useStylesLibraryPanelIdsPreference";
 import { useStylesLibraryStyleDetailsPreference } from "../hooks/useStylesLibraryStyleDetailsPreference";
+import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type {
@@ -540,6 +541,8 @@ export type AiStudioPageContentProps = {
   handleReferenceGridFiles: (files: FileList) => void;
   triggerFilePicker: () => void;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  pendingCharacterUploadRequest?: CharacterPanelUploadRequest | null;
+  onCharacterUploadRequestHandled?: (requestId: number) => void;
   resolveElementProfileImageDropSource?: ResolveInternalReferenceDrop;
   resolveVoiceChangerInternalReferenceSource?: ResolveVoiceChangerInternalReferenceSource;
   onSelectedStylePromptChange?: (stylePrompt: string | null) => void;
@@ -597,6 +600,8 @@ export function AiStudioPageContent({
   handleReferenceGridFiles,
   triggerFilePicker,
   resolveCharacterDropReference,
+  pendingCharacterUploadRequest = null,
+  onCharacterUploadRequestHandled,
   resolveElementProfileImageDropSource,
   resolveVoiceChangerInternalReferenceSource,
   onSelectedStylePromptChange,
@@ -1313,10 +1318,17 @@ export function AiStudioPageContent({
     () => (
       <CharacterPanel
         createRequestKey={characterCreateRequestKey}
+        externalUploadRequest={pendingCharacterUploadRequest}
+        onExternalUploadRequestHandled={onCharacterUploadRequestHandled}
         resolveCharacterDropReference={resolveCharacterDropReference}
       />
     ),
-    [characterCreateRequestKey, resolveCharacterDropReference]
+    [
+      characterCreateRequestKey,
+      onCharacterUploadRequestHandled,
+      pendingCharacterUploadRequest,
+      resolveCharacterDropReference,
+    ]
   );
   const presetsPropertiesPanelContent = React.useMemo(
     () => (
@@ -1419,7 +1431,7 @@ export function AiStudioPageContent({
         case "music":
           return <MusicPropertiesPanel {...propertiesMusic} />;
         case "sound":
-          return <SoundPropertiesPanel />;
+          return <SoundPropertiesPanel onSelectTool={handleToolSelection} />;
         case "sound-effects":
           return <SoundEffectsPropertiesPanel {...propertiesSoundEffects} />;
         case "voices":

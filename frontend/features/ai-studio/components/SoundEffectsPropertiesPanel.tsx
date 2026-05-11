@@ -3,12 +3,12 @@
  * Mirrors the Voices workflow feel while keeping all panel logic local to Sound Effects.
  */
 import React from "react";
-import { ELEVENLABS_SOUND_EFFECTS_MODEL_ID } from "../../../lib/model-runtime/elevenLabsModels";
-import { computeCostForModel } from "../../../lib/model-runtime/pricing";
+import { resolveRequiredAudioSoundEffectsModelId } from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
+import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 
 export type SoundEffectFormat = "mp3_44100_128" | "pcm_48000";
-export const hardcodedSoundEffectsModelId = ELEVENLABS_SOUND_EFFECTS_MODEL_ID;
+export const hardcodedSoundEffectsModelId = resolveRequiredAudioSoundEffectsModelId();
 
 export type SoundEffectsGenerateRequest = {
   text: string;
@@ -16,6 +16,7 @@ export type SoundEffectsGenerateRequest = {
   loop: boolean;
   outputFormat: SoundEffectFormat;
   modelId: typeof hardcodedSoundEffectsModelId;
+  displayedBilledCredits?: number | null;
 };
 
 export type SoundEffectsPropertiesPanelProps = {
@@ -23,6 +24,7 @@ export type SoundEffectsPropertiesPanelProps = {
   isGenerating?: boolean;
   onGenerate?: (request: SoundEffectsGenerateRequest) => Promise<void> | void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
+  pricingPolicyReady?: boolean;
 };
 
 const soundEffectPromptPlaceholder =
@@ -49,6 +51,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
   balanceCredits = null,
   onGenerate,
   pricingPolicy = null,
+  pricingPolicyReady = true,
 }: SoundEffectsPropertiesPanelProps) {
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const [prompt, setPrompt] = React.useState("");
@@ -59,17 +62,18 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
 
   const durationSeconds = null;
   const generateCost =
-    computeCostForModel(
-      hardcodedSoundEffectsModelId,
-      {
+    resolveClientBilledCredits({
+      modelId: hardcodedSoundEffectsModelId,
+      params: {
         generationCount: 1,
       },
-      pricingPolicy
-    )?.credits ?? null;
+      pricingPolicy,
+      pricingPolicyReady,
+    }) ?? null;
   const isInsufficientCredits =
     balanceCredits != null && generateCost != null ? balanceCredits < generateCost : false;
   const isGenerateEnabled =
-    Boolean(onGenerate) && prompt.trim().length > 0 && !isInsufficientCredits;
+    Boolean(onGenerate) && pricingPolicyReady && prompt.trim().length > 0 && !isInsufficientCredits;
   const isLibraryVisible = topPanePercent > 0;
   const minTopPanePercent = 0;
 
@@ -114,8 +118,9 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
       loop: loopEnabled,
       outputFormat: selectedFormat,
       modelId: hardcodedSoundEffectsModelId,
+      displayedBilledCredits: generateCost,
     });
-  }, [durationSeconds, loopEnabled, onGenerate, prompt, selectedFormat]);
+  }, [durationSeconds, generateCost, loopEnabled, onGenerate, prompt, selectedFormat]);
 
   const updateTopPaneFromClientY = React.useCallback(
     (clientY: number) => {
@@ -264,7 +269,7 @@ export const SoundEffectsPropertiesPanel = React.memo(function SoundEffectsPrope
                   <span className="sound-effects-properties-generate-pill" aria-hidden="true">
                     <span className="sound-effects-properties-generate-cost-icon">✦</span>
                     <span className="sound-effects-properties-generate-cost-value">
-                      {formatCreditValue(generateCost ?? 0)}
+                      {generateCost != null ? formatCreditValue(generateCost) : "—"}
                     </span>
                   </span>
                 </button>

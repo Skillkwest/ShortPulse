@@ -1,6 +1,7 @@
 import {
   composePrimaryStageLayersToBlob,
   type ExpertEditStageFlattenLayer,
+  type StageFlattenCameraTransformInput,
 } from "../../logic/expertEditStageFlatten";
 import { composeFlattenedMarkupReferenceBlob } from "../../logic/expertEditMarkupReference";
 import { isMarkupStrokeSecondaryReferenceEnabled } from "../../logic/inpaintSubmission";
@@ -11,10 +12,13 @@ type ExportSelectedLayerMaskBlob = (params: {
   targetWidth: number;
   targetHeight: number;
   mimeType?: "image/png" | "image/jpeg";
+  camera?: StageFlattenCameraTransformInput | null;
 }) => Promise<Blob | null>;
 
 type StageFlattenSnapshot = {
   outputAspectRatio?: number;
+  camera?: StageFlattenCameraTransformInput | null;
+  canReusePrimarySourceUrl?: boolean;
 };
 
 export type ExpertEditStageExportParams = {
@@ -48,16 +52,18 @@ export const exportExpertEditStageArtifacts = async ({
   const isInpaintSubmitSelected = editSubmitIntent === "inpaint";
   const isMarkupSubmitSelected = editSubmitIntent === "markup";
   const reusablePrimarySourceUrlTrimmed = reusablePrimarySourceUrl?.trim() ?? "";
+  const flattenSnapshot = resolveStageFlattenSnapshot?.();
   const shouldReusePrimarySourceUrl =
     !isInpaintSubmitSelected &&
     !isMarkupSubmitSelected &&
-    reusablePrimarySourceUrlTrimmed.length > 0;
-  const flattenSnapshot = shouldReusePrimarySourceUrl ? null : resolveStageFlattenSnapshot?.();
+    reusablePrimarySourceUrlTrimmed.length > 0 &&
+    (flattenSnapshot?.canReusePrimarySourceUrl ?? true);
   const flattenedBlob = shouldReusePrimarySourceUrl
     ? null
     : await composePrimaryStageLayersToBlob(layers, {
         mimeType: "image/png",
         outputAspectRatio: flattenSnapshot?.outputAspectRatio,
+        camera: flattenSnapshot?.camera,
       });
 
   let flattenedMarkupReferenceBlob: Blob | null = null;
@@ -81,6 +87,7 @@ export const exportExpertEditStageArtifacts = async ({
       targetWidth: flattenedDimensions.width,
       targetHeight: flattenedDimensions.height,
       mimeType: "image/png",
+      camera: flattenSnapshot?.camera,
     });
   }
 

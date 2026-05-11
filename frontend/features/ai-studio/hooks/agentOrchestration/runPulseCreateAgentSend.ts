@@ -38,6 +38,7 @@ export type RunPulseCreateAgentSendParams = Pick<
   | "sendToAgent"
   | "appendUserMessage"
   | "updateMessageById"
+  | "removeMessageById"
   | "getAgentContext"
   | "trackAgentUiEvent"
   | "setUiNotice"
@@ -87,6 +88,7 @@ export const runPulseCreateAgentSend = async ({
   sendToAgent,
   appendUserMessage,
   updateMessageById,
+  removeMessageById,
   getAgentContext,
   trackAgentUiEvent,
   setUiNotice,
@@ -158,6 +160,9 @@ export const runPulseCreateAgentSend = async ({
   const sentFromComposer = typeof textOverride !== "string";
   const userMessageText = trimmed || outboundText;
   const optimisticUserMessageId = appendUserMessage(userMessageText, outboundAttachments);
+  const originalAgentInput = agentInput;
+  const originalAgentAttachments = cloneMessageAttachments(agentAttachments);
+  let composerCleared = false;
   const patchOptimisticMessageAttachments = (
     updater: (
       attachments: UseAiStudioAgentOrchestrationParams["agentAttachments"]
@@ -195,12 +200,30 @@ export const runPulseCreateAgentSend = async ({
       })
     );
   };
-  if (sentFromComposer && trimmed) {
-    setAgentInput("");
-  }
-  if (outboundAttachments.length > 0) {
-    setAgentAttachments([]);
-  }
+  const clearComposerDraft = () => {
+    if (composerCleared) return;
+    composerCleared = true;
+    if (sentFromComposer && trimmed) {
+      setAgentInput("");
+    }
+    if (outboundAttachments.length > 0) {
+      setAgentAttachments([]);
+    }
+  };
+  const restoreComposerDraft = () => {
+    if (!composerCleared) return;
+    composerCleared = false;
+    if (sentFromComposer) {
+      setAgentInput(originalAgentInput);
+    }
+    if (outboundAttachments.length > 0) {
+      setAgentAttachments(originalAgentAttachments);
+    }
+  };
+  const discardOptimisticUserMessage = () => {
+    if (!optimisticUserMessageId) return;
+    removeMessageById(optimisticUserMessageId);
+  };
   try {
     const imageAttachmentsMissingUrl = outboundAttachments.filter(
       (attachment) => attachment.kind === "image" && !attachment.imageUrl?.trim()
@@ -218,6 +241,7 @@ export const runPulseCreateAgentSend = async ({
       trackAgentUiEvent("studio_agent_attachment_missing_url", {
         failed_image_attachments: failedIds.length,
       });
+      discardOptimisticUserMessage();
       return;
     }
 
@@ -245,6 +269,7 @@ export const runPulseCreateAgentSend = async ({
           trackAgentUiEvent("studio_agent_attachment_missing_url", {
             failed_image_attachments: preparedImageResult.failedIds.length,
           });
+          discardOptimisticUserMessage();
           return;
         }
         updateOptimisticAttachmentDelivery(
@@ -259,12 +284,15 @@ export const runPulseCreateAgentSend = async ({
           failed_image_attachments: preparedImageResult.failedIds.length,
           attempted_image_attachments: preparedImageResult.attemptedCount,
         });
+        discardOptimisticUserMessage();
         return;
       }
 
       preparedImageUrls = preparedImageResult.preparedImageUrls;
       updateOptimisticAttachmentDelivery(imageAttachmentIds, "ready", null);
     }
+
+    clearComposerDraft();
 
     const mediaPatchedContext = mergeAttachmentContext({
       baseContext,
@@ -291,6 +319,9 @@ export const runPulseCreateAgentSend = async ({
       optimisticUserMessageId,
     });
     if (discarded) {
+      restoreComposerDraft();
+      discardOptimisticUserMessage();
+      setUiNotice("This Pulse turn was interrupted. Your draft was restored.");
       return;
     }
 
@@ -298,11 +329,14 @@ export const runPulseCreateAgentSend = async ({
       trackAgentUiEvent("studio_agent_response_empty", {
         mode_hint: options?.modeHint ?? "chat",
       });
+      restoreComposerDraft();
+      discardOptimisticUserMessage();
+      setUiNotice("This Pulse turn did not complete. Your draft was restored.");
       if (options?.captureResult) return;
       return;
     }
 
-    const appliedPrompt = normalizePromptText(actions?.applyPrompt);
+    const appliedPrompt = normalizePromptText(actions?.applyPrompt ?? response.canonicalPrompt);
     trackAgentUiEvent("studio_agent_response_received", {
       mode_hint: options?.modeHint ?? "chat",
       has_apply_prompt: Boolean(appliedPrompt),

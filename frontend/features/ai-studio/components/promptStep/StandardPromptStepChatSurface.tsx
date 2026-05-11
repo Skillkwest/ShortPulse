@@ -278,11 +278,8 @@ export const StandardPromptStepChatSurface: React.FC<StandardPromptStepChatSurfa
                   key={attachment.id}
                   className={`agent-attachment-card agent-attachment-card--composer agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`}
                 >
-                  {attachment.kind === "image" && attachment.imageUrl ? (
-                    <AgentComposerAttachmentImage
-                      src={attachment.imageUrl}
-                      fallbackUrls={attachment.imageFallbackUrls}
-                    />
+                  {attachment.kind === "image" ? (
+                    <AgentComposerAttachmentImage attachment={attachment} />
                   ) : (
                     <div className="agent-attachment-card-prompt" aria-hidden="true">
                       <span className="agent-attachment-card-prompt-marker">T</span>

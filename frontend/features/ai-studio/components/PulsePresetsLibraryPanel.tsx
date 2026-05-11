@@ -1,6 +1,6 @@
 /**
  * Primary Pulse Presets library panel for AI Studio.
- * Edits the per-user custom Pulse catalog while built-in guided workflows stay admin-owned.
+ * Renders the per-user merged Pulse catalog, including custom presets and user-hidden built-ins.
  */
 import React from "react";
 import { TrashSimple } from "phosphor-react";
@@ -35,6 +35,10 @@ type PendingPulsePresetEditState = {
 type PendingPulsePresetDeleteState = {
   presetId: CreatePulsePresetId;
   presetLabel: string;
+  isBuiltIn: boolean;
+  description: string | null;
+  systemInstructions: string;
+  schemaVersion: number;
 };
 
 export function PulsePresetsLibraryPanel({
@@ -54,14 +58,6 @@ export function PulsePresetsLibraryPanel({
   const resolvedPresets = React.useMemo(
     () => resolveCreatePulsePresetCatalog(savedPresets, builtInDefinitions),
     [builtInDefinitions, savedPresets]
-  );
-  const customPresets = React.useMemo(
-    () => resolvedPresets.filter((preset) => preset.isCustom),
-    [resolvedPresets]
-  );
-  const builtInWorkflowPresets = React.useMemo(
-    () => resolvedPresets.filter((preset) => preset.isBuiltIn),
-    [resolvedPresets]
   );
   const nextPresetNumber = React.useMemo(
     () =>
@@ -117,7 +113,8 @@ export function PulsePresetsLibraryPanel({
               label: nextLabel,
               systemInstructions: nextSystemInstructions,
               createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
-            })
+            }),
+            builtInDefinitions
           )
         );
       }
@@ -132,7 +129,7 @@ export function PulsePresetsLibraryPanel({
     } finally {
       setEditSubmitting(false);
     }
-  }, [editSubmitting, onSavedPresetsChange, pendingPresetEdit, savedPresets]);
+  }, [builtInDefinitions, editSubmitting, onSavedPresetsChange, pendingPresetEdit, savedPresets]);
 
   const handleDeletePreset = React.useCallback(async () => {
     if (!pendingPresetDelete || deleteSubmitting || !onSavedPresetsChange) return;
@@ -140,7 +137,21 @@ export function PulsePresetsLibraryPanel({
     setLocalSaveError(null);
     try {
       const deleted = await onSavedPresetsChange(
-        savedPresets.filter((preset) => preset.presetId !== pendingPresetDelete.presetId)
+        pendingPresetDelete.isBuiltIn
+          ? upsertCreatePulseSavedPreset(
+              savedPresets,
+              {
+                presetId: pendingPresetDelete.presetId,
+                label: pendingPresetDelete.presetLabel,
+                description: pendingPresetDelete.description,
+                systemInstructions: pendingPresetDelete.systemInstructions,
+                createdAt: null,
+                schemaVersion: pendingPresetDelete.schemaVersion,
+                isHidden: true,
+              },
+              builtInDefinitions
+            )
+          : savedPresets.filter((preset) => preset.presetId !== pendingPresetDelete.presetId)
       );
       if (deleted === false) {
         setLocalSaveError("Unable to delete this Pulse right now.");
@@ -155,7 +166,14 @@ export function PulsePresetsLibraryPanel({
     } finally {
       setDeleteSubmitting(false);
     }
-  }, [deleteSubmitting, onSavedPresetsChange, pendingPresetDelete, savedPresets, selectedPresetId]);
+  }, [
+    builtInDefinitions,
+    deleteSubmitting,
+    onSavedPresetsChange,
+    pendingPresetDelete,
+    savedPresets,
+    selectedPresetId,
+  ]);
 
   React.useEffect(() => {
     const hasModalOpen = Boolean(pendingPresetEdit || pendingPresetDelete);
@@ -186,21 +204,18 @@ export function PulsePresetsLibraryPanel({
       <header className="pulse-presets-library-header">
         <p className="eyebrow">Pulse Library</p>
         <p className="tiny subdued helper-text">
-          Manage custom Pulses here. Built-in guided workflows are shared globally and edited from
-          the Admin Agent Instructions guided-workflows section. Activate any Pulse from the Create
-          Pulse rail or Pulse Catalog. Switching or deactivating a Pulse starts a fresh Pulse
-          session.
+          Manage your Pulse catalog here. Custom and built-in Pulses share the same grid. Deleting a
+          built-in removes it from your personal Pulse surfaces only.
         </p>
       </header>
       <div className="pulse-presets-library-scroll">
-        <section aria-label="Custom Pulses">
-          <p className="eyebrow">Custom Pulses</p>
+        <section aria-label="Pulse presets">
           <div
             className="pulse-presets-library-grid"
             role="list"
-            aria-label="Custom pulse presets library tiles"
+            aria-label="Pulse presets library tiles"
           >
-            {customPresets.map((preset) => {
+            {resolvedPresets.map((preset) => {
               const isSelected = selectedPresetId === preset.presetId;
               return (
                 <article
@@ -216,6 +231,10 @@ export function PulsePresetsLibraryPanel({
                     onClick={() => {
                       setSelectedPresetId(preset.presetId);
                       setLocalSaveError(null);
+                      if (!preset.isEditable) {
+                        setPendingPresetEdit(null);
+                        return;
+                      }
                       setPendingPresetEdit({
                         presetId: preset.presetId,
                         presetLabel: preset.label,
@@ -227,7 +246,9 @@ export function PulsePresetsLibraryPanel({
                   >
                     <span className="pulse-presets-library-tile-head">
                       <span className="pulse-presets-library-tile-title">{preset.label}</span>
-                      <span className="pulse-presets-library-custom-pill is-custom">Custom</span>
+                      {preset.isCustom ? (
+                        <span className="pulse-presets-library-custom-pill is-custom">Custom</span>
+                      ) : null}
                     </span>
                     <span className="pulse-presets-library-tile-prompt">
                       {preset.description?.trim() || preset.systemInstructions}
@@ -242,6 +263,10 @@ export function PulsePresetsLibraryPanel({
                       setPendingPresetDelete({
                         presetId: preset.presetId,
                         presetLabel: preset.label,
+                        isBuiltIn: preset.isBuiltIn,
+                        description: preset.description ?? null,
+                        systemInstructions: preset.systemInstructions,
+                        schemaVersion: preset.schemaVersion,
                       });
                     }}
                   >
@@ -279,43 +304,6 @@ export function PulsePresetsLibraryPanel({
                 Pulse Catalog.
               </span>
             </button>
-          </div>
-        </section>
-        <section aria-label="Built-in Guided Workflows">
-          <p className="eyebrow">Built-in Guided Workflows</p>
-          <div
-            className="pulse-presets-library-grid"
-            role="list"
-            aria-label="Built-in guided workflow library tiles"
-          >
-            {builtInWorkflowPresets.map((preset) => {
-              const isSelected = selectedPresetId === preset.presetId;
-              return (
-                <article
-                  key={preset.presetId}
-                  className={`pulse-presets-library-tile ${isSelected ? "is-selected" : ""}`.trim()}
-                  role="listitem"
-                >
-                  <button
-                    type="button"
-                    className="pulse-presets-library-tile-select"
-                    aria-pressed={isSelected}
-                    aria-label={`Inspect pulse preset tile: ${preset.label}`}
-                    onClick={() => {
-                      setSelectedPresetId(preset.presetId);
-                      setLocalSaveError(null);
-                    }}
-                  >
-                    <span className="pulse-presets-library-tile-head">
-                      <span className="pulse-presets-library-tile-title">{preset.label}</span>
-                    </span>
-                    <span className="pulse-presets-library-tile-prompt">
-                      {preset.description?.trim() || preset.systemInstructions}
-                    </span>
-                  </button>
-                </article>
-              );
-            })}
           </div>
         </section>
       </div>
@@ -419,8 +407,14 @@ export function PulsePresetsLibraryPanel({
             body={
               <>
                 <p>
-                  <strong>{pendingPresetDelete.presetLabel}</strong> will be removed permanently.
+                  <strong>{pendingPresetDelete.presetLabel}</strong>{" "}
+                  {pendingPresetDelete.isBuiltIn
+                    ? "will be removed from your personal Pulse library."
+                    : "will be removed permanently."}
                 </p>
+                {pendingPresetDelete.isBuiltIn ? (
+                  <p>This does not delete the shared built-in for other users.</p>
+                ) : null}
                 {localSaveError ? (
                   <p className="tiny pulse-presets-library-edit-error">{localSaveError}</p>
                 ) : null}

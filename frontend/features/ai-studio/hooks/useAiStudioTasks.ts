@@ -15,7 +15,11 @@ import {
   type GenerationProjectionLifecycle,
 } from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
-import { Provider, resolveTaskPollingModelId } from "../logic/stateParsers";
+import {
+  type Provider,
+  resolveTaskPollingTarget,
+  type TaskPollingTarget,
+} from "../logic/stateParsers";
 import { StudioOutput } from "../types";
 import {
   evaluateOutputLookupMiss,
@@ -182,13 +186,8 @@ const normalizeLifecycleQueueState = (
   }
 };
 
-const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
-  const modelId = resolveTaskPollingModelId({ provider });
-  if (!modelId) {
-    throw new Error(`Unsupported generation polling provider '${provider}'.`);
-  }
-  return fetchQueuedGenerationStatusByModelId(modelId, taskId);
-};
+const fetchStatusByModelId = async (modelId: string, taskId: string) =>
+  fetchQueuedGenerationStatusByModelId(modelId, taskId);
 
 export function useAiStudioTasks({
   updateOutputById,
@@ -486,10 +485,21 @@ export function useAiStudioTasks({
       startedAt = Date.now(),
       noMediaAttempt = 0,
       pollSessionId?: number,
-      options?: StartPollingTaskOptions
+      options?: StartPollingTaskOptions,
+      pollingTarget?: TaskPollingTarget | null
     ) {
       incrementFreezeInvestigationCounter("aiStudioTasks.startPollingTask.calls");
       if (!provider) {
+        notifyGenerationFailure(
+          outputId,
+          "Generation status retry is missing a model-specific polling route.",
+          "Generation status retry is missing a model-specific polling route.",
+          { reasonCode: "status_poll_error" }
+        );
+        return;
+      }
+      const resolvedPollingTarget = pollingTarget ?? resolveTaskPollingTarget({ provider });
+      if (!resolvedPollingTarget) {
         notifyGenerationFailure(
           outputId,
           "Generation status retry is missing a model-specific polling route.",
@@ -523,7 +533,8 @@ export function useAiStudioTasks({
               startedAt + hiddenRetryDelayMs,
               noMediaAttempt,
               activePollSessionId,
-              options
+              options,
+              resolvedPollingTarget
             ),
           hiddenRetryDelayMs
         );
@@ -573,7 +584,8 @@ export function useAiStudioTasks({
               startedAt,
               noMediaAttempt,
               activePollSessionId,
-              options
+              options,
+              resolvedPollingTarget
             ),
           lookupPolicy.retryDelayMs
         );
@@ -625,7 +637,8 @@ export function useAiStudioTasks({
               {
                 ...options,
                 initialDelayMs: 0,
-              }
+              },
+              resolvedPollingTarget
             ),
           retryDelayMs
         );
@@ -680,7 +693,8 @@ export function useAiStudioTasks({
                 startedAt + hiddenRetryDelayMs,
                 noMediaAttempt,
                 activePollSessionId,
-                options
+                options,
+                resolvedPollingTarget
               ),
             hiddenRetryDelayMs
           );
@@ -697,7 +711,8 @@ export function useAiStudioTasks({
                 startedAt,
                 noMediaAttempt,
                 activePollSessionId,
-                options
+                options,
+                resolvedPollingTarget
               ),
             getStatusConcurrencyRetryDelayMs(delay)
           );
@@ -753,7 +768,8 @@ export function useAiStudioTasks({
                     startedAt,
                     noMediaAttempt,
                     activePollSessionId,
-                    options
+                    options,
+                    resolvedPollingTarget
                   ),
                 lookupPolicy.retryDelayMs
               );
@@ -772,7 +788,10 @@ export function useAiStudioTasks({
               return;
             }
 
-            const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
+            const status = (await fetchStatusByModelId(
+              resolvedPollingTarget.modelId,
+              taskId
+            )) as PollStatus;
             const statusGenerationId = resolvePollStatusGenerationId(status);
             const lifecycleHint = readShortPulseLifecycleHint(status);
             if (statusGenerationId) {
@@ -1024,7 +1043,8 @@ export function useAiStudioTasks({
                     startedAt,
                     0,
                     activePollSessionId,
-                    options
+                    options,
+                    resolvedPollingTarget
                   ),
                 delay
               );
@@ -1091,7 +1111,8 @@ export function useAiStudioTasks({
                     startedAt,
                     0,
                     activePollSessionId,
-                    options
+                    options,
+                    resolvedPollingTarget
                   ),
                 delay
               );
@@ -1210,7 +1231,8 @@ export function useAiStudioTasks({
                   startedAt,
                   0,
                   activePollSessionId,
-                  options
+                  options,
+                  resolvedPollingTarget
                 ),
               delay
             );
@@ -1272,7 +1294,8 @@ export function useAiStudioTasks({
                   startedAt,
                   0,
                   activePollSessionId,
-                  options
+                  options,
+                  resolvedPollingTarget
                 ),
               delay
             );

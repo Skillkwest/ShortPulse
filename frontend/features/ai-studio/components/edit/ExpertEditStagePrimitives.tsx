@@ -139,6 +139,7 @@ type PrimaryCanvasFrameStackProps = {
   isDragActive: boolean;
   frameStackRef?: React.Ref<HTMLDivElement>;
   style: React.CSSProperties;
+  onWheel?: React.WheelEventHandler<HTMLDivElement>;
   onDrop?: React.DragEventHandler<HTMLDivElement>;
   onDragEnter?: React.DragEventHandler<HTMLDivElement>;
   onDragOver?: React.DragEventHandler<HTMLDivElement>;
@@ -151,6 +152,7 @@ export function PrimaryCanvasFrameStack({
   isDragActive,
   frameStackRef,
   style,
+  onWheel,
   onDrop,
   onDragEnter,
   onDragOver,
@@ -164,6 +166,7 @@ export function PrimaryCanvasFrameStack({
       }`}
       style={style}
       data-testid="edit-expert-primary-canvas-frame-stack"
+      onWheel={onWheel}
       onDrop={onDrop}
       onDragEnter={onDragEnter}
       onDragOver={onDragOver}
@@ -227,7 +230,7 @@ export function ExpertEditStageContextMenu({
         Add Image
       </button>
       <button type="button" role="menuitem" className="is-danger" onClick={onReset}>
-        Reset
+        Reset All
       </button>
       <button
         type="button"

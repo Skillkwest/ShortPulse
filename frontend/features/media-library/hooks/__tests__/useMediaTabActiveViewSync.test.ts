@@ -29,13 +29,13 @@ describe("useMediaTabActiveViewSync", () => {
       const mediaTabCache = createMediaTabCacheState<Row>();
 
       useMediaTabActiveViewSync({
+        activeMediaCache: null,
         activeMediaQuery: "",
         activeTab: "saved_prompts",
         cacheTtlMs: 30_000,
         fetchEnabled: true,
         fetchMediaTabPage,
         loadPrompts,
-        mediaTabCache,
         promptsLoaded: false,
         setError,
         setFiles,
@@ -75,13 +75,13 @@ describe("useMediaTabActiveViewSync", () => {
       });
 
       useMediaTabActiveViewSync({
+        activeMediaCache: mediaTabCache.uploaded_images,
         activeMediaQuery: "",
         activeTab: "uploaded_images",
         cacheTtlMs: 30_000,
         fetchEnabled: true,
         fetchMediaTabPage,
         loadPrompts,
-        mediaTabCache,
         promptsLoaded: true,
         setError,
         setFiles,
@@ -123,13 +123,13 @@ describe("useMediaTabActiveViewSync", () => {
       });
 
       useMediaTabActiveViewSync({
+        activeMediaCache: mediaTabCache.uploaded_images,
         activeMediaQuery: "",
         activeTab: "uploaded_images",
         cacheTtlMs: 30_000,
         fetchEnabled: true,
         fetchMediaTabPage,
         loadPrompts,
-        mediaTabCache,
         promptsLoaded: true,
         setError,
         setFiles,
@@ -147,5 +147,76 @@ describe("useMediaTabActiveViewSync", () => {
       query: "",
       reason: "stale_refresh",
     });
+  });
+
+  it("does not re-run the active media sync when only a different tab cache changes", async () => {
+    const row = makeRow();
+    const loadPrompts = vi.fn(async () => undefined);
+    const fetchMediaTabPage = vi.fn(async () => undefined);
+    const initialCache = (() => {
+      const cache = createMediaTabCacheState<Row>();
+      cache.uploaded_images = {
+        ...cache.uploaded_images,
+        rows: [row],
+        query: "",
+        loaded: true,
+        loadedAtMs: Date.now(),
+        loading: false,
+        error: null,
+      };
+      return cache;
+    })();
+
+    const { result, rerender } = renderHook(
+      ({ mediaTabCache }) => {
+        const [files, setFiles] = useState<Row[]>([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState<string | null>("stale");
+
+        useMediaTabActiveViewSync({
+          activeMediaCache: mediaTabCache.uploaded_images,
+          activeMediaQuery: "",
+          activeTab: "uploaded_images",
+          cacheTtlMs: 30_000,
+          fetchEnabled: true,
+          fetchMediaTabPage,
+          loadPrompts,
+          promptsLoaded: true,
+          setError,
+          setFiles,
+          setLoading,
+        });
+
+        return { error, files, loading };
+      },
+      {
+        initialProps: { mediaTabCache: initialCache },
+      }
+    );
+
+    await waitFor(() => {
+      expect(result.current.files).toEqual([row]);
+    });
+
+    const unrelatedTabOnly = {
+      ...initialCache,
+      private: {
+        ...initialCache.private,
+        rows: [makeRow({ id: "private-1", storage_path: "user-1/private/private-1.png" })],
+        query: "secret",
+        loaded: true,
+        loadedAtMs: Date.now(),
+        loading: false,
+        error: null,
+      },
+    };
+
+    rerender({ mediaTabCache: unrelatedTabOnly });
+
+    expect(fetchMediaTabPage).not.toHaveBeenCalled();
+    expect(loadPrompts).not.toHaveBeenCalled();
+    expect(result.current.files).toEqual([row]);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeNull();
   });
 });

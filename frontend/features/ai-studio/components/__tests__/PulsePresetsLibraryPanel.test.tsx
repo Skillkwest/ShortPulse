@@ -13,11 +13,9 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(screen.getByText("Pulse Library")).toBeInTheDocument();
     expect(
       screen.getByText(
-        /Manage custom Pulses here\. Built-in guided workflows are shared globally and edited from the Admin Agent Instructions guided-workflows section\./
+        /Manage your Pulse catalog here\. Custom and built-in Pulses share the same grid\./
       )
     ).toBeInTheDocument();
-    expect(screen.getByText("Custom Pulses")).toBeInTheDocument();
-    expect(screen.getByText("Built-in Guided Workflows")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create new pulse" })).toBeInTheDocument();
   });
 
@@ -194,6 +192,32 @@ describe("PulsePresetsLibraryPanel", () => {
 
     await waitFor(() => {
       expect(onSavedPresetsChange).toHaveBeenCalledWith([]);
+    });
+  });
+
+  it("hides a built-in pulse from the user's library instead of deleting it globally", async () => {
+    const onSavedPresetsChange = vi.fn();
+
+    render(
+      <PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete pulse preset: Video Prompt Magic" })
+    );
+    expect(
+      screen.getByText("This does not delete the shared built-in for other users.")
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(onSavedPresetsChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          presetId: "image",
+          label: "Video Prompt Magic",
+          isHidden: true,
+        }),
+      ]);
     });
   });
 });

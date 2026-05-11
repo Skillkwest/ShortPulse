@@ -1,5 +1,6 @@
 import {
   mapSurfacePointToMaskCanvasPoint,
+  resolveImageRectForContain,
   resolveInpaintBrushPaintRadius,
   resolveMaskInteractionPoint,
   resolveMaskSpaceScaleFromSurface,
@@ -37,6 +38,24 @@ export const resolveMaskLogicalInteractionRect = ({
     Math.max(1, currentTarget.clientHeight || interactionRect.height)
   );
 
+const resolveMaskImageInteractionRect = ({
+  logicalInteractionRect,
+  maskWidth,
+  maskHeight,
+}: {
+  logicalInteractionRect: DOMRect;
+  maskWidth: number;
+  maskHeight: number;
+}) => {
+  const imageRect = resolveImageRectForContain(
+    logicalInteractionRect.width,
+    logicalInteractionRect.height,
+    maskWidth,
+    maskHeight
+  );
+  return new DOMRect(imageRect.x, imageRect.y, imageRect.width, imageRect.height);
+};
+
 const resolveMaskCanvasInteractionPointForClampMode = ({
   sampleEvent,
   currentTarget,
@@ -60,6 +79,11 @@ const resolveMaskCanvasInteractionPointForClampMode = ({
   resolveClientPointToSurfacePoint?: ResolveClientPointToSurfacePoint;
   clampToBounds: boolean;
 }) => {
+  const imageInteractionRect = resolveMaskImageInteractionRect({
+    logicalInteractionRect,
+    maskWidth,
+    maskHeight,
+  });
   const resolvedSurfacePoint =
     resolveClientPointToSurfacePoint?.({
       clientX: sampleEvent.clientX,
@@ -70,7 +94,7 @@ const resolveMaskCanvasInteractionPointForClampMode = ({
   if (resolvedSurfacePoint != null) {
     return mapSurfacePointToMaskCanvasPoint({
       point: resolvedSurfacePoint,
-      interactionRect: logicalInteractionRect,
+      interactionRect: imageInteractionRect,
       maskWidth,
       maskHeight,
     });
@@ -78,6 +102,7 @@ const resolveMaskCanvasInteractionPointForClampMode = ({
   return resolveMaskInteractionPoint({
     sampleEvent,
     interactionRect,
+    mappingRect: imageInteractionRect,
     maskWidth,
     maskHeight,
     sceneScale,
@@ -143,9 +168,14 @@ export const resolveMaskCanvasBrushRadius = ({
   maskHeight: number;
   strokeSize: number;
 }) => {
+  const imageInteractionRect = resolveMaskImageInteractionRect({
+    logicalInteractionRect,
+    maskWidth,
+    maskHeight,
+  });
   const surfaceToMaskScale = resolveMaskSpaceScaleFromSurface({
-    surfaceWidth: logicalInteractionRect.width,
-    surfaceHeight: logicalInteractionRect.height,
+    surfaceWidth: imageInteractionRect.width,
+    surfaceHeight: imageInteractionRect.height,
     maskWidth,
     maskHeight,
   });

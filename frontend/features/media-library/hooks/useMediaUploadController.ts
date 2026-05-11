@@ -22,6 +22,7 @@ import {
 } from "../logic/mediaLibraryPageHelpers";
 
 const MEDIA_UPLOAD_API_ROUTE = "/api/media/upload";
+const MEDIA_UPLOAD_CONCURRENCY = 4;
 
 type UploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
 
@@ -100,6 +101,38 @@ const uploadViaServerApi = async ({
   return payload.file;
 };
 
+const mapWithConcurrencyUntilError = async <TInput, TOutput>(
+  items: TInput[],
+  concurrency: number,
+  worker: (item: TInput, index: number) => Promise<TOutput>
+): Promise<TOutput[]> => {
+  if (items.length === 0) return [];
+  const normalizedConcurrency = Math.max(1, Math.min(concurrency, items.length));
+  const results = new Array<TOutput>(items.length);
+  let nextIndex = 0;
+  let firstError: unknown = null;
+
+  const runWorker = async () => {
+    while (true) {
+      if (firstError) return;
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      if (currentIndex >= items.length) return;
+      try {
+        results[currentIndex] = await worker(items[currentIndex], currentIndex);
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: normalizedConcurrency }, () => runWorker()));
+  if (firstError) {
+    throw firstError;
+  }
+  return results;
+};
+
 /**
  * Creates upload handlers and upload-state flags for the Media Library page.
  * Inputs: active tab metadata, row reconciliation callbacks, and signing/event helpers.
@@ -147,7 +180,6 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
             return;
           }
         }
-        const uploads: TRow[] = [];
         // Create optimistic placeholders so users see upload activity in the grid immediately.
         const placeholders: TRow[] = filesToProcess.map((file) => ({
           id: crypto.randomUUID(),
@@ -163,44 +195,45 @@ export const useMediaUploadController = <TRow extends UploadMediaRowBase>({
         placeholderIds = placeholders.map((item) => item.id);
         updateVisibleRows((prev) => [...placeholders, ...prev]);
         setUploadCount(filesToProcess.length);
-        for (let idx = 0; idx < filesToProcess.length; idx += 1) {
-          const file = filesToProcess[idx];
-          const placeholderId = placeholders[idx]?.id;
-          const mimeType = file.type || "application/octet-stream";
-          const resolvedFileType = fileTypeFromMime(mimeType);
-          const destinationTab = resolveUploadDestinationTab(file, isPrivateUpload);
+        const uploads = await mapWithConcurrencyUntilError(
+          filesToProcess,
+          MEDIA_UPLOAD_CONCURRENCY,
+          async (file, idx) => {
+            const placeholderId = placeholders[idx]?.id;
+            const mimeType = file.type || "application/octet-stream";
+            const resolvedFileType = fileTypeFromMime(mimeType);
+            const destinationTab = resolveUploadDestinationTab(file, isPrivateUpload);
 
-          const inserted = await uploadViaServerApi({
-            file,
-            destinationTab,
-          });
-          const previewStoragePath = resolveMediaPreviewStoragePath(inserted, userId);
-          const signedUrl = inserted.signedUrl ?? null;
-
-          if (inserted?.id) {
-            void logMediaEvent("upload", "media_file", inserted.id, {
-              storage_path: inserted.storage_path,
-              file_type: inserted.file_type ?? resolvedFileType,
-              file_size: inserted.file_size ?? file.size,
-              visibility:
-                (inserted.source ?? "upload") === PRIVATE_MEDIA_SOURCE ? "private" : "standard",
+            const inserted = await uploadViaServerApi({
+              file,
+              destinationTab,
             });
+            const previewStoragePath = resolveMediaPreviewStoragePath(inserted, userId);
+            const signedUrl = inserted.signedUrl ?? null;
+            const uploadedRow = {
+              ...inserted,
+              preview_storage_path: previewStoragePath,
+              signedUrl: signedUrl ?? undefined,
+              status: "ready",
+            } as TRow;
+
+            if (inserted?.id) {
+              void logMediaEvent("upload", "media_file", inserted.id, {
+                storage_path: inserted.storage_path,
+                file_type: inserted.file_type ?? resolvedFileType,
+                file_size: inserted.file_size ?? file.size,
+                visibility:
+                  (inserted.source ?? "upload") === PRIVATE_MEDIA_SOURCE ? "private" : "standard",
+              });
+            }
+
+            // Swap placeholder with real row once the insert + sign pass returns.
+            updateVisibleRows((prev) =>
+              prev.map((row) => (placeholderId && row.id === placeholderId ? uploadedRow : row))
+            );
+            return uploadedRow;
           }
-
-          uploads.push({
-            ...inserted,
-            preview_storage_path: previewStoragePath,
-            signedUrl: signedUrl ?? undefined,
-            status: "ready",
-          } as TRow);
-
-          // Swap placeholder with real row once the insert + sign pass returns.
-          updateVisibleRows((prev) =>
-            prev.map((row) =>
-              placeholderId && row.id === placeholderId ? { ...uploads[uploads.length - 1] } : row
-            )
-          );
-        }
+        );
 
         if (uploads.length) {
           updateVisibleRows((prev) => {

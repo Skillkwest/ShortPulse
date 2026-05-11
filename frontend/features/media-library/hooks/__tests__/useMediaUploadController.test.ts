@@ -153,6 +153,82 @@ describe("useMediaUploadController", () => {
     );
   });
 
+  it("uploads multiple files with bounded concurrency while preserving final rows", async () => {
+    const markInactiveMediaCachesStale = vi.fn();
+    const refreshStorageUsageBytes = vi.fn(async () => {});
+    const logMediaEvent = vi.fn(async () => {});
+    let activeUploads = 0;
+    let maxActiveUploads = 0;
+    let uploadCall = 0;
+
+    fetchWithAuthMock.mockImplementation(async () => {
+      uploadCall += 1;
+      const currentCall = uploadCall;
+      activeUploads += 1;
+      maxActiveUploads = Math.max(maxActiveUploads, activeUploads);
+      await new Promise((resolve) => setTimeout(resolve, currentCall === 1 ? 20 : 0));
+      activeUploads -= 1;
+      return {
+        ok: true,
+        json: async () => ({
+          file: {
+            id: `media-${currentCall}`,
+            filename: `asset-${currentCall}.png`,
+            storage_path: `user-1/images/media-${currentCall}.png`,
+            preview_storage_path: `user-1/images/media-${currentCall}.png`,
+            file_type: "image",
+            file_size: 100 + currentCall,
+            source: "upload",
+            created_at: "2026-02-14T00:00:00.000Z",
+            signedUrl: `https://signed.example/media-${currentCall}`,
+          },
+        }),
+      } as never;
+    });
+
+    const { result } = renderHook(() => {
+      const [error, setError] = useState<string | null>(null);
+      const [rows, setRows] = useState<Row[]>([]);
+      const upload = useMediaUploadController<Row>({
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        currentUserIdRef: { current: null },
+        getErrorMessage: (_error: unknown, fallback: string) => fallback,
+        logMediaEvent,
+        markInactiveMediaCachesStale,
+        refreshStorageUsageBytes,
+        setError,
+        updateVisibleRows: (updater) => {
+          setRows((prev) => updater(prev));
+        },
+      });
+      return {
+        error,
+        rows,
+        upload,
+      };
+    });
+
+    const firstImage = new File([new Uint8Array([1, 2, 3])], "asset-1.png", {
+      type: "image/png",
+    });
+    const secondImage = new File([new Uint8Array([4, 5, 6])], "asset-2.png", {
+      type: "image/png",
+    });
+
+    await act(async () => {
+      await result.current.upload.uploadSelected([firstImage, secondImage]);
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.rows).toHaveLength(2);
+    expect(result.current.rows.map((row) => row.id)).toEqual(["media-1", "media-2"]);
+    expect(result.current.rows.every((row) => row.status === "ready")).toBe(true);
+    expect(maxActiveUploads).toBeGreaterThan(1);
+    expect(markInactiveMediaCachesStale).toHaveBeenCalledWith("uploaded_images");
+    expect(refreshStorageUsageBytes).toHaveBeenCalledTimes(1);
+  });
+
   it("removes optimistic placeholders when the upload API fails", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: false,

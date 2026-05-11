@@ -7,6 +7,7 @@ type UseMediaVideoBrowsePreviewUrlsArgs = {
   mediaRows: MediaFileRow[];
   currentUserId?: string | null;
   surface?: "media-library-panel" | "media-library-modal" | "media-library-route";
+  visibleMediaIdsRef?: React.MutableRefObject<Set<string>>;
 };
 
 type SignedUrlMap = Record<string, string>;
@@ -21,6 +22,7 @@ export const useMediaVideoBrowsePreviewUrls = ({
   mediaRows,
   currentUserId = null,
   surface = "media-library-panel",
+  visibleMediaIdsRef,
 }: UseMediaVideoBrowsePreviewUrlsArgs): {
   signedPosterUrlById: SignedUrlMap;
   signedVideoUrlById: SignedUrlMap;
@@ -29,8 +31,12 @@ export const useMediaVideoBrowsePreviewUrls = ({
   const [signedVideoUrlById, setSignedVideoUrlById] = React.useState<SignedUrlMap>({});
 
   React.useEffect(() => {
+    const scopedMediaRows =
+      surface === "media-library-panel" && visibleMediaIdsRef
+        ? mediaRows.filter((row) => visibleMediaIdsRef.current.has(row.id))
+        : mediaRows;
     const { hoverVideoPathByRowId, posterPathByRowId, storagePaths } =
-      collectVideoBrowseSigningRequests(mediaRows, currentUserId);
+      collectVideoBrowseSigningRequests(scopedMediaRows, currentUserId);
 
     if (storagePaths.size === 0) {
       setSignedVideoUrlById((prev) => (Object.keys(prev).length > 0 ? {} : prev));
@@ -79,7 +85,7 @@ export const useMediaVideoBrowsePreviewUrls = ({
     return () => {
       cancelled = true;
     };
-  }, [currentUserId, mediaRows, surface]);
+  }, [currentUserId, mediaRows, surface, visibleMediaIdsRef]);
 
   return {
     signedPosterUrlById,

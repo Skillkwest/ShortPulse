@@ -162,14 +162,12 @@ export function useExpertEditStageChrome({
       clearWindowTimeoutRef(inpaintCollapseTimerRef);
       setIsInpaintCollapsed(true);
       setIsInpaintCollapsing(false);
-      setSelectedRailTool("move");
     }
   }, [
     inpaintCollapseTimerRef,
     setIsMarkupExpandSelected,
     setIsInpaintCollapsed,
     setIsInpaintCollapsing,
-    setSelectedRailTool,
     shouldOpenMarkupModalFromCollapsedTools,
   ]);
 

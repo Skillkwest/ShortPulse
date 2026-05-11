@@ -23,6 +23,8 @@ const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
 const REFERENCE_TRANSFER_MEDIA_KIND_TYPE = "text/reference-media-kind";
 const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
+const REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE = "text/reference-preview-storage-path";
+const REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE = "text/reference-full-storage-path";
 const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set([
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
@@ -45,6 +47,8 @@ export type InternalReferenceDragPayload = {
   imageIndex: number;
   mediaId: string | null;
   mediaKind?: "image" | "video" | "audio" | "text" | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
   referenceUrl: string | null;
   referenceRenderUrl?: string | null;
   sourceSurface: ReferenceDragSourceSurface | null;
@@ -189,6 +193,14 @@ export const extractInternalReferenceDragPayload = (
   const mediaKind = parseReferenceMediaKind(transfer.getData(REFERENCE_TRANSFER_MEDIA_KIND_TYPE));
   const width = parseReferenceDimension(transfer.getData(REFERENCE_TRANSFER_WIDTH_TYPE));
   const height = parseReferenceDimension(transfer.getData(REFERENCE_TRANSFER_HEIGHT_TYPE));
+  const previewStoragePath = normalizeReferenceTransferUrlCandidate(
+    transfer.getData(REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE),
+    { unwrapNextImage: false }
+  );
+  const fullStoragePath = normalizeReferenceTransferUrlCandidate(
+    transfer.getData(REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE),
+    { unwrapNextImage: false }
+  );
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
     transfer.getData("text/reference-url"),
     { unwrapNextImage: false }
@@ -212,6 +224,8 @@ export const extractInternalReferenceDragPayload = (
     imageIndex: parseReferenceImageIndex(transfer.getData(REFERENCE_TRANSFER_IMAGE_INDEX_TYPE)),
     mediaId,
     ...(mediaKind ? { mediaKind } : {}),
+    ...(previewStoragePath ? { previewStoragePath } : {}),
+    ...(fullStoragePath ? { fullStoragePath } : {}),
     referenceUrl,
     ...(referenceRenderUrl ? { referenceRenderUrl } : {}),
     sourceSurface,

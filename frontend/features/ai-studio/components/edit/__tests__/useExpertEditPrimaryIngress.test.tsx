@@ -1,3 +1,4 @@
+import React from "react";
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useExpertEditPrimaryIngress } from "../useExpertEditPrimaryIngress";
@@ -5,20 +6,23 @@ import type { ExpertEditLayer } from "../expertEditLayerSessionUtils";
 
 const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
 
-const createLayerFixture = (id: string, imageUrl: string | null = null): ExpertEditLayer => ({
-  id,
-  name: id,
-  imageUrl,
-  opacity: 1,
-  isAutoNamed: true,
-  ownsImageUrl: false,
-  transform: {
-    translateXRatio: 0,
-    translateYRatio: 0,
-    scale: 1,
-    rotationDeg: 0,
-  },
-});
+const createLayerFixture = (id: string, imageUrl: string | null = null): ExpertEditLayer => {
+  const autoLayerNumber = /^layer-(\d+)$/.exec(id)?.[1] ?? null;
+  return {
+    id,
+    name: autoLayerNumber ? `layer ${autoLayerNumber}` : id,
+    imageUrl,
+    opacity: 1,
+    isAutoNamed: true,
+    ownsImageUrl: false,
+    transform: {
+      translateXRatio: 0,
+      translateYRatio: 0,
+      scale: 1,
+      rotationDeg: 0,
+    },
+  };
+};
 
 const makeInternalVideoDropEvent = () =>
   ({
@@ -47,7 +51,84 @@ const makeInternalVideoDropEvent = () =>
     ReturnType<typeof useExpertEditPrimaryIngress>["handlePrimaryDrop"]
   >[0];
 
+const makeImageDropEvent = (imageUrl: string) =>
+  ({
+    preventDefault: vi.fn(),
+    dataTransfer: {
+      files: emptyFileList,
+      types: ["image/url"],
+      getData: vi.fn((type: string) => {
+        if (type === "image/url") return imageUrl;
+        return "";
+      }),
+    },
+  }) as unknown as Parameters<
+    ReturnType<typeof useExpertEditPrimaryIngress>["handlePrimaryDrop"]
+  >[0];
+
 describe("useExpertEditPrimaryIngress", () => {
+  it("inserts a new layer when adding an image to a single-image edit session", async () => {
+    const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
+      createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
+    );
+    const objectUrl = "blob:https://example.com/replaced";
+    const createObjectUrlSpy = vi.spyOn(URL, "createObjectURL").mockReturnValue(objectUrl);
+
+    try {
+      const { result } = renderHook(() => {
+        const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
+          createLayerFixture("layer-1", "https://example.com/original.png"),
+        ]);
+        const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
+        const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
+        const [editingLayerValue, setEditingLayerValue] = React.useState("");
+
+        const ingress = useExpertEditPrimaryIngress({
+          layers,
+          selectedLayerIndex,
+          foundationLayerId: "layer-1",
+          isMorePresetsSurfaceOpen: false,
+          createLayer,
+          setLayers,
+          setSelectedLayerIndex,
+          setEditingLayerIndex,
+          setEditingLayerValue,
+          revokeObjectUrlSafe: vi.fn(),
+        });
+
+        return {
+          editingLayerIndex,
+          editingLayerValue,
+          ingress,
+          layers,
+          selectedLayerIndex,
+        };
+      });
+
+      const file = new File(["img"], "replacement.png", { type: "image/png" });
+
+      await act(async () => {
+        result.current.ingress.handlePrimaryFileSelection({
+          target: {
+            files: [file],
+            value: "replacement.png",
+          },
+        } as unknown as React.ChangeEvent<HTMLInputElement>);
+      });
+
+      expect(result.current.layers).toHaveLength(2);
+      expect(result.current.layers[0]?.id).toBe("layer-2");
+      expect(result.current.layers[0]?.imageUrl).toBe(objectUrl);
+      expect(result.current.layers[0]?.transform.scale).toBe(1);
+      expect(result.current.layers[1]?.id).toBe("layer-1");
+      expect(result.current.layers[1]?.imageUrl).toBe("https://example.com/original.png");
+      expect(result.current.selectedLayerIndex).toBe(0);
+      expect(createLayer).toHaveBeenCalledTimes(1);
+    } finally {
+      createObjectUrlSpy.mockRestore();
+    }
+  });
+
   it("rejects internal video references for expert edit image layers", async () => {
     const setLayers = vi.fn();
     const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
@@ -81,5 +162,54 @@ describe("useExpertEditPrimaryIngress", () => {
     expect(resolvePreviewUrlById).not.toHaveBeenCalled();
     expect(createLayer).not.toHaveBeenCalled();
     expect(setLayers).not.toHaveBeenCalled();
+  });
+
+  it("creates a new layer when an image is dropped onto a populated stage", async () => {
+    const createLayer = vi.fn((args: { indexOneBased: number; imageUrl?: string | null }) =>
+      createLayerFixture(`layer-${args.indexOneBased}`, args.imageUrl ?? null)
+    );
+    const event = makeImageDropEvent("https://example.com/added.png");
+
+    const { result } = renderHook(() => {
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
+        createLayerFixture("layer-1", "https://example.com/original.png"),
+      ]);
+      const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(0);
+      const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
+      const [editingLayerValue, setEditingLayerValue] = React.useState("");
+
+      const ingress = useExpertEditPrimaryIngress({
+        layers,
+        selectedLayerIndex,
+        foundationLayerId: "layer-1",
+        isMorePresetsSurfaceOpen: false,
+        createLayer,
+        setLayers,
+        setSelectedLayerIndex,
+        setEditingLayerIndex,
+        setEditingLayerValue,
+        revokeObjectUrlSafe: vi.fn(),
+      });
+
+      return {
+        ingress,
+        layers,
+        selectedLayerIndex,
+      };
+    });
+
+    await act(async () => {
+      result.current.ingress.handlePrimaryDrop(event);
+      await Promise.resolve();
+    });
+
+    expect(event.preventDefault).toHaveBeenCalled();
+    expect(result.current.layers).toHaveLength(2);
+    expect(result.current.layers[0]?.id).toBe("layer-2");
+    expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/added.png");
+    expect(result.current.layers[1]?.id).toBe("layer-1");
+    expect(result.current.layers[1]?.imageUrl).toBe("https://example.com/original.png");
+    expect(result.current.selectedLayerIndex).toBe(0);
+    expect(createLayer).toHaveBeenCalledTimes(1);
   });
 });

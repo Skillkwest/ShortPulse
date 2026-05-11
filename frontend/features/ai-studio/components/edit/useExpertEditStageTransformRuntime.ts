@@ -11,10 +11,11 @@ import {
   buildTransformHistoryEntry,
   defaultLayerTransform,
   resolveClippedLayerTransform,
+  resolveSingleImageEditSafeTransform,
   type TransformHistoryEntry,
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
-import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
+import { layerHasImage, type ExpertEditLayer } from "./expertEditLayerSessionUtils";
 import type { StageViewportSize } from "./expertEditViewportUtils";
 import { useExpertEditTransformSession } from "./useExpertEditTransformSession";
 
@@ -83,12 +84,27 @@ export const useExpertEditStageTransformRuntime = ({
     () => resolveLayerImageAspectRatio(selectedLayer),
     [resolveLayerImageAspectRatio, selectedLayer]
   );
+  const populatedLayerCount = React.useMemo(
+    () => layers.filter((layer) => layerHasImage(layer)).length,
+    [layers]
+  );
   const resolveRenderableLayerTransform = React.useCallback(
-    (layer: ExpertEditLayer) =>
-      resolveClippedLayerTransform({
+    (layer: ExpertEditLayer) => {
+      const clippedTransform = resolveClippedLayerTransform({
         transform: layer.transform,
-      }),
-    []
+      });
+      if (populatedLayerCount === 1 && layerHasImage(layer)) {
+        return resolveSingleImageEditSafeTransform({
+          transform: clippedTransform,
+        });
+      }
+      return clippedTransform;
+    },
+    [populatedLayerCount]
+  );
+  const selectedLayerInteractionTransform = React.useMemo(
+    () => (selectedLayer ? resolveRenderableLayerTransform(selectedLayer) : null),
+    [resolveRenderableLayerTransform, selectedLayer]
   );
 
   const commitTransformHistoryTransition = React.useCallback(
@@ -127,6 +143,7 @@ export const useExpertEditStageTransformRuntime = ({
     layers,
     setLayers,
     selectedLayer,
+    selectedLayerInteractionTransform,
     selectedLayerImageAspectRatio,
     shouldShowSelectedLayerTransformOverlay,
     resolveRenderableLayerTransform,

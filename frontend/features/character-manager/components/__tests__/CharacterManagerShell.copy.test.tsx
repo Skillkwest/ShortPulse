@@ -4,7 +4,7 @@
  */
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterManagerShell } from "../CharacterManagerShell";
 import {
   CHARACTER_SHEET_PRESET_IDS,
@@ -124,7 +124,24 @@ vi.mock("../../hooks/useCharacterQuickSwapTipPreference", () => ({
   }),
 }));
 
+const uploadSimpleFilesMock = vi.fn();
+
+vi.mock("../../hooks/useCharacterManagerShellActionHandlers", () => ({
+  useCharacterManagerShellActionHandlers: () => ({
+    uploadSimpleFiles: uploadSimpleFilesMock,
+    handleSimpleFileSelection: () => undefined,
+    openCharacterSheetPicker: () => undefined,
+    openQuickSwapUploadPicker: () => undefined,
+    handleCreateNewCharacter: () => undefined,
+  }),
+}));
+
 describe("CharacterManagerShell copy", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    uploadSimpleFilesMock.mockReset();
+  });
+
   it("renders Character Sheet heading in create mode", () => {
     render(<CharacterManagerShell />);
 
@@ -135,5 +152,38 @@ describe("CharacterManagerShell copy", () => {
     const { container } = render(<CharacterManagerShell />);
 
     expect(container.querySelector(".character-step-badge")).toBeNull();
+  });
+
+  it("forwards external embedded upload requests into the shell upload path once", () => {
+    const onExternalQuickSwapUploadRequestHandled = vi.fn();
+    const requestFiles = [new File(["x"], "ref.png", { type: "image/png" })];
+
+    const { rerender } = render(
+      <CharacterManagerShell
+        surface="panel"
+        externalQuickSwapUploadRequest={{
+          requestId: 7,
+          files: requestFiles,
+        }}
+        onExternalQuickSwapUploadRequestHandled={onExternalQuickSwapUploadRequestHandled}
+      />
+    );
+
+    expect(onExternalQuickSwapUploadRequestHandled).toHaveBeenCalledWith(7);
+    expect(uploadSimpleFilesMock).toHaveBeenCalledWith(requestFiles);
+
+    rerender(
+      <CharacterManagerShell
+        surface="panel"
+        externalQuickSwapUploadRequest={{
+          requestId: 7,
+          files: requestFiles,
+        }}
+        onExternalQuickSwapUploadRequestHandled={onExternalQuickSwapUploadRequestHandled}
+      />
+    );
+
+    expect(onExternalQuickSwapUploadRequestHandled).toHaveBeenCalledTimes(1);
+    expect(uploadSimpleFilesMock).toHaveBeenCalledTimes(1);
   });
 });

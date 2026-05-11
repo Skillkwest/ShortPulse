@@ -375,6 +375,18 @@ const resolvePersistedFullStoragePath = (
   asCanonicalStoragePath(persisted?.delivery?.fullStoragePath) ??
   asCanonicalStoragePath(persisted?.delivery?.previewStoragePath);
 
+const resolvePayloadPreviewStoragePath = (
+  payload: Pick<InternalReferenceDragPayload, "previewStoragePath" | "fullStoragePath">
+): string | null =>
+  asCanonicalStoragePath(payload.previewStoragePath) ??
+  asCanonicalStoragePath(payload.fullStoragePath);
+
+const resolvePayloadFullStoragePath = (
+  payload: Pick<InternalReferenceDragPayload, "previewStoragePath" | "fullStoragePath">
+): string | null =>
+  asCanonicalStoragePath(payload.fullStoragePath) ??
+  asCanonicalStoragePath(payload.previewStoragePath);
+
 const resolveSharedSourceKind = (
   output: StudioOutput | null,
   mediaId: string | null
@@ -467,10 +479,12 @@ export const resolveInternalReferenceSource = async ({
   let previewStoragePath =
     resolvePersistedPreviewStoragePath(persistedResult) ??
     (resolvedOutput ? asCanonicalStoragePath(resolvedOutput.previewStoragePath) : null) ??
+    resolvePayloadPreviewStoragePath(payload) ??
     null;
   let fullStoragePath =
     resolvePersistedFullStoragePath(persistedResult) ??
     (resolvedOutput ? asCanonicalStoragePath(resolvedOutput.fullStoragePath) : null) ??
+    resolvePayloadFullStoragePath(payload) ??
     previewStoragePath;
   let resolutionReason: ReferenceSourceResolutionReason = persistedResult?.delivery
     ? "persisted_delivery"

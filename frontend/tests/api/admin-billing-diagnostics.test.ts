@@ -158,6 +158,61 @@ describe("GET /api/admin/billing-diagnostics", () => {
         error: null,
       }),
     };
+    const reservationsQuery = {
+      eq: vi.fn().mockReturnValue({
+        order: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: "reservation-1",
+                user_id: "11111111-1111-4111-8111-111111111111",
+                source_ref: "source-ref-1",
+                provider_request_id: "provider-req-1",
+                created_at: "2026-04-15T00:00:00.000Z",
+                metadata: {
+                  pricing_observability: {
+                    displayed_billed_credits: 10,
+                    actual_billed_credits: 10,
+                    delta_credits: 0,
+                    mismatch: false,
+                    pricing_display_source: "shared_adapter",
+                    pricing_policy_ready: true,
+                  },
+                },
+              },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    };
+    const ledgerQuery = {
+      eq: vi.fn().mockReturnValue({
+        order: vi.fn().mockReturnValue({
+          limit: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: "ledger-1",
+                user_id: "11111111-1111-4111-8111-111111111111",
+                source_ref: "source-ref-1",
+                created_at: "2026-04-15T00:05:00.000Z",
+                metadata: {
+                  pricing_observability: {
+                    displayed_billed_credits: 10,
+                    actual_billed_credits: 10,
+                    delta_credits: 0,
+                    mismatch: false,
+                    pricing_display_source: "shared_adapter",
+                    pricing_policy_ready: true,
+                  },
+                },
+              },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    };
 
     getSupabaseAdminMock.mockReturnValue({
       auth: {
@@ -188,6 +243,16 @@ describe("GET /api/admin/billing-diagnostics", () => {
         if (table === "media_files") {
           return {
             select: vi.fn().mockReturnValue(mediaFilesQuery),
+          };
+        }
+        if (table === "ai_credit_reservations") {
+          return {
+            select: vi.fn().mockReturnValue(reservationsQuery),
+          };
+        }
+        if (table === "ai_credit_ledger") {
+          return {
+            select: vi.fn().mockReturnValue(ledgerQuery),
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -270,6 +335,17 @@ describe("GET /api/admin/billing-diagnostics", () => {
           subscriptionId: "sub_123",
           priceId: "price_legacy_studio",
           recurringPriceCents: 1000,
+        }),
+        pricingObservability: expect.objectContaining({
+          rowsScanned: {
+            reservations: 1,
+            ledgerEntries: 1,
+          },
+          observedRows: {
+            reservations: 1,
+            ledgerEntries: 1,
+          },
+          mismatchCount: 0,
         }),
         findings: expect.arrayContaining([
           expect.objectContaining({
@@ -421,6 +497,34 @@ describe("GET /api/admin/billing-diagnostics", () => {
               eq: vi.fn().mockResolvedValue({
                 data: [],
                 error: null,
+              }),
+            }),
+          };
+        }
+        if (table === "ai_credit_reservations") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "ai_credit_ledger") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                }),
               }),
             }),
           };

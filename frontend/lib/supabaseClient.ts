@@ -222,7 +222,9 @@ export const useSupabaseSessionState = (): SupabaseSessionSnapshot => {
   useEffect(() => {
     startAuthStateSubscription();
     if (!snapshot.initialized) {
-      void readSupabaseSession();
+      // Background bootstrap reads should never surface a global unhandled rejection.
+      // Callers that need explicit auth errors perform their own awaited session reads.
+      void readSupabaseSession().catch(() => undefined);
     }
   }, [snapshot.initialized]);
 

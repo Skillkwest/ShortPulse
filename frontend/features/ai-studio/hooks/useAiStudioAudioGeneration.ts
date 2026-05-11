@@ -3,6 +3,13 @@
  * Owns page-scoped ElevenLabs submit flows so the AI Studio page stays focused on orchestration.
  */
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  resolveRequiredAudioMusicModelId,
+  resolveRequiredAudioSoundEffectsModelId,
+  resolveRequiredAudioVoiceChangerModelId,
+  resolveRequiredAudioVoiceoverModelId,
+  resolveModelLabelById,
+} from "../../../lib/model-runtime/modelCatalog";
 import type { MusicGenerateRequest } from "../components/MusicPropertiesPanel";
 import type { SoundEffectsGenerateRequest } from "../components/SoundEffectsPropertiesPanel";
 import type { VoicesGenerateRequest } from "../components/VoicesPropertiesPanel";
@@ -94,6 +101,7 @@ type UseAiStudioAudioGenerationParams = {
     modelLabelOverride?: string | null;
     modelIdOverride?: string | null;
     providerOverride?: string | null;
+    submissionModeOverride?: "provider-task" | "direct-request";
   }) => string | null;
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
@@ -105,14 +113,38 @@ const buildVoicesOutputPrompt = (request: VoicesGenerateRequest): string =>
     ? request.script
     : `${request.source.extractedFrom?.name ?? request.source.name} -> ${request.voice.name}`;
 
-const buildVoicesOutputModelLabel = (request: VoicesGenerateRequest): string =>
-  request.mode === "voiceover" ? "ElevenLabs Voiceover" : "ElevenLabs Voice Changer";
+const VOICEOVER_MODEL_ID = resolveRequiredAudioVoiceoverModelId();
+const VOICE_CHANGER_MODEL_ID = resolveRequiredAudioVoiceChangerModelId();
+const MUSIC_MODEL_ID = resolveRequiredAudioMusicModelId();
+const SOUND_EFFECTS_MODEL_ID = resolveRequiredAudioSoundEffectsModelId();
 
-const buildMusicOutputModelLabel = (): string => "ElevenLabs Music";
-const buildSoundEffectsOutputModelLabel = (): string => "ElevenLabs Sound Effects";
+const buildVoicesOutputModelLabel = (request: VoicesGenerateRequest): string =>
+  request.mode === "voiceover"
+    ? (resolveModelLabelById(VOICEOVER_MODEL_ID) ?? "ElevenLabs Voiceover")
+    : (resolveModelLabelById(VOICE_CHANGER_MODEL_ID) ?? "ElevenLabs Voice Changer");
+
+const buildMusicOutputModelLabel = (): string =>
+  resolveModelLabelById(MUSIC_MODEL_ID) ?? "ElevenLabs Music";
+const buildSoundEffectsOutputModelLabel = (): string =>
+  resolveModelLabelById(SOUND_EFFECTS_MODEL_ID) ?? "ElevenLabs Sound Effects";
 
 const resolveAudioGenerateErrorMessage = (payload: AudioGenerateErrorResponse | null): string =>
   payload?.error?.trim() || payload?.details?.trim() || "Audio generation failed.";
+
+const buildAudioShortpulseContext = ({
+  selectedTool,
+  displayedBilledCredits,
+}: {
+  selectedTool: "music" | "sound-effects" | "voiceover" | "voice-changer";
+  displayedBilledCredits: number | null | undefined;
+}) => ({
+  mode: "audio",
+  selected_tool: selectedTool,
+  pricing_display_source: "shared_adapter",
+  pricing_policy_ready: true,
+  displayed_billed_credits:
+    typeof displayedBilledCredits === "number" ? displayedBilledCredits : null,
+});
 
 const toSavedMediaIds = (mediaFileId: string | null | undefined): string[] =>
   typeof mediaFileId === "string" && mediaFileId.trim().length > 0 ? [mediaFileId] : [];
@@ -234,6 +266,7 @@ export const useAiStudioAudioGeneration = ({
         modelLabelOverride: buildVoicesOutputModelLabel(request),
         modelIdOverride: request.mode === "voiceover" ? request.config.model_id : request.modelId,
         providerOverride: "elevenlabs",
+        submissionModeOverride: "direct-request",
       });
 
       if (!optimisticOutputId) {
@@ -255,6 +288,10 @@ export const useAiStudioAudioGeneration = ({
                   text: request.script,
                   outputFormat: request.outputFormat,
                   config: request.config,
+                  shortpulse_context: buildAudioShortpulseContext({
+                    selectedTool: "voiceover",
+                    displayedBilledCredits: request.displayedBilledCredits,
+                  }),
                   ...(projectId ? { project_id: projectId } : {}),
                 }),
                 shortpulseLogScope: "generation",
@@ -274,6 +311,15 @@ export const useAiStudioAudioGeneration = ({
                 if (projectId) {
                   formData.append("project_id", projectId);
                 }
+                formData.append(
+                  "shortpulseContext",
+                  JSON.stringify(
+                    buildAudioShortpulseContext({
+                      selectedTool: "voice-changer",
+                      displayedBilledCredits: request.displayedBilledCredits,
+                    })
+                  )
+                );
                 formData.append(
                   "sourceName",
                   request.source.extractedFrom?.name ?? request.source.name
@@ -372,6 +418,7 @@ export const useAiStudioAudioGeneration = ({
         modelLabelOverride: buildMusicOutputModelLabel(),
         modelIdOverride: request.modelId,
         providerOverride: "elevenlabs",
+        submissionModeOverride: "direct-request",
       });
 
       if (!optimisticOutputId) {
@@ -387,6 +434,10 @@ export const useAiStudioAudioGeneration = ({
           },
           body: JSON.stringify({
             ...request,
+            shortpulse_context: buildAudioShortpulseContext({
+              selectedTool: "music",
+              displayedBilledCredits: request.displayedBilledCredits,
+            }),
             ...(projectId ? { project_id: projectId } : {}),
           }),
           shortpulseLogScope: "generation",
@@ -444,6 +495,7 @@ export const useAiStudioAudioGeneration = ({
         modelLabelOverride: buildSoundEffectsOutputModelLabel(),
         modelIdOverride: request.modelId,
         providerOverride: "elevenlabs",
+        submissionModeOverride: "direct-request",
       });
 
       if (!optimisticOutputId) {
@@ -459,6 +511,10 @@ export const useAiStudioAudioGeneration = ({
           },
           body: JSON.stringify({
             ...request,
+            shortpulse_context: buildAudioShortpulseContext({
+              selectedTool: "sound-effects",
+              displayedBilledCredits: request.displayedBilledCredits,
+            }),
             ...(projectId ? { project_id: projectId } : {}),
           }),
           shortpulseLogScope: "generation",

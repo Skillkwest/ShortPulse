@@ -196,6 +196,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     error: dataError,
     mediaRows,
     setMediaRows,
+    setSignedUrls,
     libraryTotalCount,
     promptRows,
     setPromptRows,
@@ -284,15 +285,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const applySignedUrlsToMediaRows = useCallback(
     (_tab: MediaDataTab, signedById: Map<string, string>) => {
       if (!signedById.size) return;
-      setMediaRows((previous) =>
-        previous.map((row) => {
-          const signedUrl = signedById.get(row.id);
-          if (!signedUrl || row.signedUrl === signedUrl) return row;
-          return { ...row, signedUrl };
-        })
-      );
+      setSignedUrls(signedById);
     },
-    [setMediaRows]
+    [setSignedUrls]
   );
   const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLElement>({
     activeMediaQuery: normalizedSearch,
@@ -326,6 +321,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     signAttemptRef,
     signStoragePath,
     signedUrlRetryRef,
+    visibleMediaIdsRef,
   } = previewRuntime;
   const foldersSplit = useReferenceGridHorizontalSplit({
     enabled: true,
@@ -776,6 +772,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onSignedUrlLoaded={(id) => {
           signedUrlRetryRef.current[id] = 0;
         }}
+        visibleMediaIdsRef={visibleMediaIdsRef}
       />
     ),
     [
@@ -878,6 +875,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       resolvePanelCardPreviewUrl,
       setPendingLibraryDelete,
       signedUrlRetryRef,
+      visibleMediaIdsRef,
       visiblePromptRows,
     ]
   );

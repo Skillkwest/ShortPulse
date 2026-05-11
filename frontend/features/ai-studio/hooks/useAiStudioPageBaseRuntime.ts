@@ -19,7 +19,7 @@ import { useAiStudioMediaAutosaveOrchestrator } from "./useAiStudioMediaAutosave
 import { useAiStudioProjectIdentity } from "./useAiStudioProjectIdentity";
 import { useAiStudioSessionIdentity } from "./useAiStudioSessionIdentity";
 import { useActiveModelPricingPolicy } from "./useActiveModelPricingPolicy";
-import { useCharacterWorkflow } from "../../character/hooks/useCharacterWorkflow";
+import { useAiStudioCharacterPanelUploadBridge } from "./useAiStudioCharacterPanelUploadBridge";
 import { isEditWorkflow } from "../logic/workflowIdentity";
 import {
   PERF_FLAG_AUDIT_RUNTIME,
@@ -124,10 +124,12 @@ export const useAiStudioPageBaseRuntime = () => {
     handleActiveCreatePulsePresetIdChange,
   } = useAiStudioCreateModeRuntime();
   const {
-    error: characterError,
-    addReferences: addCharacterReferences,
-    clearError: clearCharacterError,
-  } = useCharacterWorkflow();
+    characterError,
+    addCharacterReferences,
+    clearCharacterError,
+    pendingCharacterUploadRequest,
+    clearPendingCharacterUploadRequest,
+  } = useAiStudioCharacterPanelUploadBridge();
   const {
     mode,
     setMode,
@@ -301,6 +303,7 @@ export const useAiStudioPageBaseRuntime = () => {
     resolveCharacterDropReference,
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
+    resolveComposerInternalImageDropSource,
     resolveElementProfileImageDropSource,
   } = useAiStudioInternalDropResolvers({
     getOutputById,
@@ -326,6 +329,7 @@ export const useAiStudioPageBaseRuntime = () => {
   useAiStudioMediaAutosaveOrchestrator({
     outputs,
     mediaAutosaveEnabled,
+    mediaAutosaveSyncState,
     saveReferenceToLibrary,
   });
   const {
@@ -438,7 +442,9 @@ export const useAiStudioPageBaseRuntime = () => {
     canvasSessionState,
     characterCreateRequestKey,
     characterError,
+    pendingCharacterUploadRequest,
     clearCharacterError,
+    clearPendingCharacterUploadRequest,
     clearGenerationOutput,
     clearPulseRuntime,
     closeModelModal,
@@ -543,6 +549,7 @@ export const useAiStudioPageBaseRuntime = () => {
     resolveCharacterAvatarUrlById,
     resolveCharacterDropReference,
     resolveCharacterModeSubmissionOverrides,
+    resolveComposerInternalImageDropSource,
     resolveElementProfileImageDropSource,
     resolveIsCharacterModeEnabledForTool,
     resolveMediaLibraryInternalDropItem,

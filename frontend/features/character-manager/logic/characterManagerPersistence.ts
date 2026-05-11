@@ -34,7 +34,6 @@ import {
   CHARACTER_REFERENCE_SOURCE,
   CHARACTER_SHEET_ASSIGNMENTS_KEY,
   CHARACTER_SHEET_PRESETS_KEY,
-  LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY,
   cleanupOrphanedMedia,
   createCharacterMediaAsset,
   createCharacterSheetPresetStoragePath,
@@ -932,7 +931,6 @@ export const saveCharacterManagerCharacterSheetAssignments = async ({
   const normalizedAssignments = normalizeCharacterSheetAssignments(assignments);
   const nextMetadata = toMetadataRecord(characterRow.metadata);
   nextMetadata[CHARACTER_SHEET_ASSIGNMENTS_KEY] = normalizedAssignments;
-  nextMetadata[LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY] = normalizedAssignments;
 
   const { error: updateError } = await supabase
     .from("characters")
@@ -1512,7 +1510,6 @@ export const saveCharacterManagerSlot = async (
       fileSize: input.file.size,
       metadata: {
         character_sheet_id: input.characterSheetId,
-        reference_pack_id: input.characterSheetId,
         slot_key: input.slotKey,
         role: "character_slot",
       },
@@ -1533,7 +1530,6 @@ export const saveCharacterManagerSlot = async (
     {
       character_id: input.characterId,
       character_sheet_id: input.characterSheetId,
-      reference_pack_id: input.characterSheetId,
       user_id: userId,
       slot_key: input.slotKey,
       character_media_id: mediaRow.id,

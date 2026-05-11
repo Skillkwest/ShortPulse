@@ -94,8 +94,14 @@ export type AiStudioSessionAgentMessageV1 = {
     id: string;
     kind: AgentAttachment["kind"];
     referenceId?: string | null;
+    mediaId?: string | null;
     text?: string | null;
+    previewStoragePath?: string | null;
+    fullStoragePath?: string | null;
+    referenceUrl?: string | null;
+    referenceRenderUrl?: string | null;
     imageUrl?: string | null;
+    imageFallbackUrls?: string[];
     aspect?: string | null;
     deliveryStatus?: AgentAttachment["deliveryStatus"];
     deliveryError?: string | null;
@@ -162,6 +168,7 @@ export type AiStudioSessionAgentV1 = {
 export type AiStudioSessionAgentRuntimesV2 = {
   standard: AiStudioSessionAgentV1;
   pulsePresetId: string | null;
+  pulseSessionInstanceId: string | null;
   pulse: AiStudioSessionAgentV1;
 };
 
@@ -264,6 +271,26 @@ const sanitizeMediaUrl = (value: string | null | undefined): string | undefined 
 const sanitizeWorkspaceMediaUrl = (value: string | null | undefined): string | null =>
   sanitizeMediaUrl(value) ?? null;
 
+const sanitizeAttachmentIdentityValue = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
+const sanitizeAttachmentImageFallbackUrls = (
+  values: string[] | null | undefined
+): string[] | undefined => {
+  if (!Array.isArray(values)) return undefined;
+  const normalized = Array.from(
+    new Set(
+      values
+        .map((value) => sanitizeMediaUrl(value))
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+  return normalized.length > 0 ? normalized : undefined;
+};
+
 const sanitizeSelectedCharacterId = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
@@ -290,8 +317,14 @@ const sanitizeAgentAttachments = (
       id,
       kind: attachment.kind,
       referenceId: attachment.referenceId ?? null,
+      mediaId: sanitizeAttachmentIdentityValue(attachment.mediaId),
       text: attachment.text?.trim() || null,
+      previewStoragePath: sanitizeAttachmentIdentityValue(attachment.previewStoragePath),
+      fullStoragePath: sanitizeAttachmentIdentityValue(attachment.fullStoragePath),
+      referenceUrl: sanitizeMediaUrl(attachment.referenceUrl) ?? null,
+      referenceRenderUrl: sanitizeMediaUrl(attachment.referenceRenderUrl) ?? null,
       imageUrl: sanitizeMediaUrl(attachment.imageUrl) ?? null,
+      imageFallbackUrls: sanitizeAttachmentImageFallbackUrls(attachment.imageFallbackUrls),
       aspect: attachment.aspect?.trim() || null,
       deliveryStatus: attachment.deliveryStatus,
       deliveryError: attachment.deliveryError?.trim() || null,
@@ -352,11 +385,24 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
   });
 
 const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
-  const previewUrl = sanitizeMediaUrl(output.previewUrl);
-  const previewPosterUrl = sanitizeMediaUrl(output.previewPosterUrl);
+  const previewPosterStoragePath = sanitizeAttachmentIdentityValue(output.previewPosterStoragePath);
+  const previewStoragePath = sanitizeAttachmentIdentityValue(output.previewStoragePath);
+  const fullStoragePath = sanitizeAttachmentIdentityValue(output.fullStoragePath);
+  const hasDurablePreviewAuthority = Boolean(previewStoragePath || fullStoragePath);
+  const hasDurablePosterAuthority = Boolean(previewPosterStoragePath);
+  const hasDurableResultAuthority = Boolean(fullStoragePath);
+  const previewUrl = hasDurablePreviewAuthority ? undefined : sanitizeMediaUrl(output.previewUrl);
+  const previewPosterUrl = hasDurablePosterAuthority
+    ? undefined
+    : sanitizeMediaUrl(output.previewPosterUrl);
   const resultUrls = (output.resultUrls ?? [])
     .map((url) => sanitizeMediaUrl(url))
     .filter((url): url is string => Boolean(url));
+  const persistedResultUrls = hasDurableResultAuthority
+    ? undefined
+    : resultUrls.length > 0
+      ? resultUrls
+      : undefined;
 
   return {
     id: output.id,
@@ -381,12 +427,12 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     generationTraceId: output.generationTraceId,
     errorMessage: output.errorMessage ?? null,
     errorMessageShort: output.errorMessageShort ?? null,
-    resultUrls: resultUrls.length > 0 ? resultUrls : undefined,
+    resultUrls: persistedResultUrls,
     previewUrl,
     previewPosterUrl,
-    previewPosterStoragePath: output.previewPosterStoragePath ?? null,
-    previewStoragePath: output.previewStoragePath ?? null,
-    fullStoragePath: output.fullStoragePath ?? null,
+    previewPosterStoragePath,
+    previewStoragePath,
+    fullStoragePath,
     previewTier: output.previewTier,
     mediaSource: output.mediaSource,
     previewText: output.previewText,
@@ -439,7 +485,9 @@ const sanitizePulseWorkflowSession = (
       ? session.lastArtifact.trim()
       : null;
   const finalArtifactSource =
-    session.finalArtifactSource === "chat_reply" ? session.finalArtifactSource : null;
+    session.finalArtifactSource === "apply_prompt" || session.finalArtifactSource === "chat_reply"
+      ? session.finalArtifactSource
+      : null;
   return {
     presetId,
     status: sanitizePulseWorkflowStatus(session.status),
@@ -492,9 +540,17 @@ const sanitizeAgentRuntime = (runtime: {
 
 const isPulseAgentRuntimeAuthorizedForPreset = (
   runtime: AiStudioSessionAgentV1,
-  presetId: string | null
+  presetId: string | null,
+  pulseSessionInstanceId: string | null,
+  runtimePulseSessionInstanceId: string | null
 ): boolean => {
-  if (!presetId) return false;
+  if (
+    !presetId ||
+    !pulseSessionInstanceId ||
+    runtimePulseSessionInstanceId !== pulseSessionInstanceId
+  ) {
+    return false;
+  }
   const workflowPresetId = runtime.pulseWorkflowSession?.presetId ?? null;
   return workflowPresetId === null || workflowPresetId === presetId;
 };
@@ -567,17 +623,29 @@ export const buildAiStudioSessionSnapshot = (
   const resolveAuthorizedPulseAgentRuntime = (
     runtime: AiStudioSessionAgentV1
   ): AiStudioSessionAgentV1 =>
-    isPulseAgentRuntimeAuthorizedForPreset(runtime, resolvedActivePulsePresetId)
+    isPulseAgentRuntimeAuthorizedForPreset(
+      runtime,
+      resolvedActivePulsePresetId,
+      resolvedPulseSessionInstanceId,
+      resolvedPulseSessionInstanceId
+    )
       ? runtime
       : emptyAgentRuntime;
   const agentRuntimes = input.agentRuntimes
     ? (() => {
         const inputPulsePresetId = input.agentRuntimes.pulsePresetId?.trim() || null;
+        const inputPulseSessionInstanceId =
+          input.agentRuntimes.pulseSessionInstanceId?.trim() || null;
         const hasMatchingPulseRuntimeAuthority =
-          hasPulseWorkspaceAuthority && inputPulsePresetId === resolvedActivePulsePresetId;
+          hasPulseWorkspaceAuthority &&
+          inputPulsePresetId === resolvedActivePulsePresetId &&
+          inputPulseSessionInstanceId === resolvedPulseSessionInstanceId;
         return {
           standard: sanitizeAgentRuntime(input.agentRuntimes.standard),
           pulsePresetId: hasPulseWorkspaceAuthority ? resolvedActivePulsePresetId : null,
+          pulseSessionInstanceId: hasPulseWorkspaceAuthority
+            ? resolvedPulseSessionInstanceId
+            : null,
           pulse: hasMatchingPulseRuntimeAuthority
             ? resolveAuthorizedPulseAgentRuntime(sanitizeAgentRuntime(input.agentRuntimes.pulse))
             : emptyAgentRuntime,
@@ -586,6 +654,7 @@ export const buildAiStudioSessionSnapshot = (
     : {
         standard: hasPulseWorkspaceAuthority ? emptyAgentRuntime : activeAgentRuntime,
         pulsePresetId: hasPulseWorkspaceAuthority ? resolvedActivePulsePresetId : null,
+        pulseSessionInstanceId: hasPulseWorkspaceAuthority ? resolvedPulseSessionInstanceId : null,
         pulse: hasPulseWorkspaceAuthority
           ? resolveAuthorizedPulseAgentRuntime(activeAgentRuntime)
           : emptyAgentRuntime,
@@ -729,6 +798,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
         pulseWorkflowSession: null,
       },
       pulsePresetId: null,
+      pulseSessionInstanceId: null,
       pulse: {
         messages: [],
         input: "",

@@ -13,6 +13,13 @@ type StoragePathIssue =
   | "outside_user_scope";
 
 const normalize = (value: string): string => value.trim();
+const decodeSafe = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
 
 const isNamespaceTokenValid = (value: string): boolean => {
   const normalized = normalize(value);
@@ -55,6 +62,22 @@ export const isCharacterScopedMediaStoragePath = (path: string, userId: string):
   const normalizedUserId = normalize(userId);
   if (!isUserScopedMediaStoragePath(normalizedPath, normalizedUserId)) return false;
   return normalizedPath.startsWith(`${normalizedUserId}/characters/`);
+};
+
+/**
+ * Returns whether a path-like string or media URL points at the Character Manager namespace.
+ */
+export const isCharacterScopedMediaUrl = (value: string): boolean => {
+  const normalizedValue = normalize(value);
+  if (!normalizedValue) return false;
+  const decodedValue = decodeSafe(normalizedValue);
+  try {
+    const parsedUrl = new URL(decodedValue);
+    return parsedUrl.pathname.toLowerCase().includes("/characters/");
+  } catch {
+    const normalizedLower = decodedValue.toLowerCase();
+    return normalizedLower.includes("/characters/") || normalizedLower.includes("%2fcharacters%2f");
+  }
 };
 
 /**

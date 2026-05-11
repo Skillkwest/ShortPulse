@@ -26,7 +26,10 @@ const resolveProjectWorkspaceApiErrorMessage = (
   response: Response,
   payload: AiStudioProjectWorkspaceApiPayload | null
 ): string => {
-  const payloadMessage = payload?.error?.trim() || payload?.details?.trim();
+  const payloadMessage =
+    response.status >= 500
+      ? payload?.details?.trim() || payload?.error?.trim()
+      : payload?.error?.trim() || payload?.details?.trim();
   if (payloadMessage) return payloadMessage;
 
   const contentType = response.headers.get("content-type")?.split(";")[0]?.trim();
@@ -106,6 +109,7 @@ export const saveAiStudioProjectWorkspaceSnapshotViaApi = async ({
     }),
     keepalive: keepalive === true,
     shortpulseLogScope: "app",
+    shortpulseRetryNetworkOnce: true,
   });
 
   let payload: AiStudioProjectWorkspaceApiPayload | null = null;

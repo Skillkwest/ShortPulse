@@ -2,7 +2,14 @@
  * AI Studio session snapshot controller.
  * Owns snapshot build/apply orchestration, including signed-url refresh for restored outputs.
  */
-import { useCallback, type Dispatch, type SetStateAction, type MutableRefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+  type MutableRefObject,
+} from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import {
   buildAiStudioSessionSnapshot,
@@ -25,6 +32,9 @@ import type { ReferenceProjectionState } from "../reference-projections";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
+
+const SESSION_RESTORE_SIGN_RETRY_DELAY_MS = 1500;
+const SESSION_RESTORE_SIGN_MAX_ATTEMPTS = 2;
 
 type UseAiStudioSessionSnapshotControllerParams = {
   mode: StudioMode;
@@ -203,8 +213,20 @@ export const useAiStudioSessionSnapshotController = ({
   setArchivedOutputs,
   setRuntimeUiStateForCreateMode,
 }: UseAiStudioSessionSnapshotControllerParams) => {
+  const restoreSigningRetryTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const activeCreatePrompt =
     pulseWorkspaceState.expertCreateMode === "pulse" ? pulseCreatePrompt : standardCreatePrompt;
+
+  useEffect(
+    () => () => {
+      if (restoreSigningRetryTimerRef.current) {
+        globalThis.clearTimeout(restoreSigningRetryTimerRef.current);
+        restoreSigningRetryTimerRef.current = null;
+      }
+    },
+    []
+  );
+
   const hydrateFromSessionSnapshot = useCallback(
     (snapshot: AiStudioSessionSnapshot): AiStudioSessionHydrationPayload => {
       const payload = buildAiStudioSessionHydrationPayload(snapshot);
@@ -265,41 +287,64 @@ export const useAiStudioSessionSnapshotController = ({
 
       const signingRevision = sessionHydrationSigningRevisionRef.current + 1;
       sessionHydrationSigningRevisionRef.current = signingRevision;
+      if (restoreSigningRetryTimerRef.current) {
+        globalThis.clearTimeout(restoreSigningRetryTimerRef.current);
+        restoreSigningRetryTimerRef.current = null;
+      }
       const activeBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.active);
       const archivedBaselineById = buildSessionOutputSigningFingerprintById(outputPayload.archived);
       const hydrationOutputs = [...outputPayload.active, ...outputPayload.archived];
-      void resolveSessionRestoreSignedUrls(hydrationOutputs)
-        .then((signedByPath) => {
-          if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
-          if (signedByPath.size === 0) return;
+      const attemptRestoreSigning = (attemptIndex: number) => {
+        void resolveSessionRestoreSignedUrls(hydrationOutputs)
+          .then((signedByPath) => {
+            if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
+            restoreSigningRetryTimerRef.current = null;
+            if (signedByPath.size === 0) return;
 
-          setOutputsState((rows) => {
-            const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
-              baselineById: activeBaselineById,
+            setOutputsState((rows) => {
+              const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
+                baselineById: activeBaselineById,
+              });
+              return patched.changed ? patched.outputs : rows;
             });
-            return patched.changed ? patched.outputs : rows;
-          });
-          setArchivedOutputs((rows) => {
-            const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
-              baselineById: archivedBaselineById,
+            setArchivedOutputs((rows) => {
+              const patched = applySessionRestoreSignedUrls(rows, signedByPath, {
+                baselineById: archivedBaselineById,
+              });
+              return patched.changed ? patched.outputs : rows;
             });
-            return patched.changed ? patched.outputs : rows;
+          })
+          .catch((error) => {
+            if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
+            const message = error instanceof Error ? error.message : "unknown_error";
+            const hasRetryBudget = attemptIndex + 1 < SESSION_RESTORE_SIGN_MAX_ATTEMPTS;
+            addBreadcrumb({
+              type: "ui",
+              level: "warn",
+              message: hasRetryBudget
+                ? "ai_studio_session_restore_sign_batch_retry_scheduled"
+                : "ai_studio_session_restore_sign_batch_failed",
+              data: {
+                attempt: attemptIndex + 1,
+                max_attempts: SESSION_RESTORE_SIGN_MAX_ATTEMPTS,
+                error: message,
+              },
+            });
+            if (!hasRetryBudget) return;
+            restoreSigningRetryTimerRef.current = globalThis.setTimeout(() => {
+              if (sessionHydrationSigningRevisionRef.current !== signingRevision) return;
+              restoreSigningRetryTimerRef.current = null;
+              attemptRestoreSigning(attemptIndex + 1);
+            }, SESSION_RESTORE_SIGN_RETRY_DELAY_MS);
           });
-        })
-        .catch((error) => {
-          addBreadcrumb({
-            type: "ui",
-            level: "warn",
-            message: "ai_studio_session_restore_sign_batch_failed",
-            data: {
-              error: error instanceof Error ? error.message : "unknown_error",
-            },
-          });
-        });
+      };
+
+      attemptRestoreSigning(0);
 
       return payload;
     },
     [
+      restoreSigningRetryTimerRef,
       sessionHydrationSigningRevisionRef,
       setActivePulsePresetId,
       setArchivedOutputs,

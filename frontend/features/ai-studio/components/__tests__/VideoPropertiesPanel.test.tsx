@@ -14,6 +14,13 @@ import { loadElementManagerDraftByElementId } from "../../../elements-manager/lo
 import { buildElementProfileImageBackgroundStyle } from "../../../elements-manager/logic/elementProfileImageTransform";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME } from "../../logic/klingPromptReferences";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 
 type ReferencePromptStepMockProps = {
   referenceText?: string | null;
@@ -272,7 +279,7 @@ vi.mock("../useReferencePropertiesDerivedState", () => ({
 
 const baseProps: React.ComponentProps<typeof VideoPropertiesPanel> = {
   aspect: "16:9",
-  modelId: "kie-ai/kling-3.0",
+  modelId: KIE_KLING_30_MODEL_ID,
   modelLabel: "Kling 3.0 (Kie)",
   referenceImageUrl: null,
   extraImageUrls: [null, null, null],
@@ -449,7 +456,7 @@ describe("VideoPropertiesPanel", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
-        modelId="kie-ai/veo-3.1-fast-i2v"
+        modelId={KIE_VEO_31_FAST_I2V_MODEL_ID}
         modelLabel="Veo 3.1 Fast"
         klingWorkflowMode="custom"
         klingMultiPrompts={[
@@ -564,7 +571,7 @@ describe("VideoPropertiesPanel", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
-        modelId="kie-ai/seedance-1.5-pro"
+        modelId={KIE_SEEDANCE_15_PRO_MODEL_ID}
         modelLabel="Seedance 1.5 Pro (Kie)"
       />
     );
@@ -578,7 +585,7 @@ describe("VideoPropertiesPanel", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
-        modelId="kie-ai/seedance-2-fast"
+        modelId={KIE_SEEDANCE_2_FAST_MODEL_ID}
         modelLabel="Seedance 2.0 Fast (Kie)"
       />
     );
@@ -594,7 +601,7 @@ describe("VideoPropertiesPanel", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
-        modelId="kie-ai/seedance-2"
+        modelId={KIE_SEEDANCE_2_MODEL_ID}
         modelLabel="Seedance 2.0 (Kie)"
         klingWorkflowMode="custom"
       />

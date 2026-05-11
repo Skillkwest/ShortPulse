@@ -27,6 +27,8 @@ import { createPulseSessionInstanceId } from "../../logic/pulseSessionIdentity";
 
 export const CREATE_PULSE_PRESET_PANEL_LIMIT_TOAST = "Pulse preset panel is full (max 10).";
 
+type AddPresetToPanelResult = "added" | "already_present" | "panel_full" | "save_failed";
+
 type UseCreatePulsePresetRuntimeParams = {
   builtInDefinitions?: readonly CreatePulseBuiltInPresetDefinition[];
   savedPresets: CreatePulseSavedPreset[];
@@ -85,24 +87,34 @@ export const useCreatePulsePresetRuntime = ({
   }, []);
 
   const addPresetToPanel = React.useCallback(
-    async (presetId: CreatePulsePresetId | null | undefined) => {
-      if (!presetId) return true;
+    async (presetId: CreatePulsePresetId | null | undefined): Promise<AddPresetToPanelResult> => {
+      if (!presetId) return "already_present" as const;
+      let addResult: AddPresetToPanelResult | null = null;
       const saved = await updateSelectedPresetIds((previous) => {
-        if (previous.includes(presetId)) return previous;
+        if (previous.includes(presetId)) {
+          addResult = "already_present";
+          return previous;
+        }
         if (previous.length >= CREATE_PULSE_PANEL_MAX) {
+          addResult = "panel_full";
           showStatusToast(CREATE_PULSE_PRESET_PANEL_LIMIT_TOAST, "warning");
           return previous;
         }
+        addResult = "added";
         return sortCreatePulsePresetIdsByCanonicalOrder(
           [...previous, presetId],
           savedPresets,
           builtInDefinitions
         );
       });
+      if (addResult === "panel_full" || addResult === "already_present") {
+        return addResult;
+      }
       if (!saved) {
         showPersistentStatus("Unable to save the Pulse rail right now.", "warning");
+        return "save_failed" as const;
       }
-      return saved;
+      return addResult ?? "added";
     },
     [
       builtInDefinitions,
@@ -156,7 +168,9 @@ export const useCreatePulsePresetRuntime = ({
       }
       clearStatusMessage();
       const pulseSessionInstanceId = createPulseSessionInstanceId();
-      const didStartResolvedPreset = Boolean(resolvedPreset && onPresetStart);
+      const didStartWorkflowPreset = Boolean(
+        resolvedPreset && onPresetStart && resolvedPreset.runtimeMode === "workflow_gpt"
+      );
       let startResult: CreatePulsePresetStartResult = { status: "started" };
       if (resolvedPreset) {
         startResult = (await onPresetStart?.(resolvedPreset, {
@@ -175,7 +189,7 @@ export const useCreatePulsePresetRuntime = ({
       setActivePresetId(presetId, {
         forceNewSession: true,
         sessionInstanceIdOverride: pulseSessionInstanceId,
-        preserveWorkflowSession: didStartResolvedPreset,
+        preserveWorkflowSession: didStartWorkflowPreset,
       });
       clearStatusMessage();
       showStatusToast(
@@ -200,8 +214,15 @@ export const useCreatePulsePresetRuntime = ({
 
   const handleSurfacePresetSelect = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
-      const saved = await addPresetToPanel(presetId);
-      if (!saved) {
+      const addResult = await addPresetToPanel(presetId);
+      if (addResult === "panel_full") {
+        return {
+          status: "failed",
+          reason: "panel_full",
+          message: CREATE_PULSE_PRESET_PANEL_LIMIT_TOAST,
+        } satisfies CreatePulsePresetStartResult;
+      }
+      if (addResult === "save_failed") {
         return {
           status: "failed",
           reason: "preference_save_failed",

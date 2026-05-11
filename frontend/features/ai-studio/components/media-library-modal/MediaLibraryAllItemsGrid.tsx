@@ -68,6 +68,7 @@ type MediaLibraryAllItemsGridProps = {
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
   currentUserId?: string | null;
+  visibleMediaIdsRef?: MutableRefObject<Set<string>>;
   signedPosterUrlById?: Record<string, string>;
   signedVideoUrlById?: Record<string, string>;
 };
@@ -612,6 +613,7 @@ export function MediaLibraryAllItemsGrid({
   onMediaPaint,
   onSignedUrlLoaded,
   currentUserId = null,
+  visibleMediaIdsRef,
   signedPosterUrlById: signedPosterUrlOverrides = {},
   signedVideoUrlById: signedVideoUrlOverrides = {},
 }: MediaLibraryAllItemsGridProps) {
@@ -623,6 +625,7 @@ export function MediaLibraryAllItemsGrid({
     mediaRows,
     currentUserId,
     surface: "media-library-panel",
+    visibleMediaIdsRef,
   });
   const signedPosterUrlById = React.useMemo(
     () => ({ ...signedPosterUrlByIdFromHook, ...signedPosterUrlOverrides }),

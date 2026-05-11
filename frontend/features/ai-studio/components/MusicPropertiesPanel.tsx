@@ -3,25 +3,26 @@
  * Keeps music composition UI isolated from generic Sound and Sound Effects panels.
  */
 import React from "react";
-import { ELEVENLABS_MUSIC_MODEL_ID } from "../../../lib/model-runtime/elevenLabsModels";
-import { computeCostForModel } from "../../../lib/model-runtime/pricing";
+import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 
 export type MusicMode = "instrumental" | "vocal";
 export type MusicStructure = "loop" | "full-track" | "cinematic";
 export type MusicFormat = "mp3_44100_128" | "wav_48000";
-export const hardcodedMusicModelId = ELEVENLABS_MUSIC_MODEL_ID;
+export const hardcodedMusicModelId = resolveRequiredAudioMusicModelId();
 
 export type MusicGenerateRequest = {
   text: string;
-  durationSeconds: number;
+  durationSeconds: number | null;
   bpm: number;
   mode: MusicMode;
   structure: MusicStructure;
   energyPercent: number;
   outputFormat: MusicFormat;
   modelId: typeof hardcodedMusicModelId;
+  displayedBilledCredits?: number | null;
 };
 
 export type MusicPropertiesPanelProps = {
@@ -29,9 +30,11 @@ export type MusicPropertiesPanelProps = {
   isGenerating?: boolean;
   onGenerate?: (request: MusicGenerateRequest) => Promise<void> | void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
+  pricingPolicyReady?: boolean;
 };
 
 type MusicComposerMode = "simple" | "custom";
+type MusicSongBatchCount = 1 | 2 | 3 | 4;
 
 const musicPromptPlaceholder =
   "Describe the song you want to generate: genre, pacing, instrumentation, vocal style, and where the cue should land in the edit.";
@@ -42,7 +45,6 @@ const lyricsPromptPlaceholder =
 const maxPromptCharacters = 800;
 const minTopToggleHeightPx = 96;
 const minBottomComposerHeightPx = 420;
-const defaultMusicDurationSeconds = 30;
 const defaultMusicBpm = 112;
 const defaultMusicEnergyPercent = 58;
 const defaultMusicMode: MusicMode = "instrumental";
@@ -86,6 +88,7 @@ const musicInspirationChips = [
   "western twang",
 ] as const;
 const inspirationScrollStepPx = 280;
+const songBatchCountOptions: MusicSongBatchCount[] = [1, 2, 3, 4];
 const formatCreditValue = (value: number): string =>
   Number.isInteger(value) ? String(value) : value.toFixed(1);
 
@@ -94,6 +97,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   isGenerating = false,
   onGenerate,
   pricingPolicy = null,
+  pricingPolicyReady = true,
 }: MusicPropertiesPanelProps) {
   const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
   const inspirationScrollerRef = React.useRef<HTMLDivElement | null>(null);
@@ -102,10 +106,13 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   const inspirationDragStartScrollLeftRef = React.useRef(0);
   const inspirationDidDragRef = React.useRef(false);
   const suppressChipClickRef = React.useRef(false);
+  const songBatchMenuRef = React.useRef<HTMLDivElement | null>(null);
   const [prompt, setPrompt] = React.useState("");
   const [lyrics, setLyrics] = React.useState("");
   const [composerMode, setComposerMode] = React.useState<MusicComposerMode>("simple");
   const [singerEnabled, setSingerEnabled] = React.useState(false);
+  const [songBatchCount, setSongBatchCount] = React.useState<MusicSongBatchCount>(2);
+  const [isSongBatchMenuOpen, setIsSongBatchMenuOpen] = React.useState(false);
   const [isDraggingInspiration, setIsDraggingInspiration] = React.useState(false);
   const [inspirationScrollState, setInspirationScrollState] = React.useState({
     canScrollBack: false,
@@ -129,20 +136,40 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     ariaLabel: "Resize music mode and composition sections",
   });
 
-  const estimatedCredits =
-    computeCostForModel(
-      hardcodedMusicModelId,
-      {
-        durationSeconds: defaultMusicDurationSeconds,
+  const estimatedCreditsPerSong =
+    resolveClientBilledCredits({
+      modelId: hardcodedMusicModelId,
+      params: {
+        durationSeconds: null,
       },
-      pricingPolicy
-    )?.credits ?? null;
+      pricingPolicy,
+      pricingPolicyReady,
+    }) ?? null;
+  const estimatedCredits =
+    estimatedCreditsPerSong != null ? estimatedCreditsPerSong * songBatchCount : null;
   const isInsufficientCredits =
     balanceCredits != null && estimatedCredits != null ? balanceCredits < estimatedCredits : false;
-  const isGenerateEnabled =
-    Boolean(onGenerate) && prompt.trim().length > 0 && !isInsufficientCredits && !isGenerating;
   const promptPlaceholder =
     composerMode === "simple" ? musicPromptPlaceholder : customMusicPromptPlaceholder;
+  const buildSubmissionText = React.useCallback((): string => {
+    const basePrompt = prompt.trim();
+    if (!basePrompt) return "";
+    if (composerMode !== "custom") return basePrompt;
+    const lyricSheet = lyrics.trim();
+    if (!lyricSheet) return basePrompt;
+    return `${basePrompt}\n\nLyrics:\n${lyricSheet}`;
+  }, [composerMode, lyrics, prompt]);
+  const submissionText = buildSubmissionText();
+  const submissionLength = submissionText.length;
+  const displayedCharacterCount = composerMode === "custom" ? submissionLength : prompt.length;
+  const isWithinPromptLimit = submissionLength <= maxPromptCharacters;
+  const isGenerateEnabled =
+    Boolean(onGenerate) &&
+    pricingPolicyReady &&
+    submissionLength > 0 &&
+    isWithinPromptLimit &&
+    !isInsufficientCredits &&
+    !isGenerating;
 
   const syncInspirationScrollState = React.useCallback(() => {
     const node = inspirationScrollerRef.current;
@@ -173,6 +200,19 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       window.removeEventListener("resize", handleResize);
     };
   }, [composerMode, syncInspirationScrollState]);
+
+  React.useEffect(() => {
+    if (!isSongBatchMenuOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!songBatchMenuRef.current?.contains(event.target as Node)) {
+        setIsSongBatchMenuOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", handlePointerDown);
+    return () => {
+      window.removeEventListener("mousedown", handlePointerDown);
+    };
+  }, [isSongBatchMenuOpen]);
 
   const handleInspirationClick = React.useCallback((chip: string) => {
     if (suppressChipClickRef.current) return;
@@ -258,19 +298,31 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   );
 
   const handleGenerate = React.useCallback(async () => {
-    const text = prompt.trim();
-    if (!onGenerate || !text || isGenerating) return;
-    await onGenerate({
-      text,
-      durationSeconds: defaultMusicDurationSeconds,
+    if (!onGenerate || !submissionText || !isWithinPromptLimit || isGenerating) return;
+    const request = {
+      text: submissionText,
+      durationSeconds: null,
       bpm: defaultMusicBpm,
       mode: singerEnabled ? "vocal" : defaultMusicMode,
       structure: defaultMusicStructure,
       energyPercent: defaultMusicEnergyPercent,
       outputFormat: defaultMusicFormat,
       modelId: hardcodedMusicModelId,
-    });
-  }, [isGenerating, onGenerate, prompt, singerEnabled]);
+      displayedBilledCredits: estimatedCredits,
+    } satisfies MusicGenerateRequest;
+
+    for (let index = 0; index < songBatchCount; index += 1) {
+      await onGenerate(request);
+    }
+  }, [
+    estimatedCredits,
+    isGenerating,
+    isWithinPromptLimit,
+    onGenerate,
+    singerEnabled,
+    songBatchCount,
+    submissionText,
+  ]);
 
   const renderInspirationRail = (variant: "standard" | "embedded" = "standard") => (
     <section
@@ -455,57 +507,121 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
             <div className="music-properties-script-actions">
               <div className="music-properties-script-meta">
                 <p className="music-properties-script-count" aria-live="polite">
-                  {`${prompt.length.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
+                  {`${displayedCharacterCount.toLocaleString()} / ${maxPromptCharacters.toLocaleString()}`}
                 </p>
-                {composerMode === "custom" ? (
+              </div>
+              <div className="music-properties-script-actions-right">
+                <div className="music-properties-script-actions-top">
                   <div
                     className="music-properties-custom-footer-controls"
                     aria-label="Music defaults"
                   >
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={singerEnabled}
-                      aria-label="Singer"
-                      className={`music-properties-singer-switch ${
-                        singerEnabled ? "is-active" : ""
-                      }`}
-                      onClick={() => setSingerEnabled((current) => !current)}
-                    >
-                      <span className="music-properties-singer-switch-label">Singer</span>
-                      <span
-                        className={`music-properties-singer-switch-control audio-toggle ${
+                    {composerMode === "custom" ? (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={singerEnabled}
+                        aria-label="Singer"
+                        className={`music-properties-singer-switch ${
                           singerEnabled ? "is-active" : ""
                         }`}
-                        aria-hidden="true"
+                        onClick={() => setSingerEnabled((current) => !current)}
                       >
-                        <span className="audio-toggle-track">
-                          <span className="music-properties-singer-switch-thumb audio-toggle-dot" />
+                        <span className="music-properties-singer-switch-label">Singer</span>
+                        <span
+                          className={`music-properties-singer-switch-control audio-toggle ${
+                            singerEnabled ? "is-active" : ""
+                          }`}
+                          aria-hidden="true"
+                        >
+                          <span className="audio-toggle-track">
+                            <span className="music-properties-singer-switch-thumb audio-toggle-dot" />
+                          </span>
                         </span>
+                      </button>
+                    ) : null}
+                    <div
+                      ref={songBatchMenuRef}
+                      className={`music-properties-footer-dropdown ${
+                        isSongBatchMenuOpen ? "is-open" : ""
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        className="music-properties-footer-pill music-properties-footer-pill--dropdown"
+                        aria-haspopup="menu"
+                        aria-expanded={isSongBatchMenuOpen}
+                        aria-label="Songs per generate"
+                        title="How many songs to generate in this run."
+                        onClick={() => setIsSongBatchMenuOpen((current) => !current)}
+                      >
+                        <span className="music-properties-footer-pill-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M12 2.5 3.5 7 12 11.5 20.5 7 12 2.5Z" />
+                            <path d="M3.5 12 12 16.5 20.5 12" />
+                            <path d="M3.5 17 12 21.5 20.5 17" />
+                          </svg>
+                        </span>
+                        <span className="music-properties-footer-pill-value">{songBatchCount}</span>
+                      </button>
+                      {isSongBatchMenuOpen ? (
+                        <div className="music-properties-footer-dropdown-menu" role="menu">
+                          {songBatchCountOptions.map((option) => (
+                            <button
+                              key={option}
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={songBatchCount === option}
+                              className={`music-properties-footer-dropdown-option ${
+                                songBatchCount === option ? "is-active" : ""
+                              }`}
+                              onClick={() => {
+                                setSongBatchCount(option);
+                                setIsSongBatchMenuOpen(false);
+                              }}
+                            >
+                              {option} {option === 1 ? "song" : "songs"}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <span
+                      className="music-properties-footer-pill music-properties-footer-pill--static"
+                      aria-label="Duration auto"
+                      role="note"
+                      title="Auto duration is chosen by the music model."
+                    >
+                      <span className="music-properties-footer-pill-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                          <circle cx="12" cy="12" r="8.5" />
+                          <path d="M12 7v5l3 2" />
+                        </svg>
                       </span>
-                    </button>
+                      <span className="music-properties-footer-pill-value">Auto</span>
+                    </span>
                   </div>
-                ) : null}
+                  <button
+                    type="button"
+                    className="music-properties-generate-btn"
+                    disabled={!isGenerateEnabled}
+                    aria-label={isGenerating ? "Generating music" : "Generate music"}
+                    onClick={() => {
+                      void handleGenerate();
+                    }}
+                  >
+                    <span className="music-properties-generate-label">
+                      {isGenerating ? "Generating..." : "Generate"}
+                    </span>
+                    <span className="music-properties-generate-pill" aria-hidden="true">
+                      <span className="music-properties-generate-cost-icon">✦</span>
+                      <span className="music-properties-generate-cost-value">
+                        {estimatedCredits != null ? formatCreditValue(estimatedCredits) : "—"}
+                      </span>
+                    </span>
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                className="music-properties-generate-btn"
-                disabled={!isGenerateEnabled}
-                aria-label={isGenerating ? "Generating music" : "Generate music"}
-                onClick={() => {
-                  void handleGenerate();
-                }}
-              >
-                <span className="music-properties-generate-label">
-                  {isGenerating ? "Generating..." : "Generate"}
-                </span>
-                <span className="music-properties-generate-pill" aria-hidden="true">
-                  <span className="music-properties-generate-cost-icon">✦</span>
-                  <span className="music-properties-generate-cost-value">
-                    {formatCreditValue(estimatedCredits ?? 0)}
-                  </span>
-                </span>
-              </button>
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ export type AiStudioTaskSubmitOptions = {
   modeOverride?: StudioMode;
   selectedToolOverride?: ToolId | null;
   displayPromptOverride?: string | null;
+  displayedBilledCredits?: number | null;
   characterContextOverride?: StudioOutput["characterContext"];
   styleContextOverride?: StudioOutput["styleContext"];
   outputIdOverride?: string;

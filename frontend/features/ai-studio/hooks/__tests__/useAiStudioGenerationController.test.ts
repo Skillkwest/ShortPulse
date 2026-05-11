@@ -473,19 +473,22 @@ describe("useAiStudioGenerationController", () => {
 
     expect(resolveDefaultPromptForTool).toHaveBeenCalledWith("video");
     expect(refreshCharacterModeInjectionBundleForSubmission).toHaveBeenCalledWith("video");
-    expect(regenerateOutput).toHaveBeenCalledWith({
-      selectedToolOverride: "video",
-      modelIdOverride: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-      submissionPromptOverride: "submission",
-      displayPromptOverride: "display",
-      referenceInputsOverride: ["https://example.com/ref.png"],
-      characterContextOverride: {
-        applied: true,
-        characterId: "char-1",
-        characterName: "A",
-        characterProfileImageUrl: null,
-      },
-    });
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedToolOverride: "video",
+        modelIdOverride: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        submissionPromptOverride: "submission",
+        displayPromptOverride: "display",
+        referenceInputsOverride: ["https://example.com/ref.png"],
+        displayedBilledCredits: 7,
+        characterContextOverride: {
+          applied: true,
+          characterId: "char-1",
+          characterName: "A",
+          characterProfileImageUrl: null,
+        },
+      })
+    );
     expect(setUiNotice).toHaveBeenCalledWith("Character context applied");
     const updater = setOptimisticDebitEntries.mock.calls[0]?.[0] as
       | ((prev: { credits: number; outputId: string | null }[]) => {
@@ -989,13 +992,16 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleImageRegenerateWithDebit();
     });
 
-    expect(regenerateOutput).toHaveBeenCalledWith({
-      selectedToolOverride: "edit",
-      modelIdOverride: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-      submissionPromptOverride: "character + prompt",
-      displayPromptOverride: "user prompt",
-      referenceInputsOverride: [],
-    });
+    expect(regenerateOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedToolOverride: "edit",
+        modelIdOverride: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        submissionPromptOverride: "character + prompt",
+        displayPromptOverride: "user prompt",
+        referenceInputsOverride: [],
+        displayedBilledCredits: 3,
+      })
+    );
     expect(setUiError).not.toHaveBeenCalled();
     expect(trackCharacterModeEvent).not.toHaveBeenCalledWith(
       "character_mode_submit_blocked_no_references",

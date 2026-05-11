@@ -31,6 +31,17 @@ export const usePulseWorkflowSessionReconciliation = ({
       activeCreatePulsePresetSnapshot.runtimeMode === "workflow_gpt"
         ? activeCreatePulsePresetSnapshot
         : null;
+    if (!activeWorkflowPulsePreset) {
+      setPulseWorkflowSession(null);
+      return;
+    }
+    if (
+      pulseWorkflowSession?.presetId &&
+      pulseWorkflowSession.presetId !== activeWorkflowPulsePreset.presetId
+    ) {
+      setPulseWorkflowSession(null);
+      return;
+    }
     let cancelled = false;
     void import("../../logic/pulseWorkflowSession").then(
       ({

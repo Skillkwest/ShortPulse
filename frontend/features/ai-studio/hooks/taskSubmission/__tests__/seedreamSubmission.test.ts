@@ -4,6 +4,18 @@ import { handleImageModelSubmission } from "../imageHandlers";
 import type { ImageSubmissionArgs } from "../types";
 import { getModelConfig } from "../../../logic/modelRegistry";
 import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_NANO_BANANA_2_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_2_MODEL_ID,
+  FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_PRO_MODEL_ID,
+  FAL_SEEDREAM_45_EDIT_MODEL_ID,
+  FAL_SEEDREAM_45_TEXT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
+} from "../../../../../lib/model-runtime/falModelIds";
+import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../../lib/model-runtime/openAiImage2";
+import {
   submitOpenAiGptImage2,
   submitOpenAiGptImage2Edit,
 } from "../../../../../lib/openAiImageClient";
@@ -23,23 +35,23 @@ const falClientMocks = vi.hoisted(() => ({
 vi.mock("../../../../../lib/falClient", () => {
   const submitQueuedGenerationByModelId = vi.fn((modelId: string, payload: unknown) => {
     switch (modelId) {
-      case "fal-ai/bytedance/seedream/v4.5/text-to-image":
+      case FAL_SEEDREAM_45_TEXT_MODEL_ID:
         return falClientMocks.submitFalSeedream(payload);
-      case "fal-ai/bytedance/seedream/v5/lite/text-to-image":
+      case FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID:
         return falClientMocks.submitFalSeedreamV5Lite(payload);
-      case "fal-ai/nano-banana-2":
+      case FAL_NANO_BANANA_2_MODEL_ID:
         return falClientMocks.submitFalNanoBanana2(payload);
-      case "fal-ai/nano-banana-pro":
+      case FAL_NANO_BANANA_PRO_MODEL_ID:
         return falClientMocks.submitFalNanoBananaPro(payload);
-      case "fal-ai/bytedance/seedream/v4.5/edit":
+      case FAL_SEEDREAM_45_EDIT_MODEL_ID:
         return falClientMocks.submitFalSeedreamEdit(payload);
-      case "fal-ai/bytedance/seedream/v5/lite/edit":
+      case FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID:
         return falClientMocks.submitFalSeedreamV5LiteEdit(payload);
-      case "fal-ai/nano-banana-2/edit":
+      case FAL_NANO_BANANA_2_EDIT_MODEL_ID:
         return falClientMocks.submitFalNanoBanana2Edit(payload);
-      case "fal-ai/nano-banana-pro/edit":
+      case FAL_NANO_BANANA_PRO_EDIT_MODEL_ID:
         return falClientMocks.submitFalNanoBananaProEdit(payload);
-      case "fal-ai/flux-2/klein/9b":
+      case FAL_FLUX_2_KLEIN_9B_MODEL_ID:
         return falClientMocks.submitFalFlux2Klein(payload);
       default:
         return Promise.reject(new Error(`Unhandled queued submit model ${modelId}`));
@@ -69,14 +81,14 @@ const {
 
 const makeArgs = (overrides: Partial<ImageSubmissionArgs> = {}): ImageSubmissionArgs => ({
   id: "out-1",
-  finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+  finalModel: FAL_SEEDREAM_45_EDIT_MODEL_ID,
   cleanedPrompt: "A polished portrait",
   aspect: "5:4",
   requestedDurationSeconds: 8,
   requestedResolution: "model_default",
   requestedAudio: false,
   preparedImageInputs: ["https://cdn.test/ref.png"],
-  modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/edit"),
+  modelConfig: getModelConfig(FAL_SEEDREAM_45_EDIT_MODEL_ID),
   notifyGenerationFailure: vi.fn(),
   updateOutputById: vi.fn(),
   startPollingWithGeneration: vi.fn(),
@@ -133,7 +145,7 @@ describe("Seedream submission payloads", () => {
         previewStoragePath: "user-1/generations/images/openai-preview.png",
         fullStoragePath: "user-1/generations/images/openai-full.png",
         mimeType: "image/png",
-        modelId: "gpt-image-2",
+        modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
         savedMediaIds: ["media-openai-1"],
       },
     });
@@ -149,7 +161,7 @@ describe("Seedream submission payloads", () => {
         previewStoragePath: "user-1/generations/images/openai-preview.png",
         fullStoragePath: "user-1/generations/images/openai-full.png",
         mimeType: "image/png",
-        modelId: "gpt-image-2",
+        modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
         savedMediaIds: ["media-openai-1"],
       },
     });
@@ -157,8 +169,8 @@ describe("Seedream submission payloads", () => {
 
   it("sends exact custom Seedream image_size for 5:4 text-to-image", async () => {
     const args = makeArgs({
-      finalModel: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/text-to-image"),
+      finalModel: FAL_SEEDREAM_45_TEXT_MODEL_ID,
+      modelConfig: getModelConfig(FAL_SEEDREAM_45_TEXT_MODEL_ID),
     });
 
     await handleDefaultModelSubmission(args);
@@ -181,8 +193,8 @@ describe("Seedream submission payloads", () => {
 
   it("sends aspect-locked auto_4K dimensions in text-to-image payload", async () => {
     const args = makeArgs({
-      finalModel: "fal-ai/bytedance/seedream/v4.5/text-to-image",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/text-to-image"),
+      finalModel: FAL_SEEDREAM_45_TEXT_MODEL_ID,
+      modelConfig: getModelConfig(FAL_SEEDREAM_45_TEXT_MODEL_ID),
       aspect: "16:9",
       requestedResolution: "auto_4K",
     });
@@ -197,8 +209,8 @@ describe("Seedream submission payloads", () => {
 
   it("sends aspect-locked auto_3K dimensions in Seedream 5 Lite text payload", async () => {
     const args = makeArgs({
-      finalModel: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v5/lite/text-to-image"),
+      finalModel: FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
+      modelConfig: getModelConfig(FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID),
       aspect: "16:9",
       requestedResolution: "auto_3K",
     });
@@ -222,8 +234,8 @@ describe("Seedream submission payloads", () => {
 
   it("sends exact custom Seedream image_size for 5:4 edit payload", async () => {
     const args = makeArgs({
-      finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/edit"),
+      finalModel: FAL_SEEDREAM_45_EDIT_MODEL_ID,
+      modelConfig: getModelConfig(FAL_SEEDREAM_45_EDIT_MODEL_ID),
       preparedImageInputs: ["https://cdn.test/ref-1.png"],
     });
 
@@ -248,8 +260,8 @@ describe("Seedream submission payloads", () => {
 
   it("sends aspect-locked auto_2K dimensions in edit payload", async () => {
     const args = makeArgs({
-      finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/edit"),
+      finalModel: FAL_SEEDREAM_45_EDIT_MODEL_ID,
+      modelConfig: getModelConfig(FAL_SEEDREAM_45_EDIT_MODEL_ID),
       aspect: "9:16",
       requestedResolution: "auto_2K",
       preparedImageInputs: ["https://cdn.test/ref-1.png"],
@@ -265,8 +277,8 @@ describe("Seedream submission payloads", () => {
 
   it("sends aspect-locked auto_3K dimensions in Seedream 5 Lite edit payload", async () => {
     const args = makeArgs({
-      finalModel: "fal-ai/bytedance/seedream/v5/lite/edit",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v5/lite/edit"),
+      finalModel: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
+      modelConfig: getModelConfig(FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID),
       aspect: "9:16",
       requestedResolution: "auto_3K",
       preparedImageInputs: ["https://cdn.test/ref-1.png"],
@@ -290,15 +302,15 @@ describe("Seedream submission payloads", () => {
 
   it("keeps orientation aligned for Seedream edit auto_4K across landscape and portrait", async () => {
     const landscapeArgs = makeArgs({
-      finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/edit"),
+      finalModel: FAL_SEEDREAM_45_EDIT_MODEL_ID,
+      modelConfig: getModelConfig(FAL_SEEDREAM_45_EDIT_MODEL_ID),
       aspect: "16:9",
       requestedResolution: "auto_4K",
       preparedImageInputs: ["https://cdn.test/ref-landscape.png"],
     });
     const portraitArgs = makeArgs({
-      finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
-      modelConfig: getModelConfig("fal-ai/bytedance/seedream/v4.5/edit"),
+      finalModel: FAL_SEEDREAM_45_EDIT_MODEL_ID,
+      modelConfig: getModelConfig(FAL_SEEDREAM_45_EDIT_MODEL_ID),
       aspect: "9:16",
       requestedResolution: "auto_4K",
       preparedImageInputs: ["https://cdn.test/ref-portrait.png"],
@@ -317,8 +329,8 @@ describe("Seedream submission payloads", () => {
   it("completes gpt-image-2 submissions immediately without starting polling", async () => {
     const completeGenerationImmediately = vi.fn();
     const args = makeArgs({
-      finalModel: "gpt-image-2",
-      modelConfig: getModelConfig("gpt-image-2"),
+      finalModel: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      modelConfig: getModelConfig(OPENAI_GPT_IMAGE_2_MODEL_ID),
       aspect: "9:16",
       requestedResolution: "high",
       preparedImageInputs: [],
@@ -354,8 +366,8 @@ describe("Seedream submission payloads", () => {
   it("routes gpt-image-2 reference-image edits through the OpenAI edit lane", async () => {
     const completeGenerationImmediately = vi.fn();
     const args = makeArgs({
-      finalModel: "gpt-image-2",
-      modelConfig: getModelConfig("gpt-image-2"),
+      finalModel: OPENAI_GPT_IMAGE_2_MODEL_ID,
+      modelConfig: getModelConfig(OPENAI_GPT_IMAGE_2_MODEL_ID),
       aspect: "16:9",
       requestedResolution: "medium",
       preparedImageInputs: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],

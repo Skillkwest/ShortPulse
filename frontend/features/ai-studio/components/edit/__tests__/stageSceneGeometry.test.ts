@@ -3,6 +3,10 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  EXPERT_EDIT_CAMERA_SCALE_MAX,
+  EXPERT_EDIT_CAMERA_SCALE_MIN,
+} from "../../../logic/expertEditCameraContract";
+import {
   mapPixelPointBetweenSpacesViaScene,
   mapPixelRectBetweenSpacesViaScene,
   resolveNestedSurfaceOffsetFromClientRect,
@@ -159,7 +163,7 @@ describe("stageSceneGeometry", () => {
   });
 
   it("round-trips canonical zoom and pan tuples through viewport transforms", () => {
-    const zoomLevels = [0.5, 1, 2, 4];
+    const zoomLevels = [EXPERT_EDIT_CAMERA_SCALE_MIN, 1, 1.5, EXPERT_EDIT_CAMERA_SCALE_MAX];
     const panTuples = [
       { x: 0, y: 0 },
       { x: 37, y: -19 },

@@ -311,11 +311,141 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
+.adminAgentInstructionsPage {
+  max-width: min(1520px, calc(100vw - 24px));
+}
+
+.adminAgentInstructionsPage .adminHeader {
+  margin-bottom: 18px;
+  padding: 2px 0 6px;
+}
+
+.adminAgentInstructionsPage .adminTitle {
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.adminAgentInstructionsPage .adminUserPill {
+  border-color: rgba(37, 169, 191, 0.3);
+  background:
+    linear-gradient(180deg, rgba(37, 169, 191, 0.16), rgba(37, 169, 191, 0.04)),
+    var(--admin-surface-1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 10px 26px rgba(0, 0, 0, 0.22);
+}
+
+.adminAgentInstructionsPage .adminNavShell {
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.adminAgentInstructionsPage .adminNavRow {
+  padding: 8px;
+  border-radius: 18px;
+  border: 1px solid var(--admin-border-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+    rgba(11, 15, 19, 0.82);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.adminAgentInstructionsPage .adminNavLink {
+  border-radius: 12px;
+}
+
+.adminAgentInstructionsPage .adminNavLinkActive {
+  background:
+    linear-gradient(180deg, rgba(37, 169, 191, 0.2), rgba(37, 169, 191, 0.07)),
+    var(--admin-surface-2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.adminAgentInstructionsSection {
+  position: relative;
+  overflow: hidden;
+  padding: 18px;
+  border-radius: 20px;
+  border-color: rgba(37, 169, 191, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(37, 169, 191, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0) 22%),
+    var(--admin-surface-1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+.adminAgentInstructionsSection::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgba(37, 169, 191, 0.08), transparent 28%),
+    linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.015));
+  opacity: 0.9;
+}
+
+.adminAgentInstructionsSection > * {
+  position: relative;
+  z-index: 1;
+}
+
+.agentInstructionToolbarRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
 .agentInstructionsSummaryGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   margin-top: 14px;
+}
+
+.agentInstructionSummaryCard {
+  position: relative;
+  overflow: hidden;
+  min-height: 148px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--admin-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
+    var(--admin-surface-2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 16px 34px rgba(0, 0, 0, 0.24);
+}
+
+.agentInstructionSummaryCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.45), transparent 72%);
+}
+
+.agentInstructionSummaryCardMuted {
+  border-color: rgba(216, 168, 74, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(216, 168, 74, 0.09), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    var(--admin-surface-2);
+}
+
+.agentInstructionSummaryCardAccent {
+  border-color: rgba(37, 169, 191, 0.26);
+  background:
+    radial-gradient(circle at top left, rgba(37, 169, 191, 0.12), transparent 44%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
+    var(--admin-surface-2);
 }
 
 .agentInstructionSummaryLabel {
@@ -340,6 +470,46 @@
   margin-top: 18px;
 }
 
+.agentInstructionStandardCard {
+  border-style: solid;
+  border-color: rgba(216, 168, 74, 0.22);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(216, 168, 74, 0.08),
+      rgba(216, 168, 74, 0.02) 18%,
+      transparent 42%
+    ),
+    var(--admin-surface-2);
+}
+
+.agentInstructionEditPresetCard {
+  border-style: solid;
+  border-color: rgba(255, 171, 53, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(255, 106, 0, 0.12), transparent 28%),
+    linear-gradient(
+      180deg,
+      rgba(255, 190, 92, 0.08),
+      rgba(255, 190, 92, 0.02) 18%,
+      transparent 42%
+    ),
+    var(--admin-surface-2);
+}
+
+.agentInstructionPulseSection {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(37, 169, 191, 0.16);
+  background:
+    radial-gradient(circle at top left, rgba(37, 169, 191, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)),
+    rgba(17, 22, 27, 0.76);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 18px 36px rgba(0, 0, 0, 0.22);
+}
+
 .agentInstructionModeSection {
   display: grid;
   gap: 14px;
@@ -348,6 +518,33 @@
 .agentInstructionModeHeader {
   display: grid;
   gap: 6px;
+}
+
+.agentInstructionModeHeaderTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.agentInstructionModeActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.agentInstructionModeMetaRow {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.agentInstructionFooterActions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .agentInstructionModeEyebrow {
@@ -377,14 +574,111 @@
   gap: 14px;
 }
 
+.agentInstructionAddCard {
+  justify-items: center;
+}
+
+.agentInstructionAddTile {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 22px 18px;
+  border: 1px dashed rgba(37, 169, 191, 0.32);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(37, 169, 191, 0.06), rgba(37, 169, 191, 0.015)),
+    rgba(12, 18, 23, 0.72);
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    transform 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.agentInstructionAddTile:hover {
+  border-color: rgba(37, 169, 191, 0.55);
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.2);
+}
+
+.agentInstructionAddIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 169, 191, 0.5);
+  color: var(--admin-accent-text);
+  font-size: 30px;
+  line-height: 1;
+}
+
+.agentInstructionAddTitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--admin-text-strong);
+  letter-spacing: -0.02em;
+}
+
+.agentInstructionAddDescription {
+  max-width: 480px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--admin-text-muted);
+}
+
+.agentInstructionCardList[hidden] {
+  display: none !important;
+}
+
+.agentInstructionCollapsibleBody {
+  display: grid;
+  gap: 12px;
+}
+
+.agentInstructionCollapsibleBody[hidden] {
+  display: none !important;
+}
+
 .agentInstructionCard {
   display: grid;
   gap: 12px;
   padding: 16px;
-  border-radius: 16px;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface-2);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid rgba(120, 132, 146, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    var(--admin-surface-2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    0 18px 40px rgba(0, 0, 0, 0.26);
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.agentInstructionCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.4), transparent 76%);
+}
+
+.adminAgentInstructionsPage .agentInstructionCard:hover {
+  border-color: rgba(37, 169, 191, 0.3);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 22px 44px rgba(0, 0, 0, 0.3);
 }
 
 .agentInstructionHeader {
@@ -393,6 +687,8 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(120, 132, 146, 0.12);
 }
 
 .agentInstructionTitleRow {
@@ -402,9 +698,47 @@
   flex-wrap: wrap;
 }
 
+.agentInstructionCollapseToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(120, 132, 146, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.01)),
+    rgba(15, 19, 23, 0.9);
+  color: var(--admin-text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.agentInstructionCollapseToggle:hover {
+  border-color: rgba(37, 169, 191, 0.42);
+  color: var(--admin-text-strong);
+  transform: translateY(-1px);
+}
+
+.agentInstructionCollapseIcon {
+  transition: transform 0.14s ease;
+}
+
+.agentInstructionCollapseIconCollapsed {
+  transform: rotate(-90deg);
+}
+
 .agentInstructionTitle {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
   color: var(--admin-text-strong);
 }
 
@@ -477,9 +811,13 @@
 .agentInstructionSubTextarea {
   width: 100%;
   padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid var(--admin-border);
-  background: #0f1317;
+  border-radius: 16px;
+  border: 1px solid rgba(120, 132, 146, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)), #101419;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08);
   color: var(--admin-text-strong);
   font-size: 13px;
   line-height: 1.55;
@@ -501,12 +839,17 @@
 
 .agentInstructionTextarea {
   width: 100%;
-  min-height: 220px;
+  min-height: 260px;
   resize: vertical;
   padding: 14px;
-  border-radius: 14px;
-  border: 1px solid var(--admin-border);
-  background: #0f1317;
+  border-radius: 18px;
+  border: 1px solid rgba(120, 132, 146, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(37, 169, 191, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)), #0f1317;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.025),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08);
   color: var(--admin-text-strong);
   font:
     12px/1.6 ui-monospace,
@@ -534,13 +877,183 @@
   outline: 2px solid var(--admin-focus);
   outline-offset: 2px;
   border-color: var(--admin-accent-border-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 0 0 4px rgba(37, 169, 191, 0.12);
 }
 
 .agentInstructionNote {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
+  color: var(--admin-text-faint);
+}
+
+.agentInstructionCollapsedSummary {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(120, 132, 146, 0.14);
+  background: rgba(10, 14, 18, 0.34);
   color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.agentEditPresetSurfaceHeader {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.agentEditPresetModePill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 112px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff2c6d, #ffb01f);
+  color: #fff8f0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 12px 24px rgba(255, 104, 32, 0.24);
+}
+
+.agentEditPresetSurfaceTitle {
+  margin: 0;
+  font-size: 18px;
+  color: var(--admin-text-strong);
+  letter-spacing: -0.02em;
+}
+
+.agentEditPresetGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.agentEditPresetTile {
+  position: relative;
+  display: grid;
+  min-height: 132px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 179, 70, 0.62);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+    rgba(30, 35, 41, 0.94);
+  transition:
+    border-color 0.14s ease,
+    transform 0.14s ease,
+    box-shadow 0.14s ease;
+}
+
+.agentEditPresetTile:hover {
+  border-color: rgba(255, 196, 92, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+}
+
+.agentEditPresetTileButton {
+  display: grid;
+  gap: 10px;
+  min-height: 132px;
+  width: 100%;
+  padding: 14px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agentEditPresetTileDelete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 145, 145, 0.45);
+  border-radius: 999px;
+  background: rgba(29, 31, 36, 0.9);
+  color: #ffd0d0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    color 0.14s ease,
+    background-color 0.14s ease;
+}
+
+.agentEditPresetTileDelete:hover {
+  border-color: rgba(255, 176, 176, 0.72);
+  color: #fff1f1;
+  background: rgba(60, 23, 23, 0.96);
+}
+
+.agentEditPresetTileAdd {
+  place-items: center;
+  gap: 10px;
+  padding: 18px;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.agentEditPresetTileAddIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 196, 92, 0.55);
+  color: #ffd173;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.agentEditPresetTileTitle {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--admin-text-strong);
+}
+
+.agentEditPresetTilePrompt {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--admin-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.agentEditPresetModalCard {
+  width: min(760px, calc(100vw - 28px));
+}
+
+.agentEditPresetModalTitle {
+  margin: 0 0 2px;
+  font-size: 18px;
+  color: var(--admin-text-strong);
+}
+
+.agentEditPresetModalTextarea {
+  min-height: 220px;
+}
+
+.agentEditPresetModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .adminStatePanel {
@@ -601,6 +1114,30 @@
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+}
+
+.adminAgentInstructionsPage .adminSectionHead {
+  margin-bottom: 14px;
+}
+
+.adminAgentInstructionsPage :global(.ghost-btn),
+.adminAgentInstructionsPage :global(.ghost-btn.mini) {
+  border-radius: 12px;
+  border-color: rgba(120, 132, 146, 0.26);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01)),
+    rgba(18, 22, 27, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.adminAgentInstructionsPage :global(.ghost-btn:hover),
+.adminAgentInstructionsPage :global(.ghost-btn.mini:hover) {
+  border-color: rgba(37, 169, 191, 0.45);
+  background:
+    linear-gradient(180deg, rgba(37, 169, 191, 0.16), rgba(37, 169, 191, 0.05)),
+    rgba(18, 22, 27, 0.96);
 }
 
 .adminSectionEyebrow {
@@ -1569,7 +2106,6 @@
     minmax(78px, 0.52fr)
     minmax(88px, 0.58fr)
     minmax(92px, 0.62fr)
-    minmax(86px, 0.56fr)
     minmax(96px, 0.62fr)
     minmax(82px, 0.54fr)
     minmax(86px, 0.58fr);
@@ -1578,27 +2114,59 @@
 }
 
 .pricingWorkbookTable {
-  min-width: 1290px;
+  min-width: 1220px;
   gap: 0;
-  background: transparent;
+  overflow: hidden;
+  border: 1px solid rgba(210, 220, 232, 0.08);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.012)), transparent;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.18);
+}
+
+.pricingWorkbookShell {
+  position: relative;
+}
+
+.pricingWorkbookStickyHeadViewport {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(210, 220, 232, 0.08);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  background: rgba(17, 22, 28, 0.96);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+}
+
+.pricingWorkbookStickyHeadTrack {
+  min-width: 1220px;
+  will-change: transform;
+}
+
+.pricingWorkbookBody {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .pricingWorkbookActionsHead {
   justify-content: space-between;
 }
 
-.pricingWorkbookTable .pricingModelsHead,
+.pricingWorkbookStickyHeadTrack,
 .pricingWorkbookTable .pricingModelsRow {
   gap: 0;
 }
 
-.pricingWorkbookTable .pricingModelsHead {
+.pricingWorkbookStickyHeadTrack {
   min-height: 38px;
   border-bottom: 1px solid rgba(180, 190, 204, 0.2);
-  background: rgba(255, 255, 255, 0.065);
+  background: rgba(17, 22, 28, 0.96);
+  backdrop-filter: blur(10px);
 }
 
-.pricingWorkbookTable .pricingModelsHead span,
+.pricingWorkbookStickyHeadTrack span,
 .pricingWorkbookTable .pricingModelsRow > span {
   display: grid;
   align-content: center;
@@ -1607,12 +2175,20 @@
   border-right: 1px solid rgba(210, 220, 232, 0.065);
 }
 
+.pricingWorkbookStickyHeadTrack span {
+  color: var(--admin-text-muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .pricingWorkbookTable .pricingModelsRow > span {
   font-size: 12px;
 }
 
 .pricingWorkbookTable .pricingPrimaryCell {
-  gap: 0;
+  gap: 3px;
 }
 
 .pricingWorkbookTable .pricingPrimaryCell strong {
@@ -1631,22 +2207,42 @@
   white-space: nowrap;
 }
 
-.pricingWorkbookTable .pricingModelsHead span:last-child,
+.pricingTypeLink {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.pricingTypeLink strong {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.pricingTypeLink:hover strong,
+.pricingTypeLink:focus-visible strong {
+  color: var(--admin-text-strong);
+}
+
+.pricingWorkbookStickyHeadTrack span:last-child,
 .pricingWorkbookTable .pricingModelsRow > span:last-child {
   border-right: 0;
 }
 
 .pricingWorkbookTable .pricingModelsRow {
-  min-height: 46px;
+  min-height: 50px;
   padding: 0;
   border: 0;
   border-radius: 0;
   border-bottom: 1px solid rgba(210, 220, 232, 0.075);
-  background: rgba(255, 255, 255, 0.032);
+  background: rgba(255, 255, 255, 0.028);
 }
 
 .pricingWorkbookTable .pricingModelsRow:nth-child(odd) {
-  background: rgba(255, 255, 255, 0.048);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .pricingWorkbookTable .pricingModelsRow:last-child {
@@ -1736,6 +2332,85 @@
   color: var(--admin-text-strong);
 }
 
+.pricingModelSummaryRow {
+  background: linear-gradient(
+    90deg,
+    rgba(37, 169, 191, 0.16),
+    rgba(37, 169, 191, 0.04) 28%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  box-shadow: inset 0 1px 0 rgba(119, 217, 232, 0.1);
+}
+
+.pricingModelSummaryCell {
+  display: grid;
+  gap: 5px;
+}
+
+.pricingModelSummaryCell small {
+  color: rgba(214, 233, 239, 0.7);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+}
+
+.pricingModelToggleButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pricingModelToggleButton:hover strong {
+  color: var(--admin-text-strong);
+}
+
+.pricingModelToggleButton strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pricingExpandGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(141, 220, 232, 0.32);
+  background: rgba(141, 220, 232, 0.08);
+  color: rgba(215, 242, 247, 0.88);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.pricingModelSecondaryButton {
+  width: fit-content;
+  padding: 0;
+  border: 1px solid rgba(126, 208, 220, 0.16);
+  border-radius: 999px;
+  background: rgba(126, 208, 220, 0.08);
+  color: #bdeff4;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.pricingModelSecondaryButton:hover {
+  background: rgba(126, 208, 220, 0.14);
+  color: #e6fbff;
+}
+
 .pricingCostUnitButton {
   display: inline-grid;
   justify-items: start;
@@ -1754,6 +2429,7 @@
   text-decoration-style: dotted;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
+  color: #d7e6f0;
 }
 
 .pricingCostUnitButton:hover strong,
@@ -1801,11 +2477,17 @@
   gap: 4px;
   align-items: center;
   max-width: 84px;
+  margin-left: auto;
+  padding: 2px 4px 2px 6px;
+  border: 1px solid rgba(218, 227, 236, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .pricingRoundInputWrap {
   display: block;
   max-width: 58px;
+  margin-left: auto;
 }
 
 .pricingRoundInputWrap .pricingSheetInput {
@@ -1833,17 +2515,39 @@
   appearance: none;
 }
 
-.pricingSheetInput {
+.pricingSpecEditor {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+}
+
+.pricingSpecControl {
+  display: block;
+  width: 100%;
+}
+
+.pricingSpecSelect {
+  width: 100%;
   min-height: 30px;
-  padding: 5px 7px;
+  padding: 5px 24px 5px 8px;
+  text-align: left;
+  appearance: auto;
+}
+
+.pricingSheetInput {
+  min-height: 32px;
+  padding: 5px 8px;
   text-align: right;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+  background: rgba(10, 14, 18, 0.92);
 }
 
 .adminPage .pricingSheetInput:focus,
 .adminPage .pricingSheetInput:focus-visible {
   outline: none;
-  border-color: var(--admin-border-strong);
-  box-shadow: inset 0 0 0 1px rgba(215, 222, 230, 0.08);
+  border-color: rgba(126, 208, 220, 0.5);
+  box-shadow: 0 0 0 3px rgba(126, 208, 220, 0.14);
 }
 
 .pricingMonoCell {
@@ -1856,6 +2560,81 @@
 
 .pricingProviderLabel {
   font-weight: 700;
+}
+
+.pricingVariantGroup {
+  display: grid;
+  position: relative;
+}
+
+.pricingWorkbookTable .pricingVariantRow {
+  min-height: 42px;
+  background: rgba(255, 255, 255, 0.018);
+  position: relative;
+}
+
+.pricingWorkbookTable .pricingVariantRow:hover {
+  background: rgba(232, 242, 248, 0.05);
+}
+
+.pricingWorkbookTable .pricingVariantRow > span {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.pricingVariantPlaceholder {
+  color: transparent;
+  position: relative;
+}
+
+.pricingVariantPlaceholder::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(126, 208, 220, 0.42), rgba(126, 208, 220, 0.06));
+}
+
+.pricingRateSourceCell {
+  align-content: start;
+}
+
+.pricingRateSourceCell small {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  font-size: 11px;
+  color: rgba(152, 183, 203, 0.84);
+}
+
+.pricingNumberCell {
+  justify-items: end;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pricingControlCell {
+  justify-items: end;
+  text-align: right;
+}
+
+.pricingControlCell small {
+  justify-self: end;
+}
+
+.pricingMetricPositive {
+  color: #8be1b0;
+}
+
+.pricingMetricNegative {
+  color: #ff8f96;
+}
+
+.pricingMetricNeutral {
+  color: var(--admin-text-strong);
 }
 
 .pricingProviderFal {
@@ -1878,12 +2657,21 @@
 
 .pricingInlineEditorCard {
   margin: 8px 0 4px;
-  padding: 14px;
-  border-radius: 12px;
-  border: 1px solid var(--admin-border);
-  background: var(--admin-surface-2);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(210, 220, 232, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.032), rgba(255, 255, 255, 0.018)),
+    var(--admin-surface-2);
   display: grid;
   gap: 12px;
+}
+
+.pricingInlineNotice {
+  margin: 0;
+  color: rgba(190, 204, 217, 0.82);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .pricingFormGrid {
@@ -2699,6 +3487,376 @@
   border: 1px solid var(--admin-border-soft);
 }
 
+.pricingPlanMarginList {
+  display: grid;
+  gap: 0;
+}
+
+.pricingPlanMarginToolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.pricingPlanMarginEmptyState {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 1px dashed var(--admin-border-soft);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.pricingPlanMarginEmptyState strong {
+  color: var(--admin-text-strong);
+}
+
+.pricingPlanMarginEmptyState span {
+  color: var(--admin-text-muted);
+  font-size: 13px;
+}
+
+.pricingPlanMarginCard {
+  border: 1px solid var(--admin-border);
+  border-radius: 14px;
+  background: var(--admin-surface-2);
+  overflow: hidden;
+}
+
+.pricingPlanMarginCardDragging {
+  opacity: 0.68;
+}
+
+.pricingPlanMarginDropSlot {
+  height: 16px;
+  position: relative;
+}
+
+.pricingPlanMarginDropSlot::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: transparent;
+  transition:
+    background-color 140ms ease,
+    box-shadow 140ms ease,
+    height 140ms ease;
+}
+
+.pricingPlanMarginDropSlotActive::after {
+  height: 3px;
+  background: rgba(78, 160, 158, 0.92);
+  box-shadow: 0 0 0 1px rgba(78, 160, 158, 0.28);
+}
+
+.pricingPlanMarginSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  cursor: default;
+  list-style: none;
+}
+
+.pricingPlanMarginSummary::-webkit-details-marker {
+  display: none;
+}
+
+.pricingPlanMarginSummaryTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--admin-text-strong);
+}
+
+.pricingPlanMarginSummaryEditor {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pricingPlanMarginDragHandle {
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  cursor: grab;
+}
+
+.pricingPlanMarginDragHandle:active {
+  cursor: grabbing;
+}
+
+.pricingPlanMarginDragHandle:hover {
+  border-color: rgba(78, 160, 158, 0.45);
+  color: var(--admin-text-strong);
+}
+
+.pricingPlanMarginSummaryNameInput {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pricingPlanMarginSummaryNameInput {
+  min-height: 0;
+  height: 34px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  width: 280px;
+}
+
+.pricingPlanMarginSummaryMeta {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pricingPlanMarginSummaryActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pricingPlanMarginBody {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 18px 18px;
+  border-top: 1px solid var(--admin-border-soft);
+}
+
+.pricingPlanMarginSidebar {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.pricingPlanMarginField {
+  display: grid;
+  gap: 6px;
+}
+
+.pricingPlanMarginField span {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.pricingPlanMarginInputWrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.pricingPlanMarginInputWrap span {
+  color: var(--admin-text-faint);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pricingPlanMarginSummaryCard {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-1);
+}
+
+.pricingPlanMarginSummaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pricingPlanMarginSummaryRow span {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+}
+
+.pricingPlanMarginSummaryRow strong {
+  color: var(--admin-text-strong);
+}
+
+.pricingPlanMarginSummaryNote {
+  margin: 0;
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.pricingPlanMarginMain {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pricingPlanMarginTableHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pricingPlanMarginTable {
+  min-width: 1320px;
+  gap: 6px;
+}
+
+.pricingPlanMarginStickyHeadViewport {
+  border-radius: 12px 12px 0 0;
+}
+
+.pricingPlanMarginStickyHeadTrack {
+  min-width: 1320px;
+}
+
+.pricingPlanMarginBodyTable {
+  border-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.pricingPlanMarginHead,
+.pricingPlanMarginTable .pricingModelsRow {
+  gap: 0;
+}
+
+.pricingPlanMarginHead {
+  min-height: 38px;
+  border-bottom: 1px solid rgba(180, 190, 204, 0.2);
+  background: rgba(17, 22, 28, 0.96);
+}
+
+.pricingPlanMarginHead span,
+.pricingPlanMarginTable .pricingModelsRow > span {
+  display: grid;
+  align-content: center;
+  min-height: 100%;
+  padding: 7px 8px;
+  border-right: 1px solid rgba(210, 220, 232, 0.065);
+}
+
+.pricingPlanMarginHead span {
+  color: var(--admin-text-muted);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pricingPlanMarginTable .pricingModelsRow > span {
+  font-size: 12px;
+}
+
+.pricingPlanMarginTable .pricingModelsRow > span:last-child,
+.pricingPlanMarginHead span:last-child {
+  border-right: 0;
+}
+
+.pricingPlanMarginTable .pricingModelsRow {
+  min-height: 50px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(210, 220, 232, 0.075);
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.pricingPlanMarginTable .pricingModelsRow:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.pricingPlanMarginTable .pricingModelsRow:hover {
+  background: rgba(232, 242, 248, 0.07);
+}
+
+.pricingPlanMarginTable .pricingModelSummaryRow {
+  background: linear-gradient(
+    90deg,
+    rgba(37, 169, 191, 0.16),
+    rgba(37, 169, 191, 0.04) 28%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+}
+
+.pricingPlanMarginTable .pricingModelSummaryRow:hover {
+  background: linear-gradient(
+    90deg,
+    rgba(37, 169, 191, 0.22),
+    rgba(37, 169, 191, 0.08) 28%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+}
+
+.pricingPlanMarginTable .pricingVariantRow {
+  min-height: 42px;
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.pricingPlanMarginTable .pricingVariantRow:hover {
+  background: rgba(232, 242, 248, 0.05);
+}
+
+.pricingPlanMarginTable .pricingVariantRow > span {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.pricingPlanMarginTable .pricingPrimaryCell {
+  gap: 3px;
+}
+
+.pricingPlanMarginTable .pricingPrimaryCell strong {
+  line-height: 1.2;
+}
+
+.pricingPlanMarginGrid {
+  display: grid;
+  grid-template-columns:
+    minmax(72px, 0.52fr)
+    minmax(110px, 0.9fr)
+    minmax(104px, 0.8fr)
+    minmax(86px, 0.54fr)
+    minmax(138px, 1fr)
+    minmax(82px, 0.58fr)
+    minmax(94px, 0.7fr)
+    minmax(74px, 0.54fr)
+    minmax(102px, 0.8fr)
+    minmax(92px, 0.7fr)
+    minmax(108px, 0.84fr)
+    minmax(118px, 0.9fr)
+    minmax(74px, 0.54fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.pricingPlanMarginProfitCell {
+  color: #8af2d7;
+  font-weight: 700;
+}
+
+.pricingPlanMarginMarginCell strong {
+  font-weight: 700;
+}
+
+.pricingPlanMarginProviderCell strong {
+  font-weight: 400;
+}
+
 .pricingPlanSimulatorList {
   display: grid;
   gap: 16px;
@@ -2788,6 +3946,10 @@
 }
 
 @media (max-width: 900px) {
+  .pricingPlanMarginBody {
+    grid-template-columns: 1fr;
+  }
+
   .pricingSupportFormGrid,
   .pricingSupportMetricGrid,
   .pricingUsageMixInputs {
@@ -2797,6 +3959,24 @@
   .pricingUsageMixMiniHead,
   .pricingUsageMixMiniTable {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1200px) {
+  .searchRow {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pricingWorkbookControls {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .pricingConversionControl {
+    flex-wrap: wrap;
+    white-space: normal;
   }
 }
 

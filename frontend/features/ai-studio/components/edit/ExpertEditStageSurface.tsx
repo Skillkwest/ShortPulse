@@ -49,6 +49,7 @@ type ExpertEditInlineStageSurfaceProps = {
   onStageContextMenu?: React.MouseEventHandler<HTMLDivElement>;
   onStageClick?: React.MouseEventHandler<HTMLDivElement>;
   onStageDoubleClick?: React.MouseEventHandler<HTMLDivElement>;
+  onStageWheel?: React.WheelEventHandler<HTMLDivElement>;
   sceneContent: React.ReactNode;
   transformOverlay: React.ReactNode;
 };
@@ -85,6 +86,7 @@ export function ExpertEditInlineStageSurface({
   onStageContextMenu,
   onStageClick,
   onStageDoubleClick,
+  onStageWheel,
   sceneContent,
   transformOverlay,
 }: ExpertEditInlineStageSurfaceProps) {
@@ -105,6 +107,7 @@ export function ExpertEditInlineStageSurface({
           isPopulated={isPopulated}
           isDragActive={isDragActive}
           style={frameStyle}
+          onWheel={shouldRenderInteractive ? onStageWheel : undefined}
           onDrop={onDrop}
           onDragEnter={onDragEnter}
           onDragOver={onDragOver}

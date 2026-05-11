@@ -13,7 +13,7 @@ import {
 } from "react";
 import { randomId } from "../logic/ids";
 import { type AiStudioKlingElement } from "../logic/klingElements";
-import { normalizeSeedance2UiModelId } from "../logic/seedance2Availability";
+import { normalizeAiStudioRestoredModelId } from "../logic/modelRestorePolicy";
 import type { StudioMode, ToolId } from "../types";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
 import { getModelConfig } from "../logic/pricing";
@@ -116,7 +116,7 @@ const cloneWorkflowSettingsSnapshot = (
       : defaults.mode,
   model:
     typeof snapshot?.model === "string" || snapshot?.model === null
-      ? (normalizeSeedance2UiModelId(snapshot.model) ?? null)
+      ? (normalizeAiStudioRestoredModelId(snapshot.model) ?? null)
       : defaults.model,
   aspect: typeof snapshot?.aspect === "string" ? snapshot.aspect : defaults.aspect,
   imageResolution:

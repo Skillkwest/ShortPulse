@@ -108,6 +108,7 @@ describe("sessionSnapshot", () => {
       aspect: "9:16",
       expertCreateMode: "pulse",
       activePulsePresetId: "multi_shot",
+      pulseSessionInstanceId: "pulse-session-multi-shot",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",
@@ -170,6 +171,7 @@ describe("sessionSnapshot", () => {
         pulseWorkflowSession: null,
       },
       pulsePresetId: "multi_shot",
+      pulseSessionInstanceId: "pulse-session-multi-shot",
       pulse: {
         messages: [{ id: "a-1", role: "assistant", content: "Here is your prompt." }],
         input: "",
@@ -196,7 +198,67 @@ describe("sessionSnapshot", () => {
     expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
   });
 
-  it("persists video poster delivery fields in output snapshots", () => {
+  it("preserves apply_prompt workflow artifacts in Pulse session snapshots", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "pulse-apply-prompt-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Pulse draft",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseSessionInstanceId: "pulse-session-image",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: "final video prompt",
+      promptOrigin: "agent",
+      chatModeEnabled: true,
+      pulseWorkflowSession: {
+        presetId: "image",
+        status: "completed",
+        currentStepIndex: 5,
+        currentStepLabel: "Final Prompt",
+        currentStepPrompt: null,
+        collectedInputs: ["Uploaded image attached", "360 orbit", "Bird launches into flight"],
+        lastArtifact: "final video prompt",
+        finalArtifactSource: "apply_prompt",
+      },
+    });
+
+    expect(snapshot.agentRuntimes?.pulse.pulseWorkflowSession).toEqual(
+      expect.objectContaining({
+        finalArtifactSource: "apply_prompt",
+      })
+    );
+  });
+
+  it("persists durable video poster delivery authority in output snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
       updatedAt: "2026-03-02T12:00:00.000Z",
@@ -244,10 +306,71 @@ describe("sessionSnapshot", () => {
       chatModeEnabled: true,
     });
 
-    expect(snapshot.outputs.active[0]?.previewPosterUrl).toBe("https://signed.test/poster.jpg");
+    expect(snapshot.outputs.active[0]?.previewPosterUrl).toBeUndefined();
     expect(snapshot.outputs.active[0]?.previewPosterStoragePath).toBe(
       "user-1/variants/videos/out-1/poster_720.jpg"
     );
+    expect(snapshot.outputs.active[0]?.previewUrl).toBeUndefined();
+  });
+
+  it("prefers durable storage authority over temporary signed media urls in output snapshots", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "",
+      model: "fal-ai/image",
+      aspect: "1:1",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          previewUrl: "https://signed.test/image.png?token=preview",
+          previewPosterUrl: "https://signed.test/poster.png?token=poster",
+          resultUrls: ["https://signed.test/image.png?token=result"],
+          previewPosterStoragePath: "user-1/variants/images/out-1/poster.png",
+          previewStoragePath: "user-1/variants/images/out-1/preview.png",
+          fullStoragePath: "user-1/images/out-1.png",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: ["out-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+    });
+
+    expect(snapshot.outputs.active[0]?.previewUrl).toBeUndefined();
+    expect(snapshot.outputs.active[0]?.previewPosterUrl).toBeUndefined();
+    expect(snapshot.outputs.active[0]?.resultUrls).toBeUndefined();
+    expect(snapshot.outputs.active[0]?.previewPosterStoragePath).toBe(
+      "user-1/variants/images/out-1/poster.png"
+    );
+    expect(snapshot.outputs.active[0]?.previewStoragePath).toBe(
+      "user-1/variants/images/out-1/preview.png"
+    );
+    expect(snapshot.outputs.active[0]?.fullStoragePath).toBe("user-1/images/out-1.png");
   });
 
   it("patches durable Expert Edit state without rebuilding the base snapshot shape", () => {
@@ -403,6 +526,7 @@ describe("sessionSnapshot", () => {
           pulseWorkflowSession: null,
         },
         pulsePresetId: "story_builder",
+        pulseSessionInstanceId: "pulse-session-story",
         pulse: {
           messages: [{ id: "pulse-1", role: "assistant", content: "Pulse-only text" }],
           input: "Pulse draft",
@@ -434,6 +558,7 @@ describe("sessionSnapshot", () => {
       chatModeEnabled: false,
       pulseWorkflowSession: null,
     });
+    expect(snapshot.agentRuntimes?.pulseSessionInstanceId).toBeNull();
   });
 
   it("hard-drops Pulse runtime state when the runtime preset does not match workspace authority", () => {
@@ -489,6 +614,7 @@ describe("sessionSnapshot", () => {
           pulseWorkflowSession: null,
         },
         pulsePresetId: "multi_shot",
+        pulseSessionInstanceId: "pulse-session-other",
         pulse: {
           messages: [{ id: "pulse-1", role: "assistant", content: "Other preset reply" }],
           input: "other preset draft",
@@ -512,6 +638,7 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.expertCreateMode).toBe("pulse");
     expect(snapshot.workspace.activePulsePresetId).toBe("story_builder");
     expect(snapshot.agentRuntimes?.pulsePresetId).toBe("story_builder");
+    expect(snapshot.agentRuntimes?.pulseSessionInstanceId).toBe("pulse-session-story");
     expect(snapshot.agentRuntimes?.pulse).toEqual({
       messages: [],
       input: "",
@@ -534,6 +661,7 @@ describe("sessionSnapshot", () => {
       aspect: "9:16",
       expertCreateMode: "pulse",
       activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-story",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",

@@ -139,7 +139,6 @@ export const useExpertEditStageInteractions = ({
         event: React.WheelEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (context.scope !== "modal") return;
         handleStageViewportWheel(event, context.scope);
       },
     }),
@@ -199,7 +198,6 @@ export const useExpertEditStageInteractions = ({
         event: React.WheelEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (context.scope !== "modal") return;
         handleStageViewportWheel(event, context.scope);
       },
     }),
@@ -247,7 +245,6 @@ export const useExpertEditStageInteractions = ({
         event: React.WheelEvent<HTMLDivElement>,
         context: { scope: "inline" | "modal" }
       ) => {
-        if (context.scope !== "modal") return;
         handleStageViewportWheel(event, context.scope);
       },
     }),

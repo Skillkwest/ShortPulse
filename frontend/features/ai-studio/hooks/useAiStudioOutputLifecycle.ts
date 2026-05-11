@@ -17,6 +17,7 @@ import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../logic/st
 import type { StudioOutput } from "../types";
 
 const SUBMIT_START_TIMEOUT_MS = 90_000;
+const DIRECT_REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 const QUEUE_WAIT_TIMEOUT_MS = 30 * 60 * 1000;
 const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
 const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;
@@ -102,15 +103,17 @@ export const useAiStudioOutputLifecycle = ({
     const outputsSnapshot = outputsRef.current;
     const cleanup = evaluateStaleOutputCleanup(outputsSnapshot, lifecycle, now, {
       submitStartTimeoutMs: SUBMIT_START_TIMEOUT_MS,
+      directRequestTimeoutMs: DIRECT_REQUEST_TIMEOUT_MS,
       taskBackedLoadingTimeoutMs: 0,
       queueWaitTimeoutMs: QUEUE_WAIT_TIMEOUT_MS,
       autoFailedRetentionMs: AUTO_FAILED_OUTPUT_REMOVAL_MS,
     });
     const staleLoadingSet = new Set(cleanup.staleLoadingIds);
     const submitStartTimeoutSet = new Set(cleanup.submitStartTimeoutIds);
+    const directRequestTimeoutSet = new Set(cleanup.directRequestTimeoutIds);
     const queueWaitTimeoutSet = new Set(cleanup.queueWaitTimeoutIds);
     const removableSet = new Set(cleanup.removableIds);
-    const locallyFailedSet = submitStartTimeoutSet;
+    const locallyFailedSet = new Set([...submitStartTimeoutSet, ...directRequestTimeoutSet]);
 
     locallyFailedSet.forEach((id) => {
       const existing = cleanup.nextLifecycle[id] ?? {};
@@ -128,13 +131,20 @@ export const useAiStudioOutputLifecycle = ({
     for (const staleOutput of outputsSnapshot) {
       if (!staleLoadingSet.has(staleOutput.id)) continue;
       const isSubmitStartTimeout = submitStartTimeoutSet.has(staleOutput.id);
+      const isDirectRequestTimeout = directRequestTimeoutSet.has(staleOutput.id);
       void reportAppError({
-        source: isSubmitStartTimeout ? "fal_submit_not_started" : "generation.queue_wait_timeout",
+        source: isSubmitStartTimeout
+          ? "fal_submit_not_started"
+          : isDirectRequestTimeout
+            ? "generation.direct_request_timeout"
+            : "generation.queue_wait_timeout",
         scope: "generation",
         severity: "high",
         message: isSubmitStartTimeout
           ? "Generation failed to start before task initialization."
-          : "Generation timed out while waiting in queue.",
+          : isDirectRequestTimeout
+            ? "Generation timed out before a direct result was returned."
+            : "Generation timed out while waiting in queue.",
         route: currentRoute(),
         metadata: {
           output_id: staleOutput.id,
@@ -143,7 +153,11 @@ export const useAiStudioOutputLifecycle = ({
           provider: staleOutput.provider ?? null,
           task_id: staleOutput.taskId ?? null,
           queue_state: staleOutput.queueState ?? null,
-          failure_reason_code: isSubmitStartTimeout ? "SUBMIT_START_TIMEOUT" : "QUEUE_WAIT_TIMEOUT",
+          failure_reason_code: isSubmitStartTimeout
+            ? "SUBMIT_START_TIMEOUT"
+            : isDirectRequestTimeout
+              ? "DIRECT_REQUEST_TIMEOUT"
+              : "QUEUE_WAIT_TIMEOUT",
         },
       });
     }

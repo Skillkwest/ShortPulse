@@ -4,8 +4,8 @@
  */
 import React from "react";
 import {
-  CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS,
   normalizeCreatePulsePanelPresetIds,
+  resolveCreatePulseDefaultPanelPresetIds,
   resolveCreatePulsePresetCatalog,
   resolveCreatePulsePresetById,
   type CreatePulseBuiltInPresetDefinition,
@@ -38,11 +38,12 @@ export const useCreatePulseGenerationPresetRuntime = ({
   onSavedPresetsChange,
 }: UseCreatePulseGenerationPresetRuntimeParams) => {
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
+  const hasCustomizedSelectedPresetIdsRef = React.useRef(false);
   const [internalSelectedPresetIds, setInternalSelectedPresetIds] = React.useState<
     CreatePulsePresetId[]
   >(() =>
     normalizeCreatePulsePanelPresetIds(
-      CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS,
+      resolveCreatePulseDefaultPanelPresetIds(builtInDefinitions),
       [],
       builtInDefinitions
     )
@@ -55,9 +56,10 @@ export const useCreatePulseGenerationPresetRuntime = ({
   const savedPresets = React.useMemo(
     () =>
       normalizeCreatePulseSavedPresets(
-        isSavedPresetsControlled ? controlledSavedPresets : internalSavedPresets
+        isSavedPresetsControlled ? controlledSavedPresets : internalSavedPresets,
+        builtInDefinitions
       ),
-    [controlledSavedPresets, internalSavedPresets, isSavedPresetsControlled]
+    [builtInDefinitions, controlledSavedPresets, internalSavedPresets, isSavedPresetsControlled]
   );
   const normalizedControlledPresetIds = React.useMemo(
     () =>
@@ -75,13 +77,26 @@ export const useCreatePulseGenerationPresetRuntime = ({
 
   React.useEffect(() => {
     if (isPresetPanelControlled) return;
-    setInternalSelectedPresetIds((previous) =>
-      normalizeCreatePulsePanelPresetIds(previous, savedPresets, builtInDefinitions)
-    );
+    setInternalSelectedPresetIds((previous) => {
+      const normalizedPresetIds = normalizeCreatePulsePanelPresetIds(
+        previous,
+        savedPresets,
+        builtInDefinitions
+      );
+      if (normalizedPresetIds.length > 0 || hasCustomizedSelectedPresetIdsRef.current) {
+        return normalizedPresetIds;
+      }
+      return normalizeCreatePulsePanelPresetIds(
+        resolveCreatePulseDefaultPanelPresetIds(builtInDefinitions),
+        savedPresets,
+        builtInDefinitions
+      );
+    });
   }, [builtInDefinitions, isPresetPanelControlled, savedPresets]);
 
   const updateSelectedPresetIds = React.useCallback(
     async (updater: (previous: CreatePulsePresetId[]) => CreatePulsePresetId[]) => {
+      hasCustomizedSelectedPresetIdsRef.current = true;
       if (isPresetPanelControlled) {
         const saved = await controlledPresetChangeHandler(
           normalizeCreatePulsePanelPresetIds(
@@ -110,14 +125,16 @@ export const useCreatePulseGenerationPresetRuntime = ({
     async (updater: (previous: CreatePulseSavedPreset[]) => CreatePulseSavedPreset[]) => {
       if (isSavedPresetsControlled) {
         const saved = await onSavedPresetsChange(
-          normalizeCreatePulseSavedPresets(updater(savedPresets))
+          normalizeCreatePulseSavedPresets(updater(savedPresets), builtInDefinitions)
         );
         return saved !== false;
       }
-      setInternalSavedPresets((previous) => normalizeCreatePulseSavedPresets(updater(previous)));
+      setInternalSavedPresets((previous) =>
+        normalizeCreatePulseSavedPresets(updater(previous), builtInDefinitions)
+      );
       return true;
     },
-    [isSavedPresetsControlled, onSavedPresetsChange, savedPresets]
+    [builtInDefinitions, isSavedPresetsControlled, onSavedPresetsChange, savedPresets]
   );
 
   const availablePresets = React.useMemo(() => {

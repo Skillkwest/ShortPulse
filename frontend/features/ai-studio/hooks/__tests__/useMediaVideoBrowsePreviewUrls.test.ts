@@ -1,4 +1,5 @@
 import { renderHook, waitFor } from "@testing-library/react";
+import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 import { useMediaVideoBrowsePreviewUrls } from "../useMediaVideoBrowsePreviewUrls";
@@ -107,6 +108,112 @@ describe("useMediaVideoBrowsePreviewUrls", () => {
       expect(result.current.signedPosterUrlById).toEqual({
         "video-1": "https://cdn.example.com/signed/clip-1-poster.jpg",
       })
+    );
+  });
+
+  it("limits panel video signing to visible rows when visible ids are provided", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/videos/video-1/poster_720.jpg",
+          "https://cdn.example.com/signed/clip-1-poster.jpg",
+        ],
+      ])
+    );
+    const visibleMediaIdsRef = {
+      current: new Set<string>(["video-1"]),
+    } as React.MutableRefObject<Set<string>>;
+
+    renderHook(() =>
+      useMediaVideoBrowsePreviewUrls({
+        mediaRows: [
+          makeVideoRow({
+            signedUrl: null,
+            poster_variant_path: "user-1/variants/videos/video-1/poster_720.jpg",
+          }),
+          makeVideoRow({
+            id: "video-2",
+            filename: "clip-2.mp4",
+            storage_path: "user-1/uploads/clip-2.mp4",
+            preview_storage_path: "user-1/uploads/clip-2.mp4",
+            signedUrl: null,
+            poster_variant_path: "user-1/variants/videos/video-2/poster_720.jpg",
+          }),
+        ],
+        currentUserId: "user-1",
+        surface: "media-library-panel",
+        visibleMediaIdsRef,
+      })
+    );
+
+    await waitFor(() =>
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          storagePaths: expect.arrayContaining([
+            "user-1/uploads/clip-1.mp4",
+            "user-1/variants/videos/video-1/poster_720.jpg",
+          ]),
+          surface: "media-library-panel",
+        })
+      )
+    );
+    const panelStoragePaths =
+      getSignedMediaUrlsBatchMock.mock.calls.at(-1)?.[0]?.storagePaths ?? [];
+    expect(panelStoragePaths).not.toContain("user-1/uploads/clip-2.mp4");
+    expect(panelStoragePaths).not.toContain("user-1/variants/videos/video-2/poster_720.jpg");
+  });
+
+  it("keeps modal video signing unchanged when visible ids are provided", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/videos/video-1/poster_720.jpg",
+          "https://cdn.example.com/signed/clip-1-poster.jpg",
+        ],
+        [
+          "user-1/variants/videos/video-2/poster_720.jpg",
+          "https://cdn.example.com/signed/clip-2-poster.jpg",
+        ],
+      ])
+    );
+    const visibleMediaIdsRef = {
+      current: new Set<string>(["video-1"]),
+    } as React.MutableRefObject<Set<string>>;
+
+    renderHook(() =>
+      useMediaVideoBrowsePreviewUrls({
+        mediaRows: [
+          makeVideoRow({
+            signedUrl: null,
+            poster_variant_path: "user-1/variants/videos/video-1/poster_720.jpg",
+          }),
+          makeVideoRow({
+            id: "video-2",
+            filename: "clip-2.mp4",
+            storage_path: "user-1/uploads/clip-2.mp4",
+            preview_storage_path: "user-1/uploads/clip-2.mp4",
+            signedUrl: null,
+            poster_variant_path: "user-1/variants/videos/video-2/poster_720.jpg",
+          }),
+        ],
+        currentUserId: "user-1",
+        surface: "media-library-modal",
+        visibleMediaIdsRef,
+      })
+    );
+
+    await waitFor(() =>
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          storagePaths: expect.arrayContaining([
+            "user-1/uploads/clip-1.mp4",
+            "user-1/variants/videos/video-1/poster_720.jpg",
+            "user-1/uploads/clip-2.mp4",
+            "user-1/variants/videos/video-2/poster_720.jpg",
+          ]),
+          surface: "media-library-modal",
+        })
+      )
     );
   });
 });

@@ -13,6 +13,7 @@ export type OutputLifecycleMap = Record<string, OutputLifecycleState>;
 
 export type StaleOutputCleanupConfig = {
   submitStartTimeoutMs: number;
+  directRequestTimeoutMs: number;
   taskBackedLoadingTimeoutMs: number;
   queueWaitTimeoutMs: number;
   autoFailedRetentionMs: number;
@@ -22,6 +23,7 @@ export type StaleOutputCleanupResult = {
   nextLifecycle: OutputLifecycleMap;
   staleLoadingIds: string[];
   submitStartTimeoutIds: string[];
+  directRequestTimeoutIds: string[];
   taskBackedTimeoutIds: string[];
   queueWaitTimeoutIds: string[];
   removableIds: string[];
@@ -37,6 +39,15 @@ const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
   if (!isGeneratedOutput(output)) return false;
   if (output.previewUrl || output.previewText) return false;
   if (output.taskId) return false;
+  if (output.submissionMode === "direct-request") return false;
+  return output.taskState === "pending" || output.taskState === "running";
+};
+
+const isDirectRequestLoadingWithoutPreview = (output: StudioOutput): boolean => {
+  if (!isGeneratedOutput(output)) return false;
+  if (output.previewUrl || output.previewText) return false;
+  if (output.taskId) return false;
+  if (output.submissionMode !== "direct-request") return false;
   return output.taskState === "pending" || output.taskState === "running";
 };
 
@@ -72,6 +83,7 @@ export const evaluateStaleOutputCleanup = (
   const nextLifecycle: OutputLifecycleMap = {};
   const staleLoadingIds: string[] = [];
   const submitStartTimeoutIds: string[] = [];
+  const directRequestTimeoutIds: string[] = [];
   const taskBackedTimeoutIds: string[] = [];
   const queueWaitTimeoutIds: string[] = [];
   const removableIds: string[] = [];
@@ -81,9 +93,10 @@ export const evaluateStaleOutputCleanup = (
     const nextState: OutputLifecycleState = previous ? { ...previous } : {};
 
     const isPlaceholderLoading = isLoadingWithoutPreview(output);
+    const isDirectRequestLoading = isDirectRequestLoadingWithoutPreview(output);
     const isTaskBackedLoading = isTaskBackedLoadingWithoutPreview(output);
 
-    if (isPlaceholderLoading || isTaskBackedLoading) {
+    if (isPlaceholderLoading || isDirectRequestLoading || isTaskBackedLoading) {
       if (nextState.pendingSinceMs == null) {
         const queuedSinceMs =
           isQueuedOutput(output) && typeof output.queueEnqueuedAtMs === "number"
@@ -99,6 +112,11 @@ export const evaluateStaleOutputCleanup = (
         if (elapsedMs >= config.queueWaitTimeoutMs) {
           staleLoadingIds.push(output.id);
           queueWaitTimeoutIds.push(output.id);
+        }
+      } else if (isDirectRequestLoading) {
+        if (elapsedMs >= config.directRequestTimeoutMs) {
+          staleLoadingIds.push(output.id);
+          directRequestTimeoutIds.push(output.id);
         }
       } else if (isTaskBackedLoading) {
         if (
@@ -136,6 +154,7 @@ export const evaluateStaleOutputCleanup = (
     nextLifecycle,
     staleLoadingIds,
     submitStartTimeoutIds,
+    directRequestTimeoutIds,
     taskBackedTimeoutIds,
     queueWaitTimeoutIds,
     removableIds,

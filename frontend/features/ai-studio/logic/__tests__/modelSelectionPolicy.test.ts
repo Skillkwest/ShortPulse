@@ -3,12 +3,23 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_NANO_BANANA_2_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_2_MODEL_ID,
+  FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_PRO_MODEL_ID,
+  FAL_SEEDREAM_45_EDIT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
+} from "../../../../lib/model-runtime/falModelIds";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import type { GenerationWorkflowLane } from "../../../../lib/model-runtime/modelCatalog";
 import type { ModelOption } from "../../constants";
 import {
@@ -20,25 +31,25 @@ import {
 } from "../modelSelectionPolicy";
 
 const createImageOptions: ModelOption[] = [
-  { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
-  { value: "gpt-image-2", label: "ChatGPT Image 2", mediaType: "image" },
-  { value: "fal-ai/nano-banana-2", label: "Nano Banana 2", mediaType: "image" },
-  { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2 Edit", mediaType: "image" },
-  { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
-  { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro Edit", mediaType: "image" },
+  { value: FAL_FLUX_2_KLEIN_9B_MODEL_ID, label: "FLUX.2 Lite", mediaType: "image" },
+  { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image 2", mediaType: "image" },
+  { value: FAL_NANO_BANANA_2_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
+  { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2 Edit", mediaType: "image" },
+  { value: FAL_NANO_BANANA_PRO_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
+  { value: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID, label: "Nano Banana Pro Edit", mediaType: "image" },
   {
-    value: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+    value: FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
     label: "Seedream 5 Lite",
     mediaType: "image",
   },
   {
-    value: "fal-ai/bytedance/seedream/v5/lite/edit",
+    value: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
     label: "Seedream 5 Lite Edit",
     mediaType: "image",
   },
   { value: CREATE_DEFAULT_MODEL_ID, label: "Seedream 4.5", mediaType: "image" },
   {
-    value: "fal-ai/bytedance/seedream/v4.5/edit",
+    value: FAL_SEEDREAM_45_EDIT_MODEL_ID,
     label: "Seedream 4.5 Edit",
     mediaType: "image",
   },
@@ -82,24 +93,24 @@ const imageVideoLanes: GenerationWorkflowLane[] = ["image-to-video"];
 
 const getModelConfig = (id: string) => {
   if (
-    id === "gpt-image-2" ||
-    id === "fal-ai/flux-2/klein/9b" ||
-    id === "fal-ai/nano-banana-2" ||
-    id === "fal-ai/nano-banana-pro" ||
-    id === "fal-ai/bytedance/seedream/v5/lite/text-to-image" ||
+    id === OPENAI_GPT_IMAGE_2_MODEL_ID ||
+    id === FAL_FLUX_2_KLEIN_9B_MODEL_ID ||
+    id === FAL_NANO_BANANA_2_MODEL_ID ||
+    id === FAL_NANO_BANANA_PRO_MODEL_ID ||
+    id === FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID ||
     id === CREATE_DEFAULT_MODEL_ID
   ) {
     return {
-      provider: id === "gpt-image-2" ? "openai" : "fal",
+      provider: id === OPENAI_GPT_IMAGE_2_MODEL_ID ? "openai" : "fal",
       supportsTextToImage: true,
-      supportsImageToImage: id === "gpt-image-2",
+      supportsImageToImage: id === OPENAI_GPT_IMAGE_2_MODEL_ID,
     };
   }
   if (
-    id === "fal-ai/nano-banana-2/edit" ||
-    id === "fal-ai/nano-banana-pro/edit" ||
-    id === "fal-ai/bytedance/seedream/v5/lite/edit" ||
-    id === "fal-ai/bytedance/seedream/v4.5/edit"
+    id === FAL_NANO_BANANA_2_EDIT_MODEL_ID ||
+    id === FAL_NANO_BANANA_PRO_EDIT_MODEL_ID ||
+    id === FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID ||
+    id === FAL_SEEDREAM_45_EDIT_MODEL_ID
   ) {
     return {
       provider: "fal",
@@ -149,8 +160,8 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(values.has("fal-ai/flux-2/klein/9b")).toBe(true);
-    expect(values.has("fal-ai/bytedance/seedream/v4.5/text-to-image")).toBe(true);
+    expect(values.has(FAL_FLUX_2_KLEIN_9B_MODEL_ID)).toBe(true);
+    expect(values.has(CREATE_DEFAULT_MODEL_ID)).toBe(true);
   });
 
   it("uses create/image filtering in create/text mode instead of returning the full catalog", () => {
@@ -164,9 +175,9 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(values.has("fal-ai/flux-2/klein/9b")).toBe(true);
+    expect(values.has(FAL_FLUX_2_KLEIN_9B_MODEL_ID)).toBe(true);
     expect(values.has(CREATE_DEFAULT_MODEL_ID)).toBe(true);
-    expect(values.has("fal-ai/nano-banana-2/edit")).toBe(false);
+    expect(values.has(FAL_NANO_BANANA_2_EDIT_MODEL_ID)).toBe(false);
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(false);
   });
 
@@ -191,8 +202,8 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(standardEditValues.has("gpt-image-2")).toBe(true);
-    expect(characterModeValues.has("gpt-image-2")).toBe(false);
+    expect(standardEditValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(true);
+    expect(characterModeValues.has(OPENAI_GPT_IMAGE_2_MODEL_ID)).toBe(false);
   });
 
   it("hides FLUX.2 Lite for create/image while character mode is enabled", () => {
@@ -206,10 +217,10 @@ describe("modelSelectionPolicy", () => {
     }).map((option) => option.value);
 
     expect(values).toEqual([
-      "fal-ai/nano-banana-2/edit",
-      "fal-ai/nano-banana-pro/edit",
-      "fal-ai/bytedance/seedream/v5/lite/edit",
-      "fal-ai/bytedance/seedream/v4.5/edit",
+      FAL_NANO_BANANA_2_EDIT_MODEL_ID,
+      FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
+      FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
+      FAL_SEEDREAM_45_EDIT_MODEL_ID,
     ]);
   });
 
@@ -226,12 +237,12 @@ describe("modelSelectionPolicy", () => {
   it("keeps saved character-mode edit models during create startup resolution", () => {
     const model = resolveCreateWorkflowStartupModel({
       mode: "image",
-      savedModelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      savedModelId: FAL_SEEDREAM_45_EDIT_MODEL_ID,
       isCharacterModeEnabled: true,
       getModelConfig,
     });
 
-    expect(model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+    expect(model).toBe(FAL_SEEDREAM_45_EDIT_MODEL_ID);
   });
 
   it("defaults create startup to the character-mode edit default when enabled", () => {
@@ -440,10 +451,10 @@ describe("modelSelectionPolicy", () => {
 
   it("preserves valid edit saved model on startup", () => {
     const model = resolveEditWorkflowStartupModel({
-      savedModelId: "fal-ai/bytedance/seedream/v5/lite/edit",
+      savedModelId: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
       getModelConfig,
     });
 
-    expect(model).toBe("fal-ai/bytedance/seedream/v5/lite/edit");
+    expect(model).toBe(FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID);
   });
 });

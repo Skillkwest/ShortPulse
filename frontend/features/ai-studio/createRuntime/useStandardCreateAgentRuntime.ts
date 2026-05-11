@@ -26,6 +26,7 @@ import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
+import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type {
   AiStudioSessionAgentMessageV1,
   AiStudioSessionAgentV1,
@@ -56,6 +57,7 @@ type UseStandardCreateAgentRuntimeParams = {
   setVideoReferenceText: (value: string) => void;
   findOutputById: (id: string) => StudioOutput | null;
   resolvePanelOutputPreviewUrl: (id: string | null | undefined) => string | null;
+  resolveInternalImageDropSource?: ResolveInternalReferenceDrop;
   aspect: string;
   model: string | null;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
@@ -87,8 +89,14 @@ const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgen
     id: attachment.id,
     kind: attachment.kind,
     referenceId: attachment.referenceId ?? null,
+    mediaId: attachment.mediaId ?? null,
     text: attachment.text ?? null,
+    previewStoragePath: attachment.previewStoragePath ?? null,
+    fullStoragePath: attachment.fullStoragePath ?? null,
+    referenceUrl: attachment.referenceUrl ?? null,
+    referenceRenderUrl: attachment.referenceRenderUrl ?? null,
     imageUrl: attachment.imageUrl ?? null,
+    imageFallbackUrls: attachment.imageFallbackUrls,
     aspect: attachment.aspect ?? null,
     deliveryStatus: attachment.deliveryStatus,
     deliveryError: attachment.deliveryError ?? null,
@@ -123,6 +131,7 @@ export const useStandardCreateAgentRuntime = ({
   setVideoReferenceText,
   findOutputById,
   resolvePanelOutputPreviewUrl,
+  resolveInternalImageDropSource,
   aspect,
   model,
   setOutputs,
@@ -209,6 +218,7 @@ export const useStandardCreateAgentRuntime = ({
     ensureAgentSession,
     findOutputById,
     resolveOutputPreviewUrlById: (id) => resolvePanelOutputPreviewUrl(id),
+    resolveInternalImageDropSource,
   });
 
   const latestAssistantMessage = useMemo(

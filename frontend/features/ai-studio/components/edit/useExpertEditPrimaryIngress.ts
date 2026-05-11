@@ -121,7 +121,8 @@ export function useExpertEditPrimaryIngress({
         ? currentLayers.findIndex((layer) => layer.id === currentFoundationLayerId)
         : -1;
       const foundationLayer = foundationIndex >= 0 ? currentLayers[foundationIndex] : null;
-      const hasAnyPopulatedLayer = currentLayers.some((layer) => layerHasImage(layer));
+      const populatedLayerCount = currentLayers.filter((layer) => layerHasImage(layer)).length;
+      const hasAnyPopulatedLayer = populatedLayerCount > 0;
       if (!hasAnyPopulatedLayer && foundationLayer) {
         const nextLayers = [...currentLayers];
         nextLayers[foundationIndex] = {
@@ -136,6 +137,32 @@ export function useExpertEditPrimaryIngress({
           seedLayerImageDimensions?.(foundationLayer.id, candidateUrl, seededDimensions);
         }
         setSelectedLayerIndex(foundationIndex);
+        setEditingLayerIndex(null);
+        setEditingLayerValue("");
+        return;
+      }
+
+      if (!layerHasImage(targetLayer)) {
+        const nextLayers = [...currentLayers];
+        nextLayers[targetIndex] = {
+          ...targetLayer,
+          imageUrl: candidateUrl,
+          ownsImageUrl: payload.ownsImageUrl,
+          opacity: LAYER_OPACITY_DEFAULT,
+          transform: defaultLayerTransform(),
+        };
+        const normalizedLayers = enforceLayerStackInvariants({
+          layers: nextLayers,
+          foundationLayerId: currentFoundationLayerId,
+        });
+        setLayers(normalizedLayers);
+        if (seededDimensions) {
+          seedLayerImageDimensions?.(targetLayer.id, candidateUrl, seededDimensions);
+        }
+        const normalizedTargetIndex = normalizedLayers.findIndex(
+          (layer) => layer.id === targetLayer.id
+        );
+        setSelectedLayerIndex(normalizedTargetIndex >= 0 ? normalizedTargetIndex : 0);
         setEditingLayerIndex(null);
         setEditingLayerValue("");
         return;

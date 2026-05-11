@@ -58,6 +58,8 @@ type UseAiStudioPageContentRuntimeParams = {
   handleReferenceGridFiles: AiStudioPageContentProps["handleReferenceGridFiles"];
   triggerFilePicker: AiStudioPageContentProps["triggerFilePicker"];
   resolveCharacterDropReference: AiStudioPageContentProps["resolveCharacterDropReference"];
+  pendingCharacterUploadRequest: AiStudioPageContentProps["pendingCharacterUploadRequest"];
+  onCharacterUploadRequestHandled: AiStudioPageContentProps["onCharacterUploadRequestHandled"];
   resolveElementProfileImageDropSource: AiStudioPageContentProps["resolveElementProfileImageDropSource"];
   resolveVoiceChangerInternalReferenceSource: AiStudioPageContentProps["resolveVoiceChangerInternalReferenceSource"];
   onSelectedStylePromptChange: AiStudioPageContentProps["onSelectedStylePromptChange"];
@@ -120,6 +122,8 @@ export const useAiStudioPageContentRuntime = ({
   handleReferenceGridFiles,
   triggerFilePicker,
   resolveCharacterDropReference,
+  pendingCharacterUploadRequest,
+  onCharacterUploadRequestHandled,
   resolveElementProfileImageDropSource,
   resolveVoiceChangerInternalReferenceSource,
   onSelectedStylePromptChange,
@@ -179,6 +183,8 @@ export const useAiStudioPageContentRuntime = ({
       handleReferenceGridFiles,
       triggerFilePicker,
       resolveCharacterDropReference,
+      pendingCharacterUploadRequest,
+      onCharacterUploadRequestHandled,
       resolveElementProfileImageDropSource,
       resolveVoiceChangerInternalReferenceSource,
       onSelectedStylePromptChange,
@@ -237,6 +243,8 @@ export const useAiStudioPageContentRuntime = ({
       handleReferenceGridFiles,
       triggerFilePicker,
       resolveCharacterDropReference,
+      pendingCharacterUploadRequest,
+      onCharacterUploadRequestHandled,
       resolveElementProfileImageDropSource,
       resolveVoiceChangerInternalReferenceSource,
       onSelectedStylePromptChange,

@@ -6,6 +6,7 @@ import {
   EXPLICIT_CONTENT_FAILURE_TITLE,
 } from "../../../../../lib/explicitContentFailure";
 import type { StudioOutput } from "../../../types";
+import { __resetExclusiveSoundPlaybackForTests } from "../../../components/shared/exclusiveSoundPlayback";
 import { ReferenceGridCard } from "../ReferenceGridCard";
 
 const playMock = vi.fn();
@@ -31,6 +32,7 @@ afterAll(() => {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  __resetExclusiveSoundPlaybackForTests();
   playMock.mockClear();
   pauseMock.mockClear();
   loadMock.mockClear();
@@ -357,6 +359,70 @@ describe("ReferenceGridCard", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Pause audio preview" }));
     expect(pauseMock).toHaveBeenCalled();
+  });
+
+  it("pauses the previously active audio preview when another card starts playback", () => {
+    const onRequestAudioPlay = vi.fn();
+    const onAudioPlaybackStopped = vi.fn();
+
+    render(
+      <>
+        <ReferenceGridCard
+          {...createProps({
+            item: createOutput({ id: "audio-1", mode: "audio", taskState: "success" }),
+            audioInstanceKey: "all-refs:audio-1",
+            isAudioPreview: true,
+            cardPreviewUrl: "https://example.com/audio-1.mp3",
+            onRequestAudioPlay,
+            onAudioPlaybackStopped,
+          })}
+        />
+        <ReferenceGridCard
+          {...createProps({
+            item: createOutput({ id: "audio-2", mode: "audio", taskState: "success" }),
+            audioInstanceKey: "all-refs:audio-2",
+            isAudioPreview: true,
+            cardPreviewUrl: "https://example.com/audio-2.mp3",
+            onRequestAudioPlay,
+            onAudioPlaybackStopped,
+          })}
+        />
+      </>
+    );
+
+    const playButtons = screen.getAllByRole("button", { name: "Play audio preview" });
+
+    fireEvent.click(playButtons[0] as HTMLButtonElement);
+    fireEvent.click(playButtons[1] as HTMLButtonElement);
+
+    expect(onRequestAudioPlay).toHaveBeenCalledTimes(2);
+    expect(onRequestAudioPlay).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ instanceKey: "all-refs:audio-1", pause: expect.any(Function) })
+    );
+    expect(onRequestAudioPlay).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ instanceKey: "all-refs:audio-2", pause: expect.any(Function) })
+    );
+  });
+
+  it("does not open details when the audio play control is double-clicked", () => {
+    const onOpenDetails = vi.fn();
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "audio", taskState: "success" }),
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio.mp3",
+          onOpenDetails,
+        })}
+      />
+    );
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Play audio preview" }));
+
+    expect(onOpenDetails).not.toHaveBeenCalled();
   });
 
   it("fills waveform bars as audio playback progresses", () => {

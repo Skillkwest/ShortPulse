@@ -1,10 +1,30 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StandardCreatePropertiesPanel } from "../StandardCreatePropertiesPanel";
 
+const { createCharacterModeControllerState } = vi.hoisted(() => ({
+  createCharacterModeControllerState: {
+    characterStepSubtitle: "Select one of your Character Manager profiles.",
+    isCharacterPickerOpen: false,
+    openCharacterPicker: vi.fn(),
+    closeCharacterPicker: vi.fn(),
+    handleCharacterModeEnabledToggle: vi.fn(),
+    characterSelectDisabled: false,
+    isCharacterSelectionEmpty: true,
+    selectedCharacterName: "No characters available",
+    selectedCharacterDisplayName: "No characters available",
+    selectedCharacterProfileImageUrl: null as string | null,
+    selectedCharacterInitials: null as string | null,
+  },
+}));
+
 vi.mock("next/image", () => ({
-  default: (props: Record<string, unknown>) => <div data-testid="mock-next-image" {...props} />,
+  default: (props: Record<string, unknown>) => {
+    const forwarded = { ...props };
+    delete forwarded.unoptimized;
+    return <div data-testid="mock-next-image" {...forwarded} />;
+  },
 }));
 
 vi.mock("../StandardCreatePanelView", () => ({
@@ -66,19 +86,7 @@ vi.mock("../useCreateCharacterModeController", async () => {
   const actual = await vi.importActual("../useCreateCharacterModeController");
   return {
     ...(actual as object),
-    useCreateCharacterModeController: () => ({
-      characterStepSubtitle: "Select one of your Character Manager profiles.",
-      isCharacterPickerOpen: false,
-      openCharacterPicker: vi.fn(),
-      closeCharacterPicker: vi.fn(),
-      handleCharacterModeEnabledToggle: vi.fn(),
-      characterSelectDisabled: false,
-      isCharacterSelectionEmpty: true,
-      selectedCharacterName: "No characters available",
-      selectedCharacterDisplayName: "No characters available",
-      selectedCharacterProfileImageUrl: null,
-      selectedCharacterInitials: null,
-    }),
+    useCreateCharacterModeController: () => createCharacterModeControllerState,
   };
 });
 
@@ -99,6 +107,21 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     onSavePrompt: vi.fn(),
     characterModeEnabled: false,
   };
+
+  beforeEach(() => {
+    createCharacterModeControllerState.characterStepSubtitle =
+      "Select one of your Character Manager profiles.";
+    createCharacterModeControllerState.isCharacterPickerOpen = false;
+    createCharacterModeControllerState.openCharacterPicker = vi.fn();
+    createCharacterModeControllerState.closeCharacterPicker = vi.fn();
+    createCharacterModeControllerState.handleCharacterModeEnabledToggle = vi.fn();
+    createCharacterModeControllerState.characterSelectDisabled = false;
+    createCharacterModeControllerState.isCharacterSelectionEmpty = true;
+    createCharacterModeControllerState.selectedCharacterName = "No characters available";
+    createCharacterModeControllerState.selectedCharacterDisplayName = "No characters available";
+    createCharacterModeControllerState.selectedCharacterProfileImageUrl = null;
+    createCharacterModeControllerState.selectedCharacterInitials = null;
+  });
 
   it("always renders the standard create panel view", () => {
     render(<StandardCreatePropertiesPanel {...baseProps} expertCreateUiEligible={true} />);
@@ -163,5 +186,45 @@ describe("StandardCreatePropertiesPanel single mode", () => {
     expect(onModelPickerOpen).toHaveBeenCalledTimes(1);
     expect(onModelPickerOpen.mock.calls[0]?.[0]).toBe("create-model");
     expect(onModelPickerOpen.mock.calls[0]?.[2]).toBe("text-image");
+  });
+
+  it("renders the character picker modal with shared controls and preserves selection behavior", async () => {
+    createCharacterModeControllerState.isCharacterPickerOpen = true;
+    const onSelectedCharacterIdChange = vi.fn();
+    const onOpenCharacterLibrary = vi.fn();
+
+    render(
+      <StandardCreatePropertiesPanel
+        {...baseProps}
+        expertCreateUiEligible={true}
+        characterModeEnabled
+        characterOptions={[
+          {
+            id: "char-1",
+            name: "Taylor",
+            profileImageUrl: "https://example.com/taylor.png",
+          },
+        ]}
+        selectedCharacterId="char-1"
+        selectedCharacterLookId=""
+        onSelectedCharacterIdChange={onSelectedCharacterIdChange}
+        onOpenCharacterLibrary={onOpenCharacterLibrary}
+        loadCharacterLookOptions={async () => [{ id: "look-1", label: "Studio", isDefault: true }]}
+      />
+    );
+
+    expect(screen.getByRole("dialog", { name: "Choose character" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open Character Library" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Character Library" }));
+    expect(createCharacterModeControllerState.closeCharacterPicker).toHaveBeenCalledTimes(1);
+    expect(onOpenCharacterLibrary).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => {
+      expect(screen.getByText("Look: Studio")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /taylor/i }));
+    expect(onSelectedCharacterIdChange).toHaveBeenCalledWith("char-1", "look-1");
   });
 });

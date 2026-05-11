@@ -1,7 +1,15 @@
 import { useCallback, useMemo, useRef, useState, type DragEvent } from "react";
 import { randomId } from "../logic/ids";
 import {
+  buildAgentAttachmentImageCandidates,
+  normalizeAttachmentImageUrl,
+} from "../logic/agentAttachmentImage";
+import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
+import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
+import {
   extractDragDropPayload,
+  extractInternalReferenceDragPayload,
+  REFERENCE_TRANSFER_RENDER_URL_TYPE,
   looksLikeImageUrl,
   looksLikeVideoUrl,
   normalizeReferenceTransferUrlCandidate,
@@ -12,13 +20,16 @@ import type { AgentAttachment, AgentAttachmentDeliveryStatus } from "../../../pr
 
 const MAX_AGENT_ATTACHMENTS = 10;
 const MAX_AGENT_IMAGE_ATTACHMENTS = 3;
-const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
-const RENDERABLE_ATTACHMENT_IMAGE_URL_PATTERN = /^(?:data:image\/|blob:|https?:\/\/|\/)/i;
+const VIDEO_ATTACHMENT_REJECTION_MESSAGE = "This is a video. Try adding an image instead.";
+const INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE =
+  "Could not attach that image. Try dragging it again or add it from Media Library.";
 
 const attachmentSignature = (attachment: AgentAttachment) =>
   attachment.referenceId
-    ? `${attachment.kind}:${attachment.referenceId}`
-    : `${attachment.kind}:${attachment.imageUrl ?? attachment.text ?? attachment.id}`;
+    ? `${attachment.kind}:reference:${attachment.referenceId}`
+    : attachment.mediaId
+      ? `${attachment.kind}:media:${attachment.mediaId}`
+      : `${attachment.kind}:${attachment.imageUrl ?? attachment.text ?? attachment.id}`;
 
 const isCurrentDocumentUrl = (value: string) => {
   if (typeof window === "undefined") return false;
@@ -35,24 +46,10 @@ const isCurrentDocumentUrl = (value: string) => {
   }
 };
 
-const normalizeAttachmentImageUrl = (value: string | null) => {
-  if (!value) return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (isCurrentDocumentUrl(trimmed)) return null;
-  return trimmed;
-};
-
 const normalizeDroppedImageCandidate = (value: string | null | undefined) => {
-  const rawValue = typeof value === "string" ? value.trim() : "";
-  if (!rawValue || !RENDERABLE_ATTACHMENT_IMAGE_URL_PATTERN.test(rawValue)) {
-    return null;
-  }
-  const normalizedTransferValue = normalizeReferenceTransferUrlCandidate(rawValue, {
-    unwrapNextImage: false,
-  });
-  const normalized = normalizeAttachmentImageUrl(normalizedTransferValue ?? value ?? null);
+  const normalized = normalizeAttachmentImageUrl(value);
   if (!normalized) return null;
+  if (isCurrentDocumentUrl(normalized)) return null;
   if (!looksLikeImageUrl(normalized) || looksLikeVideoUrl(normalized)) return null;
   return normalized;
 };
@@ -67,11 +64,20 @@ const resolveDroppedImageUrls = (candidates: Array<string | null | undefined>) =
   );
 };
 
+const buildResolvedInternalImageUrls = (candidates: Array<string | null | undefined>) =>
+  buildAgentAttachmentImageCandidates({
+    imageUrl: candidates[0] ?? null,
+    imageFallbackUrls: resolveDroppedImageUrls(candidates.slice(1)),
+    referenceRenderUrl: null,
+    referenceUrl: null,
+  });
+
 type UseAiStudioAgentComposerParams = {
   agentSessionEnabled: boolean;
   ensureAgentSession: () => void;
   findOutputById: (outputId: string) => StudioOutput | null;
   resolveOutputPreviewUrlById: (outputId: string) => string | null;
+  resolveInternalImageDropSource?: ResolveInternalReferenceDrop;
   maxImageAttachmentsPerDrop?: number;
 };
 
@@ -85,6 +91,7 @@ export const useAiStudioAgentComposer = ({
   ensureAgentSession,
   findOutputById,
   resolveOutputPreviewUrlById,
+  resolveInternalImageDropSource,
   maxImageAttachmentsPerDrop = 1,
 }: UseAiStudioAgentComposerParams) => {
   const [agentInput, setAgentInput] = useState("");
@@ -109,6 +116,8 @@ export const useAiStudioAgentComposer = ({
     const types = Array.from(event.dataTransfer.types ?? []);
     return (
       types.includes("Files") ||
+      types.includes(REFERENCE_TRANSFER_RENDER_URL_TYPE) ||
+      types.includes("text/reference-drag-token") ||
       types.includes("text/reference-id") ||
       types.includes("text/reference-url") ||
       types.includes("text/uri-list") ||
@@ -144,9 +153,6 @@ export const useAiStudioAgentComposer = ({
   const insertAttachment = useCallback((nextAttachment: AgentAttachment) => {
     setAgentAttachments((prev) => {
       const signature = attachmentSignature(nextAttachment);
-      if (prev.some((item) => attachmentSignature(item) === signature)) {
-        return prev;
-      }
       const normalizedAttachment: AgentAttachment = {
         ...nextAttachment,
         deliveryStatus:
@@ -154,6 +160,23 @@ export const useAiStudioAgentComposer = ({
         deliveryError:
           nextAttachment.kind === "prompt" ? null : (nextAttachment.deliveryError ?? null),
       };
+      const existingIndex = prev.findIndex((item) => attachmentSignature(item) === signature);
+      if (existingIndex >= 0) {
+        if (nextAttachment.kind !== "image") {
+          return prev;
+        }
+        const existingAttachment = prev[existingIndex];
+        const replacementAttachment: AgentAttachment = {
+          ...existingAttachment,
+          ...normalizedAttachment,
+          id: existingAttachment.id,
+          deliveryStatus: normalizedAttachment.deliveryStatus ?? "pending",
+          deliveryError: normalizedAttachment.deliveryError ?? null,
+        };
+        return prev.map((attachment, index) =>
+          index === existingIndex ? replacementAttachment : attachment
+        );
+      }
       let next = [...prev, normalizedAttachment];
       if (nextAttachment.kind === "image") {
         const imageCount = next.filter((item) => item.kind === "image").length;
@@ -204,12 +227,19 @@ export const useAiStudioAgentComposer = ({
       event.preventDefault();
       agentDropDepthRef.current = 0;
       setIsAgentDropActive(false);
-      const droppedImageFiles = Array.from(event.dataTransfer.files ?? [])
+      const transfer = event.dataTransfer;
+      const droppedFiles = Array.from(transfer.files ?? []);
+      const droppedVideoFiles = droppedFiles.filter((file) => file.type.startsWith("video/"));
+      const droppedImageFiles = droppedFiles
         .filter((file) => file.type.startsWith("image/"))
         .slice(
           0,
           Math.max(1, Math.min(MAX_AGENT_IMAGE_ATTACHMENTS, Math.trunc(maxImageAttachmentsPerDrop)))
         );
+      if (droppedVideoFiles.length > 0) {
+        setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
+        return;
+      }
       if (droppedImageFiles.length > 0) {
         if (!agentSessionEnabled) {
           ensureAgentSession();
@@ -227,65 +257,203 @@ export const useAiStudioAgentComposer = ({
         });
         return;
       }
-      const payload = extractDragDropPayload(event.dataTransfer);
-      const droppedReferenceId = payload.referenceId ?? null;
-      const matchedOutput = droppedReferenceId ? findOutputById(droppedReferenceId) : null;
-      const resolvedPreviewUrl = droppedReferenceId
-        ? resolveOutputPreviewUrlById(droppedReferenceId)
-        : null;
-      const matchedOutputImageUrl = matchedOutput
-        ? resolveReferenceTransferUrl(matchedOutput, "image")
-        : null;
-      const transferReferenceUrl =
-        normalizeReferenceTransferUrlCandidate(event.dataTransfer.getData("text/reference-url")) ??
-        null;
-      const transferRenderUrl =
-        normalizeReferenceTransferUrlCandidate(
-          event.dataTransfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
-          { unwrapNextImage: false }
-        ) ?? null;
-      const normalizedPromptText =
-        payload.promptText?.trim() ||
-        matchedOutput?.prompt?.trim() ||
-        matchedOutput?.previewText?.trim() ||
-        null;
-      const normalizedImageUrls = resolveDroppedImageUrls([
-        payload.imageUrl,
-        transferRenderUrl,
-        transferReferenceUrl,
-        matchedOutputImageUrl,
-        resolvedPreviewUrl,
-      ]);
-      const normalizedImageUrl = normalizedImageUrls[0] ?? null;
+      void (async () => {
+        const payload = extractDragDropPayload(transfer);
+        const internalPayload = extractInternalReferenceDragPayload(transfer);
+        const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);
+        const resolvedInternalImageSource =
+          internalPayload && resolveInternalImageDropSource
+            ? await resolveInternalImageDropSource(internalPayload).catch(() => null)
+            : null;
+        const droppedReferenceId =
+          payload.referenceId ??
+          resolvedInternalImageSource?.outputId ??
+          internalPayload?.outputId ??
+          null;
+        const matchedOutput = droppedReferenceId ? findOutputById(droppedReferenceId) : null;
+        const droppedPromptText = payload.promptText?.trim() || null;
+        const internalPromptText =
+          droppedPromptText ||
+          resolvedInternalImageSource?.promptText?.trim() ||
+          matchedOutput?.prompt?.trim() ||
+          matchedOutput?.previewText?.trim() ||
+          null;
 
-      if (!normalizedImageUrl && !normalizedPromptText) return;
-      if (!agentSessionEnabled) {
-        ensureAgentSession();
-      }
-      setAgentAttachmentError(null);
+        if (internalPayload) {
+          const internalImageUrls = resolvedInternalImageSource
+            ? buildResolvedInternalImageUrls([
+                resolvedInternalImageSource.preparedImageUrl,
+                resolvedInternalImageSource.preview.url,
+              ])
+            : [];
+          const normalizedInternalImageUrl = internalImageUrls[0] ?? null;
+          const hasInternalVideoReference =
+            payload.mediaKind === "video" ||
+            internalPayload.mediaKind === "video" ||
+            matchedOutput?.mode === "video";
 
-      if (normalizedImageUrl) {
-        insertAttachment({
-          id: randomId(),
-          kind: "image",
-          referenceId: droppedReferenceId,
-          imageUrl: normalizedImageUrl,
-          imageFallbackUrls: normalizedImageUrls.slice(1),
-          text: normalizedPromptText,
-          aspect: matchedOutput?.aspect ?? null,
+          if (hasInternalVideoReference) {
+            setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
+            return;
+          }
+
+          if (normalizedInternalImageUrl) {
+            if (!agentSessionEnabled) {
+              ensureAgentSession();
+            }
+            setAgentAttachmentError(null);
+            insertAttachment({
+              id: randomId(),
+              kind: "image",
+              referenceId: droppedReferenceId,
+              mediaId: resolvedInternalImageSource?.mediaId ?? internalPayload.mediaId ?? null,
+              previewStoragePath: resolvedInternalImageSource?.previewStoragePath ?? null,
+              fullStoragePath: resolvedInternalImageSource?.fullStoragePath ?? null,
+              referenceUrl: null,
+              referenceRenderUrl: null,
+              imageUrl: normalizedInternalImageUrl,
+              imageFallbackUrls: internalImageUrls.slice(1),
+              text: internalPromptText,
+              aspect: matchedOutput?.aspect ?? null,
+            });
+            return;
+          }
+
+          if (droppedPromptText) {
+            if (!agentSessionEnabled) {
+              ensureAgentSession();
+            }
+            insertAttachment({
+              id: randomId(),
+              kind: "prompt",
+              referenceId: droppedReferenceId,
+              text: droppedPromptText,
+              aspect: matchedOutput?.aspect ?? null,
+            });
+            setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
+            return;
+          }
+          setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
+          return;
+        }
+
+        const shouldUseWeakPagePreviewFallback =
+          !internalPayload && mediaLibraryPayload?.kind !== "libraryMedia";
+        const resolvedPreviewUrl =
+          droppedReferenceId && shouldUseWeakPagePreviewFallback
+            ? resolveOutputPreviewUrlById(droppedReferenceId)
+            : null;
+        const matchedOutputImageUrl =
+          matchedOutput && shouldUseWeakPagePreviewFallback
+            ? resolveReferenceTransferUrl(matchedOutput, "image")
+            : null;
+        const transferReferenceUrl =
+          normalizeReferenceTransferUrlCandidate(transfer.getData("text/reference-url")) ?? null;
+        const transferRenderUrl =
+          normalizeReferenceTransferUrlCandidate(
+            transfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
+            { unwrapNextImage: false }
+          ) ?? null;
+        const mediaLibraryImagePayload =
+          mediaLibraryPayload?.kind === "libraryMedia" ? mediaLibraryPayload.payload : null;
+        const normalizedPromptText =
+          payload.promptText?.trim() ||
+          mediaLibraryImagePayload?.promptText?.trim() ||
+          matchedOutput?.prompt?.trim() ||
+          matchedOutput?.previewText?.trim() ||
+          null;
+        const normalizedImageUrls = buildAgentAttachmentImageCandidates({
+          imageUrl:
+            mediaLibraryImagePayload?.previewUrl ??
+            transferRenderUrl ??
+            payload.imageUrl ??
+            resolvedPreviewUrl ??
+            mediaLibraryImagePayload?.url ??
+            null,
+          imageFallbackUrls: resolveDroppedImageUrls([
+            transferRenderUrl,
+            payload.imageUrl,
+            mediaLibraryImagePayload?.previewUrl,
+            mediaLibraryImagePayload?.previewPosterUrl,
+            resolvedPreviewUrl,
+            mediaLibraryImagePayload?.url,
+            mediaLibraryImagePayload?.fullUrl,
+          ]),
+          referenceRenderUrl: transferRenderUrl ?? null,
+          referenceUrl: transferReferenceUrl ?? null,
         });
-        return;
-      }
+        const fallbackImageUrls = resolveDroppedImageUrls([
+          transferRenderUrl,
+          mediaLibraryImagePayload?.previewUrl,
+          mediaLibraryImagePayload?.previewPosterUrl,
+          mediaLibraryImagePayload?.url,
+          mediaLibraryImagePayload?.fullUrl,
+          transferReferenceUrl,
+          matchedOutputImageUrl,
+          resolvedPreviewUrl,
+        ]);
+        const orderedImageUrls = Array.from(
+          new Set([...normalizedImageUrls, ...fallbackImageUrls].filter(Boolean))
+        );
+        const normalizedImageUrl = orderedImageUrls[0] ?? null;
+        const hasVideoReference =
+          payload.mediaKind === "video" ||
+          mediaLibraryImagePayload?.fileType === "video" ||
+          matchedOutput?.mode === "video" ||
+          looksLikeVideoUrl(transferReferenceUrl ?? undefined) ||
+          looksLikeVideoUrl(transferRenderUrl ?? undefined) ||
+          looksLikeVideoUrl(payload.imageUrl ?? undefined) ||
+          looksLikeVideoUrl(mediaLibraryImagePayload?.previewUrl ?? undefined) ||
+          looksLikeVideoUrl(mediaLibraryImagePayload?.previewPosterUrl ?? undefined) ||
+          looksLikeVideoUrl(mediaLibraryImagePayload?.url ?? undefined) ||
+          looksLikeVideoUrl(mediaLibraryImagePayload?.fullUrl ?? undefined) ||
+          looksLikeVideoUrl(matchedOutputImageUrl ?? undefined) ||
+          looksLikeVideoUrl(resolvedPreviewUrl ?? undefined);
 
-      if (normalizedPromptText) {
-        insertAttachment({
-          id: randomId(),
-          kind: "prompt",
-          referenceId: droppedReferenceId,
-          text: normalizedPromptText,
-          aspect: matchedOutput?.aspect ?? null,
-        });
-      }
+        if (hasVideoReference) {
+          setAgentAttachmentError(VIDEO_ATTACHMENT_REJECTION_MESSAGE);
+          return;
+        }
+
+        if (!normalizedImageUrl && !normalizedPromptText) return;
+        if (!agentSessionEnabled) {
+          ensureAgentSession();
+        }
+        setAgentAttachmentError(null);
+
+        if (normalizedImageUrl) {
+          insertAttachment({
+            id: randomId(),
+            kind: "image",
+            referenceId: droppedReferenceId,
+            mediaId: resolvedInternalImageSource?.mediaId ?? mediaLibraryImagePayload?.id ?? null,
+            previewStoragePath:
+              resolvedInternalImageSource?.previewStoragePath ??
+              mediaLibraryImagePayload?.previewStoragePath ??
+              matchedOutput?.previewStoragePath ??
+              null,
+            fullStoragePath:
+              mediaLibraryImagePayload?.fullStoragePath ?? matchedOutput?.fullStoragePath ?? null,
+            referenceUrl: transferReferenceUrl ?? null,
+            referenceRenderUrl: transferRenderUrl ?? null,
+            imageUrl: normalizedImageUrl,
+            imageFallbackUrls: orderedImageUrls.slice(1),
+            text: normalizedPromptText,
+            aspect: matchedOutput?.aspect ?? null,
+          });
+          return;
+        }
+
+        if (normalizedPromptText) {
+          insertAttachment({
+            id: randomId(),
+            kind: "prompt",
+            referenceId: droppedReferenceId,
+            text: normalizedPromptText,
+            aspect: matchedOutput?.aspect ?? null,
+          });
+        }
+      })();
     },
     [
       agentSessionEnabled,
@@ -293,6 +461,7 @@ export const useAiStudioAgentComposer = ({
       findOutputById,
       insertAttachment,
       maxImageAttachmentsPerDrop,
+      resolveInternalImageDropSource,
       resolveOutputPreviewUrlById,
     ]
   );

@@ -41,6 +41,7 @@ type Row = {
   created_at: string;
   signedUrl?: string;
   preview_storage_path?: string;
+  metadata?: Record<string, unknown> | null;
 };
 
 type Prompt = {
@@ -60,6 +61,17 @@ const makeRow = (overrides: Partial<Row> = {}): Row => ({
   file_type: "image/png",
   source: "upload",
   created_at: "2026-02-14T00:00:00.000Z",
+  ...overrides,
+});
+
+const makePrompt = (overrides: Partial<Prompt> = {}): Prompt => ({
+  id: "prompt-1",
+  title: "Prompt title",
+  prompt_text: "Prompt body",
+  mode: "reference",
+  source: "user",
+  created_at: "2026-02-14T00:00:00.000Z",
+  updated_at: "2026-02-14T00:00:00.000Z",
   ...overrides,
 });
 
@@ -164,6 +176,82 @@ describe("useMediaTabDataController", () => {
     ]);
   });
 
+  it("keeps visible rows and active cache stable when an update returns equivalent rows", () => {
+    const seededRows = [
+      makeRow({
+        id: "cat",
+        filename: "cat.png",
+        storage_path: "user-1/images/cat.png",
+        metadata: { dimensions: { width: 100, height: 100 } },
+      }),
+    ];
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>(seededRows);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => {
+        const cache = createMediaTabCacheState<Row>();
+        cache.uploaded_images = {
+          ...cache.uploaded_images,
+          rows: seededRows,
+          query: "cat",
+          loaded: true,
+          loadedAtMs: Date.now(),
+        };
+        return cache;
+      });
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("saved_prompts");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      const tabData = useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "cat",
+        activeMediaTab: "uploaded_images",
+        activeTab: "saved_prompts",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-route",
+        currentUserIdRef,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        files,
+        mediaTabCache,
+        tabData,
+      };
+    });
+
+    act(() => {
+      result.current.tabData.updateVisibleRows((prev) =>
+        prev.map((row) => ({
+          ...row,
+          metadata: row.metadata ? { ...row.metadata } : row.metadata,
+        }))
+      );
+    });
+
+    expect(result.current.files).toBe(seededRows);
+    expect(result.current.mediaTabCache.uploaded_images.rows).toBe(seededRows);
+  });
+
   it("marks non-active tab caches stale", () => {
     const { result } = renderHook(() => {
       const [files, setFiles] = useState<Row[]>([]);
@@ -242,6 +330,180 @@ describe("useMediaTabDataController", () => {
     expect(result.current.mediaTabCache.uploaded_images.loadedAtMs).toBeNull();
     expect(result.current.mediaTabCache.uploaded_videos.loadedAtMs).toBeNull();
     expect(result.current.mediaTabCache.ai_generations.loadedAtMs).toBeNull();
+  });
+
+  it("keeps prompt rows stable when a prompt refresh returns identical ordered rows", async () => {
+    const seededPrompts = [makePrompt()];
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "media_prompts") {
+          throw new Error(`Unexpected table: ${table}`);
+        }
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                order: vi.fn(async () => ({ data: seededPrompts, error: null })),
+              }),
+            }),
+          })),
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([]);
+      const [prompts, setPrompts] = useState<Prompt[]>(seededPrompts);
+      const [promptsLoaded, setPromptsLoaded] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => createMediaTabCacheState<Row>());
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("saved_prompts");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: null,
+        activeMediaQuery: "",
+        activeMediaTab: null,
+        activeTab: "saved_prompts",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-modal",
+        currentUserIdRef,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        prompts,
+        promptsLoaded,
+      };
+    });
+
+    await waitFor(() => {
+      expect(result.current.promptsLoaded).toBe(true);
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.prompts).toBe(seededPrompts);
+  });
+
+  it("keeps active media rows stable when a refresh returns identical expanded rows", async () => {
+    const seededRows = [
+      makeRow({
+        id: "row-stable-1",
+        filename: "stable.png",
+        storage_path: "user-1/images/stable.png",
+        source: "upload",
+        metadata: {
+          prompt: "Studio portrait",
+          dimensions: { width: 1024, height: 1024 },
+        },
+        signedUrl: "https://signed.example/stable.png",
+        preview_storage_path: "user-1/images/stable.png",
+      }),
+    ];
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [
+        makeRow({
+          id: "row-stable-1",
+          filename: "stable.png",
+          storage_path: "user-1/images/stable.png",
+          source: "upload",
+          metadata: {
+            prompt: "Studio portrait",
+            dimensions: { width: 1024, height: 1024 },
+          },
+        }),
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+    });
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn(),
+    } as never);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>(seededRows);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [mediaTabCache, setMediaTabCache] = useState(() => {
+        const cache = createMediaTabCacheState<Row>();
+        cache.uploaded_images = {
+          ...cache.uploaded_images,
+          rows: seededRows,
+          query: "",
+          loaded: true,
+          loadedAtMs: Date.now(),
+          pagesLoaded: 1,
+          hasMore: false,
+        };
+        return cache;
+      });
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      const tabData = useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: mediaTabCache.uploaded_images,
+        activeMediaQuery: "",
+        activeMediaTab: "uploaded_images",
+        activeTab: "uploaded_images",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-modal",
+        currentUserIdRef,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        files,
+        mediaTabCache,
+        tabData,
+      };
+    });
+
+    await act(async () => {
+      await result.current.tabData.fetchMediaTabPage("uploaded_images", {
+        query: "",
+        reset: true,
+      });
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.files).toBe(seededRows);
+    expect(result.current.mediaTabCache.uploaded_images.rows).toBe(seededRows);
   });
 
   it("fetches a media page and normalizes preview fields", async () => {

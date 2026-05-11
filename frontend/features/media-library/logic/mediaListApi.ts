@@ -34,6 +34,7 @@ type FetchMediaListPageArgs = {
   projectId?: string | null;
   mediaKind?: MediaListMediaKind | null;
   includeLibraryTotalCount?: boolean;
+  countOnly?: boolean;
   fetcher?: typeof fetchWithAuth;
 };
 
@@ -85,6 +86,7 @@ export const fetchMediaListPage = async <TRow>({
   projectId,
   mediaKind,
   includeLibraryTotalCount,
+  countOnly,
   fetcher = fetchWithAuth,
 }: FetchMediaListPageArgs): Promise<FetchMediaListPageResult<TRow>> => {
   try {
@@ -104,6 +106,7 @@ export const fetchMediaListPage = async <TRow>({
         projectId: typeof projectId === "string" && projectId.trim() ? projectId.trim() : undefined,
         mediaKind: mediaKind ?? undefined,
         includeLibraryTotalCount: includeLibraryTotalCount === true,
+        countOnly: countOnly === true,
       }),
       shortpulseLogScope: "app",
     }).catch(() => null);

@@ -44,6 +44,36 @@ const asRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
+const toErrorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error && error.message.trim().length > 0 ? error.message : fallback;
+
+const wrapProjectWorkspaceSaveStageError = ({
+  stage,
+  error,
+}: {
+  stage: string;
+  error: unknown;
+}): Error =>
+  new Error(
+    `Project workspace save failed during ${stage}: ${toErrorMessage(error, "Unknown error")}`
+  );
+
+const logProjectWorkspaceBestEffortFailure = ({
+  stage,
+  projectId,
+  error,
+}: {
+  stage: string;
+  projectId: string;
+  error: unknown;
+}): void => {
+  console.warn("[project-workspace] best-effort save stage failed; persisting sanitized snapshot", {
+    projectId,
+    stage,
+    error: toErrorMessage(error, "Unknown error"),
+  });
+};
+
 const sanitizeProjectWorkspaceSnapshot = (
   snapshot: Record<string, unknown>
 ): Record<string, unknown> =>
@@ -53,30 +83,6 @@ const sanitizeProjectWorkspaceSnapshot = (
       updatedAt: string;
     }
   ) as unknown as Record<string, unknown>;
-
-const hasSettledOutputPayload = (row: Record<string, unknown>): boolean => {
-  if (
-    Array.isArray(row.resultUrls) &&
-    row.resultUrls.some((value) => typeof value === "string" && value.trim().length > 0)
-  ) {
-    return true;
-  }
-  if (typeof row.previewUrl === "string" && row.previewUrl.trim().length > 0) return true;
-  if (typeof row.previewText === "string" && row.previewText.trim().length > 0) return true;
-  if (typeof row.previewStoragePath === "string" && row.previewStoragePath.trim().length > 0) {
-    return true;
-  }
-  if (typeof row.fullStoragePath === "string" && row.fullStoragePath.trim().length > 0) {
-    return true;
-  }
-  if (
-    Array.isArray(row.savedMediaIds) &&
-    row.savedMediaIds.some((value) => typeof value === "string" && value.trim().length > 0)
-  ) {
-    return true;
-  }
-  return row.status === "saved";
-};
 
 const collectSnapshotAssociationIds = (snapshot: Record<string, unknown>) => {
   const outputsRecord = asRecord(snapshot.outputs);
@@ -170,10 +176,6 @@ const sanitizeProjectWorkspaceOutputs = ({
         if (generationId && !allowedGenerationIds.has(generationId)) {
           return null;
         }
-        if (!generationId && hasSettledOutputPayload(normalizedRow)) {
-          return null;
-        }
-
         const nextRow: Record<string, unknown> = {
           ...normalizedRow,
           ...(generationId ? { generationId } : {}),
@@ -248,7 +250,8 @@ const resolveOwnedIds = async ({
     .in(idColumn, ids);
 
   if (error) {
-    throw new Error(error.message || `Failed to resolve owned ${table} ids`);
+    const tableLabel = table === "media_files" ? "media ids" : "prompt ids";
+    throw new Error(error.message || `Failed to resolve owned ${tableLabel}`);
   }
 
   return Array.isArray(data)
@@ -278,7 +281,7 @@ const resolveOwnedGenerationIds = async ({
     .in("id", generationIds);
 
   if (error) {
-    throw new Error(error.message || "Failed to resolve owned ai_generations ids");
+    throw new Error(error.message || "Failed to resolve owned generation ids");
   }
 
   return Array.isArray(data)
@@ -359,7 +362,7 @@ const backfillProjectAssetAssociationsForSnapshot = async ({
       }
     );
     if (error) {
-      throw new Error(error.message || "Failed to associate project media items");
+      throw new Error(error.message || "Failed to backfill project media associations");
     }
   }
 
@@ -376,15 +379,19 @@ const backfillProjectAssetAssociationsForSnapshot = async ({
       }
     );
     if (error) {
-      throw new Error(error.message || "Failed to associate project prompt items");
+      throw new Error(error.message || "Failed to backfill project prompt associations");
     }
   }
 
-  await backfillProjectGenerationAssociationsForSnapshot({
-    userId,
-    projectId,
-    snapshot,
-  });
+  try {
+    await backfillProjectGenerationAssociationsForSnapshot({
+      userId,
+      projectId,
+      snapshot,
+    });
+  } catch (error) {
+    throw new Error(toErrorMessage(error, "Failed to backfill project generation associations"));
+  }
 };
 
 const canonicalizeProjectWorkspaceSnapshot = async ({
@@ -398,11 +405,21 @@ const canonicalizeProjectWorkspaceSnapshot = async ({
   snapshot: Record<string, unknown>;
   backfillAssociations?: boolean;
 }): Promise<Record<string, unknown>> => {
-  const { ownedMediaFileIds, ownedPromptIds, ownedGenerationIds } =
-    await resolveOwnedSnapshotAssociationIds({
-      userId,
-      snapshot,
+  let ownedMediaFileIds: string[] = [];
+  let ownedPromptIds: string[] = [];
+  let ownedGenerationIds: string[] = [];
+  try {
+    ({ ownedMediaFileIds, ownedPromptIds, ownedGenerationIds } =
+      await resolveOwnedSnapshotAssociationIds({
+        userId,
+        snapshot,
+      }));
+  } catch (error) {
+    throw wrapProjectWorkspaceSaveStageError({
+      stage: "owned id resolution",
+      error,
     });
+  }
   const sanitizedOutputsSnapshot = sanitizeProjectWorkspaceOutputs({
     snapshot,
     ownedMediaFileIds,
@@ -411,18 +428,34 @@ const canonicalizeProjectWorkspaceSnapshot = async ({
   });
 
   if (backfillAssociations) {
-    await backfillProjectAssetAssociationsForSnapshot({
+    try {
+      await backfillProjectAssetAssociationsForSnapshot({
+        userId,
+        projectId,
+        snapshot: sanitizedOutputsSnapshot,
+      });
+    } catch (error) {
+      throw wrapProjectWorkspaceSaveStageError({
+        stage: "project association backfill",
+        error,
+      });
+    }
+  }
+
+  let hydratedSnapshot = sanitizedOutputsSnapshot;
+  try {
+    hydratedSnapshot = await hydrateProjectSnapshotGeneratedOutputs({
       userId,
       projectId,
       snapshot: sanitizedOutputsSnapshot,
     });
+  } catch (error) {
+    logProjectWorkspaceBestEffortFailure({
+      stage: "generated output hydration",
+      projectId,
+      error,
+    });
   }
-
-  const hydratedSnapshot = await hydrateProjectSnapshotGeneratedOutputs({
-    userId,
-    projectId,
-    snapshot: sanitizedOutputsSnapshot,
-  });
   const hydratedGenerationIds = collectSnapshotGenerationIds(hydratedSnapshot);
 
   return sanitizeProjectWorkspaceOutputs({
@@ -568,10 +601,16 @@ export const upsertProjectWorkspaceStateForUser = async ({
     .maybeSingle();
 
   if (error) {
-    throw new Error(error.message || "Failed to save project workspace state");
+    throw wrapProjectWorkspaceSaveStageError({
+      stage: "workspace upsert",
+      error,
+    });
   }
   if (!data) {
-    throw new Error("Failed to save project workspace state");
+    throw wrapProjectWorkspaceSaveStageError({
+      stage: "workspace upsert",
+      error: new Error("No workspace row returned"),
+    });
   }
   const record = toProjectWorkspaceStateRecord(data as ProjectWorkspaceStateRow);
   return {

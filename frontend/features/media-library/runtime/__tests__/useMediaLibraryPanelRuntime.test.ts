@@ -97,6 +97,58 @@ describe("useMediaLibraryPanelRuntime", () => {
     ]);
   });
 
+  it("treats identical panel prompt rows as a runtime no-op", () => {
+    const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "prompts" }));
+
+    act(() => {
+      result.current.setPromptRows([makePromptRow("prompt-1")]);
+    });
+
+    const previousRuntimeState = result.current.runtimeState;
+
+    act(() => {
+      result.current.setPromptRows([
+        {
+          ...makePromptRow("prompt-1"),
+        },
+      ]);
+    });
+
+    expect(result.current.runtimeState).toBe(previousRuntimeState);
+  });
+
+  it("keeps panel mediaRows stable when only prompt rows change", () => {
+    const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "all" }));
+
+    act(() => {
+      result.current.setMediaRows([makeMediaRow("image-1")]);
+    });
+
+    const previousMediaRows = result.current.mediaRows;
+
+    act(() => {
+      result.current.setPromptRows([makePromptRow("prompt-1")]);
+    });
+
+    expect(result.current.mediaRows).toBe(previousMediaRows);
+  });
+
+  it("keeps panel promptRows stable when only media rows change", () => {
+    const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "prompts" }));
+
+    act(() => {
+      result.current.setPromptRows([makePromptRow("prompt-1")]);
+    });
+
+    const previousPromptRows = result.current.promptRows;
+
+    act(() => {
+      result.current.setMediaRows([makeMediaRow("image-1")]);
+    });
+
+    expect(result.current.promptRows).toBe(previousPromptRows);
+  });
+
   it("stores panel scope cache and signed preview state in the shared runtime surface", () => {
     const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "all" }));
 

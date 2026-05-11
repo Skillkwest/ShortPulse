@@ -112,6 +112,34 @@ export type AdminStripeSubscriptionSnapshot = {
   currentPeriodEnd: string | null;
 };
 
+export type AdminPricingObservabilityEventSnapshot = {
+  sourceType: "reservation" | "ledger";
+  rowId: string | null;
+  sourceRef: string | null;
+  requestId: string | null;
+  observedAt: string | null;
+  displayedBilledCredits: number | null;
+  actualBilledCredits: number | null;
+  deltaCredits: number | null;
+  mismatch: boolean | null;
+  pricingDisplaySource: string | null;
+  pricingPolicyReady: boolean | null;
+};
+
+export type AdminPricingObservabilitySnapshot = {
+  rowsScanned: {
+    reservations: number;
+    ledgerEntries: number;
+  };
+  observedRows: {
+    reservations: number;
+    ledgerEntries: number;
+  };
+  mismatchCount: number;
+  lastObservedAt: string | null;
+  latestEvents: AdminPricingObservabilityEventSnapshot[];
+};
+
 export type AdminBillingDiagnosticsResponse = {
   target: {
     userId: string;
@@ -126,6 +154,7 @@ export type AdminBillingDiagnosticsResponse = {
   storageSummary: AdminBillingStorageSummarySnapshot | null;
   stripeCustomer: AdminStripeCustomerSnapshot;
   stripeSubscription: AdminStripeSubscriptionSnapshot;
+  pricingObservability: AdminPricingObservabilitySnapshot;
   findings: AdminHealthFinding[];
 };
 

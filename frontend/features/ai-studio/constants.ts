@@ -3,8 +3,9 @@
  * Centralizes mode/aspect/model lists so components stay lean and consistent.
  */
 import { AspectOption, PromptTemplate, ToolId } from "./types";
-import { getModelAllowedAspects } from "./logic/modelApiContracts";
+import { getRequiredModelAllowedAspects } from "./logic/modelApiContracts";
 import { isSeedance2UiEnabled } from "./logic/seedance2Availability";
+import { FAL_NANO_BANANA_PRO_EDIT_MODEL_ID } from "../../lib/model-runtime/falModelIds";
 import { KIE_KLING_30_MODEL_ID } from "../../lib/model-runtime/providerModelIds";
 import { listPickerModelConfigs, type ModelConfig } from "../../lib/model-runtime/modelRegistry";
 
@@ -75,24 +76,11 @@ export const modelOptions: ModelOption[] = listPickerModelConfigs()
   }));
 
 export const falNanoBananaProAllowedAspects = new Set(
-  getModelAllowedAspects("fal-ai/nano-banana-pro/edit", [
-    "auto",
-    "16:9",
-    "3:2",
-    "4:3",
-    "5:4",
-    "1:1",
-    "4:5",
-    "3:4",
-    "2:3",
-    "9:16",
-  ])
+  getRequiredModelAllowedAspects(FAL_NANO_BANANA_PRO_EDIT_MODEL_ID)
 );
 
 // Kling image-to-video supports a limited aspect list.
-export const klingAllowedAspects = new Set(
-  getModelAllowedAspects(KIE_KLING_30_MODEL_ID, ["16:9", "9:16", "1:1"])
-);
+export const klingAllowedAspects = new Set(getRequiredModelAllowedAspects(KIE_KLING_30_MODEL_ID));
 
 // Map our aspect strings to Fal image_size enum values.
 export const falImageSizeMap: Record<string, string> = {

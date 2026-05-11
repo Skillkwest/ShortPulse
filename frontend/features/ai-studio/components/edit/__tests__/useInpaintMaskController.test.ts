@@ -4,6 +4,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  EXPERT_EDIT_CAMERA_SCALE_MAX,
+  EXPERT_EDIT_CAMERA_SCALE_MIN,
+} from "../../../logic/expertEditCameraContract";
+import {
   applyLassoSelection,
   INPAINT_LASSO_FILL_RULE,
   resolvePointerSampleEvents,
@@ -472,7 +476,7 @@ describe("useInpaintMaskController helpers", () => {
     const centerY = rect.height / 2;
     const maskCenterX = maskWidth / 2;
     const maskCenterY = maskHeight / 2;
-    const zoomLevels = [0.5, 1, 2, 4];
+    const zoomLevels = [EXPERT_EDIT_CAMERA_SCALE_MIN, 1, 1.5, EXPERT_EDIT_CAMERA_SCALE_MAX];
     const panTuples = [
       { x: 0, y: 0 },
       { x: 37, y: -19 },
@@ -525,6 +529,30 @@ describe("useInpaintMaskController helpers", () => {
     expect(point).toEqual({
       x: 0,
       y: 200,
+    });
+  });
+
+  it("maps contained-image interactions against the visible image rect instead of the full stage", () => {
+    const rect = {
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+    } as DOMRect;
+    const point = resolveMaskInteractionPoint({
+      sampleEvent: { clientX: 110, clientY: 70 },
+      interactionRect: rect,
+      mappingRect: new DOMRect(75, 0, 50, 100),
+      maskWidth: 50,
+      maskHeight: 100,
+      sceneScale: 1,
+      viewportOffsetX: 0,
+      viewportOffsetY: 0,
+      clampToBounds: false,
+    });
+    expect(point).toEqual({
+      x: 25,
+      y: 50,
     });
   });
 

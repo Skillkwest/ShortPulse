@@ -1,0 +1,310 @@
+/**
+ * Shared subscription plan card system for public pricing and profile subscription surfaces.
+ */
+
+.subscription-pricing-shell {
+  padding: 28px 22px;
+}
+
+.pricing-plan-grid-screenshot,
+.subscription-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 18px;
+}
+
+.profile-subscription-interval-toggle {
+  margin: 0 0 22px;
+  align-items: flex-start;
+}
+
+.subscription-plan-card {
+  position: relative;
+  display: flex;
+  min-height: 100%;
+  border-radius: 26px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  background: linear-gradient(180deg, rgba(30, 33, 40, 0.96), rgba(25, 28, 35, 0.94));
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+}
+
+.subscription-plan-card.plan-free {
+  border-color: rgba(115, 124, 138, 0.42);
+}
+
+.subscription-plan-card.plan-media {
+  border-color: rgba(78, 160, 158, 0.9);
+}
+
+.subscription-plan-card.plan-studio {
+  border-color: rgba(100, 208, 255, 0.92);
+  box-shadow:
+    0 22px 48px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(100, 208, 255, 0.14),
+    0 0 44px rgba(100, 208, 255, 0.12);
+}
+
+.subscription-plan-card.plan-business {
+  border-color: rgba(255, 203, 102, 0.92);
+}
+
+.subscription-plan-card.is-selected,
+.subscription-plan-card.is-current {
+  transform: translateY(-2px);
+}
+
+.subscription-plan-card.is-selected {
+  box-shadow:
+    0 28px 56px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(82, 201, 255, 0.22);
+}
+
+.subscription-plan-card-frame {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding: 18px 16px 16px;
+}
+
+.subscription-plan-card-head {
+  display: grid;
+  gap: 10px;
+}
+
+.subscription-plan-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.subscription-plan-card-title {
+  margin: 0;
+  color: #f7fbff;
+  font-size: clamp(1.48rem, 1.4vw, 1.82rem);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+  font-weight: 500;
+}
+
+.subscription-plan-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.subscription-plan-card-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.subscription-plan-card-tag.is-featured,
+.subscription-plan-card-tag.is-state {
+  background: rgba(87, 167, 214, 0.16);
+  color: #9edbff;
+  border: 1px solid rgba(87, 167, 214, 0.32);
+}
+
+.subscription-plan-card-tag.is-discount {
+  background: linear-gradient(180deg, #ff5d90, #ef2a72);
+  color: #fffafc;
+  box-shadow: 0 12px 24px rgba(239, 42, 114, 0.22);
+}
+
+.subscription-plan-card-price-block {
+  display: grid;
+  gap: 4px;
+}
+
+.subscription-plan-card-price-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  min-height: 44px;
+  flex-wrap: wrap;
+}
+
+.subscription-plan-card-price {
+  color: #ffffff;
+  font-size: clamp(1.72rem, 1.55vw, 2.35rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+  font-weight: 500;
+}
+
+.subscription-plan-card-price.is-struck {
+  color: rgba(255, 85, 71, 0.92);
+  text-decoration: line-through;
+  text-decoration-thickness: 3px;
+}
+
+.subscription-plan-card-billing-copy {
+  margin: 0;
+  color: rgba(238, 243, 251, 0.82);
+  font-size: 0.84rem;
+  line-height: 1.16;
+  font-weight: 500;
+}
+
+.subscription-plan-card-feature-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.subscription-plan-card-feature-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: rgba(224, 231, 241, 0.74);
+  line-height: 1.24;
+  font-size: 0.84rem;
+  font-weight: 400;
+}
+
+.subscription-plan-card-feature-list li.is-excluded {
+  color: rgba(137, 145, 158, 0.62);
+}
+
+.subscription-plan-card-feature-list li svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.subscription-plan-card.plan-free .subscription-plan-card-feature-list li.is-included svg {
+  color: #49a91f;
+}
+
+.subscription-plan-card.plan-media .subscription-plan-card-feature-list li.is-included svg {
+  color: #49a91f;
+}
+
+.subscription-plan-card.plan-studio .subscription-plan-card-feature-list li.is-included svg {
+  color: #49a91f;
+}
+
+.subscription-plan-card.plan-business .subscription-plan-card-feature-list li.is-included svg {
+  color: #49a91f;
+}
+
+.subscription-plan-card-feature-list li.is-excluded svg {
+  color: rgba(90, 97, 108, 0.82);
+}
+
+.subscription-plan-card-feature-copy {
+  display: grid;
+  gap: 1px;
+}
+
+.subscription-plan-card-feature-annotation {
+  color: #f2cb55;
+  font-size: 0.68rem;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.subscription-plan-card-save-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-height: 30px;
+  padding: 4px 11px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ff5d90, #ef2a72);
+  color: #fffafc;
+  font-size: 0.8rem;
+  font-style: italic;
+  font-weight: 800;
+  box-shadow:
+    inset 0 0 0 6px rgba(8, 32, 80, 0.62),
+    0 12px 22px rgba(10, 23, 58, 0.22);
+}
+
+.subscription-plan-card-save-chip.is-placeholder {
+  visibility: hidden;
+}
+
+.subscription-plan-card-footer-copy {
+  margin: auto 0 0;
+  min-height: 2.9em;
+  color: rgba(240, 244, 250, 0.9);
+  font-size: 0.84rem;
+  line-height: 1.24;
+}
+
+.subscription-plan-card-action {
+  margin-top: auto;
+}
+
+.subscription-plan-card-action .pricing-btn,
+.subscription-plan-card-action .profile-button {
+  width: 100%;
+}
+
+.subscription-plan-card-action .profile-button {
+  justify-content: center;
+}
+
+@media (max-width: 780px) {
+  .subscription-pricing-shell {
+    padding: 22px 16px;
+  }
+
+  .pricing-interval-stack,
+  .profile-subscription-interval-toggle {
+    align-items: stretch;
+  }
+
+  .pricing-interval-toggle {
+    width: 100%;
+    max-width: 320px;
+    justify-content: center;
+    align-self: center;
+  }
+
+  .pricing-interval-option {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 12px;
+  }
+
+  .pricing-interval-support {
+    justify-content: center;
+    flex-wrap: wrap;
+    text-align: center;
+  }
+
+  .pricing-plan-grid-screenshot,
+  .subscription-plan-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .subscription-plan-card-title {
+    font-size: 1.8rem;
+  }
+
+  .subscription-plan-card-price {
+    font-size: 2.35rem;
+  }
+
+  .subscription-plan-card-frame {
+    padding: 18px 16px 16px;
+  }
+}

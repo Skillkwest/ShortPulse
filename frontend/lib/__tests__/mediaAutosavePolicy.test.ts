@@ -77,6 +77,18 @@ describe("mediaAutosavePolicy", () => {
         source: "library",
         mediaAutosaveEnabled: true,
         hasMedia: true,
+        hasDurableLibraryAuthority: true,
+      })
+    ).toEqual({
+      allowed: false,
+      reason: "already_persisted_library",
+    });
+    expect(
+      canAutoSaveOutput({
+        intent: "auto",
+        source: "library",
+        mediaAutosaveEnabled: true,
+        hasMedia: true,
         savedMediaIds: ["media-1"],
       })
     ).toEqual({
@@ -86,6 +98,14 @@ describe("mediaAutosavePolicy", () => {
   });
 
   it("allows auto persistence for eligible generated/upload/clipboard outputs", () => {
+    expect(
+      isAutoSaveEligibleOutput({
+        intent: "auto",
+        source: "library",
+        mediaAutosaveEnabled: true,
+        hasMedia: true,
+      })
+    ).toBe(true);
     expect(
       isAutoSaveEligibleOutput({
         intent: "auto",

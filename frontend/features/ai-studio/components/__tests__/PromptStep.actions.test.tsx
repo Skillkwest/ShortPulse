@@ -426,6 +426,82 @@ describe("PromptStep agent actions", () => {
     }
   });
 
+  it("does not load video reference prompts into the Standard composer input", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+    const onAgentInputChange = vi.fn();
+
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        agentAttachmentDropTarget="input"
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+        onAgentInputChange={onAgentInputChange}
+      />
+    );
+
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    expect(inputShell).toBeTruthy();
+
+    fireEvent.drop(inputShell as Element, {
+      dataTransfer: {
+        types: ["text/plain", "text/reference-url"],
+        getData: (key: string) =>
+          key === "text/plain"
+            ? "Dropped video prompt"
+            : key === "text/reference-url"
+              ? "https://example.com/generated-video.mp4"
+              : "",
+      },
+    });
+
+    expect(onAgentInputChange).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not load video reference prompts into the Pulse composer input", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentAttachmentDragLeave = vi.fn();
+    const onAgentInputChange = vi.fn();
+
+    const { container } = render(
+      <PulsePromptStep
+        stepNumber="1"
+        prompt=""
+        onPromptChange={vi.fn()}
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        chatOnly
+        agentEnabled
+        agentAttachmentDropTarget="input"
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        onAgentAttachmentDragLeave={onAgentAttachmentDragLeave}
+        onAgentInputChange={onAgentInputChange}
+      />
+    );
+
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    expect(inputShell).toBeTruthy();
+
+    fireEvent.drop(inputShell as Element, {
+      dataTransfer: {
+        types: ["text/plain", "text/reference-url"],
+        getData: (key: string) =>
+          key === "text/plain"
+            ? "Dropped video prompt"
+            : key === "text/reference-url"
+              ? "https://example.com/generated-video.mp4"
+              : "",
+      },
+    });
+
+    expect(onAgentInputChange).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDragLeave).not.toHaveBeenCalled();
+    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+  });
+
   it("restores composer focus after the agent response completes", async () => {
     const onAgentSend = vi.fn();
     const requestAnimationFrameSpy = vi

@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createDraftCharacter,
   fetchCharacterManagerList,
+  getCharacterSheetAssignments,
 } from "../characterManagerPersistenceCore";
+import { createEmptyCharacterSheetAssignments } from "../../constants";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 
@@ -176,8 +178,6 @@ describe("characterManagerPersistenceCore", () => {
                   name: "Broken Hero",
                   description: "",
                   status: "draft",
-                  active_character_sheet_id: null,
-                  active_reference_pack_id: null,
                   metadata: {},
                 }),
             }),
@@ -215,5 +215,19 @@ describe("characterManagerPersistenceCore", () => {
       "Unable to create a character sheet right now."
     );
     expect(deletedCharacterIds).toEqual(["char-failed"]);
+  });
+
+  it("reads only canonical character sheet assignment metadata", () => {
+    expect(
+      getCharacterSheetAssignments({
+        character_sheet_assignments: {
+          portrait: "front_full",
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        portrait: "front_full",
+      })
+    );
   });
 });

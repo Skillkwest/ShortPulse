@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioProjectWorkspaceRestoreCandidate } from "../useAiStudioProjectWorkspaceRestoreCandidate";
 
@@ -218,5 +218,99 @@ describe("useAiStudioProjectWorkspaceRestoreCandidate", () => {
     expect(result.current.result).toBe("load_failed");
     expect(result.current.snapshot).toBeNull();
     expect(result.current.error).toBe("Project workspace snapshot is invalid.");
+  });
+
+  it("enters a fresh loading state when retrying the same project", async () => {
+    let resolveRetryRequest: ((value: unknown) => void) | null = null;
+    getProjectWorkspaceSnapshotMock.mockResolvedValueOnce(null).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRetryRequest = resolve;
+        })
+    );
+
+    const { result } = renderHook(() =>
+      useAiStudioProjectWorkspaceRestoreCandidate({
+        projectId: "project-1",
+        enabled: true,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+
+    expect(result.current.result).toBe("no_snapshot");
+
+    act(() => {
+      result.current.retry();
+    });
+
+    expect(result.current.status).toBe("loading");
+    expect(result.current.result).toBe("loading");
+
+    act(() => {
+      resolveRetryRequest?.({
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T18:00:00.000Z",
+          meta: {
+            generatedAt: "2026-04-25T18:00:00.000Z",
+            checksum: "fnv1a32:retry",
+          },
+          workspace: {
+            mode: "image",
+            selectedTool: "create",
+            prompt: "Retry prompt",
+            model: "model-1",
+            aspect: "1:1",
+            expertCreateMode: "standard",
+            activePulsePresetId: null,
+            referenceImageUrl: null,
+            extraImageUrls: [null, null, null],
+            editReferenceText: "",
+            videoReferenceText: "",
+            videoReferenceMode: "standard",
+            videoDurationSeconds: 6,
+            videoResolution: "1080p",
+            imageResolution: "model_default",
+            videoGenerateAudio: false,
+            videoCameraFixed: false,
+            videoAutoFix: false,
+            klingNegativePrompt: "",
+            klingCfgScale: 0.5,
+            klingWorkflowMode: "single",
+            klingShotType: "customize",
+            klingVoiceIds: ["", ""],
+            klingMultiPrompts: [],
+            klingElements: [],
+            motionReferenceVideoUrl: null,
+          },
+          outputs: {
+            active: [],
+            archived: [],
+            activeOutputId: null,
+            curatedReferenceIds: [],
+            removedFromAllRefsIds: [],
+          },
+          agent: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("ready");
+    });
+
+    expect(result.current.result).toBe("found_snapshot");
+    expect(result.current.snapshot?.workspace.prompt).toBe("Retry prompt");
   });
 });

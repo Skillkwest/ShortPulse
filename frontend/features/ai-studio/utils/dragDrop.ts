@@ -91,7 +91,9 @@ const REFERENCE_TRANSFER_MEDIA_ID_TYPE = "text/reference-media-id";
 const REFERENCE_TRANSFER_MEDIA_KIND_TYPE = "text/reference-media-kind";
 const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
-const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
+const REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE = "text/reference-preview-storage-path";
+const REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE = "text/reference-full-storage-path";
+export const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
 const INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY = "internalReferenceDragToken";
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
@@ -528,6 +530,10 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     internalPayload?.referenceUrl,
     { unwrapNextImage: false }
   );
+  const transferRenderUrl = normalizeReferenceTransferUrlCandidate(
+    transfer.getData(REFERENCE_TRANSFER_RENDER_URL_TYPE),
+    { unwrapNextImage: false }
+  );
   const referenceUrl = normalizeReferenceTransferUrlCandidate(
     transfer.getData("text/reference-url")
   );
@@ -535,11 +541,15 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     internalPayload?.referenceId ?? (transfer.getData("text/reference-id") || null);
   const normalizedReferenceUrl =
     referenceUrl && isLikelyImageTransferUrl(referenceUrl) ? referenceUrl : null;
+  const normalizedTransferRenderUrl =
+    transferRenderUrl && isLikelyImageTransferUrl(transferRenderUrl) ? transferRenderUrl : null;
   const normalizedInternalImageUrl = hasAuthoritativeInternalPayload
-    ? ((internalReferenceUrl && isLikelyImageTransferUrl(internalReferenceUrl)
-        ? internalReferenceUrl
+    ? ((internalRenderUrl && isLikelyImageTransferUrl(internalRenderUrl)
+        ? internalRenderUrl
         : null) ??
-      (internalRenderUrl && isLikelyImageTransferUrl(internalRenderUrl) ? internalRenderUrl : null))
+      (internalReferenceUrl && isLikelyImageTransferUrl(internalReferenceUrl)
+        ? internalReferenceUrl
+        : null))
     : null;
   const dimensions = resolveReferenceTransferDimensions(transfer);
 
@@ -575,6 +585,36 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
     };
   }
 
+  if (normalizedTransferRenderUrl) {
+    return {
+      imageUrl: normalizedTransferRenderUrl,
+      promptText: extractPromptText(transfer),
+      referenceId,
+      fromFile: false,
+      mediaKind,
+      ...dimensions,
+    };
+  }
+
+  const imageUrl = normalizeReferenceTransferUrlCandidate(transfer.getData("image/url"));
+  if (imageUrl) {
+    const resolvedImageUrl = resolveDraggedUrl(
+      imageUrl,
+      normalizedReferenceUrl,
+      isLikelyImageTransferUrl
+    );
+    if (resolvedImageUrl) {
+      return {
+        imageUrl: resolvedImageUrl,
+        promptText: extractPromptText(transfer),
+        referenceId,
+        fromFile: false,
+        mediaKind,
+        ...dimensions,
+      };
+    }
+  }
+
   if (normalizedReferenceUrl) {
     return {
       imageUrl: normalizedReferenceUrl,
@@ -606,25 +646,6 @@ export const extractDragDropPayload = (transfer: DataTransfer): DragDropPayload 
           ...dimensions,
         };
       }
-    }
-  }
-
-  const imageUrl = normalizeReferenceTransferUrlCandidate(transfer.getData("image/url"));
-  if (imageUrl) {
-    const resolvedImageUrl = resolveDraggedUrl(
-      imageUrl,
-      normalizedReferenceUrl,
-      isLikelyImageTransferUrl
-    );
-    if (resolvedImageUrl) {
-      return {
-        imageUrl: resolvedImageUrl,
-        promptText: extractPromptText(transfer),
-        referenceId,
-        fromFile: false,
-        mediaKind,
-        ...dimensions,
-      };
     }
   }
 
@@ -870,6 +891,12 @@ export const prepareReferenceDrag = (
     output.mode === "image"
       ? (resolvedImageTransferUrl ?? previewUrl ?? null)
       : (previewUrl ?? resolvedImageTransferUrl ?? null);
+  const resolvedPrimaryImagePreviewUrl =
+    output.mode === "image"
+      ? (exposedRenderedTransferUrl ??
+        resolvedImageTransferUrl ??
+        (allowDirectReferenceUrls ? resolvedReferenceTransferUrl : null))
+      : null;
   const referenceMediaId =
     output.savedMediaIds?.[imageIndex]?.trim() ?? output.savedMediaIds?.[0]?.trim();
   const previewImageNode = dragNode.querySelector(".reference-card-image");
@@ -895,6 +922,8 @@ export const prepareReferenceDrag = (
     imageIndex,
     mediaId: referenceMediaId ?? null,
     mediaKind: resolveOutputPreviewKind(output),
+    previewStoragePath: output.previewStoragePath?.trim() || null,
+    fullStoragePath: output.fullStoragePath?.trim() || null,
     referenceUrl: allowDirectReferenceUrls ? (resolvedReferenceTransferUrl ?? null) : null,
     referenceRenderUrl: exposedRenderedTransferUrl ?? null,
     sourceSurface,
@@ -910,7 +939,9 @@ export const prepareReferenceDrag = (
     transfer.setData("text/uri-list", resolvedReferenceTransferUrl);
     transfer.setData("text/reference-url", resolvedReferenceTransferUrl);
   }
-  if (allowDirectReferenceUrls && resolvedImageTransferUrl) {
+  if (output.mode === "image" && resolvedPrimaryImagePreviewUrl) {
+    transfer.setData("image/url", resolvedPrimaryImagePreviewUrl);
+  } else if (allowDirectReferenceUrls && resolvedImageTransferUrl) {
     transfer.setData("image/url", resolvedImageTransferUrl);
   }
   if (exposedRenderedTransferUrl) {
@@ -931,6 +962,15 @@ export const prepareReferenceDrag = (
   }
   if (referenceMediaId) {
     transfer.setData(REFERENCE_TRANSFER_MEDIA_ID_TYPE, referenceMediaId);
+  }
+  if (output.previewStoragePath?.trim()) {
+    transfer.setData(
+      REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE,
+      output.previewStoragePath.trim()
+    );
+  }
+  if (output.fullStoragePath?.trim()) {
+    transfer.setData(REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE, output.fullStoragePath.trim());
   }
   if (promptText) {
     transfer.setData("text/plain", promptText);

@@ -113,6 +113,7 @@ describe("useAiStudioTaskSubmission", () => {
         mode: "image",
         model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
         prompt: "",
+        currentCostCredits: 11,
         selectedTool: "create",
         imageResolution: "model_default",
         videoDurationSeconds: 6,
@@ -164,6 +165,9 @@ describe("useAiStudioTaskSubmission", () => {
         shortpulseContext: expect.objectContaining({
           project_id: "project-1",
           project_id_present: true,
+          displayed_billed_credits: 11,
+          pricing_display_source: "shared_adapter",
+          pricing_policy_ready: true,
         }),
       })
     );
@@ -331,6 +335,76 @@ describe("useAiStudioTaskSubmission", () => {
     );
     expect(outputs[0]?.generationId).toBe("gen-direct-complete-1");
     expect(outputs[0]?.taskId).toBe("openai-req-1");
+  });
+
+  it("prefers the caller-provided displayed billed credits in shortpulse context", async () => {
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => "gen-direct-complete-override");
+    const setOutputs = vi.fn();
+    const updateOutputById = vi.fn();
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("default");
+    vi.mocked(handleDefaultModelSubmission).mockImplementationOnce(async () => undefined);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "gpt-image-2",
+        prompt: "",
+        currentCostCredits: 11,
+        promptReferenceGenerateCostCredits: 7,
+        selectedTool: "create",
+        imageResolution: "medium",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        projectId: "project-1",
+        setPanelGenerating: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 6,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A polished studio portrait", [], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+        displayedBilledCredits: 2,
+      });
+    });
+
+    expect(handleDefaultModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shortpulseContext: expect.objectContaining({
+          displayed_billed_credits: 2,
+          pricing_display_source: "shared_adapter",
+          pricing_policy_ready: true,
+        }),
+      })
+    );
   });
 
   it("routes Kie Veo to text-video when no frame images are present", async () => {

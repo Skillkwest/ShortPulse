@@ -24,6 +24,7 @@ type AiStudioPageShellProps = {
   shouldGateProjectBootstrap: boolean;
   onCloseProjectsModal: () => void;
   onSelectProjectFromModal: (projectId: string) => void;
+  onCreateProjectFromModal?: (projectId: string) => Promise<void> | void;
 };
 
 /**
@@ -44,6 +45,7 @@ export const AiStudioPageShell = ({
   shouldGateProjectBootstrap,
   onCloseProjectsModal,
   onSelectProjectFromModal,
+  onCreateProjectFromModal,
 }: AiStudioPageShellProps) => {
   if (shouldGateProjectBootstrap) {
     return (
@@ -103,6 +105,7 @@ export const AiStudioPageShell = ({
         currentProjectId={projectId}
         onClose={onCloseProjectsModal}
         onSelectProject={onSelectProjectFromModal}
+        onCreateProject={onCreateProjectFromModal}
       />
     </AiStudioModalActivityProvider>
   );

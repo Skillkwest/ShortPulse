@@ -3,7 +3,7 @@
  * Caches look options and keeps create-mode look selection/labels out of the page orchestrator.
  */
 import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
-import { loadCharacterManagerDraftByCharacterId } from "../../character-manager/logic/characterManagerPersistence";
+import type { CharacterManagerDraftSnapshot } from "../../character-manager/logic/characterManagerPersistence";
 import {
   buildCharacterModeLookOptions,
   type CharacterModeLookOption,
@@ -16,6 +16,7 @@ type UseAiStudioCreateCharacterLookStateParams = {
   createSelectedCharacterLookId: string;
   setCreateSelectedCharacterLookId: Dispatch<SetStateAction<string>>;
   createCharacterModeInjectionBundle: CharacterModeInjectionBundle | null;
+  loadCharacterSnapshot: (characterId: string) => Promise<CharacterManagerDraftSnapshot>;
 };
 
 /**
@@ -27,34 +28,38 @@ export const useAiStudioCreateCharacterLookState = ({
   createSelectedCharacterLookId,
   setCreateSelectedCharacterLookId,
   createCharacterModeInjectionBundle,
+  loadCharacterSnapshot,
 }: UseAiStudioCreateCharacterLookStateParams) => {
   const [createCharacterLookOptionsByCharacterId, setCreateCharacterLookOptionsByCharacterId] =
     useState<Record<string, CharacterModeLookOption[]>>({});
 
-  const loadCreateCharacterLookOptions = useCallback(async (characterId: string) => {
-    const normalizedCharacterId = characterId.trim();
-    if (!normalizedCharacterId) return [];
-    const snapshot = await loadCharacterManagerDraftByCharacterId(normalizedCharacterId);
-    const nextOptions = buildCharacterModeLookOptions(snapshot);
-    setCreateCharacterLookOptionsByCharacterId((current) => {
-      const existingOptions = current[normalizedCharacterId] ?? null;
-      const isUnchanged =
-        existingOptions != null &&
-        existingOptions.length === nextOptions.length &&
-        existingOptions.every(
-          (option, index) =>
-            option.id === nextOptions[index]?.id &&
-            option.label === nextOptions[index]?.label &&
-            option.isDefault === nextOptions[index]?.isDefault
-        );
-      if (isUnchanged) return current;
-      return {
-        ...current,
-        [normalizedCharacterId]: nextOptions,
-      };
-    });
-    return nextOptions;
-  }, []);
+  const loadCreateCharacterLookOptions = useCallback(
+    async (characterId: string) => {
+      const normalizedCharacterId = characterId.trim();
+      if (!normalizedCharacterId) return [];
+      const snapshot = await loadCharacterSnapshot(normalizedCharacterId);
+      const nextOptions = buildCharacterModeLookOptions(snapshot);
+      setCreateCharacterLookOptionsByCharacterId((current) => {
+        const existingOptions = current[normalizedCharacterId] ?? null;
+        const isUnchanged =
+          existingOptions != null &&
+          existingOptions.length === nextOptions.length &&
+          existingOptions.every(
+            (option, index) =>
+              option.id === nextOptions[index]?.id &&
+              option.label === nextOptions[index]?.label &&
+              option.isDefault === nextOptions[index]?.isDefault
+          );
+        if (isUnchanged) return current;
+        return {
+          ...current,
+          [normalizedCharacterId]: nextOptions,
+        };
+      });
+      return nextOptions;
+    },
+    [loadCharacterSnapshot]
+  );
 
   const handleCreateCharacterSelection = useCallback(
     (characterId: string, lookId: string) => {

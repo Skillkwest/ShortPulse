@@ -882,9 +882,8 @@ const useAiStudioShellRuntime = ({
   const handleCloseProjectsModal = useCallback(() => {
     setIsProjectsModalOpen(false);
   }, [setIsProjectsModalOpen]);
-  const handleSelectProjectFromModal = useCallback(
+  const navigateToProjectRoute = useCallback(
     async (nextProjectId: string) => {
-      if (nextProjectId === projectId) return;
       const didNavigate = await router.push({
         pathname: "/ai-studio",
         query: { projectId: nextProjectId },
@@ -893,7 +892,14 @@ const useAiStudioShellRuntime = ({
         throw new Error("Failed to open project.");
       }
     },
-    [projectId, router]
+    [router]
+  );
+  const handleSelectProjectFromModal = useCallback(
+    async (nextProjectId: string) => {
+      if (nextProjectId === projectId) return;
+      await navigateToProjectRoute(nextProjectId);
+    },
+    [navigateToProjectRoute, projectId]
   );
   const handleOpenMediaLibraryPanelOnly = useCallback(() => {
     setShowCreateTools(false);
@@ -933,6 +939,7 @@ const useAiStudioShellRuntime = ({
     handleOpenProjectsModal,
     handleCloseProjectsModal,
     handleSelectProjectFromModal,
+    handleCreateProjectFromModal: navigateToProjectRoute,
     handleOpenMediaLibraryPanelOnly,
     shouldGateProjectBootstrap,
     projectEntryPhase,
@@ -983,6 +990,7 @@ const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeR
     setVideoReferenceText: base.setVideoReferenceText,
     findOutputById: base.findOutputById,
     resolvePanelOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
+    resolveInternalImageDropSource: base.resolveComposerInternalImageDropSource,
     aspect: base.aspect,
     model: base.model,
     setOutputs: base.setOutputs,
@@ -1006,6 +1014,7 @@ const CreateAgentRuntimeHost = ({ base, createPulsePageRuntime }: CreateRuntimeR
     setPulseCreatePrompt: base.setPulseCreatePrompt,
     findOutputById: base.findOutputById,
     resolvePanelOutputPreviewUrl: base.resolvePanelOutputPreviewUrl,
+    resolveInternalImageDropSource: base.resolveComposerInternalImageDropSource,
     setUiNotice: base.setUiNotice,
     trackAgentUiEvent: base.trackUiEvent,
   });
@@ -1087,6 +1096,7 @@ const AiStudioPageRuntimeBody = ({
     optimisticDebitEntries,
     optimisticUncoveredDebitCredits,
     outputs,
+    pendingCharacterUploadRequest,
     pendingHoldCredits,
     project,
     projectError,
@@ -1104,6 +1114,7 @@ const AiStudioPageRuntimeBody = ({
     refreshProject,
     regenerateOutput,
     removeOptimisticGenerationPlaceholder,
+    clearPendingCharacterUploadRequest,
     resolveCharacterAvatarUrlById,
     resolveCharacterDropReference,
     resolveCharacterModeSubmissionOverrides,
@@ -1460,6 +1471,7 @@ const AiStudioPageRuntimeBody = ({
     handleProjectNameCommit,
     handleOpenProjectsModal,
     handleCloseProjectsModal,
+    handleCreateProjectFromModal,
     handleSelectProjectFromModal,
     handleOpenMediaLibraryPanelOnly,
     shouldGateProjectBootstrap,
@@ -1505,18 +1517,21 @@ const AiStudioPageRuntimeBody = ({
       isGenerating: musicIsGenerating,
       onGenerate: handleMusicGenerate,
       pricingPolicy: modelPricingPolicy,
+      pricingPolicyReady: modelPricingPolicyReady,
     },
     propertiesSoundEffects: {
       balanceCredits: effectiveBalanceCredits,
       isGenerating: soundEffectsIsGenerating,
       onGenerate: handleSoundEffectsGenerate,
       pricingPolicy: modelPricingPolicy,
+      pricingPolicyReady: modelPricingPolicyReady,
     },
     propertiesVoices: {
       balanceCredits: effectiveBalanceCredits,
       isGenerating: voicesIsGenerating,
       onGenerate: handleVoicesGenerate,
       pricingPolicy: modelPricingPolicy,
+      pricingPolicyReady: modelPricingPolicyReady,
     },
     refreshCharacterOptions,
     resolveCharacterAvatarUrlById,
@@ -1542,6 +1557,8 @@ const AiStudioPageRuntimeBody = ({
     handleReferenceGridFiles,
     triggerFilePicker,
     resolveCharacterDropReference,
+    pendingCharacterUploadRequest,
+    onCharacterUploadRequestHandled: clearPendingCharacterUploadRequest,
     resolveElementProfileImageDropSource,
     resolveVoiceChangerInternalReferenceSource,
     onSelectedStylePromptChange: setSelectedStylePrompt,
@@ -1564,6 +1581,7 @@ const AiStudioPageRuntimeBody = ({
       retryProjectBootstrap={retryProjectBootstrap}
       onCloseProjectsModal={handleCloseProjectsModal}
       onSelectProjectFromModal={handleSelectProjectFromModal}
+      onCreateProjectFromModal={handleCreateProjectFromModal}
     />
   );
 };

@@ -13,9 +13,14 @@ import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import type { Provider } from "../../logic/stateParsers";
 import type { StudioMode, StudioOutput } from "../../types";
-import type { ImmediateGenerationResult, SubmissionModelConfig, SubmissionPatch } from "./types";
+import type {
+  ImmediateGenerationResult,
+  SubmissionHandlerRoute,
+  SubmissionModelConfig,
+  SubmissionPatch,
+} from "./types";
 
-type DispatchSubmissionByRouteParams = {
+export type DispatchSubmissionByRouteParams = {
   id: string;
   projectId?: string | null;
   finalModel: string;
@@ -62,54 +67,48 @@ type DispatchSubmissionByRouteParams = {
   createSubmitNotStartedError: (detail: string) => Error;
 };
 
-export const dispatchSubmissionByRoute = async ({
-  id,
-  projectId = null,
-  finalModel,
-  cleanedPrompt,
-  effectiveAspect,
-  requestedDurationSeconds,
-  requestedResolution,
-  requestedAudio,
-  preparedImageInputs,
-  modelConfig,
-  generationReplay,
-  characterContext,
-  styleContext,
-  shortpulseContext,
-  falReferencePayload,
-  inpaintOverride,
-  videoReferenceMode,
-  videoReferenceImageUrl,
-  motionReferenceVideoUrl,
-  videoAutoFix,
-  videoCameraFixed,
-  seedance2InputMode,
-  seedance2ReferenceImageUrls,
-  seedance2ReferenceVideoUrls,
-  seedance2ReferenceAudioUrls,
-  seedance2ReturnLastFrame,
-  seedance2WebSearch,
-  klingNegativePrompt,
-  klingCfgScale,
-  klingShotType,
-  klingVoiceIds,
-  klingMultiPrompts,
-  klingElements,
-  notifyGenerationFailure,
-  updateOutputById,
-  startPollingWithGeneration,
-  completeGenerationImmediately,
-  createSubmitNotStartedError,
-}: DispatchSubmissionByRouteParams) => {
-  const route = resolveSubmissionHandlerRoute(finalModel);
-  if (route === "unsupported") {
-    throw createSubmitNotStartedError(
-      `Model '${finalModel}' is not registered for AI Studio generation submission.`
-    );
-  }
+type SubmissionRouteAdapter = (params: DispatchSubmissionByRouteParams) => Promise<void>;
 
-  if (route === "video") {
+const submissionRouteAdapters: Record<
+  Exclude<SubmissionHandlerRoute, "unsupported">,
+  SubmissionRouteAdapter
+> = {
+  video: async ({
+    id,
+    finalModel,
+    cleanedPrompt,
+    effectiveAspect,
+    requestedDurationSeconds,
+    requestedResolution,
+    requestedAudio,
+    preparedImageInputs,
+    modelConfig,
+    notifyGenerationFailure,
+    updateOutputById,
+    generationReplay,
+    characterContext,
+    styleContext,
+    shortpulseContext,
+    startPollingWithGeneration,
+    completeGenerationImmediately,
+    videoReferenceMode,
+    videoReferenceImageUrl,
+    motionReferenceVideoUrl,
+    videoAutoFix,
+    videoCameraFixed,
+    seedance2InputMode,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
+    klingNegativePrompt,
+    klingCfgScale,
+    klingShotType,
+    klingVoiceIds,
+    klingMultiPrompts,
+    klingElements,
+  }) => {
     await handleVideoModelSubmission({
       id,
       finalModel,
@@ -146,10 +145,30 @@ export const dispatchSubmissionByRoute = async ({
       klingMultiPrompts,
       klingElements,
     });
-    return;
-  }
-
-  if (route === "image") {
+  },
+  image: async ({
+    id,
+    projectId = null,
+    finalModel,
+    cleanedPrompt,
+    effectiveAspect,
+    requestedDurationSeconds,
+    requestedResolution,
+    requestedAudio,
+    preparedImageInputs,
+    modelConfig,
+    generationReplay,
+    characterContext,
+    styleContext,
+    shortpulseContext,
+    falReferencePayload,
+    inpaintOverride,
+    notifyGenerationFailure,
+    updateOutputById,
+    startPollingWithGeneration,
+    completeGenerationImmediately,
+    createSubmitNotStartedError,
+  }) => {
     const handled = await handleImageModelSubmission({
       id,
       projectId,
@@ -177,29 +196,144 @@ export const dispatchSubmissionByRoute = async ({
         `Image submission route did not handle model '${finalModel}'.`
       );
     }
-    return;
-  }
-
-  await handleDefaultModelSubmission({
+  },
+  default: async ({
     id,
-    projectId,
+    projectId = null,
     finalModel,
     cleanedPrompt,
-    aspect: effectiveAspect,
+    effectiveAspect,
     requestedDurationSeconds,
     requestedResolution,
     requestedAudio,
     preparedImageInputs,
     modelConfig,
-    notifyGenerationFailure,
-    updateOutputById,
     generationReplay,
     characterContext,
     styleContext,
     shortpulseContext,
-    startPollingWithGeneration,
-    completeGenerationImmediately,
     falReferencePayload,
     inpaintOverride,
+    notifyGenerationFailure,
+    updateOutputById,
+    startPollingWithGeneration,
+    completeGenerationImmediately,
+  }) => {
+    await handleDefaultModelSubmission({
+      id,
+      projectId,
+      finalModel,
+      cleanedPrompt,
+      aspect: effectiveAspect,
+      requestedDurationSeconds,
+      requestedResolution,
+      requestedAudio,
+      preparedImageInputs,
+      modelConfig,
+      notifyGenerationFailure,
+      updateOutputById,
+      generationReplay,
+      characterContext,
+      styleContext,
+      shortpulseContext,
+      startPollingWithGeneration,
+      completeGenerationImmediately,
+      falReferencePayload,
+      inpaintOverride,
+    });
+  },
+};
+
+export const dispatchSubmissionByRoute = async ({
+  id,
+  projectId = null,
+  finalModel,
+  cleanedPrompt,
+  outputMode,
+  effectiveAspect,
+  requestedDurationSeconds,
+  requestedResolution,
+  requestedAudio,
+  preparedImageInputs,
+  modelConfig,
+  generationReplay,
+  characterContext,
+  styleContext,
+  shortpulseContext,
+  falReferencePayload,
+  inpaintOverride,
+  videoReferenceMode,
+  videoReferenceImageUrl,
+  motionReferenceVideoUrl,
+  videoAutoFix,
+  videoCameraFixed,
+  seedance2InputMode,
+  seedance2ReferenceImageUrls,
+  seedance2ReferenceVideoUrls,
+  seedance2ReferenceAudioUrls,
+  seedance2ReturnLastFrame,
+  seedance2WebSearch,
+  klingNegativePrompt,
+  klingCfgScale,
+  klingShotType,
+  klingVoiceIds,
+  klingMultiPrompts,
+  klingElements,
+  notifyGenerationFailure,
+  updateOutputById,
+  startPollingWithGeneration,
+  completeGenerationImmediately,
+  createSubmitNotStartedError,
+}: DispatchSubmissionByRouteParams) => {
+  const route = resolveSubmissionHandlerRoute(finalModel);
+  const routeAdapter =
+    route === "unsupported"
+      ? null
+      : submissionRouteAdapters[route as Exclude<SubmissionHandlerRoute, "unsupported">];
+  if (!routeAdapter) {
+    throw createSubmitNotStartedError(
+      `Model '${finalModel}' is not registered for AI Studio generation submission.`
+    );
+  }
+  await routeAdapter({
+    id,
+    projectId,
+    finalModel,
+    cleanedPrompt,
+    outputMode,
+    effectiveAspect,
+    requestedDurationSeconds,
+    requestedResolution,
+    requestedAudio,
+    preparedImageInputs,
+    modelConfig,
+    generationReplay,
+    characterContext,
+    styleContext,
+    shortpulseContext,
+    falReferencePayload,
+    inpaintOverride,
+    videoReferenceMode,
+    videoReferenceImageUrl,
+    motionReferenceVideoUrl,
+    videoAutoFix,
+    videoCameraFixed,
+    seedance2InputMode,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
+    klingNegativePrompt,
+    klingCfgScale,
+    klingShotType,
+    klingVoiceIds,
+    klingMultiPrompts,
+    klingElements,
+    notifyGenerationFailure,
+    updateOutputById,
+    startPollingWithGeneration,
+    completeGenerationImmediately,
+    createSubmitNotStartedError,
   });
 };

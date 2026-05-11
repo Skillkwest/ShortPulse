@@ -33,6 +33,11 @@
   letter-spacing: 0.02em;
 }
 
+.ai-projects-modal-create-button,
+.ai-projects-modal-empty-action {
+  min-height: 34px;
+}
+
 .ai-projects-modal-scroll {
   display: flex;
   flex-direction: column;

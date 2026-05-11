@@ -179,6 +179,43 @@ describe("resolveInternalReferenceSource", () => {
     expect(ensureOutputPersisted).toHaveBeenCalledWith("out-1", { imageIndex: 1 });
   });
 
+  it("uses payload storage-path identity when output lookup and persistence cannot recover it", async () => {
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload({
+        outputId: "out-storage-fallback",
+        mediaId: "media-storage-fallback",
+        previewStoragePath: "user-1/generated/preview.png",
+        fullStoragePath: "user-1/generated/full.png",
+        referenceRenderUrl:
+          "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75",
+      }),
+      getOutputById: () => null,
+      getOutputSnapshot: () => ({
+        outputOrder: [],
+        archivedOutputOrder: [],
+        outputById: {},
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+    });
+
+    expect(resolved).toEqual(
+      expect.objectContaining({
+        kind: "internal",
+        mediaId: "media-storage-fallback",
+        previewStoragePath: "user-1/generated/preview.png",
+        fullStoragePath: "user-1/generated/full.png",
+      })
+    );
+    expect(resolved?.provenance.resolutionReason).toBe("output_storage_path");
+  });
+
   it("preserves local upload authority through lazy blob fallback instead of preview-url ranking", async () => {
     const output = makeImageOutput({
       mediaSource: "upload",

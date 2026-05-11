@@ -1,11 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceVideoSettingsStep } from "../ReferenceVideoSettingsStep";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 
 const baseProps = {
   isVideoVariant: true,
   isMotionMode: false,
-  modelId: "fal-ai/veo3.1",
+  modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
   modelLabel: "Veo 3.1",
   isModelModalOpen: false,
   modelModalAnchor: null,

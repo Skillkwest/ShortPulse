@@ -22,6 +22,7 @@ const makeOutput = (overrides: Partial<StudioOutput>): StudioOutput => ({
 
 const config = {
   submitStartTimeoutMs: 12_000,
+  directRequestTimeoutMs: 5 * 60 * 1000,
   taskBackedLoadingTimeoutMs: 12 * 60 * 1000,
   queueWaitTimeoutMs: 20 * 60 * 1000,
   autoFailedRetentionMs: 2 * 60 * 1000,
@@ -53,6 +54,36 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.staleLoadingIds).toHaveLength(0);
     expect(result.submitStartTimeoutIds).toHaveLength(0);
     expect(result.queueWaitTimeoutIds).toHaveLength(0);
+  });
+
+  it("does not submit-start timeout direct-request placeholders before the direct-request budget", () => {
+    const outputs = [makeOutput({ id: "out-direct-request", submissionMode: "direct-request" })];
+    const lifecycle: OutputLifecycleMap = {
+      "out-direct-request": { pendingSinceMs: BASE_TIME_MS - config.submitStartTimeoutMs },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toHaveLength(0);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.directRequestTimeoutIds).toHaveLength(0);
+  });
+
+  it("times out direct-request placeholders only after the direct-request budget", () => {
+    const outputs = [
+      makeOutput({ id: "out-direct-request-stale", submissionMode: "direct-request" }),
+    ];
+    const lifecycle: OutputLifecycleMap = {
+      "out-direct-request-stale": {
+        pendingSinceMs: BASE_TIME_MS - config.directRequestTimeoutMs,
+      },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toEqual(["out-direct-request-stale"]);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.directRequestTimeoutIds).toEqual(["out-direct-request-stale"]);
   });
 
   it("flags task-backed outputs only after task-backed timeout", () => {

@@ -1,5 +1,8 @@
 import React from "react";
-import type { ExpertEditStageFlattenLayer } from "../../logic/expertEditStageFlatten";
+import type {
+  ExpertEditStageFlattenLayer,
+  StageFlattenCameraTransformInput,
+} from "../../logic/expertEditStageFlatten";
 import { resolveInpaintPromptReferencePolicy } from "../../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { exportExpertEditStageArtifacts } from "./expertEditStageExport";
@@ -20,10 +23,13 @@ type ExportSelectedLayerMaskBlob = (params: {
   targetWidth: number;
   targetHeight: number;
   mimeType?: "image/png" | "image/jpeg";
+  camera?: StageFlattenCameraTransformInput | null;
 }) => Promise<Blob | null>;
 
 type StageFlattenSnapshot = {
   outputAspectRatio?: number;
+  camera?: StageFlattenCameraTransformInput | null;
+  canReusePrimarySourceUrl?: boolean;
 };
 
 type UseExpertEditInlineGenerateParams = {

@@ -296,6 +296,85 @@ describe("useAiStudioOutputLifecycle", () => {
     }
   });
 
+  it("does not submit-start timeout direct-request placeholders before the direct-request budget", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("out-direct-request", {
+              taskState: "pending",
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              submissionMode: "direct-request",
+              timestamp: "Submitting...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(95_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("pending");
+      expect(reportAppErrorMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "fal_submit_not_started",
+          metadata: expect.objectContaining({
+            output_id: "out-direct-request",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("times out direct-request placeholders after the direct-request budget", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("out-direct-request-timeout", {
+              taskState: "pending",
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              submissionMode: "direct-request",
+              timestamp: "Submitting...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 16_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("fail");
+      expect(result.current.outputs[0]?.timestamp).toBe("Failed to start");
+      expect(result.current.outputs[0]?.errorMessage).toBe(
+        "Generation failed to start. Please retry."
+      );
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "generation.direct_request_timeout",
+          metadata: expect.objectContaining({
+            output_id: "out-direct-request-timeout",
+            failure_reason_code: "DIRECT_REQUEST_TIMEOUT",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not re-report submit-start failure for outputs that already failed", async () => {
     vi.useFakeTimers();
     try {

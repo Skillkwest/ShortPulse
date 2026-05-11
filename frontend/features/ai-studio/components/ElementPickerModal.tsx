@@ -16,8 +16,13 @@ import {
   normalizeAiStudioKlingCharacterToken,
   type AiStudioKlingEntitySourceKind,
 } from "../logic/klingElements";
-import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
-import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import {
+  AiStudioPickerCard,
+  AiStudioPickerFeedback,
+  AiStudioPickerGrid,
+  AiStudioPickerModalFrame,
+  AiStudioPickerSection,
+} from "./picker/AiStudioPickerPrimitives";
 
 export type ElementPickerModalProps = {
   isOpen: boolean;
@@ -93,204 +98,158 @@ export const ElementPickerModal = ({
     [selectedEntities]
   );
 
-  useAiStudioModalActivity("video-element-picker-modal", isOpen);
-  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
-    disabled: !isOpen,
-  });
-
-  if (!isOpen) return null;
-
   return (
-    <AiStudioModalLayer>
-      <>
-        <div className="model-modal-backdrop ai-character-picker-backdrop" {...backdropDismiss} />
-        <div
-          className="model-modal ai-character-picker-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Choose Characters/Elements"
-        >
-          <div className="model-modal-header">
-            <div className="model-modal-title-group">
-              <h3 className="model-modal-title">Choose Characters/Elements</h3>
-              <p className="model-modal-subtitle">
-                Select a saved Character or Element for the Kling 3.0 element slots.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="ghost-btn mini model-modal-close"
-              aria-label="Close Characters/Elements picker"
-              onClick={onClose}
-            >
-              ×
-            </button>
-          </div>
-          <div className="model-modal-scroll">
-            {characters.length > 0 || elements.length > 0 ? (
-              <div className="ai-character-picker-sections">
-                {(
-                  [
-                    {
-                      sectionLabel: "Characters",
-                      options: characters,
-                      titleClassName:
-                        "kling-entity-picker-section-title kling-entity-picker-section-title--characters",
-                      supportsCreateAction: true,
-                      createActionClassName:
-                        "ai-library-create-btn ai-library-create-btn--inline kling-entity-picker-create-btn kling-entity-picker-create-btn--characters",
-                      createActionLabel: "Create New Character",
-                      onCreateAction: onCreateCharacter,
-                    },
-                    {
-                      sectionLabel: "Elements",
-                      options: elements,
-                      titleClassName:
-                        "kling-entity-picker-section-title kling-entity-picker-section-title--elements",
-                      supportsCreateAction: true,
-                      createActionClassName:
-                        "ai-library-create-btn ai-library-create-btn--inline kling-entity-picker-create-btn kling-entity-picker-create-btn--elements",
-                      createActionLabel: "Create New Element",
-                      onCreateAction: onCreateElement,
-                    },
-                  ] as const
-                ).map(
-                  ({
-                    sectionLabel,
-                    options,
-                    titleClassName,
-                    supportsCreateAction,
-                    createActionClassName,
-                    createActionLabel,
-                    onCreateAction,
-                  }) =>
-                    options.length > 0 || (supportsCreateAction && onCreateAction) ? (
-                      <section key={sectionLabel} className="ai-character-picker-section">
-                        <div className="kling-entity-picker-section-header">
-                          <div className={titleClassName}>{sectionLabel}</div>
-                          {supportsCreateAction && onCreateAction ? (
-                            <button
-                              type="button"
-                              className={createActionClassName}
-                              onClick={() => {
-                                onClose();
-                                onCreateAction();
-                              }}
-                            >
-                              <Plus
-                                size={14}
-                                weight="bold"
-                                className="ai-library-create-btn-icon"
-                                aria-hidden
-                              />
-                              <span>{createActionLabel}</span>
-                            </button>
-                          ) : null}
-                        </div>
-                        {options.length > 0 ? (
-                          <div
-                            className="ai-character-picker-grid"
-                            role="list"
-                            aria-label={`${sectionLabel} options`}
-                          >
-                            {options.map((option) => {
-                              const optionSelectionKey = `${option.sourceKind}:${option.sourceId}`;
-                              const isChosen = selectedEntityKeys.has(optionSelectionKey);
-                              const isActive =
-                                isChosen ||
-                                (option.sourceKind === selectedSourceKind &&
-                                  option.sourceId === selectedSourceId);
-                              const token =
-                                option.sourceKind === "character"
-                                  ? normalizeAiStudioKlingCharacterToken(option.name)
-                                  : option.token;
-                              return (
-                                <article
-                                  key={`${option.sourceKind}-${option.sourceId}`}
-                                  role="listitem"
-                                  className={`ai-character-list-card ai-character-picker-card ${
-                                    option.sourceKind === "element"
-                                      ? "ai-character-picker-card--element"
-                                      : "ai-character-picker-card--character"
-                                  } ${isActive ? "is-active" : ""}`}
-                                >
-                                  <button
-                                    type="button"
-                                    className="ai-character-list-select-btn"
-                                    aria-pressed={isActive}
-                                    onClick={() => {
-                                      onSelect({
-                                        sourceKind: option.sourceKind,
-                                        sourceId: option.sourceId,
-                                      });
-                                      onClose();
-                                    }}
-                                  >
-                                    <div className="ai-character-list-main">
-                                      <span className="ai-character-list-avatar" aria-hidden="true">
-                                        {option.profileImageUrl ? (
-                                          <div
-                                            className="ai-character-list-avatar-image"
-                                            style={buildElementProfileImageBackgroundStyle(
-                                              option.profileImageUrl,
-                                              option.profileImageTransform ?? null,
-                                              44
-                                            )}
-                                            aria-hidden="true"
-                                          />
-                                        ) : (
-                                          <span className="ai-character-list-avatar-initials">
-                                            {getEntityInitials(option.name)}
-                                          </span>
-                                        )}
-                                      </span>
-                                      <div className="ai-character-list-copy">
-                                        <p className="metric-label tiny">
-                                          {isActive
-                                            ? "Selected"
-                                            : option.sourceKind === "character"
-                                              ? "Character"
-                                              : "Element"}
-                                        </p>
-                                        <p className="ai-character-list-name">{option.name}</p>
-                                        {token ? (
-                                          <p
-                                            className={`tiny ai-character-list-token ai-character-list-token--${option.sourceKind}`}
-                                          >
-                                            @{token}
-                                          </p>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                  </button>
-                                </article>
-                              );
-                            })}
-                          </div>
-                        ) : null}
-                      </section>
+    <AiStudioPickerModalFrame
+      isOpen={isOpen}
+      activityId="video-element-picker-modal"
+      ariaLabel="Choose Characters/Elements"
+      title="Choose Characters/Elements"
+      subtitle="Select a saved Character or Element for the Kling 3.0 element slots."
+      onClose={onClose}
+    >
+      {characters.length > 0 || elements.length > 0 ? (
+        <div className="ai-character-picker-sections">
+          {(
+            [
+              {
+                sectionLabel: "Characters",
+                options: characters,
+                titleClassName:
+                  "kling-entity-picker-section-title kling-entity-picker-section-title--characters",
+                supportsCreateAction: true,
+                createActionClassName:
+                  "ai-library-create-btn ai-library-create-btn--inline kling-entity-picker-create-btn kling-entity-picker-create-btn--characters",
+                createActionLabel: "Create New Character",
+                onCreateAction: onCreateCharacter,
+              },
+              {
+                sectionLabel: "Elements",
+                options: elements,
+                titleClassName:
+                  "kling-entity-picker-section-title kling-entity-picker-section-title--elements",
+                supportsCreateAction: true,
+                createActionClassName:
+                  "ai-library-create-btn ai-library-create-btn--inline kling-entity-picker-create-btn kling-entity-picker-create-btn--elements",
+                createActionLabel: "Create New Element",
+                onCreateAction: onCreateElement,
+              },
+            ] as const
+          ).map(
+            ({
+              sectionLabel,
+              options,
+              titleClassName,
+              supportsCreateAction,
+              createActionClassName,
+              createActionLabel,
+              onCreateAction,
+            }) =>
+              options.length > 0 || (supportsCreateAction && onCreateAction) ? (
+                <AiStudioPickerSection
+                  key={sectionLabel}
+                  title={<div className={titleClassName}>{sectionLabel}</div>}
+                  headerAction={
+                    supportsCreateAction && onCreateAction ? (
+                      <button
+                        type="button"
+                        className={createActionClassName}
+                        onClick={() => {
+                          onClose();
+                          onCreateAction();
+                        }}
+                      >
+                        <Plus
+                          size={14}
+                          weight="bold"
+                          className="ai-library-create-btn-icon"
+                          aria-hidden
+                        />
+                        <span>{createActionLabel}</span>
+                      </button>
                     ) : null
-                )}
-              </div>
-            ) : isLoading ? (
-              <p className="tiny subdued ai-character-picker-empty">
-                Loading saved Characters and Elements...
-              </p>
-            ) : error ? (
-              <div className="ai-character-picker-empty">
-                <p className="tiny">{error}</p>
-                <button type="button" className="ghost-btn mini" onClick={() => void refreshNow()}>
-                  Retry
-                </button>
-              </div>
-            ) : (
-              <p className="tiny subdued ai-character-picker-empty">
-                No saved Characters or Elements available.
-              </p>
-            )}
-          </div>
+                  }
+                >
+                  {options.length > 0 ? (
+                    <AiStudioPickerGrid ariaLabel={`${sectionLabel} options`}>
+                      {options.map((option) => {
+                        const optionSelectionKey = `${option.sourceKind}:${option.sourceId}`;
+                        const isChosen = selectedEntityKeys.has(optionSelectionKey);
+                        const isActive =
+                          isChosen ||
+                          (option.sourceKind === selectedSourceKind &&
+                            option.sourceId === selectedSourceId);
+                        const token =
+                          option.sourceKind === "character"
+                            ? normalizeAiStudioKlingCharacterToken(option.name)
+                            : option.token;
+                        return (
+                          <AiStudioPickerCard
+                            key={`${option.sourceKind}-${option.sourceId}`}
+                            isActive={isActive}
+                            className={
+                              option.sourceKind === "element"
+                                ? "ai-character-picker-card--element"
+                                : "ai-character-picker-card--character"
+                            }
+                            onSelect={() => {
+                              onSelect({
+                                sourceKind: option.sourceKind,
+                                sourceId: option.sourceId,
+                              });
+                              onClose();
+                            }}
+                            avatar={
+                              option.profileImageUrl ? (
+                                <div
+                                  className="ai-character-list-avatar-image"
+                                  style={buildElementProfileImageBackgroundStyle(
+                                    option.profileImageUrl,
+                                    option.profileImageTransform ?? null,
+                                    44
+                                  )}
+                                  aria-hidden="true"
+                                />
+                              ) : (
+                                <span className="ai-character-list-avatar-initials">
+                                  {getEntityInitials(option.name)}
+                                </span>
+                              )
+                            }
+                            label={
+                              isActive
+                                ? "Selected"
+                                : option.sourceKind === "character"
+                                  ? "Character"
+                                  : "Element"
+                            }
+                            name={option.name}
+                            token={
+                              token ? (
+                                <p
+                                  className={`tiny ai-character-list-token ai-character-list-token--${option.sourceKind}`}
+                                >
+                                  @{token}
+                                </p>
+                              ) : null
+                            }
+                          />
+                        );
+                      })}
+                    </AiStudioPickerGrid>
+                  ) : null}
+                </AiStudioPickerSection>
+              ) : null
+          )}
         </div>
-      </>
-    </AiStudioModalLayer>
+      ) : (
+        <AiStudioPickerFeedback
+          isLoading={isLoading}
+          loadingMessage="Loading saved Characters and Elements..."
+          errorMessage={error}
+          emptyMessage="No saved Characters or Elements available."
+          onRetry={() => void refreshNow()}
+        />
+      )}
+    </AiStudioPickerModalFrame>
   );
 };

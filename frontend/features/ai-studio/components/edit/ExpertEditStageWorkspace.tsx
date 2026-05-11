@@ -37,6 +37,7 @@ type ExpertEditStageWorkspaceProps = {
   onStageContextMenu: React.MouseEventHandler<HTMLDivElement>;
   onStageClick: React.MouseEventHandler<HTMLDivElement>;
   onStageDoubleClick: React.MouseEventHandler<HTMLDivElement>;
+  onInlineStageWheel: React.WheelEventHandler<HTMLDivElement>;
   inlineSceneContent: React.ReactNode;
   inlineTransformOverlay: React.ReactNode;
   inlinePostStageTools: React.ReactNode;
@@ -107,6 +108,7 @@ export function ExpertEditStageWorkspace({
   onStageContextMenu,
   onStageClick,
   onStageDoubleClick,
+  onInlineStageWheel,
   inlineSceneContent,
   inlineTransformOverlay,
   inlinePostStageTools,
@@ -170,6 +172,7 @@ export function ExpertEditStageWorkspace({
             onStageContextMenu={onStageContextMenu}
             onStageClick={onStageClick}
             onStageDoubleClick={onStageDoubleClick}
+            onStageWheel={onInlineStageWheel}
             sceneContent={inlineSceneContent}
             transformOverlay={inlineTransformOverlay}
           />

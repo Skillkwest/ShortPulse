@@ -253,11 +253,76 @@ const createSupabaseAdminMock = (
     return builder;
   };
 
+  const createCountQueryBuilder = () => {
+    const eqFilters: Array<{ column: string; value: string }> = [];
+    const notLikeFilters: Array<{ column: string; pattern: string }> = [];
+
+    const resolveCount = async () => {
+      let filtered = [...rows];
+      for (const filter of eqFilters) {
+        filtered = filtered.filter((row) => matchesEqFilter(row, filter.column, filter.value));
+      }
+      for (const filter of notLikeFilters) {
+        filtered = filtered.filter(
+          (row) =>
+            !matchesIlike(
+              String((row as Record<string, unknown>)[filter.column] ?? ""),
+              filter.pattern
+            )
+        );
+      }
+      return {
+        count: filtered.length,
+        error: null,
+      };
+    };
+
+    type CountQueryResult = {
+      count: number;
+      error: null;
+    };
+
+    type CountQueryBuilder = {
+      eq: (column: string, value: string) => CountQueryBuilder;
+      not: (column: string, operator: string, pattern: string) => CountQueryBuilder;
+      then: (
+        onFulfilled?: ((value: CountQueryResult) => unknown) | null,
+        onRejected?: ((reason: unknown) => unknown) | null
+      ) => Promise<unknown>;
+      catch: (onRejected?: ((reason: unknown) => unknown) | null) => Promise<unknown>;
+      finally: (onFinally?: (() => void) | null) => Promise<CountQueryResult>;
+    };
+
+    const builder: CountQueryBuilder = {
+      eq: vi.fn((column: string, value: string) => {
+        eqFilters.push({ column, value });
+        return builder;
+      }),
+      not: vi.fn((column: string, operator: string, pattern: string) => {
+        if (operator === "like") {
+          notLikeFilters.push({ column, pattern });
+        }
+        return builder;
+      }),
+      then: (onFulfilled, onRejected) =>
+        resolveCount().then(onFulfilled ?? undefined, onRejected ?? undefined),
+      catch: (onRejected) => resolveCount().catch(onRejected ?? undefined),
+      finally: (onFinally) => resolveCount().finally(onFinally ?? undefined),
+    };
+
+    return builder;
+  };
+
   getSupabaseAdminMock.mockReturnValue({
     from: vi.fn((table: string) => {
       if (table === "media_files") {
         return {
-          select: vi.fn((selectClause: string) => createQueryBuilder(selectClause)),
+          select: vi.fn((selectClause: string, options?: { count?: string; head?: boolean }) => {
+            if (options?.count === "exact" && options?.head === true) {
+              return createCountQueryBuilder();
+            }
+            return createQueryBuilder(selectClause);
+          }),
         };
       }
       if (table === "media_folders") {
@@ -451,6 +516,76 @@ describe("POST /api/media/list", () => {
     const payload = res.json.mock.calls[0]?.[0] as { rows: Array<Record<string, unknown>> };
     expect(payload.rows[0]?.metadata).toBeUndefined();
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-profile", "minimal");
+  });
+
+  it("supports count-only requests without row hydration or seeded signing", async () => {
+    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([
+      {
+        id: "media-1",
+        user_id: "user-1",
+        filename: "cat-shot.png",
+        storage_path: "user-1/upload/cat-shot.png",
+        file_type: "image/png",
+        width: 1024,
+        height: 768,
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+      },
+      {
+        id: "media-2",
+        user_id: "user-1",
+        filename: "dog-shot.png",
+        storage_path: "user-1/upload/dog-shot.png",
+        file_type: "image/png",
+        width: 1024,
+        height: 768,
+        file_size: 10,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-19T10:00:00.000Z",
+        updated_at: null,
+      },
+    ]);
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-panel",
+        includeLibraryTotalCount: true,
+        countOnly: true,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-count-only", "true");
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [],
+        hasMore: false,
+        libraryTotalCount: 2,
+      })
+    );
   });
 
   it("returns expanded rows with metadata when requested explicitly", async () => {
@@ -744,6 +879,51 @@ describe("POST /api/media/list", () => {
       return count + (Array.isArray(paths) ? paths.length : 0);
     }, 0);
     expect(signedPathCount).toBe(10);
+  });
+
+  it("does not seed initial signed urls for the panel surface", async () => {
+    const row = {
+      id: "panel-media-1",
+      user_id: "user-1",
+      filename: "panel-target.png",
+      storage_path: "user-1/uploads/images/panel-target.png",
+      file_type: "image/png",
+      file_size: 10,
+      source: "upload",
+      source_ref: null,
+      prompt_id: null,
+      metadata: null,
+      thumb_variant_path: null,
+      poster_variant_path: null,
+      preview_variant_path: null,
+      created_at: "2026-02-20T10:00:00.000Z",
+      updated_at: null,
+    } satisfies MediaRow;
+    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([row]);
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "images",
+        cursor: null,
+        query: "",
+        limit: 36,
+        surface: "media-library-panel",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "0");
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [expect.objectContaining({ id: row.id })],
+        signedById: undefined,
+      })
+    );
   });
 
   it("prefers durable preview variants for initial signed hydration", async () => {

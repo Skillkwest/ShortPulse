@@ -47,7 +47,7 @@ describe("SoundEffectsPropertiesPanel", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
     expect(screen.getByText("0 / 450")).toBeInTheDocument();
-    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
   }, 20000);
 
   it("keeps the composer empty by default", () => {
@@ -62,7 +62,7 @@ describe("SoundEffectsPropertiesPanel", () => {
       "mp3_44100_128"
     );
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
-    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
   });
 
   it("submits manual prompt settings without placeholder cards", () => {
@@ -79,6 +79,17 @@ describe("SoundEffectsPropertiesPanel", () => {
     expect(promptField).toHaveValue("Short vinyl crackle burst with a dusty hi-fi tail.");
     expect(outputFormat).toHaveValue("pcm_48000");
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("fails closed when shared pricing is unavailable", () => {
+    render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} pricingPolicyReady={false} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Sound effect prompt" }), {
+      target: { value: "Layered whoosh with a clean sparkle tail." },
+    });
+
+    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 
   it("starts with the prompt section at its minimum default height", () => {
@@ -194,6 +205,7 @@ describe("SoundEffectsPropertiesPanel", () => {
       loop: false,
       outputFormat: "pcm_48000",
       modelId: "eleven_text_to_sound_v2",
+      displayedBilledCredits: 2,
     });
   });
 

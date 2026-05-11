@@ -51,6 +51,7 @@ import {
   CHARACTER_LIBRARY_SMOOTH_TARGET,
   resolveCharacterLibraryWindow,
 } from "../logic/characterLibraryWindow";
+import type { CharacterPanelUploadRequest } from "../../../lib/characterPanelUploadRequest";
 import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
 import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
@@ -69,6 +70,8 @@ type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
   initialWorkflowTab?: CharacterWorkflowTab;
   externalCreateRequestKey?: number;
+  externalQuickSwapUploadRequest?: CharacterPanelUploadRequest | null;
+  onExternalQuickSwapUploadRequestHandled?: (requestId: number) => void;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
   onActiveTabChange?: (activeTab: CharacterWorkflowTab) => void;
 };
@@ -118,6 +121,8 @@ export function CharacterManagerShell({
   surface = "page",
   initialWorkflowTab,
   externalCreateRequestKey = 0,
+  externalQuickSwapUploadRequest = null,
+  onExternalQuickSwapUploadRequestHandled,
   resolveCharacterDropReference,
   onActiveTabChange,
 }: CharacterManagerShellProps) {
@@ -343,6 +348,7 @@ export function CharacterManagerShell({
   const quickSwapContentId = useId();
   const characterSheetPresetTabsIdBase = `character-sheet-preset-${useId()}`;
   const lastHandledExternalCreateRequestKeyRef = useRef(0);
+  const lastHandledExternalQuickSwapUploadRequestIdRef = useRef(0);
   const characterSheetPresetPanelId = `${characterSheetPresetTabsIdBase}-panel`;
   const activeCharacterSheetPresetTabId = getCharacterSheetPresetTabId(
     characterSheetPresetTabsIdBase,
@@ -518,6 +524,22 @@ export function CharacterManagerShell({
     lastHandledExternalCreateRequestKeyRef.current = externalCreateRequestKey;
     handleCreateNewCharacter();
   }, [externalCreateRequestKey, handleCreateNewCharacter, isEmbeddedSurface]);
+  useEffect(() => {
+    if (!isEmbeddedSurface) return;
+    const activeQuickSwapUploadRequest = externalQuickSwapUploadRequest;
+    if (!activeQuickSwapUploadRequest) return;
+    const requestId = activeQuickSwapUploadRequest?.requestId ?? 0;
+    if (requestId === 0) return;
+    if (lastHandledExternalQuickSwapUploadRequestIdRef.current === requestId) return;
+    lastHandledExternalQuickSwapUploadRequestIdRef.current = requestId;
+    onExternalQuickSwapUploadRequestHandled?.(requestId);
+    void uploadSimpleFiles(activeQuickSwapUploadRequest.files);
+  }, [
+    externalQuickSwapUploadRequest,
+    isEmbeddedSurface,
+    onExternalQuickSwapUploadRequestHandled,
+    uploadSimpleFiles,
+  ]);
   const { handleReferenceDragStart, handleCharacterSheetDragStart, handleReferenceDragEnd } =
     useCharacterManagerDragInteractions({
       pageBusy,

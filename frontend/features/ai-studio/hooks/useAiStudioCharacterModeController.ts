@@ -3,7 +3,10 @@
  * Encapsulates bundle mapping/refresh, submission override resolution, and fallback telemetry.
  */
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import { loadCharacterManagerDraftByCharacterId } from "../../character-manager/logic/characterManagerPersistence";
+import {
+  loadCharacterManagerDraftByCharacterId,
+  type CharacterManagerDraftSnapshot,
+} from "../../character-manager/logic/characterManagerPersistence";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import {
@@ -111,6 +114,10 @@ type UseAiStudioCharacterModeControllerParams = {
     SetStateAction<CharacterModeInjectionBundle | null>
   >;
   setIsEditCharacterBundleLoading?: Dispatch<SetStateAction<boolean>>;
+  loadCharacterSnapshot?: (
+    characterId: string,
+    options?: { forceRefresh?: boolean }
+  ) => Promise<CharacterManagerDraftSnapshot>;
   trackCharacterModeEvent: (message: string, data?: Record<string, unknown>) => void;
   bundleStaleAfterMs: number;
 };
@@ -133,6 +140,7 @@ export const useAiStudioCharacterModeController = ({
   setIsCharacterBundleLoading,
   setEditCharacterModeInjectionBundle,
   setIsEditCharacterBundleLoading,
+  loadCharacterSnapshot = loadCharacterManagerDraftByCharacterId,
   trackCharacterModeEvent,
   bundleStaleAfterMs,
 }: UseAiStudioCharacterModeControllerParams) => {
@@ -315,7 +323,7 @@ export const useAiStudioCharacterModeController = ({
       });
       try {
         const baseBundle = toCharacterModeInjectionBundle(
-          await loadCharacterManagerDraftByCharacterId(selectedId),
+          await loadCharacterSnapshot(selectedId, { forceRefresh: true }),
           scope === "create" ? selectedLookId : null
         );
         if (!baseBundle || baseBundle.characterId !== selectedId) {
@@ -350,6 +358,7 @@ export const useAiStudioCharacterModeController = ({
     },
     [
       bundleStaleAfterMs,
+      loadCharacterSnapshot,
       refreshBundleReferenceUrlsForSubmission,
       resolveCharacterScopeState,
       toCharacterModeInjectionBundle,

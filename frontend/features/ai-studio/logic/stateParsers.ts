@@ -3,9 +3,13 @@
  * Separated from hooks to keep business logic small and testable.
  */
 import { klingAllowedAspects, modelOptions } from "../constants";
-import { resolveEffectiveAspectForModel } from "./modelApiContracts";
+import { getRequiredModelDefaultAspect, resolveEffectiveAspectForModel } from "./modelApiContracts";
 import type { ModelMediaType, ModelOption } from "../constants";
 import type { StudioMode, StudioOutput } from "../types";
+import {
+  FAL_NANO_BANANA_2_MODEL_ID,
+  FAL_NANO_BANANA_PRO_MODEL_ID,
+} from "../../../lib/model-runtime/falModelIds";
 import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
   getModelConfig,
@@ -38,6 +42,11 @@ export type Provider =
   | "kie-seedance"
   | "kie-seedance-2"
   | "kie-seedance-2-fast";
+
+export type TaskPollingTarget = {
+  provider: Provider;
+  modelId: string;
+};
 
 const activePollingProviders = new Set<Provider>([
   "fal-flux2-klein",
@@ -171,18 +180,45 @@ export const resolveTaskPollingModelId = ({
   return resolveQueuedPollingModelId(modelId) ?? resolveQueuedPollingModelId(provider);
 };
 
+export const resolveTaskPollingTarget = ({
+  provider,
+  modelId,
+}: {
+  provider?: string | null;
+  modelId?: string | null;
+}): TaskPollingTarget | null => {
+  const resolvedProvider = resolveTaskPollingProvider({ provider, modelId });
+  const resolvedModelId = resolveTaskPollingModelId({ provider, modelId });
+  if (!resolvedProvider || !resolvedModelId) return null;
+  return {
+    provider: resolvedProvider,
+    modelId: resolvedModelId,
+  };
+};
+
 export const resolveModelLabel = (value?: string) =>
   value
     ? (modelOptions.find((opt) => opt.value === value)?.label ?? `Custom (${value})`)
     : "Choose Model";
 
 export const normalizeAspectForFalNanoBanana2 = (value: string) =>
-  resolveEffectiveAspectForModel("fal-ai/nano-banana-2", value, "auto");
+  resolveEffectiveAspectForModel(
+    FAL_NANO_BANANA_2_MODEL_ID,
+    value,
+    getRequiredModelDefaultAspect(FAL_NANO_BANANA_2_MODEL_ID)
+  );
 export const normalizeAspectForFalNanoBananaPro = (value: string) =>
-  resolveEffectiveAspectForModel("fal-ai/nano-banana-pro", value, "4:5");
+  resolveEffectiveAspectForModel(
+    FAL_NANO_BANANA_PRO_MODEL_ID,
+    value,
+    getRequiredModelDefaultAspect(FAL_NANO_BANANA_PRO_MODEL_ID)
+  );
 export const resolveKlingAspectRatio = (value: string): "16:9" | "9:16" | "1:1" => {
-  const resolved = resolveEffectiveAspectForModel(KIE_KLING_30_MODEL_ID, value, "16:9");
-  return klingAllowedAspects.has(resolved) ? (resolved as "16:9" | "9:16" | "1:1") : "16:9";
+  const defaultAspect = getRequiredModelDefaultAspect(KIE_KLING_30_MODEL_ID);
+  const resolved = resolveEffectiveAspectForModel(KIE_KLING_30_MODEL_ID, value, defaultAspect);
+  return klingAllowedAspects.has(resolved)
+    ? (resolved as "16:9" | "9:16" | "1:1")
+    : (defaultAspect as "16:9" | "9:16" | "1:1");
 };
 export const resolveKlingDuration = (seconds: number): 5 | 10 => (seconds <= 5 ? 5 : 10);
 export const resolveKlingV3Duration = (seconds: number): number => {

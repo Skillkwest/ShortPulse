@@ -1,7 +1,6 @@
 import React from "react";
 
 import type { TransformHistoryEntry } from "./expertEditLayerTransformUtils";
-import type { StageViewportSize } from "./expertEditViewportUtils";
 import {
   clearWindowTimeoutRef,
   resolveInpaintCollapseToggleDecision,
@@ -9,7 +8,6 @@ import {
 } from "./expertEditInteractionUtils";
 import { useExpertEditStageCleanup } from "./useExpertEditStageCleanup";
 import { useExpertEditStageKeyboardBindings } from "./useExpertEditStageKeyboardBindings";
-import { useExpertEditStageWheelBindings } from "./useExpertEditStageWheelBindings";
 
 type UseExpertEditStageLifecycleArgs = {
   isMoveToolSelected: boolean;
@@ -23,14 +21,6 @@ type UseExpertEditStageLifecycleArgs = {
   canRedoGeneralAction: boolean;
   handleUndoGeneralAction: () => void;
   handleRedoGeneralAction: () => void;
-  inlineStageWrapperRef: React.RefObject<HTMLDivElement | null>;
-  handleNativeStageViewportWheel: (
-    event: WheelEvent,
-    scope: "inline" | "modal",
-    currentTarget: HTMLDivElement
-  ) => void;
-  markupModalStageRef: React.RefObject<HTMLDivElement | null>;
-  markupModalStageSize: StageViewportSize | null;
   shouldShowInpaintBrushReticle: boolean;
   unlockGlobalCursor: () => void;
   queuePendingHistoryApplyEntry: (entry: TransformHistoryEntry | null) => void;
@@ -59,10 +49,6 @@ export function useExpertEditStageLifecycle({
   canRedoGeneralAction,
   handleUndoGeneralAction,
   handleRedoGeneralAction,
-  inlineStageWrapperRef,
-  handleNativeStageViewportWheel,
-  markupModalStageRef,
-  markupModalStageSize,
   shouldShowInpaintBrushReticle,
   unlockGlobalCursor,
   queuePendingHistoryApplyEntry,
@@ -86,15 +72,6 @@ export function useExpertEditStageLifecycle({
     canRedoGeneralAction,
     handleUndoGeneralAction,
     handleRedoGeneralAction,
-  });
-
-  useExpertEditStageWheelBindings({
-    isMarkupExpandSelected,
-    isMorePresetsSurfaceOpen,
-    inlineStageWrapperRef,
-    handleNativeStageViewportWheel,
-    markupModalStageRef,
-    markupModalStageSize,
   });
 
   useExpertEditStageCleanup({

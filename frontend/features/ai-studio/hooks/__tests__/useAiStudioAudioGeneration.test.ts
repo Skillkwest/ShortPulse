@@ -103,6 +103,11 @@ describe("useAiStudioAudioGeneration", () => {
       });
     });
 
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        submissionModeOverride: "direct-request",
+      })
+    );
     expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/elevenlabs/music", {
       method: "POST",
       headers: {
@@ -117,6 +122,13 @@ describe("useAiStudioAudioGeneration", () => {
         energyPercent: 58,
         outputFormat: "mp3_44100_128",
         modelId: hardcodedMusicModelId,
+        shortpulse_context: {
+          mode: "audio",
+          selected_tool: "music",
+          pricing_display_source: "shared_adapter",
+          pricing_policy_ready: true,
+          displayed_billed_credits: null,
+        },
         project_id: "project-1",
       }),
       shortpulseLogScope: "generation",
@@ -181,6 +193,11 @@ describe("useAiStudioAudioGeneration", () => {
       });
     });
 
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        submissionModeOverride: "direct-request",
+      })
+    );
     expect(uiError).toBe("Provider unavailable");
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-sfx",
@@ -305,6 +322,11 @@ describe("useAiStudioAudioGeneration", () => {
       });
     });
 
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        submissionModeOverride: "direct-request",
+      })
+    );
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/elevenlabs/speech-to-speech",
       expect.objectContaining({

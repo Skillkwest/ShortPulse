@@ -4,11 +4,24 @@ import { describe, expect, it, vi } from "vitest";
 import { ModelModal } from "../ModelModal";
 import type { ModelOption } from "../../constants";
 import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_NANO_BANANA_2_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_2_MODEL_ID,
+  FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_PRO_MODEL_ID,
+  FAL_SEEDREAM_45_EDIT_MODEL_ID,
+  FAL_SEEDREAM_45_TEXT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
+} from "../../../../lib/model-runtime/falModelIds";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
@@ -20,10 +33,10 @@ vi.mock("next/image", () => ({
 }));
 
 const baseOptions: ModelOption[] = [
-  { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
-  { value: "fal-ai/nano-banana-2", label: "Nano Banana 2", mediaType: "image" },
+  { value: FAL_FLUX_2_KLEIN_9B_MODEL_ID, label: "FLUX.2 Lite", mediaType: "image" },
+  { value: FAL_NANO_BANANA_2_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
   {
-    value: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+    value: FAL_SEEDREAM_45_TEXT_MODEL_ID,
     label: "Seedream 4.5",
     mediaType: "image",
   },
@@ -227,18 +240,75 @@ describe("ModelModal", () => {
     expect(screen.getByRole("button", { name: /Seedance 2\.0/i })).toBeInTheDocument();
   });
 
+  it("keeps the full text-video ordering contract including Seedance 2 Fast", () => {
+    const options: ModelOption[] = [
+      {
+        value: KIE_SEEDANCE_2_FAST_MODEL_ID,
+        label: "Seedance 2.0 Fast (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: KIE_SEEDANCE_15_PRO_MODEL_ID,
+        label: "Seedance 1.5 Pro (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: KIE_KLING_30_MODEL_ID,
+        label: "Kling 3.0 (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: KIE_SEEDANCE_2_MODEL_ID,
+        label: "Seedance 2.0 (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        label: "Veo 3.1 Fast I2V (Kie)",
+        mediaType: "image-to-video",
+      },
+    ];
+
+    const { container } = render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="text-video"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual([
+      "Veo 3.1 Fast I2V (Kie)",
+      "Kling 3.0 (Kie)",
+      "Seedance 1.5 Pro (Kie)",
+      "Seedance 2.0 (Kie)",
+      "Seedance 2.0 Fast (Kie)",
+    ]);
+    expect(readFamilyColumns()).toEqual([
+      { family: "Veo", chips: ["Veo 3.1 Fast I2V (Kie)"] },
+      { family: "Kling", chips: ["Kling 3.0 (Kie)"] },
+      {
+        family: "Seedance",
+        chips: ["Seedance 1.5 Pro (Kie)", "Seedance 2.0 (Kie)", "Seedance 2.0 Fast (Kie)"],
+      },
+    ]);
+  });
+
   it("groups text-image chips into family columns by workflow priority", () => {
     const options: ModelOption[] = [
-      { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
+      { value: FAL_NANO_BANANA_PRO_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
       {
-        value: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+        value: FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
         label: "Seedream 5 Lite",
         mediaType: "image",
       },
-      { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
-      { value: "fal-ai/nano-banana-2", label: "Nano Banana 2", mediaType: "image" },
+      { value: FAL_FLUX_2_KLEIN_9B_MODEL_ID, label: "FLUX.2 Lite", mediaType: "image" },
+      { value: FAL_NANO_BANANA_2_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
       {
-        value: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        value: FAL_SEEDREAM_45_TEXT_MODEL_ID,
         label: "Seedream 4.5",
         mediaType: "image",
       },
@@ -258,26 +328,29 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
+      "ChatGPT Image",
       "FLUX.2 Lite",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
+      { family: "ChatGPT Image", chips: ["ChatGPT Image"] },
       { family: "FLUX", chips: ["FLUX.2 Lite"] },
     ]);
   });
 
   it("groups reference-image chips into family columns by workflow priority", () => {
     const options: ModelOption[] = [
-      { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro", mediaType: "image" },
-      { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2", mediaType: "image" },
+      { value: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
+      { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
       {
-        value: "fal-ai/bytedance/seedream/v5/lite/edit",
+        value: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
         label: "Seedream 5 Lite",
         mediaType: "image",
       },
       {
-        value: "fal-ai/bytedance/seedream/v4.5/edit",
+        value: FAL_SEEDREAM_45_EDIT_MODEL_ID,
         label: "Seedream 4.5",
         mediaType: "image",
       },
@@ -297,24 +370,27 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
+      "ChatGPT Image",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
+      { family: "ChatGPT Image", chips: ["ChatGPT Image"] },
     ]);
   });
 
   it("renders character-image chips with the edit-model ordering contract", () => {
     const options: ModelOption[] = [
-      { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro", mediaType: "image" },
-      { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2", mediaType: "image" },
+      { value: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
+      { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
       {
-        value: "fal-ai/bytedance/seedream/v5/lite/edit",
+        value: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
         label: "Seedream 5 Lite",
         mediaType: "image",
       },
       {
-        value: "fal-ai/bytedance/seedream/v4.5/edit",
+        value: FAL_SEEDREAM_45_EDIT_MODEL_ID,
         label: "Seedream 4.5",
         mediaType: "image",
       },
@@ -336,10 +412,12 @@ describe("ModelModal", () => {
       "Seedream 5 Lite",
       "Nano Banana 2",
       "Nano Banana Pro",
+      "ChatGPT Image",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
+      { family: "ChatGPT Image", chips: ["ChatGPT Image"] },
     ]);
   });
 
@@ -370,6 +448,47 @@ describe("ModelModal", () => {
     expect(readFamilyColumns()).toEqual([
       { family: "Veo", chips: ["Veo 3.1 Fast I2V (Kie)"] },
       { family: "Kling", chips: ["Kling 3.0 (Kie)"] },
+    ]);
+  });
+
+  it("keeps Seedance after Veo and Kling in reference-video context", () => {
+    const options: ModelOption[] = [
+      {
+        value: KIE_SEEDANCE_15_PRO_MODEL_ID,
+        label: "Seedance 1.5 Pro (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        label: "Veo 3.1 Fast I2V (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: KIE_KLING_30_MODEL_ID,
+        label: "Kling 3.0 (Kie)",
+        mediaType: "image-to-video",
+      },
+    ];
+
+    const { container } = render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="reference-video"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual([
+      "Veo 3.1 Fast I2V (Kie)",
+      "Kling 3.0 (Kie)",
+      "Seedance 1.5 Pro (Kie)",
+    ]);
+    expect(readFamilyColumns()).toEqual([
+      { family: "Veo", chips: ["Veo 3.1 Fast I2V (Kie)"] },
+      { family: "Kling", chips: ["Kling 3.0 (Kie)"] },
+      { family: "Seedance", chips: ["Seedance 1.5 Pro (Kie)"] },
     ]);
   });
 
@@ -423,6 +542,26 @@ describe("ModelModal", () => {
     );
 
     expect(screen.getByText("555")).toBeInTheDocument();
+  });
+
+  it("shows an unavailable credits state when no shared resolver is provided", () => {
+    render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={[
+          {
+            value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+            label: "Veo 3.1 Fast I2V (Kie)",
+            mediaType: "image-to-video",
+          },
+        ]}
+        context="reference-video"
+      />
+    );
+
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 
   it("keeps FLUX.2 and Nano Banana 2 chips visible outside text-image context", () => {

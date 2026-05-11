@@ -3,6 +3,7 @@
  */
 import { type FalSubmitResponse, submitQueuedGenerationByModelId } from "../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
+import { isCharacterScopedMediaUrl } from "../../../../lib/mediaStoragePath";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
@@ -10,6 +11,7 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import type { VideoSubmissionAdapterKey } from "../../../../lib/model-runtime/submissionAdapterMetadata";
 import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
 import type { VideoSubmissionArgs } from "./types";
 import {
@@ -42,17 +44,6 @@ const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
   "tempfile.aiquickdraw.com",
   "tempfileb.aiquickdraw.com",
 ] as const;
-
-const isCharacterScopedMediaUrl = (value: string): boolean => {
-  const normalized = (() => {
-    try {
-      return decodeURIComponent(value);
-    } catch {
-      return value;
-    }
-  })().toLowerCase();
-  return normalized.includes("/characters/") || normalized.includes("%2fcharacters%2f");
-};
 
 const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -401,18 +392,492 @@ const handoffSubmitResponse = ({
   startPollingWithGeneration,
 }: {
   response: FalSubmitResponse;
-  pollingProvider:
-    | "kie-veo"
-    | "kie-kling"
-    | "kie-seedance"
-    | "kie-seedance-2"
-    | "kie-seedance-2-fast";
+  pollingProvider: VideoPollingProvider;
   patch?: Parameters<VideoSubmissionArgs["startPollingWithGeneration"]>[2];
   startPollingWithGeneration: VideoSubmissionArgs["startPollingWithGeneration"];
 }) => {
   const requestId = typeof response.request_id === "string" ? response.request_id : undefined;
   startPollingWithGeneration(requestId, pollingProvider, patch, response);
 };
+
+type VideoPollingProvider =
+  | "kie-veo"
+  | "kie-kling"
+  | "kie-seedance"
+  | "kie-seedance-2"
+  | "kie-seedance-2-fast";
+
+type VideoHandlerContext = {
+  id: string;
+  finalModel: string;
+  cleanedPrompt: string;
+  aspect: string;
+  requestedDurationSeconds: number;
+  requestedResolution?: string;
+  requestedAudio: boolean;
+  preparedImageInputs: string[];
+  modelConfig: VideoSubmissionArgs["modelConfig"];
+  notifyGenerationFailure: VideoSubmissionArgs["notifyGenerationFailure"];
+  updateOutputById: VideoSubmissionArgs["updateOutputById"];
+  videoReferenceMode: VideoSubmissionArgs["videoReferenceMode"];
+  videoReferenceImageUrl: string | null;
+  motionReferenceVideoUrl: string | null;
+  videoCameraFixed: boolean;
+  seedance2InputMode?: VideoSubmissionArgs["seedance2InputMode"];
+  seedance2ReferenceImageUrls: string[];
+  seedance2ReferenceVideoUrls: string[];
+  seedance2ReferenceAudioUrls: string[];
+  seedance2ReturnLastFrame: boolean;
+  seedance2WebSearch: boolean;
+  klingCfgScale: number;
+  klingWorkflowMode?: VideoSubmissionArgs["klingWorkflowMode"];
+  klingMultiPrompts: VideoSubmissionArgs["klingMultiPrompts"];
+  klingElements: AiStudioKlingElement[];
+  shortpulseSubmitPayload: Record<string, unknown>;
+};
+
+type VideoSubmissionAdapterResult =
+  | { handled: false }
+  | {
+      handled: true;
+      response?: FalSubmitResponse;
+      pollingProvider?: VideoPollingProvider;
+      patch?: Parameters<VideoSubmissionArgs["startPollingWithGeneration"]>[2];
+    };
+
+type VideoSubmissionAdapter = {
+  key: VideoSubmissionAdapterKey;
+  matches: (modelId: string) => boolean;
+  submit: (context: VideoHandlerContext) => Promise<VideoSubmissionAdapterResult>;
+};
+
+const videoSubmissionAdapters: VideoSubmissionAdapter[] = [
+  {
+    key: "kie-veo-31-fast-i2v",
+    matches: (modelId) => modelId === KIE_VEO_31_FAST_I2V_MODEL_ID,
+    submit: async ({
+      finalModel,
+      cleanedPrompt,
+      aspect,
+      requestedDurationSeconds,
+      requestedResolution,
+      requestedAudio,
+      preparedImageInputs,
+      modelConfig,
+      shortpulseSubmitPayload,
+    }) => {
+      const resolvedGenerationType =
+        preparedImageInputs.length === 0 ? "TEXT_2_VIDEO" : "FIRST_AND_LAST_FRAMES_2_VIDEO";
+      const keyframeImageUrlsRaw =
+        preparedImageInputs.length >= 2
+          ? preparedImageInputs.slice(0, 2)
+          : preparedImageInputs.slice(0, 1);
+      const kieUploadCache = new Map<string, Promise<string>>();
+      const keyframeImageUrls = await uploadUrlsToKieTemporaryFiles({
+        urls: keyframeImageUrlsRaw,
+        mediaKind: "image",
+        cache: kieUploadCache,
+      });
+      const aspectRatio = resolveVeoTextAspect(aspect, modelConfig);
+      const duration = requestedDurationSeconds <= 5 ? 5 : 8;
+      const resolution = resolveVeoResolution(requestedResolution);
+      const response = await submitQueuedGenerationByModelId(finalModel, {
+        prompt: cleanedPrompt,
+        image_url: keyframeImageUrls[0],
+        image_urls: keyframeImageUrls,
+        generation_type: resolvedGenerationType,
+        aspect_ratio: aspectRatio,
+        duration,
+        resolution,
+        generate_audio: requestedAudio,
+        ...shortpulseSubmitPayload,
+      });
+      return {
+        handled: true,
+        response,
+        pollingProvider: "kie-veo",
+      };
+    },
+  },
+  {
+    key: "kie-seedance-1-5-pro",
+    matches: (modelId) => modelId === KIE_SEEDANCE_15_PRO_MODEL_ID,
+    submit: async ({
+      finalModel,
+      cleanedPrompt,
+      aspect,
+      requestedDurationSeconds,
+      requestedResolution,
+      requestedAudio,
+      preparedImageInputs,
+      modelConfig,
+      videoCameraFixed,
+      shortpulseSubmitPayload,
+    }) => {
+      const inputUrlsRaw =
+        preparedImageInputs.length >= 2
+          ? preparedImageInputs.slice(0, 2)
+          : preparedImageInputs.slice(0, 1);
+      const kieUploadCache = new Map<string, Promise<string>>();
+      const inputUrls = await uploadUrlsToKieTemporaryFiles({
+        urls: inputUrlsRaw,
+        mediaKind: "image",
+        cache: kieUploadCache,
+      });
+      const response = await submitQueuedGenerationByModelId(finalModel, {
+        prompt: cleanedPrompt,
+        input_urls: inputUrls,
+        aspect_ratio: resolveSeedanceI2VAspect(aspect, modelConfig),
+        duration: resolveSeedanceI2VDuration(requestedDurationSeconds),
+        resolution: resolveSeedanceI2VResolution(requestedResolution),
+        fixed_lens: videoCameraFixed,
+        generate_audio: requestedAudio,
+        ...shortpulseSubmitPayload,
+      });
+      return {
+        handled: true,
+        response,
+        pollingProvider: "kie-seedance",
+      };
+    },
+  },
+  {
+    key: "kie-seedance-2",
+    matches: (modelId) =>
+      modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID,
+    submit: async ({
+      id,
+      finalModel,
+      cleanedPrompt,
+      aspect,
+      requestedDurationSeconds,
+      requestedResolution,
+      requestedAudio,
+      preparedImageInputs,
+      modelConfig,
+      notifyGenerationFailure,
+      seedance2InputMode = "text",
+      seedance2ReferenceImageUrls,
+      seedance2ReferenceVideoUrls,
+      seedance2ReferenceAudioUrls,
+      seedance2ReturnLastFrame,
+      seedance2WebSearch,
+      klingElements,
+      shortpulseSubmitPayload,
+    }) => {
+      const hasPreparedFirstFrame = preparedImageInputs.length >= 1;
+      const hasPreparedLastFrame = preparedImageInputs.length >= 2;
+      let preparedSeedanceLinkedElements: AiStudioKlingElement[] = [];
+      try {
+        const seedanceElementsWithMedia = klingElements.filter((element) =>
+          hasKlingElementMedia(element)
+        );
+        if (seedanceElementsWithMedia.length) {
+          const seedanceUploadCache = new Map<string, Promise<string>>();
+          preparedSeedanceLinkedElements = await Promise.all(
+            seedanceElementsWithMedia.map(
+              async (element) =>
+                await prepareKieHostedKlingElementForSubmission({
+                  element,
+                  cache: seedanceUploadCache,
+                })
+            )
+          );
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Seedance linked asset preparation failed";
+        notifyGenerationFailure(id, `Seedance linked asset preparation failed: ${message}`);
+        return { handled: true };
+      }
+      const linkedEntityReferences = collectSeedanceLinkedEntityReferences(
+        preparedSeedanceLinkedElements
+      );
+      const hasLinkedEntityReferences = Boolean(
+        linkedEntityReferences.imageUrls.length || linkedEntityReferences.videoUrls.length
+      );
+      const hasMultimodalReferences = Boolean(
+        seedance2ReferenceImageUrls.length ||
+        seedance2ReferenceVideoUrls.length ||
+        seedance2ReferenceAudioUrls.length ||
+        linkedEntityReferences.imageUrls.length ||
+        linkedEntityReferences.videoUrls.length
+      );
+      const hasFrameMode = Boolean(hasPreparedFirstFrame || hasPreparedLastFrame);
+      if (hasLinkedEntityReferences && hasFrameMode) {
+        notifyGenerationFailure(
+          id,
+          "Seedance 2.0 linked assets cannot be combined with first/last frame mode."
+        );
+        return { handled: true };
+      }
+      const effectiveInputMode =
+        (seedance2InputMode === "multimodal" || hasLinkedEntityReferences) &&
+        hasMultimodalReferences
+          ? "multimodal"
+          : hasPreparedLastFrame
+            ? "first-last"
+            : hasPreparedFirstFrame
+              ? "first-frame"
+              : "text";
+      const promptPayload = buildSeedancePromptPayload({
+        cleanedPrompt,
+        preparedKlingElements: preparedSeedanceLinkedElements,
+      });
+      if ("error" in promptPayload) {
+        notifyGenerationFailure(id, promptPayload.error);
+        return { handled: true };
+      }
+      const pollingProvider =
+        finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID ? "kie-seedance-2-fast" : "kie-seedance-2";
+      const kieUploadCache = new Map<string, Promise<string>>();
+      const [
+        firstFrameUrl,
+        lastFrameUrl,
+        referenceImageUrls,
+        referenceVideoUrls,
+        referenceAudioUrls,
+      ] = await Promise.all([
+        effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
+          ? uploadUrlToKieTemporaryFile({
+              url: preparedImageInputs[0] ?? "",
+              mediaKind: "image",
+              cache: kieUploadCache,
+            })
+          : Promise.resolve(""),
+        effectiveInputMode === "first-last"
+          ? uploadUrlToKieTemporaryFile({
+              url: preparedImageInputs[1] ?? "",
+              mediaKind: "image",
+              cache: kieUploadCache,
+            })
+          : Promise.resolve(""),
+        effectiveInputMode === "multimodal"
+          ? uploadUrlsToKieTemporaryFiles({
+              urls: Array.from(
+                new Set([...seedance2ReferenceImageUrls, ...linkedEntityReferences.imageUrls])
+              ),
+              mediaKind: "image",
+              cache: kieUploadCache,
+            })
+          : Promise.resolve([]),
+        effectiveInputMode === "multimodal"
+          ? uploadUrlsToKieTemporaryFiles({
+              urls: Array.from(
+                new Set([...seedance2ReferenceVideoUrls, ...linkedEntityReferences.videoUrls])
+              ),
+              mediaKind: "video",
+              cache: kieUploadCache,
+            })
+          : Promise.resolve([]),
+        effectiveInputMode === "multimodal"
+          ? uploadUrlsToKieTemporaryFiles({
+              urls: seedance2ReferenceAudioUrls,
+              mediaKind: "audio",
+              cache: kieUploadCache,
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const response = await submitQueuedGenerationByModelId(finalModel, {
+        prompt: promptPayload.prompt,
+        ...(effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
+          ? { first_frame_url: firstFrameUrl }
+          : {}),
+        ...(effectiveInputMode === "first-last" ? { last_frame_url: lastFrameUrl } : {}),
+        ...(effectiveInputMode === "multimodal" && referenceImageUrls.length
+          ? { reference_image_urls: referenceImageUrls }
+          : {}),
+        ...(effectiveInputMode === "multimodal" && referenceVideoUrls.length
+          ? { reference_video_urls: referenceVideoUrls }
+          : {}),
+        ...(effectiveInputMode === "multimodal" && referenceAudioUrls.length
+          ? { reference_audio_urls: referenceAudioUrls }
+          : {}),
+        aspect_ratio: resolveSeedanceI2VAspect(aspect, modelConfig),
+        duration: resolveSeedance2Duration(requestedDurationSeconds),
+        resolution: resolveSeedance2Resolution(requestedResolution),
+        generate_audio: requestedAudio,
+        return_last_frame: seedance2ReturnLastFrame,
+        web_search: seedance2WebSearch,
+        ...shortpulseSubmitPayload,
+      });
+      return {
+        handled: true,
+        response,
+        pollingProvider,
+      };
+    },
+  },
+  {
+    key: "kie-kling-3",
+    matches: (modelId) => modelId === KIE_KLING_30_MODEL_ID,
+    submit: async ({
+      id,
+      finalModel,
+      cleanedPrompt,
+      aspect,
+      requestedDurationSeconds,
+      requestedResolution,
+      requestedAudio,
+      preparedImageInputs,
+      modelConfig,
+      notifyGenerationFailure,
+      updateOutputById,
+      videoReferenceMode,
+      videoReferenceImageUrl,
+      motionReferenceVideoUrl,
+      klingCfgScale,
+      klingWorkflowMode,
+      klingMultiPrompts,
+      klingElements,
+      shortpulseSubmitPayload,
+    }) => {
+      if (videoReferenceMode === "motion") {
+        if (!videoReferenceImageUrl) {
+          notifyGenerationFailure(id, "Motion Control requires a character image");
+          return { handled: true };
+        }
+        if (!motionReferenceVideoUrl) {
+          notifyGenerationFailure(id, "Motion Control requires a motion reference video");
+          return { handled: true };
+        }
+
+        const characterImageUrl = preparedImageInputs[0];
+        if (!characterImageUrl) {
+          notifyGenerationFailure(id, "Failed to prepare character image");
+          return { handled: true };
+        }
+
+        let motionVideoUrlFinal = motionReferenceVideoUrl;
+        const requiresUpload = needsVideoUpload(motionReferenceVideoUrl);
+        try {
+          if (requiresUpload) {
+            updateOutputById(id, (item) => ({
+              ...item,
+              timestamp: "Uploading video...",
+            }));
+          }
+
+          const preparedMotionVideoUrl =
+            await prepareVideoUrlForSubmission(motionReferenceVideoUrl);
+          if (!preparedMotionVideoUrl) {
+            throw new Error("Motion reference video is missing.");
+          }
+          motionVideoUrlFinal = preparedMotionVideoUrl;
+
+          if (requiresUpload) {
+            updateOutputById(id, (item) => ({
+              ...item,
+              timestamp: "Video uploaded",
+            }));
+          }
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Motion reference preparation failed";
+          const prefix = requiresUpload
+            ? "Video upload failed"
+            : "Motion reference preparation failed";
+          notifyGenerationFailure(id, `${prefix}: ${message}`);
+          return { handled: true };
+        }
+
+        const motionResolution = resolveKlingResolution(requestedResolution);
+        const finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
+        const response = await submitQueuedGenerationByModelId(finalModel, {
+          prompt: finalPrompt,
+          image_url: characterImageUrl,
+          image_urls: [characterImageUrl],
+          input_urls: [characterImageUrl],
+          video_url: motionVideoUrlFinal,
+          video_urls: [motionVideoUrlFinal],
+          resolution: motionResolution,
+          mode: motionResolution,
+          generate_audio: requestedAudio,
+          character_orientation: "image",
+          background_source: "input_video",
+          ...shortpulseSubmitPayload,
+        });
+        return {
+          handled: true,
+          response,
+          pollingProvider: "kie-kling",
+          patch: {
+            previewUrl: characterImageUrl,
+          },
+        };
+      }
+
+      if (!preparedImageInputs.length) {
+        notifyGenerationFailure(id, "Kie Kling 3.0 requires at least one reference image.");
+        return { handled: true };
+      }
+      let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
+      let preparedKlingElements: AiStudioKlingElement[] = klingElements;
+      try {
+        const kieUploadCache = new Map<string, Promise<string>>();
+        preparedKlingElements = await Promise.all(
+          klingElements.map(
+            async (element) =>
+              await prepareKieHostedKlingElementForSubmission({
+                element,
+                cache: kieUploadCache,
+              })
+          )
+        );
+        elementsPayload = buildKieKlingElementsPayload(preparedKlingElements);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Kling element reference preparation failed";
+        notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
+        return { handled: true };
+      }
+      const aspectRatio = resolveKieKlingAspect(aspect, modelConfig);
+      const duration = resolveKieKlingDuration(requestedDurationSeconds);
+      const resolvedShotModePayload = resolveKieKlingShotModePayload({
+        cleanedPrompt,
+        klingWorkflowMode,
+        klingMultiPrompts,
+        preparedImageInputs,
+        requestedAudio,
+        preparedKlingElements,
+      });
+      if ("error" in resolvedShotModePayload) {
+        notifyGenerationFailure(id, resolvedShotModePayload.error);
+        return { handled: true };
+      }
+      const response = await submitQueuedGenerationByModelId(finalModel, {
+        prompt: resolvedShotModePayload.prompt,
+        image_url: preparedImageInputs[0],
+        image_urls: resolvedShotModePayload.imageUrls,
+        aspect_ratio: aspectRatio,
+        duration,
+        resolution: resolveKlingResolution(requestedResolution),
+        mode: resolveKieKlingMode(requestedResolution),
+        cfg_scale: klingCfgScale,
+        generate_audio: resolvedShotModePayload.generateAudio,
+        sound: resolvedShotModePayload.sound,
+        multi_shots: resolvedShotModePayload.multiShots,
+        multi_prompt: resolvedShotModePayload.multiPrompt,
+        kling_elements: elementsPayload,
+        ...shortpulseSubmitPayload,
+      });
+      return {
+        handled: true,
+        response,
+        pollingProvider: "kie-kling",
+      };
+    },
+  },
+];
+
+export const listVideoSubmissionAdapterKeys = (): VideoSubmissionAdapterKey[] =>
+  videoSubmissionAdapters.map(({ key }) => key);
+
+export const resolveVideoSubmissionAdapterKey = (
+  modelId: string
+): VideoSubmissionAdapterKey | null =>
+  videoSubmissionAdapters.find(({ matches }) => matches(modelId))?.key ?? null;
 
 /**
  * Handles video model submissions. Returns true when a matching model is handled.
@@ -473,353 +938,43 @@ export const handleVideoModelSubmission = async ({
     );
     return true;
   }
-
-  if (finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID) {
-    const resolvedGenerationType =
-      preparedImageInputs.length === 0 ? "TEXT_2_VIDEO" : "FIRST_AND_LAST_FRAMES_2_VIDEO";
-    const keyframeImageUrlsRaw =
-      preparedImageInputs.length >= 2
-        ? preparedImageInputs.slice(0, 2)
-        : preparedImageInputs.slice(0, 1);
-    const kieUploadCache = new Map<string, Promise<string>>();
-    const keyframeImageUrls = await uploadUrlsToKieTemporaryFiles({
-      urls: keyframeImageUrlsRaw,
-      mediaKind: "image",
-      cache: kieUploadCache,
-    });
-    const aspectRatio = resolveVeoTextAspect(aspect, modelConfig);
-    const duration = requestedDurationSeconds <= 5 ? 5 : 8;
-    const resolution = resolveVeoResolution(requestedResolution);
-    const response = await submitQueuedGenerationByModelId(finalModel, {
-      prompt: cleanedPrompt,
-      image_url: keyframeImageUrls[0],
-      image_urls: keyframeImageUrls,
-      generation_type: resolvedGenerationType,
-      aspect_ratio: aspectRatio,
-      duration,
-      resolution,
-      generate_audio: requestedAudio,
-      ...shortpulseSubmitPayload,
-    });
+  const adapter = videoSubmissionAdapters.find(({ matches }) => matches(finalModel));
+  if (!adapter) return false;
+  const result = await adapter.submit({
+    id,
+    finalModel,
+    cleanedPrompt,
+    aspect,
+    requestedDurationSeconds,
+    requestedResolution,
+    requestedAudio,
+    preparedImageInputs,
+    modelConfig,
+    notifyGenerationFailure,
+    updateOutputById,
+    videoReferenceMode,
+    videoReferenceImageUrl,
+    motionReferenceVideoUrl,
+    videoCameraFixed,
+    seedance2InputMode,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
+    klingCfgScale,
+    klingWorkflowMode,
+    klingMultiPrompts,
+    klingElements,
+    shortpulseSubmitPayload,
+  });
+  if (result.handled && result.response && result.pollingProvider) {
     handoffSubmitResponse({
-      response,
-      pollingProvider: "kie-veo",
+      response: result.response,
+      pollingProvider: result.pollingProvider,
+      patch: result.patch,
       startPollingWithGeneration,
     });
-    return true;
   }
-
-  if (finalModel === KIE_SEEDANCE_15_PRO_MODEL_ID) {
-    const inputUrlsRaw =
-      preparedImageInputs.length >= 2
-        ? preparedImageInputs.slice(0, 2)
-        : preparedImageInputs.slice(0, 1);
-    const kieUploadCache = new Map<string, Promise<string>>();
-    const inputUrls = await uploadUrlsToKieTemporaryFiles({
-      urls: inputUrlsRaw,
-      mediaKind: "image",
-      cache: kieUploadCache,
-    });
-    const response = await submitQueuedGenerationByModelId(finalModel, {
-      prompt: cleanedPrompt,
-      input_urls: inputUrls,
-      aspect_ratio: resolveSeedanceI2VAspect(aspect, modelConfig),
-      duration: resolveSeedanceI2VDuration(requestedDurationSeconds),
-      resolution: resolveSeedanceI2VResolution(requestedResolution),
-      fixed_lens: videoCameraFixed,
-      generate_audio: requestedAudio,
-      ...shortpulseSubmitPayload,
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "kie-seedance",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === KIE_SEEDANCE_2_MODEL_ID || finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID) {
-    const hasPreparedFirstFrame = preparedImageInputs.length >= 1;
-    const hasPreparedLastFrame = preparedImageInputs.length >= 2;
-    let preparedSeedanceLinkedElements: AiStudioKlingElement[] = [];
-    try {
-      const seedanceElementsWithMedia = klingElements.filter((element) =>
-        hasKlingElementMedia(element)
-      );
-      if (seedanceElementsWithMedia.length) {
-        const seedanceUploadCache = new Map<string, Promise<string>>();
-        preparedSeedanceLinkedElements = await Promise.all(
-          seedanceElementsWithMedia.map(
-            async (element) =>
-              await prepareKieHostedKlingElementForSubmission({
-                element,
-                cache: seedanceUploadCache,
-              })
-          )
-        );
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Seedance linked asset preparation failed";
-      notifyGenerationFailure(id, `Seedance linked asset preparation failed: ${message}`);
-      return true;
-    }
-    const linkedEntityReferences = collectSeedanceLinkedEntityReferences(
-      preparedSeedanceLinkedElements
-    );
-    const hasLinkedEntityReferences = Boolean(
-      linkedEntityReferences.imageUrls.length || linkedEntityReferences.videoUrls.length
-    );
-    const hasMultimodalReferences = Boolean(
-      seedance2ReferenceImageUrls.length ||
-      seedance2ReferenceVideoUrls.length ||
-      seedance2ReferenceAudioUrls.length ||
-      linkedEntityReferences.imageUrls.length ||
-      linkedEntityReferences.videoUrls.length
-    );
-    const hasFrameMode = Boolean(hasPreparedFirstFrame || hasPreparedLastFrame);
-    if (hasLinkedEntityReferences && hasFrameMode) {
-      notifyGenerationFailure(
-        id,
-        "Seedance 2.0 linked assets cannot be combined with first/last frame mode."
-      );
-      return true;
-    }
-    const effectiveInputMode =
-      (seedance2InputMode === "multimodal" || hasLinkedEntityReferences) && hasMultimodalReferences
-        ? "multimodal"
-        : hasPreparedLastFrame
-          ? "first-last"
-          : hasPreparedFirstFrame
-            ? "first-frame"
-            : "text";
-    const promptPayload = buildSeedancePromptPayload({
-      cleanedPrompt,
-      preparedKlingElements: preparedSeedanceLinkedElements,
-    });
-    if ("error" in promptPayload) {
-      notifyGenerationFailure(id, promptPayload.error);
-      return true;
-    }
-    const pollingProvider =
-      finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID ? "kie-seedance-2-fast" : "kie-seedance-2";
-    const kieUploadCache = new Map<string, Promise<string>>();
-    const [
-      firstFrameUrl,
-      lastFrameUrl,
-      referenceImageUrls,
-      referenceVideoUrls,
-      referenceAudioUrls,
-    ] = await Promise.all([
-      effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
-        ? uploadUrlToKieTemporaryFile({
-            url: preparedImageInputs[0] ?? "",
-            mediaKind: "image",
-            cache: kieUploadCache,
-          })
-        : Promise.resolve(""),
-      effectiveInputMode === "first-last"
-        ? uploadUrlToKieTemporaryFile({
-            url: preparedImageInputs[1] ?? "",
-            mediaKind: "image",
-            cache: kieUploadCache,
-          })
-        : Promise.resolve(""),
-      effectiveInputMode === "multimodal"
-        ? uploadUrlsToKieTemporaryFiles({
-            urls: Array.from(
-              new Set([...seedance2ReferenceImageUrls, ...linkedEntityReferences.imageUrls])
-            ),
-            mediaKind: "image",
-            cache: kieUploadCache,
-          })
-        : Promise.resolve([]),
-      effectiveInputMode === "multimodal"
-        ? uploadUrlsToKieTemporaryFiles({
-            urls: Array.from(
-              new Set([...seedance2ReferenceVideoUrls, ...linkedEntityReferences.videoUrls])
-            ),
-            mediaKind: "video",
-            cache: kieUploadCache,
-          })
-        : Promise.resolve([]),
-      effectiveInputMode === "multimodal"
-        ? uploadUrlsToKieTemporaryFiles({
-            urls: seedance2ReferenceAudioUrls,
-            mediaKind: "audio",
-            cache: kieUploadCache,
-          })
-        : Promise.resolve([]),
-    ]);
-
-    const response = await submitQueuedGenerationByModelId(finalModel, {
-      prompt: promptPayload.prompt,
-      ...(effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
-        ? { first_frame_url: firstFrameUrl }
-        : {}),
-      ...(effectiveInputMode === "first-last" ? { last_frame_url: lastFrameUrl } : {}),
-      ...(effectiveInputMode === "multimodal" && referenceImageUrls.length
-        ? { reference_image_urls: referenceImageUrls }
-        : {}),
-      ...(effectiveInputMode === "multimodal" && referenceVideoUrls.length
-        ? { reference_video_urls: referenceVideoUrls }
-        : {}),
-      ...(effectiveInputMode === "multimodal" && referenceAudioUrls.length
-        ? { reference_audio_urls: referenceAudioUrls }
-        : {}),
-      aspect_ratio: resolveSeedanceI2VAspect(aspect, modelConfig),
-      duration: resolveSeedance2Duration(requestedDurationSeconds),
-      resolution: resolveSeedance2Resolution(requestedResolution),
-      generate_audio: requestedAudio,
-      return_last_frame: seedance2ReturnLastFrame,
-      web_search: seedance2WebSearch,
-      ...shortpulseSubmitPayload,
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider,
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === KIE_KLING_30_MODEL_ID) {
-    if (videoReferenceMode === "motion") {
-      if (!videoReferenceImageUrl) {
-        notifyGenerationFailure(id, "Motion Control requires a character image");
-        return true;
-      }
-      if (!motionReferenceVideoUrl) {
-        notifyGenerationFailure(id, "Motion Control requires a motion reference video");
-        return true;
-      }
-
-      const characterImageUrl = preparedImageInputs[0];
-      if (!characterImageUrl) {
-        notifyGenerationFailure(id, "Failed to prepare character image");
-        return true;
-      }
-
-      let motionVideoUrlFinal = motionReferenceVideoUrl;
-      const requiresUpload = needsVideoUpload(motionReferenceVideoUrl);
-      try {
-        if (requiresUpload) {
-          updateOutputById(id, (item) => ({
-            ...item,
-            timestamp: "Uploading video...",
-          }));
-        }
-
-        const preparedMotionVideoUrl = await prepareVideoUrlForSubmission(motionReferenceVideoUrl);
-        if (!preparedMotionVideoUrl) {
-          throw new Error("Motion reference video is missing.");
-        }
-        motionVideoUrlFinal = preparedMotionVideoUrl;
-
-        if (requiresUpload) {
-          updateOutputById(id, (item) => ({
-            ...item,
-            timestamp: "Video uploaded",
-          }));
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Motion reference preparation failed";
-        const prefix = requiresUpload
-          ? "Video upload failed"
-          : "Motion reference preparation failed";
-        notifyGenerationFailure(id, `${prefix}: ${message}`);
-        return true;
-      }
-
-      const motionResolution = resolveKlingResolution(requestedResolution);
-      const finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
-      const response = await submitQueuedGenerationByModelId(finalModel, {
-        prompt: finalPrompt,
-        image_url: characterImageUrl,
-        image_urls: [characterImageUrl],
-        input_urls: [characterImageUrl],
-        video_url: motionVideoUrlFinal,
-        video_urls: [motionVideoUrlFinal],
-        resolution: motionResolution,
-        mode: motionResolution,
-        generate_audio: requestedAudio,
-        character_orientation: "image",
-        background_source: "input_video",
-        ...shortpulseSubmitPayload,
-      });
-      handoffSubmitResponse({
-        response,
-        pollingProvider: "kie-kling",
-        patch: {
-          previewUrl: characterImageUrl,
-        },
-        startPollingWithGeneration,
-      });
-      return true;
-    }
-
-    if (!preparedImageInputs.length) {
-      notifyGenerationFailure(id, "Kie Kling 3.0 requires at least one reference image.");
-      return true;
-    }
-    let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
-    let preparedKlingElements: AiStudioKlingElement[] = klingElements;
-    try {
-      const kieUploadCache = new Map<string, Promise<string>>();
-      preparedKlingElements = await Promise.all(
-        klingElements.map(
-          async (element) =>
-            await prepareKieHostedKlingElementForSubmission({
-              element,
-              cache: kieUploadCache,
-            })
-        )
-      );
-      elementsPayload = buildKieKlingElementsPayload(preparedKlingElements);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Kling element reference preparation failed";
-      notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
-      return true;
-    }
-    const aspectRatio = resolveKieKlingAspect(aspect, modelConfig);
-    const duration = resolveKieKlingDuration(requestedDurationSeconds);
-    const resolvedShotModePayload = resolveKieKlingShotModePayload({
-      cleanedPrompt,
-      klingWorkflowMode,
-      klingMultiPrompts,
-      preparedImageInputs,
-      requestedAudio,
-      preparedKlingElements,
-    });
-    if ("error" in resolvedShotModePayload) {
-      notifyGenerationFailure(id, resolvedShotModePayload.error);
-      return true;
-    }
-    const response = await submitQueuedGenerationByModelId(finalModel, {
-      prompt: resolvedShotModePayload.prompt,
-      image_url: preparedImageInputs[0],
-      image_urls: resolvedShotModePayload.imageUrls,
-      aspect_ratio: aspectRatio,
-      duration,
-      resolution: resolveKlingResolution(requestedResolution),
-      mode: resolveKieKlingMode(requestedResolution),
-      cfg_scale: klingCfgScale,
-      generate_audio: resolvedShotModePayload.generateAudio,
-      sound: resolvedShotModePayload.sound,
-      multi_shots: resolvedShotModePayload.multiShots,
-      multi_prompt: resolvedShotModePayload.multiPrompt,
-      kling_elements: elementsPayload,
-      ...shortpulseSubmitPayload,
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "kie-kling",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  return false;
+  return result.handled;
 };

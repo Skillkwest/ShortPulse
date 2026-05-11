@@ -1,3 +1,4 @@
+import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const ORIGINAL_ENV = process.env;
@@ -56,5 +57,32 @@ describe("supabaseClient session reads", () => {
 
     expect(getSessionMock).toHaveBeenCalledTimes(1);
     expect(refreshSessionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("swallows aborted bootstrap session reads inside the shared session hook", async () => {
+    const abortError = new Error("signal is aborted without reason");
+    abortError.name = "AbortError";
+    const getSessionMock = vi.fn().mockRejectedValue(abortError);
+
+    vi.doMock("@supabase/supabase-js", () => ({
+      createClient: vi.fn(() => ({
+        auth: {
+          getSession: getSessionMock,
+          onAuthStateChange: vi.fn(),
+          refreshSession: vi.fn(),
+        },
+      })),
+    }));
+
+    const { useSupabaseSessionState } = await import("../supabaseClient");
+
+    const { result } = renderHook(() => useSupabaseSessionState());
+
+    await waitFor(() => {
+      expect(result.current.initialized).toBe(true);
+    });
+    expect(result.current.session).toBeNull();
+    expect(result.current.user).toBeNull();
+    expect(getSessionMock).toHaveBeenCalledTimes(1);
   });
 });

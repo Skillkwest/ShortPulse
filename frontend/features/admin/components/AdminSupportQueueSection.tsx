@@ -261,6 +261,10 @@ export function AdminSupportQueueSection({
     (finding) => finding.code !== "internal_comp_contract"
   );
   const visibleSupportFindings = visibleBillingFindings.slice(0, 2);
+  const pricingObservability = billingDiagnostics?.pricingObservability ?? null;
+  const pricingObservabilityCoverageLabel = pricingObservability
+    ? `${pricingObservability.observedRows.reservations}/${pricingObservability.rowsScanned.reservations} reservation rows · ${pricingObservability.observedRows.ledgerEntries}/${pricingObservability.rowsScanned.ledgerEntries} ledger rows`
+    : null;
   const hasLinkedStripeSubscription = Boolean(
     billingDiagnostics?.stripeSubscription?.subscriptionId ||
     billingDiagnostics?.billingProfile?.stripeSubscriptionId
@@ -460,8 +464,7 @@ export function AdminSupportQueueSection({
     setPendingDeleteUser(null);
     setDeleteConfirmationValue("");
   };
-  const deleteModalBackdropDismiss =
-    useGuardedBackdropDismiss<HTMLElement>(closeDeleteModal);
+  const deleteModalBackdropDismiss = useGuardedBackdropDismiss<HTMLElement>(closeDeleteModal);
 
   const handleConfirmDelete = async () => {
     if (!pendingDeleteUser || !deleteConfirmationMatches) return;
@@ -611,6 +614,44 @@ export function AdminSupportQueueSection({
                           No immediate billing anomalies are flagged for this account right now.
                         </p>
                       )}
+                      {pricingObservability ? (
+                        <div className={styles.adminBillingFindingCard}>
+                          <div className={styles.healthFindingMetaRow}>
+                            <span
+                              className={`${styles.pill} ${
+                                pricingObservability.mismatchCount > 0
+                                  ? styles.pillWarn
+                                  : styles.pillOk
+                              }`}
+                            >
+                              {pricingObservability.mismatchCount > 0
+                                ? `${pricingObservability.mismatchCount} mismatch${
+                                    pricingObservability.mismatchCount === 1 ? "" : "es"
+                                  }`
+                                : "No recent mismatches"}
+                            </span>
+                          </div>
+                          <p className={styles.healthFindingSummary}>Pricing observability</p>
+                          <p className={styles.controlNote}>
+                            {pricingObservabilityCoverageLabel}
+                            {pricingObservability.lastObservedAt
+                              ? ` · last observed ${formatCompactDate(
+                                  pricingObservability.lastObservedAt
+                                )}`
+                              : " · no recent observed rows yet"}
+                          </p>
+                          {selectedUserId ? (
+                            <Link
+                              href={`/admin/generation-trace?userId=${encodeURIComponent(
+                                selectedUserId
+                              )}`}
+                              className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                            >
+                              Open pricing trace
+                            </Link>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
 

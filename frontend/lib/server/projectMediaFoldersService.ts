@@ -6,6 +6,7 @@
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import {
   isCustomMediaFolderId,
+  listOwnedCharacterScopedMediaIds,
   sanitizeMediaFolderName,
   type FolderMembershipBatchAction,
   type FolderMembershipBatchResult,
@@ -78,37 +79,6 @@ const toOwnedIdsSet = async ({
     const value = (row as Record<string, unknown>)[idColumn];
     if (typeof value === "string" && value.trim()) {
       set.add(value.trim());
-    }
-  }
-  return set;
-};
-
-const toCharacterScopedMediaIdSet = async ({
-  userId,
-  ids,
-}: {
-  userId: string;
-  ids: string[];
-}): Promise<Set<string>> => {
-  if (!ids.length) return new Set();
-  const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
-    .from("media_files")
-    .select("id, storage_path")
-    .eq("user_id", userId)
-    .in("id", ids);
-  if (error) {
-    throw new Error(error.message || "Failed to validate character-scoped media membership");
-  }
-  const set = new Set<string>();
-  for (const row of data ?? []) {
-    const record = row as Record<string, unknown>;
-    const value = record.id;
-    if (typeof value === "string" && value.trim()) {
-      const storagePath = typeof record.storage_path === "string" ? record.storage_path.trim() : "";
-      if (storagePath.startsWith(`${userId}/characters/`)) {
-        set.add(value.trim());
-      }
     }
   }
   return set;
@@ -571,7 +541,7 @@ export const applyProjectFolderMembershipBatch = async (
     throw new Error("One or more item ids are invalid for this user");
   }
   if (mediaIds.length) {
-    const characterScopedMediaIds = await toCharacterScopedMediaIdSet({
+    const characterScopedMediaIds = await listOwnedCharacterScopedMediaIds({
       userId,
       ids: mediaIds,
     });

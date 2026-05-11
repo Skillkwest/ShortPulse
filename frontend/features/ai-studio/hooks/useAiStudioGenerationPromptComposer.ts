@@ -167,6 +167,7 @@ export const useAiStudioGenerationPromptComposer = ({
         modeOverride: options?.modeOverride,
         selectedToolOverride: options?.selectedToolOverride,
         displayPromptOverride: displayPromptToSubmit,
+        displayedBilledCredits: options?.displayedBilledCredits,
         characterContextOverride: options?.characterContextOverride,
         modelIdOverride: options?.modelIdOverride,
         inpaintOverride: options?.inpaintOverride,
@@ -249,6 +250,7 @@ export const useAiStudioGenerationPromptComposer = ({
       submitTask(compiledSubmissionPrompt, imageInputs, {
         selectedToolOverride: effectiveTool,
         displayPromptOverride: displayPromptToUse,
+        displayedBilledCredits: options?.displayedBilledCredits,
         characterContextOverride: options?.characterContextOverride,
         modelIdOverride: options?.modelIdOverride,
         outputIdOverride: options?.outputIdOverride,

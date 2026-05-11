@@ -46,6 +46,7 @@ export const useAiStudioProjectWorkspaceRestoreCandidate = ({
 }): AiStudioProjectWorkspaceRestoreCandidateState => {
   const [loadedCandidate, setLoadedCandidate] = useState<{
     projectId: string;
+    requestNonce: number;
     status: "ready" | "error";
     snapshot: AiStudioSessionSnapshot | null;
     error: string | null;
@@ -64,6 +65,7 @@ export const useAiStudioProjectWorkspaceRestoreCandidate = ({
         if (resolved.invalid) {
           setLoadedCandidate({
             projectId,
+            requestNonce,
             status: "error",
             snapshot: null,
             error: "Project workspace snapshot is invalid.",
@@ -72,6 +74,7 @@ export const useAiStudioProjectWorkspaceRestoreCandidate = ({
         }
         setLoadedCandidate({
           projectId,
+          requestNonce,
           status: "ready",
           snapshot: resolved.snapshot,
           error: null,
@@ -81,6 +84,7 @@ export const useAiStudioProjectWorkspaceRestoreCandidate = ({
         if (cancelled) return;
         setLoadedCandidate({
           projectId,
+          requestNonce,
           status: "error",
           snapshot: null,
           error: error instanceof Error ? error.message : "Failed to load project workspace.",
@@ -107,7 +111,11 @@ export const useAiStudioProjectWorkspaceRestoreCandidate = ({
     };
   }
 
-  if (!loadedCandidate || loadedCandidate.projectId !== projectId) {
+  if (
+    !loadedCandidate ||
+    loadedCandidate.projectId !== projectId ||
+    loadedCandidate.requestNonce !== requestNonce
+  ) {
     return {
       status: "loading",
       result: "loading",

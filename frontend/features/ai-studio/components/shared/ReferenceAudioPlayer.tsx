@@ -5,6 +5,11 @@ import {
   extractAudioWaveformPeaksFromUrl,
   normalizeStoredWaveformPeaks,
 } from "../../reference-grid/logic/referenceGridAudioWaveform";
+import {
+  clearExclusiveSoundPlayback,
+  markExclusiveSoundPlaying,
+  requestExclusiveSoundPlayback,
+} from "./exclusiveSoundPlayback";
 
 const AUDIO_WAVEFORM_BAR_COUNT = 28;
 
@@ -19,6 +24,7 @@ const formatPlaybackClock = (valueMs: number | null): string => {
 export type ReferenceAudioPlayerProps = {
   audioId: string;
   audioUrl: string;
+  audioInstanceKey?: string;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
   playLabel: string;
@@ -27,11 +33,15 @@ export type ReferenceAudioPlayerProps = {
   onReady?: () => void;
   onError?: () => void;
   eagerWaveformDecode?: boolean;
+  onRequestPlay?: (player: { instanceKey: string; pause: () => void }) => void;
+  onPlaybackStarted?: (player: { instanceKey: string; pause: () => void }) => void;
+  onPlaybackStopped?: (instanceKey: string) => void;
 };
 
 export function ReferenceAudioPlayer({
   audioId,
   audioUrl,
+  audioInstanceKey,
   durationMs = null,
   waveformPeaks = null,
   playLabel,
@@ -40,9 +50,16 @@ export function ReferenceAudioPlayer({
   onReady,
   onError,
   eagerWaveformDecode = true,
+  onRequestPlay,
+  onPlaybackStarted,
+  onPlaybackStopped,
 }: ReferenceAudioPlayerProps) {
   const audioNodeRef = React.useRef<HTMLAudioElement | null>(null);
   const readyNotifiedRef = React.useRef(false);
+  const resolvedAudioInstanceKey = audioInstanceKey ?? audioId;
+  const requestPlayback = onRequestPlay ?? requestExclusiveSoundPlayback;
+  const markPlaybackStarted = onPlaybackStarted ?? markExclusiveSoundPlaying;
+  const clearPlayback = onPlaybackStopped ?? clearExclusiveSoundPlayback;
   const [isAudioPlaying, setIsAudioPlaying] = React.useState(false);
   const [audioProgressRatio, setAudioProgressRatio] = React.useState(0);
   const [currentAudioTimeMs, setCurrentAudioTimeMs] = React.useState(0);
@@ -141,9 +158,10 @@ export function ReferenceAudioPlayer({
 
   React.useEffect(
     () => () => {
+      clearPlayback(resolvedAudioInstanceKey);
       audioNodeRef.current?.pause();
     },
-    []
+    [clearPlayback, resolvedAudioInstanceKey]
   );
 
   const notifyReady = React.useCallback(() => {
@@ -174,12 +192,26 @@ export function ReferenceAudioPlayer({
         setCurrentAudioTimeMs(0);
       }
       try {
+        requestPlayback({
+          instanceKey: resolvedAudioInstanceKey,
+          pause: () => {
+            audioNodeRef.current?.pause();
+          },
+        });
         await node.play();
       } catch {
+        clearPlayback(resolvedAudioInstanceKey);
         setIsAudioPlaying(false);
       }
     },
-    [isAudioPlaying, onActivate, shouldDecodeWaveform]
+    [
+      clearPlayback,
+      isAudioPlaying,
+      onActivate,
+      requestPlayback,
+      resolvedAudioInstanceKey,
+      shouldDecodeWaveform,
+    ]
   );
 
   return (
@@ -192,6 +224,10 @@ export function ReferenceAudioPlayer({
               className={`reference-card-audio-play ${isAudioPlaying ? "is-playing" : ""}`}
               aria-label={isAudioPlaying ? pauseLabel : playLabel}
               aria-pressed={isAudioPlaying}
+              onDoubleClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
               onClick={(event) => {
                 void handleAudioToggle(event);
               }}
@@ -250,10 +286,23 @@ export function ReferenceAudioPlayer({
             notifyReady();
           }}
           onError={() => {
+            clearPlayback(resolvedAudioInstanceKey);
+            setIsAudioPlaying(false);
             onError?.();
           }}
-          onPlay={() => setIsAudioPlaying(true)}
-          onPause={() => setIsAudioPlaying(false)}
+          onPlay={() => {
+            markPlaybackStarted({
+              instanceKey: resolvedAudioInstanceKey,
+              pause: () => {
+                audioNodeRef.current?.pause();
+              },
+            });
+            setIsAudioPlaying(true);
+          }}
+          onPause={() => {
+            clearPlayback(resolvedAudioInstanceKey);
+            setIsAudioPlaying(false);
+          }}
           onTimeUpdate={(event) => {
             const durationSeconds = event.currentTarget.duration;
             const currentTimeSeconds = event.currentTarget.currentTime;
@@ -266,6 +315,7 @@ export function ReferenceAudioPlayer({
             setAudioProgressRatio(ratio);
           }}
           onEnded={() => {
+            clearPlayback(resolvedAudioInstanceKey);
             setIsAudioPlaying(false);
             setCurrentAudioTimeMs(resolvedAudioDurationMs ?? currentAudioTimeMs);
             setAudioProgressRatio(1);

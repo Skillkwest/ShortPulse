@@ -393,6 +393,53 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     );
   });
 
+  it("reuses the shared snapshot loader cache for repeated non-forced loads", async () => {
+    listCharacterManagerCharactersMock.mockResolvedValue([createCharacterListItem()] as Awaited<
+      ReturnType<typeof listCharacterManagerCharacters>
+    >);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
+      createSnapshotWithLookReferences()
+    );
+
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+
+    await waitFor(() => {
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
+
+    const first = await result.current.loadCharacterSnapshot("char-1");
+    const second = await result.current.loadCharacterSnapshot("char-1");
+
+    expect(first).toBe(second);
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledTimes(1);
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1");
+  });
+
+  it("bypasses the shared snapshot loader cache when force refresh is requested", async () => {
+    listCharacterManagerCharactersMock.mockResolvedValue([createCharacterListItem()] as Awaited<
+      ReturnType<typeof listCharacterManagerCharacters>
+    >);
+    loadCharacterManagerDraftByCharacterIdMock
+      .mockResolvedValueOnce(createSnapshotWithLookReferences())
+      .mockResolvedValueOnce({
+        ...createSnapshotWithLookReferences(),
+        characterDescription: "Refreshed description",
+      });
+
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+
+    await waitFor(() => {
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
+
+    const first = await result.current.loadCharacterSnapshot("char-1");
+    const second = await result.current.loadCharacterSnapshot("char-1", { forceRefresh: true });
+
+    expect(first.characterDescription).toBe("Hero description");
+    expect(second.characterDescription).toBe("Refreshed description");
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledTimes(2);
+  });
+
   it("syncs selected character when persistence changes from another surface", async () => {
     listCharacterManagerCharactersMock.mockResolvedValue([
       {

@@ -52,7 +52,6 @@ export const CHARACTER_PROFILE_IMAGE_ZOOM_KEY = "profile_image_zoom";
 export const CHARACTER_PROFILE_IMAGE_OFFSET_X_KEY = "profile_image_offset_x";
 export const CHARACTER_PROFILE_IMAGE_OFFSET_Y_KEY = "profile_image_offset_y";
 export const CHARACTER_SHEET_ASSIGNMENTS_KEY = "character_sheet_assignments";
-export const LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY = "reference_pack_assignments";
 export const CHARACTER_SHEET_PRESETS_KEY = "character_sheet_presets_v1";
 export const DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
   zoom: 1,
@@ -65,8 +64,6 @@ type CharacterRow = {
   name: string;
   description: string;
   status: "draft" | "active" | "archived";
-  active_character_sheet_id: string | null;
-  active_reference_pack_id: string | null;
   metadata: unknown;
 };
 
@@ -441,9 +438,7 @@ export const getCharacterProfileImageTransform = (
  */
 export const getCharacterSheetAssignments = (metadata: unknown): CharacterSheetAssignments => {
   const record = toObjectRecord(metadata);
-  const rawAssignments = toObjectRecord(
-    record[CHARACTER_SHEET_ASSIGNMENTS_KEY] ?? record[LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY]
-  );
+  const rawAssignments = toObjectRecord(record[CHARACTER_SHEET_ASSIGNMENTS_KEY]);
   const parsedAssignments = Object.fromEntries(
     Object.entries(rawAssignments).map(([zoneKey, slotKey]) => [
       zoneKey,
@@ -698,9 +693,7 @@ export const createDraftCharacter = async (name: string): Promise<CreatedCharact
       name: trimmedName,
       status: "draft",
     })
-    .select(
-      "id, name, description, status, active_character_sheet_id, active_reference_pack_id, metadata"
-    )
+    .select("id, name, description, status, metadata")
     .single();
   if (createCharacterError || !createdCharacter) {
     throw new Error(

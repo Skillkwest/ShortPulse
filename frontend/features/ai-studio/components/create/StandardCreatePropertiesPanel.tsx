@@ -10,7 +10,6 @@ import type { AspectOption, StudioMode } from "../../types";
 import { aspectOptions, modelLogos } from "../../constants";
 import type { ModelModalContext } from "../ModelModal";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
-import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import type {
   AgentAssistantMessageEditRequest,
   AgentAttachment,
@@ -33,7 +32,12 @@ import {
 } from "./useCreateCharacterModeController";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import { useAvatarResilience } from "../../hooks/useAvatarResilience";
-import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
+import {
+  AiStudioPickerCard,
+  AiStudioPickerFeedback,
+  AiStudioPickerGrid,
+  AiStudioPickerModalFrame,
+} from "../picker/AiStudioPickerPrimitives";
 
 export type { ExpertCreateMode } from "./createModeTypes";
 
@@ -389,188 +393,148 @@ const CharacterPickerModal = ({
     lookLoadingByCharacterId,
     lookOptionsByCharacterId,
   ]);
-  useAiStudioModalActivity("create-character-picker-modal", isOpen && characterModeEnabled);
-  const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
-    disabled: !isOpen || !characterModeEnabled,
-  });
-
-  if (!isOpen || !characterModeEnabled) {
-    return null;
-  }
 
   return (
-    <AiStudioModalLayer>
-      <>
-        <div className="model-modal-backdrop ai-character-picker-backdrop" {...backdropDismiss} />
-        <div
-          className="model-modal ai-character-picker-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Choose character"
-        >
-          <div className="model-modal-header">
-            <div className="model-modal-title-group">
-              <h3 className="model-modal-title">Character Picker</h3>
-              <p className="model-modal-subtitle">
-                Choose a character and the look to use for this generation.
-              </p>
-            </div>
-            <div className="model-modal-header-actions">
-              <button
-                type="button"
-                className="ai-character-picker-library-btn"
-                onClick={() => {
-                  onClose();
-                  onOpenCharacterLibrary?.();
-                }}
-              >
-                Open Character Library
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini model-modal-close"
-                aria-label="Close character picker"
-                onClick={onClose}
-              >
-                <X size={16} weight="bold" />
-              </button>
-            </div>
-          </div>
-          <div className="model-modal-scroll">
-            {characterOptions.length > 0 ? (
-              <div className="ai-character-picker-grid" role="list" aria-label="Character options">
-                {characterOptions.map((option) => {
-                  const isActive = option.id === selectedCharacterId;
-                  const lookOptions = lookOptionsByCharacterId[option.id] ?? [];
-                  const isLookLoading = Boolean(lookLoadingByCharacterId[option.id]);
-                  const lookError = lookErrorByCharacterId[option.id] ?? null;
-                  const showLookSelect = lookOptions.length > 1;
-                  const selectedLookIdForCard =
-                    pendingLookIdByCharacterId[option.id] ??
-                    (isActive ? selectedCharacterLookId.trim() : "") ??
-                    "";
-                  const resolvedAvatarUrl = resolveAvatarUrl(
+    <AiStudioPickerModalFrame
+      isOpen={isOpen}
+      isEnabled={characterModeEnabled}
+      activityId="create-character-picker-modal"
+      ariaLabel="Choose character"
+      title="Character Picker"
+      subtitle="Choose a character and the look to use for this generation."
+      onClose={onClose}
+      headerActions={
+        <div className="model-modal-header-actions">
+          <button
+            type="button"
+            className="ai-character-picker-library-btn"
+            onClick={() => {
+              onClose();
+              onOpenCharacterLibrary?.();
+            }}
+          >
+            Open Character Library
+          </button>
+          <button
+            type="button"
+            className="ghost-btn mini model-modal-close"
+            aria-label="Close character picker"
+            onClick={onClose}
+          >
+            <X size={16} weight="bold" />
+          </button>
+        </div>
+      }
+    >
+      {characterOptions.length > 0 ? (
+        <AiStudioPickerGrid ariaLabel="Character options">
+          {characterOptions.map((option) => {
+            const isActive = option.id === selectedCharacterId;
+            const lookOptions = lookOptionsByCharacterId[option.id] ?? [];
+            const isLookLoading = Boolean(lookLoadingByCharacterId[option.id]);
+            const lookError = lookErrorByCharacterId[option.id] ?? null;
+            const showLookSelect = lookOptions.length > 1;
+            const selectedLookIdForCard =
+              pendingLookIdByCharacterId[option.id] ??
+              (isActive ? selectedCharacterLookId.trim() : "") ??
+              "";
+            const resolvedAvatarUrl = resolveAvatarUrl(
+              option.id,
+              resolveCharacterAvatarUrlById?.(option.id) ?? option.profileImageUrl ?? null
+            );
+            return (
+              <AiStudioPickerCard
+                key={option.id}
+                isActive={isActive}
+                className="ai-character-picker-card--with-looks"
+                onSelect={() => {
+                  const fallbackLookId =
+                    lookOptions.find((item) => item.isDefault)?.id ?? lookOptions[0]?.id ?? "";
+                  onSelectedCharacterIdChange?.(
                     option.id,
-                    resolveCharacterAvatarUrlById?.(option.id) ?? option.profileImageUrl ?? null
+                    selectedLookIdForCard || fallbackLookId || ""
                   );
-                  return (
-                    <article
-                      key={option.id}
-                      role="listitem"
-                      className={`ai-character-list-card ai-character-picker-card ai-character-picker-card--with-looks ${
-                        isActive ? "is-active" : ""
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        className="ai-character-list-select-btn"
-                        aria-pressed={isActive}
-                        onClick={() => {
-                          const fallbackLookId =
-                            lookOptions.find((item) => item.isDefault)?.id ??
-                            lookOptions[0]?.id ??
-                            "";
-                          onSelectedCharacterIdChange?.(
-                            option.id,
-                            selectedLookIdForCard || fallbackLookId || ""
-                          );
+                  onClose();
+                }}
+                avatar={
+                  resolvedAvatarUrl ? (
+                    <Image
+                      src={resolvedAvatarUrl}
+                      alt=""
+                      className="ai-character-list-avatar-image"
+                      width={44}
+                      height={44}
+                      unoptimized
+                      onLoad={() => {
+                        clearAvatarFailure(option.id);
+                      }}
+                      onError={() => {
+                        void handleAvatarError({
+                          avatarId: option.id,
+                          recoverAvatarUrl: async () => {
+                            const refreshedOptions = await refreshCharacterOptions?.();
+                            const refreshedAvatarUrl =
+                              refreshedOptions?.find((item) => item.id === option.id)
+                                ?.profileImageUrl ?? null;
+                            return (
+                              refreshedAvatarUrl?.trim() ??
+                              resolveCharacterAvatarUrlById?.(option.id) ??
+                              null
+                            );
+                          },
+                        });
+                      }}
+                    />
+                  ) : (
+                    <span className="ai-character-list-avatar-initials">
+                      {getCreateCharacterInitials(option.name)}
+                    </span>
+                  )
+                }
+                label={isActive ? "Selected" : "Character"}
+                name={option.name}
+                footer={
+                  isLookLoading ? (
+                    <p className="ai-character-look-meta tiny subdued">Loading looks...</p>
+                  ) : lookError ? (
+                    <p className="ai-character-look-meta tiny">{lookError}</p>
+                  ) : showLookSelect ? (
+                    <div className="ai-character-look-field">
+                      <span className="ai-character-look-label">Select look</span>
+                      <CharacterLookDropdown
+                        characterName={option.name}
+                        value={selectedLookIdForCard}
+                        options={lookOptions}
+                        onChange={(nextLookId) => {
+                          setPendingLookIdByCharacterId((current) => ({
+                            ...current,
+                            [option.id]: nextLookId,
+                          }));
+                          onSelectedCharacterIdChange?.(option.id, nextLookId);
                           onClose();
                         }}
-                      >
-                        <div className="ai-character-list-main">
-                          <span className="ai-character-list-avatar" aria-hidden="true">
-                            {resolvedAvatarUrl ? (
-                              <Image
-                                src={resolvedAvatarUrl}
-                                alt=""
-                                className="ai-character-list-avatar-image"
-                                width={44}
-                                height={44}
-                                unoptimized
-                                onLoad={() => {
-                                  clearAvatarFailure(option.id);
-                                }}
-                                onError={() => {
-                                  void handleAvatarError({
-                                    avatarId: option.id,
-                                    recoverAvatarUrl: async () => {
-                                      const refreshedOptions = await refreshCharacterOptions?.();
-                                      const refreshedAvatarUrl =
-                                        refreshedOptions?.find((item) => item.id === option.id)
-                                          ?.profileImageUrl ?? null;
-                                      return (
-                                        refreshedAvatarUrl?.trim() ??
-                                        resolveCharacterAvatarUrlById?.(option.id) ??
-                                        null
-                                      );
-                                    },
-                                  });
-                                }}
-                              />
-                            ) : (
-                              <span className="ai-character-list-avatar-initials">
-                                {getCreateCharacterInitials(option.name)}
-                              </span>
-                            )}
-                          </span>
-                          <div className="ai-character-list-copy">
-                            <p className="metric-label tiny">
-                              {isActive ? "Selected" : "Character"}
-                            </p>
-                            <p className="ai-character-list-name">{option.name}</p>
-                          </div>
-                        </div>
-                      </button>
-                      {isLookLoading ? (
-                        <p className="ai-character-look-meta tiny subdued">Loading looks...</p>
-                      ) : lookError ? (
-                        <p className="ai-character-look-meta tiny">{lookError}</p>
-                      ) : showLookSelect ? (
-                        <div className="ai-character-look-field">
-                          <span className="ai-character-look-label">Select look</span>
-                          <CharacterLookDropdown
-                            characterName={option.name}
-                            value={selectedLookIdForCard}
-                            options={lookOptions}
-                            onChange={(nextLookId) => {
-                              setPendingLookIdByCharacterId((current) => ({
-                                ...current,
-                                [option.id]: nextLookId,
-                              }));
-                              onSelectedCharacterIdChange?.(option.id, nextLookId);
-                              onClose();
-                            }}
-                          />
-                        </div>
-                      ) : lookOptions.length === 1 ? (
-                        <p className="ai-character-look-meta tiny subdued">
-                          Look: {lookOptions[0]?.label}
-                        </p>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-            ) : isCharacterOptionsLoading || isRefreshing ? (
-              <p className="tiny subdued ai-character-picker-empty">
-                Loading character profiles...
-              </p>
-            ) : refreshError ? (
-              <div className="ai-character-picker-empty">
-                <p className="tiny">{refreshError}</p>
-                <button type="button" className="ghost-btn mini" onClick={() => void refreshNow()}>
-                  Retry
-                </button>
-              </div>
-            ) : (
-              <p className="tiny subdued ai-character-picker-empty">
-                No character profiles available.
-              </p>
-            )}
-          </div>
-        </div>
-      </>
-    </AiStudioModalLayer>
+                      />
+                    </div>
+                  ) : lookOptions.length === 1 ? (
+                    <p className="ai-character-look-meta tiny subdued">
+                      Look: {lookOptions[0]?.label}
+                    </p>
+                  ) : null
+                }
+              />
+            );
+          })}
+        </AiStudioPickerGrid>
+      ) : (
+        <AiStudioPickerFeedback
+          isLoading={isCharacterOptionsLoading || isRefreshing}
+          loadingMessage="Loading character profiles..."
+          errorMessage={refreshError}
+          emptyMessage="No character profiles available."
+          onRetry={() => void refreshNow()}
+        />
+      )}
+    </AiStudioPickerModalFrame>
   );
 };
 

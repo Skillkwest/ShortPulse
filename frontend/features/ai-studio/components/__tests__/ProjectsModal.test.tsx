@@ -96,6 +96,70 @@ describe("ProjectsModal", () => {
     expect(screen.getByRole("button", { name: "Current project Current Workspace" })).toBeEnabled();
   });
 
+  it("creates a project from the modal header and routes through the create callback", async () => {
+    const onClose = vi.fn();
+    const onCreateProject = vi.fn().mockResolvedValue(undefined);
+    mockedFetchWithAuth
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          projects: [
+            {
+              id: "project-1",
+              title: "Campaign Alpha",
+              createdAt: "2026-04-24T17:00:00.000Z",
+              updatedAt: "2026-04-24T18:00:00.000Z",
+              previewImageUrls: [],
+            },
+          ],
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          project: {
+            id: "project-created",
+            title: "Launch Campaign",
+            createdAt: "2026-05-10T17:00:00.000Z",
+            updatedAt: "2026-05-10T17:00:00.000Z",
+          },
+        }),
+      } as Response);
+
+    render(
+      <ProjectsModal
+        isOpen
+        onClose={onClose}
+        onSelectProject={vi.fn()}
+        onCreateProject={onCreateProject}
+      />
+    );
+
+    expect(await screen.findByRole("button", { name: "New Project" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "New Project" }));
+    fireEvent.change(screen.getByLabelText("Project name"), {
+      target: { value: "Launch Campaign" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(mockedFetchWithAuth).toHaveBeenCalledWith(
+        "/api/projects/create",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ title: "Launch Campaign" }),
+        })
+      );
+    });
+    await waitFor(() => {
+      expect(onCreateProject).toHaveBeenCalledWith("project-created");
+    });
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("deletes a saved project after confirmation", async () => {
     mockedFetchWithAuth
       .mockResolvedValueOnce({
@@ -219,16 +283,36 @@ describe("ProjectsModal", () => {
   });
 
   it("shows a retryable error state when project loading fails", async () => {
-    mockedFetchWithAuth.mockResolvedValueOnce({
-      ok: false,
-      status: 401,
-      json: async () => ({ error: "Unauthorized" }),
-    } as Response);
+    mockedFetchWithAuth
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: "Unauthorized" }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          projects: [
+            {
+              id: "project-1",
+              title: "Campaign Alpha",
+              createdAt: "2026-04-24T17:00:00.000Z",
+              updatedAt: "2026-04-24T18:00:00.000Z",
+              previewImageUrls: [],
+            },
+          ],
+        }),
+      } as Response);
 
     render(<ProjectsModal isOpen onClose={vi.fn()} onSelectProject={vi.fn()} />);
 
     expect(await screen.findByText("Projects unavailable")).toBeInTheDocument();
     expect(screen.getByText("Session expired. Retry project load.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByText("Campaign Alpha")).toBeInTheDocument();
+    expect(mockedFetchWithAuth).toHaveBeenCalledTimes(2);
   });
 
   it("shows a banner when project deletion fails", async () => {

@@ -29,7 +29,9 @@ import {
 import {
   defaultCharacterAspect,
   defaultCharacterEngine,
+  defaultCharacterEditModel,
   defaultCharacterModel,
+  defaultCharacterTextModel,
   MAX_REFERENCE_FILES,
 } from "../constants";
 
@@ -233,11 +235,10 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
         };
 
         const shouldUseEdit =
-          preparedImages.length > 0 &&
-          activeModel !== "fal-ai/bytedance/seedream/v4.5/text-to-image";
+          preparedImages.length > 0 && activeModel !== defaultCharacterTextModel;
         const generationModelId = shouldUseEdit
-          ? "fal-ai/bytedance/seedream/v4.5/edit"
-          : "fal-ai/bytedance/seedream/v4.5/text-to-image";
+          ? defaultCharacterEditModel
+          : defaultCharacterTextModel;
         const submitResponse = shouldUseEdit
           ? await submitQueuedGenerationByModelId(generationModelId, {
               ...basePayload,

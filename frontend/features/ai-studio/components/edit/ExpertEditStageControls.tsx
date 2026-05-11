@@ -364,7 +364,7 @@ export function ExpertEditMoveControlsContent({
           type="range"
           min={MOVE_STAGE_ZOOM_SLIDER_MIN}
           max={MOVE_STAGE_ZOOM_SLIDER_MAX}
-          step={1}
+          step={0.1}
           value={moveStageZoomSliderValue}
           onChange={(event) => handleMoveZoomSliderChange(Number(event.target.value))}
           onDoubleClick={() => handleMoveZoomSliderChange(MOVE_STAGE_ZOOM_SLIDER_DEFAULT)}

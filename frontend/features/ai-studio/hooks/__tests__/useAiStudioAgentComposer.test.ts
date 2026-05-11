@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DragEvent } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioAgentComposer } from "../useAiStudioAgentComposer";
-import { extractDragDropPayload } from "../../utils/dragDrop";
+import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
+import { extractDragDropPayload, extractInternalReferenceDragPayload } from "../../utils/dragDrop";
+import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
 
 vi.mock("../../utils/dragDrop", async () => {
   const actual =
@@ -11,10 +13,17 @@ vi.mock("../../utils/dragDrop", async () => {
   return {
     ...actual,
     extractDragDropPayload: vi.fn(),
+    extractInternalReferenceDragPayload: vi.fn(),
   };
 });
 
+vi.mock("../../logic/mediaLibraryDragPayload", () => ({
+  readMediaLibraryDragPayload: vi.fn(),
+}));
+
 const extractDragDropPayloadMock = vi.mocked(extractDragDropPayload);
+const extractInternalReferenceDragPayloadMock = vi.mocked(extractInternalReferenceDragPayload);
+const readMediaLibraryDragPayloadMock = vi.mocked(readMediaLibraryDragPayload);
 
 const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id,
@@ -49,6 +58,14 @@ const makeDragEvent = (data: Record<string, string> = {}, files: File[] = []) =>
 describe("useAiStudioAgentComposer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: null,
+      promptText: null,
+      referenceId: null,
+      fromFile: false,
+    });
+    extractInternalReferenceDragPayloadMock.mockReturnValue(null);
+    readMediaLibraryDragPayloadMock.mockReturnValue(null);
   });
 
   afterEach(() => {
@@ -107,6 +124,8 @@ describe("useAiStudioAgentComposer", () => {
       kind: "image",
       referenceId: "out-1",
       imageUrl: "https://example.com/image.png",
+      referenceUrl: null,
+      referenceRenderUrl: null,
       text: "Reference note",
     });
   });
@@ -134,6 +153,48 @@ describe("useAiStudioAgentComposer", () => {
     });
 
     expect(result.current.agentAttachments).toHaveLength(1);
+  });
+
+  it("refreshes an existing image attachment when the same reference is dragged again", () => {
+    extractDragDropPayloadMock
+      .mockReturnValueOnce({
+        imageUrl: "https://example.com/image-stale.png",
+        promptText: null,
+        referenceId: "out-1",
+        fromFile: false,
+      })
+      .mockReturnValueOnce({
+        imageUrl: "https://example.com/image-fresh.png",
+        promptText: null,
+        referenceId: "out-1",
+        fromFile: false,
+      });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+      result.current.handleAgentAttachmentDrop(
+        makeDragEvent({
+          "text/reference-render-url": "https://example.com/image-fresh-preview.png",
+        })
+      );
+    });
+
+    expect(result.current.agentAttachments).toHaveLength(1);
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      referenceId: "out-1",
+      imageUrl: "https://example.com/image-fresh-preview.png",
+      imageFallbackUrls: ["https://example.com/image-fresh.png"],
+    });
   });
 
   it("caps image attachments to the most recent three entries", () => {
@@ -262,6 +323,106 @@ describe("useAiStudioAgentComposer", () => {
     ]);
   });
 
+  it("rejects dropped video files before they reach the composer", () => {
+    const ensureAgentSession = vi.fn();
+    const files = [new File(["video"], "clip.mp4", { type: "video/mp4" })];
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: false,
+        ensureAgentSession,
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent({}, files));
+    });
+
+    expect(ensureAgentSession).not.toHaveBeenCalled();
+    expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
+    expect(result.current.agentAttachments).toEqual([]);
+    expect(result.current.agentAttachmentError).toBe(
+      "This is a video. Try adding an image instead."
+    );
+  });
+
+  it("rejects internal video references instead of staging them as prompt attachments", () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: null,
+      promptText: "Video note",
+      referenceId: "out-1",
+      fromFile: false,
+      mediaKind: "video",
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([
+          makeOutput("out-1", {
+            mode: "video",
+            previewText: "Video note",
+          }),
+        ]),
+        resolveOutputPreviewUrlById: () => "https://example.com/reference-video.mp4",
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(result.current.agentAttachments).toEqual([]);
+    expect(result.current.agentAttachmentError).toBe(
+      "This is a video. Try adding an image instead."
+    );
+  });
+
+  it("rejects media-library video drags before prompt fallback can attach them", () => {
+    readMediaLibraryDragPayloadMock.mockReturnValue({
+      kind: "libraryMedia",
+      source: "mediaLibrary",
+      payload: {
+        id: "media-1",
+        url: "https://example.com/reference-video.mp4",
+        fileType: "video",
+        originFolderId: null,
+        filename: "reference-video.mp4",
+        promptText: "Video note",
+        source: "upload",
+        previewStoragePath: null,
+        fullStoragePath: null,
+        previewUrl: null,
+        previewPosterUrl: "https://example.com/reference-video-poster.jpg",
+        previewPosterStoragePath: null,
+        fullUrl: "https://example.com/reference-video.mp4",
+        width: 1280,
+        height: 720,
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(result.current.agentAttachments).toEqual([]);
+    expect(result.current.agentAttachmentError).toBe(
+      "This is a video. Try adding an image instead."
+    );
+  });
+
   it("falls back to output storage URLs when drop payload omits imageUrl", () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: null,
@@ -293,8 +454,197 @@ describe("useAiStudioAgentComposer", () => {
       kind: "image",
       referenceId: "out-1",
       imageUrl: "https://example.com/fallback-image.png",
+      fullStoragePath: "https://example.com/fallback-image.png",
       text: "Reference note",
     });
+  });
+
+  it("prefers resolved internal image-drop authority over fragile drag and page preview urls", async () => {
+    const fragileDragUrl =
+      "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";
+    const resolvedSource: ResolvedInternalReferenceSource = {
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "out-1",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: "media-1",
+        imageIndex: 0,
+        sourceSurface: "curated",
+        resolutionReason: "saved_media_lookup",
+      },
+      outputId: "out-1",
+      mediaId: "media-1",
+      mediaSource: "generated",
+      preview: {
+        url: "https://signed.example.com/stable-preview.png",
+      },
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      promptText: "Resolved prompt",
+      preparedImageUrl: "https://signed.example.com/stable-preview.png",
+      loadBlob: async () => new Blob(["image"]),
+    };
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: fragileDragUrl,
+      promptText: null,
+      referenceId: "out-1",
+      fromFile: false,
+    });
+    extractInternalReferenceDragPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      imageIndex: 0,
+      mediaId: "media-1",
+      mediaKind: "image",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      referenceUrl: null,
+      referenceRenderUrl: null,
+      sourceSurface: "curated",
+    });
+    const resolveInternalImageDropSource = vi.fn(async () => resolvedSource);
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => "https://cdn.example.com/weak-panel-preview.png",
+        resolveInternalImageDropSource,
+      })
+    );
+
+    await act(async () => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+      await Promise.resolve();
+    });
+
+    expect(resolveInternalImageDropSource).toHaveBeenCalledTimes(1);
+    expect(result.current.agentAttachments).toHaveLength(1);
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      referenceId: "out-1",
+      mediaId: "media-1",
+      imageUrl: "https://signed.example.com/stable-preview.png",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      referenceUrl: null,
+      referenceRenderUrl: null,
+      text: "Resolved prompt",
+    });
+    expect(result.current.agentAttachments[0]?.imageFallbackUrls ?? []).not.toContain(
+      "https://cdn.example.com/weak-panel-preview.png"
+    );
+  });
+
+  it("shows an explicit error when internal image resolution fails closed", async () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl:
+        "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75",
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+    extractInternalReferenceDragPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      imageIndex: 0,
+      mediaId: "media-1",
+      mediaKind: "image",
+      referenceUrl: null,
+      referenceRenderUrl: null,
+      sourceSurface: "curated",
+    });
+    const resolveOutputPreviewUrlById = vi.fn(
+      () => "https://cdn.example.com/weak-panel-preview.png"
+    );
+    const resolveInternalImageDropSource = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById,
+        resolveInternalImageDropSource,
+      })
+    );
+
+    await act(async () => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+      await Promise.resolve();
+    });
+
+    expect(resolveOutputPreviewUrlById).not.toHaveBeenCalled();
+    expect(result.current.agentAttachments).toEqual([
+      expect.objectContaining({
+        kind: "prompt",
+        referenceId: "out-1",
+        text: "Reference note",
+      }),
+    ]);
+    expect(result.current.agentAttachmentError).toBe(
+      "Could not attach that image. Try dragging it again or add it from Media Library."
+    );
+  });
+
+  it("fails closed instead of staging fragile generated transport previews when internal resolution cannot recover identity", async () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl:
+        "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fgenerated.png&w=1200&q=75",
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+    extractInternalReferenceDragPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      imageIndex: 0,
+      mediaId: null,
+      mediaKind: "image",
+      referenceUrl: null,
+      referenceRenderUrl: null,
+      sourceSurface: "curated",
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([
+          makeOutput("out-1", {
+            mediaSource: "generated",
+            previewUrl: "https://cdn.example.com/weak-panel-preview.png",
+          }),
+        ]),
+        resolveOutputPreviewUrlById: () => "https://cdn.example.com/weak-panel-preview.png",
+        resolveInternalImageDropSource: vi.fn(async () => null),
+      })
+    );
+
+    await act(async () => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+      await Promise.resolve();
+    });
+
+    expect(result.current.agentAttachments).toEqual([
+      expect.objectContaining({
+        kind: "prompt",
+        referenceId: "out-1",
+        text: "Reference note",
+      }),
+    ]);
+    expect(result.current.agentAttachmentError).toBe(
+      "Could not attach that image. Try dragging it again or add it from Media Library."
+    );
   });
 
   it("ignores raw storage keys and uses the draggable image URL for composer previews", () => {
@@ -332,7 +682,7 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
-  it("prefers durable reference URLs before render-only optimizer payloads", () => {
+  it("keeps render-safe drag previews ahead of direct reference URLs", () => {
     const optimizerUrl =
       "http://localhost:3000/_next/image?url=%2Fstorage%2Fv1%2Fobject%2Fsign%2Fmedia_library%2Fuser-1%2Fimage.png&w=1200&q=75";
     const durableReferenceUrl =
@@ -365,8 +715,10 @@ describe("useAiStudioAgentComposer", () => {
     expect(result.current.agentAttachments[0]).toMatchObject({
       kind: "image",
       referenceId: "out-1",
-      imageUrl: durableReferenceUrl,
-      imageFallbackUrls: [optimizerUrl],
+      imageUrl: optimizerUrl,
+      imageFallbackUrls: [durableReferenceUrl],
+      referenceUrl: null,
+      referenceRenderUrl: optimizerUrl,
       text: "Reference note",
     });
   });
@@ -405,6 +757,8 @@ describe("useAiStudioAgentComposer", () => {
       referenceId: "out-1",
       imageUrl: dataRenderUrl,
       imageFallbackUrls: [signedReferenceUrl],
+      referenceUrl: signedReferenceUrl,
+      referenceRenderUrl: dataRenderUrl,
       text: "Reference note",
     });
   });
@@ -446,9 +800,44 @@ describe("useAiStudioAgentComposer", () => {
       referenceId: "out-1",
       imageUrl: dataRenderUrl,
       imageFallbackUrls: [
-        "https://cdn.example.com/stale-full.png",
         "https://cdn.example.com/panel-preview.png",
+        "https://cdn.example.com/stale-full.png",
       ],
+      fullStoragePath: "https://cdn.example.com/stale-full.png",
+      referenceRenderUrl: dataRenderUrl,
+      text: "Reference note",
+    });
+  });
+
+  it("keeps extracted drag image URLs ahead of weaker page-resolved output preview fallbacks", () => {
+    const durableReferenceUrl = "https://signed.example.com/reference-image.png";
+    const resolvedPanelPreviewUrl = "https://cdn.example.com/panel-preview.png";
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: durableReferenceUrl,
+      promptText: "Reference note",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => resolvedPanelPreviewUrl,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(result.current.agentAttachments).toHaveLength(1);
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      referenceId: "out-1",
+      imageUrl: durableReferenceUrl,
+      imageFallbackUrls: [resolvedPanelPreviewUrl],
       text: "Reference note",
     });
   });
@@ -486,6 +875,7 @@ describe("useAiStudioAgentComposer", () => {
         kind: "image",
         referenceId: "out-1",
         imageUrl: renderedDragUrl,
+        fullStoragePath: "user-1/media-library/raw-full.png",
       }),
     ]);
   });

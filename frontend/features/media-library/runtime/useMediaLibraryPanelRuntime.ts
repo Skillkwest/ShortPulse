@@ -14,11 +14,10 @@ import {
 } from "../../ai-studio/logic/mediaLibraryModalModel";
 import {
   createMediaLibraryRuntimeState,
+  replaceSurfaceMediaRowsByTabs,
   replaceSurfaceMediaTabRows,
   replaceSurfacePromptRows,
   selectSurfaceAggregateScopeCache,
-  selectSurfaceMediaRows,
-  selectSurfacePromptRows,
   setSurfaceAggregateScopeCache,
   setSurfaceError,
   setSurfaceSignedUrls,
@@ -48,8 +47,35 @@ type UseMediaLibraryPanelRuntimeResult = {
 
 const panelTabOrder = ["uploaded_images", "uploaded_videos", "private", "ai_generations"] as const;
 
-const selectPanelMediaRows = (runtimeState: MediaLibraryRuntimeState<MediaFileRow, PromptRow>) =>
-  panelTabOrder.flatMap((tab) => selectSurfaceMediaRows(runtimeState, { surface: "panel", tab }));
+const selectPanelMediaRows = ({
+  mediaById,
+  mediaIdsByTab,
+  signedUrlById,
+}: {
+  mediaById: MediaLibraryRuntimeState<MediaFileRow, PromptRow>["mediaById"];
+  mediaIdsByTab: MediaLibraryRuntimeState<
+    MediaFileRow,
+    PromptRow
+  >["surfaceStateByKind"]["panel"]["orderedViews"]["mediaIdsByTab"];
+  signedUrlById: MediaLibraryRuntimeState<
+    MediaFileRow,
+    PromptRow
+  >["surfaceStateByKind"]["panel"]["preview"]["signedUrlById"];
+}) =>
+  panelTabOrder.flatMap((tab) =>
+    mediaIdsByTab[tab]
+      .map((id) => {
+        const row = mediaById[id];
+        if (!row) return null;
+        const signedUrl = signedUrlById[id];
+        if (!signedUrl || row.signedUrl === signedUrl) return row;
+        return {
+          ...row,
+          signedUrl,
+        };
+      })
+      .filter((row): row is MediaFileRow => Boolean(row))
+  );
 
 const sortByCreatedAtDesc = (rows: MediaFileRow[]): MediaFileRow[] =>
   [...rows].sort((left, right) => {
@@ -69,9 +95,17 @@ export const useMediaLibraryPanelRuntime = ({
   const [runtimeState, setRuntimeState] = useState(() =>
     createMediaLibraryRuntimeState<MediaFileRow, PromptRow>()
   );
+  const panelSurfaceState = runtimeState.surfaceStateByKind.panel;
+  const panelMediaIdsByTab = panelSurfaceState.orderedViews.mediaIdsByTab;
+  const panelPromptIds = panelSurfaceState.orderedViews.promptIds;
+  const panelSignedUrlById = panelSurfaceState.preview.signedUrlById;
 
   const mediaRows = useMemo(() => {
-    const panelRows = selectPanelMediaRows(runtimeState);
+    const panelRows = selectPanelMediaRows({
+      mediaById: runtimeState.mediaById,
+      mediaIdsByTab: panelMediaIdsByTab,
+      signedUrlById: panelSignedUrlById,
+    });
     if (itemType === "images") {
       return sortByCreatedAtDesc(panelRows.filter((row) => isImageFile(row.file_type)));
     }
@@ -85,9 +119,15 @@ export const useMediaLibraryPanelRuntime = ({
       return [];
     }
     return sortByCreatedAtDesc(panelRows);
-  }, [itemType, runtimeState]);
+  }, [itemType, panelMediaIdsByTab, panelSignedUrlById, runtimeState.mediaById]);
 
-  const promptRows = useMemo(() => selectSurfacePromptRows(runtimeState, "panel"), [runtimeState]);
+  const promptRows = useMemo(
+    () =>
+      panelPromptIds
+        .map((id) => runtimeState.promptById[id])
+        .filter((row): row is PromptRow => Boolean(row)),
+    [panelPromptIds, runtimeState.promptById]
+  );
   const mediaScopeCache = useMemo(
     () => selectSurfaceAggregateScopeCache(runtimeState, { surface: "panel", kind: "media" }),
     [runtimeState]
@@ -96,11 +136,15 @@ export const useMediaLibraryPanelRuntime = ({
     () => selectSurfaceAggregateScopeCache(runtimeState, { surface: "panel", kind: "prompts" }),
     [runtimeState]
   );
-  const error = runtimeState.surfaceStateByKind.panel.error;
+  const error = panelSurfaceState.error;
 
   const setMediaRows = useCallback<Dispatch<SetStateAction<MediaFileRow[]>>>((updater) => {
     setRuntimeState((prev) => {
-      const currentRows = selectPanelMediaRows(prev);
+      const currentRows = selectPanelMediaRows({
+        mediaById: prev.mediaById,
+        mediaIdsByTab: prev.surfaceStateByKind.panel.orderedViews.mediaIdsByTab,
+        signedUrlById: prev.surfaceStateByKind.panel.preview.signedUrlById,
+      });
       const nextRows = typeof updater === "function" ? updater(currentRows) : updater;
       if (nextRows === currentRows) return prev;
 
@@ -115,38 +159,24 @@ export const useMediaLibraryPanelRuntime = ({
         rowsByTab[getMediaDataTabForRow(row)].push(row);
       }
 
-      let nextState = prev;
-      nextState = replaceSurfaceMediaTabRows(nextState, {
+      return replaceSurfaceMediaRowsByTabs(prev, {
         surface: "panel",
-        tab: "uploaded_images",
-        rows: rowsByTab.uploaded_images,
-        cache: prev.surfaceStateByKind.panel.cacheByTab.uploaded_images,
+        rowsByTab,
+        cacheByTab: {
+          uploaded_images: prev.surfaceStateByKind.panel.cacheByTab.uploaded_images,
+          uploaded_videos: prev.surfaceStateByKind.panel.cacheByTab.uploaded_videos,
+          private: prev.surfaceStateByKind.panel.cacheByTab.private,
+          ai_generations: prev.surfaceStateByKind.panel.cacheByTab.ai_generations,
+        },
       });
-      nextState = replaceSurfaceMediaTabRows(nextState, {
-        surface: "panel",
-        tab: "uploaded_videos",
-        rows: rowsByTab.uploaded_videos,
-        cache: prev.surfaceStateByKind.panel.cacheByTab.uploaded_videos,
-      });
-      nextState = replaceSurfaceMediaTabRows(nextState, {
-        surface: "panel",
-        tab: "private",
-        rows: rowsByTab.private,
-        cache: prev.surfaceStateByKind.panel.cacheByTab.private,
-      });
-      nextState = replaceSurfaceMediaTabRows(nextState, {
-        surface: "panel",
-        tab: "ai_generations",
-        rows: rowsByTab.ai_generations,
-        cache: prev.surfaceStateByKind.panel.cacheByTab.ai_generations,
-      });
-      return nextState;
     });
   }, []);
 
   const setPromptRows = useCallback<Dispatch<SetStateAction<PromptRow[]>>>((updater) => {
     setRuntimeState((prev) => {
-      const currentRows = selectSurfacePromptRows(prev, "panel");
+      const currentRows = prev.surfaceStateByKind.panel.orderedViews.promptIds
+        .map((id) => prev.promptById[id])
+        .filter((row): row is PromptRow => Boolean(row));
       const nextRows = typeof updater === "function" ? updater(currentRows) : updater;
       if (nextRows === currentRows) return prev;
       return replaceSurfacePromptRows(prev, {

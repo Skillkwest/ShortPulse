@@ -262,14 +262,6 @@
   gap: 8px;
 }
 
-.character-manager-page--embedded .character-voice-row {
-  align-items: stretch;
-}
-
-.character-manager-page--embedded .character-voice-selector-btn {
-  flex-basis: 0;
-}
-
 .character-manager-page--embedded .character-profile-description-block {
   grid-column: 1;
 }

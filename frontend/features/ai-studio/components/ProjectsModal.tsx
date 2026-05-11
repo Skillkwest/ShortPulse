@@ -8,6 +8,8 @@ import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import { ProjectNameModal } from "../../projects/components/ProjectNameModal";
+import { useProjectCreationDialog } from "../../projects/hooks/useProjectCreationDialog";
 
 type ProjectListRecord = {
   id: string;
@@ -28,6 +30,7 @@ type ProjectsModalProps = {
   currentProjectId?: string | null;
   onClose: () => void;
   onSelectProject: (projectId: string) => Promise<void> | void;
+  onCreateProject?: (projectId: string) => Promise<void> | void;
 };
 
 type ProjectsLoadState =
@@ -74,6 +77,7 @@ export function ProjectsModal({
   currentProjectId = null,
   onClose,
   onSelectProject,
+  onCreateProject,
 }: ProjectsModalProps) {
   const [loadState, setLoadState] = React.useState<ProjectsLoadState>({
     status: "idle",
@@ -87,18 +91,29 @@ export function ProjectsModal({
   );
   const [deletePendingProjectId, setDeletePendingProjectId] = React.useState<string | null>(null);
   const deleteInFlightProjectIdRef = React.useRef<string | null>(null);
+  const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const createButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const restoreFocusRef = React.useRef<HTMLElement | null>(null);
+  const projectNameModalWasOpenRef = React.useRef(false);
   useAiStudioModalActivity("projects-modal", isOpen);
+  const {
+    isOpen: isProjectNameModalOpen,
+    title: createProjectTitle,
+    error: createProjectError,
+    isCreating: isCreatingProject,
+    openDialog: openCreateProjectDialog,
+    closeDialog: closeCreateProjectDialog,
+    setTitle: setCreateProjectTitle,
+    submit: submitProjectCreate,
+  } = useProjectCreationDialog({
+    onCreatedProject: async (project) => {
+      if (!onCreateProject) return;
+      await onCreateProject(project.id);
+      onClose();
+    },
+  });
 
-  React.useEffect(() => {
-    if (!isOpen) {
-      setActionError(null);
-      setPendingProjectId(null);
-      setDeleteConfirmProject(null);
-      setDeletePendingProjectId(null);
-      deleteInFlightProjectIdRef.current = null;
-      return;
-    }
-
+  const loadProjects = React.useCallback(() => {
     let cancelled = false;
     setLoadState((current) => ({
       status: "loading",
@@ -134,13 +149,57 @@ export function ProjectsModal({
     return () => {
       cancelled = true;
     };
-  }, [isOpen]);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setActionError(null);
+      setPendingProjectId(null);
+      setDeleteConfirmProject(null);
+      setDeletePendingProjectId(null);
+      deleteInFlightProjectIdRef.current = null;
+      return;
+    }
+    return loadProjects();
+  }, [isOpen, loadProjects]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      restoreFocusRef.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const focusTarget = onCreateProject ? createButtonRef.current : closeButtonRef.current;
+      queueMicrotask(() => {
+        focusTarget?.focus();
+      });
+      return;
+    }
+    restoreFocusRef.current?.focus();
+    restoreFocusRef.current = null;
+  }, [isOpen, onCreateProject]);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      projectNameModalWasOpenRef.current = false;
+      return;
+    }
+    if (projectNameModalWasOpenRef.current && !isProjectNameModalOpen) {
+      const focusTarget = onCreateProject ? createButtonRef.current : closeButtonRef.current;
+      queueMicrotask(() => {
+        focusTarget?.focus();
+      });
+    }
+    projectNameModalWasOpenRef.current = isProjectNameModalOpen;
+  }, [isOpen, isProjectNameModalOpen, onCreateProject]);
 
   React.useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (isProjectNameModalOpen) {
+          closeCreateProjectDialog();
+          return;
+        }
         if (deleteConfirmProject) {
           setDeleteConfirmProject(null);
           return;
@@ -151,9 +210,9 @@ export function ProjectsModal({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [deleteConfirmProject, isOpen, onClose]);
+  }, [closeCreateProjectDialog, deleteConfirmProject, isOpen, isProjectNameModalOpen, onClose]);
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(onClose, {
-    disabled: !isOpen,
+    disabled: !isOpen || isProjectNameModalOpen,
   });
 
   const handleProjectSelect = React.useCallback(
@@ -242,6 +301,17 @@ export function ProjectsModal({
             </p>
           </div>
           <div className="model-modal-header-actions">
+            {onCreateProject ? (
+              <button
+                ref={createButtonRef}
+                type="button"
+                className="ghost-btn mini ai-projects-modal-create-button"
+                onClick={openCreateProjectDialog}
+                disabled={Boolean(pendingProjectId || deletePendingProjectId || isCreatingProject)}
+              >
+                New Project
+              </button>
+            ) : null}
             <span className="ai-projects-modal-count-pill" aria-live="polite">
               {loadState.status === "ready"
                 ? `${loadState.projects.length} saved`
@@ -250,6 +320,7 @@ export function ProjectsModal({
                   : "Saved projects"}
             </span>
             <button
+              ref={closeButtonRef}
               type="button"
               className="ghost-btn mini model-modal-close"
               onClick={onClose}
@@ -270,6 +341,9 @@ export function ProjectsModal({
               <Folders size={30} weight="duotone" />
               <h3>Projects unavailable</h3>
               <p>{loadState.error}</p>
+              <button type="button" className="ghost-btn mini" onClick={loadProjects}>
+                Retry
+              </button>
             </div>
           ) : null}
           {loadState.status !== "error" && loadState.projects.length === 0 ? (
@@ -292,8 +366,19 @@ export function ProjectsModal({
               <p>
                 {loadState.status === "loading"
                   ? "Fetching your latest AI Studio projects."
-                  : "Create a project from the dashboard to start building a saved workspace."}
+                  : onCreateProject
+                    ? "Create a project from here to start building a saved workspace."
+                    : "Create a project from the dashboard to start building a saved workspace."}
               </p>
+              {onCreateProject && loadState.status !== "loading" ? (
+                <button
+                  type="button"
+                  className="ghost-btn mini ai-projects-modal-empty-action"
+                  onClick={openCreateProjectDialog}
+                >
+                  New Project
+                </button>
+              ) : null}
             </div>
           ) : null}
           {loadState.projects.length > 0 ? (
@@ -352,6 +437,8 @@ export function ProjectsModal({
                                 key={`${project.id}-preview-${index}`}
                                 className="ai-projects-modal-card-preview-tile"
                               >
+                                {/* Signed thumbnail URLs are already surface-sized for this modal. */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={url} alt="" />
                               </span>
                             ))}
@@ -397,6 +484,18 @@ export function ProjectsModal({
           onCancel={closeDeleteConfirm}
           onConfirm={() => {
             void handleDeleteConfirm();
+          }}
+        />
+      ) : null}
+      {isProjectNameModalOpen ? (
+        <ProjectNameModal
+          value={createProjectTitle}
+          isCreating={isCreatingProject}
+          error={createProjectError}
+          onChange={setCreateProjectTitle}
+          onCancel={closeCreateProjectDialog}
+          onSubmit={() => {
+            void submitProjectCreate();
           }}
         />
       ) : null}

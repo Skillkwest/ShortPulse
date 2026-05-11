@@ -117,7 +117,7 @@ describe("useAiStudioProjectIdentity", () => {
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
     expect(result.current.status).toBe("error");
-    expect(result.current.error).toBe("Project not found.");
+    expect(result.current.error).toBe("Invalid project link.");
     expect(result.current.errorKind).toBe("invalid_id");
     expect(result.current.verifiedProjectId).toBeNull();
     expect(result.current.project).toBeNull();

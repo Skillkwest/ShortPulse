@@ -7,6 +7,7 @@ import { X } from "phosphor-react";
 import { isAudioFile, isVideoFile, type MediaFileRow } from "../../logic/mediaLibraryModalModel";
 import { useGuardedBackdropDismiss } from "../../../../components/useGuardedBackdropDismiss";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
+import { useExclusiveSoundMediaElement } from "../shared/exclusiveSoundPlayback";
 
 type MediaLibraryPanelPreviewModalProps = {
   file: MediaFileRow | null;
@@ -30,6 +31,16 @@ export function MediaLibraryPanelPreviewModal({
   onClose,
 }: MediaLibraryPanelPreviewModalProps) {
   useAiStudioModalActivity("media-library-panel-preview-modal", Boolean(file));
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const videoPlayback = useExclusiveSoundMediaElement(
+    `media-library-preview-video:${file?.id ?? "none"}`,
+    videoRef
+  );
+  const audioPlayback = useExclusiveSoundMediaElement(
+    `media-library-preview-audio:${file?.id ?? "none"}`,
+    audioRef
+  );
   React.useEffect(() => {
     if (!file || typeof document === "undefined") return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -87,17 +98,29 @@ export function MediaLibraryPanelPreviewModal({
               <video
                 className="media-library-panel-preview-media"
                 src={previewUrl}
+                ref={videoRef}
                 controls
                 autoPlay
                 playsInline
+                onPlay={videoPlayback.handlePlay}
+                onPause={videoPlayback.handlePause}
+                onEnded={videoPlayback.handleEnded}
+                onError={videoPlayback.handleError}
+                onVolumeChange={videoPlayback.handleVolumeChange}
               />
             ) : null}
             {!isLoading && previewUrl && isAudio ? (
               <audio
                 className="media-library-panel-preview-media"
                 src={previewUrl}
+                ref={audioRef}
                 controls
                 autoPlay
+                onPlay={audioPlayback.handlePlay}
+                onPause={audioPlayback.handlePause}
+                onEnded={audioPlayback.handleEnded}
+                onError={audioPlayback.handleError}
+                onVolumeChange={audioPlayback.handleVolumeChange}
               />
             ) : null}
             {!isLoading && previewUrl && !isVideo && !isAudio ? (

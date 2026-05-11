@@ -1,7 +1,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import { randomId } from "../logic/ids";
 import { resolveModelLabel } from "../logic/stateParsers";
-import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { StudioMode, StudioOutput, StudioOutputSubmissionMode, ToolId } from "../types";
 
 type UseAiStudioOptimisticPlaceholderActionsArgs = {
   mode: StudioMode;
@@ -20,6 +20,7 @@ type UseAiStudioOptimisticPlaceholderActionsResult = {
     modelLabelOverride?: string | null;
     modelIdOverride?: string | null;
     providerOverride?: string | null;
+    submissionModeOverride?: StudioOutputSubmissionMode;
   }) => string | null;
   removeOptimisticGenerationPlaceholder: (outputId: string) => void;
 };
@@ -40,6 +41,7 @@ export const useAiStudioOptimisticPlaceholderActions = ({
       modelLabelOverride,
       modelIdOverride,
       providerOverride,
+      submissionModeOverride,
     }: {
       prompt: string;
       modeOverride?: StudioMode;
@@ -47,6 +49,7 @@ export const useAiStudioOptimisticPlaceholderActions = ({
       modelLabelOverride?: string | null;
       modelIdOverride?: string | null;
       providerOverride?: string | null;
+      submissionModeOverride?: StudioOutputSubmissionMode;
     }) => {
       const cleanedPrompt = promptText.trim();
       if (!cleanedPrompt) return null;
@@ -77,6 +80,7 @@ export const useAiStudioOptimisticPlaceholderActions = ({
         provider: resolvedProvider,
         status: "ready",
         taskState: "pending",
+        submissionMode: submissionModeOverride ?? "provider-task",
         timestamp: "Submitting...",
         errorMessage: null,
         errorMessageShort: null,

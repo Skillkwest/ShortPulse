@@ -7,6 +7,7 @@ import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/s
 const CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY =
   "shortpulse.ai_studio.create_pulse_preset_panel_ids";
 const CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY = "shortpulse.ai_studio.saved_pulses";
+const CREATE_PULSE_HIDDEN_BUILT_INS_STORAGE_KEY = "shortpulse.ai_studio.hidden_builtin_pulses";
 
 const scopedCreatePulsePresetPanelIdsStorageKey = (userId: string) =>
   `${CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY}:${userId}`;
@@ -135,6 +136,44 @@ describe("useCreatePulsePresetPanelPreference", () => {
     ]);
     expect(result.current.syncState).toBe("ready");
     expect(result.current.error).toBeNull();
+  });
+
+  it("removes hidden built-in Pulses from the visible panel ids", async () => {
+    window.localStorage.setItem(
+      CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY,
+      JSON.stringify(["image", "multi_shot"])
+    );
+    window.localStorage.setItem(
+      CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY,
+      JSON.stringify([
+        {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          systemInstructions: "Hide this built-in.",
+          createdAt: null,
+          schemaVersion: 2,
+          isHidden: true,
+        },
+      ])
+    );
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({ from: vi.fn() } as never);
+
+    const { result } = renderHook(() => useCreatePulsePresetPanelPreference());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.presetPanelIds).toEqual(["multi_shot"]);
+    expect(result.current.savedPresets).toEqual([
+      expect.objectContaining({
+        presetId: "image",
+        label: "Video Prompt Magic",
+        isHidden: true,
+      }),
+    ]);
   });
 
   it("normalizes remote pulse preferences and drops built-in collisions without backfilling on mount", async () => {
@@ -352,5 +391,162 @@ describe("useCreatePulsePresetPanelPreference", () => {
         { onConflict: "user_id" }
       );
     });
+  });
+
+  it("remaps legacy default built-in panel ids to the current control-plane ids", async () => {
+    window.localStorage.setItem(
+      CREATE_PULSE_PRESET_PANEL_IDS_STORAGE_KEY,
+      JSON.stringify(["image", "multi_shot", "story_builder"])
+    );
+    const builtInDefinitions = [
+      {
+        presetId: "video_prompt_magic_v2",
+        label: "Video Prompt Magic",
+        description: "Updated built-in.",
+        systemInstructions: "Updated instructions.",
+        pulseKind: "guided_workflow" as const,
+        runtimeMode: "workflow_gpt" as const,
+        activationMode: "activate_and_start" as const,
+        outputMode: "chat_reply" as const,
+        memoryPolicy: "session" as const,
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        artifactTarget: "video_prompt" as const,
+        schemaVersion: 2,
+      },
+      {
+        presetId: "multi_sequence_v2",
+        label: "Multi Sequence Video Prompt",
+        description: "Updated built-in.",
+        systemInstructions: "Updated instructions.",
+        pulseKind: "guided_workflow" as const,
+        runtimeMode: "workflow_gpt" as const,
+        activationMode: "activate_and_start" as const,
+        outputMode: "chat_reply" as const,
+        memoryPolicy: "session" as const,
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        artifactTarget: "video_prompt" as const,
+        schemaVersion: 2,
+      },
+      {
+        presetId: "story_builder_v2",
+        label: "DFY Story Builder",
+        description: "Updated built-in.",
+        systemInstructions: "Updated instructions.",
+        pulseKind: "guided_workflow" as const,
+        runtimeMode: "workflow_gpt" as const,
+        activationMode: "activate_and_start" as const,
+        outputMode: "chat_reply" as const,
+        memoryPolicy: "session" as const,
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        artifactTarget: "image_prompt" as const,
+        schemaVersion: 2,
+      },
+    ];
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({ from: vi.fn() } as never);
+
+    const { result } = renderHook(() =>
+      useCreatePulsePresetPanelPreference({
+        builtInDefinitions,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.presetPanelIds).toEqual([
+      "video_prompt_magic_v2",
+      "multi_sequence_v2",
+      "story_builder_v2",
+    ]);
+  });
+
+  it("persists hidden built-ins when the live control-plane ids differ from the seeded ids", async () => {
+    const builtInDefinitions = [
+      {
+        presetId: "video_prompt_magic_v2",
+        label: "Video Prompt Magic",
+        description: "Updated built-in.",
+        systemInstructions: "Updated instructions.",
+        pulseKind: "guided_workflow" as const,
+        runtimeMode: "workflow_gpt" as const,
+        activationMode: "activate_and_start" as const,
+        outputMode: "chat_reply" as const,
+        memoryPolicy: "session" as const,
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        artifactTarget: "video_prompt" as const,
+        schemaVersion: 2,
+      },
+      {
+        presetId: "multi_sequence_v2",
+        label: "Multi Sequence Video Prompt",
+        description: "Updated built-in.",
+        systemInstructions: "Updated instructions.",
+        pulseKind: "guided_workflow" as const,
+        runtimeMode: "workflow_gpt" as const,
+        activationMode: "activate_and_start" as const,
+        outputMode: "chat_reply" as const,
+        memoryPolicy: "session" as const,
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        artifactTarget: "video_prompt" as const,
+        schemaVersion: 2,
+      },
+      {
+        presetId: "story_builder_v2",
+        label: "DFY Story Builder",
+        description: "Updated built-in.",
+        systemInstructions: "Updated instructions.",
+        pulseKind: "guided_workflow" as const,
+        runtimeMode: "workflow_gpt" as const,
+        activationMode: "activate_and_start" as const,
+        outputMode: "chat_reply" as const,
+        memoryPolicy: "session" as const,
+        starterAssistantMessage: null,
+        workflowStageHints: null,
+        artifactTarget: "image_prompt" as const,
+        schemaVersion: 2,
+      },
+    ];
+
+    vi.mocked(readSupabaseUserId).mockResolvedValue(null);
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue({ from: vi.fn() } as never);
+
+    const { result } = renderHook(() =>
+      useCreatePulsePresetPanelPreference({
+        builtInDefinitions,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.setSavedPresets([
+        {
+          presetId: "video_prompt_magic_v2",
+          label: "Video Prompt Magic",
+          description: "Updated built-in.",
+          systemInstructions: "Updated instructions.",
+          createdAt: null,
+          schemaVersion: 2,
+          isHidden: true,
+        },
+      ]);
+    });
+
+    expect(
+      JSON.parse(window.localStorage.getItem(CREATE_PULSE_SAVED_PRESETS_STORAGE_KEY) ?? "[]")
+    ).toEqual([]);
+    expect(
+      JSON.parse(window.localStorage.getItem(CREATE_PULSE_HIDDEN_BUILT_INS_STORAGE_KEY) ?? "[]")
+    ).toEqual(["video_prompt_magic_v2"]);
   });
 });

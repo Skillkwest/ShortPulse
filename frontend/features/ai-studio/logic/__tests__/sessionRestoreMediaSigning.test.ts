@@ -84,6 +84,30 @@ describe("sessionRestoreMediaSigning", () => {
     expect(result.outputs[0]?.previewUrl).toBe("https://signed/a.png");
   });
 
+  it("refreshes restored non-video result urls from durable signed authority", () => {
+    const rows = [
+      createOutput({
+        id: "image-a",
+        mode: "image",
+        previewStoragePath: "user-1/images/image-a.png",
+        fullStoragePath: "user-1/images/image-a.png",
+        resultUrls: ["https://provider.test/image-a.png"],
+      }),
+    ];
+    const signedByPath = new Map<string, string | null>([
+      ["user-1/images/image-a.png", "https://signed/image-a.png"],
+    ]);
+
+    const result = applySessionRestoreSignedUrls(rows, signedByPath);
+
+    expect(result.changed).toBe(true);
+    expect(result.outputs[0]?.previewUrl).toBe("https://signed/image-a.png");
+    expect(result.outputs[0]?.resultUrls).toEqual([
+      "https://signed/image-a.png",
+      "https://provider.test/image-a.png",
+    ]);
+  });
+
   it("applies signed poster urls for restored videos with distinct poster storage", () => {
     const rows = [
       createOutput({

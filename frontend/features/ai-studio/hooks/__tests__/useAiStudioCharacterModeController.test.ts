@@ -319,7 +319,9 @@ describe("useAiStudioCharacterModeController", () => {
     const refreshed =
       await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
 
-    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1");
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-1", {
+      forceRefresh: true,
+    });
     expect(setIsCharacterBundleLoading).toHaveBeenCalledWith(true);
     expect(setIsCharacterBundleLoading).toHaveBeenCalledWith(false);
     expect(setCharacterModeInjectionBundle).toHaveBeenCalledWith(
@@ -341,6 +343,32 @@ describe("useAiStudioCharacterModeController", () => {
         characterDescription: "Hero description",
       })
     );
+  });
+
+  it("forces a fresh shared snapshot load before submit when reuse is not allowed", async () => {
+    const loadCharacterSnapshot = vi.fn().mockResolvedValue(
+      createSnapshotWithLookReference({
+        description: "Fresh description",
+        storagePath: "user/chars/ref.png",
+      })
+    );
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      loadCharacterSnapshot,
+      characterModeInjectionBundle: {
+        characterId: "char-1",
+        characterDescription: "Stale description",
+        sheetReferenceStoragePaths: ["user/chars/ref.png"],
+        sheetReferenceUrls: ["https://example.com/ref-stale.png"],
+        loadedAtMs: Date.now() - 2 * 60 * 60 * 1000,
+      },
+      bundleStaleAfterMs: 100,
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    await result.current.refreshCharacterModeInjectionBundleForSubmission("create");
+
+    expect(loadCharacterSnapshot).toHaveBeenCalledWith("char-1", { forceRefresh: true });
   });
 
   it("reuses existing reference URLs when forced signing returns no usable URLs", async () => {
@@ -683,7 +711,9 @@ describe("useAiStudioCharacterModeController", () => {
       await result.current.refreshCharacterModeInjectionBundleForSubmission("edit");
     });
 
-    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-edit");
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-edit", {
+      forceRefresh: true,
+    });
     expect(setEditLoading).toHaveBeenCalledWith(true);
     expect(setEditLoading).toHaveBeenCalledWith(false);
     expect(setEditBundle).toHaveBeenCalledTimes(1);

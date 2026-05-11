@@ -7,9 +7,9 @@ import React from "react";
 import { useExpertEditTransformController } from "./useExpertEditTransformController";
 import {
   applyTransformHistoryEntryToLayers,
-  areLayerTransformsEqual,
   areTransformHistoryEntriesEqual,
   buildTransformHistoryEntry,
+  type LayerTransform,
   type TransformHistoryEntry,
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
@@ -28,6 +28,7 @@ type UseExpertEditTransformSessionParams = {
   layers: ExpertEditLayer[];
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
   selectedLayer: ExpertEditLayer | null;
+  selectedLayerInteractionTransform: LayerTransform | null;
   selectedLayerImageAspectRatio: number;
   shouldShowSelectedLayerTransformOverlay: boolean;
   resolveRenderableLayerTransform: (layer: ExpertEditLayer) => ExpertEditLayer["transform"];
@@ -54,6 +55,7 @@ export const useExpertEditTransformSession = ({
   layers,
   setLayers,
   selectedLayer,
+  selectedLayerInteractionTransform,
   selectedLayerImageAspectRatio,
   shouldShowSelectedLayerTransformOverlay,
   resolveRenderableLayerTransform,
@@ -89,6 +91,7 @@ export const useExpertEditTransformSession = ({
   } = useExpertEditTransformController({
     layers,
     selectedLayer,
+    selectedLayerInteractionTransform,
     selectedLayerImageAspectRatio,
     sceneZoomScale,
     shouldApplyViewportTransform: true,
@@ -103,27 +106,6 @@ export const useExpertEditTransformSession = ({
     commitTransformHistoryTransition,
     showStatusToast,
   });
-
-  React.useEffect(() => {
-    setLayers((previousLayers) => {
-      let hasChanges = false;
-      const nextLayers = previousLayers.map((layer) => {
-        if (!layer.imageUrl) {
-          return layer;
-        }
-        const nextTransform = resolveRenderableLayerTransform(layer);
-        if (areLayerTransformsEqual(layer.transform, nextTransform)) {
-          return layer;
-        }
-        hasChanges = true;
-        return {
-          ...layer,
-          transform: nextTransform,
-        };
-      });
-      return hasChanges ? nextLayers : previousLayers;
-    });
-  }, [resolveRenderableLayerTransform, setLayers]);
 
   React.useEffect(() => {
     if (isTransformPointerDragging) return;
@@ -183,6 +165,7 @@ export const useExpertEditTransformSession = ({
     [
       resolveRenderableLayerTransform,
       selectedLayer,
+      selectedLayerInteractionTransform,
       selectedLayerImageAspectRatio,
       shouldShowSelectedLayerTransformOverlay,
     ]

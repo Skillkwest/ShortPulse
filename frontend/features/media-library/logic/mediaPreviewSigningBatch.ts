@@ -17,6 +17,7 @@ export type MediaSignCandidateEntry = {
   primaryPathKind: MediaPreviewPathKind;
   candidates: string[];
   directUrl: string | null;
+  directUrlKind: MediaPreviewPathKind;
 };
 
 export type MediaSignResult = {
@@ -54,12 +55,21 @@ export const buildMediaSignCandidateEntry = <TRow extends PreviewSigningRowLike>
   const previewCandidates = resolveMediaPreviewCandidates(row, currentUserId);
   const candidates = previewCandidates.storagePaths.slice(0, maxSignCandidatesPerRow);
   const primaryPath = candidates[0] ?? null;
+  const directUrl = previewCandidates.directUrl;
+  const normalizedStoragePath = typeof row.storage_path === "string" ? row.storage_path.trim() : "";
+  const directUrlKind =
+    directUrl && normalizedStoragePath && directUrl.trim() === normalizedStoragePath
+      ? "original"
+      : directUrl
+        ? "durable"
+        : "unknown";
   return {
     id: row.id,
     primaryPath,
     primaryPathKind: classifyMediaPreviewPath(row, primaryPath, currentUserId),
     candidates,
-    directUrl: previewCandidates.directUrl,
+    directUrl,
+    directUrlKind,
   };
 };
 

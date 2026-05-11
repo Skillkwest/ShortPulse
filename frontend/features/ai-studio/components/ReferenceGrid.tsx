@@ -29,6 +29,7 @@ import { useReferenceGridCardItemsController } from "../reference-grid/controlle
 import { useReferenceGridResolvedMediaController } from "../reference-grid/controllers/useReferenceGridResolvedMediaController";
 import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
 import { useReferenceGridRuntimeScaffold } from "../reference-grid/controllers/useReferenceGridRuntimeScaffold";
+import { useReferenceGridSingleAudioPlaybackController } from "../reference-grid/controllers/useReferenceGridSingleAudioPlaybackController";
 import { useReferenceGridPreviewRuntimeScheduling } from "../reference-grid/controllers/useReferenceGridPreviewRuntime";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
@@ -447,6 +448,7 @@ function ReferenceGridComponent({
     renderedItemCount,
     outputsLength: allOutputIds.length,
   });
+  const audioPlaybackController = useReferenceGridSingleAudioPlaybackController();
   const { curatedCardNodes, allRefsCardNodes } = useReferenceGridCardRenderController({
     activeOutputId,
     visibleOutputById,
@@ -472,6 +474,7 @@ function ReferenceGridComponent({
     markLoaded,
     onAutoplayStarted: handleAutoplayStarted,
     onAutoplayStopped: handleAutoplayStopped,
+    audioPlaybackController,
     onRetryStatus,
     onRerollOutput,
     onDeleteOutput,

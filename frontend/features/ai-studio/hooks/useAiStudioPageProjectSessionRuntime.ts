@@ -132,11 +132,13 @@ export const useAiStudioPageProjectSessionRuntime = ({
         ? {
             standard: createEmptyAiStudioSessionAgentState(),
             pulsePresetId: activeCreatePulsePresetId,
+            pulseSessionInstanceId: null,
             pulse: persistedAgentRuntime,
           }
         : {
             standard: persistedAgentRuntime,
             pulsePresetId: null,
+            pulseSessionInstanceId: null,
             pulse: createEmptyAiStudioSessionAgentState(),
           },
     [activeCreateAgentKind, activeCreatePulsePresetId, persistedAgentRuntime]
@@ -244,6 +246,7 @@ export const useAiStudioPageProjectSessionRuntime = ({
     return {
       standard: persistedAgentRuntimes.standard,
       pulsePresetId: null,
+      pulseSessionInstanceId: null,
       pulse: createEmptyAiStudioSessionAgentState(),
     };
   }, [

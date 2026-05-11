@@ -9,6 +9,7 @@ import {
   buildFallbackWaveformPeaks,
   extractAudioWaveformPeaksFromUrl,
 } from "../reference-grid/logic/referenceGridAudioWaveform";
+import { useExclusiveSoundMediaElement } from "./shared/exclusiveSoundPlayback";
 
 type VoiceChangerAudioSourcePreviewProps = {
   audioUrl: string;
@@ -29,6 +30,10 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
   audioUrl,
 }: VoiceChangerAudioSourcePreviewProps) {
   const audioNodeRef = React.useRef<HTMLAudioElement | null>(null);
+  const exclusiveSound = useExclusiveSoundMediaElement(
+    `voice-changer-source:${audioUrl}`,
+    audioNodeRef
+  );
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [audioProgressRatio, setAudioProgressRatio] = React.useState(0);
   const [currentTimeMs, setCurrentTimeMs] = React.useState(0);
@@ -110,11 +115,12 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
       setAudioProgressRatio(0);
     }
     try {
+      exclusiveSound.requestPlayback();
       await node.play();
     } catch {
       setIsPlaying(false);
     }
-  }, [isPlaying]);
+  }, [exclusiveSound, isPlaying]);
 
   return (
     <div className="voices-properties-voice-changer-audio-player">
@@ -179,8 +185,25 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
           setCurrentTimeMs(0);
           setAudioProgressRatio(0);
         }}
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
+        onPlay={() => {
+          exclusiveSound.handlePlay();
+          setIsPlaying(true);
+        }}
+        onPause={() => {
+          exclusiveSound.handlePause();
+          setIsPlaying(false);
+        }}
+        onEnded={() => {
+          exclusiveSound.handleEnded();
+          setIsPlaying(false);
+          setCurrentTimeMs(resolvedDurationMs ?? currentTimeMs);
+          setAudioProgressRatio(1);
+        }}
+        onError={() => {
+          exclusiveSound.handleError();
+          setIsPlaying(false);
+        }}
+        onVolumeChange={exclusiveSound.handleVolumeChange}
         onTimeUpdate={(event) => {
           const durationSeconds = event.currentTarget.duration;
           const currentTimeSeconds = event.currentTarget.currentTime;
@@ -191,11 +214,6 @@ export const VoiceChangerAudioSourcePreview = React.memo(function VoiceChangerAu
           }
           const ratio = Math.min(1, Math.max(0, currentTimeSeconds / durationSeconds));
           setAudioProgressRatio(ratio);
-        }}
-        onEnded={() => {
-          setIsPlaying(false);
-          setCurrentTimeMs(resolvedDurationMs ?? currentTimeMs);
-          setAudioProgressRatio(1);
         }}
       />
     </div>

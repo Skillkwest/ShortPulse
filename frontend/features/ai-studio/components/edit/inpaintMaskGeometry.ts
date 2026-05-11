@@ -119,8 +119,13 @@ export const mapSurfacePointToMaskCanvasPoint = ({
   const sourceHeight = Math.max(1, interactionRect.height);
   const targetWidth = Math.max(1, Math.round(maskWidth));
   const targetHeight = Math.max(1, Math.round(maskHeight));
+  const originX = Number.isFinite(interactionRect.x) ? interactionRect.x : 0;
+  const originY = Number.isFinite(interactionRect.y) ? interactionRect.y : 0;
   return mapPixelPointBetweenSpacesViaScene({
-    point,
+    point: {
+      x: point.x - originX,
+      y: point.y - originY,
+    },
     fromWidth: sourceWidth,
     fromHeight: sourceHeight,
     toWidth: targetWidth,
@@ -238,6 +243,7 @@ export const resolveInpaintBrushPaintRadius = ({
 export const resolveMaskInteractionPoint = ({
   sampleEvent,
   interactionRect,
+  mappingRect,
   maskWidth,
   maskHeight,
   sceneScale,
@@ -247,6 +253,7 @@ export const resolveMaskInteractionPoint = ({
 }: {
   sampleEvent: { clientX: number; clientY: number };
   interactionRect: DOMRect;
+  mappingRect?: DOMRect | null;
   maskWidth: number;
   maskHeight: number;
   sceneScale: number;
@@ -272,7 +279,9 @@ export const resolveMaskInteractionPoint = ({
   if (!surfacePoint) return null;
   return mapSurfacePointToMaskCanvasPoint({
     point: surfacePoint,
-    interactionRect,
+    interactionRect:
+      mappingRect ??
+      new DOMRect(0, 0, Math.max(1, interactionRect.width), Math.max(1, interactionRect.height)),
     maskWidth,
     maskHeight,
   });

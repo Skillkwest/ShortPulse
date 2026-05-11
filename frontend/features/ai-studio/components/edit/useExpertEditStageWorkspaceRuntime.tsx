@@ -16,6 +16,10 @@ import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 import type { LayerTransform } from "./expertEditLayerTransformUtils";
 import type { StageViewportSize } from "./expertEditViewportUtils";
 
+type StageInteractionRouterHandlers = StageInteractionHandlers & {
+  onWheel: React.WheelEventHandler<HTMLDivElement>;
+};
+
 type UseExpertEditStageWorkspaceRuntimeArgs = {
   layers: ExpertEditLayer[];
   markupStrokes: MarkupStroke[];
@@ -36,8 +40,8 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
     stageElement: HTMLDivElement | null,
     interactionHandlers: StageInteractionHandlers
   ) => React.ReactNode;
-  inlineStageInteractionRouter: StageInteractionHandlers;
-  modalStageInteractionRouter: StageInteractionHandlers;
+  inlineStageInteractionRouter: StageInteractionRouterHandlers;
+  modalStageInteractionRouter: StageInteractionRouterHandlers;
   isInpaintCollapsed: boolean;
   isInpaintCollapsing: boolean;
   collapsedToolsThemeClass: string;
@@ -104,7 +108,6 @@ type UseExpertEditStageWorkspaceRuntimeArgs = {
   closeMarkupModal: () => void;
   handleMarkupModalLayersRef: React.Ref<HTMLDivElement>;
   handleMarkupModalDragShield: React.DragEventHandler<HTMLDivElement>;
-  noopStageWheel: React.WheelEventHandler<HTMLDivElement>;
 };
 
 /**
@@ -190,7 +193,6 @@ export function useExpertEditStageWorkspaceRuntime({
   closeMarkupModal,
   handleMarkupModalLayersRef,
   handleMarkupModalDragShield,
-  noopStageWheel,
 }: UseExpertEditStageWorkspaceRuntimeArgs) {
   const inlineInteractionHandlers = React.useMemo(
     () => ({
@@ -347,11 +349,12 @@ export function useExpertEditStageWorkspaceRuntime({
     onClose: closeMarkupModal,
     onDragShield: handleMarkupModalDragShield,
     interactionHandlers: modalInteractionHandlers,
-    onStageWheel: noopStageWheel,
+    onStageWheel: modalStageInteractionRouter.onWheel,
   };
 
   return {
     inlineInteractionHandlers,
+    inlineStageWheelHandler: inlineStageInteractionRouter.onWheel,
     inlineSceneContent,
     inlineTransformOverlay,
     inlinePostStageTools,

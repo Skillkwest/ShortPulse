@@ -1,6 +1,6 @@
 /**
  * AI Studio project-workspace restore hydration orchestrator.
- * Applies one-shot hydration per project id for project-owned workspace restore.
+ * Applies project workspace hydration once per resolved snapshot identity for restore safety.
  */
 import { useEffect, useRef } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
@@ -26,7 +26,7 @@ type UseAiStudioProjectWorkspaceRestoreHydrationParams = {
 };
 
 /**
- * Logs restore readiness and applies one-shot project workspace hydration.
+ * Logs restore readiness and applies project workspace hydration for the latest restore candidate.
  */
 export const useAiStudioProjectWorkspaceRestoreHydration = ({
   projectId,
@@ -40,8 +40,13 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
   onProjectBootstrapFailed,
 }: UseAiStudioProjectWorkspaceRestoreHydrationParams) => {
   const candidateLogKeyRef = useRef<string | null>(null);
-  const hydrationAppliedProjectIdRef = useRef<string | null>(null);
+  const hydrationAppliedKeyRef = useRef<string | null>(null);
   const bootstrapSettleTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (projectId) return;
+    hydrationAppliedKeyRef.current = null;
+  }, [projectId]);
 
   useEffect(() => {
     if (
@@ -89,12 +94,18 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
 
   useEffect(() => {
     if (!projectId || projectWorkspaceRestoreCandidate.status !== "ready") return;
-    if (hydrationAppliedProjectIdRef.current === projectId) return;
+    const snapshot = projectWorkspaceRestoreCandidate.snapshot;
+    const hydrationKey = [
+      projectId,
+      projectWorkspaceRestoreCandidate.result,
+      snapshot?.updatedAt ?? "none",
+      snapshot ? "snapshot" : "empty",
+    ].join("|");
+    if (hydrationAppliedKeyRef.current === hydrationKey) return;
     if (bootstrapSettleTimerRef.current) {
       globalThis.clearTimeout(bootstrapSettleTimerRef.current);
       bootstrapSettleTimerRef.current = null;
     }
-    const snapshot = projectWorkspaceRestoreCandidate.snapshot;
     try {
       if (snapshot) {
         resetProjectAgentConversation?.();
@@ -111,9 +122,9 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
       );
       return;
     }
-    hydrationAppliedProjectIdRef.current = projectId;
+    hydrationAppliedKeyRef.current = hydrationKey;
     bootstrapSettleTimerRef.current = globalThis.setTimeout(() => {
-      if (hydrationAppliedProjectIdRef.current !== projectId) return;
+      if (hydrationAppliedKeyRef.current !== hydrationKey) return;
       onProjectBootstrapSettled?.(projectId);
       bootstrapSettleTimerRef.current = null;
     }, 0);

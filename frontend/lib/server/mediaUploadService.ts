@@ -883,6 +883,99 @@ export const uploadSignedStorageAssetForUser = async ({
   }
 };
 
+const removeUploadedStorageObject = async (storagePath: string): Promise<void> => {
+  try {
+    await getSupabaseAdmin().storage.from(MEDIA_BUCKET).remove([storagePath]);
+  } catch {
+    // best-effort orphan cleanup
+  }
+};
+
+const insertUploadedMediaRow = async ({
+  userId,
+  parsedUpload,
+  storagePath,
+  fileType,
+  metadata,
+}: {
+  userId: string;
+  parsedUpload: ParsedUpload;
+  storagePath: string;
+  fileType: MediaLibraryFileType;
+  metadata: Record<string, unknown> | null;
+}): Promise<InsertedMediaRow> => {
+  const { data: insertedRow, error: insertError } = await getSupabaseAdmin()
+    .from("media_files")
+    .insert({
+      user_id: userId,
+      filename: parsedUpload.filename,
+      storage_path: storagePath,
+      file_type: fileType,
+      file_size: parsedUpload.size,
+      source: resolveUploadSource(parsedUpload.destinationTab),
+      metadata,
+    })
+    .select(
+      "id, user_id, filename, storage_path, file_type, file_size, source, created_at, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
+    )
+    .single();
+
+  if (insertError || !insertedRow) {
+    await removeUploadedStorageObject(storagePath);
+    if (isMediaStorageQuotaExceededError(insertError)) {
+      throw new MediaUploadServiceError(
+        409,
+        MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+        "Delete media, upgrade your plan, or add recurring storage before uploading more files."
+      );
+    }
+    throw new MediaUploadServiceError(
+      500,
+      "Failed to persist media record",
+      insertError?.message ?? "Missing inserted media row"
+    );
+  }
+
+  return insertedRow as InsertedMediaRow;
+};
+
+const resolveUploadedMediaPreviewUrl = async ({
+  row,
+  uploaded,
+  userId,
+}: {
+  row: InsertedMediaRow;
+  uploaded: UploadedStorageAsset;
+  userId: string;
+}): Promise<{ previewStoragePath: string; signedUrl: string }> => {
+  const previewStoragePath = resolveMediaPreviewStoragePath(row, userId);
+  if (previewStoragePath === uploaded.storagePath) {
+    if (!uploaded.signedUrl) {
+      throw new MediaUploadServiceError(500, "Failed to generate signed preview URL");
+    }
+    return {
+      previewStoragePath,
+      signedUrl: uploaded.signedUrl,
+    };
+  }
+
+  const { data: signedPreview, error: signError } = await getSupabaseAdmin()
+    .storage.from(MEDIA_BUCKET)
+    .createSignedUrl(previewStoragePath, 3600);
+  if (signError || !signedPreview?.signedUrl) {
+    throw new MediaUploadServiceError(
+      500,
+      "Failed to generate signed preview URL",
+      signError?.message ?? "Missing signed preview URL"
+    );
+  }
+
+  return {
+    previewStoragePath,
+    signedUrl: signedPreview.signedUrl,
+  };
+};
+
 /**
  * Parses, validates, uploads, and persists a Media Library upload for a user.
  */
@@ -907,66 +1000,18 @@ export const uploadMediaForUser = async ({
     const imageDimensions =
       uploaded.fileType === "image" ? extractImageDimensionsFromBuffer(parsedUpload.buffer) : null;
     const metadata = withCanonicalImageDimensions(null, imageDimensions);
-
-    const supabaseAdmin = getSupabaseAdmin();
-
-    const { data: insertedRow, error: insertError } = await supabaseAdmin
-      .from("media_files")
-      .insert({
-        user_id: userId,
-        filename: parsedUpload.filename,
-        storage_path: storagePath,
-        file_type: uploaded.fileType,
-        file_size: parsedUpload.size,
-        source: resolveUploadSource(parsedUpload.destinationTab),
-        metadata,
-      })
-      .select(
-        "id, user_id, filename, storage_path, file_type, file_size, source, created_at, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
-      )
-      .single();
-
-    if (insertError || !insertedRow) {
-      if (storagePathForCleanup) {
-        try {
-          await supabaseAdmin.storage.from(MEDIA_BUCKET).remove([storagePathForCleanup]);
-        } catch {
-          // best-effort orphan cleanup
-        }
-      }
-      if (isMediaStorageQuotaExceededError(insertError)) {
-        throw new MediaUploadServiceError(
-          409,
-          MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
-          "Delete media, upgrade your plan, or add recurring storage before uploading more files."
-        );
-      }
-      throw new MediaUploadServiceError(
-        500,
-        "Failed to persist media record",
-        insertError?.message ?? "Missing inserted media row"
-      );
-    }
-
-    const normalizedRow = insertedRow as InsertedMediaRow;
-    const previewStoragePath = resolveMediaPreviewStoragePath(normalizedRow, userId);
-    let signedUrl = uploaded.signedUrl;
-    if (previewStoragePath !== uploaded.storagePath) {
-      const { data: signedPreview, error: signError } = await supabaseAdmin.storage
-        .from(MEDIA_BUCKET)
-        .createSignedUrl(previewStoragePath, 3600);
-      if (signError || !signedPreview?.signedUrl) {
-        throw new MediaUploadServiceError(
-          500,
-          "Failed to generate signed preview URL",
-          signError?.message ?? "Missing signed preview URL"
-        );
-      }
-      signedUrl = signedPreview.signedUrl;
-    }
-    if (!signedUrl) {
-      throw new MediaUploadServiceError(500, "Failed to generate signed preview URL");
-    }
+    const normalizedRow = await insertUploadedMediaRow({
+      userId,
+      parsedUpload,
+      storagePath,
+      fileType: uploaded.fileType,
+      metadata,
+    });
+    const { previewStoragePath, signedUrl } = await resolveUploadedMediaPreviewUrl({
+      row: normalizedRow,
+      uploaded,
+      userId,
+    });
 
     return {
       id: normalizedRow.id,

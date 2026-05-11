@@ -14,10 +14,15 @@ export type UseCreatePulseBuiltInCatalogResult = {
   builtInDefinitions: CreatePulseBuiltInPresetDefinition[];
   loading: boolean;
   error: string | null;
+  source: "control_plane" | "seed" | null;
+  isAuthoritative: boolean;
   refresh: () => Promise<void>;
 };
 
-const loadCreatePulseBuiltInCatalog = async (): Promise<CreatePulseBuiltInPresetDefinition[]> => {
+const loadCreatePulseBuiltInCatalog = async (): Promise<{
+  builtInDefinitions: CreatePulseBuiltInPresetDefinition[];
+  source: "control_plane" | "seed";
+}> => {
   const response = await fetchWithAuth("/api/ai/create-pulse-builtins", {
     method: "GET",
     headers: {
@@ -27,8 +32,14 @@ const loadCreatePulseBuiltInCatalog = async (): Promise<CreatePulseBuiltInPreset
   if (!response.ok) {
     throw new Error("Unable to load Pulse built-ins.");
   }
-  const payload = (await response.json()) as { builtInDefinitions?: unknown };
-  return normalizeCreatePulseBuiltInPresetDefinitions(payload.builtInDefinitions);
+  const payload = (await response.json()) as {
+    builtInDefinitions?: unknown;
+    source?: unknown;
+  };
+  return {
+    builtInDefinitions: normalizeCreatePulseBuiltInPresetDefinitions(payload.builtInDefinitions),
+    source: payload.source === "control_plane" ? "control_plane" : "seed",
+  };
 };
 
 export const useCreatePulseBuiltInCatalog = ({
@@ -39,22 +50,24 @@ export const useCreatePulseBuiltInCatalog = ({
   >(() => resolveCreatePulseBuiltInPresetDefinitions());
   const [loading, setLoading] = useState<boolean>(enabled);
   const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<"control_plane" | "seed" | null>("seed");
 
   const refresh = useCallback(async () => {
     if (!enabled) {
       setBuiltInDefinitions(resolveCreatePulseBuiltInPresetDefinitions());
       setLoading(false);
       setError(null);
+      setSource("seed");
       return;
     }
 
     setLoading(true);
     try {
-      const nextDefinitions = await loadCreatePulseBuiltInCatalog();
-      setBuiltInDefinitions(nextDefinitions);
+      const nextCatalog = await loadCreatePulseBuiltInCatalog();
+      setBuiltInDefinitions(nextCatalog.builtInDefinitions);
+      setSource(nextCatalog.source);
       setError(null);
     } catch (nextError) {
-      setBuiltInDefinitions(resolveCreatePulseBuiltInPresetDefinitions());
       setError(nextError instanceof Error ? nextError.message : "Unable to load Pulse built-ins.");
     } finally {
       setLoading(false);
@@ -69,6 +82,8 @@ export const useCreatePulseBuiltInCatalog = ({
     builtInDefinitions,
     loading,
     error,
+    source,
+    isAuthoritative: !loading && error == null && source === "control_plane",
     refresh,
   };
 };

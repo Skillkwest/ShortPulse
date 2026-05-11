@@ -52,6 +52,7 @@ type MediaLibraryMediaGridProps = {
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
   onSignedUrlLoaded: (id: string) => void;
+  visibleMediaIdsRef?: MutableRefObject<Set<string>>;
 };
 
 export function MediaLibraryMediaGrid({

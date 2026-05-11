@@ -67,6 +67,8 @@ describe("projectWorkspaceApiClient", () => {
       new Response(
         JSON.stringify({
           error: "Failed to save project workspace",
+          details:
+            "Project workspace save failed during workspace upsert: row-level security denied",
         }),
         {
           status: 500,
@@ -87,10 +89,63 @@ describe("projectWorkspaceApiClient", () => {
         } as never,
       })
     ).rejects.toThrow(
-      "Failed to save project workspace snapshot: Failed to save project workspace"
+      "Failed to save project workspace snapshot: Project workspace save failed during workspace upsert: row-level security denied"
     );
 
     expect(addBreadcrumbMock).not.toHaveBeenCalled();
+  });
+
+  it("opts project workspace saves into one-time network retry", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          workspace: {
+            projectId: "project-1",
+            schemaVersion: 2,
+            snapshot: {
+              schemaVersion: 2,
+              sessionId: "session-1",
+              updatedAt: "2026-04-25T00:00:00.000Z",
+            },
+            createdAt: "2026-04-25T00:00:00.000Z",
+            updatedAt: "2026-04-25T00:00:00.000Z",
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      )
+    );
+
+    await saveAiStudioProjectWorkspaceSnapshotViaApi({
+      projectId: "project-1",
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+        updatedAt: "2026-04-25T00:00:00.000Z",
+      } as never,
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/projects/project-1/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+          updatedAt: "2026-04-25T00:00:00.000Z",
+        },
+      }),
+      keepalive: false,
+      shortpulseLogScope: "app",
+      shortpulseRetryNetworkOnce: true,
+    });
   });
 
   it("includes status and content type when project workspace load fails with a non-json response", async () => {

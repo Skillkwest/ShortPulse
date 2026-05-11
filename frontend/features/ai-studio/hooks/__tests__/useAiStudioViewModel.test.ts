@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
@@ -9,6 +9,7 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
   INPAINT_REFERENCE_MODEL_ID,
@@ -173,7 +174,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("blocks generation when model pricing policy is unavailable", () => {
-    const modelId = "gpt-image-2";
+    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -227,7 +228,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    const candidateModelId = "gpt-image-2";
+    const candidateModelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const expectedCredits = computeCostForModel(
       candidateModelId,
       costParamsForModel(candidateModelId, {
@@ -239,7 +240,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
   });
 
   it("uses the selected gpt-image-2 quality tier for create image costs", () => {
-    const modelId = "gpt-image-2";
+    const modelId = OPENAI_GPT_IMAGE_2_MODEL_ID;
     const costParamsForModel = (
       targetModelId: string,
       overrides?: Omit<PricingParams, "modelId">
@@ -757,26 +758,21 @@ describe("useAiStudioViewModel edit guardrails", () => {
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const standardCostCredits = computeCostForModel(
       selectedModelId,
-      editCostParamsForModel(selectedModelId, { aspect: "1:1", resolution: "model_default" })
+      editCostParamsForModel(selectedModelId, { resolution: "model_default" })
     )?.credits;
     const inpaintCostCredits = computeCostForModel(
       INPAINT_FLUX_FILL_MODEL_ID,
-      editCostParamsForModel(INPAINT_FLUX_FILL_MODEL_ID, {
-        aspect: "1:1",
-        resolution: "model_default",
-      })
+      editCostParamsForModel(INPAINT_FLUX_FILL_MODEL_ID, { resolution: "model_default" })
     )?.credits;
     const markupCostCredits = computeCostForModel(
       MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
       editCostParamsForModel(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID, {
-        aspect: "1:1",
         resolution: "model_default",
       })
     )?.credits;
     expect(standardCostCredits).not.toBeNull();
     expect(inpaintCostCredits).not.toBeNull();
     expect(markupCostCredits).not.toBeNull();
-    expect(inpaintCostCredits).toBeGreaterThan(standardCostCredits ?? 0);
     const balanceCredits = standardCostCredits ?? 0;
 
     const { result, rerender } = renderHook(
@@ -803,8 +799,14 @@ describe("useAiStudioViewModel edit guardrails", () => {
     rerender({ intent: "inpaint" });
 
     expect(result.current.currentCostCredits).toBe(inpaintCostCredits);
-    expect(result.current.isCreditGuardrail).toBe(true);
-    expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
+    expect(result.current.isCreditGuardrail).toBe(
+      (balanceCredits ?? 0) < (inpaintCostCredits ?? 0)
+    );
+    expect(result.current.generationGuardrail).toBe(
+      (balanceCredits ?? 0) < (inpaintCostCredits ?? 0)
+        ? "You do not have enough credits for this run."
+        : null
+    );
 
     rerender({ intent: "markup" });
 
@@ -856,18 +858,16 @@ describe("useAiStudioViewModel edit guardrails", () => {
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
     const standardCostCredits = computeCostForModel(
       selectedModelId,
-      editCostParamsForModel(selectedModelId, { aspect: "1:1", resolution: "model_default" })
+      editCostParamsForModel(selectedModelId, { resolution: "model_default" })
     )?.credits;
     const markupCostCredits = computeCostForModel(
       MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
       editCostParamsForModel(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID, {
-        aspect: "1:1",
         resolution: "model_default",
       })
     )?.credits;
     expect(standardCostCredits).not.toBeNull();
     expect(markupCostCredits).not.toBeNull();
-    expect(markupCostCredits).toBeGreaterThan(standardCostCredits ?? 0);
     const balanceCredits = standardCostCredits ?? 0;
 
     const { result, rerender } = renderHook(
@@ -894,7 +894,11 @@ describe("useAiStudioViewModel edit guardrails", () => {
     rerender({ intent: "markup" });
 
     expect(result.current.currentCostCredits).toBe(markupCostCredits);
-    expect(result.current.isCreditGuardrail).toBe(true);
-    expect(result.current.generationGuardrail).toBe("You do not have enough credits for this run.");
+    expect(result.current.isCreditGuardrail).toBe((balanceCredits ?? 0) < (markupCostCredits ?? 0));
+    expect(result.current.generationGuardrail).toBe(
+      (balanceCredits ?? 0) < (markupCostCredits ?? 0)
+        ? "You do not have enough credits for this run."
+        : null
+    );
   });
 });

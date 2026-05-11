@@ -16,6 +16,7 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "preview_url",
   "result_urls",
   "saved_media_ids",
+  "save_state",
   "preview_storage_path",
   "full_storage_path",
   "task_state",
@@ -46,6 +47,7 @@ type ProjectGenerationProjectionRow = {
   preview_url?: unknown;
   result_urls?: unknown;
   saved_media_ids?: unknown;
+  save_state?: unknown;
   preview_storage_path?: unknown;
   full_storage_path?: unknown;
   task_state?: unknown;
@@ -122,30 +124,6 @@ const resolveVideoPosterStoragePath = ({
   }
   if (fullStoragePath && previewStoragePath === fullStoragePath) return null;
   return isLikelyImagePath(previewStoragePath) ? previewStoragePath : null;
-};
-
-const hasSettledSnapshotOutputPayload = (row: SnapshotRecord): boolean => {
-  if (
-    Array.isArray(row.resultUrls) &&
-    row.resultUrls.some((value) => typeof value === "string" && value.trim().length > 0)
-  ) {
-    return true;
-  }
-  if (typeof row.previewUrl === "string" && row.previewUrl.trim().length > 0) return true;
-  if (typeof row.previewText === "string" && row.previewText.trim().length > 0) return true;
-  if (typeof row.previewStoragePath === "string" && row.previewStoragePath.trim().length > 0) {
-    return true;
-  }
-  if (typeof row.fullStoragePath === "string" && row.fullStoragePath.trim().length > 0) {
-    return true;
-  }
-  if (
-    Array.isArray(row.savedMediaIds) &&
-    row.savedMediaIds.some((value) => typeof value === "string" && value.trim().length > 0)
-  ) {
-    return true;
-  }
-  return row.status === "saved";
 };
 
 const collectSnapshotGenerationIds = (snapshot: SnapshotRecord): string[] => {
@@ -344,6 +322,41 @@ const normalizeProjectionQueueState = (value: unknown): string | null => {
     default:
       return null;
   }
+};
+
+const normalizeProjectionSaveState = (
+  value: unknown
+): "idle" | "saving" | "saved" | "failed" | null => {
+  const normalized = asTrimmedString(value)?.toLowerCase();
+  switch (normalized) {
+    case "idle":
+      return "idle";
+    case "saving":
+      return "saving";
+    case "saved":
+      return "saved";
+    case "failed":
+      return "failed";
+    default:
+      return null;
+  }
+};
+
+const resolveRestoredOutputSaveState = ({
+  projection,
+  row,
+}: {
+  projection: ProjectGenerationProjectionRow;
+  row: SnapshotRecord;
+}): "idle" | "saving" | "saved" | "failed" => {
+  const savedMediaIds = asTrimmedStringArray(projection.saved_media_ids);
+  if (savedMediaIds.length > 0) return "saved";
+  return (
+    normalizeProjectionSaveState(projection.save_state) ??
+    (row.saveState === "saving" || row.saveState === "saved" || row.saveState === "failed"
+      ? row.saveState
+      : "idle")
+  );
 };
 
 const buildProjectionByGenerationId = async ({
@@ -742,6 +755,9 @@ const patchSnapshotOutputRow = ({
   const nextGenerationReplay = asRecord(projection.generation_replay);
   const nextCharacterContext = asRecord(projection.character_context);
   const nextStyleContext = asRecord(projection.style_context);
+  const nextSavedMediaIds = asTrimmedStringArray(projection.saved_media_ids);
+  const nextSaveState = resolveRestoredOutputSaveState({ projection, row });
+  const nextStatus = nextSaveState === "saved" ? "saved" : (row.status ?? "ready");
 
   return {
     ...row,
@@ -755,6 +771,9 @@ const patchSnapshotOutputRow = ({
     errorMessage: nextErrorMessage ?? row.errorMessage ?? null,
     errorMessageShort: nextErrorMessageShort ?? row.errorMessageShort ?? null,
     errorDetail: nextErrorDetail ?? row.errorDetail ?? null,
+    savedMediaIds: nextSavedMediaIds.length > 0 ? nextSavedMediaIds : (row.savedMediaIds ?? []),
+    saveState: nextSaveState,
+    status: nextStatus,
     resultUrls: nextResultUrls.length > 0 ? nextResultUrls : (row.resultUrls ?? []),
     previewUrl: nextPreviewUrl ?? row.previewUrl ?? null,
     previewPosterUrl: nextMode === "video" ? (nextPreviewPosterUrl ?? null) : null,
@@ -802,6 +821,12 @@ const createSnapshotOutputRowFromProjection = ({
   const mode = resolveSnapshotOutputMode(projection);
   const requestId = asTrimmedString(projection.request_id);
   const modelId = asTrimmedString(projection.model_id);
+  const restoredSavedMediaIds = asTrimmedStringArray(projection.saved_media_ids);
+  const restoredSaveState =
+    restoredSavedMediaIds.length > 0
+      ? "saved"
+      : (normalizeProjectionSaveState(projection.save_state) ?? "idle");
+  const restoredStatus = restoredSaveState === "saved" ? "saved" : "ready";
 
   return patchSnapshotOutputRow({
     row: {
@@ -810,7 +835,7 @@ const createSnapshotOutputRowFromProjection = ({
       model: modelId ?? "Generated media",
       modelId: modelId ?? undefined,
       prompt: asTrimmedString(projection.display_prompt) ?? "",
-      status: "ready",
+      status: restoredStatus,
       timestamp: "Just now",
       generationId,
       taskId: requestId ?? undefined,
@@ -821,8 +846,9 @@ const createSnapshotOutputRowFromProjection = ({
       previewTier: mode === "video" ? "preview_loop" : "full",
       archivedAt: null,
       archiveReason: null,
-      saveState: "idle",
+      saveState: restoredSaveState,
       saveError: null,
+      savedMediaIds: restoredSavedMediaIds,
       hiddenInReferenceGrid: asBoolean(projection.hidden_in_reference_grid) ?? false,
     },
     projection,
@@ -984,10 +1010,6 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
         const normalizedRow = asRecord(row);
         const generationId = asTrimmedString(normalizedRow.generationId);
         if (generationId && !associatedSnapshotGenerationIds.has(generationId)) {
-          changed = true;
-          return null;
-        }
-        if (!generationId && hasSettledSnapshotOutputPayload(normalizedRow)) {
           changed = true;
           return null;
         }

@@ -151,7 +151,7 @@ describe("modelPricingControlPlane", () => {
           active_policy_version: 8,
           active_policy_version_id: 8,
           active_policy: {
-            schemaVersion: 1,
+            schemaVersion: 3,
             global: {
               creditUsdScale: 125,
               defaultRoundingMode: "ceil",
@@ -189,7 +189,7 @@ describe("modelPricingControlPlane", () => {
       activePolicyVersion: 8,
       activePolicyVersionId: 8,
       activePolicy: {
-        schemaVersion: 1,
+        schemaVersion: 3,
         global: {
           creditUsdScale: 125,
           defaultRoundingMode: "ceil",

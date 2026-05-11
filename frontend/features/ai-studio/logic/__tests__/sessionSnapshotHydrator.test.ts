@@ -99,6 +99,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agent.pulseWorkflowSession).toBeNull();
     expect(payload.agentRuntimes.standard.promptOrigin).toBe("manual");
     expect(payload.agentRuntimes.pulsePresetId).toBeNull();
+    expect(payload.agentRuntimes.pulseSessionInstanceId).toBeNull();
     expect(payload.agentRuntimes.pulse.messages).toEqual([]);
     expect(payload.workspace.klingWorkflowMode).toBe("single");
     expect(payload.workspace.expertCreateMode).toBe("standard");
@@ -216,6 +217,7 @@ describe("sessionSnapshotHydrator", () => {
           pulseWorkflowSession: null,
         },
         pulsePresetId: "story_builder",
+        pulseSessionInstanceId: "pulse-session-story",
         pulse: {
           messages: [
             {
@@ -247,6 +249,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.activePulsePresetId).toBeNull();
     expect(payload.workspace.pulseSessionInstanceId).toBeNull();
     expect(payload.agentRuntimes.pulsePresetId).toBeNull();
+    expect(payload.agentRuntimes.pulseSessionInstanceId).toBeNull();
     expect(payload.agentRuntimes.pulse.messages).toEqual([]);
     expect(payload.agentRuntimes.pulse.pulseWorkflowSession).toBeNull();
   });
@@ -263,6 +266,7 @@ describe("sessionSnapshotHydrator", () => {
         ...createSnapshot().workspace,
         expertCreateMode: "pulse",
         activePulsePresetId: "story_builder",
+        pulseSessionInstanceId: "pulse-session-story",
       },
       agentRuntimes: {
         standard: {
@@ -274,6 +278,7 @@ describe("sessionSnapshotHydrator", () => {
           pulseWorkflowSession: null,
         },
         pulsePresetId: "story_builder",
+        pulseSessionInstanceId: "pulse-session-story",
         pulse: {
           messages: [],
           input: "",
@@ -357,6 +362,7 @@ describe("sessionSnapshotHydrator", () => {
           pulseWorkflowSession: null,
         },
         pulsePresetId: "story_builder",
+        pulseSessionInstanceId: "pulse-session-story",
         pulse: {
           messages: [
             {
@@ -422,6 +428,7 @@ describe("sessionSnapshotHydrator", () => {
           pulseWorkflowSession: null,
         },
         pulsePresetId: "multi_shot",
+        pulseSessionInstanceId: "pulse-session-other",
         pulse: {
           messages: [
             {
@@ -452,6 +459,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.expertCreateMode).toBe("pulse");
     expect(payload.workspace.activePulsePresetId).toBe("story_builder");
     expect(payload.agentRuntimes.pulsePresetId).toBe("story_builder");
+    expect(payload.agentRuntimes.pulseSessionInstanceId).toBe("pulse-session-story");
     expect(payload.agentRuntimes.pulse.messages).toEqual([]);
     expect(payload.agentRuntimes.pulse.input).toBe("");
     expect(payload.agentRuntimes.pulse.latestAgentPrompt).toBeNull();
@@ -534,6 +542,7 @@ describe("sessionSnapshotHydrator", () => {
       aspect: "9:16",
       expertCreateMode: "pulse",
       activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-story",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",
@@ -605,6 +614,7 @@ describe("sessionSnapshotHydrator", () => {
       aspect: "9:16",
       expertCreateMode: "pulse",
       activePulsePresetId: "story_builder",
+      pulseSessionInstanceId: "pulse-session-story",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",
@@ -663,6 +673,69 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agentRuntimes.pulse.latestAgentPrompt).toBe("Completed artifact prompt");
     expect(payload.agentRuntimes.pulse.pulseWorkflowSession?.lastArtifact).toBe(
       "Completed artifact prompt"
+    );
+  });
+
+  it("restores apply_prompt Pulse workflow artifacts without dropping the source type", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "apply-prompt-restore-session",
+      updatedAt: "2026-04-23T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Pulse draft prompt",
+      standardCreatePrompt: "",
+      pulseCreatePrompt: "Pulse draft prompt",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseSessionInstanceId: "pulse-session-image",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: "final video prompt",
+      promptOrigin: "agent",
+      chatModeEnabled: true,
+      pulseWorkflowSession: {
+        presetId: "image",
+        status: "completed",
+        currentStepIndex: 5,
+        currentStepLabel: "Final Prompt",
+        currentStepPrompt: null,
+        collectedInputs: ["Uploaded image attached", "360 orbit", "Bird launches into flight"],
+        lastArtifact: "final video prompt",
+        finalArtifactSource: "apply_prompt",
+      },
+    });
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshot);
+
+    expect(payload.agent.pulseWorkflowSession?.finalArtifactSource).toBe("apply_prompt");
+    expect(payload.agentRuntimes.pulse.pulseWorkflowSession?.finalArtifactSource).toBe(
+      "apply_prompt"
     );
   });
 

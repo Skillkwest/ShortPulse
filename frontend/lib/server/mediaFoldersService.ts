@@ -3,6 +3,7 @@
  * Centralizes folder CRUD and membership batch operations with ownership validation.
  */
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
+import { isCharacterScopedMediaStoragePath } from "../mediaStoragePath";
 
 export const MEDIA_LIBRARY_ROOT_FOLDER_ID = "all_items" as const;
 export const DEFAULT_MEDIA_LIBRARY_FOLDER_NAME = "New Folder" as const;
@@ -246,7 +247,7 @@ const toOwnedIdsSet = async ({
   return set;
 };
 
-const toCharacterScopedMediaIdSet = async ({
+export const listOwnedCharacterScopedMediaIds = async ({
   userId,
   ids,
 }: {
@@ -269,7 +270,7 @@ const toCharacterScopedMediaIdSet = async ({
     const value = record.id;
     if (typeof value === "string" && value.trim()) {
       const storagePath = typeof record.storage_path === "string" ? record.storage_path.trim() : "";
-      if (storagePath.startsWith(`${userId}/characters/`)) {
+      if (isCharacterScopedMediaStoragePath(storagePath, userId)) {
         set.add(value.trim());
       }
     }
@@ -692,7 +693,7 @@ export const applyFolderMembershipBatch = async (
     throw new Error("One or more item ids are invalid for this user");
   }
   if (mediaIds.length) {
-    const characterScopedMediaIds = await toCharacterScopedMediaIdSet({
+    const characterScopedMediaIds = await listOwnedCharacterScopedMediaIds({
       userId,
       ids: mediaIds,
     });

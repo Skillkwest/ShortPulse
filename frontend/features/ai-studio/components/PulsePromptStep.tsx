@@ -10,7 +10,7 @@ import type {
   AgentMessage,
 } from "../../../prefabs/agent";
 import type { PromptTokenHighlightSegment } from "../logic/promptTokenHighlight";
-import { extractDragDropPayload } from "../utils/dragDrop";
+import { resolveAgentComposerDrop } from "./promptStep/agentComposerDrop";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
 import { PulsePromptStepChatSurface } from "./promptStep/PulsePromptStepChatSurface";
@@ -255,10 +255,10 @@ export function PulsePromptStep({
   };
   const handleComposerAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.stopPropagation();
-    const payload = event.dataTransfer ? extractDragDropPayload(event.dataTransfer) : null;
-    const droppedPromptText = payload?.promptText?.trim() ?? null;
-    const droppedImageUrl = payload?.imageUrl?.trim() ?? null;
-    if (droppedPromptText && !droppedImageUrl) {
+    const { droppedPromptText, droppedImageUrl, isVideoReference } = resolveAgentComposerDrop(
+      event.dataTransfer
+    );
+    if (droppedPromptText && !droppedImageUrl && !isVideoReference) {
       event.preventDefault();
       // Text-only drops bypass the generic attachment handler, so clear any drag-active affordance.
       onAgentAttachmentDragLeave?.(event);

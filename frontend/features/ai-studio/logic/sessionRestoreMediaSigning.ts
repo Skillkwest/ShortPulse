@@ -143,14 +143,15 @@ export const applySessionRestoreSignedUrls = (
         : output.mode === "video" && previewStoragePath && previewStoragePath !== fullStoragePath
           ? signedPreviewUrl
           : currentFingerprint.previewPosterUrl;
-    const signedFullVideoUrl = output.mode === "video" ? signedFullUrl : null;
-    const nextResultUrls = signedFullVideoUrl
+    const primarySignedResultUrl =
+      output.mode === "video" ? signedFullUrl : (signedFullUrl ?? signedPreviewUrl);
+    const nextResultUrls = primarySignedResultUrl
       ? [
-          signedFullVideoUrl,
-          ...(output.resultUrls ?? []).filter((url) => url !== signedFullVideoUrl),
+          primarySignedResultUrl,
+          ...(output.resultUrls ?? []).filter((url) => url !== primarySignedResultUrl),
         ]
       : output.resultUrls;
-    if (!signedPreviewUrl && !signedPreviewPosterUrl && !signedFullVideoUrl) return output;
+    if (!signedPreviewUrl && !signedPreviewPosterUrl && !primarySignedResultUrl) return output;
 
     if (
       currentFingerprint.previewUrl === signedPreviewUrl &&

@@ -14,11 +14,32 @@ import {
   ModelOption,
   SEEDREAM_LOGO_SRC,
 } from "../constants";
-import { buildDefaultPricingParams, computeCostForModel, getModelConfig } from "../logic/pricing";
+import { getModelConfig } from "../logic/pricing";
 import { isSeedance2ModelId, isSeedance2UiEnabled } from "../logic/seedance2Availability";
 import { stripEditLabel } from "../utils/modelLabels";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
-import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../lib/model-runtime/openAiImage2";
+import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_NANO_BANANA_2_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_2_MODEL_ID,
+  FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_PRO_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
+} from "../../../lib/model-runtime/falModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
+import {
+  getPairedModelId,
+  resolveRequiredCreateCharacterModeStartupModelId,
+  resolveRequiredCreateStartupModelId,
+} from "../../../lib/model-runtime/modelCatalog";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 
 export type ModelModalContext =
@@ -53,21 +74,40 @@ type ModelFamilyGroup = {
   items: ModelOption[];
 };
 
+const MODEL_MODAL_TEXT_IMAGE_STARTUP_MODEL_ID = resolveRequiredCreateStartupModelId();
+const MODEL_MODAL_EDIT_IMAGE_STARTUP_MODEL_ID = resolveRequiredCreateCharacterModeStartupModelId();
+const MODEL_MODAL_TEXT_IMAGE_SECONDARY_MODEL_IDS = [
+  FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
+  FAL_NANO_BANANA_2_MODEL_ID,
+  FAL_NANO_BANANA_PRO_MODEL_ID,
+] as const;
+const MODEL_MODAL_TEXT_IMAGE_MODEL_PRIORITY = [
+  MODEL_MODAL_TEXT_IMAGE_STARTUP_MODEL_ID,
+  ...MODEL_MODAL_TEXT_IMAGE_SECONDARY_MODEL_IDS,
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+] as const;
+const MODEL_MODAL_EDIT_IMAGE_MODEL_PRIORITY = [
+  MODEL_MODAL_EDIT_IMAGE_STARTUP_MODEL_ID,
+  ...MODEL_MODAL_TEXT_IMAGE_SECONDARY_MODEL_IDS.map(
+    (modelId) => getPairedModelId(modelId) ?? modelId
+  ),
+] as const;
+
 const modelMeta: Record<string, ModelMeta> = {
-  "gpt-image-2": {
+  [OPENAI_GPT_IMAGE_2_MODEL_ID]: {
     provider: "OpenAI",
     description: "ChatGPT Image 2 supports high-quality image generation and standard edits.",
     tags: ["Image", "Text-to-Image", "Image-to-Image"],
     verified: true,
   },
-  "fal-ai/flux-2/klein/9b": {
+  [FAL_FLUX_2_KLEIN_9B_MODEL_ID]: {
     provider: "Black Forest Labs",
     description: "FLUX.2 Lite (9B) for fast text-to-image drafts across core aspect ratios.",
     logo: "Flux",
     tags: ["Image", "Text-to-Image", "9B", "Fast"],
     verified: true,
   },
-  "kie-ai/veo-3.1-fast-i2v": {
+  [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
     provider: "Kie AI",
     description:
       "Kie Veo 3.1 Fast handles text-to-video, single-image animation, and first/last-frame transitions at 720p or 1080p.",
@@ -81,13 +121,13 @@ const modelMeta: Record<string, ModelMeta> = {
       "Audio",
     ],
   },
-  "kie-ai/kling-3.0": {
+  [KIE_KLING_30_MODEL_ID]: {
     provider: "Kie AI",
     description:
       "Kie Kling 3.0 supports standard image-to-video and dedicated motion-control transfers.",
     tags: ["Video", "Image-to-Video", "Motion Control", "720p/1080p", "Audio"],
   },
-  "kie-ai/seedance-1.5-pro": {
+  [KIE_SEEDANCE_15_PRO_MODEL_ID]: {
     provider: "Kie AI",
     description:
       "Kie Seedance 1.5 Pro supports prompt-only video, one-image animation, first/last-frame transitions, fixed lens, and optional audio.",
@@ -101,7 +141,7 @@ const modelMeta: Record<string, ModelMeta> = {
       "Audio",
     ],
   },
-  "kie-ai/seedance-2": {
+  [KIE_SEEDANCE_2_MODEL_ID]: {
     provider: "Kie AI",
     description:
       "Kie Seedance 2.0 supports prompt-only video, first-frame animation, first/last-frame transitions, and multimodal reference-to-video workflows.",
@@ -116,7 +156,7 @@ const modelMeta: Record<string, ModelMeta> = {
       "Audio",
     ],
   },
-  "kie-ai/seedance-2-fast": {
+  [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
     provider: "Kie AI",
     description:
       "Kie Seedance 2.0 Fast supports prompt-only video, first-frame animation, first/last-frame transitions, and faster multimodal reference-to-video workflows.",
@@ -132,53 +172,53 @@ const modelMeta: Record<string, ModelMeta> = {
       "Audio",
     ],
   },
-  "fal-ai/bytedance/seedream/v4.5/text-to-image": {
+  [MODEL_MODAL_TEXT_IMAGE_STARTUP_MODEL_ID]: {
     provider: "ByteDance",
     description:
       "Seedream 4.5 text-to-image supports native output plus automatic 2K and 4K upscale modes.",
     tags: ["Image", "Text-to-Image", "Native/2K/4K"],
     verified: true,
   },
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
+  [FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID]: {
     provider: "ByteDance",
     description:
       "Seedream 5 Lite text-to-image supports faster generation with automatic 2K and 3K output modes.",
     tags: ["Image", "Text-to-Image", "Auto 2K/3K", "Fast"],
     verified: true,
   },
-  "fal-ai/bytedance/seedream/v4.5/edit": {
+  [MODEL_MODAL_EDIT_IMAGE_STARTUP_MODEL_ID]: {
     provider: "ByteDance",
     description:
       "Seedream 4.5 Edit applies image-to-image changes with native output plus automatic 2K and 4K upscale modes.",
     tags: ["Image", "Image-to-Image", "Native/2K/4K"],
     verified: true,
   },
-  "fal-ai/bytedance/seedream/v5/lite/edit": {
+  [FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID]: {
     provider: "ByteDance",
     description:
       "Seedream 5 Lite Edit applies fast image-to-image edits with automatic 2K and 3K output modes.",
     tags: ["Image", "Image-to-Image", "Auto 2K/3K", "Fast"],
     verified: true,
   },
-  "fal-ai/nano-banana-pro": {
+  [FAL_NANO_BANANA_PRO_MODEL_ID]: {
     provider: "Google",
     description: "Nano Banana Pro text-to-image adds selectable 1K, 2K, or 4K output.",
     tags: ["Image", "Text-to-Image", "1K-4K"],
   },
-  "fal-ai/nano-banana-pro/edit": {
+  [FAL_NANO_BANANA_PRO_EDIT_MODEL_ID]: {
     provider: "Google",
     description:
       "Nano Banana Pro Edit adds image-to-image editing with selectable 1K, 2K, or 4K output.",
     logo: "Google",
     tags: ["Image", "Image-to-Image", "1K-4K"],
   },
-  "fal-ai/nano-banana-2": {
+  [FAL_NANO_BANANA_2_MODEL_ID]: {
     provider: "Google",
     description:
       "Nano Banana 2 text-to-image supports faster generations with selectable 0.5K, 1K, 2K, or 4K output.",
     tags: ["Image", "Text-to-Image", "0.5K-4K", "Fast"],
   },
-  "fal-ai/nano-banana-2/edit": {
+  [FAL_NANO_BANANA_2_EDIT_MODEL_ID]: {
     provider: "Google",
     description:
       "Nano Banana 2 Edit applies image-to-image edits with selectable 0.5K, 1K, 2K, or 4K output.",
@@ -262,13 +302,16 @@ const modelFamilyMeta: Record<string, { label: string; logo?: string }> = {
   veo: { label: "Veo", logo: GOOGLE_LOGO_SRC },
 };
 
+const IMAGE_MODAL_FAMILY_PRIORITY = ["seedream", "nano-banana", "gpt-image", "flux"];
+const VIDEO_MODAL_FAMILY_PRIORITY = ["veo", "kling", "seedance"];
+
 const familyPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
-  "character-image": ["seedream", "nano-banana", "gpt-image", "flux"],
-  "text-image": ["seedream", "nano-banana", "gpt-image", "flux"],
-  "reference-image": ["seedream", "nano-banana", "gpt-image", "flux"],
-  "reference-video": ["veo", "kling", "seedance"],
+  "character-image": IMAGE_MODAL_FAMILY_PRIORITY,
+  "text-image": IMAGE_MODAL_FAMILY_PRIORITY,
+  "reference-image": IMAGE_MODAL_FAMILY_PRIORITY,
+  "reference-video": VIDEO_MODAL_FAMILY_PRIORITY,
   "reference-keyframes": ["veo"],
-  "text-video": ["veo", "kling", "seedance"],
+  "text-video": VIDEO_MODAL_FAMILY_PRIORITY,
 };
 
 const defaultFamilyPriority = [
@@ -295,7 +338,7 @@ const resolveModelLogo = (modelId: string) => {
 };
 
 const resolveModelFamilyKey = (modelId: string): string => {
-  if (modelId === "gpt-image-2") return "gpt-image";
+  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) return "gpt-image";
   if (modelId.includes("seedream")) return "seedream";
   if (modelId.includes("nano-banana")) return "nano-banana";
   if (modelId.includes("flux")) return "flux";
@@ -314,43 +357,30 @@ const contextTooltipTagMap: Record<ModelModalContext, string> = {
   "text-video": "Text-to-Video",
 };
 
+const IMAGE_MODAL_PROVIDER_PRIORITY = ["ByteDance", "Google", "Black Forest Labs"];
+const VIDEO_MODAL_PROVIDER_PRIORITY = ["Kie AI"];
+
 const providerPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
-  "character-image": ["ByteDance", "Google", "Black Forest Labs"],
-  "text-image": ["ByteDance", "Google", "Black Forest Labs"],
-  "reference-image": ["ByteDance", "Google", "Black Forest Labs"],
-  "reference-video": ["Kie AI"],
-  "reference-keyframes": ["Kie AI"],
-  "text-video": ["Kie AI"],
+  "character-image": IMAGE_MODAL_PROVIDER_PRIORITY,
+  "text-image": IMAGE_MODAL_PROVIDER_PRIORITY,
+  "reference-image": IMAGE_MODAL_PROVIDER_PRIORITY,
+  "reference-video": VIDEO_MODAL_PROVIDER_PRIORITY,
+  "reference-keyframes": VIDEO_MODAL_PROVIDER_PRIORITY,
+  "text-video": VIDEO_MODAL_PROVIDER_PRIORITY,
 };
 
 const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
-  "character-image": [
-    "fal-ai/bytedance/seedream/v4.5/edit",
-    "fal-ai/bytedance/seedream/v5/lite/edit",
-    "fal-ai/nano-banana-2/edit",
-    "fal-ai/nano-banana-pro/edit",
-  ],
-  "text-image": [
-    "fal-ai/bytedance/seedream/v4.5/text-to-image",
-    "fal-ai/bytedance/seedream/v5/lite/text-to-image",
-    "fal-ai/nano-banana-2",
-    "fal-ai/nano-banana-pro",
-    "fal-ai/flux-2/klein/9b",
-  ],
-  "reference-image": [
-    "fal-ai/bytedance/seedream/v4.5/edit",
-    "fal-ai/bytedance/seedream/v5/lite/edit",
-    "fal-ai/nano-banana-2/edit",
-    "fal-ai/nano-banana-pro/edit",
-  ],
-  "reference-video": ["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0"],
-  "reference-keyframes": ["kie-ai/veo-3.1-fast-i2v"],
+  "character-image": [...MODEL_MODAL_EDIT_IMAGE_MODEL_PRIORITY],
+  "text-image": [...MODEL_MODAL_TEXT_IMAGE_MODEL_PRIORITY],
+  "reference-image": [...MODEL_MODAL_EDIT_IMAGE_MODEL_PRIORITY],
+  "reference-video": [KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID],
+  "reference-keyframes": [KIE_VEO_31_FAST_I2V_MODEL_ID],
   "text-video": [
-    "kie-ai/veo-3.1-fast-i2v",
-    "kie-ai/kling-3.0",
-    "kie-ai/seedance-1.5-pro",
-    "kie-ai/seedance-2",
-    "kie-ai/seedance-2-fast",
+    KIE_VEO_31_FAST_I2V_MODEL_ID,
+    KIE_KLING_30_MODEL_ID,
+    KIE_SEEDANCE_15_PRO_MODEL_ID,
+    KIE_SEEDANCE_2_MODEL_ID,
+    KIE_SEEDANCE_2_FAST_MODEL_ID,
   ],
 };
 
@@ -384,7 +414,7 @@ const modelMatchesModalContext = (option: ModelOption, context?: ModelModalConte
   if (context === "reference-video") {
     return Boolean(config.generationLanes?.includes("image-to-video"));
   }
-  if (context === "reference-keyframes") return option.value === "kie-ai/veo-3.1-fast-i2v";
+  if (context === "reference-keyframes") return option.value === KIE_VEO_31_FAST_I2V_MODEL_ID;
   return true;
 };
 
@@ -714,9 +744,7 @@ function ModelModalContent({
     if (typeof resolvedCredits === "number" && Number.isFinite(resolvedCredits)) {
       return `${resolvedCredits}`;
     }
-    const cost = computeCostForModel(modelId, buildDefaultPricingParams(modelId));
-    if (!cost?.credits) return "—";
-    return `${cost.credits}`;
+    return "—";
   };
 
   return (

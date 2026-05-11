@@ -68,6 +68,20 @@ type MediaUsageRow = {
   file_size: number | string | null;
 };
 
+type PricingObservabilityEvent = {
+  sourceType: "reservation" | "ledger";
+  rowId: string | null;
+  sourceRef: string | null;
+  requestId: string | null;
+  observedAt: string | null;
+  displayedBilledCredits: number | null;
+  actualBilledCredits: number | null;
+  deltaCredits: number | null;
+  mismatch: boolean | null;
+  pricingDisplaySource: string | null;
+  pricingPolicyReady: boolean | null;
+};
+
 type StripeSubscriptionResponse = {
   id: string;
   status?: string | null;
@@ -151,6 +165,76 @@ const stringifyLookupError = (error: unknown, fallback: string): string => {
 const normalizeText = (value: string | null | undefined): string | null => {
   const normalized = value?.trim() ?? "";
   return normalized.length > 0 ? normalized : null;
+};
+
+const asFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const readPricingObservability = (
+  metadata: Record<string, unknown> | null | undefined
+): Record<string, unknown> | null => {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const direct = metadata.pricing_observability;
+  if (direct && typeof direct === "object" && !Array.isArray(direct)) {
+    return direct as Record<string, unknown>;
+  }
+  const nestedPricingMetadata = metadata.pricing_metadata;
+  if (
+    nestedPricingMetadata &&
+    typeof nestedPricingMetadata === "object" &&
+    !Array.isArray(nestedPricingMetadata)
+  ) {
+    const nested = (nestedPricingMetadata as Record<string, unknown>).pricing_observability;
+    if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+      return nested as Record<string, unknown>;
+    }
+  }
+  return null;
+};
+
+const buildPricingObservabilityEvent = ({
+  sourceType,
+  rowId,
+  sourceRef,
+  requestId,
+  observedAt,
+  metadata,
+}: {
+  sourceType: PricingObservabilityEvent["sourceType"];
+  rowId: string | null;
+  sourceRef: string | null;
+  requestId: string | null;
+  observedAt: string | null;
+  metadata: Record<string, unknown> | null | undefined;
+}): PricingObservabilityEvent | null => {
+  const observability = readPricingObservability(metadata);
+  if (!observability) return null;
+  return {
+    sourceType,
+    rowId,
+    sourceRef,
+    requestId,
+    observedAt,
+    displayedBilledCredits: asFiniteNumber(observability.displayed_billed_credits),
+    actualBilledCredits: asFiniteNumber(observability.actual_billed_credits),
+    deltaCredits: asFiniteNumber(observability.delta_credits),
+    mismatch: typeof observability.mismatch === "boolean" ? observability.mismatch : null,
+    pricingDisplaySource: normalizeText(
+      typeof observability.pricing_display_source === "string"
+        ? observability.pricing_display_source
+        : null
+    ),
+    pricingPolicyReady:
+      typeof observability.pricing_policy_ready === "boolean"
+        ? observability.pricing_policy_ready
+        : null,
+  };
 };
 
 const pickPositiveNumber = (...values: Array<number | null | undefined>): number => {
@@ -327,20 +411,43 @@ export default async function handler(
       currentPublicOffer = mapOffer((currentOfferResult.data as BillingOfferRow | null) ?? null);
     }
 
-    const [storageAddonsResult, mediaUsageResult] = await Promise.all([
-      supabaseAdmin
-        .from("billing_subscription_storage_addons")
-        .select(
-          "id, storage_addon_id, offer_id, stripe_subscription_item_id, stripe_price_id, storage_limit_bytes, quantity, recurring_price_cents, status"
-        )
-        .eq("user_id", userId)
-        .is("ended_at", null)
-        .order("created_at", { ascending: false }),
-      supabaseAdmin.from("media_files").select("file_size").eq("user_id", userId),
-    ]);
+    const [storageAddonsResult, mediaUsageResult, recentReservationsResult, recentLedgerResult] =
+      await Promise.all([
+        supabaseAdmin
+          .from("billing_subscription_storage_addons")
+          .select(
+            "id, storage_addon_id, offer_id, stripe_subscription_item_id, stripe_price_id, storage_limit_bytes, quantity, recurring_price_cents, status"
+          )
+          .eq("user_id", userId)
+          .is("ended_at", null)
+          .order("created_at", { ascending: false }),
+        supabaseAdmin.from("media_files").select("file_size").eq("user_id", userId),
+        supabaseAdmin
+          .from("ai_credit_reservations")
+          .select("id, user_id, source_ref, provider_request_id, metadata, created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(25),
+        supabaseAdmin
+          .from("ai_credit_ledger")
+          .select("id, user_id, source_ref, metadata, created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(25),
+      ]);
 
-    if (storageAddonsResult.error || mediaUsageResult.error) {
-      const detail = [storageAddonsResult.error?.message, mediaUsageResult.error?.message]
+    if (
+      storageAddonsResult.error ||
+      mediaUsageResult.error ||
+      recentReservationsResult.error ||
+      recentLedgerResult.error
+    ) {
+      const detail = [
+        storageAddonsResult.error?.message,
+        mediaUsageResult.error?.message,
+        recentReservationsResult.error?.message,
+        recentLedgerResult.error?.message,
+      ]
         .filter(Boolean)
         .join(" | ");
       return res.status(500).json({ error: detail || "Failed to load storage diagnostics." });
@@ -504,6 +611,62 @@ export default async function handler(
       totalLimitBytes,
       remainingBytes: Math.max(totalLimitBytes - usedBytes, 0),
       isOverLimit: usedBytes > totalLimitBytes,
+    };
+    const recentReservationRows =
+      (recentReservationsResult.data as Array<Record<string, unknown>> | null) ?? [];
+    const recentLedgerRows =
+      (recentLedgerResult.data as Array<Record<string, unknown>> | null) ?? [];
+    const reservationObservabilityRows = recentReservationRows
+      .map((row) =>
+        buildPricingObservabilityEvent({
+          sourceType: "reservation",
+          rowId: normalizeText(typeof row.id === "string" ? row.id : null),
+          sourceRef: normalizeText(typeof row.source_ref === "string" ? row.source_ref : null),
+          requestId: normalizeText(
+            typeof row.provider_request_id === "string" ? row.provider_request_id : null
+          ),
+          observedAt: normalizeText(typeof row.created_at === "string" ? row.created_at : null),
+          metadata:
+            row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+              ? (row.metadata as Record<string, unknown>)
+              : null,
+        })
+      )
+      .filter((row): row is PricingObservabilityEvent => row != null);
+    const ledgerObservabilityRows = recentLedgerRows
+      .map((row) =>
+        buildPricingObservabilityEvent({
+          sourceType: "ledger",
+          rowId: normalizeText(typeof row.id === "string" ? row.id : null),
+          sourceRef: normalizeText(typeof row.source_ref === "string" ? row.source_ref : null),
+          requestId: null,
+          observedAt: normalizeText(typeof row.created_at === "string" ? row.created_at : null),
+          metadata:
+            row.metadata && typeof row.metadata === "object" && !Array.isArray(row.metadata)
+              ? (row.metadata as Record<string, unknown>)
+              : null,
+        })
+      )
+      .filter((row): row is PricingObservabilityEvent => row != null);
+    const pricingObservabilityEvents = [
+      ...reservationObservabilityRows,
+      ...ledgerObservabilityRows,
+    ].sort((a, b) => (b.observedAt ?? "").localeCompare(a.observedAt ?? ""));
+    const pricingObservabilityMismatchCount = pricingObservabilityEvents.filter(
+      (row) => row.mismatch === true
+    ).length;
+    const pricingObservability = {
+      rowsScanned: {
+        reservations: recentReservationRows.length,
+        ledgerEntries: recentLedgerRows.length,
+      },
+      observedRows: {
+        reservations: reservationObservabilityRows.length,
+        ledgerEntries: ledgerObservabilityRows.length,
+      },
+      mismatchCount: pricingObservabilityMismatchCount,
+      lastObservedAt: pricingObservabilityEvents[0]?.observedAt ?? null,
+      latestEvents: pricingObservabilityEvents.slice(0, 5),
     };
     const stripeSubscription = mapStripeSubscriptionSnapshot({
       configured: stripeConfigured,
@@ -782,6 +945,21 @@ export default async function handler(
       });
     }
 
+    if (pricingObservabilityMismatchCount > 0) {
+      pushFinding(findings, {
+        code: "pricing_observability_mismatch",
+        severity: "warning",
+        confidence: "high",
+        summary: "Recent estimate-vs-debit pricing mismatches were detected.",
+        details:
+          "Recent reservation or ledger rows for this user contain pricing observability mismatches, which means at least one billable UI surface displayed a different credit amount than the server debited.",
+        recommendedActions: [
+          "Open the generation trace for this user and inspect the latest pricing observability rows.",
+          "Compare the affected generation surface against the shared pricing adapter and server debit path before changing pricing policy.",
+        ],
+      });
+    }
+
     if (!stripeConfigured) {
       pushFinding(findings, {
         code: "stripe_not_configured",
@@ -1016,6 +1194,7 @@ export default async function handler(
       storageSummary,
       stripeCustomer,
       stripeSubscription,
+      pricingObservability,
       findings,
     });
   } catch (error) {

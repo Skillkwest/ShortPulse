@@ -3,7 +3,7 @@
  * Verifies page-level drop resolution stays stable while orchestration moves into a dedicated hook.
  */
 import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import type { InternalReferenceDragPayload } from "../../utils/dragDrop";
 import {
@@ -49,8 +49,21 @@ const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
   }) as StudioOutput;
 
 describe("useAiStudioInternalDropResolvers", () => {
+  const originalCreateObjectURL = URL.createObjectURL;
+
   beforeEach(() => {
     resolveInternalReferenceSourceMock.mockReset();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn((blob: Blob) => `blob:${blob.size}`),
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: originalCreateObjectURL,
+    });
   });
 
   it("resolves saved media ids by requested index with first-id fallback", () => {
@@ -212,7 +225,7 @@ describe("useAiStudioInternalDropResolvers", () => {
         sourceSurface: "all-refs",
         resolutionReason: "output_storage_path",
       },
-      loadBlob: vi.fn(),
+      loadBlob: vi.fn(async () => new Blob(["img0"])),
     });
     const ensureOutputPersisted = vi.fn(async () => ({
       ok: true,
@@ -248,6 +261,20 @@ describe("useAiStudioInternalDropResolvers", () => {
         promptText: "User visible prompt",
       })
     );
+    await expect(
+      result.current.resolveComposerInternalImageDropSource(makePayload())
+    ).resolves.toEqual(
+      expect.objectContaining({
+        kind: "internal",
+        sourceId: "media-0",
+        previewStoragePath: "user-1/generations/images/result-0.png",
+        promptText: "User visible prompt",
+        preparedImageUrl: "blob:4",
+        preview: expect.objectContaining({
+          url: "blob:4",
+        }),
+      })
+    );
 
     expect(resolveInternalReferenceSourceMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -262,6 +289,61 @@ describe("useAiStudioInternalDropResolvers", () => {
     const styleArgs = resolveInternalReferenceSourceMock.mock.calls[1]?.[0];
     expect(mediaArgs.resolveSavedMediaIdFromOutput(output, 1)).toBe("media-1");
     expect(styleArgs.resolveSavedMediaIdFromOutput(output, 1)).toBe("media-1");
+  });
+
+  it("fails closed for composer image drops when only weak preview authority survives", async () => {
+    const output = makeOutput({
+      mediaSource: "generated",
+      previewUrl: "https://cdn.example.com/weak-preview.png",
+      savedMediaIds: [],
+    });
+    resolveInternalReferenceSourceMock.mockResolvedValue({
+      kind: "internal",
+      sourceKind: "generated_output",
+      sourceId: "out-1",
+      outputId: "out-1",
+      mediaId: null,
+      preview: {
+        url: "https://cdn.example.com/weak-preview.png",
+      },
+      previewStoragePath: null,
+      fullStoragePath: null,
+      promptText: "User visible prompt",
+      provenance: {
+        origin: "ai-studio-reference-grid",
+        outputId: "out-1",
+        mediaId: null,
+        imageIndex: 0,
+        sourceSurface: "all-refs",
+        resolutionReason: "payload_render_url",
+      },
+      preparedImageUrl: null,
+      loadBlob: vi.fn(async () => {
+        throw new Error("download failed");
+      }),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioInternalDropResolvers({
+        getOutputById: () => output,
+        getOutputSnapshot: () => ({
+          outputOrder: ["out-1"],
+          archivedOutputOrder: [],
+          outputById: { "out-1": output },
+          archivedOutputById: {},
+        }),
+        ensureOutputPersisted: vi.fn(async () => ({
+          ok: true,
+          mediaFileIds: [],
+          delivery: null,
+          error: null,
+        })),
+      })
+    );
+
+    await expect(
+      result.current.resolveComposerInternalImageDropSource(makePayload())
+    ).resolves.toBeNull();
   });
 
   it("awaits prompt persistence for media-library text drops before returning prompt ids", async () => {
@@ -356,12 +438,12 @@ describe("useAiStudioInternalDropResolvers", () => {
     expect(resolveInternalReferenceSourceMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to page output preview authority for element profile drops when shared resolution fails closed", async () => {
+  it("falls back to page output preview authority only for non-generated element profile drops", async () => {
     const output = makeOutput({
       savedMediaIds: [],
       previewUrl: "https://cdn.example.com/preview-only.png",
       resultUrls: [],
-      mediaSource: "generated",
+      mediaSource: "library",
     });
     resolveInternalReferenceSourceMock.mockResolvedValue(null);
     vi.stubGlobal(
@@ -401,6 +483,39 @@ describe("useAiStudioInternalDropResolvers", () => {
     );
     await expect(resolved?.loadBlob()).resolves.toBeInstanceOf(Blob);
     vi.unstubAllGlobals();
+  });
+
+  it("fails closed for generated element profile drops when shared resolution cannot recover durable identity", async () => {
+    const output = makeOutput({
+      savedMediaIds: [],
+      previewUrl: "https://cdn.example.com/generated-preview-only.png",
+      resultUrls: [],
+      mediaSource: "generated",
+      localObjectUrl: undefined,
+    });
+    resolveInternalReferenceSourceMock.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useAiStudioInternalDropResolvers({
+        getOutputById: () => output,
+        getOutputSnapshot: () => ({
+          outputOrder: ["out-1"],
+          archivedOutputOrder: [],
+          outputById: { "out-1": output },
+          archivedOutputById: {},
+        }),
+        ensureOutputPersisted: vi.fn(async () => ({
+          ok: false,
+          mediaFileIds: [],
+          delivery: null,
+          error: "missing",
+        })),
+      })
+    );
+
+    await expect(
+      result.current.resolveElementProfileImageDropSource(makePayload())
+    ).resolves.toBeNull();
   });
 
   it("does not promote unresolved generated character drops from payload URLs alone", async () => {

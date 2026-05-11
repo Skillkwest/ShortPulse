@@ -85,4 +85,16 @@ describe("useExpertEditStageInteractions", () => {
 
     expect(args.handleStageViewportWheel).toHaveBeenCalledTimes(1);
   });
+
+  it("routes inline wheel events through the viewport handler too", () => {
+    const args = buildArgs("move");
+
+    const { result } = renderHook(() => useExpertEditStageInteractions(args));
+
+    act(() => {
+      result.current.inlineStageInteractionRouter.onWheel(createWheelEvent());
+    });
+
+    expect(args.handleStageViewportWheel).toHaveBeenCalledTimes(1);
+  });
 });

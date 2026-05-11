@@ -302,6 +302,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         modeOverride: effectiveMode,
         selectedToolOverride: effectiveTool,
         modelIdOverride: effectiveModelId,
+        displayedBilledCredits: requiredCredits,
         submissionPromptOverride: characterModeOverrides?.submissionPromptOverride,
         displayPromptOverride: characterModeOverrides?.displayPromptOverride,
         referenceInputsOverride: characterModeOverrides?.referenceInputsOverride,
@@ -470,6 +471,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         selectedToolOverride: tool,
         modelIdOverride: effectiveModelId,
         outputIdOverride: options?.outputIdOverride,
+        displayedBilledCredits: requiredCredits,
         submissionPromptOverride: resolvedSubmissionPromptOverride,
         displayPromptOverride: resolvedDisplayPromptOverride,
         referenceInputsOverride:

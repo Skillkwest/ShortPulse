@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AgentContext, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
 import {
-  resolveCreatePulseBuiltInPresetDefinitions,
   resolveCreatePulsePresetById,
   type CreatePulseBuiltInPresetDefinition,
   type CreatePulseResolvedPreset,
@@ -139,14 +138,16 @@ export const useCreatePulsePresetPageRuntime = ({
     Boolean(activeCreatePulsePresetId) &&
     Boolean(pulseSessionInstanceId);
   const resolvedSavedPresets = savedPresets ?? pulsePreference.savedPresets;
-  const resolvedBuiltInDefinitions =
-    builtInDefinitions ??
-    builtInCatalog.builtInDefinitions ??
-    resolveCreatePulseBuiltInPresetDefinitions();
+  const resolvedBuiltInDefinitions = builtInDefinitions ?? builtInCatalog.builtInDefinitions;
+  const builtInDefinitionsAreAuthoritative =
+    builtInDefinitions != null ? true : builtInCatalog.isAuthoritative;
   const resolvedSavedPresetCatalogReady =
     isSavedPresetCatalogReady &&
     (!shouldLoadPulsePreferences || !pulsePreference.loading) &&
     !builtInCatalog.loading;
+  const hasSavedPresetMatchForActivePulse =
+    Boolean(activeCreatePulsePresetId) &&
+    resolvedSavedPresets.some((preset) => preset.presetId === activeCreatePulsePresetId);
   const restoredCreatePulsePresetSnapshot = useMemo(
     () =>
       hasActivePulseSession && activeCreatePulsePresetId
@@ -173,11 +174,16 @@ export const useCreatePulsePresetPageRuntime = ({
   useEffect(() => {
     if (!hasActivePulseSession || activeCreatePulsePresetSnapshot) return;
     if (!resolvedSavedPresetCatalogReady) return;
+    if (!builtInDefinitionsAreAuthoritative && !hasSavedPresetMatchForActivePulse) {
+      return;
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- Unknown restored Pulse runtimes without a resolvable preset snapshot must fail closed before they can build context.
     clearPulseRuntimeForPage();
   }, [
     activeCreatePulsePresetSnapshot,
+    builtInDefinitionsAreAuthoritative,
     clearPulseRuntimeForPage,
+    hasSavedPresetMatchForActivePulse,
     hasActivePulseSession,
     resolvedSavedPresetCatalogReady,
   ]);

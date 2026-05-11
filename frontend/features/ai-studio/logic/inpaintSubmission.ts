@@ -1,13 +1,14 @@
 /**
  * Inpaint submission override contract propagated from Expert Edit UI to submit handlers.
  */
+import { FAL_NANO_BANANA_PRO_EDIT_MODEL_ID } from "../../../lib/model-runtime/falModelIds";
 import { analyzeExpertEditPromptTokens } from "./expertEditPromptReferences";
 
 export const INPAINT_FLUX_FILL_MODEL_ID = "fal-ai/flux-pro/v1/fill";
 export const INPAINT_FLUX_FILL_MODEL_LABEL = "Pulse Fill v1";
 export const INPAINT_REFERENCE_MODEL_ID = "fal-ai/flux-kontext-lora/inpaint";
 export const INPAINT_REFERENCE_MODEL_LABEL = "Pulse Reference Inpaint v1";
-export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID = "fal-ai/nano-banana-pro/edit";
+export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID = FAL_NANO_BANANA_PRO_EDIT_MODEL_ID;
 export const MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL = "Pulse Markup v1";
 export const isMarkupModelLockEnabled = (): boolean => true;
 

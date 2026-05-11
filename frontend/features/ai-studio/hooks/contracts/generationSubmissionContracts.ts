@@ -7,6 +7,7 @@ export type AiStudioGenerateSubmissionOverrides = {
   selectedToolOverride?: ToolId | null;
   submissionPromptOverride?: string | null;
   displayPromptOverride?: string | null;
+  displayedBilledCredits?: number | null;
   referenceInputsOverride?: string[];
   referenceInputsMode?: ReferenceInputsMode;
   characterContextOverride?: StudioOutput["characterContext"];

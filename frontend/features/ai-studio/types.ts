@@ -59,6 +59,7 @@ export type GenerationReplayConfig = GenerationReplayConfigV1;
 export type StudioOutputMediaSource = "upload" | "library" | "generated" | "clipboard" | "prompt";
 
 export type StudioOutputPreviewTier = "thumb" | "poster" | "preview_loop" | "full";
+export type StudioOutputSubmissionMode = "provider-task" | "direct-request";
 
 export type StudioOutput = {
   id: string;
@@ -81,6 +82,7 @@ export type StudioOutput = {
   queueEnqueuedAtMs?: number;
   submissionTraceId?: string;
   generationTraceId?: string;
+  submissionMode?: StudioOutputSubmissionMode;
   taskState?: "pending" | "running" | "success" | "fail";
   errorMessage?: string | null;
   errorMessageShort?: string | null;

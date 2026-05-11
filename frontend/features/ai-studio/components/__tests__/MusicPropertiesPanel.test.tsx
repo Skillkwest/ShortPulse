@@ -3,7 +3,7 @@
  * Verifies the dedicated Music workflow stays decoupled from generic Sound and Sound Effects.
  */
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MusicPropertiesPanel } from "../MusicPropertiesPanel";
 
@@ -32,7 +32,13 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "lofi hip hop" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Scroll inspiration left" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Scroll inspiration right" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Music defaults")).toBeNull();
+    expect(screen.getByLabelText("Music defaults")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("2");
+    expect(screen.getByRole("note", { name: "Duration auto" })).toHaveTextContent("Auto");
+    expect(screen.getByRole("note", { name: "Duration auto" })).toHaveAttribute(
+      "title",
+      "Auto duration is chosen by the music model."
+    );
     expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
   });
 
@@ -50,6 +56,19 @@ describe("MusicPropertiesPanel", () => {
       "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending."
     );
     expect(screen.getByRole("button", { name: "Generate music" })).toBeEnabled();
+  });
+
+  it("fails closed when shared pricing is unavailable", () => {
+    render(<MusicPropertiesPanel onGenerate={() => undefined} pricingPolicyReady={false} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: {
+        value: "Warm melodic house cue with a soft vocal texture and a clean branded ending.",
+      },
+    });
+
+    expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
+    expect(screen.getByText("—")).toBeInTheDocument();
   });
 
   it("switches between simple and custom composer modes", () => {
@@ -82,12 +101,16 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Scroll inspiration right" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Singer" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByLabelText("Music defaults")).toBeInTheDocument();
-    expect(screen.queryByText("MP3")).toBeNull();
-    expect(screen.queryByText("Auto")).toBeNull();
+    expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("2");
+    expect(screen.getByRole("note", { name: "Duration auto" })).toHaveTextContent("Auto");
+    expect(screen.getByRole("note", { name: "Duration auto" })).toHaveAttribute(
+      "title",
+      "Auto duration is chosen by the music model."
+    );
     expect(screen.queryByLabelText("Custom mode note")).toBeNull();
   });
 
-  it("submits the provider-facing music request shape", () => {
+  it("submits the provider-facing music request shape", async () => {
     const onGenerate = vi.fn();
 
     render(<MusicPropertiesPanel onGenerate={onGenerate} />);
@@ -100,19 +123,36 @@ describe("MusicPropertiesPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
 
-    expect(onGenerate).toHaveBeenCalledWith({
-      text: "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending.",
-      durationSeconds: 30,
-      bpm: 112,
-      mode: "instrumental",
-      structure: "loop",
-      energyPercent: 58,
-      outputFormat: "mp3_44100_128",
-      modelId: "music_v1",
-    });
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(2));
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        text: "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending.",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        modelId: "music_v1",
+      })
+    );
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        text: "Warm melodic house cue with a soft vocal texture, subtle lift into the hook, and a clean branded ending.",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        modelId: "music_v1",
+      })
+    );
   });
 
-  it("submits vocal mode when singer is enabled in custom mode", () => {
+  it("submits vocal mode when singer is enabled in custom mode", async () => {
     const onGenerate = vi.fn();
 
     render(<MusicPropertiesPanel onGenerate={onGenerate} />);
@@ -126,11 +166,73 @@ describe("MusicPropertiesPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
 
-    expect(onGenerate).toHaveBeenCalledWith(
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(2));
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
         mode: "vocal",
       })
     );
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        mode: "vocal",
+      })
+    );
+  });
+
+  it("lets the user adjust how many songs generate per run", async () => {
+    const onGenerate = vi.fn();
+
+    render(<MusicPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Songs per generate" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "4 songs" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: { value: "Percussive electronic cue with a dark rising tension." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
+
+    expect(screen.getByRole("button", { name: "Songs per generate" })).toHaveTextContent("4");
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(4));
+  });
+
+  it("includes custom lyrics in the submitted music prompt", async () => {
+    const onGenerate = vi.fn();
+
+    render(<MusicPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: { value: "Melancholic synth-pop duet with a slow-burn chorus." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Song lyrics" }), {
+      target: { value: "Stay with me through the neon afterglow." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
+
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(2));
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        text: "Melancholic synth-pop duet with a slow-burn chorus.\n\nLyrics:\nStay with me through the neon afterglow.",
+      })
+    );
+  });
+
+  it("disables generate when the combined custom prompt and lyrics exceed the provider limit", () => {
+    render(<MusicPropertiesPanel onGenerate={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: { value: "p".repeat(780) },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Song lyrics" }), {
+      target: { value: "l".repeat(20) },
+    });
+
+    expect(screen.getByText("810 / 800")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
   });
 
   it("appends inspiration chips into the prompt in simple mode", () => {

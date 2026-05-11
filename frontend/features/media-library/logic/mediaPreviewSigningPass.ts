@@ -69,6 +69,7 @@ export const resolveMediaSignQueuePass = <TRow extends PreparedSigningRowLike>(p
   signBudget: MediaSignBudget;
   visibleMediaIds: Set<string>;
   isSignPrefetchEnabled: boolean;
+  allowDeferredPrefetch?: boolean;
   isDeferredDrainArmed: boolean;
   signAttemptCounts: Record<string, number>;
   blockedSignAttemptIds?: Set<string>;
@@ -80,6 +81,7 @@ export const resolveMediaSignQueuePass = <TRow extends PreparedSigningRowLike>(p
     signBudget,
     visibleMediaIds,
     isSignPrefetchEnabled,
+    allowDeferredPrefetch = true,
     isDeferredDrainArmed,
     signAttemptCounts,
     blockedSignAttemptIds,
@@ -172,8 +174,10 @@ export const resolveMediaSignQueuePass = <TRow extends PreparedSigningRowLike>(p
       for (let idx = start; idx < urgentEnd; idx += 1) {
         enqueue(readyRows[idx], "urgent");
       }
-      for (let idx = urgentEnd; idx < prefetchEnd; idx += 1) {
-        enqueue(readyRows[idx], "deferred");
+      if (allowDeferredPrefetch) {
+        for (let idx = urgentEnd; idx < prefetchEnd; idx += 1) {
+          enqueue(readyRows[idx], "deferred");
+        }
       }
     }
   }

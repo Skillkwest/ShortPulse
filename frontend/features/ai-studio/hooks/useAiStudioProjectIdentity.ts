@@ -181,7 +181,7 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
         ? requestState.status
         : "loading";
   const effectiveError = invalidRouteProjectId
-    ? "Project not found."
+    ? "Invalid project link."
     : requestKey && requestState.key === requestKey
       ? requestState.error
       : null;

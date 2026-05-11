@@ -6,9 +6,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listModelConfigs, getModelConfig } from "../../../logic/modelRegistry";
 import { getModelApiContract } from "../../../logic/modelApiContracts";
-import { handleDefaultModelSubmission } from "../defaultHandlers";
-import { handleImageModelSubmission } from "../imageHandlers";
-import { handleVideoModelSubmission } from "../videoHandlers";
+import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_NANO_BANANA_2_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_2_MODEL_ID,
+  FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_PRO_MODEL_ID,
+  FAL_SEEDREAM_45_EDIT_MODEL_ID,
+  FAL_SEEDREAM_45_TEXT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
+} from "../../../../../lib/model-runtime/falModelIds";
+import {
+  handleDefaultModelSubmission,
+  resolveDefaultSubmissionAdapterKey,
+} from "../defaultHandlers";
+import { handleImageModelSubmission, resolveImageSubmissionAdapterKey } from "../imageHandlers";
+import { handleVideoModelSubmission, resolveVideoSubmissionAdapterKey } from "../videoHandlers";
 import { resolveSubmissionHandlerRoute } from "../routing";
 import type { ImageSubmissionArgs, VideoSubmissionArgs } from "../types";
 
@@ -30,29 +44,29 @@ const falClientMocks = vi.hoisted(() => ({
 vi.mock("../../../../../lib/falClient", () => {
   const submitQueuedGenerationByModelId = vi.fn((modelId: string, payload: unknown) => {
     switch (modelId) {
-      case "fal-ai/bytedance/seedream/v4.5/text-to-image":
+      case FAL_SEEDREAM_45_TEXT_MODEL_ID:
         return falClientMocks.submitFalSeedream(payload);
-      case "fal-ai/bytedance/seedream/v5/lite/text-to-image":
+      case FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID:
         return falClientMocks.submitFalSeedreamV5Lite(payload);
-      case "fal-ai/nano-banana-2":
+      case FAL_NANO_BANANA_2_MODEL_ID:
         return falClientMocks.submitFalNanoBanana2(payload);
-      case "fal-ai/nano-banana-pro":
+      case FAL_NANO_BANANA_PRO_MODEL_ID:
         return falClientMocks.submitFalNanoBananaPro(payload);
       case "fal-ai/bria/background/remove":
         return falClientMocks.submitFalBriaBackgroundRemove(payload);
-      case "fal-ai/flux-2/klein/9b":
+      case FAL_FLUX_2_KLEIN_9B_MODEL_ID:
         return falClientMocks.submitFalFlux2Klein(payload);
       case "fal-ai/flux-pro/v1/fill":
         return falClientMocks.submitFalFluxProFill(payload);
       case "fal-ai/flux-kontext-lora/inpaint":
         return falClientMocks.submitFalFluxKontextInpaint(payload);
-      case "fal-ai/bytedance/seedream/v4.5/edit":
+      case FAL_SEEDREAM_45_EDIT_MODEL_ID:
         return falClientMocks.submitFalSeedreamEdit(payload);
-      case "fal-ai/bytedance/seedream/v5/lite/edit":
+      case FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID:
         return falClientMocks.submitFalSeedreamV5LiteEdit(payload);
-      case "fal-ai/nano-banana-2/edit":
+      case FAL_NANO_BANANA_2_EDIT_MODEL_ID:
         return falClientMocks.submitFalNanoBanana2Edit(payload);
-      case "fal-ai/nano-banana-pro/edit":
+      case FAL_NANO_BANANA_PRO_EDIT_MODEL_ID:
         return falClientMocks.submitFalNanoBananaProEdit(payload);
       default:
         return Promise.reject(new Error(`Unhandled queued submit model ${modelId}`));
@@ -100,7 +114,7 @@ const CASES: Record<string, CaseConfig> = {
     submitName: "submitFalBriaBackgroundRemove",
     expectedReferenceField: "image_url",
   },
-  "fal-ai/flux-2/klein/9b": {
+  [FAL_FLUX_2_KLEIN_9B_MODEL_ID]: {
     route: "image",
     submitName: "submitFalFlux2Klein",
     expectedSafetyChecker: false,
@@ -116,52 +130,52 @@ const CASES: Record<string, CaseConfig> = {
     submitName: "submitFalFluxKontextInpaint",
     expectedReferenceField: "none",
   },
-  "fal-ai/nano-banana-pro": {
+  [FAL_NANO_BANANA_PRO_MODEL_ID]: {
     route: "default",
     submitName: "submitFalNanoBananaPro",
     requestedResolution: "4K",
     expectedReferenceField: "none",
   },
-  "fal-ai/nano-banana-2": {
+  [FAL_NANO_BANANA_2_MODEL_ID]: {
     route: "default",
     submitName: "submitFalNanoBanana2",
     requestedResolution: "0.5K",
     expectedReferenceField: "none",
   },
-  "fal-ai/nano-banana-pro/edit": {
+  [FAL_NANO_BANANA_PRO_EDIT_MODEL_ID]: {
     route: "image",
     submitName: "submitFalNanoBananaProEdit",
     requestedResolution: "4K",
     expectedReferenceField: "image_urls",
   },
-  "fal-ai/nano-banana-2/edit": {
+  [FAL_NANO_BANANA_2_EDIT_MODEL_ID]: {
     route: "image",
     submitName: "submitFalNanoBanana2Edit",
     requestedResolution: "0.5K",
     expectedReferenceField: "image_urls",
   },
-  "fal-ai/bytedance/seedream/v4.5/text-to-image": {
+  [FAL_SEEDREAM_45_TEXT_MODEL_ID]: {
     route: "default",
     submitName: "submitFalSeedream",
     requestedResolution: "auto_4K",
     expectedSafetyChecker: true,
     expectedReferenceField: "none",
   },
-  "fal-ai/bytedance/seedream/v4.5/edit": {
+  [FAL_SEEDREAM_45_EDIT_MODEL_ID]: {
     route: "image",
     submitName: "submitFalSeedreamEdit",
     requestedResolution: "auto_4K",
     expectedSafetyChecker: true,
     expectedReferenceField: "image_urls",
   },
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
+  [FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID]: {
     route: "default",
     submitName: "submitFalSeedreamV5Lite",
     requestedResolution: "auto_3K",
     expectedSafetyChecker: true,
     expectedReferenceField: "none",
   },
-  "fal-ai/bytedance/seedream/v5/lite/edit": {
+  [FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID]: {
     route: "image",
     submitName: "submitFalSeedreamV5LiteEdit",
     requestedResolution: "auto_3K",
@@ -253,6 +267,29 @@ const resetFalSubmitMocks = () => {
 };
 
 describe("task submission payload matrix", () => {
+  it("keeps manifest submission adapter metadata aligned with runtime registries", () => {
+    const runtimeResolverByRoute = {
+      default: resolveDefaultSubmissionAdapterKey,
+      image: resolveImageSubmissionAdapterKey,
+      video: resolveVideoSubmissionAdapterKey,
+    } as const;
+
+    const runtimeModels = listModelConfigs().filter((config) =>
+      config.surfaces.includes("runtime")
+    );
+
+    for (const config of runtimeModels) {
+      const route = config.submitHandler;
+      if (route !== "default" && route !== "image" && route !== "video") continue;
+      const manifestKey = config.submissionAdapterKey ?? null;
+      expect(
+        manifestKey,
+        `${config.id} should declare submissionAdapterKey for ${route} handler`
+      ).toBeTruthy();
+      expect(runtimeResolverByRoute[route](config.id)).toBe(manifestKey);
+    }
+  });
+
   beforeEach(() => {
     resetFalSubmitMocks();
     process.env.NEXT_PUBLIC_AI_STUDIO_GENERATION_SAFETY_LEVEL = "off";

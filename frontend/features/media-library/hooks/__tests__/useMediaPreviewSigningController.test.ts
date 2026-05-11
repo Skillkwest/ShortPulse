@@ -320,6 +320,249 @@ describe("useMediaPreviewSigningController", () => {
     expect(result.current.signAttemptRef.current["row-1"]).toBe(1);
   });
 
+  it("limits panel resolver escalation to visible unresolved rows", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));
+    const hydrateViaStorageDownload = vi.fn(async () => null);
+
+    renderHook(() => {
+      const rows = [
+        makeRow({ id: "row-1", storage_path: "user/images/first.png" }),
+        makeRow({ id: "row-2", storage_path: "user/images/second.png" }),
+      ];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 2, prefetchWindow: 0, signBatchSize: 2 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 1,
+        surface: "media-library-panel",
+      });
+    });
+
+    await waitFor(() => expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledTimes(1));
+    expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledWith("uploaded_images", [
+      expect.objectContaining({ id: "row-1" }),
+    ]);
+    expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
+  });
+
+  it("keeps route resolver escalation unchanged for unresolved rows", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1", "row-2"]));
+    const hydrateViaStorageDownload = vi.fn(async () => null);
+
+    renderHook(() => {
+      const rows = [
+        makeRow({ id: "row-1", storage_path: "user/images/first.png" }),
+        makeRow({ id: "row-2", storage_path: "user/images/second.png" }),
+      ];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 2, prefetchWindow: 0, signBatchSize: 2 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 1,
+        surface: "media-library-route",
+      });
+    });
+
+    await waitFor(() => expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledTimes(1));
+    expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledWith("uploaded_images", [
+      expect.objectContaining({ id: "row-1" }),
+      expect.objectContaining({ id: "row-2" }),
+    ]);
+    expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
+  });
+
+  it("does not retry an offscreen panel miss just because panel visibility context changed", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+    const hydrateViaStorageDownload = vi.fn(async () => null);
+
+    const { result } = renderHook(() => {
+      const rows = [
+        makeRow({ id: "row-1", storage_path: "user/images/first.png" }),
+        makeRow({ id: "row-2", storage_path: "user/images/second.png" }),
+      ];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const [visibleMediaVersion, setVisibleMediaVersion] = useState(1);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 2, prefetchWindow: 0, signBatchSize: 2 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion,
+        surface: "media-library-panel",
+      });
+
+      return {
+        bumpVisibleVersion: () => setVisibleMediaVersion((prev) => prev + 1),
+      };
+    });
+
+    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      result.current.bumpVisibleVersion();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(2);
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        storagePaths: ["user/images/first.png"],
+      })
+    );
+    expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledWith("uploaded_images", [
+      expect.objectContaining({ id: "row-1" }),
+    ]);
+    expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledTimes(2);
+    expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
+  });
+
+  it("retries a previously offscreen panel miss once the row becomes visible", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+    const hydrateViaStorageDownload = vi.fn(async () => null);
+
+    const { result } = renderHook(() => {
+      const rows = [
+        makeRow({ id: "row-1", storage_path: "user/images/first.png" }),
+        makeRow({ id: "row-2", storage_path: "user/images/second.png" }),
+      ];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const [visibleMediaVersion, setVisibleMediaVersion] = useState(1);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 2, prefetchWindow: 0, signBatchSize: 2 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion,
+        surface: "media-library-panel",
+      });
+
+      return {
+        showSecondRow: () => {
+          visibleMediaIdsRef.current = new Set<string>(["row-1", "row-2"]);
+          setVisibleMediaVersion((prev) => prev + 1);
+        },
+      };
+    });
+
+    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      result.current.showSecondRow();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(2));
+    expect(resolveSignedUrlsByMediaIds).toHaveBeenNthCalledWith(1, "uploaded_images", [
+      expect.objectContaining({ id: "row-1" }),
+    ]);
+    expect(resolveSignedUrlsByMediaIds).toHaveBeenNthCalledWith(2, "uploaded_images", [
+      expect.objectContaining({ id: "row-1" }),
+      expect.objectContaining({ id: "row-2" }),
+    ]);
+    expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
+  });
+
   it("runs hydrate fallback when explicitly enabled for the signing pass", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
     const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));
@@ -489,6 +732,141 @@ describe("useMediaPreviewSigningController", () => {
     expect(applySpy).toHaveBeenCalledWith(
       "uploaded_images",
       new Map([["row-1", "https://cdn.example.com/direct-preview.png"]])
+    );
+  });
+
+  it("prefers durable direct preview urls over signing for panel rows", async () => {
+    resolveMediaPreviewCandidatesMock.mockReturnValue({
+      storagePaths: ["user/images/private-thumb.png"],
+      directUrl: "https://cdn.example.com/thumb-preview.png",
+    });
+    const applySpy = vi.fn();
+
+    const { result } = renderHook(() => {
+      const [rows, setRows] = useState<Row[]>([makeRow()]);
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+      const hydrateViaStorageDownload = vi.fn(async () => null);
+
+      const applySignedUrlsToTab = vi.fn((tab: MediaDataTab, signedById: Map<string, string>) => {
+        applySpy(tab, signedById);
+        setRows((prev) =>
+          prev.map((row) => {
+            const signedUrl = signedById.get(row.id);
+            return signedUrl ? { ...row, signedUrl } : row;
+          })
+        );
+      });
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 1, prefetchWindow: 0, signBatchSize: 1 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 1,
+        surface: "media-library-panel",
+      });
+
+      return { rows };
+    });
+
+    await waitFor(() =>
+      expect(result.current.rows[0]?.signedUrl).toBe("https://cdn.example.com/thumb-preview.png")
+    );
+
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
+    expect(applySpy).toHaveBeenCalledWith(
+      "uploaded_images",
+      new Map([["row-1", "https://cdn.example.com/thumb-preview.png"]])
+    );
+  });
+
+  it("keeps route signing precedence even when a durable direct preview url exists", async () => {
+    resolveMediaPreviewCandidatesMock.mockReturnValue({
+      storagePaths: ["user/images/private-thumb.png"],
+      directUrl: "https://cdn.example.com/thumb-preview.png",
+    });
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([["user/images/private-thumb.png", "https://signed/private-thumb.png"]])
+    );
+
+    const { result } = renderHook(() => {
+      const [rows, setRows] = useState<Row[]>([makeRow()]);
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+      const hydrateViaStorageDownload = vi.fn(async () => null);
+
+      const applySignedUrlsToTab = vi.fn((_: MediaDataTab, signedById: Map<string, string>) => {
+        setRows((prev) =>
+          prev.map((row) => {
+            const signedUrl = signedById.get(row.id);
+            return signedUrl ? { ...row, signedUrl } : row;
+          })
+        );
+      });
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 1, prefetchWindow: 0, signBatchSize: 1 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 1,
+        surface: "media-library-route",
+      });
+
+      return { rows };
+    });
+
+    await waitFor(() =>
+      expect(result.current.rows[0]?.signedUrl).toBe("https://signed/private-thumb.png")
+    );
+
+    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storagePaths: ["user/images/private-thumb.png"],
+      })
     );
   });
 
@@ -775,7 +1153,7 @@ describe("useMediaPreviewSigningController", () => {
         await vi.advanceTimersByTimeAsync(181);
         await Promise.resolve();
       });
-      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(3);
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(2);
 
       await act(async () => {
         result.current.appendLoadMorePage();
@@ -789,6 +1167,97 @@ describe("useMediaPreviewSigningController", () => {
         await Promise.resolve();
       });
       expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not schedule deferred offscreen prefetch work for panel signing", async () => {
+    vi.useFakeTimers();
+    try {
+      getSignedMediaUrlsBatchMock.mockImplementation(async ({ storagePaths }) => {
+        return new Map(
+          storagePaths.map((storagePath: string) => [storagePath, `https://signed/${storagePath}`])
+        );
+      });
+
+      renderHook(() => {
+        const [rows, setRows] = useState([
+          makeRow({ id: "row-1", storage_path: "user/images/1.png" }),
+          makeRow({ id: "row-2", storage_path: "user/images/2.png" }),
+          makeRow({ id: "row-3", storage_path: "user/images/3.png" }),
+          makeRow({ id: "row-4", storage_path: "user/images/4.png" }),
+          makeRow({ id: "row-5", storage_path: "user/images/5.png" }),
+          makeRow({ id: "row-6", storage_path: "user/images/6.png" }),
+        ]);
+        const [signPassNonce, setSignPassNonce] = useState(0);
+        const activeTabRef = useRef<MediaTab>("uploaded_images");
+        const activeMediaQueryRef = useRef("");
+        const currentUserIdRef = useRef<string | null>("user-1");
+        const isMountedRef = useRef(true);
+        const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+        const signAttemptRef = useRef<Record<string, number>>({});
+        const visibleMediaIdsRef = useRef(new Set<string>(["row-1", "row-2"]));
+        const applySignedUrlsToTab = vi.fn((_: MediaDataTab, signedById: Map<string, string>) => {
+          setRows((prev) =>
+            prev.map((row) => {
+              const signedUrl = signedById.get(row.id);
+              return signedUrl ? { ...row, signedUrl } : row;
+            })
+          );
+        });
+        const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+        const hydrateViaStorageDownload = vi.fn(async () => null);
+
+        useMediaPreviewSigningController({
+          activeMediaTab: "uploaded_images",
+          activeMediaCacheLoading: false,
+          activeMediaCachePagesLoaded: 1,
+          activeMediaQuery: "",
+          activeMediaQueryRef,
+          activeTabRef,
+          applySignedUrlsToTab,
+          currentUserIdRef,
+          filteredMedia: rows,
+          hydrateViaStorageDownload,
+          isMountedRef,
+          mediaSignInFlightRef,
+          resolveSignedUrlsByMediaIds,
+          setSignPassNonce,
+          signAttemptRef,
+          signBudget: { initialSignLimit: 2, prefetchWindow: 4, signBatchSize: 2 },
+          signPassNonce,
+          visibleMediaIdsRef,
+          visibleMediaVersion: 1,
+          surface: "media-library-panel",
+        });
+      });
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(2);
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          storagePaths: ["user/images/1.png", "user/images/2.png"],
+        })
+      );
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          storagePaths: ["user/images/3.png", "user/images/4.png"],
+        })
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(181);
+        await Promise.resolve();
+      });
+
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }

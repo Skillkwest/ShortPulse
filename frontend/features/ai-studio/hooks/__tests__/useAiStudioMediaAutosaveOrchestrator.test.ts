@@ -37,6 +37,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
       useAiStudioMediaAutosaveOrchestrator({
         outputs: [createOutput()],
         mediaAutosaveEnabled: false,
+        mediaAutosaveSyncState: "ready",
         saveReferenceToLibrary,
       })
     );
@@ -50,6 +51,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
         useAiStudioMediaAutosaveOrchestrator({
           outputs,
           mediaAutosaveEnabled: true,
+          mediaAutosaveSyncState: "ready",
           saveReferenceToLibrary,
         }),
       {
@@ -68,13 +70,19 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
     expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
   });
 
-  it("skips library items already carrying savedMediaIds and prompt-only references", () => {
+  it("skips storage-backed library items and prompt-only references", () => {
     const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
     renderHook(() =>
       useAiStudioMediaAutosaveOrchestrator({
         outputs: [
           createOutput({
             id: "library-1",
+            mediaSource: "library",
+            previewStoragePath: "user-1/media-library/library-1.png",
+            fullStoragePath: "user-1/media-library/library-1.png",
+          }),
+          createOutput({
+            id: "library-2",
             mediaSource: "library",
             savedMediaIds: ["media-1"],
           }),
@@ -87,11 +95,35 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
           }),
         ],
         mediaAutosaveEnabled: true,
+        mediaAutosaveSyncState: "ready",
         saveReferenceToLibrary,
       })
     );
 
     expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+  });
+
+  it("allows a preview-only library ref to attempt one autosave repair", () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+    renderHook(() =>
+      useAiStudioMediaAutosaveOrchestrator({
+        outputs: [
+          createOutput({
+            id: "library-repair-1",
+            mediaSource: "library",
+            previewStoragePath: undefined,
+            fullStoragePath: undefined,
+            savedMediaIds: undefined,
+          }),
+        ],
+        mediaAutosaveEnabled: true,
+        mediaAutosaveSyncState: "ready",
+        saveReferenceToLibrary,
+      })
+    );
+
+    expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("library-repair-1");
   });
 
   it("does not autosave outputs that are already saving", () => {
@@ -105,6 +137,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
           }),
         ],
         mediaAutosaveEnabled: true,
+        mediaAutosaveSyncState: "ready",
         saveReferenceToLibrary,
       })
     );
@@ -125,6 +158,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
           }),
         ],
         mediaAutosaveEnabled: true,
+        mediaAutosaveSyncState: "ready",
         saveReferenceToLibrary,
       })
     );
@@ -142,6 +176,7 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
         useAiStudioMediaAutosaveOrchestrator({
           outputs,
           mediaAutosaveEnabled: true,
+          mediaAutosaveSyncState: "ready",
           saveReferenceToLibrary,
         }),
       {
@@ -164,5 +199,32 @@ describe("useAiStudioMediaAutosaveOrchestrator", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(saveReferenceToLibrary).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits for preference authority before autosaving", () => {
+    const saveReferenceToLibrary = vi.fn().mockResolvedValue(createPersistResult());
+    const { rerender } = renderHook(
+      ({ mediaAutosaveSyncState }: { mediaAutosaveSyncState: "loading" | "ready" }) =>
+        useAiStudioMediaAutosaveOrchestrator({
+          outputs: [createOutput({ id: "pref-race-1" })],
+          mediaAutosaveEnabled: true,
+          mediaAutosaveSyncState,
+          saveReferenceToLibrary,
+        }),
+      {
+        initialProps: {
+          mediaAutosaveSyncState: "loading" as "loading" | "ready",
+        },
+      }
+    );
+
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+
+    rerender({
+      mediaAutosaveSyncState: "ready",
+    });
+
+    expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
+    expect(saveReferenceToLibrary).toHaveBeenCalledWith("pref-race-1");
   });
 });

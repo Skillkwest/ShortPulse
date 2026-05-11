@@ -73,6 +73,7 @@ const createParams = (
   sendToAgent: vi.fn(async () => ({ response: null, actions: undefined })),
   appendUserMessage: vi.fn(() => "msg-1"),
   updateMessageById: vi.fn(() => false),
+  removeMessageById: vi.fn(() => false),
   getAgentContext: vi.fn(() => ({})),
   trackAgentUiEvent: vi.fn(),
   addAgentPromptReference: vi.fn(),
@@ -819,6 +820,47 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(setLatestAgentPrompt).toHaveBeenCalledWith("Refined pulse guidance");
     expect(setSharedPrompt).not.toHaveBeenCalled();
     expect(setPromptOrigin).not.toHaveBeenCalled();
+  });
+
+  it("restores the Pulse draft and removes the optimistic message when the turn completes empty", async () => {
+    const setAgentInput = vi.fn();
+    const setUiNotice = vi.fn();
+    const removeMessageById = vi.fn(() => true);
+    const sendToAgent = vi.fn(async () => ({
+      response: null,
+      actions: undefined,
+    }));
+    const params = createParams({
+      agentInput: "bugs dark bugs",
+      sendToAgent,
+      setAgentInput: asDispatch<string>(setAgentInput),
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+      removeMessageById,
+      runtimePolicy: pulseRuntimePolicy("custom_storyboard"),
+      getAgentContext: vi.fn(() => ({
+        pulse: {
+          presetId: "custom_storyboard",
+          label: "Storyboard Pulse",
+          instructions: "Collect the brief, then finish with a storyboard prompt.",
+          runtimeMode: "custom_gpt" as const,
+          activationMode: "activate_and_start" as const,
+          outputMode: "chat_reply" as const,
+          memoryPolicy: "session" as const,
+          source: "custom" as const,
+        },
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(removeMessageById).toHaveBeenCalledWith("msg-1");
+    expect(setAgentInput).toHaveBeenCalledWith("bugs dark bugs");
+    expect(setUiNotice).toHaveBeenCalledWith(
+      "This Pulse turn did not complete. Your draft was restored."
+    );
   });
 
   it("reuses prepared image URLs across repeated sends for the same attachment source", async () => {

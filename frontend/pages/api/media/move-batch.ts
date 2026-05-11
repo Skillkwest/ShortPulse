@@ -44,6 +44,29 @@ type MoveBatchErrorResponse = {
 };
 
 const MAX_MOVE_BATCH_SIZE = 100;
+const MOVE_BATCH_CONCURRENCY = 6;
+
+const mapWithConcurrency = async <TInput, TOutput>(
+  items: TInput[],
+  concurrency: number,
+  worker: (item: TInput, index: number) => Promise<TOutput>
+): Promise<TOutput[]> => {
+  if (items.length === 0) return [];
+  const normalizedConcurrency = Math.max(1, Math.min(concurrency, items.length));
+  const results = new Array<TOutput>(items.length);
+  let nextIndex = 0;
+
+  const runWorker = async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await worker(items[currentIndex], currentIndex);
+    }
+  };
+
+  await Promise.all(Array.from({ length: normalizedConcurrency }, () => runWorker()));
+  return results;
+};
 
 const toRequestBody = (body: unknown): Record<string, unknown> => {
   if (typeof body === "string") {
@@ -114,31 +137,47 @@ export default async function handler(
     }
 
     const destinationTab: MediaDataTab = destination;
+    const moveResults = await mapWithConcurrency(
+      fileIds,
+      MOVE_BATCH_CONCURRENCY,
+      async (fileId) => {
+        const moveResult = await moveMediaFileForUser({
+          userId: user.id,
+          fileId,
+          destinationTab,
+        });
+        if (!moveResult.ok) {
+          return {
+            ok: false as const,
+            failure: {
+              fileId,
+              error: moveResult.value.error,
+              details: moveResult.value.details,
+            },
+          };
+        }
+        return {
+          ok: true as const,
+          success: {
+            fileId,
+            file: moveResult.value.file,
+            fromTab: moveResult.value.fromTab,
+            toTab: moveResult.value.toTab,
+            previousStoragePath: moveResult.value.previousStoragePath,
+            nextStoragePath: moveResult.value.nextStoragePath,
+          },
+        };
+      }
+    );
     const moved: MoveBatchItemSuccess[] = [];
     const failed: MoveBatchItemFailure[] = [];
 
-    for (const fileId of fileIds) {
-      const moveResult = await moveMediaFileForUser({
-        userId: user.id,
-        fileId,
-        destinationTab,
-      });
-      if (!moveResult.ok) {
-        failed.push({
-          fileId,
-          error: moveResult.value.error,
-          details: moveResult.value.details,
-        });
+    for (const result of moveResults) {
+      if (!result.ok) {
+        failed.push(result.failure);
         continue;
       }
-      moved.push({
-        fileId,
-        file: moveResult.value.file,
-        fromTab: moveResult.value.fromTab,
-        toTab: moveResult.value.toTab,
-        previousStoragePath: moveResult.value.previousStoragePath,
-        nextStoragePath: moveResult.value.nextStoragePath,
-      });
+      moved.push(result.success);
     }
 
     return res.status(200).json({

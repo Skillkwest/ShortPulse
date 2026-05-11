@@ -11,16 +11,17 @@ import {
 } from "./expertEditInteractionUtils";
 import {
   MARKUP_VIEWPORT_EPSILON,
-  MARKUP_VIEWPORT_ZOOM_INTENSITY,
   MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
   MOVE_STAGE_ZOOM_SLIDER_MAX,
   MOVE_STAGE_ZOOM_SLIDER_MIN,
+  clampMarkupViewportState,
   clampMarkupViewportScale,
   createDefaultMarkupViewportState,
   createIdleMarkupPanPointerSession,
   resolveMarkupViewportOffsetPixels,
   resolveMoveStageZoomScale,
   resolveMoveStageZoomSliderValue,
+  resolveMoveStageZoomSliderValueFromWheelDelta,
   resolveStageViewportSize,
   type MarkupPanPointerSession,
   type StageViewportSize,
@@ -38,6 +39,15 @@ type UseExpertEditStageViewportControllerParams = {
   setInlineStageViewportSize: React.Dispatch<React.SetStateAction<StageViewportSize>>;
   setMarkupModalViewportSize: React.Dispatch<React.SetStateAction<StageViewportSize>>;
   resolveStageRect?: (scope: ExpertEditStageScope, currentTarget: HTMLDivElement) => DOMRect | null;
+  resolveContentFrameSize?: (
+    scope: ExpertEditStageScope,
+    currentTarget: HTMLDivElement,
+    viewportSize: StageViewportSize
+  ) => StageViewportSize | null;
+  resolvePreferredViewportClampOptions?: () => {
+    viewportSize: StageViewportSize;
+    contentFrameSize: StageViewportSize;
+  } | null;
 };
 
 type UseExpertEditStageViewportControllerResult = {
@@ -57,11 +67,6 @@ type UseExpertEditStageViewportControllerResult = {
       "clientX" | "clientY" | "currentTarget" | "deltaY" | "preventDefault"
     >,
     scope: ExpertEditStageScope
-  ) => void;
-  handleNativeStageViewportWheel: (
-    event: WheelEvent,
-    scope: ExpertEditStageScope,
-    currentTarget: HTMLDivElement
   ) => void;
 };
 
@@ -85,7 +90,22 @@ export const useExpertEditStageViewportController = ({
   setInlineStageViewportSize,
   setMarkupModalViewportSize,
   resolveStageRect,
+  resolveContentFrameSize,
+  resolvePreferredViewportClampOptions,
 }: UseExpertEditStageViewportControllerParams): UseExpertEditStageViewportControllerResult => {
+  const resolveViewportClampOptions = React.useCallback(
+    (
+      scope: ExpertEditStageScope,
+      currentTarget: HTMLDivElement,
+      viewportSize: StageViewportSize
+    ) => ({
+      viewportSize,
+      contentFrameSize:
+        resolveContentFrameSize?.(scope, currentTarget, viewportSize) ?? viewportSize,
+    }),
+    [resolveContentFrameSize]
+  );
+
   const clearMarkupPanGestureState = React.useCallback(() => {
     markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
     setIsMarkupPanDragging(false);
@@ -98,19 +118,25 @@ export const useExpertEditStageViewportController = ({
         MOVE_STAGE_ZOOM_SLIDER_MIN,
         MOVE_STAGE_ZOOM_SLIDER_MAX
       );
-      const nextSliderValue = Math.round(clampedSliderValue);
+      const nextSliderValue = clampedSliderValue;
       const nextScale = resolveMoveStageZoomScale(nextSliderValue);
       setMoveStageZoomSliderValue(nextSliderValue);
-      setMarkupViewport((previous) =>
-        Math.abs(previous.scale - nextScale) <= MARKUP_VIEWPORT_EPSILON
+      setMarkupViewport((previous) => {
+        const nextViewport = clampMarkupViewportState(
+          {
+            ...previous,
+            scale: nextScale,
+          },
+          resolvePreferredViewportClampOptions?.() ?? undefined
+        );
+        return Math.abs(previous.scale - nextViewport.scale) <= MARKUP_VIEWPORT_EPSILON &&
+          Math.abs(previous.offsetXRatio - nextViewport.offsetXRatio) <= MARKUP_VIEWPORT_EPSILON &&
+          Math.abs(previous.offsetYRatio - nextViewport.offsetYRatio) <= MARKUP_VIEWPORT_EPSILON
           ? previous
-          : {
-              ...previous,
-              scale: nextScale,
-            }
-      );
+          : nextViewport;
+      });
     },
-    [setMarkupViewport, setMoveStageZoomSliderValue]
+    [resolvePreferredViewportClampOptions, setMarkupViewport, setMoveStageZoomSliderValue]
   );
 
   const resetStageViewport = React.useCallback(() => {
@@ -170,6 +196,7 @@ export const useExpertEditStageViewportController = ({
       }
       markupPanPointerSessionRef.current = {
         active: true,
+        scope,
         pointerId: event.pointerId,
         startClientX: event.clientX,
         startClientY: event.clientY,
@@ -204,14 +231,28 @@ export const useExpertEditStageViewportController = ({
       const deltaY = event.clientY - session.startClientY;
       const deltaXRatio = deltaX / Math.max(1, session.stageWidth);
       const deltaYRatio = deltaY / Math.max(1, session.stageHeight);
-      setMarkupViewport((previous) => ({
-        ...previous,
-        offsetXRatio: session.startOffsetXRatio + deltaXRatio,
-        offsetYRatio: session.startOffsetYRatio + deltaYRatio,
-      }));
+      const viewportSize = {
+        width: session.stageWidth,
+        height: session.stageHeight,
+      };
+      const clampOptions = resolveViewportClampOptions(
+        session.scope,
+        event.currentTarget,
+        viewportSize
+      );
+      setMarkupViewport((previous) =>
+        clampMarkupViewportState(
+          {
+            ...previous,
+            offsetXRatio: session.startOffsetXRatio + deltaXRatio,
+            offsetYRatio: session.startOffsetYRatio + deltaYRatio,
+          },
+          clampOptions
+        )
+      );
       return true;
     },
-    [markupPanPointerSessionRef, setMarkupViewport]
+    [markupPanPointerSessionRef, resolveViewportClampOptions, setMarkupViewport]
   );
 
   const endMarkupPanGesture = React.useCallback(
@@ -273,13 +314,18 @@ export const useExpertEditStageViewportController = ({
       if (stageRect.width <= 0 || stageRect.height <= 0) return false;
       preventDefault();
       const stageSize = syncViewportSizeByScope(scope, stageRect);
+      const clampOptions = resolveViewportClampOptions(scope, currentTarget, stageSize);
       const pointerX = clientX - stageRect.left;
       const pointerY = clientY - stageRect.top;
       const centerX = stageRect.width / 2;
       const centerY = stageRect.height / 2;
-      const zoomMultiplier = Math.exp(-deltaY * MARKUP_VIEWPORT_ZOOM_INTENSITY);
       setMarkupViewport((previous) => {
-        const nextScale = clampMarkupViewportScale(previous.scale * zoomMultiplier);
+        const currentSliderValue = resolveMoveStageZoomSliderValue(previous.scale);
+        const nextSliderValue = resolveMoveStageZoomSliderValueFromWheelDelta({
+          sliderValue: currentSliderValue,
+          deltaY,
+        });
+        const nextScale = clampMarkupViewportScale(resolveMoveStageZoomScale(nextSliderValue));
         if (Math.abs(nextScale - previous.scale) <= MARKUP_VIEWPORT_EPSILON) {
           return previous;
         }
@@ -290,15 +336,24 @@ export const useExpertEditStageViewportController = ({
           relativeX - ((relativeX - previousOffset.offsetX) / previous.scale) * nextScale;
         const nextOffsetY =
           relativeY - ((relativeY - previousOffset.offsetY) / previous.scale) * nextScale;
-        return {
-          scale: nextScale,
-          offsetXRatio: nextOffsetX / stageSize.width,
-          offsetYRatio: nextOffsetY / stageSize.height,
-        };
+        return clampMarkupViewportState(
+          {
+            scale: nextScale,
+            offsetXRatio: nextOffsetX / stageSize.width,
+            offsetYRatio: nextOffsetY / stageSize.height,
+          },
+          clampOptions
+        );
       });
       return true;
     },
-    [resolveStageRect, setMarkupViewport, shouldApplyMarkupViewport, syncViewportSizeByScope]
+    [
+      resolveStageRect,
+      resolveViewportClampOptions,
+      setMarkupViewport,
+      shouldApplyMarkupViewport,
+      syncViewportSizeByScope,
+    ]
   );
 
   const handleStageViewportWheel = React.useCallback(
@@ -323,22 +378,6 @@ export const useExpertEditStageViewportController = ({
     [applyMarkupViewportWheel]
   );
 
-  const handleNativeStageViewportWheel = React.useCallback(
-    (event: WheelEvent, scope: ExpertEditStageScope, currentTarget: HTMLDivElement) => {
-      applyMarkupViewportWheel({
-        clientX: event.clientX,
-        clientY: event.clientY,
-        deltaY: event.deltaY,
-        scope,
-        currentTarget,
-        preventDefault: () => {
-          event.preventDefault();
-        },
-      });
-    },
-    [applyMarkupViewportWheel]
-  );
-
   return {
     clearMarkupPanGestureState,
     handleMoveZoomSliderChange,
@@ -348,6 +387,5 @@ export const useExpertEditStageViewportController = ({
     endMarkupPanGesture,
     endMarkupPanGestureOnLeave,
     handleStageViewportWheel,
-    handleNativeStageViewportWheel,
   };
 };

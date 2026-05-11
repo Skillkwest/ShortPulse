@@ -899,6 +899,60 @@ const resolveDelivery = async ({
   };
 };
 
+const removeCopiedStorageObject = async (storagePath: string): Promise<void> => {
+  try {
+    await getSupabaseAdmin().storage.from(MEDIA_BUCKET).remove([storagePath]);
+  } catch {
+    // best-effort cleanup
+  }
+};
+
+const isDuplicateInsertError = (error: { code?: string; message?: string } | null | undefined) =>
+  error?.code === "23505" ||
+  String(error?.message ?? "")
+    .toLowerCase()
+    .includes("duplicate");
+
+const insertCopiedMediaRow = async ({
+  userId,
+  friendlyName,
+  storagePath,
+  fileType,
+  fileSize,
+  source,
+  generationId,
+  promptId,
+  canonicalMetadata,
+}: {
+  userId: string;
+  friendlyName: string;
+  storagePath: string;
+  fileType: "image" | "video" | "audio";
+  fileSize: number;
+  source: "upload" | "ai_studio";
+  generationId: string | null;
+  promptId: string | null;
+  canonicalMetadata: Record<string, unknown> | null;
+}) => {
+  return await getSupabaseAdmin()
+    .from("media_files")
+    .insert({
+      user_id: userId,
+      filename: friendlyName,
+      storage_path: storagePath,
+      file_type: fileType,
+      file_size: fileSize,
+      source,
+      source_ref: generationId,
+      prompt_id: promptId,
+      metadata: canonicalMetadata,
+    })
+    .select(
+      "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
+    )
+    .single();
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<CopyFromUrlResponse>
@@ -1103,42 +1157,28 @@ export default async function handler(
       });
     }
 
-    const { data, error: insertError } = await getSupabaseAdmin()
-      .from("media_files")
-      .insert({
-        user_id: user.id,
-        filename: friendlyName,
-        storage_path: storagePath,
-        file_type: fileType,
-        file_size: fetched.buffer.byteLength,
-        source,
-        source_ref: generationId ?? null,
-        prompt_id: promptId ?? null,
-        metadata: canonicalMetadata,
-      })
-      .select(
-        "id, storage_path, file_type, metadata, thumb_variant_path, poster_variant_path, preview_variant_path"
-      )
-      .single();
+    const { data, error: insertError } = await insertCopiedMediaRow({
+      userId: user.id,
+      friendlyName,
+      storagePath,
+      fileType,
+      fileSize: fetched.buffer.byteLength,
+      source,
+      generationId: generationId ?? null,
+      promptId: promptId ?? null,
+      canonicalMetadata,
+    });
 
     if (insertError) {
       if (isMediaStorageQuotaExceededError(insertError)) {
-        try {
-          await getSupabaseAdmin().storage.from(MEDIA_BUCKET).remove([storagePath]);
-        } catch {
-          // best-effort cleanup
-        }
+        await removeCopiedStorageObject(storagePath);
         return res.status(409).json({
           error: MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
           details:
             "Delete media, upgrade your plan, or add recurring storage before saving more files.",
         });
       }
-      const duplicateInsert =
-        insertError.code === "23505" ||
-        String(insertError.message ?? "")
-          .toLowerCase()
-          .includes("duplicate");
+      const duplicateInsert = isDuplicateInsertError(insertError);
       if (duplicateInsert && source === "ai_studio" && generationId) {
         const existing = await readExistingAiStudioMediaRowByOutputIndex({
           userId: user.id,
@@ -1146,11 +1186,7 @@ export default async function handler(
           index,
         });
         if (existing) {
-          try {
-            await getSupabaseAdmin().storage.from(MEDIA_BUCKET).remove([storagePath]);
-          } catch {
-            // best-effort cleanup
-          }
+          await removeCopiedStorageObject(storagePath);
           try {
             await reconcileOwnedGenerationOutputSlot({
               generationId,

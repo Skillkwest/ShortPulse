@@ -4,6 +4,7 @@ import type { MediaDataTab, MediaTabCache } from "../logic/mediaLibraryPageHelpe
 import type { MediaTab } from "../logic/mediaMoveRouting";
 
 type UseMediaTabActiveViewSyncArgs<TRow> = {
+  activeMediaCache: MediaTabCache<TRow> | null;
   activeMediaQuery: string;
   activeTab: MediaTab;
   cacheTtlMs: number;
@@ -16,7 +17,6 @@ type UseMediaTabActiveViewSyncArgs<TRow> = {
     }
   ) => Promise<void> | void;
   loadPrompts: () => Promise<void> | void;
-  mediaTabCache: Record<MediaDataTab, MediaTabCache<TRow>>;
   promptsLoaded: boolean;
   setError: Dispatch<SetStateAction<string | null>>;
   setFiles: Dispatch<SetStateAction<TRow[]>>;
@@ -28,13 +28,13 @@ type UseMediaTabActiveViewSyncArgs<TRow> = {
  * Handles saved-prompts loading and media-tab cache-vs-fetch routing.
  */
 export const useMediaTabActiveViewSync = <TRow>({
+  activeMediaCache,
   activeMediaQuery,
   activeTab,
   cacheTtlMs,
   fetchEnabled,
   fetchMediaTabPage,
   loadPrompts,
-  mediaTabCache,
   promptsLoaded,
   setError,
   setFiles,
@@ -51,7 +51,8 @@ export const useMediaTabActiveViewSync = <TRow>({
       return;
     }
 
-    const cache = mediaTabCache[activeTab];
+    if (!activeMediaCache) return;
+    const cache = activeMediaCache;
     const queryChanged = cache.query !== activeMediaQuery;
     const isStale = cache.loadedAtMs == null || Date.now() - cache.loadedAtMs > cacheTtlMs;
     if (cache.loaded && !queryChanged && !isStale) {
@@ -79,7 +80,7 @@ export const useMediaTabActiveViewSync = <TRow>({
     fetchEnabled,
     fetchMediaTabPage,
     loadPrompts,
-    mediaTabCache,
+    activeMediaCache,
     promptsLoaded,
     setError,
     setFiles,

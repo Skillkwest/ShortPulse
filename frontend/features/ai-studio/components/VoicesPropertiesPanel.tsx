@@ -7,14 +7,14 @@ import { Microphone, Trash } from "phosphor-react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { ConfirmationModal } from "../../../components/ConfirmationModal";
 import {
-  ELEVENLABS_VOICEOVER_MODEL_ID,
-  ELEVENLABS_VOICE_CHANGER_MODEL_ID,
-  ELEVENLABS_VOICE_DESIGN_MODEL_ID,
-} from "../../../lib/model-runtime/elevenLabsModels";
-import { computeCostForModel } from "../../../lib/model-runtime/pricing";
+  resolveRequiredAudioVoiceChangerModelId,
+  resolveRequiredAudioVoiceDesignModelId,
+  resolveRequiredAudioVoiceoverModelId,
+} from "../../../lib/model-runtime/modelCatalog";
 import type { ModelPricingPolicyDocument } from "../../../lib/model-runtime/pricingPolicy";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useSharedVoicesGrid, type SharedVoiceOption } from "../hooks/useSharedVoicesGrid";
+import { resolveClientBilledCredits } from "../logic/clientPricingDisplay";
 import type { ToolId } from "../types";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 import { CreateVoiceModal, type CreateVoiceModalPreview } from "./CreateVoiceModal";
@@ -34,6 +34,11 @@ import {
   uploadVoiceCloneSourceFile,
   uploadVoiceChangerSourceFile,
 } from "../utils/voiceChangerSourceAsset";
+import {
+  clearExclusiveSoundPlayback,
+  markExclusiveSoundPlaying,
+  requestExclusiveSoundPlayback,
+} from "./shared/exclusiveSoundPlayback";
 
 type VoicesSurfaceMode = "create" | "edit";
 type CreateVoiceMode = "generate" | "clone";
@@ -64,7 +69,7 @@ type VoiceoverSliderValues = {
 };
 
 type ElevenVoiceoverRequestConfig = {
-  model_id: typeof ELEVENLABS_VOICEOVER_MODEL_ID;
+  model_id: string;
   language_code: null;
   voice_settings: {
     stability: number;
@@ -109,10 +114,10 @@ const cloneVoiceSourceDropzoneCopy = {
   uploadingAudioDetail: "Staging the voice sample so it is ready for cloning.",
   failedFallbackDetail: "Unable to prepare the selected voice sample.",
 };
-export const hardcodedVoiceoverModelId = ELEVENLABS_VOICEOVER_MODEL_ID;
+export const hardcodedVoiceoverModelId = resolveRequiredAudioVoiceoverModelId();
 export const hardcodedVoiceoverLanguageCode = null;
 export const hardcodedVoiceoverStyleValue = 0 as const;
-export const hardcodedVoiceDesignModelId = ELEVENLABS_VOICE_DESIGN_MODEL_ID;
+export const hardcodedVoiceDesignModelId = resolveRequiredAudioVoiceDesignModelId();
 
 const normalizeSliderValue = (value: number | undefined, fallback: number): number =>
   Number(((value ?? fallback) / 100).toFixed(2));
@@ -190,7 +195,7 @@ const voiceChangerOutputFormatOptions = [
   { value: "pcm_24000", label: "PCM" },
 ] as const;
 
-const hardcodedVoiceChangerModel = ELEVENLABS_VOICE_CHANGER_MODEL_ID;
+const hardcodedVoiceChangerModel = resolveRequiredAudioVoiceChangerModelId();
 const hardcodedVoiceChangerSpeakerBoostEnabled = true;
 const hardcodedVoiceChangerInputFormat = "other";
 const hardcodedVideoDerivedVoiceChangerSettings = {
@@ -293,6 +298,11 @@ const buildVoiceDesignPreviewAudioSrc = (
   mediaType: string | null | undefined
 ): string => `data:${mediaType?.trim() || "audio/mpeg"};base64,${audioBase64}`;
 
+const buildVoicePreviewInstanceKey = (voiceId: string): string => `voices:voice-preview:${voiceId}`;
+
+const buildDesignedPreviewInstanceKey = (previewId: string): string =>
+  `voices:designed-preview:${previewId}`;
+
 const getVoiceChipDisplayName = (voiceName: string): string => {
   const trimmedName = voiceName.trim();
   if (!trimmedName) return "";
@@ -353,6 +363,7 @@ export type VoicesGenerateRequest =
       script: string;
       outputFormat: string;
       config: ElevenVoiceoverRequestConfig;
+      displayedBilledCredits?: number | null;
     }
   | {
       mode: "voice-changer";
@@ -368,11 +379,13 @@ export type VoicesGenerateRequest =
         use_speaker_boost: boolean;
       };
       inputFormat: string;
+      displayedBilledCredits?: number | null;
     };
 
 export type VoicesPropertiesPanelProps = {
   balanceCredits?: number | null;
   pricingPolicy?: ModelPricingPolicyDocument | null;
+  pricingPolicyReady?: boolean;
   selectedTool?: ToolId | null;
   isGenerating?: boolean;
   onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
@@ -476,6 +489,7 @@ function VoicesSlider({
 export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   balanceCredits = null,
   pricingPolicy = null,
+  pricingPolicyReady = true,
   selectedTool = null,
   onGenerate,
   onActiveVoiceChangerSourceVideoChange,
@@ -561,27 +575,30 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const normalizedVoicePromptLength = voicePrompt.trim().length;
   const estimatedCredits =
     surfaceMode === "create"
-      ? (computeCostForModel(
-          hardcodedVoiceoverModelId,
-          {
+      ? (resolveClientBilledCredits({
+          modelId: hardcodedVoiceoverModelId,
+          params: {
             textCharacters: voiceScript.trim().length,
           },
-          pricingPolicy
-        )?.credits ?? null)
-      : (computeCostForModel(
-          hardcodedVoiceChangerModel,
-          {
+          pricingPolicy,
+          pricingPolicyReady,
+        }) ?? null)
+      : (resolveClientBilledCredits({
+          modelId: hardcodedVoiceChangerModel,
+          params: {
             sourceDurationSeconds:
               voiceChangerSource?.durationMs != null
                 ? voiceChangerSource.durationMs / 1000
                 : undefined,
           },
-          pricingPolicy
-        )?.credits ?? null);
+          pricingPolicy,
+          pricingPolicyReady,
+        }) ?? null);
   const isInsufficientCredits =
     balanceCredits != null && estimatedCredits != null ? balanceCredits < estimatedCredits : false;
   const isGenerateEnabled =
     Boolean(selectedLibraryVoice?.id) &&
+    pricingPolicyReady &&
     (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
     (surfaceMode === "create"
       ? voiceScript.trim().length > 0
@@ -725,7 +742,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
   const stopActiveDesignedPreview = React.useCallback(() => {
     const activeAudio = designedPreviewAudioRef.current;
+    const activeInstanceKey = designedPreviewAudioIdRef.current
+      ? buildDesignedPreviewInstanceKey(designedPreviewAudioIdRef.current)
+      : null;
     if (!activeAudio) {
+      if (activeInstanceKey) {
+        clearExclusiveSoundPlayback(activeInstanceKey);
+      }
       designedPreviewAudioIdRef.current = null;
       setActiveDesignedPreviewId(null);
       return;
@@ -737,6 +760,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     activeAudio.pause();
     activeAudio.currentTime = 0;
     activeAudio.src = "";
+    if (activeInstanceKey) {
+      clearExclusiveSoundPlayback(activeInstanceKey);
+    }
     designedPreviewAudioRef.current = null;
     designedPreviewAudioIdRef.current = null;
     setActiveDesignedPreviewId(null);
@@ -1098,6 +1124,14 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         designedPreviewAudio.pause();
         designedPreviewAudio.src = "";
       }
+      if (previewAudioVoiceIdRef.current) {
+        clearExclusiveSoundPlayback(buildVoicePreviewInstanceKey(previewAudioVoiceIdRef.current));
+      }
+      if (designedPreviewAudioIdRef.current) {
+        clearExclusiveSoundPlayback(
+          buildDesignedPreviewInstanceKey(designedPreviewAudioIdRef.current)
+        );
+      }
       previewAudioRef.current = null;
       previewAudioVoiceIdRef.current = null;
       designedPreviewAudioRef.current = null;
@@ -1325,7 +1359,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
 
   const stopActiveVoicePreview = React.useCallback(() => {
     const activeAudio = previewAudioRef.current;
+    const activeInstanceKey = previewAudioVoiceIdRef.current
+      ? buildVoicePreviewInstanceKey(previewAudioVoiceIdRef.current)
+      : null;
     if (!activeAudio) {
+      if (activeInstanceKey) {
+        clearExclusiveSoundPlayback(activeInstanceKey);
+      }
       setActivePreviewVoiceId(null);
       previewAudioVoiceIdRef.current = null;
       return;
@@ -1337,6 +1377,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     activeAudio.pause();
     activeAudio.currentTime = 0;
     activeAudio.src = "";
+    if (activeInstanceKey) {
+      clearExclusiveSoundPlayback(activeInstanceKey);
+    }
     previewAudioRef.current = null;
     previewAudioVoiceIdRef.current = null;
     setActivePreviewVoiceId(null);
@@ -1358,9 +1401,16 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       }
 
       const nextAudio = new Audio(nextUrl);
+      const nextInstanceKey = buildVoicePreviewInstanceKey(voiceId);
       nextAudio.preload = "none";
       nextAudio.onplay = () => {
         if (previewAudioRef.current !== nextAudio) return;
+        markExclusiveSoundPlaying({
+          instanceKey: nextInstanceKey,
+          pause: () => {
+            nextAudio.pause();
+          },
+        });
         setActivePreviewVoiceId(voiceId);
       };
       nextAudio.onpause = () => {
@@ -1379,6 +1429,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       };
       previewAudioRef.current = nextAudio;
       previewAudioVoiceIdRef.current = voiceId;
+      requestExclusiveSoundPlayback({
+        instanceKey: nextInstanceKey,
+        pause: () => {
+          nextAudio.pause();
+        },
+      });
       const playResult = nextAudio.play();
       if (playResult && typeof playResult.catch === "function") {
         void playResult.catch(() => {
@@ -1410,9 +1466,16 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       }
 
       const nextAudio = new Audio(previewUrl);
+      const nextInstanceKey = buildDesignedPreviewInstanceKey(previewId);
       nextAudio.preload = "none";
       nextAudio.onplay = () => {
         if (designedPreviewAudioRef.current !== nextAudio) return;
+        markExclusiveSoundPlaying({
+          instanceKey: nextInstanceKey,
+          pause: () => {
+            nextAudio.pause();
+          },
+        });
         setActiveDesignedPreviewId(previewId);
       };
       nextAudio.onpause = () => {
@@ -1431,6 +1494,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       };
       designedPreviewAudioRef.current = nextAudio;
       designedPreviewAudioIdRef.current = previewId;
+      requestExclusiveSoundPlayback({
+        instanceKey: nextInstanceKey,
+        pause: () => {
+          nextAudio.pause();
+        },
+      });
       const playResult = nextAudio.play();
       if (playResult && typeof playResult.catch === "function") {
         void playResult.catch(() => {
@@ -1649,6 +1718,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         script: voiceScript.trim(),
         outputFormat: selectedVoiceoverFormat,
         config: buildVoiceoverElevenV3RequestConfig(voiceoverSliderValues),
+        displayedBilledCredits: estimatedCredits,
       });
       return;
     }
@@ -1661,6 +1731,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       removeBackgroundNoise: voiceChangerBackgroundCleanupEnabled,
       modelId: hardcodedVoiceChangerModel,
       inputFormat: hardcodedVoiceChangerInputFormat,
+      displayedBilledCredits: estimatedCredits,
       voiceSettings: buildVoiceChangerRequestSettings({
         source: voiceChangerSource,
         sliderValues: voiceChangerSliderValues,
@@ -1672,6 +1743,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     selectedVoiceChangerOutputFormat,
     selectedVoiceoverFormat,
     surfaceMode,
+    estimatedCredits,
     voiceChangerBackgroundCleanupEnabled,
     voiceChangerSliderValues,
     voiceChangerSource,
@@ -1883,7 +1955,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                   <span className="voices-properties-generate-pill" aria-hidden="true">
                     <span className="voices-properties-generate-cost-icon">✦</span>
                     <span className="voices-properties-generate-cost-value">
-                      {formatCreditValue(estimatedCredits ?? 0)}
+                      {estimatedCredits != null ? formatCreditValue(estimatedCredits) : "—"}
                       <span className="voices-properties-generate-cost-label">credits</span>
                     </span>
                   </span>

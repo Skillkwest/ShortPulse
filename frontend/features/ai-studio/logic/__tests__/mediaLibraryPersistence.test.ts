@@ -752,6 +752,57 @@ describe("saveMediaUrlToLibrary", () => {
     expect(insert).not.toHaveBeenCalled();
   });
 
+  it("rejects server-copy responses that do not return a persisted media id", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
+        return {
+          select: vi.fn(() => selectBuilder),
+          insert: vi.fn(),
+        };
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaFileId: null,
+        storagePath: "user-1/generations/images/server-copy.png",
+        fileType: "image",
+        fileSize: 123,
+        delivery: {
+          previewStoragePath: "user-1/generations/images/server-copy.png",
+          fullStoragePath: "user-1/generations/images/server-copy.png",
+          previewUrl: "https://cdn.shortpulse.test/server-copy-preview.png",
+          fullUrl: "https://cdn.shortpulse.test/server-copy-full.png",
+        },
+      }),
+    });
+
+    await expect(
+      saveMediaUrlToLibrary({
+        url: "https://cdn.shortpulse.test/output.png",
+        mode: "image",
+        source: "upload",
+        index: 0,
+      })
+    ).rejects.toThrow("Server copy did not return a persisted media id.");
+  });
+
   it("surfaces server-copy trust failures for generated video saves when provider urls are blocked in-browser", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
       data: null,

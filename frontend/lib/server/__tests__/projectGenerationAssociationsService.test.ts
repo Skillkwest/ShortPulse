@@ -223,6 +223,8 @@ describe("associateGenerationWithProjectForUser", () => {
           display_prompt: "A project output without association",
           preview_url: "https://fal.test/project-projection-preview.png",
           result_urls: ["https://fal.test/project-projection-full.png"],
+          saved_media_ids: ["media-1"],
+          save_state: "saved",
           preview_storage_path: null,
           full_storage_path: null,
           task_state: "success",
@@ -265,6 +267,9 @@ describe("associateGenerationWithProjectForUser", () => {
               taskId: "req-project-projection-1",
               previewUrl: "https://fal.test/project-projection-preview.png",
               resultUrls: ["https://fal.test/project-projection-full.png"],
+              savedMediaIds: ["media-1"],
+              saveState: "saved",
+              status: "saved",
             }),
           ],
         }),
@@ -396,5 +401,183 @@ describe("associateGenerationWithProjectForUser", () => {
       "local-oldest",
       "local-upload",
     ]);
+  });
+
+  it("preserves settled non-generated refs while refreshing generated outputs", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1", updated_at: "2026-04-18T16:30:00.000Z" }],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1", updated_at: "2026-04-18T16:30:00.000Z" }],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-1",
+          updated_at: "2026-04-18T16:13:00.000Z",
+          request_id: "req-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Generated",
+          preview_url: "https://fal.test/generated.png",
+          result_urls: ["https://fal.test/generated.png"],
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentProjectionBuilder;
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-1",
+              generationId: "generation-1",
+              previewUrl: "https://expired.example/generated.png",
+              resultUrls: ["https://expired.example/generated.png"],
+            },
+            {
+              id: "library-1",
+              mediaSource: "library",
+              previewUrl: "https://cdn.example/library.png",
+              resultUrls: ["https://cdn.example/library.png"],
+              savedMediaIds: ["media-1"],
+              saveState: "saved",
+              status: "saved",
+            },
+            {
+              id: "upload-1",
+              mediaSource: "upload",
+              previewUrl: "https://cdn.example/upload.png",
+              resultUrls: ["https://cdn.example/upload.png"],
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        outputs: expect.objectContaining({
+          active: [
+            expect.objectContaining({
+              id: "generated-1",
+              previewUrl: "https://fal.test/generated.png",
+            }),
+            expect.objectContaining({
+              id: "library-1",
+              mediaSource: "library",
+              savedMediaIds: ["media-1"],
+              saveState: "saved",
+            }),
+            expect.objectContaining({
+              id: "upload-1",
+              mediaSource: "upload",
+              previewUrl: "https://cdn.example/upload.png",
+            }),
+          ],
+        }),
+      })
+    );
+  });
+
+  it("restores generated outputs with saved media semantics from projection rows", async () => {
+    const associationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1" }],
+      error: null,
+    });
+    const recentAssociationBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1", updated_at: "2026-04-18T16:30:00.000Z" }],
+      error: null,
+    });
+    const recentProjectionBuilder = createAwaitableSelectBuilder({
+      data: [{ generation_id: "generation-1", updated_at: "2026-04-18T16:30:00.000Z" }],
+      error: null,
+    });
+    const projectionDetailsBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "generation-1",
+          updated_at: "2026-04-18T16:13:00.000Z",
+          request_id: "req-1",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+          display_prompt: "Generated",
+          preview_url: "https://fal.test/generated.png",
+          result_urls: ["https://fal.test/generated.png"],
+          saved_media_ids: ["media-1"],
+          save_state: "saved",
+          task_state: "success",
+          queue_state: "dispatched",
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+        },
+      ],
+      error: null,
+    });
+    projectGenerationItemsSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentAssociationBuilder;
+      return associationBuilder;
+    });
+    generationProjectionSelectMock.mockImplementation((columns: string) => {
+      if (columns === "generation_id, updated_at") return recentProjectionBuilder;
+      return projectionDetailsBuilder;
+    });
+
+    const snapshot = await hydrateProjectSnapshotGeneratedOutputs({
+      userId: "user-1",
+      projectId: "project-1",
+      snapshot: {
+        outputs: {
+          active: [
+            {
+              id: "generated-1",
+              generationId: "generation-1",
+              saveState: "idle",
+              status: "ready",
+              savedMediaIds: [],
+            },
+          ],
+          archived: [],
+        },
+      },
+    });
+
+    expect(snapshot).toEqual(
+      expect.objectContaining({
+        outputs: expect.objectContaining({
+          active: [
+            expect.objectContaining({
+              id: "generated-1",
+              generationId: "generation-1",
+              savedMediaIds: ["media-1"],
+              saveState: "saved",
+              status: "saved",
+            }),
+          ],
+        }),
+      })
+    );
   });
 });

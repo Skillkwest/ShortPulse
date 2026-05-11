@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 
 import { GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR } from "../logic/mediaLibraryPersistence";
+import { MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE } from "../../../lib/mediaStorageQuota";
 import type { Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import type {
@@ -54,6 +55,21 @@ type UseAiStudioOutputSaveRuntimeArgs = {
     options?: { showPill?: boolean }
   ) => void;
 };
+
+const GENERIC_LIBRARY_SAVE_UI_ERROR =
+  "Unable to save media to the library right now. Please try again.";
+
+const resolveLibrarySaveFailureMessage = (errors: string[]): string =>
+  errors[0] ?? "Media library save did not return a media id.";
+
+const isSafeUserFacingLibrarySaveMessage = (message: string): boolean => {
+  const normalized = message.trim();
+  if (!normalized) return false;
+  return normalized.startsWith(MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE);
+};
+
+const resolveLibrarySaveUiErrorMessage = (message: string): string =>
+  isSafeUserFacingLibrarySaveMessage(message) ? message : GENERIC_LIBRARY_SAVE_UI_ERROR;
 
 export const useAiStudioOutputSaveRuntime = ({
   projectId = null,
@@ -172,16 +188,15 @@ export const useAiStudioOutputSaveRuntime = ({
               error: null,
             };
           }
-          if (errors.length) {
-            markOutputSaveFailed(outputId, errors[0] ?? "Unable to save media to the library.");
-          }
-          setUiError("Unable to save media to the library.");
+          const failureMessage = resolveLibrarySaveFailureMessage(errors);
+          markOutputSaveFailed(outputId, failureMessage);
+          setUiError(resolveLibrarySaveUiErrorMessage(failureMessage));
           return {
             ok: false,
             mediaFileIds,
             promptId: output.promptId ?? null,
             delivery,
-            error: errors[0] ?? "Unable to save media to the library.",
+            error: failureMessage,
           };
         } finally {
           saveInFlightRef.current.delete(saveKey);

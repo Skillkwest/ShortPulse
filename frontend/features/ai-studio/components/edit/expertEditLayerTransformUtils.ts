@@ -50,6 +50,7 @@ const LAYER_TRANSLATE_RATIO_MIN = -1;
 const LAYER_TRANSLATE_RATIO_MAX = 1;
 const LAYER_SCALE_MIN = 0.2;
 const LAYER_SCALE_MAX = 2;
+export const SINGLE_IMAGE_EDIT_SAFE_SCALE_MIN = 0.5;
 const TRANSFORM_ROTATE_HANDLE_INSET_PX = 16;
 const LAYER_SCALE_EPSILON = 0.0001;
 
@@ -239,6 +240,18 @@ export const resolveClippedLayerTransform = ({
   scale: Math.max(LAYER_SCALE_EPSILON, clampLayerScale(transform.scale)),
   rotationDeg: normalizeLayerRotationDeg(transform.rotationDeg),
 });
+
+export const resolveSingleImageEditSafeTransform = ({
+  transform,
+}: {
+  transform: LayerTransform;
+}): LayerTransform => {
+  const clippedTransform = resolveClippedLayerTransform({ transform });
+  if (clippedTransform.scale < SINGLE_IMAGE_EDIT_SAFE_SCALE_MIN) {
+    return defaultLayerTransform();
+  }
+  return clippedTransform;
+};
 
 export const normalizeLayerRotationDeg = (value: number) => {
   if (!Number.isFinite(value)) return 0;

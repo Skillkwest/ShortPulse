@@ -17,9 +17,10 @@ import {
   CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID,
   getCreateCharacterModeAllowedModels,
 } from "./createCharacterModeModelMapping";
+import { resolveRequiredEditStartupModelId } from "../../../lib/model-runtime/modelCatalog";
 
 export { CREATE_DEFAULT_MODEL_ID };
-export const EDIT_DEFAULT_MODEL_ID = CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID;
+export const EDIT_DEFAULT_MODEL_ID = resolveRequiredEditStartupModelId();
 
 export type ModelSelectionVideoReferenceMode =
   | "standard"

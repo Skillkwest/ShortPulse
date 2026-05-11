@@ -14,7 +14,7 @@ import type {
   AgentMessageRole,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent/types";
-import { normalizeSeedance2UiModelId } from "./seedance2Availability";
+import { normalizeAiStudioRestoredModelId } from "./modelRestorePolicy";
 import {
   parseAiStudioSessionCanvasState,
   type AiStudioSessionCanvasState,
@@ -79,6 +79,19 @@ const sanitizeHydratedMediaUrl = (value: string | null): string | null => {
   if (!normalized) return null;
   if (normalized.startsWith("blob:") || normalized.startsWith("data:")) return null;
   return normalized;
+};
+
+const sanitizeHydratedAttachmentIdentity = (value: string | null): string | null => {
+  if (!value) return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
+const sanitizeHydratedAttachmentImageFallbackUrls = (value: unknown): string[] | undefined => {
+  const normalized = asStringArray(value)
+    .map((candidate) => sanitizeHydratedMediaUrl(candidate))
+    .filter((candidate): candidate is string => Boolean(candidate));
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : undefined;
 };
 
 const asStringArray = (value: unknown): string[] => {
@@ -423,8 +436,18 @@ const normalizeAgentAttachments = (value: unknown): AgentAttachment[] => {
       id: resolvedId,
       kind,
       referenceId: asNullableString(attachment.referenceId),
+      mediaId: sanitizeHydratedAttachmentIdentity(asNullableString(attachment.mediaId)),
       text,
+      previewStoragePath: sanitizeHydratedAttachmentIdentity(
+        asNullableString(attachment.previewStoragePath)
+      ),
+      fullStoragePath: sanitizeHydratedAttachmentIdentity(
+        asNullableString(attachment.fullStoragePath)
+      ),
+      referenceUrl: sanitizeHydratedMediaUrl(asNullableString(attachment.referenceUrl)),
+      referenceRenderUrl: sanitizeHydratedMediaUrl(asNullableString(attachment.referenceRenderUrl)),
       imageUrl,
+      imageFallbackUrls: sanitizeHydratedAttachmentImageFallbackUrls(attachment.imageFallbackUrls),
       aspect: asNullableString(attachment.aspect),
       deliveryStatus:
         attachment.deliveryStatus === "pending" ||
@@ -557,6 +580,7 @@ export type AiStudioSessionHydrationPayload = {
       pulseWorkflowSession: AgentPulseWorkflowSession | null;
     };
     pulsePresetId: string | null;
+    pulseSessionInstanceId: string | null;
     pulse: {
       messages: AgentMessage[];
       input: string;
@@ -583,7 +607,9 @@ const asPulseWorkflowSession = (value: unknown): AgentPulseWorkflowSession | nul
   const currentStepPrompt = asNullableString(row.currentStepPrompt)?.trim() ?? null;
   const lastArtifact = asNullableString(row.lastArtifact)?.trim() ?? null;
   const finalArtifactSource =
-    row.finalArtifactSource === "chat_reply" ? row.finalArtifactSource : null;
+    row.finalArtifactSource === "apply_prompt" || row.finalArtifactSource === "chat_reply"
+      ? row.finalArtifactSource
+      : null;
   const collectedInputs = asStringArray(row.collectedInputs)
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
@@ -625,9 +651,17 @@ const coerceHydratedRuntimeChatMode = <
 
 const isHydratedPulseRuntimeAuthorizedForPreset = (
   runtime: ReturnType<typeof buildHydratedAgentRuntime>,
-  presetId: string | null
+  presetId: string | null,
+  pulseSessionInstanceId: string | null,
+  runtimePulseSessionInstanceId: string | null
 ): boolean => {
-  if (!presetId) return false;
+  if (
+    !presetId ||
+    !pulseSessionInstanceId ||
+    runtimePulseSessionInstanceId !== pulseSessionInstanceId
+  ) {
+    return false;
+  }
   const workflowPresetId = runtime.pulseWorkflowSession?.presetId ?? null;
   return workflowPresetId === null || workflowPresetId === presetId;
 };
@@ -699,9 +733,12 @@ export const buildAiStudioSessionHydrationPayload = (
   const hydratedPulsePresetId =
     workspaceExpertCreateMode === "pulse" ? workspaceActivePulsePresetId : null;
   const persistedPulsePresetId = asNullableString(agentRuntimes?.pulsePresetId)?.trim() || null;
+  const persistedPulseSessionInstanceId =
+    asNullableString(agentRuntimes?.pulseSessionInstanceId)?.trim() || null;
   const hasHydratedPulseRuntimeAuthority =
     hydratedPulsePresetId !== null &&
     persistedPulsePresetId === hydratedPulsePresetId &&
+    persistedPulseSessionInstanceId === workspacePulseSessionInstanceId &&
     Boolean(agentRuntimes?.pulse);
   const candidatePulseRuntime = hasHydratedPulseRuntimeAuthority
     ? coerceHydratedRuntimeChatMode(buildHydratedAgentRuntime(agentRuntimes?.pulse), {
@@ -713,9 +750,15 @@ export const buildAiStudioSessionHydrationPayload = (
       ? buildHydratedAgentRuntime(agentRuntimes.standard)
       : defaultAgentRuntime,
     pulsePresetId: hydratedPulsePresetId,
+    pulseSessionInstanceId: hydratedPulsePresetId ? workspacePulseSessionInstanceId : null,
     pulse:
       hasHydratedPulseRuntimeAuthority &&
-      isHydratedPulseRuntimeAuthorizedForPreset(candidatePulseRuntime, hydratedPulsePresetId)
+      isHydratedPulseRuntimeAuthorizedForPreset(
+        candidatePulseRuntime,
+        hydratedPulsePresetId,
+        workspacePulseSessionInstanceId,
+        persistedPulseSessionInstanceId
+      )
         ? candidatePulseRuntime
         : defaultAgentRuntime,
   };
@@ -742,7 +785,7 @@ export const buildAiStudioSessionHydrationPayload = (
         workspaceExpertCreateMode === "pulse" ? workspacePulsePrompt : workspaceStandardPrompt,
       standardPrompt: workspaceStandardPrompt,
       pulsePrompt: workspacePulsePrompt,
-      model: normalizeSeedance2UiModelId(asNullableString(workspace.model)) ?? null,
+      model: normalizeAiStudioRestoredModelId(asNullableString(workspace.model)) ?? null,
       aspect: asString(workspace.aspect, FALLBACK_ASPECT),
       selectedCharacterId: asNullableString(workspace.selectedCharacterId)?.trim() || null,
       selectedCharacterLookId: asNullableString(workspace.selectedCharacterLookId)?.trim() || null,

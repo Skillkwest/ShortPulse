@@ -8,14 +8,17 @@ import {
   type MediaAutosaveSource,
   type PersistenceIntent,
 } from "../../../lib/mediaAutosavePolicy";
+import { hasStorageAuthority } from "../logic/referenceOutputAuthority";
 import { AI_STUDIO_AUTOSAVE_MAX_ATTEMPTS_PER_OUTPUT } from "../logic/persistenceRetryPolicy";
 import { hasDurableGenerationIdentity } from "./useAiStudioPersistenceActions";
 import type { PersistOutputSaveResult } from "./persistenceActionContracts";
 import type { StudioOutput } from "../types";
+import type { MediaAutosaveSyncState } from "./useMediaAutosavePreference";
 
 type UseAiStudioMediaAutosaveOrchestratorArgs = {
   outputs: StudioOutput[];
   mediaAutosaveEnabled: boolean;
+  mediaAutosaveSyncState: MediaAutosaveSyncState;
   saveReferenceToLibrary: (outputId: string) => Promise<PersistOutputSaveResult>;
 };
 
@@ -33,6 +36,8 @@ const buildDecisionInput = (output: StudioOutput, mediaAutosaveEnabled: boolean)
   source: inferMediaSource(output),
   mediaAutosaveEnabled,
   hasMedia: hasRenderableMedia(output),
+  hasDurableLibraryAuthority:
+    output.mediaSource === "library" ? hasStorageAuthority(output) : false,
   hasPromptOnlyText: Boolean(output.previewText) && !hasRenderableMedia(output),
   saveState: output.saveState ?? "idle",
   savedMediaIds: output.savedMediaIds ?? [],
@@ -44,6 +49,7 @@ const buildDecisionInput = (output: StudioOutput, mediaAutosaveEnabled: boolean)
 export const useAiStudioMediaAutosaveOrchestrator = ({
   outputs,
   mediaAutosaveEnabled,
+  mediaAutosaveSyncState,
   saveReferenceToLibrary,
 }: UseAiStudioMediaAutosaveOrchestratorArgs) => {
   const inFlightOutputIdsRef = useRef<Set<string>>(new Set());
@@ -62,7 +68,7 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
       }
     }
 
-    if (!mediaAutosaveEnabled) return;
+    if (mediaAutosaveSyncState !== "ready" || !mediaAutosaveEnabled) return;
 
     outputs.forEach((output) => {
       if (inFlightOutputIdsRef.current.has(output.id)) return;
@@ -86,5 +92,5 @@ export const useAiStudioMediaAutosaveOrchestrator = ({
           inFlightOutputIdsRef.current.delete(output.id);
         });
     });
-  }, [mediaAutosaveEnabled, outputs, saveReferenceToLibrary]);
+  }, [mediaAutosaveEnabled, mediaAutosaveSyncState, outputs, saveReferenceToLibrary]);
 };

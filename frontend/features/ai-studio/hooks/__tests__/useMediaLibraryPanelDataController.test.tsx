@@ -125,6 +125,44 @@ describe("useMediaLibraryPanelDataController", () => {
     );
   });
 
+  it("does not reload when transient folder ids change but normalize to the same root scope", async () => {
+    const { rerender } = renderHook(
+      ({ activeFolderId }) =>
+        useMediaLibraryPanelDataController({
+          projectId: "project-1",
+          activeFolderId,
+          itemType: "all",
+          normalizedSearch: "",
+          shouldShowMedia: true,
+          shouldShowPrompts: true,
+          showFolderCanvas: false,
+          panelBodyRef: { current: null },
+        }),
+      {
+        initialProps: {
+          activeFolderId: "__pending_new_folder__123",
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    fetchMediaListPageMock.mockClear();
+    fetchMediaPromptListPageMock.mockClear();
+
+    rerender({ activeFolderId: "__pending_new_folder__456" });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(fetchMediaListPageMock).not.toHaveBeenCalled();
+    expect(fetchMediaPromptListPageMock).not.toHaveBeenCalled();
+  });
+
   it("treats project switches as a new unresolved media/prompt scope", async () => {
     const projectOneMedia = createDeferred<{
       rows: never[];
@@ -232,7 +270,16 @@ describe("useMediaLibraryPanelDataController", () => {
     await waitFor(() => {
       expect(fetchMediaListPageMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          includeLibraryTotalCount: false,
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({
           includeLibraryTotalCount: true,
+          countOnly: true,
         })
       );
     });
@@ -243,6 +290,7 @@ describe("useMediaLibraryPanelDataController", () => {
       await result.current.loadMediaPage({ reset: true });
     });
 
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
     expect(fetchMediaListPageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         includeLibraryTotalCount: false,
@@ -269,6 +317,13 @@ describe("useMediaLibraryPanelDataController", () => {
             created_at: "2026-04-27T00:00:00.000Z",
           },
         ],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [],
         nextCursor: null,
         hasMore: false,
         signedById: new Map(),
@@ -324,6 +379,287 @@ describe("useMediaLibraryPanelDataController", () => {
     await waitFor(() => {
       expect(result.current.mediaLoading).toBe(false);
       expect(result.current.mediaScopeResolved).toBe(true);
+    });
+  });
+
+  it("refreshes media and prompts in parallel when both surfaces are active", async () => {
+    const refreshMediaDeferred = createDeferred<{
+      rows: never[];
+      nextCursor: null;
+      hasMore: false;
+      signedById: Map<string, string>;
+      libraryTotalCount: number;
+    }>();
+    const refreshPromptDeferred = createDeferred<{
+      rows: never[];
+      nextCursor: null;
+      hasMore: false;
+    }>();
+
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 0,
+      })
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 0,
+      })
+      .mockReturnValueOnce(refreshMediaDeferred.promise);
+    fetchMediaPromptListPageMock
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+      })
+      .mockReturnValueOnce(refreshPromptDeferred.promise);
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: true,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaScopeResolved).toBe(true);
+      expect(result.current.promptScopeResolved).toBe(true);
+    });
+
+    fetchMediaListPageMock.mockClear();
+    fetchMediaPromptListPageMock.mockClear();
+
+    let refreshPromise: Promise<void> | null = null;
+    act(() => {
+      refreshPromise = result.current.refreshActiveRows();
+    });
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    refreshMediaDeferred.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+    refreshPromptDeferred.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    await act(async () => {
+      await refreshPromise;
+    });
+  });
+
+  it("preserves a media load error when prompt refresh succeeds in the same parallel refresh", async () => {
+    const refreshPromptDeferred = createDeferred<{
+      rows: never[];
+      nextCursor: null;
+      hasMore: false;
+    }>();
+
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 0,
+      })
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 0,
+      })
+      .mockRejectedValueOnce(new Error("media refresh failed"));
+    fetchMediaPromptListPageMock
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+      })
+      .mockReturnValueOnce(refreshPromptDeferred.promise);
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: true,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaScopeResolved).toBe(true);
+      expect(result.current.promptScopeResolved).toBe(true);
+    });
+
+    let refreshPromise: Promise<void> | null = null;
+    act(() => {
+      refreshPromise = result.current.refreshActiveRows();
+    });
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(3);
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(2);
+    });
+
+    refreshPromptDeferred.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+    });
+    await act(async () => {
+      await refreshPromise;
+    });
+
+    expect(result.current.error).toBe("media refresh failed");
+  });
+
+  it("dedupes overlapping media append requests", async () => {
+    const appendDeferred = createDeferred<{
+      rows: never[];
+      nextCursor: string | null;
+      hasMore: boolean;
+      signedById: Map<string, string>;
+      libraryTotalCount: number;
+    }>();
+
+    fetchMediaListPageMock
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: "cursor-1",
+        hasMore: true,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+        signedById: new Map(),
+        libraryTotalCount: 1,
+      })
+      .mockReturnValueOnce(appendDeferred.promise);
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: false,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.mediaScopeResolved).toBe(true);
+    });
+
+    fetchMediaListPageMock.mockClear();
+
+    let firstAppendPromise: Promise<void> | null = null;
+    act(() => {
+      firstAppendPromise = result.current.loadMediaPage({ reset: false });
+      void result.current.loadMediaPage({ reset: false });
+    });
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    appendDeferred.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 1,
+    });
+
+    await act(async () => {
+      await firstAppendPromise;
+    });
+  });
+
+  it("dedupes overlapping prompt append requests", async () => {
+    const appendDeferred = createDeferred<{
+      rows: never[];
+      nextCursor: string | null;
+      hasMore: boolean;
+    }>();
+
+    fetchMediaPromptListPageMock
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: "cursor-1",
+        hasMore: true,
+      })
+      .mockReturnValueOnce(appendDeferred.promise);
+
+    const { result } = renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "all_items",
+        itemType: "prompts",
+        normalizedSearch: "",
+        shouldShowMedia: false,
+        shouldShowPrompts: true,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.promptScopeResolved).toBe(true);
+    });
+
+    fetchMediaPromptListPageMock.mockClear();
+
+    let firstAppendPromise: Promise<void> | null = null;
+    act(() => {
+      firstAppendPromise = result.current.loadPromptPage({ reset: false });
+      void result.current.loadPromptPage({ reset: false });
+    });
+
+    await waitFor(() => {
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(1);
+    });
+
+    appendDeferred.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    await act(async () => {
+      await firstAppendPromise;
     });
   });
 

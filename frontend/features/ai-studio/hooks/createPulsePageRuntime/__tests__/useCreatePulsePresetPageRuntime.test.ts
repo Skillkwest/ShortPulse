@@ -1,10 +1,17 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CREATE_PULSE_CUSTOM_AUTHORING_KIND,
   CREATE_PULSE_SCHEMA_VERSION,
+  resolveCreatePulseBuiltInPresetDefinitions,
 } from "../../../components/create/createPulsePresets";
 import { useCreatePulsePresetPageRuntime } from "../useCreatePulsePresetPageRuntime";
+
+const useCreatePulseBuiltInCatalogMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../useCreatePulseBuiltInCatalog", () => ({
+  useCreatePulseBuiltInCatalog: (...args: unknown[]) => useCreatePulseBuiltInCatalogMock(...args),
+}));
 
 const createParams = (
   overrides: Partial<Parameters<typeof useCreatePulsePresetPageRuntime>[0]> = {}
@@ -23,6 +30,17 @@ const createParams = (
 });
 
 describe("useCreatePulsePresetPageRuntime", () => {
+  beforeEach(() => {
+    useCreatePulseBuiltInCatalogMock.mockReturnValue({
+      builtInDefinitions: resolveCreatePulseBuiltInPresetDefinitions(),
+      loading: false,
+      error: null,
+      source: "control_plane",
+      isAuthoritative: true,
+      refresh: vi.fn(),
+    });
+  });
+
   it("recovers a restored built-in Pulse snapshot from the active preset id", () => {
     const clearPulseRuntime = vi.fn();
     const clearPulsePrompt = vi.fn();
@@ -137,6 +155,34 @@ describe("useCreatePulsePresetPageRuntime", () => {
       expect(clearPulseRuntime).toHaveBeenCalledTimes(1);
       expect(clearPulsePrompt).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("does not clear an unresolved Pulse runtime while the built-in catalog is non-authoritative", async () => {
+    const clearPulseRuntime = vi.fn();
+    const clearPulsePrompt = vi.fn();
+    useCreatePulseBuiltInCatalogMock.mockReturnValue({
+      builtInDefinitions: resolveCreatePulseBuiltInPresetDefinitions(),
+      loading: false,
+      error: "Unable to load Pulse built-ins.",
+      source: "seed",
+      isAuthoritative: false,
+      refresh: vi.fn(),
+    });
+
+    renderHook(() =>
+      useCreatePulsePresetPageRuntime(
+        createParams({
+          activeCreatePulsePresetId: "drifted_builtin_id",
+          clearPulseRuntime,
+          clearPulsePrompt,
+        })
+      )
+    );
+
+    await Promise.resolve();
+
+    expect(clearPulseRuntime).not.toHaveBeenCalled();
+    expect(clearPulsePrompt).not.toHaveBeenCalled();
   });
 
   it("clears Pulse prompt state when clearing the page Pulse runtime", () => {

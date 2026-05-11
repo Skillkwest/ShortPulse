@@ -2,6 +2,7 @@
  * Unit tests for Expert Edit stage flatten helpers.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { EXPERT_EDIT_CAMERA_SCALE_MIN } from "../expertEditCameraContract";
 import {
   STAGE_FLATTEN_MAX_OUTPUT_SIZE_PX,
   buildStageFlattenDrawPlan,
@@ -92,18 +93,18 @@ describe("expertEditStageFlatten", () => {
         outputWidth: 1000,
         outputHeight: 1000,
       }).scale
-    ).toBe(4);
+    ).toBe(2);
     expect(
       resolveStageFlattenCameraTransform({
         camera: { scale: 0.1 },
         outputWidth: 1000,
         outputHeight: 1000,
       }).scale
-    ).toBe(0.5);
+    ).toBe(EXPERT_EDIT_CAMERA_SCALE_MIN);
   });
 
   it("normalizes canonical zoom and pan tuples into output-space camera offsets", () => {
-    const zoomLevels = [0.5, 1, 2, 4];
+    const zoomLevels = [EXPERT_EDIT_CAMERA_SCALE_MIN, 1, 2, 4];
     const panTuples = [
       { x: 0, y: 0 },
       { x: 37, y: -19 },
@@ -127,7 +128,7 @@ describe("expertEditStageFlatten", () => {
           outputWidth,
           outputHeight,
         });
-        expect(transform.scale).toBeCloseTo(zoom, 6);
+        expect(transform.scale).toBeCloseTo(Math.min(zoom, 2), 6);
         expect(transform.offsetX).toBeCloseTo((pan.x / viewportWidth) * outputWidth, 6);
         expect(transform.offsetY).toBeCloseTo((pan.y / viewportHeight) * outputHeight, 6);
       });

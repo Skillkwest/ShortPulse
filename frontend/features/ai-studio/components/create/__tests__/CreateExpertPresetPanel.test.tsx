@@ -271,6 +271,111 @@ describe("CreateExpertPresetPanel", () => {
     expect(onActivePresetIdChange).not.toHaveBeenCalled();
   });
 
+  it("does not activate a catalog Pulse when the rail is already full", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onSelectedPresetIdsChange = vi.fn().mockResolvedValue(true);
+
+    render(
+      <CreateExpertPresetPanel
+        selectedPresetIds={[
+          "image",
+          "multi_shot",
+          "story_builder",
+          "pulse_custom_1",
+          "pulse_custom_2",
+          "pulse_custom_3",
+          "pulse_custom_4",
+          "pulse_custom_5",
+          "pulse_custom_6",
+          "pulse_custom_7",
+        ]}
+        onSelectedPresetIdsChange={onSelectedPresetIdsChange}
+        savedPresets={[
+          {
+            presetId: "pulse_custom_1",
+            label: "Custom 1",
+            description: null,
+            systemInstructions: "One",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+          {
+            presetId: "pulse_custom_2",
+            label: "Custom 2",
+            description: null,
+            systemInstructions: "Two",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+          {
+            presetId: "pulse_custom_3",
+            label: "Custom 3",
+            description: null,
+            systemInstructions: "Three",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+          {
+            presetId: "pulse_custom_4",
+            label: "Custom 4",
+            description: null,
+            systemInstructions: "Four",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+          {
+            presetId: "pulse_custom_5",
+            label: "Custom 5",
+            description: null,
+            systemInstructions: "Five",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+          {
+            presetId: "pulse_custom_6",
+            label: "Custom 6",
+            description: null,
+            systemInstructions: "Six",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+          {
+            presetId: "pulse_custom_7",
+            label: "Custom 7",
+            description: null,
+            systemInstructions: "Seven",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+          {
+            presetId: "pulse_custom_8",
+            label: "Custom 8",
+            description: null,
+            systemInstructions: "Eight",
+            pulseKind: "custom_gpt",
+            createdAt: null,
+            schemaVersion: 2,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+        onActivePresetIdChange={onActivePresetIdChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "Custom 8" }));
+
+    expect(onActivePresetIdChange).not.toHaveBeenCalled();
+    expect(screen.getByText("Pulse preset panel is full (max 10).")).toBeInTheDocument();
+  });
+
   it("retries kickoff when the active pulse preset is clicked again", async () => {
     const onActivePresetIdChange = vi.fn(() => null);
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
@@ -430,6 +535,8 @@ describe("CreateExpertPresetPanel", () => {
   it("hides built-in ownership badges in the Pulse Catalog activation surface", () => {
     render(
       <CreateExpertPresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={vi.fn()}
         savedPresets={[
           {
             presetId: "custom_storyboard",
@@ -452,9 +559,11 @@ describe("CreateExpertPresetPanel", () => {
     expect(within(pulsesSurface).getByText("Custom")).toBeInTheDocument();
   });
 
-  it("groups custom Pulses and built-in guided workflows separately in the Pulse Catalog", () => {
+  it("renders custom and built-in Pulses inside one catalog grid", () => {
     render(
       <CreateExpertPresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={vi.fn()}
         savedPresets={[
           {
             presetId: "custom_storyboard",
@@ -473,8 +582,46 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
     const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
 
-    expect(within(pulsesSurface).getByText("Custom Pulses")).toBeInTheDocument();
-    expect(within(pulsesSurface).getByText("Built-in Guided Workflows")).toBeInTheDocument();
+    expect(within(pulsesSurface).queryByText("Custom Pulses")).not.toBeInTheDocument();
+    expect(within(pulsesSurface).queryByText("Built-in Guided Workflows")).not.toBeInTheDocument();
+    expect(
+      within(pulsesSurface).getByRole("list", { name: "Pulse catalog presets" })
+    ).toBeInTheDocument();
+    expect(within(pulsesSurface).getByRole("button", { name: "Storyboard" })).toBeInTheDocument();
+    expect(
+      within(pulsesSurface).getByRole("button", { name: "Multi Sequence Video Prompt" })
+    ).toBeInTheDocument();
+  });
+
+  it("hides built-in Pulses from the catalog when the user has removed them", () => {
+    render(
+      <CreateExpertPresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={vi.fn()}
+        savedPresets={[
+          {
+            presetId: "image",
+            label: "Video Prompt Magic",
+            description: "Guided single-shot video workflow from one reference image.",
+            systemInstructions: "Hidden built-in pulse.",
+            createdAt: null,
+            schemaVersion: 2,
+            isHidden: true,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Pulse Catalog" }));
+    const pulsesSurface = screen.getByRole("region", { name: "Pulse Catalog" });
+
+    expect(
+      within(pulsesSurface).queryByRole("button", { name: "Video Prompt Magic" })
+    ).not.toBeInTheDocument();
+    expect(
+      within(pulsesSurface).getByRole("button", { name: "Multi Sequence Video Prompt" })
+    ).toBeInTheDocument();
   });
 
   it("keeps the Pulse Catalog editor limited to name and system instructions", () => {

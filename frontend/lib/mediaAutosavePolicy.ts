@@ -24,6 +24,7 @@ export type AutoSaveEligibilityInput = {
   source: MediaAutosaveSource;
   mediaAutosaveEnabled: boolean;
   hasMedia: boolean;
+  hasDurableLibraryAuthority?: boolean;
   hasPromptOnlyText?: boolean;
   saveState?: "idle" | "saving" | "saved" | "failed" | null;
   savedMediaIds?: string[] | null;
@@ -42,7 +43,10 @@ export const canAutoSaveOutput = (input: AutoSaveEligibilityInput): AutoSaveDeci
   if (!input.mediaAutosaveEnabled) {
     return { allowed: false, reason: "autosave_disabled" };
   }
-  if (input.source === "library" && hasPersistedMediaIds(input.savedMediaIds)) {
+  if (
+    input.source === "library" &&
+    (hasPersistedMediaIds(input.savedMediaIds) || input.hasDurableLibraryAuthority)
+  ) {
     return { allowed: false, reason: "already_persisted_library" };
   }
   if (

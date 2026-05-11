@@ -141,11 +141,6 @@ export const CreatePulsePresetsSurface = ({
     if (!preset.isCustom) return false;
     return /^custom\s+\d+$/i.test(preset.label.trim());
   }, []);
-  const customPresets = React.useMemo(() => presets.filter((preset) => preset.isCustom), [presets]);
-  const builtInWorkflowPresets = React.useMemo(
-    () => presets.filter((preset) => preset.isBuiltIn),
-    [presets]
-  );
 
   const handleOpenPresetsLibrary = React.useCallback(() => {
     closeEditor();
@@ -211,9 +206,8 @@ export const CreatePulsePresetsSurface = ({
         <div className="create-expert-presets-surface-title-group">
           <h3 className="create-expert-presets-surface-title">Pulse Catalog</h3>
           <p className="create-expert-presets-surface-subtitle">
-            Custom Pulses are saved system instructions. Built-ins remain guided workflows. Click to
-            activate and pin a Pulse. Drag to pin without switching. Switching or deactivating
-            starts a fresh Pulse session.
+            Custom and built-in Pulses share the same grid. Click to activate and pin a Pulse. Drag
+            to pin without switching. Switching or deactivating starts a fresh Pulse session.
           </p>
         </div>
         <div className="create-expert-presets-surface-actions">
@@ -235,14 +229,13 @@ export const CreatePulsePresetsSurface = ({
         </div>
       </div>
       <div className="create-expert-presets-surface-scroll">
-        <section aria-label="Custom Pulses">
-          <p className="eyebrow">Custom Pulses</p>
+        <section aria-label="Pulse Catalog presets">
           <div
             className="create-expert-presets-chip-grid"
             role="list"
-            aria-label="Custom pulse presets"
+            aria-label="Pulse catalog presets"
           >
-            {customPresets.map((preset) => (
+            {presets.map((preset) => (
               <div
                 key={preset.presetId}
                 role="listitem"
@@ -267,9 +260,11 @@ export const CreatePulsePresetsSurface = ({
                 >
                   <span className="create-expert-presets-chip-label">{preset.label}</span>
                   <span className="create-expert-presets-chip-meta" aria-hidden="true">
-                    <span className="create-expert-presets-chip-badge create-expert-presets-chip-badge--ownership is-custom">
-                      Custom
-                    </span>
+                    {preset.isCustom ? (
+                      <span className="create-expert-presets-chip-badge create-expert-presets-chip-badge--ownership is-custom">
+                        Custom
+                      </span>
+                    ) : null}
                     {activePresetId === preset.presetId ? (
                       <span className="create-expert-presets-chip-badge is-active">Active</span>
                     ) : null}
@@ -292,48 +287,6 @@ export const CreatePulsePresetsSurface = ({
                     <PencilSimpleLine size={14} weight="regular" />
                   </button>
                 ) : null}
-              </div>
-            ))}
-          </div>
-        </section>
-        <section aria-label="Built-in Guided Workflows">
-          <p className="eyebrow">Built-in Guided Workflows</p>
-          <div
-            className="create-expert-presets-chip-grid"
-            role="list"
-            aria-label="Built-in guided workflow presets"
-          >
-            {builtInWorkflowPresets.map((preset) => (
-              <div
-                key={preset.presetId}
-                role="listitem"
-                className={`create-expert-presets-chip-item ${
-                  activePresetId === preset.presetId ? "is-active" : ""
-                } ${selectedPresetIds.includes(preset.presetId) ? "is-pinned" : ""}`.trim()}
-              >
-                <button
-                  type="button"
-                  draggable
-                  className="create-expert-presets-chip"
-                  aria-pressed={activePresetId === preset.presetId}
-                  aria-disabled={isActivationBusy}
-                  onClick={() => {
-                    if (isActivationBusy) return;
-                    onPresetSelect?.(preset.presetId);
-                  }}
-                  onDragStart={(event) => onPresetDragStart?.(event, preset.presetId)}
-                  onDragEnd={onPresetDragEnd}
-                >
-                  <span className="create-expert-presets-chip-label">{preset.label}</span>
-                  <span className="create-expert-presets-chip-meta" aria-hidden="true">
-                    {activePresetId === preset.presetId ? (
-                      <span className="create-expert-presets-chip-badge is-active">Active</span>
-                    ) : null}
-                    {selectedPresetIds.includes(preset.presetId) ? (
-                      <span className="create-expert-presets-chip-badge">Pinned</span>
-                    ) : null}
-                  </span>
-                </button>
               </div>
             ))}
           </div>

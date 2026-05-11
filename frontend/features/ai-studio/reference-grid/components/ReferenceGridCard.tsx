@@ -27,6 +27,7 @@ export type ReferenceGridCardProps = {
   authorityTier: ReferenceGridMediaAuthorityTier;
   dragSourceSurface: ReferenceDragSourceSurface;
   videoNodeKey: string;
+  audioInstanceKey?: string;
   activeOutputId: string | null;
   isLoading: boolean;
   loadingVisual: "none" | "spinner" | "hydrating";
@@ -61,6 +62,9 @@ export type ReferenceGridCardProps = {
   markLoaded: (id: string, options?: { notifyAutoSave?: boolean }) => void;
   onAutoplayStarted: (id: string) => void;
   onAutoplayStopped: (id: string) => void;
+  onRequestAudioPlay?: (player: { instanceKey: string; pause: () => void }) => void;
+  onAudioPlaybackStarted?: (player: { instanceKey: string; pause: () => void }) => void;
+  onAudioPlaybackStopped?: (instanceKey: string) => void;
   onRetryStatus?: (output: StudioOutput) => void;
   onRerollOutput?: (output: StudioOutput) => void;
   onDeleteOutput?: (id: string) => void;
@@ -103,6 +107,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   authorityTier,
   dragSourceSurface,
   videoNodeKey,
+  audioInstanceKey,
   activeOutputId,
   isLoading,
   loadingVisual,
@@ -133,6 +138,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   markLoaded,
   onAutoplayStarted,
   onAutoplayStopped,
+  onRequestAudioPlay,
+  onAudioPlaybackStarted,
+  onAudioPlaybackStopped,
   onRetryStatus,
   onRerollOutput,
   onDeleteOutput,
@@ -370,6 +378,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         <ReferenceAudioPlayer
           audioId={item.id}
           audioUrl={audioPreviewUrl}
+          audioInstanceKey={audioInstanceKey}
           durationMs={item.durationMs ?? null}
           waveformPeaks={item.waveformPeaks ?? null}
           playLabel="Play audio preview"
@@ -378,6 +387,9 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           onReady={() => markLoaded(item.id)}
           onError={() => markLoaded(item.id, { notifyAutoSave: false })}
           eagerWaveformDecode
+          onRequestPlay={onRequestAudioPlay}
+          onPlaybackStarted={onAudioPlaybackStarted}
+          onPlaybackStopped={onAudioPlaybackStopped}
         />
       ) : null}
       {isFailing ? (

@@ -264,4 +264,55 @@ describe("useAiStudioProjectWorkspaceRestoreHydration", () => {
     expect(onProjectBootstrapSettled).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  it("reapplies hydration for the same project when a newer snapshot arrives", async () => {
+    vi.useFakeTimers();
+    const firstSnapshot = createSnapshot();
+    const secondSnapshot = {
+      ...createSnapshot(),
+      updatedAt: "2026-04-24T17:05:00.000Z",
+    } as AiStudioSessionSnapshot;
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const onProjectBootstrapSettled = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ snapshot }: { snapshot: AiStudioSessionSnapshot | null }) =>
+        useAiStudioProjectWorkspaceRestoreHydration({
+          projectId: "project-1",
+          projectWorkspaceRestoreCandidate: {
+            status: "ready",
+            result: snapshot ? "found_snapshot" : "no_snapshot",
+            snapshot,
+            source: "project",
+            error: null,
+            retry: vi.fn(),
+          },
+          hydrateFromSessionSnapshot,
+          onProjectBootstrapSettled,
+        }),
+      {
+        initialProps: {
+          snapshot: firstSnapshot,
+        },
+      }
+    );
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(hydrateFromSessionSnapshot).toHaveBeenCalledTimes(1);
+    expect(hydrateFromSessionSnapshot).toHaveBeenLastCalledWith(firstSnapshot);
+
+    rerender({
+      snapshot: secondSnapshot,
+    });
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    expect(hydrateFromSessionSnapshot).toHaveBeenCalledTimes(2);
+    expect(hydrateFromSessionSnapshot).toHaveBeenLastCalledWith(secondSnapshot);
+    expect(onProjectBootstrapSettled).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
 });

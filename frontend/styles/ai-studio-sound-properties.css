@@ -106,6 +106,10 @@
   min-height: 0;
 }
 
+.sound-properties-shell--landing {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .sound-properties-main,
 .sound-properties-aside {
   display: flex;
@@ -127,6 +131,96 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.03),
     0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.sound-properties-landing-card {
+  gap: 18px;
+}
+
+.sound-properties-landing-copy {
+  max-width: 56ch;
+}
+
+.sound-properties-landing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sound-properties-workflow-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(18, 23, 30, 0.98), rgba(12, 16, 22, 0.96)),
+    rgba(201, 205, 214, 0.02);
+  color: #f3f8ff;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.sound-properties-workflow-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(105, 220, 203, 0.26);
+  background:
+    linear-gradient(180deg, rgba(20, 27, 35, 0.99), rgba(13, 19, 25, 0.97)),
+    rgba(105, 220, 203, 0.02);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.22);
+}
+
+.sound-properties-workflow-card:focus-visible {
+  outline: 1px solid rgba(201, 205, 214, 0.62);
+  outline-offset: 2px;
+}
+
+.sound-properties-workflow-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid rgba(105, 220, 203, 0.18);
+  background: rgba(105, 220, 203, 0.08);
+  color: rgba(225, 255, 250, 0.95);
+}
+
+.sound-properties-workflow-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sound-properties-workflow-kicker {
+  color: rgba(201, 205, 214, 0.56);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sound-properties-workflow-title {
+  color: #f3f8ff;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.sound-properties-workflow-summary {
+  color: rgba(221, 228, 235, 0.78);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .sound-properties-card-heading-row {
@@ -434,6 +528,10 @@
 
   .sound-properties-overview-card {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sound-properties-landing-grid {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -91,6 +91,17 @@ const INITIAL_SIGN_BUDGET_BY_TAB_FOR_MODAL: Partial<Record<MediaQueryDataTab, nu
   private: 10,
 };
 
+const shouldSeedInitialSignedUrls = ({
+  surface,
+  countOnly,
+}: {
+  surface: MediaListSurface;
+  countOnly: boolean;
+}): boolean => {
+  if (countOnly) return false;
+  return surface !== "media-library-panel";
+};
+
 const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean => {
   const normalized = value?.trim().toLowerCase();
   if (normalized === "true") return true;
@@ -178,6 +189,7 @@ const toProfile = (value: unknown): MediaListProfile | null => {
 };
 
 const toIncludeLibraryTotalCount = (value: unknown): boolean => value === true;
+const toCountOnly = (value: unknown): boolean => value === true;
 
 const withMediaKindFilter = <
   T extends {
@@ -483,6 +495,7 @@ export default async function handler(
     const includeLibraryTotalCount = toIncludeLibraryTotalCount(
       requestBody.includeLibraryTotalCount
     );
+    const countOnly = toCountOnly(requestBody.countOnly);
     const cursor = toCursor(requestBody.cursor);
     const limit = clampLimit(surface, requestBody.limit);
     try {
@@ -541,67 +554,76 @@ export default async function handler(
         .order("id", { ascending: false });
     };
 
-    const fetchedRows: MediaListRow[] = [];
-    if (!cursor) {
-      const firstPageResponse = await buildBaseQuery().limit(limit);
-      if (firstPageResponse.error) {
-        return res.status(500).json({
-          error: "Failed to list media",
-          details: firstPageResponse.error.message,
-        });
-      }
-      fetchedRows.push(
-        ...stripFolderMembershipRows(
-          (firstPageResponse.data ?? []) as unknown as FolderScopedMediaListRow[],
-          folderScoped
-        )
-      );
-    } else {
-      const sameTimestampResponse = await buildBaseQuery()
-        .eq("created_at", cursor.createdAt)
-        .lt("id", cursor.id)
-        .limit(limit);
-      if (sameTimestampResponse.error) {
-        return res.status(500).json({
-          error: "Failed to list media",
-          details: sameTimestampResponse.error.message,
-        });
-      }
-      const sameTimestampRows = stripFolderMembershipRows(
-        (sameTimestampResponse.data ?? []) as unknown as FolderScopedMediaListRow[],
-        folderScoped
-      );
-      fetchedRows.push(...sameTimestampRows);
+    let rows: MediaListRow[] = [];
+    let nextCursor: MediaListCursor | null = null;
+    let hasMore = false;
+    let signedById: Record<string, string | null> = {};
 
-      const remaining = limit - sameTimestampRows.length;
-      if (remaining > 0) {
-        const olderRowsResponse = await buildBaseQuery()
-          .lt("created_at", cursor.createdAt)
-          .limit(remaining);
-        if (olderRowsResponse.error) {
+    if (!countOnly) {
+      const fetchedRows: MediaListRow[] = [];
+      if (!cursor) {
+        const firstPageResponse = await buildBaseQuery().limit(limit);
+        if (firstPageResponse.error) {
           return res.status(500).json({
             error: "Failed to list media",
-            details: olderRowsResponse.error.message,
+            details: firstPageResponse.error.message,
           });
         }
         fetchedRows.push(
           ...stripFolderMembershipRows(
-            (olderRowsResponse.data ?? []) as unknown as FolderScopedMediaListRow[],
+            (firstPageResponse.data ?? []) as unknown as FolderScopedMediaListRow[],
             folderScoped
           )
         );
+      } else {
+        const sameTimestampResponse = await buildBaseQuery()
+          .eq("created_at", cursor.createdAt)
+          .lt("id", cursor.id)
+          .limit(limit);
+        if (sameTimestampResponse.error) {
+          return res.status(500).json({
+            error: "Failed to list media",
+            details: sameTimestampResponse.error.message,
+          });
+        }
+        const sameTimestampRows = stripFolderMembershipRows(
+          (sameTimestampResponse.data ?? []) as unknown as FolderScopedMediaListRow[],
+          folderScoped
+        );
+        fetchedRows.push(...sameTimestampRows);
+
+        const remaining = limit - sameTimestampRows.length;
+        if (remaining > 0) {
+          const olderRowsResponse = await buildBaseQuery()
+            .lt("created_at", cursor.createdAt)
+            .limit(remaining);
+          if (olderRowsResponse.error) {
+            return res.status(500).json({
+              error: "Failed to list media",
+              details: olderRowsResponse.error.message,
+            });
+          }
+          fetchedRows.push(
+            ...stripFolderMembershipRows(
+              (olderRowsResponse.data ?? []) as unknown as FolderScopedMediaListRow[],
+              folderScoped
+            )
+          );
+        }
+      }
+
+      rows = mergeUniqueRows(fetchedRows, limit);
+      nextCursor = buildCursor(rows);
+      hasMore = rows.length === limit && Boolean(nextCursor);
+      if (shouldSeedInitialSignedUrls({ surface, countOnly })) {
+        signedById = await resolveInitialSignedById({
+          rows,
+          userId: user.id,
+          surface,
+          tab,
+        });
       }
     }
-
-    const rows = mergeUniqueRows(fetchedRows, limit);
-    const nextCursor = buildCursor(rows);
-    const hasMore = rows.length === limit && Boolean(nextCursor);
-    const signedById = await resolveInitialSignedById({
-      rows,
-      userId: user.id,
-      surface,
-      tab,
-    });
     const libraryTotalCount = includeLibraryTotalCount
       ? await resolveLibraryTotalCount({
           userId: user.id,
@@ -615,6 +637,7 @@ export default async function handler(
     res.setHeader("x-shortpulse-media-list-profile", profile);
     res.setHeader("x-shortpulse-media-list-row-count", String(rows.length));
     res.setHeader("x-shortpulse-media-list-query-mode", query ? "search" : "default");
+    res.setHeader("x-shortpulse-media-list-count-only", countOnly ? "true" : "false");
     res.setHeader(
       "x-shortpulse-media-list-character-scope-exclusion",
       characterScopeExclusionEnabled ? "on" : "off"

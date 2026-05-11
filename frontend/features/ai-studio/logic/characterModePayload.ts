@@ -88,24 +88,6 @@ export const resolveCharacterSheetLookReferenceStoragePaths = (
 };
 
 /**
- * Backward-compatible alias for active character-look image URLs.
- * Preserved so older Character Mode consumers continue to build while the
- * runtime terminology settles on "look" instead of "preset".
- */
-export const resolveCharacterSheetPresetReferenceUrls = (
-  assignments: CharacterSheetPresetAssignments
-): string[] => resolveCharacterSheetLookReferenceUrls(assignments);
-
-/**
- * Backward-compatible alias for active character-look storage paths.
- * Preserved so older Character Mode consumers continue to build while the
- * runtime terminology settles on "look" instead of "preset".
- */
-export const resolveCharacterSheetPresetReferenceStoragePaths = (
-  assignments: CharacterSheetPresetAssignments
-): string[] => resolveCharacterSheetLookReferenceStoragePaths(assignments);
-
-/**
  * Builds the provider-facing prompt with hidden character context first.
  */
 export const composeCharacterModePrompt = ({

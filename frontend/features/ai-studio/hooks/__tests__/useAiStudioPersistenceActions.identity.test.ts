@@ -295,4 +295,60 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     });
     expect(outputs.get("out-1")?.saveState).toBe("saved");
   });
+
+  it("keeps raw library-save failures in save state while sanitizing the banner", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mediaSource: "upload",
+          generationId: undefined,
+          taskId: undefined,
+          previewUrl: "https://cdn.shortpulse.test/restored-ref.png",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    const setUiError = vi.fn();
+    saveMediaUrlToLibraryMock.mockRejectedValue(new Error("Signed URL expired."));
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    let persistResult: Awaited<ReturnType<typeof result.current.persistOutputSave>> | null = null;
+    await act(async () => {
+      persistResult = await result.current.persistOutputSave("out-1");
+    });
+
+    expect(persistResult).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: "Signed URL expired.",
+      })
+    );
+    expect(setUiError).toHaveBeenCalledWith(
+      "Unable to save media to the library right now. Please try again."
+    );
+    expect(outputs.get("out-1")).toEqual(
+      expect.objectContaining({
+        saveState: "failed",
+        saveError: "Signed URL expired.",
+      })
+    );
+  });
 });

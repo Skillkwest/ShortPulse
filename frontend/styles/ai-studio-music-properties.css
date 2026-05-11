@@ -478,6 +478,20 @@
   gap: 12px;
 }
 
+.music-properties-script-actions-right {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-self: end;
+  gap: 8px;
+}
+
+.music-properties-script-actions-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .music-properties-script-meta {
   display: flex;
   flex-direction: column;
@@ -490,6 +504,118 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 14px;
+}
+
+.music-properties-footer-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.music-properties-footer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(242, 247, 255, 0.9);
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.music-properties-footer-pill:hover {
+  border-color: rgba(201, 205, 214, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.music-properties-footer-pill--static {
+  cursor: default;
+}
+
+.music-properties-footer-pill--static:hover {
+  border-color: rgba(201, 205, 214, 0.12);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.music-properties-footer-pill:focus-visible {
+  outline: 1px solid rgba(201, 205, 214, 0.62);
+  outline-offset: 2px;
+}
+
+.music-properties-footer-pill--dropdown[aria-expanded="true"] {
+  border-color: rgba(144, 212, 255, 0.26);
+  background: rgba(144, 212, 255, 0.08);
+}
+
+.music-properties-footer-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: rgba(242, 247, 255, 0.76);
+}
+
+.music-properties-footer-pill-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.music-properties-footer-pill-value {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.music-properties-footer-dropdown-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  min-width: 152px;
+  padding: 8px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  border-radius: 14px;
+  background: rgba(18, 22, 27, 0.98);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+}
+
+.music-properties-footer-dropdown-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(242, 247, 255, 0.88);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.music-properties-footer-dropdown-option:hover,
+.music-properties-footer-dropdown-option.is-active {
+  background: rgba(144, 212, 255, 0.1);
+  color: rgba(245, 250, 255, 0.96);
 }
 
 .music-properties-singer-switch {
@@ -672,6 +798,16 @@
 
   .music-properties-script-actions {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .music-properties-script-actions-right {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .music-properties-script-actions-top {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .music-properties-generate-btn {

@@ -56,6 +56,49 @@ describe("exportExpertEditStageArtifacts", () => {
     expect(exportSelectedLayerMaskBlob).not.toHaveBeenCalled();
   });
 
+  it("disables durable source reuse when the visible stage framing changed", async () => {
+    const exportSelectedLayerMaskBlob = vi.fn(async () => null);
+    const resolveBlobDimensions = vi.fn(async () => ({ width: 1024, height: 1024 }));
+
+    const result = await exportExpertEditStageArtifacts({
+      layers: [{ id: "layer-1" } as never],
+      reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+      markupStrokes: [],
+      editSubmitIntent: "standard",
+      hasSelectedLayerMask: false,
+      exportSelectedLayerMaskBlob,
+      resolveBlobDimensions,
+      resolveStageFlattenSnapshot: vi.fn(() => ({
+        outputAspectRatio: 1,
+        canReusePrimarySourceUrl: false,
+        camera: {
+          scale: 1.4,
+          offsetX: 60,
+          offsetY: -20,
+          viewportWidth: 400,
+          viewportHeight: 400,
+        },
+      })),
+    });
+
+    expect(result.reusablePrimarySourceUrl).toBeNull();
+    expect(result.flattenedBlob).toBeInstanceOf(Blob);
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledWith(
+      [{ id: "layer-1" }],
+      expect.objectContaining({
+        mimeType: "image/png",
+        outputAspectRatio: 1,
+        camera: {
+          scale: 1.4,
+          offsetX: 60,
+          offsetY: -20,
+          viewportWidth: 400,
+          viewportHeight: 400,
+        },
+      })
+    );
+  });
+
   it("exports flattened and markup reference blobs for markup mode", async () => {
     const resolveBlobDimensions = vi.fn(async () => ({ width: 1024, height: 1024 }));
 
@@ -67,7 +110,16 @@ describe("exportExpertEditStageArtifacts", () => {
       hasSelectedLayerMask: false,
       exportSelectedLayerMaskBlob: vi.fn(async () => null),
       resolveBlobDimensions,
-      resolveStageFlattenSnapshot: vi.fn(() => ({ outputAspectRatio: 1.5 })),
+      resolveStageFlattenSnapshot: vi.fn(() => ({
+        outputAspectRatio: 1.5,
+        camera: {
+          scale: 1.2,
+          offsetX: 32,
+          offsetY: -18,
+          viewportWidth: 640,
+          viewportHeight: 480,
+        },
+      })),
     });
 
     expect(result.reusablePrimarySourceUrl).toBeNull();
@@ -79,6 +131,13 @@ describe("exportExpertEditStageArtifacts", () => {
       expect.objectContaining({
         mimeType: "image/png",
         outputAspectRatio: 1.5,
+        camera: {
+          scale: 1.2,
+          offsetX: 32,
+          offsetY: -18,
+          viewportWidth: 640,
+          viewportHeight: 480,
+        },
       })
     );
     expect(composeFlattenedMarkupReferenceBlobMock).toHaveBeenCalledWith(
@@ -104,7 +163,16 @@ describe("exportExpertEditStageArtifacts", () => {
       hasSelectedLayerMask: true,
       exportSelectedLayerMaskBlob,
       resolveBlobDimensions,
-      resolveStageFlattenSnapshot: vi.fn(() => ({ outputAspectRatio: 1 })),
+      resolveStageFlattenSnapshot: vi.fn(() => ({
+        outputAspectRatio: 1,
+        camera: {
+          scale: 1.6,
+          offsetX: 24,
+          offsetY: -12,
+          viewportWidth: 320,
+          viewportHeight: 256,
+        },
+      })),
     });
 
     expect(result.reusablePrimarySourceUrl).toBeNull();
@@ -114,6 +182,13 @@ describe("exportExpertEditStageArtifacts", () => {
       targetWidth: 640,
       targetHeight: 512,
       mimeType: "image/png",
+      camera: {
+        scale: 1.6,
+        offsetX: 24,
+        offsetY: -12,
+        viewportWidth: 320,
+        viewportHeight: 256,
+      },
     });
   });
 });

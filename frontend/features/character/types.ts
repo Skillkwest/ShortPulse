@@ -32,9 +32,9 @@ export type CharacterPose = {
 
 export type CharacterEngine = "fal-edge" | "local-webgpu";
 
-export type CharacterModelId =
-  | "fal-ai/bytedance/seedream/v4.5/text-to-image"
-  | "fal-ai/bytedance/seedream/v4.5/edit";
+// Character model choices are runtime-configured from the shared model catalog.
+// Keep the workflow type broad and let the catalog/default selectors own the concrete ids.
+export type CharacterModelId = string;
 
 export type CharacterGenerationMode = "portrait" | "full-body";
 

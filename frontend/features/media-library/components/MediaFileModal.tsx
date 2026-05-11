@@ -3,8 +3,10 @@
  * Renders preview, rename, move, and destructive actions while delegating behavior to injected handlers.
  */
 import { CaretDown, CheckCircle } from "phosphor-react";
+import { useRef } from "react";
 import { useGuardedBackdropDismiss } from "../../../components/useGuardedBackdropDismiss";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
+import { useExclusiveSoundMediaElement } from "../../ai-studio/components/shared/exclusiveSoundPlayback";
 import type {
   CSSProperties,
   Dispatch,
@@ -129,6 +131,11 @@ export function MediaFileModal<TRow extends MediaFileModalRow>({
     },
   });
   const backdropDismiss = useGuardedBackdropDismiss<HTMLDivElement>(closeModal);
+  const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
+  const videoPlayback = useExclusiveSoundMediaElement(
+    `media-library-file-modal-video:${focusedFile.id}`,
+    videoPreviewRef
+  );
 
   return (
     <div className="media-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -150,13 +157,21 @@ export function MediaFileModal<TRow extends MediaFileModalRow>({
               isVideoFile(focusedFile.file_type) ? (
                 <video
                   src={focusedFile.signedUrl}
+                  ref={videoPreviewRef}
                   controls
                   onLoadedMetadata={(event) => {
                     const video = event.currentTarget;
                     if (!video.videoWidth || !video.videoHeight) return;
                     cacheAspectRatio(focusedFile.id, video.videoWidth / video.videoHeight);
                   }}
-                  onError={() => handleMediaPreviewError(focusedFile)}
+                  onPlay={videoPlayback.handlePlay}
+                  onPause={videoPlayback.handlePause}
+                  onEnded={videoPlayback.handleEnded}
+                  onError={() => {
+                    videoPlayback.handleError();
+                    handleMediaPreviewError(focusedFile);
+                  }}
+                  onVolumeChange={videoPlayback.handleVolumeChange}
                 />
               ) : (
                 <>

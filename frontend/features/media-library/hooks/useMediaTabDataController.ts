@@ -37,6 +37,80 @@ import {
 
 const LOAD_MORE_NO_PROGRESS_CLAMP_THRESHOLD = 2;
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (value == null || typeof value !== "object") return false;
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const areRowValuesEqual = (left: unknown, right: unknown): boolean => {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    if (left.length !== right.length) return false;
+    for (let index = 0; index < left.length; index += 1) {
+      if (!areRowValuesEqual(left[index], right[index])) return false;
+    }
+    return true;
+  }
+  if (isPlainObject(left) && isPlainObject(right)) {
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    if (leftKeys.length !== rightKeys.length) return false;
+    for (const key of leftKeys) {
+      if (!Object.prototype.hasOwnProperty.call(right, key)) return false;
+      if (!areRowValuesEqual(left[key], right[key])) return false;
+    }
+    return true;
+  }
+  return false;
+};
+
+const areOrderedMediaRowsEqual = <TRow extends Record<string, unknown>>(
+  left: readonly TRow[],
+  right: readonly TRow[]
+) => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (!areRowValuesEqual(left[index], right[index])) return false;
+  }
+  return true;
+};
+
+const arePromptRowsEqual = <
+  TPrompt extends {
+    id: string;
+    title: string | null;
+    prompt_text: string;
+    mode?: string | null;
+    source?: string | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+  },
+>(
+  left: readonly TPrompt[],
+  right: readonly TPrompt[]
+) => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    const leftRow = left[index];
+    const rightRow = right[index];
+    if (
+      leftRow.id !== rightRow.id ||
+      leftRow.title !== rightRow.title ||
+      leftRow.prompt_text !== rightRow.prompt_text ||
+      (leftRow.mode ?? null) !== (rightRow.mode ?? null) ||
+      (leftRow.source ?? null) !== (rightRow.source ?? null) ||
+      (leftRow.created_at ?? null) !== (rightRow.created_at ?? null) ||
+      (leftRow.updated_at ?? null) !== (rightRow.updated_at ?? null)
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
 type TabDataMediaRowBase = {
   id: string;
   filename: string;
@@ -150,15 +224,21 @@ export const useMediaTabDataController = <
   const syncActiveMediaCacheRows = useCallback(
     (rows: TRow[]) => {
       if (!activeMediaTab) return;
-      setMediaTabCache((prev) => ({
-        ...prev,
-        [activeMediaTab]: {
-          ...prev[activeMediaTab],
-          rows,
-          loadedAtMs: Date.now(),
-          loaded: true,
-        },
-      }));
+      setMediaTabCache((prev) => {
+        const currentTabCache = prev[activeMediaTab];
+        if (areOrderedMediaRowsEqual(currentTabCache.rows, rows)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [activeMediaTab]: {
+            ...currentTabCache,
+            rows,
+            loadedAtMs: Date.now(),
+            loaded: true,
+          },
+        };
+      });
     },
     [activeMediaTab, setMediaTabCache]
   );
@@ -167,6 +247,9 @@ export const useMediaTabDataController = <
     (updater: (prev: TRow[]) => TRow[]) => {
       setFiles((prev) => {
         const next = updater(prev);
+        if (areOrderedMediaRowsEqual(prev, next)) {
+          return prev;
+        }
         syncActiveMediaCacheRows(next);
         return next;
       });
@@ -323,15 +406,19 @@ export const useMediaTabDataController = <
           const previewStoragePath = resolveMediaPreviewStoragePath(row, userId);
           const cachedRow = existingById.get(row.id);
           const signedFromApi = apiSignedById.get(row.id);
-          return {
+          const nextRow = {
             ...row,
             source: row.source ?? "upload",
             preview_storage_path: previewStoragePath,
             signedUrl: cachedRow?.signedUrl ?? signedFromApi,
           } as TRow;
+          return cachedRow && areRowValuesEqual(cachedRow, nextRow) ? cachedRow : nextRow;
         });
 
         const nextRows = shouldReset ? normalizedRows : mergePageRows(cache.rows, normalizedRows);
+        const stableNextRows = areOrderedMediaRowsEqual(cache.rows, nextRows)
+          ? cache.rows
+          : nextRows;
         const noProgressState = tabNoProgressStateRef.current[tab];
         const isLoadMore = options?.reason === "load_more";
         if (!isLoadMore || shouldReset || noProgressState.query !== normalizedQuery) {
@@ -339,7 +426,7 @@ export const useMediaTabDataController = <
           noProgressState.streak = 0;
         }
         if (isLoadMore) {
-          const netNewCount = Math.max(0, nextRows.length - cache.rows.length);
+          const netNewCount = Math.max(0, stableNextRows.length - cache.rows.length);
           noProgressState.streak = netNewCount > 0 ? 0 : noProgressState.streak + 1;
         }
         const noProgressClampActive =
@@ -349,7 +436,7 @@ export const useMediaTabDataController = <
           ...prev,
           [tab]: {
             ...prev[tab],
-            rows: nextRows,
+            rows: stableNextRows,
             nextCursor: hasMoreAfterClamp && derivedCursor ? derivedCursor : null,
             pagesLoaded: pageToLoad + 1,
             query: normalizedQuery,
@@ -361,7 +448,9 @@ export const useMediaTabDataController = <
           },
         }));
         if (activeTabRef.current === tab) {
-          setFiles(nextRows);
+          setFiles((prev) =>
+            areOrderedMediaRowsEqual(prev, stableNextRows) ? prev : stableNextRows
+          );
           setLoading(false);
         }
       } catch (err: unknown) {
@@ -429,7 +518,8 @@ export const useMediaTabDataController = <
         .select("id, title, prompt_text, mode, source, created_at, updated_at");
       const promptResponse = await withUserScopedPromptQuery(promptQuery, userId);
       if (promptResponse.error) throw promptResponse.error;
-      setPrompts((promptResponse.data ?? []) as TPrompt[]);
+      const nextPrompts = (promptResponse.data ?? []) as TPrompt[];
+      setPrompts((prev) => (arePromptRowsEqual(prev, nextPrompts) ? prev : nextPrompts));
       setPromptsLoaded(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to load prompts");
@@ -492,13 +582,13 @@ export const useMediaTabDataController = <
   ]);
 
   useMediaTabActiveViewSync({
+    activeMediaCache,
     activeMediaQuery,
     activeTab,
     cacheTtlMs,
     fetchEnabled,
     fetchMediaTabPage,
     loadPrompts,
-    mediaTabCache,
     promptsLoaded,
     setError,
     setFiles,

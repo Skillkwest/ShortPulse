@@ -111,11 +111,12 @@ export const useExpertEditStageViewport = ({
     (currentTarget?: HTMLDivElement | null): DOMRect | null => {
       return resolveInlineStageRectFromRefs({
         inlineStageWrapperRef,
+        primaryCanvasFrameStackRef,
         primaryCompositionSurfaceRef,
         currentTarget,
       });
     },
-    [inlineStageWrapperRef, primaryCompositionSurfaceRef]
+    [inlineStageWrapperRef, primaryCanvasFrameStackRef, primaryCompositionSurfaceRef]
   );
 
   const resolveInteractionViewportOffsetPixels = React.useCallback(
@@ -123,6 +124,7 @@ export const useExpertEditStageViewport = ({
       return resolveInteractionViewportOffsetPixelsFromRefs({
         refs: {
           inlineStageWrapperRef,
+          primaryCanvasFrameStackRef,
           primaryCompositionSurfaceRef,
           markupModalStageRef,
         },
@@ -138,6 +140,7 @@ export const useExpertEditStageViewport = ({
       hasPrimaryCompositePreview,
       inlineStageWrapperRef,
       inlineStageViewportSize,
+      primaryCanvasFrameStackRef,
       markupModalStageRef,
       markupModalViewportSize,
       markupViewport,

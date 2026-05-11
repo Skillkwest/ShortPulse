@@ -291,6 +291,66 @@ describe("useExpertEditInlineGenerate", () => {
     });
   });
 
+  it("uses the flattened export artifact when visible reframing disables source reuse", async () => {
+    const flattenedBlob = new Blob(["flattened"], { type: "image/png" });
+    const onRegenerateWithReferenceInputs = vi.fn(async () => undefined);
+
+    exportExpertEditStageArtifactsMock.mockResolvedValue({
+      flattenedBlob,
+      flattenedMarkupReferenceBlob: null,
+      inpaintMaskBlob: null,
+      reusablePrimarySourceUrl: null,
+    });
+    createExpertEditSubmissionObjectUrlsMock.mockReturnValue({
+      flattenedUrl: "blob:flattened-primary",
+      flattenedMarkupReferenceUrl: null,
+      inpaintMaskUrl: null,
+    });
+    prepareExpertEditSubmissionMock.mockReturnValue({
+      status: "ready",
+      referenceInputs: ["blob:flattened-primary"],
+      linkedSecondaryReferenceInputs: [],
+      promptOverrideOptions: {
+        displayPromptOverride: "Refine the outfit",
+        submissionPromptOverride: "Refine the outfit",
+      },
+    });
+    resolveExpertEditSubmissionDispatchMock.mockReturnValue({
+      status: "ready",
+      referenceInputs: ["blob:flattened-primary"],
+      options: {
+        referenceInputsMode: "replace",
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useExpertEditInlineGenerate(
+        createArgs({
+          onRegenerateWithReferenceInputs,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleInlineGenerate();
+    });
+
+    await waitFor(() => {
+      expect(prepareExpertEditSubmissionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          flattenedPrimaryUrl: "blob:flattened-primary",
+        })
+      );
+    });
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledWith(
+      ["blob:flattened-primary"],
+      expect.objectContaining({
+        outputIdOverride: "out-optimistic",
+        referenceInputsMode: "replace",
+      })
+    );
+  });
+
   it("passes markup submit intent into Expert Edit submission preparation", async () => {
     const { result } = renderHook(() =>
       useExpertEditInlineGenerate(

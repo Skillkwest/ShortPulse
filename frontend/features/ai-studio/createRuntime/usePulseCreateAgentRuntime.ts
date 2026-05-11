@@ -38,6 +38,7 @@ import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHy
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import { resolvePulseWorkflowArtifactPrompt } from "../hooks/createAgentRuntime/pulseRuntimeState";
 import type { PulseCreatePageAgentRuntime } from "./contracts";
+import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 
 type PulseCreateAgentContextResolver = (params: {
   lastAssistantMessage: string | null;
@@ -62,6 +63,7 @@ type UsePulseCreateAgentRuntimeParams = {
   setPulseCreatePrompt: (value: string) => void;
   findOutputById: (id: string) => StudioOutput | null;
   resolvePanelOutputPreviewUrl: (id: string | null | undefined) => string | null;
+  resolveInternalImageDropSource?: ResolveInternalReferenceDrop;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
 };
@@ -89,8 +91,14 @@ const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgen
     id: attachment.id,
     kind: attachment.kind,
     referenceId: attachment.referenceId ?? null,
+    mediaId: attachment.mediaId ?? null,
     text: attachment.text ?? null,
+    previewStoragePath: attachment.previewStoragePath ?? null,
+    fullStoragePath: attachment.fullStoragePath ?? null,
+    referenceUrl: attachment.referenceUrl ?? null,
+    referenceRenderUrl: attachment.referenceRenderUrl ?? null,
     imageUrl: attachment.imageUrl ?? null,
+    imageFallbackUrls: attachment.imageFallbackUrls,
     aspect: attachment.aspect ?? null,
     deliveryStatus: attachment.deliveryStatus,
     deliveryError: attachment.deliveryError ?? null,
@@ -136,6 +144,7 @@ export const usePulseCreateAgentRuntime = ({
   setPulseCreatePrompt,
   findOutputById,
   resolvePanelOutputPreviewUrl,
+  resolveInternalImageDropSource,
   setUiNotice,
   trackAgentUiEvent,
 }: UsePulseCreateAgentRuntimeParams): PulseCreatePageAgentRuntime => {
@@ -183,6 +192,7 @@ export const usePulseCreateAgentRuntime = ({
     send: sendToAgent,
     appendUserMessage,
     updateMessageById,
+    removeMessageById,
     replaceMessages,
     reset: resetAgentChat,
   } = activeAgent;
@@ -223,6 +233,7 @@ export const usePulseCreateAgentRuntime = ({
     ensureAgentSession,
     findOutputById,
     resolveOutputPreviewUrlById: (id) => resolvePanelOutputPreviewUrl(id),
+    resolveInternalImageDropSource,
     maxImageAttachmentsPerDrop: 3,
   });
   const linkedPromptReferenceIds = useMemo(
@@ -277,6 +288,7 @@ export const usePulseCreateAgentRuntime = ({
         sendToAgent,
         appendUserMessage,
         updateMessageById,
+        removeMessageById,
         getAgentContext,
         trackAgentUiEvent,
         setUiNotice,

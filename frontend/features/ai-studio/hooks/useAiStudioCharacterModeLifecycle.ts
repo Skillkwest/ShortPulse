@@ -16,6 +16,7 @@ import type { ToolId } from "../types";
 import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
+  type CharacterManagerDraftSnapshot,
 } from "../../character-manager/logic/characterManagerPersistence";
 import { subscribeCharacterListChanged } from "../../character-manager/logic/characterListSyncEvents";
 import {
@@ -70,6 +71,10 @@ export const useAiStudioCharacterModeLifecycle = ({
   const [isCharacterOptionsLoading, setIsCharacterOptionsLoading] = useState(true);
   const isMountedRef = useRef(true);
   const inFlightRefreshPromiseRef = useRef<Promise<CharacterSelectOption[]> | null>(null);
+  const characterSnapshotCacheRef = useRef<Map<string, CharacterManagerDraftSnapshot>>(new Map());
+  const inFlightCharacterSnapshotLoadsRef = useRef<
+    Map<string, Promise<CharacterManagerDraftSnapshot>>
+  >(new Map());
   const pendingRefreshRequestedRef = useRef(false);
   const refreshRequestIdRef = useRef(0);
   const previousSelectedToolRef = useRef<ToolId | null>(selectedTool);
@@ -89,10 +94,54 @@ export const useAiStudioCharacterModeLifecycle = ({
         name: item.characterName,
         profileImageUrl: item.profileImageUrl,
       }));
+      const validCharacterIds = new Set(mappedOptions.map((option) => option.id));
+      characterSnapshotCacheRef.current.forEach((_snapshot, characterId) => {
+        if (!validCharacterIds.has(characterId)) {
+          characterSnapshotCacheRef.current.delete(characterId);
+          inFlightCharacterSnapshotLoadsRef.current.delete(characterId);
+        }
+      });
       setCharacterOptions(mappedOptions);
       setSelectedCharacterId((current) =>
         mappedOptions.some((option) => option.id === current) ? current : ""
       );
+    },
+    []
+  );
+  const loadCharacterSnapshot = useCallback(
+    async (
+      characterId: string,
+      { forceRefresh = false }: { forceRefresh?: boolean } = {}
+    ): Promise<CharacterManagerDraftSnapshot> => {
+      const normalizedCharacterId = characterId.trim();
+      if (!normalizedCharacterId) {
+        throw new Error("Character id is required.");
+      }
+      if (!forceRefresh) {
+        const cachedSnapshot = characterSnapshotCacheRef.current.get(normalizedCharacterId);
+        if (cachedSnapshot) return cachedSnapshot;
+        const inFlightSnapshot =
+          inFlightCharacterSnapshotLoadsRef.current.get(normalizedCharacterId);
+        if (inFlightSnapshot) {
+          return inFlightSnapshot;
+        }
+      }
+
+      const loadPromise = loadCharacterManagerDraftByCharacterId(normalizedCharacterId)
+        .then((snapshot) => {
+          characterSnapshotCacheRef.current.set(normalizedCharacterId, snapshot);
+          return snapshot;
+        })
+        .finally(() => {
+          if (
+            inFlightCharacterSnapshotLoadsRef.current.get(normalizedCharacterId) === loadPromise
+          ) {
+            inFlightCharacterSnapshotLoadsRef.current.delete(normalizedCharacterId);
+          }
+        });
+
+      inFlightCharacterSnapshotLoadsRef.current.set(normalizedCharacterId, loadPromise);
+      return loadPromise;
     },
     []
   );
@@ -284,7 +333,7 @@ export const useAiStudioCharacterModeLifecycle = ({
 
     setIsCharacterBundleLoading(true);
     setCharacterModeInjectionBundle(null);
-    void loadCharacterManagerDraftByCharacterId(selectedCharacterId)
+    void loadCharacterSnapshot(selectedCharacterId)
       .then((snapshot) => {
         if (!active) return;
         setCharacterModeInjectionBundle(
@@ -304,6 +353,7 @@ export const useAiStudioCharacterModeLifecycle = ({
       active = false;
     };
   }, [
+    loadCharacterSnapshot,
     selectedCharacterId,
     selectedCharacterLookId,
     setCharacterModeInjectionBundle,
@@ -315,6 +365,7 @@ export const useAiStudioCharacterModeLifecycle = ({
     characterOptionsById,
     resolveCharacterOptionById,
     refreshCharacterOptions,
+    loadCharacterSnapshot,
     selectedCharacterId,
     setSelectedCharacterId,
     isCharacterOptionsLoading,

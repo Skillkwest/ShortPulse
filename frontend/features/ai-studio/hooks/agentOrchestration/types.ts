@@ -8,6 +8,7 @@ import type {
   AgentAttachment,
   AgentContext,
   AgentMessage,
+  AgentResponse,
   AgentPulseWorkflowSession,
 } from "../../../../prefabs/agent";
 import type { PromptOrigin } from "../../logic/agentPromptOwnership";
@@ -32,7 +33,7 @@ export type AgentSendToAgent = (params: {
   skipUserEcho?: boolean;
   optimisticUserMessageId?: string | null;
 }) => Promise<{
-  response: unknown;
+  response: AgentResponse | null;
   actions: AgentActions | undefined;
   workflowSession?: AgentPulseWorkflowSession | null;
   discarded?: boolean;
@@ -65,6 +66,7 @@ export type UseAiStudioAgentOrchestrationParams = {
     messageId: string,
     updater: (message: AgentMessage) => AgentMessage
   ) => boolean;
+  removeMessageById: (messageId: string) => boolean;
   getAgentContext: (params: {
     lastAssistantMessage: string | null;
     selectedOverride?: StudioOutput | null;

@@ -181,10 +181,18 @@ export const useMediaPreviewSigningController = <
       const candidateKey = [entry?.directUrl ?? "", ...(entry?.candidates ?? [])].join("\0");
       return `${signPassAttemptScopeKey}|${candidateKey}`;
     };
+    const resolveBlockedSignAttemptKey = (rowId: string) => {
+      const entry = signCandidateEntryById.get(rowId);
+      const candidateKey = [entry?.directUrl ?? "", ...(entry?.candidates ?? [])].join("\0");
+      if (surface === "media-library-panel" && !visibleMediaIdsRef.current.has(rowId)) {
+        return `panel-offscreen|${candidateKey}`;
+      }
+      return `${signPassAttemptScopeKey}|${candidateKey}`;
+    };
     const blockedSignAttemptIds = new Set<string>();
     for (const row of readyRows) {
       if ((signAttemptRef.current[row.id] ?? 0) <= 0) continue;
-      if (failedSignAttemptKeyByIdRef.current[row.id] === resolveSignAttemptKey(row.id)) {
+      if (failedSignAttemptKeyByIdRef.current[row.id] === resolveBlockedSignAttemptKey(row.id)) {
         blockedSignAttemptIds.add(row.id);
       }
     }
@@ -198,6 +206,7 @@ export const useMediaPreviewSigningController = <
       signBudget,
       visibleMediaIds: visibleMediaIdsRef.current,
       isSignPrefetchEnabled,
+      allowDeferredPrefetch: surface !== "media-library-panel",
       isDeferredDrainArmed: deferredDrainArmedRef.current,
       signAttemptCounts: signAttemptRef.current,
       blockedSignAttemptIds,
@@ -232,14 +241,30 @@ export const useMediaPreviewSigningController = <
     const signCandidatesByRow = signBatch
       .map((row) => signCandidateEntryById.get(row.id) ?? null)
       .filter((entry): entry is MediaSignCandidateEntry => Boolean(entry));
+    const directPreferredEntries =
+      surface === "media-library-panel"
+        ? signCandidatesByRow.filter(
+            (entry) => Boolean(entry.directUrl) && entry.directUrlKind === "durable"
+          )
+        : [];
+    const signableEntries =
+      directPreferredEntries.length > 0
+        ? signCandidatesByRow.filter((entry) => !directPreferredEntries.includes(entry))
+        : signCandidatesByRow;
     const scheduledIds = new Set(signBatch.map((row) => row.id));
-    const signPaths = collectMediaSignPaths(signCandidatesByRow);
+    const signPaths = collectMediaSignPaths(signableEntries);
     const previewProfile = resolvePreviewProfileForSurface(surface);
     const previewDeliveryMode =
       previewProfile === "none" ? "signed-original" : "signed-transform-profile";
     const sourceClass = resolveMediaSignSourceClass(signBatch);
     const optimizerBypassed = true;
     const signBatchById = new Map(signBatch.map((row) => [row.id, row] as const));
+    const directPreferredResults = mapMediaSignResults({
+      currentUserId,
+      entries: directPreferredEntries,
+      rowsById: signBatchById,
+      signedByPath: new Map(),
+    });
     const resultsPromise = signPaths.length
       ? getSignedMediaUrlsBatch({
           bucket: BUCKET,
@@ -249,22 +274,24 @@ export const useMediaPreviewSigningController = <
           queryMode: queryForBatch ? "search" : "default",
           tab: tabForBatch,
           previewProfile,
-        }).then((signedByPath) =>
-          mapMediaSignResults({
+        }).then((signedByPath) => [
+          ...directPreferredResults,
+          ...mapMediaSignResults({
             currentUserId,
-            entries: signCandidatesByRow,
+            entries: signableEntries,
             rowsById: signBatchById,
             signedByPath,
-          })
-        )
-      : Promise.resolve(
-          mapMediaSignResults({
+          }),
+        ])
+      : Promise.resolve([
+          ...directPreferredResults,
+          ...mapMediaSignResults({
             currentUserId,
-            entries: signCandidatesByRow,
+            entries: signableEntries,
             rowsById: signBatchById,
             signedByPath: new Map(),
-          })
-        );
+          }),
+        ]);
     void resultsPromise
       .then(async (results) => {
         if (
@@ -284,17 +311,24 @@ export const useMediaPreviewSigningController = <
           } else {
             signAttemptRef.current[result.id] = (signAttemptRef.current[result.id] ?? 0) + 1;
             delete queueStateByIdRef.current[result.id];
-            failedSignAttemptKeyByIdRef.current[result.id] = resolveSignAttemptKey(result.id);
+            failedSignAttemptKeyByIdRef.current[result.id] = resolveBlockedSignAttemptKey(
+              result.id
+            );
           }
         }
         applySignedUrlsToTab(tabForBatch, signedById);
         const unresolvedRows = signBatch.filter((row) => !signedById.has(row.id));
-        const unresolvedAfterResolver = unresolvedRows.length
-          ? await resolveSignedUrlsByMediaIds(tabForBatch, unresolvedRows)
+        const resolverRows =
+          surface === "media-library-panel"
+            ? unresolvedRows.filter((row) => visibleMediaIdsRef.current.has(row.id))
+            : unresolvedRows;
+        const unresolvedAfterResolver = resolverRows.length
+          ? await resolveSignedUrlsByMediaIds(tabForBatch, resolverRows)
           : new Set<string>();
-        const unresolvedAfterResolverCount = unresolvedAfterResolver.size;
+        const unresolvedAfterResolverCount =
+          unresolvedAfterResolver.size + (unresolvedRows.length - resolverRows.length);
         if (backgroundHydrateFallbackEnabled) {
-          for (const unresolvedRow of unresolvedRows.slice(0, 4)) {
+          for (const unresolvedRow of resolverRows.slice(0, 4)) {
             if (!unresolvedAfterResolver.has(unresolvedRow.id)) continue;
             void hydrateViaStorageDownload(unresolvedRow);
           }

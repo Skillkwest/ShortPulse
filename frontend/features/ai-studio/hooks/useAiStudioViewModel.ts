@@ -3,10 +3,15 @@
  * Computes pricing, guardrails, and derived flags to keep the page lean.
  */
 import { useCallback, useMemo } from "react";
-import { computeCostForModel, getModelConfig } from "../logic/pricing";
+import { resolveRequiredAiStudioTextPromptModelId } from "../../../lib/model-runtime/modelCatalog";
+import { getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
 import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
+import {
+  resolveClientBilledCredits,
+  resolveClientPricingBreakdown,
+} from "../logic/clientPricingDisplay";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
@@ -25,7 +30,7 @@ import {
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
-const TEXT_PROMPT_MODEL_ID = "gpt-5.4-nano";
+const TEXT_PROMPT_MODEL_ID = resolveRequiredAiStudioTextPromptModelId();
 
 type ViewModelInput = {
   mode: StudioMode;
@@ -154,60 +159,73 @@ export const useAiStudioViewModel = ({
   );
 
   const currentCost = useMemo(() => {
-    if (isPricingPolicyUnavailable) return null;
     if (isCreateWorkflowSelected) {
       if (mode === "image") {
         if (!model) return null;
-        return computeCostForModel(
-          model,
-          costParamsForModel(
+        return resolveClientPricingBreakdown({
+          modelId: model,
+          params: costParamsForModel(
             model,
             pricingImageResolution ? { resolution: pricingImageResolution } : {}
           ),
-          pricingPolicy
-        );
+          pricingPolicy,
+          pricingPolicyReady: !isPricingPolicyUnavailable,
+        });
       }
       if (mode === "video") {
         if (!model) return null;
-        return computeCostForModel(
-          model,
-          costParamsForModel(model, { durationSeconds: getDefaultDurationSeconds(model) }),
-          pricingPolicy
-        );
+        return resolveClientPricingBreakdown({
+          modelId: model,
+          params: costParamsForModel(model, { durationSeconds: getDefaultDurationSeconds(model) }),
+          pricingPolicy,
+          pricingPolicyReady: !isPricingPolicyUnavailable,
+        });
       }
       if (mode === "text") {
         if (isDescribeMode) {
-          return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedDescribeTokens, pricingPolicy);
+          return resolveClientPricingBreakdown({
+            modelId: TEXT_PROMPT_MODEL_ID,
+            params: estimatedDescribeTokens,
+            pricingPolicy,
+            pricingPolicyReady: !isPricingPolicyUnavailable,
+          });
         }
-        return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedTextTokens, pricingPolicy);
+        return resolveClientPricingBreakdown({
+          modelId: TEXT_PROMPT_MODEL_ID,
+          params: estimatedTextTokens,
+          pricingPolicy,
+          pricingPolicyReady: !isPricingPolicyUnavailable,
+        });
       }
       return null;
     }
 
     if (isEditWorkflowSelected) {
       if (!effectiveEditSubmitModelId) return null;
-      return computeCostForModel(
-        effectiveEditSubmitModelId,
-        costParamsForModel(
+      return resolveClientPricingBreakdown({
+        modelId: effectiveEditSubmitModelId,
+        params: costParamsForModel(
           effectiveEditSubmitModelId,
           pricingImageResolution ? { resolution: pricingImageResolution } : {}
         ),
-        pricingPolicy
-      );
+        pricingPolicy,
+        pricingPolicyReady: !isPricingPolicyUnavailable,
+      });
     }
 
     if (isVideoTool) {
       if (!model) return null;
       if (isKlingMotionMode) return null;
-      return computeCostForModel(
-        model,
-        costParamsForModel(model, {
+      return resolveClientPricingBreakdown({
+        modelId: model,
+        params: costParamsForModel(model, {
           durationSeconds: videoDurationSeconds,
           resolution: videoResolution,
           audio: videoGenerateAudio,
         }),
-        pricingPolicy
-      );
+        pricingPolicy,
+        pricingPolicyReady: !isPricingPolicyUnavailable,
+      });
     }
 
     return null;
@@ -235,12 +253,11 @@ export const useAiStudioViewModel = ({
   const currentCostCredits = currentCost?.credits ?? null;
   // Cost shown in the model picker (also used by agent-output generation affordances).
   const modelPickerCostCredits = useMemo(() => {
-    if (isPricingPolicyUnavailable) return null;
     if (!effectiveEditSubmitModelId) return null;
     if (isKlingMotionMode && effectiveEditSubmitModelId === KIE_KLING_30_MODEL_ID) return null;
-    const breakdown = computeCostForModel(
-      effectiveEditSubmitModelId,
-      costParamsForModel(
+    return resolveClientBilledCredits({
+      modelId: effectiveEditSubmitModelId,
+      params: costParamsForModel(
         effectiveEditSubmitModelId,
         isVideoTool
           ? {
@@ -252,9 +269,9 @@ export const useAiStudioViewModel = ({
             ? { resolution: pricingImageResolution }
             : {}
       ),
-      pricingPolicy
-    );
-    return breakdown?.credits ?? null;
+      pricingPolicy,
+      pricingPolicyReady: !isPricingPolicyUnavailable,
+    });
   }, [
     costParamsForModel,
     effectiveEditSubmitModelId,
@@ -271,11 +288,9 @@ export const useAiStudioViewModel = ({
 
   const resolveModelPickerCredits = useCallback(
     (modelIdForChip: string): number | null => {
-      if (isPricingPolicyUnavailable) return null;
-      if (!modelIdForChip) return null;
-      const breakdown = computeCostForModel(
-        modelIdForChip,
-        costParamsForModel(
+      return resolveClientBilledCredits({
+        modelId: modelIdForChip,
+        params: costParamsForModel(
           modelIdForChip,
           isVideoTool
             ? {
@@ -287,9 +302,9 @@ export const useAiStudioViewModel = ({
               ? { resolution: pricingImageResolution }
               : {}
         ),
-        pricingPolicy
-      );
-      return breakdown?.credits ?? null;
+        pricingPolicy,
+        pricingPolicyReady: !isPricingPolicyUnavailable,
+      });
     },
     [
       costParamsForModel,
@@ -305,17 +320,16 @@ export const useAiStudioViewModel = ({
   );
 
   const promptGenerateCostCredits = useMemo(() => {
-    if (isPricingPolicyUnavailable) return null;
     if (!effectiveEditSubmitModelId || !isImageTool) return null;
-    const breakdown = computeCostForModel(
-      effectiveEditSubmitModelId,
-      costParamsForModel(effectiveEditSubmitModelId, {
+    return resolveClientBilledCredits({
+      modelId: effectiveEditSubmitModelId,
+      params: costParamsForModel(effectiveEditSubmitModelId, {
         aspect,
         ...(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
       }),
-      pricingPolicy
-    );
-    return breakdown?.credits ?? null;
+      pricingPolicy,
+      pricingPolicyReady: !isPricingPolicyUnavailable,
+    });
   }, [
     aspect,
     costParamsForModel,
@@ -326,17 +340,16 @@ export const useAiStudioViewModel = ({
     pricingPolicy,
   ]);
   const createTextImageGenerateCostCredits = useMemo(() => {
-    if (isPricingPolicyUnavailable) return null;
     if (!isCreateWorkflowSelected || mode !== "text" || !effectiveEditSubmitModelId) return null;
-    const breakdown = computeCostForModel(
-      effectiveEditSubmitModelId,
-      costParamsForModel(effectiveEditSubmitModelId, {
+    return resolveClientBilledCredits({
+      modelId: effectiveEditSubmitModelId,
+      params: costParamsForModel(effectiveEditSubmitModelId, {
         aspect,
         ...(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
       }),
-      pricingPolicy
-    );
-    return breakdown?.credits ?? null;
+      pricingPolicy,
+      pricingPolicyReady: !isPricingPolicyUnavailable,
+    });
   }, [
     aspect,
     costParamsForModel,

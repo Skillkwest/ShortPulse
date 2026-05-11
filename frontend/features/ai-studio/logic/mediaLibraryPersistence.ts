@@ -456,6 +456,9 @@ const saveMediaUrlToLibraryViaServerCopy = async (
   if (!parsed) {
     throw new Error("Server copy did not return a valid media payload.");
   }
+  if (!parsed.mediaFileId) {
+    throw new Error("Server copy did not return a persisted media id.");
+  }
   return parsed;
 };
 

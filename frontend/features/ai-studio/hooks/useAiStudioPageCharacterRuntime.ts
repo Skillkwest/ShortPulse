@@ -71,6 +71,7 @@ export const useAiStudioPageCharacterRuntime = ({
     setSelectedCharacterId: setCreateSelectedCharacterId,
     isCharacterOptionsLoading,
     refreshCharacterOptions,
+    loadCharacterSnapshot,
     resolveCharacterOptionById,
   } = useAiStudioCharacterModeLifecycle({
     projectId,
@@ -92,6 +93,7 @@ export const useAiStudioPageCharacterRuntime = ({
     createSelectedCharacterLookId,
     setCreateSelectedCharacterLookId,
     createCharacterModeInjectionBundle,
+    loadCharacterSnapshot,
   });
 
   const resolveIsCharacterModeEnabledForTool = useCallback(
@@ -141,6 +143,7 @@ export const useAiStudioPageCharacterRuntime = ({
     setIsCharacterBundleLoading: setIsCreateCharacterBundleLoading,
     setEditCharacterModeInjectionBundle,
     setIsEditCharacterBundleLoading,
+    loadCharacterSnapshot,
     trackCharacterModeEvent,
     bundleStaleAfterMs: 45 * 60 * 1000,
   });

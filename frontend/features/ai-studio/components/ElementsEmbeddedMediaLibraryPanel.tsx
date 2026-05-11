@@ -98,6 +98,7 @@ export function ElementsEmbeddedMediaLibraryPanel({
     error: dataError,
     mediaRows,
     setMediaRows,
+    setSignedUrls,
     libraryTotalCount,
     promptRows,
     setPromptRows,
@@ -168,15 +169,9 @@ export function ElementsEmbeddedMediaLibraryPanel({
   const applySignedUrlsToMediaRows = React.useCallback(
     (_tab: MediaDataTab, signedById: Map<string, string>) => {
       if (!signedById.size) return;
-      setMediaRows((previous) =>
-        previous.map((row) => {
-          const signedUrl = signedById.get(row.id);
-          if (!signedUrl || row.signedUrl === signedUrl) return row;
-          return { ...row, signedUrl };
-        })
-      );
+      setSignedUrls(signedById);
     },
-    [setMediaRows]
+    [setSignedUrls]
   );
 
   const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLElement>({

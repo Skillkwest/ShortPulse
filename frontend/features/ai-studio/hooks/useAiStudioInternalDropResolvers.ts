@@ -63,6 +63,9 @@ const loadBlobFromUrl = async (url: string): Promise<Blob> => {
   return blob;
 };
 
+const canCreateObjectUrl = () =>
+  typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
+
 /**
  * Builds internal-reference drop resolvers used by the AI Studio page shell.
  */
@@ -78,6 +81,7 @@ export const useAiStudioInternalDropResolvers = ({
   resolveStyleLibraryInternalDrop: (
     payload: InternalReferenceDragPayload
   ) => ReturnType<typeof resolveInternalReferenceSource>;
+  resolveComposerInternalImageDropSource: ResolveInternalReferenceDrop;
   resolveElementProfileImageDropSource: ResolveInternalReferenceDrop;
 } => {
   const resolveCharacterDropReference = useCallback<ResolveCharacterDropReference>(
@@ -172,6 +176,48 @@ export const useAiStudioInternalDropResolvers = ({
     [ensureOutputPersisted, getOutputById, getOutputSnapshot]
   );
 
+  const resolveComposerInternalImageDropSource = useCallback(
+    async (payload: InternalReferenceDragPayload) => {
+      const resolvedSource = await resolveInternalReferenceSource({
+        payload,
+        getOutputById,
+        getOutputSnapshot,
+        ensureOutputPersisted,
+        resolveSavedMediaIdFromOutput,
+      });
+      if (!resolvedSource) return null;
+
+      if (canCreateObjectUrl()) {
+        try {
+          const blob = await resolvedSource.loadBlob();
+          if (blob instanceof Blob && blob.size > 0) {
+            const objectUrl = URL.createObjectURL(blob);
+            return {
+              ...resolvedSource,
+              preview: {
+                ...resolvedSource.preview,
+                url: objectUrl,
+              },
+              preparedImageUrl: objectUrl,
+            };
+          }
+        } catch {
+          // Fall back to stable storage-backed or local-file preview authority only.
+        }
+      }
+
+      const hasStablePreviewAuthority = Boolean(
+        resolvedSource.preparedImageUrl?.trim() ||
+        resolvedSource.previewStoragePath?.trim() ||
+        resolvedSource.fullStoragePath?.trim() ||
+        resolvedSource.sourceKind === "local_file"
+      );
+
+      return hasStablePreviewAuthority ? resolvedSource : null;
+    },
+    [ensureOutputPersisted, getOutputById, getOutputSnapshot]
+  );
+
   const resolveElementProfileImageDropSource = useCallback(
     async (payload: InternalReferenceDragPayload) => {
       const resolvedSource = await resolveInternalReferenceSource({
@@ -188,8 +234,13 @@ export const useAiStudioInternalDropResolvers = ({
       const output = outputId ? getOutputById(outputId) : null;
       if (output?.mode !== "image") return null;
 
+      const localObjectUrl = output.localObjectUrl?.replace(/#video=1$/i, "").trim() || null;
+      if (output.mediaSource === "generated" && !localObjectUrl) {
+        return null;
+      }
+
       const previewUrl =
-        output.localObjectUrl?.replace(/#video=1$/i, "").trim() ||
+        localObjectUrl ||
         output.resultUrls?.[imageIndex]?.trim() ||
         output.previewUrl?.trim() ||
         payload.referenceRenderUrl?.trim() ||
@@ -216,9 +267,7 @@ export const useAiStudioInternalDropResolvers = ({
           mediaId,
           imageIndex,
           sourceSurface: normalizeReferenceDragSourceSurface(payload.sourceSurface ?? null),
-          resolutionReason: output.localObjectUrl?.trim()
-            ? "local_object_url"
-            : "payload_reference_url",
+          resolutionReason: localObjectUrl ? "local_object_url" : "payload_reference_url",
         },
         outputId: outputId || null,
         mediaId,
@@ -241,6 +290,7 @@ export const useAiStudioInternalDropResolvers = ({
     resolveCharacterDropReference,
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
+    resolveComposerInternalImageDropSource,
     resolveElementProfileImageDropSource,
   };
 };

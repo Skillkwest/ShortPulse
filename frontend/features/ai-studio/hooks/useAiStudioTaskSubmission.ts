@@ -85,6 +85,8 @@ type UseAiStudioTaskSubmissionParams = {
   projectId?: string | null;
   model: string | null;
   prompt: string;
+  currentCostCredits?: number | null;
+  promptReferenceGenerateCostCredits?: number | null;
   selectedTool: ToolId | null;
   imageResolution: string;
   videoDurationSeconds: number;
@@ -140,6 +142,8 @@ export const useAiStudioTaskSubmission = ({
   projectId = null,
   model,
   prompt,
+  currentCostCredits = null,
+  promptReferenceGenerateCostCredits = null,
   selectedTool,
   imageResolution,
   videoDurationSeconds,
@@ -412,6 +416,11 @@ export const useAiStudioTaskSubmission = ({
             updateOutputById,
           });
         }
+        const displayedBilledCredits =
+          options?.displayedBilledCredits ??
+          promptReferenceGenerateCostCredits ??
+          currentCostCredits ??
+          null;
         const shortpulseContext = {
           selected_tool: effectiveTool,
           mode: outputMode,
@@ -423,6 +432,9 @@ export const useAiStudioTaskSubmission = ({
           has_style: Boolean(options?.styleContextOverride?.applied),
           style_id: options?.styleContextOverride?.styleId ?? null,
           reference_count: preparedImageInputs.length,
+          pricing_display_source: "shared_adapter",
+          pricing_policy_ready: true,
+          displayed_billed_credits: displayedBilledCredits,
         };
         const pulseReferenceImageUrl =
           preparedImageInputs.length > 0 ? preparedImageInputs[0] : undefined;
@@ -631,6 +643,8 @@ export const useAiStudioTaskSubmission = ({
       projectId,
       notifyGenerationFailure,
       prompt,
+      currentCostCredits,
+      promptReferenceGenerateCostCredits,
       seedance2InputMode,
       seedance2ReferenceAudioUrls,
       seedance2ReferenceImageUrls,

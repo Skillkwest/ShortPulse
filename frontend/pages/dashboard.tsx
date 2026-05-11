@@ -33,7 +33,8 @@ import {
 } from "../features/dashboard/components/AuthenticatedDashboardView";
 import { DashboardAppBar } from "../features/dashboard/components/DashboardAppBar";
 import { GuestDashboardView } from "../features/dashboard/components/GuestDashboardView";
-import { ProjectNameModal } from "../features/dashboard/components/ProjectNameModal";
+import { ProjectNameModal } from "../features/projects/components/ProjectNameModal";
+import { useProjectCreationDialog } from "../features/projects/hooks/useProjectCreationDialog";
 import { buildPricingPath } from "../features/pricing/paths";
 import { ConfirmationModal } from "../components/ConfirmationModal";
 import { trackMarketingPageView } from "../lib/growthTelemetry";
@@ -53,7 +54,6 @@ const DASHBOARD_HIDE_LEGACY_SECTIONS =
   process.env.NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS !== "false";
 const DASHBOARD_FALLBACK_HELPER_COPY =
   "Your dashboard is the launch surface for analytics, creator ops, and storage - built for fast decisions and secure tooling.";
-const DEFAULT_NEW_PROJECT_TITLE = "Untitled project";
 
 type CurrentSubscriptionContractRow = {
   plan_id: string | null;
@@ -253,11 +253,7 @@ export default function DashboardPage({
     label: string;
     className: string;
   } | null>(null);
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
-  const [isProjectNameModalOpen, setIsProjectNameModalOpen] = useState(false);
-  const [newProjectTitle, setNewProjectTitle] = useState(DEFAULT_NEW_PROJECT_TITLE);
-  const [projectCreateError, setProjectCreateError] = useState<string | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
@@ -319,6 +315,20 @@ export default function DashboardPage({
       },
     });
   };
+  const {
+    isOpen: isProjectNameModalOpen,
+    title: newProjectTitle,
+    error: projectCreateError,
+    isCreating: isCreatingProject,
+    openDialog: openProjectNameModal,
+    closeDialog: closeProjectNameModal,
+    setTitle: setNewProjectTitle,
+    submit: submitProjectCreate,
+  } = useProjectCreationDialog({
+    onCreatedProject: async (project) => {
+      await openProject(project.id);
+    },
+  });
 
   useEffect(() => {
     let active = true;
@@ -506,45 +516,6 @@ export default function DashboardPage({
     };
   }, []);
 
-  const openProjectNameModal = () => {
-    setProjectCreateError(null);
-    setNewProjectTitle(DEFAULT_NEW_PROJECT_TITLE);
-    setIsProjectNameModalOpen(true);
-  };
-
-  const handleCreateProject = async () => {
-    if (isCreatingProject) return;
-    const title = newProjectTitle.trim();
-    if (!title) return;
-    setIsCreatingProject(true);
-    setProjectCreateError(null);
-    try {
-      const response = await fetchWithAuth("/api/projects/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title,
-        }),
-      });
-      const payload = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        details?: string;
-        project?: { id?: string };
-      };
-      if (!response.ok || !payload.project?.id) {
-        throw new Error(payload.error || payload.details || "Failed to create project.");
-      }
-      setIsProjectNameModalOpen(false);
-      await openProject(payload.project.id);
-    } catch (error) {
-      setProjectCreateError(error instanceof Error ? error.message : "Failed to create project.");
-    } finally {
-      setIsCreatingProject(false);
-    }
-  };
-
   const loginHref = `/auth?next=${encodeURIComponent("/dashboard")}`;
   const guestCreateProjectHref = buildPricingPath({ intent: "create-project" });
 
@@ -642,14 +613,9 @@ export default function DashboardPage({
           isCreating={isCreatingProject}
           error={projectCreateError}
           onChange={setNewProjectTitle}
-          onCancel={() => {
-            if (!isCreatingProject) {
-              setIsProjectNameModalOpen(false);
-              setProjectCreateError(null);
-            }
-          }}
+          onCancel={closeProjectNameModal}
           onSubmit={() => {
-            void handleCreateProject();
+            void submitProjectCreate();
           }}
         />
       ) : null}

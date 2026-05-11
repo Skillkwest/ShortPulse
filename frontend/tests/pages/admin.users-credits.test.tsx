@@ -337,6 +337,48 @@ describe("Admin users and credits overview", () => {
                   currency: "usd",
                   currentPeriodEnd: "2026-05-01T00:00:00.000Z",
                 },
+          pricingObservability:
+            userId === USER_2_ID || userId === ADMIN_ID
+              ? {
+                  rowsScanned: {
+                    reservations: 0,
+                    ledgerEntries: 0,
+                  },
+                  observedRows: {
+                    reservations: 0,
+                    ledgerEntries: 0,
+                  },
+                  mismatchCount: 0,
+                  lastObservedAt: null,
+                  latestEvents: [],
+                }
+              : {
+                  rowsScanned: {
+                    reservations: 2,
+                    ledgerEntries: 2,
+                  },
+                  observedRows: {
+                    reservations: 1,
+                    ledgerEntries: 1,
+                  },
+                  mismatchCount: 0,
+                  lastObservedAt: "2026-04-15T00:05:00.000Z",
+                  latestEvents: [
+                    {
+                      sourceType: "ledger",
+                      sourceId: "ledger-1",
+                      sourceRef: "source-ref-1",
+                      providerRequestId: null,
+                      createdAt: "2026-04-15T00:05:00.000Z",
+                      displayedBilledCredits: 10,
+                      actualBilledCredits: 10,
+                      deltaCredits: 0,
+                      mismatch: false,
+                      pricingDisplaySource: "shared_adapter",
+                      pricingPolicyReady: true,
+                    },
+                  ],
+                },
           findings:
             userId === USER_2_ID
               ? []
@@ -618,6 +660,14 @@ describe("Admin users and credits overview", () => {
         "Current contract is on a different recurring price than the public offer."
       ).length
     ).toBeGreaterThan(0);
+    expect(screen.getByText("Pricing observability")).toBeInTheDocument();
+    expect(screen.getByText("No recent mismatches")).toBeInTheDocument();
+    expect(screen.getByText(/1\/2 reservation rows/)).toBeInTheDocument();
+    expect(screen.getByText(/1\/2 ledger rows/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open pricing trace" })).toHaveAttribute(
+      "href",
+      `/admin/generation-trace?userId=${USER_1_ID}`
+    );
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Studio");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$10.00/mo");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("4,000 credits / month");

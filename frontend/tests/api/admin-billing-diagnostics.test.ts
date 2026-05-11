@@ -686,6 +686,34 @@ describe("GET /api/admin/billing-diagnostics", () => {
             select: vi.fn().mockReturnValue(mediaFilesQuery),
           };
         }
+        if (table === "ai_credit_reservations") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "ai_credit_ledger") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
         throw new Error(`Unexpected table: ${table}`);
       }),
     });
@@ -863,6 +891,34 @@ describe("GET /api/admin/billing-diagnostics", () => {
             select: vi.fn().mockReturnValue(mediaFilesQuery),
           };
         }
+        if (table === "ai_credit_reservations") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "ai_credit_ledger") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
         throw new Error(`Unexpected table: ${table}`);
       }),
     });
@@ -1037,6 +1093,34 @@ describe("GET /api/admin/billing-diagnostics", () => {
         if (table === "media_files") {
           return {
             select: vi.fn().mockReturnValue(mediaFilesQuery),
+          };
+        }
+        if (table === "ai_credit_reservations") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (table === "ai_credit_ledger") {
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                order: vi.fn().mockReturnValue({
+                  limit: vi.fn().mockResolvedValue({
+                    data: [],
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
           };
         }
         throw new Error(`Unexpected table: ${table}`);

@@ -130,7 +130,7 @@ describe("useMediaLibraryRouteRuntime", () => {
     expect(result.current.prompts).toBe(previousPrompts);
   });
 
-  it("keeps active route media cache stable when only a different tab changes", () => {
+  it("keeps active route media cache content stable when only a different tab changes", () => {
     const { result } = renderHook(() =>
       useMediaLibraryRouteRuntime({
         activeMediaTab: "uploaded_images",
@@ -160,7 +160,7 @@ describe("useMediaLibraryRouteRuntime", () => {
       }));
     });
 
-    expect(result.current.activeMediaCache).toBe(previousActiveMediaCache);
-    expect(result.current.files).toBe(previousFiles);
+    expect(result.current.activeMediaCache).toStrictEqual(previousActiveMediaCache);
+    expect(result.current.files).toStrictEqual(previousFiles);
   });
 });

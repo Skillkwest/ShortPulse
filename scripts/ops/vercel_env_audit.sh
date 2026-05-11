@@ -12,6 +12,7 @@ Usage:
 
 Options:
   --token <token>             Optional Vercel token override.
+                              Not required when the local `vercel` CLI session is already authenticated.
   --environment <name>        Repeatable. development | preview | production
   --preview-branch <name>     Preview branch to audit when preview is included.
                               Default: staging-preview

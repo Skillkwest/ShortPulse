@@ -110,6 +110,7 @@ export const MIRRORED_FLAG_PAIRS = Object.freeze([
 ]);
 
 export const SENSITIVE_PRESENCE_ONLY_KEYS = new Set([
+  "FAL_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",

@@ -32,6 +32,22 @@ require_command() {
   }
 }
 
+find_psql() {
+  if command -v psql >/dev/null 2>&1; then
+    command -v psql
+    return
+  fi
+
+  local fallback="/opt/homebrew/opt/libpq/bin/psql"
+  if [[ -x "$fallback" ]]; then
+    printf '%s\n' "$fallback"
+    return
+  fi
+
+  echo "[nuclo-storage-parity] missing required command: psql" >&2
+  exit 1
+}
+
 SOURCE_URL="${SHORTPULSE_STAGING_DB_URL:-}"
 TARGET_URL="${SHORTPULSE_PRODUCTION_DB_URL:-}"
 SOURCE_LABEL="source"
@@ -78,8 +94,8 @@ if [[ -z "$SOURCE_URL" || -z "$TARGET_URL" ]]; then
   exit 1
 fi
 
-require_command psql
 require_command python3
+PSQL_BIN="$(find_psql)"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -95,13 +111,13 @@ fi
 
 STORAGE_QUERY=$'with object_totals as (\n  select\n    bucket_id,\n    count(*)::bigint as object_count,\n    coalesce(sum(coalesce(nullif(metadata->>\'size\', \'\')::bigint, 0)), 0)::bigint as object_bytes\n  from storage.objects\n  group by 1\n)\nselect\n  b.id,\n  b.public::text,\n  coalesce(b.file_size_limit::text, \'\'),\n  coalesce(array_to_string(b.allowed_mime_types, \',\'), \'\'),\n  coalesce(o.object_count, 0)::bigint,\n  coalesce(o.object_bytes, 0)::bigint\nfrom storage.buckets b\nleft join object_totals o on o.bucket_id = b.id\nwhere '"${BUCKET_CONDITION}"$'\norder by b.id;'
 
-psql "$SOURCE_URL" \
+"$PSQL_BIN" "$SOURCE_URL" \
   -v ON_ERROR_STOP=1 \
   -Atq \
   -F $'\t' \
   -c "$STORAGE_QUERY" > "$TMP_DIR/source_storage.tsv"
 
-psql "$TARGET_URL" \
+"$PSQL_BIN" "$TARGET_URL" \
   -v ON_ERROR_STOP=1 \
   -Atq \
   -F $'\t' \

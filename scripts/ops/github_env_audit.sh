@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Purpose: inspect GitHub environment secret presence and branch protection status.
+# Purpose: inspect GitHub environment secret presence and release-branch governance state.
 # Responsibilities: help Nuclo confirm that staging/production GitHub Environment wiring
-# matches the release ladder before a cutover or branch-promotion run.
+# and branch ruleset posture match the release ladder before a cutover or branch-promotion run.
 
 set -euo pipefail
 
@@ -115,16 +115,18 @@ for environment in "${ENVIRONMENTS[@]}"; do
 done
 
 for branch in "${BRANCHES[@]}"; do
+  gh api "repos/$REPO/branches/$branch" > "$TMP_DIR/$branch.branch.json"
   if gh api "repos/$REPO/branches/$branch/protection" > "$TMP_DIR/$branch.protection.json" 2>"$TMP_DIR/$branch.protection.err"; then
     :
   else
     if grep -qi '404' "$TMP_DIR/$branch.protection.err"; then
-      printf '{"protected": false}\n' > "$TMP_DIR/$branch.protection.json"
+      printf '{}\n' > "$TMP_DIR/$branch.protection.json"
     else
       cat "$TMP_DIR/$branch.protection.err" >&2
       exit 1
     fi
   fi
+  gh api "repos/$REPO/rules/branches/$branch" -H 'Accept: application/vnd.github+json' > "$TMP_DIR/$branch.rules.json"
 done
 
 python3 - "$TMP_DIR" "${ENVIRONMENTS[*]}" "${BRANCHES[*]}" <<'PY'
@@ -161,19 +163,48 @@ for environment in environments:
         print(f"  missing_required_secrets={', '.join(missing)}")
 
 for branch in branches:
+    branch_payload = json.loads((tmp_dir / f"{branch}.branch.json").read_text())
     protection_payload = json.loads((tmp_dir / f"{branch}.protection.json").read_text())
-    protected = protection_payload.get("protected", True)
+    branch_rules = json.loads((tmp_dir / f"{branch}.rules.json").read_text())
+    protected = branch_payload.get("protected", False) or bool(branch_rules)
     if not protected:
         status = 1
         print(f"Branch {branch}: protected=false")
         continue
-    contexts = (
-        protection_payload.get("required_status_checks", {}) or {}
-    ).get("contexts", []) or []
-    review_count = (protection_payload.get("required_pull_request_reviews", {}) or {}).get(
-        "required_approving_review_count"
-    )
+
+    contexts = []
+    review_count = None
+    rule_types = []
+    ruleset_ids = []
+
+    for rule in branch_rules:
+        rule_type = rule.get("type")
+        if rule_type:
+            rule_types.append(rule_type)
+        ruleset_id = rule.get("ruleset_id")
+        if ruleset_id is not None and ruleset_id not in ruleset_ids:
+            ruleset_ids.append(ruleset_id)
+        if rule_type == "required_status_checks":
+            for check in (rule.get("parameters", {}) or {}).get("required_status_checks", []) or []:
+                context = check.get("context")
+                if context and context not in contexts:
+                    contexts.append(context)
+        if rule_type == "pull_request":
+            review_count = (rule.get("parameters", {}) or {}).get("required_approving_review_count")
+
+    if not contexts:
+        contexts = (
+            protection_payload.get("required_status_checks", {}) or {}
+        ).get("contexts", []) or []
+    if review_count is None:
+        review_count = (protection_payload.get("required_pull_request_reviews", {}) or {}).get(
+            "required_approving_review_count"
+        )
+
     print(f"Branch {branch}: protected=true")
+    if ruleset_ids:
+        print(f"  ruleset_ids={', '.join(str(item) for item in ruleset_ids)}")
+    print(f"  rule_types={', '.join(rule_types) if rule_types else '(none)'}")
     print(f"  required_status_checks={', '.join(contexts) if contexts else '(none)'}")
     print(f"  required_approving_review_count={review_count if review_count is not None else 0}")
 

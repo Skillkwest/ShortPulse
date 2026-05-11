@@ -38,6 +38,7 @@ const usage = () => {
 Options:
   --token <token>          Vercel API token.
                            Fallback env: SHORTPULSE_VERCEL_API_TOKEN, VERCEL_API_TOKEN
+                           Optional when the local \`vercel\` CLI is already authenticated.
   --environment <name>     Environment to audit. Repeatable.
                            Default: ${DEFAULT_VERCEL_AUDIT_ENVIRONMENTS.join(", ")}
                            Available: ${VERCEL_ENVIRONMENTS.join(", ")}
@@ -108,12 +109,6 @@ const parseArgs = (argv) => {
     parsed.environments = [...DEFAULT_VERCEL_AUDIT_ENVIRONMENTS];
   }
 
-  if (!parsed.token && !parsed.help) {
-    throw new Error(
-      "Missing Vercel token. Set SHORTPULSE_VERCEL_API_TOKEN or VERCEL_API_TOKEN, or pass --token."
-    );
-  }
-
   if (parsed.gitBranch && !parsed.environments.includes("preview")) {
     throw new Error("--git-branch can only be used when auditing preview.");
   }
@@ -145,10 +140,11 @@ const summarizeExecFailure = (error) => {
 };
 
 const runVercel = async (args, token, label) => {
+  const finalArgs = token ? [...args, "--token", token] : args;
   try {
     const { stdout } = await execFileAsync(
       "vercel",
-      [...args, "--token", token],
+      finalArgs,
       { cwd: process.cwd(), maxBuffer: 20 * 1024 * 1024 }
     );
     return stdout;
@@ -179,6 +175,8 @@ const normalizeTargets = (targets) => {
 };
 
 const sameValue = (left, right) => (left ?? "") === (right ?? "");
+
+const unique = (items) => [...new Set(items)];
 
 const hasEnvironmentScopedKey = (envRows, key, environment) =>
   envRows.some((row) => {
@@ -284,15 +282,18 @@ const main = async () => {
     }
   }
 
-  if (errors.length > 0) {
+  const uniqueErrors = unique(errors);
+  const uniqueWarnings = unique(warnings);
+
+  if (uniqueErrors.length > 0) {
     console.error(
       `[vercel-env-contract] FAIL environments=${args.environments.join(",")} loaded_env_files=${LOADED_ENV_FILES.length}`
     );
-    for (const error of errors) {
+    for (const error of uniqueErrors) {
       console.error(`- ${error}`);
     }
-    if (warnings.length > 0) {
-      for (const warning of warnings) {
+    if (uniqueWarnings.length > 0) {
+      for (const warning of uniqueWarnings) {
         console.error(`[vercel-env-contract] warning: ${warning}`);
       }
     }
@@ -302,8 +303,8 @@ const main = async () => {
   console.log(
     `[vercel-env-contract] PASS environments=${args.environments.join(",")} loaded_env_files=${LOADED_ENV_FILES.length}`
   );
-  if (warnings.length > 0) {
-    for (const warning of warnings) {
+  if (uniqueWarnings.length > 0) {
+    for (const warning of uniqueWarnings) {
       console.log(`[vercel-env-contract] warning: ${warning}`);
     }
   }

@@ -34,7 +34,8 @@ Options:
   --required-route <path> Required route path (repeatable). If omitted, defaults to:
 ${DEFAULT_REQUIRED_ROUTES.map((route) => `                          - ${route}`).join("\n")}
   --token <token>         Vercel API token.
-                          Fallback env: SHORTPULSE_VERCEL_API_TOKEN, VERCEL_API_TOKEN
+                          Optional. Falls back to authenticated \`vercel\` CLI state when omitted.
+                          Env fallback: SHORTPULSE_VERCEL_API_TOKEN, VERCEL_API_TOKEN
   --max-deployment-age-hours <hours>
                           Optional deployment-age gate (fail if older than this value).
   --min-created-at <instant>
@@ -145,13 +146,10 @@ const parseArgs = (argv) => {
   return parsed;
 };
 
-const ensureRequiredInputs = ({ baseUrl, token, requiredRoutes }) => {
+const ensureRequiredInputs = ({ baseUrl, requiredRoutes }) => {
   const missing = [];
   if (!baseUrl) {
     missing.push("SHORTPULSE_STAGING_BASE_URL or APP_BASE_URL (or --base-url)");
-  }
-  if (!token) {
-    missing.push("SHORTPULSE_VERCEL_API_TOKEN or VERCEL_API_TOKEN (or --token)");
   }
   const normalized = requiredRoutes.map((route) => normalizePathLike(route)).filter(Boolean);
   if (normalized.length === 0) {
@@ -310,7 +308,11 @@ const run = async () => {
     throw new Error(`Invalid --min-created-at: ${args.minCreatedAt}`);
   }
 
-  const inspectArgs = ["inspect", args.baseUrl, "--format=json", "--token", args.token];
+  const inspectArgs = ["inspect", args.baseUrl, "--format=json"];
+  const usingCliAuth = !args.token;
+  if (args.token) {
+    inspectArgs.push("--token", args.token);
+  }
   let stdout = "";
   let stderr = "";
   try {
@@ -342,6 +344,9 @@ const run = async () => {
   console.log(`[route-parity] target: ${args.baseUrl}`);
   console.log(`[route-parity] resolved deployment: ${resolvedDeploymentUrl || "unknown"}`);
   console.log(`[route-parity] created at: ${createdAt}`);
+  console.log(
+    `[route-parity] auth mode: ${usingCliAuth ? "vercel-cli-session" : "token"}`
+  );
   console.log(`[route-parity] loaded env files: ${LOADED_ENV_FILES.length}`);
   console.log(`[route-parity] route entries inspected: ${buildPaths.size}`);
   if (maxDeploymentAgeHours !== null) {

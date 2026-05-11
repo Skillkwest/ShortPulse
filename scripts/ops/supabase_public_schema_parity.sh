@@ -32,6 +32,22 @@ require_command() {
   }
 }
 
+find_psql() {
+  if command -v psql >/dev/null 2>&1; then
+    command -v psql
+    return
+  fi
+
+  local fallback="/opt/homebrew/opt/libpq/bin/psql"
+  if [[ -x "$fallback" ]]; then
+    printf '%s\n' "$fallback"
+    return
+  fi
+
+  echo "[nuclo-schema-parity] missing required command: psql" >&2
+  exit 1
+}
+
 SOURCE_URL="${SHORTPULSE_STAGING_DB_URL:-}"
 TARGET_URL="${SHORTPULSE_PRODUCTION_DB_URL:-}"
 SCHEMA_NAME="public"
@@ -78,9 +94,14 @@ if [[ -z "$SOURCE_URL" || -z "$TARGET_URL" ]]; then
   exit 1
 fi
 
-require_command psql
+if [[ ! "$SCHEMA_NAME" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+  echo "[nuclo-schema-parity] schema must be a simple SQL identifier." >&2
+  exit 1
+fi
+
 require_command comm
 require_command sort
+PSQL_BIN="$(find_psql)"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -92,17 +113,36 @@ run_list_query() {
   local url="$1"
   local sql="$2"
   local outfile="$3"
-  psql "$url" \
+  "$PSQL_BIN" "$url" \
     -v ON_ERROR_STOP=1 \
-    -v schema_name="$SCHEMA_NAME" \
     -Atq \
     -F $'\t' \
     -c "$sql" | sort -u > "$outfile"
 }
 
-TABLE_QUERY=$'select table_name\nfrom information_schema.tables\nwhere table_schema = :\'schema_name\'\n  and table_type = \'BASE TABLE\'\norder by 1;'
-ROUTINE_QUERY=$'select format(\'%s(%s)\', p.proname, pg_get_function_identity_arguments(p.oid))\nfrom pg_proc p\njoin pg_namespace n on n.oid = p.pronamespace\nwhere n.nspname = :\'schema_name\'\norder by 1;'
-POLICY_QUERY=$'select format(\'%s:%s\', tablename, policyname)\nfrom pg_policies\nwhere schemaname = :\'schema_name\'\norder by 1;'
+TABLE_QUERY=$(cat <<SQL
+select table_name
+from information_schema.tables
+where table_schema = '${SCHEMA_NAME}'
+  and table_type = 'BASE TABLE'
+order by 1;
+SQL
+)
+ROUTINE_QUERY=$(cat <<SQL
+select format('%s(%s)', p.proname, pg_get_function_identity_arguments(p.oid))
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = '${SCHEMA_NAME}'
+order by 1;
+SQL
+)
+POLICY_QUERY=$(cat <<SQL
+select format('%s:%s', tablename, policyname)
+from pg_policies
+where schemaname = '${SCHEMA_NAME}'
+order by 1;
+SQL
+)
 
 run_list_query "$SOURCE_URL" "$TABLE_QUERY" "$TMP_DIR/source_tables.txt"
 run_list_query "$TARGET_URL" "$TABLE_QUERY" "$TMP_DIR/target_tables.txt"

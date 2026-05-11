@@ -33,6 +33,22 @@ require_command() {
   }
 }
 
+find_psql() {
+  if command -v psql >/dev/null 2>&1; then
+    command -v psql
+    return
+  fi
+
+  local fallback="/opt/homebrew/opt/libpq/bin/psql"
+  if [[ -x "$fallback" ]]; then
+    printf '%s\n' "$fallback"
+    return
+  fi
+
+  echo "[nuclo-rowcount-diff] missing required command: psql" >&2
+  exit 1
+}
+
 SOURCE_URL="${SHORTPULSE_STAGING_DB_URL:-}"
 TARGET_URL="${SHORTPULSE_PRODUCTION_DB_URL:-}"
 SOURCE_LABEL="source"
@@ -92,10 +108,10 @@ if [[ "${#SCHEMAS[@]}" -eq 0 ]]; then
   exit 1
 fi
 
-require_command psql
 require_command python3
 require_command sort
 require_command comm
+PSQL_BIN="$(find_psql)"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -117,8 +133,8 @@ where table_schema in (${SCHEMA_LIST_SQL})
   and table_type = 'BASE TABLE'
 order by 1, 2;"
 
-psql "$SOURCE_URL" -v ON_ERROR_STOP=1 -Atq -F $'\t' -c "$TABLE_LIST_QUERY" | sort -u > "$TMP_DIR/source_tables.tsv"
-psql "$TARGET_URL" -v ON_ERROR_STOP=1 -Atq -F $'\t' -c "$TABLE_LIST_QUERY" | sort -u > "$TMP_DIR/target_tables.tsv"
+"$PSQL_BIN" "$SOURCE_URL" -v ON_ERROR_STOP=1 -Atq -F $'\t' -c "$TABLE_LIST_QUERY" | sort -u > "$TMP_DIR/source_tables.tsv"
+"$PSQL_BIN" "$TARGET_URL" -v ON_ERROR_STOP=1 -Atq -F $'\t' -c "$TABLE_LIST_QUERY" | sort -u > "$TMP_DIR/target_tables.tsv"
 
 comm -23 "$TMP_DIR/source_tables.tsv" "$TMP_DIR/target_tables.tsv" > "$TMP_DIR/missing_in_target.tsv"
 comm -13 "$TMP_DIR/source_tables.tsv" "$TMP_DIR/target_tables.tsv" > "$TMP_DIR/extra_in_target.tsv"
@@ -128,7 +144,7 @@ count_table() {
   local url="$1"
   local schema_name="$2"
   local table_name="$3"
-  psql "$url" -v ON_ERROR_STOP=1 -Atq <<SQL
+  "$PSQL_BIN" "$url" -v ON_ERROR_STOP=1 -Atq <<SQL
 select count(*)::bigint
 from "${schema_name}"."${table_name}";
 SQL

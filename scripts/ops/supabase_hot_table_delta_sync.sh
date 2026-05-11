@@ -23,9 +23,11 @@ Notes:
   - auth.refresh_tokens
   - public.worker_instances
   - public.worker_runs
-    - public.app_error_logs
-    - public.app_error_events
-    - public.growth_attribution_identities
+  - public.app_error_logs
+  - public.app_error_events
+  - public.ai_credit_reservations
+  - public.ai_credit_ledger
+  - public.growth_attribution_identities
   - Export scope is watermark-based from production max(updated_at/created_at).
   - Imports use primary-key upserts.
 EOF
@@ -36,6 +38,22 @@ require_command() {
     echo "[nuclo-hot-sync] missing required command: $1" >&2
     exit 1
   }
+}
+
+find_psql() {
+  if command -v psql >/dev/null 2>&1; then
+    command -v psql
+    return
+  fi
+
+  local fallback="/opt/homebrew/opt/libpq/bin/psql"
+  if [[ -x "$fallback" ]]; then
+    printf '%s\n' "$fallback"
+    return
+  fi
+
+  echo "[nuclo-hot-sync] missing required command: psql" >&2
+  exit 1
 }
 
 SOURCE_URL="${SHORTPULSE_STAGING_DB_URL:-}"
@@ -79,8 +97,8 @@ if [[ -z "$SOURCE_URL" || -z "$TARGET_URL" ]]; then
   exit 1
 fi
 
-require_command psql
 require_command mktemp
+PSQL_BIN="$(find_psql)"
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -91,13 +109,13 @@ trap cleanup EXIT
 query_scalar() {
   local url="$1"
   local sql="$2"
-  psql "$url" -Atq -v ON_ERROR_STOP=1 -c "$sql"
+  "$PSQL_BIN" "$url" -Atq -v ON_ERROR_STOP=1 -c "$sql"
 }
 
 copy_export() {
   local sql="$1"
   local output_path="$2"
-  psql "$SOURCE_URL" -v ON_ERROR_STOP=1 -c "\\copy (${sql}) to '${output_path}' csv" >/dev/null
+  "$PSQL_BIN" "$SOURCE_URL" -v ON_ERROR_STOP=1 -c "\\copy (${sql}) to '${output_path}' csv" >/dev/null
 }
 
 worker_runs_max="$(query_scalar "$TARGET_URL" "select coalesce(max(created_at), '-infinity'::timestamptz) from public.worker_runs;")"
@@ -106,6 +124,8 @@ app_error_events_max="$(query_scalar "$TARGET_URL" "select coalesce(max(created_
 app_error_logs_max="$(query_scalar "$TARGET_URL" "select coalesce(max(updated_at), '-infinity'::timestamptz) from public.app_error_logs;")"
 growth_attr_max="$(query_scalar "$TARGET_URL" "select coalesce(max(updated_at), '-infinity'::timestamptz) from public.growth_attribution_identities;")"
 refresh_tokens_max="$(query_scalar "$TARGET_URL" "select coalesce(max(updated_at), '-infinity'::timestamptz) from auth.refresh_tokens;")"
+credit_reservations_max="$(query_scalar "$TARGET_URL" "select coalesce(max(updated_at), '-infinity'::timestamptz) from public.ai_credit_reservations;")"
+credit_ledger_max="$(query_scalar "$TARGET_URL" "select coalesce(max(created_at), '-infinity'::timestamptz) from public.ai_credit_ledger;")"
 
 copy_export \
   "select instance_id, id, token, user_id, revoked, created_at, updated_at, parent, session_id from auth.refresh_tokens where updated_at > timestamptz '${refresh_tokens_max}' order by updated_at, id" \
@@ -123,6 +143,12 @@ copy_export \
   "select id, incident_id, fingerprint, source, scope, severity, message, stack, route, endpoint, request_id, http_status, user_id, user_email, metadata, occurred_at, created_at from public.app_error_events where created_at > timestamptz '${app_error_events_max}' order by created_at, id" \
   "$TMP_DIR/public_app_error_events.csv"
 copy_export \
+  "select id, user_id, source_ref, provider_request_id, model_id, amount_cents, status, reason, metadata, created_at, updated_at, captured_at, released_at from public.ai_credit_reservations where updated_at > timestamptz '${credit_reservations_max}' order by updated_at, id" \
+  "$TMP_DIR/public_ai_credit_reservations.csv"
+copy_export \
+  "select id, user_id, change_cents, reason, ref_id, created_at, source, source_ref, metadata, created_by from public.ai_credit_ledger where created_at > timestamptz '${credit_ledger_max}' order by created_at, id" \
+  "$TMP_DIR/public_ai_credit_ledger.csv"
+copy_export \
   "select anonymous_id, user_id, first_utm_source, first_utm_medium, first_utm_campaign, first_landing_path, first_referrer_host, last_utm_source, last_utm_medium, last_utm_campaign, last_landing_path, last_referrer_host, first_seen_at, last_seen_at, signup_submitted_at, signup_completed_at, stitched_at, created_at, updated_at from public.growth_attribution_identities where updated_at > timestamptz '${growth_attr_max}' order by updated_at, anonymous_id" \
   "$TMP_DIR/public_growth_attribution_identities.csv"
 
@@ -133,9 +159,11 @@ wc -l \
   "$TMP_DIR/public_worker_runs.csv" \
   "$TMP_DIR/public_app_error_logs.csv" \
   "$TMP_DIR/public_app_error_events.csv" \
+  "$TMP_DIR/public_ai_credit_reservations.csv" \
+  "$TMP_DIR/public_ai_credit_ledger.csv" \
   "$TMP_DIR/public_growth_attribution_identities.csv"
 
-psql "$TARGET_URL" -v ON_ERROR_STOP=1 <<SQL
+"$PSQL_BIN" "$TARGET_URL" -v ON_ERROR_STOP=1 <<SQL
 begin;
 
 create temp table tmp_auth_refresh_tokens (like auth.refresh_tokens including defaults) on commit drop;
@@ -241,6 +269,49 @@ on conflict (id) do update set
   metadata = excluded.metadata,
   occurred_at = excluded.occurred_at,
   created_at = excluded.created_at;
+
+create temp table tmp_ai_credit_reservations (like public.ai_credit_reservations including defaults) on commit drop;
+\copy tmp_ai_credit_reservations from '${TMP_DIR}/public_ai_credit_reservations.csv' csv
+insert into public.ai_credit_reservations (
+  id, user_id, source_ref, provider_request_id, model_id, amount_cents, status, reason,
+  metadata, created_at, updated_at, captured_at, released_at
+)
+select
+  id, user_id, source_ref, provider_request_id, model_id, amount_cents, status, reason,
+  metadata, created_at, updated_at, captured_at, released_at
+from tmp_ai_credit_reservations
+on conflict (id) do update set
+  user_id = excluded.user_id,
+  source_ref = excluded.source_ref,
+  provider_request_id = excluded.provider_request_id,
+  model_id = excluded.model_id,
+  amount_cents = excluded.amount_cents,
+  status = excluded.status,
+  reason = excluded.reason,
+  metadata = excluded.metadata,
+  created_at = excluded.created_at,
+  updated_at = excluded.updated_at,
+  captured_at = excluded.captured_at,
+  released_at = excluded.released_at;
+
+create temp table tmp_ai_credit_ledger (like public.ai_credit_ledger including defaults) on commit drop;
+\copy tmp_ai_credit_ledger from '${TMP_DIR}/public_ai_credit_ledger.csv' csv
+insert into public.ai_credit_ledger (
+  id, user_id, change_cents, reason, ref_id, created_at, source, source_ref, metadata, created_by
+)
+select
+  id, user_id, change_cents, reason, ref_id, created_at, source, source_ref, metadata, created_by
+from tmp_ai_credit_ledger
+on conflict (id) do update set
+  user_id = excluded.user_id,
+  change_cents = excluded.change_cents,
+  reason = excluded.reason,
+  ref_id = excluded.ref_id,
+  created_at = excluded.created_at,
+  source = excluded.source,
+  source_ref = excluded.source_ref,
+  metadata = excluded.metadata,
+  created_by = excluded.created_by;
 
 create temp table tmp_growth_attribution_identities (like public.growth_attribution_identities including defaults) on commit drop;
 \copy tmp_growth_attribution_identities from '${TMP_DIR}/public_growth_attribution_identities.csv' csv

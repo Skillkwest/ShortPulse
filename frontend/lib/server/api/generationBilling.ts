@@ -29,23 +29,81 @@ export {
 } from "./generationBilling/settlementService";
 export type { ProviderRequestOwnership } from "./generationBilling/types";
 
-const resolveSourceRef = (req: ChargeOptions["req"]): string => {
+const asJsonObject = (value: unknown): JsonObject | null =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : null;
+
+const readShortpulseContextFromReq = (req: ChargeOptions["req"]): JsonObject | null => {
+  const body = asJsonObject(req.body);
+  return asJsonObject(body?.shortpulse_context);
+};
+
+const resolveShortpulseContext = ({
+  req,
+  shortpulseContext = null,
+}: Pick<ChargeOptions, "req" | "shortpulseContext">): JsonObject | null =>
+  asJsonObject(shortpulseContext) ?? readShortpulseContextFromReq(req);
+
+const readFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const buildPricingObservability = ({
+  shortpulseContext,
+  billedCredits,
+}: {
+  shortpulseContext: JsonObject | null;
+  billedCredits: number;
+}): JsonObject | null => {
+  if (!shortpulseContext) return null;
+  const displayedBilledCredits = readFiniteNumber(shortpulseContext.displayed_billed_credits);
+  const pricingDisplaySource =
+    typeof shortpulseContext.pricing_display_source === "string" &&
+    shortpulseContext.pricing_display_source.trim()
+      ? shortpulseContext.pricing_display_source.trim()
+      : null;
+  const pricingPolicyReady =
+    typeof shortpulseContext.pricing_policy_ready === "boolean"
+      ? shortpulseContext.pricing_policy_ready
+      : null;
+
+  if (
+    displayedBilledCredits == null &&
+    pricingDisplaySource == null &&
+    pricingPolicyReady == null
+  ) {
+    return null;
+  }
+
+  const deltaCredits =
+    displayedBilledCredits == null
+      ? null
+      : Number((billedCredits - displayedBilledCredits).toFixed(4));
+
+  return {
+    displayed_billed_credits: displayedBilledCredits,
+    actual_billed_credits: billedCredits,
+    delta_credits: deltaCredits,
+    mismatch: deltaCredits == null ? null : deltaCredits !== 0,
+    pricing_display_source: pricingDisplaySource,
+    pricing_policy_ready: pricingPolicyReady,
+  };
+};
+
+const resolveSourceRef = ({
+  req,
+  shortpulseContext = null,
+}: Pick<ChargeOptions, "req" | "shortpulseContext">): string => {
   const headerValue = req.headers["x-shortpulse-request-id"];
   if (typeof headerValue === "string" && headerValue.trim()) return headerValue.trim();
   if (Array.isArray(headerValue) && headerValue[0]?.trim()) return headerValue[0].trim();
-  const body = req.body;
-  const shortpulseContext =
-    body && typeof body === "object" && !Array.isArray(body)
-      ? (body as Record<string, unknown>).shortpulse_context
-      : null;
-  if (
-    shortpulseContext &&
-    typeof shortpulseContext === "object" &&
-    !Array.isArray(shortpulseContext)
-  ) {
-    const sourceRef = (shortpulseContext as Record<string, unknown>).source_ref;
-    if (typeof sourceRef === "string" && sourceRef.trim()) return sourceRef.trim();
-  }
+  const resolvedShortpulseContext = resolveShortpulseContext({ req, shortpulseContext });
+  const sourceRef = resolvedShortpulseContext?.source_ref;
+  if (typeof sourceRef === "string" && sourceRef.trim()) return sourceRef.trim();
   return randomUUID();
 };
 
@@ -59,10 +117,15 @@ export const chargeGenerationRequest = async ({
   payload,
   reason,
   skipBilling = false,
+  shortpulseContext: explicitShortpulseContext = null,
 }: ChargeOptions): Promise<ChargeResult | null> => {
   const user = await requireApiUser(req, res);
   if (!user) return null;
-  const sourceRef = resolveSourceRef(req);
+  const shortpulseContext = resolveShortpulseContext({
+    req,
+    shortpulseContext: explicitShortpulseContext,
+  });
+  const sourceRef = resolveSourceRef({ req, shortpulseContext });
   const routeLabel = req.url ?? "/api/generation";
 
   if (skipBilling) {
@@ -135,6 +198,10 @@ export const chargeGenerationRequest = async ({
     return null;
   }
 
+  const pricingObservability = buildPricingObservability({
+    shortpulseContext,
+    billedCredits: breakdown.credits,
+  });
   const chargeMetadata = {
     model_id: modelId,
     route: req.url ?? null,
@@ -148,7 +215,9 @@ export const chargeGenerationRequest = async ({
       pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
       pricing_policy_source: runtimePricingPolicy.source,
     },
+    ...(pricingObservability ? { pricing_observability: pricingObservability } : {}),
     debited_credits: breakdown.credits,
+    ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
   };
   const pricingBreakdown = {
     usdRaw: breakdown.usdRaw,

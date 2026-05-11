@@ -73,6 +73,48 @@ describe("getAdminModelWorkflowType", () => {
         id: "gpt-5.4-nano",
         mediaType: "text",
       })
-    ).toBe("Text");
+    ).toBe("Text to text");
+  });
+
+  it("maps audio workflow lanes to explicit admin labels", () => {
+    expect(
+      getAdminModelWorkflowType({
+        id: "music_v1",
+        mediaType: "audio",
+        generationLanes: ["music"],
+      })
+    ).toBe("Music");
+
+    expect(
+      getAdminModelWorkflowType({
+        id: "eleven_sound_effects_v2",
+        mediaType: "audio",
+        generationLanes: ["sfx"],
+      })
+    ).toBe("Sound effect");
+
+    expect(
+      getAdminModelWorkflowType({
+        id: "eleven_multilingual_v2",
+        mediaType: "audio",
+        generationLanes: ["text-to-speech"],
+      })
+    ).toBe("Voiceover");
+
+    expect(
+      getAdminModelWorkflowType({
+        id: "eleven_english_sts_v2",
+        mediaType: "audio",
+        generationLanes: ["speech-to-speech"],
+      })
+    ).toBe("Voice changer");
+
+    expect(
+      getAdminModelWorkflowType({
+        id: "elevenlabs-voice-design",
+        mediaType: "audio",
+        generationLanes: ["voice-design"],
+      })
+    ).toBe("Voice design");
   });
 });

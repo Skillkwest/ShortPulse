@@ -43,16 +43,19 @@ vi.mock("../../lib/authenticatedFetch", () => ({
 
 describe("Pricing route behavior", () => {
   const routerPushMock = vi.fn();
+  const routerReplaceMock = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
     routerPushMock.mockReset();
+    routerReplaceMock.mockReset();
     useRouterMock.mockReturnValue({
       query: {
         intent: "create-project",
         plan: "studio",
       },
       push: routerPushMock,
+      replace: routerReplaceMock,
     });
   });
 
@@ -152,6 +155,55 @@ describe("Pricing route behavior", () => {
     );
   });
 
+  it("hides the system free tier when a real starter plan exists", () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
+
+    render(
+      <PricingPage
+        billingCatalog={{
+          plans: [
+            {
+              id: "free",
+              display_name: "Free",
+              sort_order: 0,
+              monthly_price_cents: 0,
+              monthly_credits_cents: 100,
+              storage_limit_bytes: 1073741824,
+              is_active: true,
+            },
+            {
+              id: "starter",
+              display_name: "Starter",
+              sort_order: 10,
+              monthly_price_cents: 1500,
+              monthly_credits_cents: 350,
+              storage_limit_bytes: 1073741824,
+              is_active: true,
+            },
+            {
+              id: "studio",
+              display_name: "Studio",
+              sort_order: 20,
+              monthly_price_cents: 12900,
+              monthly_credits_cents: 3200,
+              storage_limit_bytes: 107374182400,
+              is_active: true,
+            },
+          ],
+          packages: [],
+          storageAddons: [],
+        }}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Create free account" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign up for Starter" })).toBeInTheDocument();
+  });
+
   it("starts the authenticated paid-plan flow through the existing subscription endpoint", async () => {
     const assignMock = vi.fn();
     useSupabaseSessionStateMock.mockReturnValue({
@@ -212,7 +264,7 @@ describe("Pricing route behavior", () => {
           method: "POST",
           body: JSON.stringify({
             targetPlanId: "studio",
-            billingInterval: "month",
+            billingInterval: "year",
           }),
         })
       );
@@ -233,7 +285,7 @@ describe("Pricing route behavior", () => {
         interval: "year",
       },
       push: routerPushMock,
-      replace: vi.fn(),
+      replace: routerReplaceMock,
     });
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,
@@ -277,8 +329,59 @@ describe("Pricing route behavior", () => {
     expect(loginAction).toHaveAttribute("href", "/auth?next=%2Fdashboard");
     expect(signupAction).toHaveAttribute(
       "href",
-      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio%26interval%3Dyear&mode=signup"
+      "/auth?next=%2Fpricing%3Fintent%3Dcreate-project%26plan%3Dstudio&mode=signup"
     );
-    expect(screen.getByRole("button", { name: /annual/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /annual/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("with annual billing paid upfront")).toBeInTheDocument();
+    expect(
+      screen.getByText("Upgrade anytime. Downgrades apply at the next billing cycle.")
+    ).toBeInTheDocument();
+  });
+
+  it("allows switching from annual to monthly billing", async () => {
+    useSupabaseSessionStateMock.mockReturnValue({
+      initialized: true,
+      session: null,
+      user: null,
+    });
+
+    render(
+      <PricingPage
+        billingCatalog={{
+          plans: [
+            {
+              id: "free",
+              display_name: "Free",
+              sort_order: 0,
+              monthly_price_cents: 0,
+              monthly_credits_cents: 100,
+              storage_limit_bytes: 1073741824,
+              is_active: true,
+            },
+            {
+              id: "studio",
+              display_name: "Studio",
+              sort_order: 20,
+              monthly_price_cents: 3900,
+              monthly_credits_cents: 3000,
+              storage_limit_bytes: 107374182400,
+              is_active: true,
+            },
+          ],
+          packages: [],
+          storageAddons: [],
+        }}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Monthly" }));
+
+    await waitFor(() => {
+      expect(routerReplaceMock).toHaveBeenCalledWith(
+        "/pricing?intent=create-project&plan=studio&interval=month",
+        undefined,
+        { shallow: true }
+      );
+    });
   });
 });

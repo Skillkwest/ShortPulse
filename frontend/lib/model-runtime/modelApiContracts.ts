@@ -43,14 +43,26 @@ export const listModelApiContracts = (): ModelApiContract[] => Object.values(con
 export const getModelApiContract = (modelId: string): ModelApiContract | null =>
   contracts[modelId] ?? null;
 
+export const getRequiredModelApiContract = (modelId: string): ModelApiContract => {
+  const contract = getModelApiContract(modelId);
+  if (contract) return contract;
+  throw new Error(`Missing model API contract for '${modelId}'`);
+};
+
 export const getModelAllowedAspects = (modelId: string, fallback: string[] = []): string[] => {
   const contract = getModelApiContract(modelId);
   return contract?.allowedAspects?.length ? contract.allowedAspects : fallback;
 };
 
+export const getRequiredModelAllowedAspects = (modelId: string): string[] =>
+  getRequiredModelApiContract(modelId).allowedAspects;
+
 export const getModelDefaultAspect = (modelId: string, fallback: string): string => {
   return getModelApiContract(modelId)?.defaultAspect ?? fallback;
 };
+
+export const getRequiredModelDefaultAspect = (modelId: string): string =>
+  getRequiredModelApiContract(modelId).defaultAspect;
 
 export const getModelAllowedResolutions = (
   modelId: string,

@@ -9,6 +9,7 @@ export type ChargeOptions = {
   payload: JsonObject;
   reason: string;
   skipBilling?: boolean;
+  shortpulseContext?: JsonObject | null;
 };
 
 export type ChargeResult = {

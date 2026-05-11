@@ -107,14 +107,14 @@ export function ProfileAccountSection({
 
       <ProfilePreferenceToggleCard
         title="AI Studio autosave"
-        description="Control whether eligible generated and reference media are automatically saved to your Media Library."
+        description="Control whether eligible AI Studio media is automatically saved to your Media Library."
         enabled={mediaAutosaveEnabled}
         disabled={mediaAutosaveDisabled}
         saving={mediaAutosaveSaving}
         error={mediaAutosaveError}
         onToggle={onMediaAutosaveToggle}
-        enabledHelperText="Autosave is ON. New eligible AI Studio media will save automatically."
-        disabledHelperText="Autosave is OFF. You can still save media manually from AI Studio."
+        enabledHelperText="Autosave is ON. New eligible AI Studio media will save automatically to your Media Library."
+        disabledHelperText="Autosave is OFF. Media Library autosave is disabled, but AI Studio may still keep private restore-safe copies for project continuity."
       />
     </div>
   );

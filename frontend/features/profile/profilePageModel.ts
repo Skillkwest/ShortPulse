@@ -19,6 +19,7 @@ export type BillingSubscriptionContract = {
   id: string;
   plan_id: string | null;
   offer_id: string | null;
+  billing_interval: "month" | "year" | null;
   stripe_subscription_id: string | null;
   stripe_price_id: string | null;
   contract_source: "stripe" | "internal_comp" | null;

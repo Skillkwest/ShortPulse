@@ -67,6 +67,18 @@ export const getModelTypeLabel = (
     if (variantId === "create" || variantLabel.includes("create")) return "text → image";
     return "text/image → image";
   }
+  if (workflow.includes("voice changer") || workflow.includes("sound to sound")) {
+    return "sound → sound";
+  }
+  if (
+    workflow.includes("music") ||
+    workflow.includes("sound effect") ||
+    workflow.includes("voiceover") ||
+    workflow.includes("voice design") ||
+    workflow.includes("text to sound")
+  ) {
+    return "text → sound";
+  }
   if (strategy === "elevenlabs-voice-changer-per-minute") return "sound → sound";
   if (strategy.includes("elevenlabs")) return "text → sound";
   if (workflow.includes("audio") || workflow.includes("sound")) {

@@ -2,8 +2,18 @@
  * Subscription section for the profile workspace.
  * Presents the active plan summary and public plan catalog using the shared settings panel language.
  */
+import { useEffect, useMemo, useState } from "react";
 import { Receipt, WarningCircle } from "phosphor-react";
-import { buildPlanView, getPlanTierRank, type BillingPlanRecord } from "../../billing/catalog";
+import { BillingIntervalToggle } from "../../billing/components/BillingIntervalToggle";
+import { SubscriptionPlanCard } from "../../billing/components/SubscriptionPlanCard";
+import {
+  buildPlanView,
+  filterPublicSubscriptionPlans,
+  getPlanTierRank,
+  resolvePlanPricingForInterval,
+  type BillingInterval,
+  type BillingPlanRecord,
+} from "../../billing/catalog";
 import { formatStorageBytes } from "../../billing/storage";
 import {
   formatCurrencyAmount,
@@ -20,6 +30,7 @@ type ProfileSubscriptionSectionProps = {
   activePlanRank: number;
   activeAddonStorageBytes: number;
   currentSubscriptionCreditsCents: number;
+  currentSubscriptionBillingInterval: BillingInterval;
   currentSubscriptionPriceCents: number;
   currentSubscriptionStorageLimitBytes: number;
   subscriptionRenewalText: string;
@@ -30,7 +41,7 @@ type ProfileSubscriptionSectionProps = {
   subscriptionTransactions: SubscriptionTransaction[];
   subscriptionTransactionsLoading: boolean;
   subscriptionTransactionsError: string | null;
-  onRequestPlanChange: (planId: string) => void;
+  onRequestPlanChange: (planId: string, billingInterval: BillingInterval) => void;
   onRequestCancel: (planId: string) => void;
 };
 
@@ -42,6 +53,7 @@ export function ProfileSubscriptionSection({
   activePlanRank,
   activeAddonStorageBytes,
   currentSubscriptionCreditsCents,
+  currentSubscriptionBillingInterval,
   currentSubscriptionPriceCents,
   currentSubscriptionStorageLimitBytes,
   subscriptionRenewalText,
@@ -55,6 +67,13 @@ export function ProfileSubscriptionSection({
   onRequestPlanChange,
   onRequestCancel,
 }: ProfileSubscriptionSectionProps) {
+  const [selectedBillingInterval, setSelectedBillingInterval] = useState<BillingInterval>(
+    currentSubscriptionBillingInterval
+  );
+  const visibleBillingPlans = useMemo(
+    () => filterPublicSubscriptionPlans(billingPlans),
+    [billingPlans]
+  );
   const renewalHelperText =
     subscriptionRenewalText === "Not scheduled"
       ? "No active renewal is scheduled"
@@ -66,15 +85,48 @@ export function ProfileSubscriptionSection({
       ? "Recurring storage add-ons renew monthly"
       : "No recurring storage add-ons active";
   const showRenewalChip = activePlan.id !== "free";
+  const annualSavingsPercent = useMemo(
+    () =>
+      Math.max(
+        0,
+        ...visibleBillingPlans.map((plan) => {
+          const planView = buildPlanView({ planId: plan.id, plans: visibleBillingPlans });
+          const displayPricing = planView.displayPricing;
+          if (
+            displayPricing?.annualComparePriceCents &&
+            displayPricing.annualDisplayPriceCents > 0
+          ) {
+            return Math.round(
+              ((displayPricing.annualComparePriceCents - displayPricing.annualDisplayPriceCents) /
+                displayPricing.annualComparePriceCents) *
+                100
+            );
+          }
+          const pricing = resolvePlanPricingForInterval(plan, "year");
+          return pricing.savingsAmountCents > 0 ? Math.round(pricing.savingsPercent) : 0;
+        })
+      ),
+    [visibleBillingPlans]
+  );
+  const currentPlanSummary =
+    currentSubscriptionPriceCents === 0
+      ? "Free forever"
+      : currentSubscriptionBillingInterval === "year"
+        ? `${formatCurrencyFromCents(Math.round(currentSubscriptionPriceCents / 12))} per month billed annually`
+        : `${formatCurrencyFromCents(currentSubscriptionPriceCents)} / month`;
+
+  useEffect(() => {
+    setSelectedBillingInterval(currentSubscriptionBillingInterval);
+  }, [currentSubscriptionBillingInterval]);
 
   return (
     <>
       <details className="panel profile-detail-panel profile-billing-how">
         <summary>How subscriptions work</summary>
         <p>
-          Monthly plans include recurring credits. You can upgrade or downgrade anytime. Upgrades
-          take effect immediately with prorated charges. Downgrades apply at the end of your billing
-          period. Credits never expire.
+          Paid plans include recurring credits whether you choose monthly or annual billing. You can
+          upgrade or downgrade anytime. Upgrades take effect immediately with prorated charges.
+          Downgrades apply at the end of your billing period. Credits never expire.
         </p>
       </details>
 
@@ -86,8 +138,7 @@ export function ProfileSubscriptionSection({
           <h2 className="profile-hero-title">Your subscription</h2>
           <p className="profile-hero-value profile-hero-value-text">{activePlan.displayName}</p>
           <p className="tiny subdued">
-            {formatCurrencyFromCents(currentSubscriptionPriceCents)} / month ·{" "}
-            {activePlan.description}
+            {currentPlanSummary} · {activePlan.description}
           </p>
         </div>
 
@@ -137,46 +188,54 @@ export function ProfileSubscriptionSection({
           </div>
         </div>
 
-        <div className="profile-plan-grid">
+        <BillingIntervalToggle
+          selectedBillingInterval={selectedBillingInterval}
+          annualSavingsPercent={annualSavingsPercent}
+          onChange={setSelectedBillingInterval}
+          className="profile-subscription-interval-toggle"
+        />
+
+        <div className="profile-plan-grid subscription-plan-grid">
           {billingPlansLoading ? (
             <div className="profile-plan-card">
               <p className="tiny subdued">Loading plans…</p>
             </div>
-          ) : billingPlans.length === 0 ? (
+          ) : visibleBillingPlans.length === 0 ? (
             <div className="profile-plan-card">
               <p className="tiny subdued">No active plans configured yet.</p>
             </div>
           ) : (
-            billingPlans.map((plan) => {
-              const planView = buildPlanView({ planId: plan.id, plans: billingPlans });
+            visibleBillingPlans.map((plan) => {
+              const planView = buildPlanView({ planId: plan.id, plans: visibleBillingPlans });
               const isCurrentPlan = activePlan.id === plan.id;
-              const candidatePlanRank = getPlanTierRank(plan.id, billingPlans);
+              const candidatePlanRank = getPlanTierRank(plan.id, visibleBillingPlans);
               const isHigherTier = candidatePlanRank > activePlanRank;
               const isLowerTier = candidatePlanRank < activePlanRank;
               const isFree = plan.monthly_price_cents === 0;
               const isCurrentInternalCompPlan = isInternalCompContract && isCurrentPlan && !isFree;
               const isActionLoading = planChangeLoadingPlanId === plan.id;
               const paidPlanLabel = activePlan.id === "free" || isInternalCompContract;
-              const actionButton = isCurrentInternalCompPlan ? (
+              const billingLabel = selectedBillingInterval === "year" ? "annual" : "monthly";
+              const actionButton = isCurrentPlan ? (
+                <button type="button" className="profile-button ghost-btn" disabled>
+                  Current Plan
+                </button>
+              ) : isCurrentInternalCompPlan ? (
                 <button
                   type="button"
                   className="profile-button primary-btn"
-                  onClick={() => onRequestPlanChange(plan.id)}
+                  onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
                   disabled={isActionLoading}
                 >
                   {isActionLoading
                     ? "Starting checkout…"
-                    : `Switch to ${planView.displayName} billing`}
-                </button>
-              ) : isCurrentPlan ? (
-                <button type="button" className="profile-button ghost-btn" disabled>
-                  Current Plan
+                    : `Switch to ${planView.displayName} ${billingLabel} billing`}
                 </button>
               ) : isHigherTier ? (
                 <button
                   type="button"
                   className="profile-button primary-btn"
-                  onClick={() => onRequestPlanChange(plan.id)}
+                  onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
                   disabled={isActionLoading}
                 >
                   {isActionLoading
@@ -191,7 +250,7 @@ export function ProfileSubscriptionSection({
                 <button
                   type="button"
                   className="profile-button ghost-btn"
-                  onClick={() => onRequestPlanChange(plan.id)}
+                  onClick={() => onRequestPlanChange(plan.id, selectedBillingInterval)}
                   disabled={isActionLoading}
                 >
                   {isActionLoading
@@ -213,47 +272,34 @@ export function ProfileSubscriptionSection({
               ) : null;
 
               return (
-                <div
+                <SubscriptionPlanCard
                   key={plan.id}
-                  className={`profile-plan-card ${planView.className} ${isCurrentPlan ? "current" : ""}`}
-                >
-                  <div className="profile-plan-top">
-                    <div>
-                      <p className="tiny subdued">
-                        {isFree ? "Free tier" : "Monthly subscription"}
-                      </p>
-                      <h3 className="profile-plan-card-title">{planView.displayName}</h3>
-                    </div>
-                    {isCurrentPlan ? (
-                      <span className="profile-plan-badge">Current Plan</span>
-                    ) : null}
-                  </div>
-
-                  <p className="meta-value">
-                    {formatCurrencyFromCents(plan.monthly_price_cents)}
-                    <span className="tiny subdued"> / month</span>
-                  </p>
-
-                  <p className="tiny subdued">{planView.description}</p>
-
-                  <div className="profile-divider" />
-
-                  <div className="profile-card-footer">
-                    <p className="tiny subdued">
-                      <strong>{plan.monthly_credits_cents.toLocaleString()}</strong> credits/month
-                    </p>
-                    <p className="tiny subdued">
-                      <strong>{formatStorageBytes(planView.storageLimitBytes)}</strong> storage
-                      included
-                    </p>
-                  </div>
-
-                  {actionButton ? <div className="profile-actions">{actionButton}</div> : null}
-                </div>
+                  plan={plan}
+                  plans={visibleBillingPlans}
+                  billingInterval={selectedBillingInterval}
+                  isCurrent={isCurrentPlan}
+                  stateBadgeLabel={isCurrentPlan ? "Current Plan" : null}
+                  className="profile-subscription-plan-card"
+                  actionSlot={
+                    actionButton ? <div className="profile-actions">{actionButton}</div> : null
+                  }
+                />
               );
             })
           )}
         </div>
+
+        {activePlan.id !== "free" && visibleBillingPlans.every((plan) => plan.id !== "free") ? (
+          <div className="profile-actions">
+            <button
+              type="button"
+              className="profile-button ghost-btn"
+              onClick={() => onRequestCancel("free")}
+            >
+              {isInternalCompContract ? "Switch to Free" : "Cancel to Free"}
+            </button>
+          </div>
+        ) : null}
       </section>
 
       <section className="panel profile-panel profile-panel-stack">

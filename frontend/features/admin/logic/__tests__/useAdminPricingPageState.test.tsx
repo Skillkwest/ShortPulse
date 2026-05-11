@@ -143,4 +143,43 @@ describe("useAdminPricingPageState", () => {
     await waitFor(() => expect(result.current.simulatorPlanIds).toEqual(["starter", "sim-plan-1"]));
     expect(result.current.planEconomicsDrafts["sim-plan-1"]?.simulatedName).toBe("Sandbox Plan");
   });
+
+  it("drops the hidden free tier from default simulator plan ids when starter exists", async () => {
+    const pricingState = {
+      ...buildPricingState(),
+      plans: [
+        {
+          planId: "free",
+          displayName: "Free",
+          offerId: "free__current",
+          sortOrder: 0,
+          accountCount: 10,
+          status: "active" as const,
+          recurringPriceCents: 0,
+          monthlyCreditsCents: 100,
+          storageLimitBytes: 1073741824,
+          stripeProductId: null,
+          stripePriceId: null,
+          acquisitionEnabled: true,
+          isActive: true,
+          effectiveStartAt: "2026-05-07T00:00:00.000Z",
+          monthlyOffer: null,
+          annualOffer: null,
+        },
+        ...buildPricingState().plans,
+      ],
+    } satisfies AdminPricingStateResponse;
+
+    const { result } = renderHook(() =>
+      useAdminPricingPageState({
+        pricingState,
+        pricingLoading: false,
+        pricingError: null,
+        refreshPricingState: async () => undefined,
+      })
+    );
+
+    await waitFor(() => expect(result.current.simulatorPlanIds).toEqual(["starter"]));
+    expect(result.current.selectedUsagePlanId).toBe("starter");
+  });
 });

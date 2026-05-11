@@ -7,6 +7,14 @@ export type AdminModelWorkflowType =
   | "Text to video"
   | "Image to video"
   | "Video to video"
+  | "Music"
+  | "Sound effect"
+  | "Voiceover"
+  | "Voice changer"
+  | "Voice design"
+  | "Text to sound"
+  | "Sound to sound"
+  | "Text to text"
   | "Text"
   | "Multi";
 
@@ -19,6 +27,31 @@ export const getAdminModelWorkflowType = (
   const generationLanes = model.generationLanes ?? [];
   const supportsTextToVideo = generationLanes.includes("text-to-video");
   const supportsImageToVideo = generationLanes.includes("image-to-video");
+  const supportsMusic = generationLanes.includes("music");
+  const supportsSoundEffects = generationLanes.includes("sfx");
+  const supportsTextToSpeech = generationLanes.includes("text-to-speech");
+  const supportsSpeechToSpeech = generationLanes.includes("speech-to-speech");
+  const supportsVoiceDesign = generationLanes.includes("voice-design");
+
+  if (supportsVoiceDesign) {
+    return "Voice design";
+  }
+
+  if (supportsSpeechToSpeech) {
+    return "Voice changer";
+  }
+
+  if (supportsTextToSpeech) {
+    return "Voiceover";
+  }
+
+  if (supportsSoundEffects) {
+    return "Sound effect";
+  }
+
+  if (supportsMusic) {
+    return "Music";
+  }
 
   if (model.supportsTextToImage && model.supportsImageToImage) {
     return "Text + image edit";
@@ -48,9 +81,11 @@ export const getAdminModelWorkflowType = (
     case "image-to-video":
       return "Image to video";
     case "text":
-      return "Text";
+      return "Text to text";
     case "multi":
       return "Multi";
+    case "audio":
+      return "Text to sound";
     default:
       return "Text";
   }

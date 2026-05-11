@@ -352,12 +352,18 @@ export function useAdminPricingPageState({
     [pricingState?.plans]
   );
 
+  const getDefaultSimulatorCatalogPlans = React.useCallback(() => {
+    const plans = [...(pricingState?.plans ?? [])];
+    const hasStarter = plans.some((plan) => plan.planId === "starter");
+    return hasStarter ? plans.filter((plan) => plan.planId !== "free") : plans;
+  }, [pricingState?.plans]);
+
   const buildLiveSimulatorPlanIds = React.useCallback(
     () =>
-      [...(pricingState?.plans ?? [])]
+      [...getDefaultSimulatorCatalogPlans()]
         .sort((left, right) => left.sortOrder - right.sortOrder)
         .map((plan) => plan.planId),
-    [pricingState?.plans]
+    [getDefaultSimulatorCatalogPlans]
   );
 
   const buildUsageMixDefaults = React.useCallback(
@@ -373,6 +379,7 @@ export function useAdminPricingPageState({
 
   React.useEffect(() => {
     const plans = pricingState?.plans ?? [];
+    const simulatorCatalogPlans = getDefaultSimulatorCatalogPlans();
     if (!plans.length) return;
     const nextDefaultDrafts = buildPlanEconomicsDefaults();
     const previousSeedDrafts = planEconomicsSeedByPlanIdRef.current;
@@ -412,7 +419,9 @@ export function useAdminPricingPageState({
       return current;
     });
     setSelectedUsagePlanId((current) =>
-      current && plans.some((plan) => plan.planId === current) ? current : (plans[0]?.planId ?? "")
+      current && simulatorCatalogPlans.some((plan) => plan.planId === current)
+        ? current
+        : (simulatorCatalogPlans[0]?.planId ?? "")
     );
     setUsageMixRowsByPlanId((current) => {
       const next: Record<string, UsageMixDraftRow[]> = {};
@@ -431,6 +440,7 @@ export function useAdminPricingPageState({
   }, [
     buildLiveSimulatorPlanIds,
     buildPlanEconomicsDefaults,
+    getDefaultSimulatorCatalogPlans,
     modelEconomicsRows,
     planEconomicsDrafts,
     pricingState?.plans,

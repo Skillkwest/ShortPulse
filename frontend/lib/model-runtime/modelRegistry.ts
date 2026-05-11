@@ -9,6 +9,7 @@ import {
   type GenerationSubmitHandler,
   type GenerationWorkflowLane,
   type ModelCatalogEntry,
+  type ModelDefaultRole,
   type ModelCatalogMediaType,
   type ModelLifecycle,
   type ModelLogoKey,
@@ -39,6 +40,7 @@ export type ModelConfig = {
   logoKey?: ModelLogoKey;
   providerModelId?: string;
   providerVariants?: string[];
+  replacementModelId?: string;
   defaultAspect: string;
   allowedAspects: string[];
   pricingStrategy?: PricingStrategyId;
@@ -61,6 +63,7 @@ export type ModelConfig = {
   executionMode?: GenerationExecutionMode;
   submitHandler?: GenerationSubmitHandler;
   submissionAdapterKey?: ModelSubmissionAdapterKey;
+  defaultRoles?: ModelDefaultRole[];
   gridEligible?: boolean;
   apiRouteSlug?: string;
 };
@@ -102,6 +105,7 @@ const buildModelConfig = (entry: RegistryReadyCatalogEntry): ModelConfig => ({
   logoKey: entry.logoKey,
   providerModelId: entry.providerModelId,
   providerVariants: entry.providerVariants,
+  replacementModelId: entry.replacementModelId,
   defaultAspect: entry.defaultAspect,
   allowedAspects: entry.allowedAspects,
   pricingStrategy: entry.pricingStrategy,
@@ -124,6 +128,7 @@ const buildModelConfig = (entry: RegistryReadyCatalogEntry): ModelConfig => ({
   executionMode: entry.executionMode,
   submitHandler: entry.submitHandler,
   submissionAdapterKey: entry.submissionAdapterKey,
+  defaultRoles: entry.defaultRoles,
   gridEligible: entry.gridEligible,
   apiRouteSlug: entry.apiRouteSlug,
 });

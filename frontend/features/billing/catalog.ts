@@ -50,11 +50,12 @@ export type BillingCatalogSnapshot = {
   storageAddons: BillingStorageAddonRecord[];
 };
 
-const PLAN_TIER_ORDER = ["free", "media", "studio", "business"] as const;
+const PLAN_TIER_ORDER = ["free", "starter", "media", "studio", "business"] as const;
 const GIB = 1024 * 1024 * 1024;
 
 const DEFAULT_PLAN_STORAGE_LIMITS: Record<string, number> = {
   free: 1 * GIB,
+  starter: 1 * GIB,
   media: 25 * GIB,
   studio: 100 * GIB,
   business: 500 * GIB,
@@ -80,43 +81,196 @@ const ANNUAL_PRICING_CONFIG: Partial<Record<string, AnnualPricingConfig>> = {
   },
 };
 
+export type SubscriptionPlanFeature = {
+  label: string;
+  included: boolean;
+};
+
+export type SubscriptionPlanDisplayPricing = {
+  monthlyDisplayPriceCents: number;
+  annualDisplayPriceCents: number;
+  annualComparePriceCents?: number | null;
+  annualDiscountLabel?: string | null;
+  annualSaveLabel?: string | null;
+};
+
+export type SubscriptionPlanDisplayBenefits = {
+  monthlyCreditsLabel: string;
+  storageLabel: string;
+};
+
 type PlanPresentation = {
   className: string;
+  displayNameOverride?: string;
   seatsLabel: string;
   description: string;
+  cardFooterDescription: string;
   concurrentGenerationsLabel: string;
   concurrentGenerationsCompactLabel: string;
+  cardFeatures: SubscriptionPlanFeature[];
+  bonusCreditsLabel?: string;
+  displayPricing?: SubscriptionPlanDisplayPricing;
+  displayBenefits?: SubscriptionPlanDisplayBenefits;
   pricingHighlights?: string[];
+};
+
+export type BillingPlanView = {
+  id: string;
+  displayName: string;
+  className: string;
+  description: string;
+  cardFooterDescription: string;
+  seatsLabel: string;
+  concurrentGenerationsLabel: string;
+  concurrentGenerationsCompactLabel: string;
+  cardFeatures: SubscriptionPlanFeature[];
+  bonusCreditsLabel: string | null;
+  displayPricing: SubscriptionPlanDisplayPricing;
+  displayBenefits: SubscriptionPlanDisplayBenefits;
+  pricingHighlights: string[];
+  monthlyPriceCents: number;
+  monthlyCreditsCents: number;
+  storageLimitBytes: number;
 };
 
 const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
   free: {
     className: "plan-free",
+    displayNameOverride: "Free",
     seatsLabel: "1 workspace seat",
-    description: "Starter access for exploration.",
+    description: "Free access for exploration.",
+    cardFooterDescription: "Best for trying ShortPulse before upgrading to a paid plan.",
     concurrentGenerationsLabel: "1 audio, 1 image, and 1 video generation at a time",
     concurrentGenerationsCompactLabel: "1 audio · 1 image · 1 video",
+    cardFeatures: [
+      { label: "Create studio", included: true },
+      { label: "Editing studio", included: true },
+      { label: "Video Studio", included: false },
+      { label: "Sound Studio", included: false },
+      { label: "Lowest cost per credit", included: false },
+      { label: "Free BONUS credits", included: false },
+    ],
+    displayPricing: {
+      monthlyDisplayPriceCents: 0,
+      annualDisplayPriceCents: 0,
+      annualComparePriceCents: null,
+      annualDiscountLabel: null,
+      annualSaveLabel: null,
+    },
+    displayBenefits: {
+      monthlyCreditsLabel: "100 credits every month",
+      storageLabel: "1.0 GB of media storage",
+    },
+  },
+  starter: {
+    className: "plan-free",
+    seatsLabel: "1 workspace seat",
+    description: "Starter access for exploration.",
+    cardFooterDescription: "Best for graphic artists and all image based workflows.",
+    concurrentGenerationsLabel: "1 audio, 1 image, and 1 video generation at a time",
+    concurrentGenerationsCompactLabel: "1 audio · 1 image · 1 video",
+    cardFeatures: [
+      { label: "Create studio", included: true },
+      { label: "Editing studio", included: true },
+      { label: "Video Studio", included: false },
+      { label: "Sound Studio", included: false },
+      { label: "Lowest cost per credit", included: false },
+      { label: "Free BONUS credits", included: false },
+    ],
+    displayPricing: {
+      monthlyDisplayPriceCents: 1_500,
+      annualDisplayPriceCents: 1_500,
+      annualComparePriceCents: null,
+      annualDiscountLabel: null,
+      annualSaveLabel: null,
+    },
+    displayBenefits: {
+      monthlyCreditsLabel: "350 credits every month",
+      storageLabel: "1.0 GB of media storage",
+    },
   },
   media: {
     className: "plan-media",
     seatsLabel: "1 workspace seat",
     description: "Ideal for creators testing cadence.",
+    cardFooterDescription: "Best for image + short form video workflows.",
     concurrentGenerationsLabel: "2 audio, 2 image, and 1 video generations at a time",
     concurrentGenerationsCompactLabel: "2 audio · 2 image · 1 video",
+    cardFeatures: [
+      { label: "Create studio", included: true },
+      { label: "Editing studio", included: true },
+      { label: "Video studio", included: true },
+      { label: "Sound Studio", included: true },
+      { label: "Lowest cost per credit", included: false },
+      { label: "Free BONUS credits", included: false },
+    ],
+    displayPricing: {
+      monthlyDisplayPriceCents: 4_900,
+      annualDisplayPriceCents: 4_900,
+      annualComparePriceCents: null,
+      annualDiscountLabel: null,
+      annualSaveLabel: null,
+    },
+    displayBenefits: {
+      monthlyCreditsLabel: "1,200 credits every month",
+      storageLabel: "25.0 GB of media storage",
+    },
   },
   studio: {
     className: "plan-studio",
     seatsLabel: "1 workspace seat",
     description: "Built for consistent creative production.",
+    cardFooterDescription:
+      "Best for creators moving from casual experimenting to serious AI production.",
     concurrentGenerationsLabel: "4 audio, 3 image, and 2 video generations at a time",
     concurrentGenerationsCompactLabel: "4 audio · 3 image · 2 video",
+    cardFeatures: [
+      { label: "Create studio", included: true },
+      { label: "Editing studio", included: true },
+      { label: "Video studio", included: true },
+      { label: "Sound Studio", included: true },
+      { label: "Lowest cost per credit", included: true },
+      { label: "Free BONUS credits", included: false },
+    ],
+    displayPricing: {
+      monthlyDisplayPriceCents: 12_900,
+      annualDisplayPriceCents: 9_900,
+      annualComparePriceCents: 12_900,
+      annualDiscountLabel: "23% OFF",
+      annualSaveLabel: "Save $360",
+    },
+    displayBenefits: {
+      monthlyCreditsLabel: "3,200 credits every month",
+      storageLabel: "100 GB of media storage",
+    },
   },
   business: {
     className: "plan-business",
     seatsLabel: "Team access",
     description: "Highest throughput for heavy AI workloads.",
+    cardFooterDescription: "Best for serious creators with heavy workflow & storage needs",
     concurrentGenerationsLabel: "6 audio, 4 image, and 3 video generations at a time",
     concurrentGenerationsCompactLabel: "6 audio · 4 image · 3 video",
+    cardFeatures: [
+      { label: "Create studio", included: true },
+      { label: "Editing studio", included: true },
+      { label: "Video studio", included: true },
+      { label: "Sound Studio", included: true },
+      { label: "Lowest cost per credit", included: true },
+      { label: "Free BONUS credits", included: true },
+    ],
+    bonusCreditsLabel: "+ 500 BONUS credits every month for FREE",
+    displayPricing: {
+      monthlyDisplayPriceCents: 29_900,
+      annualDisplayPriceCents: 22_900,
+      annualComparePriceCents: 29_900,
+      annualDiscountLabel: "23% OFF",
+      annualSaveLabel: "Save $840",
+    },
+    displayBenefits: {
+      monthlyCreditsLabel: "7,500 credits every month",
+      storageLabel: "500 GB of media storage",
+    },
     pricingHighlights: ["Lowest cost per credit", "Discounted credit top-ups"],
   },
 };
@@ -126,9 +280,32 @@ const GENERIC_PLAN_PRESENTATION: PlanPresentation = {
   className: "plan-generic",
   seatsLabel: "Workspace access",
   description: "Subscription plan.",
+  cardFooterDescription: "Built for creators scaling their workflow.",
   concurrentGenerationsLabel: "Standard concurrent generation access",
   concurrentGenerationsCompactLabel: "Standard concurrent access",
+  cardFeatures: [
+    { label: "Create studio", included: true },
+    { label: "Editing studio", included: true },
+    { label: "Video studio", included: true },
+    { label: "Sound Studio", included: true },
+  ],
+  displayPricing: {
+    monthlyDisplayPriceCents: 0,
+    annualDisplayPriceCents: 0,
+    annualComparePriceCents: null,
+    annualDiscountLabel: null,
+    annualSaveLabel: null,
+  },
+  displayBenefits: {
+    monthlyCreditsLabel: "Credits every month",
+    storageLabel: "Media storage",
+  },
 };
+
+const GENERIC_PLAN_DISPLAY_PRICING: SubscriptionPlanDisplayPricing =
+  GENERIC_PLAN_PRESENTATION.displayPricing!;
+const GENERIC_PLAN_DISPLAY_BENEFITS: SubscriptionPlanDisplayBenefits =
+  GENERIC_PLAN_PRESENTATION.displayBenefits!;
 
 /**
  * Normalizes any plan identifier into a known plan key.
@@ -143,8 +320,15 @@ export const normalizePlanId = (value: string | undefined | null): string => {
   if (normalized === "business") return "business";
   if (normalized === "studio") return "studio";
   if (normalized === "media") return "media";
+  if (normalized === "starter") return "starter";
   if (normalized === "free") return "free";
   return normalized || DEFAULT_PLAN_ID;
+};
+
+export const filterPublicSubscriptionPlans = (plans: BillingPlanRecord[]): BillingPlanRecord[] => {
+  const hasPublicStarter = plans.some((plan) => normalizePlanId(plan.id) === "starter");
+  if (!hasPublicStarter) return plans;
+  return plans.filter((plan) => normalizePlanId(plan.id) !== "free");
 };
 
 /**
@@ -176,7 +360,7 @@ const humanizePlanId = (value: string): string =>
 export const buildPlanView = (params: {
   planId: string | undefined | null;
   plans: BillingPlanRecord[];
-}) => {
+}): BillingPlanView => {
   const normalizedId = normalizePlanId(params.planId);
   const fromCatalog = params.plans.find((plan) => plan.id === normalizedId);
   const fallbackCatalog = params.plans.find((plan) => plan.id === DEFAULT_PLAN_ID);
@@ -188,12 +372,20 @@ export const buildPlanView = (params: {
 
   return {
     id: normalizedId,
-    displayName: resolvedCatalog?.display_name ?? humanizePlanId(normalizedId),
+    displayName:
+      presentation.displayNameOverride ??
+      resolvedCatalog?.display_name ??
+      humanizePlanId(normalizedId),
     className: presentation.className,
     description: presentation.description,
+    cardFooterDescription: presentation.cardFooterDescription,
     seatsLabel: presentation.seatsLabel,
     concurrentGenerationsLabel: presentation.concurrentGenerationsLabel,
     concurrentGenerationsCompactLabel: presentation.concurrentGenerationsCompactLabel,
+    cardFeatures: presentation.cardFeatures,
+    bonusCreditsLabel: presentation.bonusCreditsLabel ?? null,
+    displayPricing: presentation.displayPricing ?? GENERIC_PLAN_DISPLAY_PRICING,
+    displayBenefits: presentation.displayBenefits ?? GENERIC_PLAN_DISPLAY_BENEFITS,
     pricingHighlights: presentation.pricingHighlights ?? [],
     monthlyPriceCents: resolvedCatalog?.monthly_price_cents ?? 0,
     monthlyCreditsCents: resolvedCatalog?.monthly_credits_cents ?? 0,

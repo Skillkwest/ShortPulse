@@ -18,6 +18,19 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "./providerModelIds";
+import {
+  FAL_FLUX_2_KLEIN_9B_MODEL_ID,
+  FAL_NANO_BANANA_2_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_2_MODEL_ID,
+  FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
+  FAL_NANO_BANANA_PRO_MODEL_ID,
+  FAL_SEEDREAM_45_EDIT_MODEL_ID,
+  FAL_SEEDREAM_45_TEXT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
+  FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
+} from "./falModelIds";
+import type { ModelSubmissionAdapterKey } from "./submissionAdapterMetadata";
+export type { ModelSubmissionAdapterKey } from "./submissionAdapterMetadata";
 
 export type ModelAspectSubmitField = "aspect_ratio" | "image_size" | "none";
 export type ModelProvider = "fal" | "kie" | "openai" | "elevenlabs";
@@ -41,27 +54,23 @@ export type GenerationWorkflowLane =
   | "text";
 export type GenerationExecutionMode = "queued" | "direct" | "none";
 export type GenerationSubmitHandler = "default" | "image" | "video" | "audio" | "unsupported";
-export type ModelSubmissionAdapterKey =
-  | "openai-gpt-image-2"
-  | "seedream-text"
-  | "seedream-v5-lite-text"
-  | "nano-banana-pro-text"
-  | "nano-banana-2-text"
-  | "bria-background-remove"
-  | "flux-pro-fill"
-  | "flux-kontext-inpaint"
-  | "nano-banana-pro-edit"
-  | "nano-banana-2-edit"
-  | "seedream-edit"
-  | "seedream-v5-lite-edit"
-  | "flux-2-klein"
-  | "kie-veo-31-fast-i2v"
-  | "kie-seedance-1-5-pro"
-  | "kie-seedance-2"
-  | "kie-kling-3";
 export type ModelPromptPolicy = "required" | "optional";
 export type ModelAdmissionTier = "video_long" | "image_heavy" | "image_standard";
 export type ModelLifecycle = "active" | "deprecated" | "disabled" | "retired";
+export type ModelDefaultRole =
+  | "create-startup"
+  | "create-character-mode-startup"
+  | "edit-startup"
+  | "audio-music"
+  | "audio-sfx"
+  | "audio-voiceover"
+  | "audio-voice-changer"
+  | "audio-voice-design"
+  | "ai-studio-text-prompt"
+  | "studio-agent-chat"
+  | "studio-agent-vision"
+  | "style-extraction-vision"
+  | "style-extraction-fallback";
 export type ModelSurface =
   | "picker"
   | "pricing"
@@ -89,6 +98,7 @@ export type ModelCatalogEntry = {
   provider: ModelProvider;
   sourceUrl: string;
   verifiedAt: string;
+  apiDocFile?: string;
   label?: string;
   mediaType?: ModelCatalogMediaType;
   pricingStrategy?: PricingStrategyId;
@@ -106,10 +116,12 @@ export type ModelCatalogEntry = {
   providerVariants?: string[];
   sizeMapId?: "fal-image";
   pairedModelId?: string;
+  replacementModelId?: string;
   createCharacterModeOrder?: number;
   promptPolicy?: ModelPromptPolicy;
   admissionTier?: ModelAdmissionTier;
   alwaysOnProviderRuntime?: boolean;
+  defaultRoles?: ModelDefaultRole[];
   submitAspectField: ModelAspectSubmitField;
   defaultAspect: string;
   allowedAspects: string[];
@@ -144,6 +156,22 @@ export type ModelCatalogEntry = {
   payloadValidation?: ModelPayloadValidationSpec;
 };
 
+const DEFAULT_ROLE_FALLBACK_MODEL_IDS: Record<ModelDefaultRole, string> = {
+  "create-startup": FAL_SEEDREAM_45_TEXT_MODEL_ID,
+  "create-character-mode-startup": FAL_SEEDREAM_45_EDIT_MODEL_ID,
+  "edit-startup": FAL_SEEDREAM_45_EDIT_MODEL_ID,
+  "audio-music": ELEVENLABS_MUSIC_MODEL_ID,
+  "audio-sfx": ELEVENLABS_SOUND_EFFECTS_MODEL_ID,
+  "audio-voiceover": ELEVENLABS_VOICEOVER_MODEL_ID,
+  "audio-voice-changer": ELEVENLABS_VOICE_CHANGER_MODEL_ID,
+  "audio-voice-design": ELEVENLABS_VOICE_DESIGN_MODEL_ID,
+  "ai-studio-text-prompt": "gpt-5.4-nano",
+  "studio-agent-chat": "gpt-5.4-nano",
+  "studio-agent-vision": "gpt-5.4-nano",
+  "style-extraction-vision": "gpt-5.4-mini",
+  "style-extraction-fallback": "gpt-5.4",
+};
+
 const VERIFIED_AT = "2026-04-30";
 const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 const GPT_IMAGE_2_VERIFIED_AT = "2026-04-27";
@@ -151,6 +179,7 @@ const OPENAI_TEXT_VERIFIED_AT = "2026-05-07";
 const ELEVENLABS_VERIFIED_AT = "2026-05-01";
 type ModelCatalogRuntimeMetadata = Pick<
   ModelCatalogEntry,
+  | "apiDocFile"
   | "label"
   | "mediaType"
   | "pricingStrategy"
@@ -168,10 +197,12 @@ type ModelCatalogRuntimeMetadata = Pick<
   | "providerVariants"
   | "sizeMapId"
   | "pairedModelId"
+  | "replacementModelId"
   | "createCharacterModeOrder"
   | "promptPolicy"
   | "admissionTier"
   | "alwaysOnProviderRuntime"
+  | "defaultRoles"
   | "defaultAudio"
   | "supportsTextToImage"
   | "supportsImageToImage"
@@ -190,18 +221,19 @@ type ModelCatalogRuntimeMetadata = Pick<
 >;
 
 const catalogBase: Record<string, ModelCatalogEntry> = {
-  "fal-ai/flux-2/klein/9b": {
-    modelId: "fal-ai/flux-2/klein/9b",
+  [FAL_FLUX_2_KLEIN_9B_MODEL_ID]: {
+    modelId: FAL_FLUX_2_KLEIN_9B_MODEL_ID,
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/flux-2/klein/9b/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-flux-2-klein-9b.md",
     submitAspectField: "image_size",
     defaultAspect: "4:3",
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
     defaultResolution: "model_default",
     allowedResolutions: ["model_default"],
     falSubmitUrl: "https://queue.fal.run/fal-ai/flux-2/klein/9b",
-    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/flux-2/requests"],
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/flux-2/klein/9b/requests"],
     falTimeoutMs: 60000,
     payloadValidation: {
       requiredStringFields: ["prompt"],
@@ -217,6 +249,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/flux-pro/v1/fill/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-flux-pro-fill.md",
     submitAspectField: "none",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
@@ -240,6 +273,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/flux-kontext-lora/inpaint/api",
     verifiedAt: KONTEXT_INPAINT_VERIFIED_AT,
+    apiDocFile: "api-fal-flux-kontext-inpaint.md",
     submitAspectField: "none",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
@@ -262,6 +296,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/bria/background/remove/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-bria-background-remove.md",
     submitAspectField: "none",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
@@ -280,6 +315,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "openai",
     sourceUrl: "https://developers.openai.com/api/docs/models/gpt-image-2",
     verifiedAt: GPT_IMAGE_2_VERIFIED_AT,
+    apiDocFile: "api-openai-gpt-image-2.md",
     submitAspectField: "none",
     defaultAspect: "1:1",
     allowedAspects: ["auto", "9:16", "4:5", "1:1", "5:4", "16:9"],
@@ -296,11 +332,12 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["n", "output_compression"],
     },
   },
-  "fal-ai/nano-banana-2": {
-    modelId: "fal-ai/nano-banana-2",
+  [FAL_NANO_BANANA_2_MODEL_ID]: {
+    modelId: FAL_NANO_BANANA_2_MODEL_ID,
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/nano-banana-2/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-nano-banana-2.md",
     submitAspectField: "aspect_ratio",
     defaultAspect: "auto",
     allowedAspects: [
@@ -352,11 +389,12 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["num_images", "seed"],
     },
   },
-  "fal-ai/nano-banana-2/edit": {
-    modelId: "fal-ai/nano-banana-2/edit",
+  [FAL_NANO_BANANA_2_EDIT_MODEL_ID]: {
+    modelId: FAL_NANO_BANANA_2_EDIT_MODEL_ID,
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/nano-banana-2/edit/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-nano-banana-2-edit.md",
     submitAspectField: "aspect_ratio",
     defaultAspect: "auto",
     allowedAspects: [
@@ -409,11 +447,12 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["num_images", "seed"],
     },
   },
-  "fal-ai/nano-banana-pro": {
-    modelId: "fal-ai/nano-banana-pro",
+  [FAL_NANO_BANANA_PRO_MODEL_ID]: {
+    modelId: FAL_NANO_BANANA_PRO_MODEL_ID,
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/nano-banana-pro/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-nano-banana-pro.md",
     submitAspectField: "aspect_ratio",
     defaultAspect: "4:5",
     allowedAspects: ["21:9", "16:9", "3:2", "4:3", "5:4", "4:5", "3:4", "2:3", "9:16", "1:1"],
@@ -441,11 +480,12 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["num_images", "seed"],
     },
   },
-  "fal-ai/nano-banana-pro/edit": {
-    modelId: "fal-ai/nano-banana-pro/edit",
+  [FAL_NANO_BANANA_PRO_EDIT_MODEL_ID]: {
+    modelId: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/nano-banana-pro/edit/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-nano-banana-pro-edit.md",
     submitAspectField: "aspect_ratio",
     defaultAspect: "auto",
     allowedAspects: [
@@ -503,6 +543,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/bytedance/seedream/v4.5/text-to-image/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-seedream-4-5.md",
     submitAspectField: "image_size",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
@@ -527,6 +568,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/bytedance/seedream/v4.5/edit/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-seedream-4-5-edit.md",
     submitAspectField: "image_size",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
@@ -542,11 +584,12 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["num_images", "max_images", "seed"],
     },
   },
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image": {
-    modelId: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+  [FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID]: {
+    modelId: FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/text-to-image/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-seedream-5-lite.md",
     submitAspectField: "image_size",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
@@ -563,11 +606,12 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
       optionalNumberFields: ["num_images", "max_images", "seed"],
     },
   },
-  "fal-ai/bytedance/seedream/v5/lite/edit": {
-    modelId: "fal-ai/bytedance/seedream/v5/lite/edit",
+  [FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID]: {
+    modelId: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
     provider: "fal",
     sourceUrl: "https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/edit/api",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-fal-seedream-5-lite-edit.md",
     submitAspectField: "image_size",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
@@ -588,6 +632,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "kie",
     sourceUrl: "https://docs.kie.ai/",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-kie-veo-3-1-fast-image-to-video.md",
     submitAspectField: "aspect_ratio",
     defaultAspect: "16:9",
     allowedAspects: ["16:9", "9:16"],
@@ -631,6 +676,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "kie",
     sourceUrl: "https://docs.kie.ai/",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-kie-kling-3-0.md",
     submitAspectField: "aspect_ratio",
     defaultAspect: "16:9",
     allowedAspects: ["16:9", "9:16", "1:1"],
@@ -683,6 +729,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "kie",
     sourceUrl: "https://docs.kie.ai/market/bytedance/seedance-1-5-pro",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-kie-seedance-1-5-pro.md",
     submitAspectField: "aspect_ratio",
     defaultAspect: "1:1",
     allowedAspects: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
@@ -726,6 +773,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "kie",
     sourceUrl: "https://docs.kie.ai/market/bytedance/seedance-2",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-kie-seedance-2.md",
     submitAspectField: "aspect_ratio",
     defaultAspect: "16:9",
     allowedAspects: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
@@ -775,6 +823,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "kie",
     sourceUrl: "https://docs.kie.ai/market/bytedance/seedance-2-fast",
     verifiedAt: VERIFIED_AT,
+    apiDocFile: "api-kie-seedance-2-fast.md",
     submitAspectField: "aspect_ratio",
     defaultAspect: "16:9",
     allowedAspects: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
@@ -824,6 +873,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "openai",
     sourceUrl: "https://openai.com/api/pricing/",
     verifiedAt: OPENAI_TEXT_VERIFIED_AT,
+    apiDocFile: "api-responses.md",
     submitAspectField: "none",
     defaultAspect: "text",
     allowedAspects: [],
@@ -833,6 +883,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "openai",
     sourceUrl: "https://openai.com/api/pricing/",
     verifiedAt: OPENAI_TEXT_VERIFIED_AT,
+    apiDocFile: "api-responses.md",
     submitAspectField: "none",
     defaultAspect: "text",
     allowedAspects: [],
@@ -842,6 +893,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "openai",
     sourceUrl: "https://openai.com/api/pricing/",
     verifiedAt: OPENAI_TEXT_VERIFIED_AT,
+    apiDocFile: "api-responses.md",
     submitAspectField: "none",
     defaultAspect: "text",
     allowedAspects: [],
@@ -851,6 +903,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "openai",
     sourceUrl: "https://openai.com/api/pricing/",
     verifiedAt: OPENAI_TEXT_VERIFIED_AT,
+    apiDocFile: "api-responses.md",
     submitAspectField: "none",
     defaultAspect: "text",
     allowedAspects: [],
@@ -860,6 +913,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "openai",
     sourceUrl: "https://openai.com/api/pricing/",
     verifiedAt: OPENAI_TEXT_VERIFIED_AT,
+    apiDocFile: "api-responses.md",
     submitAspectField: "none",
     defaultAspect: "text",
     allowedAspects: [],
@@ -869,6 +923,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "openai",
     sourceUrl: "https://openai.com/api/pricing/",
     verifiedAt: OPENAI_TEXT_VERIFIED_AT,
+    apiDocFile: "api-responses.md",
     submitAspectField: "none",
     defaultAspect: "text",
     allowedAspects: [],
@@ -878,6 +933,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "elevenlabs",
     sourceUrl: "https://elevenlabs.io/docs",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
+    apiDocFile: "api-elevenlabs-audio-models.md",
     label: "ElevenLabs Music",
     mediaType: "audio",
     pricingStrategy: "elevenlabs-music-per-minute",
@@ -891,6 +947,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     generationLanes: ["music"],
     executionMode: "direct",
     submitHandler: "audio",
+    defaultRoles: ["audio-music"],
     gridEligible: true,
   },
   [ELEVENLABS_SOUND_EFFECTS_MODEL_ID]: {
@@ -898,6 +955,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "elevenlabs",
     sourceUrl: "https://elevenlabs.io/docs",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
+    apiDocFile: "api-elevenlabs-audio-models.md",
     label: "ElevenLabs Sound Effects",
     mediaType: "audio",
     pricingStrategy: "elevenlabs-sound-effect",
@@ -912,6 +970,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     generationLanes: ["sfx"],
     executionMode: "direct",
     submitHandler: "audio",
+    defaultRoles: ["audio-sfx"],
     gridEligible: true,
   },
   [ELEVENLABS_VOICEOVER_MODEL_ID]: {
@@ -919,6 +978,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "elevenlabs",
     sourceUrl: "https://elevenlabs.io/docs",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
+    apiDocFile: "api-elevenlabs-audio-models.md",
     label: "ElevenLabs Voiceover",
     mediaType: "audio",
     pricingStrategy: "elevenlabs-text-to-speech-per-kchar",
@@ -930,6 +990,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     generationLanes: ["text-to-speech"],
     executionMode: "direct",
     submitHandler: "audio",
+    defaultRoles: ["audio-voiceover"],
     gridEligible: true,
   },
   [ELEVENLABS_VOICE_CHANGER_MODEL_ID]: {
@@ -937,6 +998,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "elevenlabs",
     sourceUrl: "https://elevenlabs.io/docs",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
+    apiDocFile: "api-elevenlabs-audio-models.md",
     label: "ElevenLabs Voice Changer",
     mediaType: "audio",
     pricingStrategy: "elevenlabs-voice-changer-per-minute",
@@ -948,6 +1010,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     generationLanes: ["speech-to-speech"],
     executionMode: "direct",
     submitHandler: "audio",
+    defaultRoles: ["audio-voice-changer"],
     gridEligible: true,
   },
   [ELEVENLABS_VOICE_DESIGN_MODEL_ID]: {
@@ -955,6 +1018,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     provider: "elevenlabs",
     sourceUrl: "https://elevenlabs.io/docs",
     verifiedAt: ELEVENLABS_VERIFIED_AT,
+    apiDocFile: "api-elevenlabs-audio-models.md",
     label: "ElevenLabs Voice Design",
     mediaType: "audio",
     pricingAuthority: "metadata_only",
@@ -964,6 +1028,7 @@ const catalogBase: Record<string, ModelCatalogEntry> = {
     generationLanes: ["voice-design"],
     executionMode: "direct",
     submitHandler: "audio",
+    defaultRoles: ["audio-voice-design"],
     gridEligible: false,
   },
 };
@@ -1013,7 +1078,7 @@ const activeMetadataRuntime = (
 });
 
 const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
-  "fal-ai/flux-2/klein/9b": activePickerPricingRuntime({
+  [FAL_FLUX_2_KLEIN_9B_MODEL_ID]: activePickerPricingRuntime({
     label: "FLUX.2 Lite",
     mediaType: "image",
     pricingStrategy: "fal-economy-image-per-mp",
@@ -1100,7 +1165,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     submissionAdapterKey: "openai-gpt-image-2",
     gridEligible: true,
   }),
-  "fal-ai/nano-banana-2": activePickerPricingRuntime({
+  [FAL_NANO_BANANA_2_MODEL_ID]: activePickerPricingRuntime({
     label: "Nano Banana 2",
     mediaType: "image",
     pricingStrategy: "nano-banana-2-per-image",
@@ -1108,7 +1173,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 140,
     pricingFamily: "Image",
     logoKey: "google",
-    pairedModelId: "fal-ai/nano-banana-2/edit",
+    pairedModelId: FAL_NANO_BANANA_2_EDIT_MODEL_ID,
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
@@ -1117,7 +1182,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     gridEligible: true,
     apiRouteSlug: "nano-banana-2",
   }),
-  "fal-ai/nano-banana-2/edit": activePickerPricingRuntime({
+  [FAL_NANO_BANANA_2_EDIT_MODEL_ID]: activePickerPricingRuntime({
     label: "Nano Banana 2 Edit",
     mediaType: "image",
     pricingStrategy: "nano-banana-2-per-image",
@@ -1125,7 +1190,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 150,
     pricingFamily: "Image",
     logoKey: "google",
-    pairedModelId: "fal-ai/nano-banana-2",
+    pairedModelId: FAL_NANO_BANANA_2_MODEL_ID,
     createCharacterModeOrder: 30,
     promptPolicy: "required",
     supportsImageToImage: true,
@@ -1136,7 +1201,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     gridEligible: true,
     apiRouteSlug: "nano-banana-2-edit",
   }),
-  "fal-ai/nano-banana-pro": activePickerPricingRuntime({
+  [FAL_NANO_BANANA_PRO_MODEL_ID]: activePickerPricingRuntime({
     label: "Nano Banana Pro",
     mediaType: "image",
     pricingStrategy: "nano-banana-per-image",
@@ -1144,7 +1209,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 160,
     pricingFamily: "Image",
     logoKey: "google",
-    pairedModelId: "fal-ai/nano-banana-pro/edit",
+    pairedModelId: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
     admissionTier: "image_heavy",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
@@ -1154,7 +1219,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     gridEligible: true,
     apiRouteSlug: "nano-banana-pro",
   }),
-  "fal-ai/nano-banana-pro/edit": activePickerPricingRuntime({
+  [FAL_NANO_BANANA_PRO_EDIT_MODEL_ID]: activePickerPricingRuntime({
     label: "Nano Banana Pro Edit",
     mediaType: "image",
     pricingStrategy: "nano-banana-per-image",
@@ -1162,7 +1227,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 170,
     pricingFamily: "Image",
     logoKey: "google",
-    pairedModelId: "fal-ai/nano-banana-pro",
+    pairedModelId: FAL_NANO_BANANA_PRO_MODEL_ID,
     createCharacterModeOrder: 40,
     promptPolicy: "required",
     admissionTier: "image_heavy",
@@ -1174,7 +1239,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     gridEligible: true,
     apiRouteSlug: "nano-banana-pro-edit",
   }),
-  "fal-ai/bytedance/seedream/v4.5/text-to-image": activePickerPricingRuntime({
+  [FAL_SEEDREAM_45_TEXT_MODEL_ID]: activePickerPricingRuntime({
     label: "Seedream 4.5",
     mediaType: "image",
     pricingStrategy: "seedream-per-image",
@@ -1182,7 +1247,8 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 210,
     pricingFamily: "Image",
     logoKey: "seedream",
-    pairedModelId: "fal-ai/bytedance/seedream/v4.5/edit",
+    pairedModelId: FAL_SEEDREAM_45_EDIT_MODEL_ID,
+    defaultRoles: ["create-startup"],
     admissionTier: "image_heavy",
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
@@ -1192,7 +1258,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     gridEligible: true,
     apiRouteSlug: "seedream",
   }),
-  "fal-ai/bytedance/seedream/v4.5/edit": activePickerPricingRuntime({
+  [FAL_SEEDREAM_45_EDIT_MODEL_ID]: activePickerPricingRuntime({
     label: "Seedream 4.5 Edit",
     mediaType: "image",
     pricingStrategy: "seedream-per-image",
@@ -1200,7 +1266,8 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 200,
     pricingFamily: "Image",
     logoKey: "seedream",
-    pairedModelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+    pairedModelId: FAL_SEEDREAM_45_TEXT_MODEL_ID,
+    defaultRoles: ["create-character-mode-startup", "edit-startup"],
     createCharacterModeOrder: 10,
     promptPolicy: "required",
     admissionTier: "image_heavy",
@@ -1212,7 +1279,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     gridEligible: true,
     apiRouteSlug: "seedream-edit",
   }),
-  "fal-ai/bytedance/seedream/v5/lite/text-to-image": activePickerPricingRuntime({
+  [FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID]: activePickerPricingRuntime({
     label: "Seedream 5 Lite",
     mediaType: "image",
     pricingStrategy: "seedream-5-lite-per-image",
@@ -1220,7 +1287,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 180,
     pricingFamily: "Image",
     logoKey: "seedream",
-    pairedModelId: "fal-ai/bytedance/seedream/v5/lite/edit",
+    pairedModelId: FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
     supportsTextToImage: true,
     generationLanes: ["text-to-image"],
     executionMode: "queued",
@@ -1229,7 +1296,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     gridEligible: true,
     apiRouteSlug: "seedream-v5-lite",
   }),
-  "fal-ai/bytedance/seedream/v5/lite/edit": activePickerPricingRuntime({
+  [FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID]: activePickerPricingRuntime({
     label: "Seedream 5 Lite Edit",
     mediaType: "image",
     pricingStrategy: "seedream-5-lite-per-image",
@@ -1237,7 +1304,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     displayOrder: 190,
     pricingFamily: "Image",
     logoKey: "seedream",
-    pairedModelId: "fal-ai/bytedance/seedream/v5/lite/text-to-image",
+    pairedModelId: FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
     createCharacterModeOrder: 20,
     promptPolicy: "required",
     supportsImageToImage: true,
@@ -1386,6 +1453,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text"],
     executionMode: "none",
     submitHandler: "unsupported",
+    defaultRoles: ["style-extraction-fallback"],
     gridEligible: false,
   }),
   "gpt-5.4-pro": activeInternalPricingRuntime({
@@ -1412,6 +1480,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text"],
     executionMode: "none",
     submitHandler: "unsupported",
+    defaultRoles: ["style-extraction-vision"],
     gridEligible: false,
   }),
   "gpt-5.4-nano": activeInternalPricingRuntime({
@@ -1425,6 +1494,7 @@ const runtimeMetadataByModelId: Record<string, ModelCatalogRuntimeMetadata> = {
     generationLanes: ["text"],
     executionMode: "none",
     submitHandler: "unsupported",
+    defaultRoles: ["ai-studio-text-prompt", "studio-agent-chat", "studio-agent-vision"],
     gridEligible: false,
   }),
   [ELEVENLABS_MUSIC_MODEL_ID]: activeAudioPricingRuntime({
@@ -1478,6 +1548,9 @@ export const getModelCatalogEntry = (modelId: string): ModelCatalogEntry | null 
 export const getPairedModelId = (modelId: string): string | null =>
   getModelCatalogEntry(modelId)?.pairedModelId ?? null;
 
+export const getReplacementModelId = (modelId: string): string | null =>
+  getModelCatalogEntry(modelId)?.replacementModelId ?? null;
+
 export const listCreateCharacterModeModelIds = (): string[] =>
   listModelCatalogEntries()
     .filter((entry) => typeof entry.createCharacterModeOrder === "number")
@@ -1496,6 +1569,96 @@ export const getModelAdmissionTier = (modelId: string): ModelAdmissionTier | nul
 
 export const getModelSubmissionAdapterKey = (modelId: string): ModelSubmissionAdapterKey | null =>
   getModelCatalogEntry(modelId)?.submissionAdapterKey ?? null;
+
+export const getModelDefaultRoles = (modelId: string): ModelDefaultRole[] =>
+  getModelCatalogEntry(modelId)?.defaultRoles ?? [];
+
+export const resolveModelIdForDefaultRole = (role: ModelDefaultRole): string | null =>
+  listModelCatalogEntries().find((entry) => entry.defaultRoles?.includes(role))?.modelId ?? null;
+
+export const resolveRequiredModelIdForDefaultRole = (role: ModelDefaultRole): string =>
+  resolveModelIdForDefaultRole(role) ?? DEFAULT_ROLE_FALLBACK_MODEL_IDS[role];
+
+export const resolveModelLabelById = (modelId: string): string | null =>
+  getModelCatalogEntry(modelId)?.label ?? null;
+
+export const resolveAudioMusicModelId = (): string | null =>
+  resolveModelIdForDefaultRole("audio-music");
+
+export const resolveRequiredAudioMusicModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("audio-music");
+
+export const resolveCreateStartupModelId = (): string | null =>
+  resolveModelIdForDefaultRole("create-startup");
+
+export const resolveRequiredCreateStartupModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("create-startup");
+
+export const resolveCreateCharacterModeStartupModelId = (): string | null =>
+  resolveModelIdForDefaultRole("create-character-mode-startup");
+
+export const resolveRequiredCreateCharacterModeStartupModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("create-character-mode-startup");
+
+export const resolveEditStartupModelId = (): string | null =>
+  resolveModelIdForDefaultRole("edit-startup");
+
+export const resolveRequiredEditStartupModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("edit-startup");
+
+export const resolveAudioSoundEffectsModelId = (): string | null =>
+  resolveModelIdForDefaultRole("audio-sfx");
+
+export const resolveRequiredAudioSoundEffectsModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("audio-sfx");
+
+export const resolveAudioVoiceoverModelId = (): string | null =>
+  resolveModelIdForDefaultRole("audio-voiceover");
+
+export const resolveRequiredAudioVoiceoverModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("audio-voiceover");
+
+export const resolveAudioVoiceChangerModelId = (): string | null =>
+  resolveModelIdForDefaultRole("audio-voice-changer");
+
+export const resolveRequiredAudioVoiceChangerModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("audio-voice-changer");
+
+export const resolveAudioVoiceDesignModelId = (): string | null =>
+  resolveModelIdForDefaultRole("audio-voice-design");
+
+export const resolveRequiredAudioVoiceDesignModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("audio-voice-design");
+
+export const resolveAiStudioTextPromptModelId = (): string | null =>
+  resolveModelIdForDefaultRole("ai-studio-text-prompt");
+
+export const resolveRequiredAiStudioTextPromptModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("ai-studio-text-prompt");
+
+export const resolveStudioAgentDefaultModelId = (): string | null =>
+  resolveModelIdForDefaultRole("studio-agent-chat");
+
+export const resolveRequiredStudioAgentDefaultModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("studio-agent-chat");
+
+export const resolveStudioAgentDefaultVisionModelId = (): string | null =>
+  resolveModelIdForDefaultRole("studio-agent-vision");
+
+export const resolveRequiredStudioAgentDefaultVisionModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("studio-agent-vision");
+
+export const resolveStyleExtractionVisionModelId = (): string | null =>
+  resolveModelIdForDefaultRole("style-extraction-vision");
+
+export const resolveRequiredStyleExtractionVisionModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("style-extraction-vision");
+
+export const resolveStyleExtractionFallbackVisionModelId = (): string | null =>
+  resolveModelIdForDefaultRole("style-extraction-fallback");
+
+export const resolveRequiredStyleExtractionFallbackVisionModelId = (): string =>
+  resolveRequiredModelIdForDefaultRole("style-extraction-fallback");
 
 export const isAlwaysOnProviderRuntimeModelId = (modelId: string): boolean =>
   getModelCatalogEntry(modelId)?.alwaysOnProviderRuntime === true;

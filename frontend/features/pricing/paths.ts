@@ -9,7 +9,7 @@ export type PricingAuthMode = "signin" | "signup";
 export type PricingBillingInterval = "month" | "year";
 
 const DEFAULT_PRICING_INTENT: PricingIntent = "dashboard";
-const DEFAULT_PRICING_BILLING_INTERVAL: PricingBillingInterval = "month";
+const DEFAULT_PRICING_BILLING_INTERVAL: PricingBillingInterval = "year";
 
 /**
  * Normalizes any incoming pricing intent query value into a supported funnel intent.
@@ -36,7 +36,9 @@ export const normalizePricingBillingInterval = (
 ): PricingBillingInterval => {
   const rawValue = Array.isArray(value) ? value[0] : value;
   const normalized = typeof rawValue === "string" ? rawValue.trim().toLowerCase() : "";
-  return normalized === "year" ? "year" : DEFAULT_PRICING_BILLING_INTERVAL;
+  if (normalized === "month") return "month";
+  if (normalized === "year") return "year";
+  return DEFAULT_PRICING_BILLING_INTERVAL;
 };
 
 /**

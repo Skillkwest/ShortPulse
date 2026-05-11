@@ -40,7 +40,7 @@ export type PricingParams = {
   inputTokens?: number;
   cachedInputTokens?: number;
   outputTokens?: number;
-  durationSeconds?: number;
+  durationSeconds?: number | null;
   generationCount?: number;
   resolution?: string;
   mode?: string;

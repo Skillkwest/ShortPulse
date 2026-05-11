@@ -250,10 +250,10 @@ describe("Profile transactions actions", () => {
 
     expect(await screen.findByRole("heading", { name: "Transaction history" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: "Recent transactions" })).toHaveLength(2);
-    expect(screen.getByText("Credit top-up · Growth 2,000")).toBeInTheDocument();
-    expect(screen.getByText("Subscription + storage")).toBeInTheDocument();
-    expect(screen.getByText(/Ref cs_test_123/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View invoice" })).toHaveAttribute(
+    expect(await screen.findByText("Credit top-up · Growth 2,000")).toBeInTheDocument();
+    expect(await screen.findByText("Subscription + storage")).toBeInTheDocument();
+    expect(await screen.findByText(/Ref cs_test_123/)).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "View invoice" })).toHaveAttribute(
       "href",
       "https://stripe.test/invoices/in_100"
     );

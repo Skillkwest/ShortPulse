@@ -211,7 +211,7 @@ export default function ProfilePage() {
       const { data, error } = await supabase
         .from("billing_subscription_contracts")
         .select(
-          "id, plan_id, offer_id, stripe_subscription_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
+          "id, plan_id, offer_id, billing_interval, stripe_subscription_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
         )
         .eq("user_id", currentUser.id)
         .is("ended_at", null)
@@ -515,6 +515,8 @@ export default function ProfilePage() {
 
   const currentSubscriptionPriceCents =
     billingContract?.recurring_price_cents ?? activePlan.monthlyPriceCents;
+  const currentSubscriptionBillingInterval =
+    billingContract?.billing_interval === "year" ? "year" : "month";
   const currentSubscriptionCreditsCents =
     billingContract?.monthly_credits_cents ?? activePlan.monthlyCreditsCents;
   const currentSubscriptionStorageLimitBytes =
@@ -714,7 +716,10 @@ export default function ProfilePage() {
     }
   };
 
-  const handleSubscriptionPlanChange = async (targetPlanId: string) => {
+  const handleSubscriptionPlanChange = async (
+    targetPlanId: string,
+    billingInterval: "month" | "year"
+  ) => {
     setPlanChangeLoadingPlanId(targetPlanId);
     trackBillingUpgradeClicked({
       upgrade_surface: "profile_billing",
@@ -726,7 +731,7 @@ export default function ProfilePage() {
       const response = await fetchWithAuth("/api/billing/subscription/change", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetPlanId }),
+        body: JSON.stringify({ targetPlanId, billingInterval }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -878,6 +883,7 @@ export default function ProfilePage() {
               activePlanRank={activePlanRank}
               activeAddonStorageBytes={activeAddonStorageBytes}
               currentSubscriptionCreditsCents={currentSubscriptionCreditsCents}
+              currentSubscriptionBillingInterval={currentSubscriptionBillingInterval}
               currentSubscriptionPriceCents={currentSubscriptionPriceCents}
               currentSubscriptionStorageLimitBytes={currentSubscriptionStorageLimitBytes}
               subscriptionRenewalText={subscriptionRenewalText}
@@ -972,7 +978,7 @@ export default function ProfilePage() {
               const nextPlanId = pendingCancelPlanId;
               setPendingCancelPlanId(null);
               if (nextPlanId) {
-                handleSubscriptionPlanChange(nextPlanId);
+                handleSubscriptionPlanChange(nextPlanId, currentSubscriptionBillingInterval);
               }
             }}
           >

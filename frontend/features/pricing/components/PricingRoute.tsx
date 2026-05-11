@@ -6,16 +6,16 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle } from "phosphor-react";
 import {
   buildPlanView,
+  filterPublicSubscriptionPlans,
   type BillingCatalogSnapshot,
   type BillingInterval,
   type BillingPlanRecord,
   resolvePlanPricingForInterval,
 } from "../../billing/catalog";
-import { formatStorageBytes } from "../../billing/storage";
-import { formatCurrencyFromCents } from "../../profile/profilePageModel";
+import { BillingIntervalToggle } from "../../billing/components/BillingIntervalToggle";
+import { SubscriptionPlanCard } from "../../billing/components/SubscriptionPlanCard";
 import {
   buildDashboardAuthPath,
   buildPricingAuthPath,
@@ -56,6 +56,24 @@ const resolvePlanActionLabel = (params: {
   return `Choose ${params.displayName}`;
 };
 
+const resolveMaxAnnualSavingsPercent = (plans: readonly BillingPlanRecord[]): number =>
+  Math.max(
+    0,
+    ...plans.map((plan) => {
+      const planView = buildPlanView({ planId: plan.id, plans: plans as BillingPlanRecord[] });
+      const displayPricing = planView.displayPricing;
+      if (displayPricing?.annualComparePriceCents && displayPricing.annualDisplayPriceCents > 0) {
+        return Math.round(
+          ((displayPricing.annualComparePriceCents - displayPricing.annualDisplayPriceCents) /
+            displayPricing.annualComparePriceCents) *
+            100
+        );
+      }
+      const pricing = resolvePlanPricingForInterval(plan, "year");
+      return pricing.savingsAmountCents > 0 ? Math.round(pricing.savingsPercent) : 0;
+    })
+  );
+
 /**
  * Renders the public pricing route.
  */
@@ -78,7 +96,14 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
     });
   }, [intent, isAuthenticated, selectedPlanId]);
 
-  const sortedPlans = useMemo(() => sortBillingPlans(billingCatalog.plans), [billingCatalog.plans]);
+  const sortedPlans = useMemo(
+    () => sortBillingPlans(filterPublicSubscriptionPlans(billingCatalog.plans)),
+    [billingCatalog.plans]
+  );
+  const annualSavingsPercent = useMemo(
+    () => resolveMaxAnnualSavingsPercent(sortedPlans),
+    [sortedPlans]
+  );
 
   const handleIntervalToggle = async (billingInterval: BillingInterval) => {
     if (billingInterval === selectedBillingInterval) return;
@@ -189,7 +214,10 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
         </header>
 
         <main className="lp-main">
-          <section className="lp-section" aria-labelledby="pricing-plans-heading">
+          <section
+            className="lp-section subscription-pricing-shell"
+            aria-labelledby="pricing-plans-heading"
+          >
             <div className="pricing-hero">
               <h2 id="pricing-plans-heading">Subscription plans</h2>
               <p>Start with the plan that matches your workflow. You can always upgrade later.</p>
@@ -212,30 +240,19 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
                 </div>
               ) : null}
               {notice ? <p className="pricing-route-notice">{notice}</p> : null}
-              <div className="pricing-interval-toggle" role="group" aria-label="Billing interval">
-                <button
-                  type="button"
-                  className={`pricing-interval-option ${selectedBillingInterval === "month" ? "is-active" : ""}`}
-                  onClick={() => {
-                    void handleIntervalToggle("month");
-                  }}
-                >
-                  Monthly
-                </button>
-                <button
-                  type="button"
-                  className={`pricing-interval-option ${selectedBillingInterval === "year" ? "is-active" : ""}`}
-                  onClick={() => {
-                    void handleIntervalToggle("year");
-                  }}
-                >
-                  Annual
-                  <span className="pricing-interval-badge">Save up to 17%</span>
-                </button>
-              </div>
+              <BillingIntervalToggle
+                selectedBillingInterval={selectedBillingInterval}
+                annualSavingsPercent={annualSavingsPercent}
+                onChange={(billingInterval) => {
+                  void handleIntervalToggle(billingInterval);
+                }}
+              />
+              <p className="pricing-billing-helper">
+                Upgrade anytime. Downgrades apply at the next billing cycle.
+              </p>
             </div>
 
-            <div className="lp-plan-grid">
+            <div className="lp-plan-grid pricing-plan-grid-screenshot">
               {sortedPlans.map((plan) => {
                 const planView = buildPlanView({ planId: plan.id, plans: billingCatalog.plans });
                 const planPricing = resolvePlanPricingForInterval(plan, selectedBillingInterval);
@@ -248,86 +265,26 @@ export function PricingRoute({ billingCatalog }: PricingRouteProps) {
                 const isLoading = planActionLoadingId === plan.id;
 
                 return (
-                  <article
+                  <SubscriptionPlanCard
                     key={plan.id}
-                    className={`lp-plan-card pricing-card pricing-plan-card ${planView.className} ${isSelected ? "pricing-plan-selected" : ""}`}
-                  >
-                    <div className="pricing-plan-head">
-                      <div className="pricing-plan-kicker">
-                        {plan.monthly_price_cents === 0
-                          ? "Start here"
-                          : selectedBillingInterval === "year"
-                            ? "Annual billing"
-                            : "Subscription"}
-                      </div>
-                      <div className="lp-plan-top pricing-plan-top">
-                        <span className="lp-plan-name">{planView.displayName}</span>
-                        {plan.id === "studio" ? (
-                          <span className="lp-badge teal pricing-plan-badge">Most popular</span>
-                        ) : null}
-                      </div>
-                      <p className="lp-plan-sub pricing-plan-sub">{planView.description}</p>
-                    </div>
-
-                    <div className="lp-price-block pricing-plan-price">
-                      <div className="pricing-plan-price-row">
-                        <div className="lp-price-big">
-                          {plan.monthly_price_cents === 0
-                            ? "Free"
-                            : formatCurrencyFromCents(planPricing.monthlyEquivalentCents)}
-                        </div>
-                        <div className="lp-price-note pricing-plan-price-note">
-                          {plan.monthly_price_cents === 0 ? "forever" : "/mo"}
-                        </div>
-                      </div>
-                      {plan.monthly_price_cents > 0 && selectedBillingInterval === "year" ? (
-                        <div className="pricing-plan-billing-meta">
-                          {planPricing.savingsAmountCents > 0 ? (
-                            <span className="pricing-plan-billing-savings">
-                              Save {formatCurrencyFromCents(planPricing.savingsAmountCents)}/yr
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <ul className="lp-plan-list pricing-plan-list">
-                      <li>
-                        <CheckCircle size={16} weight="bold" />
-                        {planPricing.monthlyCreditsCents.toLocaleString()} credits every month
-                      </li>
-                      <li>
-                        <CheckCircle size={16} weight="bold" />
-                        {formatStorageBytes(planPricing.storageLimitBytes)} of included media
-                        storage
-                      </li>
-                      <li>
-                        <CheckCircle size={16} weight="bold" />
-                        {planView.seatsLabel}
-                      </li>
-                      <li>
-                        <CheckCircle size={16} weight="bold" />
-                        Concurrent: {planView.concurrentGenerationsCompactLabel}
-                      </li>
-                      {planView.pricingHighlights.map((highlight) => (
-                        <li key={`${plan.id}-${highlight}`}>
-                          <CheckCircle size={16} weight="bold" />
-                          {highlight}
-                        </li>
-                      ))}
-                    </ul>
-
-                    <button
-                      type="button"
-                      className={`pricing-btn ${plan.monthly_price_cents === 0 ? "neutral" : "primary"}`}
-                      onClick={() => {
-                        void handlePlanAction(plan.id);
-                      }}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Starting…" : actionLabel}
-                    </button>
-                  </article>
+                    plan={plan}
+                    plans={billingCatalog.plans}
+                    billingInterval={selectedBillingInterval}
+                    isSelected={isSelected}
+                    className="pricing-surface-card"
+                    actionSlot={
+                      <button
+                        type="button"
+                        className={`pricing-btn ${plan.monthly_price_cents === 0 ? "neutral" : "primary"}`}
+                        onClick={() => {
+                          void handlePlanAction(plan.id);
+                        }}
+                        disabled={isLoading}
+                      >
+                        {isLoading ? "Starting…" : actionLabel}
+                      </button>
+                    }
+                  />
                 );
               })}
             </div>

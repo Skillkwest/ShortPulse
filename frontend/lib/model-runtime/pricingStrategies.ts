@@ -94,7 +94,7 @@ const kieCreditsToUsd = (credits: number): number => credits * KIE_CREDIT_USD;
 
 type StrategyFn = (params: PricingParams) => CostBreakdown | null;
 
-const resolvePositiveFiniteNumber = (value: number | undefined): number | null => {
+const resolvePositiveFiniteNumber = (value: number | null | undefined): number | null => {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
   return value;
 };
@@ -730,7 +730,7 @@ const resolveSeedanceResolutionKey = (
 
 const computeSeedancePerSecondCost: StrategyFn = (params) => {
   if (params.modelId === KIE_SEEDANCE_15_PRO_MODEL_ID) {
-    const duration = resolveSeedance15Duration(params.durationSeconds);
+    const duration = resolveSeedance15Duration(params.durationSeconds ?? undefined);
     const res = resolveDefaultResolution(params, "720p").toLowerCase();
     const resolutionKey = res.includes("1080") ? "1080p" : res.includes("480") ? "480p" : "720p";
     const hasAudio = resolveDefaultAudio(params, false);
@@ -753,7 +753,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
     });
   }
 
-  const duration = resolveSeedance2Duration(params.durationSeconds);
+  const duration = resolveSeedance2Duration(params.durationSeconds ?? undefined);
   const videoInput = resolveSeedanceVideoInput(params);
   const isSeedanceFast = params.modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
   const resolutionKey = resolveSeedanceResolutionKey(params, isSeedanceFast ? "720p" : "1080p");

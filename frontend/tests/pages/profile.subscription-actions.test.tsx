@@ -31,6 +31,7 @@ const billingContractState = vi.hoisted(() => ({
     id: "contract_1",
     plan_id: "media",
     offer_id: "media__legacy_10",
+    billing_interval: "month",
     stripe_price_id: "price_media_legacy",
     stripe_subscription_id: "sub_123",
     contract_source: "stripe",
@@ -209,6 +210,7 @@ describe("Profile subscription actions", () => {
       id: "contract_1",
       plan_id: "media",
       offer_id: "media__legacy_10",
+      billing_interval: "month",
       stripe_price_id: "price_media_legacy",
       stripe_subscription_id: "sub_123",
       contract_source: "stripe",
@@ -300,7 +302,7 @@ describe("Profile subscription actions", () => {
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Your subscription" })).toBeInTheDocument();
     expect(container.querySelector(".profile-subscription-hero-card.plan-media")).not.toBeNull();
-    expect(container.querySelector(".profile-plan-card.current.plan-media")).not.toBeNull();
+    expect(container.querySelector(".subscription-plan-card.is-current.plan-media")).not.toBeNull();
     expect(screen.queryByText("Status")).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(await screen.findByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
@@ -318,6 +320,56 @@ describe("Profile subscription actions", () => {
       "https://stripe.test/invoices/in_123"
     );
   }, 15000);
+
+  it("hides the system free tier when starter exists and keeps a cancel-to-free action", async () => {
+    fetchWithAuthMock.mockImplementation(async (url: unknown) => {
+      if (url === "/api/billing/catalog") {
+        return {
+          ok: true,
+          json: async () => ({
+            plans: [
+              {
+                id: "free",
+                display_name: "Free",
+                monthly_price_cents: 0,
+                monthly_credits_cents: 100,
+                storage_limit_bytes: 1073741824,
+                is_active: true,
+              },
+              {
+                id: "starter",
+                display_name: "Starter",
+                monthly_price_cents: 1500,
+                monthly_credits_cents: 350,
+                storage_limit_bytes: 1073741824,
+                is_active: true,
+              },
+              ...billingPlansFixture.slice(1),
+            ],
+            packages: [],
+            storageAddons: [],
+          }),
+        };
+      }
+      if (url === "/api/billing/stripe/subscription-transactions") {
+        return {
+          ok: true,
+          json: async () => ({ transactions: [] }),
+        };
+      }
+      return {
+        ok: false,
+        json: async () => ({ error: "Portal unavailable" }),
+      };
+    });
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel to Free" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Downgrade to Free" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Downgrade to Starter" })).toBeInTheDocument();
+  });
 
   it("falls back to the billing profile plan when the contract row is missing", async () => {
     billingContractState.value = null;
@@ -374,7 +426,7 @@ describe("Profile subscription actions", () => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/subscription/change", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetPlanId: "free" }),
+        body: JSON.stringify({ targetPlanId: "free", billingInterval: "month" }),
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
@@ -389,7 +441,23 @@ describe("Profile subscription actions", () => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/subscription/change", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetPlanId: "business" }),
+        body: JSON.stringify({ targetPlanId: "business", billingInterval: "month" }),
+      });
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
+  });
+
+  it("uses the selected annual billing interval for upgrade actions", async () => {
+    render(<ProfilePage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Annual" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Upgrade to Business" }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/subscription/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetPlanId: "business", billingInterval: "year" }),
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
@@ -405,6 +473,7 @@ describe("Profile subscription actions", () => {
       id: "contract_internal",
       plan_id: "business",
       offer_id: "business__internal_comp",
+      billing_interval: "month",
       stripe_price_id: null,
       stripe_subscription_id: null,
       contract_source: "internal_comp",
@@ -441,12 +510,14 @@ describe("Profile subscription actions", () => {
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
     expect(container.querySelector(".profile-subscription-hero-card.plan-business")).not.toBeNull();
-    expect(container.querySelector(".profile-plan-card.current.plan-business")).not.toBeNull();
+    expect(
+      container.querySelector(".subscription-plan-card.is-current.plan-business")
+    ).not.toBeNull();
     expect(screen.getByText(/2026/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Switch to Free" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose Media" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Choose Studio" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Switch to Business billing" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(
       screen.getByText(
         "No Stripe subscription payments are available for this internally managed account."

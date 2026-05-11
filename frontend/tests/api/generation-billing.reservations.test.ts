@@ -337,6 +337,72 @@ describe("generationBilling reservation RPC handling", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("records pricing observability when the client sends displayed billed credits", async () => {
+    const rpcMock = vi.fn().mockResolvedValueOnce({
+      data: [{ status: "reserved", source_ref: "req-observable-image", message: null }],
+      error: null,
+    });
+    getSupabaseAdminMock.mockReturnValue({ rpc: rpcMock });
+
+    const req = {
+      headers: {
+        "x-shortpulse-request-id": "req-observable-image",
+      },
+      url: "/api/openai/image-generate",
+      body: {
+        shortpulse_context: {
+          displayed_billed_credits: 8,
+          pricing_display_source: "shared_adapter",
+          pricing_policy_ready: true,
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    const charge = await chargeGenerationRequest({
+      req: req as never,
+      res: res as never,
+      modelId: "gpt-image-2",
+      payload: {
+        prompt: "cinematic portrait",
+        size: "1024x1024",
+        quality: "medium",
+        n: 1,
+      },
+      reason: "OpenAI GPT Image 2 generation",
+    });
+
+    const expectedPricingParams = buildPricingParams("gpt-image-2", {
+      prompt: "cinematic portrait",
+      size: "1024x1024",
+      quality: "medium",
+      n: 1,
+    });
+    const expectedEstimate = computeCostForModel("gpt-image-2", expectedPricingParams);
+
+    expect(charge).not.toBeNull();
+    expect(rpcMock).toHaveBeenCalledWith(
+      "admit_and_reserve_generation_credits",
+      expect.objectContaining({
+        p_metadata: expect.objectContaining({
+          pricing_observability: {
+            displayed_billed_credits: 8,
+            actual_billed_credits: expectedEstimate?.credits,
+            delta_credits: Number(((expectedEstimate?.credits ?? 0) - 8).toFixed(4)),
+            mismatch: (expectedEstimate?.credits ?? 0) !== 8,
+            pricing_display_source: "shared_adapter",
+            pricing_policy_ready: true,
+          },
+          shortpulse_context: {
+            displayed_billed_credits: 8,
+            pricing_display_source: "shared_adapter",
+            pricing_policy_ready: true,
+          },
+        }),
+      })
+    );
+  });
+
   it("returns charge helpers when reservation RPC succeeds and calls mark/release RPCs", async () => {
     const rpcMock = vi
       .fn()

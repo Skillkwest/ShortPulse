@@ -5,6 +5,7 @@
  */
 
 import { getModelConfig } from "../../model-runtime/pricing";
+import { isCharacterScopedMediaUrl } from "../../mediaStoragePath";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
@@ -167,15 +168,6 @@ const redactPotentialSensitiveString = (value: string): string => {
   }
 };
 
-const containsCharactersSegment = (value: string): boolean => {
-  const normalized = decodeSafe(value).toLowerCase();
-  return (
-    normalized.includes("/characters/") ||
-    normalized.includes("%2fcharacters%2f") ||
-    normalized.includes("characters/")
-  );
-};
-
 const isAllowedCharacterScopedVideoPath = (keyPath: string[]): boolean => {
   if (keyPath.length < 3) return false;
   const [rootKey, , leafKey] = keyPath;
@@ -191,7 +183,7 @@ const detectCharacterMediaLeak = (
 ): { keyPath: string; value: string; reason: string } | null => {
   if (typeof value === "string") {
     const keyPathText = keyPath.join(".");
-    if (containsCharactersSegment(value) && !isAllowedCharacterScopedVideoPath(keyPath)) {
+    if (isCharacterScopedMediaUrl(value) && !isAllowedCharacterScopedVideoPath(keyPath)) {
       return {
         keyPath: keyPathText,
         value: redactPotentialSensitiveString(value),

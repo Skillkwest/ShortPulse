@@ -241,19 +241,36 @@ describe("executeStudioAgentFastPathTurn", () => {
     expect(result.result.repairUsed).toBe(false);
   });
 
-  it("preserves unstructured workflow Pulse text as a visible chat reply", async () => {
-    fetchStudioAgentChatCompletionMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        choices: [
-          {
-            message: {
-              content: "What product should anchor the first shot?",
+  it("repairs unstructured custom Pulse follow-up questions into needs_input Pulse JSON", async () => {
+    fetchStudioAgentChatCompletionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: "What product should anchor the first shot?",
+              },
             },
-          },
-        ],
-      }),
-    });
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: "needs_input",
+                  message: "What product should anchor the first shot?",
+                  actions: null,
+                }),
+              },
+            },
+          ],
+        }),
+      });
     const markStage = vi.fn();
 
     const result = await executeStudioAgentFastPathTurn({
@@ -268,7 +285,8 @@ describe("executeStudioAgentFastPathTurn", () => {
           presetId: "pulse_custom",
           label: "Custom Pulse",
           instructions: "Ask one setup question before generating.",
-          runtimeMode: "workflow_gpt",
+          pulseKind: "custom_gpt",
+          runtimeMode: "custom_gpt",
           activationMode: "activate_and_start",
           outputMode: "chat_reply",
           memoryPolicy: "session",
@@ -281,17 +299,167 @@ describe("executeStudioAgentFastPathTurn", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(1);
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
+    expect(fetchStudioAgentChatCompletionMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        responseFormat: expect.objectContaining({
+          json_schema: expect.objectContaining({
+            name: "studio_agent_pulse_response",
+          }),
+        }),
+      })
+    );
     expect(result.result.parsed).toEqual(
       expect.objectContaining({
         message: "What product should anchor the first shot?",
-        actions: {
-          applyPrompt: "What product should anchor the first shot?",
-        },
+        actions: undefined,
       })
     );
+    expect(result.result.semanticStatus).toBe("needs_input");
+    expect(result.result.repairUsed).toBe(true);
+  });
+
+  it("repairs unstructured custom Pulse final output into a ready Pulse artifact", async () => {
+    fetchStudioAgentChatCompletionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  "A cinematic dark-fantasy storyboard with escalating beetle swarms, wet stone corridors, and amber torchlight.",
+              },
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: "ready",
+                  message:
+                    "A cinematic dark-fantasy storyboard with escalating beetle swarms, wet stone corridors, and amber torchlight.",
+                  actions: {
+                    applyPrompt:
+                      "A cinematic dark-fantasy storyboard with escalating beetle swarms, wet stone corridors, and amber torchlight.",
+                  },
+                }),
+              },
+            },
+          ],
+        }),
+      });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "bugs dark bugs" }],
+      timeoutMs: 20000,
+      effectiveCanonical: null,
+      context: {
+        pulse: {
+          presetId: "pulse_custom",
+          label: "Custom Pulse",
+          instructions: "Collect the brief, then output the final storyboard prompt.",
+          pulseKind: "custom_gpt",
+          runtimeMode: "custom_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          source: "custom",
+        },
+      },
+      messages: [{ role: "user", content: "bugs dark bugs" }],
+      markStage,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
     expect(result.result.semanticStatus).toBe("ready");
-    expect(result.result.repairUsed).toBe(false);
+    expect(result.result.parsed.actions?.applyPrompt).toBe(
+      "A cinematic dark-fantasy storyboard with escalating beetle swarms, wet stone corridors, and amber torchlight."
+    );
+    expect(result.result.repairUsed).toBe(true);
+  });
+
+  it("repairs unstructured guided-workflow Pulse text before falling back to needs_input", async () => {
+    fetchStudioAgentChatCompletionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: "Which camera motion should I use?",
+              },
+            },
+          ],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: "needs_input",
+                  message: "Step 2 - Camera Motion: Which camera motion should I use?",
+                  actions: null,
+                }),
+              },
+            },
+          ],
+        }),
+      });
+    const markStage = vi.fn();
+
+    const result = await executeStudioAgentFastPathTurn({
+      apiKey: "key",
+      openAiUrl: "https://example.test/v1/chat/completions",
+      model: "gpt-default",
+      openAiMessages: [{ role: "user", content: "uploaded image attached" }],
+      timeoutMs: 20000,
+      effectiveCanonical: null,
+      context: {
+        pulse: {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          instructions: "Follow the guided workflow one step at a time.",
+          pulseKind: "guided_workflow",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          starterAssistantMessage: "Upload your image to get the process started :)",
+          workflowStageHints: ["Image Gate", "Camera Motion", "Action Selection"],
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          source: "builtin",
+        },
+      },
+      messages: [{ role: "user", content: "uploaded image attached" }],
+      markStage,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(fetchStudioAgentChatCompletionMock).toHaveBeenCalledTimes(2);
+    expect(result.result.semanticStatus).toBe("needs_input");
+    expect(result.result.parsed).toEqual(
+      expect.objectContaining({
+        message: "Step 2 - Camera Motion: Which camera motion should I use?",
+        actions: undefined,
+      })
+    );
+    expect(result.result.repairUsed).toBe(true);
+    expect(markStage).toHaveBeenCalledWith("fast_path_repair_turn", expect.any(Number));
   });
 
   it("repairs malformed fast-path output with one bounded repair turn", async () => {

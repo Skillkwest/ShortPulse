@@ -73,6 +73,32 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
   });
 
+  it("rejects unsupported model ids before billing", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        voiceId: "voice-1",
+        voiceName: "Darian",
+        text: "Voiceover billing path verification script.",
+        outputFormat: "mp3_44100_128",
+        config: {
+          model_id: "unsupported-model",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details: "config.model_id must be eleven_multilingual_v2.",
+    });
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceoverMock).not.toHaveBeenCalled();
+  });
+
   it("charges, generates, and persists the voiceover output", async () => {
     generateElevenLabsVoiceoverMock.mockResolvedValue({
       buffer: Buffer.from("voice"),
@@ -96,6 +122,10 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         text: "Voiceover billing path verification script.",
         outputFormat: "mp3_44100_128",
         project_id: "project-1",
+        shortpulse_context: {
+          displayed_billed_credits: 15,
+          pricing_display_source: "shared_adapter",
+        },
         config: {
           model_id: "eleven_multilingual_v2",
         },
@@ -111,6 +141,10 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         payload: expect.objectContaining({
           text_characters: "Voiceover billing path verification script.".length,
         }),
+        shortpulseContext: {
+          displayed_billed_credits: 15,
+          pricing_display_source: "shared_adapter",
+        },
       })
     );
     expect(persistGeneratedAudioAssetMock).toHaveBeenCalledWith(
@@ -122,6 +156,10 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
           debited_credits: 15,
           provider_request_id: "provider-tts-1",
           text_character_count: "Voiceover billing path verification script.".length,
+          shortpulse_context: {
+            displayed_billed_credits: 15,
+            pricing_display_source: "shared_adapter",
+          },
         }),
       })
     );

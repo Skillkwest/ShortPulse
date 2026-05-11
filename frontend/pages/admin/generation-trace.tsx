@@ -23,7 +23,23 @@ type GenerationTraceResponse = {
     reservations: number;
     ledgerEntries: number;
     errorEvents: number;
+    pricingObservabilityMismatches: number;
   };
+  pricingObservabilityMismatchRows: Array<{
+    sourceType: "generation" | "reservation" | "ledger";
+    rowId: string | null;
+    generationId: string | null;
+    requestId: string | null;
+    providerRequestId: string | null;
+    sourceRef: string | null;
+    observedAt: string | null;
+    displayedBilledCredits: number | null;
+    actualBilledCredits: number | null;
+    deltaCredits: number | null;
+    mismatch: boolean;
+    pricingDisplaySource: string | null;
+    pricingPolicyReady: boolean | null;
+  }>;
   generations: Array<Record<string, unknown>>;
   generationAttempts: Array<Record<string, unknown>>;
   generationOutputs: Array<Record<string, unknown>>;
@@ -287,6 +303,10 @@ export default function AdminGenerationTracePage() {
         <section className={styles.adminSection}>
           <h2 className={styles.adminSectionTitle}>Summary</h2>
           <pre className={styles.adminPreBlock}>{pretty(result.summary)}</pre>
+          <h2 className={styles.adminSectionTitle}>Pricing observability mismatches</h2>
+          <pre className={styles.adminPreBlock}>
+            {pretty(result.pricingObservabilityMismatchRows)}
+          </pre>
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
             <button
               type="button"

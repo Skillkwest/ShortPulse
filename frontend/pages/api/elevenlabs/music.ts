@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { ELEVENLABS_MUSIC_MODEL_ID } from "../../../lib/model-runtime/elevenLabsModels";
+import { resolveRequiredAudioMusicModelId } from "../../../lib/model-runtime/modelCatalog";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
@@ -22,6 +22,7 @@ type MusicRequestBody = {
   modelId?: unknown;
   project_id?: unknown;
   projectId?: unknown;
+  shortpulse_context?: unknown;
 };
 
 type GenerateMusicSuccessResponse = {
@@ -36,7 +37,7 @@ type GenerateMusicSuccessResponse = {
     previewStoragePath: string;
     fullStoragePath: string;
     mimeType: string;
-    durationMs: number;
+    durationMs: number | null;
     waveformPeaks: null;
     modelId: string;
   };
@@ -47,7 +48,7 @@ type GenerateMusicErrorResponse = {
   details?: string;
 };
 
-const DEFAULT_MUSIC_MODEL_ID = ELEVENLABS_MUSIC_MODEL_ID;
+const DEFAULT_MUSIC_MODEL_ID = resolveRequiredAudioMusicModelId();
 const MIN_DURATION_SECONDS = 8;
 const MAX_DURATION_SECONDS = 180;
 const MIN_BPM = 60;
@@ -61,6 +62,11 @@ const normalizeRequiredString = (value: unknown): string | null => {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 };
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 
 const parseRequiredFiniteNumber = (value: unknown): number | null => {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
@@ -117,7 +123,9 @@ export default async function handler(
     const outputFormat = normalizeRequiredString(body.outputFormat);
     const modelId = normalizeRequiredString(body.modelId) ?? DEFAULT_MUSIC_MODEL_ID;
     const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
-    const durationSeconds = parseRequiredFiniteNumber(body.durationSeconds);
+    const shortpulseContext = asRecord(body.shortpulse_context);
+    const isAutoDuration = body.durationSeconds == null;
+    const durationSeconds = isAutoDuration ? null : parseRequiredFiniteNumber(body.durationSeconds);
     const bpm = parseRequiredFiniteNumber(body.bpm);
     const energyPercent = parseRequiredFiniteNumber(body.energyPercent);
     const mode =
@@ -130,7 +138,7 @@ export default async function handler(
     if (
       !text ||
       !outputFormat ||
-      durationSeconds === null ||
+      (!isAutoDuration && durationSeconds === null) ||
       bpm === null ||
       energyPercent === null ||
       !mode ||
@@ -139,7 +147,7 @@ export default async function handler(
       return res.status(400).json({
         error: "Invalid request",
         details:
-          "text, durationSeconds, bpm, energyPercent, mode, structure, and outputFormat are required.",
+          "text, bpm, energyPercent, mode, structure, and outputFormat are required. durationSeconds must be a finite number when provided.",
       });
     }
 
@@ -150,7 +158,10 @@ export default async function handler(
       });
     }
 
-    if (durationSeconds < MIN_DURATION_SECONDS || durationSeconds > MAX_DURATION_SECONDS) {
+    if (
+      durationSeconds != null &&
+      (durationSeconds < MIN_DURATION_SECONDS || durationSeconds > MAX_DURATION_SECONDS)
+    ) {
       return res.status(400).json({
         error: "Invalid request",
         details: `durationSeconds must be between ${MIN_DURATION_SECONDS} and ${MAX_DURATION_SECONDS}.`,
@@ -189,10 +200,9 @@ export default async function handler(
       req,
       res,
       modelId,
-      payload: {
-        duration_seconds: durationSeconds,
-      },
+      payload: durationSeconds == null ? {} : { duration_seconds: durationSeconds },
       reason: "elevenlabs-music generation",
+      shortpulseContext,
     });
     if (!charge) return;
 
@@ -209,8 +219,12 @@ export default async function handler(
       outputFormat,
       body: {
         model_id: modelId,
-        music_length_ms: Math.round(durationSeconds * 1000),
         force_instrumental: mode === "instrumental",
+        ...(durationSeconds != null
+          ? {
+              music_length_ms: Math.round(durationSeconds * 1000),
+            }
+          : {}),
       },
     });
     const providerRequestId = generated.providerRequestId ?? `elevenlabs:${charge.sourceRef}`;
@@ -247,6 +261,7 @@ export default async function handler(
         provider_request_id: providerRequestId,
         provider_song_id: generated.songId,
         provider_prompt: providerPrompt,
+        ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
     });
     const captureResult = await captureSucceededGenerationByProviderRequest({
@@ -277,7 +292,7 @@ export default async function handler(
         previewStoragePath: persisted.storagePath,
         fullStoragePath: persisted.storagePath,
         mimeType: generated.contentType,
-        durationMs: Math.round(durationSeconds * 1000),
+        durationMs: durationSeconds == null ? null : Math.round(durationSeconds * 1000),
         waveformPeaks: null,
         modelId,
       },

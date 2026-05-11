@@ -1,7 +1,3 @@
-/**
- * Proxies Fal Nano Banana 2 Edit status + result fetch.
- * Accepts { requestId }, returns normalized status payloads.
- */
 import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
 import {
   getFalStatusBaseUrlsRequired,

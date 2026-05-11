@@ -31,6 +31,7 @@ import {
   appendAssistantMessage,
   appendUiMessage,
   buildApiMessagesForTurn,
+  removeUiMessageById,
   updateUiMessageById,
 } from "./client/messageStore";
 import { resolveStudioAgentTransportFailure } from "./client/transportFailureResolution";
@@ -173,6 +174,7 @@ export const useCreateAgentStateCore = ({
       const isNamespaceOverrideSend =
         typeof sessionNamespaceOverride === "string" &&
         sessionNamespaceOverride !== sessionNamespace;
+      const previousSessionIdentity = sessionIdentityRef.current;
       if (!allowSessionNamespaceOverride && isNamespaceOverrideSend) {
         const errorText = sessionNamespaceOverrideErrorText;
         setError(errorText);
@@ -190,6 +192,11 @@ export const useCreateAgentStateCore = ({
         sessionIdentityRef.current = requestSessionIdentity;
       }
       const isStaleRequest = () => sessionIdentityRef.current !== requestSessionIdentity;
+      const restorePreviousSessionIdentity = () => {
+        if (!isNamespaceOverrideSend) return;
+        if (sessionIdentityRef.current !== requestSessionIdentity) return;
+        sessionIdentityRef.current = previousSessionIdentity;
+      };
       const discardedResult: SendResult = {
         response: null,
         actions: undefined,
@@ -243,7 +250,10 @@ export const useCreateAgentStateCore = ({
           userPayloadForApi,
           skipUserEcho,
           optimisticUserMessageId,
-          excludeNonPromptAssistantHistory: !shouldBypassStandardLocalProcessing,
+          // Pulse follow-up turns need the prior assistant step/question in history.
+          // Filtering non-prompt assistant replies makes workflow and chat pulses feel
+          // like they restart from the beginning on every turn.
+          excludeNonPromptAssistantHistory: false,
         });
         const clientSessionKey = ensureSessionKey(requestSessionNamespace, conversationId);
         clientSessionKeyRef.current = clientSessionKey;
@@ -319,6 +329,7 @@ export const useCreateAgentStateCore = ({
         };
         const transportResult = await sendAgentTurn(body);
         if (isStaleRequest()) {
+          restorePreviousSessionIdentity();
           return discardedResult;
         }
         if (!transportResult.ok) {
@@ -340,6 +351,7 @@ export const useCreateAgentStateCore = ({
               workflowSession: null,
             };
           }
+          restorePreviousSessionIdentity();
           setError(failureResolution.errorText);
           return {
             response: null,
@@ -383,8 +395,10 @@ export const useCreateAgentStateCore = ({
         return { response: data ?? null, actions, workflowSession };
       } catch (err) {
         if (isStaleRequest()) {
+          restorePreviousSessionIdentity();
           return discardedResult;
         }
+        restorePreviousSessionIdentity();
         setError(
           normalizeErrorText(err instanceof Error ? err.message : err, {
             fallback: "Agent request failed",
@@ -459,5 +473,21 @@ export const useCreateAgentStateCore = ({
     setError(null);
   }, []);
 
-  return { ...state, send, reset, appendUserMessage, updateMessageById, replaceMessages };
+  const removeMessageById = useCallback((messageId: string) => {
+    const nextMessages = removeUiMessageById(messagesRef.current, messageId);
+    if (nextMessages === messagesRef.current) return false;
+    setMessages(nextMessages);
+    messagesRef.current = nextMessages;
+    return true;
+  }, []);
+
+  return {
+    ...state,
+    send,
+    reset,
+    appendUserMessage,
+    updateMessageById,
+    removeMessageById,
+    replaceMessages,
+  };
 };

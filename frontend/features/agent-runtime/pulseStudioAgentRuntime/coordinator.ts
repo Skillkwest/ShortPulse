@@ -44,6 +44,7 @@ import {
 import { buildAgentMachineOutcome } from "../agentMachineOutcome";
 import { resolveStudioAgentTurnResponse } from "../studioAgentTurnResponse";
 import {
+  buildStudioAgentPulseTurnStateMessage,
   buildStudioAgentWorkflowSessionUpdate,
   buildStudioAgentPulseSystemMessage,
   isStudioAgentWorkflowPulse,
@@ -77,9 +78,14 @@ export const buildStudioAgentOpenAiMessages = ({
   orchestration: StudioAgentOrchestration;
 }): OpenAIChatMessage[] => {
   const pulseSystemMessage = buildStudioAgentPulseSystemMessage(context.pulse);
+  const pulseTurnStateMessage = buildStudioAgentPulseTurnStateMessage({
+    pulse: context.pulse,
+    messages,
+  });
   const chat: OpenAIChatMessage[] = [
     { role: "system", content: systemPrompt },
     ...(pulseSystemMessage ? [{ role: "system" as const, content: pulseSystemMessage }] : []),
+    ...(pulseTurnStateMessage ? [{ role: "system" as const, content: pulseTurnStateMessage }] : []),
     { role: "system", content: `CONTEXT:\n${JSON.stringify(context)}` },
     { role: "system", content: `ORCHESTRATION:\n${JSON.stringify(orchestration)}` },
   ];

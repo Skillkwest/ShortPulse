@@ -49,7 +49,12 @@ export type AgentAttachment = {
   id: string;
   kind: "image" | "prompt";
   referenceId?: string | null;
+  mediaId?: string | null;
   text?: string | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  referenceUrl?: string | null;
+  referenceRenderUrl?: string | null;
   imageUrl?: string | null;
   imageFallbackUrls?: string[];
   aspect?: string | null;

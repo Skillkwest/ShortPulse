@@ -4,6 +4,7 @@
  */
 import type { AgentResponse } from "../../../prefabs/agent";
 import { fetchOpenAiCompatibleChatCompletion } from "../../../lib/server/api/openAiCompat";
+import { resolveRequiredAiStudioTextPromptModelId } from "../../../lib/model-runtime/modelCatalog";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "../../agent-runtime/studioAgentRouteOutcomes";
 
 export type ThinkerFormatterResult = {
@@ -32,6 +33,7 @@ type ThinkerFormatterSuccess = {
 export type ThinkerFormatterTurnResult = ThinkerFormatterSuccess | ThinkerFormatterError;
 
 const DEFAULT_STAGE_MAX_ATTEMPTS = 2;
+const DEFAULT_THINKER_FORMATTER_MODEL = resolveRequiredAiStudioTextPromptModelId();
 const MAX_FORMATTER_PROMPT_CHARS = 6000;
 const RETRYABLE_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
 
@@ -251,7 +253,9 @@ export const runThinkerFormatterTurn = async ({
   maxStageAttempts?: number;
 }): Promise<ThinkerFormatterTurnResult> => {
   const resolvedThinkerModel = (thinkerModel ?? model ?? "").trim();
-  const thinkerStageModel = resolvedThinkerModel.length ? resolvedThinkerModel : "gpt-5.4-nano";
+  const thinkerStageModel = resolvedThinkerModel.length
+    ? resolvedThinkerModel
+    : DEFAULT_THINKER_FORMATTER_MODEL;
   const resolvedFormatterModel = (formatterModel ?? thinkerStageModel).trim();
   const formatterStageModel = resolvedFormatterModel.length
     ? resolvedFormatterModel

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  buildStudioAgentPulseTurnStateMessage,
   buildStudioAgentPulseActivationSeed,
   buildStudioAgentPulseSystemMessage,
   buildStudioAgentWorkflowSessionUpdate,
@@ -122,6 +123,9 @@ describe("studioAgentPulseRuntime", () => {
     );
     expect(systemMessage).toContain("Continue from the active workflow_session_state.");
     expect(systemMessage).toContain(
+      "When asking a workflow question, prefix it with the explicit current step label in the form `Step N — Stage:`."
+    );
+    expect(systemMessage).toContain(
       "If workflow_session_state.currentStepIndex is greater than 1, treat the starter/upload step as already satisfied."
     );
     expect(systemMessage).toContain(
@@ -179,6 +183,9 @@ describe("studioAgentPulseRuntime", () => {
     });
 
     expect(activationSeed).toContain("Reply according to the active Pulse instructions.");
+    expect(activationSeed).toContain(
+      "If the instructions define startup behavior, run it only on the first assistant turn of this session."
+    );
     expect(activationSeed).not.toContain(
       "Begin the conversation according to the active Pulse instructions."
     );
@@ -194,6 +201,27 @@ describe("studioAgentPulseRuntime", () => {
     expect(systemMessage).toContain(
       "Do not impose a workflow shell, forced step order, or hidden artifact contract unless the pulse instructions themselves require it."
     );
+    expect(systemMessage).toContain(
+      "Treat startup instructions such as 'when the conversation begins' or 'always ask the user' as first-turn-only behavior."
+    );
+    expect(systemMessage).toContain(
+      "If the transcript already contains an assistant reply from this Pulse, do not restart the conversation or repeat the startup block unless the user explicitly asks to restart."
+    );
+    expect(systemMessage).toContain(
+      "Use the transcript as working memory. If the user already answered part of an intake or checklist, continue from the remaining missing items instead of restarting from the beginning."
+    );
+    expect(systemMessage).toContain(
+      "When the pulse instructions imply a questionnaire, interview, checklist, or staged intake, do not repeat the whole list after a user reply. Infer which requested fields were answered and ask only for the missing ones."
+    );
+    expect(systemMessage).toContain(
+      "Do not repeat previously answered items unless the user asks to restart or the answer is unusable and you need one narrow clarification."
+    );
+    expect(systemMessage).toContain(
+      "When you are still collecting information or chatting, return status `needs_input`, keep the user-facing question in message, and do not emit a final artifact."
+    );
+    expect(systemMessage).toContain(
+      "When you have a final generation-ready artifact, return status `ready` and put the exact artifact text into actions.applyPrompt."
+    );
     expect(systemMessage).not.toContain("runtime_mode:");
     expect(systemMessage).not.toContain("activation_mode:");
     expect(systemMessage).not.toContain("output_mode:");
@@ -201,5 +229,36 @@ describe("studioAgentPulseRuntime", () => {
     expect(systemMessage).not.toContain("starter_assistant_message:");
     expect(systemMessage).not.toContain("workflow_stage_hints:");
     expect(systemMessage).not.toContain("Use a polished rich-guided layout");
+  });
+
+  it("builds a follow-up continuation note for custom pulses after startup", () => {
+    const turnStateMessage = buildStudioAgentPulseTurnStateMessage({
+      pulse: {
+        presetId: "custom",
+        label: "Custom Pulse",
+        instructions: "Ask the startup checklist once, then complete the storyboard brief.",
+        pulseKind: "custom_gpt",
+        source: "custom",
+      },
+      messages: [
+        {
+          role: "assistant",
+          content:
+            "Tell me about your storyboard.\n1. What is the story about?\n2. Who is the main subject?",
+        },
+        {
+          role: "user",
+          content: "bugs dark bugs",
+        },
+      ],
+    });
+
+    expect(turnStateMessage).toContain("This is not the first turn of the conversation.");
+    expect(turnStateMessage).toContain(
+      "Any startup or 'when the conversation begins' instructions inside pulse_instructions are already satisfied and must not be repeated."
+    );
+    expect(turnStateMessage).toContain('"startupSatisfied":true');
+    expect(turnStateMessage).toContain("latest_user_reply: bugs dark bugs");
+    expect(turnStateMessage).toContain("previous_assistant_turn:");
   });
 });

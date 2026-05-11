@@ -185,7 +185,61 @@ describe("GET /api/admin/generation-trace", () => {
           reservations: 1,
           ledgerEntries: 1,
           errorEvents: 1,
+          pricingObservabilityMismatches: 0,
         },
+      })
+    );
+  });
+
+  it("counts pricing observability mismatches from returned metadata", async () => {
+    const generationRow = {
+      id: "gen-mismatch-1",
+      user_id: "user-1",
+      request_id: "req-mismatch-1",
+      status: "success",
+      metadata: {
+        pricing_metadata: {
+          pricing_observability: {
+            mismatch: true,
+          },
+        },
+      },
+      created_at: "2026-02-19T13:00:00.000Z",
+    };
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        switch (table) {
+          case "ai_generations":
+            return createQueryBuilder([generationRow]);
+          default:
+            return createQueryBuilder([]);
+        }
+      },
+    });
+
+    const req = { method: "GET", query: { requestId: "req-mismatch-1" } };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summary: expect.objectContaining({
+          pricingObservabilityMismatches: 1,
+        }),
+        pricingObservabilityMismatchRows: [
+          expect.objectContaining({
+            sourceType: "generation",
+            rowId: "gen-mismatch-1",
+            generationId: "gen-mismatch-1",
+            requestId: "req-mismatch-1",
+            displayedBilledCredits: null,
+            actualBilledCredits: null,
+            deltaCredits: null,
+            mismatch: true,
+          }),
+        ],
       })
     );
   });

@@ -1,14 +1,13 @@
 import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-import { KIE_SEEDANCE_2_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
   getKieStatusBaseUrlsRequired,
   getKieTimeoutMsOrDefault,
 } from "../../../lib/server/api/falRouteConfig";
 
 export default createFalStatusHandler({
+  modelId: "kie-ai/seedance-2",
   provider: "kie",
-  modelId: KIE_SEEDANCE_2_MODEL_ID,
-  queueBaseUrl: getKieStatusBaseUrlsRequired(KIE_SEEDANCE_2_MODEL_ID),
+  queueBaseUrl: getKieStatusBaseUrlsRequired("kie-ai/seedance-2"),
   routeLabel: "Kie Seedance 2.0",
-  timeoutMs: getKieTimeoutMsOrDefault(KIE_SEEDANCE_2_MODEL_ID, 60000),
+  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/seedance-2", 60000),
 });

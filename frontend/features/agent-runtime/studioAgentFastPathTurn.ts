@@ -10,9 +10,8 @@ import {
   extractStudioAgentCompletionText,
   parseStudioAgentSemanticOutput,
   parseStudioAgentJsonWithStatus,
-  hasStructuredJsonCandidates,
 } from "./studioAgentResponseNormalization";
-import { isStudioAgentWorkflowPulse } from "./studioAgentPulseRuntime";
+import { isStudioAgentWorkflowPulse, resolveStudioAgentPulseKind } from "./studioAgentPulseRuntime";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
 
 type StageMarker = (stage: string, startedAt: number) => void;
@@ -40,11 +39,11 @@ type StudioAgentFastPathSuccess = {
 
 export type StudioAgentFastPathTurnResult = StudioAgentFastPathFailure | StudioAgentFastPathSuccess;
 
-const STUDIO_AGENT_WORKFLOW_RESPONSE_FORMAT: OpenAiChatResponseFormat = {
+const STUDIO_AGENT_PULSE_RESPONSE_FORMAT: OpenAiChatResponseFormat = {
   type: "json_schema",
   json_schema: {
-    name: "studio_agent_workflow_response",
-    description: "Workflow Pulse turn response.",
+    name: "studio_agent_pulse_response",
+    description: "Pulse turn response.",
     strict: true,
     schema: {
       type: "object",
@@ -151,26 +150,48 @@ const buildFastPathRepairMessagesWithContext = ({
   latestUserInput,
   canonicalPrompt,
   activePrompt,
+  pulseKind,
 }: {
   contentText: string;
   latestUserInput: string | null;
   canonicalPrompt: string | null;
   activePrompt: string | null;
+  pulseKind: "guided_workflow" | "custom_gpt" | null;
 }) => {
-  const repairSystemPrompt = [
-    "You repair malformed assistant output into strict JSON for a prompt compiler.",
-    "Return only valid JSON with keys: message (string) and optional actions.applyPrompt (string).",
-    "Do not include markdown or explanation text.",
-    "If SOURCE_OUTPUT is recap/meta text, reconstruct the intended prompt using latest_user_input/canonical_prompt/active_prompt while preserving intent.",
-  ].join(" ");
-  const repairUserPrompt = JSON.stringify({
-    instruction:
-      "Repair SOURCE_OUTPUT into valid JSON while preserving original prompt meaning. If SOURCE_OUTPUT is recap-like, produce a direct generation-ready prompt from available context. If content is unsafe/refusal, keep refusal intent in message and omit applyPrompt.",
-    source_output: contentText,
-    latest_user_input: latestUserInput,
-    canonical_prompt: canonicalPrompt,
-    active_prompt: activePrompt,
-  });
+  const pulseRepair = pulseKind === "guided_workflow" || pulseKind === "custom_gpt";
+  const repairSystemPrompt = pulseRepair
+    ? [
+        "You repair malformed assistant output into strict JSON for a Pulse runtime.",
+        "Return only valid JSON with keys: status (needs_input|ready|refuse), message (string), and actions (null or object with applyPrompt).",
+        "Do not include markdown or explanation text.",
+        "If SOURCE_OUTPUT is a follow-up question, checklist continuation, or clarification request, set status to needs_input and actions to null.",
+        "If SOURCE_OUTPUT is a final generation-ready artifact, set status to ready and put the exact final artifact text in actions.applyPrompt.",
+        "If content is unsafe/refusal, set status to refuse and omit applyPrompt.",
+      ].join(" ")
+    : [
+        "You repair malformed assistant output into strict JSON for a prompt compiler.",
+        "Return only valid JSON with keys: message (string) and optional actions.applyPrompt (string).",
+        "Do not include markdown or explanation text.",
+        "If SOURCE_OUTPUT is recap/meta text, reconstruct the intended prompt using latest_user_input/canonical_prompt/active_prompt while preserving intent.",
+      ].join(" ");
+  const repairUserPrompt = pulseRepair
+    ? JSON.stringify({
+        instruction:
+          "Repair SOURCE_OUTPUT into Pulse JSON. Preserve question-vs-final-artifact intent. Questions or missing-input requests must return status needs_input with actions null. Final generation-ready artifacts must return status ready with actions.applyPrompt equal to the exact artifact text.",
+        pulse_kind: pulseKind,
+        source_output: contentText,
+        latest_user_input: latestUserInput,
+        canonical_prompt: canonicalPrompt,
+        active_prompt: activePrompt,
+      })
+    : JSON.stringify({
+        instruction:
+          "Repair SOURCE_OUTPUT into valid JSON while preserving original prompt meaning. If SOURCE_OUTPUT is recap-like, produce a direct generation-ready prompt from available context. If content is unsafe/refusal, keep refusal intent in message and omit applyPrompt.",
+        source_output: contentText,
+        latest_user_input: latestUserInput,
+        canonical_prompt: canonicalPrompt,
+        active_prompt: activePrompt,
+      });
   return [
     { role: "system", content: repairSystemPrompt },
     { role: "user", content: repairUserPrompt },
@@ -199,6 +220,8 @@ export const executeStudioAgentFastPathTurn = async ({
   markStage: StageMarker;
 }): Promise<StudioAgentFastPathTurnResult> => {
   const fastPathStartedAt = Date.now();
+  const pulseKind = resolveStudioAgentPulseKind(context.pulse);
+  const pulseActive = pulseKind !== null;
   const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
   let response: Response;
   try {
@@ -208,7 +231,7 @@ export const executeStudioAgentFastPathTurn = async ({
       model,
       messages: openAiMessages,
       timeoutMs,
-      responseFormat: workflowPulseActive ? STUDIO_AGENT_WORKFLOW_RESPONSE_FORMAT : undefined,
+      responseFormat: pulseActive ? STUDIO_AGENT_PULSE_RESPONSE_FORMAT : undefined,
     });
   } catch (error) {
     markStage("fast_path_turn", fastPathStartedAt);
@@ -240,7 +263,7 @@ export const executeStudioAgentFastPathTurn = async ({
     };
   }
   const contentText = extractStudioAgentCompletionText(extractFirstChoiceMessageContent(data));
-  const semanticParsed = workflowPulseActive ? null : parseStudioAgentSemanticOutput(contentText);
+  const semanticParsed = pulseActive ? null : parseStudioAgentSemanticOutput(contentText);
   let parsedWithStatus = semanticParsed
     ? (() => {
         const semanticResponse = buildStudioAgentSemanticResponse({
@@ -252,20 +275,8 @@ export const executeStudioAgentFastPathTurn = async ({
         };
       })()
     : parseStudioAgentJsonWithStatus(contentText, {
-        allowUnstructured: !workflowPulseActive,
+        allowUnstructured: !pulseActive,
       });
-  if (workflowPulseActive && !parsedWithStatus && !hasStructuredJsonCandidates(contentText)) {
-    const workflowMessage = contentText.trim();
-    if (workflowMessage.length > 0) {
-      parsedWithStatus = {
-        response: {
-          message: workflowMessage,
-          actions: undefined,
-        },
-        status: "needs_input",
-      };
-    }
-  }
   let repairUsed = false;
   if (!hasUsableFastPathPayload(parsedWithStatus?.response ?? null)) {
     const latestUserInput = resolveLatestUserInput(messages);
@@ -284,9 +295,10 @@ export const executeStudioAgentFastPathTurn = async ({
             typeof context.activePrompt === "string" && context.activePrompt.trim().length
               ? context.activePrompt.trim()
               : null,
+          pulseKind,
         }),
         timeoutMs,
-        responseFormat: workflowPulseActive ? STUDIO_AGENT_WORKFLOW_RESPONSE_FORMAT : undefined,
+        responseFormat: pulseActive ? STUDIO_AGENT_PULSE_RESPONSE_FORMAT : undefined,
       });
     } catch (error) {
       markStage("fast_path_repair_turn", repairStartedAt);
@@ -317,9 +329,7 @@ export const executeStudioAgentFastPathTurn = async ({
     const repairedText = extractStudioAgentCompletionText(
       extractFirstChoiceMessageContent(repairData)
     );
-    const repairedSemantic = workflowPulseActive
-      ? null
-      : parseStudioAgentSemanticOutput(repairedText);
+    const repairedSemantic = pulseActive ? null : parseStudioAgentSemanticOutput(repairedText);
     parsedWithStatus = repairedSemantic
       ? (() => {
           const semanticResponse = buildStudioAgentSemanticResponse({
@@ -331,7 +341,7 @@ export const executeStudioAgentFastPathTurn = async ({
           };
         })()
       : parseStudioAgentJsonWithStatus(repairedText, {
-          allowUnstructured: !workflowPulseActive,
+          allowUnstructured: !pulseActive,
         });
     repairUsed = hasUsableFastPathPayload(parsedWithStatus?.response ?? null);
     if (!repairUsed) {

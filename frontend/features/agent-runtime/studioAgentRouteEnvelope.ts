@@ -27,7 +27,9 @@ export type StudioAgentErrorCode =
   | "INVALID_MESSAGE_ROLE"
   | "REQUEST_BODY_TOO_LARGE"
   | "RATE_LIMITED"
-  | "MESSAGES_REQUIRED";
+  | "MESSAGES_REQUIRED"
+  | "PULSE_PRESET_UNAVAILABLE"
+  | "PULSE_PRESET_SOURCE_MISMATCH";
 
 export type StudioAgentErrorResponse = {
   code: StudioAgentErrorCode;

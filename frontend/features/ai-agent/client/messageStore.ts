@@ -56,6 +56,18 @@ export const updateUiMessageById = (
 };
 
 /**
+ * Remove one message from the UI history by id.
+ * Returns the original array when no matching message is found.
+ */
+export const removeUiMessageById = (
+  messages: AgentMessage[],
+  messageId: string
+): AgentMessage[] => {
+  const next = messages.filter((message) => message.id !== messageId);
+  return next.length === messages.length ? messages : next;
+};
+
+/**
  * Build API message history for the next turn from current local history.
  */
 export const buildApiMessagesForTurn = ({

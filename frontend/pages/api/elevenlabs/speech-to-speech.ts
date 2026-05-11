@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import formidable from "formidable";
+import { resolveRequiredAudioVoiceChangerModelId } from "../../../lib/model-runtime/modelCatalog";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
@@ -71,6 +72,9 @@ type ParsedMultipart = {
   files: formidable.Files;
 };
 
+const DEFAULT_VOICE_CHANGER_MODEL_ID = resolveRequiredAudioVoiceChangerModelId();
+const ALLOWED_MODEL_IDS = new Set([DEFAULT_VOICE_CHANGER_MODEL_ID]);
+
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -80,6 +84,18 @@ const normalizeRequiredString = (value: unknown): string | null => {
 const readFieldString = (value: string | string[] | undefined): string | null => {
   if (Array.isArray(value)) return normalizeRequiredString(value[0]);
   return normalizeRequiredString(value);
+};
+
+const parseJsonObjectField = (value: string | null): Record<string, unknown> | null => {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
 };
 
 const parseBooleanField = (value: string | string[] | undefined): boolean => {
@@ -148,6 +164,7 @@ export default async function handler(
     const originalVideoMimeType = readFieldString(fields.originalVideoMimeType);
     const originalVideoAspect = readFieldString(fields.originalVideoAspect);
     const projectId = readFieldString(fields.project_id) ?? readFieldString(fields.projectId);
+    const shortpulseContext = parseJsonObjectField(readFieldString(fields.shortpulseContext));
     const removeBackgroundNoise = parseBooleanField(fields.removeBackgroundNoise);
     const voiceSettingsField = readFieldString(fields.voiceSettings);
     const voiceSettings = voiceSettingsField ? JSON.parse(voiceSettingsField) : null;
@@ -157,6 +174,13 @@ export default async function handler(
         error: "Invalid request",
         details:
           "voiceId, voiceName, outputFormat, modelId, inputFormat, and voiceSettings are required.",
+      });
+    }
+
+    if (!ALLOWED_MODEL_IDS.has(modelId)) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: `modelId must be ${DEFAULT_VOICE_CHANGER_MODEL_ID}.`,
       });
     }
 
@@ -218,6 +242,7 @@ export default async function handler(
         source_duration_seconds: sourceDurationSeconds,
       },
       reason: "elevenlabs-speech-to-speech generation",
+      shortpulseContext,
     });
     if (!charge) return;
 
@@ -297,6 +322,7 @@ export default async function handler(
         provider_request_id: providerRequestId,
         source_duration_ms: Math.round(sourceDurationSeconds * 1000),
         source_duration_seconds: sourceDurationSeconds,
+        ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
     });
     const captureResult = await captureSucceededGenerationByProviderRequest({
@@ -349,6 +375,7 @@ export default async function handler(
             source_duration_ms: Math.round(sourceDurationSeconds * 1000),
             source_duration_seconds: sourceDurationSeconds,
             source_video_storage_path: originalVideoStoragePath,
+            ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
           },
         });
       } catch (remuxError) {

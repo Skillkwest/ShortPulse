@@ -289,6 +289,94 @@ describe("useCreateAgentStateCore", () => {
     );
   });
 
+  it("restores the previous Pulse session identity after an override kickoff fails", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "upstream failed" }), {
+          status: 502,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ message: "Recovered existing Pulse." }),
+      } as Response);
+
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({
+        enabled: true,
+        runtimeMode: "pulse",
+        sessionNamespace: "ai-studio:seed:none::pulse:image",
+      })
+    );
+
+    let failedKickoff!: SendResult;
+    await act(async () => {
+      failedKickoff = await result.current.send({
+        text: "",
+        payloadText: "pulse_activation_seed:story_builder",
+        sessionNamespaceOverride: "ai-studio:seed:none::pulse:story_builder",
+        isolateHistory: true,
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "story_builder",
+            label: "Story Builder",
+            instructions: "Guide the user through story setup.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your characters first.",
+            workflowStageHints: ["Upload Characters"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    expect(failedKickoff).toEqual(
+      expect.objectContaining({
+        response: null,
+        failureKind: "transport_error",
+      })
+    );
+
+    let recoveredSend!: SendResult;
+    await act(async () => {
+      recoveredSend = await result.current.send({
+        text: "continue existing pulse",
+        payloadText: "continue existing pulse",
+        context: {
+          pulse: {
+            presetId: "image",
+            label: "Video Prompt Magic",
+            instructions: "Guide the user through a single-shot workflow.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your image to get the process started :)",
+            workflowStageHints: ["Image Gate"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    expect(recoveredSend.discarded).not.toBe(true);
+    const recoveredBody = JSON.parse(
+      String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")
+    ) as { clientSessionNamespace?: string };
+    expect(recoveredBody.clientSessionNamespace).toBe("ai-studio:seed:none::pulse:image");
+    expect(result.current.messages.at(-1)).toEqual(
+      expect.objectContaining({
+        role: "assistant",
+        content: "Recovered existing Pulse.",
+      })
+    );
+  });
+
   it("refuses explicit input in client precheck without transport call", async () => {
     const { result } = renderHook(() =>
       useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
@@ -893,6 +981,135 @@ describe("useCreateAgentStateCore", () => {
       { role: "user", content: "hello" },
       { role: "assistant", content: "Hello. How can I help?" },
       { role: "user", content: "follow up" },
+    ]);
+  });
+
+  it("keeps Pulse assistant workflow/chat replies in outbound history", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            message: "Step 2 - Share a plot seed.",
+            workflowSession: {
+              presetId: "story_builder",
+              status: "awaiting_input",
+              currentStepIndex: 2,
+              currentStepLabel: "Plot Seed",
+              currentStepPrompt: "Step 2 - Share a plot seed.",
+              collectedInputs: [],
+              lastArtifact: null,
+              finalArtifactSource: null,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            message: "Step 3 - How long should it be?",
+            workflowSession: {
+              presetId: "story_builder",
+              status: "awaiting_input",
+              currentStepIndex: 3,
+              currentStepLabel: "Runtime",
+              currentStepPrompt: "Step 3 - How long should it be?",
+              collectedInputs: ["A knight enters a cursed forest."],
+              lastArtifact: null,
+              finalArtifactSource: null,
+            },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      );
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "start pulse",
+        payloadText: "start pulse",
+      });
+    });
+
+    await act(async () => {
+      await result.current.send({
+        text: "A knight enters a cursed forest.",
+        payloadText: "A knight enters a cursed forest.",
+      });
+    });
+
+    const secondBody = JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
+    expect(secondBody.messages).toEqual([
+      { role: "user", content: "start pulse" },
+      { role: "assistant", content: "Step 2 - Share a plot seed." },
+      { role: "user", content: "A knight enters a cursed forest." },
+    ]);
+  });
+
+  it("keeps custom Pulse startup replies in outbound history for follow-up turns", async () => {
+    fetchWithAuthMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            message:
+              "Tell me about your storyboard.\n1. What is the story about?\n2. Who or what is the main subject?",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            message: "What aspect ratio and how many scenes do you want?",
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
+      );
+    const { result } = renderHook(() =>
+      useCreateAgentStateTestHarness({ enabled: true, runtimeMode: "pulse" })
+    );
+
+    await act(async () => {
+      await result.current.send({
+        text: "start custom pulse",
+        payloadText: "start custom pulse",
+      });
+    });
+
+    await act(async () => {
+      await result.current.send({
+        text: "bugs dark bugs",
+        payloadText: "bugs dark bugs",
+      });
+    });
+
+    const secondBody = JSON.parse(String(fetchWithAuthMock.mock.calls[1]?.[1]?.body ?? "{}")) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
+    expect(secondBody.messages).toEqual([
+      { role: "user", content: "start custom pulse" },
+      {
+        role: "assistant",
+        content:
+          "Tell me about your storyboard.\n1. What is the story about?\n2. Who or what is the main subject?",
+      },
+      { role: "user", content: "bugs dark bugs" },
     ]);
   });
 

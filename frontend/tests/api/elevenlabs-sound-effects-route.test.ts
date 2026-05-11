@@ -81,6 +81,28 @@ describe("POST /api/elevenlabs/sound-effects", () => {
     expect(generateElevenLabsSoundEffectMock).not.toHaveBeenCalled();
   });
 
+  it("rejects unsupported model ids before billing", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        text: "Huge downlift boom.",
+        outputFormat: "mp3_44100_128",
+        modelId: "unsupported-model",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details: "modelId must be eleven_text_to_sound_v2.",
+    });
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsSoundEffectMock).not.toHaveBeenCalled();
+  });
+
   it("charges and persists auto-duration sound effects with shared pricing metadata", async () => {
     generateElevenLabsSoundEffectMock.mockResolvedValue({
       buffer: Buffer.from("sfx"),
@@ -106,6 +128,10 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         outputFormat: "mp3_44100_128",
         modelId: "eleven_text_to_sound_v2",
         project_id: "project-1",
+        shortpulse_context: {
+          displayed_billed_credits: 15,
+          pricing_display_source: "shared_adapter",
+        },
       },
     };
     const res = createMockResponse();
@@ -118,6 +144,10 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         payload: expect.objectContaining({
           generation_count: 1,
         }),
+        shortpulseContext: {
+          displayed_billed_credits: 15,
+          pricing_display_source: "shared_adapter",
+        },
       })
     );
     expect(persistGeneratedAudioAssetMock).toHaveBeenCalledWith(
@@ -130,6 +160,10 @@ describe("POST /api/elevenlabs/sound-effects", () => {
           loop_enabled: true,
           provider_character_cost: 100,
           provider_request_id: "provider-sfx-1",
+          shortpulse_context: {
+            displayed_billed_credits: 15,
+            pricing_display_source: "shared_adapter",
+          },
         }),
       })
     );

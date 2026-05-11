@@ -89,7 +89,7 @@ const createPulseContext = () => ({
     activationMode: "activate_and_start",
     outputMode: "chat_reply",
     memoryPolicy: "session",
-    source: "custom",
+    source: "builtin",
   },
 });
 
@@ -519,6 +519,67 @@ describe("AI Studio Create agent runtime boundaries", () => {
     expect(serializedRequest).toContain("SERVER STORY BUILDER INSTRUCTIONS");
     expect(serializedRequest).not.toContain("CLIENT OVERRIDE SHOULD NOT WIN");
     expect(serializedRequest).not.toContain("Client Drifted Label");
+  });
+
+  it("fails closed when a built-in Pulse request does not match the server catalog", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        ...createBaseRequestBody(
+          "ai-studio:session-runtime-test::pulse:missing_builtin:pulse-session-test"
+        ),
+        context: {
+          pulse: {
+            presetId: "missing_builtin",
+            label: "Missing Built-in",
+            instructions: "CLIENT BUILT-IN OVERRIDE SHOULD NOT RUN",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(runThinkerFormatterTurnMock).not.toHaveBeenCalled();
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        code: "PULSE_PRESET_UNAVAILABLE",
+      })
+    );
+  });
+
+  it("rejects custom Pulse requests that collide with a server-owned built-in preset id", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        ...createPulseRequestBody(),
+        context: {
+          pulse: {
+            ...createPulseContext().pulse,
+            source: "custom",
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await pulseStudioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(res.json.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        code: "PULSE_PRESET_SOURCE_MISMATCH",
+      })
+    );
   });
 
   it("does not read or write generic canonical prompt persistence from Pulse", async () => {

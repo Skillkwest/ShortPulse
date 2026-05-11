@@ -4,6 +4,21 @@ import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
 type JsonRow = Record<string, unknown>;
+type PricingObservabilityRecord = {
+  sourceType: "generation" | "reservation" | "ledger";
+  rowId: string | null;
+  generationId: string | null;
+  requestId: string | null;
+  providerRequestId: string | null;
+  sourceRef: string | null;
+  observedAt: string | null;
+  displayedBilledCredits: number | null;
+  actualBilledCredits: number | null;
+  deltaCredits: number | null;
+  mismatch: boolean;
+  pricingDisplaySource: string | null;
+  pricingPolicyReady: boolean | null;
+};
 
 const asSingleString = (value: unknown): string | null => {
   if (typeof value === "string") {
@@ -74,6 +89,82 @@ const readRequestId = (row: JsonRow): string | null => {
   if (typeof requestId !== "string") return null;
   const trimmed = requestId.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const readPricingObservabilityMismatch = (row: JsonRow): boolean => {
+  const observability = readPricingObservability(row);
+  return observability?.mismatch === true;
+};
+
+const readPricingObservability = (row: JsonRow): JsonRow | null => {
+  const metadata = row.metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return null;
+  }
+  const directObservability = (metadata as JsonRow).pricing_observability;
+  if (
+    directObservability &&
+    typeof directObservability === "object" &&
+    !Array.isArray(directObservability)
+  ) {
+    return directObservability as JsonRow;
+  }
+  const pricingMetadata = (metadata as JsonRow).pricing_metadata;
+  if (pricingMetadata && typeof pricingMetadata === "object" && !Array.isArray(pricingMetadata)) {
+    const nestedObservability = (pricingMetadata as JsonRow).pricing_observability;
+    if (
+      nestedObservability &&
+      typeof nestedObservability === "object" &&
+      !Array.isArray(nestedObservability)
+    ) {
+      return nestedObservability as JsonRow;
+    }
+  }
+  return null;
+};
+
+const readFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const readNullableString = (value: unknown): string | null =>
+  typeof value === "string" && value.trim().length ? value.trim() : null;
+
+const buildPricingObservabilityRecord = ({
+  row,
+  sourceType,
+}: {
+  row: JsonRow;
+  sourceType: PricingObservabilityRecord["sourceType"];
+}): PricingObservabilityRecord | null => {
+  const observability = readPricingObservability(row);
+  if (!observability || observability.mismatch !== true) return null;
+  return {
+    sourceType,
+    rowId: readNullableString(row.id),
+    generationId: sourceType === "generation" ? readNullableString(row.id) : null,
+    requestId: readNullableString(row.request_id),
+    providerRequestId: readNullableString(row.provider_request_id),
+    sourceRef: readNullableString(row.source_ref),
+    observedAt:
+      readNullableString(row.created_at) ??
+      readNullableString(row.updated_at) ??
+      readNullableString(row.occurred_at),
+    displayedBilledCredits: readFiniteNumber(observability.displayed_billed_credits),
+    actualBilledCredits: readFiniteNumber(observability.actual_billed_credits),
+    deltaCredits: readFiniteNumber(observability.delta_credits),
+    mismatch: true,
+    pricingDisplaySource: readNullableString(observability.pricing_display_source),
+    pricingPolicyReady:
+      typeof observability.pricing_policy_ready === "boolean"
+        ? observability.pricing_policy_ready
+        : null,
+  };
 };
 
 const selectGenerationFields = [
@@ -614,6 +705,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const dedupedErrors = sortRowsDesc(dedupeRowsById(errorEvents));
     const dedupedMediaEvents = sortRowsDesc(dedupeRowsById(mediaEvents));
     const dedupedMediaFiles = sortRowsDesc(dedupeRowsById(mediaFiles));
+    const pricingObservabilityMismatchRows = [
+      ...generations
+        .map((row) => buildPricingObservabilityRecord({ row, sourceType: "generation" }))
+        .filter((row): row is PricingObservabilityRecord => row != null),
+      ...dedupedReservations
+        .map((row) => buildPricingObservabilityRecord({ row, sourceType: "reservation" }))
+        .filter((row): row is PricingObservabilityRecord => row != null),
+      ...dedupedLedger
+        .map((row) => buildPricingObservabilityRecord({ row, sourceType: "ledger" }))
+        .filter((row): row is PricingObservabilityRecord => row != null),
+    ];
+    const pricingObservabilityMismatches = [
+      ...generations,
+      ...dedupedReservations,
+      ...dedupedLedger,
+    ].filter(readPricingObservabilityMismatch).length;
 
     return res.status(200).json({
       query: {
@@ -631,6 +738,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         reservations: dedupedReservations.length,
         ledgerEntries: dedupedLedger.length,
         errorEvents: dedupedErrors.length,
+        pricingObservabilityMismatches,
       },
       generations,
       generationAttempts: dedupedAttempts,
@@ -639,6 +747,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       mediaFiles: dedupedMediaFiles,
       reservations: dedupedReservations,
       ledgerEntries: dedupedLedger,
+      pricingObservabilityMismatchRows,
       errorEvents: dedupedErrors,
       warnings,
     });

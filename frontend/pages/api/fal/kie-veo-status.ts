@@ -1,14 +1,13 @@
 import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
   getKieStatusBaseUrlsRequired,
   getKieTimeoutMsOrDefault,
 } from "../../../lib/server/api/falRouteConfig";
 
 export default createFalStatusHandler({
+  modelId: "kie-ai/veo-3.1-fast-i2v",
   provider: "kie",
-  modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
-  queueBaseUrl: getKieStatusBaseUrlsRequired(KIE_VEO_31_FAST_I2V_MODEL_ID),
+  queueBaseUrl: getKieStatusBaseUrlsRequired("kie-ai/veo-3.1-fast-i2v"),
   routeLabel: "Kie Veo 3.1 Fast I2V",
-  timeoutMs: getKieTimeoutMsOrDefault(KIE_VEO_31_FAST_I2V_MODEL_ID, 60000),
+  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/veo-3.1-fast-i2v", 60000),
 });

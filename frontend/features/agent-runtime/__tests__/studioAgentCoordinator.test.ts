@@ -102,4 +102,60 @@ describe("buildStudioAgentOpenAiMessages", () => {
       content: "Step 1 - Upload your image.",
     });
   });
+
+  it("injects a follow-up continuation note for custom pulses after the startup checklist has already been shown", () => {
+    const messages = buildStudioAgentOpenAiMessages({
+      messages: [
+        {
+          role: "assistant",
+          content:
+            "Tell me about your storyboard.\n1. What is the story about?\n2. Who is the main subject?",
+        },
+        { role: "user", content: "bugs dark bugs" },
+      ],
+      context: {
+        mode: "text",
+        pulse: {
+          presetId: "custom-storyboard",
+          label: "Storyboard Agent",
+          instructions:
+            "When the conversation begins, always ask the six storyboard intake questions, then produce the final storyboard prompts.",
+          pulseKind: "custom_gpt",
+          source: "custom",
+        },
+      },
+      systemPrompt: "base-system",
+      orchestration: {
+        flow: "TEXT_ONLY",
+        contextType: "prompt",
+        userInput: "bugs dark bugs",
+        textInput: "bugs dark bugs",
+        imageReferenceIds: [],
+        promptReferenceIds: [],
+        shouldRunTextExpansion: true,
+        shouldRunVisionDescription: false,
+        shouldRunFusion: false,
+      },
+    });
+
+    expect(messages.slice(0, 4)).toEqual([
+      { role: "system", content: "base-system" },
+      expect.objectContaining({
+        role: "system",
+        content: expect.stringContaining("pulse_kind: custom_gpt"),
+      }),
+      expect.objectContaining({
+        role: "system",
+        content: expect.stringContaining("This is not the first turn of the conversation."),
+      }),
+      expect.objectContaining({
+        role: "system",
+        content: expect.stringContaining('"presetId":"custom-storyboard"'),
+      }),
+    ]);
+    expect(messages[2]?.content).toContain("latest_user_reply: bugs dark bugs");
+    expect(messages[2]?.content).toContain("Do not resend the previous checklist");
+    expect(messages[2]?.content).toContain('"startupSatisfied":true');
+    expect(messages[2]?.content).toContain('"needs_input":"ask only for remaining missing inputs"');
+  });
 });

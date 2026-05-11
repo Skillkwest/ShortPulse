@@ -72,6 +72,39 @@ describe("resolveStudioAgentTurnResponse", () => {
     expect(result.resolvedCanonical).toBe("existing canonical");
   });
 
+  it("promotes ready custom Pulse replies into an authoritative prompt artifact", () => {
+    const result = resolveStudioAgentTurnResponse({
+      parsed: {
+        message: "A cinematic dark-fantasy storyboard sequence with escalating beetle swarms.",
+        actions: undefined,
+      },
+      semanticStatus: "ready",
+      nextCanonical: "A cinematic dark-fantasy storyboard sequence with escalating beetle swarms.",
+      effectiveCanonical: null,
+      context: {
+        pulse: {
+          presetId: "custom_storyboard",
+          label: "Storyboard Pulse",
+          instructions: "Collect the brief, then output the final storyboard prompt.",
+          runtimeMode: "custom_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          source: "custom",
+        },
+      },
+      messages: [{ role: "user", content: "bugs dark bugs" }],
+    });
+
+    expect(result.refusal).toBe(false);
+    expect(result.parsed.actions?.applyPrompt).toBe(
+      "A cinematic dark-fantasy storyboard sequence with escalating beetle swarms."
+    );
+    expect(result.resolvedCanonical).toBe(
+      "A cinematic dark-fantasy storyboard sequence with escalating beetle swarms."
+    );
+  });
+
   it("does not strip prompt-like wording from workflow pulse chat replies", () => {
     const result = resolveStudioAgentTurnResponse({
       parsed: {

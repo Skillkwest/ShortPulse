@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { ELEVENLABS_VOICE_DESIGN_MODEL_ID } from "../../../../lib/model-runtime/elevenLabsModels";
+import { resolveRequiredAudioVoiceDesignModelId } from "../../../../lib/model-runtime/modelCatalog";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { designElevenLabsVoice } from "../../../../lib/server/elevenlabs";
@@ -26,7 +26,7 @@ type TextToVoiceDesignErrorResponse = {
   details?: string;
 };
 
-const DEFAULT_VOICE_DESIGN_MODEL_ID = ELEVENLABS_VOICE_DESIGN_MODEL_ID;
+const DEFAULT_VOICE_DESIGN_MODEL_ID = resolveRequiredAudioVoiceDesignModelId();
 const DEFAULT_VOICE_DESIGN_OUTPUT_FORMAT = "mp3_22050_32";
 const MIN_VOICE_DESCRIPTION_CHARACTERS = 20;
 const MAX_VOICE_DESCRIPTION_CHARACTERS = 1000;

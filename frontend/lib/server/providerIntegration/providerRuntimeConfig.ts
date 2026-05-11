@@ -7,28 +7,16 @@ import {
   getKieStatusBaseUrlsByModelId,
   getKieSubmitUrlByModelId,
   getKieTimeoutMsByModelId,
+  isAlwaysOnProviderRuntimeModelId,
 } from "../../model-runtime/modelCatalog";
 import { getModelConfig } from "../../model-runtime/pricing";
-import {
-  KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
-  KIE_SEEDANCE_2_FAST_MODEL_ID,
-  KIE_SEEDANCE_2_MODEL_ID,
-  KIE_SUPPORTED_MODEL_IDS,
-  isKnownKieModelId,
-} from "../../model-runtime/providerModelIds";
+import { KIE_SUPPORTED_MODEL_IDS, isKnownKieModelId } from "../../model-runtime/providerModelIds";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import { isFalProviderKey, isKieProviderKey, normalizeProviderKey } from "./providerKey";
 
 const DEFAULT_KIE_TRUSTED_HOSTS = ["kie.ai"];
 const DEFAULT_KIE_STATUS_TIMEOUT_MS = 60000;
 const REQUEST_ID_TEMPLATE_TOKEN = "{requestId}";
-const ALWAYS_ON_KIE_MODEL_IDS = new Set([
-  KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
-  KIE_SEEDANCE_2_MODEL_ID,
-  KIE_SEEDANCE_2_FAST_MODEL_ID,
-]);
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
   if (!value) return fallback;
@@ -173,7 +161,7 @@ export type KieRuntimeFlags = {
   statusTimeoutMs: number;
 };
 
-const isAlwaysOnKieModel = (modelId: string): boolean => ALWAYS_ON_KIE_MODEL_IDS.has(modelId);
+const isAlwaysOnKieModel = (modelId: string): boolean => isAlwaysOnProviderRuntimeModelId(modelId);
 
 /**
  * Reads Kie runtime controls. Kling 3.0 and Seedance video lanes are always on;

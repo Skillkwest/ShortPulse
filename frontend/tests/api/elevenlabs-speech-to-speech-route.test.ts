@@ -114,6 +114,10 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       sourceStoragePath: "user-1/voice-changer/staged-audio/source.wav",
       sourceName: "source.wav",
       sourceOrigin: "local",
+      shortpulseContext: JSON.stringify({
+        displayed_billed_credits: 15,
+        pricing_display_source: "shared_adapter",
+      }),
       removeBackgroundNoise: "false",
       voiceSettings: JSON.stringify({
         stability: 0.5,
@@ -220,6 +224,14 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         sourceFilename: "source.wav",
       })
     );
+    expect(chargeGenerationRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        shortpulseContext: {
+          displayed_billed_credits: 15,
+          pricing_display_source: "shared_adapter",
+        },
+      })
+    );
     expect(createRemuxedVoiceChangerVideoMock).toHaveBeenCalledWith({
       sourceVideoBuffer: Buffer.from("source-video"),
       sourceVideoFilename: "source.mp4",
@@ -232,6 +244,12 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         userId: "user-1",
         projectId: "project-1",
         sourceMode: "voice-changer",
+        extraMetadata: expect.objectContaining({
+          shortpulse_context: {
+            displayed_billed_credits: 15,
+            pricing_display_source: "shared_adapter",
+          },
+        }),
       })
     );
     expect(persistGeneratedVideoAssetMock).toHaveBeenCalledWith(
@@ -254,6 +272,10 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
           source_duration_ms: 12000,
           source_duration_seconds: 12,
           source_video_storage_path: "user-1/voice-changer/source-video/source.mp4",
+          shortpulse_context: {
+            displayed_billed_credits: 15,
+            pricing_display_source: "shared_adapter",
+          },
         }),
       })
     );
@@ -305,6 +327,31 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
       },
     });
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects unsupported model ids before billing", async () => {
+    mockFields = {
+      ...mockFields,
+      modelId: "unsupported-model",
+    };
+    readStoredMediaBufferMock.mockResolvedValueOnce({
+      buffer: Buffer.from("staged-audio"),
+      contentType: "audio/wav",
+      size: 12,
+    });
+
+    const req = { method: "POST" };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Invalid request",
+      details: "modelId must be eleven_multilingual_sts_v2.",
+    });
+    expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
+    expect(generateElevenLabsVoiceChangerMock).not.toHaveBeenCalled();
   });
 
   it("returns the remux source size error as a client-visible 413", async () => {

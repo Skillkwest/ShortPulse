@@ -112,6 +112,45 @@ const buildRunLogMarkdown = ({
     .filter((line) => line !== null)
     .join("\n");
 
+const finalizeRunLogMarkdown = ({
+  markdown,
+  status = "complete",
+  boardStatus = "complete",
+  finalizedAt,
+}) => {
+  const lines = String(markdown ?? "").split("\n");
+  const statusLine = `- Status: ${status}`;
+  const boardStatusLine = `- Final board status: ${boardStatus}`;
+  const finalizedLine = finalizedAt ? `- Finalized: ${finalizedAt}` : null;
+
+  const statusIndex = lines.findIndex((line) => line.startsWith("- Status:"));
+  if (statusIndex >= 0) {
+    lines[statusIndex] = statusLine;
+  } else {
+    lines.splice(1, 0, "", statusLine);
+  }
+
+  const resolvedStatusIndex = lines.findIndex((line) => line === statusLine);
+  const boardStatusIndex = lines.findIndex((line) => line.startsWith("- Final board status:"));
+  if (boardStatusIndex >= 0) {
+    lines[boardStatusIndex] = boardStatusLine;
+  } else {
+    lines.splice(resolvedStatusIndex + 1, 0, boardStatusLine);
+  }
+
+  if (finalizedLine) {
+    const finalizedIndex = lines.findIndex((line) => line.startsWith("- Finalized:"));
+    const insertIndex = lines.findIndex((line) => line === boardStatusLine);
+    if (finalizedIndex >= 0) {
+      lines[finalizedIndex] = finalizedLine;
+    } else {
+      lines.splice(insertIndex + 1, 0, finalizedLine);
+    }
+  }
+
+  return lines.join("\n");
+};
+
 const resolveOutputPath = ({ output, title, ticketId, incidentId, createdAt }) => {
   if (output) return path.resolve(process.cwd(), output);
   const datePrefix = createdAt.slice(0, 10);
@@ -212,4 +251,10 @@ if (isDirectRun) {
   });
 }
 
-export { DEFAULT_REPORTS_DIR, buildRunLogMarkdown, resolveOutputPath, slugify };
+export {
+  DEFAULT_REPORTS_DIR,
+  buildRunLogMarkdown,
+  finalizeRunLogMarkdown,
+  resolveOutputPath,
+  slugify,
+};

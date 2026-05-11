@@ -14,7 +14,7 @@ import { pathToFileURL } from "node:url";
 
 const DETAILS_MAX_LENGTH = 1000;
 const DEFAULT_APPROVAL_RESERVE = 420;
-const MIN_FIELD_CAP = 24;
+const MIN_FIELD_CAP = 8;
 const RISK_CLASSIFICATIONS = new Set(["accepted", "monitor", "follow-up", "human-review"]);
 const VERIFICATION_CLASSES = new Set([
   "live-route-verified",
@@ -118,7 +118,12 @@ const truncate = (value, maxLength) => {
 const buildReportText = (entries) =>
   entries
     .filter((entry) => entry.value)
-    .map((entry) => `${entry.label}: ${truncate(entry.value, entry.cap)}`)
+    .map((entry) => {
+      const renderedValue = truncate(entry.value, entry.cap);
+      if (!renderedValue) return null;
+      return `${entry.label}: ${renderedValue}`;
+    })
+    .filter(Boolean)
     .join("\n");
 
 const compactEntriesToLimit = (initialEntries, targetLength) => {
@@ -127,10 +132,21 @@ const compactEntriesToLimit = (initialEntries, targetLength) => {
 
   while (report.length > targetLength) {
     const candidates = entries
-      .filter((entry) => entry.cap > (entry.minCap ?? MIN_FIELD_CAP) && entry.value)
+      .filter(
+        (entry) =>
+          !entry.preserveFull &&
+          entry.cap > (entry.minCap ?? MIN_FIELD_CAP) &&
+          entry.value
+      )
       .sort((left, right) => right.cap - left.cap);
     const candidate = candidates[0];
-    if (!candidate) break;
+    if (!candidate) {
+      const dropCandidate = entries.find((entry) => entry.dropWhenTight && entry.value);
+      if (!dropCandidate) break;
+      dropCandidate.value = "";
+      report = buildReportText(entries);
+      continue;
+    }
 
     const excess = report.length - targetLength;
     candidate.cap = Math.max(
@@ -172,24 +188,27 @@ const buildCompactTicketReport = ({
   const targetLength = Math.max(120, maxLength - approvalReserve);
   const riskText = [normalizedRiskClass, normalizeText(residualRisk)].filter(Boolean).join(" - ");
   const entries = [
-    { label: "Incident", value: incidentId, cap: 90 },
-    { label: "Issue", value: issue, cap: 120 },
-    { label: "Resolution", value: normalizedResolutionType, cap: 80 },
-    { label: "Repo changes", value: repoChanges, cap: 135 },
-    { label: "Validation", value: validation, cap: 135 },
-    { label: "Verification class", value: normalizedVerificationClass, cap: 90 },
-    { label: "Recurrence", value: recurrence, cap: 115 },
-    { label: "Residual risk", value: riskText, cap: 135 },
+    { label: "Incident", value: incidentId, cap: 90, minCap: 8 },
+    { label: "Issue", value: issue, cap: 120, minCap: 12 },
+    { label: "Resolution", value: normalizedResolutionType, cap: 80, minCap: 8 },
+    { label: "Repo changes", value: repoChanges, cap: 135, minCap: 10 },
+    { label: "Validation", value: validation, cap: 135, minCap: 10 },
+    { label: "Verification class", value: normalizedVerificationClass, cap: 90, minCap: 8 },
+    { label: "Recurrence", value: recurrence, cap: 115, minCap: 10 },
+    { label: "Residual risk", value: riskText, cap: 135, minCap: 10 },
     {
       label: "Report",
       value: normalizedReportPath,
       cap: Math.max(170, normalizedReportPath.length),
       minCap: normalizedReportPath.length,
+      preserveFull: true,
     },
     {
       label: "Local dev note",
       value: includeLocalDevNote ? STALE_LOCAL_BUNDLE_NOTE : "",
       cap: 110,
+      minCap: 16,
+      dropWhenTight: true,
     },
   ];
   const details = compactEntriesToLimit(entries, targetLength);

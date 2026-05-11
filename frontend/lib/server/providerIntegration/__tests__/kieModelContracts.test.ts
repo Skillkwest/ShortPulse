@@ -322,7 +322,7 @@ describe("kieModelContracts", () => {
         first_frame_url: "https://example.com/first.png",
         last_frame_url: "https://example.com/last.png",
         aspect_ratio: "16:9",
-        resolution: "1080p",
+        resolution: "720p",
         duration: "15",
       },
     });

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { resolveRequiredAudioVoiceoverModelId } from "../../../lib/model-runtime/modelCatalog";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
@@ -18,6 +19,7 @@ type TextToSpeechRequestBody = {
   config?: unknown;
   project_id?: unknown;
   projectId?: unknown;
+  shortpulse_context?: unknown;
 };
 
 type GenerateAudioSuccessResponse = {
@@ -45,11 +47,19 @@ type GenerateAudioErrorResponse = {
   details?: string;
 };
 
+const DEFAULT_VOICEOVER_MODEL_ID = resolveRequiredAudioVoiceoverModelId();
+const ALLOWED_MODEL_IDS = new Set([DEFAULT_VOICEOVER_MODEL_ID]);
+
 const normalizeRequiredString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 };
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 
 export default async function handler(
   req: NextApiRequest,
@@ -75,11 +85,19 @@ export default async function handler(
         : null;
     const modelId = normalizeRequiredString(config?.model_id);
     const projectId = normalizeRequiredString(body.project_id ?? body.projectId);
+    const shortpulseContext = asRecord(body.shortpulse_context);
 
     if (!voiceId || !voiceName || !text || !outputFormat || !config || !modelId) {
       return res.status(400).json({
         error: "Invalid request",
         details: "voiceId, voiceName, text, outputFormat, and config.model_id are required.",
+      });
+    }
+
+    if (!ALLOWED_MODEL_IDS.has(modelId)) {
+      return res.status(400).json({
+        error: "Invalid request",
+        details: `config.model_id must be ${DEFAULT_VOICEOVER_MODEL_ID}.`,
       });
     }
 
@@ -92,6 +110,7 @@ export default async function handler(
         text_characters: text.length,
       },
       reason: "elevenlabs-text-to-speech generation",
+      shortpulseContext,
     });
     if (!charge) return;
 
@@ -130,6 +149,7 @@ export default async function handler(
         pricing_metadata: charge.chargeMetadata,
         provider_request_id: providerRequestId,
         text_character_count: text.length,
+        ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
       },
     });
     const captureResult = await captureSucceededGenerationByProviderRequest({

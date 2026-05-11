@@ -74,6 +74,32 @@ describe("ophestivus ticket report formatter", () => {
     );
   });
 
+  it("preserves a normal reports path without manual shortening when space is tight", () => {
+    const reportPath =
+      "docs/records/artifacts/agent/ophestivus/reports/2026-05-10-project-workspace-autosave-retry.md";
+
+    const report = buildCompactTicketReport({
+      incidentId: "7aa4cf2b-1b26-483e-8966-91822ebb4c07",
+      issue: "AI Studio project workspace autosave Failed to fetch",
+      resolutionType: "new-code",
+      repoChanges:
+        "Enabled one-time network retry for project workspace save requests; added API client coverage.",
+      validation:
+        "projectWorkspaceApiClient/authenticatedFetch tests pass; eslint touched files pass; diff-check pass; type-check blocked by unrelated existing errors.",
+      verificationClass: "tests-and-data-verified",
+      recurrence: "0 open; 0 fresh after 2026-05-10T23:21:35Z",
+      riskClass: "monitor",
+      residualRisk:
+        "Monitor visible localhost autosave recurrence; persistent API failures still surface.",
+      reportPath,
+      includeLocalDevNote: true,
+    });
+
+    expect(report.details).toContain(`Report: ${reportPath}`);
+    expect(report.details).not.toContain("Report: docs/records/artifacts/agent/ophestivus/re...");
+    expect(report.remainingForApproval).toBeGreaterThanOrEqual(DEFAULT_APPROVAL_RESERVE);
+  });
+
   it("validates review-ready ticket summaries", () => {
     const reportPath = "docs/records/artifacts/agent/ophestivus/reports/example.md";
     const report = buildCompactTicketReport({
@@ -120,9 +146,9 @@ describe("ophestivus ticket report formatter", () => {
         incidentId: "incident-3",
         issue: "Issue",
         resolutionType: "new-code",
-      repoChanges: "Change",
-      validation: "Validation",
-      recurrence: "Recurrence",
+        repoChanges: "Change",
+        validation: "Validation",
+        recurrence: "Recurrence",
         riskClass: "unknown",
         residualRisk: "Risk",
       })

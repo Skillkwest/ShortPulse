@@ -3,6 +3,8 @@
  * Provides deterministic preflight checks and redacted diagnostics for media inputs.
  */
 
+import { isCharacterScopedMediaUrl } from "../../mediaStoragePath";
+
 const ALLOWED_IMAGE_EXTENSIONS = new Set([
   "jpg",
   "jpeg",
@@ -364,7 +366,7 @@ export const buildKieSubmitMediaDiagnostics = (
         extension: readPathExtension(parsedUrl),
         has_token: Boolean(parsedUrl.searchParams.get("token")),
         token_ttl_seconds: readSignedTokenTtlSeconds(parsedUrl),
-        path_contains_characters: parsedUrl.pathname.toLowerCase().includes("/characters/"),
+        path_contains_characters: isCharacterScopedMediaUrl(parsedUrl.toString()),
       });
     } catch {
       media.push({
@@ -386,7 +388,7 @@ export const buildKieSubmitMediaDiagnostics = (
         extension: readPathExtension(parsedUrl),
         has_token: Boolean(parsedUrl.searchParams.get("token")),
         token_ttl_seconds: readSignedTokenTtlSeconds(parsedUrl),
-        path_contains_characters: parsedUrl.pathname.toLowerCase().includes("/characters/"),
+        path_contains_characters: isCharacterScopedMediaUrl(parsedUrl.toString()),
       });
     } catch {
       media.push({

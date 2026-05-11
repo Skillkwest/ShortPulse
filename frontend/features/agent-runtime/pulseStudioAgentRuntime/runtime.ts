@@ -176,6 +176,20 @@ export const runPulseStudioAgentRuntime = async (req: NextApiRequest, res: NextA
   const runtimeBuiltInPreset = runtimePulseBuiltIns.builtInDefinitions.find(
     (definition) => definition.presetId === context.pulse?.presetId
   );
+  if (runtimeBuiltInPreset && context.pulse.source !== "builtin") {
+    return sendStudioAgentError(res, 409, {
+      code: "PULSE_PRESET_SOURCE_MISMATCH",
+      message: "Pulse preset source mismatch. Reload the Pulse catalog and try again.",
+      traceId,
+    });
+  }
+  if (context.pulse.source === "builtin" && !runtimeBuiltInPreset) {
+    return sendStudioAgentError(res, 409, {
+      code: "PULSE_PRESET_UNAVAILABLE",
+      message: "Built-in Pulse preset is unavailable. Reload the Pulse catalog and try again.",
+      traceId,
+    });
+  }
   if (runtimeBuiltInPreset && context.pulse) {
     context = {
       ...context,

@@ -1,9 +1,9 @@
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
+import { validateSeedreamImageSizePayload } from "../../../lib/server/api/seedreamPayloadValidation";
 import {
   getFalSubmitUrlRequired,
   getFalTimeoutMsOrDefault,
 } from "../../../lib/server/api/falRouteConfig";
-import { validateSeedreamImageSizePayload } from "../../../lib/server/api/seedreamPayloadValidation";
 
 export default createFalSubmitHandler({
   modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",

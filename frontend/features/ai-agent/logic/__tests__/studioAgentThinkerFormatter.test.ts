@@ -208,6 +208,48 @@ describe("runThinkerFormatterTurn", () => {
     expect(result.result.repairUsed).toBe(false);
   });
 
+  it("uses the catalog-backed default thinker model when no explicit model is supplied", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [{ message: { content: '{"status":"ready","prompt_text":"fallback prompt"}' } }],
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content:
+                  '{"message":"fallback prompt","actions":{"applyPrompt":"fallback prompt"}}',
+              },
+            },
+          ],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runThinkerFormatterTurn({
+      apiKey: "test-key",
+      openAiUrl: "https://example.com/v1/chat/completions",
+      thinkerMessages: [{ role: "system", content: "think" }],
+      buildFormatterMessages: (semantic) => [{ role: "user", content: JSON.stringify(semantic) }],
+      parseAgentJson: (raw) => JSON.parse(raw),
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const firstBody = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string);
+    expect(firstBody.model).toBe("gpt-5.4-nano");
+    expect(result.result.parsed.actions?.applyPrompt).toBe("fallback prompt");
+  });
+
   it("falls back to thinker output when formatter stage keeps failing", async () => {
     const fetchMock = vi
       .fn()

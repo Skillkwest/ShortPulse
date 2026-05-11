@@ -9,9 +9,12 @@
  */
 
 import process from "node:process";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { loadLocalEnv } from "../../scripts/lib/load_local_env.mjs";
+import { finalizeRunLogMarkdown } from "./ophestivus_run_log.mjs";
 
 const ACTOR_EMAIL = "ophestivus@local.agent";
 const TICKET_SELECT_COLUMNS =
@@ -183,6 +186,36 @@ const inferResidualRiskFromDetails = (details) => {
   const riskText = residualRiskText ?? firstDetailLineValue(details, "Risk");
   if (riskClassification && riskText) return `${riskClassification} - ${riskText}`;
   return riskClassification ?? residualRiskText ?? riskText;
+};
+
+const readReportPathFromDetails = (details) => firstDetailLineValue(details, "Report");
+
+const resolveLocalReportPath = (reportPath) => {
+  const normalized = String(reportPath ?? "").trim();
+  if (!normalized) return null;
+  if (path.isAbsolute(normalized)) return normalized;
+  const repoRoot = path.resolve(process.cwd(), "..");
+  return path.resolve(repoRoot, normalized);
+};
+
+const finalizeLocalReport = async ({ ticketDetails, finalizedAt, boardStatus }) => {
+  const reportPath = readReportPathFromDetails(ticketDetails);
+  if (!reportPath) return null;
+  const localReportPath = resolveLocalReportPath(reportPath);
+  if (!localReportPath) return null;
+
+  const currentMarkdown = await fs.readFile(localReportPath, "utf8");
+  const nextMarkdown = finalizeRunLogMarkdown({
+    markdown: currentMarkdown,
+    status: boardStatus,
+    boardStatus,
+    finalizedAt,
+  });
+  await fs.writeFile(localReportPath, nextMarkdown, "utf8");
+  return {
+    reportPath,
+    localReportPath,
+  };
 };
 
 const buildApprovalNote = ({
@@ -368,6 +401,11 @@ const run = async () => {
   }
 
   const movedTicket = await moveTicketToComplete(supabase, ticket.id);
+  const report = await finalizeLocalReport({
+    ticketDetails: updatedTicket.details,
+    finalizedAt: new Date().toISOString(),
+    boardStatus: movedTicket.status,
+  });
   const finalActivity = await readTicketActivity(supabase, ticket.id);
 
   emit(
@@ -380,6 +418,7 @@ const run = async () => {
         note: approvalNote,
         nextDetailsLength: updatedTicket.details.length,
       },
+      report,
       nextAction:
         "Ticket moved to Complete. Leave Published untouched unless explicitly instructed.",
     },
@@ -407,6 +446,8 @@ export {
   appendApprovalNote,
   buildApprovalNote,
   inferResidualRiskFromDetails,
+  finalizeLocalReport,
   readFirstReviewTicket,
+  readReportPathFromDetails,
   readTicket,
 };

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ModelModal } from "../ModelModal";
 import type { ModelOption } from "../../constants";
@@ -21,6 +21,10 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  resolveRequiredCreateCharacterModeStartupModelId,
+  resolveRequiredCreateStartupModelId,
+} from "../../../../lib/model-runtime/modelCatalog";
 import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../../lib/model-runtime/openAiImage2";
 
 vi.mock("next/image", () => ({
@@ -339,6 +343,31 @@ describe("ModelModal", () => {
     ]);
   });
 
+  it("keeps the catalog-backed create startup model as the first text-image chip", () => {
+    const startupModelId = resolveRequiredCreateStartupModelId();
+    const options: ModelOption[] = [
+      { value: FAL_NANO_BANANA_2_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
+      { value: startupModelId, label: "Primary Startup", mediaType: "image" },
+    ];
+
+    const { container } = render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="text-image"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual([
+      "Primary Startup",
+      "Nano Banana 2",
+      "ChatGPT Image",
+    ]);
+  });
+
   it("groups reference-image chips into family columns by workflow priority", () => {
     const options: ModelOption[] = [
       { value: FAL_NANO_BANANA_PRO_EDIT_MODEL_ID, label: "Nano Banana Pro", mediaType: "image" },
@@ -418,6 +447,31 @@ describe("ModelModal", () => {
       { family: "Seedream", chips: ["Seedream 4.5", "Seedream 5 Lite"] },
       { family: "Nano Banana", chips: ["Nano Banana 2", "Nano Banana Pro"] },
       { family: "ChatGPT Image", chips: ["ChatGPT Image"] },
+    ]);
+  });
+
+  it("keeps the catalog-backed edit startup model as the first character-image chip", () => {
+    const startupEditModelId = resolveRequiredCreateCharacterModeStartupModelId();
+    const options: ModelOption[] = [
+      { value: FAL_NANO_BANANA_2_EDIT_MODEL_ID, label: "Nano Banana 2", mediaType: "image" },
+      { value: OPENAI_GPT_IMAGE_2_MODEL_ID, label: "ChatGPT Image", mediaType: "image" },
+      { value: startupEditModelId, label: "Primary Edit Startup", mediaType: "image" },
+    ];
+
+    const { container } = render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="character-image"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual([
+      "Primary Edit Startup",
+      "Nano Banana 2",
+      "ChatGPT Image",
     ]);
   });
 
@@ -562,6 +616,82 @@ describe("ModelModal", () => {
     );
 
     expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
+  it("renders tooltip provider, description, and text-image tags from shared presentation metadata", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <ModelModal
+          isOpen
+          onClose={vi.fn()}
+          onSelect={vi.fn()}
+          options={[
+            {
+              value: FAL_SEEDREAM_45_TEXT_MODEL_ID,
+              label: "Seedream 4.5",
+              mediaType: "image",
+            },
+          ]}
+          context="text-image"
+          resolveCreditsForModel={(modelId) =>
+            modelId === FAL_SEEDREAM_45_TEXT_MODEL_ID ? 321 : null
+          }
+        />
+      );
+
+      fireEvent.mouseEnter(screen.getByRole("button", { name: /Seedream 4\.5/i }));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      const tooltip = screen.getByRole("tooltip");
+      expect(tooltip).toBeInTheDocument();
+      expect(within(tooltip).getByText("ByteDance")).toBeInTheDocument();
+      expect(
+        within(tooltip).getByText(
+          /Seedream 4\.5 text-to-image supports native output plus automatic 2K and 4K upscale modes\./i
+        )
+      ).toBeInTheDocument();
+      expect(within(tooltip).getByText("Text-to-Image")).toBeInTheDocument();
+      expect(within(tooltip).getByText("Native/2K/4K")).toBeInTheDocument();
+      expect(within(tooltip).getByText(/321 credits/i)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("injects the reference-keyframes tooltip tag without changing the visible modal ordering", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <ModelModal
+          isOpen
+          onClose={vi.fn()}
+          onSelect={vi.fn()}
+          options={[
+            {
+              value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+              label: "Veo 3.1 Fast I2V (Kie)",
+              mediaType: "image-to-video",
+            },
+          ]}
+          context="reference-keyframes"
+        />
+      );
+
+      fireEvent.mouseEnter(screen.getByRole("button", { name: /Veo 3\.1 Fast I2V/i }));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      const tooltip = screen.getByRole("tooltip");
+      expect(within(tooltip).getByText("First/Last Frame")).toBeInTheDocument();
+      expect(within(tooltip).getByText("Image-to-Video")).toBeInTheDocument();
+      expect(within(tooltip).getByText("Video")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps FLUX.2 and Nano Banana 2 chips visible outside text-image context", () => {

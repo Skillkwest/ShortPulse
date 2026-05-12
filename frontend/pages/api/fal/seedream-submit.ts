@@ -1,3 +1,7 @@
+// Generated compatibility wrapper. Do not hand edit.
+// Source of truth: scripts/lib/fal_route_inventory.js (seedream submit).
+// Regenerate with: npm -C frontend run fal:routes:sync
+
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 import { validateSeedreamImageSizePayload } from "../../../lib/server/api/seedreamPayloadValidation";
 import {

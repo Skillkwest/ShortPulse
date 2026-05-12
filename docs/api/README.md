@@ -50,4 +50,5 @@ Purpose: canonical integration references for first-party API routes and externa
 1. Add/update the model in code (`frontend/lib/model-runtime/modelCatalog.ts`, pricing, submit/status handlers).
 2. Add/update the API doc in this folder.
 3. Link it in `docs/README.md`.
-4. Run `npm -C frontend run docs:check`.
+4. Re-run the provider contract verification workflow in `docs/sops/sop_model_api_contract_reverification.md` when the external contract changed or the catalog verification window is stale.
+5. Run `npm -C frontend run docs:check`.

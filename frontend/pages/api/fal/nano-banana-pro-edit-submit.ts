@@ -1,3 +1,7 @@
+// Generated compatibility wrapper. Do not hand edit.
+// Source of truth: scripts/lib/fal_route_inventory.js (nano-banana-pro-edit submit).
+// Regenerate with: npm -C frontend run fal:routes:sync
+
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
 import {

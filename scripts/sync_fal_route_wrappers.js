@@ -38,9 +38,19 @@ function providerRouteConfigImport(provider, kind) {
       };
 }
 
+function renderGeneratedOwnershipHeader(entry, kind) {
+  return [
+    "// Generated compatibility wrapper. Do not hand edit.",
+    `// Source of truth: scripts/lib/fal_route_inventory.js (${entry.fileBase} ${kind}).`,
+    "// Regenerate with: npm -C frontend run fal:routes:sync",
+    "",
+  ];
+}
+
 function renderSubmitSource(entry) {
   const routeConfig = providerRouteConfigImport(entry.provider, "submit");
   const lines = [
+    ...renderGeneratedOwnershipHeader(entry, "submit"),
     'import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";',
   ];
 
@@ -100,6 +110,7 @@ function renderStatusSource(entry) {
   const routeConfig = providerRouteConfigImport(entry.provider, "status");
   const routeLabel = entry.statusRouteLabel || entry.routeLabel;
   const lines = [
+    ...renderGeneratedOwnershipHeader(entry, "status"),
     'import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";',
     "import {",
     `  ${routeConfig.urlFn},`,

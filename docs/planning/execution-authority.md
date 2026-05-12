@@ -3,7 +3,7 @@
 Purpose: define the authoritative execution reading path for active work, reduce planning-doc ambiguity, and group ongoing work into bounded programs instead of page-by-page backlog sprawl.
 
 Status: active
-Last reviewed: 2026-05-06
+Last reviewed: 2026-05-11
 
 ## Why this exists
 - `docs/planning/` contains a large amount of retained program history, trackers, phase plans, and evidence-adjacent material.
@@ -51,6 +51,7 @@ Primary entry docs:
 - `docs/planning/execution-authority.md`
 - `docs/planning/backlog.md`
 - `docs/documentation_overview.md`
+- `docs/planning/validation-matrix-by-program-2026-05-11.md`
 
 Stop rule:
 - stop once the active reading path is clear and the next useful action is archive follow-up rather than authority clarification
@@ -142,6 +143,7 @@ Primary entry docs:
 - `docs/testing-guide.md`
 - `docs/release-checklist.md`
 - `docs/planning/tooling-audit-2026-02-16.md`
+- `docs/planning/validation-matrix-by-program-2026-05-11.md`
 
 Stop rule:
 - stop when required validation lanes are explicit and open research questions are either scheduled or dropped
@@ -156,5 +158,6 @@ Stop rule:
 
 ## Archive and dormant handling
 - Files under `docs/planning/` that are not named in this document should be treated as `working history` unless a live lane explicitly promotes them back into the active reading path.
+- Recent completed phase checkpoints can remain in `docs/planning/` for discoverability without being part of the active reading path.
 - Do not use dormant or superseded plans as the reason to begin a new implementation lane.
 - Archive movement is a separate bounded cleanup lane; this document changes reading priority first and physical file placement second.

@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-05-06
+Last audited: 2026-05-11
 Status: active
 
 How to use:
@@ -23,7 +23,8 @@ Structure (locked):
 ## Program 0: Execution Authority
 - [ ] Classify legacy planning docs into `active`, `retained evidence`, `working history`, and `archive candidate` buckets, then move the clear archive candidates out of the active planning path in bounded batches.
 - [ ] Keep `docs/planning/execution-authority.md` aligned with the real active program set as lanes open, stop, or change ownership.
-- [ ] Define a retained validation matrix by program so closeout checks stop being chosen ad hoc from the full script corpus.
+- [x] Define a retained validation matrix by program so closeout checks stop being chosen ad hoc from the full script corpus.
+  Evidence: `docs/planning/validation-matrix-by-program-2026-05-11.md`, `docs/planning/execution-authority.md`, `docs/planning/README.md`, `docs/testing-guide.md`
 
 ## Program 1: Runtime And Money
 - [x] Current-branch canonical runtime convergence: freeze one live runtime contract, classify dead rollout posture, then remove or demote stale active env/docs before touching broader runtime cleanup.
@@ -37,7 +38,8 @@ Structure (locked):
 - [x] AI Studio: keep server-side admission control and shared-provider rate-limit protection aligned with the live V2 docs.
   Evidence: `docs/adr/0026-ai-studio-generation-admission-control.md`, `docs/planning/ai-studio-generation-admission-rollout-plan.md`, `docs/sops/sop_provider_incident_response.md`, `docs/sops/sop_generation_recovery_diagnostics.md`, `docs/monitoring.md`, `docs/operator-map.md`
 - [ ] AI Studio: run staging smoke tests for aspect-ratio contract (verify submit payload and returned dimensions for Seedream `5:4`, `4:5`, `3:2`, `2:3`, `21:9`).
-- [ ] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
+- [x] AI Studio: add periodic model API contract re-verification workflow (monthly or model-change trigger) and bump `verifiedAt` with source links.
+  Evidence: `docs/sops/sop_model_api_contract_reverification.md`, `docs/api/README.md`, `scripts/check_model_catalog_parity.js`
 - [ ] AI Studio: alter existing e2e coverage for aspect clamping + submit-time `effective_aspect` consistency after the contract overhaul.
 - [ ] Create Stripe price IDs for updated tiers/packages and populate `billing_plans.stripe_price_id` + `billing_credit_packages.stripe_price_id` in Supabase.
 - [ ] Run and sign off Subscription tab end-to-end validation (upgrade/downgrade/cancel + webhook sync + renewal credits).
@@ -91,6 +93,10 @@ Structure (locked):
 - [ ] Run ML experiments for early performance prediction once real data is available.
 
 ## Done (verified in repo)
+- [x] AI Studio model-platform cleanup: complete the `ModelModal` shared-metadata phase and stop at the explicit product-policy boundary.
+  Evidence: `docs/planning/model-modal-policy-phase-plan-2026-05-10.md`, `frontend/features/ai-studio/components/ModelModal.tsx`, `frontend/features/ai-studio/logic/modelModalPresentation.ts`, `frontend/features/ai-studio/components/__tests__/ModelModal.test.tsx`, `frontend/features/ai-studio/logic/__tests__/modelModalPresentation.test.ts`, `scripts/model_doctor.js`
+- [x] AI Studio model-platform cleanup: complete the Fal route-surface reduction phase and keep generated `/api/fal/*` wrappers as the intended ownership model for the current system phase.
+  Evidence: `docs/planning/fal-route-surface-reduction-phase-plan-2026-05-11.md`, `scripts/lib/fal_route_inventory.js`, `scripts/sync_fal_route_wrappers.js`, `frontend/tests/api/fal-route-inventory-regression.test.ts`, `frontend/tests/api/model-catalog-route-coverage.test.ts`, `docs/sops/sop_new_model_ingestion.md`, `README.md`
 - [x] Add platform filter tabs (IG/TikTok/YT) on Performance.
   Evidence: `frontend/features/performance/components/FilterBars.tsx`
 - [x] Integrate Media Library UI polish (error banners, retry behavior, empty states).

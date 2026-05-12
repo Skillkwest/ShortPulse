@@ -63,6 +63,12 @@ const MODEL_MODAL_PATH = resolveFrontendPath(
   "components",
   "ModelModal.tsx",
 );
+const MODEL_MODAL_PRESENTATION_PATH = resolveFrontendPath(
+  "features",
+  "ai-studio",
+  "logic",
+  "modelModalPresentation.ts",
+);
 const GENERATION_ADMISSION_TIERS_PATH = resolveFrontendPath(
   "lib",
   "model-runtime",
@@ -151,6 +157,17 @@ const TOOLING_BUNDLE_PATHS = [
   "docs/sops/sop_model_retirement.md",
   "docs/adr/0076-model-inventory-operator-only-and-server-allowlisted.md",
 ];
+const ALLOWED_DIRECT_ROUTE_KINDS = new Set([
+  "create",
+  "edit",
+  "audio-generate",
+  "metadata-preview",
+]);
+const ALLOWED_DIRECT_ROUTE_AUTHORITIES = new Set([
+  "server-constant",
+  "catalog-default-role-allowlist",
+  "catalog-default-role-server-default",
+]);
 
 const tsModuleCache = new Map();
 
@@ -388,6 +405,8 @@ function run() {
     FAL_ROUTE_INVENTORY.map((entry) => [entry.fileBase, entry]),
   );
   const directRouteInventoryByModelId = new Map();
+  const seenDirectRoutePaths = new Set();
+  const seenDirectRouteKindKeys = new Set();
   for (const entry of DIRECT_PROVIDER_ROUTE_INVENTORY) {
     const existing = directRouteInventoryByModelId.get(entry.modelId) ?? [];
     existing.push(entry);
@@ -751,6 +770,75 @@ function run() {
 
   const directInventoryModelIds = new Set();
   for (const routeEntry of DIRECT_PROVIDER_ROUTE_INVENTORY) {
+    if (!routeEntry.routePath || typeof routeEntry.routePath !== "string") {
+      errors.push(
+        `Direct provider route inventory entry for ${routeEntry.modelId} is missing routePath`,
+      );
+      continue;
+    }
+    if (seenDirectRoutePaths.has(routeEntry.routePath)) {
+      errors.push(
+        `Direct provider route inventory routePath must be unique: ${routeEntry.routePath}`,
+      );
+    } else {
+      seenDirectRoutePaths.add(routeEntry.routePath);
+    }
+
+    if (!ALLOWED_DIRECT_ROUTE_KINDS.has(routeEntry.directRouteKind)) {
+      errors.push(
+        `Direct provider route inventory has invalid directRouteKind '${routeEntry.directRouteKind}' for ${routeEntry.modelId}`,
+      );
+    }
+    if (!ALLOWED_DIRECT_ROUTE_AUTHORITIES.has(routeEntry.authority)) {
+      errors.push(
+        `Direct provider route inventory has invalid authority '${routeEntry.authority}' for ${routeEntry.modelId}`,
+      );
+    }
+
+    const directRouteKindKey = `${routeEntry.modelId}::${routeEntry.directRouteKind}`;
+    if (seenDirectRouteKindKeys.has(directRouteKindKey)) {
+      errors.push(
+        `Direct provider route inventory must not duplicate model/kind pair '${directRouteKindKey}'`,
+      );
+    } else {
+      seenDirectRouteKindKeys.add(directRouteKindKey);
+    }
+
+    if (
+      !Array.isArray(routeEntry.requiredSymbols) ||
+      routeEntry.requiredSymbols.length === 0
+    ) {
+      errors.push(
+        `Direct provider route inventory entry must define requiredSymbols: ${routeEntry.modelId}`,
+      );
+    } else if (
+      routeEntry.requiredSymbols.some(
+        (symbol) => typeof symbol !== "string" || !symbol.trim(),
+      )
+    ) {
+      errors.push(
+        `Direct provider route inventory requiredSymbols must be non-empty strings: ${routeEntry.modelId}`,
+      );
+    }
+
+    if (
+      routeEntry.authority === "catalog-default-role-allowlist" &&
+      (!routeEntry.requiredSymbols?.includes("ALLOWED_MODEL_IDS") ||
+        !routeEntry.requiredSymbols?.includes("ALLOWED_MODEL_IDS.has(modelId)"))
+    ) {
+      errors.push(
+        `Allowlist direct provider route must enforce ALLOWED_MODEL_IDS membership: ${routeEntry.modelId}`,
+      );
+    }
+    if (
+      routeEntry.authority === "catalog-default-role-server-default" &&
+      !routeEntry.requiredSymbols?.some((symbol) => symbol.startsWith("DEFAULT_"))
+    ) {
+      errors.push(
+        `Server-default direct provider route must declare a DEFAULT_* symbol: ${routeEntry.modelId}`,
+      );
+    }
+
     directInventoryModelIds.add(routeEntry.modelId);
     const catalogEntry = entryById.get(routeEntry.modelId);
     if (!catalogEntry) {
@@ -895,6 +983,7 @@ function run() {
   }
 
   const modelModalSource = readText(MODEL_MODAL_PATH);
+  const modelModalPresentationSource = readText(MODEL_MODAL_PRESENTATION_PATH);
   if (
     requiredCreateStartupModelId &&
     !modelModalSource.includes(requiredCreateStartupModelId) &&
@@ -921,6 +1010,46 @@ function run() {
     errors.push(
       `ModelModal ordering metadata must include edit startup model '${requiredEditStartupModelId}'`,
     );
+  }
+
+  if (!modelModalSource.includes("../logic/modelModalPresentation")) {
+    errors.push(
+      "ModelModal must import shared presentation helpers from ../logic/modelModalPresentation",
+    );
+  }
+
+  const forbiddenLocalModalPresentationSymbols = [
+    "const modelMeta",
+    "const modelFamilyMeta",
+    "function resolveModelFamilyKey",
+    "const SECTION_LOGOS",
+    "const TOOLTIP_TAG_PRIORITY",
+    "const CONTEXT_TOOLTIP_TAG_MAP",
+  ];
+
+  for (const symbol of forbiddenLocalModalPresentationSymbols) {
+    if (modelModalSource.includes(symbol)) {
+      errors.push(
+        `ModelModal should not redefine shared presentation symbol '${symbol}' locally`,
+      );
+    }
+  }
+
+  const requiredModalPresentationExports = [
+    "MODEL_MODAL_FAMILY_META",
+    "MODEL_MODAL_PRESENTATION_META",
+    "resolveModelModalFamilyKey",
+    "resolveModelModalContextTooltipTag",
+    "resolveModelModalTooltipTags",
+    "resolveModelModalLogo",
+  ];
+
+  for (const symbol of requiredModalPresentationExports) {
+    if (!modelModalPresentationSource.includes(symbol)) {
+      errors.push(
+        `modelModalPresentation.ts must define shared presentation export '${symbol}'`,
+      );
+    }
   }
 
   if (typeof listCreateCharacterModeModelIds === "function") {

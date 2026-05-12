@@ -20,6 +20,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 - `docs/planning/execution-authority.md`
 - `docs/planning/backlog.md`
 - `docs/documentation_overview.md`
+- `docs/planning/validation-matrix-by-program-2026-05-11.md`
 
 ### Program 1: Runtime And Money
 - `docs/planning/current-branch-canonical-runtime-convergence-2026-05-07.md`
@@ -42,7 +43,6 @@ Purpose: provide the active execution entrypoint for planning work without forci
 - `docs/planning/ai-studio-agent-modularization-tracker.md`
 - `docs/planning/ai-studio-reference-grid-modularization-program.md`
 - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
-- `docs/planning/model-modal-policy-phase-plan-2026-05-10.md`
 
 ### Program 4: Workflows And Product Surfaces
 - `docs/product/shortpulse_ai_studio.md`
@@ -54,6 +54,7 @@ Purpose: provide the active execution entrypoint for planning work without forci
 - `docs/testing-guide.md`
 - `docs/release-checklist.md`
 - `docs/planning/tooling-audit-2026-02-16.md`
+- `docs/planning/validation-matrix-by-program-2026-05-11.md`
 
 ## Interpretation Rules
 - A planning file is an active entrypoint only if it is linked from `docs/planning/execution-authority.md` or explicitly named in the active program reading path above.
@@ -63,6 +64,10 @@ Purpose: provide the active execution entrypoint for planning work without forci
 ## Retained Records
 - `docs/records/README.md`: retained-records policy and target namespace
 - `docs/planning/evidence/README.md`: transition index for planning evidence that has not moved yet
+
+## Recent Completed Phase Checkpoints
+- `docs/planning/model-modal-policy-phase-plan-2026-05-10.md`
+- `docs/planning/fal-route-surface-reduction-phase-plan-2026-05-11.md`
 
 ## Maintenance
 - Keep this README short and current.

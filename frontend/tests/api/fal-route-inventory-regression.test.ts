@@ -18,9 +18,24 @@ const listFalRouteFiles = (): string[] =>
     .filter((file) => file.endsWith(".ts"))
     .sort((a, b) => a.localeCompare(b));
 
+const listGeneratedFalRouteFiles = (): string[] =>
+  listExpectedFalRouteFiles().filter(
+    (routeFile) => routeFile.endsWith("-submit.ts") || routeFile.endsWith("-status.ts")
+  );
+
 describe("fal route inventory regression", () => {
   it("keeps the expected Fal route file inventory intact", () => {
     expect(listFalRouteFiles()).toEqual(listExpectedFalRouteFiles());
+  });
+
+  it("keeps every generated Fal route module marked as a compatibility wrapper", () => {
+    for (const routeFile of listGeneratedFalRouteFiles()) {
+      const routePath = path.join(FAL_ROUTES_DIR, routeFile);
+      const source = fs.readFileSync(routePath, "utf8");
+      expect(source).toContain("// Generated compatibility wrapper. Do not hand edit.");
+      expect(source).toContain("// Source of truth: scripts/lib/fal_route_inventory.js");
+      expect(source).toContain("// Regenerate with: npm -C frontend run fal:routes:sync");
+    }
   });
 
   it("keeps every expected route module default-exported", () => {

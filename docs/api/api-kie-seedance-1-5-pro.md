@@ -2,6 +2,8 @@
 
 This document tracks the internal ShortPulse runtime contract for `kie-ai/seedance-1.5-pro`.
 
+Status: deprecated compatibility lane as of May 11, 2026. New picker-visible selection should use `kie-ai/seedance-2`; persisted restores normalize through catalog `replacementModelId`.
+
 ## Scope
 - Provider: `kie`
 - Model id: `kie-ai/seedance-1.5-pro`

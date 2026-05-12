@@ -4,6 +4,9 @@ Purpose: outline how to test the ShortPulse app (client UI plus internal API rou
 
 ## Commands
 
+For default closeout selection by planning program, see:
+- `docs/planning/validation-matrix-by-program-2026-05-11.md`
+
 - Unit tests (Vitest):
   - `cd frontend && npm run test`
   - `cd frontend && npm run test:ui`
@@ -12,6 +15,10 @@ Purpose: outline how to test the ShortPulse app (client UI plus internal API rou
   - `cd frontend && npm run test:e2e`
   - Character pipeline audit: `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character`
     - Safety: this audit now refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and will reject `@example.com` addresses to prevent accidental user creation.
+  - AI Studio audio exclusivity audit:
+  - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:audio-exclusivity`
+    - Seeds two Media panel audio fixtures plus one Reference Grid audio fixture in a live AI Studio session, then verifies Media-panel inline exclusivity plus `ref grid audio -> media preview modal audio` and `ref grid audio -> detail modal audio` one-at-a-time playback handoff.
+    - Headless mode skips the `voice preview -> ref grid audio` lane when provider-backed sample playback never enters the playing state in the local browser runtime. Run with `PLAYWRIGHT_HEADLESS=false` if you need that lane exercised interactively.
   - Custom Pulse contract audit:
   - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<audit-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:pulse-custom-contract`
     Verifies the custom Pulse transport contract and that leaving Create clears the active Pulse session before returning to Create.

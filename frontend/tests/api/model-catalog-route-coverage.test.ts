@@ -21,6 +21,17 @@ const PROVIDER_MODEL_IDS_PATH = path.join(
 );
 const OPENAI_IMAGE_MODEL_ID = "gpt-image-2";
 const OPENAI_IMAGE_ROUTE_FILES = ["image-generate.ts", "image-edit.ts"] as const;
+const ALLOWED_DIRECT_ROUTE_KINDS = new Set([
+  "create",
+  "edit",
+  "audio-generate",
+  "metadata-preview",
+] as const);
+const ALLOWED_DIRECT_ROUTE_AUTHORITIES = new Set([
+  "server-constant",
+  "catalog-default-role-allowlist",
+  "catalog-default-role-server-default",
+] as const);
 const RETIRED_FAL_VIDEO_MODEL_IDS = [
   "fal-ai/kling-video/v3/pro/text-to-video",
   "fal-ai/kling-video/v3/pro/image-to-video",
@@ -103,14 +114,14 @@ describe("model catalog route coverage", () => {
     expect(filesWithQueueLiterals).toEqual([]);
   });
 
-  it("keeps queued Fal/Kie route inventory aligned with active runtime catalog models", () => {
+  it("keeps queued Fal/Kie route inventory aligned with route-owned catalog models", () => {
     const queuedRuntimeEntries = listModelCatalogEntries()
       .filter(
         (entry) =>
-          entry.lifecycle === "active" &&
-          entry.surfaces?.includes("runtime") &&
           entry.executionMode === "queued" &&
-          (entry.provider === "fal" || entry.provider === "kie")
+          (entry.provider === "fal" || entry.provider === "kie") &&
+          ((entry.lifecycle === "active" && entry.surfaces?.includes("runtime")) ||
+            (entry.lifecycle !== "active" && Boolean(entry.replacementModelId)))
       )
       .map((entry) => ({
         modelId: entry.modelId,
@@ -146,6 +157,34 @@ describe("model catalog route coverage", () => {
       .sort((a, b) => a.localeCompare(b));
 
     expect(listDirectProviderRouteModelIds()).toEqual(directRuntimeModelIds);
+    expect(new Set(DIRECT_PROVIDER_ROUTE_INVENTORY.map((entry) => entry.routePath)).size).toBe(
+      DIRECT_PROVIDER_ROUTE_INVENTORY.length
+    );
+    expect(
+      new Set(
+        DIRECT_PROVIDER_ROUTE_INVENTORY.map((entry) => `${entry.modelId}::${entry.directRouteKind}`)
+      ).size
+    ).toBe(DIRECT_PROVIDER_ROUTE_INVENTORY.length);
+    expect(
+      DIRECT_PROVIDER_ROUTE_INVENTORY.every((entry) =>
+        ALLOWED_DIRECT_ROUTE_KINDS.has(entry.directRouteKind)
+      )
+    ).toBe(true);
+    expect(
+      DIRECT_PROVIDER_ROUTE_INVENTORY.every((entry) =>
+        ALLOWED_DIRECT_ROUTE_AUTHORITIES.has(entry.authority)
+      )
+    ).toBe(true);
+    expect(
+      DIRECT_PROVIDER_ROUTE_INVENTORY.every(
+        (entry) =>
+          Array.isArray(entry.requiredSymbols) &&
+          entry.requiredSymbols.length > 0 &&
+          entry.requiredSymbols.every(
+            (symbol) => typeof symbol === "string" && symbol.trim().length > 0
+          )
+      )
+    ).toBe(true);
 
     const missingRoutes = DIRECT_PROVIDER_ROUTE_INVENTORY.filter(
       (entry: { routePath: string }) =>

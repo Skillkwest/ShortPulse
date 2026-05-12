@@ -182,6 +182,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`
 - `docs/sops/sop_new_model_ingestion.md`
+- `docs/sops/sop_model_api_contract_reverification.md`
 - `docs/sops/sop_model_retirement.md`
 - `docs/sops/sop_text_generation.md`
 - `docs/sops/sop_image_generation.md`
@@ -209,6 +210,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 
 - `docs/planning/README.md`
 - `docs/planning/execution-authority.md`
+- `docs/planning/validation-matrix-by-program-2026-05-11.md`
 - `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-persistence-inventory-2026-04-23.md`

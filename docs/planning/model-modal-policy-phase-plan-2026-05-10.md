@@ -18,12 +18,19 @@ The repo is in a materially better state than when the model-platform cleanup be
 
 The largest remaining concentrated manual surface is `ModelModal.tsx`, which still owns:
 
-- `modelMeta`
-- `modelFamilyMeta`
 - `familyPriorityByContext`
 - `providerPriorityByContext`
 - `modelPriorityByContext`
-- `resolveModelFamilyKey(...)`
+- `modelMatchesModalContext(...)`
+
+Shared presentation metadata has already moved into `frontend/features/ai-studio/logic/modelModalPresentation.ts`, including:
+
+- family labels/logos
+- family-key resolution
+- tooltip provider/description/tag metadata
+- tooltip context-tag injection
+- tooltip tag ordering/cap
+- model logo fallback resolution
 
 This is no longer pure accidental duplication. Part of it is real product policy.
 
@@ -39,7 +46,7 @@ That split is acceptable only if we are explicit about which parts are:
 1. shared metadata that can safely centralize
 2. true product-policy ranking/exposure that should remain manual
 
-Right now that boundary is implicit.
+The boundary is now clearer than before, but it is still not fully locked unless we keep the remaining explicit ordering tables intentional and guard against drifting shared metadata back into the component.
 
 ## Non-Negotiable Constraints
 
@@ -77,11 +84,15 @@ Where create/edit ordering is structurally mirrored, prefer deriving the edit or
 
 ### 4. Family identity for known runtime families
 
-Family-key resolution can likely move to a small shared selector keyed by canonical model ids and provider/runtime facts, as long as rendered grouping stays identical.
+Done in the current phase through `modelModalPresentation.ts`.
 
 ### 5. Reusable family logos and provider-logo fallbacks
 
-Shared visual metadata can move out of the component if that reduces duplication without introducing a second presentation database.
+Done in the current phase through `modelModalPresentation.ts`.
+
+### 6. Shared tooltip presentation helpers
+
+Done in the current phase through `modelModalPresentation.ts`.
 
 ## Keep-Explicit Scope
 
@@ -99,9 +110,9 @@ This is exposure/order policy, not runtime fact.
 
 This is the strongest manual product-policy surface and should remain explicit unless we intentionally design a higher-level presentation policy plane.
 
-### 4. Marketing/tooltip copy in `modelMeta`
+### 4. Marketing/tooltip copy in shared presentation metadata
 
-Descriptions and curated tag sets are presentation content, not model runtime governance.
+Descriptions and curated tag sets are presentation content, not model runtime governance. They can live in `modelModalPresentation.ts`, but should not be pushed into `modelCatalog.ts`.
 
 ## Recommended Execution Order
 
@@ -121,7 +132,8 @@ Only move the clearly safe subset:
 
 1. family resolution
 2. shared logos/fallbacks
-3. any remaining startup/pair-derived ordering helpers
+3. shared tooltip presentation helpers
+4. any remaining startup/pair-derived ordering helpers
 
 Keep all rendered output identical.
 
@@ -159,5 +171,11 @@ Stop this phase once:
 - the shared-metadata seams are extracted
 - the remaining manual tables are intentionally product-policy only
 - further cleanup would require inventing a new presentation system rather than reducing real operator cost
+
+Current status:
+
+- shared metadata extraction is largely complete
+- the remaining `ModelModal` internals are mostly explicit ranking/exposure policy
+- the next valid continuation would be a new presentation-policy decision, not more opportunistic shared-metadata cleanup
 
 At that point, any additional picker-policy work should be treated as a different architectural decision, not more of this phase.

@@ -5,27 +5,23 @@
 import Image from "next/image";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MagnifyingGlass } from "phosphor-react";
-import {
-  FLUX_LOGO_SRC,
-  GOOGLE_LOGO_SRC,
-  KLING_LOGO_SRC,
-  modelLogos,
-  modelOptions,
-  ModelOption,
-  SEEDREAM_LOGO_SRC,
-} from "../constants";
+import { modelOptions, ModelOption } from "../constants";
 import { getModelConfig } from "../logic/pricing";
 import { isSeedance2ModelId, isSeedance2UiEnabled } from "../logic/seedance2Availability";
+import {
+  MODEL_MODAL_FAMILY_META,
+  MODEL_MODAL_PRESENTATION_META,
+  resolveModelModalContextTooltipTag,
+  resolveModelModalFamilyKey,
+  resolveModelModalLogo,
+  resolveModelModalTooltipTags,
+} from "../logic/modelModalPresentation";
 import { stripEditLabel } from "../utils/modelLabels";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
-import { OPENAI_GPT_IMAGE_2_MODEL_ID } from "../../../lib/model-runtime/openAiImage2";
 import {
   FAL_FLUX_2_KLEIN_9B_MODEL_ID,
-  FAL_NANO_BANANA_2_EDIT_MODEL_ID,
   FAL_NANO_BANANA_2_MODEL_ID,
-  FAL_NANO_BANANA_PRO_EDIT_MODEL_ID,
   FAL_NANO_BANANA_PRO_MODEL_ID,
-  FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID,
   FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID,
 } from "../../../lib/model-runtime/falModelIds";
 import {
@@ -59,14 +55,6 @@ type ModelModalProps = {
   context?: ModelModalContext | null;
 };
 
-type ModelMeta = {
-  provider?: string;
-  description?: string;
-  logo?: string;
-  tags?: string[];
-  verified?: boolean;
-};
-
 type ModelFamilyGroup = {
   key: string;
   label: string;
@@ -93,218 +81,13 @@ const MODEL_MODAL_EDIT_IMAGE_MODEL_PRIORITY = [
   ),
 ] as const;
 
-const modelMeta: Record<string, ModelMeta> = {
-  [OPENAI_GPT_IMAGE_2_MODEL_ID]: {
-    provider: "OpenAI",
-    description: "ChatGPT Image 2 supports high-quality image generation and standard edits.",
-    tags: ["Image", "Text-to-Image", "Image-to-Image"],
-    verified: true,
-  },
-  [FAL_FLUX_2_KLEIN_9B_MODEL_ID]: {
-    provider: "Black Forest Labs",
-    description: "FLUX.2 Lite (9B) for fast text-to-image drafts across core aspect ratios.",
-    logo: "Flux",
-    tags: ["Image", "Text-to-Image", "9B", "Fast"],
-    verified: true,
-  },
-  [KIE_VEO_31_FAST_I2V_MODEL_ID]: {
-    provider: "Kie AI",
-    description:
-      "Kie Veo 3.1 Fast handles text-to-video, single-image animation, and first/last-frame transitions at 720p or 1080p.",
-    tags: [
-      "Video",
-      "Text-to-Video",
-      "Image-to-Video",
-      "First/Last Frame",
-      "5-8s",
-      "720p/1080p",
-      "Audio",
-    ],
-  },
-  [KIE_KLING_30_MODEL_ID]: {
-    provider: "Kie AI",
-    description:
-      "Kie Kling 3.0 supports standard image-to-video and dedicated motion-control transfers.",
-    tags: ["Video", "Image-to-Video", "Motion Control", "720p/1080p", "Audio"],
-  },
-  [KIE_SEEDANCE_15_PRO_MODEL_ID]: {
-    provider: "Kie AI",
-    description:
-      "Kie Seedance 1.5 Pro supports prompt-only video, one-image animation, first/last-frame transitions, fixed lens, and optional audio.",
-    tags: [
-      "Video",
-      "Text-to-Video",
-      "Image-to-Video",
-      "First/Last Frame",
-      "4-12s",
-      "480p-1080p",
-      "Audio",
-    ],
-  },
-  [KIE_SEEDANCE_2_MODEL_ID]: {
-    provider: "Kie AI",
-    description:
-      "Kie Seedance 2.0 supports prompt-only video, first-frame animation, first/last-frame transitions, and multimodal reference-to-video workflows.",
-    tags: [
-      "Video",
-      "Text-to-Video",
-      "Image-to-Video",
-      "First/Last Frame",
-      "Multimodal References",
-      "5-10s",
-      "720p/1080p",
-      "Audio",
-    ],
-  },
-  [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
-    provider: "Kie AI",
-    description:
-      "Kie Seedance 2.0 Fast supports prompt-only video, first-frame animation, first/last-frame transitions, and faster multimodal reference-to-video workflows.",
-    tags: [
-      "Video",
-      "Text-to-Video",
-      "Image-to-Video",
-      "First/Last Frame",
-      "Multimodal References",
-      "5-10s",
-      "720p/1080p",
-      "Fast",
-      "Audio",
-    ],
-  },
-  [MODEL_MODAL_TEXT_IMAGE_STARTUP_MODEL_ID]: {
-    provider: "ByteDance",
-    description:
-      "Seedream 4.5 text-to-image supports native output plus automatic 2K and 4K upscale modes.",
-    tags: ["Image", "Text-to-Image", "Native/2K/4K"],
-    verified: true,
-  },
-  [FAL_SEEDREAM_5_LITE_TEXT_MODEL_ID]: {
-    provider: "ByteDance",
-    description:
-      "Seedream 5 Lite text-to-image supports faster generation with automatic 2K and 3K output modes.",
-    tags: ["Image", "Text-to-Image", "Auto 2K/3K", "Fast"],
-    verified: true,
-  },
-  [MODEL_MODAL_EDIT_IMAGE_STARTUP_MODEL_ID]: {
-    provider: "ByteDance",
-    description:
-      "Seedream 4.5 Edit applies image-to-image changes with native output plus automatic 2K and 4K upscale modes.",
-    tags: ["Image", "Image-to-Image", "Native/2K/4K"],
-    verified: true,
-  },
-  [FAL_SEEDREAM_5_LITE_EDIT_MODEL_ID]: {
-    provider: "ByteDance",
-    description:
-      "Seedream 5 Lite Edit applies fast image-to-image edits with automatic 2K and 3K output modes.",
-    tags: ["Image", "Image-to-Image", "Auto 2K/3K", "Fast"],
-    verified: true,
-  },
-  [FAL_NANO_BANANA_PRO_MODEL_ID]: {
-    provider: "Google",
-    description: "Nano Banana Pro text-to-image adds selectable 1K, 2K, or 4K output.",
-    tags: ["Image", "Text-to-Image", "1K-4K"],
-  },
-  [FAL_NANO_BANANA_PRO_EDIT_MODEL_ID]: {
-    provider: "Google",
-    description:
-      "Nano Banana Pro Edit adds image-to-image editing with selectable 1K, 2K, or 4K output.",
-    logo: "Google",
-    tags: ["Image", "Image-to-Image", "1K-4K"],
-  },
-  [FAL_NANO_BANANA_2_MODEL_ID]: {
-    provider: "Google",
-    description:
-      "Nano Banana 2 text-to-image supports faster generations with selectable 0.5K, 1K, 2K, or 4K output.",
-    tags: ["Image", "Text-to-Image", "0.5K-4K", "Fast"],
-  },
-  [FAL_NANO_BANANA_2_EDIT_MODEL_ID]: {
-    provider: "Google",
-    description:
-      "Nano Banana 2 Edit applies image-to-image edits with selectable 0.5K, 1K, 2K, or 4K output.",
-    logo: "Google",
-    tags: ["Image", "Image-to-Image", "0.5K-4K", "Fast"],
-  },
-};
-
-const isImageToImageModel = (modelId: string) =>
-  /\/edit(\b|\/|$)/i.test(modelId) || /image-to-image/i.test(modelId);
-
 const TOOLTIP_WIDTH = 320;
-const TOOLTIP_TAG_LIMIT = 5;
-
-const tooltipTagPriority: Record<string, number> = {
-  Image: 1,
-  Video: 1,
-  "Text-to-Image": 2,
-  "Image-to-Image": 2,
-  "Text-to-Video": 2,
-  "Image-to-Video": 2,
-  "First/Last Frame": 2,
-  "Motion Transfer": 2,
-  "9B": 3,
-  "1K-4K": 3,
-  "0.5K-4K": 3,
-  "Native/2K/4K": 3,
-  "720p-4K": 3,
-  "720p/1080p": 3,
-  "480p-1080p": 3,
-  "Multimodal References": 3,
-  "2-12s": 4,
-  "4-8s": 4,
-  "4-12s": 4,
-  "5-10s": 4,
-  "High Fidelity": 5,
-  Balanced: 5,
-  Fast: 5,
-  "Wide Aspects": 5,
-  Audio: 6,
-};
-
-const resolveTooltipTags = (modelId: string, contextTag?: string): string[] => {
-  const tagSet = new Set<string>(modelMeta[modelId]?.tags ?? []);
-  if (contextTag) {
-    tagSet.add(contextTag);
-  } else if (isImageToImageModel(modelId)) {
-    tagSet.add("Image-to-Image");
-  }
-  return Array.from(tagSet)
-    .sort((a, b) => {
-      const rankA = tooltipTagPriority[a] ?? 99;
-      const rankB = tooltipTagPriority[b] ?? 99;
-      if (rankA !== rankB) {
-        return rankA - rankB;
-      }
-      return a.localeCompare(b);
-    })
-    .slice(0, TOOLTIP_TAG_LIMIT);
-};
-
-const sectionLogos: Record<string, string> = {
-  Flux: FLUX_LOGO_SRC,
-  "Black Forest Labs": FLUX_LOGO_SRC,
-  Google: GOOGLE_LOGO_SRC,
-  "Google DeepMind": GOOGLE_LOGO_SRC,
-  Kling: KLING_LOGO_SRC,
-  "Kling AI": KLING_LOGO_SRC,
-  ByteDance: SEEDREAM_LOGO_SRC,
-  Seedream: SEEDREAM_LOGO_SRC,
-};
-
-const modelFamilyMeta: Record<string, { label: string; logo?: string }> = {
-  "gpt-image": { label: "ChatGPT Image" },
-  flux: { label: "FLUX", logo: FLUX_LOGO_SRC },
-  kling: { label: "Kling", logo: KLING_LOGO_SRC },
-  "nano-banana": { label: "Nano Banana", logo: GOOGLE_LOGO_SRC },
-  other: { label: "Other" },
-  seedance: { label: "Seedance", logo: SEEDREAM_LOGO_SRC },
-  seedream: { label: "Seedream", logo: SEEDREAM_LOGO_SRC },
-  veo: { label: "Veo", logo: GOOGLE_LOGO_SRC },
-};
 
 const IMAGE_MODAL_FAMILY_PRIORITY = ["seedream", "nano-banana", "gpt-image", "flux"];
 const VIDEO_MODAL_FAMILY_PRIORITY = ["veo", "kling", "seedance"];
 
+// Explicit product-policy ranking tables: keep these manual unless a future
+// presentation-policy phase intentionally redesigns their ownership.
 const familyPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   "character-image": IMAGE_MODAL_FAMILY_PRIORITY,
   "text-image": IMAGE_MODAL_FAMILY_PRIORITY,
@@ -324,38 +107,6 @@ const defaultFamilyPriority = [
   "flux",
   "other",
 ];
-
-const resolveModelLogo = (modelId: string) => {
-  const explicitLogo = modelLogos[modelId];
-  if (explicitLogo) {
-    return explicitLogo;
-  }
-  const fallbackKey = modelMeta[modelId]?.logo ?? modelMeta[modelId]?.provider;
-  if (!fallbackKey) {
-    return undefined;
-  }
-  return sectionLogos[fallbackKey];
-};
-
-const resolveModelFamilyKey = (modelId: string): string => {
-  if (modelId === OPENAI_GPT_IMAGE_2_MODEL_ID) return "gpt-image";
-  if (modelId.includes("seedream")) return "seedream";
-  if (modelId.includes("nano-banana")) return "nano-banana";
-  if (modelId.includes("flux")) return "flux";
-  if (modelId.includes("veo")) return "veo";
-  if (modelId.includes("kling")) return "kling";
-  if (modelId.includes("seedance")) return "seedance";
-  return "other";
-};
-
-const contextTooltipTagMap: Record<ModelModalContext, string> = {
-  "character-image": "Image-to-Image",
-  "reference-image": "Image-to-Image",
-  "reference-video": "Image-to-Video",
-  "reference-keyframes": "First/Last Frame",
-  "text-image": "Text-to-Image",
-  "text-video": "Text-to-Video",
-};
 
 const IMAGE_MODAL_PROVIDER_PRIORITY = ["ByteDance", "Google", "Black Forest Labs"];
 const VIDEO_MODAL_PROVIDER_PRIORITY = ["Kie AI"];
@@ -540,8 +291,8 @@ function ModelModalContent({
     const originalIndex = new Map(filteredOptions.map((option, index) => [option.value, index]));
 
     return [...filteredOptions].sort((a, b) => {
-      const providerA = modelMeta[a.value]?.provider ?? "Other";
-      const providerB = modelMeta[b.value]?.provider ?? "Other";
+      const providerA = MODEL_MODAL_PRESENTATION_META[a.value]?.provider ?? "Other";
+      const providerB = MODEL_MODAL_PRESENTATION_META[b.value]?.provider ?? "Other";
       const providerDiff =
         (providerRank.get(providerA) ?? Number.MAX_SAFE_INTEGER) -
         (providerRank.get(providerB) ?? Number.MAX_SAFE_INTEGER);
@@ -569,7 +320,7 @@ function ModelModalContent({
   const familyColumns = useMemo((): ModelFamilyGroup[] => {
     const grouped = new Map<string, ModelOption[]>();
     orderedOptions.forEach((option) => {
-      const familyKey = resolveModelFamilyKey(option.value);
+      const familyKey = resolveModelModalFamilyKey(option.value);
       const familyItems = grouped.get(familyKey) ?? [];
       familyItems.push(option);
       grouped.set(familyKey, familyItems);
@@ -582,7 +333,7 @@ function ModelModalContent({
 
     return Array.from(grouped.entries())
       .map(([familyKey, items]) => {
-        const familyMeta = modelFamilyMeta[familyKey] ?? modelFamilyMeta.other;
+        const familyMeta = MODEL_MODAL_FAMILY_META[familyKey] ?? MODEL_MODAL_FAMILY_META.other;
         return {
           key: familyKey,
           label: familyMeta.label,
@@ -604,7 +355,7 @@ function ModelModalContent({
         ? contextTitleMap[context]
         : "Models";
   const tooltipContextTag =
-    context && context !== "text-video" ? contextTooltipTagMap[context] : undefined;
+    context && context !== "text-video" ? resolveModelModalContextTooltipTag(context) : undefined;
 
   const handleSelect = (value: string) => {
     setRecentValues((prev) => {
@@ -668,7 +419,7 @@ function ModelModalContent({
   };
 
   const renderChip = (option: ModelOption) => {
-    const logoSrc = resolveModelLogo(option.value);
+    const logoSrc = resolveModelModalLogo(option.value);
     return (
       <button
         key={option.value}
@@ -804,21 +555,24 @@ function ModelModalContent({
               <div className="model-chip-tooltip-header">
                 <div>
                   <p className="model-chip-tooltip-title">{getDisplayLabel(chipTooltip.modelId)}</p>
-                  {modelMeta[chipTooltip.modelId]?.provider ? (
+                  {MODEL_MODAL_PRESENTATION_META[chipTooltip.modelId]?.provider ? (
                     <p className="model-chip-tooltip-provider">
-                      {modelMeta[chipTooltip.modelId]?.provider}
+                      {MODEL_MODAL_PRESENTATION_META[chipTooltip.modelId]?.provider}
                     </p>
                   ) : null}
                 </div>
               </div>
-              {modelMeta[chipTooltip.modelId]?.description ? (
+              {MODEL_MODAL_PRESENTATION_META[chipTooltip.modelId]?.description ? (
                 <p className="model-chip-tooltip-description">
-                  {modelMeta[chipTooltip.modelId]?.description}
+                  {MODEL_MODAL_PRESENTATION_META[chipTooltip.modelId]?.description}
                 </p>
               ) : null}
               <div className="model-chip-tooltip-meta">
                 {(() => {
-                  const tooltipTags = resolveTooltipTags(chipTooltip.modelId, tooltipContextTag);
+                  const tooltipTags = resolveModelModalTooltipTags(
+                    chipTooltip.modelId,
+                    tooltipContextTag
+                  );
                   if (!tooltipTags.length) {
                     return null;
                   }

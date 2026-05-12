@@ -22,7 +22,7 @@ Use this checklist to add a new provider model end-to-end (pricing, UI, API prox
    - `frontend/features/ai-studio/constants.ts`: only update aspect clamps/allowed sets or logo asset constants if the new model needs a new UI constraint/asset.
    - `frontend/features/ai-studio/components/ModelModal.tsx`: ensure grouping/order if a new section is needed (cost chips use `computeCostForModel` automatically).
 3. **Client + API proxy**
-   - Fal/Kie queued models: update the shared route inventory and run `npm -C frontend run fal:routes:sync` instead of hand-authoring wrapper files one by one. The committed wrappers under `frontend/pages/api/fal/` are generated compatibility files, not the source of truth.
+   - Fal/Kie queued models: update the shared route inventory and run `npm -C frontend run fal:routes:sync` instead of hand-authoring wrapper files one by one. The committed wrappers under `frontend/pages/api/fal/` are generated compatibility files, not the source of truth, and they are the intended long-term ownership model unless a future explicit route-architecture phase replaces them.
    - OpenAI/ElevenLabs direct runtime models: update the shared direct-route inventory in `scripts/lib/direct_provider_route_inventory.js` so `model:doctor` and route coverage keep the catalog-to-route contract explicit. `model:scaffold` now prints this snippet when invoked with `--direct-route-path`, `--direct-route-kind`, and `--direct-route-authority`.
    - Add/update client helpers in `frontend/lib/falClient.ts` (submit/status).
    - OpenAI/other providers: add provider-specific helper and server-side proxy routes to keep keys hidden.

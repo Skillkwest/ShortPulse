@@ -90,8 +90,9 @@ describe("useAiStudioAudioGeneration", () => {
       })
     );
 
+    let accepted: boolean | void;
     await act(async () => {
-      await result.current.handleMusicGenerate({
+      accepted = await result.current.handleMusicGenerate({
         text: "  cinematic synth pulse  ",
         durationSeconds: 30,
         bpm: 112,
@@ -102,6 +103,8 @@ describe("useAiStudioAudioGeneration", () => {
         modelId: hardcodedMusicModelId,
       });
     });
+
+    expect(accepted).toBe(true);
 
     expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -198,11 +201,70 @@ describe("useAiStudioAudioGeneration", () => {
         submissionModeOverride: "direct-request",
       })
     );
-    expect(uiError).toBe("Provider unavailable");
+    expect(uiError).toBe("Please retry later.");
     expect(notifyGenerationFailure).toHaveBeenCalledWith(
       "out-sfx",
-      "Provider unavailable",
+      "Please retry later.",
       "Please retry later."
+    );
+  });
+
+  it("returns false when music generation is rejected by the provider", async () => {
+    let outputs: StudioOutput[] = [];
+    let uiError: string | null = null;
+
+    const setUiError = asDispatch<string | null>((value) => {
+      uiError = typeof value === "function" ? value(uiError) : value;
+    });
+    const setOutputs = asDispatch<StudioOutput[]>((value) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const insertOptimisticGenerationPlaceholder = vi.fn(({ prompt }: { prompt: string }) => {
+      outputs = [createPlaceholderOutput("out-music-fail", prompt), ...outputs];
+      return "out-music-fail";
+    });
+    const updateOutputById = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+
+    fetchWithAuthMock.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        error: "Invalid request",
+        details: "text must be 800 characters or fewer.",
+      }),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAudioGeneration({
+        projectId: "project-1",
+        setUiError,
+        insertOptimisticGenerationPlaceholder,
+        notifyGenerationFailure,
+        updateOutputById,
+        setOutputs,
+      })
+    );
+
+    let accepted: boolean | void;
+    await act(async () => {
+      accepted = await result.current.handleMusicGenerate({
+        text: "too long",
+        durationSeconds: null,
+        bpm: 112,
+        mode: "instrumental",
+        structure: "loop",
+        energyPercent: 58,
+        outputFormat: "mp3_44100_128",
+        modelId: hardcodedMusicModelId,
+      });
+    });
+
+    expect(accepted).toBe(false);
+    expect(uiError).toBe("text must be 800 characters or fewer.");
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-music-fail",
+      "text must be 800 characters or fewer.",
+      "text must be 800 characters or fewer."
     );
   });
 

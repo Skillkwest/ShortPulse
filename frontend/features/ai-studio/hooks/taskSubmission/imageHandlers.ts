@@ -344,11 +344,21 @@ export const handleImageModelSubmission = async ({
   startPollingWithGeneration,
   inpaintOverride,
 }: ImageSubmissionArgs): Promise<boolean> => {
+  const shortpulseContextWithInpaintDimensions =
+    shortpulseContext && inpaintOverride?.imageWidth && inpaintOverride?.imageHeight
+      ? {
+          ...shortpulseContext,
+          image_width: inpaintOverride.imageWidth,
+          image_height: inpaintOverride.imageHeight,
+        }
+      : shortpulseContext;
   const shortpulseSubmitPayload = {
     ...(generationReplay ? { generation_replay: generationReplay } : {}),
     ...(characterContext ? { character_context: characterContext } : {}),
     ...(styleContext ? { style_context: styleContext } : {}),
-    ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
+    ...(shortpulseContextWithInpaintDimensions
+      ? { shortpulse_context: shortpulseContextWithInpaintDimensions }
+      : {}),
   };
   const adapter = imageSubmissionAdapters.find(({ matches }) => matches(finalModel));
   if (!adapter) return false;

@@ -116,4 +116,42 @@ describe("useExpertEditPrimarySessionSync", () => {
     expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/base-updated.png");
     expect(result.current.layers[0]?.transform).toEqual(tinyTransform);
   });
+
+  it("targets the foundation layer instead of the selected overlay during host sync", async () => {
+    const onPrimaryImageChange = vi.fn();
+    const lastDispatchedPrimaryRef = { current: null as string | null };
+    const previousPrimaryPropRef = { current: "https://example.com/base.png" };
+
+    const { result } = renderHook(() => {
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
+        createLayer("layer-1", {
+          imageUrl: "https://example.com/base.png",
+        }),
+        createLayer("layer-2", {
+          imageUrl: "https://example.com/overlay.png",
+        }),
+      ]);
+
+      useExpertEditPrimarySessionSync({
+        selectedLayerIndex: 1,
+        referenceImageUrl: "https://example.com/base-updated.png",
+        hostPrimaryImageUrl: null,
+        removeBackgroundPendingLayerId: null,
+        foundationLayerId: "layer-1",
+        lastDispatchedPrimaryRef,
+        previousPrimaryPropRef,
+        setLayers,
+        onPrimaryImageChange,
+      });
+
+      return { layers };
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/base-updated.png");
+    expect(result.current.layers[1]?.imageUrl).toBe("https://example.com/overlay.png");
+  });
 });

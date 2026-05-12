@@ -7,6 +7,7 @@ const chargeGenerationRequestMock = vi.fn();
 const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsVoiceoverMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
+const markAudioCompanionArtPendingMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -25,6 +26,10 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 vi.mock("../../lib/server/elevenlabs", () => ({
   generateElevenLabsVoiceover: (...args: unknown[]) => generateElevenLabsVoiceoverMock(...args),
   persistGeneratedAudioAsset: (...args: unknown[]) => persistGeneratedAudioAssetMock(...args),
+}));
+
+vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
+  markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -60,6 +65,7 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
       sourceRef: "billing-source-tts-1",
       note: "captured",
     });
+    markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
   });
 
   it("rejects invalid payloads", async () => {
@@ -186,6 +192,9 @@ describe("POST /api/elevenlabs/text-to-speech", () => {
         resultUrls: ["https://signed.example/voice.mp3"],
         previewStoragePath: "user-1/generations/audio/gen-tts-1/voice.mp3",
         fullStoragePath: "user-1/generations/audio/gen-tts-1/voice.mp3",
+        companionArtUrl: null,
+        companionArtStoragePath: null,
+        companionArtStatus: "pending",
         mimeType: "audio/mpeg",
         durationMs: null,
         waveformPeaks: null,

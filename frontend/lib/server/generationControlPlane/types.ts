@@ -15,6 +15,7 @@ export type GenerationControlPlaneStageTimings = {
   observationInboxProcessing: GenerationControlPlaneStageTiming;
   recoveryClaim: GenerationControlPlaneStageTiming;
   recoveryExecution: GenerationControlPlaneStageTiming;
+  audioCompanionArtProcessing: GenerationControlPlaneStageTiming;
 };
 
 export type GenerationControlPlaneCycleResult = {
@@ -35,5 +36,11 @@ export type GenerationControlPlaneCycleResult = {
   reservationCleanupScanned: number;
   reservationCleanupReleased: number;
   reservationCleanupErrors: number;
+  audioCompanionArtClaimed: number;
+  audioCompanionArtProcessed: number;
+  audioCompanionArtReady: number;
+  audioCompanionArtFailed: number;
+  audioCompanionArtSkipped: number;
+  audioCompanionArtErrors: number;
   stageTimings: GenerationControlPlaneStageTimings;
 };

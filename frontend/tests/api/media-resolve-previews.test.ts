@@ -271,6 +271,39 @@ describe("POST /api/media/resolve-previews", () => {
     });
   });
 
+  it("narrows browse-surface storage lookup to preferred and original candidates", async () => {
+    const row = createRow({
+      id: "media-browse-candidates-1",
+      storage_path: "user-1/uploads/images/original.jpg",
+      thumb_variant_path: "user-1/variants/images/media-browse-candidates-1/thumb_480",
+      metadata: {
+        variant_paths: {
+          image: "user-1/variants/images/media-browse-candidates-1/thumb_240",
+        },
+      },
+    });
+    const { getCapturedInNames } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [],
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+        surface: "media-library-route",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getCapturedInNames()).toEqual([
+      row.thumb_variant_path as string,
+      row.storage_path as string,
+    ]);
+  });
+
   it("never signs out-of-scope storage paths", async () => {
     const row = createRow({
       id: "media-2",
@@ -332,7 +365,7 @@ describe("POST /api/media/resolve-previews", () => {
     });
   });
 
-  it("allows direct URL fallback when it resolves to the caller namespace", async () => {
+  it("allows direct URL fallback when it resolves to the caller namespace without basename repair", async () => {
     vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
     vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.test");
 
@@ -343,7 +376,7 @@ describe("POST /api/media/resolve-previews", () => {
       thumb_variant_path: directUrl,
     });
 
-    const { createSignedUrlMock } = setupSupabaseAdmin({
+    const { createSignedUrlMock, getIlikePatterns } = setupSupabaseAdmin({
       rows: [row],
       existingObjectNames: [],
     });
@@ -359,7 +392,47 @@ describe("POST /api/media/resolve-previews", () => {
     await handler(req as never, res as never);
 
     expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(getIlikePatterns()).toEqual([]);
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "0");
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      urls: {
+        [row.id]: directUrl,
+      },
+    });
+  });
+
+  it("prefers trusted direct preview urls over storage lookup on browse surfaces", async () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+    vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.test");
+
+    const directUrl = "https://cdn.example.test/media_library/user-1/private/images/browse.jpg";
+    const row = createRow({
+      id: "media-4b",
+      storage_path: "user-1/images/local-browse.jpg",
+      thumb_variant_path: directUrl,
+    });
+
+    const { createSignedUrlMock, getCapturedInNames, getIlikePatterns } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [row.storage_path as string],
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+        surface: "media-library-route",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getCapturedInNames()).toEqual([]);
+    expect(getIlikePatterns()).toEqual([]);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "0");
     expect(res.json).toHaveBeenCalledWith({
       urls: {
         [row.id]: directUrl,
@@ -406,5 +479,40 @@ describe("POST /api/media/resolve-previews", () => {
     expect(createSignedUrlMock).toHaveBeenCalledWith("user-1/recovered/shared.jpg", 3600);
     expect(createSignedUrlMock).toHaveBeenCalledWith("user-1/recovered/second.jpg", 3600);
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "2");
+  });
+
+  it("skips basename fallback jobs for non-resolvable basenames", async () => {
+    const row = createRow({
+      id: "media-underscore-1",
+      filename: "generated_asset.jpg",
+      storage_path: "user-1/images/generated_asset.jpg",
+    });
+    const { createSignedUrlMock, getIlikePatterns } = setupSupabaseAdmin({
+      rows: [row],
+      existingObjectNames: [],
+      basenameMatches: {
+        "user-1/%/generated_asset.jpg": "user-1/recovered/generated_asset.jpg",
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        ids: [row.id],
+        surface: "media-library-route",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getIlikePatterns()).toEqual([]);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-resolve-fallback-lookups", "0");
+    expect(res.json).toHaveBeenCalledWith({
+      urls: {
+        [row.id]: null,
+      },
+    });
   });
 });

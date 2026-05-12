@@ -1,8 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
-  KIE_SEEDANCE_2_MODEL_ID,
-} from "../../../../lib/model-runtime/providerModelIds";
+import { KIE_SEEDANCE_2_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import { buildAiStudioSessionSnapshot } from "../sessionSnapshot";
 import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator";
 import type { AiStudioSessionSnapshot, AiStudioSessionSnapshotV1 } from "../sessionSnapshot";
@@ -106,6 +103,57 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.activePulsePresetId).toBeNull();
     expect(payload.canvas).toBeNull();
     expect(payload.expertEdit).toBeNull();
+  });
+
+  it("normalizes legacy image attachments into one restored preview url", () => {
+    const payload = buildAiStudioSessionHydrationPayload({
+      ...createSnapshot(),
+      schemaVersion: 2,
+      meta: {
+        generatedAt: createSnapshot().updatedAt,
+        checksum: "test-checksum",
+      },
+      agentRuntimes: {
+        standard: {
+          messages: [
+            {
+              id: "u-1",
+              role: "user",
+              content: "",
+              attachments: [
+                {
+                  id: "img-1",
+                  kind: "image",
+                  imageUrl: null,
+                  referenceRenderUrl: "https://example.com/legacy-preview.png",
+                  text: null,
+                },
+              ],
+            },
+          ],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: null,
+        pulseSessionInstanceId: null,
+        pulse: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+      },
+    } as AiStudioSessionSnapshot);
+
+    expect(payload.agentRuntimes.standard.messages[0]?.attachments?.[0]).toMatchObject({
+      imageUrl: "https://example.com/legacy-preview.png",
+      imageFallbackUrls: undefined,
+    });
   });
 
   it("hydrates video poster delivery fields from snapshots", () => {
@@ -770,7 +818,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.model).toBe(KIE_SEEDANCE_2_MODEL_ID);
   });
 
-  it("remaps Seedance 2 models to Seedance 1.5 during hydration when the UI flag is disabled", () => {
+  it("keeps Seedance 2 models on Seedance 2 during hydration when the retired rollout flag is disabled", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_SEEDANCE_2_ENABLED", "false");
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
@@ -783,7 +831,7 @@ describe("sessionSnapshotHydrator", () => {
       })
     );
 
-    expect(payload.workspace.model).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+    expect(payload.workspace.model).toBe(KIE_SEEDANCE_2_MODEL_ID);
   });
 
   it("hydrates canvas payload for schema v2 snapshots", () => {

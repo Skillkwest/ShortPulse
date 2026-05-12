@@ -2,6 +2,7 @@ import { logApiRouteException } from "../api/appErrorLogs";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { repairStaleTerminalGenerationProjections } from "../api/generationProjection";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { processPendingAudioCompanionArtBatch } from "../audioCompanionArt/processing";
 import { processPendingGenerationObservations } from "./observationBatchExecution";
 import { claimGenerationRecoveryBatch } from "./recoveryBatchAcquisition";
 import { executeClaimedRecoveryBatch } from "./recoveryBatchExecution";
@@ -84,6 +85,7 @@ export const runGenerationControlPlaneCycle = async ({
     observationInboxProcessing: { durationMs: 0 },
     recoveryClaim: { durationMs: 0 },
     recoveryExecution: { durationMs: 0 },
+    audioCompanionArtProcessing: { durationMs: 0 },
   };
   const measureStage = async <T>(
     stageName: keyof GenerationControlPlaneStageTimings,
@@ -104,6 +106,12 @@ export const runGenerationControlPlaneCycle = async ({
   let observationIgnored = 0;
   let observationFailed = 0;
   let observationErrors = 0;
+  let audioCompanionArtClaimed = 0;
+  let audioCompanionArtProcessed = 0;
+  let audioCompanionArtReady = 0;
+  let audioCompanionArtFailed = 0;
+  let audioCompanionArtSkipped = 0;
+  let audioCompanionArtErrors = 0;
 
   if (flags.reservationCleanupEnabled) {
     await measureStage("reservationCleanup", async () => {
@@ -233,6 +241,29 @@ export const runGenerationControlPlaneCycle = async ({
     });
   }
 
+  await measureStage("audioCompanionArtProcessing", async () => {
+    try {
+      const audioCompanionMetrics = await processPendingAudioCompanionArtBatch({
+        limit: Math.max(1, Math.min(effectiveReconcilerBatchSize, 6)),
+      });
+      audioCompanionArtClaimed = audioCompanionMetrics.claimed;
+      audioCompanionArtProcessed = audioCompanionMetrics.processed;
+      audioCompanionArtReady = audioCompanionMetrics.ready;
+      audioCompanionArtFailed = audioCompanionMetrics.failed;
+      audioCompanionArtSkipped = audioCompanionMetrics.skipped;
+      audioCompanionArtErrors = audioCompanionMetrics.errors;
+    } catch (error) {
+      audioCompanionArtErrors += 1;
+      await logControlPlaneException({
+        context,
+        error,
+        metadata: {
+          stage: "audio_companion_art_processing",
+        },
+      });
+    }
+  });
+
   return {
     ok: true,
     observationClaimed,
@@ -251,6 +282,12 @@ export const runGenerationControlPlaneCycle = async ({
     reservationCleanupScanned,
     reservationCleanupReleased,
     reservationCleanupErrors,
+    audioCompanionArtClaimed,
+    audioCompanionArtProcessed,
+    audioCompanionArtReady,
+    audioCompanionArtFailed,
+    audioCompanionArtSkipped,
+    audioCompanionArtErrors,
     stageTimings,
   };
 };

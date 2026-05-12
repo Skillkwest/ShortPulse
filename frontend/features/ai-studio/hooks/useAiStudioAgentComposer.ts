@@ -7,8 +7,11 @@ import {
 import { readMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import {
+  extractComposerImageDropPayload,
   extractDragDropPayload,
   extractInternalReferenceDragPayload,
+  COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
+  COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
   REFERENCE_TRANSFER_RENDER_URL_TYPE,
   looksLikeImageUrl,
   looksLikeVideoUrl,
@@ -116,6 +119,8 @@ export const useAiStudioAgentComposer = ({
     const types = Array.from(event.dataTransfer.types ?? []);
     return (
       types.includes("Files") ||
+      types.includes(COMPOSER_IMAGE_DROP_PAYLOAD_TYPE) ||
+      types.includes(COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE) ||
       types.includes(REFERENCE_TRANSFER_RENDER_URL_TYPE) ||
       types.includes("text/reference-drag-token") ||
       types.includes("text/reference-id") ||
@@ -258,6 +263,46 @@ export const useAiStudioAgentComposer = ({
         return;
       }
       void (async () => {
+        const composerImagePayload = extractComposerImageDropPayload(transfer);
+        if (composerImagePayload) {
+          const displayArtifactUrl = normalizeDroppedImageCandidate(
+            composerImagePayload.displayArtifactUrl
+          );
+          const droppedReferenceId =
+            composerImagePayload.outputId ?? composerImagePayload.referenceId ?? null;
+          const matchedOutput = droppedReferenceId ? findOutputById(droppedReferenceId) : null;
+          const normalizedPromptText =
+            composerImagePayload.promptText?.trim() ||
+            matchedOutput?.prompt?.trim() ||
+            matchedOutput?.previewText?.trim() ||
+            null;
+
+          if (!displayArtifactUrl) {
+            setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
+            return;
+          }
+
+          if (!agentSessionEnabled) {
+            ensureAgentSession();
+          }
+          setAgentAttachmentError(null);
+          insertAttachment({
+            id: randomId(),
+            kind: "image",
+            referenceId: droppedReferenceId,
+            mediaId: composerImagePayload.mediaId ?? null,
+            previewStoragePath: composerImagePayload.previewStoragePath ?? null,
+            fullStoragePath: composerImagePayload.fullStoragePath ?? null,
+            referenceUrl: composerImagePayload.referenceUrl ?? null,
+            referenceRenderUrl: null,
+            imageUrl: displayArtifactUrl,
+            imageFallbackUrls: [],
+            text: normalizedPromptText,
+            aspect: matchedOutput?.aspect ?? null,
+          });
+          return;
+        }
+
         const payload = extractDragDropPayload(transfer);
         const internalPayload = extractInternalReferenceDragPayload(transfer);
         const mediaLibraryPayload = readMediaLibraryDragPayload(transfer);

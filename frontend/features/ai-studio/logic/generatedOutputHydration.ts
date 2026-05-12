@@ -57,6 +57,10 @@ const mergeHydratedGeneratedOutput = (
   previewPosterUrl: hydrated.previewPosterUrl ?? existing.previewPosterUrl ?? null,
   previewPosterStoragePath:
     hydrated.previewPosterStoragePath ?? existing.previewPosterStoragePath ?? null,
+  companionArtUrl: hydrated.companionArtUrl ?? existing.companionArtUrl ?? null,
+  companionArtStoragePath:
+    hydrated.companionArtStoragePath ?? existing.companionArtStoragePath ?? null,
+  companionArtStatus: hydrated.companionArtStatus ?? existing.companionArtStatus ?? null,
   previewStoragePath: hydrated.previewStoragePath ?? existing.previewStoragePath ?? null,
   fullStoragePath: hydrated.fullStoragePath ?? existing.fullStoragePath ?? null,
   mediaSource: "generated",

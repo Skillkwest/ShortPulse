@@ -25,6 +25,7 @@ export type ReferenceAudioPlayerProps = {
   audioId: string;
   audioUrl: string;
   audioInstanceKey?: string;
+  backgroundImageUrl?: string | null;
   durationMs?: number | null;
   waveformPeaks?: number[] | null;
   playLabel: string;
@@ -42,6 +43,7 @@ export function ReferenceAudioPlayer({
   audioId,
   audioUrl,
   audioInstanceKey,
+  backgroundImageUrl = null,
   durationMs = null,
   waveformPeaks = null,
   playLabel,
@@ -85,6 +87,19 @@ export function ReferenceAudioPlayer({
   const [audioWaveformBars, setAudioWaveformBars] = React.useState<number[]>(
     storedAudioWaveformPeaks.length > 0 ? storedAudioWaveformPeaks : fallbackAudioWaveformBars
   );
+  const audioShellStyle = React.useMemo<React.CSSProperties | undefined>(() => {
+    const normalizedBackgroundImageUrl = backgroundImageUrl?.trim();
+    if (!normalizedBackgroundImageUrl) return undefined;
+    return {
+      backgroundImage: [
+        "linear-gradient(180deg, rgba(9, 13, 18, 0.48), rgba(9, 13, 18, 0.82))",
+        "radial-gradient(circle at top, rgba(108, 205, 255, 0.2), transparent 58%)",
+        `url("${normalizedBackgroundImageUrl}")`,
+      ].join(", "),
+      backgroundSize: "auto, auto, cover",
+      backgroundPosition: "center center, center top, center center",
+    };
+  }, [backgroundImageUrl]);
 
   const audioWaveformColumns = React.useMemo(
     () =>
@@ -216,7 +231,7 @@ export function ReferenceAudioPlayer({
 
   return (
     <>
-      <div className="reference-card-audio-shell">
+      <div className="reference-card-audio-shell" style={audioShellStyle}>
         <div className="reference-card-audio-player">
           <div className="reference-card-audio-player-row">
             <button

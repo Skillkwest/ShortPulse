@@ -37,6 +37,7 @@ export type ExpertEditStageExportArtifacts = {
   flattenedBlob: Blob | null;
   flattenedMarkupReferenceBlob: Blob | null;
   inpaintMaskBlob: Blob | null;
+  flattenedDimensions: { width: number; height: number } | null;
 };
 
 export const exportExpertEditStageArtifacts = async ({
@@ -65,6 +66,7 @@ export const exportExpertEditStageArtifacts = async ({
         outputAspectRatio: flattenSnapshot?.outputAspectRatio,
         camera: flattenSnapshot?.camera,
       });
+  const flattenedDimensions = flattenedBlob ? await resolveBlobDimensions(flattenedBlob) : null;
 
   let flattenedMarkupReferenceBlob: Blob | null = null;
   if (
@@ -81,8 +83,7 @@ export const exportExpertEditStageArtifacts = async ({
   }
 
   let inpaintMaskBlob: Blob | null = null;
-  if (isInpaintSubmitSelected && hasSelectedLayerMask && flattenedBlob) {
-    const flattenedDimensions = await resolveBlobDimensions(flattenedBlob);
+  if (isInpaintSubmitSelected && hasSelectedLayerMask && flattenedDimensions) {
     inpaintMaskBlob = await exportSelectedLayerMaskBlob({
       targetWidth: flattenedDimensions.width,
       targetHeight: flattenedDimensions.height,
@@ -96,5 +97,6 @@ export const exportExpertEditStageArtifacts = async ({
     flattenedBlob,
     flattenedMarkupReferenceBlob,
     inpaintMaskBlob,
+    flattenedDimensions,
   };
 };

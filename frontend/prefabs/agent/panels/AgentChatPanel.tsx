@@ -6,6 +6,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AgentSendButton } from "../buttons/AgentSendButton";
 import { AgentResponseInlineGenerateButton } from "../buttons/AgentResponseInlineGenerateButton";
 import { AgentInputBar } from "../inputs/AgentInputBar";
+import { AgentImageAttachmentPreview } from "../components/AgentImageAttachmentPreview";
+import { projectAgentAttachmentToComposerImageAttachment } from "../../../features/ai-studio/logic/composerImageAttachment";
 import {
   captureAssistantInlineEditPresentation,
   resolveAssistantInlineEditStyle,
@@ -496,14 +498,19 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
               attachment.kind === "prompt" && Boolean(attachment.referenceId);
             const attachmentStatusClass =
               attachment.kind === "image" ? `is-${attachment.deliveryStatus ?? "pending"}` : "";
+            const projectedImageAttachment =
+              attachment.kind === "image"
+                ? projectAgentAttachmentToComposerImageAttachment(attachment)
+                : null;
             return (
               <div
                 key={attachment.id}
                 className={`agent-attachment-card${compact ? " agent-attachment-card--message" : ""} agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`.trim()}
               >
-                {attachment.kind === "image" && attachment.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={attachment.imageUrl} alt="" className="agent-attachment-card-media" />
+                {attachment.kind === "image" ? (
+                  <AgentImageAttachmentPreview
+                    src={projectedImageAttachment?.preview.url ?? null}
+                  />
                 ) : (
                   <div className="agent-attachment-card-prompt" aria-hidden="true">
                     <span className="agent-attachment-card-prompt-marker">T</span>

@@ -13,6 +13,8 @@ import { resolveVideoPosterRepairsForOutputs } from "../logic/videoPosterRepair"
 
 const CANONICAL_GENERATED_OUTPUT_SYNC_INTERVAL_MS = 5_000;
 const CANONICAL_GENERATED_OUTPUT_SYNC_IDLE_GRACE_MS = 120_000;
+const AUDIO_COMPANION_ART_SYNC_INTERVAL_MS = 5_000;
+const AUDIO_COMPANION_ART_SYNC_BATCH_SIZE = 6;
 const GENERATED_VIDEO_POSTER_REPAIR_BATCH_SIZE = 4;
 const STORAGE_VIDEO_POSTER_REPAIR_BATCH_SIZE = 12;
 
@@ -22,8 +24,17 @@ const isPlainSessionGeneratedOutputHydrationEnabled = (): boolean =>
 const isCanonicalGeneratedOutputSyncCandidate = (output: StudioOutput): boolean => {
   const hasGenerationIdentity = Boolean(output.generationId || output.taskId);
   if (output.mediaSource !== "generated" && !hasGenerationIdentity) return false;
+  if (output.companionArtStatus === "pending" || output.companionArtStatus === "processing") {
+    return hasGenerationIdentity || Boolean(output.sourceRef);
+  }
   if (output.taskState === "success" || output.taskState === "fail") return false;
   return hasGenerationIdentity || Boolean(output.sourceRef);
+};
+
+const isPendingAudioCompanionArtCandidate = (output: StudioOutput): boolean => {
+  if (output.mode !== "audio") return false;
+  if (output.mediaSource !== "generated" && !output.generationId && !output.taskId) return false;
+  return output.companionArtStatus === "pending" || output.companionArtStatus === "processing";
 };
 
 const isGeneratedVideoPosterRepairCandidate = (output: StudioOutput): boolean => {
@@ -88,6 +99,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
 }: UseAiStudioGeneratedOutputMaintenanceParams) => {
   const canonicalGeneratedHydrationStartedRef = useRef(false);
   const canonicalGeneratedOutputSyncInFlightRef = useRef(false);
+  const audioCompanionArtSyncInFlightRef = useRef(false);
   const canonicalGeneratedOutputSyncLastActiveAtRef = useRef<number | null>(null);
   const generatedVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
   const storageVideoPosterRepairKeySetRef = useRef<Set<string>>(new Set());
@@ -98,6 +110,7 @@ export const useAiStudioGeneratedOutputMaintenance = ({
     activeBaseRuntimeAuthorityKeyRef.current = baseRuntimeAuthorityKey;
     canonicalGeneratedHydrationStartedRef.current = false;
     canonicalGeneratedOutputSyncInFlightRef.current = false;
+    audioCompanionArtSyncInFlightRef.current = false;
     canonicalGeneratedOutputSyncLastActiveAtRef.current = null;
     generatedVideoPosterRepairKeySetRef.current.clear();
     storageVideoPosterRepairKeySetRef.current.clear();
@@ -178,6 +191,82 @@ export const useAiStudioGeneratedOutputMaintenance = ({
       globalThis.clearInterval(intervalId);
     };
   }, [hasPendingWorkflowRestore, projectId, setOutputsState]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
+    let cancelled = false;
+
+    const syncPendingAudioCompanionArt = async () => {
+      if (cancelled || audioCompanionArtSyncInFlightRef.current) return;
+      const candidates = outputs
+        .filter(isPendingAudioCompanionArtCandidate)
+        .slice(0, AUDIO_COMPANION_ART_SYNC_BATCH_SIZE);
+      if (!candidates.length) return;
+
+      audioCompanionArtSyncInFlightRef.current = true;
+      try {
+        const reconciles = await Promise.all(
+          candidates.map(async (output) => ({
+            outputId: output.id,
+            reconcile: await resolveVisibleGenerationReconcile({
+              generationId: output.generationId ?? null,
+              requestId: output.taskId ?? null,
+              projectId: projectId ?? null,
+            }),
+          }))
+        );
+        if (cancelled) return;
+
+        const reconcileByOutputId = new Map(
+          reconciles
+            .filter(({ reconcile }) => Boolean(reconcile))
+            .map(({ outputId, reconcile }) => [outputId, reconcile])
+        );
+        if (reconcileByOutputId.size === 0) return;
+
+        setOutputsState((currentOutputs) => {
+          let changed = false;
+          const nextOutputs = currentOutputs.map((output) => {
+            const reconcile = reconcileByOutputId.get(output.id);
+            if (!reconcile) return output;
+            const nextCompanionArtUrl = reconcile.companionArtUrl ?? output.companionArtUrl ?? null;
+            const nextCompanionArtStoragePath =
+              reconcile.companionArtStoragePath ?? output.companionArtStoragePath ?? null;
+            const nextCompanionArtStatus =
+              reconcile.companionArtStatus ?? output.companionArtStatus ?? null;
+            if (
+              nextCompanionArtUrl === output.companionArtUrl &&
+              nextCompanionArtStoragePath === output.companionArtStoragePath &&
+              nextCompanionArtStatus === output.companionArtStatus
+            ) {
+              return output;
+            }
+            changed = true;
+            return {
+              ...output,
+              companionArtUrl: nextCompanionArtUrl,
+              companionArtStoragePath: nextCompanionArtStoragePath,
+              companionArtStatus: nextCompanionArtStatus,
+            };
+          });
+          return changed ? nextOutputs : currentOutputs;
+        });
+      } finally {
+        audioCompanionArtSyncInFlightRef.current = false;
+      }
+    };
+
+    const intervalId = globalThis.setInterval(
+      syncPendingAudioCompanionArt,
+      AUDIO_COMPANION_ART_SYNC_INTERVAL_MS
+    );
+    void syncPendingAudioCompanionArt();
+
+    return () => {
+      cancelled = true;
+      globalThis.clearInterval(intervalId);
+    };
+  }, [hasPendingWorkflowRestore, outputs, projectId, setOutputsState]);
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;

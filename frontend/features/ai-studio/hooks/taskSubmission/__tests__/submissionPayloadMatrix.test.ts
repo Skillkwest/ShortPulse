@@ -207,6 +207,7 @@ const makeImageArgs = (
   notifyGenerationFailure: vi.fn(),
   updateOutputById: vi.fn(),
   startPollingWithGeneration: vi.fn(),
+  shortpulseContext: { surface: "ai-studio-test" },
   falReferencePayload: {
     image_url: "https://cdn.test/ref-1.png",
     image_urls: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
@@ -222,6 +223,8 @@ const makeImageArgs = (
               ? "https://cdn.test/inpaint-reference.png"
               : undefined,
           outputFormat: "png",
+          imageWidth: 2048,
+          imageHeight: 1024,
         }
       : undefined,
 });
@@ -379,11 +382,21 @@ describe("task submission payload matrix", () => {
       if (modelId === "fal-ai/flux-pro/v1/fill") {
         expect(typeof payload.image_url).toBe("string");
         expect(typeof payload.mask_url).toBe("string");
+        expect(payload.shortpulse_context).toMatchObject({
+          surface: "ai-studio-test",
+          image_width: 2048,
+          image_height: 1024,
+        });
       }
       if (modelId === "fal-ai/flux-kontext-lora/inpaint") {
         expect(typeof payload.image_url).toBe("string");
         expect(typeof payload.mask_url).toBe("string");
         expect(typeof payload.reference_image_url).toBe("string");
+        expect(payload.shortpulse_context).toMatchObject({
+          surface: "ai-studio-test",
+          image_width: 2048,
+          image_height: 1024,
+        });
       }
       if (modelId === "fal-ai/bria/background/remove") {
         expect(typeof payload.image_url).toBe("string");

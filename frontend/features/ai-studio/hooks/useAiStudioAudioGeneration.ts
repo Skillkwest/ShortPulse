@@ -27,6 +27,9 @@ type VoicesGenerateSuccessResponse = {
     resultUrls: string[];
     previewStoragePath: string;
     fullStoragePath: string;
+    companionArtUrl: string | null;
+    companionArtStoragePath: string | null;
+    companionArtStatus: "pending" | "processing" | "ready" | "failed" | null;
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: number[] | null;
@@ -60,6 +63,9 @@ type SoundEffectsGenerateSuccessResponse = {
     resultUrls: string[];
     previewStoragePath: string;
     fullStoragePath: string;
+    companionArtUrl: string | null;
+    companionArtStoragePath: string | null;
+    companionArtStatus: "pending" | "processing" | "ready" | "failed" | null;
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: number[] | null;
@@ -79,6 +85,9 @@ type MusicGenerateSuccessResponse = {
     resultUrls: string[];
     previewStoragePath: string;
     fullStoragePath: string;
+    companionArtUrl: string | null;
+    companionArtStoragePath: string | null;
+    companionArtStatus: "pending" | "processing" | "ready" | "failed" | null;
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: number[] | null;
@@ -129,7 +138,7 @@ const buildSoundEffectsOutputModelLabel = (): string =>
   resolveModelLabelById(SOUND_EFFECTS_MODEL_ID) ?? "ElevenLabs Sound Effects";
 
 const resolveAudioGenerateErrorMessage = (payload: AudioGenerateErrorResponse | null): string =>
-  payload?.error?.trim() || payload?.details?.trim() || "Audio generation failed.";
+  payload?.details?.trim() || payload?.error?.trim() || "Audio generation failed.";
 
 const buildAudioShortpulseContext = ({
   selectedTool,
@@ -222,6 +231,9 @@ const applyAudioOutputToPlaceholder = ({
     previewUrl: payload.previewUrl,
     previewStoragePath: payload.previewStoragePath,
     fullStoragePath: payload.fullStoragePath,
+    companionArtUrl: payload.companionArtUrl,
+    companionArtStoragePath: payload.companionArtStoragePath,
+    companionArtStatus: payload.companionArtStatus,
     previewTier: "full",
     mimeType: payload.mimeType,
     durationMs: payload.durationMs,
@@ -406,7 +418,7 @@ export const useAiStudioAudioGeneration = ({
   const handleMusicGenerate = useCallback(
     async (request: MusicGenerateRequest) => {
       const promptText = request.text.trim();
-      if (!promptText) return;
+      if (!promptText) return false;
 
       setUiError(null);
       setMusicIsGenerating(true);
@@ -423,7 +435,7 @@ export const useAiStudioAudioGeneration = ({
 
       if (!optimisticOutputId) {
         setMusicIsGenerating(false);
-        return;
+        return false;
       }
 
       try {
@@ -453,7 +465,7 @@ export const useAiStudioAudioGeneration = ({
           const message = resolveAudioGenerateErrorMessage(errorPayload);
           notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
           setUiError(message);
-          return;
+          return false;
         }
 
         applyAudioOutputToPlaceholder({
@@ -463,10 +475,12 @@ export const useAiStudioAudioGeneration = ({
           modelLabel: buildMusicOutputModelLabel(),
           payload: payload.output,
         });
+        return true;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Music generation failed.";
         notifyGenerationFailure(optimisticOutputId, message, message);
         setUiError(message);
+        return false;
       } finally {
         setMusicIsGenerating(false);
       }

@@ -10,7 +10,9 @@ import {
   canDownloadReferenceOutput,
   canSaveReferenceOutput,
 } from "../../logic/referenceActionAvailability";
+import { formatPerfAuditDebugLine, isPerfAuditRuntimeEnabled } from "../../logic/perfAuditDebug";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
+import type { ReferenceComposerImageDragArtifact } from "../../utils/dragDrop";
 import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   EXPLICIT_CONTENT_FAILURE_TITLE,
@@ -21,6 +23,30 @@ import type { StudioOutput } from "../../types";
 import { ReferenceAudioPlayer } from "../../components/shared/ReferenceAudioPlayer";
 
 const HYDRATION_FALLBACK_LOADED_MS = 1500;
+const GENERIC_FAILURE_MESSAGES = new Set([
+  "generation failed",
+  "invalid request",
+  "request failed",
+]);
+
+const normalizeFailureCopy = (value: string | null | undefined): string =>
+  (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+const replaceProviderMentions = (value: string): string =>
+  value.replace(/fal(\.ai)?/gi, "the provider");
+
+const resolveReferenceFailureSubtitle = (item: StudioOutput): string | null => {
+  const shortMessage = item.errorMessageShort?.trim() ?? "";
+  const detail = item.errorDetail?.trim() ?? "";
+  const message = item.errorMessage?.trim() ?? "";
+  if (shortMessage && !GENERIC_FAILURE_MESSAGES.has(normalizeFailureCopy(shortMessage))) {
+    return replaceProviderMentions(shortMessage);
+  }
+  if (detail) return replaceProviderMentions(detail);
+  if (shortMessage) return replaceProviderMentions(shortMessage);
+  if (message) return replaceProviderMentions(message);
+  return null;
+};
 
 export type ReferenceGridCardProps = {
   item: StudioOutput;
@@ -50,8 +76,10 @@ export type ReferenceGridCardProps = {
   onCardDragStart: (
     event: React.DragEvent<HTMLElement>,
     item: StudioOutput,
-    sourceSurface: ReferenceDragSourceSurface
+    sourceSurface: ReferenceDragSourceSurface,
+    composerImageArtifact?: ReferenceComposerImageDragArtifact | null
   ) => void;
+  composerImageArtifact?: ReferenceComposerImageDragArtifact | null;
   onCardDragEnd: (event: React.DragEvent<HTMLElement>) => void;
   onCardDragOver?: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
   onCardDrop?: (event: React.DragEvent<HTMLElement>, item: StudioOutput) => void;
@@ -128,6 +156,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onSelectOutput,
   onOpenDetails,
   onCardDragStart,
+  composerImageArtifact,
   onCardDragEnd,
   onCardDragOver,
   onCardDrop,
@@ -173,6 +202,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     (onDownload && canDownloadReference && (isImagePreview || isVideoPreview || isAudioPreview))
   );
   const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
+  const resolvedFailureSubtitle = isFailing ? resolveReferenceFailureSubtitle(item) : null;
   const canDragReference =
     Boolean(item.previewText) || (!!cardPreviewUrl && canDragReferenceOutput(item));
   const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
@@ -201,6 +231,18 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     dragPreviewKind === "image" || hasVideoPosterPreview
       ? (primaryImageSrc ?? primaryImageDataSrc ?? undefined)
       : undefined;
+  const showPerfAuditDebug = isPerfAuditRuntimeEnabled();
+  const perfAuditDebugLabel = React.useMemo(
+    () =>
+      [
+        formatPerfAuditDebugLine("img", primaryImageSrc ?? primaryImageDataSrc ?? null),
+        formatPerfAuditDebugLine(
+          "drag",
+          composerImageArtifact?.displayArtifactUrl ?? dragImageSrc ?? null
+        ),
+      ].join(" | "),
+    [composerImageArtifact?.displayArtifactUrl, dragImageSrc, primaryImageDataSrc, primaryImageSrc]
+  );
   const startHoverPlayback = React.useCallback(() => {
     if (!resolvedHoverVideoUrl) return;
     setIsHoveringVideo(true);
@@ -299,7 +341,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       onDoubleClick={() => onOpenDetails(item.id)}
       draggable={canDragReference}
       onDragStart={(event) => {
-        onCardDragStart(event, item, dragSourceSurface);
+        onCardDragStart(event, item, dragSourceSurface, composerImageArtifact);
       }}
       onDragEnd={onCardDragEnd}
       onDragOver={onCardDragOver ? (event) => onCardDragOver(event, item) : undefined}
@@ -379,6 +421,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           audioId={item.id}
           audioUrl={audioPreviewUrl}
           audioInstanceKey={audioInstanceKey}
+          backgroundImageUrl={item.companionArtUrl ?? null}
           durationMs={item.durationMs ?? null}
           waveformPeaks={item.waveformPeaks ?? null}
           playLabel="Play audio preview"
@@ -407,14 +450,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           </div>
           {shouldShowNsfwPill ? (
             <div className="fail-subtitle">{EXPLICIT_CONTENT_FAILURE_DETAIL}</div>
-          ) : item.errorMessageShort ? (
-            <div className="fail-subtitle">
-              {item.errorMessageShort.replace(/fal(\.ai)?/gi, "the provider")}
-            </div>
-          ) : item.errorMessage ? (
-            <div className="fail-subtitle">
-              {item.errorMessage.replace(/fal(\.ai)?/gi, "the provider")}
-            </div>
+          ) : resolvedFailureSubtitle ? (
+            <div className="fail-subtitle">{resolvedFailureSubtitle}</div>
           ) : null}
           {canRetryStatus && isSelected ? (
             <button
@@ -468,6 +505,29 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       ) : null}
       {isLinkedPromptReference ? (
         <span className="reference-card-link-dot" aria-hidden="true" />
+      ) : null}
+      {showPerfAuditDebug ? (
+        <div
+          aria-label={perfAuditDebugLabel}
+          style={{
+            position: "absolute",
+            left: 4,
+            right: 4,
+            bottom: 4,
+            zIndex: 4,
+            padding: "3px 4px",
+            borderRadius: 4,
+            background: "rgba(8, 11, 16, 0.88)",
+            color: "#b9f3ff",
+            fontSize: 8,
+            lineHeight: 1.25,
+            fontFamily: "monospace",
+            wordBreak: "break-all",
+            pointerEvents: "none",
+          }}
+        >
+          {perfAuditDebugLabel}
+        </div>
       ) : null}
       {renderSaveChip(item, isSelected)}
       {isFailing && onDeleteOutput && isSelected ? (

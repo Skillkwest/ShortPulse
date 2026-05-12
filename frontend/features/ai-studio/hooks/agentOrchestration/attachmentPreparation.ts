@@ -4,6 +4,7 @@
  */
 import type { AgentAttachment } from "../../../../prefabs/agent";
 import { resolveAgentAttachmentPreviewUrl } from "../../logic/agentAttachmentImage";
+import { projectAgentAttachmentToComposerImageAttachment } from "../../logic/composerImageAttachment";
 import { prepareImageUrl } from "../../logic/imageDescription";
 
 const PREPARED_AGENT_IMAGE_URL_CACHE_TTL_MS = 10 * 60 * 1000;
@@ -75,6 +76,7 @@ export const prepareAgentImageAttachments = async ({
 
   const preparedResults = await Promise.allSettled(
     imageAttachments.map(async (attachment) => {
+      const projectedImageAttachment = projectAgentAttachmentToComposerImageAttachment(attachment);
       const sourceUrl =
         (await resolveAgentAttachmentPreviewUrl({
           previewStoragePath: attachment.previewStoragePath ?? null,
@@ -83,6 +85,7 @@ export const prepareAgentImageAttachments = async ({
           referenceUrl: attachment.referenceUrl ?? null,
           imageUrl: attachment.imageUrl ?? null,
         }).catch(() => null)) ??
+        projectedImageAttachment?.preview.url ??
         attachment.imageUrl?.trim() ??
         "";
       if (!sourceUrl) {

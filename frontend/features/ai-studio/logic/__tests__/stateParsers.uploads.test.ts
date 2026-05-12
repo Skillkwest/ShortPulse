@@ -39,7 +39,7 @@ describe("mapUploadsFromFiles", () => {
     vi.restoreAllMocks();
   });
 
-  it("uses object URLs and marks upload metadata", async () => {
+  it("uses stable data previews for images while retaining object URLs for upload metadata", async () => {
     const createObjectUrlMock = vi
       .fn()
       .mockReturnValueOnce("blob:https://local/image-1")
@@ -104,7 +104,7 @@ describe("mapUploadsFromFiles", () => {
     expect(outputs[0]?.mediaSource).toBe("upload");
     expect(outputs[0]?.previewTier).toBe("full");
     expect(outputs[0]?.localObjectUrl).toBe("blob:https://local/image-1");
-    expect(outputs[0]?.previewUrl).toBe("blob:https://local/image-1");
+    expect(outputs[0]?.previewUrl?.startsWith("data:image/png;base64,")).toBe(true);
     expect(outputs[0]?.timestamp).toBe("Dropped");
     expect(outputs[1]?.mode).toBe("video");
     expect(outputs[1]?.previewUrl).toBe("blob:https://local/video-1#video=1");

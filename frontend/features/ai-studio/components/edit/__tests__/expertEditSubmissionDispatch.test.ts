@@ -52,6 +52,7 @@ describe("resolveExpertEditSubmissionDispatch", () => {
         hasSelectedLayerMask: true,
         flattenedUrl: "blob:flatten-1",
         inpaintMaskUrl: "blob:mask-1",
+        flattenedDimensions: { width: 2048, height: 1024 },
         referenceInputs: ["blob:flatten-1"],
         promptOverrideOptions: {
           displayPromptOverride: "Use @main",
@@ -67,6 +68,8 @@ describe("resolveExpertEditSubmissionDispatch", () => {
           baseImageInput: "blob:flatten-1",
           maskInput: "blob:mask-1",
           outputFormat: "png",
+          imageWidth: 2048,
+          imageHeight: 1024,
         },
         referenceInputsMode: "replace",
         displayPromptOverride: "Use @main",

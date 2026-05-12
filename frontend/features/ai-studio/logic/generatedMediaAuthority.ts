@@ -44,6 +44,8 @@ type GenerationProjectionDeliveryRow = {
   model_id?: unknown;
   display_prompt?: unknown;
   preview_url?: unknown;
+  companion_art_status?: unknown;
+  companion_art_storage_path?: unknown;
   result_urls?: unknown;
   preview_storage_path?: unknown;
   full_storage_path?: unknown;
@@ -68,6 +70,8 @@ const GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS = [
   "model_id",
   "display_prompt",
   "preview_url",
+  "companion_art_status",
+  "companion_art_storage_path",
   "result_urls",
   "preview_storage_path",
   "full_storage_path",
@@ -99,6 +103,9 @@ export type VisibleGenerationDelivery = {
   previewUrl: string | null;
   previewPosterUrl: string | null;
   previewPosterStoragePath: string | null;
+  companionArtUrl: string | null;
+  companionArtStoragePath: string | null;
+  companionArtStatus: StudioOutput["companionArtStatus"] | null;
   fullUrl: string | null;
   previewStoragePath: string | null;
   fullStoragePath: string | null;
@@ -111,6 +118,9 @@ export type VisibleGenerationReconcile = {
   previewUrl: string | null;
   previewPosterUrl?: string | null;
   previewPosterStoragePath?: string | null;
+  companionArtUrl?: string | null;
+  companionArtStoragePath?: string | null;
+  companionArtStatus?: StudioOutput["companionArtStatus"];
   previewStoragePath: string | null;
   fullStoragePath: string | null;
   resultUrls: string[];
@@ -201,6 +211,7 @@ const signVisibleGenerationDelivery = async (
     delivery.previewStoragePath,
     delivery.fullStoragePath,
     delivery.previewPosterStoragePath,
+    delivery.companionArtStoragePath,
   ]);
   if (signedByPath.size === 0) return delivery;
 
@@ -212,6 +223,9 @@ const signVisibleGenerationDelivery = async (
     : null;
   const signedPosterUrl = delivery.previewPosterStoragePath
     ? (signedByPath.get(delivery.previewPosterStoragePath) ?? null)
+    : null;
+  const signedCompanionArtUrl = delivery.companionArtStoragePath
+    ? (signedByPath.get(delivery.companionArtStoragePath) ?? null)
     : null;
   const isVideoDelivery =
     Boolean(delivery.fullStoragePath && isVideoUrl(delivery.fullStoragePath)) ||
@@ -228,6 +242,7 @@ const signVisibleGenerationDelivery = async (
       ? (signedFullUrl ?? signedPreviewVideoUrl ?? delivery.previewUrl)
       : (signedPreviewUrl ?? signedFullUrl ?? delivery.previewUrl),
     previewPosterUrl: signedPosterUrl ?? delivery.previewPosterUrl,
+    companionArtUrl: signedCompanionArtUrl ?? delivery.companionArtUrl,
     fullUrl: isVideoDelivery
       ? (signedFullUrl ?? signedPreviewVideoUrl ?? delivery.fullUrl)
       : (signedFullUrl ?? signedPreviewUrl ?? delivery.fullUrl),
@@ -271,6 +286,17 @@ const toProjectionDelivery = (
   });
   const previewPosterUrl =
     mode === "video" && previewUrl && !isVideoUrl(previewUrl) ? previewUrl : null;
+  const companionArtStoragePath = asCanonicalStoragePath(
+    asTrimmedString(row.companion_art_storage_path)
+  );
+  const normalizedCompanionArtStatus = asTrimmedString(row.companion_art_status)?.toLowerCase();
+  const companionArtStatus =
+    normalizedCompanionArtStatus === "pending" ||
+    normalizedCompanionArtStatus === "processing" ||
+    normalizedCompanionArtStatus === "ready" ||
+    normalizedCompanionArtStatus === "failed"
+      ? normalizedCompanionArtStatus
+      : null;
 
   if (!previewUrl && !fullUrl && !previewStoragePath && !fullStoragePath) {
     return null;
@@ -280,6 +306,9 @@ const toProjectionDelivery = (
     previewUrl,
     previewPosterUrl,
     previewPosterStoragePath,
+    companionArtUrl: null,
+    companionArtStoragePath,
+    companionArtStatus,
     fullUrl,
     previewStoragePath,
     fullStoragePath,
@@ -377,6 +406,17 @@ const toHydratedGeneratedOutput = (
     previewStoragePath,
     fullStoragePath,
   });
+  const companionArtStoragePath = asCanonicalStoragePath(
+    asTrimmedString(row.companion_art_storage_path)
+  );
+  const normalizedCompanionArtStatus = asTrimmedString(row.companion_art_status)?.toLowerCase();
+  const companionArtStatus =
+    normalizedCompanionArtStatus === "pending" ||
+    normalizedCompanionArtStatus === "processing" ||
+    normalizedCompanionArtStatus === "ready" ||
+    normalizedCompanionArtStatus === "failed"
+      ? normalizedCompanionArtStatus
+      : undefined;
   const generationReplay = (asObject(row.generation_replay) ?? undefined) as
     | StudioOutput["generationReplay"]
     | undefined;
@@ -412,6 +452,9 @@ const toHydratedGeneratedOutput = (
     previewUrl,
     previewPosterUrl,
     previewPosterStoragePath,
+    companionArtUrl: null,
+    companionArtStoragePath,
+    companionArtStatus,
     previewStoragePath,
     fullStoragePath,
     mediaSource: "generated",
@@ -869,7 +912,11 @@ const applyPublishedVideoPosterStoragePaths = (
 
 const applySignedGeneratedMediaUrls = async (outputs: StudioOutput[]): Promise<StudioOutput[]> => {
   const signedByPath = await signReferenceGridStoragePaths(
-    outputs.flatMap((output) => [output.previewStoragePath, output.fullStoragePath])
+    outputs.flatMap((output) => [
+      output.previewStoragePath,
+      output.fullStoragePath,
+      output.companionArtStoragePath,
+    ])
   );
   if (signedByPath.size === 0) return outputs;
 
@@ -877,11 +924,15 @@ const applySignedGeneratedMediaUrls = async (outputs: StudioOutput[]): Promise<S
   const patched = outputs.map((output) => {
     const previewStoragePath = asCanonicalStoragePath(output.previewStoragePath ?? null);
     const fullStoragePath = asCanonicalStoragePath(output.fullStoragePath ?? null);
+    const companionArtStoragePath = asCanonicalStoragePath(output.companionArtStoragePath ?? null);
     const signedPreviewUrl = previewStoragePath
       ? (signedByPath.get(previewStoragePath) ?? null)
       : null;
     const signedFullUrl = fullStoragePath ? (signedByPath.get(fullStoragePath) ?? null) : null;
-    if (!signedPreviewUrl && !signedFullUrl) return output;
+    const signedCompanionArtUrl = companionArtStoragePath
+      ? (signedByPath.get(companionArtStoragePath) ?? null)
+      : null;
+    if (!signedPreviewUrl && !signedFullUrl && !signedCompanionArtUrl) return output;
     const signedPreviewVideoUrl =
       previewStoragePath && isVideoUrl(previewStoragePath) ? signedPreviewUrl : null;
 
@@ -894,11 +945,20 @@ const applySignedGeneratedMediaUrls = async (outputs: StudioOutput[]): Promise<S
       : signedPreviewUrl && (!output.resultUrls || output.resultUrls.length === 0)
         ? [signedPreviewUrl]
         : output.resultUrls;
-    if (previewUrl === output.previewUrl && resultUrls === output.resultUrls) return output;
+    if (
+      previewUrl === output.previewUrl &&
+      resultUrls === output.resultUrls &&
+      signedCompanionArtUrl === output.companionArtUrl &&
+      companionArtStoragePath === output.companionArtStoragePath
+    ) {
+      return output;
+    }
     changed = true;
     return {
       ...output,
       previewUrl,
+      companionArtUrl: signedCompanionArtUrl ?? output.companionArtUrl,
+      companionArtStoragePath,
       resultUrls,
     };
   });
@@ -1045,6 +1105,9 @@ const resolvePublishedGenerationDeliveryByGenerationId = async ({
           fullUrl,
           previewStoragePath: resolvedPreviewStoragePath,
           fullStoragePath,
+          companionArtUrl: null,
+          companionArtStoragePath: null,
+          companionArtStatus: null,
         };
       }
     }
@@ -1256,6 +1319,9 @@ export const resolveVisibleGenerationReconcile = async ({
     previewUrl: delivery.previewUrl,
     previewPosterUrl,
     previewPosterStoragePath,
+    companionArtUrl: delivery.companionArtUrl,
+    companionArtStoragePath: delivery.companionArtStoragePath,
+    companionArtStatus: delivery.companionArtStatus,
     previewStoragePath: delivery.previewStoragePath,
     fullStoragePath: delivery.fullStoragePath,
     resultUrls,

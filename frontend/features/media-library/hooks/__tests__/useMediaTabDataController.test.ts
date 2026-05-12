@@ -402,6 +402,102 @@ describe("useMediaTabDataController", () => {
     expect(result.current.prompts).toBe(seededPrompts);
   });
 
+  it("does not start a second prompt load when fetch is re-enabled mid-request", async () => {
+    const promptDeferred = createDeferred<{ data: Prompt[]; error: null }>();
+    const promptOrderMock = vi.fn(() => promptDeferred.promise);
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table !== "media_prompts") {
+          throw new Error(`Unexpected table: ${table}`);
+        }
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn().mockReturnValue({
+              order: vi.fn().mockReturnValue({
+                order: promptOrderMock,
+              }),
+            }),
+          })),
+        };
+      }),
+    } as never);
+
+    const { result } = renderHook(() => {
+      const [files, setFiles] = useState<Row[]>([]);
+      const [prompts, setPrompts] = useState<Prompt[]>([]);
+      const [promptsLoaded, setPromptsLoaded] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState<string | null>(null);
+      const [fetchEnabled, setFetchEnabled] = useState(true);
+      const [mediaTabCache, setMediaTabCache] = useState(() => createMediaTabCacheState<Row>());
+      const activeTabRef = useRef<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("saved_prompts");
+      const mediaTabRequestRef = useRef(createMediaTabRequestState());
+      const currentUserIdRef = useRef<string | null>(null);
+      const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+      useMediaTabDataController<Row, Prompt>({
+        activeMediaCache: null,
+        activeMediaQuery: "",
+        activeMediaTab: null,
+        activeTab: "saved_prompts",
+        activeTabRef,
+        cacheTtlMs: 30_000,
+        surface: "media-library-modal",
+        currentUserIdRef,
+        fetchEnabled,
+        loadMoreSentinelRef,
+        mediaTabCache,
+        mediaTabRequestRef,
+        pageSize: 60,
+        promptsLoaded,
+        setError,
+        setFiles,
+        setLoading,
+        setMediaTabCache,
+        setPrompts,
+        setPromptsLoaded,
+      });
+
+      return {
+        error,
+        fetchEnabled,
+        loading,
+        prompts,
+        promptsLoaded,
+        setFetchEnabled,
+      };
+    });
+
+    await waitFor(() => {
+      expect(promptOrderMock).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.setFetchEnabled(false);
+    });
+    act(() => {
+      result.current.setFetchEnabled(true);
+    });
+
+    expect(promptOrderMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      promptDeferred.resolve({
+        data: [makePrompt({ id: "prompt-reenabled-1" })],
+        error: null,
+      });
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.promptsLoaded).toBe(true);
+    });
+    expect(result.current.error).toBeNull();
+    expect(result.current.prompts).toHaveLength(1);
+  });
+
   it("keeps active media rows stable when a refresh returns identical expanded rows", async () => {
     const seededRows = [
       makeRow({

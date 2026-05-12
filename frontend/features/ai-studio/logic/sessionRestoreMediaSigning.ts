@@ -10,6 +10,8 @@ export type SessionOutputSigningFingerprint = {
   previewUrl: string | null;
   previewPosterUrl: string | null;
   previewPosterStoragePath: string | null;
+  companionArtUrl: string | null;
+  companionArtStoragePath: string | null;
   previewStoragePath: string | null;
   fullStoragePath: string | null;
 };
@@ -33,6 +35,8 @@ const resolveFingerprintForOutput = (output: StudioOutput): SessionOutputSigning
   previewUrl: toNormalizedNullableString(output.previewUrl),
   previewPosterUrl: toNormalizedNullableString(output.previewPosterUrl),
   previewPosterStoragePath: toCanonicalStoragePath(output.previewPosterStoragePath),
+  companionArtUrl: toNormalizedNullableString(output.companionArtUrl),
+  companionArtStoragePath: toCanonicalStoragePath(output.companionArtStoragePath),
   previewStoragePath: toCanonicalStoragePath(output.previewStoragePath),
   fullStoragePath: toCanonicalStoragePath(output.fullStoragePath),
 });
@@ -46,6 +50,8 @@ const isFingerprintEqual = (
     left.previewUrl === right.previewUrl &&
     left.previewPosterUrl === right.previewPosterUrl &&
     left.previewPosterStoragePath === right.previewPosterStoragePath &&
+    left.companionArtUrl === right.companionArtUrl &&
+    left.companionArtStoragePath === right.companionArtStoragePath &&
     left.previewStoragePath === right.previewStoragePath &&
     left.fullStoragePath === right.fullStoragePath
   );
@@ -83,12 +89,16 @@ export const collectSessionRestoreSigningPaths = (outputs: StudioOutput[]): stri
   outputs.forEach((output) => {
     const previewStoragePath = toCanonicalStoragePath(output.previewStoragePath);
     const previewPosterStoragePath = toCanonicalStoragePath(output.previewPosterStoragePath);
+    const companionArtStoragePath = toCanonicalStoragePath(output.companionArtStoragePath);
     const fullStoragePath = toCanonicalStoragePath(output.fullStoragePath);
     if (previewStoragePath) {
       pathSet.add(previewStoragePath);
     }
     if (previewPosterStoragePath) {
       pathSet.add(previewPosterStoragePath);
+    }
+    if (companionArtStoragePath) {
+      pathSet.add(companionArtStoragePath);
     }
     if (fullStoragePath) {
       pathSet.add(fullStoragePath);
@@ -131,6 +141,7 @@ export const applySessionRestoreSignedUrls = (
 
     const previewStoragePath = currentFingerprint.previewStoragePath;
     const previewPosterStoragePath = currentFingerprint.previewPosterStoragePath;
+    const companionArtStoragePath = currentFingerprint.companionArtStoragePath;
     const fullStoragePath = currentFingerprint.fullStoragePath;
     const signedPreviewUrl =
       (previewStoragePath ? signedByPath.get(previewStoragePath) : null) ??
@@ -143,6 +154,9 @@ export const applySessionRestoreSignedUrls = (
         : output.mode === "video" && previewStoragePath && previewStoragePath !== fullStoragePath
           ? signedPreviewUrl
           : currentFingerprint.previewPosterUrl;
+    const signedCompanionArtUrl = companionArtStoragePath
+      ? (signedByPath.get(companionArtStoragePath) ?? currentFingerprint.companionArtUrl)
+      : currentFingerprint.companionArtUrl;
     const primarySignedResultUrl =
       output.mode === "video" ? signedFullUrl : (signedFullUrl ?? signedPreviewUrl);
     const nextResultUrls = primarySignedResultUrl
@@ -157,6 +171,8 @@ export const applySessionRestoreSignedUrls = (
       currentFingerprint.previewUrl === signedPreviewUrl &&
       currentFingerprint.previewPosterUrl === signedPreviewPosterUrl &&
       currentFingerprint.previewPosterStoragePath === previewPosterStoragePath &&
+      currentFingerprint.companionArtUrl === signedCompanionArtUrl &&
+      currentFingerprint.companionArtStoragePath === companionArtStoragePath &&
       currentFingerprint.previewStoragePath === previewStoragePath &&
       currentFingerprint.fullStoragePath === fullStoragePath &&
       areStringArraysEqual(output.resultUrls, nextResultUrls)
@@ -170,6 +186,8 @@ export const applySessionRestoreSignedUrls = (
       previewUrl: signedPreviewUrl ?? output.previewUrl,
       previewPosterUrl: signedPreviewPosterUrl,
       previewPosterStoragePath,
+      companionArtUrl: signedCompanionArtUrl,
+      companionArtStoragePath,
       previewStoragePath,
       fullStoragePath,
       resultUrls: nextResultUrls,

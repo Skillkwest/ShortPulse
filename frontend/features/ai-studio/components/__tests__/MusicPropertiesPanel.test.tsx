@@ -89,6 +89,9 @@ describe("MusicPropertiesPanel", () => {
       "Write lyrics, hooks, section ideas, ad-libs, or line-by-line structure here."
     );
     expect(
+      screen.getByText("Prompt and lyrics share one 800-character generation budget.")
+    ).toBeInTheDocument();
+    expect(
       screen.queryByRole("separator", {
         name: "Resize song style and lyrics sections",
       })
@@ -124,6 +127,8 @@ describe("MusicPropertiesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
 
     await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(2));
+    const firstRequest = onGenerate.mock.calls[0][0];
+    const secondRequest = onGenerate.mock.calls[1][0];
     expect(onGenerate).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -150,6 +155,8 @@ describe("MusicPropertiesPanel", () => {
         modelId: "music_v1",
       })
     );
+    expect(firstRequest.displayedBilledCredits).toBe(secondRequest.displayedBilledCredits);
+    expect(firstRequest.displayedBilledCredits).not.toBeNull();
   });
 
   it("submits vocal mode when singer is enabled in custom mode", async () => {
@@ -197,6 +204,19 @@ describe("MusicPropertiesPanel", () => {
     await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(4));
   });
 
+  it("stops the multi-song run after the first failed generation request", async () => {
+    const onGenerate = vi.fn().mockResolvedValueOnce(false);
+
+    render(<MusicPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: { value: "Percussive electronic cue with a dark rising tension." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
+
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(1));
+  });
+
   it("includes custom lyrics in the submitted music prompt", async () => {
     const onGenerate = vi.fn();
 
@@ -232,6 +252,7 @@ describe("MusicPropertiesPanel", () => {
     });
 
     expect(screen.getByText("810 / 800")).toBeInTheDocument();
+    expect(screen.getByText("Shorten the prompt or lyrics by 10 characters.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
   });
 

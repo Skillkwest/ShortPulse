@@ -15,7 +15,10 @@ import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import type { ModelModalContext } from "../ModelModal";
 import type { CreateCharacterOption } from "../create/useCreateCharacterModeController";
 import type { ExpertEditCustomPresetOverrides, ExpertEditPresetId } from "./expertEditPresets";
-import type { ExpertEditRegenerateWithReferenceInputsHandler } from "./expertEditSubmissionContract";
+import type {
+  ExpertEditRegenerateWithReferenceInputsHandler,
+  ExpertEditVariantCostResolver,
+} from "./expertEditSubmissionContract";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 import type {
   ExpertEditInpaintHistoryState,
@@ -48,6 +51,7 @@ export type ExpertEditPanelViewProps = {
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   onRegenerate: () => void;
   onRegenerateWithReferenceInputs?: ExpertEditRegenerateWithReferenceInputsHandler;
+  resolveVariantCostCredits?: ExpertEditVariantCostResolver;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
@@ -123,7 +127,7 @@ export const editLayerUtilityActions = [
     icon: MagicWand,
     buttonClassName:
       "edit-expert-preset-action-btn--compose-image edit-expert-preset-action-btn--remove-bg",
-    creditCost: 1,
+    creditCost: 3,
   },
 ] as const;
 

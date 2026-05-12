@@ -209,6 +209,7 @@ export const useMediaTabDataController = <
   const tabLoadMoreLastScrollTopRef = useRef(createMediaTabNullableNumberState());
   const tabLoadMoreLastAutoLoadAtMsRef = useRef<MediaTabRequestState>(createMediaTabRequestState());
   const tabNoProgressStateRef = useRef(createMediaTabNoProgressState());
+  const promptsLoadInFlightRef = useRef(false);
   const fetchMediaTabPageRef = useRef<
     (
       tab: MediaDataTab,
@@ -507,6 +508,8 @@ export const useMediaTabDataController = <
 
   const loadPrompts = useCallback(async () => {
     if (!fetchEnabled) return;
+    if (promptsLoadInFlightRef.current) return;
+    promptsLoadInFlightRef.current = true;
     setLoading(true);
     setError(null);
     try {
@@ -524,6 +527,7 @@ export const useMediaTabDataController = <
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Unable to load prompts");
     } finally {
+      promptsLoadInFlightRef.current = false;
       setLoading(false);
     }
   }, [fetchEnabled, setError, setLoading, setPrompts, setPromptsLoaded]);
@@ -546,6 +550,7 @@ export const useMediaTabDataController = <
 
   useEffect(() => {
     if (fetchEnabled) return;
+    promptsLoadInFlightRef.current = false;
     for (const tab of MEDIA_DATA_TABS) {
       mediaTabRequestRef.current[tab] += 1;
       tabFetchInFlightRef.current[tab] = false;

@@ -415,6 +415,21 @@ const shouldSkipLog = (params: {
     return true;
   }
 
+  const isHiddenLocalMediaComplianceFetchNoise =
+    params.scope === "app" &&
+    params.source === "client.api_network" &&
+    params.statusCode === null &&
+    messageText === "failed to fetch" &&
+    isLocalHost &&
+    isDevelopmentClientEnvironment &&
+    visibilityStateValues.includes("hidden") &&
+    isAiStudioRoute &&
+    /^\/api\/account\/media-compliance(?:\?|$)/.test(endpointText);
+
+  if (isHiddenLocalMediaComplianceFetchNoise) {
+    return true;
+  }
+
   const hasReactRefreshFrames =
     stackText.includes("performreactrefresh") ||
     stackText.includes("schedulerefresh") ||

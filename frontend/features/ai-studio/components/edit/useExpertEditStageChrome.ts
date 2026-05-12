@@ -184,7 +184,7 @@ export function useExpertEditStageChrome({
     [hasPrimaryCompositePreview, isMorePresetsSurfaceOpen, openStageContextMenu]
   );
 
-  const handleStageContextMenuRecenter = React.useCallback(() => {
+  const handleStageContextMenuResetView = React.useCallback(() => {
     handleRecenterMoveAction();
     closeStageContextMenu();
   }, [closeStageContextMenu, handleRecenterMoveAction]);
@@ -309,7 +309,7 @@ export function useExpertEditStageChrome({
     handlePrimaryDropzoneContextMenu,
     handlePrimaryDropzoneClick,
     handlePrimaryDropzoneDoubleClick,
-    handleStageContextMenuRecenter,
+    handleStageContextMenuResetView,
     handleStageContextMenuExpand,
     handleStageContextMenuAddImage,
     handleStageContextMenuReset,

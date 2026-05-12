@@ -19,6 +19,8 @@ import { useAiStudioEditExpertPanelProps } from "../features/ai-studio/hooks/use
 import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAiStudioReferenceGridProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
 import { useAiStudioVideoPanelProps } from "../features/ai-studio/hooks/useAiStudioVideoPanelProps";
+import { resolveClientBilledCredits } from "../features/ai-studio/logic/clientPricingDisplay";
+import { buildDefaultPricingParams } from "../features/ai-studio/logic/pricing";
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
 import { useAiStudioPageSessionPersistence } from "../features/ai-studio/hooks/useAiStudioPageSessionPersistence";
 import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudioPageUiNotices";
@@ -125,6 +127,11 @@ type UseAiStudioEditVideoPanelRuntimesParams = {
   handleRegenerateWithDebit: ReturnType<
     typeof useAiStudioGenerationController
   >["handleRegenerateWithDebit"];
+  resolveExpertEditVariantCostCredits: (input: {
+    modelId: string;
+    imageWidth: number;
+    imageHeight: number;
+  }) => number | null;
 };
 type UseAiStudioReferenceExperienceRuntimeParams = {
   base: AiStudioPageBaseRuntime;
@@ -324,8 +331,13 @@ const useAiStudioCreatePanelRuntime = ({
       ? (promptReferenceGenerateCostCredits ?? currentCostCredits)
       : currentCostCredits;
   const expertCreatePolicy = workflowBeginnerPolicy.create;
-  const { pulsePreferenceRuntime, activeCreatePulsePresetSnapshot, hasActivePulseSession } =
-    createPulsePageRuntime;
+  const {
+    pulsePreferenceRuntime,
+    activeCreatePulsePresetSnapshot,
+    displayCreatePulsePresetId,
+    displayCreatePulsePresetSnapshot,
+    hasActivePulseSession,
+  } = createPulsePageRuntime;
 
   return useMemo<CreatePanelProps>(() => {
     if (expertCreateMode === "pulse") {
@@ -333,9 +345,9 @@ const useAiStudioCreatePanelRuntime = ({
         props: {
           pulsePrompt,
           hasActiveSession: hasActivePulseSession,
-          activePresetId: activeCreatePulsePresetId,
-          activePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
-          activePresetKind: activeCreatePulsePresetSnapshot?.pulseKind ?? null,
+          activePresetId: displayCreatePulsePresetId,
+          activePresetLabel: displayCreatePulsePresetSnapshot?.label ?? null,
+          activePresetKind: displayCreatePulsePresetSnapshot?.pulseKind ?? null,
           workflowSession: base.pulseWorkflowSession,
           createIsGenerating,
           currentCostCredits: pulseGenerateCostCredits,
@@ -386,9 +398,9 @@ const useAiStudioCreatePanelRuntime = ({
           ...pulseRuntime.panelProps,
           hasActivePulseSession,
           pulseWorkflowSession: base.pulseWorkflowSession,
-          activePulsePresetId: activeCreatePulsePresetId,
-          activePulsePresetLabel: activeCreatePulsePresetSnapshot?.label ?? null,
-          activePulsePresetKind: activeCreatePulsePresetSnapshot?.pulseKind ?? null,
+          activePulsePresetId: displayCreatePulsePresetId,
+          activePulsePresetLabel: displayCreatePulsePresetSnapshot?.label ?? null,
+          activePulsePresetKind: displayCreatePulsePresetSnapshot?.pulseKind ?? null,
           onActivePulsePresetIdChange: handleActiveCreatePulsePresetIdChangeForPage,
           onPulsePresetStart: handleCreatePulsePresetStart,
         },
@@ -476,7 +488,6 @@ const useAiStudioCreatePanelRuntime = ({
       standard: standardRuntime.panelProps,
     };
   }, [
-    activeCreatePulsePresetId,
     activeCreatePulsePresetSnapshot?.label,
     activeCreatePulsePresetSnapshot?.pulseKind,
     agentAttachmentError,
@@ -499,6 +510,9 @@ const useAiStudioCreatePanelRuntime = ({
     createSelectedCharacterId,
     createSelectedCharacterLookId,
     currentModelLabel,
+    displayCreatePulsePresetId,
+    displayCreatePulsePresetSnapshot?.label,
+    displayCreatePulsePresetSnapshot?.pulseKind,
     describeInFlightCount,
     effectiveGenerationGuardrail,
     effectiveIsGenerateDisabled,
@@ -572,6 +586,7 @@ const useAiStudioEditVideoPanelRuntimes = ({
   handleVideoPromptTextChange,
   handleImageRegenerateWithDebit,
   handleRegenerateWithDebit,
+  resolveExpertEditVariantCostCredits,
 }: UseAiStudioEditVideoPanelRuntimesParams) => {
   const expertEditEligible = workflowBeginnerPolicy.edit.expertEditEligible;
   const editExpertPanelProps = useAiStudioEditExpertPanelProps({
@@ -590,6 +605,7 @@ const useAiStudioEditVideoPanelRuntimes = ({
     setExtraImageUrl: base.setImageExtraImageUrl,
     handleEditPromptTextChange,
     handleImageRegenerateWithDebit,
+    resolveVariantCostCredits: resolveExpertEditVariantCostCredits,
     insertOptimisticGenerationPlaceholder: (promptText: string) =>
       base.insertOptimisticGenerationPlaceholder({
         prompt: promptText,
@@ -1174,6 +1190,7 @@ const AiStudioPageRuntimeBody = ({
   const setBeginnerMode = (_value: boolean) => {};
   const {
     activeCreatePulsePresetSnapshot,
+    setPendingCreatePulsePresetSnapshot,
     setActiveCreatePulsePresetSnapshot,
     hasActivePulseSession,
   } = createPulsePageRuntime;
@@ -1217,17 +1234,30 @@ const AiStudioPageRuntimeBody = ({
         };
       }
       const previousActivePresetSnapshot = activeCreatePulsePresetSnapshot;
+      setPendingCreatePulsePresetSnapshot(preset);
       setActiveCreatePulsePresetSnapshot(preset);
-      const result = await handlePulsePresetStart(preset, {
-        pulseSessionInstanceId: options?.pulseSessionInstanceId ?? null,
-        deferWorkflowSessionCommit: options?.deferWorkflowSessionCommit ?? false,
-      });
-      if (result.status !== "started") {
+      try {
+        const result = await handlePulsePresetStart(preset, {
+          pulseSessionInstanceId: options?.pulseSessionInstanceId ?? null,
+          deferWorkflowSessionCommit: options?.deferWorkflowSessionCommit ?? false,
+        });
+        if (result.status !== "started") {
+          setActiveCreatePulsePresetSnapshot(previousActivePresetSnapshot ?? null);
+        }
+        return result;
+      } catch (error) {
         setActiveCreatePulsePresetSnapshot(previousActivePresetSnapshot ?? null);
+        throw error;
+      } finally {
+        setPendingCreatePulsePresetSnapshot(null);
       }
-      return result;
     },
-    [activeCreatePulsePresetSnapshot, handlePulsePresetStart, setActiveCreatePulsePresetSnapshot]
+    [
+      activeCreatePulsePresetSnapshot,
+      handlePulsePresetStart,
+      setActiveCreatePulsePresetSnapshot,
+      setPendingCreatePulsePresetSnapshot,
+    ]
   );
   const {
     sessionRestoreCandidate,
@@ -1404,6 +1434,31 @@ const AiStudioPageRuntimeBody = ({
     () => createWorkflowBeginnerModePolicy(beginnerMode, true),
     [beginnerMode]
   );
+  const resolveExpertEditVariantCostCredits = useCallback(
+    ({
+      modelId,
+      imageWidth,
+      imageHeight,
+    }: {
+      modelId: string;
+      imageWidth: number;
+      imageHeight: number;
+    }): number | null => {
+      if (!modelPricingPolicyReady) return null;
+      return resolveClientBilledCredits({
+        modelId,
+        params: {
+          ...buildDefaultPricingParams(modelId),
+          aspect,
+          imageWidth,
+          imageHeight,
+        },
+        pricingPolicy: modelPricingPolicy,
+        pricingPolicyReady: true,
+      });
+    },
+    [aspect, modelPricingPolicy, modelPricingPolicyReady]
+  );
   const { editExpertPanelProps, videoPanelProps } = useAiStudioEditVideoPanelRuntimes({
     base,
     workflowBeginnerPolicy,
@@ -1416,6 +1471,7 @@ const AiStudioPageRuntimeBody = ({
     handleVideoPromptTextChange,
     handleImageRegenerateWithDebit,
     handleRegenerateWithDebit,
+    resolveExpertEditVariantCostCredits,
   });
   const propertiesCreate = useAiStudioCreatePanelRuntime({
     base,

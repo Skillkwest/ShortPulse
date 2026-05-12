@@ -645,4 +645,57 @@ describe("useReferenceGridCardRenderController", () => {
       "https://tempfile.example.com/generated-video.mp4"
     );
   });
+
+  it("does not crash when the audio playback controller is unexpectedly missing", () => {
+    const output = createOutput({
+      id: "audio-missing-controller",
+      mode: "audio",
+      previewUrl: "https://example.com/audio-missing-controller.mp3",
+    });
+    const visibleCard = {
+      item: projectReferenceGridMediaOutput(output),
+      authorityTier: "reusable" as const,
+      cardPreviewUrl: output.previewUrl ?? null,
+      isVideoPreview: false,
+      isImagePreview: false,
+      isAudioPreview: true,
+      isPriorityHydration: true,
+      imageSrc: undefined,
+    };
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardRenderController({
+        activeOutputId: null,
+        visibleOutputById: { [output.id]: output },
+        autoplayEnabledIdSet: new Set<string>(),
+        linkedPromptReferenceIdSet: new Set<string>(),
+        loadingCardIdSet: new Set<string>(),
+        generationLoadingCardIdSet: new Set<string>(),
+        hydrationLoadingCardIdSet: new Set<string>(),
+        perfDegradeLevel: 0,
+        visibleCardItems: [visibleCard],
+        curatedVisibleCardItems: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        onSelectOutput: vi.fn(),
+        onOpenDetails: vi.fn(),
+        onCardDragStart: vi.fn(),
+        onCardDragEnd: vi.fn(),
+        onCuratedSectionDragOver: vi.fn(),
+        onCuratedCardDrop: vi.fn(),
+        onCuratedSectionDragEnter: vi.fn(),
+        onCuratedSectionDragLeave: vi.fn(),
+        onCuratedCardKeyboardReorder: vi.fn(),
+        registerVideoNode: vi.fn(),
+        markLoaded: vi.fn(),
+        onAutoplayStarted: vi.fn(),
+        onAutoplayStopped: vi.fn(),
+        audioPlaybackController: undefined as unknown as ReturnType<
+          typeof useReferenceGridSingleAudioPlaybackController
+        >,
+      })
+    );
+
+    const { container } = render(<>{result.current.allRefsCardNodes}</>);
+    expect(container.querySelector(".reference-card-audio")).not.toBeNull();
+  });
 });

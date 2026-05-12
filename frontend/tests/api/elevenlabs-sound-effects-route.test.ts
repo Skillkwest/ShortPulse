@@ -7,6 +7,7 @@ const chargeGenerationRequestMock = vi.fn();
 const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsSoundEffectMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
+const markAudioCompanionArtPendingMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -25,6 +26,10 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 vi.mock("../../lib/server/elevenlabs", () => ({
   generateElevenLabsSoundEffect: (...args: unknown[]) => generateElevenLabsSoundEffectMock(...args),
   persistGeneratedAudioAsset: (...args: unknown[]) => persistGeneratedAudioAssetMock(...args),
+}));
+
+vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
+  markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -61,6 +66,7 @@ describe("POST /api/elevenlabs/sound-effects", () => {
       sourceRef: "billing-source-sfx-1",
       note: "captured",
     });
+    markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
   });
 
   it("rejects out-of-range explicit durations", async () => {
@@ -191,6 +197,9 @@ describe("POST /api/elevenlabs/sound-effects", () => {
         resultUrls: ["https://signed.example/effect.mp3"],
         previewStoragePath: "user-1/generations/audio/gen-sfx-1/effect.mp3",
         fullStoragePath: "user-1/generations/audio/gen-sfx-1/effect.mp3",
+        companionArtUrl: null,
+        companionArtStoragePath: null,
+        companionArtStatus: "pending",
         mimeType: "audio/mpeg",
         durationMs: null,
         waveformPeaks: null,

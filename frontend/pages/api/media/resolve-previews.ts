@@ -9,6 +9,7 @@ import {
 } from "../../../lib/mediaPreviewTransformProfile";
 import {
   resolvePreferredMediaDirectPreviewUrl,
+  resolvePreferredMediaSigningStoragePath,
   resolveMediaSigningStoragePaths,
 } from "../../../lib/mediaPreviewPath";
 import { requireApiUser } from "../../../lib/server/api/auth";
@@ -52,6 +53,27 @@ const ALLOWED_SURFACE_VALUES = new Set([
   "character-grid",
   "detail-modal",
 ]);
+const BROWSE_SURFACE_VALUES = new Set([
+  "media-library-route",
+  "media-library-modal",
+  "media-library-panel",
+]);
+
+const resolveBrowseSurfaceSigningStoragePaths = (row: MediaLookupRow, userId: string): string[] => {
+  const candidates = [
+    resolvePreferredMediaSigningStoragePath(row, userId),
+    typeof row.storage_path === "string" ? row.storage_path.trim() : null,
+  ];
+
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (!candidate || seen.has(candidate)) continue;
+    seen.add(candidate);
+    deduped.push(candidate);
+  }
+  return deduped;
+};
 
 const isUserScopedStoragePath = (path: string, userId: string): boolean => {
   const normalized = path.trim();
@@ -120,17 +142,20 @@ const basenameOf = (value: string | null | undefined): string | null => {
 
 const basenameLookupKey = (basename: string): string => basename.trim().toLowerCase();
 
+const isResolvableBasename = (basename: string): boolean =>
+  Boolean(
+    basename &&
+    !basename.includes("/") &&
+    !basename.includes("\\") &&
+    !basename.includes("%") &&
+    !basename.includes("_")
+  );
+
 const resolveObjectByBasename = async (
   userId: string,
   basename: string
 ): Promise<string | null> => {
-  if (
-    !basename ||
-    basename.includes("/") ||
-    basename.includes("\\") ||
-    basename.includes("%") ||
-    basename.includes("_")
-  ) {
+  if (!isResolvableBasename(basename)) {
     return null;
   }
   const supabaseAdmin = getSupabaseAdmin();
@@ -159,6 +184,7 @@ const resolveBasenameMatchesBounded = async ({
   for (const rawBasename of basenames) {
     const basename = rawBasename.trim();
     if (!basename) continue;
+    if (!isResolvableBasename(basename)) continue;
     const key = basenameLookupKey(basename);
     if (!key || dedupedByKey.has(key)) continue;
     dedupedByKey.set(key, basename);
@@ -212,6 +238,7 @@ export default async function handler(
     const requestedPreviewProfile = toPreviewProfile(body?.previewProfile);
     const resolvedPreviewProfile =
       requestedPreviewProfile ?? resolvePreviewProfileForSurface(telemetrySurface);
+    const preferTrustedDirectPreviewFirst = BROWSE_SURFACE_VALUES.has(telemetrySurface);
     const supabaseAdmin = getSupabaseAdmin();
     const { data: rawRows, error: rowsError } = await supabaseAdmin
       .from("media_files")
@@ -231,10 +258,20 @@ export default async function handler(
     const rowById = new Map(rows.map((row) => [row.id, row]));
     const candidatesById = new Map<string, string[]>();
     const allCandidates: string[] = [];
+    const directPreviewUrlById = new Map<string, string>();
     for (const row of rows) {
-      const candidates = resolveMediaSigningStoragePaths(row, user.id).filter((candidate) =>
-        isUserScopedStoragePath(candidate, user.id)
-      );
+      const directPreviewUrl = resolvePreferredMediaDirectPreviewUrl(row, user.id);
+      if (directPreviewUrl) {
+        directPreviewUrlById.set(row.id, directPreviewUrl);
+        if (preferTrustedDirectPreviewFirst) {
+          continue;
+        }
+      }
+      const candidates = (
+        preferTrustedDirectPreviewFirst
+          ? resolveBrowseSurfaceSigningStoragePaths(row, user.id)
+          : resolveMediaSigningStoragePaths(row, user.id)
+      ).filter((candidate) => isUserScopedStoragePath(candidate, user.id));
       candidatesById.set(row.id, candidates);
       allCandidates.push(...candidates);
     }
@@ -268,11 +305,17 @@ export default async function handler(
         continue;
       }
 
+      const directPreviewUrl = resolvePreferredMediaDirectPreviewUrl(row, user.id);
+      if (directPreviewUrl) {
+        directPreviewUrlById.set(row.id, directPreviewUrl);
+        continue;
+      }
+
       const basenameCandidates = Array.from(
         new Set(
           [basenameOf(row.filename), basenameOf(row.storage_path)].filter(Boolean) as string[]
         )
-      );
+      ).filter(isResolvableBasename);
       if (!basenameCandidates.length) continue;
       basenameCandidatesById.set(row.id, basenameCandidates);
       fallbackBasenames.push(...basenameCandidates);
@@ -286,6 +329,7 @@ export default async function handler(
 
     for (const row of rows) {
       if (resolvedPathById.has(row.id)) continue;
+      if (preferTrustedDirectPreviewFirst && directPreviewUrlById.has(row.id)) continue;
       const basenameCandidates = basenameCandidatesById.get(row.id) ?? [];
       for (const basename of basenameCandidates) {
         const matchedObject = basenameMatchByKey.get(basenameLookupKey(basename)) ?? null;
@@ -331,7 +375,8 @@ export default async function handler(
         urls[mediaId] = signedUrl;
         continue;
       }
-      urls[mediaId] = resolvePreferredMediaDirectPreviewUrl(row, user.id);
+      urls[mediaId] =
+        directPreviewUrlById.get(mediaId) ?? resolvePreferredMediaDirectPreviewUrl(row, user.id);
     }
 
     res.setHeader("x-shortpulse-media-resolve-row-count", String(mediaIds.length));

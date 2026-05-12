@@ -453,6 +453,18 @@
   color: rgba(238, 242, 248, 0.94);
 }
 
+.create-expert-panel .create-expert-prompt-step .create-expert-pulse-loading-card-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-pulse-loading-card-message {
+  margin: 0;
+  color: rgba(199, 207, 218, 0.78);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 @keyframes create-expert-pulse-loading-spinner {
   from {
     transform: rotate(0deg);

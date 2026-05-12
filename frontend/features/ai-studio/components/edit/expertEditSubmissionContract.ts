@@ -20,3 +20,9 @@ export type ExpertEditRegenerateWithReferenceInputsHandler = (
   referenceInputs: string[],
   options?: ExpertEditRegenerateOptions
 ) => void | Promise<void>;
+
+export type ExpertEditVariantCostResolver = (input: {
+  modelId: string;
+  imageWidth: number;
+  imageHeight: number;
+}) => number | null;

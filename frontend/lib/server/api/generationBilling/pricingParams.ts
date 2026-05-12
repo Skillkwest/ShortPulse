@@ -25,6 +25,18 @@ const resolveImageDimensions = (
   return undefined;
 };
 
+const resolveContextImageDimensions = (
+  context?: JsonObject | null
+): { width: number; height: number } | undefined => {
+  if (!context) return undefined;
+  const width = asNumber(context.image_width) ?? asNumber(context.output_width);
+  const height = asNumber(context.image_height) ?? asNumber(context.output_height);
+  if (width && height && width > 0 && height > 0) {
+    return { width: Math.round(width), height: Math.round(height) };
+  }
+  return undefined;
+};
+
 const resolveExplicitImageSize = (payload: JsonObject): string | undefined => {
   const directSize = asString(payload.size) ?? asString(payload.image_size);
   if (!directSize) return undefined;
@@ -118,6 +130,34 @@ const resolveResolution = (payload: JsonObject): string | undefined => {
   if (normalized.includes("720")) return "720p";
   if (normalized.includes("480")) return "480p";
   return undefined;
+};
+
+const inferAutoResolutionFromImageDimensions = (
+  modelId: string,
+  dimensions?: { width: number; height: number }
+): string | undefined => {
+  if (!dimensions) return undefined;
+  const config = getModelConfig(modelId);
+  const allowed = config?.allowedResolutions ?? [];
+  if (
+    !allowed.includes("auto_2K") &&
+    !allowed.includes("auto_3K") &&
+    !allowed.includes("auto_4K")
+  ) {
+    return undefined;
+  }
+
+  const imageArea = dimensions.width * dimensions.height;
+  const autoAreas: Array<{ resolution: "auto_2K" | "auto_3K" | "auto_4K"; area: number }> = [
+    { resolution: "auto_2K", area: 3_686_400 },
+    { resolution: "auto_3K", area: 5_308_416 },
+    { resolution: "auto_4K", area: 8_294_400 },
+  ];
+
+  const matched = autoAreas.find(
+    ({ resolution, area }) => allowed.includes(resolution) && Math.abs(imageArea - area) <= 2
+  );
+  return matched?.resolution;
 };
 
 const normalizeAspectForModel = (
@@ -249,12 +289,16 @@ export const summarizePayload = (payload: JsonObject): JsonObject => {
 
 export const buildPricingParams = (
   modelId: string,
-  payload: JsonObject
+  payload: JsonObject,
+  options?: {
+    shortpulseContext?: JsonObject | null;
+  }
 ): Omit<PricingParams, "modelId"> => {
   const params: Omit<PricingParams, "modelId"> = {};
   const config = getModelConfig(modelId);
 
-  const imageDimensions = resolveImageDimensions(payload);
+  const imageDimensions =
+    resolveImageDimensions(payload) ?? resolveContextImageDimensions(options?.shortpulseContext);
   if (imageDimensions) {
     params.imageWidth = imageDimensions.width;
     params.imageHeight = imageDimensions.height;
@@ -284,7 +328,9 @@ export const buildPricingParams = (
     params.generationCount = Math.max(1, Math.round(openAiGenerationCount));
   }
 
-  const resolution = normalizeResolutionForModel(resolveResolution(payload), modelId);
+  const rawResolution =
+    resolveResolution(payload) ?? inferAutoResolutionFromImageDimensions(modelId, imageDimensions);
+  const resolution = normalizeResolutionForModel(rawResolution, modelId);
   if (resolution) params.resolution = resolution;
   if (typeof resolution === "string" && ["low", "medium", "high"].includes(resolution)) {
     params.quality = resolution;

@@ -24,6 +24,7 @@ import type { AgentModeHint } from "../hooks/agentOrchestration/types";
 import { runStandardCreateAgentSend } from "../hooks/agentOrchestration/runStandardCreateAgentSend";
 import { useAiStudioAgentComposer } from "../hooks/useAiStudioAgentComposer";
 import { useAiStudioAgentInteractions } from "../hooks/useAiStudioAgentInteractions";
+import { projectAgentAttachmentToComposerImageAttachment } from "../logic/composerImageAttachment";
 import { getStagedAgentPrompt, type PromptOrigin } from "../logic/agentPromptOwnership";
 import { STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED } from "../logic/chatModeDefaults";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
@@ -85,22 +86,28 @@ const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgen
   ...(message.outcomeClass ? { outcomeClass: message.outcomeClass } : {}),
   ...(message.reasonCode ? { reasonCode: message.reasonCode } : {}),
   ...(message.decision ? { decision: message.decision } : {}),
-  attachments: message.attachments?.map((attachment) => ({
-    id: attachment.id,
-    kind: attachment.kind,
-    referenceId: attachment.referenceId ?? null,
-    mediaId: attachment.mediaId ?? null,
-    text: attachment.text ?? null,
-    previewStoragePath: attachment.previewStoragePath ?? null,
-    fullStoragePath: attachment.fullStoragePath ?? null,
-    referenceUrl: attachment.referenceUrl ?? null,
-    referenceRenderUrl: attachment.referenceRenderUrl ?? null,
-    imageUrl: attachment.imageUrl ?? null,
-    imageFallbackUrls: attachment.imageFallbackUrls,
-    aspect: attachment.aspect ?? null,
-    deliveryStatus: attachment.deliveryStatus,
-    deliveryError: attachment.deliveryError ?? null,
-  })),
+  attachments: message.attachments?.map((attachment) => {
+    const projectedImageAttachment =
+      attachment.kind === "image"
+        ? projectAgentAttachmentToComposerImageAttachment(attachment)
+        : null;
+    return {
+      id: attachment.id,
+      kind: attachment.kind,
+      referenceId: attachment.referenceId ?? null,
+      mediaId: attachment.mediaId ?? null,
+      text: attachment.text ?? null,
+      previewStoragePath: attachment.previewStoragePath ?? null,
+      fullStoragePath: attachment.fullStoragePath ?? null,
+      referenceUrl: attachment.referenceUrl ?? null,
+      referenceRenderUrl: attachment.referenceRenderUrl ?? null,
+      imageUrl: projectedImageAttachment?.preview.url ?? attachment.imageUrl ?? null,
+      imageFallbackUrls: undefined,
+      aspect: attachment.aspect ?? null,
+      deliveryStatus: attachment.deliveryStatus,
+      deliveryError: attachment.deliveryError ?? null,
+    };
+  }),
 });
 
 const resolveLinkedPromptReferenceIds = (attachments: AgentMessage["attachments"] = []): string[] =>

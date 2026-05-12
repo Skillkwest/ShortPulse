@@ -8,6 +8,23 @@ vi.mock("../../../logic/imageDescription", () => ({
 }));
 
 vi.mock("../../../logic/agentAttachmentImage", () => ({
+  normalizeAttachmentImageUrl: (value: string | null | undefined) => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  },
+  buildAgentAttachmentImageCandidates: (attachment: {
+    imageUrl?: string | null;
+    imageFallbackUrls?: string[] | null;
+    referenceRenderUrl?: string | null;
+    referenceUrl?: string | null;
+  }) =>
+    [
+      attachment.imageUrl,
+      ...(attachment.imageFallbackUrls ?? []),
+      attachment.referenceRenderUrl,
+      attachment.referenceUrl,
+    ].filter((value): value is string => Boolean(value?.trim())),
   resolveAgentAttachmentPreviewUrl: vi.fn(async () => null),
 }));
 
@@ -67,6 +84,31 @@ describe("prepareAgentImageAttachments", () => {
     });
     expect(resolveAgentAttachmentPreviewUrlMock).toHaveBeenCalledTimes(1);
     expect(prepareImageUrlMock).toHaveBeenCalledWith("https://cdn.test/resolved.png");
+  });
+
+  it("uses the shared projected preview when a legacy image attachment only has render-hint preview fields", async () => {
+    prepareImageUrlMock.mockResolvedValueOnce("https://cdn.test/prepared-legacy.png");
+
+    const result = await prepareAgentImageAttachments({
+      attachments: [
+        {
+          id: "img-legacy-1",
+          kind: "image",
+          imageUrl: "",
+          referenceRenderUrl: "https://cdn.test/legacy-preview.png",
+          text: null,
+          aspect: null,
+        },
+      ],
+      preparedImageUrlCache: new Map(),
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      imageAttachmentIds: ["img-legacy-1"],
+      preparedImageUrls: new Map([["img-legacy-1", "https://cdn.test/prepared-legacy.png"]]),
+    });
+    expect(prepareImageUrlMock).toHaveBeenCalledWith("https://cdn.test/legacy-preview.png");
   });
 
   it("reuses cached prepared URL for repeated calls", async () => {

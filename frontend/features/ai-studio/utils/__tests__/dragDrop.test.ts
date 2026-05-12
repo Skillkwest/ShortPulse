@@ -9,6 +9,7 @@ import {
 } from "../../../../lib/internalReferenceDragSession";
 import {
   clearDragState,
+  extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
   extractDragDropPayload,
   extractVideoDragDropPayload,
@@ -69,6 +70,38 @@ describe("dragDrop payload extraction", () => {
     expect(payload.referenceId).toBe("ref-1");
     expect(payload.imageUrl).toBe("https://cdn.example.com/reference-image.png");
     expect(payload.promptText).toBe("cinematic portrait");
+  });
+
+  it("extracts a dedicated composer image payload when present", () => {
+    const transfer = makeTransfer({
+      "application/x-shortpulse-composer-image-drop": JSON.stringify({
+        version: 1,
+        origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+        referenceId: "ref-1",
+        outputId: "ref-1",
+        mediaId: "media-1",
+        displayArtifactUrl: "blob:artifact-preview",
+        displayArtifactKind: "blob",
+        previewStoragePath: "user-1/generated/preview.png",
+        fullStoragePath: "user-1/generated/full.png",
+        promptText: "dragged prompt",
+        sourceSurface: "all-refs",
+      }),
+    });
+
+    const payload = extractComposerImageDropPayload(transfer);
+
+    expect(payload).toMatchObject({
+      referenceId: "ref-1",
+      outputId: "ref-1",
+      mediaId: "media-1",
+      displayArtifactUrl: "blob:artifact-preview",
+      displayArtifactKind: "blob",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      promptText: "dragged prompt",
+      sourceSurface: "all-refs",
+    });
   });
 
   it("prefers render snapshots over durable internal reference URLs for image previews", () => {
@@ -655,6 +688,61 @@ describe("dragDrop payload extraction", () => {
 
     expect(payload?.referenceUrl).toBe("https://provider.example.com/generated.png");
     expect(payload?.referenceRenderUrl).toBe("data:image/jpeg;base64,generated-render");
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("exports a dedicated composer image payload from a provided display artifact", () => {
+    const { event, setData } = makeDragEvent();
+
+    prepareReferenceDrag(
+      event,
+      {
+        id: "out-composer-artifact",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        previewStoragePath: "user-1/generated/preview.png",
+        fullStoragePath: "user-1/generated/full.png",
+      },
+      {
+        sourceSurface: "curated",
+        composerImageArtifact: {
+          displayArtifactUrl: "blob:resolved-card-artifact",
+          displayArtifactKind: "blob",
+          promptText: "Dragged prompt",
+          mediaId: "media-1",
+          previewStoragePath: "user-1/generated/preview.png",
+          fullStoragePath: "user-1/generated/full.png",
+        },
+      }
+    );
+
+    const serializedPayload = setData.mock.calls.find(
+      ([type]) => type === "application/x-shortpulse-composer-image-drop"
+    )?.[1];
+    const payload = extractComposerImageDropPayload({
+      files: emptyFileList,
+      types: ["application/x-shortpulse-composer-image-drop"],
+      getData: (type: string) =>
+        type === "application/x-shortpulse-composer-image-drop" ? serializedPayload : "",
+    } as unknown as DataTransfer);
+
+    expect(setData).toHaveBeenCalledWith("image/url", "blob:resolved-card-artifact");
+    expect(payload).toMatchObject({
+      referenceId: "out-composer-artifact",
+      outputId: "out-composer-artifact",
+      mediaId: "media-1",
+      displayArtifactUrl: "blob:resolved-card-artifact",
+      displayArtifactKind: "blob",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      promptText: "Dragged prompt",
+      sourceSurface: "curated",
+    });
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });

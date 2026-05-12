@@ -10,6 +10,7 @@ import {
   generateElevenLabsVoiceover,
   persistGeneratedAudioAsset,
 } from "../../../lib/server/elevenlabs";
+import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
 
 type TextToSpeechRequestBody = {
   voiceId?: unknown;
@@ -33,6 +34,9 @@ type GenerateAudioSuccessResponse = {
     resultUrls: string[];
     previewStoragePath: string;
     fullStoragePath: string;
+    companionArtUrl: null;
+    companionArtStoragePath: null;
+    companionArtStatus: "pending";
     mimeType: string;
     durationMs: null;
     waveformPeaks: null;
@@ -166,6 +170,10 @@ export default async function handler(
     if (!captureResult.settled) {
       throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
     }
+    await markAudioCompanionArtPending({
+      generationId: persisted.generationId,
+      userId: charge.userId,
+    });
 
     return res.status(200).json({
       output: {
@@ -178,6 +186,9 @@ export default async function handler(
         resultUrls: [persisted.signedUrl],
         previewStoragePath: persisted.storagePath,
         fullStoragePath: persisted.storagePath,
+        companionArtUrl: null,
+        companionArtStoragePath: null,
+        companionArtStatus: "pending",
         mimeType: generated.contentType,
         durationMs: null,
         waveformPeaks: null,

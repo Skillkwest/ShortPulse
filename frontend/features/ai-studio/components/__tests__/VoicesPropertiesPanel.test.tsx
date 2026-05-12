@@ -473,6 +473,54 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
+  it("keeps voice changer generate disabled when the source is ready but priced credits are unresolved", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_live_darian_123",
+            name: "Darian",
+            previewUrl: "https://cdn.elevenlabs.test/darian.mp3",
+            description: "Warm, grounded storyteller",
+            isFallback: false,
+          },
+        ],
+      }),
+    });
+    resolveVoiceChangerMediaDurationMsMock.mockResolvedValueOnce(null);
+
+    const { container } = render(<VoicesPropertiesPanel onGenerate={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /darian voice/i })).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const fileInput = container.querySelector(
+      ".voices-properties-voice-changer-file-input"
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+
+    const file = new File(["video"], "unpriced-clip.mp4", { type: "video/mp4" });
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Ready for conversion")).toBeInTheDocument();
+    });
+
+    const generateButton = screen.getByRole("button", { name: "Generate" });
+    expect(generateButton).toBeDisabled();
+    expect(screen.getByText("—")).toBeInTheDocument();
+  });
+
   it("preserves the original video aspect when submitting a remuxable voice changer source", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,

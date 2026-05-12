@@ -1,6 +1,6 @@
 /**
  * Server-authoritative media-list API for route/modal pagination.
- * Provides tab-filtered keyset paging plus optional first-slice signed URL hydration.
+ * Provides tab-filtered keyset paging plus optional route-first signed URL hydration.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
@@ -10,7 +10,7 @@ import {
   type MediaListProfile,
 } from "../../../lib/mediaListProfile";
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
-import { resolveMediaSigningStoragePaths } from "../../../lib/mediaPreviewPath";
+import { resolvePreferredMediaSigningStoragePath } from "../../../lib/mediaPreviewPath";
 import { resolvePolicySignedImageTransform } from "../../../lib/mediaSignedTransformPolicy";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
@@ -82,14 +82,7 @@ const LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
   "media-library-route": 60,
 };
 
-const INITIAL_SIGN_BUDGET_BY_SURFACE: Record<MediaListSurface, number> = {
-  "media-library-modal": 6,
-  "media-library-panel": 6,
-  "media-library-route": 10,
-};
-const INITIAL_SIGN_BUDGET_BY_TAB_FOR_MODAL: Partial<Record<MediaQueryDataTab, number>> = {
-  private: 10,
-};
+const INITIAL_ROUTE_SIGN_BUDGET = 8;
 
 const shouldSeedInitialSignedUrls = ({
   surface,
@@ -99,7 +92,7 @@ const shouldSeedInitialSignedUrls = ({
   countOnly: boolean;
 }): boolean => {
   if (countOnly) return false;
-  return surface !== "media-library-panel";
+  return surface === "media-library-route";
 };
 
 const parseBooleanEnv = (value: string | undefined, fallback: boolean): boolean => {
@@ -295,38 +288,26 @@ const resolveInitialSignedById = async ({
   rows,
   userId,
   surface,
-  tab,
 }: {
   rows: MediaListRow[];
   userId: string;
   surface: MediaListSurface;
-  tab: MediaQueryDataTab | null;
 }): Promise<Record<string, string | null>> => {
-  const signBudget =
-    surface === "media-library-modal"
-      ? ((tab ? INITIAL_SIGN_BUDGET_BY_TAB_FOR_MODAL[tab] : undefined) ??
-        INITIAL_SIGN_BUDGET_BY_SURFACE[surface])
-      : INITIAL_SIGN_BUDGET_BY_SURFACE[surface];
   const previewProfile = resolvePreviewProfileForSurface(surface);
-  const seedRows = rows.slice(0, signBudget);
+  const seedRows = rows.slice(0, INITIAL_ROUTE_SIGN_BUDGET);
   if (!seedRows.length) return {};
 
-  const candidatesById = new Map<string, string[]>();
+  const primaryCandidateById = new Map<string, string>();
   for (const row of seedRows) {
-    const candidates = resolveMediaSigningStoragePaths(row, userId).filter((path) =>
-      isSafeScopedPath(path, userId)
-    );
-    if (!candidates.length) continue;
-    candidatesById.set(row.id, candidates);
+    const primaryCandidate = resolvePreferredMediaSigningStoragePath(row, userId);
+    if (!primaryCandidate || !isSafeScopedPath(primaryCandidate, userId)) continue;
+    primaryCandidateById.set(row.id, primaryCandidate);
   }
-  if (!candidatesById.size) return {};
+  if (!primaryCandidateById.size) return {};
 
   const supabaseAdmin = getSupabaseAdmin();
   const storage = supabaseAdmin.storage.from(MEDIA_BUCKET);
   const signedById: Record<string, string | null> = {};
-  const unresolvedRowIds = seedRows
-    .map((row) => row.id)
-    .filter((rowId) => (candidatesById.get(rowId)?.length ?? 0) > 0);
 
   const signSingleCandidate = async ({
     rowId,
@@ -346,73 +327,57 @@ const resolveInitialSignedById = async ({
     signedById[rowId] = data.signedUrl;
   };
 
-  for (let candidateIndex = 0; unresolvedRowIds.length > 0; candidateIndex += 1) {
-    const batchEligiblePaths: string[] = [];
-    const batchEligibleRowIdsByPath = new Map<string, string[]>();
-    const transformBackedCandidates: Array<{
-      rowId: string;
-      path: string;
-      transform: NonNullable<ReturnType<typeof resolvePolicySignedImageTransform>>;
-    }> = [];
+  const batchEligiblePaths: string[] = [];
+  const batchEligibleRowIdsByPath = new Map<string, string[]>();
+  const transformBackedCandidates: Array<{
+    rowId: string;
+    path: string;
+    transform: NonNullable<ReturnType<typeof resolvePolicySignedImageTransform>>;
+  }> = [];
 
-    for (const rowId of unresolvedRowIds) {
-      if (signedById[rowId]) continue;
-      const candidate = candidatesById.get(rowId)?.[candidateIndex];
-      if (!candidate) continue;
-      const transform = resolvePolicySignedImageTransform(previewProfile, candidate);
-      if (transform) {
-        transformBackedCandidates.push({ rowId, path: candidate, transform });
-        continue;
-      }
-      batchEligiblePaths.push(candidate);
-      const rowIdsForPath = batchEligibleRowIdsByPath.get(candidate) ?? [];
-      rowIdsForPath.push(rowId);
-      batchEligibleRowIdsByPath.set(candidate, rowIdsForPath);
+  for (const [rowId, candidate] of primaryCandidateById.entries()) {
+    const transform = resolvePolicySignedImageTransform(previewProfile, candidate);
+    if (transform) {
+      transformBackedCandidates.push({ rowId, path: candidate, transform });
+      continue;
     }
+    batchEligiblePaths.push(candidate);
+    const rowIdsForPath = batchEligibleRowIdsByPath.get(candidate) ?? [];
+    rowIdsForPath.push(rowId);
+    batchEligibleRowIdsByPath.set(candidate, rowIdsForPath);
+  }
 
-    if (batchEligiblePaths.length) {
-      const { data, error } = await storage.createSignedUrls(
-        batchEligiblePaths,
-        DEFAULT_SIGNED_URL_TTL_SECONDS
+  if (batchEligiblePaths.length) {
+    const { data, error } = await storage.createSignedUrls(
+      batchEligiblePaths,
+      DEFAULT_SIGNED_URL_TTL_SECONDS
+    );
+    if (error) {
+      await Promise.all(
+        batchEligiblePaths.map(async (path) => {
+          const rowIdsForPath = batchEligibleRowIdsByPath.get(path) ?? [];
+          await Promise.all(rowIdsForPath.map((rowId) => signSingleCandidate({ rowId, path })));
+        })
       );
-      if (error) {
-        await Promise.all(
-          batchEligiblePaths.map(async (path) => {
-            const rowIdsForPath = batchEligibleRowIdsByPath.get(path) ?? [];
-            await Promise.all(rowIdsForPath.map((rowId) => signSingleCandidate({ rowId, path })));
-          })
-        );
-      } else {
-        for (const signedItem of data ?? []) {
-          const path = typeof signedItem?.path === "string" ? signedItem.path.trim() : "";
-          const signedUrl =
-            typeof signedItem?.signedUrl === "string" ? signedItem.signedUrl.trim() : "";
-          if (!path || !signedUrl) continue;
-          for (const rowId of batchEligibleRowIdsByPath.get(path) ?? []) {
-            signedById[rowId] = signedUrl;
-          }
+    } else {
+      for (const signedItem of data ?? []) {
+        const path = typeof signedItem?.path === "string" ? signedItem.path.trim() : "";
+        const signedUrl =
+          typeof signedItem?.signedUrl === "string" ? signedItem.signedUrl.trim() : "";
+        if (!path || !signedUrl) continue;
+        for (const rowId of batchEligibleRowIdsByPath.get(path) ?? []) {
+          signedById[rowId] = signedUrl;
         }
       }
     }
+  }
 
-    if (transformBackedCandidates.length) {
-      await Promise.all(
-        transformBackedCandidates.map(({ rowId, path, transform }) =>
-          signSingleCandidate({ rowId, path, transform })
-        )
-      );
-    }
-
-    for (let index = unresolvedRowIds.length - 1; index >= 0; index -= 1) {
-      if (signedById[unresolvedRowIds[index]]) {
-        unresolvedRowIds.splice(index, 1);
-        continue;
-      }
-      const nextCandidate = candidatesById.get(unresolvedRowIds[index])?.[candidateIndex + 1];
-      if (!nextCandidate) {
-        unresolvedRowIds.splice(index, 1);
-      }
-    }
+  if (transformBackedCandidates.length) {
+    await Promise.all(
+      transformBackedCandidates.map(({ rowId, path, transform }) =>
+        signSingleCandidate({ rowId, path, transform })
+      )
+    );
   }
 
   return signedById;
@@ -620,7 +585,6 @@ export default async function handler(
           rows,
           userId: user.id,
           surface,
-          tab,
         });
       }
     }

@@ -1,6 +1,7 @@
 import type { MutableRefObject } from "react";
 import type { AgentContext } from "../../../../prefabs/agent";
 import { normalizePromptText } from "../../logic/agentPromptOwnership";
+import { hasComposerImageAttachmentPreview } from "../../logic/composerImageAttachment";
 import { mergeAttachmentContext } from "./attachmentContext";
 import { prepareAgentImageAttachments } from "./attachmentPreparation";
 import type { AgentSendOptions, UseAiStudioAgentOrchestrationParams } from "./types";
@@ -172,7 +173,7 @@ export const runStandardCreateAgentSend = async ({
   }
   try {
     const imageAttachmentsMissingUrl = outboundAttachments.filter(
-      (attachment) => attachment.kind === "image" && !attachment.imageUrl?.trim()
+      (attachment) => attachment.kind === "image" && !hasComposerImageAttachmentPreview(attachment)
     );
     if (imageAttachmentsMissingUrl.length > 0) {
       const failedIds = imageAttachmentsMissingUrl.map((attachment) => attachment.id);
@@ -191,7 +192,9 @@ export const runStandardCreateAgentSend = async ({
     }
 
     const imageAttachmentIds = outboundAttachments
-      .filter((attachment) => attachment.kind === "image" && Boolean(attachment.imageUrl?.trim()))
+      .filter(
+        (attachment) => attachment.kind === "image" && hasComposerImageAttachmentPreview(attachment)
+      )
       .map((attachment) => attachment.id);
     let preparedImageUrls = new Map<string, string>();
     if (imageAttachmentIds.length > 0) {

@@ -121,9 +121,9 @@ describe("mediaLibraryPageHelpers", () => {
 
   it("uses desktop sign budget when window/navigator are unavailable", () => {
     expect(resolveRouteSignBudget()).toEqual({
-      initialSignLimit: 10,
+      initialSignLimit: 8,
       prefetchWindow: 18,
-      signBatchSize: 8,
+      signBatchSize: 4,
     });
   });
 });

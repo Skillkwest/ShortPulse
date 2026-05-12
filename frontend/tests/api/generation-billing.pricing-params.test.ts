@@ -55,6 +55,32 @@ describe("generationBilling pricing params normalization", () => {
     expect(params.resolution).toBe("auto_3K");
   });
 
+  it("infers auto_4K resolution from Seedream object image_size payloads", () => {
+    const params = buildPricingParams("fal-ai/bytedance/seedream/v4.5/edit", {
+      image_size: { width: 3840, height: 2160 },
+    });
+
+    expect(params.resolution).toBe("auto_4K");
+  });
+
+  it("falls back to shortpulse context image dimensions for per-MP edit pricing", () => {
+    const params = buildPricingParams(
+      "fal-ai/flux-pro/v1/fill",
+      {
+        prompt: "Fill the removed region",
+      },
+      {
+        shortpulseContext: {
+          image_width: 2048,
+          image_height: 1024,
+        },
+      }
+    );
+
+    expect(params.imageWidth).toBe(2048);
+    expect(params.imageHeight).toBe(1024);
+  });
+
   it("normalizes gpt-image-2 size, quality, and count aliases into pricing params", () => {
     const params = buildPricingParams("gpt-image-2", {
       size: "1024x1536",

@@ -4,6 +4,7 @@ import { runGenerationControlPlaneCycle } from "../runCycle";
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const processPendingGenerationObservationsMock = vi.fn();
+const processPendingAudioCompanionArtBatchMock = vi.fn();
 const repairStaleTerminalGenerationProjectionsMock = vi.fn();
 const claimGenerationRecoveryBatchMock = vi.fn();
 const executeClaimedRecoveryBatchMock = vi.fn();
@@ -21,6 +22,11 @@ vi.mock("../observationBatchExecution", () => ({
     processPendingGenerationObservationsMock(...args),
 }));
 
+vi.mock("../../audioCompanionArt/processing", () => ({
+  processPendingAudioCompanionArtBatch: (...args: unknown[]) =>
+    processPendingAudioCompanionArtBatchMock(...args),
+}));
+
 vi.mock("../../api/generationProjection", () => ({
   repairStaleTerminalGenerationProjections: (...args: unknown[]) =>
     repairStaleTerminalGenerationProjectionsMock(...args),
@@ -32,6 +38,11 @@ vi.mock("../recoveryBatchAcquisition", () => ({
 
 vi.mock("../recoveryBatchExecution", () => ({
   executeClaimedRecoveryBatch: (...args: unknown[]) => executeClaimedRecoveryBatchMock(...args),
+}));
+
+vi.mock("../../audioCompanionArt/processing", () => ({
+  processPendingAudioCompanionArtBatch: (...args: unknown[]) =>
+    processPendingAudioCompanionArtBatchMock(...args),
 }));
 
 type SupabaseMock = {
@@ -74,6 +85,14 @@ describe("runGenerationControlPlaneCycle", () => {
       failed: 0,
       errors: 0,
     });
+    processPendingAudioCompanionArtBatchMock.mockResolvedValue({
+      claimed: 0,
+      processed: 0,
+      ready: 0,
+      failed: 0,
+      skipped: 0,
+      errors: 0,
+    });
     repairStaleTerminalGenerationProjectionsMock.mockResolvedValue({
       scanned: 0,
       repaired: 0,
@@ -90,6 +109,14 @@ describe("runGenerationControlPlaneCycle", () => {
       skipped: 0,
       duplicates: 0,
       processed: 0,
+      errors: 0,
+    });
+    processPendingAudioCompanionArtBatchMock.mockResolvedValue({
+      claimed: 0,
+      processed: 0,
+      ready: 0,
+      failed: 0,
+      skipped: 0,
       errors: 0,
     });
   });
@@ -131,6 +158,9 @@ describe("runGenerationControlPlaneCycle", () => {
       supabaseAdmin: expect.any(Object),
       limit: 10,
     });
+    expect(processPendingAudioCompanionArtBatchMock).toHaveBeenCalledWith({
+      limit: 6,
+    });
     expect(result).toEqual(
       expect.objectContaining({
         ok: true,
@@ -142,6 +172,12 @@ describe("runGenerationControlPlaneCycle", () => {
         claimed: 0,
         reservationCleanupScanned: 2,
         reservationCleanupReleased: 1,
+        audioCompanionArtClaimed: 0,
+        audioCompanionArtProcessed: 0,
+        audioCompanionArtReady: 0,
+        audioCompanionArtFailed: 0,
+        audioCompanionArtSkipped: 0,
+        audioCompanionArtErrors: 0,
         stageTimings: expect.objectContaining({
           reservationCleanup: expect.objectContaining({
             durationMs: expect.any(Number),
@@ -153,6 +189,9 @@ describe("runGenerationControlPlaneCycle", () => {
             durationMs: expect.any(Number),
           }),
           recoveryExecution: expect.objectContaining({
+            durationMs: expect.any(Number),
+          }),
+          audioCompanionArtProcessing: expect.objectContaining({
             durationMs: expect.any(Number),
           }),
         }),

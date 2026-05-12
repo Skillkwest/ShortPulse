@@ -11,6 +11,7 @@ import type {
 import type {
   GenerationReplayConfig,
   StudioMode,
+  StudioOutputCompanionArtStatus,
   StudioOutput,
   StudioOutputCharacterContext,
   StudioOutputMediaSource,
@@ -33,6 +34,7 @@ import {
   PULSE_CREATE_FORCED_CHAT_MODE_ENABLED,
   STANDARD_CREATE_DEFAULT_CHAT_MODE_ENABLED,
 } from "./chatModeDefaults";
+import { projectAgentAttachmentToComposerImageAttachment } from "./composerImageAttachment";
 import { resolvePulseRuntimeState, type PulseWorkspaceState } from "./pulseSessionState";
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
@@ -67,6 +69,9 @@ export type AiStudioSessionOutputV1 = {
   previewUrl?: string;
   previewPosterUrl?: string | null;
   previewPosterStoragePath?: string | null;
+  companionArtUrl?: string | null;
+  companionArtStoragePath?: string | null;
+  companionArtStatus?: StudioOutputCompanionArtStatus | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewTier?: StudioOutputPreviewTier;
@@ -313,6 +318,10 @@ const sanitizeAgentAttachments = (
   attachments.forEach((attachment) => {
     const id = attachment.id?.trim();
     if (!id) return;
+    const projectedImageAttachment =
+      attachment.kind === "image"
+        ? projectAgentAttachmentToComposerImageAttachment(attachment)
+        : null;
     sanitized.push({
       id,
       kind: attachment.kind,
@@ -323,8 +332,9 @@ const sanitizeAgentAttachments = (
       fullStoragePath: sanitizeAttachmentIdentityValue(attachment.fullStoragePath),
       referenceUrl: sanitizeMediaUrl(attachment.referenceUrl) ?? null,
       referenceRenderUrl: sanitizeMediaUrl(attachment.referenceRenderUrl) ?? null,
-      imageUrl: sanitizeMediaUrl(attachment.imageUrl) ?? null,
-      imageFallbackUrls: sanitizeAttachmentImageFallbackUrls(attachment.imageFallbackUrls),
+      imageUrl:
+        sanitizeMediaUrl(projectedImageAttachment?.preview.url ?? attachment.imageUrl) ?? null,
+      imageFallbackUrls: undefined,
       aspect: attachment.aspect?.trim() || null,
       deliveryStatus: attachment.deliveryStatus,
       deliveryError: attachment.deliveryError?.trim() || null,
@@ -386,15 +396,20 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
 
 const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
   const previewPosterStoragePath = sanitizeAttachmentIdentityValue(output.previewPosterStoragePath);
+  const companionArtStoragePath = sanitizeAttachmentIdentityValue(output.companionArtStoragePath);
   const previewStoragePath = sanitizeAttachmentIdentityValue(output.previewStoragePath);
   const fullStoragePath = sanitizeAttachmentIdentityValue(output.fullStoragePath);
   const hasDurablePreviewAuthority = Boolean(previewStoragePath || fullStoragePath);
   const hasDurablePosterAuthority = Boolean(previewPosterStoragePath);
+  const hasDurableCompanionArtAuthority = Boolean(companionArtStoragePath);
   const hasDurableResultAuthority = Boolean(fullStoragePath);
   const previewUrl = hasDurablePreviewAuthority ? undefined : sanitizeMediaUrl(output.previewUrl);
   const previewPosterUrl = hasDurablePosterAuthority
     ? undefined
     : sanitizeMediaUrl(output.previewPosterUrl);
+  const companionArtUrl = hasDurableCompanionArtAuthority
+    ? undefined
+    : sanitizeMediaUrl(output.companionArtUrl);
   const resultUrls = (output.resultUrls ?? [])
     .map((url) => sanitizeMediaUrl(url))
     .filter((url): url is string => Boolean(url));
@@ -431,6 +446,9 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     previewUrl,
     previewPosterUrl,
     previewPosterStoragePath,
+    companionArtUrl,
+    companionArtStoragePath,
+    companionArtStatus: output.companionArtStatus ?? null,
     previewStoragePath,
     fullStoragePath,
     previewTier: output.previewTier,

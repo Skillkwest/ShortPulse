@@ -5,6 +5,7 @@ const requireApiUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const resolveMediaSigningStoragePathsMock = vi.fn();
+const resolvePreferredMediaSigningStoragePathMock = vi.fn();
 const getProjectForUserMock = vi.fn();
 const assertProjectMediaFolderAccessForUserMock = vi.fn();
 
@@ -36,6 +37,8 @@ vi.mock("../../lib/server/projectMediaFoldersService", () => ({
 vi.mock("../../lib/mediaPreviewPath", () => ({
   resolveMediaSigningStoragePaths: (...args: unknown[]) =>
     resolveMediaSigningStoragePathsMock(...args),
+  resolvePreferredMediaSigningStoragePath: (...args: unknown[]) =>
+    resolvePreferredMediaSigningStoragePathMock(...args),
 }));
 
 type MediaRow = {
@@ -368,6 +371,9 @@ describe("POST /api/media/list", () => {
     resolveMediaSigningStoragePathsMock.mockImplementation((row: { storage_path: string }) => [
       row.storage_path,
     ]);
+    resolvePreferredMediaSigningStoragePathMock.mockImplementation(
+      (row: { storage_path: string }) => row.storage_path
+    );
     getProjectForUserMock.mockResolvedValue({ id: "11111111-1111-4111-8111-111111111111" });
     assertProjectMediaFolderAccessForUserMock.mockResolvedValue(undefined);
   });
@@ -393,7 +399,7 @@ describe("POST /api/media/list", () => {
   });
 
   it("returns scoped rows and signed map for a tab/query slice", async () => {
-    createSupabaseAdminMock([
+    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([
       {
         id: "media-1",
         user_id: "user-1",
@@ -469,11 +475,11 @@ describe("POST /api/media/list", () => {
             id: "media-1",
           }),
         ],
-        signedById: {
-          "media-1": "https://signed.test/user-1%2Fupload%2Fcat-shot.png",
-        },
+        signedById: undefined,
       })
     );
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
   });
 
   it("uses minimal profile by default and excludes metadata from rows", async () => {
@@ -837,7 +843,7 @@ describe("POST /api/media/list", () => {
     expect(secondPayload.rows.map((row: { id: string }) => row.id)).toEqual(["a"]);
   });
 
-  it("uses elevated modal private initial sign seeding", async () => {
+  it("does not seed initial signed urls for the modal surface", async () => {
     const rows = Array.from({ length: 12 }, (_, index) => {
       const n = String(index + 1).padStart(2, "0");
       return {
@@ -858,7 +864,7 @@ describe("POST /api/media/list", () => {
         updated_at: null,
       } satisfies MediaRow;
     });
-    const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
+    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock(rows);
 
     const req = {
       method: "POST",
@@ -873,12 +879,15 @@ describe("POST /api/media/list", () => {
     const res = createMockResponse();
     await handler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(200);
-    const signedPathCount = createSignedUrlsMock.mock.calls.reduce((count, call) => {
-      const paths = call[0] as string[] | undefined;
-      return count + (Array.isArray(paths) ? paths.length : 0);
-    }, 0);
-    expect(signedPathCount).toBe(10);
+    expect(createSignedUrlsMock).not.toHaveBeenCalled();
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "0");
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: expect.arrayContaining([expect.objectContaining({ id: "private-01" })]),
+        signedById: undefined,
+      })
+    );
   });
 
   it("does not seed initial signed urls for the panel surface", async () => {
@@ -926,6 +935,52 @@ describe("POST /api/media/list", () => {
     );
   });
 
+  it("caps route initial signed hydration to the high-priority opening window", async () => {
+    const rows = Array.from({ length: 12 }, (_, index) => {
+      const n = String(index + 1).padStart(2, "0");
+      return {
+        id: `route-${n}`,
+        user_id: "user-1",
+        filename: `route-${n}.png`,
+        storage_path: `user-1/uploads/images/route-${n}.png`,
+        file_type: "image/png",
+        file_size: 1,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: null,
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: `2026-02-${n}T10:00:00.000Z`,
+        updated_at: null,
+      } satisfies MediaRow;
+    });
+    const { createSignedUrlsMock } = createSupabaseAdminMock(rows);
+
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        cursor: null,
+        query: "",
+        limit: 60,
+        surface: "media-library-route",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const signedPathCount = createSignedUrlsMock.mock.calls.reduce((count, call) => {
+      const paths = call[0] as string[] | undefined;
+      return count + (Array.isArray(paths) ? paths.length : 0);
+    }, 0);
+    expect(signedPathCount).toBe(8);
+    expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-initial-signed-count", "8");
+  });
+
   it("prefers durable preview variants for initial signed hydration", async () => {
     const row = {
       id: "media-variant-1",
@@ -945,10 +1000,9 @@ describe("POST /api/media/list", () => {
       updated_at: null,
     } satisfies MediaRow;
     const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([row]);
-    resolveMediaSigningStoragePathsMock.mockReturnValueOnce([
-      row.thumb_variant_path as string,
-      row.storage_path,
-    ]);
+    resolvePreferredMediaSigningStoragePathMock.mockReturnValueOnce(
+      row.thumb_variant_path as string
+    );
 
     const req = {
       method: "POST",
@@ -957,7 +1011,7 @@ describe("POST /api/media/list", () => {
         cursor: null,
         query: "",
         limit: 36,
-        surface: "media-library-modal",
+        surface: "media-library-route",
       },
     };
     const res = createMockResponse();
@@ -971,6 +1025,56 @@ describe("POST /api/media/list", () => {
         signedById: {
           [row.id]: `https://signed.test/${encodeURIComponent(row.thumb_variant_path as string)}`,
         },
+      })
+    );
+  });
+
+  it("does not walk fallback signing candidates during route initial hydration", async () => {
+    const row = {
+      id: "media-fallback-1",
+      user_id: "user-1",
+      filename: "fallback-target.png",
+      storage_path: "user-1/uploads/images/original-fallback.png",
+      file_type: "image/png",
+      file_size: 10,
+      source: "upload",
+      source_ref: null,
+      prompt_id: null,
+      metadata: null,
+      thumb_variant_path: "user-1/variants/images/media-fallback-1/thumb_480",
+      poster_variant_path: null,
+      preview_variant_path: null,
+      created_at: "2026-02-20T10:00:00.000Z",
+      updated_at: null,
+    } satisfies MediaRow;
+    const { createSignedUrlsMock, createSignedUrlMock } = createSupabaseAdminMock([row]);
+    resolvePreferredMediaSigningStoragePathMock.mockReturnValueOnce(
+      row.thumb_variant_path as string
+    );
+    createSignedUrlsMock.mockResolvedValueOnce({
+      data: [{ path: row.thumb_variant_path as string, signedUrl: "" }],
+      error: null,
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        tab: "uploaded_images",
+        cursor: null,
+        query: "",
+        limit: 60,
+        surface: "media-library-route",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(createSignedUrlsMock).toHaveBeenCalledWith([row.thumb_variant_path as string], 3600);
+    expect(createSignedUrlMock).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signedById: undefined,
       })
     );
   });

@@ -113,10 +113,20 @@ export const useExpertEditTransformSession = ({
       if (areTransformHistoryEntriesEqual(previousHistory.present, currentTransformHistoryEntry)) {
         return previousHistory;
       }
+      if (
+        previousHistory.present.layerOrderSignature !==
+        currentTransformHistoryEntry.layerOrderSignature
+      ) {
+        return {
+          past: [],
+          present: currentTransformHistoryEntry,
+          future: [],
+        };
+      }
       return {
-        past: [],
+        past: previousHistory.past,
         present: currentTransformHistoryEntry,
-        future: [],
+        future: previousHistory.future,
       };
     });
   }, [currentTransformHistoryEntry, isTransformPointerDragging, setTransformHistoryState]);

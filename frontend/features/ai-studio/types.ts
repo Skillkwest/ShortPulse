@@ -60,6 +60,7 @@ export type StudioOutputMediaSource = "upload" | "library" | "generated" | "clip
 
 export type StudioOutputPreviewTier = "thumb" | "poster" | "preview_loop" | "full";
 export type StudioOutputSubmissionMode = "provider-task" | "direct-request";
+export type StudioOutputCompanionArtStatus = "pending" | "processing" | "ready" | "failed";
 
 export type StudioOutput = {
   id: string;
@@ -91,6 +92,9 @@ export type StudioOutput = {
   previewUrl?: string;
   previewPosterUrl?: string | null;
   previewPosterStoragePath?: string | null;
+  companionArtUrl?: string | null;
+  companionArtStoragePath?: string | null;
+  companionArtStatus?: StudioOutputCompanionArtStatus | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewTier?: StudioOutputPreviewTier;

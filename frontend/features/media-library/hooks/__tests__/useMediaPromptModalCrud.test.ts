@@ -145,4 +145,68 @@ describe("useMediaPromptModalCrud", () => {
     expect(result.current.promptModal.focusedPrompt).toBeNull();
     expect(logMediaEvent).toHaveBeenCalledWith("delete", "media_prompt", "prompt-1");
   });
+
+  it("keeps local prompt state stable when deleting a prompt not present in local state", async () => {
+    const logMediaEvent = vi.fn(async () => {});
+    const getErrorMessage = vi.fn((_: unknown, fallback: string) => fallback);
+    const seededPrompts = [makePrompt({ id: "prompt-1" })];
+    const seededSelectedIds = ["prompt-1"];
+
+    const { result } = renderHook(() => {
+      const [prompts, setPrompts] = useState<PromptRow[]>(seededPrompts);
+      const [selectedIds, setSelectedIds] = useState<string[]>(seededSelectedIds);
+      const [pageError, setPageError] = useState<string | null>(null);
+      const promptModal = useMediaPromptModalCrud<PromptRow>({
+        getErrorMessage,
+        logMediaEvent,
+        setPageError,
+        setPrompts,
+        setSelectedIds,
+      });
+      return { pageError, promptModal, prompts, selectedIds };
+    });
+
+    await act(async () => {
+      await result.current.promptModal.deletePrompt(makePrompt({ id: "missing-prompt" }), {
+        fromPromptModal: true,
+      });
+    });
+
+    expect(result.current.prompts).toBe(seededPrompts);
+    expect(result.current.selectedIds).toBe(seededSelectedIds);
+  });
+
+  it("keeps local prompt list stable when saving edits for a prompt absent from local state", async () => {
+    const logMediaEvent = vi.fn(async () => {});
+    const getErrorMessage = vi.fn((_: unknown, fallback: string) => fallback);
+    const seededPrompts = [makePrompt({ id: "prompt-1" })];
+
+    const { result } = renderHook(() => {
+      const [prompts, setPrompts] = useState<PromptRow[]>(seededPrompts);
+      const [selectedIds, setSelectedIds] = useState<string[]>([]);
+      const [pageError, setPageError] = useState<string | null>(null);
+      const promptModal = useMediaPromptModalCrud<PromptRow>({
+        getErrorMessage,
+        logMediaEvent,
+        setPageError,
+        setPrompts,
+        setSelectedIds,
+      });
+      return { pageError, promptModal, prompts, selectedIds };
+    });
+
+    act(() => {
+      result.current.promptModal.openPromptModal(makePrompt({ id: "missing-prompt" }));
+      result.current.promptModal.handlePromptEditChange("refined prompt text");
+    });
+
+    await act(async () => {
+      await result.current.promptModal.savePromptEdits();
+    });
+
+    expect(result.current.prompts).toBe(seededPrompts);
+    expect(logMediaEvent).toHaveBeenCalledWith("edit", "media_prompt", "missing-prompt", {
+      updated_fields: ["prompt_text"],
+    });
+  });
 });

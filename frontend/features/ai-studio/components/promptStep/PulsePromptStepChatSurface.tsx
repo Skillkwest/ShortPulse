@@ -177,7 +177,10 @@ export const PulsePromptStepChatSurface: React.FC<PulsePromptStepChatSurfaceProp
       aria-label={pulseLoadingTitle}
     >
       <span className="create-expert-pulse-loading-spinner" aria-hidden="true" />
-      <p className="create-expert-pulse-loading-card-title">{pulseLoadingTitle}</p>
+      <div className="create-expert-pulse-loading-card-copy">
+        <p className="create-expert-pulse-loading-card-title">{pulseLoadingTitle}</p>
+        <p className="create-expert-pulse-loading-card-message">{pulseLoadingState.message}</p>
+      </div>
     </div>
   ) : null;
 

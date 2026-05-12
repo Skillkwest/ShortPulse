@@ -88,9 +88,12 @@ export const useCreatePulsePresetPageRuntime = ({
   );
   const [activeCreatePulsePresetSnapshotState, setActiveCreatePulsePresetSnapshot] =
     useState<CreatePulseResolvedPreset | null>(null);
+  const [pendingCreatePulsePresetSnapshot, setPendingCreatePulsePresetSnapshot] =
+    useState<CreatePulseResolvedPreset | null>(null);
 
   const clearPulseRuntimeForPage = useCallback(() => {
     setActiveCreatePulsePresetSnapshot(null);
+    setPendingCreatePulsePresetSnapshot(null);
     clearPulseRuntime();
     clearPulsePrompt();
   }, [clearPulsePrompt, clearPulseRuntime]);
@@ -99,6 +102,7 @@ export const useCreatePulsePresetPageRuntime = ({
     (nextMode: "standard" | "pulse") => {
       if (nextMode === "standard") {
         setActiveCreatePulsePresetSnapshot(null);
+        setPendingCreatePulsePresetSnapshot(null);
         clearPulsePrompt();
       }
       handleExpertCreateModeChange(nextMode);
@@ -121,6 +125,7 @@ export const useCreatePulsePresetPageRuntime = ({
 
   const handleActiveCreatePulsePresetIdChangeForPage = useCallback(
     (nextPresetId: string | null, options?: AiStudioPulsePresetChangeOptions) => {
+      setPendingCreatePulsePresetSnapshot(null);
       if (!nextPresetId || nextPresetId !== activeCreatePulsePresetId) {
         if (!options?.preserveWorkflowSession) {
           setActiveCreatePulsePresetSnapshot(null);
@@ -171,6 +176,15 @@ export const useCreatePulsePresetPageRuntime = ({
       : restoredCreatePulsePresetSnapshot?.presetId === activeCreatePulsePresetId
         ? restoredCreatePulsePresetSnapshot
         : null;
+  const displayCreatePulsePresetSnapshot =
+    activeCreatePulsePresetSnapshot ?? pendingCreatePulsePresetSnapshot;
+  const displayCreatePulsePresetId =
+    activeCreatePulsePresetId ?? pendingCreatePulsePresetSnapshot?.presetId ?? null;
+  const isPulseStartupPending =
+    selectedTool === "create" &&
+    expertCreateMode === "pulse" &&
+    !hasActivePulseSession &&
+    pendingCreatePulsePresetSnapshot != null;
   useEffect(() => {
     if (!hasActivePulseSession || activeCreatePulsePresetSnapshot) return;
     if (!resolvedSavedPresetCatalogReady) return;
@@ -236,8 +250,13 @@ export const useCreatePulsePresetPageRuntime = ({
 
   return {
     activeCreatePulsePresetSnapshot,
+    displayCreatePulsePresetId,
+    displayCreatePulsePresetSnapshot,
+    isPulseStartupPending,
+    pendingCreatePulsePresetSnapshot,
     pulsePreferenceRuntime,
     setActiveCreatePulsePresetSnapshot,
+    setPendingCreatePulsePresetSnapshot,
     clearPulseRuntimeForPage,
     handleExpertCreateModeChangeForPage,
     handleActiveCreatePulsePresetIdChangeForPage,

@@ -42,15 +42,17 @@ export const useMediaTabActiveViewSync = <TRow>({
 }: UseMediaTabActiveViewSyncArgs<TRow>) => {
   useEffect(() => {
     if (!fetchEnabled) return;
-    if (activeTab === "saved_prompts") {
-      if (!promptsLoaded) {
-        void loadPrompts();
-      } else {
-        setLoading(false);
-      }
-      return;
+    if (activeTab !== "saved_prompts") return;
+    if (!promptsLoaded) {
+      void loadPrompts();
+    } else {
+      setLoading(false);
     }
+  }, [activeTab, fetchEnabled, loadPrompts, promptsLoaded, setLoading]);
 
+  useEffect(() => {
+    if (!fetchEnabled) return;
+    if (activeTab === "saved_prompts") return;
     if (!activeMediaCache) return;
     const cache = activeMediaCache;
     const queryChanged = cache.query !== activeMediaQuery;
@@ -79,9 +81,7 @@ export const useMediaTabActiveViewSync = <TRow>({
     cacheTtlMs,
     fetchEnabled,
     fetchMediaTabPage,
-    loadPrompts,
     activeMediaCache,
-    promptsLoaded,
     setError,
     setFiles,
     setLoading,

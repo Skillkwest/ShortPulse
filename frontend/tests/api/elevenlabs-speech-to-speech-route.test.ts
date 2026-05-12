@@ -12,6 +12,7 @@ const persistGeneratedVideoAssetMock = vi.fn();
 const probeMediaDurationSecondsMock = vi.fn();
 const readRemoteSourceBufferMock = vi.fn();
 const readStoredMediaBufferMock = vi.fn();
+const markAudioCompanionArtPendingMock = vi.fn();
 
 let mockFields: Record<string, unknown> = {};
 let mockFiles: Record<string, unknown> = {};
@@ -95,6 +96,10 @@ vi.mock("../../lib/server/mediaAudioExtraction", () => ({
   MediaAudioExtractionInputError: MockMediaAudioExtractionInputError,
 }));
 
+vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
+  markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
+}));
+
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
@@ -129,7 +134,9 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
     readRemoteSourceBufferMock.mockReset();
     readStoredMediaBufferMock.mockReset();
     probeMediaDurationSecondsMock.mockReset();
+    markAudioCompanionArtPendingMock.mockReset();
     probeMediaDurationSecondsMock.mockResolvedValue(12);
+    markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
       modelId: "eleven_multilingual_sts_v2",
@@ -303,6 +310,9 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         resultUrls: ["https://signed.example/generated-audio.mp3"],
         previewStoragePath: "user-1/generations/audio/gen-audio-1/source.mp3",
         fullStoragePath: "user-1/generations/audio/gen-audio-1/source.mp3",
+        companionArtUrl: null,
+        companionArtStoragePath: null,
+        companionArtStatus: "pending",
         mimeType: "audio/mpeg",
         durationMs: 12000,
         waveformPeaks: null,
@@ -428,6 +438,9 @@ describe("POST /api/elevenlabs/speech-to-speech", () => {
         resultUrls: ["https://signed.example/generated-audio.mp3"],
         previewStoragePath: "user-1/generations/audio/gen-audio-1/source.mp3",
         fullStoragePath: "user-1/generations/audio/gen-audio-1/source.mp3",
+        companionArtUrl: null,
+        companionArtStoragePath: null,
+        companionArtStatus: "pending",
         mimeType: "audio/mpeg",
         durationMs: 12000,
         waveformPeaks: null,

@@ -50,6 +50,7 @@ describe("exportExpertEditStageArtifacts", () => {
       flattenedBlob: null,
       flattenedMarkupReferenceBlob: null,
       inpaintMaskBlob: null,
+      flattenedDimensions: null,
     });
     expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
     expect(resolveBlobDimensions).not.toHaveBeenCalled();

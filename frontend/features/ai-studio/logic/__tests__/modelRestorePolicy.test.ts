@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { KIE_SEEDANCE_15_PRO_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import { normalizeAiStudioRestoredModelId } from "../modelRestorePolicy";
 
 describe("modelRestorePolicy", () => {
@@ -13,14 +17,16 @@ describe("modelRestorePolicy", () => {
     );
   });
 
-  it("preserves current Seedance UI fallback behavior", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_SEEDANCE_2_ENABLED", "false");
-
-    expect(normalizeAiStudioRestoredModelId("kie-ai/seedance-2")).toBe(
-      KIE_SEEDANCE_15_PRO_MODEL_ID
+  it("keeps Seedance 2 ids active during restore", () => {
+    expect(normalizeAiStudioRestoredModelId(KIE_SEEDANCE_2_MODEL_ID)).toBe(KIE_SEEDANCE_2_MODEL_ID);
+    expect(normalizeAiStudioRestoredModelId(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(
+      KIE_SEEDANCE_2_FAST_MODEL_ID
     );
-    expect(normalizeAiStudioRestoredModelId("kie-ai/seedance-2-fast")).toBe(
-      KIE_SEEDANCE_15_PRO_MODEL_ID
+  });
+
+  it("remaps deprecated Seedance 1.5 ids to Seedance 2 during restore", () => {
+    expect(normalizeAiStudioRestoredModelId(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(
+      KIE_SEEDANCE_2_MODEL_ID
     );
   });
 

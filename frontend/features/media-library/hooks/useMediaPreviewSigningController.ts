@@ -206,7 +206,7 @@ export const useMediaPreviewSigningController = <
       signBudget,
       visibleMediaIds: visibleMediaIdsRef.current,
       isSignPrefetchEnabled,
-      allowDeferredPrefetch: surface !== "media-library-panel",
+      allowDeferredPrefetch: surface === "media-library-modal",
       isDeferredDrainArmed: deferredDrainArmedRef.current,
       signAttemptCounts: signAttemptRef.current,
       blockedSignAttemptIds,
@@ -241,12 +241,9 @@ export const useMediaPreviewSigningController = <
     const signCandidatesByRow = signBatch
       .map((row) => signCandidateEntryById.get(row.id) ?? null)
       .filter((entry): entry is MediaSignCandidateEntry => Boolean(entry));
-    const directPreferredEntries =
-      surface === "media-library-panel"
-        ? signCandidatesByRow.filter(
-            (entry) => Boolean(entry.directUrl) && entry.directUrlKind === "durable"
-          )
-        : [];
+    const directPreferredEntries = signCandidatesByRow.filter(
+      (entry) => Boolean(entry.directUrl) && entry.directUrlKind === "durable"
+    );
     const signableEntries =
       directPreferredEntries.length > 0
         ? signCandidatesByRow.filter((entry) => !directPreferredEntries.includes(entry))
@@ -318,10 +315,7 @@ export const useMediaPreviewSigningController = <
         }
         applySignedUrlsToTab(tabForBatch, signedById);
         const unresolvedRows = signBatch.filter((row) => !signedById.has(row.id));
-        const resolverRows =
-          surface === "media-library-panel"
-            ? unresolvedRows.filter((row) => visibleMediaIdsRef.current.has(row.id))
-            : unresolvedRows;
+        const resolverRows = unresolvedRows.filter((row) => visibleMediaIdsRef.current.has(row.id));
         const unresolvedAfterResolver = resolverRows.length
           ? await resolveSignedUrlsByMediaIds(tabForBatch, resolverRows)
           : new Set<string>();

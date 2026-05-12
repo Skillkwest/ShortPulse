@@ -202,4 +202,48 @@ describe("useReferenceGridCardItemsController", () => {
     expect(result.current.generationLoadingIdsLength).toBe(0);
     expect(result.current.hydrationLoadingIdsLength).toBe(0);
   });
+
+  it("uses the hydrated source url rather than the hydrated render blob for drag artifacts", () => {
+    const item = output({
+      id: "hydrated-1",
+      mediaSource: "generated",
+      previewUrl: "https://provider.example.com/generated-preview.png",
+    });
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardItemsController({
+        activeOutputId: null,
+        decodeBudgetEnabled: true,
+        visibleOutputs: [projectReferenceGridMediaOutput(item)],
+        visibleCuratedOutputs: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        hydrationPriorityCount: 1,
+        curatedHydrationPriorityCount: 0,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: false,
+        resolveCardMedia: () =>
+          resolvedMedia({
+            previewUrl: "https://provider.example.com/generated-preview.png",
+            fallbackUrl: "https://provider.example.com/generated-preview.png",
+            normalizedPreviewUrl: "https://provider.example.com/generated-preview.png",
+            normalizedFallbackUrl: "https://provider.example.com/generated-preview.png",
+          }),
+        visibleOutputById: { [item.id]: item },
+        loadedMap: {},
+        hydratedById: {
+          [item.id]: {
+            sourceUrl: "https://provider.example.com/generated-preview.png",
+            renderUrl: "blob:grid-hydrated-preview",
+          },
+        },
+      })
+    );
+
+    expect(result.current.visibleCardItems[0]?.imageSrc).toBe("blob:grid-hydrated-preview");
+    expect(result.current.visibleCardItems[0]?.dragDisplayArtifactUrl).toBe(
+      "https://provider.example.com/generated-preview.png"
+    );
+    expect(result.current.visibleCardItems[0]?.dragDisplayArtifactKind).toBe("url");
+  });
 });

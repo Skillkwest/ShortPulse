@@ -68,4 +68,21 @@ describe("PulseCreatePropertiesPanel", () => {
       "Preparing your guided workflow..."
     );
   });
+
+  it("treats an in-flight send as startup loading when the first pulse response has not landed yet", () => {
+    render(
+      <PulseCreatePropertiesPanel
+        {...baseProps}
+        agentUiBusy={false}
+        agentTransportSending={false}
+        agentIsSending
+        activePulsePresetKind="custom_gpt"
+        pulseWorkflowSession={null}
+      />
+    );
+
+    expect(screen.getByTestId("pulse-loading-message")).toHaveTextContent(
+      "Preparing your Pulse..."
+    );
+  });
 });

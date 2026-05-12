@@ -371,9 +371,60 @@ describe("useMediaPreviewSigningController", () => {
     expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
   });
 
-  it("keeps route resolver escalation unchanged for unresolved rows", async () => {
+  it("limits modal resolver escalation to visible unresolved rows", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
-    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1", "row-2"]));
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));
+    const hydrateViaStorageDownload = vi.fn(async () => null);
+
+    renderHook(() => {
+      const rows = [
+        makeRow({ id: "row-1", storage_path: "user/images/first.png" }),
+        makeRow({ id: "row-2", storage_path: "user/images/second.png" }),
+      ];
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const applySignedUrlsToTab = vi.fn();
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 2, prefetchWindow: 0, signBatchSize: 2 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 1,
+        surface: "media-library-modal",
+      });
+    });
+
+    await waitFor(() => expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledTimes(1));
+    expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledWith("uploaded_images", [
+      expect.objectContaining({ id: "row-1" }),
+    ]);
+    expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
+  });
+
+  it("limits route resolver escalation to visible unresolved rows", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));
     const hydrateViaStorageDownload = vi.fn(async () => null);
 
     renderHook(() => {
@@ -418,7 +469,6 @@ describe("useMediaPreviewSigningController", () => {
     await waitFor(() => expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledTimes(1));
     expect(resolveSignedUrlsByMediaIds).toHaveBeenCalledWith("uploaded_images", [
       expect.objectContaining({ id: "row-1" }),
-      expect.objectContaining({ id: "row-2" }),
     ]);
     expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
   });
@@ -802,14 +852,12 @@ describe("useMediaPreviewSigningController", () => {
     );
   });
 
-  it("keeps route signing precedence even when a durable direct preview url exists", async () => {
+  it("prefers durable direct preview urls over signing for modal rows", async () => {
     resolveMediaPreviewCandidatesMock.mockReturnValue({
       storagePaths: ["user/images/private-thumb.png"],
       directUrl: "https://cdn.example.com/thumb-preview.png",
     });
-    getSignedMediaUrlsBatchMock.mockResolvedValue(
-      new Map([["user/images/private-thumb.png", "https://signed/private-thumb.png"]])
-    );
+    const applySpy = vi.fn();
 
     const { result } = renderHook(() => {
       const [rows, setRows] = useState<Row[]>([makeRow()]);
@@ -824,7 +872,75 @@ describe("useMediaPreviewSigningController", () => {
       const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
       const hydrateViaStorageDownload = vi.fn(async () => null);
 
-      const applySignedUrlsToTab = vi.fn((_: MediaDataTab, signedById: Map<string, string>) => {
+      const applySignedUrlsToTab = vi.fn((tab: MediaDataTab, signedById: Map<string, string>) => {
+        applySpy(tab, signedById);
+        setRows((prev) =>
+          prev.map((row) => {
+            const signedUrl = signedById.get(row.id);
+            return signedUrl ? { ...row, signedUrl } : row;
+          })
+        );
+      });
+
+      useMediaPreviewSigningController({
+        activeMediaTab: "uploaded_images",
+        activeMediaCacheLoading: false,
+        activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
+        activeMediaQueryRef,
+        activeTabRef,
+        applySignedUrlsToTab,
+        currentUserIdRef,
+        filteredMedia: rows,
+        hydrateViaStorageDownload,
+        isMountedRef,
+        mediaSignInFlightRef,
+        resolveSignedUrlsByMediaIds,
+        setSignPassNonce,
+        signAttemptRef,
+        signBudget: { initialSignLimit: 1, prefetchWindow: 0, signBatchSize: 1 },
+        signPassNonce,
+        visibleMediaIdsRef,
+        visibleMediaVersion: 1,
+        surface: "media-library-modal",
+      });
+
+      return { rows };
+    });
+
+    await waitFor(() =>
+      expect(result.current.rows[0]?.signedUrl).toBe("https://cdn.example.com/thumb-preview.png")
+    );
+
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
+    expect(applySpy).toHaveBeenCalledWith(
+      "uploaded_images",
+      new Map([["row-1", "https://cdn.example.com/thumb-preview.png"]])
+    );
+  });
+
+  it("prefers durable direct preview urls over signing for route rows", async () => {
+    resolveMediaPreviewCandidatesMock.mockReturnValue({
+      storagePaths: ["user/images/private-thumb.png"],
+      directUrl: "https://cdn.example.com/thumb-preview.png",
+    });
+    const applySpy = vi.fn();
+
+    const { result } = renderHook(() => {
+      const [rows, setRows] = useState<Row[]>([makeRow()]);
+      const [signPassNonce, setSignPassNonce] = useState(0);
+      const activeTabRef = useRef<MediaTab>("uploaded_images");
+      const activeMediaQueryRef = useRef("");
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const isMountedRef = useRef(true);
+      const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+      const signAttemptRef = useRef<Record<string, number>>({});
+      const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+      const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+      const hydrateViaStorageDownload = vi.fn(async () => null);
+
+      const applySignedUrlsToTab = vi.fn((tab: MediaDataTab, signedById: Map<string, string>) => {
+        applySpy(tab, signedById);
         setRows((prev) =>
           prev.map((row) => {
             const signedUrl = signedById.get(row.id);
@@ -860,13 +976,13 @@ describe("useMediaPreviewSigningController", () => {
     });
 
     await waitFor(() =>
-      expect(result.current.rows[0]?.signedUrl).toBe("https://signed/private-thumb.png")
+      expect(result.current.rows[0]?.signedUrl).toBe("https://cdn.example.com/thumb-preview.png")
     );
 
-    expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        storagePaths: ["user/images/private-thumb.png"],
-      })
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
+    expect(applySpy).toHaveBeenCalledWith(
+      "uploaded_images",
+      new Map([["row-1", "https://cdn.example.com/thumb-preview.png"]])
     );
   });
 
@@ -987,7 +1103,7 @@ describe("useMediaPreviewSigningController", () => {
     await waitFor(() => expect(result.current.signPassNonce).toBeGreaterThan(0));
   });
 
-  it("spaces deferred signing work instead of recursively burst-draining the full frontier", async () => {
+  it("spaces deferred signing work for modal signing instead of recursively burst-draining the full frontier", async () => {
     vi.useFakeTimers();
     try {
       getSignedMediaUrlsBatchMock.mockImplementation(async ({ storagePaths }) => {
@@ -1041,6 +1157,7 @@ describe("useMediaPreviewSigningController", () => {
           signPassNonce,
           visibleMediaIdsRef,
           visibleMediaVersion: 1,
+          surface: "media-library-modal",
         });
       });
 
@@ -1230,6 +1347,97 @@ describe("useMediaPreviewSigningController", () => {
           visibleMediaIdsRef,
           visibleMediaVersion: 1,
           surface: "media-library-panel",
+        });
+      });
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(2);
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          storagePaths: ["user/images/1.png", "user/images/2.png"],
+        })
+      );
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          storagePaths: ["user/images/3.png", "user/images/4.png"],
+        })
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(181);
+        await Promise.resolve();
+      });
+
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not schedule deferred offscreen prefetch work for route signing", async () => {
+    vi.useFakeTimers();
+    try {
+      getSignedMediaUrlsBatchMock.mockImplementation(async ({ storagePaths }) => {
+        return new Map(
+          storagePaths.map((storagePath: string) => [storagePath, `https://signed/${storagePath}`])
+        );
+      });
+
+      renderHook(() => {
+        const [rows, setRows] = useState([
+          makeRow({ id: "row-1", storage_path: "user/images/1.png" }),
+          makeRow({ id: "row-2", storage_path: "user/images/2.png" }),
+          makeRow({ id: "row-3", storage_path: "user/images/3.png" }),
+          makeRow({ id: "row-4", storage_path: "user/images/4.png" }),
+          makeRow({ id: "row-5", storage_path: "user/images/5.png" }),
+          makeRow({ id: "row-6", storage_path: "user/images/6.png" }),
+        ]);
+        const [signPassNonce, setSignPassNonce] = useState(0);
+        const activeTabRef = useRef<MediaTab>("uploaded_images");
+        const activeMediaQueryRef = useRef("");
+        const currentUserIdRef = useRef<string | null>("user-1");
+        const isMountedRef = useRef(true);
+        const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+        const signAttemptRef = useRef<Record<string, number>>({});
+        const visibleMediaIdsRef = useRef(new Set<string>(["row-1", "row-2"]));
+        const applySignedUrlsToTab = vi.fn((_: MediaDataTab, signedById: Map<string, string>) => {
+          setRows((prev) =>
+            prev.map((row) => {
+              const signedUrl = signedById.get(row.id);
+              return signedUrl ? { ...row, signedUrl } : row;
+            })
+          );
+        });
+        const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+        const hydrateViaStorageDownload = vi.fn(async () => null);
+
+        useMediaPreviewSigningController({
+          activeMediaTab: "uploaded_images",
+          activeMediaCacheLoading: false,
+          activeMediaCachePagesLoaded: 1,
+          activeMediaQuery: "",
+          activeMediaQueryRef,
+          activeTabRef,
+          applySignedUrlsToTab,
+          currentUserIdRef,
+          filteredMedia: rows,
+          hydrateViaStorageDownload,
+          isMountedRef,
+          mediaSignInFlightRef,
+          resolveSignedUrlsByMediaIds,
+          setSignPassNonce,
+          signAttemptRef,
+          signBudget: { initialSignLimit: 2, prefetchWindow: 4, signBatchSize: 2 },
+          signPassNonce,
+          visibleMediaIdsRef,
+          visibleMediaVersion: 1,
+          surface: "media-library-route",
         });
       });
 

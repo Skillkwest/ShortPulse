@@ -70,6 +70,7 @@ type MockExportResult = {
   flattenedMarkupReferenceBlob: Blob | null;
   inpaintMaskBlob: Blob | null;
   reusablePrimarySourceUrl: string | null;
+  flattenedDimensions: { width: number; height: number } | null;
 };
 
 describe("useExpertEditInlineGenerate", () => {
@@ -80,6 +81,7 @@ describe("useExpertEditInlineGenerate", () => {
       flattenedMarkupReferenceBlob: null,
       inpaintMaskBlob: null,
       reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+      flattenedDimensions: null,
     });
     validateExpertEditSubmissionPromptMock.mockReturnValue({ status: "ready" });
     prepareExpertEditSubmissionMock.mockReturnValue({
@@ -143,6 +145,7 @@ describe("useExpertEditInlineGenerate", () => {
         flattenedMarkupReferenceBlob: null,
         inpaintMaskBlob: null,
         reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+        flattenedDimensions: null,
       });
     });
 
@@ -300,6 +303,7 @@ describe("useExpertEditInlineGenerate", () => {
       flattenedMarkupReferenceBlob: null,
       inpaintMaskBlob: null,
       reusablePrimarySourceUrl: null,
+      flattenedDimensions: { width: 1024, height: 1024 },
     });
     createExpertEditSubmissionObjectUrlsMock.mockReturnValue({
       flattenedUrl: "blob:flattened-primary",
@@ -365,6 +369,7 @@ describe("useExpertEditInlineGenerate", () => {
       flattenedMarkupReferenceBlob: null,
       inpaintMaskBlob: null,
       reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+      flattenedDimensions: null,
     });
 
     act(() => {
@@ -378,5 +383,77 @@ describe("useExpertEditInlineGenerate", () => {
         })
       );
     });
+  });
+
+  it("threads a variant-aware cost override into inpaint regenerate submissions", async () => {
+    const resolveVariantCostCredits = vi.fn(() => 9);
+    const onRegenerateWithReferenceInputs = vi.fn(async () => undefined);
+
+    exportExpertEditStageArtifactsMock.mockResolvedValue({
+      flattenedBlob: new Blob(["flattened"], { type: "image/png" }),
+      flattenedMarkupReferenceBlob: null,
+      inpaintMaskBlob: new Blob(["mask"], { type: "image/png" }),
+      reusablePrimarySourceUrl: null,
+      flattenedDimensions: { width: 2048, height: 1024 },
+    });
+    createExpertEditSubmissionObjectUrlsMock.mockReturnValue({
+      flattenedUrl: "blob:flattened-primary",
+      flattenedMarkupReferenceUrl: null,
+      inpaintMaskUrl: "blob:mask",
+    });
+    prepareExpertEditSubmissionMock.mockReturnValue({
+      status: "ready",
+      referenceInputs: ["blob:flattened-primary"],
+      linkedSecondaryReferenceInputs: [],
+      promptOverrideOptions: {
+        displayPromptOverride: "Refine the outfit",
+        submissionPromptOverride: "Refine the outfit",
+      },
+    });
+    resolveExpertEditSubmissionDispatchMock.mockReturnValue({
+      status: "ready",
+      referenceInputs: ["blob:flattened-primary"],
+      options: {
+        referenceInputsMode: "replace",
+        inpaintOverride: {
+          modelId: "fal-ai/flux-pro/v1/fill",
+          baseImageInput: "blob:flattened-primary",
+          maskInput: "blob:mask",
+        },
+      },
+    });
+
+    const { result } = renderHook(() =>
+      useExpertEditInlineGenerate(
+        createArgs({
+          editSubmitIntent: "inpaint",
+          hasSelectedLayerMask: true,
+          onRegenerateWithReferenceInputs,
+          resolveVariantCostCredits,
+        })
+      )
+    );
+
+    act(() => {
+      result.current.handleInlineGenerate();
+    });
+
+    await waitFor(() => {
+      expect(resolveVariantCostCredits).toHaveBeenCalledWith({
+        modelId: "fal-ai/flux-pro/v1/fill",
+        imageWidth: 2048,
+        imageHeight: 1024,
+      });
+    });
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledWith(
+      ["blob:flattened-primary"],
+      expect.objectContaining({
+        costOverrideCredits: 9,
+        inpaintOverride: expect.objectContaining({
+          modelId: "fal-ai/flux-pro/v1/fill",
+        }),
+        outputIdOverride: "out-optimistic",
+      })
+    );
   });
 });

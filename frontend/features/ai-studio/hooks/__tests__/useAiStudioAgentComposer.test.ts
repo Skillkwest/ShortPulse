@@ -4,7 +4,11 @@ import type { DragEvent } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioAgentComposer } from "../useAiStudioAgentComposer";
 import { readMediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
-import { extractDragDropPayload, extractInternalReferenceDragPayload } from "../../utils/dragDrop";
+import {
+  extractComposerImageDropPayload,
+  extractDragDropPayload,
+  extractInternalReferenceDragPayload,
+} from "../../utils/dragDrop";
 import type { ResolvedInternalReferenceSource } from "../../logic/referenceSource/internalReferenceSource";
 
 vi.mock("../../utils/dragDrop", async () => {
@@ -12,6 +16,7 @@ vi.mock("../../utils/dragDrop", async () => {
     await vi.importActual<typeof import("../../utils/dragDrop")>("../../utils/dragDrop");
   return {
     ...actual,
+    extractComposerImageDropPayload: vi.fn(),
     extractDragDropPayload: vi.fn(),
     extractInternalReferenceDragPayload: vi.fn(),
   };
@@ -23,6 +28,7 @@ vi.mock("../../logic/mediaLibraryDragPayload", () => ({
 
 const extractDragDropPayloadMock = vi.mocked(extractDragDropPayload);
 const extractInternalReferenceDragPayloadMock = vi.mocked(extractInternalReferenceDragPayload);
+const extractComposerImageDropPayloadMock = vi.mocked(extractComposerImageDropPayload);
 const readMediaLibraryDragPayloadMock = vi.mocked(readMediaLibraryDragPayload);
 
 const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
@@ -65,6 +71,7 @@ describe("useAiStudioAgentComposer", () => {
       fromFile: false,
     });
     extractInternalReferenceDragPayloadMock.mockReturnValue(null);
+    extractComposerImageDropPayloadMock.mockReturnValue(null);
     readMediaLibraryDragPayloadMock.mockReturnValue(null);
   });
 
@@ -127,6 +134,50 @@ describe("useAiStudioAgentComposer", () => {
       referenceUrl: null,
       referenceRenderUrl: null,
       text: "Reference note",
+    });
+  });
+
+  it("stages composer image payloads directly without generic drag reconstruction", () => {
+    const ensureAgentSession = vi.fn();
+    extractComposerImageDropPayloadMock.mockReturnValue({
+      version: 1,
+      origin: "ai-studio-reference-grid",
+      referenceId: "out-1",
+      outputId: "out-1",
+      mediaId: "media-1",
+      displayArtifactUrl: "blob:resolved-artifact",
+      displayArtifactKind: "blob",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      referenceUrl: null,
+      promptText: "Dragged prompt",
+      sourceSurface: "all-refs",
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: false,
+        ensureAgentSession,
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => "https://weak.example.com/preview.png",
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(ensureAgentSession).toHaveBeenCalledTimes(1);
+    expect(extractDragDropPayloadMock).not.toHaveBeenCalled();
+    expect(extractInternalReferenceDragPayloadMock).not.toHaveBeenCalled();
+    expect(result.current.agentAttachments[0]).toMatchObject({
+      kind: "image",
+      referenceId: "out-1",
+      mediaId: "media-1",
+      imageUrl: "blob:resolved-artifact",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      text: "Dragged prompt",
     });
   });
 

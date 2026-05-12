@@ -121,6 +121,13 @@ type FailureCard = Pick<
   "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorMessageShort" | "errorDetail"
 >;
 
+type GroupedFailureCard = {
+  ids: string[];
+  modelLabel: string;
+  failureMessage: string;
+  count: number;
+};
+
 type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
 
@@ -386,6 +393,36 @@ const AiStudioAlertBanner = ({
 const normalizeAlertText = (value: string | null | undefined): string =>
   (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 
+export const groupVisibleFailuresForAlertStack = (
+  visibleFailures: FailureCard[]
+): GroupedFailureCard[] => {
+  const grouped = new Map<string, GroupedFailureCard>();
+  visibleFailures.forEach((item) => {
+    const modelLabel = item.model || item.modelId || "Generation";
+    const isExplicitContentFailure =
+      isExplicitContentFailureMessage(item.errorDetail) ||
+      isExplicitContentFailureMessage(item.errorMessage) ||
+      isExplicitContentFailureMessage(item.errorMessageShort);
+    const failureMessage = isExplicitContentFailure
+      ? EXPLICIT_CONTENT_FAILURE_DETAIL
+      : (item.errorMessageShort ?? item.errorDetail ?? item.errorMessage ?? "Generation failed");
+    const groupKey = `${normalizeAlertText(modelLabel)}::${normalizeAlertText(failureMessage)}`;
+    const existing = grouped.get(groupKey);
+    if (existing) {
+      existing.ids.push(item.id);
+      existing.count += 1;
+      return;
+    }
+    grouped.set(groupKey, {
+      ids: [item.id],
+      modelLabel,
+      failureMessage,
+      count: 1,
+    });
+  });
+  return Array.from(grouped.values());
+};
+
 const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
   uiError,
   uiNotice,
@@ -411,6 +448,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
       );
     });
   const effectiveUiError = suppressUiErrorForFailureStack ? null : uiError;
+  const groupedFailures = groupVisibleFailuresForAlertStack(visibleFailures);
 
   return (
     <>
@@ -441,28 +479,24 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
           onDismiss={onDismissCharacterError}
         />
       ) : null}
-      {visibleFailures.length ? (
+      {groupedFailures.length ? (
         <div className="ai-error-stack" role="alert" aria-live="polite">
           <ul className="ai-error-list">
-            {visibleFailures.map((item) => {
-              const modelLabel = item.model || item.modelId || "Generation";
-              const isExplicitContentFailure =
-                isExplicitContentFailureMessage(item.errorDetail) ||
-                isExplicitContentFailureMessage(item.errorMessage) ||
-                isExplicitContentFailureMessage(item.errorMessageShort);
-              const failureMessage = isExplicitContentFailure
-                ? EXPLICIT_CONTENT_FAILURE_DETAIL
-                : (item.errorMessageShort ?? item.errorDetail ?? item.errorMessage);
+            {groupedFailures.map((group) => {
+              const title =
+                group.count > 1 ? `${group.modelLabel} (${group.count})` : group.modelLabel;
               return (
-                <li key={item.id} className="ai-error-row">
+                <li key={`${group.modelLabel}:${group.failureMessage}`} className="ai-error-row">
                   <div className="ai-error-row-copy">
-                    <p className="ai-error-row-title">{modelLabel}</p>
-                    <p className="ai-error-row-message">{failureMessage}</p>
+                    <p className="ai-error-row-title">{title}</p>
+                    <p className="ai-error-row-message">{group.failureMessage}</p>
                   </div>
                   <button
                     type="button"
                     className="ai-alert-banner__dismiss ai-error-row-dismiss"
-                    onClick={() => onDismissFailure(item.id)}
+                    onClick={() => {
+                      group.ids.forEach((id) => onDismissFailure(id));
+                    }}
                   >
                     Dismiss
                   </button>

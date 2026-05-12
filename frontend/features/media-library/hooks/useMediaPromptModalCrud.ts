@@ -77,8 +77,14 @@ export const useMediaPromptModalCrud = <TRow extends PromptModalRow>({
       }
       try {
         await deleteMediaPromptById(row.id);
-        setPrompts((prev) => prev.filter((prompt) => prompt.id !== row.id));
-        setSelectedIds((prev) => prev.filter((id) => id !== row.id));
+        setPrompts((prev) => {
+          const next = prev.filter((prompt) => prompt.id !== row.id);
+          return next.length === prev.length ? prev : next;
+        });
+        setSelectedIds((prev) => {
+          const next = prev.filter((id) => id !== row.id);
+          return next.length === prev.length ? prev : next;
+        });
         setFocusedPrompt((prev) => (prev && prev.id === row.id ? null : prev));
         void logMediaEvent("delete", "media_prompt", row.id);
         return true;
@@ -109,17 +115,19 @@ export const useMediaPromptModalCrud = <TRow extends PromptModalRow>({
         .update({ prompt_text: nextPromptText })
         .eq("id", focusedPrompt.id);
       if (error) throw error;
-      setPrompts((prev) =>
-        prev.map((prompt) =>
-          prompt.id === focusedPrompt.id
-            ? {
-                ...prompt,
-                prompt_text: nextPromptText,
-                updated_at: updatedAt,
-              }
-            : prompt
-        )
-      );
+      setPrompts((prev) => {
+        let changed = false;
+        const next = prev.map((prompt) => {
+          if (prompt.id !== focusedPrompt.id) return prompt;
+          changed = true;
+          return {
+            ...prompt,
+            prompt_text: nextPromptText,
+            updated_at: updatedAt,
+          };
+        });
+        return changed ? next : prev;
+      });
       setFocusedPrompt((prev) =>
         prev
           ? {

@@ -7,6 +7,7 @@ const chargeGenerationRequestMock = vi.fn();
 const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsMusicMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
+const markAudioCompanionArtPendingMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -25,6 +26,10 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 vi.mock("../../lib/server/elevenlabs", () => ({
   generateElevenLabsMusic: (...args: unknown[]) => generateElevenLabsMusicMock(...args),
   persistGeneratedAudioAsset: (...args: unknown[]) => persistGeneratedAudioAssetMock(...args),
+}));
+
+vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
+  markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -61,6 +66,7 @@ describe("POST /api/elevenlabs/music", () => {
       sourceRef: "billing-source-music-1",
       note: "captured",
     });
+    markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
   });
 
   it("falls back to the catalog-backed default music model id for auto duration", async () => {

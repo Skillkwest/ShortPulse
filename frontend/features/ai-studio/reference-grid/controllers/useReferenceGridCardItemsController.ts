@@ -37,6 +37,8 @@ export type ReferenceGridVisibleCardItem = {
   isAudioPreview?: boolean;
   isPriorityHydration: boolean;
   imageSrc?: string;
+  dragDisplayArtifactUrl?: string;
+  dragDisplayArtifactKind?: "blob" | "data" | "url";
   isPlaceholderOnly?: boolean;
 };
 
@@ -173,6 +175,21 @@ export const useReferenceGridCardItemsController = ({
               ? (hydratedEntry.renderUrl ?? undefined)
               : (resolvedMedia.fallbackUrl ?? resolvedMedia.previewUrl ?? undefined)
             : (resolvedMedia.previewUrl ?? undefined);
+        const dragDisplayArtifactUrl = resolvedMedia.isImagePreview
+          ? hasHydratedSourceForCard
+            ? (hydratedEntry?.sourceUrl ??
+              resolvedMedia.fallbackUrl ??
+              resolvedMedia.previewUrl ??
+              undefined)
+            : (resolvedMedia.fallbackUrl ?? resolvedMedia.previewUrl ?? undefined)
+          : undefined;
+        const dragDisplayArtifactKind = dragDisplayArtifactUrl
+          ? dragDisplayArtifactUrl.startsWith("blob:")
+            ? ("blob" as const)
+            : dragDisplayArtifactUrl.startsWith("data:")
+              ? ("data" as const)
+              : ("url" as const)
+          : undefined;
         return {
           item,
           surface: options.visualSurface,
@@ -187,6 +204,8 @@ export const useReferenceGridCardItemsController = ({
           isAudioPreview: resolvedMedia.isAudioPreview,
           isPriorityHydration,
           imageSrc,
+          dragDisplayArtifactUrl,
+          dragDisplayArtifactKind,
           isPlaceholderOnly: false,
         };
       }),

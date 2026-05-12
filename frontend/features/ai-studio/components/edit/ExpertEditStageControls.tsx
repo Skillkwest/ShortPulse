@@ -630,11 +630,11 @@ export function ExpertEditMarkupModalGeneralPanel({
         <button
           type="button"
           className="edit-expert-markup-modal-general-btn edit-expert-markup-modal-general-btn--reset"
-          aria-label="Reset stage"
+          aria-label="Reset all edit work"
           onClick={handleResetGeneralAction}
           disabled={isGeneralResetDisabled}
         >
-          Reset
+          Reset All
         </button>
       </div>
       <div

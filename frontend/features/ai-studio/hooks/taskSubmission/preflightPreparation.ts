@@ -139,6 +139,8 @@ export const prepareSubmissionReferenceInputs = async ({
             maskInput: preparedMaskInput ?? "",
             referenceImageInput: preparedReferenceImageInput,
             outputFormat: inpaintOverride.outputFormat,
+            imageWidth: inpaintOverride.imageWidth ?? null,
+            imageHeight: inpaintOverride.imageHeight ?? null,
           } satisfies InpaintSubmissionOverride,
         };
       },

@@ -14,6 +14,8 @@ const PROJECT_GENERATION_PROJECTION_SELECT_COLUMNS = [
   "model_id",
   "display_prompt",
   "preview_url",
+  "companion_art_status",
+  "companion_art_storage_path",
   "result_urls",
   "saved_media_ids",
   "save_state",
@@ -45,6 +47,8 @@ type ProjectGenerationProjectionRow = {
   model_id?: unknown;
   display_prompt?: unknown;
   preview_url?: unknown;
+  companion_art_status?: unknown;
+  companion_art_storage_path?: unknown;
   result_urls?: unknown;
   saved_media_ids?: unknown;
   save_state?: unknown;
@@ -744,6 +748,8 @@ const patchSnapshotOutputRow = ({
       : asTrimmedString(row.previewPosterUrl);
   const nextTaskState = normalizeProjectionTaskState(projection.task_state);
   const nextQueueState = normalizeProjectionQueueState(projection.queue_state);
+  const nextCompanionArtStatus = asTrimmedString(projection.companion_art_status);
+  const nextCompanionArtStoragePath = asTrimmedString(projection.companion_art_storage_path);
   const nextErrorMessage = asTrimmedString(projection.error_message);
   const nextErrorMessageShort = asTrimmedString(projection.error_message_short);
   const nextErrorDetail = asTrimmedString(projection.error_detail);
@@ -778,6 +784,9 @@ const patchSnapshotOutputRow = ({
     previewUrl: nextPreviewUrl ?? row.previewUrl ?? null,
     previewPosterUrl: nextMode === "video" ? (nextPreviewPosterUrl ?? null) : null,
     previewPosterStoragePath: nextMode === "video" ? (nextPreviewPosterStoragePath ?? null) : null,
+    companionArtUrl: row.companionArtUrl ?? null,
+    companionArtStoragePath: nextCompanionArtStoragePath ?? row.companionArtStoragePath ?? null,
+    companionArtStatus: nextCompanionArtStatus ?? row.companionArtStatus ?? null,
     previewStoragePath: nextPreviewStoragePath ?? row.previewStoragePath ?? null,
     fullStoragePath: nextFullStoragePath ?? row.fullStoragePath ?? null,
     generationReplay:
@@ -1025,6 +1034,9 @@ export const hydrateProjectSnapshotGeneratedOutputs = async ({
             previewUrl: null,
             previewPosterUrl: null,
             previewPosterStoragePath: null,
+            companionArtUrl: null,
+            companionArtStoragePath: null,
+            companionArtStatus: null,
             previewStoragePath: null,
             fullStoragePath: null,
           };

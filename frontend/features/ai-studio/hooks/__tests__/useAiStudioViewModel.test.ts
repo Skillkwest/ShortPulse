@@ -365,7 +365,15 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
   });
 
-  it("suppresses the misleading cost estimate for Kling motion mode", () => {
+  it("shows the billed cost for Kling motion mode when both motion inputs are present", () => {
+    const expectedCost = computeCostForModel(
+      KIE_KLING_30_MODEL_ID,
+      makeCostParamsForModel(KIE_KLING_30_MODEL_ID)({
+        durationSeconds: 6,
+        resolution: "1080p",
+        audio: false,
+      })
+    )?.credits;
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -376,8 +384,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.currentCostCredits).toBeNull();
-    expect(result.current.modelPickerCostCredits).toBeNull();
+    expect(result.current.currentCostCredits).toBe(expectedCost);
+    expect(result.current.modelPickerCostCredits).toBe(expectedCost);
   });
 
   it("allows Kling 3.0 standard generation when only the optional last-frame slot is populated", () => {
@@ -501,7 +509,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       costParamsForModel(KIE_SEEDANCE_2_MODEL_ID, {
         durationSeconds: 5,
         resolution: "1080p",
-        audio: true,
+        inputVideoCount: 0,
       })
     )?.credits;
 
@@ -524,7 +532,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.currentCostCredits).toBe(expectedCost);
   });
 
-  it("uses active Seedance 2 Fast settings when computing the generate-button estimate", () => {
+  it("uses Seedance 2 Fast video-input pricing when multimodal video references are present", () => {
     const costParamsForModel = (
       targetModelId: string,
       overrides?: Omit<PricingParams, "modelId">
@@ -541,7 +549,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
       costParamsForModel(KIE_SEEDANCE_2_FAST_MODEL_ID, {
         durationSeconds: 10,
         resolution: "720p",
-        audio: false,
+        inputVideoCount: 1,
       })
     )?.credits;
 
@@ -555,7 +563,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
         videoDurationSeconds: 10,
         videoResolution: "720p",
         videoGenerateAudio: false,
-        seedance2InputMode: "text",
+        seedance2InputMode: "multimodal",
+        seedance2ReferenceVideoUrls: ["https://example.com/reference.mp4"],
         costParamsForModel,
       })
     );

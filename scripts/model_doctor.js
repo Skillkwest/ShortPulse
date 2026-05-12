@@ -664,17 +664,23 @@ function run() {
       }
     }
 
-    const isQueuedFalOrKieRuntimeModel =
-      entry.lifecycle === "active" &&
-      Array.isArray(entry.surfaces) &&
-      entry.surfaces.includes("runtime") &&
+    const isQueuedFalOrKieModel =
       entry.executionMode === "queued" &&
       (entry.provider === "fal" || entry.provider === "kie");
+    const isQueuedFalOrKieRuntimeModel =
+      isQueuedFalOrKieModel &&
+      entry.lifecycle === "active" &&
+      Array.isArray(entry.surfaces) &&
+      entry.surfaces.includes("runtime");
+    const isQueuedFalOrKieCompatibilityRouteModel =
+      isQueuedFalOrKieModel &&
+      entry.lifecycle !== "active" &&
+      Boolean(entry.replacementModelId);
 
-    if (isQueuedFalOrKieRuntimeModel) {
+    if (isQueuedFalOrKieRuntimeModel || isQueuedFalOrKieCompatibilityRouteModel) {
       if (!apiRouteSlug) {
         errors.push(
-          `Queued ${entry.provider} runtime model is missing apiRouteSlug: ${modelId}`,
+          `Queued ${entry.provider} route-owned model is missing apiRouteSlug: ${modelId}`,
         );
       } else {
         const routeInventoryEntry = falRouteInventoryByModelId.get(modelId);
@@ -697,7 +703,7 @@ function run() {
       }
     } else if (apiRouteSlug) {
       errors.push(
-        `apiRouteSlug should be reserved for active queued fal/kie runtime models: ${modelId}`,
+        `apiRouteSlug should be reserved for active queued fal/kie runtime models or deprecated compatibility routes: ${modelId}`,
       );
     }
 
@@ -726,12 +732,15 @@ function run() {
       );
       continue;
     }
-    if (catalogEntry.lifecycle !== "active") {
+    const isCompatibilityRouteModel =
+      catalogEntry.lifecycle !== "active" && Boolean(catalogEntry.replacementModelId);
+
+    if (catalogEntry.lifecycle !== "active" && !isCompatibilityRouteModel) {
       errors.push(
-        `Fal/Kie route inventory model must stay active: ${routeEntry.modelId} is '${catalogEntry.lifecycle}'`,
+        `Fal/Kie route inventory model must stay active or declare compatibility replacement: ${routeEntry.modelId} is '${catalogEntry.lifecycle}'`,
       );
     }
-    if (!catalogEntry.surfaces?.includes("runtime")) {
+    if (catalogEntry.lifecycle === "active" && !catalogEntry.surfaces?.includes("runtime")) {
       errors.push(
         `Fal/Kie route inventory model must include runtime surface: ${routeEntry.modelId}`,
       );
@@ -757,7 +766,7 @@ function run() {
     const existingModelId = seenApiRouteSlugs.get(fileBase);
     if (!existingModelId) {
       errors.push(
-        `Fal/Kie route inventory entry '${fileBase}' is not owned by any active queued fal/kie runtime model`,
+        `Fal/Kie route inventory entry '${fileBase}' is not owned by any active queued fal/kie runtime model or deprecated compatibility route`,
       );
       continue;
     }

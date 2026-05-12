@@ -72,11 +72,6 @@ const videoReferenceOptions: ModelOption[] = [
     mediaType: "image-to-video",
   },
   {
-    value: KIE_SEEDANCE_15_PRO_MODEL_ID,
-    label: "Seedance 1.5 Pro (Kie)",
-    mediaType: "image-to-video",
-  },
-  {
     value: KIE_SEEDANCE_2_MODEL_ID,
     label: "Seedance 2.0 (Kie)",
     mediaType: "image-to-video",
@@ -268,12 +263,12 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
+    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(false);
     expect(values.has(KIE_SEEDANCE_2_MODEL_ID)).toBe(true);
     expect(values.has(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(true);
   });
 
-  it("hides Seedance 2.x from standard video lane model selection when the UI flag is disabled", () => {
+  it("keeps Seedance 2.x visible when the retired rollout flag is disabled", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_SEEDANCE_2_ENABLED", "false");
     const values = new Set(
       resolveAiStudioAllowedModelOptions({
@@ -286,9 +281,9 @@ describe("modelSelectionPolicy", () => {
       }).map((option) => option.value)
     );
 
-    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
-    expect(values.has(KIE_SEEDANCE_2_MODEL_ID)).toBe(false);
-    expect(values.has(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(false);
+    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(false);
+    expect(values.has(KIE_SEEDANCE_2_MODEL_ID)).toBe(true);
+    expect(values.has(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(true);
   });
 
   it("defaults create startup to Seedream in text mode when saved model is missing", () => {
@@ -328,7 +323,7 @@ describe("modelSelectionPolicy", () => {
 
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
     expect(values.has(KIE_KLING_30_MODEL_ID)).toBe(true);
-    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
+    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(false);
   });
 
   it("ignores saved kie model ids for startup fallback selection", () => {
@@ -353,7 +348,6 @@ describe("modelSelectionPolicy", () => {
     expect(values).toEqual([
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
-      KIE_SEEDANCE_15_PRO_MODEL_ID,
       KIE_SEEDANCE_2_MODEL_ID,
       KIE_SEEDANCE_2_FAST_MODEL_ID,
     ]);
@@ -372,7 +366,6 @@ describe("modelSelectionPolicy", () => {
     expect(values).toEqual([
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
-      KIE_SEEDANCE_15_PRO_MODEL_ID,
       KIE_SEEDANCE_2_MODEL_ID,
       KIE_SEEDANCE_2_FAST_MODEL_ID,
     ]);
@@ -391,7 +384,6 @@ describe("modelSelectionPolicy", () => {
     expect(values).toEqual([
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
-      KIE_SEEDANCE_15_PRO_MODEL_ID,
       KIE_SEEDANCE_2_MODEL_ID,
       KIE_SEEDANCE_2_FAST_MODEL_ID,
     ]);
@@ -410,7 +402,6 @@ describe("modelSelectionPolicy", () => {
     expect(values).toEqual([
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
-      KIE_SEEDANCE_15_PRO_MODEL_ID,
       KIE_SEEDANCE_2_MODEL_ID,
       KIE_SEEDANCE_2_FAST_MODEL_ID,
     ]);

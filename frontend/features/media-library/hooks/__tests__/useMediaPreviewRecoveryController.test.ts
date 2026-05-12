@@ -123,6 +123,54 @@ describe("useMediaPreviewRecoveryController", () => {
     expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
   });
 
+  it("applies a better trusted direct preview url before signing recovery", async () => {
+    resolveMediaPreviewCandidatesMock.mockReturnValue({
+      storagePaths: ["user-1/upload/one.png"],
+      directUrl: "https://cdn.example.com/previews/one.png",
+    });
+    const applySignedUrlsToTab = vi.fn();
+    const signStoragePath = vi.fn(async () => "https://signed.example.com/one.png");
+    const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+    const hydrateViaStorageDownload = vi.fn(async () => null);
+
+    const { result } = renderHook(() => {
+      const currentUserIdRef = useRef<string | null>("user-1");
+      const signedUrlRetryRef = useRef<Record<string, number>>({});
+      const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
+      return {
+        controller: useMediaPreviewRecoveryController<Row>({
+          applySignedUrlsToTab,
+          currentUserIdRef,
+          resolveSignedUrlsByMediaIds,
+          hydrateViaStorageDownload,
+          signStoragePath,
+          signedUrlRetryRef,
+          objectUrlByMediaIdRef,
+          resolveTabForRow: () => "uploaded_images",
+        }),
+        signedUrlRetryRef,
+      };
+    });
+
+    act(() => {
+      result.current.controller.handleMediaPreviewError(
+        makeRow({ signedUrl: "https://signed.example.com/stale.png" }),
+        "https://signed.example.com/stale.png"
+      );
+    });
+
+    await waitFor(() => {
+      expect(applySignedUrlsToTab).toHaveBeenCalledWith(
+        "uploaded_images",
+        new Map([["row-1", "https://cdn.example.com/previews/one.png"]])
+      );
+    });
+    expect(signStoragePath).not.toHaveBeenCalled();
+    expect(resolveSignedUrlsByMediaIds).not.toHaveBeenCalled();
+    expect(hydrateViaStorageDownload).not.toHaveBeenCalled();
+    expect(result.current.signedUrlRetryRef.current["row-1"]).toBeUndefined();
+  });
+
   it("hydrates unresolved media after retry refresh misses", async () => {
     const signStoragePath = vi.fn(async () => null);
     const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>(["row-1"]));

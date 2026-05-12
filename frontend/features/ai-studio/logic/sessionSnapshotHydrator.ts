@@ -14,6 +14,7 @@ import type {
   AgentMessageRole,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent/types";
+import { resolveComposerImageAttachmentPreview } from "./composerImageAttachment";
 import { normalizeAiStudioRestoredModelId } from "./modelRestorePolicy";
 import {
   parseAiStudioSessionCanvasState,
@@ -383,6 +384,9 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput =>
     previewUrl: output.previewUrl,
     previewPosterUrl: output.previewPosterUrl ?? null,
     previewPosterStoragePath: output.previewPosterStoragePath ?? null,
+    companionArtUrl: output.companionArtUrl ?? null,
+    companionArtStoragePath: output.companionArtStoragePath ?? null,
+    companionArtStatus: output.companionArtStatus ?? null,
     previewStoragePath: output.previewStoragePath ?? null,
     fullStoragePath: output.fullStoragePath ?? null,
     previewTier: output.previewTier,
@@ -430,8 +434,25 @@ const normalizeAgentAttachments = (value: unknown): AgentAttachment[] => {
     const kind = asAgentAttachmentKind(attachment.kind);
     if (!kind) return;
     const imageUrl = sanitizeHydratedMediaUrl(asNullableString(attachment.imageUrl));
+    const imageFallbackUrls = sanitizeHydratedAttachmentImageFallbackUrls(
+      attachment.imageFallbackUrls
+    );
     const text = asNullableString(attachment.text)?.trim() || null;
-    if (kind === "image" && !imageUrl) return;
+    const referenceUrl = sanitizeHydratedMediaUrl(asNullableString(attachment.referenceUrl));
+    const referenceRenderUrl = sanitizeHydratedMediaUrl(
+      asNullableString(attachment.referenceRenderUrl)
+    );
+    const preview =
+      kind === "image"
+        ? resolveComposerImageAttachmentPreview({
+            kind,
+            imageUrl,
+            imageFallbackUrls,
+            referenceRenderUrl,
+            referenceUrl,
+          })
+        : null;
+    if (kind === "image" && !preview) return;
     normalized.push({
       id: resolvedId,
       kind,
@@ -444,10 +465,10 @@ const normalizeAgentAttachments = (value: unknown): AgentAttachment[] => {
       fullStoragePath: sanitizeHydratedAttachmentIdentity(
         asNullableString(attachment.fullStoragePath)
       ),
-      referenceUrl: sanitizeHydratedMediaUrl(asNullableString(attachment.referenceUrl)),
-      referenceRenderUrl: sanitizeHydratedMediaUrl(asNullableString(attachment.referenceRenderUrl)),
-      imageUrl,
-      imageFallbackUrls: sanitizeHydratedAttachmentImageFallbackUrls(attachment.imageFallbackUrls),
+      referenceUrl,
+      referenceRenderUrl,
+      imageUrl: preview?.url ?? null,
+      imageFallbackUrls: undefined,
       aspect: asNullableString(attachment.aspect),
       deliveryStatus:
         attachment.deliveryStatus === "pending" ||

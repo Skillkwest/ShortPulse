@@ -57,7 +57,6 @@ import {
   createIdleMarkupPanPointerSession,
   type MarkupPanPointerSession,
   isResolvedStageViewportSize,
-  isMarkupViewportEquivalentToSourceFraming,
 } from "./expertEditViewportUtils";
 import {
   areLayerTransformsEqual,
@@ -72,6 +71,7 @@ import {
 } from "./expertEditLayerSessionUtils";
 import { cloneMarkupStrokesSnapshot } from "./expertEditSessionState";
 const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = true;
+const EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON = 0.001;
 
 export function ExpertEditPanelView({
   aspect,
@@ -92,6 +92,7 @@ export function ExpertEditPanelView({
   onEditSubmitIntentChange,
   onRegenerate,
   onRegenerateWithReferenceInputs,
+  resolveVariantCostCredits,
   insertOptimisticGenerationPlaceholder,
   removeOptimisticGenerationPlaceholder,
   notifyGenerationFailure,
@@ -456,7 +457,10 @@ export function ExpertEditPanelView({
     return inlineCompositionSurfaceViewportSize;
   }, [inlineCompositionSurfaceViewportSize, isMarkupExpandSelected, markupModalViewportSize]);
   const isStageViewportAtDefaultForSubmit = React.useMemo(
-    () => isMarkupViewportEquivalentToSourceFraming(stageViewport),
+    () =>
+      Math.abs(stageViewport.scale - 1) <= EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON &&
+      Math.abs(stageViewport.offsetXRatio) <= EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON &&
+      Math.abs(stageViewport.offsetYRatio) <= EXPERT_EDIT_SUBMIT_VIEWPORT_EPSILON,
     [stageViewport]
   );
 
@@ -541,6 +545,7 @@ export function ExpertEditPanelView({
     exportSelectedLayerMaskBlob,
     onRegenerate,
     onRegenerateWithReferenceInputs,
+    resolveVariantCostCredits,
     scheduleTransientObjectUrlRevoke,
     revokeObjectUrlSafe,
     resolveBlobDimensions,
@@ -731,7 +736,7 @@ export function ExpertEditPanelView({
     handlePrimaryDropzoneContextMenu,
     handlePrimaryDropzoneClick,
     handlePrimaryDropzoneDoubleClick,
-    handleStageContextMenuRecenter,
+    handleStageContextMenuResetView,
     handleStageContextMenuExpand,
     handleStageContextMenuAddImage,
     handleStageContextMenuReset,
@@ -1144,7 +1149,7 @@ export function ExpertEditPanelView({
     stageContextMenuState,
     stageContextMenuRef,
     isMarkupExpandSelected,
-    handleStageContextMenuRecenter,
+    handleStageContextMenuResetView,
     handleStageContextMenuExpand,
     handleStageContextMenuAddImage,
     handleStageContextMenuReset,

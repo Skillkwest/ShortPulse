@@ -25,9 +25,13 @@ const REFERENCE_TRANSFER_WIDTH_TYPE = "text/reference-width";
 const REFERENCE_TRANSFER_HEIGHT_TYPE = "text/reference-height";
 const REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE = "text/reference-preview-storage-path";
 const REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE = "text/reference-full-storage-path";
+export const COMPOSER_IMAGE_DROP_PAYLOAD_TYPE = "application/x-shortpulse-composer-image-drop";
+export const COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE = "text/reference-composer-image-payload";
 const INTERNAL_REFERENCE_TRANSFER_TYPE_HINTS = new Set([
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
+  COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
   "text/reference-id",
   "text/reference-output-id",
   "text/reference-media-id",
@@ -54,6 +58,24 @@ export type InternalReferenceDragPayload = {
   sourceSurface: ReferenceDragSourceSurface | null;
   width?: number;
   height?: number;
+};
+
+export type ComposerImageDropPayload = {
+  version: number;
+  origin: typeof INTERNAL_REFERENCE_DRAG_ORIGIN;
+  referenceId: string | null;
+  outputId: string | null;
+  mediaId: string | null;
+  displayArtifactUrl: string;
+  displayArtifactKind: "blob" | "data" | "url";
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  referenceUrl?: string | null;
+  promptText?: string | null;
+  sourceSurface: ReferenceDragSourceSurface | null;
+  width?: number;
+  height?: number;
+  mimeType?: string | null;
 };
 
 const toAbsoluteTransferUrl = (value: string): string => {
@@ -118,6 +140,11 @@ const parseReferenceDimension = (value: string | null | undefined): number | und
 };
 
 const normalizeReferenceTransferId = (value: string | null | undefined): string | null => {
+  const candidate = (value ?? "").trim();
+  return candidate.length ? candidate : null;
+};
+
+const normalizePromptText = (value: string | null | undefined): string | null => {
   const candidate = (value ?? "").trim();
   return candidate.length ? candidate : null;
 };
@@ -236,4 +263,97 @@ export const extractInternalReferenceDragPayload = (
   if (payload.version <= 0) payload.version = INTERNAL_REFERENCE_DRAG_VERSION;
 
   return payload;
+};
+
+/**
+ * Parses a dedicated composer image-drop payload from a `DataTransfer`.
+ */
+export const extractComposerImageDropPayload = (
+  transfer: DataTransfer | null | undefined
+): ComposerImageDropPayload | null => {
+  if (!transfer) return null;
+  const rawPayload =
+    transfer.getData(COMPOSER_IMAGE_DROP_PAYLOAD_TYPE) ||
+    transfer.getData(COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE);
+  const trimmedPayload = rawPayload.trim();
+  if (!trimmedPayload) return null;
+
+  try {
+    const parsed = JSON.parse(trimmedPayload) as Partial<ComposerImageDropPayload>;
+    if (parsed.origin !== INTERNAL_REFERENCE_DRAG_ORIGIN) return null;
+    const displayArtifactUrl = normalizeReferenceTransferUrlCandidate(parsed.displayArtifactUrl, {
+      unwrapNextImage: false,
+    });
+    if (!displayArtifactUrl) return null;
+
+    const displayArtifactKind =
+      parsed.displayArtifactKind === "blob" ||
+      parsed.displayArtifactKind === "data" ||
+      parsed.displayArtifactKind === "url"
+        ? parsed.displayArtifactKind
+        : displayArtifactUrl.startsWith("blob:")
+          ? "blob"
+          : displayArtifactUrl.startsWith("data:")
+            ? "data"
+            : "url";
+
+    const payload: ComposerImageDropPayload = {
+      version:
+        typeof parsed.version === "number" && Number.isFinite(parsed.version) && parsed.version > 0
+          ? Math.floor(parsed.version)
+          : INTERNAL_REFERENCE_DRAG_VERSION,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: normalizeReferenceTransferId(parsed.referenceId),
+      outputId:
+        normalizeReferenceTransferId(parsed.outputId) ??
+        normalizeReferenceTransferId(parsed.referenceId),
+      mediaId: normalizeReferenceTransferId(parsed.mediaId),
+      displayArtifactUrl,
+      displayArtifactKind,
+      sourceSurface: parseReferenceDragSourceSurface(parsed.sourceSurface),
+      ...(normalizeReferenceTransferUrlCandidate(parsed.previewStoragePath, {
+        unwrapNextImage: false,
+      })
+        ? {
+            previewStoragePath: normalizeReferenceTransferUrlCandidate(parsed.previewStoragePath, {
+              unwrapNextImage: false,
+            }),
+          }
+        : {}),
+      ...(normalizeReferenceTransferUrlCandidate(parsed.fullStoragePath, {
+        unwrapNextImage: false,
+      })
+        ? {
+            fullStoragePath: normalizeReferenceTransferUrlCandidate(parsed.fullStoragePath, {
+              unwrapNextImage: false,
+            }),
+          }
+        : {}),
+      ...(normalizeReferenceTransferUrlCandidate(parsed.referenceUrl, {
+        unwrapNextImage: false,
+      })
+        ? {
+            referenceUrl: normalizeReferenceTransferUrlCandidate(parsed.referenceUrl, {
+              unwrapNextImage: false,
+            }),
+          }
+        : {}),
+      ...(normalizePromptText(parsed.promptText)
+        ? { promptText: normalizePromptText(parsed.promptText) }
+        : {}),
+      ...(typeof parseReferenceDimension(String(parsed.width ?? "")) === "number"
+        ? { width: parseReferenceDimension(String(parsed.width ?? "")) }
+        : {}),
+      ...(typeof parseReferenceDimension(String(parsed.height ?? "")) === "number"
+        ? { height: parseReferenceDimension(String(parsed.height ?? "")) }
+        : {}),
+      ...(normalizePromptText(parsed.mimeType)
+        ? { mimeType: normalizePromptText(parsed.mimeType) }
+        : {}),
+    };
+
+    return payload;
+  } catch {
+    return null;
+  }
 };

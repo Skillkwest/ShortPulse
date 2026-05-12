@@ -14,6 +14,7 @@ import type {
 import type {
   ExpertEditRegenerateOptions,
   ExpertEditRegenerateWithReferenceInputsHandler,
+  ExpertEditVariantCostResolver,
 } from "../components/edit/expertEditSubmissionContract";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
@@ -39,6 +40,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   handleImageRegenerateWithDebit: (
     options?: ExpertEditRegenerateOptions & { referenceInputsOverride?: string[] }
   ) => void | Promise<void>;
+  resolveVariantCostCredits?: ExpertEditVariantCostResolver;
   insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
   removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   notifyGenerationFailure?: (outputId: string, message: string, detail?: string) => void;
@@ -90,6 +92,7 @@ export const useAiStudioEditExpertPanelProps = ({
   setExtraImageUrl,
   handleEditPromptTextChange,
   handleImageRegenerateWithDebit,
+  resolveVariantCostCredits,
   insertOptimisticGenerationPlaceholder,
   removeOptimisticGenerationPlaceholder,
   notifyGenerationFailure,
@@ -141,6 +144,7 @@ export const useAiStudioEditExpertPanelProps = ({
       insertOptimisticGenerationPlaceholder,
       removeOptimisticGenerationPlaceholder,
       notifyGenerationFailure,
+      resolveVariantCostCredits,
       onRegenerateWithReferenceInputs: ((
         referenceInputs: string[],
         options?: ExpertEditRegenerateOptions
@@ -194,6 +198,7 @@ export const useAiStudioEditExpertPanelProps = ({
       generationGuardrail,
       handleEditPromptTextChange,
       handleImageRegenerateWithDebit,
+      resolveVariantCostCredits,
       onEditSubmitIntentChange,
       handleOpenModelModal,
       imageResolution,

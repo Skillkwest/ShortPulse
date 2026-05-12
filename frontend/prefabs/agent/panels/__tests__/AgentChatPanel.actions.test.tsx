@@ -51,6 +51,29 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.queryByText("Should stay hidden")).not.toBeInTheDocument();
   });
 
+  it("normalizes legacy image preview fields through the shared attachment renderer", () => {
+    const { container } = render(
+      <AgentChatPanel
+        messages={[]}
+        input=""
+        stagedAttachments={[
+          {
+            id: "img-legacy-1",
+            kind: "image",
+            imageUrl: null,
+            referenceRenderUrl: "https://example.com/legacy-preview.png",
+            text: null,
+          },
+        ]}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    const preview = container.querySelector("img");
+    expect(preview).toHaveAttribute("src", "https://example.com/legacy-preview.png");
+  });
+
   it("forwards inline generate prompts and does not trigger bubble click", () => {
     const onMessageClick = vi.fn();
     const onGenerateOutputPrompt = vi.fn();

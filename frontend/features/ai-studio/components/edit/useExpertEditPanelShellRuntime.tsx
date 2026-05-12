@@ -89,7 +89,7 @@ type UseExpertEditPanelShellRuntimeArgs = {
   };
   stageContextMenuRef: React.Ref<HTMLDivElement>;
   isMarkupExpandSelected: boolean;
-  handleStageContextMenuRecenter: () => void;
+  handleStageContextMenuResetView: () => void;
   handleStageContextMenuExpand: () => void;
   handleStageContextMenuAddImage: () => void;
   handleStageContextMenuReset: () => void;
@@ -159,7 +159,7 @@ export function useExpertEditPanelShellRuntime({
   stageContextMenuState,
   stageContextMenuRef,
   isMarkupExpandSelected,
-  handleStageContextMenuRecenter,
+  handleStageContextMenuResetView,
   handleStageContextMenuExpand,
   handleStageContextMenuAddImage,
   handleStageContextMenuReset,
@@ -247,7 +247,7 @@ export function useExpertEditPanelShellRuntime({
       y: stageContextMenuState.y,
       isMarkupExpandSelected,
       hasSelectedLayerImage: Boolean(selectedLayerImageUrl),
-      onRecenter: handleStageContextMenuRecenter,
+      onResetView: handleStageContextMenuResetView,
       onExpand: handleStageContextMenuExpand,
       onAddImage: handleStageContextMenuAddImage,
       onReset: handleStageContextMenuReset,
@@ -256,7 +256,7 @@ export function useExpertEditPanelShellRuntime({
     [
       handleStageContextMenuAddImage,
       handleStageContextMenuExpand,
-      handleStageContextMenuRecenter,
+      handleStageContextMenuResetView,
       handleStageContextMenuRemoveImage,
       handleStageContextMenuReset,
       isMarkupExpandSelected,

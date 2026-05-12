@@ -198,6 +198,73 @@ describe("sessionSnapshot", () => {
     expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
   });
 
+  it("serializes legacy image attachments into one canonical preview url", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "legacy-image-attachment-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [
+        {
+          id: "u-1",
+          role: "user",
+          content: "",
+          attachments: [
+            {
+              id: "img-1",
+              kind: "image",
+              imageUrl: null,
+              referenceRenderUrl: "https://example.com/legacy-preview.png",
+              text: null,
+            },
+          ],
+        },
+      ],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+      canvasState: null,
+      expertEditSessionState: null,
+    });
+
+    expect(snapshot.agentRuntimes?.standard.messages[0]?.attachments?.[0]).toMatchObject({
+      imageUrl: "https://example.com/legacy-preview.png",
+      imageFallbackUrls: undefined,
+    });
+  });
+
   it("preserves apply_prompt workflow artifacts in Pulse session snapshots", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "pulse-apply-prompt-session",

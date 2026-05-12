@@ -134,7 +134,10 @@ export function PulseCreatePropertiesPanel({
     const stepLabel = pulseWorkflowSession?.currentStepLabel?.trim() || null;
     const hasPendingStartupStep =
       pulseWorkflowSession?.status === "running" && assistantMessageCount === 0;
-    if (agentUiBusy || (agentTransportSending && hasPendingStartupStep)) {
+    const shouldShowStartupState =
+      assistantMessageCount === 0 &&
+      (agentUiBusy || agentTransportSending || agentIsSending || hasPendingStartupStep);
+    if (shouldShowStartupState) {
       return {
         phase: "starting_pulse",
         title: PULSE_LOADING_TITLE,
@@ -145,7 +148,7 @@ export function PulseCreatePropertiesPanel({
         stepLabel,
       };
     }
-    if (agentTransportSending && assistantMessageCount > 0) {
+    if ((agentTransportSending || agentIsSending) && assistantMessageCount > 0) {
       return {
         phase: "generating_step",
         title: PULSE_LOADING_TITLE,
@@ -163,6 +166,7 @@ export function PulseCreatePropertiesPanel({
     activePulsePresetId,
     activePulsePresetLabel,
     agentMessages,
+    agentIsSending,
     agentTransportSending,
     agentUiBusy,
     isGuidedWorkflowPulse,

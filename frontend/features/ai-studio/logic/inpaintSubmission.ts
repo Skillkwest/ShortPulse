@@ -58,4 +58,6 @@ export type InpaintSubmissionOverride = {
   maskInput: string;
   referenceImageInput?: string | null;
   outputFormat?: "png" | "jpeg";
+  imageWidth?: number | null;
+  imageHeight?: number | null;
 };

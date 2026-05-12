@@ -51,6 +51,54 @@ describe("useMediaTabActiveViewSync", () => {
     expect(fetchMediaTabPage).not.toHaveBeenCalled();
   });
 
+  it("does not reload prompts when only the saved-prompts search query changes mid-load", async () => {
+    const loadPrompts = vi.fn(async () => undefined);
+    const fetchMediaTabPage = vi.fn(async () => undefined);
+    const mediaTabCache = createMediaTabCacheState<Row>();
+
+    const { rerender } = renderHook(
+      ({ activeMediaQuery }) => {
+        const [files, setFiles] = useState<Row[]>([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState<string | null>(null);
+
+        useMediaTabActiveViewSync({
+          activeMediaCache: null,
+          activeMediaQuery,
+          activeTab: "saved_prompts",
+          cacheTtlMs: 30_000,
+          fetchEnabled: true,
+          fetchMediaTabPage,
+          loadPrompts,
+          promptsLoaded: false,
+          setError,
+          setFiles,
+          setLoading,
+        });
+
+        return { error, files, loading };
+      },
+      {
+        initialProps: {
+          activeMediaQuery: "",
+          mediaTabCache,
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(loadPrompts).toHaveBeenCalledTimes(1);
+    });
+
+    rerender({
+      activeMediaQuery: "portrait",
+      mediaTabCache,
+    });
+
+    expect(loadPrompts).toHaveBeenCalledTimes(1);
+    expect(fetchMediaTabPage).not.toHaveBeenCalled();
+  });
+
   it("reuses fresh cached rows without issuing a fetch", async () => {
     const row = makeRow();
     const loadPrompts = vi.fn(async () => undefined);

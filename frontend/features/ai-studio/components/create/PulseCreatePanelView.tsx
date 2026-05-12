@@ -71,14 +71,18 @@ const PulseCreatePanelViewContent = ({
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const isActivePulseSession = hasActivePulseSession;
   const hasVisibleAgentMessages = (promptStepProps.agentMessages?.length ?? 0) > 0;
-  const hasPulseLoadingSurface = promptStepProps.pulseLoadingState != null;
-  const shouldShowPersistentEmptyShell = !hasVisibleAgentMessages && !hasPulseLoadingSurface;
+  const pulseLoadingState = promptStepProps.pulseLoadingState ?? null;
+  const hasPulseLoadingSurface = pulseLoadingState != null;
+  const isNoHistoryShell = !hasVisibleAgentMessages;
+  const shouldShowPulseStartupShell =
+    isNoHistoryShell && pulseLoadingState?.phase === "starting_pulse";
+  const shouldShowPersistentEmptyShell = isNoHistoryShell && !hasPulseLoadingSurface;
   const costValue = costCredits != null ? costCredits : "—";
   const handleClearAgentChat = promptStepProps.onClearAgentChat;
   const promptStepLayoutProps: React.ComponentProps<typeof PulsePromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
-    forceRenderAgentChatPanel: !shouldShowPersistentEmptyShell,
+    forceRenderAgentChatPanel: !isNoHistoryShell && !shouldShowPulseStartupShell,
     emptyAgentChatSpacerClassName: shouldShowPersistentEmptyShell
       ? "create-expert-chat-spacer"
       : "",
@@ -90,6 +94,33 @@ const PulseCreatePanelViewContent = ({
 
   const promptAndControls = (
     <>
+      {shouldShowPulseStartupShell ? (
+        <div
+          className="create-expert-pulse-start-shell"
+          role="status"
+          aria-live="polite"
+          aria-label={`Starting ${pulseLoadingState.presetLabel ?? "Pulse"}`}
+        >
+          <div className="create-expert-pulse-start-shell-badge">
+            <span className="create-expert-pulse-start-shell-badge-dot" aria-hidden="true" />
+            <span className="create-expert-pulse-start-shell-badge-label">
+              {pulseLoadingState.presetLabel ?? "Pulse"}
+            </span>
+          </div>
+          <div className="create-expert-pulse-start-shell-card">
+            <span className="create-expert-pulse-start-shell-spinner" aria-hidden="true" />
+            <div className="create-expert-pulse-start-shell-copy">
+              <p className="create-expert-pulse-start-shell-title">Starting Pulse</p>
+              <p className="create-expert-pulse-start-shell-message">{pulseLoadingState.message}</p>
+              {pulseLoadingState.stepLabel ? (
+                <p className="create-expert-pulse-start-shell-step">
+                  Next up: {pulseLoadingState.stepLabel}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
       {shouldShowPersistentEmptyShell ? (
         <>
           <div className="create-expert-empty-preview-frame" aria-hidden="true" />
@@ -124,7 +155,7 @@ const PulseCreatePanelViewContent = ({
 
   return (
     <div
-      className={`tool-properties text-properties-panel create-expert-panel ${shouldShowPersistentEmptyShell ? "create-expert-panel--no-history" : ""}`.trim()}
+      className={`tool-properties text-properties-panel create-expert-panel ${isNoHistoryShell ? "create-expert-panel--no-history" : ""}`.trim()}
       role="group"
       aria-label="Expert create composer"
     >
@@ -168,7 +199,7 @@ const PulseCreatePanelViewContent = ({
                 </button>
               ) : null}
             </div>
-            {shouldShowPersistentEmptyShell ? (
+            {isNoHistoryShell ? (
               <div className="create-expert-empty-state-shell">{promptAndControls}</div>
             ) : (
               <div className="create-expert-flow-shell">{promptAndControls}</div>

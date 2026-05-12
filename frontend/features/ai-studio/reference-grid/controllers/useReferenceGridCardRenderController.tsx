@@ -7,6 +7,7 @@ import { ReferenceGridCard } from "../components/ReferenceGridCard";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { StudioOutput } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
+import type { ReferenceComposerImageDragArtifact } from "../../utils/dragDrop";
 import { isVideoUrl } from "../../logic/stateParsers";
 import { isReferenceOutputFailing } from "../logic/referenceGridLoadingState";
 import { isLocalVideoReferencePendingPersistence } from "../logic/referenceGridCardVisualState";
@@ -26,6 +27,8 @@ export type ReferenceGridVisibleCard = {
   isAudioPreview?: boolean;
   isPriorityHydration: boolean;
   imageSrc?: string;
+  dragDisplayArtifactUrl?: string;
+  dragDisplayArtifactKind?: "blob" | "data" | "url";
 };
 
 type UseReferenceGridCardRenderControllerArgs = {
@@ -45,7 +48,8 @@ type UseReferenceGridCardRenderControllerArgs = {
   onCardDragStart: (
     event: React.DragEvent<HTMLElement>,
     item: StudioOutput,
-    sourceSurface: ReferenceDragSourceSurface
+    sourceSurface: ReferenceDragSourceSurface,
+    composerImageArtifact?: ReferenceComposerImageDragArtifact | null
   ) => void;
   onCardDragEnd: (event: React.DragEvent<HTMLElement>) => void;
   onCuratedSectionDragOver: (event: React.DragEvent<HTMLElement>) => void;
@@ -70,6 +74,12 @@ type UseReferenceGridCardRenderControllerArgs = {
 type UseReferenceGridCardRenderControllerResult = {
   curatedCardNodes: React.ReactNode[];
   allRefsCardNodes: React.ReactNode[];
+};
+
+const NOOP_AUDIO_PLAYBACK_CONTROLLER: ReferenceGridSingleAudioPlaybackController = {
+  requestPlay: () => undefined,
+  markPlaying: () => undefined,
+  clearActivePlayer: () => undefined,
 };
 
 /**
@@ -109,6 +119,7 @@ export const useReferenceGridCardRenderController = ({
   onSaveToLibrary,
   onDownload,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
+  const resolvedAudioPlaybackController = audioPlaybackController ?? NOOP_AUDIO_PLAYBACK_CONTROLLER;
   incrementFreezeInvestigationCounter("referenceGrid.cardRender.recompute");
   setFreezeInvestigationGauge(
     "referenceGrid.cardRender.visibleCardItemsCount",
@@ -192,6 +203,19 @@ export const useReferenceGridCardRenderController = ({
         currentOutput.mediaSource === "generated" &&
         !videoPosterUrl &&
         Boolean(hoverVideoUrl);
+      const composerImageArtifact: ReferenceComposerImageDragArtifact | null =
+        currentOutput.mode === "image" && card.dragDisplayArtifactUrl
+          ? {
+              displayArtifactUrl: card.dragDisplayArtifactUrl,
+              displayArtifactKind: card.dragDisplayArtifactKind ?? "url",
+              promptText: currentOutput.prompt?.trim() || currentOutput.previewText?.trim() || null,
+              mediaId: currentOutput.savedMediaIds?.[0]?.trim() || null,
+              previewStoragePath: currentOutput.previewStoragePath?.trim() || null,
+              fullStoragePath: currentOutput.fullStoragePath?.trim() || null,
+              referenceUrl: null,
+              mimeType: currentOutput.mimeType?.trim() || null,
+            }
+          : null;
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;
       const audioInstanceKey = `${options.surface}:${currentOutput.id}`;
       return (
@@ -224,6 +248,7 @@ export const useReferenceGridCardRenderController = ({
           onSelectOutput={onSelectOutput}
           onOpenDetails={onOpenDetails}
           onCardDragStart={onCardDragStart}
+          composerImageArtifact={composerImageArtifact}
           onCardDragEnd={onCardDragEnd}
           onCardDragOver={
             options.isCuratedSurface
@@ -254,9 +279,9 @@ export const useReferenceGridCardRenderController = ({
           markLoaded={markLoaded}
           onAutoplayStarted={onAutoplayStarted}
           onAutoplayStopped={onAutoplayStopped}
-          onRequestAudioPlay={audioPlaybackController.requestPlay}
-          onAudioPlaybackStarted={audioPlaybackController.markPlaying}
-          onAudioPlaybackStopped={audioPlaybackController.clearActivePlayer}
+          onRequestAudioPlay={resolvedAudioPlaybackController.requestPlay}
+          onAudioPlaybackStarted={resolvedAudioPlaybackController.markPlaying}
+          onAudioPlaybackStopped={resolvedAudioPlaybackController.clearActivePlayer}
           onRetryStatus={onRetryStatus}
           onRerollOutput={options.isCuratedSurface ? undefined : onRerollOutput}
           onDeleteOutput={options.isCuratedSurface ? undefined : onDeleteOutput}
@@ -271,7 +296,7 @@ export const useReferenceGridCardRenderController = ({
     },
     [
       activeOutputId,
-      audioPlaybackController,
+      resolvedAudioPlaybackController,
       autoplayEnabledIdSet,
       linkedPromptReferenceIdSet,
       markLoaded,

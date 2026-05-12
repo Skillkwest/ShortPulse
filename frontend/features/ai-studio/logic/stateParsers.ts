@@ -519,23 +519,26 @@ export const mapUploadsFromFiles = async (
   const timestampLabel = source === "drop" ? "Dropped" : "Uploaded";
 
   const supportsObjectUrl = typeof URL !== "undefined" && typeof URL.createObjectURL === "function";
+  const readFileAsDataUrl = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
   const outputs = await Promise.all(
     mediaFiles.map(async (file) => {
       const isVideo = file.type.startsWith("video/");
       const isAudio = file.type.startsWith("audio/");
+      const isImage = !isVideo && !isAudio;
       const objectUrl = supportsObjectUrl ? URL.createObjectURL(file) : null;
       const fallbackDataUrl = await (async () => {
-        if (objectUrl) return null;
-        return new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+        if (!isImage && objectUrl) return null;
+        return readFileAsDataUrl(file);
       })();
       // Keep url-shape compatibility for existing heuristics while retaining the raw object URL
       // for deterministic cleanup via URL.revokeObjectURL.
-      const previewBase = objectUrl ?? fallbackDataUrl ?? "";
+      const previewBase = isImage ? (fallbackDataUrl ?? objectUrl ?? "") : (objectUrl ?? "");
       const previewUrl = isVideo
         ? `${previewBase}#video=1`
         : isAudio && objectUrl

@@ -5,6 +5,7 @@
 import { useCallback, type MutableRefObject } from "react";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { canRetryMediaPreviewSignedUrl } from "../../../lib/mediaPreviewRuntimePolicy";
+import { resolveMediaPreviewCandidates } from "../../../lib/mediaPreviewPath";
 import type { MediaDataTab } from "../logic/mediaLibraryPageHelpers";
 import { resolveSignedSelectionUrl } from "../logic/mediaPreviewResolver";
 
@@ -94,6 +95,26 @@ export const useMediaPreviewRecoveryController = <TRow extends PreviewRecoveryRo
   const handleMediaPreviewError = useCallback(
     (row: TRow, failedUrl?: string | null) => {
       beforeRetry?.({ row, failedUrl });
+      const directPreviewUrl = resolveMediaPreviewCandidates(
+        row,
+        currentUserIdRef.current
+      ).directUrl;
+      const currentSignedUrl = typeof row.signedUrl === "string" ? row.signedUrl.trim() : "";
+      const normalizedFailedUrl = typeof failedUrl === "string" ? failedUrl.trim() : "";
+      if (
+        directPreviewUrl &&
+        directPreviewUrl !== currentSignedUrl &&
+        directPreviewUrl !== normalizedFailedUrl
+      ) {
+        const tab = resolveTabForRow(row);
+        const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
+        if (previousObjectUrl) {
+          URL.revokeObjectURL(previousObjectUrl);
+          delete objectUrlByMediaIdRef.current[row.id];
+        }
+        applySignedUrlsToTab(tab, new Map([[row.id, directPreviewUrl]]));
+        return;
+      }
       const attempts = signedUrlRetryRef.current[row.id] ?? 0;
       if (!canRetryMediaPreviewSignedUrl(attempts)) return;
       signedUrlRetryRef.current[row.id] = attempts + 1;
@@ -108,7 +129,10 @@ export const useMediaPreviewRecoveryController = <TRow extends PreviewRecoveryRo
     },
     [
       beforeRetry,
+      applySignedUrlsToTab,
       hydrateViaStorageDownload,
+      currentUserIdRef,
+      objectUrlByMediaIdRef,
       refreshSignedUrl,
       resolveSignedUrlsByMediaIds,
       resolveTabForRow,

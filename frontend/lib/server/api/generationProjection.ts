@@ -22,6 +22,8 @@ export type UpsertGenerationProjectionInput = {
   previewUrl?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
+  companionArtStatus?: string | null;
+  companionArtStoragePath?: string | null;
   errorMessage?: string | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
@@ -233,6 +235,8 @@ export const upsertGenerationProjection = async ({
   previewUrl,
   previewStoragePath,
   fullStoragePath,
+  companionArtStatus,
+  companionArtStoragePath,
   errorMessage,
   errorMessageShort,
   errorDetail,
@@ -274,6 +278,8 @@ export const upsertGenerationProjection = async ({
     preview_url: previewUrl,
     preview_storage_path: previewStoragePath,
     full_storage_path: fullStoragePath,
+    companion_art_status: companionArtStatus,
+    companion_art_storage_path: companionArtStoragePath,
     error_message: errorMessage,
     error_message_short: errorMessageShort,
     error_detail: errorDetail,

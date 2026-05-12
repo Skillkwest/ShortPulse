@@ -1,0 +1,303 @@
+import React from "react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { ExpertEditPanelView } from "../ExpertEditPanelView";
+import {
+  EXPERT_EDIT_SESSION_STATE_VERSION,
+  type ExpertEditSessionState,
+} from "../expertEditSessionState";
+
+const emptyFileList = { length: 0, item: () => null } as unknown as FileList;
+
+const buildSessionState = ({
+  transformScale = 1,
+  includeMarkupStroke = false,
+  includeInpaintMask = false,
+}: {
+  transformScale?: number;
+  includeMarkupStroke?: boolean;
+  includeInpaintMask?: boolean;
+} = {}): ExpertEditSessionState => ({
+  version: EXPERT_EDIT_SESSION_STATE_VERSION,
+  layers: {
+    layerIdCounter: 2,
+    foundationLayerId: "layer-1",
+    selectedLayerIndex: 0,
+    layers: [
+      {
+        id: "layer-1",
+        name: "layer 1",
+        imageUrl: "https://example.com/original.png",
+        opacity: 1,
+        isAutoNamed: true,
+        ownsImageUrl: false,
+        transform: {
+          translateXRatio: 0,
+          translateYRatio: 0,
+          scale: transformScale,
+          rotationDeg: 0,
+        },
+      },
+    ],
+  },
+  markup: {
+    strokes: includeMarkupStroke
+      ? [
+          {
+            id: "stroke-1",
+            color: "#f43f5e",
+            sizeRatio: 0.02,
+            points: [
+              { sceneX: 0.1, sceneY: 0.1 },
+              { sceneX: 0.2, sceneY: 0.2 },
+            ],
+          },
+        ]
+      : [],
+  },
+  inpaint: {
+    snapshot: {
+      layers: includeInpaintMask
+        ? [
+            {
+              layerId: "layer-1",
+              width: 1,
+              height: 1,
+              alpha: new Uint8ClampedArray([255]),
+            },
+          ]
+        : [],
+    },
+  },
+});
+
+const makeImageDropDataTransfer = (imageUrl: string) =>
+  ({
+    files: emptyFileList,
+    types: ["image/url"],
+    getData: vi.fn((type: string) => (type === "image/url" ? imageUrl : "")),
+  }) as unknown as DataTransfer;
+
+describe("ExpertEditPanelView interaction flow", () => {
+  const OriginalImage = globalThis.Image;
+
+  beforeEach(() => {
+    class ImmediateImageMock {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1;
+      naturalHeight = 1;
+
+      set src(_value: string) {
+        queueMicrotask(() => {
+          this.onload?.();
+        });
+      }
+    }
+
+    // Keep image-dimension resolution deterministic in jsdom.
+    globalThis.Image = ImmediateImageMock as unknown as typeof Image;
+  });
+
+  afterEach(() => {
+    globalThis.Image = OriginalImage;
+  });
+
+  it("creates a second layer from a stage drop and preserves it through Center", async () => {
+    render(
+      <ExpertEditPanelView
+        expertEditEligible
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl={null}
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        isGenerateBusy={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={buildSessionState()}
+        onSessionStateChange={vi.fn()}
+      />
+    );
+
+    const frameStack = screen.getByTestId("edit-expert-primary-canvas-frame-stack");
+    fireEvent.drop(frameStack, {
+      dataTransfer: makeImageDropDataTransfer("https://example.com/added.png"),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+
+    fireEvent.contextMenu(screen.getByLabelText("Primary composition surface"));
+
+    const resetViewButton = await screen.findByRole("menuitem", { name: "Center" });
+    fireEvent.click(resetViewButton);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("menuitem", { name: "Center" })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+  });
+
+  it("keeps layers while Reset All clears transform, markup, and inpaint session state", async () => {
+    const onSessionStateChange = vi.fn();
+
+    render(
+      <ExpertEditPanelView
+        expertEditEligible
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl={null}
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        isGenerateBusy={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={buildSessionState({
+          transformScale: 0.5,
+          includeMarkupStroke: true,
+          includeInpaintMask: true,
+        })}
+        onSessionStateChange={onSessionStateChange}
+      />
+    );
+
+    const frameStack = screen.getByTestId("edit-expert-primary-canvas-frame-stack");
+    fireEvent.drop(frameStack, {
+      dataTransfer: makeImageDropDataTransfer("https://example.com/added.png"),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "layer 2" })).toBeInTheDocument();
+    });
+
+    onSessionStateChange.mockClear();
+
+    fireEvent.contextMenu(screen.getByLabelText("Primary composition surface"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Reset All" }));
+
+    await waitFor(() => {
+      expect(onSessionStateChange).toHaveBeenCalled();
+    });
+
+    const latestState = onSessionStateChange.mock.calls.at(-1)?.[0] as ExpertEditSessionState;
+    expect(latestState.layers.layers).toHaveLength(2);
+    expect(latestState.layers.layers[0]?.transform.scale).toBe(1);
+    expect(latestState.layers.layers[1]?.transform.scale).toBe(1);
+    expect(latestState.markup.strokes).toHaveLength(0);
+    expect(latestState.inpaint.snapshot.layers).toHaveLength(0);
+  });
+
+  it("keeps zoom state in sync between inline and expanded modal surfaces", async () => {
+    render(
+      <ExpertEditPanelView
+        expertEditEligible
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl={null}
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        isGenerateBusy={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={buildSessionState()}
+        onSessionStateChange={vi.fn()}
+      />
+    );
+
+    const inlineZoomSlider = screen.getByLabelText("Zoom stage") as HTMLInputElement;
+    fireEvent.change(inlineZoomSlider, { target: { value: "80" } });
+    expect(inlineZoomSlider.value).toBe("80");
+
+    fireEvent.contextMenu(screen.getByLabelText("Primary composition surface"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Expand" }));
+
+    const modal = await screen.findByRole("dialog", { name: "Expanded markup canvas" });
+    const modalZoomSlider = within(modal).getByLabelText("Zoom stage") as HTMLInputElement;
+    expect(modalZoomSlider.value).toBe("80");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "Expanded markup canvas" })
+      ).not.toBeInTheDocument();
+    });
+  });
+});

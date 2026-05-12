@@ -139,14 +139,33 @@ export const useAiStudioViewModel = ({
   );
   const isSeedance2Model =
     model === KIE_SEEDANCE_2_MODEL_ID || model === KIE_SEEDANCE_2_FAST_MODEL_ID;
-  const isKlingMotionMode =
-    isVideoTool && model === KIE_KLING_30_MODEL_ID && videoReferenceMode === "motion";
   const hasSeedance2MultimodalReferences =
     seedance2ReferenceImageUrls.length > 0 ||
     seedance2ReferenceVideoUrls.length > 0 ||
     seedance2ReferenceAudioUrls.length > 0;
+  const seedance2VideoInputCount = useMemo(
+    () =>
+      seedance2ReferenceVideoUrls.filter((value) => value.trim().length > 0).length +
+      klingElements.filter((element) => element.videoUrl.trim().length > 0).length,
+    [klingElements, seedance2ReferenceVideoUrls]
+  );
   const hasSeedance2LinkedAssetReferences = klingElements.some(
     (element) => element.videoUrl.trim() || getAiStudioKlingElementReferenceUrls(element).length > 0
+  );
+  const videoPricingParams = useMemo(
+    () => ({
+      durationSeconds: videoDurationSeconds,
+      resolution: videoResolution,
+      audio: videoGenerateAudio,
+      ...(isSeedance2Model ? { inputVideoCount: seedance2VideoInputCount } : {}),
+    }),
+    [
+      isSeedance2Model,
+      seedance2VideoInputCount,
+      videoDurationSeconds,
+      videoGenerateAudio,
+      videoResolution,
+    ]
   );
   const requiresResolvedPricingPolicy =
     isVideoTool || isEditWorkflowSelected || isCreateWorkflowSelected;
@@ -215,14 +234,9 @@ export const useAiStudioViewModel = ({
 
     if (isVideoTool) {
       if (!model) return null;
-      if (isKlingMotionMode) return null;
       return resolveClientPricingBreakdown({
         modelId: model,
-        params: costParamsForModel(model, {
-          durationSeconds: videoDurationSeconds,
-          resolution: videoResolution,
-          audio: videoGenerateAudio,
-        }),
+        params: costParamsForModel(model, videoPricingParams),
         pricingPolicy,
         pricingPolicyReady: !isPricingPolicyUnavailable,
       });
@@ -241,12 +255,9 @@ export const useAiStudioViewModel = ({
     isCreateWorkflowSelected,
     isEditWorkflowSelected,
     isVideoTool,
-    isKlingMotionMode,
     pricingPolicy,
-    videoDurationSeconds,
-    videoResolution,
+    videoPricingParams,
     pricingImageResolution,
-    videoGenerateAudio,
     isPricingPolicyUnavailable,
   ]);
 
@@ -254,17 +265,12 @@ export const useAiStudioViewModel = ({
   // Cost shown in the model picker (also used by agent-output generation affordances).
   const modelPickerCostCredits = useMemo(() => {
     if (!effectiveEditSubmitModelId) return null;
-    if (isKlingMotionMode && effectiveEditSubmitModelId === KIE_KLING_30_MODEL_ID) return null;
     return resolveClientBilledCredits({
       modelId: effectiveEditSubmitModelId,
       params: costParamsForModel(
         effectiveEditSubmitModelId,
         isVideoTool
-          ? {
-              durationSeconds: videoDurationSeconds,
-              resolution: videoResolution,
-              audio: videoGenerateAudio,
-            }
+          ? videoPricingParams
           : isImageTool && pricingImageResolution
             ? { resolution: pricingImageResolution }
             : {}
@@ -277,10 +283,10 @@ export const useAiStudioViewModel = ({
     effectiveEditSubmitModelId,
     isVideoTool,
     isImageTool,
-    isKlingMotionMode,
     isPricingPolicyUnavailable,
     pricingPolicy,
     pricingImageResolution,
+    videoPricingParams,
     videoDurationSeconds,
     videoGenerateAudio,
     videoResolution,
@@ -293,11 +299,7 @@ export const useAiStudioViewModel = ({
         params: costParamsForModel(
           modelIdForChip,
           isVideoTool
-            ? {
-                durationSeconds: videoDurationSeconds,
-                resolution: videoResolution,
-                audio: videoGenerateAudio,
-              }
+            ? videoPricingParams
             : isImageTool && pricingImageResolution
               ? { resolution: pricingImageResolution }
               : {}
@@ -313,9 +315,7 @@ export const useAiStudioViewModel = ({
       isVideoTool,
       pricingPolicy,
       pricingImageResolution,
-      videoDurationSeconds,
-      videoGenerateAudio,
-      videoResolution,
+      videoPricingParams,
     ]
   );
 

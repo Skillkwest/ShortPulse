@@ -599,6 +599,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   const isGenerateEnabled =
     Boolean(selectedLibraryVoice?.id) &&
     pricingPolicyReady &&
+    estimatedCredits != null &&
     (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
     (surfaceMode === "create"
       ? voiceScript.trim().length > 0

@@ -15,10 +15,11 @@ type SigningCandidateRow = {
   preview_variant_path?: string | null;
 };
 
-type ResolveAndApplySignedPreviewUrlsByRowsArgs<TRow extends { id?: string | null }> = {
+type ResolveAndApplySignedPreviewUrlsByRowsArgs<TRow extends SigningCandidateRow> = {
   tab: MediaDataTab;
   rows: TRow[];
   applySignedUrlsToTab: (tab: MediaDataTab, signedById: Map<string, string>) => void;
+  currentUserId?: string | null;
   surface?:
     | "media-library-route"
     | "media-library-modal"
@@ -49,15 +50,26 @@ export const signMediaStoragePath = async (
     previewProfile: options?.previewProfile ?? "none",
   });
 
-export const resolveAndApplySignedPreviewUrlsByRows = async <TRow extends { id?: string | null }>({
+export const resolveAndApplySignedPreviewUrlsByRows = async <TRow extends SigningCandidateRow>({
   tab,
   rows,
   applySignedUrlsToTab,
+  currentUserId = null,
   surface,
   fetcher = fetchWithAuth,
 }: ResolveAndApplySignedPreviewUrlsByRowsArgs<TRow>): Promise<Set<string>> => {
-  const ids = collectUniqueMediaIds(rows);
+  const directResolvedById = new Map<string, string>();
+  const unresolvedRows = rows.filter((row) => {
+    const directUrl = resolveMediaPreviewCandidates(row, currentUserId).directUrl;
+    if (!directUrl) return true;
+    directResolvedById.set(row.id, directUrl);
+    return false;
+  });
+  const ids = collectUniqueMediaIds(unresolvedRows);
   const unresolvedIds = new Set(ids);
+  if (directResolvedById.size) {
+    applySignedUrlsToTab(tab, directResolvedById);
+  }
   if (!ids.length) return unresolvedIds;
   const resolvedById = await resolveSignedPreviewUrlsByMediaIds({
     ids,

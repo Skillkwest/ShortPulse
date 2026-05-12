@@ -16,7 +16,6 @@ import {
 } from "../../../../lib/model-runtime/falModelIds";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -175,11 +174,7 @@ describe("ModelModal", () => {
         label: "Kling 3.0 (Kie)",
         mediaType: "image-to-video",
       },
-      {
-        value: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        label: "Seedance 1.5 Pro (Kie)",
-        mediaType: "image-to-video",
-      },
+      { value: KIE_SEEDANCE_2_MODEL_ID, label: "Seedance 2.0 (Kie)", mediaType: "image-to-video" },
     ];
 
     const { container } = render(
@@ -197,12 +192,12 @@ describe("ModelModal", () => {
     expect(readChipTitles(container)).toEqual([
       "Veo 3.1 Fast I2V (Kie)",
       "Kling 3.0 (Kie)",
-      "Seedance 1.5 Pro (Kie)",
+      "Seedance 2.0 (Kie)",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Veo", chips: ["Veo 3.1 Fast I2V (Kie)"] },
       { family: "Kling", chips: ["Kling 3.0 (Kie)"] },
-      { family: "Seedance", chips: ["Seedance 1.5 Pro (Kie)"] },
+      { family: "Seedance", chips: ["Seedance 2.0 (Kie)"] },
     ]);
     expect(screen.getByRole("button", { name: /Kling 3\.0/i })).toBeInTheDocument();
   });
@@ -215,13 +210,13 @@ describe("ModelModal", () => {
         mediaType: "image-to-video",
       },
       {
-        value: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        label: "Seedance 1.5 Pro (Kie)",
+        value: KIE_SEEDANCE_2_MODEL_ID,
+        label: "Seedance 2.0 (Kie)",
         mediaType: "image-to-video",
       },
       {
-        value: KIE_SEEDANCE_2_MODEL_ID,
-        label: "Seedance 2.0 (Kie)",
+        value: KIE_SEEDANCE_2_FAST_MODEL_ID,
+        label: "Seedance 2.0 Fast (Kie)",
         mediaType: "image-to-video",
       },
     ];
@@ -238,10 +233,10 @@ describe("ModelModal", () => {
 
     expect(readChipTitles(container)).toEqual([
       "Veo 3.1 Fast I2V (Kie)",
-      "Seedance 1.5 Pro (Kie)",
       "Seedance 2.0 (Kie)",
+      "Seedance 2.0 Fast (Kie)",
     ]);
-    expect(screen.getByRole("button", { name: /Seedance 2\.0/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Seedance 2\.0/i })).toHaveLength(2);
   });
 
   it("keeps the full text-video ordering contract including Seedance 2 Fast", () => {
@@ -249,11 +244,6 @@ describe("ModelModal", () => {
       {
         value: KIE_SEEDANCE_2_FAST_MODEL_ID,
         label: "Seedance 2.0 Fast (Kie)",
-        mediaType: "image-to-video",
-      },
-      {
-        value: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        label: "Seedance 1.5 Pro (Kie)",
         mediaType: "image-to-video",
       },
       {
@@ -286,7 +276,6 @@ describe("ModelModal", () => {
     expect(readChipTitles(container)).toEqual([
       "Veo 3.1 Fast I2V (Kie)",
       "Kling 3.0 (Kie)",
-      "Seedance 1.5 Pro (Kie)",
       "Seedance 2.0 (Kie)",
       "Seedance 2.0 Fast (Kie)",
     ]);
@@ -295,7 +284,7 @@ describe("ModelModal", () => {
       { family: "Kling", chips: ["Kling 3.0 (Kie)"] },
       {
         family: "Seedance",
-        chips: ["Seedance 1.5 Pro (Kie)", "Seedance 2.0 (Kie)", "Seedance 2.0 Fast (Kie)"],
+        chips: ["Seedance 2.0 (Kie)", "Seedance 2.0 Fast (Kie)"],
       },
     ]);
   });
@@ -507,11 +496,7 @@ describe("ModelModal", () => {
 
   it("keeps Seedance after Veo and Kling in reference-video context", () => {
     const options: ModelOption[] = [
-      {
-        value: KIE_SEEDANCE_15_PRO_MODEL_ID,
-        label: "Seedance 1.5 Pro (Kie)",
-        mediaType: "image-to-video",
-      },
+      { value: KIE_SEEDANCE_2_MODEL_ID, label: "Seedance 2.0 (Kie)", mediaType: "image-to-video" },
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
         label: "Veo 3.1 Fast I2V (Kie)",
@@ -537,12 +522,12 @@ describe("ModelModal", () => {
     expect(readChipTitles(container)).toEqual([
       "Veo 3.1 Fast I2V (Kie)",
       "Kling 3.0 (Kie)",
-      "Seedance 1.5 Pro (Kie)",
+      "Seedance 2.0 (Kie)",
     ]);
     expect(readFamilyColumns()).toEqual([
       { family: "Veo", chips: ["Veo 3.1 Fast I2V (Kie)"] },
       { family: "Kling", chips: ["Kling 3.0 (Kie)"] },
-      { family: "Seedance", chips: ["Seedance 1.5 Pro (Kie)"] },
+      { family: "Seedance", chips: ["Seedance 2.0 (Kie)"] },
     ]);
   });
 

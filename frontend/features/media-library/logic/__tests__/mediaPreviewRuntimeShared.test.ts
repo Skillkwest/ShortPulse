@@ -5,9 +5,17 @@ import {
   signMediaStoragePath,
 } from "../mediaPreviewRuntimeShared";
 
-const { mockGetSignedMediaUrl, mockResolveMediaSigningStoragePaths } = vi.hoisted(() => ({
+const {
+  mockGetSignedMediaUrl,
+  mockResolveMediaSigningStoragePaths,
+  mockResolveMediaPreviewCandidates,
+} = vi.hoisted(() => ({
   mockGetSignedMediaUrl: vi.fn(async () => null as string | null),
   mockResolveMediaSigningStoragePaths: vi.fn((_row?: unknown) => [] as string[]),
+  mockResolveMediaPreviewCandidates: vi.fn((row: { storage_path?: string | null }) => ({
+    storagePaths: mockResolveMediaSigningStoragePaths(row),
+    directUrl: null,
+  })),
 }));
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
@@ -16,10 +24,7 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
 
 vi.mock("../../../../lib/mediaPreviewPath", () => ({
   classifyMediaPreviewPath: vi.fn(() => "unknown"),
-  resolveMediaPreviewCandidates: vi.fn((row: { storage_path?: string | null }) => ({
-    storagePaths: mockResolveMediaSigningStoragePaths(row),
-    directUrl: null,
-  })),
+  resolveMediaPreviewCandidates: mockResolveMediaPreviewCandidates,
 }));
 
 describe("mediaPreviewRuntimeShared", () => {
@@ -28,6 +33,13 @@ describe("mediaPreviewRuntimeShared", () => {
     mockGetSignedMediaUrl.mockResolvedValue(null);
     mockResolveMediaSigningStoragePaths.mockReset();
     mockResolveMediaSigningStoragePaths.mockReturnValue([]);
+    mockResolveMediaPreviewCandidates.mockReset();
+    mockResolveMediaPreviewCandidates.mockImplementation(
+      (row: { storage_path?: string | null }) => ({
+        storagePaths: mockResolveMediaSigningStoragePaths(row),
+        directUrl: null,
+      })
+    );
   });
 
   it("signs storage paths through shared media bucket contract", async () => {
@@ -73,6 +85,61 @@ describe("mediaPreviewRuntimeShared", () => {
       new Map([["media-1", "https://signed.example.com/media-1.png"]])
     );
     expect(Array.from(unresolved.values())).toEqual(["media-2"]);
+  });
+
+  it("applies trusted direct preview urls locally before calling resolve-previews", async () => {
+    mockResolveMediaPreviewCandidates.mockImplementation(
+      (row: { id?: string; storage_path?: string | null; thumb_variant_path?: string | null }) => ({
+        storagePaths: row.storage_path ? [row.storage_path] : [],
+        directUrl: row.id === "media-1" ? (row.thumb_variant_path ?? null) : null,
+      })
+    );
+    const fetcher = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        urls: {
+          "media-2": "https://signed.example.com/media-2.png",
+        },
+      }),
+    }));
+    const applySignedUrlsToTab = vi.fn();
+    const rowWithDirectUrl = {
+      id: "media-1",
+      storage_path: "user-1/images/media-1.png",
+      file_type: "image/png",
+      thumb_variant_path: "https://cdn.example.test/media_library/user-1/images/media-1.png",
+    };
+
+    const unresolved = await resolveAndApplySignedPreviewUrlsByRows({
+      tab: "uploaded_images",
+      rows: [rowWithDirectUrl, { id: "media-2" }],
+      applySignedUrlsToTab,
+      currentUserId: "user-1",
+      fetcher: fetcher as unknown as typeof fetch,
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/media/resolve-previews",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          ids: ["media-2"],
+          expiresInSeconds: 3600,
+          surface: undefined,
+        }),
+      })
+    );
+    expect(applySignedUrlsToTab).toHaveBeenNthCalledWith(
+      1,
+      "uploaded_images",
+      new Map([["media-1", "https://cdn.example.test/media_library/user-1/images/media-1.png"]])
+    );
+    expect(applySignedUrlsToTab).toHaveBeenNthCalledWith(
+      2,
+      "uploaded_images",
+      new Map([["media-2", "https://signed.example.com/media-2.png"]])
+    );
+    expect(Array.from(unresolved.values())).toEqual([]);
   });
 
   it("hydrates preview via storage-download fallback using candidate ordering", async () => {

@@ -3,6 +3,9 @@ import { canExposeDirectReferenceUrls, hasSavedMediaIds } from "../logic/referen
 import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 import {
+  COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
+  extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
@@ -15,10 +18,14 @@ import {
 } from "../../../lib/internalReferenceDragSession";
 import type { ReferenceDragSourceSurface } from "../../../lib/internalReferenceDragPayload";
 export {
+  COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_PAYLOAD_TYPE,
+  extractComposerImageDropPayload,
   extractInternalReferenceDragPayload,
   getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
+  type ComposerImageDropPayload,
   type InternalReferenceDragPayload,
   type ReferenceDragSourceSurface,
 } from "../../../lib/internalReferenceDragPayload";
@@ -79,6 +86,19 @@ export type VideoDragDropPayload = {
   promptText: string | null;
   referenceId?: string | null;
   fromFile?: boolean;
+};
+
+export type ReferenceComposerImageDragArtifact = {
+  displayArtifactUrl: string;
+  displayArtifactKind: "blob" | "data" | "url";
+  promptText?: string | null;
+  mediaId?: string | null;
+  previewStoragePath?: string | null;
+  fullStoragePath?: string | null;
+  referenceUrl?: string | null;
+  mimeType?: string | null;
+  width?: number;
+  height?: number;
 };
 
 const INTERNAL_REFERENCE_DRAG_VERSION = 1;
@@ -846,6 +866,7 @@ export const prepareReferenceDrag = (
     dragImage?: HTMLElement;
     sourceSurface?: ReferenceDragSourceSurface;
     imageIndex?: number;
+    composerImageArtifact?: ReferenceComposerImageDragArtifact | null;
   }
 ) => {
   const transfer = event.dataTransfer;
@@ -854,6 +875,8 @@ export const prepareReferenceDrag = (
   const imageIndex = Math.max(0, Math.floor(options?.imageIndex ?? 0));
   const promptText = dedupeText(output.prompt ?? output.previewText);
   const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);
+  const composerImageArtifact =
+    output.mode === "image" ? (options?.composerImageArtifact ?? null) : null;
   const previewDataset = readReferenceDragPreviewDataset(dragNode);
   const allowDirectReferenceUrls = canExposeDirectReferenceUrls(output);
   const transferKind =
@@ -892,11 +915,12 @@ export const prepareReferenceDrag = (
       ? (resolvedImageTransferUrl ?? previewUrl ?? null)
       : (previewUrl ?? resolvedImageTransferUrl ?? null);
   const resolvedPrimaryImagePreviewUrl =
-    output.mode === "image"
+    composerImageArtifact?.displayArtifactUrl ??
+    (output.mode === "image"
       ? (exposedRenderedTransferUrl ??
         resolvedImageTransferUrl ??
         (allowDirectReferenceUrls ? resolvedReferenceTransferUrl : null))
-      : null;
+      : null);
   const referenceMediaId =
     output.savedMediaIds?.[imageIndex]?.trim() ?? output.savedMediaIds?.[0]?.trim();
   const previewImageNode = dragNode.querySelector(".reference-card-image");
@@ -924,8 +948,11 @@ export const prepareReferenceDrag = (
     mediaKind: resolveOutputPreviewKind(output),
     previewStoragePath: output.previewStoragePath?.trim() || null,
     fullStoragePath: output.fullStoragePath?.trim() || null,
-    referenceUrl: allowDirectReferenceUrls ? (resolvedReferenceTransferUrl ?? null) : null,
-    referenceRenderUrl: exposedRenderedTransferUrl ?? null,
+    referenceUrl:
+      composerImageArtifact?.referenceUrl ??
+      (allowDirectReferenceUrls ? (resolvedReferenceTransferUrl ?? null) : null),
+    referenceRenderUrl:
+      composerImageArtifact?.displayArtifactUrl ?? exposedRenderedTransferUrl ?? null,
     sourceSurface,
     ...(naturalWidth > 0 ? { width: naturalWidth } : {}),
     ...(naturalHeight > 0 ? { height: naturalHeight } : {}),
@@ -963,14 +990,40 @@ export const prepareReferenceDrag = (
   if (referenceMediaId) {
     transfer.setData(REFERENCE_TRANSFER_MEDIA_ID_TYPE, referenceMediaId);
   }
-  if (output.previewStoragePath?.trim()) {
-    transfer.setData(
-      REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE,
-      output.previewStoragePath.trim()
-    );
+  const previewStoragePath =
+    composerImageArtifact?.previewStoragePath?.trim() || output.previewStoragePath?.trim() || "";
+  const fullStoragePath =
+    composerImageArtifact?.fullStoragePath?.trim() || output.fullStoragePath?.trim() || "";
+  if (previewStoragePath) {
+    transfer.setData(REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE, previewStoragePath);
   }
-  if (output.fullStoragePath?.trim()) {
-    transfer.setData(REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE, output.fullStoragePath.trim());
+  if (fullStoragePath) {
+    transfer.setData(REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE, fullStoragePath);
+  }
+  if (composerImageArtifact) {
+    const composerPayload = {
+      version: INTERNAL_REFERENCE_DRAG_VERSION,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: output.id?.trim() || null,
+      outputId: output.id?.trim() || null,
+      mediaId: composerImageArtifact.mediaId?.trim() || referenceMediaId || null,
+      displayArtifactUrl: composerImageArtifact.displayArtifactUrl,
+      displayArtifactKind: composerImageArtifact.displayArtifactKind,
+      previewStoragePath: previewStoragePath || null,
+      fullStoragePath: fullStoragePath || null,
+      referenceUrl:
+        composerImageArtifact.referenceUrl?.trim() ||
+        (allowDirectReferenceUrls ? resolvedReferenceTransferUrl : null) ||
+        null,
+      promptText: composerImageArtifact.promptText?.trim() || promptText || null,
+      sourceSurface,
+      width: composerImageArtifact.width ?? (naturalWidth > 0 ? naturalWidth : undefined),
+      height: composerImageArtifact.height ?? (naturalHeight > 0 ? naturalHeight : undefined),
+      mimeType: composerImageArtifact.mimeType?.trim() || output.mimeType?.trim() || null,
+    };
+    const serializedComposerPayload = JSON.stringify(composerPayload);
+    transfer.setData(COMPOSER_IMAGE_DROP_PAYLOAD_TYPE, serializedComposerPayload);
+    transfer.setData(COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE, serializedComposerPayload);
   }
   if (promptText) {
     transfer.setData("text/plain", promptText);

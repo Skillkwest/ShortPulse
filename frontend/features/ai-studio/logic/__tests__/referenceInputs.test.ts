@@ -157,7 +157,7 @@ describe("resolveAutoVideoModelForLane", () => {
     }
   });
 
-  it("remaps Seedance 2.x models to Seedance 1.5 when the UI flag is disabled", () => {
+  it("keeps Seedance 2.x models on Seedance 2 when the retired rollout flag is disabled", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_SEEDANCE_2_ENABLED", "false");
 
     for (const modelId of [KIE_SEEDANCE_2_MODEL_ID, KIE_SEEDANCE_2_FAST_MODEL_ID]) {
@@ -166,19 +166,19 @@ describe("resolveAutoVideoModelForLane", () => {
           currentModel: modelId,
           lane: "text",
         })
-      ).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+      ).toBe(modelId);
       expect(
         resolveAutoVideoModelForLane({
           currentModel: modelId,
           lane: "single-image",
         })
-      ).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+      ).toBe(modelId);
       expect(
         resolveAutoVideoModelForLane({
           currentModel: modelId,
           lane: "first-last",
         })
-      ).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+      ).toBe(modelId);
     }
   });
 

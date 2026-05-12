@@ -47,13 +47,18 @@ export function useExpertEditPrimarySessionSync({
       const lockedRemoveBackgroundIndex = removeBackgroundPendingLayerId
         ? previous.findIndex((layer) => layer.id === removeBackgroundPendingLayerId)
         : -1;
+      const foundationLayerIndex = foundationLayerId
+        ? previous.findIndex((layer) => layer.id === foundationLayerId)
+        : -1;
       const targetIndex =
         lockedRemoveBackgroundIndex >= 0
           ? lockedRemoveBackgroundIndex
-          : resolveLayerIndexOrFallback({
-              selectedLayerIndex,
-              layerCount: previous.length,
-            });
+          : foundationLayerIndex >= 0
+            ? foundationLayerIndex
+            : resolveLayerIndexOrFallback({
+                selectedLayerIndex,
+                layerCount: previous.length,
+              });
       const targetLayer = previous[targetIndex];
       if (!targetLayer) return previous;
       if (targetLayer.imageUrl === referenceImageUrl && !targetLayer.ownsImageUrl) {

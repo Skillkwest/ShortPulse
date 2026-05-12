@@ -56,4 +56,78 @@ describe("useExpertEditTransformSession", () => {
 
     expect(setLayers).not.toHaveBeenCalled();
   });
+
+  it("preserves transform undo history across same-topology sync updates", () => {
+    const committedTransform = {
+      translateXRatio: 0.25,
+      translateYRatio: -0.1,
+      scale: 1.2,
+      rotationDeg: 0,
+    };
+    const originalTransform = defaultLayerTransform();
+    const undoEntry = {
+      layerOrderSignature: "layer-1",
+      layerSnapshots: [{ layerId: "layer-1", transform: originalTransform }],
+    };
+    const presentEntry = {
+      layerOrderSignature: "layer-1",
+      layerSnapshots: [{ layerId: "layer-1", transform: committedTransform }],
+    };
+    const futureEntry = {
+      layerOrderSignature: "layer-1",
+      layerSnapshots: [
+        {
+          layerId: "layer-1",
+          transform: {
+            translateXRatio: 0.4,
+            translateYRatio: 0,
+            scale: 1.4,
+            rotationDeg: 0,
+          },
+        },
+      ],
+    };
+    const setTransformHistoryState = vi.fn();
+
+    renderHook(() =>
+      useExpertEditTransformSession({
+        layers: [createLayer(defaultLayerTransform())],
+        setLayers: vi.fn(),
+        selectedLayer: createLayer(defaultLayerTransform()),
+        selectedLayerInteractionTransform: defaultLayerTransform(),
+        selectedLayerImageAspectRatio: 1,
+        shouldShowSelectedLayerTransformOverlay: true,
+        resolveRenderableLayerTransform: (layer) => layer.transform,
+        sceneZoomScale: 1,
+        viewportOffsetXRatio: 0,
+        viewportOffsetYRatio: 0,
+        resolveViewportOffsetPixels: () => ({ offsetX: 0, offsetY: 0 }),
+        commitTransformHistoryTransition: vi.fn(),
+        showStatusToast: vi.fn(),
+        transformHistoryState: {
+          past: [undoEntry],
+          present: presentEntry,
+          future: [futureEntry],
+        },
+        setTransformHistoryState,
+      })
+    );
+
+    const updateHistoryState = setTransformHistoryState.mock.calls[0]?.[0];
+    expect(typeof updateHistoryState).toBe("function");
+    expect(
+      updateHistoryState({
+        past: [undoEntry],
+        present: presentEntry,
+        future: [futureEntry],
+      })
+    ).toEqual({
+      past: [undoEntry],
+      present: {
+        layerOrderSignature: "layer-1",
+        layerSnapshots: [{ layerId: "layer-1", transform: defaultLayerTransform() }],
+      },
+      future: [futureEntry],
+    });
+  });
 });

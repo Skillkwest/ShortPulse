@@ -73,6 +73,28 @@ describe("useMediaVideoBrowsePreviewUrls", () => {
     );
   });
 
+  it("applies direct preview_variant hover urls locally without batch signing", async () => {
+    const { result } = renderHook(() =>
+      useMediaVideoBrowsePreviewUrls({
+        mediaRows: [
+          makeVideoRow({
+            signedUrl: null,
+            preview_variant_path: "https://cdn.example.com/clip-1-hover.mp4",
+          }),
+        ],
+        currentUserId: "user-1",
+      })
+    );
+
+    await waitFor(() =>
+      expect(result.current.signedVideoUrlById).toEqual({
+        "video-1": "https://cdn.example.com/clip-1-hover.mp4",
+      })
+    );
+
+    expect(getSignedMediaUrlsBatchMock).not.toHaveBeenCalled();
+  });
+
   it("signs poster storage paths when no renderable poster url exists yet", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([
@@ -107,6 +129,44 @@ describe("useMediaVideoBrowsePreviewUrls", () => {
     await waitFor(() =>
       expect(result.current.signedPosterUrlById).toEqual({
         "video-1": "https://cdn.example.com/signed/clip-1-poster.jpg",
+      })
+    );
+  });
+
+  it("skips hover signing when a direct preview_variant hover url already exists", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/variants/videos/video-1/poster_720.jpg",
+          "https://cdn.example.com/signed/clip-1-poster.jpg",
+        ],
+      ])
+    );
+
+    const { result } = renderHook(() =>
+      useMediaVideoBrowsePreviewUrls({
+        mediaRows: [
+          makeVideoRow({
+            signedUrl: null,
+            preview_variant_path: "https://cdn.example.com/clip-1-hover.mp4",
+            poster_variant_path: "user-1/variants/videos/video-1/poster_720.jpg",
+          }),
+        ],
+        currentUserId: "user-1",
+      })
+    );
+
+    await waitFor(() =>
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          storagePaths: ["user-1/variants/videos/video-1/poster_720.jpg"],
+        })
+      )
+    );
+
+    await waitFor(() =>
+      expect(result.current.signedVideoUrlById).toEqual({
+        "video-1": "https://cdn.example.com/clip-1-hover.mp4",
       })
     );
   });

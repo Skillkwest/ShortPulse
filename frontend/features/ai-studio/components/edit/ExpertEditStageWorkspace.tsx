@@ -70,7 +70,7 @@ type ExpertEditStageWorkspaceProps = {
     y: number;
     isMarkupExpandSelected: boolean;
     hasSelectedLayerImage: boolean;
-    onRecenter: () => void;
+    onResetView: () => void;
     onExpand: () => void;
     onAddImage: () => void;
     onReset: () => void;
@@ -218,7 +218,7 @@ export function ExpertEditStageWorkspace({
           y={contextMenu.y}
           isMarkupExpandSelected={contextMenu.isMarkupExpandSelected}
           hasSelectedLayerImage={contextMenu.hasSelectedLayerImage}
-          onRecenter={contextMenu.onRecenter}
+          onResetView={contextMenu.onResetView}
           onExpand={contextMenu.onExpand}
           onAddImage={contextMenu.onAddImage}
           onReset={contextMenu.onReset}

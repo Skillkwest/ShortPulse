@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComposeSendCard } from "../create/StandardCreatePropertiesPanel";
 import { PulseCreatePanelView } from "../create/PulseCreatePanelView";
@@ -98,5 +98,37 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.queryByLabelText("Active Pulse")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Pulse activation hint")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
+  });
+
+  it("shows an obvious centered startup state while a Pulse is loading its first response", () => {
+    render(
+      <PulseCreatePanelView
+        promptStepProps={
+          {
+            agentMessages: [],
+            pulseLoadingState: {
+              phase: "starting_pulse",
+              title: "Generating...",
+              message: "Preparing your guided workflow...",
+              presetLabel: "Multi Sequence Video Prompt",
+              stepLabel: "Upload Image",
+            },
+          } as PromptStepProps
+        }
+        onGeneratePulseArtifact={vi.fn()}
+        costCredits={15}
+        isPromptGenerating={false}
+        isGenerateDisabled={false}
+        activePulsePresetId="multi_shot"
+      />
+    );
+
+    const startupStatus = screen.getByRole("status", {
+      name: "Starting Multi Sequence Video Prompt",
+    });
+    expect(screen.getByText("Starting Pulse")).toBeInTheDocument();
+    expect(screen.getByText("Preparing your guided workflow...")).toBeInTheDocument();
+    expect(within(startupStatus).getByText(/Multi Sequence Video Prompt/)).toBeInTheDocument();
+    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
   });
 });

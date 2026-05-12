@@ -6,7 +6,10 @@ import type {
 import { resolveInpaintPromptReferencePolicy } from "../../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { exportExpertEditStageArtifacts } from "./expertEditStageExport";
-import type { ExpertEditRegenerateWithReferenceInputsHandler } from "./expertEditSubmissionContract";
+import type {
+  ExpertEditRegenerateWithReferenceInputsHandler,
+  ExpertEditVariantCostResolver,
+} from "./expertEditSubmissionContract";
 import { resolveExpertEditSubmissionDispatch } from "./expertEditSubmissionDispatch";
 import {
   cleanupExpertEditSubmissionObjectUrls,
@@ -44,6 +47,7 @@ type UseExpertEditInlineGenerateParams = {
   exportSelectedLayerMaskBlob: ExportSelectedLayerMaskBlob;
   onRegenerate: () => void;
   onRegenerateWithReferenceInputs?: ExpertEditRegenerateWithReferenceInputsHandler;
+  resolveVariantCostCredits?: ExpertEditVariantCostResolver;
   scheduleTransientObjectUrlRevoke: (url: string) => void;
   revokeObjectUrlSafe: (url: string) => void;
   resolveBlobDimensions: (blob: Blob) => Promise<{ width: number; height: number }>;
@@ -88,6 +92,7 @@ export const useExpertEditInlineGenerate = ({
   exportSelectedLayerMaskBlob,
   onRegenerate,
   onRegenerateWithReferenceInputs,
+  resolveVariantCostCredits,
   scheduleTransientObjectUrlRevoke,
   revokeObjectUrlSafe,
   resolveBlobDimensions,
@@ -157,8 +162,10 @@ export const useExpertEditInlineGenerate = ({
       };
       try {
         let submitDispatch: ReturnType<typeof resolveExpertEditSubmissionDispatch> | null = null;
+        let exportArtifacts: Awaited<ReturnType<typeof exportExpertEditStageArtifacts>> | null =
+          null;
         try {
-          const exportArtifacts = await exportExpertEditStageArtifacts({
+          exportArtifacts = await exportExpertEditStageArtifacts({
             layers,
             reusablePrimarySourceUrl,
             markupStrokes,
@@ -201,6 +208,7 @@ export const useExpertEditInlineGenerate = ({
             hasSelectedLayerMask,
             flattenedUrl: objectUrls.flattenedUrl,
             inpaintMaskUrl: objectUrls.inpaintMaskUrl,
+            flattenedDimensions: exportArtifacts.flattenedDimensions,
             inpaintModelId: inpaintPromptReferencePolicy?.modelId,
             inpaintReferenceImageInput: linkedSecondaryReferenceInputs[0] ?? null,
             referenceInputs,
@@ -233,8 +241,23 @@ export const useExpertEditInlineGenerate = ({
           return;
         }
         try {
+          const inpaintModelId = submitDispatch.options.inpaintOverride?.modelId?.trim() ?? "";
+          const variantCostOverrideCredits =
+            inpaintModelId &&
+            submitDispatch.options.inpaintOverride &&
+            exportArtifacts?.flattenedDimensions &&
+            resolveVariantCostCredits
+              ? resolveVariantCostCredits({
+                  modelId: inpaintModelId,
+                  imageWidth: exportArtifacts.flattenedDimensions.width,
+                  imageHeight: exportArtifacts.flattenedDimensions.height,
+                })
+              : null;
           await onRegenerateWithReferenceInputs?.(submitDispatch.referenceInputs, {
             ...submitDispatch.options,
+            ...(variantCostOverrideCredits != null
+              ? { costOverrideCredits: variantCostOverrideCredits }
+              : {}),
             ...(optimisticOutputId ? { outputIdOverride: optimisticOutputId } : {}),
           });
           optimisticOutputId = null;

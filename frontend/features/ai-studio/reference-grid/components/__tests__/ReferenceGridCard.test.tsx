@@ -168,6 +168,23 @@ describe("ReferenceGridCard", () => {
     expect(screen.queryByText("NSFW")).toBeNull();
   });
 
+  it("prefers detailed provider validation copy when the short failure label is generic", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            errorMessage: "Invalid request",
+            errorMessageShort: "Generation failed",
+            errorDetail: "text must be 800 characters or fewer.",
+          }),
+        })}
+      />
+    );
+
+    expect(screen.getByText("text must be 800 characters or fewer.")).toBeInTheDocument();
+    expect(screen.queryByText("Generation failed", { selector: ".fail-subtitle" })).toBeNull();
+  });
+
   it("renders a loading spinner overlay when the card is loading", () => {
     const { container } = render(
       <ReferenceGridCard

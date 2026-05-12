@@ -11,6 +11,7 @@ import { isSeedance2ModelId, isSeedance2UiEnabled } from "../logic/seedance2Avai
 import {
   MODEL_MODAL_FAMILY_META,
   MODEL_MODAL_PRESENTATION_META,
+  type ModelModalFamilyKey,
   resolveModelModalContextTooltipTag,
   resolveModelModalFamilyKey,
   resolveModelModalLogo,
@@ -26,7 +27,6 @@ import {
 } from "../../../lib/model-runtime/falModelIds";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -56,7 +56,7 @@ type ModelModalProps = {
 };
 
 type ModelFamilyGroup = {
-  key: string;
+  key: ModelModalFamilyKey;
   label: string;
   logo?: string;
   items: ModelOption[];
@@ -129,7 +129,6 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   "text-video": [
     KIE_VEO_31_FAST_I2V_MODEL_ID,
     KIE_KLING_30_MODEL_ID,
-    KIE_SEEDANCE_15_PRO_MODEL_ID,
     KIE_SEEDANCE_2_MODEL_ID,
     KIE_SEEDANCE_2_FAST_MODEL_ID,
   ],
@@ -318,7 +317,7 @@ function ModelModalContent({
     });
   }, [context, filteredOptions]);
   const familyColumns = useMemo((): ModelFamilyGroup[] => {
-    const grouped = new Map<string, ModelOption[]>();
+    const grouped = new Map<ModelModalFamilyKey, ModelOption[]>();
     orderedOptions.forEach((option) => {
       const familyKey = resolveModelModalFamilyKey(option.value);
       const familyItems = grouped.get(familyKey) ?? [];

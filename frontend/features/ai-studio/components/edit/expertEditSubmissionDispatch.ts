@@ -29,6 +29,7 @@ export const resolveExpertEditSubmissionDispatch = ({
   hasSelectedLayerMask,
   flattenedUrl,
   inpaintMaskUrl,
+  flattenedDimensions,
   inpaintModelId,
   inpaintReferenceImageInput,
   referenceInputs,
@@ -39,6 +40,7 @@ export const resolveExpertEditSubmissionDispatch = ({
   hasSelectedLayerMask: boolean;
   flattenedUrl: string | null;
   inpaintMaskUrl: string | null;
+  flattenedDimensions?: { width: number; height: number } | null;
   inpaintModelId?: string | null;
   inpaintReferenceImageInput?: string | null;
   referenceInputs: string[];
@@ -76,6 +78,8 @@ export const resolveExpertEditSubmissionDispatch = ({
           maskInput: inpaintMaskUrl,
           referenceImageInput: inpaintReferenceImageInput,
           outputFormat: "png",
+          imageWidth: flattenedDimensions?.width ?? null,
+          imageHeight: flattenedDimensions?.height ?? null,
         },
         referenceInputsMode: "replace",
         ...promptOverrideOptions,

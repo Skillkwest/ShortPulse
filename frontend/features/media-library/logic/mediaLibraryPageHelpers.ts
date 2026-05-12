@@ -42,19 +42,19 @@ export type MediaTabRequestState = Record<MediaDataTab, number>;
 export type MediaTabBooleanState = Record<MediaDataTab, boolean>;
 
 const MEDIA_ROUTE_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
-  initialSignLimit: 10,
+  initialSignLimit: 8,
   prefetchWindow: 18,
-  signBatchSize: 8,
+  signBatchSize: 4,
 };
 const MEDIA_ROUTE_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
-  initialSignLimit: 7,
+  initialSignLimit: 6,
   prefetchWindow: 13,
-  signBatchSize: 6,
+  signBatchSize: 3,
 };
 const MEDIA_ROUTE_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
-  initialSignLimit: 5,
+  initialSignLimit: 4,
   prefetchWindow: 9,
-  signBatchSize: 4,
+  signBatchSize: 2,
 };
 
 export const resolveRouteSignBudget = (): MediaSignBudget => {

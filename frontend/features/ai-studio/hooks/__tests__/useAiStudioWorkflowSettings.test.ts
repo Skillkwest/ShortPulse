@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import {
   KIE_KLING_30_MODEL_ID,
-  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
@@ -415,7 +414,7 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe(KIE_SEEDANCE_2_MODEL_ID);
   });
 
-  it("remaps Seedance 2 workflow settings to Seedance 1.5 when the UI flag is explicitly disabled", async () => {
+  it("keeps Seedance 2 workflow settings on Seedance 2 when the retired rollout flag is disabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_SEEDANCE_2_ENABLED", "false");
     window.sessionStorage.clear();
     window.sessionStorage.setItem(
@@ -452,7 +451,7 @@ describe("useAiStudioWorkflowSettings", () => {
     const { result } = renderHook(() => useHarness("video"));
 
     await waitFor(() => expect(result.current.selectedTool).toBe("video"));
-    expect(result.current.model).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+    expect(result.current.model).toBe(KIE_SEEDANCE_2_MODEL_ID);
   });
 
   it("uses the shared aspect when edit is the active workflow", async () => {

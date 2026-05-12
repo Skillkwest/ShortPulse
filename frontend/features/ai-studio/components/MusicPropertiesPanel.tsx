@@ -28,7 +28,7 @@ export type MusicGenerateRequest = {
 export type MusicPropertiesPanelProps = {
   balanceCredits?: number | null;
   isGenerating?: boolean;
-  onGenerate?: (request: MusicGenerateRequest) => Promise<void> | void;
+  onGenerate?: (request: MusicGenerateRequest) => Promise<boolean | void> | boolean | void;
   pricingPolicy?: ModelPricingPolicyDocument | null;
   pricingPolicyReady?: boolean;
 };
@@ -42,6 +42,7 @@ const customMusicPromptPlaceholder =
   "Describe the song style, production direction, instrumentation, vocal feel, and emotional arc.";
 const lyricsPromptPlaceholder =
   "Write lyrics, hooks, section ideas, ad-libs, or line-by-line structure here.";
+const customLyricsBudgetNote = "Prompt and lyrics share one 800-character generation budget.";
 const maxPromptCharacters = 800;
 const minTopToggleHeightPx = 96;
 const minBottomComposerHeightPx = 420;
@@ -161,6 +162,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
   }, [composerMode, lyrics, prompt]);
   const submissionText = buildSubmissionText();
   const submissionLength = submissionText.length;
+  const overflowCharacterCount = Math.max(0, submissionLength - maxPromptCharacters);
   const displayedCharacterCount = composerMode === "custom" ? submissionLength : prompt.length;
   const isWithinPromptLimit = submissionLength <= maxPromptCharacters;
   const isGenerateEnabled =
@@ -308,14 +310,17 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       energyPercent: defaultMusicEnergyPercent,
       outputFormat: defaultMusicFormat,
       modelId: hardcodedMusicModelId,
-      displayedBilledCredits: estimatedCredits,
+      displayedBilledCredits: estimatedCreditsPerSong,
     } satisfies MusicGenerateRequest;
 
     for (let index = 0; index < songBatchCount; index += 1) {
-      await onGenerate(request);
+      const didAcceptGeneration = await onGenerate(request);
+      if (didAcceptGeneration === false) {
+        break;
+      }
     }
   }, [
-    estimatedCredits,
+    estimatedCreditsPerSong,
     isGenerating,
     isWithinPromptLimit,
     onGenerate,
@@ -484,7 +489,16 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
                     </div>
                   </div>
                   <div className="music-properties-custom-pane music-properties-custom-pane--lyrics">
-                    <p className="music-properties-custom-pane-title">Lyrics</p>
+                    <div className="music-properties-custom-pane-heading">
+                      <p className="music-properties-custom-pane-title">Lyrics</p>
+                      <p className="music-properties-custom-pane-note">{customLyricsBudgetNote}</p>
+                      {!isWithinPromptLimit ? (
+                        <p className="music-properties-custom-pane-error" role="alert">
+                          Shorten the prompt or lyrics by {overflowCharacterCount.toLocaleString()}{" "}
+                          {overflowCharacterCount === 1 ? "character" : "characters"}.
+                        </p>
+                      ) : null}
+                    </div>
                     <div className="music-properties-script-input-shell music-properties-script-input-shell--custom-lyrics">
                       <textarea
                         className="music-properties-script-input music-properties-script-input--lyrics"

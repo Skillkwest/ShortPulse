@@ -102,6 +102,36 @@ describe("useCreatePulsePresetPageRuntime", () => {
     expect(context.pulse?.source).toBe("custom");
   });
 
+  it("surfaces a pending Pulse snapshot for startup UI before session ownership commits", () => {
+    const customPreset = {
+      presetId: "pulse_custom_video",
+      label: "Custom Video Pulse",
+      description: "Guided custom video prompt.",
+      systemInstructions: "Guide the user through a custom video prompt workflow.",
+      pulseKind: "custom_gpt" as const,
+      createdAt: "2026-05-01T00:00:00.000Z",
+      schemaVersion: CREATE_PULSE_SCHEMA_VERSION,
+    };
+    const { result } = renderHook(() =>
+      useCreatePulsePresetPageRuntime(
+        createParams({
+          activeCreatePulsePresetId: null,
+          pulseSessionInstanceId: null,
+          savedPresets: [customPreset],
+        })
+      )
+    );
+
+    act(() => {
+      result.current.setPendingCreatePulsePresetSnapshot(customPreset);
+    });
+
+    expect(result.current.hasActivePulseSession).toBe(false);
+    expect(result.current.isPulseStartupPending).toBe(true);
+    expect(result.current.displayCreatePulsePresetId).toBe("pulse_custom_video");
+    expect(result.current.displayCreatePulsePresetSnapshot?.label).toBe("Custom Video Pulse");
+  });
+
   it("clears unknown restored Pulse runtimes that cannot resolve a preset snapshot", async () => {
     const clearPulseRuntime = vi.fn();
     const clearPulsePrompt = vi.fn();

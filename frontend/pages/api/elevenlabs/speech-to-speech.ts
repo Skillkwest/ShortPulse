@@ -11,6 +11,7 @@ import {
   assertTrustedRemoteMediaUrl,
   TrustedRemoteMediaUrlError,
 } from "../../../lib/server/api/trustedRemoteMediaUrl";
+import { markAudioCompanionArtPending } from "../../../lib/server/audioCompanionArt/processing";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
   createRemuxedVoiceChangerVideo,
@@ -38,6 +39,9 @@ type GenerateAudioSuccessResponse = {
     resultUrls: string[];
     previewStoragePath: string;
     fullStoragePath: string;
+    companionArtUrl: null;
+    companionArtStoragePath: null;
+    companionArtStatus: "pending";
     mimeType: string;
     durationMs: number | null;
     waveformPeaks: null;
@@ -340,6 +344,10 @@ export default async function handler(
     if (!captureResult.settled) {
       throw new Error(`Unable to capture generation billing reservation: ${captureResult.note}`);
     }
+    await markAudioCompanionArtPending({
+      generationId: persisted.generationId,
+      userId: charge.userId,
+    });
 
     let remuxedVideo: Awaited<ReturnType<typeof createRemuxedVoiceChangerVideo>> | null = null;
     let persistedRemuxedVideo: Awaited<ReturnType<typeof persistGeneratedVideoAsset>> | null = null;
@@ -402,6 +410,9 @@ export default async function handler(
         resultUrls: [persisted.signedUrl],
         previewStoragePath: persisted.storagePath,
         fullStoragePath: persisted.storagePath,
+        companionArtUrl: null,
+        companionArtStoragePath: null,
+        companionArtStatus: "pending",
         mimeType: generated.contentType,
         durationMs: Math.round(sourceDurationSeconds * 1000),
         waveformPeaks: null,

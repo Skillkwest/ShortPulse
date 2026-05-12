@@ -189,7 +189,7 @@ type ExpertEditStageContextMenuProps = {
   y: number;
   isMarkupExpandSelected: boolean;
   hasSelectedLayerImage: boolean;
-  onRecenter: () => void;
+  onResetView: () => void;
   onExpand: () => void;
   onAddImage: () => void;
   onReset: () => void;
@@ -202,7 +202,7 @@ export function ExpertEditStageContextMenu({
   y,
   isMarkupExpandSelected,
   hasSelectedLayerImage,
-  onRecenter,
+  onResetView,
   onExpand,
   onAddImage,
   onReset,
@@ -220,8 +220,8 @@ export function ExpertEditStageContextMenu({
       }}
       onContextMenu={(event) => event.preventDefault()}
     >
-      <button type="button" role="menuitem" onClick={onRecenter}>
-        Recenter
+      <button type="button" role="menuitem" onClick={onResetView}>
+        Center
       </button>
       <button type="button" role="menuitem" onClick={onExpand} disabled={isMarkupExpandSelected}>
         Expand

@@ -187,6 +187,44 @@ describe("appErrorLogs skip rules", () => {
     expect(result).toEqual({ ok: false, skipped: false, id: null });
   });
 
+  it("skips hidden-tab local media compliance fetch noise", async () => {
+    const result = await writeAppErrorLog({
+      source: "client.api_network",
+      scope: "app",
+      severity: "high",
+      message: "Failed to fetch",
+      route: "/ai-studio",
+      endpoint: "/api/account/media-compliance",
+      stack: "TypeError: Failed to fetch\n    at executeRequest",
+      metadata: {
+        host: "localhost:3000",
+        client_environment: "development",
+        visibility_state: "hidden",
+      },
+    });
+
+    expect(result).toEqual({ ok: true, skipped: true, id: null });
+  });
+
+  it("keeps visible local media compliance fetch failures actionable", async () => {
+    const result = await writeAppErrorLog({
+      source: "client.api_network",
+      scope: "app",
+      severity: "high",
+      message: "Failed to fetch",
+      route: "/ai-studio",
+      endpoint: "/api/account/media-compliance",
+      stack: "TypeError: Failed to fetch\n    at executeRequest",
+      metadata: {
+        host: "localhost:3000",
+        client_environment: "development",
+        visibility_state: "visible",
+      },
+    });
+
+    expect(result).toEqual({ ok: false, skipped: false, id: null });
+  });
+
   it("keeps high-severity react-refresh reference errors for ai studio", async () => {
     const result = await writeAppErrorLog({
       source: "client.react_error_boundary",

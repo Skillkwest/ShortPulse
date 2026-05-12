@@ -156,7 +156,7 @@ export const chargeGenerationRequest = async ({
     };
   }
 
-  const pricingParams = buildPricingParams(modelId, payload);
+  const pricingParams = buildPricingParams(modelId, payload, { shortpulseContext });
   const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy().catch(async (error) => {
     await logGenerationFailure({
       req,

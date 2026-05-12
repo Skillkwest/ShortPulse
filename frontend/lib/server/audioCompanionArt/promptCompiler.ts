@@ -1,0 +1,113 @@
+import {
+  OPENAI_GPT_IMAGE_2_MODEL_ID,
+  type OpenAiImage2Quality,
+  type OpenAiImage2Size,
+} from "../../model-runtime/openAiImage2";
+
+type JsonObject = Record<string, unknown>;
+
+export type AudioCompanionArtSourceMode = "voiceover" | "voice-changer" | "sound-effects" | "music";
+
+export type CompileAudioCompanionArtPromptInput = {
+  promptText: string;
+  sourceMode: AudioCompanionArtSourceMode;
+  metadata?: JsonObject | null;
+};
+
+export type AudioCompanionArtGenerationSpec = {
+  modelId: typeof OPENAI_GPT_IMAGE_2_MODEL_ID;
+  size: OpenAiImage2Size;
+  quality: OpenAiImage2Quality;
+  prompt: string;
+};
+
+const COMPANION_ART_SIZE: OpenAiImage2Size = "1024x1024";
+const COMPANION_ART_QUALITY: OpenAiImage2Quality = "low";
+
+const BRAND_STYLE_LINE =
+  "Branded audio cover art style: cinematic editorial illustration, bold silhouette, layered atmosphere, premium gradients, restrained color palette, tactile texture, crisp focal subject, no text, no logos, no typography, no UI, no watermark, no border.";
+
+const asTrimmedString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  return normalized.length ? normalized : null;
+};
+
+const asFiniteNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+const clampText = (value: string, limit = 420): string =>
+  value.length <= limit ? value : `${value.slice(0, limit - 1).trimEnd()}…`;
+
+const buildCreativeDirection = ({
+  sourceMode,
+  metadata,
+}: {
+  sourceMode: AudioCompanionArtSourceMode;
+  metadata: JsonObject;
+}): string[] => {
+  if (sourceMode === "voiceover") {
+    const voiceName = asTrimmedString(metadata.voice_name);
+    return [
+      "Translate the spoken scene or message into one clear visual moment.",
+      voiceName ? `Subtle performance character reference: ${voiceName}.` : "",
+    ].filter(Boolean);
+  }
+
+  if (sourceMode === "voice-changer") {
+    const voiceName = asTrimmedString(metadata.voice_name);
+    return [
+      "Show transformation, identity shift, or altered presence rather than a literal waveform.",
+      voiceName ? `Persona cue: ${voiceName}.` : "",
+    ].filter(Boolean);
+  }
+
+  if (sourceMode === "sound-effects") {
+    const loopEnabled = metadata.loop_enabled === true;
+    const durationSeconds = asFiniteNumber(metadata.duration_seconds);
+    return [
+      "Depict the sound source, impact, or environment as a single iconic visual.",
+      loopEnabled ? "Composition should feel seamless and cyclical." : "",
+      durationSeconds ? `Suggested pacing cue: ${durationSeconds} second effect.` : "",
+    ].filter(Boolean);
+  }
+
+  const tempoBpm = asFiniteNumber(metadata.tempo_bpm);
+  const energyPercent = asFiniteNumber(metadata.energy_percent);
+  const structure = asTrimmedString(metadata.structure);
+  const mode = asTrimmedString(metadata.music_mode);
+  return [
+    "Treat this like premium album-cover art inspired by the track mood.",
+    tempoBpm ? `Tempo cue: ${tempoBpm} BPM.` : "",
+    energyPercent != null ? `Energy cue: ${energyPercent} percent.` : "",
+    structure ? `Arrangement cue: ${structure}.` : "",
+    mode ? `Performance cue: ${mode}.` : "",
+  ].filter(Boolean);
+};
+
+export const compileAudioCompanionArtPrompt = ({
+  promptText,
+  sourceMode,
+  metadata = null,
+}: CompileAudioCompanionArtPromptInput): AudioCompanionArtGenerationSpec => {
+  const normalizedPrompt = clampText(asTrimmedString(promptText) ?? "Audio reference cover art");
+  const safeMetadata = metadata && typeof metadata === "object" ? metadata : {};
+  const creativeDirection = buildCreativeDirection({
+    sourceMode,
+    metadata: safeMetadata,
+  });
+
+  const prompt = [
+    `Audio concept: ${normalizedPrompt}`,
+    `Source mode: ${sourceMode}.`,
+    ...creativeDirection,
+    BRAND_STYLE_LINE,
+  ].join("\n");
+
+  return {
+    modelId: OPENAI_GPT_IMAGE_2_MODEL_ID,
+    size: COMPANION_ART_SIZE,
+    quality: COMPANION_ART_QUALITY,
+    prompt,
+  };
+};

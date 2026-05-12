@@ -7,6 +7,7 @@ import type { StudioOutput } from "../../types";
 import {
   clearDragState,
   prepareReferenceDrag,
+  type ReferenceComposerImageDragArtifact,
   type ReferenceDragSourceSurface,
 } from "../../utils/dragDrop";
 
@@ -14,7 +15,8 @@ type UseReferenceGridCardDragControllerResult = {
   handleCardDragStart: (
     event: React.DragEvent<HTMLElement>,
     item: StudioOutput,
-    sourceSurface: ReferenceDragSourceSurface
+    sourceSurface: ReferenceDragSourceSurface,
+    composerImageArtifact?: ReferenceComposerImageDragArtifact | null
   ) => void;
   handleCardDragEnd: (event: React.DragEvent<HTMLElement>) => void;
 };
@@ -27,11 +29,13 @@ export const useReferenceGridCardDragController = (): UseReferenceGridCardDragCo
     (
       event: React.DragEvent<HTMLElement>,
       item: StudioOutput,
-      sourceSurface: ReferenceDragSourceSurface
+      sourceSurface: ReferenceDragSourceSurface,
+      composerImageArtifact?: ReferenceComposerImageDragArtifact | null
     ) => {
       prepareReferenceDrag(event, item, {
         dragImage: event.currentTarget as HTMLElement,
         sourceSurface,
+        composerImageArtifact,
       });
     },
     []

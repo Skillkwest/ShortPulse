@@ -360,6 +360,7 @@ export const useMediaSurfacePreviewRuntime = <
         tab,
         rows,
         applySignedUrlsToTab,
+        currentUserId: currentUserIdRef.current,
         surface,
       }),
     [applySignedUrlsToTab, surface]

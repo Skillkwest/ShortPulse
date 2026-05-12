@@ -237,6 +237,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 120.  `sql/migrations/120_remove_legacy_onboarding_user_preference.sql`
 121.  `sql/migrations/121_add_agent_prompt_runtime_control_plane.sql`
 122.  `sql/migrations/122_retire_character_sheet_alias_compat.sql`
+123.  `sql/migrations/123_add_audio_companion_art_projection_fields.sql`
 Rollback files:
 
 

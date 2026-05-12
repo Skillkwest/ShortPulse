@@ -28,3 +28,4 @@ When catalog work produces a durable lesson, promote the concise version into `d
 - 2026-05-10: Phase 0 preparation now has a concrete tool entrypoint at `frontend/scripts/media_library_phase0_bundle.mjs`, with preset-driven live API probes and optional JSON packet output.
 - 2026-05-10: The planning family now has an explicit precedence order: master audit packet first, short roadmap second, Phase 0 checklist third.
 - 2026-05-10: The canonical sequence is Phase 0 through Phase 8, with limited overlap allowed only where the master packet explicitly permits it.
+- 2026-05-11: After initial implementation, prompt/media active-view cleanup and prompt-load dedupe remain worth keeping, but prompt CRUD no-op tuning is secondary to preview-authority and resolver-path work.

@@ -53,6 +53,22 @@ This is the allowed parallelism.
 5. visible-window-only signing and preview prep
 6. save-side simplification for drift-prone lanes
 
+## Reassessment
+
+Recent implementation work confirmed that the plan direction is still correct, but the active lane drifted into lower-ROI prompt/controller micro-optimizations.
+
+1. `continue now`
+   - preview-authority collapse
+   - resolver-path reduction
+   - signed-URL reuse on stable preview assets
+   - visible-window-only browse work
+2. `pause`
+   - further prompt/controller micro-optimization
+   - additional local no-op state preservation work
+3. `optional later`
+   - rare prompt CRUD identity cleanup
+   - secondary prompt lifecycle polish after the main browse path is simplified
+
 ## Repo Constraints
 
 1. the list route already owns paging, folder access, optional counts, and first-slice signing
@@ -103,6 +119,15 @@ The roadmap is done only when:
 7. fallback usage is rare, measurable, and no longer part of the normal browse path
 8. UI/UX and critical behavior remain unchanged while performance, simplicity, and reliability are materially better
 
+## Current Task Stop Condition
+
+This implementation task stops only when:
+
+1. visible browse paths are no longer paying avoidable overlap between initial seeding, client signing, and resolver fallback
+2. `resolve-previews` is mostly an exception lane instead of a normal browse dependency
+3. the next remaining changes are lower ROI than the complexity they would add
+4. focused media-library validation for the touched seams stays green
+
 ## Plan Memory
 
 1. the main performance ceiling is coordination complexity, not obvious missing indexing
@@ -110,3 +135,4 @@ The roadmap is done only when:
 3. the best path is architectural simplification first, experimental browser tricks second
 4. derivative coverage is a prerequisite for a truly lean browse path
 5. the planning family must stay subordinate to the authoritative packet so sequencing and overlap rules do not drift
+6. prompt/media effect cleanup and prompt-load dedupe are worth keeping, but prompt CRUD no-op tuning is secondary to preview-authority work

@@ -1,7 +1,9 @@
 # Failed to fetch
 
 - Created: 2026-05-10T23:23:39.906Z
-- Status: review-ready
+- Status: complete
+- Final board status: complete
+- Finalized: 2026-05-11T14:39:13.414Z
 - Ticket: b220a307-f50a-4e5d-87b8-815b99e57389
 - Incident: 7aa4cf2b-1b26-483e-8966-91822ebb4c07
 

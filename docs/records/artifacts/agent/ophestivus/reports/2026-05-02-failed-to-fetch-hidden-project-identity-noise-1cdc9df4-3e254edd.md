@@ -1,7 +1,9 @@
 # Failed to fetch hidden project identity noise
 
 - Created: 2026-05-02T14:00:04.696Z
-- Status: review-ready
+- Status: complete
+- Final board status: complete
+- Finalized: 2026-05-11T14:39:13.414Z
 - Ticket: 1cdc9df4-5f6a-4a74-8db5-92ee862d0f77
 - Incident: 3e254edd-6a8d-4465-bcb5-1cf3175758d7
 

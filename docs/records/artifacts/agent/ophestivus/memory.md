@@ -33,6 +33,13 @@ Purpose: retain inspectable local session memory for the repo-working agent iden
 - Local branch enforcement observed on 2026-05-02: `shortpulse.allowedBranch=working-development`.
 - Existing product-side Ophestivus contract: `docs/agents/ophestivus.md`.
 
+## Current Retained Planning References
+
+- AI Studio audio companion art planning set:
+  - active plan: `docs/planning/ai-studio-audio-companion-art-plan-2026-05-11.md`
+  - retained report: `docs/records/artifacts/agent/ophestivus/reports/2026-05-11-ai-studio-audio-companion-art-planning-set.md`
+  - use when a future session needs the repo-backed plan for generated audio ref background art derived from normalized audio prompts.
+
 ## Task Workflows
 
 - `run your workflow` means run the Admin Error grab/resolution SOP, then the Review-to-Complete SOP, then the post-run training audit SOP.

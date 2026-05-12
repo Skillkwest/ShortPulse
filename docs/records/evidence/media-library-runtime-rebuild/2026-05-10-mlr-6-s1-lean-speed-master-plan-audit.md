@@ -80,6 +80,23 @@ If any future drift appears, this packet wins.
 6. remove architectural drift and dormant systems so the fast path stays understandable
 7. optimize repeat-open behavior, not just first-open behavior
 
+### Post-Implementation Reassessment
+
+Follow-up implementation confirmed that the plan goals remain correct, but execution priority must stay centered on browse-path throughput and complexity reduction.
+
+1. keep:
+   - prompt/media active-view effect separation
+   - prompt-load in-flight dedupe
+2. pause:
+   - further prompt/controller no-op tuning
+   - rare local-state identity preservation work
+3. resume at highest ROI:
+   - preview-authority collapse
+   - normal-path `resolve-previews` reduction
+   - seeded-signing versus client-signing overlap reduction
+
+This reassessment narrows execution priority. It does not replace the plan.
+
 ## Rewritten Plan
 
 ### Non-negotiables
@@ -482,6 +499,15 @@ The plan is `done` only when all of the following are true.
 3. browse, select, open, drag/drop, move, upload, and modal behavior remain functionally equivalent from the user’s perspective
 4. the system is materially faster, leaner, and easier to reason about without changing the product contract
 
+### 9. Execution Stop Condition
+
+This task is not `done` just because a few hotspots got faster. Stop only when:
+
+1. route, modal, and panel browse no longer layer avoidable server seeding, broad client prefetch, and broad resolver fallback on top of each other
+2. `resolve-previews` is no longer doing broad legacy-repair work for normal visible-card browse flows
+3. the remaining open work is lower ROI than the risk and complexity of continuing
+4. the retained validation bundle stays green for the touched browse-path seams
+
 ### Final Acceptance Rule
 
 The plan should not be called complete merely because first-open latency improved. It is only complete when:
@@ -541,3 +567,4 @@ The plan should not be called complete merely because first-open latency improve
 3. audit derivative coverage and backlog before browse-path simplification begins
 4. reconcile Media Library folder-canvas docs and performance tuning docs against the live panel path and current runtime config
 5. keep future roadmap/checklist updates subordinate to this packet’s sequencing and gate rules
+6. treat prompt/controller micro-optimization as secondary until preview-authority and resolver-path work are materially further along

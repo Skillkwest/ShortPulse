@@ -884,29 +884,40 @@ const resolveLatestPublishedGenerationMediaByGenerationIds = async ({
   }
 };
 
-const applyPublishedVideoPosterStoragePaths = (
+const applyPublishedGeneratedMediaAuthority = (
   outputs: StudioOutput[],
   mediaByGenerationId: Map<string, GeneratedMediaLibraryRow>
 ): StudioOutput[] =>
   outputs.map((output) => {
-    if (output.mode !== "video" || !output.generationId) return output;
+    if (!output.generationId) return output;
     const mediaRow = mediaByGenerationId.get(output.generationId);
-    if (!mediaRow || mediaRow.fileType !== "video") return output;
-    const posterStoragePath =
-      asCanonicalStoragePath(mediaRow.posterVariantPath) ??
-      asCanonicalStoragePath(output.previewPosterStoragePath) ??
-      asCanonicalStoragePath(output.previewStoragePath);
-    if (!posterStoragePath) return output;
+    if (!mediaRow) return output;
+    const mediaStoragePath = asCanonicalStoragePath(mediaRow.storagePath);
+    const mediaPosterStoragePath = asCanonicalStoragePath(mediaRow.posterVariantPath);
+    const mediaPreviewVariantPath = asCanonicalStoragePath(mediaRow.previewVariantPath);
+    const nextFullStoragePath = asCanonicalStoragePath(output.fullStoragePath) ?? mediaStoragePath;
+    const nextPreviewPosterStoragePath =
+      asCanonicalStoragePath(output.previewPosterStoragePath) ?? mediaPosterStoragePath;
+    const nextPreviewStoragePath =
+      asCanonicalStoragePath(output.previewStoragePath) ??
+      (mediaRow.fileType === "video"
+        ? (mediaPreviewVariantPath ?? mediaPosterStoragePath ?? mediaStoragePath)
+        : mediaStoragePath);
+    if (!nextPreviewStoragePath && !nextFullStoragePath && !nextPreviewPosterStoragePath) {
+      return output;
+    }
     if (
-      output.previewPosterStoragePath === posterStoragePath &&
-      output.previewStoragePath === posterStoragePath
+      output.previewPosterStoragePath === nextPreviewPosterStoragePath &&
+      output.previewStoragePath === nextPreviewStoragePath &&
+      output.fullStoragePath === nextFullStoragePath
     ) {
       return output;
     }
     return {
       ...output,
-      previewPosterStoragePath: posterStoragePath,
-      previewStoragePath: posterStoragePath,
+      previewPosterStoragePath: nextPreviewPosterStoragePath,
+      previewStoragePath: nextPreviewStoragePath,
+      fullStoragePath: nextFullStoragePath,
     };
   });
 
@@ -1451,7 +1462,7 @@ export const listVisibleGeneratedOutputs = async ({
     const outputsWithPosterStoragePaths =
       mediaByGenerationId.size === 0
         ? outputs
-        : applyPublishedVideoPosterStoragePaths(outputs, mediaByGenerationId);
+        : applyPublishedGeneratedMediaAuthority(outputs, mediaByGenerationId);
     const outputsWithSignedMediaUrls = await applySignedGeneratedMediaUrls(
       outputsWithPosterStoragePaths
     );

@@ -111,7 +111,7 @@ describe("ExpertEditPanelView interaction flow", () => {
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"
-        referenceImageUrl={null}
+        referenceImageUrl="https://example.com/original.png"
         extraImageUrls={[null, null, null]}
         referenceText=""
         imageResolution="model_default"
@@ -176,7 +176,7 @@ describe("ExpertEditPanelView interaction flow", () => {
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"
-        referenceImageUrl={null}
+        referenceImageUrl="https://example.com/original.png"
         extraImageUrls={[null, null, null]}
         referenceText=""
         imageResolution="model_default"
@@ -247,7 +247,7 @@ describe("ExpertEditPanelView interaction flow", () => {
         aspect="9:16"
         modelId="fal-ai/bytedance/seedream/v4.5/edit"
         modelLabel="Seedream 4.5 Edit"
-        referenceImageUrl={null}
+        referenceImageUrl="https://example.com/original.png"
         extraImageUrls={[null, null, null]}
         referenceText=""
         imageResolution="model_default"
@@ -298,6 +298,161 @@ describe("ExpertEditPanelView interaction flow", () => {
       expect(
         screen.queryByRole("dialog", { name: "Expanded markup canvas" })
       ).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not show the transform box when edit opens with a non-image reference URL", async () => {
+    render(
+      <ExpertEditPanelView
+        expertEditEligible
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl="https://example.com/reference-audio.mp3"
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        isGenerateBusy={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={null}
+        onSessionStateChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("edit-expert-transform-overlay-inline")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not show the transform box when the selected layer image fails to resolve", async () => {
+    class FailedImageMock {
+      onload: null | (() => void) = null;
+      onerror: null | (() => void) = null;
+      naturalWidth = 1;
+      naturalHeight = 1;
+
+      set src(_value: string) {
+        queueMicrotask(() => {
+          this.onerror?.();
+        });
+      }
+    }
+
+    globalThis.Image = FailedImageMock as unknown as typeof Image;
+
+    render(
+      <ExpertEditPanelView
+        expertEditEligible
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl="https://example.com/unrenderable-preview.png"
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        isGenerateBusy={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={null}
+        onSessionStateChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("edit-expert-transform-overlay-inline")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not reopen a stale transform box when edit starts with no current image authority", async () => {
+    render(
+      <ExpertEditPanelView
+        expertEditEligible
+        aspect="9:16"
+        modelId="fal-ai/bytedance/seedream/v4.5/edit"
+        modelLabel="Seedream 4.5 Edit"
+        referenceImageUrl={null}
+        extraImageUrls={[null, null, null]}
+        referenceText=""
+        imageResolution="model_default"
+        aspectOptions={[]}
+        isModelModalOpen={false}
+        modelModalAnchor={null}
+        onAspectChange={vi.fn()}
+        onModelPickerOpen={vi.fn()}
+        onPrimaryImageChange={vi.fn()}
+        onExtraImageChange={vi.fn()}
+        onPromptTextChange={vi.fn()}
+        onRegenerate={vi.fn()}
+        resolvePreviewUrlById={() => null}
+        costCredits={2}
+        isGenerateDisabled={false}
+        isGenerateBusy={false}
+        guardrailReason={null}
+        isPrimaryStageGenerating={false}
+        referenceImageWarning={null}
+        onImageResolutionChange={vi.fn()}
+        characterOptions={[]}
+        selectedCharacterId=""
+        onSelectedCharacterIdChange={vi.fn()}
+        isCharacterOptionsLoading={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledChange={vi.fn()}
+        refreshCharacterOptions={async () => []}
+        resolveCharacterAvatarUrlById={() => null}
+        sessionState={buildSessionState({
+          transformScale: 0.5,
+        })}
+        onSessionStateChange={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("edit-expert-transform-overlay-inline")).not.toBeInTheDocument();
     });
   });
 });

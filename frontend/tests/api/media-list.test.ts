@@ -66,6 +66,13 @@ type MediaRow = {
   }>;
 };
 
+type GenerationProjectionRow = {
+  generation_id: string;
+  user_id: string;
+  companion_art_status: string | null;
+  companion_art_storage_path: string | null;
+};
+
 const createMockResponse = () => {
   const headers = new Map<string, string>();
   return {
@@ -131,9 +138,11 @@ const createSupabaseAdminMock = (
   rows: MediaRow[],
   options?: {
     existingFolderIds?: string[];
+    generationProjectionRows?: GenerationProjectionRow[];
   }
 ) => {
   const existingFolderIds = new Set(options?.existingFolderIds ?? []);
+  const generationProjectionRows = options?.generationProjectionRows ?? [];
   const createSignedUrlsMock = vi.fn(async (paths: string[]) => ({
     data: paths.map((path) => ({
       path,
@@ -346,6 +355,37 @@ const createSupabaseAdminMock = (
               })),
             })),
           })),
+        };
+      }
+      if (table === "generation_projection") {
+        return {
+          select: vi.fn(() => {
+            let scopedUserId: string | null = null;
+            let scopedGenerationIds: string[] = [];
+            const builder = {
+              eq: vi.fn((column: string, value: string) => {
+                if (column === "user_id") {
+                  scopedUserId = value;
+                }
+                return builder;
+              }),
+              in: vi.fn(async (column: string, values: string[]) => {
+                if (column === "generation_id") {
+                  scopedGenerationIds = values;
+                }
+                return {
+                  data: generationProjectionRows.filter(
+                    (row) =>
+                      (!scopedUserId || row.user_id === scopedUserId) &&
+                      (!scopedGenerationIds.length ||
+                        scopedGenerationIds.includes(row.generation_id))
+                  ),
+                  error: null,
+                };
+              }),
+            };
+            return builder;
+          }),
         };
       }
       throw new Error(`Unexpected table: ${table}`);
@@ -637,6 +677,71 @@ describe("POST /api/media/list", () => {
     };
     expect(payload.rows[0]?.metadata).toEqual({ prompt: "cat", aspect_ratio: 4 / 3 });
     expect(res.setHeader).toHaveBeenCalledWith("x-shortpulse-media-list-profile", "expanded");
+  });
+
+  it("enriches ai-generated audio rows with signed companion art", async () => {
+    createSupabaseAdminMock(
+      [
+        {
+          id: "audio-1",
+          user_id: "user-1",
+          filename: "voice-note.wav",
+          storage_path: "user-1/generations/audio/voice-note.wav",
+          file_type: "audio/wav",
+          file_size: 10,
+          source: "ai_studio",
+          source_ref: "gen-audio-1",
+          prompt_id: null,
+          metadata: null,
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          created_at: "2026-02-20T10:00:00.000Z",
+          updated_at: null,
+        },
+      ],
+      {
+        generationProjectionRows: [
+          {
+            generation_id: "gen-audio-1",
+            user_id: "user-1",
+            companion_art_status: "ready",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
+          },
+        ],
+      }
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "audio",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          expect.objectContaining({
+            id: "audio-1",
+            companion_art_status: "ready",
+            companion_art_storage_path:
+              "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
+            companion_art_url:
+              "https://signed.test/user-1%2Fgenerations%2Faudio%2Fgen-audio-1%2Fcompanion-art%2Fcover.png",
+          }),
+        ],
+      })
+    );
   });
 
   it("applies preview-profile transforms to initial seeded image signing when dual flags are enabled", async () => {

@@ -11,10 +11,16 @@ import {
   INTERNAL_REFERENCE_DRAG_ORIGIN,
 } from "../../../lib/internalReferenceDragPayload";
 import {
+  clearComposerImageDropSession,
+  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
   clearInternalReferenceDragSession,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
+  registerComposerImageDropSession,
   registerInternalReferenceDragSession,
+  scheduleClearComposerImageDropSession,
+  scheduleClearInternalReferenceDragSession,
 } from "../../../lib/internalReferenceDragSession";
 import type { ReferenceDragSourceSurface } from "../../../lib/internalReferenceDragPayload";
 export {
@@ -115,8 +121,11 @@ const REFERENCE_TRANSFER_PREVIEW_STORAGE_PATH_TYPE = "text/reference-preview-sto
 const REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE = "text/reference-full-storage-path";
 export const REFERENCE_TRANSFER_RENDER_URL_TYPE = "text/reference-render-url";
 const INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY = "internalReferenceDragToken";
+const COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY = "composerImageDropToken";
 
 const isBlobUrl = (value?: string | null) => Boolean(value && value.startsWith("blob:"));
+const isInlineTransferHeavyUrl = (value?: string | null) =>
+  Boolean(value && (value.startsWith("blob:") || value.startsWith("data:")));
 
 const parseReferenceMediaKind = (
   value: string | null | undefined
@@ -921,6 +930,10 @@ export const prepareReferenceDrag = (
         resolvedImageTransferUrl ??
         (allowDirectReferenceUrls ? resolvedReferenceTransferUrl : null))
       : null);
+  const shouldInlinePrimaryImagePreviewUrl = !isInlineTransferHeavyUrl(
+    resolvedPrimaryImagePreviewUrl
+  );
+  const shouldInlineRenderedTransferUrl = !isInlineTransferHeavyUrl(exposedRenderedTransferUrl);
   const referenceMediaId =
     output.savedMediaIds?.[imageIndex]?.trim() ?? output.savedMediaIds?.[0]?.trim();
   const previewImageNode = dragNode.querySelector(".reference-card-image");
@@ -966,12 +979,16 @@ export const prepareReferenceDrag = (
     transfer.setData("text/uri-list", resolvedReferenceTransferUrl);
     transfer.setData("text/reference-url", resolvedReferenceTransferUrl);
   }
-  if (output.mode === "image" && resolvedPrimaryImagePreviewUrl) {
+  if (
+    output.mode === "image" &&
+    resolvedPrimaryImagePreviewUrl &&
+    shouldInlinePrimaryImagePreviewUrl
+  ) {
     transfer.setData("image/url", resolvedPrimaryImagePreviewUrl);
   } else if (allowDirectReferenceUrls && resolvedImageTransferUrl) {
     transfer.setData("image/url", resolvedImageTransferUrl);
   }
-  if (exposedRenderedTransferUrl) {
+  if (exposedRenderedTransferUrl && shouldInlineRenderedTransferUrl) {
     transfer.setData(REFERENCE_TRANSFER_RENDER_URL_TYPE, exposedRenderedTransferUrl);
   }
   if (output.id) {
@@ -1001,6 +1018,11 @@ export const prepareReferenceDrag = (
     transfer.setData(REFERENCE_TRANSFER_FULL_STORAGE_PATH_TYPE, fullStoragePath);
   }
   if (composerImageArtifact) {
+    const previousComposerDropToken =
+      dragNodeDataset?.[COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY]?.trim() ?? "";
+    if (previousComposerDropToken) {
+      clearComposerImageDropSession(previousComposerDropToken);
+    }
     const composerPayload = {
       version: INTERNAL_REFERENCE_DRAG_VERSION,
       origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
@@ -1021,9 +1043,17 @@ export const prepareReferenceDrag = (
       height: composerImageArtifact.height ?? (naturalHeight > 0 ? naturalHeight : undefined),
       mimeType: composerImageArtifact.mimeType?.trim() || output.mimeType?.trim() || null,
     };
-    const serializedComposerPayload = JSON.stringify(composerPayload);
-    transfer.setData(COMPOSER_IMAGE_DROP_PAYLOAD_TYPE, serializedComposerPayload);
-    transfer.setData(COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE, serializedComposerPayload);
+    const composerDropSessionToken = registerComposerImageDropSession(composerPayload);
+    if (dragNodeDataset) {
+      dragNodeDataset[COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY] = composerDropSessionToken;
+    }
+    transfer.setData(COMPOSER_IMAGE_DROP_SESSION_TYPE, composerDropSessionToken);
+    transfer.setData(COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE, composerDropSessionToken);
+    if (composerImageArtifact.displayArtifactKind === "url") {
+      const serializedComposerPayload = JSON.stringify(composerPayload);
+      transfer.setData(COMPOSER_IMAGE_DROP_PAYLOAD_TYPE, serializedComposerPayload);
+      transfer.setData(COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE, serializedComposerPayload);
+    }
   }
   if (promptText) {
     transfer.setData("text/plain", promptText);
@@ -1062,8 +1092,13 @@ export const clearDragState = (event: React.DragEvent<HTMLElement>) => {
   node.classList.remove("is-dragging");
   const dragSessionToken = node.dataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY];
   if (dragSessionToken) {
-    clearInternalReferenceDragSession(dragSessionToken);
+    scheduleClearInternalReferenceDragSession(dragSessionToken);
     delete node.dataset[INTERNAL_REFERENCE_DRAG_TOKEN_DATASET_KEY];
+  }
+  const composerDropSessionToken = node.dataset[COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY];
+  if (composerDropSessionToken) {
+    scheduleClearComposerImageDropSession(composerDropSessionToken);
+    delete node.dataset[COMPOSER_IMAGE_DROP_TOKEN_DATASET_KEY];
   }
   const ghost = dragGhostMap.get(node);
   if (ghost && ghost.parentNode) {

@@ -245,6 +245,7 @@ describe("sessionSnapshot", () => {
               kind: "image",
               imageUrl: null,
               referenceRenderUrl: "https://example.com/legacy-preview.png",
+              imageFallbackUrls: ["https://example.com/repair-preview.png"],
               text: null,
             },
           ],
@@ -260,9 +261,68 @@ describe("sessionSnapshot", () => {
     });
 
     expect(snapshot.agentRuntimes?.standard.messages[0]?.attachments?.[0]).toMatchObject({
-      imageUrl: "https://example.com/legacy-preview.png",
-      imageFallbackUrls: undefined,
+      imageUrl: "https://example.com/repair-preview.png",
+      imageFallbackUrls: ["https://example.com/legacy-preview.png"],
     });
+  });
+
+  it("does not persist transient autosave failure state across snapshots", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "save-state-reset-session",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+      pulseSessionInstanceId: null,
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "multi",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [
+        createOutput({
+          saveState: "failed",
+          saveError: "Signed URL expired.",
+        }),
+      ],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: ["out-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      pulseWorkflowSession: null,
+      canvasState: createCanvasState(),
+      expertEditSessionState: createExpertEditSessionState(),
+    });
+
+    expect(snapshot.outputs.active[0]).toEqual(
+      expect.objectContaining({
+        saveState: "idle",
+        saveError: null,
+      })
+    );
   });
 
   it("preserves apply_prompt workflow artifacts in Pulse session snapshots", () => {

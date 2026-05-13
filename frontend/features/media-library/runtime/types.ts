@@ -34,6 +34,9 @@ export type MediaLibraryMediaRow = {
   thumb_variant_path?: string | null;
   poster_variant_path?: string | null;
   preview_variant_path?: string | null;
+  companion_art_status?: string | null;
+  companion_art_storage_path?: string | null;
+  companion_art_url?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
   signedUrl?: string | null;

@@ -42,4 +42,15 @@ describe("audioCompanionArt promptCompiler", () => {
     expect(compiled.prompt).toContain("Arrangement cue: cinematic.");
     expect(compiled.prompt).toContain("Performance cue: instrumental.");
   });
+
+  it("allows a runtime-owned style line override", () => {
+    const compiled = compileAudioCompanionArtPrompt({
+      promptText: "A haunted broadcast from the desert",
+      sourceMode: "voiceover",
+      styleLine: "Custom runtime style line.",
+    });
+
+    expect(compiled.prompt).toContain("Custom runtime style line.");
+    expect(compiled.prompt).not.toContain("cinematic editorial illustration");
+  });
 });

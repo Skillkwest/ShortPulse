@@ -4,8 +4,13 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import {
+  clearComposerImageDropSession,
+  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
+  registerComposerImageDropSession,
+  resolveComposerImageDropSession,
 } from "../../../../lib/internalReferenceDragSession";
 import {
   clearDragState,
@@ -102,6 +107,43 @@ describe("dragDrop payload extraction", () => {
       promptText: "dragged prompt",
       sourceSurface: "all-refs",
     });
+  });
+
+  it("extracts a dedicated composer image payload from the session token path", () => {
+    const token = registerComposerImageDropSession({
+      version: 1,
+      origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+      referenceId: "ref-1",
+      outputId: "ref-1",
+      mediaId: "media-1",
+      displayArtifactUrl: "data:image/png;base64,abc123",
+      displayArtifactKind: "data",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      promptText: "dragged prompt",
+      sourceSurface: "curated",
+    });
+
+    const payload = extractComposerImageDropPayload(
+      makeTransfer({
+        [COMPOSER_IMAGE_DROP_SESSION_TYPE]: token,
+        [COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE]: token,
+      })
+    );
+
+    expect(payload).toMatchObject({
+      referenceId: "ref-1",
+      outputId: "ref-1",
+      mediaId: "media-1",
+      displayArtifactUrl: "data:image/png;base64,abc123",
+      displayArtifactKind: "data",
+      previewStoragePath: "user-1/generated/preview.png",
+      fullStoragePath: "user-1/generated/full.png",
+      promptText: "dragged prompt",
+      sourceSurface: "curated",
+    });
+
+    clearComposerImageDropSession(token);
   });
 
   it("prefers render snapshots over durable internal reference URLs for image previews", () => {
@@ -443,18 +485,24 @@ describe("dragDrop payload extraction", () => {
       previewUrl: "https://example.com/ref-rendered.png",
     });
 
-    expect(setData).toHaveBeenCalledWith(
-      "text/reference-render-url",
-      "blob:http://localhost:3000/ref-rendered-image"
-    );
+    expect(setData.mock.calls.some(([type]) => type === "text/reference-render-url")).toBe(false);
     expect(setData).toHaveBeenCalledWith(
       "text/reference-url",
       "https://example.com/ref-rendered.png"
     );
-    expect(setData).toHaveBeenCalledWith(
-      "image/url",
-      "blob:http://localhost:3000/ref-rendered-image"
-    );
+    expect(setData).toHaveBeenCalledWith("image/url", "https://example.com/ref-rendered.png");
+
+    const dragSessionToken = setData.mock.calls.find(
+      ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+    )?.[1];
+    const payload = extractInternalReferenceDragPayload({
+      files: emptyFileList,
+      types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+      getData: (type: string) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+    } as unknown as DataTransfer);
+
+    expect(payload?.referenceRenderUrl).toBe("blob:http://localhost:3000/ref-rendered-image");
   });
 
   it("prefers rendered snapshot data URLs for style-intake transfer metadata", () => {
@@ -506,15 +554,24 @@ describe("dragDrop payload extraction", () => {
         previewUrl: "https://example.com/ref-rendered.png",
       });
 
-      expect(setData).toHaveBeenCalledWith(
-        "text/reference-render-url",
-        "data:image/jpeg;base64,drag-snapshot"
-      );
+      expect(setData.mock.calls.some(([type]) => type === "text/reference-render-url")).toBe(false);
       expect(setData).toHaveBeenCalledWith(
         "text/reference-url",
         "https://example.com/ref-rendered.png"
       );
-      expect(setData).toHaveBeenCalledWith("image/url", "data:image/jpeg;base64,drag-snapshot");
+      expect(setData).toHaveBeenCalledWith("image/url", "https://example.com/ref-rendered.png");
+
+      const dragSessionToken = setData.mock.calls.find(
+        ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+      )?.[1];
+      const payload = extractInternalReferenceDragPayload({
+        files: emptyFileList,
+        types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+        getData: (type: string) =>
+          type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+      } as unknown as DataTransfer);
+
+      expect(payload?.referenceRenderUrl).toBe("data:image/jpeg;base64,drag-snapshot");
     } finally {
       Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
         configurable: true,
@@ -693,6 +750,7 @@ describe("dragDrop payload extraction", () => {
   });
 
   it("exports a dedicated composer image payload from a provided display artifact", () => {
+    vi.useFakeTimers();
     const { event, setData } = makeDragEvent();
 
     prepareReferenceDrag(
@@ -721,17 +779,30 @@ describe("dragDrop payload extraction", () => {
       }
     );
 
-    const serializedPayload = setData.mock.calls.find(
-      ([type]) => type === "application/x-shortpulse-composer-image-drop"
+    const composerSessionToken = setData.mock.calls.find(
+      ([type]) => type === COMPOSER_IMAGE_DROP_SESSION_TYPE
     )?.[1];
     const payload = extractComposerImageDropPayload({
       files: emptyFileList,
-      types: ["application/x-shortpulse-composer-image-drop"],
+      types: [COMPOSER_IMAGE_DROP_SESSION_TYPE],
       getData: (type: string) =>
-        type === "application/x-shortpulse-composer-image-drop" ? serializedPayload : "",
+        type === COMPOSER_IMAGE_DROP_SESSION_TYPE ? composerSessionToken : "",
     } as unknown as DataTransfer);
 
-    expect(setData).toHaveBeenCalledWith("image/url", "blob:resolved-card-artifact");
+    expect(composerSessionToken).toBeTruthy();
+    expect(
+      setData.mock.calls.some(
+        ([type, value]) => type === "application/x-shortpulse-composer-image-drop" && value
+      )
+    ).toBe(false);
+    expect(
+      setData.mock.calls.some(
+        ([type, value]) => type === "image/url" && value === "blob:resolved-card-artifact"
+      )
+    ).toBe(false);
+    expect(resolveComposerImageDropSession(composerSessionToken)?.displayArtifactUrl).toBe(
+      "blob:resolved-card-artifact"
+    );
     expect(payload).toMatchObject({
       referenceId: "out-composer-artifact",
       outputId: "out-composer-artifact",
@@ -745,6 +816,12 @@ describe("dragDrop payload extraction", () => {
     });
 
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+    expect(resolveComposerImageDropSession(composerSessionToken)?.displayArtifactUrl).toBe(
+      "blob:resolved-card-artifact"
+    );
+    vi.runAllTimers();
+    expect(resolveComposerImageDropSession(composerSessionToken)).toBeNull();
+    vi.useRealTimers();
   });
 
   it("does not export raw provider urls for generated outputs without storage authority", () => {
@@ -773,7 +850,7 @@ describe("dragDrop payload extraction", () => {
       "text/reference-url",
       "https://provider.example.com/generated.png"
     );
-    expect(setData).toHaveBeenCalledWith("image/url", "data:image/jpeg;base64,generated-render");
+    expect(setData.mock.calls.some(([type]) => type === "image/url")).toBe(false);
 
     const dragSessionToken = setData.mock.calls.find(
       ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
@@ -984,14 +1061,8 @@ describe("dragDrop payload extraction", () => {
         "text/reference-url",
         "https://provider.example.com/generated-data-render.png"
       );
-      expect(setData).toHaveBeenCalledWith(
-        "image/url",
-        "data:image/jpeg;base64,tracked-generated-snapshot"
-      );
-      expect(setData).toHaveBeenCalledWith(
-        "text/reference-render-url",
-        "data:image/jpeg;base64,tracked-generated-snapshot"
-      );
+      expect(setData.mock.calls.some(([type]) => type === "image/url")).toBe(false);
+      expect(setData.mock.calls.some(([type]) => type === "text/reference-render-url")).toBe(false);
 
       const dragSessionToken = setData.mock.calls.find(
         ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE

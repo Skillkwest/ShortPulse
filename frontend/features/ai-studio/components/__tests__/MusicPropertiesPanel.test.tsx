@@ -28,8 +28,10 @@ describe("MusicPropertiesPanel", () => {
     expect(
       screen.getByLabelText("Music inspiration").closest(".music-properties-script-input-shell")
     ).toHaveClass("music-properties-script-input-shell--with-inspiration");
-    expect(screen.getByRole("button", { name: "passionate vocals" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "acid house" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "lofi hip hop" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "passionate vocals" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "boastful" })).toBeNull();
     expect(screen.getByRole("button", { name: "Scroll inspiration left" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Scroll inspiration right" })).toBeInTheDocument();
     expect(screen.getByLabelText("Music defaults")).toBeInTheDocument();
@@ -40,6 +42,15 @@ describe("MusicPropertiesPanel", () => {
       "Auto duration is chosen by the music model."
     );
     expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
+  });
+
+  it("randomizes the music genre rail when the panel mounts", () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.25);
+
+    render(<MusicPropertiesPanel />);
+
+    expect(randomSpy).toHaveBeenCalled();
+    randomSpy.mockRestore();
   });
 
   it("enables generation when the user writes a music prompt", () => {
@@ -235,7 +246,37 @@ describe("MusicPropertiesPanel", () => {
     expect(onGenerate).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
+        mode: "vocal",
         text: "Melancholic synth-pop duet with a slow-burn chorus.\n\nLyrics:\nStay with me through the neon afterglow.",
+      })
+    );
+  });
+
+  it("submits vocal mode in custom mode when lyrics are present even without singer enabled", async () => {
+    const onGenerate = vi.fn();
+
+    render(<MusicPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Custom" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Music prompt" }), {
+      target: { value: "Heat-seeker rap with a melodic hook." },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: "Song lyrics" }), {
+      target: { value: "City lights burn through the smoke tonight." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Generate music" }));
+
+    await waitFor(() => expect(onGenerate).toHaveBeenCalledTimes(2));
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        mode: "vocal",
+      })
+    );
+    expect(onGenerate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        mode: "vocal",
       })
     );
   });
@@ -256,7 +297,7 @@ describe("MusicPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate music" })).toBeDisabled();
   });
 
-  it("appends inspiration chips into the prompt in simple mode", () => {
+  it("appends genre chips into the prompt in simple mode", () => {
     render(<MusicPropertiesPanel />);
 
     fireEvent.click(screen.getByRole("button", { name: "gabber" }));

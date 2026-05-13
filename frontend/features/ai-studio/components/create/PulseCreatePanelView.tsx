@@ -111,7 +111,11 @@ const PulseCreatePanelViewContent = ({
             <span className="create-expert-pulse-start-shell-spinner" aria-hidden="true" />
             <div className="create-expert-pulse-start-shell-copy">
               <p className="create-expert-pulse-start-shell-title">Starting Pulse</p>
-              <p className="create-expert-pulse-start-shell-message">{pulseLoadingState.message}</p>
+              {pulseLoadingState.message ? (
+                <p className="create-expert-pulse-start-shell-message">
+                  {pulseLoadingState.message}
+                </p>
+              ) : null}
               {pulseLoadingState.stepLabel ? (
                 <p className="create-expert-pulse-start-shell-step">
                   Next up: {pulseLoadingState.stepLabel}

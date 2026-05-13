@@ -24,6 +24,7 @@ type UseExpertEditStageTransformRuntimeParams = {
   setLayers: React.Dispatch<React.SetStateAction<ExpertEditLayer[]>>;
   selectedLayer: ExpertEditLayer | null;
   selectedLayerImageUrl: string | null;
+  selectedLayerHasRenderableImage: boolean;
   hasPrimaryCompositePreview: boolean;
   isMoveToolSelected: boolean;
   isMorePresetsSurfaceOpen: boolean;
@@ -55,6 +56,7 @@ export const useExpertEditStageTransformRuntime = ({
   setLayers,
   selectedLayer,
   selectedLayerImageUrl,
+  selectedLayerHasRenderableImage,
   hasPrimaryCompositePreview,
   isMoveToolSelected,
   isMorePresetsSurfaceOpen,
@@ -79,7 +81,7 @@ export const useExpertEditStageTransformRuntime = ({
 }: UseExpertEditStageTransformRuntimeParams) => {
   const activeStageRenderScale = stageViewport.scale;
   const shouldShowSelectedLayerTransformOverlay =
-    isMoveToolSelected && Boolean(selectedLayerImageUrl) && hasPrimaryCompositePreview;
+    isMoveToolSelected && selectedLayerHasRenderableImage && hasPrimaryCompositePreview;
   const selectedLayerImageAspectRatio = React.useMemo(
     () => resolveLayerImageAspectRatio(selectedLayer),
     [resolveLayerImageAspectRatio, selectedLayer]
@@ -158,7 +160,7 @@ export const useExpertEditStageTransformRuntime = ({
   });
 
   const primaryCompositionSurfaceCursor = React.useMemo(() => {
-    if (isMoveToolSelected && selectedLayerImageUrl) {
+    if (isMoveToolSelected && selectedLayerHasRenderableImage) {
       if (activeTransformDragMode === "rotate") {
         return isTransformPointerDragging ? "grabbing" : "crosshair";
       }
@@ -192,7 +194,7 @@ export const useExpertEditStageTransformRuntime = ({
     isTransformPointerDragging,
     maxMarkupStrokeSize,
     resolvedMarkupStrokeSize,
-    selectedLayerImageUrl,
+    selectedLayerHasRenderableImage,
     shouldShowInpaintBrushReticle,
     shouldShowInpaintLassoCursor,
     shouldShowMarkupBrushReticle,

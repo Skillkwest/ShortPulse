@@ -206,6 +206,51 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(outputs.get("out-1")?.saveState).toBe("saved");
   });
 
+  it("still marks already-saved media as saved when project association fails", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          savedMediaIds: ["media-1", "media-2"],
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    associateMediaFilesWithProjectMock.mockRejectedValueOnce(new Error("association failed"));
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    let persistResult: Awaited<ReturnType<typeof result.current.persistOutputSave>> | null = null;
+    await act(async () => {
+      persistResult = await result.current.persistOutputSave("out-1");
+    });
+
+    expect(persistResult).toEqual(
+      expect.objectContaining({
+        ok: true,
+        mediaFileIds: ["media-1", "media-2"],
+      })
+    );
+    expect(outputs.get("out-1")?.saveState).toBe("saved");
+  });
+
   it("associates only the requested saved image id for indexed image saves", async () => {
     const outputs = new Map<string, StudioOutput>([
       [
@@ -348,6 +393,72 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       expect.objectContaining({
         saveState: "failed",
         saveError: "Signed URL expired.",
+      })
+    );
+  });
+
+  it("clears the prior generic library banner after a later save succeeds", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          mediaSource: "upload",
+          generationId: undefined,
+          taskId: undefined,
+          previewUrl: "https://cdn.shortpulse.test/restored-ref.png",
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    const setUiError = vi.fn();
+    saveMediaUrlToLibraryMock
+      .mockRejectedValueOnce(new Error("Signed URL expired."))
+      .mockResolvedValueOnce({
+        mediaFileId: "media-restored",
+        storagePath: "user-1/uploads/images/restored.png",
+        delivery: null,
+      });
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError,
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.persistOutputSave("out-1");
+    });
+    await act(async () => {
+      await result.current.persistOutputSave("out-1");
+    });
+
+    expect(setUiError).toHaveBeenNthCalledWith(
+      1,
+      "Unable to save media to the library right now. Please try again."
+    );
+    const clearCall = setUiError.mock.calls.at(-1)?.[0];
+    expect(typeof clearCall).toBe("function");
+    expect(
+      clearCall("Unable to save media to the library right now. Please try again.")
+    ).toBeNull();
+    expect(clearCall("Other unrelated issue")).toBe("Other unrelated issue");
+    expect(outputs.get("out-1")).toEqual(
+      expect.objectContaining({
+        saveState: "saved",
+        saveError: null,
+        savedMediaIds: ["media-restored"],
       })
     );
   });

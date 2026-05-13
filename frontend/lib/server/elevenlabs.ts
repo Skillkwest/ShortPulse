@@ -243,8 +243,9 @@ const readElevenLabsErrorMessage = async (
 ): Promise<string> => {
   const payload = await response.json().catch(() => null);
   return (
-    normalizeOptionalString((payload as { detail?: unknown } | null)?.detail) ??
-    normalizeOptionalString((payload as { error?: unknown } | null)?.error) ??
+    normalizeProviderErrorMessage((payload as { detail?: unknown } | null)?.detail) ??
+    normalizeProviderErrorMessage((payload as { error?: unknown } | null)?.error) ??
+    normalizeProviderErrorMessage(payload) ??
     fallbackMessage
   );
 };
@@ -733,8 +734,9 @@ export const generateElevenLabsMusic = async ({
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const message =
-      normalizeOptionalString((payload as { detail?: unknown } | null)?.detail) ??
-      normalizeOptionalString((payload as { error?: unknown } | null)?.error) ??
+      normalizeProviderErrorMessage((payload as { detail?: unknown } | null)?.detail) ??
+      normalizeProviderErrorMessage((payload as { error?: unknown } | null)?.error) ??
+      normalizeProviderErrorMessage(payload) ??
       "ElevenLabs music request failed.";
     throw new Error(message);
   }

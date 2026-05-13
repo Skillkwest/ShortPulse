@@ -7,6 +7,7 @@ import React from "react";
 import { defaultLayerTransform } from "./expertEditLayerTransformUtils";
 import {
   enforceLayerStackInvariants,
+  isExpertEditImageUrl,
   resolveLayerIndexOrFallback,
   type ExpertEditLayer,
 } from "./expertEditLayerSessionUtils";
@@ -37,10 +38,21 @@ export function useExpertEditPrimarySessionSync({
   setLayers,
   onPrimaryImageChange,
 }: UseExpertEditPrimarySessionSyncArgs) {
+  const normalizedReferenceImageUrl = isExpertEditImageUrl(referenceImageUrl)
+    ? referenceImageUrl.trim()
+    : null;
+  const hasAppliedInitialPrimarySyncRef = React.useRef(false);
+
   React.useEffect(() => {
-    if (previousPrimaryPropRef.current === referenceImageUrl) return;
-    previousPrimaryPropRef.current = referenceImageUrl;
-    if (referenceImageUrl === lastDispatchedPrimaryRef.current) return;
+    const isInitialPrimarySync = !hasAppliedInitialPrimarySyncRef.current;
+    if (!isInitialPrimarySync && previousPrimaryPropRef.current === normalizedReferenceImageUrl) {
+      return;
+    }
+    hasAppliedInitialPrimarySyncRef.current = true;
+    previousPrimaryPropRef.current = normalizedReferenceImageUrl;
+    if (!isInitialPrimarySync && normalizedReferenceImageUrl === lastDispatchedPrimaryRef.current) {
+      return;
+    }
 
     setLayers((previous) => {
       if (!previous.length) return previous;
@@ -61,14 +73,14 @@ export function useExpertEditPrimarySessionSync({
               });
       const targetLayer = previous[targetIndex];
       if (!targetLayer) return previous;
-      if (targetLayer.imageUrl === referenceImageUrl && !targetLayer.ownsImageUrl) {
+      if (targetLayer.imageUrl === normalizedReferenceImageUrl && !targetLayer.ownsImageUrl) {
         return previous;
       }
       const preserveLayerTransform = lockedRemoveBackgroundIndex >= 0;
       const nextLayers = [...previous];
       nextLayers[targetIndex] = {
         ...targetLayer,
-        imageUrl: referenceImageUrl,
+        imageUrl: normalizedReferenceImageUrl,
         ownsImageUrl: false,
         transform: preserveLayerTransform ? targetLayer.transform : defaultLayerTransform(),
       };
@@ -81,10 +93,10 @@ export function useExpertEditPrimarySessionSync({
     foundationLayerId,
     lastDispatchedPrimaryRef,
     previousPrimaryPropRef,
-    referenceImageUrl,
     removeBackgroundPendingLayerId,
     selectedLayerIndex,
     setLayers,
+    normalizedReferenceImageUrl,
   ]);
 
   React.useEffect(() => {

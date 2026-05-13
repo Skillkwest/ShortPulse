@@ -24,6 +24,7 @@ export type UpsertGenerationProjectionInput = {
   fullStoragePath?: string | null;
   companionArtStatus?: string | null;
   companionArtStoragePath?: string | null;
+  companionArtAttemptCount?: number | null;
   errorMessage?: string | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
@@ -237,6 +238,7 @@ export const upsertGenerationProjection = async ({
   fullStoragePath,
   companionArtStatus,
   companionArtStoragePath,
+  companionArtAttemptCount,
   errorMessage,
   errorMessageShort,
   errorDetail,
@@ -305,6 +307,9 @@ export const upsertGenerationProjection = async ({
   }
   if (typeof referenceGridVisible === "boolean") {
     payload.reference_grid_visible = referenceGridVisible;
+  }
+  if (typeof companionArtAttemptCount === "number" && Number.isFinite(companionArtAttemptCount)) {
+    payload.companion_art_attempt_count = Math.max(0, Math.trunc(companionArtAttemptCount));
   }
 
   const adminClient = supabaseAdmin ?? getSupabaseAdmin();

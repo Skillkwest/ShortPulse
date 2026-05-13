@@ -3,9 +3,11 @@
  * Provides a neutral parsing seam for AI Studio-originated reference drags consumed across features.
  */
 import {
+  getComposerImageDropSessionToken,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   getInternalReferenceDragSessionToken,
+  resolveComposerImageDropSession,
   resolveInternalReferenceDragSession,
 } from "./internalReferenceDragSession";
 
@@ -272,6 +274,12 @@ export const extractComposerImageDropPayload = (
   transfer: DataTransfer | null | undefined
 ): ComposerImageDropPayload | null => {
   if (!transfer) return null;
+  const sessionPayload = resolveComposerImageDropSession(
+    getComposerImageDropSessionToken(transfer)
+  );
+  if (sessionPayload) {
+    return sessionPayload;
+  }
   const rawPayload =
     transfer.getData(COMPOSER_IMAGE_DROP_PAYLOAD_TYPE) ||
     transfer.getData(COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE);

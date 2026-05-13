@@ -9,6 +9,7 @@ const resolveMediaPreviewTrustedHostsMock = vi.fn();
 const extractImageDimensionsFromBufferMock = vi.fn();
 const detectImageMimeTypeMock = vi.fn();
 const detectVideoMimeTypeMock = vi.fn();
+const upsertVideoPosterVariantFromBufferMock = vi.fn();
 
 vi.mock("node:dns/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:dns/promises")>();
@@ -47,6 +48,11 @@ vi.mock("../../lib/server/imageDimensions", () => ({
 vi.mock("../../lib/server/uploadSignature", () => ({
   detectImageMimeType: (...args: unknown[]) => detectImageMimeTypeMock(...args),
   detectVideoMimeType: (...args: unknown[]) => detectVideoMimeTypeMock(...args),
+}));
+
+vi.mock("../../lib/server/videoPosterVariant", () => ({
+  upsertVideoPosterVariantFromBuffer: (...args: unknown[]) =>
+    upsertVideoPosterVariantFromBufferMock(...args),
 }));
 
 type MediaInsertRow = {
@@ -176,6 +182,7 @@ const createSupabaseAdmin = (options?: {
     eq: mediaUpdateEqIdMock,
   }));
   const mediaAssetVariantUpsertMock = vi.fn(async () => ({ error: null }));
+  const mediaEventsInsertMock = vi.fn(async () => ({ error: null }));
   const generationPublicationUpsertMock = vi.fn(async () => ({ error: null }));
   const generationProjectionUpsertMock = vi.fn(async () => ({ error: null }));
 
@@ -239,6 +246,11 @@ const createSupabaseAdmin = (options?: {
         upsert: mediaAssetVariantUpsertMock,
       };
     }
+    if (table === "media_events") {
+      return {
+        insert: mediaEventsInsertMock,
+      };
+    }
     if (table === "ai_generation_outputs") {
       return {
         select: vi.fn((fields: string) => {
@@ -289,6 +301,7 @@ const createSupabaseAdmin = (options?: {
     mediaUpdateEqIdMock,
     mediaUpdateEqUserMock,
     mediaAssetVariantUpsertMock,
+    mediaEventsInsertMock,
     generationPublicationUpsertMock,
     generationProjectionUpsertMock,
     mediaMaybeSingleMock: maybeSingleMock,
@@ -309,6 +322,7 @@ describe("POST /api/media/copy-from-url", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    upsertVideoPosterVariantFromBufferMock.mockResolvedValue(null);
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "u@example.com" });
     resolveMediaPreviewTrustedHostsMock.mockReturnValue(["trusted.example.com", "cdn.example.com"]);
     dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34" }]);
@@ -544,6 +558,142 @@ describe("POST /api/media/copy-from-url", () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it("logs a variant_hydration_failed event when copied video preview persistence fails", async () => {
+    detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
+      buffer.toString() === "video-buffer" ? "video/mp4" : null
+    );
+
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-video-preview-failed-1",
+        storage_path: "user-1/generations/videos/media-video-preview-failed-1.mp4",
+        file_type: "video",
+      },
+    });
+    supabase.mediaUpdateEqUserMock.mockResolvedValueOnce({
+      error: { message: "preview update failed" },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(Buffer.from("video-buffer"), {
+        status: 200,
+        headers: { "content-type": "video/mp4" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/output.mp4",
+        source: "ai_studio",
+        mode: "video",
+        generationId: "gen-video-preview-failed-1",
+        index: 0,
+        previewStoragePathHint:
+          "user-1/variants/videos/media-video-preview-failed-1/preview_loop_360p.mp4",
+        fullStoragePathHint: "user-1/generations/videos/media-video-preview-failed-1.mp4",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(supabase.mediaEventsInsertMock).toHaveBeenCalledWith({
+      user_id: "user-1",
+      event_type: "variant_hydration_failed",
+      entity_type: "media_file",
+      entity_id: "media-video-preview-failed-1",
+      metadata: expect.objectContaining({
+        variant_kind: "preview",
+        source: "ai_studio",
+        generation_id: "gen-video-preview-failed-1",
+        output_index: 0,
+        message: "preview update failed",
+      }),
+    });
+    expect(supabase.uploadMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("generates a durable poster from the video buffer when no poster hint is provided", async () => {
+    detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
+      buffer.toString() === "video-buffer" ? "video/mp4" : null
+    );
+    upsertVideoPosterVariantFromBufferMock.mockResolvedValueOnce(
+      "user-1/variants/videos/media-video-buffer-poster-1/poster_720.jpg"
+    );
+
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-video-buffer-poster-1",
+        storage_path: "user-1/generations/videos/media-video-buffer-poster-1.mp4",
+        file_type: "video",
+      },
+      signedUrls: {
+        "user-1/generations/videos/media-video-buffer-poster-1.mp4":
+          "https://signed.test/video-buffer.mp4",
+        "user-1/variants/videos/media-video-buffer-poster-1/poster_720.jpg":
+          "https://signed.test/video-buffer-poster.jpg",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(Buffer.from("video-buffer"), {
+        status: 200,
+        headers: { "content-type": "video/mp4" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/output.mp4",
+        source: "ai_studio",
+        mode: "video",
+        generationId: "gen-video-buffer-poster-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(upsertVideoPosterVariantFromBufferMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        supabaseAdmin: supabase.admin,
+        userId: "user-1",
+        mediaFileId: "media-video-buffer-poster-1",
+        videoBuffer: Buffer.from("video-buffer"),
+        videoMimeType: "video/mp4",
+        metadata: expect.objectContaining({
+          generated_by: "media-copy-from-url",
+          poster_source: "video_buffer",
+          source: "ai_studio",
+          generation_id: "gen-video-buffer-poster-1",
+          output_index: 0,
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-video-buffer-poster-1",
+        fileType: "video",
+        delivery: expect.objectContaining({
+          previewPosterStoragePath:
+            "user-1/variants/videos/media-video-buffer-poster-1/poster_720.jpg",
+          previewPosterUrl: "https://signed.test/video-buffer-poster.jpg",
+        }),
+      })
+    );
+  });
+
   it("skips oversized inline poster payloads without failing the main video save", async () => {
     detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
       buffer.toString() === "video-buffer" ? "video/mp4" : null
@@ -678,6 +828,61 @@ describe("POST /api/media/copy-from-url", () => {
       }),
       expect.objectContaining({
         onConflict: "generation_id",
+      })
+    );
+  });
+
+  it("returns an existing ai_studio video row without trying to regenerate a poster buffer", async () => {
+    const supabase = createSupabaseAdmin({
+      existingRow: {
+        id: "media-existing-video-1",
+        storage_path: "user-1/generations/videos/existing.mp4",
+        file_type: "video",
+        metadata: { index: 0 },
+        thumb_variant_path: null,
+        poster_variant_path: null,
+        preview_variant_path: null,
+      },
+      canonicalOutputMediaFileId: "media-existing-video-1",
+      generationOutputRows: [
+        {
+          id: "gen-output-video-1",
+          output_index: 0,
+          result_url: "https://trusted.example.com/reference.mp4",
+          media_file_id: "media-existing-video-1",
+        },
+      ],
+      signedUrls: {
+        "user-1/generations/videos/existing.mp4": "https://signed.test/existing.mp4",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference.mp4",
+        source: "ai_studio",
+        mode: "video",
+        generationId: "gen-video-1",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(upsertVideoPosterVariantFromBufferMock).not.toHaveBeenCalled();
+    expect(supabase.uploadMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-existing-video-1",
+        fileType: "video",
       })
     );
   });

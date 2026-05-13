@@ -40,6 +40,23 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
   markOutputSaved,
   markOutputSaveFailed,
 }: UseAiStudioOutputSaveShortCircuitRuntimeArgs) => {
+  const logProjectAssociationWarning = useCallback(
+    (entityType: "media" | "prompt", entityIds: string[], error: unknown) => {
+      if (!projectId) return;
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === "object" && error && "message" in error
+            ? String((error as { message?: unknown }).message ?? error)
+            : String(error);
+      console.warn(`[media/save] project ${entityType} association failed for ${projectId}`, {
+        entityIds,
+        message,
+      });
+    },
+    [projectId]
+  );
+
   const resolveShortCircuitSave = useCallback(
     async ({
       outputId,
@@ -55,10 +72,14 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
         if (projectId) {
           const { associateMediaFilesWithProject } =
             await import("../logic/mediaLibraryPersistence");
-          await associateMediaFilesWithProject({
-            projectId,
-            mediaFileIds: savedMediaIdsForRequest,
-          });
+          try {
+            await associateMediaFilesWithProject({
+              projectId,
+              mediaFileIds: savedMediaIdsForRequest,
+            });
+          } catch (error) {
+            logProjectAssociationWarning("media", savedMediaIdsForRequest, error);
+          }
         }
         await new Promise((resolve) => window.setTimeout(resolve, 260));
         markOutputSaved(
@@ -98,10 +119,14 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
       if (output.promptId) {
         if (projectId) {
           const { associatePromptWithProject } = await import("../logic/mediaLibraryPersistence");
-          await associatePromptWithProject({
-            projectId,
-            promptId: output.promptId,
-          });
+          try {
+            await associatePromptWithProject({
+              projectId,
+              promptId: output.promptId,
+            });
+          } catch (error) {
+            logProjectAssociationWarning("prompt", [output.promptId], error);
+          }
         }
         await new Promise((resolve) => window.setTimeout(resolve, 220));
         markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
@@ -139,7 +164,14 @@ export const useAiStudioOutputSaveShortCircuitRuntime = ({
         error: "Unable to save prompt.",
       };
     },
-    [markOutputSaveFailed, markOutputSaved, persistPromptSave, projectId, updateOutputById]
+    [
+      logProjectAssociationWarning,
+      markOutputSaveFailed,
+      markOutputSaved,
+      persistPromptSave,
+      projectId,
+      updateOutputById,
+    ]
   );
 
   return {

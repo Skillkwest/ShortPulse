@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 
 import { GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR } from "../logic/mediaLibraryPersistence";
 import { MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE } from "../../../lib/mediaStorageQuota";
@@ -22,7 +22,7 @@ type UseAiStudioOutputSaveRuntimeArgs = {
   projectId?: string | null;
   findOutputById: (id: string) => StudioOutput | null;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
-  setUiError: (value: string) => void;
+  setUiError: Dispatch<SetStateAction<string | null>>;
   ensureGenerationRecord: (input: {
     outputId: string;
     provider: Provider;
@@ -83,6 +83,7 @@ export const useAiStudioOutputSaveRuntime = ({
   markOutputSaveFailed,
 }: UseAiStudioOutputSaveRuntimeArgs) => {
   const saveInFlightRef = useRef<Map<string, Promise<PersistOutputSaveResult>>>(new Map());
+  const lastLibrarySaveUiErrorRef = useRef<string | null>(null);
   const { resolveShortCircuitSave } = useAiStudioOutputSaveShortCircuitRuntime({
     projectId,
     updateOutputById,
@@ -112,6 +113,12 @@ export const useAiStudioOutputSaveRuntime = ({
         return await inFlight;
       }
       const task = (async (): Promise<PersistOutputSaveResult> => {
+        const clearResolvedLibrarySaveUiError = () => {
+          const priorMessage = lastLibrarySaveUiErrorRef.current;
+          if (!priorMessage) return;
+          setUiError((current) => (current === priorMessage ? null : current));
+          lastLibrarySaveUiErrorRef.current = null;
+        };
         updateOutputById(outputId, (item) => ({
           ...item,
           saveState: "saving",
@@ -124,12 +131,16 @@ export const useAiStudioOutputSaveRuntime = ({
             options,
           });
           if (shortCircuitResult) {
+            if (shortCircuitResult.ok) {
+              clearResolvedLibrarySaveUiError();
+            }
             return shortCircuitResult;
           }
 
           const urls = await resolvePersistableOutputUrlsForSave(output, options);
           if (!urls.length) {
             markOutputSaveFailed(outputId, "No media available to save.");
+            lastLibrarySaveUiErrorRef.current = "No media available to save.";
             setUiError("No media available to save.");
             return {
               ok: false,
@@ -152,6 +163,7 @@ export const useAiStudioOutputSaveRuntime = ({
             : null;
           if (generatedOutput && !generationId) {
             markOutputSaveFailed(outputId, GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
+            lastLibrarySaveUiErrorRef.current = GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR;
             setUiError(GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
             return {
               ok: false,
@@ -180,6 +192,7 @@ export const useAiStudioOutputSaveRuntime = ({
                 options,
               })
             );
+            clearResolvedLibrarySaveUiError();
             return {
               ok: true,
               mediaFileIds,
@@ -190,7 +203,9 @@ export const useAiStudioOutputSaveRuntime = ({
           }
           const failureMessage = resolveLibrarySaveFailureMessage(errors);
           markOutputSaveFailed(outputId, failureMessage);
-          setUiError(resolveLibrarySaveUiErrorMessage(failureMessage));
+          const uiErrorMessage = resolveLibrarySaveUiErrorMessage(failureMessage);
+          lastLibrarySaveUiErrorRef.current = uiErrorMessage;
+          setUiError(uiErrorMessage);
           return {
             ok: false,
             mediaFileIds,

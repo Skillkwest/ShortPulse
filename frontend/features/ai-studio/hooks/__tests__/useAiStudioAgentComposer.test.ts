@@ -149,7 +149,7 @@ describe("useAiStudioAgentComposer", () => {
       displayArtifactKind: "blob",
       previewStoragePath: "user-1/generated/preview.png",
       fullStoragePath: "user-1/generated/full.png",
-      referenceUrl: null,
+      referenceUrl: "https://signed.example.com/generated.png",
       promptText: "Dragged prompt",
       sourceSurface: "all-refs",
     });
@@ -175,8 +175,14 @@ describe("useAiStudioAgentComposer", () => {
       referenceId: "out-1",
       mediaId: "media-1",
       imageUrl: "blob:resolved-artifact",
+      imageFallbackUrls: [
+        "https://signed.example.com/generated.png",
+        "https://weak.example.com/preview.png",
+      ],
       previewStoragePath: "user-1/generated/preview.png",
       fullStoragePath: "user-1/generated/full.png",
+      referenceUrl: "https://signed.example.com/generated.png",
+      referenceRenderUrl: "blob:resolved-artifact",
       text: "Dragged prompt",
     });
   });

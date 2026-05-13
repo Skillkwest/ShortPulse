@@ -212,6 +212,41 @@ const isBrowserFetchBlockedError = (error: unknown): boolean => {
   );
 };
 
+const shouldUseServerCopyFallback = ({
+  input,
+  error,
+}: {
+  input: SaveMediaUrlInput;
+  error: unknown;
+}): boolean => {
+  if (!URL_PROTOCOL_PATTERN.test(input.url)) return false;
+  if (isBrowserFetchBlockedError(error)) return true;
+  return input.source === "ai_studio" && Boolean(input.generationId);
+};
+
+const logProjectAssociationWarning = ({
+  projectId,
+  entityType,
+  entityIds,
+  error,
+}: {
+  projectId: string;
+  entityType: "media" | "prompt";
+  entityIds: string[];
+  error: unknown;
+}) => {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error && "message" in error
+        ? String((error as { message?: unknown }).message ?? error)
+        : String(error);
+  console.warn(`[media/save] project ${entityType} association failed for ${projectId}`, {
+    entityIds,
+    message,
+  });
+};
+
 const readImageDimensionsFromBlob = async (blob: Blob): Promise<ImageDimensions | null> => {
   if (typeof createImageBitmap === "function") {
     try {
@@ -442,6 +477,7 @@ const saveMediaUrlToLibraryViaServerCopy = async (
     body: JSON.stringify(input),
     shortpulseLogScope: "generation",
     shortpulseSkipErrorLogging: true,
+    shortpulseRetryNetworkOnce: true,
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
@@ -458,6 +494,22 @@ const saveMediaUrlToLibraryViaServerCopy = async (
   }
   if (!parsed.mediaFileId) {
     throw new Error("Server copy did not return a persisted media id.");
+  }
+  const projectId = normalizeProjectId(input.projectId);
+  if (projectId) {
+    try {
+      await associateMediaFilesWithProject({
+        projectId,
+        mediaFileIds: [parsed.mediaFileId],
+      });
+    } catch (error) {
+      logProjectAssociationWarning({
+        projectId,
+        entityType: "media",
+        entityIds: [parsed.mediaFileId],
+        error,
+      });
+    }
   }
   return parsed;
 };
@@ -874,10 +926,19 @@ export const savePromptRecord = async (input: PromptRecordInput) => {
   const promptId = data?.id ?? null;
   const projectId = normalizeProjectId(input.projectId);
   if (promptId && projectId) {
-    await associatePromptWithProject({
-      projectId,
-      promptId,
-    });
+    try {
+      await associatePromptWithProject({
+        projectId,
+        promptId,
+      });
+    } catch (error) {
+      logProjectAssociationWarning({
+        projectId,
+        entityType: "prompt",
+        entityIds: [promptId],
+        error,
+      });
+    }
   }
   return promptId;
 };
@@ -899,6 +960,49 @@ export const logMediaEvent = async (input: MediaEventInput) => {
   }
 };
 
+const logVideoVariantHydrationFailure = async ({
+  supabase,
+  userId,
+  mediaFileId,
+  variantKind,
+  source,
+  generationId,
+  outputIndex,
+  error,
+}: {
+  supabase: Awaited<ReturnType<typeof ensureSupabaseQueryClient>>;
+  userId: string;
+  mediaFileId: string;
+  variantKind: "poster" | "preview";
+  source: SaveMediaUrlInput["source"];
+  generationId?: string | null;
+  outputIndex: number;
+  error: unknown;
+}) => {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error && "message" in error
+        ? String((error as { message?: unknown }).message ?? error)
+        : String(error);
+  const { error: eventError } = await supabase.from("media_events").insert({
+    user_id: userId,
+    event_type: "variant_hydration_failed",
+    entity_type: "media_file",
+    entity_id: mediaFileId,
+    metadata: {
+      variant_kind: variantKind,
+      source,
+      generation_id: generationId ?? null,
+      output_index: outputIndex,
+      message,
+    },
+  });
+  if (eventError) {
+    console.warn("[media/save] media_events insert failed", eventError.message);
+  }
+};
+
 /**
  * Upload a media URL to storage and insert a media_files row.
  */
@@ -917,10 +1021,19 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     if (existingRow) {
       const projectId = normalizeProjectId(input.projectId);
       if (projectId) {
-        await associateMediaFilesWithProject({
-          projectId,
-          mediaFileIds: [existingRow.id],
-        });
+        try {
+          await associateMediaFilesWithProject({
+            projectId,
+            mediaFileIds: [existingRow.id],
+          });
+        } catch (error) {
+          logProjectAssociationWarning({
+            projectId,
+            entityType: "media",
+            entityIds: [existingRow.id],
+            error,
+          });
+        }
       }
       try {
         await attachMediaFileToAiStudioGenerationOutput({
@@ -944,8 +1057,17 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
             mediaFileId: existingRow.id,
             posterSourceUrl,
           });
-        } catch {
-          // best-effort durable poster hydration only
+        } catch (error) {
+          await logVideoVariantHydrationFailure({
+            supabase,
+            userId,
+            mediaFileId: existingRow.id,
+            variantKind: "poster",
+            source: input.source,
+            generationId: input.generationId,
+            outputIndex: input.index,
+            error,
+          });
         }
       }
       const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
@@ -961,8 +1083,17 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
             mediaFileId: existingRow.id,
             previewStoragePath: previewVariantPath,
           });
-        } catch {
-          // best-effort durable preview hydration only
+        } catch (error) {
+          await logVideoVariantHydrationFailure({
+            supabase,
+            userId,
+            mediaFileId: existingRow.id,
+            variantKind: "preview",
+            source: input.source,
+            generationId: input.generationId,
+            outputIndex: input.index,
+            error,
+          });
         }
       }
       const delivery = {
@@ -989,7 +1120,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     blob = fetched.blob;
     contentType = fetched.contentType;
   } catch (error) {
-    if (URL_PROTOCOL_PATTERN.test(input.url) && isBrowserFetchBlockedError(error)) {
+    if (shouldUseServerCopyFallback({ input, error })) {
       return await saveMediaUrlToLibraryViaServerCopy(input);
     }
     throw error;
@@ -1066,10 +1197,19 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       if (existingRow) {
         const projectId = normalizeProjectId(input.projectId);
         if (projectId) {
-          await associateMediaFilesWithProject({
-            projectId,
-            mediaFileIds: [existingRow.id],
-          });
+          try {
+            await associateMediaFilesWithProject({
+              projectId,
+              mediaFileIds: [existingRow.id],
+            });
+          } catch (associationError) {
+            logProjectAssociationWarning({
+              projectId,
+              entityType: "media",
+              entityIds: [existingRow.id],
+              error: associationError,
+            });
+          }
         }
         try {
           if (storagePath) {
@@ -1100,8 +1240,17 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
               mediaFileId: existingRow.id,
               posterSourceUrl,
             });
-          } catch {
-            // best-effort durable poster hydration only
+          } catch (error) {
+            await logVideoVariantHydrationFailure({
+              supabase,
+              userId,
+              mediaFileId: existingRow.id,
+              variantKind: "poster",
+              source: input.source,
+              generationId: input.generationId,
+              outputIndex: input.index,
+              error,
+            });
           }
         }
         const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
@@ -1117,8 +1266,17 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
               mediaFileId: existingRow.id,
               previewStoragePath: previewVariantPath,
             });
-          } catch {
-            // best-effort durable preview hydration only
+          } catch (error) {
+            await logVideoVariantHydrationFailure({
+              supabase,
+              userId,
+              mediaFileId: existingRow.id,
+              variantKind: "preview",
+              source: input.source,
+              generationId: input.generationId,
+              outputIndex: input.index,
+              error,
+            });
           }
         }
         const delivery = {
@@ -1164,16 +1322,34 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         mediaFileId,
         previewStoragePath: previewVariantPath,
       });
-    } catch {
-      // best-effort durable preview hydration only
+    } catch (error) {
+      await logVideoVariantHydrationFailure({
+        supabase,
+        userId,
+        mediaFileId,
+        variantKind: "preview",
+        source: input.source,
+        generationId: input.generationId,
+        outputIndex: input.index,
+        error,
+      });
     }
   }
   const projectId = normalizeProjectId(input.projectId);
   if (mediaFileId && projectId) {
-    await associateMediaFilesWithProject({
-      projectId,
-      mediaFileIds: [mediaFileId],
-    });
+    try {
+      await associateMediaFilesWithProject({
+        projectId,
+        mediaFileIds: [mediaFileId],
+      });
+    } catch (error) {
+      logProjectAssociationWarning({
+        projectId,
+        entityType: "media",
+        entityIds: [mediaFileId],
+        error,
+      });
+    }
   }
   const posterSourceUrl = normalizePosterSourceUrl(fileType, input.posterUrlHint);
   if (mediaFileId && posterSourceUrl) {
@@ -1184,8 +1360,17 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         mediaFileId,
         posterSourceUrl,
       });
-    } catch {
-      // best-effort durable poster hydration only
+    } catch (error) {
+      await logVideoVariantHydrationFailure({
+        supabase,
+        userId,
+        mediaFileId,
+        variantKind: "poster",
+        source: input.source,
+        generationId: input.generationId,
+        outputIndex: input.index,
+        error,
+      });
     }
   }
 

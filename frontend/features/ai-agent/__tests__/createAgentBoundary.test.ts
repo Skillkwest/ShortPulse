@@ -735,7 +735,7 @@ describe("Create agent mode boundaries", () => {
     expect(standardCreateTestSource).toContain('"text-image"');
     expect(standardCreateTestSource).not.toContain("PulseCreatePropertiesPanel");
     expect(pulseCreateTestSource).toContain('describe("PulseCreatePropertiesPanel"');
-    expect(pulseCreateTestSource).toContain("guided-workflow startup messaging");
+    expect(pulseCreateTestSource).toContain("omits helper startup messaging");
     expect(pulseCreateTestSource).not.toContain("StandardCreatePropertiesPanel");
   });
 

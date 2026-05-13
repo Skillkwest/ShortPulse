@@ -13,6 +13,7 @@ export type ComposerImageAttachmentPreviewSource =
 export type ComposerImageAttachmentPreview = {
   url: string;
   source: ComposerImageAttachmentPreviewSource;
+  candidates: string[];
 };
 
 export type ComposerImageAttachmentIdentity = {
@@ -50,18 +51,15 @@ export const resolveComposerImageAttachmentPreview = (
   >
 ): ComposerImageAttachmentPreview | null => {
   if (attachment.kind !== "image") return null;
+  const candidates = buildAgentAttachmentImageCandidates(attachment);
+  if (candidates.length === 0) return null;
   const primaryImageUrl = normalizeAttachmentImageUrl(attachment.imageUrl);
-  if (primaryImageUrl) {
-    return {
-      url: primaryImageUrl,
-      source: resolvePreviewSource(primaryImageUrl, true),
-    };
-  }
-  const legacyFallbackUrl = buildAgentAttachmentImageCandidates(attachment)[0] ?? null;
-  if (!legacyFallbackUrl) return null;
+  const resolvedPreviewUrl = primaryImageUrl ?? candidates[0] ?? null;
+  if (!resolvedPreviewUrl) return null;
   return {
-    url: legacyFallbackUrl,
-    source: resolvePreviewSource(legacyFallbackUrl, false),
+    url: resolvedPreviewUrl,
+    source: resolvePreviewSource(resolvedPreviewUrl, primaryImageUrl === resolvedPreviewUrl),
+    candidates,
   };
 };
 

@@ -104,7 +104,8 @@ const serializeMessageForSnapshot = (message: AgentMessage): AiStudioSessionAgen
       referenceUrl: attachment.referenceUrl ?? null,
       referenceRenderUrl: attachment.referenceRenderUrl ?? null,
       imageUrl: projectedImageAttachment?.preview.url ?? attachment.imageUrl ?? null,
-      imageFallbackUrls: undefined,
+      imageFallbackUrls:
+        projectedImageAttachment?.preview.candidates.slice(1) ?? attachment.imageFallbackUrls,
       aspect: attachment.aspect ?? null,
       deliveryStatus: attachment.deliveryStatus,
       deliveryError: attachment.deliveryError ?? null,

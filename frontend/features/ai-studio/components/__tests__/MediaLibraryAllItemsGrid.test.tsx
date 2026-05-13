@@ -134,15 +134,30 @@ describe("MediaLibraryAllItemsGrid", () => {
         id: `item-${index}`,
         item,
         index,
-        style: { position: "absolute", top: `${index * 100}px`, left: "0px", width: "188px" },
+        style: {
+          position: "absolute",
+          top: `${index * 100}px`,
+          left: "0px",
+          width: "188px",
+          height: "132px",
+        },
       })),
     }));
 
     const { container } = render(<MediaLibraryAllItemsGrid {...baseProps()} />);
     const grid = container.querySelector(".media-library-panel-all-items-grid");
+    const cardShell = container.querySelector(".media-library-panel-media-card-shell");
+    const virtualizedWrapper = cardShell?.parentElement;
 
     expect(grid).toHaveClass("media-library-modal-grid-virtualized");
     expect(grid).toHaveStyle({ height: "640px" });
+    expect(virtualizedWrapper).toHaveStyle({
+      position: "absolute",
+      top: "0px",
+      left: "0px",
+      width: "188px",
+      height: "132px",
+    });
   });
 
   it("applies virtualized layout styles to prompt cards in the mixed feed", () => {
@@ -160,6 +175,7 @@ describe("MediaLibraryAllItemsGrid", () => {
           top: `${index * 100}px`,
           left: `${index * 10}px`,
           width: "188px",
+          height: "235px",
         },
       })),
     }));
@@ -185,6 +201,7 @@ describe("MediaLibraryAllItemsGrid", () => {
       top: "0px",
       left: "0px",
       width: "188px",
+      height: "235px",
     });
   });
 
@@ -197,6 +214,29 @@ describe("MediaLibraryAllItemsGrid", () => {
 
     expect(props.onSignedUrlLoaded).toHaveBeenCalledWith("video-1");
     expect(props.onMediaPaint).toHaveBeenCalledWith("image");
+  });
+
+  it("passes companion art through to audio card backgrounds", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note.wav",
+        storage_path: "user-1/generations/audio/voice-note.wav",
+        file_type: "audio/wav",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note.wav",
+        companion_art_url: "https://cdn.example.com/voice-note-cover.png",
+      },
+    ];
+
+    const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
+    const audioShell = container.querySelector(".reference-card-audio-shell");
+
+    expect(audioShell).not.toBeNull();
+    expect(audioShell).toHaveStyle({
+      backgroundImage: expect.stringContaining("voice-note-cover.png"),
+    });
   });
 
   it("routes video posters through the adaptive preview resolver in the mixed feed", () => {

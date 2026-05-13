@@ -12,6 +12,7 @@ export type CompileAudioCompanionArtPromptInput = {
   promptText: string;
   sourceMode: AudioCompanionArtSourceMode;
   metadata?: JsonObject | null;
+  styleLine?: string | null;
 };
 
 export type AudioCompanionArtGenerationSpec = {
@@ -24,7 +25,7 @@ export type AudioCompanionArtGenerationSpec = {
 const COMPANION_ART_SIZE: OpenAiImage2Size = "1024x1024";
 const COMPANION_ART_QUALITY: OpenAiImage2Quality = "low";
 
-const BRAND_STYLE_LINE =
+const DEFAULT_BRAND_STYLE_LINE =
   "Branded audio cover art style: cinematic editorial illustration, bold silhouette, layered atmosphere, premium gradients, restrained color palette, tactile texture, crisp focal subject, no text, no logos, no typography, no UI, no watermark, no border.";
 
 const asTrimmedString = (value: unknown): string | null => {
@@ -89,9 +90,11 @@ export const compileAudioCompanionArtPrompt = ({
   promptText,
   sourceMode,
   metadata = null,
+  styleLine = null,
 }: CompileAudioCompanionArtPromptInput): AudioCompanionArtGenerationSpec => {
   const normalizedPrompt = clampText(asTrimmedString(promptText) ?? "Audio reference cover art");
   const safeMetadata = metadata && typeof metadata === "object" ? metadata : {};
+  const normalizedStyleLine = asTrimmedString(styleLine) ?? DEFAULT_BRAND_STYLE_LINE;
   const creativeDirection = buildCreativeDirection({
     sourceMode,
     metadata: safeMetadata,
@@ -101,7 +104,7 @@ export const compileAudioCompanionArtPrompt = ({
     `Audio concept: ${normalizedPrompt}`,
     `Source mode: ${sourceMode}.`,
     ...creativeDirection,
-    BRAND_STYLE_LINE,
+    normalizedStyleLine,
   ].join("\n");
 
   return {

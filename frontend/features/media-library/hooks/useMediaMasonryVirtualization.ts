@@ -191,6 +191,7 @@ export const useMediaMasonryVirtualization = <TItem>({
             top: `${entry.top}px`,
             left: `${entry.left}px`,
             width: `${entry.width}px`,
+            height: `${entry.height}px`,
           },
         };
       })

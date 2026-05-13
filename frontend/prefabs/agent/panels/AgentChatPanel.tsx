@@ -510,6 +510,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 {attachment.kind === "image" ? (
                   <AgentImageAttachmentPreview
                     src={projectedImageAttachment?.preview.url ?? null}
+                    sources={projectedImageAttachment?.preview.candidates ?? null}
                   />
                 ) : (
                   <div className="agent-attachment-card-prompt" aria-hidden="true">

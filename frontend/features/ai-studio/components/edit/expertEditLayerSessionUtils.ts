@@ -1,6 +1,7 @@
 /**
  * Layer/session-state normalization helpers for Expert Edit initialization and layer stack hygiene.
  */
+import { isAudioUrl, isVideoUrl } from "../../logic/stateParsers";
 import type { MarkupStroke } from "./markupStrokeController";
 import {
   clampLayerOpacity,
@@ -83,8 +84,14 @@ const coerceLayerTransformFromSessionState = (
   };
 };
 
-export const layerHasImage = (layer: ExpertEditLayer) =>
-  typeof layer.imageUrl === "string" && layer.imageUrl.trim().length > 0;
+export const layerHasImage = (layer: ExpertEditLayer) => isExpertEditImageUrl(layer.imageUrl);
+
+export const isExpertEditImageUrl = (value: string | null | undefined) => {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return !isVideoUrl(trimmed) && !isAudioUrl(trimmed);
+};
 
 export const isLayerIndexInBounds = ({
   index,
@@ -372,18 +379,19 @@ export const resolveInitialLayerSessionState = ({
   referenceImageUrl: string | null;
   layerState: ExpertEditLayerSessionState | null | undefined;
 }) => {
+  const hasReferenceImageAuthority = isExpertEditImageUrl(referenceImageUrl);
   const fallbackLayers: ExpertEditLayer[] = [
     {
       id: "layer-1",
       name: formatLayerName(1),
-      imageUrl: referenceImageUrl ?? null,
+      imageUrl: hasReferenceImageAuthority ? referenceImageUrl.trim() : null,
       opacity: LAYER_OPACITY_DEFAULT,
       isAutoNamed: true,
       ownsImageUrl: false,
       transform: defaultLayerTransform(),
     },
   ];
-  if (!layerState?.layers?.length) {
+  if (!hasReferenceImageAuthority || !layerState?.layers?.length) {
     return {
       layers: fallbackLayers,
       foundationLayerId: "layer-1",
@@ -396,7 +404,7 @@ export const resolveInitialLayerSessionState = ({
     .map((layer, index) => ({
       id: layer.id,
       name: layer.name?.trim() ? layer.name : formatLayerName(index + 1),
-      imageUrl: typeof layer.imageUrl === "string" ? layer.imageUrl : null,
+      imageUrl: isExpertEditImageUrl(layer.imageUrl) ? layer.imageUrl.trim() : null,
       opacity: clampLayerOpacity(layer.opacity),
       isAutoNamed: layer.isAutoNamed !== false,
       ownsImageUrl: layer.ownsImageUrl === true,

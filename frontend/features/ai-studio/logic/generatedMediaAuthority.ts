@@ -1130,9 +1130,7 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
     const resolvedUserId = asTrimmedString(userId);
     let projectionQuery = supabase
       .from("generation_projection")
-      .select(
-        "preview_url, result_urls, preview_storage_path, full_storage_path, task_state, hidden_in_reference_grid, reference_grid_visible"
-      )
+      .select(GENERATION_PROJECTION_DELIVERY_SELECT_COLUMNS)
       .eq("generation_id", generationId)
       .limit(1);
     if (resolvedUserId) {

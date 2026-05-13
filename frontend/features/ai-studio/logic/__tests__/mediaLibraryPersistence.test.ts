@@ -746,6 +746,7 @@ describe("saveMediaUrlToLibrary", () => {
       "/api/media/copy-from-url",
       expect.objectContaining({
         method: "POST",
+        shortpulseRetryNetworkOnce: true,
       })
     );
     expect(upload).not.toHaveBeenCalled();
@@ -866,6 +867,107 @@ describe("saveMediaUrlToLibrary", () => {
       "/api/media/copy-from-url",
       expect.objectContaining({
         method: "POST",
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+  });
+
+  it("falls back to server copy for generated media when a signed URL returns a non-ok status", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const projectMediaUpsert = vi.fn().mockResolvedValue({ error: null });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert: vi.fn(),
+          };
+        }
+        if (table === "project_media_items") {
+          return {
+            upsert: projectMediaUpsert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: vi.fn(),
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+      })
+    );
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaFileId: "media-expired-signed-url",
+        storagePath: "user-1/generations/images/server-copy-expired.png",
+        fileType: "image",
+        fileSize: 321,
+        delivery: {
+          previewStoragePath: "user-1/generations/images/server-copy-expired.png",
+          fullStoragePath: "user-1/generations/images/server-copy-expired.png",
+          previewUrl: "https://cdn.shortpulse.test/server-copy-expired-preview.png",
+          fullUrl: "https://cdn.shortpulse.test/server-copy-expired-full.png",
+        },
+      }),
+    });
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://tempfile.aiquickdraw.com/r/expired.png",
+      mode: "image",
+      source: "ai_studio",
+      generationId: "gen-expired-1",
+      projectId: "project-1",
+      index: 0,
+    });
+
+    expect(result.mediaFileId).toBe("media-expired-signed-url");
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/copy-from-url",
+      expect.objectContaining({
+        method: "POST",
+        shortpulseRetryNetworkOnce: true,
+      })
+    );
+    expect(projectMediaUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          media_file_id: "media-expired-signed-url",
+          user_id: "user-1",
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,media_file_id",
       })
     );
   });
@@ -1333,6 +1435,117 @@ describe("saveMediaUrlToLibrary", () => {
     expect(upload).toHaveBeenCalledTimes(1);
   });
 
+  it("logs a variant_hydration_failed event when preview-loop persistence fails", async () => {
+    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValueOnce("uuid-video-preview-failed");
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputInsert = vi.fn(async () => ({ error: null }));
+    const single = vi.fn().mockResolvedValue({
+      data: { id: "media-video-preview-failed-1" },
+      error: null,
+    });
+    const insert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single,
+      })),
+    }));
+    const mediaUpdateEqUser = vi.fn(async () => ({
+      error: { message: "preview update failed" },
+    }));
+    const mediaUpdateEqId = vi.fn(() => ({
+      eq: mediaUpdateEqUser,
+    }));
+    const mediaUpdate = vi.fn(() => ({
+      eq: mediaUpdateEqId,
+    }));
+    const variantUpsert = vi.fn(async () => ({ error: null }));
+    const mediaEventsInsert = vi.fn(async () => ({ error: null }));
+    const upload = vi.fn().mockResolvedValue({ error: null });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert,
+            update: mediaUpdate,
+          };
+        }
+        if (table === "media_asset_variants") {
+          return {
+            upsert: variantUpsert,
+          };
+        }
+        if (table === "media_events") {
+          return {
+            insert: mediaEventsInsert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            insert: generationOutputInsert,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url === "https://cdn.shortpulse.test/output.mp4") {
+          return new Response(Buffer.from("video-buffer"), {
+            status: 200,
+            headers: { "content-type": "video/mp4" },
+          });
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      })
+    );
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/output.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-video-preview-failed-1",
+      index: 0,
+      previewStoragePathHint:
+        "user-1/variants/videos/media-video-preview-failed-1/preview_loop_360p.mp4",
+      fullStoragePathHint: "user-1/generations/videos/uuid-video-preview-failed-0.mp4",
+    });
+
+    expect(result.mediaFileId).toBe("media-video-preview-failed-1");
+    expect(mediaEventsInsert).toHaveBeenCalledWith({
+      user_id: "user-1",
+      event_type: "variant_hydration_failed",
+      entity_type: "media_file",
+      entity_id: "media-video-preview-failed-1",
+      metadata: expect.objectContaining({
+        variant_kind: "preview",
+        source: "ai_studio",
+        generation_id: "gen-video-preview-failed-1",
+        output_index: 0,
+        message: "preview update failed",
+      }),
+    });
+    expect(upload).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects ai_studio saves without a durable generation id", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -1508,6 +1721,79 @@ describe("saveMediaUrlToLibrary", () => {
       })
     );
   });
+
+  it("returns saved media even when project association upsert fails", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const projectMediaUpsert = vi.fn().mockResolvedValue({
+      error: { message: "project association failed" },
+    });
+    const mediaInsertSelectSingle = vi.fn().mockResolvedValue({
+      data: { id: "media-project-failure-1" },
+      error: null,
+    });
+    const mediaInsertSelect = vi.fn(() => ({
+      single: mediaInsertSelectSingle,
+    }));
+    const mediaInsert = vi.fn(() => ({
+      select: mediaInsertSelect,
+    }));
+    const upload = vi.fn().mockResolvedValue({ error: null });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert: mediaInsert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: vi.fn(),
+            insert: vi.fn(),
+          };
+        }
+        if (table === "project_media_items") {
+          return {
+            upsert: projectMediaUpsert,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        blob: async () => new Blob(["video"], { type: "video/mp4" }),
+        headers: new Headers({ "content-type": "video/mp4" }),
+      })
+    );
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/project-video-failure.mp4",
+      mode: "video",
+      source: "upload",
+      index: 0,
+      projectId: "project-1",
+    });
+
+    expect(result.mediaFileId).toBe("media-project-failure-1");
+    expect(projectMediaUpsert).toHaveBeenCalled();
+  });
 });
 
 describe("savePromptRecord", () => {
@@ -1564,6 +1850,47 @@ describe("savePromptRecord", () => {
         onConflict: "project_id,prompt_id",
       })
     );
+  });
+
+  it("returns the prompt id even when project prompt association fails", async () => {
+    const promptInsertSingle = vi.fn().mockResolvedValue({
+      data: { id: "prompt-2" },
+      error: null,
+    });
+    const promptInsertSelect = vi.fn(() => ({
+      single: promptInsertSingle,
+    }));
+    const promptInsert = vi.fn(() => ({
+      select: promptInsertSelect,
+    }));
+    const projectPromptUpsert = vi.fn().mockResolvedValue({
+      error: { message: "prompt association failed" },
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_prompts") {
+          return {
+            insert: promptInsert,
+          };
+        }
+        if (table === "project_prompt_items") {
+          return {
+            upsert: projectPromptUpsert,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      savePromptRecord({
+        promptText: "Project prompt failure",
+        mode: "text",
+        source: "ai_studio",
+        projectId: "project-1",
+      })
+    ).resolves.toBe("prompt-2");
   });
 });
 

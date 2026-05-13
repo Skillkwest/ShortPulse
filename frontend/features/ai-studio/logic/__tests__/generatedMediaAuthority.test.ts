@@ -274,6 +274,64 @@ describe("generatedMediaAuthority", () => {
     });
   });
 
+  it("returns companion art from projection delivery during reconcile", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
+          "https://signed.test/audio-cover.png",
+        ],
+      ])
+    );
+    const projectionDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://signed.test/audio-preview.wav",
+        result_urls: ["https://signed.test/audio-preview.wav"],
+        preview_storage_path: "user-1/generations/audio/gen-audio-1/audio.wav",
+        full_storage_path: "user-1/generations/audio/gen-audio-1/audio.wav",
+        companion_art_status: "ready",
+        companion_art_storage_path: "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+    const projectionSelect = vi.fn(() => projectionDeliveryBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: projectionSelect,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        generationId: "gen-audio-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-audio-1",
+      previewUrl: "https://signed.test/audio-preview.wav",
+      previewPosterUrl: null,
+      previewPosterStoragePath: null,
+      companionArtUrl: "https://signed.test/audio-cover.png",
+      companionArtStoragePath: "user-1/generations/audio/gen-audio-1/companion-art/cover.png",
+      companionArtStatus: "ready",
+      previewStoragePath: "user-1/generations/audio/gen-audio-1/audio.wav",
+      fullStoragePath: "user-1/generations/audio/gen-audio-1/audio.wav",
+      resultUrls: ["https://signed.test/audio-preview.wav"],
+    });
+    expect(projectionSelect).toHaveBeenCalledWith(expect.stringContaining("companion_art_status"));
+    expect(projectionSelect).toHaveBeenCalledWith(
+      expect.stringContaining("companion_art_storage_path")
+    );
+  });
+
   it("signs projection poster storage for completed generated video reconcile", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([

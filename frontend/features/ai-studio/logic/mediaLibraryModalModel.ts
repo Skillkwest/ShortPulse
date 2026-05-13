@@ -24,6 +24,9 @@ export type MediaFileRow = {
   thumb_variant_path?: string | null;
   poster_variant_path?: string | null;
   preview_variant_path?: string | null;
+  companion_art_status?: string | null;
+  companion_art_storage_path?: string | null;
+  companion_art_url?: string | null;
   signedUrl?: string | null;
 };
 

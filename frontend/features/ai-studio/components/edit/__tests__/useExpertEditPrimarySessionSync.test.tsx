@@ -154,4 +154,80 @@ describe("useExpertEditPrimarySessionSync", () => {
     expect(result.current.layers[0]?.imageUrl).toBe("https://example.com/base-updated.png");
     expect(result.current.layers[1]?.imageUrl).toBe("https://example.com/overlay.png");
   });
+
+  it("clears the foundation image when host image authority becomes non-image", async () => {
+    const onPrimaryImageChange = vi.fn();
+    const lastDispatchedPrimaryRef = { current: null as string | null };
+    const previousPrimaryPropRef = { current: "https://example.com/base.png" };
+
+    const { result } = renderHook(() => {
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
+        createLayer("layer-1", {
+          imageUrl: "https://example.com/base.png",
+        }),
+      ]);
+
+      useExpertEditPrimarySessionSync({
+        selectedLayerIndex: 0,
+        referenceImageUrl: "https://example.com/reference-audio.mp3",
+        hostPrimaryImageUrl: null,
+        removeBackgroundPendingLayerId: null,
+        foundationLayerId: "layer-1",
+        lastDispatchedPrimaryRef,
+        previousPrimaryPropRef,
+        setLayers,
+        onPrimaryImageChange,
+      });
+
+      return { layers };
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.layers[0]?.imageUrl).toBeNull();
+    expect(result.current.layers[0]?.transform).toEqual(defaultLayerTransform());
+  });
+
+  it("clears a stale foundation image on the initial sync pass when no host image exists", async () => {
+    const onPrimaryImageChange = vi.fn();
+    const lastDispatchedPrimaryRef = { current: null as string | null };
+    const previousPrimaryPropRef = { current: null as string | null };
+
+    const { result } = renderHook(() => {
+      const [layers, setLayers] = React.useState<ExpertEditLayer[]>([
+        createLayer("layer-1", {
+          imageUrl: "https://example.com/stale.png",
+          transform: {
+            translateXRatio: 0.2,
+            translateYRatio: -0.1,
+            scale: 0.75,
+            rotationDeg: 10,
+          },
+        }),
+      ]);
+
+      useExpertEditPrimarySessionSync({
+        selectedLayerIndex: 0,
+        referenceImageUrl: null,
+        hostPrimaryImageUrl: null,
+        removeBackgroundPendingLayerId: null,
+        foundationLayerId: "layer-1",
+        lastDispatchedPrimaryRef,
+        previousPrimaryPropRef,
+        setLayers,
+        onPrimaryImageChange,
+      });
+
+      return { layers };
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.layers[0]?.imageUrl).toBeNull();
+    expect(result.current.layers[0]?.transform).toEqual(defaultLayerTransform());
+  });
 });

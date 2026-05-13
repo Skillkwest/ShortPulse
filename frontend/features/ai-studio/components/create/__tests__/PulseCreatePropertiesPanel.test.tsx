@@ -31,7 +31,7 @@ const baseProps: React.ComponentProps<typeof PulseCreatePropertiesPanel> = {
 };
 
 describe("PulseCreatePropertiesPanel", () => {
-  it("uses neutral startup messaging for custom Pulses", () => {
+  it("omits helper startup messaging for custom Pulses", () => {
     render(
       <PulseCreatePropertiesPanel
         {...baseProps}
@@ -40,12 +40,10 @@ describe("PulseCreatePropertiesPanel", () => {
       />
     );
 
-    expect(screen.getByTestId("pulse-loading-message")).toHaveTextContent(
-      "Preparing your Pulse..."
-    );
+    expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
   });
 
-  it("keeps guided-workflow startup messaging for built-in workflows", () => {
+  it("omits helper startup messaging for built-in workflows", () => {
     render(
       <PulseCreatePropertiesPanel
         {...baseProps}
@@ -64,9 +62,7 @@ describe("PulseCreatePropertiesPanel", () => {
       />
     );
 
-    expect(screen.getByTestId("pulse-loading-message")).toHaveTextContent(
-      "Preparing your guided workflow..."
-    );
+    expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
   });
 
   it("treats an in-flight send as startup loading when the first pulse response has not landed yet", () => {
@@ -81,8 +77,6 @@ describe("PulseCreatePropertiesPanel", () => {
       />
     );
 
-    expect(screen.getByTestId("pulse-loading-message")).toHaveTextContent(
-      "Preparing your Pulse..."
-    );
+    expect(screen.getByTestId("pulse-loading-message")).toBeEmptyDOMElement();
   });
 });

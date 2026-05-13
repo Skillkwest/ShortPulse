@@ -51,8 +51,18 @@ type MediaListRow = {
   thumb_variant_path: string | null;
   poster_variant_path: string | null;
   preview_variant_path: string | null;
+  companion_art_status?: string | null;
+  companion_art_storage_path?: string | null;
+  companion_art_url?: string | null;
   created_at: string;
   updated_at: string | null;
+};
+
+type GenerationProjectionCompanionArtRow = {
+  generation_id?: unknown;
+  user_id?: unknown;
+  companion_art_status?: unknown;
+  companion_art_storage_path?: unknown;
 };
 
 type FolderScopedMediaListRow = MediaListRow & {
@@ -258,6 +268,104 @@ const isSafeScopedPath = (path: string, userId: string): boolean => {
   if (normalized.startsWith("/") || normalized.includes("\\")) return false;
   if (TRAVERSAL_SEGMENT_REGEX.test(normalized)) return false;
   return normalized.startsWith(`${userId}/`);
+};
+
+const isAudioFileType = (value: string | null | undefined): boolean =>
+  (value ?? "").toLowerCase().startsWith("audio");
+
+const enrichRowsWithAudioCompanionArt = async ({
+  rows,
+  userId,
+}: {
+  rows: MediaListRow[];
+  userId: string;
+}): Promise<MediaListRow[]> => {
+  const audioAiRows = rows.filter(
+    (row) =>
+      row.source === "ai_studio" &&
+      isAudioFileType(row.file_type) &&
+      typeof row.source_ref === "string" &&
+      row.source_ref.trim().length > 0
+  );
+  if (!audioAiRows.length) return rows;
+
+  const generationIds = Array.from(
+    new Set(
+      audioAiRows
+        .map((row) => row.source_ref?.trim() ?? "")
+        .filter((value): value is string => value.length > 0)
+    )
+  );
+  if (!generationIds.length) return rows;
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("generation_projection")
+    .select("generation_id, user_id, companion_art_status, companion_art_storage_path")
+    .eq("user_id", userId)
+    .in("generation_id", generationIds);
+
+  if (error || !Array.isArray(data) || !data.length) return rows;
+
+  const projectionByGenerationId = new Map<
+    string,
+    {
+      status: string | null;
+      storagePath: string | null;
+    }
+  >();
+  const signablePaths = new Set<string>();
+  for (const rawRow of data as GenerationProjectionCompanionArtRow[]) {
+    const generationId =
+      typeof rawRow.generation_id === "string" ? rawRow.generation_id.trim() : "";
+    const ownerUserId = typeof rawRow.user_id === "string" ? rawRow.user_id.trim() : "";
+    const status =
+      typeof rawRow.companion_art_status === "string"
+        ? rawRow.companion_art_status.trim() || null
+        : null;
+    const storagePath =
+      typeof rawRow.companion_art_storage_path === "string"
+        ? rawRow.companion_art_storage_path.trim() || null
+        : null;
+    if (!generationId || ownerUserId !== userId) continue;
+    projectionByGenerationId.set(generationId, { status, storagePath });
+    if (storagePath && isSafeScopedPath(storagePath, userId)) {
+      signablePaths.add(storagePath);
+    }
+  }
+
+  const signedUrlByPath = new Map<string, string>();
+  if (signablePaths.size) {
+    const signPaths = Array.from(signablePaths);
+    const { data: signedData, error: signError } = await supabaseAdmin.storage
+      .from(MEDIA_BUCKET)
+      .createSignedUrls(signPaths, DEFAULT_SIGNED_URL_TTL_SECONDS);
+    if (!signError) {
+      for (const signedItem of signedData ?? []) {
+        const path = typeof signedItem?.path === "string" ? signedItem.path.trim() : "";
+        const signedUrl =
+          typeof signedItem?.signedUrl === "string" ? signedItem.signedUrl.trim() : "";
+        if (path && signedUrl) {
+          signedUrlByPath.set(path, signedUrl);
+        }
+      }
+    }
+  }
+
+  return rows.map((row) => {
+    const generationId = row.source_ref?.trim() ?? "";
+    if (!generationId) return row;
+    const projection = projectionByGenerationId.get(generationId);
+    if (!projection) return row;
+    return {
+      ...row,
+      companion_art_status: projection.status,
+      companion_art_storage_path: projection.storagePath,
+      companion_art_url: projection.storagePath
+        ? (signedUrlByPath.get(projection.storagePath) ?? null)
+        : null,
+    };
+  });
 };
 
 const resolveLibraryTotalCount = async ({
@@ -578,6 +686,10 @@ export default async function handler(
       }
 
       rows = mergeUniqueRows(fetchedRows, limit);
+      rows = await enrichRowsWithAudioCompanionArt({
+        rows,
+        userId: user.id,
+      });
       nextCursor = buildCursor(rows);
       hasMore = rows.length === limit && Boolean(nextCursor);
       if (shouldSeedInitialSignedUrls({ surface, countOnly })) {

@@ -51,43 +51,82 @@ const defaultMusicEnergyPercent = 58;
 const defaultMusicMode: MusicMode = "instrumental";
 const defaultMusicStructure: MusicStructure = "loop";
 const defaultMusicFormat: MusicFormat = "mp3_44100_128";
-const musicInspirationChips = [
-  "passionate vocals",
-  "gabber",
-  "afro dance",
-  "boastful",
-  "electro techno",
-  "crooner",
-  "rich orchestra",
-  "lofi hip hop",
-  "uk garage",
-  "drum and bass",
-  "deep house",
-  "cinematic trailer",
-  "synthwave",
-  "hyperpop",
-  "reggaeton",
-  "ambient drone",
-  "jazz noir",
-  "brazilian funk",
-  "trance anthem",
-  "indie folk",
-  "trap soul",
-  "neo soul",
-  "phonk",
-  "detroit techno",
+const musicGenreChips = [
+  "acid house",
   "afrobeats",
-  "melodic house",
-  "punk energy",
-  "disco strings",
+  "alt rock",
+  "ambient",
+  "bachata",
+  "baile funk",
+  "bluegrass",
+  "boom bap",
+  "bossa nova",
+  "breakbeat",
+  "britpop",
+  "chillwave",
+  "country pop",
+  "dancehall",
+  "deep house",
+  "disco",
+  "drill",
+  "drum and bass",
+  "dub techno",
+  "dubstep",
+  "electro pop",
+  "emo rap",
+  "folk rock",
+  "future bass",
+  "future garage",
+  "gabber",
+  "glitch hop",
+  "grime",
+  "hard techno",
+  "hardstyle",
+  "hip hop",
+  "house",
+  "hyperpop",
+  "indie folk",
+  "indie pop",
+  "industrial",
+  "jazz fusion",
+  "jungle",
   "latin pop",
-  "orchestral tension",
-  "dream pop",
-  "club banger",
-  "acoustic ballad",
-  "festival edm",
-  "western twang",
+  "lofi hip hop",
+  "melodic house",
+  "metalcore",
+  "minimal techno",
+  "neo soul",
+  "new wave",
+  "phonk",
+  "pop punk",
+  "post rock",
+  "progressive house",
+  "psytrance",
+  "reggaeton",
+  "riddim",
+  "shoegaze",
+  "soul",
+  "synthpop",
+  "synthwave",
+  "tech house",
+  "techno",
+  "trance",
+  "trap",
+  "trap soul",
+  "trip hop",
+  "uk garage",
+  "vaporwave",
+  "west coast rap",
 ] as const;
+
+const shuffleChipOrder = (chips: readonly string[]): string[] => {
+  const next = [...chips];
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex]!, next[index]!];
+  }
+  return next;
+};
 const inspirationScrollStepPx = 280;
 const songBatchCountOptions: MusicSongBatchCount[] = [1, 2, 3, 4];
 const formatCreditValue = (value: number): string =>
@@ -119,6 +158,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     canScrollBack: false,
     canScrollForward: false,
   });
+  const inspirationChips = React.useMemo(() => shuffleChipOrder(musicGenreChips), []);
   const composerModeToggleStyle = React.useMemo(
     () =>
       ({
@@ -161,6 +201,8 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     return `${basePrompt}\n\nLyrics:\n${lyricSheet}`;
   }, [composerMode, lyrics, prompt]);
   const submissionText = buildSubmissionText();
+  const hasLyrics = composerMode === "custom" && lyrics.trim().length > 0;
+  const requestedMusicMode: MusicMode = singerEnabled || hasLyrics ? "vocal" : defaultMusicMode;
   const submissionLength = submissionText.length;
   const overflowCharacterCount = Math.max(0, submissionLength - maxPromptCharacters);
   const displayedCharacterCount = composerMode === "custom" ? submissionLength : prompt.length;
@@ -305,7 +347,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
       text: submissionText,
       durationSeconds: null,
       bpm: defaultMusicBpm,
-      mode: singerEnabled ? "vocal" : defaultMusicMode,
+      mode: requestedMusicMode,
       structure: defaultMusicStructure,
       energyPercent: defaultMusicEnergyPercent,
       outputFormat: defaultMusicFormat,
@@ -321,10 +363,10 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
     }
   }, [
     estimatedCreditsPerSong,
+    requestedMusicMode,
     isGenerating,
     isWithinPromptLimit,
     onGenerate,
-    singerEnabled,
     songBatchCount,
     submissionText,
   ]);
@@ -345,7 +387,7 @@ export const MusicPropertiesPanel = React.memo(function MusicPropertiesPanel({
           onPointerUp={handleInspirationPointerUp}
           onPointerCancel={endInspirationDrag}
         >
-          {musicInspirationChips.map((chip) => (
+          {inspirationChips.map((chip) => (
             <button
               key={chip}
               type="button"

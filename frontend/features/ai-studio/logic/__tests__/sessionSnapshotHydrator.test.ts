@@ -126,6 +126,7 @@ describe("sessionSnapshotHydrator", () => {
                   kind: "image",
                   imageUrl: null,
                   referenceRenderUrl: "https://example.com/legacy-preview.png",
+                  imageFallbackUrls: ["https://example.com/repair-preview.png"],
                   text: null,
                 },
               ],
@@ -151,8 +152,8 @@ describe("sessionSnapshotHydrator", () => {
     } as AiStudioSessionSnapshot);
 
     expect(payload.agentRuntimes.standard.messages[0]?.attachments?.[0]).toMatchObject({
-      imageUrl: "https://example.com/legacy-preview.png",
-      imageFallbackUrls: undefined,
+      imageUrl: "https://example.com/repair-preview.png",
+      imageFallbackUrls: ["https://example.com/legacy-preview.png"],
     });
   });
 
@@ -186,6 +187,36 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.outputs.active[0]?.previewPosterUrl).toBe("https://signed.test/poster.jpg");
     expect(payload.outputs.active[0]?.previewPosterStoragePath).toBe(
       "user-1/variants/videos/out-video/poster_720.jpg"
+    );
+  });
+
+  it("normalizes transient autosave failure state during hydration", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-1",
+              prompt: "one",
+              mode: "image",
+              aspect: "1:1",
+              model: "fal:foo",
+              status: "ready",
+              timestamp: "t1",
+              saveState: "failed",
+              saveError: "Signed URL expired.",
+            },
+          ],
+        },
+      })
+    );
+
+    expect(payload.outputs.active[0]).toEqual(
+      expect.objectContaining({
+        saveState: "idle",
+        saveError: null,
+      })
     );
   });
 

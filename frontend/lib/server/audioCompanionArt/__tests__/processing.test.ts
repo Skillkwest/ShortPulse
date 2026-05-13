@@ -5,6 +5,7 @@ const getSupabaseAdminMock = vi.fn();
 const generateOpenAiImageMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
+const resolveRuntimeAgentPromptMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -22,9 +23,15 @@ vi.mock("../../api/appErrorLogs", () => ({
   writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
+vi.mock("../../api/runtimeAgentPromptControlPlane", () => ({
+  resolveRuntimeAgentPrompt: (...args: unknown[]) => resolveRuntimeAgentPromptMock(...args),
+}));
+
 const createSelectBuilder = (result: { data: unknown; error: unknown }) => {
   const builder: Record<string, unknown> = {};
   builder.eq = vi.fn(() => builder);
+  builder.lt = vi.fn(() => builder);
+  builder.or = vi.fn(() => builder);
   builder.order = vi.fn(() => builder);
   builder.limit = vi.fn(() => builder);
   builder.maybeSingle = vi.fn(async () => result);
@@ -36,14 +43,23 @@ describe("audioCompanionArt processing", () => {
     vi.clearAllMocks();
     writeAppErrorLogMock.mockResolvedValue({ ok: true });
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
+    resolveRuntimeAgentPromptMock.mockResolvedValue({
+      promptId: "AUDIO_COMPANION_ART_STYLE_SYSTEM",
+      promptBody: "Control-plane branded style line.",
+      updatedAt: null,
+      updatedByEmail: null,
+      source: "seed",
+    });
   });
 
   it("processes pending audio companion art rows to ready state", async () => {
     const projectionSelectBuilder: Record<string, unknown> = {};
     projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.limit = vi.fn(async () => ({
-      data: [{ generation_id: "gen-1", user_id: "user-1" }],
+      data: [{ generation_id: "gen-1", user_id: "user-1", companion_art_attempt_count: 0 }],
       error: null,
     }));
 
@@ -56,9 +72,11 @@ describe("audioCompanionArt processing", () => {
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
           eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                maybeSingle: claimMaybeSingle,
+            lt: vi.fn(() => ({
+              or: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  maybeSingle: claimMaybeSingle,
+                })),
               })),
             })),
           })),
@@ -110,10 +128,14 @@ describe("audioCompanionArt processing", () => {
       skipped: 0,
       errors: 0,
     });
+    expect(projectionSelectBuilder.or).toHaveBeenCalledWith(
+      "companion_art_status.eq.pending,companion_art_status.eq.failed"
+    );
     expect(generateOpenAiImageMock).toHaveBeenCalledWith(
       expect.objectContaining({
         size: "1024x1024",
         quality: "low",
+        prompt: expect.stringContaining("Control-plane branded style line."),
       })
     );
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
@@ -129,9 +151,11 @@ describe("audioCompanionArt processing", () => {
   it("marks companion art rows failed when source-mode metadata is unavailable", async () => {
     const projectionSelectBuilder: Record<string, unknown> = {};
     projectionSelectBuilder.eq = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.lt = vi.fn(() => projectionSelectBuilder);
+    projectionSelectBuilder.or = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.order = vi.fn(() => projectionSelectBuilder);
     projectionSelectBuilder.limit = vi.fn(async () => ({
-      data: [{ generation_id: "gen-2", user_id: "user-2" }],
+      data: [{ generation_id: "gen-2", user_id: "user-2", companion_art_attempt_count: 1 }],
       error: null,
     }));
 
@@ -140,11 +164,13 @@ describe("audioCompanionArt processing", () => {
       update: vi.fn(() => ({
         eq: vi.fn(() => ({
           eq: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                maybeSingle: vi.fn(async () => ({
-                  data: { generation_id: "gen-2" },
-                  error: null,
+            lt: vi.fn(() => ({
+              or: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  maybeSingle: vi.fn(async () => ({
+                    data: { generation_id: "gen-2" },
+                    error: null,
+                  })),
                 })),
               })),
             })),
@@ -200,6 +226,23 @@ describe("audioCompanionArt processing", () => {
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.audio_companion_art.generation_failed",
+      })
+    );
+  });
+
+  it("resets new audio rows to attempt zero on enqueue without scanning null-status history", async () => {
+    await expect(
+      markAudioCompanionArtPending({
+        generationId: "gen-queued",
+        userId: "user-queued",
+      })
+    ).resolves.toBeUndefined();
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-queued",
+        userId: "user-queued",
+        companionArtStatus: "pending",
+        companionArtAttemptCount: 0,
       })
     );
   });

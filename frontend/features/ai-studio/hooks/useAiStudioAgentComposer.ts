@@ -18,6 +18,10 @@ import {
   normalizeReferenceTransferUrlCandidate,
   resolveReferenceTransferUrl,
 } from "../utils/dragDrop";
+import {
+  COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE,
+  COMPOSER_IMAGE_DROP_SESSION_TYPE,
+} from "../../../lib/internalReferenceDragSession";
 import type { StudioOutput } from "../types";
 import type { AgentAttachment, AgentAttachmentDeliveryStatus } from "../../../prefabs/agent";
 
@@ -119,6 +123,8 @@ export const useAiStudioAgentComposer = ({
     const types = Array.from(event.dataTransfer.types ?? []);
     return (
       types.includes("Files") ||
+      types.includes(COMPOSER_IMAGE_DROP_SESSION_TYPE) ||
+      types.includes(COMPOSER_IMAGE_DROP_SESSION_TEXT_TYPE) ||
       types.includes(COMPOSER_IMAGE_DROP_PAYLOAD_TYPE) ||
       types.includes(COMPOSER_IMAGE_DROP_PAYLOAD_TEXT_TYPE) ||
       types.includes(REFERENCE_TRANSFER_RENDER_URL_TYPE) ||
@@ -271,13 +277,30 @@ export const useAiStudioAgentComposer = ({
           const droppedReferenceId =
             composerImagePayload.outputId ?? composerImagePayload.referenceId ?? null;
           const matchedOutput = droppedReferenceId ? findOutputById(droppedReferenceId) : null;
+          const matchedOutputImageUrl = matchedOutput
+            ? resolveReferenceTransferUrl(matchedOutput, "image")
+            : null;
+          const resolvedPreviewUrl = droppedReferenceId
+            ? resolveOutputPreviewUrlById(droppedReferenceId)
+            : null;
           const normalizedPromptText =
             composerImagePayload.promptText?.trim() ||
             matchedOutput?.prompt?.trim() ||
             matchedOutput?.previewText?.trim() ||
             null;
+          const orderedImageUrls = buildAgentAttachmentImageCandidates({
+            imageUrl: displayArtifactUrl,
+            imageFallbackUrls: resolveDroppedImageUrls([
+              composerImagePayload.referenceUrl,
+              matchedOutputImageUrl,
+              resolvedPreviewUrl,
+            ]),
+            referenceRenderUrl: displayArtifactUrl,
+            referenceUrl: composerImagePayload.referenceUrl ?? matchedOutputImageUrl ?? null,
+          });
+          const normalizedImageUrl = orderedImageUrls[0] ?? null;
 
-          if (!displayArtifactUrl) {
+          if (!normalizedImageUrl) {
             setAgentAttachmentError(INTERNAL_IMAGE_ATTACHMENT_RESOLUTION_ERROR_MESSAGE);
             return;
           }
@@ -293,10 +316,10 @@ export const useAiStudioAgentComposer = ({
             mediaId: composerImagePayload.mediaId ?? null,
             previewStoragePath: composerImagePayload.previewStoragePath ?? null,
             fullStoragePath: composerImagePayload.fullStoragePath ?? null,
-            referenceUrl: composerImagePayload.referenceUrl ?? null,
-            referenceRenderUrl: null,
-            imageUrl: displayArtifactUrl,
-            imageFallbackUrls: [],
+            referenceUrl: composerImagePayload.referenceUrl ?? matchedOutputImageUrl ?? null,
+            referenceRenderUrl: displayArtifactUrl,
+            imageUrl: normalizedImageUrl,
+            imageFallbackUrls: orderedImageUrls.slice(1),
             text: normalizedPromptText,
             aspect: matchedOutput?.aspect ?? null,
           });

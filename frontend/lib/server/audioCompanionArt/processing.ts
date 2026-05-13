@@ -2,16 +2,22 @@ import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { generateOpenAiImage } from "../openaiImageGeneration";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { upsertGenerationProjection } from "../api/generationProjection";
+import { resolveRuntimeAgentPrompt } from "../api/runtimeAgentPromptControlPlane";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { compileAudioCompanionArtPrompt, type AudioCompanionArtSourceMode } from "./promptCompiler";
 
 const MEDIA_BUCKET = "media_library";
+const MAX_AUDIO_COMPANION_ART_ATTEMPTS = 3;
+const AUDIO_COMPANION_ART_STYLE_PROMPT_ID = "AUDIO_COMPANION_ART_STYLE_SYSTEM";
+const RETRYABLE_COMPANION_ART_STATUSES_FILTER =
+  "companion_art_status.eq.pending,companion_art_status.eq.failed";
 
 type JsonObject = Record<string, unknown>;
 
 type PendingAudioCompanionArtProjectionRow = {
   generation_id?: unknown;
   user_id?: unknown;
+  companion_art_attempt_count?: unknown;
 };
 
 type AudioGenerationRow = {
@@ -38,6 +44,11 @@ const asTrimmedString = (value: unknown): string | null => {
 
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
+
+const asAttemptCount = (value: unknown): number => {
+  const normalized = typeof value === "number" && Number.isFinite(value) ? Math.trunc(value) : 0;
+  return Math.max(0, normalized);
+};
 
 const readSourceMode = (metadata: JsonObject): AudioCompanionArtSourceMode | null => {
   const normalized = asTrimmedString(metadata.source_mode)?.toLowerCase();
@@ -78,6 +89,7 @@ export const markAudioCompanionArtPending = async ({
       userId,
       companionArtStatus: "pending",
       companionArtStoragePath: null,
+      companionArtAttemptCount: 0,
     });
   } catch (error) {
     await writeAppErrorLog({
@@ -159,10 +171,11 @@ export const processPendingAudioCompanionArtBatch = async ({
 
   const { data, error } = await supabaseAdmin
     .from("generation_projection")
-    .select("generation_id, user_id")
+    .select("generation_id, user_id, companion_art_attempt_count")
     .eq("provider", "elevenlabs")
     .eq("task_state", "success")
-    .eq("companion_art_status", "pending")
+    .lt("companion_art_attempt_count", MAX_AUDIO_COMPANION_ART_ATTEMPTS)
+    .or(RETRYABLE_COMPANION_ART_STATUSES_FILTER)
     .order("updated_at", { ascending: true })
     .limit(boundedLimit);
 
@@ -171,6 +184,7 @@ export const processPendingAudioCompanionArtBatch = async ({
   }
 
   const candidates = (Array.isArray(data) ? data : []) as PendingAudioCompanionArtProjectionRow[];
+  let runtimeStyleLine: string | null | undefined;
   for (const candidate of candidates) {
     const generationId = asTrimmedString(candidate.generation_id);
     const userId = asTrimmedString(candidate.user_id);
@@ -178,16 +192,19 @@ export const processPendingAudioCompanionArtBatch = async ({
       metrics.skipped += 1;
       continue;
     }
+    const nextAttemptCount = asAttemptCount(candidate.companion_art_attempt_count) + 1;
 
     const claimResult = await supabaseAdmin
       .from("generation_projection")
       .update({
         companion_art_status: "processing",
+        companion_art_attempt_count: nextAttemptCount,
         updated_at: new Date().toISOString(),
       })
       .eq("generation_id", generationId)
       .eq("user_id", userId)
-      .eq("companion_art_status", "pending")
+      .lt("companion_art_attempt_count", MAX_AUDIO_COMPANION_ART_ATTEMPTS)
+      .or(RETRYABLE_COMPANION_ART_STATUSES_FILTER)
       .select("generation_id")
       .maybeSingle();
 
@@ -217,11 +234,18 @@ export const processPendingAudioCompanionArtBatch = async ({
       if (!sourceMode) {
         throw new Error("Audio source mode metadata is unavailable.");
       }
+      if (runtimeStyleLine === undefined) {
+        const resolvedRuntimePrompt = await resolveRuntimeAgentPrompt({
+          promptId: AUDIO_COMPANION_ART_STYLE_PROMPT_ID,
+        });
+        runtimeStyleLine = resolvedRuntimePrompt.promptBody;
+      }
 
       const generationSpec = compileAudioCompanionArtPrompt({
         promptText,
         sourceMode,
         metadata,
+        styleLine: runtimeStyleLine,
       });
       const generated = await generateOpenAiImage({
         prompt: generationSpec.prompt,

@@ -121,7 +121,6 @@ export function PulseCreatePropertiesPanel({
   onGeneratePulseArtifact,
   guardrailReason,
 }: PulseCreatePropertiesPanelProps) {
-  const isGuidedWorkflowPulse = activePulsePresetKind === "guided_workflow";
   const pulseLoadingState = React.useMemo<PromptStepPulseLoadingState | null>(() => {
     if (!activePulsePresetId) {
       return null;
@@ -141,9 +140,7 @@ export function PulseCreatePropertiesPanel({
       return {
         phase: "starting_pulse",
         title: PULSE_LOADING_TITLE,
-        message: isGuidedWorkflowPulse
-          ? "Preparing your guided workflow..."
-          : "Preparing your Pulse...",
+        message: null,
         presetLabel,
         stepLabel,
       };
@@ -169,7 +166,6 @@ export function PulseCreatePropertiesPanel({
     agentIsSending,
     agentTransportSending,
     agentUiBusy,
-    isGuidedWorkflowPulse,
     pulseWorkflowSession?.currentStepLabel,
     pulseWorkflowSession?.status,
   ]);

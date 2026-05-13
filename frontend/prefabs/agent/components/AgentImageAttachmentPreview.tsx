@@ -6,19 +6,40 @@ import {
 
 type AgentImageAttachmentPreviewProps = {
   src: string | null;
+  sources?: string[] | null;
   alt?: string;
   debugLabel?: string | null;
 };
 
 export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewProps> = ({
   src,
+  sources = null,
   alt = "",
   debugLabel = null,
 }) => {
   const showPerfAuditDebug = isPerfAuditRuntimeEnabled();
-  const resolvedDebugLabel = debugLabel ?? formatPerfAuditDebugLine("chip", src);
+  const candidateSources = React.useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (sources?.length ? sources : [src]).filter(
+            (candidate): candidate is string =>
+              typeof candidate === "string" && candidate.length > 0
+          )
+        )
+      ),
+    [sources, src]
+  );
+  const [activeSourceIndex, setActiveSourceIndex] = React.useState(0);
 
-  if (!src) {
+  React.useEffect(() => {
+    setActiveSourceIndex(0);
+  }, [candidateSources]);
+
+  const resolvedSrc = candidateSources[activeSourceIndex] ?? null;
+  const resolvedDebugLabel = debugLabel ?? formatPerfAuditDebugLine("chip", resolvedSrc);
+
+  if (!resolvedSrc) {
     return (
       <>
         <div className="agent-attachment-card-media" aria-hidden="true" />
@@ -51,7 +72,16 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt={alt} className="agent-attachment-card-media" />
+      <img
+        src={resolvedSrc}
+        alt={alt}
+        className="agent-attachment-card-media"
+        onError={() => {
+          setActiveSourceIndex((currentIndex) =>
+            currentIndex < candidateSources.length - 1 ? currentIndex + 1 : currentIndex
+          );
+        }}
+      />
       {showPerfAuditDebug ? (
         <div
           aria-label={resolvedDebugLabel}

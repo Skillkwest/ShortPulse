@@ -3,7 +3,10 @@ import React from "react";
 import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 import { resolveImageDimensionsFromUrl } from "./expertEditPanelViewContract";
 
-type LayerImageDimensionCache = Record<string, { url: string; width: number; height: number }>;
+type LayerImageDimensionCache = Record<
+  string,
+  { url: string; width: number; height: number; isRenderable: boolean }
+>;
 
 type UseExpertEditLayerImageDimensionRuntimeParams = {
   layers: ExpertEditLayer[];
@@ -34,6 +37,7 @@ export function useExpertEditLayerImageDimensionRuntime({
             url,
             width: dimensions.width,
             height: dimensions.height,
+            isRenderable: true,
           },
         };
       });
@@ -92,6 +96,7 @@ export function useExpertEditLayerImageDimensionRuntime({
                 url: imageUrl,
                 width: dimensions.width,
                 height: dimensions.height,
+                isRenderable: true,
               },
             };
           });
@@ -109,6 +114,7 @@ export function useExpertEditLayerImageDimensionRuntime({
                 url: imageUrl,
                 width: 1,
                 height: 1,
+                isRenderable: false,
               },
             };
           });
@@ -124,7 +130,12 @@ export function useExpertEditLayerImageDimensionRuntime({
     (layer: ExpertEditLayer | null) => {
       if (!layer?.imageUrl) return 1;
       const dimensions = layerImageDimensionCache[layer.id];
-      if (!dimensions || dimensions.url !== layer.imageUrl || dimensions.height <= 0) {
+      if (
+        !dimensions ||
+        dimensions.url !== layer.imageUrl ||
+        !dimensions.isRenderable ||
+        dimensions.height <= 0
+      ) {
         return 1;
       }
       return Math.max(0.0001, dimensions.width / dimensions.height);
@@ -132,7 +143,17 @@ export function useExpertEditLayerImageDimensionRuntime({
     [layerImageDimensionCache]
   );
 
+  const hasRenderableLayerImage = React.useCallback(
+    (layer: ExpertEditLayer | null) => {
+      if (!layer?.imageUrl) return false;
+      const dimensions = layerImageDimensionCache[layer.id];
+      return Boolean(dimensions && dimensions.url === layer.imageUrl && dimensions.isRenderable);
+    },
+    [layerImageDimensionCache]
+  );
+
   return {
+    hasRenderableLayerImage,
     resolveLayerImageAspectRatio,
     seedLayerImageDimensions,
   };

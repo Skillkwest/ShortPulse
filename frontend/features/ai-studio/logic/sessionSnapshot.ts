@@ -334,7 +334,9 @@ const sanitizeAgentAttachments = (
       referenceRenderUrl: sanitizeMediaUrl(attachment.referenceRenderUrl) ?? null,
       imageUrl:
         sanitizeMediaUrl(projectedImageAttachment?.preview.url ?? attachment.imageUrl) ?? null,
-      imageFallbackUrls: undefined,
+      imageFallbackUrls: sanitizeAttachmentImageFallbackUrls(
+        projectedImageAttachment?.preview.candidates.slice(1) ?? attachment.imageFallbackUrls
+      ),
       aspect: attachment.aspect?.trim() || null,
       deliveryStatus: attachment.deliveryStatus,
       deliveryError: attachment.deliveryError?.trim() || null,
@@ -418,6 +420,11 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     : resultUrls.length > 0
       ? resultUrls
       : undefined;
+  const hasSavedMediaIds = Array.isArray(output.savedMediaIds) && output.savedMediaIds.length > 0;
+  const persistedSaveState =
+    output.saveState === "saved" || (output.saveState === "failed" && hasSavedMediaIds)
+      ? "saved"
+      : "idle";
 
   return {
     id: output.id,
@@ -431,8 +438,8 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     generationId: output.generationId,
     promptId: output.promptId,
     savedMediaIds: output.savedMediaIds,
-    saveState: output.saveState,
-    saveError: output.saveError ?? null,
+    saveState: persistedSaveState,
+    saveError: null,
     status: output.status,
     timestamp: output.timestamp,
     taskId: output.taskId,

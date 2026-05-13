@@ -25,6 +25,7 @@ import {
   detectImageMimeType,
   detectVideoMimeType,
 } from "../../../lib/server/uploadSignature";
+import { upsertVideoPosterVariantFromBuffer } from "../../../lib/server/videoPosterVariant";
 
 type MediaLibraryFileType = "image" | "video" | "audio";
 
@@ -907,6 +908,49 @@ const removeCopiedStorageObject = async (storagePath: string): Promise<void> => 
   }
 };
 
+const logVideoVariantHydrationFailure = async ({
+  userId,
+  mediaFileId,
+  variantKind,
+  source,
+  generationId,
+  outputIndex,
+  error,
+}: {
+  userId: string;
+  mediaFileId: string;
+  variantKind: "poster" | "preview";
+  source: "upload" | "ai_studio";
+  generationId?: string | null;
+  outputIndex: number;
+  error: unknown;
+}) => {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error && "message" in error
+        ? String((error as { message?: unknown }).message ?? error)
+        : String(error);
+  const { error: eventError } = await getSupabaseAdmin()
+    .from("media_events")
+    .insert({
+      user_id: userId,
+      event_type: "variant_hydration_failed",
+      entity_type: "media_file",
+      entity_id: mediaFileId,
+      metadata: {
+        variant_kind: variantKind,
+        source,
+        generation_id: generationId ?? null,
+        output_index: outputIndex,
+        message,
+      },
+    });
+  if (eventError) {
+    console.warn("[media/copy-from-url] media_events insert failed", eventError.message);
+  }
+};
+
 const isDuplicateInsertError = (error: { code?: string; message?: string } | null | undefined) =>
   error?.code === "23505" ||
   String(error?.message ?? "")
@@ -1034,16 +1078,26 @@ export default async function handler(
       });
       if (existing) {
         let durablePosterStoragePath = existing.posterVariantPath;
-        if (posterUrlHint && !existing.posterVariantPath) {
-          try {
-            durablePosterStoragePath = await persistVideoPosterVariant({
-              userId: user.id,
-              mediaFileId: existing.id,
-              posterSourceUrl: posterUrlHint,
-              req,
-            });
-          } catch {
-            // best-effort durable poster hydration only
+        if (!existing.posterVariantPath && existing.fileType === "video") {
+          if (posterUrlHint) {
+            try {
+              durablePosterStoragePath = await persistVideoPosterVariant({
+                userId: user.id,
+                mediaFileId: existing.id,
+                posterSourceUrl: posterUrlHint,
+                req,
+              });
+            } catch (error) {
+              await logVideoVariantHydrationFailure({
+                userId: user.id,
+                mediaFileId: existing.id,
+                variantKind: "poster",
+                source,
+                generationId,
+                outputIndex: index,
+                error,
+              });
+            }
           }
         }
         const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
@@ -1058,8 +1112,16 @@ export default async function handler(
               mediaFileId: existing.id,
               previewStoragePath: previewVariantPath,
             });
-          } catch {
-            // best-effort durable preview hydration only
+          } catch (error) {
+            await logVideoVariantHydrationFailure({
+              userId: user.id,
+              mediaFileId: existing.id,
+              variantKind: "preview",
+              source,
+              generationId,
+              outputIndex: index,
+              error,
+            });
           }
         }
         try {
@@ -1203,16 +1265,26 @@ export default async function handler(
             // best-effort canonical output-slot convergence only
           }
           let durablePosterStoragePath = existing.posterVariantPath;
-          if (posterUrlHint && !existing.posterVariantPath) {
-            try {
-              durablePosterStoragePath = await persistVideoPosterVariant({
-                userId: user.id,
-                mediaFileId: existing.id,
-                posterSourceUrl: posterUrlHint,
-                req,
-              });
-            } catch {
-              // best-effort durable poster hydration only
+          if (!existing.posterVariantPath && existing.fileType === "video") {
+            if (posterUrlHint) {
+              try {
+                durablePosterStoragePath = await persistVideoPosterVariant({
+                  userId: user.id,
+                  mediaFileId: existing.id,
+                  posterSourceUrl: posterUrlHint,
+                  req,
+                });
+              } catch (error) {
+                await logVideoVariantHydrationFailure({
+                  userId: user.id,
+                  mediaFileId: existing.id,
+                  variantKind: "poster",
+                  source,
+                  generationId,
+                  outputIndex: index,
+                  error,
+                });
+              }
             }
           }
           const previewVariantPath = resolveVideoPreviewVariantCandidatePath({
@@ -1227,8 +1299,16 @@ export default async function handler(
                 mediaFileId: existing.id,
                 previewStoragePath: previewVariantPath,
               });
-            } catch {
-              // best-effort durable preview hydration only
+            } catch (error) {
+              await logVideoVariantHydrationFailure({
+                userId: user.id,
+                mediaFileId: existing.id,
+                variantKind: "preview",
+                source,
+                generationId,
+                outputIndex: index,
+                error,
+              });
             }
           }
           const delivery = await resolveDelivery({
@@ -1274,21 +1354,66 @@ export default async function handler(
           mediaFileId: insertedMediaFileId,
           previewStoragePath: previewVariantPath,
         });
-      } catch {
-        // best-effort durable preview hydration only
+      } catch (error) {
+        await logVideoVariantHydrationFailure({
+          userId: user.id,
+          mediaFileId: insertedMediaFileId,
+          variantKind: "preview",
+          source,
+          generationId,
+          outputIndex: index,
+          error,
+        });
       }
     }
     let durablePosterStoragePath = asOptionalString(data?.poster_variant_path);
-    if (insertedMediaFileId && posterUrlHint) {
-      try {
-        durablePosterStoragePath = await persistVideoPosterVariant({
+    if (insertedMediaFileId && fileType === "video" && !durablePosterStoragePath) {
+      if (posterUrlHint) {
+        try {
+          durablePosterStoragePath = await persistVideoPosterVariant({
+            userId: user.id,
+            mediaFileId: insertedMediaFileId,
+            posterSourceUrl: posterUrlHint,
+            req,
+          });
+        } catch (error) {
+          await logVideoVariantHydrationFailure({
+            userId: user.id,
+            mediaFileId: insertedMediaFileId,
+            variantKind: "poster",
+            source,
+            generationId,
+            outputIndex: index,
+            error,
+          });
+        }
+      } else {
+        durablePosterStoragePath = await upsertVideoPosterVariantFromBuffer({
+          supabaseAdmin: getSupabaseAdmin(),
           userId: user.id,
           mediaFileId: insertedMediaFileId,
-          posterSourceUrl: posterUrlHint,
-          req,
+          videoBuffer: fetched.buffer,
+          videoMimeType: mimeType,
+          filename: friendlyName,
+          metadata: {
+            generated_by: "media-copy-from-url",
+            poster_source: "video_buffer",
+            source,
+            generation_id: generationId ?? null,
+            output_index: index,
+          },
+        }).catch(async () => {
+          await logVideoVariantHydrationFailure({
+            userId: user.id,
+            mediaFileId: insertedMediaFileId,
+            variantKind: "poster",
+            source,
+            generationId,
+            outputIndex: index,
+            error: new Error("buffer_poster_generation_failed"),
+          });
+          return null;
         });
-      } catch {
-        // best-effort durable poster hydration only
       }
     }
     const delivery = await resolveDelivery({

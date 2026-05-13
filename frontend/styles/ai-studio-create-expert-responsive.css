@@ -36,18 +36,18 @@
   }
 
   .create-expert-panel--no-history .create-expert-pulse-start-shell {
-    min-height: 238px;
-    padding-top: 10px;
+    min-height: 214px;
+    padding-top: 8px;
   }
 
   .create-expert-panel--no-history .create-expert-pulse-start-shell-card {
     width: 100%;
-    padding: 24px 18px;
-    border-radius: 24px;
+    padding: 16px 14px;
+    border-radius: 16px;
   }
 
   .create-expert-panel--no-history .create-expert-pulse-start-shell-message {
-    max-width: 26ch;
+    max-width: 24ch;
   }
 
   .create-expert-ready-text {

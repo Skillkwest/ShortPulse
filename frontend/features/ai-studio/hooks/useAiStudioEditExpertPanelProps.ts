@@ -5,6 +5,7 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
 import type { EditSubmitIntent } from "../logic/editSubmitIntent";
+import { isExpertEditImageUrl } from "../components/edit/expertEditLayerSessionUtils";
 import type { AiStudioEditExpertPanelContract } from "./contracts/pageContentContracts";
 import type { ModelModalContext } from "../components/ModelModal";
 import type {
@@ -24,7 +25,7 @@ type UseAiStudioEditExpertPanelPropsParams = {
   model: string | null;
   currentModelLabel: string;
   referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  extraImageUrls?: [string | null, string | null, string | null];
   editReferenceText: string;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
@@ -122,14 +123,21 @@ export const useAiStudioEditExpertPanelProps = ({
   sessionState,
   onSessionStateChange,
 }: UseAiStudioEditExpertPanelPropsParams): AiStudioEditExpertPanelContract =>
-  useMemo(
-    () => ({
+  useMemo(() => {
+    const normalizedReferenceImageUrl = isExpertEditImageUrl(referenceImageUrl)
+      ? referenceImageUrl.trim()
+      : null;
+    const normalizedExtraImageUrls = (extraImageUrls ?? [null, null, null]).map((url) =>
+      isExpertEditImageUrl(url) ? url.trim() : null
+    ) as [string | null, string | null, string | null];
+
+    return {
       expertEditEligible,
       aspect,
       modelId: model,
       modelLabel: currentModelLabel,
-      referenceImageUrl,
-      extraImageUrls,
+      referenceImageUrl: normalizedReferenceImageUrl,
+      extraImageUrls: normalizedExtraImageUrls,
       referenceText: editReferenceText,
       aspectOptions,
       isModelModalOpen,
@@ -186,51 +194,50 @@ export const useAiStudioEditExpertPanelProps = ({
       onCustomPresetOverridesChange,
       sessionState,
       onSessionStateChange,
-    }),
-    [
-      aspect,
-      characterOptions,
-      currentCostCredits,
-      currentModelLabel,
-      editReferenceText,
-      expertEditEligible,
-      extraImageUrls,
-      generationGuardrail,
-      handleEditPromptTextChange,
-      handleImageRegenerateWithDebit,
-      resolveVariantCostCredits,
-      onEditSubmitIntentChange,
-      handleOpenModelModal,
-      imageResolution,
-      insertOptimisticGenerationPlaceholder,
-      isCharacterModeEnabled,
-      isCharacterOptionsLoading,
-      isGenerateDisabled,
-      isGenerateBusy,
-      isPrimaryStageGenerating,
-      isModelModalOpen,
-      model,
-      modelModalAnchor,
-      notifyGenerationFailure,
-      removeOptimisticGenerationPlaceholder,
-      referenceImageUrl,
-      referenceImageWarning,
-      resolveOutputPreviewUrl,
-      customPresetOverrides,
-      onCustomPresetOverridesChange,
-      sessionState,
-      onSessionStateChange,
-      onSelectedPresetIdsChange,
-      selectedCharacterId,
-      selectedPresetIds,
-      setAspect,
-      addSessionMediaReference,
-      setExtraImageUrl,
-      setImageResolution,
-      setIsCharacterModeEnabled,
-      setReferenceImageUrl,
-      setSelectedCharacterId,
-      refreshCharacterOptions,
-      resolveCharacterAvatarUrlById,
-    ]
-  );
+    };
+  }, [
+    aspect,
+    characterOptions,
+    currentCostCredits,
+    currentModelLabel,
+    editReferenceText,
+    expertEditEligible,
+    extraImageUrls,
+    generationGuardrail,
+    handleEditPromptTextChange,
+    handleImageRegenerateWithDebit,
+    resolveVariantCostCredits,
+    onEditSubmitIntentChange,
+    handleOpenModelModal,
+    imageResolution,
+    insertOptimisticGenerationPlaceholder,
+    isCharacterModeEnabled,
+    isCharacterOptionsLoading,
+    isGenerateDisabled,
+    isGenerateBusy,
+    isPrimaryStageGenerating,
+    isModelModalOpen,
+    model,
+    modelModalAnchor,
+    notifyGenerationFailure,
+    removeOptimisticGenerationPlaceholder,
+    referenceImageUrl,
+    referenceImageWarning,
+    resolveOutputPreviewUrl,
+    customPresetOverrides,
+    onCustomPresetOverridesChange,
+    sessionState,
+    onSessionStateChange,
+    onSelectedPresetIdsChange,
+    selectedCharacterId,
+    selectedPresetIds,
+    setAspect,
+    addSessionMediaReference,
+    setExtraImageUrl,
+    setImageResolution,
+    setIsCharacterModeEnabled,
+    setReferenceImageUrl,
+    setSelectedCharacterId,
+    refreshCharacterOptions,
+    resolveCharacterAvatarUrlById,
+  ]);

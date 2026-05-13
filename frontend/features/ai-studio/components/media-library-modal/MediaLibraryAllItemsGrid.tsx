@@ -556,6 +556,7 @@ function MediaLibraryAllItemsAudioCard({
           <ReferenceAudioPlayer
             audioId={file.id}
             audioUrl={audioUrl}
+            backgroundImageUrl={file.companion_art_url ?? null}
             durationMs={readAudioDurationMs(file)}
             waveformPeaks={readAudioWaveformPeaks(file)}
             playLabel={`Play audio ${file.filename}`}

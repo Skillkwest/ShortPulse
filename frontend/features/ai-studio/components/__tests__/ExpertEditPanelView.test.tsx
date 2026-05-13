@@ -874,18 +874,18 @@ describe("ExpertEditPanelView", () => {
     const { unmount } = render(
       <ExpertEditPanelView
         {...baseProps}
+        referenceImageUrl="https://example.com/base.png"
         sessionState={sessionState}
         onSessionStateChange={onSessionStateChange}
       />
     );
 
     await waitFor(() => {
-      expect(onSessionStateChange).toHaveBeenCalled();
+      const latestState = onSessionStateChange.mock.calls.at(-1)?.[0] as ExpertEditSessionState;
+      expect(latestState?.layers.layers).toHaveLength(2);
+      expect(latestState?.layers.selectedLayerIndex).toBe(1);
+      expect(latestState?.markup.strokes).toHaveLength(1);
     });
-    const latestState = onSessionStateChange.mock.calls.at(-1)?.[0] as ExpertEditSessionState;
-    expect(latestState?.layers.layers).toHaveLength(2);
-    expect(latestState?.layers.selectedLayerIndex).toBe(1);
-    expect(latestState?.markup.strokes).toHaveLength(1);
 
     unmount();
     expect(revokeObjectURLMock).not.toHaveBeenCalledWith("blob:session-layer-2");
@@ -4648,24 +4648,49 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("shows selected-layer transform overlay and handles in move mode", async () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/clean-move-preview.png"
-        referenceText="prompt text"
-      />
-    );
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 1200;
+      naturalHeight = 1200;
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-
-    expect(screen.getByTestId("edit-expert-transform-overlay-inline")).toBeInTheDocument();
-    (["nw", "ne", "se", "sw"] as const).forEach((corner) => {
-      expect(
-        screen.getByTestId(`edit-expert-transform-handle-inline-${corner}`)
-      ).toBeInTheDocument();
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
     });
+
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/clean-move-preview.png"
+          referenceText="prompt text"
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+      expect(screen.getByTestId("edit-expert-transform-overlay-inline")).toBeInTheDocument();
+      (["nw", "ne", "se", "sw"] as const).forEach((corner) => {
+        expect(
+          screen.getByTestId(`edit-expert-transform-handle-inline-${corner}`)
+        ).toBeInTheDocument();
+      });
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
   });
 
   it("keeps the transform overlay aligned to the contained image rect", async () => {
@@ -4767,45 +4792,70 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("keeps transform overlay chrome rendered during transform interactions", async () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/fixed-transform-overlay-chrome.png"
-        referenceText="prompt text"
-      />
-    );
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 1200;
+      naturalHeight = 1200;
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-
-    const primaryDropzone = screen.getByLabelText("Primary composition surface");
-    const rect = {
-      left: 0,
-      top: 0,
-      width: 200,
-      height: 200,
-      right: 200,
-      bottom: 200,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    } satisfies DOMRect;
-    Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
       configurable: true,
-      value: () => rect,
+      writable: true,
+      value: MockImage,
     });
 
-    dragStagePointer({
-      currentTarget: primaryDropzone,
-      pointerId: 262,
-      startX: 196,
-      startY: 4,
-      endX: 110,
-      endY: 90,
-      shiftKey: true,
-    });
-    expect(screen.getByTestId("edit-expert-transform-overlay-inline")).toBeInTheDocument();
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/fixed-transform-overlay-chrome.png"
+          referenceText="prompt text"
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
+      const rect = {
+        left: 0,
+        top: 0,
+        width: 200,
+        height: 200,
+        right: 200,
+        bottom: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      } satisfies DOMRect;
+      Object.defineProperty(primaryDropzone, "getBoundingClientRect", {
+        configurable: true,
+        value: () => rect,
+      });
+
+      dragStagePointer({
+        currentTarget: primaryDropzone,
+        pointerId: 262,
+        startX: 196,
+        startY: 4,
+        endX: 110,
+        endY: 90,
+        shiftKey: true,
+      });
+      expect(screen.getByTestId("edit-expert-transform-overlay-inline")).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
   });
 
   it.skip("applies move history controls after transform interactions", async () => {
@@ -5282,35 +5332,61 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("shows brush and lasso cursors only for active inpaint modes when selected layer has an image", async () => {
-    const { container } = render(<ExpertEditPanelView {...baseProps} referenceImageUrl={null} />);
-    const primaryStage = screen.getByLabelText("Primary edit stage");
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 1200;
+      naturalHeight = 1200;
 
-    expect(primaryStage).toHaveStyle({ cursor: "" });
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/reticle-target.png"
+        />
+      );
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
 
-    uploadPrimaryFile(container, "reticle-target.png");
-    const primaryDropzone = await screen.findByLabelText("Primary composition surface");
-    const brushCursor = primaryDropzone.style.cursor;
-    expect(brushCursor).toContain("data:image/svg+xml");
-    expect(brushCursor).toContain("crosshair");
+      fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+      const rail = screen.getByLabelText("Inpaint action tools");
+      fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
 
-    fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-    expect(primaryDropzone.style.cursor).toBe("grab");
+      const brushCursor = primaryDropzone.style.cursor;
+      expect(brushCursor).toContain("data:image/svg+xml");
+      expect(brushCursor).toContain("crosshair");
 
-    fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
-    fireEvent.click(screen.getByRole("button", { name: /^lasso$/i }));
-    const lassoCursor = primaryDropzone.style.cursor;
-    expect(lassoCursor).toContain("data:image/svg+xml");
-    expect(lassoCursor).toContain("crosshair");
-    expect(lassoCursor).toContain("245%2C185%2C66");
-    expect(lassoCursor).not.toEqual(brushCursor);
+      fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
+      expect(primaryDropzone.style.cursor).toBe("grab");
 
-    fireEvent.click(screen.getByRole("button", { name: /^brush$/i }));
-    expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
-    expect(primaryDropzone.style.cursor).toContain("crosshair");
+      fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
+      fireEvent.click(screen.getByRole("button", { name: /^lasso$/i }));
+      const lassoCursor = primaryDropzone.style.cursor;
+      expect(lassoCursor).toContain("data:image/svg+xml");
+      expect(lassoCursor).toContain("crosshair");
+      expect(lassoCursor).toContain("245%2C185%2C66");
+      expect(lassoCursor).not.toEqual(brushCursor);
+
+      fireEvent.click(screen.getByRole("button", { name: /^brush$/i }));
+      expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
+      expect(primaryDropzone.style.cursor).toContain("crosshair");
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
   });
 
   it("shows markup reticle on both inline and expanded stages", async () => {
@@ -5503,31 +5579,64 @@ describe("ExpertEditPanelView", () => {
   });
 
   it("clears the space-pan cursor while presets surface blocks the inline stage", () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/space-pan-source.png"
-      />
-    );
-    const primaryDropzone = screen.getByLabelText("Primary composition surface");
-    const trigger = screen.getByRole("button", { name: /apply more presets preset/i });
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 1200;
+      naturalHeight = 1200;
 
-    fireEvent.keyDown(window, { code: "Space", key: " " });
-    expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
 
-    fireEvent.click(trigger);
-    expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
-    expect(primaryDropzone).toHaveStyle({ cursor: "" });
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/space-pan-source.png"
+        />
+      );
+      const primaryDropzone = screen.getByLabelText("Primary composition surface");
+      const trigger = screen.getByRole("button", { name: /apply more presets preset/i });
 
-    fireEvent.click(trigger);
-    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
-    expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
+      fireEvent.keyDown(window, { code: "Space", key: " " });
+      expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
 
-    fireEvent.keyDown(window, { code: "Space", key: " " });
-    expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
+      act(() => {
+        fireEvent.click(trigger);
+      });
+      expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
+      expect(primaryDropzone).toHaveStyle({ cursor: "" });
 
-    fireEvent.keyUp(window, { code: "Space", key: " " });
-    expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
+      act(() => {
+        fireEvent.click(trigger);
+      });
+      expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
+      expect(primaryDropzone).toHaveStyle({ cursor: "" });
+
+      act(() => {
+        fireEvent.keyDown(window, { code: "Space", key: " " });
+      });
+      expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
+
+      act(() => {
+        fireEvent.keyUp(window, { code: "Space", key: " " });
+      });
+      expect(primaryDropzone).toHaveStyle({ cursor: "" });
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
   });
 
   it("does not show lasso cursor when selected layer has no image", async () => {
@@ -7405,6 +7514,7 @@ describe("ExpertEditPanelView", () => {
       <ExpertEditPanelView
         {...baseProps}
         referenceText="Keep details aligned."
+        referenceImageUrl="https://example.com/base.png"
         sessionState={createSessionStateWithMarkupStroke()}
         onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
       />
@@ -7423,6 +7533,7 @@ describe("ExpertEditPanelView", () => {
         };
       }
     ).mock.calls;
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
     const submittedReferences = submissionCalls[0]?.[0] ?? [];
     expect(submittedReferences).toHaveLength(1);
     expect(submittedReferences[0]).toBe("https://example.com/base.png");

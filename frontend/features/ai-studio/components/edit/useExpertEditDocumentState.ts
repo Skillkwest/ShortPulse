@@ -3,6 +3,7 @@ import React from "react";
 import { clampLayerOpacity, defaultLayerTransform } from "./expertEditLayerTransformUtils";
 import {
   formatLayerName,
+  isExpertEditImageUrl,
   isLayerIndexInBounds,
   layerHasImage,
   LAYER_OPACITY_DEFAULT,
@@ -73,7 +74,9 @@ export function useExpertEditDocumentState({
     layerCount: layers.length,
   });
   const selectedLayer = layers[resolvedSelectedLayerIndex] ?? null;
-  const selectedLayerImageUrl = selectedLayer?.imageUrl ?? null;
+  const selectedLayerImageUrl = isExpertEditImageUrl(selectedLayer?.imageUrl)
+    ? selectedLayer.imageUrl.trim()
+    : null;
 
   const {
     beginLayerRename,
@@ -106,10 +109,11 @@ export function useExpertEditDocumentState({
   );
   const hasPrimaryCompositePreview = populatedLayerCount > 0;
 
-  const { resolveLayerImageAspectRatio, seedLayerImageDimensions } =
+  const { hasRenderableLayerImage, resolveLayerImageAspectRatio, seedLayerImageDimensions } =
     useExpertEditLayerImageDimensionRuntime({
       layers,
     });
+  const selectedLayerHasRenderableImage = hasRenderableLayerImage(selectedLayer);
 
   const hostPrimaryImageUrl = React.useMemo(
     () =>
@@ -206,6 +210,7 @@ export function useExpertEditDocumentState({
     layers,
     populatedLayerCount,
     primaryDragActive,
+    selectedLayerHasRenderableImage,
     resolveLayerImageAspectRatio,
     resolvedSelectedLayerIndex,
     selectedLayer,

@@ -8,6 +8,7 @@ const captureSucceededGenerationByProviderRequestMock = vi.fn();
 const generateElevenLabsMusicMock = vi.fn();
 const persistGeneratedAudioAssetMock = vi.fn();
 const markAudioCompanionArtPendingMock = vi.fn();
+const probeMediaDurationSecondsMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -30,6 +31,10 @@ vi.mock("../../lib/server/elevenlabs", () => ({
 
 vi.mock("../../lib/server/audioCompanionArt/processing", () => ({
   markAudioCompanionArtPending: (...args: unknown[]) => markAudioCompanionArtPendingMock(...args),
+}));
+
+vi.mock("../../lib/server/mediaAudioExtraction", () => ({
+  probeMediaDurationSeconds: (...args: unknown[]) => probeMediaDurationSecondsMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -67,6 +72,7 @@ describe("POST /api/elevenlabs/music", () => {
       note: "captured",
     });
     markAudioCompanionArtPendingMock.mockResolvedValue(undefined);
+    probeMediaDurationSecondsMock.mockResolvedValue(null);
   });
 
   it("falls back to the catalog-backed default music model id for auto duration", async () => {
@@ -83,6 +89,7 @@ describe("POST /api/elevenlabs/music", () => {
       signedUrl: "https://signed.example/song.mp3",
       outputRowId: "out-music-1",
     });
+    probeMediaDurationSecondsMock.mockResolvedValue(182.345);
 
     const req = {
       method: "POST",
@@ -119,10 +126,23 @@ describe("POST /api/elevenlabs/music", () => {
       "music_length_ms"
     );
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(probeMediaDurationSecondsMock).toHaveBeenCalledWith({
+      buffer: Buffer.from("music"),
+      filename: null,
+      mimeType: "audio/mpeg",
+    });
+    expect(persistGeneratedAudioAssetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extraMetadata: expect.objectContaining({
+          resolved_duration_seconds: 182.345,
+          duration_ms: 182345,
+        }),
+      })
+    );
     expect(res.json).toHaveBeenCalledWith({
       output: expect.objectContaining({
         modelId: "music_v1",
-        durationMs: null,
+        durationMs: 182345,
       }),
     });
   });

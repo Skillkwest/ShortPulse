@@ -55,6 +55,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/agents/gear-ball/github-operations.md`
 - `docs/agents/gear-ball/README.md`
 - `docs/agents/gottspan-the-admin/README.md`
+- `docs/agents/lever/README.md`
 - `docs/agents/nuclo/README.md`
 - `docs/agents/nuclo/environment-ledger-template.md`
 - `docs/agents/pulse/README.md`
@@ -181,6 +182,7 @@ Use these docs when creating, nurturing, or training a new task-specific agent:
 - `docs/sops/sop_account_health_snapshot.md`
 - `docs/sops/sop_provider_incident_response.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`
+- `docs/sops/sop_lever_model_management.md`
 - `docs/sops/sop_new_model_ingestion.md`
 - `docs/sops/sop_model_api_contract_reverification.md`
 - `docs/sops/sop_model_retirement.md`

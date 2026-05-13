@@ -3,6 +3,17 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Working-development bootstrap hardening:
+  - added `scripts/ops/supabase_public_acl_sync.sh` to sync hosted `public` grants/revokes after schema-only Supabase bootstrap,
+  - documented the grant-sync requirement for development bootstrap and SQL operator workflows,
+  - and fixed the dedicated working-development runtime so the local generation control-plane worker now runs against the new dev database without `worker_instances` permission failures.
+- Working-development environment split:
+  - bootstrapped the dedicated `working-development` Supabase project to staging parity for `public` schema, routines, and policies without cloning staging user-owned runtime data,
+  - rewired Vercel `development` and local `frontend/.env.local` to the dedicated development project while keeping preview on staging and production on production,
+  - and tightened the Vercel env-contract audit so `development` must now differ from `preview` on the critical Supabase/base-URL keys.
+- Local operator credential handling:
+  - expanded `.env.agent.local.example` and local-development guidance to include dedicated working-development, staging, and production Supabase credential blocks,
+  - and standardized the gitignored root `.env.agent.local` file as the local operator home for environment credentials instead of a repo-tracked secret note.
 - Nuclo operator surface hardening:
   - added standing SOPs for hosted Supabase migration apply/validation, Vercel env repair, production smoke testing, and the destructive-data guard,
   - added `sql/README.md` as the SQL operator index for migrations, checks, configure scripts, and safety notes,

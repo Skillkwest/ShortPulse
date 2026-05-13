@@ -81,3 +81,9 @@ Current result:
 - all previously `miswired` rows are fixed
 - `ChatGPT Image 2 edit` remains an explicitly accepted `admin-under-modeled` exception
 - `Seedream 5 Lite` and `Veo 3.1 Fast (Kie)` remain explicitly accepted `price-inert` controls
+
+## Future Reminder
+
+- Revisit `ChatGPT Image 2 edit` if masked edits or multi-image edits need full admin pricing-page variant coverage.
+- Revisit `Seedream 5 Lite` and `Veo 3.1 Fast (Kie)` if price-inert controls should be documented more clearly or removed from the UI.
+- Revisit `Music` batch observability if operators need batch-total trace parity instead of per-request observability only.

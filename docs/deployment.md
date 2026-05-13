@@ -25,6 +25,8 @@ Notes:
 - Vercel scope labels such as `Production` and `Preview` are platform labels, not GitHub Environment names.
 - Active docs should not introduce alternate GitHub Environment names such as `Production – short-pulse` or `Production – shortpulse`.
 - Current active deploy posture in this repo:
+  - `development` is the local `working-development` runtime and should resolve
+    the dedicated working-development Supabase project
   - `preview` is the authoritative staging runtime
   - `production` is the live customer runtime on the dedicated production Supabase project
 - Current branch-governance posture:
@@ -59,7 +61,8 @@ Rules:
 - Keep tooling-only keys out of Vercel project envs. This includes staging probe helpers and Vercel operator tokens such as `SHORTPULSE_STAGING_BASE_URL`, `SHORTPULSE_STAGING_BEARER_TOKEN`, `SHORTPULSE_VERCEL_API_TOKEN`, `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`, `VERCEL_API_TOKEN`, and `VERCEL_AUTOMATION_BYPASS_TOKEN`.
 - Environment-specific deploy keys such as `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_BASE_URL`, and `SHORTPULSE_PUBLIC_API_BASE_URL` must not be stored as one shared Vercel record spanning `development`, `preview`, and `production`.
 
-Set these in Vercel project settings (`Production` + `Preview` as applicable):
+Set these in Vercel project settings (`Development`, `Preview`, and `Production`
+as applicable):
 
 - Core:
   - `NEXT_PUBLIC_SUPABASE_URL`
@@ -136,6 +139,8 @@ Set the following values in Vercel `Production` (only):
 - `SUPABASE_SERVICE_ROLE_KEY=<production-server-key>`
 
 Keep Vercel `Preview` mapped to staging Supabase values.
+Keep Vercel `Development` mapped to the dedicated `working-development`
+Supabase project values.
 
 GitHub Environment naming rule:
 - use only `production` and `staging` for GitHub Environment secrets and workflow inputs
@@ -174,8 +179,8 @@ node scripts/check_vercel_env_contract.mjs
 ```
 
 Current default behavior:
-- audits `preview` only by default to keep staging validation lightweight during normal work.
-- keeps `production` checks available for production cutover, post-cutover verification, and later drift audits.
+- audits `development`, `preview`, and `production` by default so branch-to-environment drift is caught across the full 3-project ladder.
+- still allows narrower targeted audits when a task only needs one environment.
 
 Optional production-inclusive audit:
 
@@ -193,6 +198,9 @@ Behavior:
 - Hard-fails when required deploy keys are missing in the audited environment(s).
 - Hard-fails when local/tooling-only keys are stored in Vercel project envs.
 - Hard-fails when environment-specific deploy keys are shared across `development`, `preview`, and `production`.
+- When both `development` and `preview` are audited, hard-fails when they resolve
+  the same values for the Supabase/base-URL keys that must remain
+  environment-specific.
 - When both `preview` and `production` are audited, hard-fails when they resolve the same values for the Supabase/base-URL keys that must remain environment-specific.
 - Hard-fails when mirrored client/server live runtime flags diverge.
 

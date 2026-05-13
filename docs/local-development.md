@@ -14,6 +14,10 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
 1. Create `frontend/.env.local`.
    - Preferred when the repo is linked to Vercel: from the repo root run
      `vercel env pull frontend/.env.local --environment development`
+   - In the current 3-project posture, Vercel `development` is the dedicated
+     `working-development` Supabase project, Vercel `preview` stays on the
+     staging Supabase project, and Vercel `production` stays on the production
+     Supabase project.
    - Fallback/manual path: copy `frontend/.env.example` to `frontend/.env.local`.
 2. Set required values:
    - `NEXT_PUBLIC_SUPABASE_URL`
@@ -56,9 +60,19 @@ Never commit `.env.local`.
 
 For local script automation, you can optionally create a root-level `.env.agent.local` (gitignored) using `.env.agent.local.example`. Probe helpers auto-load this file.
 
-`.env.agent.local` is for local probe/audit tooling only. Keep staging helper URLs, localhost script base URLs, Vercel API tokens, protection bypass tokens, and similar operator-only values there instead of in Vercel project envs.
+`.env.agent.local` is for local probe/audit tooling only. Keep dedicated development/staging/production operator database targets, staging helper URLs, localhost script base URLs, Vercel API tokens, protection bypass tokens, and similar operator-only values there instead of in Vercel project envs.
 
 Examples that belong in `.env.agent.local`, not `frontend/.env.local`:
+- `SHORTPULSE_DEVELOPMENT_DB_URL`
+- `SHORTPULSE_DEVELOPMENT_SUPABASE_URL`
+- `SHORTPULSE_DEVELOPMENT_SUPABASE_ANON_KEY`
+- `SHORTPULSE_DEVELOPMENT_SUPABASE_SERVICE_ROLE_KEY`
+- `SHORTPULSE_STAGING_SUPABASE_URL`
+- `SHORTPULSE_STAGING_SUPABASE_ANON_KEY`
+- `SHORTPULSE_STAGING_SUPABASE_SERVICE_ROLE_KEY`
+- `SHORTPULSE_PRODUCTION_SUPABASE_URL`
+- `SHORTPULSE_PRODUCTION_SUPABASE_ANON_KEY`
+- `SHORTPULSE_PRODUCTION_SUPABASE_SERVICE_ROLE_KEY`
 - `SHORTPULSE_STAGING_BASE_URL`
 - `SHORTPULSE_STAGING_BEARER_TOKEN`
 - Vercel operator/protection-bypass tokens
@@ -104,11 +118,17 @@ npm run dev
 - Use Supabase CLI for Supabase access in this repo.
 - Do not use Docker-based local Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 - For hosted schema operations, use explicit target pinning (`--linked` or `--db-url`) as described in `docs/database-migrations.md`.
+- The current local default Supabase link should point to the dedicated
+  `working-development` project. Verify with `supabase projects list` and
+  prefer that direct CLI evidence over stale cache files under `supabase/.temp/`.
 
 ## Bootstrap Supabase (optional)
 
 - Minimal scripts: `sql/create_saved_creators_table.sql` and `sql/storage_policies.sql`
 - Combined schema: `docs/supabase_full_schema.sql`
+- If you bootstrap development from a staging schema-only copy, run
+  `bash scripts/ops/supabase_public_acl_sync.sh --source-label staging --target-label development`
+  afterward so `service_role`, `authenticated`, and `anon` grant posture matches staging.
 - Required billing/generation migrations for current API behavior:
   - `sql/migrations/001_add_studio_10000_credit_package.sql`
   - `sql/migrations/002_add_generation_credit_reservations.sql`

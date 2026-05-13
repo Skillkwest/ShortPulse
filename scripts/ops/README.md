@@ -6,11 +6,14 @@ Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverabl
 
 - `bash scripts/ops/vercel_env_audit.sh`
   - Wrapper around the shared Vercel contract audit with ShortPulse defaults.
-  - Default scope: `preview` + `production`.
+  - Default scope: `development` + `preview` + `production`.
 - `bash scripts/ops/github_env_audit.sh`
   - Lists GitHub Environment secret names and ruleset-aware release-branch protection state.
 - `bash scripts/ops/supabase_public_schema_parity.sh`
   - Compares table, routine, and policy presence by schema name.
+- `bash scripts/ops/supabase_public_acl_sync.sh`
+  - Copies live `public` grant/revoke posture from one hosted Supabase database to another.
+  - Useful after schema-only bootstrap when object parity passes but service-role or client grants are missing.
 - `bash scripts/ops/supabase_rowcount_diff.sh`
   - Compares exact `COUNT(*)` totals for shared tables across staging/production.
 - `bash scripts/ops/supabase_storage_parity.sh`
@@ -32,13 +35,14 @@ Purpose: keep Nuclo's reusable environment and cutover audit scripts discoverabl
 1. `bash scripts/ops/vercel_env_audit.sh`
 2. `bash scripts/ops/github_env_audit.sh`
 3. `bash scripts/ops/supabase_public_schema_parity.sh --source-label staging --target-label production`
-4. `bash scripts/ops/supabase_rowcount_diff.sh --source-label staging --target-label production`
-5. `bash scripts/ops/supabase_storage_parity.sh --bucket media_library --source-label staging --target-label production`
-6. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode size`
-7. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode copy`
-8. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode check`
-9. `bash scripts/ops/supabase_hot_table_delta_sync.sh`
-10. `bash scripts/ops/supabase_media_generation_delta_sync.sh`
+4. `bash scripts/ops/supabase_public_acl_sync.sh --source-label staging --target-label development`
+5. `bash scripts/ops/supabase_rowcount_diff.sh --source-label staging --target-label production`
+6. `bash scripts/ops/supabase_storage_parity.sh --bucket media_library --source-label staging --target-label production`
+7. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode size`
+8. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode copy`
+9. `bash scripts/ops/supabase_storage_rclone_sync.sh --bucket media_library --mode check`
+10. `bash scripts/ops/supabase_hot_table_delta_sync.sh`
+11. `bash scripts/ops/supabase_media_generation_delta_sync.sh`
 
 ## Post-Rotation Validation
 

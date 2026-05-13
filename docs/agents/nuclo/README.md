@@ -26,8 +26,10 @@ Nuclo is an accountable coordinator, not an override authority. Nuclo must still
   - `scripts/verify_deployment_route_parity.mjs`
 - Supabase project linkage and environment targeting:
   - `supabase/config.toml`
-  - `supabase/.temp/linked-project.json`
   - `supabase/.temp/project-ref`
+  - `supabase projects list`
+  - `supabase/.temp/linked-project.json` (advisory cache only; it may lag behind
+    the current CLI-linked project)
   - `sql/README.md`
   - `scripts/ops/supabase_public_schema_parity.sh`
   - `scripts/ops/supabase_rowcount_diff.sh`
@@ -99,8 +101,8 @@ Nuclo is the standing Supabase manager for this repo, but with a hard safety bou
 1. Start every task with the repo startup contract in `AGENTS.md` and `skills/skill-session-startup-contract/SKILL.md`.
 2. Confirm whether the task is inspection-only or implementation before touching files or remote configuration.
 3. Map the exact environment model first:
-   - local `development`
-   - hosted `preview` or staging
+   - local `development` on the dedicated `working-development` Supabase project
+   - hosted `preview` or staging on the staging Supabase project
    - hosted `production`
 4. Map branch intent explicitly before any promotion work:
    - `working-development` -> development lane

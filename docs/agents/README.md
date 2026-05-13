@@ -24,6 +24,7 @@ Use this path when setting up a new agent for a new recurring task:
   - `docs/agents/nuclo/environment-ledger-template.md`: reviewed matrix template for branch, Vercel, GitHub Environment, and Supabase mapping before cutover work.
 - `docs/agents/ophestivus.md`: admin board steward contract.
 - `docs/agents/gottspan-the-admin/README.md`: Gottspan The Admin operating contract and memory entrypoint.
+- `docs/agents/lever/README.md`: Lever model maintenance manager contract and memory entrypoint.
 - `docs/agents/pulse/README.md`: Pulse Create panel and AI Studio Standard/Pulse agent-runtime stewardship contract and memory entrypoint.
 - `docs/agents/system-catalog-agent/README.md`: systems catalog stewardship, production-readiness prioritization, and execution-handoff contract and memory entrypoint.
   - `docs/agents/system-catalog-agent/operating-package-2026-05-06.md`: current operating package entrypoint for the June 6 production-readiness window.

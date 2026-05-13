@@ -24,6 +24,14 @@ This folder stores raw payload inputs and other non-authoritative agent artifact
 - `docs/records/artifacts/agent/pulse/sops.md`
 - `docs/records/artifacts/agent/pulse/training-history.md`
 - `docs/records/artifacts/agent/pulse/tools.md`
+- `docs/records/artifacts/agent/lever/README.md`
+- `docs/records/artifacts/agent/lever/memory.md`
+- `docs/records/artifacts/agent/lever/reports/README.md`
+- `docs/records/artifacts/agent/lever/run-log.md`
+- `docs/records/artifacts/agent/lever/baseline-kpi.md`
+- `docs/records/artifacts/agent/lever/sops.md`
+- `docs/records/artifacts/agent/lever/training-history.md`
+- `docs/records/artifacts/agent/lever/tools.md`
 - `docs/records/artifacts/agent/system-catalog-agent/README.md`
 - `docs/records/artifacts/agent/system-catalog-agent/memory.md`
 - `docs/records/artifacts/agent/system-catalog-agent/reports/README.md`

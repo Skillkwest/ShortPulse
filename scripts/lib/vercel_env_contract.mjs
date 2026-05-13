@@ -14,7 +14,7 @@ const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(MODULE_DIR, "../..");
 
 export const VERCEL_ENVIRONMENTS = ["development", "preview", "production"];
-export const DEFAULT_VERCEL_AUDIT_ENVIRONMENTS = ["preview"];
+export const DEFAULT_VERCEL_AUDIT_ENVIRONMENTS = ["development", "preview", "production"];
 
 export const REQUIRED_VERCEL_KEYS_BY_ENVIRONMENT = Object.freeze({
   development: [
@@ -64,6 +64,15 @@ export const FILE_PROFILE_REQUIRED_KEYS = Object.freeze({
 export const PREVIEW_PRODUCTION_MUST_DIFFER_KEYS = Object.freeze([
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "APP_BASE_URL",
+  "SHORTPULSE_PUBLIC_API_BASE_URL",
+]);
+
+export const DEVELOPMENT_PREVIEW_MUST_DIFFER_KEYS = Object.freeze([
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
   "APP_BASE_URL",
   "SHORTPULSE_PUBLIC_API_BASE_URL",
 ]);

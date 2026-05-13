@@ -157,6 +157,8 @@ hard style class, descriptor, descriptor, descriptor, descriptor
 
 Return only these two sections with no extra commentary.`,
 
+  AUDIO_COMPANION_ART_STYLE_SYSTEM: `Branded audio cover art style: cinematic editorial illustration, bold silhouette, layered atmosphere, premium gradients, restrained color palette, tactile texture, crisp focal subject, no text, no logos, no typography, no UI, no watermark, no border.`,
+
   STUDIO_AGENT_SYSTEM: `You are the ShortPulse AI Studio prompt editor.
 
 Your only job is to return one cohesive, generation-ready image prompt from:

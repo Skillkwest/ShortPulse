@@ -16,6 +16,7 @@ import {
   LOCAL_OR_TOOLING_ONLY_KEYS,
   MIRRORED_FLAG_PAIRS,
   PREVIEW_PRODUCTION_MUST_DIFFER_KEYS,
+  DEVELOPMENT_PREVIEW_MUST_DIFFER_KEYS,
   SENSITIVE_PRESENCE_ONLY_KEYS,
   TARGET_SCOPED_VERCEL_KEYS,
   VERCEL_ENVIRONMENTS,
@@ -43,6 +44,9 @@ Options:
                            Default: ${DEFAULT_VERCEL_AUDIT_ENVIRONMENTS.join(", ")}
                            Available: ${VERCEL_ENVIRONMENTS.join(", ")}
   --git-branch <name>      Optional branch-specific preview audit target.
+                           Default when preview is included: ${
+                             process.env.SHORTPULSE_VERCEL_PREVIEW_BRANCH?.trim() || "staging-preview"
+                           }
   --env-file <path>        Optional env file path (repeatable). Parsed by shared loader.
   --help                   Show this message.
 `);
@@ -63,7 +67,7 @@ const parseArgs = (argv) => {
       process.env.VERCEL_API_TOKEN?.trim() ??
       "",
     environments: [],
-    gitBranch: "",
+    gitBranch: process.env.SHORTPULSE_VERCEL_PREVIEW_BRANCH?.trim() || "staging-preview",
     help: false,
   };
 
@@ -255,18 +259,23 @@ const main = async () => {
     }
   }
 
-  const previewMap = keysByTarget.get("preview");
-  const productionMap = keysByTarget.get("production");
-  if (previewMap && productionMap) {
-    for (const key of PREVIEW_PRODUCTION_MUST_DIFFER_KEYS) {
-      if (!previewMap.has(key) || !productionMap.has(key)) continue;
-      if (sameValue(previewMap.get(key), productionMap.get(key))) {
+  const requireDistinctValues = (leftEnvironment, rightEnvironment, keys) => {
+    const leftMap = keysByTarget.get(leftEnvironment);
+    const rightMap = keysByTarget.get(rightEnvironment);
+    if (!leftMap || !rightMap) return;
+
+    for (const key of keys) {
+      if (!leftMap.has(key) || !rightMap.has(key)) continue;
+      if (sameValue(leftMap.get(key), rightMap.get(key))) {
         errors.push(
-          `${key} has the same resolved value in preview and production. Expected environment-specific values.`
+          `${key} has the same resolved value in ${leftEnvironment} and ${rightEnvironment}. Expected environment-specific values.`
         );
       }
     }
-  }
+  };
+
+  requireDistinctValues("development", "preview", DEVELOPMENT_PREVIEW_MUST_DIFFER_KEYS);
+  requireDistinctValues("preview", "production", PREVIEW_PRODUCTION_MUST_DIFFER_KEYS);
 
   for (const environment of args.environments) {
     const envMap = keysByTarget.get(environment) ?? new Map();

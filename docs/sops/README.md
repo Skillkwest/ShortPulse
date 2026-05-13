@@ -66,6 +66,7 @@ Reusable cross-agent onboarding and training guidance lives under `agent-teachin
 - `docs/sops/sop_admin_user_health_fleet_staging_walkthrough.md`
 - `docs/sops/sop_generation_recovery_diagnostics.md`
 - `docs/sops/sop_provider_incident_response.md`
+- `docs/sops/sop_lever_model_management.md`
 - `docs/sops/sop_new_model_ingestion.md`
 - `docs/sops/sop_model_api_contract_reverification.md`
 - `docs/sops/sop_model_retirement.md`

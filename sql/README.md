@@ -51,6 +51,7 @@ Use:
 - `sql/check_character_sheet_alias_drift.sql`
 - other nearby `sql/check_*.sql`
 - plus `scripts/ops/supabase_public_schema_parity.sh` when staging/production comparison matters
+- plus `scripts/ops/supabase_public_acl_sync.sh` after schema-only bootstrap when grants, function execute posture, or service-role worker access must match another hosted environment
 
 ### Hosted Scheduler Work
 

@@ -221,4 +221,111 @@ describe("POST /api/internal/billing-contract-renewals/run", () => {
       })
     );
   });
+
+  it("allocates monthly credits for due annual Stripe contracts and advances the cursor", async () => {
+    const contractUpdate = vi.fn();
+    contractUpdate.mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    });
+
+    const emptyDueContractsResult = {
+      data: [],
+      error: null,
+    };
+    const dueQueryResult = {
+      order: vi.fn().mockReturnValue({
+        limit: vi.fn().mockResolvedValue(emptyDueContractsResult),
+      }),
+    };
+    const annualContractsResult = {
+      data: [
+        {
+          id: "annual-contract-1",
+          user_id: "user-annual",
+          plan_id: "studio",
+          stripe_customer_id: "cus_annual",
+          monthly_credits_cents: 3000,
+          billing_interval: "year",
+          current_period_start: "2026-03-01T00:00:00.000Z",
+          current_period_end: "2027-03-01T00:00:00.000Z",
+          last_credit_grant_at: "2026-03-01T00:00:00.000Z",
+          next_credit_grant_at: "2026-04-01T00:00:00.000Z",
+          status: "active",
+          contract_source: "stripe",
+        },
+      ],
+      error: null,
+    };
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "billing_subscription_contracts") {
+          const annualQueryResult = {
+            is: vi.fn().mockReturnValue({
+              not: vi.fn().mockReturnValue({
+                lte: () => ({
+                  order: () => ({
+                    limit: async () => annualContractsResult,
+                  }),
+                }),
+              }),
+            }),
+          };
+          const secondEqResult = {
+            eq: vi.fn().mockReturnValue(annualQueryResult),
+            is: vi.fn().mockReturnValue(dueQueryResult),
+          };
+          return {
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                eq: vi.fn().mockReturnValue(secondEqResult),
+              }),
+            }),
+            update: contractUpdate,
+          };
+        }
+        if (table === "billing_profiles") {
+          return {
+            upsert: vi.fn().mockResolvedValue({ error: null }),
+          };
+        }
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        authorization: "Bearer secret",
+      },
+    };
+    const res = createMockResponse();
+    await handler(req as never, res as never);
+
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-annual",
+        changeCents: 3000,
+        source: "annual_contract_monthly_allocation",
+      })
+    );
+    expect(contractUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        last_credit_grant_at: "2026-04-01T00:00:00.000Z",
+        next_credit_grant_at: "2026-05-01T00:00:00.000Z",
+        updated_by_user_id: null,
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        scannedContracts: 0,
+        scannedAnnualContracts: 1,
+        annualDueContracts: 1,
+        annualAdvancedContracts: 1,
+        grantsInserted: 1,
+      })
+    );
+  });
 });

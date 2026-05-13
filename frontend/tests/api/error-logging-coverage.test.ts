@@ -25,12 +25,12 @@ const ALLOWLIST_LOCATIONS = new Set<string>([
   // into deterministic 4xx-safe field errors rather than route-fault telemetry.
   "media/copy-from-url.ts:190",
   "media/copy-from-url.ts:191",
-  "media/copy-from-url.ts:1088",
-  "media/copy-from-url.ts:1113",
-  "media/copy-from-url.ts:1275",
-  "media/copy-from-url.ts:1300",
-  "media/copy-from-url.ts:1355",
-  "media/copy-from-url.ts:1377",
+  "media/copy-from-url.ts:1090",
+  "media/copy-from-url.ts:1115",
+  "media/copy-from-url.ts:1277",
+  "media/copy-from-url.ts:1302",
+  "media/copy-from-url.ts:1357",
+  "media/copy-from-url.ts:1379",
 ]);
 
 const LOG_CALL_PATTERNS = [

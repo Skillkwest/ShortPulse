@@ -61,6 +61,13 @@ const normalizeDroppedImageCandidate = (value: string | null | undefined) => {
   return normalized;
 };
 
+const normalizeDurableDroppedImageCandidate = (value: string | null | undefined) => {
+  const normalized = normalizeDroppedImageCandidate(value);
+  if (!normalized) return null;
+  if (normalized.startsWith("blob:") || normalized.startsWith("data:")) return null;
+  return normalized;
+};
+
 const resolveDroppedImageUrls = (candidates: Array<string | null | undefined>) => {
   return Array.from(
     new Set(
@@ -277,12 +284,12 @@ export const useAiStudioAgentComposer = ({
           const droppedReferenceId =
             composerImagePayload.outputId ?? composerImagePayload.referenceId ?? null;
           const matchedOutput = droppedReferenceId ? findOutputById(droppedReferenceId) : null;
-          const matchedOutputImageUrl = matchedOutput
-            ? resolveReferenceTransferUrl(matchedOutput, "image")
-            : null;
-          const resolvedPreviewUrl = droppedReferenceId
-            ? resolveOutputPreviewUrlById(droppedReferenceId)
-            : null;
+          const matchedOutputImageUrl = normalizeDurableDroppedImageCandidate(
+            matchedOutput ? resolveReferenceTransferUrl(matchedOutput, "image") : null
+          );
+          const referenceUrl = normalizeDurableDroppedImageCandidate(
+            composerImagePayload.referenceUrl
+          );
           const normalizedPromptText =
             composerImagePayload.promptText?.trim() ||
             matchedOutput?.prompt?.trim() ||
@@ -290,13 +297,9 @@ export const useAiStudioAgentComposer = ({
             null;
           const orderedImageUrls = buildAgentAttachmentImageCandidates({
             imageUrl: displayArtifactUrl,
-            imageFallbackUrls: resolveDroppedImageUrls([
-              composerImagePayload.referenceUrl,
-              matchedOutputImageUrl,
-              resolvedPreviewUrl,
-            ]),
+            imageFallbackUrls: resolveDroppedImageUrls([referenceUrl, matchedOutputImageUrl]),
             referenceRenderUrl: displayArtifactUrl,
-            referenceUrl: composerImagePayload.referenceUrl ?? matchedOutputImageUrl ?? null,
+            referenceUrl: referenceUrl ?? matchedOutputImageUrl ?? null,
           });
           const normalizedImageUrl = orderedImageUrls[0] ?? null;
 
@@ -316,7 +319,7 @@ export const useAiStudioAgentComposer = ({
             mediaId: composerImagePayload.mediaId ?? null,
             previewStoragePath: composerImagePayload.previewStoragePath ?? null,
             fullStoragePath: composerImagePayload.fullStoragePath ?? null,
-            referenceUrl: composerImagePayload.referenceUrl ?? matchedOutputImageUrl ?? null,
+            referenceUrl: referenceUrl ?? matchedOutputImageUrl ?? null,
             referenceRenderUrl: displayArtifactUrl,
             imageUrl: normalizedImageUrl,
             imageFallbackUrls: orderedImageUrls.slice(1),

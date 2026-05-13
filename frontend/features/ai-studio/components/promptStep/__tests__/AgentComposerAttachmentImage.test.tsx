@@ -42,4 +42,40 @@ describe("AgentComposerAttachmentImage", () => {
       expect(img?.getAttribute("src")).toBe("https://example.com/fallback.png");
     });
   });
+
+  it("keeps the recovered fallback preview across rerenders with equivalent candidates", async () => {
+    const attachment = {
+      id: "att-1",
+      kind: "image" as const,
+      referenceId: "out-1",
+      imageUrl: "https://example.com/stale.png",
+      imageFallbackUrls: ["https://example.com/fallback.png"],
+      text: null,
+      aspect: null,
+    };
+
+    const { container, rerender } = render(
+      <AgentComposerAttachmentImage attachment={attachment} />
+    );
+
+    const img = container.querySelector("img");
+    fireEvent.error(img as HTMLImageElement);
+
+    await waitFor(() => {
+      expect(img?.getAttribute("src")).toBe("https://example.com/fallback.png");
+    });
+
+    rerender(
+      <AgentComposerAttachmentImage
+        attachment={{
+          ...attachment,
+          imageFallbackUrls: [...attachment.imageFallbackUrls],
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(img?.getAttribute("src")).toBe("https://example.com/fallback.png");
+    });
+  });
 });

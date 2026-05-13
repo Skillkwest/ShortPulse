@@ -190,36 +190,6 @@ describe("sessionSnapshotHydrator", () => {
     );
   });
 
-  it("normalizes transient autosave failure state during hydration", () => {
-    const payload = buildAiStudioSessionHydrationPayload(
-      createSnapshot({
-        outputs: {
-          ...createSnapshot().outputs,
-          active: [
-            {
-              id: "out-1",
-              prompt: "one",
-              mode: "image",
-              aspect: "1:1",
-              model: "fal:foo",
-              status: "ready",
-              timestamp: "t1",
-              saveState: "failed",
-              saveError: "Signed URL expired.",
-            },
-          ],
-        },
-      })
-    );
-
-    expect(payload.outputs.active[0]).toEqual(
-      expect.objectContaining({
-        saveState: "idle",
-        saveError: null,
-      })
-    );
-  });
-
   it("hydrates pulse runtime workspace fields", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

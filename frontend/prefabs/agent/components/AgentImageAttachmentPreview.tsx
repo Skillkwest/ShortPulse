@@ -30,11 +30,12 @@ export const AgentImageAttachmentPreview: React.FC<AgentImageAttachmentPreviewPr
       ),
     [sources, src]
   );
+  const candidateSourcesKey = React.useMemo(() => candidateSources.join("\n"), [candidateSources]);
   const [activeSourceIndex, setActiveSourceIndex] = React.useState(0);
 
   React.useEffect(() => {
     setActiveSourceIndex(0);
-  }, [candidateSources]);
+  }, [candidateSourcesKey]);
 
   const resolvedSrc = candidateSources[activeSourceIndex] ?? null;
   const resolvedDebugLabel = debugLabel ?? formatPerfAuditDebugLine("chip", resolvedSrc);

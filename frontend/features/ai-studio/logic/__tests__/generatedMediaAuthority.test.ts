@@ -222,6 +222,106 @@ describe("generatedMediaAuthority", () => {
     });
   });
 
+  it("promotes published storage authority when projection delivery is remote-only", async () => {
+    getSignedMediaUrlsBatchMock.mockResolvedValue(
+      new Map([
+        [
+          "user-1/generations/videos/gen-request-durable-1/full.mp4",
+          "https://signed.test/request-durable-full.mp4",
+        ],
+        [
+          "user-1/variants/videos/media-request-durable-1/poster_720.jpg",
+          "https://signed.test/request-durable-poster.jpg",
+        ],
+      ])
+    );
+    const projectionIdentityBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-request-durable-1",
+      },
+      error: null,
+    });
+    const projectionDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://fal.test/request-durable-preview.mp4",
+        result_urls: ["https://fal.test/request-durable-full.mp4"],
+        preview_storage_path: null,
+        full_storage_path: null,
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+    const publicationBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          owned_media_file_id: "media-request-durable-1",
+          preview_url: null,
+          full_url: null,
+          preview_storage_path: "user-1/generations/videos/gen-request-durable-1/full.mp4",
+          full_storage_path: "user-1/generations/videos/gen-request-durable-1/full.mp4",
+          created_at: "2026-05-13T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const mediaFileBuilder = createAwaitableSelectBuilder({
+      data: {
+        id: "media-request-durable-1",
+        storage_path: "user-1/generations/videos/gen-request-durable-1/full.mp4",
+        file_type: "video",
+        filename: "request-durable.mp4",
+        poster_variant_path: "user-1/variants/videos/media-request-durable-1/poster_720.jpg",
+        preview_variant_path: null,
+      },
+      error: null,
+    });
+
+    const generationProjectionSelect = vi
+      .fn()
+      .mockImplementationOnce(() => projectionIdentityBuilder)
+      .mockImplementationOnce(() => projectionDeliveryBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: generationProjectionSelect,
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationBuilder),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaFileBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        requestId: "req-visible-durable-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-request-durable-1",
+      previewUrl: "https://signed.test/request-durable-full.mp4",
+      previewPosterUrl: "https://signed.test/request-durable-poster.jpg",
+      previewPosterStoragePath: "user-1/variants/videos/media-request-durable-1/poster_720.jpg",
+      companionArtUrl: null,
+      companionArtStoragePath: null,
+      companionArtStatus: null,
+      previewStoragePath: "user-1/variants/videos/media-request-durable-1/poster_720.jpg",
+      fullStoragePath: "user-1/generations/videos/gen-request-durable-1/full.mp4",
+      resultUrls: ["https://signed.test/request-durable-full.mp4"],
+    });
+  });
+
   it("re-signs storage-backed projection delivery before returning single-generation reconcile", async () => {
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([

@@ -175,10 +175,7 @@ describe("useAiStudioAgentComposer", () => {
       referenceId: "out-1",
       mediaId: "media-1",
       imageUrl: "blob:resolved-artifact",
-      imageFallbackUrls: [
-        "https://signed.example.com/generated.png",
-        "https://weak.example.com/preview.png",
-      ],
+      imageFallbackUrls: ["https://signed.example.com/generated.png"],
       previewStoragePath: "user-1/generated/preview.png",
       fullStoragePath: "user-1/generated/full.png",
       referenceUrl: "https://signed.example.com/generated.png",

@@ -1148,17 +1148,32 @@ export const resolveVisibleGenerationDeliveryByGenerationId = async ({
         const needsVideoPoster =
           !projectionDelivery.previewPosterStoragePath &&
           projectionUrls.some((url) => isVideoUrl(url));
-        if (needsVideoPoster && resolvedUserId) {
+        const needsPublishedStorageAuthority =
+          resolvedUserId &&
+          (!projectionDelivery.previewStoragePath || !projectionDelivery.fullStoragePath);
+        if ((needsVideoPoster || needsPublishedStorageAuthority) && resolvedUserId) {
           const publishedDelivery = await resolvePublishedGenerationDeliveryByGenerationId({
             supabase,
             generationId,
             userId: resolvedUserId,
           });
-          if (publishedDelivery?.previewPosterStoragePath) {
+          if (publishedDelivery) {
             return await signVisibleGenerationDelivery({
               ...projectionDelivery,
-              previewPosterStoragePath: publishedDelivery.previewPosterStoragePath,
-              previewStoragePath: publishedDelivery.previewPosterStoragePath,
+              previewPosterUrl:
+                projectionDelivery.previewPosterUrl ?? publishedDelivery.previewPosterUrl,
+              previewPosterStoragePath:
+                projectionDelivery.previewPosterStoragePath ??
+                publishedDelivery.previewPosterStoragePath,
+              companionArtStoragePath:
+                projectionDelivery.companionArtStoragePath ??
+                publishedDelivery.companionArtStoragePath,
+              companionArtStatus:
+                projectionDelivery.companionArtStatus ?? publishedDelivery.companionArtStatus,
+              previewStoragePath:
+                projectionDelivery.previewStoragePath ?? publishedDelivery.previewStoragePath,
+              fullStoragePath:
+                projectionDelivery.fullStoragePath ?? publishedDelivery.fullStoragePath,
             });
           }
         }

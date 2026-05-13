@@ -366,14 +366,8 @@ const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput =>
     generationId: output.generationId,
     promptId: output.promptId,
     savedMediaIds: output.savedMediaIds,
-    saveState:
-      output.saveState === "saved" ||
-      (Array.isArray(output.savedMediaIds) &&
-        output.savedMediaIds.length > 0 &&
-        output.saveState === "failed")
-        ? "saved"
-        : "idle",
-    saveError: null,
+    saveState: output.saveState,
+    saveError: output.saveError ?? null,
     status: output.status,
     timestamp: output.timestamp,
     taskId: output.taskId,

@@ -734,6 +734,156 @@ const upsertVideoPosterVariant = async ({
   return storagePath;
 };
 
+const canvasToBlob = (
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+  quality: number
+): Promise<Blob | null> =>
+  new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), mimeType, quality);
+  });
+
+const extractVideoPosterBlob = async (videoBlob: Blob): Promise<Blob | null> => {
+  if (
+    typeof document === "undefined" ||
+    typeof URL === "undefined" ||
+    typeof URL.createObjectURL !== "function"
+  ) {
+    return null;
+  }
+
+  const objectUrl = URL.createObjectURL(videoBlob);
+  const video = document.createElement("video");
+  const videoMimeType = videoBlob.type.trim();
+  if (
+    videoMimeType &&
+    typeof video.canPlayType === "function" &&
+    !video.canPlayType(videoMimeType)
+  ) {
+    URL.revokeObjectURL(objectUrl);
+    return null;
+  }
+  video.preload = "metadata";
+  video.muted = true;
+  video.playsInline = true;
+  video.crossOrigin = "anonymous";
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const cleanup = () => {
+        video.onloadeddata = null;
+        video.onerror = null;
+      };
+      video.onloadeddata = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve();
+      };
+      video.onerror = () => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(new Error("Video poster frame could not be decoded."));
+      };
+      video.src = objectUrl;
+    });
+
+    if (video.videoWidth <= 0 || video.videoHeight <= 0) {
+      throw new Error("Video poster frame dimensions are unavailable.");
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("Video poster frame canvas context is unavailable.");
+    }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const posterBlob = await canvasToBlob(canvas, "image/jpeg", 0.92);
+    if (!posterBlob) {
+      throw new Error("Video poster frame blob generation failed.");
+    }
+    return posterBlob;
+  } finally {
+    video.removeAttribute("src");
+    URL.revokeObjectURL(objectUrl);
+  }
+};
+
+const upsertVideoPosterVariantFromVideoBlob = async ({
+  supabase,
+  userId,
+  mediaFileId,
+  videoBlob,
+}: {
+  supabase: ReturnType<typeof ensureSupabaseQueryClient>;
+  userId: string;
+  mediaFileId: string;
+  videoBlob: Blob;
+}): Promise<string | null> => {
+  const posterBlob = await extractVideoPosterBlob(videoBlob);
+  if (!posterBlob) return null;
+
+  const storagePath = assertUserScopedMediaStoragePath({
+    path: `${userId}/variants/videos/${mediaFileId}/poster_720.jpg`,
+    userId,
+    label: "AI Studio generated video poster storage path",
+  });
+
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, posterBlob, {
+      upsert: true,
+      contentType: "image/jpeg",
+    });
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const dimensions = await readImageDimensionsFromBlob(posterBlob);
+  const byteSize = Number.isFinite(posterBlob.size) ? posterBlob.size : null;
+
+  const { error: variantError } = await supabase.from("media_asset_variants").upsert(
+    {
+      media_file_id: mediaFileId,
+      user_id: userId,
+      variant_kind: "poster_720",
+      storage_path: storagePath,
+      mime_type: "image/jpeg",
+      width: dimensions?.width ?? null,
+      height: dimensions?.height ?? null,
+      byte_size: byteSize,
+      status: "ready",
+      metadata: {
+        generated_by: "ai_studio_media_persistence",
+        poster_source: "video_blob_frame",
+      },
+    },
+    {
+      onConflict: "media_file_id,variant_kind",
+    }
+  );
+  if (variantError) {
+    throw variantError;
+  }
+
+  const { error: updateError } = await supabase
+    .from("media_files")
+    .update({
+      poster_variant_path: storagePath,
+    })
+    .eq("id", mediaFileId)
+    .eq("user_id", userId);
+  if (updateError) {
+    throw updateError;
+  }
+
+  return storagePath;
+};
+
 const upsertVideoPreviewVariantReference = async ({
   supabase,
   userId,
@@ -1049,14 +1199,24 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       }
       let durablePosterStoragePath = existingRow.posterVariantPath;
       const posterSourceUrl = normalizePosterSourceUrl(existingRow.fileType, input.posterUrlHint);
-      if (existingRow.id && posterSourceUrl && !existingRow.posterVariantPath) {
+      if (existingRow.id && existingRow.fileType === "video" && !existingRow.posterVariantPath) {
         try {
-          durablePosterStoragePath = await upsertVideoPosterVariant({
-            supabase,
-            userId,
-            mediaFileId: existingRow.id,
-            posterSourceUrl,
-          });
+          durablePosterStoragePath = posterSourceUrl
+            ? await upsertVideoPosterVariant({
+                supabase,
+                userId,
+                mediaFileId: existingRow.id,
+                posterSourceUrl,
+              })
+            : await (async () => {
+                const fetched = await fetchBlobWithTimeout(input.url);
+                return await upsertVideoPosterVariantFromVideoBlob({
+                  supabase,
+                  userId,
+                  mediaFileId: existingRow.id,
+                  videoBlob: fetched.blob,
+                });
+              })();
         } catch (error) {
           await logVideoVariantHydrationFailure({
             supabase,
@@ -1232,14 +1392,21 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         }
         let durablePosterStoragePath = existingRow.posterVariantPath;
         const posterSourceUrl = normalizePosterSourceUrl(existingRow.fileType, input.posterUrlHint);
-        if (existingRow.id && posterSourceUrl && !existingRow.posterVariantPath) {
+        if (existingRow.id && fileType === "video" && !existingRow.posterVariantPath) {
           try {
-            durablePosterStoragePath = await upsertVideoPosterVariant({
-              supabase,
-              userId,
-              mediaFileId: existingRow.id,
-              posterSourceUrl,
-            });
+            durablePosterStoragePath = posterSourceUrl
+              ? await upsertVideoPosterVariant({
+                  supabase,
+                  userId,
+                  mediaFileId: existingRow.id,
+                  posterSourceUrl,
+                })
+              : await upsertVideoPosterVariantFromVideoBlob({
+                  supabase,
+                  userId,
+                  mediaFileId: existingRow.id,
+                  videoBlob: blob,
+                });
           } catch (error) {
             await logVideoVariantHydrationFailure({
               supabase,
@@ -1352,14 +1519,21 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     }
   }
   const posterSourceUrl = normalizePosterSourceUrl(fileType, input.posterUrlHint);
-  if (mediaFileId && posterSourceUrl) {
+  if (mediaFileId && fileType === "video") {
     try {
-      delivery.previewPosterStoragePath = await upsertVideoPosterVariant({
-        supabase,
-        userId,
-        mediaFileId,
-        posterSourceUrl,
-      });
+      delivery.previewPosterStoragePath = posterSourceUrl
+        ? await upsertVideoPosterVariant({
+            supabase,
+            userId,
+            mediaFileId,
+            posterSourceUrl,
+          })
+        : await upsertVideoPosterVariantFromVideoBlob({
+            supabase,
+            userId,
+            mediaFileId,
+            videoBlob: blob,
+          });
     } catch (error) {
       await logVideoVariantHydrationFailure({
         supabase,

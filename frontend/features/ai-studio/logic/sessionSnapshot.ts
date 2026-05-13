@@ -420,12 +420,6 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     : resultUrls.length > 0
       ? resultUrls
       : undefined;
-  const hasSavedMediaIds = Array.isArray(output.savedMediaIds) && output.savedMediaIds.length > 0;
-  const persistedSaveState =
-    output.saveState === "saved" || (output.saveState === "failed" && hasSavedMediaIds)
-      ? "saved"
-      : "idle";
-
   return {
     id: output.id,
     prompt: output.prompt,
@@ -438,8 +432,8 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     generationId: output.generationId,
     promptId: output.promptId,
     savedMediaIds: output.savedMediaIds,
-    saveState: persistedSaveState,
-    saveError: null,
+    saveState: output.saveState,
+    saveError: output.saveError ?? null,
     status: output.status,
     timestamp: output.timestamp,
     taskId: output.taskId,

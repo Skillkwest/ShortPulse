@@ -611,8 +611,8 @@ describe("PromptStep agent actions", () => {
     expect(onAgentInputChange).not.toHaveBeenCalled();
   });
 
-  it.skip("falls back to alternate attachment preview URLs when the first image fails", async () => {
-    const { container } = render(
+  it("falls back to alternate attachment preview URLs when the first image fails", async () => {
+    const { container, rerender } = render(
       <PromptStep
         {...baseProps}
         agentAttachmentDropTarget="input"
@@ -634,6 +634,26 @@ describe("PromptStep agent actions", () => {
     expect(image?.getAttribute("src")).toBe("https://cdn.example.com/stale-preview.png");
 
     fireEvent.error(image as HTMLImageElement);
+
+    await waitFor(() => {
+      expect(image?.getAttribute("src")).toBe("https://cdn.example.com/signed-preview.png");
+    });
+
+    rerender(
+      <PromptStep
+        {...baseProps}
+        agentAttachmentDropTarget="input"
+        stagedAttachments={[
+          {
+            id: "attachment-1",
+            kind: "image",
+            imageUrl: "https://cdn.example.com/stale-preview.png",
+            imageFallbackUrls: ["https://cdn.example.com/signed-preview.png"],
+            referenceId: "out-1",
+          },
+        ]}
+      />
+    );
 
     await waitFor(() => {
       expect(image?.getAttribute("src")).toBe("https://cdn.example.com/signed-preview.png");
